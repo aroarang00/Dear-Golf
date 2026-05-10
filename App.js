@@ -195,6 +195,7 @@ const USER_PROFILE_INIT = {
 };
 
 let USER_PROFILE = { ...USER_PROFILE_INIT };
+let _setUserProfile = null;
 
 import { createNavigationContainerRef } from '@react-navigation/native';
 export const navigationRef = createNavigationContainerRef();
@@ -1464,12 +1465,10 @@ function DiaryDetail({ item, onClose }) {
         <View style={dS.photosArea}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={dS.photosLabel}>PHOTOS & VIDEOS</Text>
-            {item.photos.length > 0 && (
-              <TouchableOpacity onPress={() => setEditingPhoto(item.photos[0])}
-                style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>편집</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity onPress={() => setEditingPhoto(item.photos[0])}
+              style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>편집</Text>
+            </TouchableOpacity>
           </View>
           <View style={dS.photosGrid}>
             {item.photos.map((uri, i) => {
@@ -2218,6 +2217,22 @@ function MyPageModal({ visible, onClose }) {
   const [editingDep, setEditingDep] = useState(false);
   const [phone, setPhone] = useState('');
   const [editingPhone, setEditingPhone] = useState(false);
+  const [editingStats, setEditingStats] = useState(false);
+  const [avgScore, setAvgScore] = useState(String(USER_PROFILE.avgScore || ''));
+  const [lifeBest, setLifeBest] = useState(String(USER_PROFILE.lifeBest || ''));
+  const [totalRounds, setTotalRounds] = useState(String(USER_PROFILE.totalRounds || ''));
+
+  const handleSaveStats = () => {
+    const updated = {
+      ...USER_PROFILE,
+      avgScore: Number(avgScore) || 0,
+      lifeBest: Number(lifeBest) || 0,
+      totalRounds: Number(totalRounds) || 0,
+    };
+    USER_PROFILE = { ...updated };
+    if (_setUserProfile) _setUserProfile({ ...updated });
+    setEditingStats(false);
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -2246,19 +2261,69 @@ function MyPageModal({ visible, onClose }) {
               </View>
               <TripleStripe height={1.5} />
               <View style={myS.section}>
-                <Text style={myS.sectionLabel}>나의 통계</Text>
-                <View style={myS.statsRow}>
-                  {[
-                    { label: '총 라운딩', value: DIARY_DATA.length },
-                    { label: '평균타', value: Math.round(DIARY_DATA.reduce((s,d) => s+d.score, 0) / DIARY_DATA.length) },
-                    { label: '베스트', value: Math.min(...DIARY_DATA.map(d => d.score)) },
-                  ].map((st, i) => (
-                    <View key={i} style={myS.statBox}>
-                      <Text style={myS.statVal}>{st.value}</Text>
-                      <Text style={myS.statLabel}>{st.label}</Text>
-                    </View>
-                  ))}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={myS.sectionLabel}>나의 통계</Text>
+                  <View style={{ flex: 1 }} />
+                  {editingStats ? (
+                    <>
+                      <TouchableOpacity onPress={() => {
+                        setAvgScore(String(USER_PROFILE.avgScore || ''));
+                        setLifeBest(String(USER_PROFILE.lifeBest || ''));
+                        setTotalRounds(String(USER_PROFILE.totalRounds || ''));
+                        setEditingStats(false);
+                      }}>
+                        <Text style={{ color: '#8B8680', marginRight: 12, fontSize: 13 }}>취소</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={handleSaveStats}
+                        style={{ backgroundColor: '#6B1E2A', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 }}>
+                        <Text style={{ color: '#F5E6A8', fontSize: 13 }}>저장</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <TouchableOpacity onPress={() => setEditingStats(true)}>
+                      <Text style={{ color: '#6B1E2A', fontSize: 13 }}>수정</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
+                {editingStats ? (
+                  <View>
+                    {[
+                      { label: '평균 타수', value: avgScore, set: setAvgScore, ph: '92' },
+                      { label: '베스트 스코어', value: lifeBest, set: setLifeBest, ph: '78' },
+                      { label: '총 라운딩 수', value: totalRounds, set: setTotalRounds, ph: '0' },
+                    ].map((field, i) => (
+                      <View key={i} style={{ marginBottom: 10 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 4 }}>
+                          {field.label}
+                        </Text>
+                        <TextInput
+                          style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                            borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
+                            fontFamily: F.sys, fontSize: 14, color: C.textPrimary }}
+                          value={field.value}
+                          onChangeText={field.set}
+                          keyboardType="numeric"
+                          placeholder={field.ph}
+                          placeholderTextColor={C.warmGrayLight}
+                          maxLength={4}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={myS.statsRow}>
+                    {[
+                      { label: '총 라운딩', value: USER_PROFILE.totalRounds || DIARY_DATA.length },
+                      { label: '평균타', value: USER_PROFILE.avgScore || Math.round(DIARY_DATA.reduce((s,d) => s+d.score, 0) / DIARY_DATA.length) },
+                      { label: '베스트', value: USER_PROFILE.lifeBest || Math.min(...DIARY_DATA.map(d => d.score)) },
+                    ].map((st, i) => (
+                      <View key={i} style={myS.statBox}>
+                        <Text style={myS.statVal}>{st.value}</Text>
+                        <Text style={myS.statLabel}>{st.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
               <View style={myS.divider} />
               <View style={myS.section}>
@@ -2738,9 +2803,11 @@ export default function App() {
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
 
+  _setUserProfile = setUserProfile;
+
   const handleOnboardingComplete = (data) => {
     USER_PROFILE = { ...data };
-    setUserProfile(data);
+    setUserProfile({ ...data });
     setShowOnboarding(false);
   };
 
