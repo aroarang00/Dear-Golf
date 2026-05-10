@@ -1088,6 +1088,18 @@ function DiaryAddModal({ visible, onClose, onSave }) {
   const [specialDist, setSpecialDist] = useState('');
   const [specialBall, setSpecialBall] = useState('');
   const [specialMemo, setSpecialMemo] = useState('');
+  const [addPhotos, setAddPhotos] = useState([]);
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setAddPhotos(prev => [...prev, ...result.assets.map(a => a.uri)]);
+    }
+  };
 
   const DAYS = ['일','월','화','수','목','금','토'];
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
@@ -1103,6 +1115,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setScoreCardOption('later'); setHoleScores({});
+    setAddPhotos([]);
   };
 
   const [saveError, setSaveError] = useState('');
@@ -1119,6 +1132,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
       score: parseInt(score) || 0, weather, memo, birdieCount, privacy,
       special, specialHole: parseInt(specialHole),
       specialDist, specialBall, specialMemo,
+      photos: addPhotos,
     });
     reset(); onClose();
   };
@@ -1283,6 +1297,22 @@ function DiaryAddModal({ visible, onClose, onSave }) {
                 <TouchableOpacity style={[mS.chip, privacy === 'private' && mS.chipOn]} onPress={() => setPrivacy('private')}>
                   <Text style={[mS.chipTxt, privacy === 'private' && mS.chipTxtOn]}>나만보기</Text>
                 </TouchableOpacity>
+              </View>
+              <View style={{ marginTop: 16, marginBottom: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, marginBottom: 8 }}>
+                  사진 · 영상 (선택)
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {addPhotos.map((uri, i) => (
+                    <Image key={i} source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8, marginRight: 8 }} />
+                  ))}
+                  <TouchableOpacity onPress={pickPhoto}
+                    style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
+                      borderWidth: 0.5, borderColor: C.hairline,
+                      alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 24, color: C.warmGrayLight }}>+</Text>
+                  </TouchableOpacity>
+                </ScrollView>
               </View>
               {saveError ? (
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, textAlign: 'center', marginTop: 12 }}>{saveError}</Text>
@@ -1465,7 +1495,13 @@ function DiaryDetail({ item, onClose }) {
         <View style={dS.photosArea}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={dS.photosLabel}>PHOTOS & VIDEOS</Text>
-            <TouchableOpacity onPress={() => setEditingPhoto(item.photos[0])}
+            <TouchableOpacity onPress={() => {
+              if (item.photos && item.photos.length > 0) {
+                setEditingPhoto(item.photos[0]);
+              } else {
+                setEditingPhoto('add');
+              }
+            }}
               style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
               <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>편집</Text>
             </TouchableOpacity>
@@ -1495,7 +1531,7 @@ function DiaryDetail({ item, onClose }) {
         <View style={{ height: 40 }} />
       </ScrollView>
       {photoViewer && <PhotoViewer photos={item.photos} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
-      {editingPhoto && <PhotoEditor photo={editingPhoto} onClose={() => setEditingPhoto(null)} onSave={() => setEditingPhoto(null)} />}
+      {editingPhoto && editingPhoto !== 'add' && <PhotoEditor photo={editingPhoto} onClose={() => setEditingPhoto(null)} onSave={() => setEditingPhoto(null)} />}
       <GiftModal visible={showGift} onClose={() => setShowGift(false)}
         occasion={isSpecial ? { type: item.special, course: item.course, date: item.date, memo: item.memo } : null}
         companions={item.companions} />
@@ -1781,7 +1817,7 @@ function DiaryScreen({ route, navigation }) {
         special: data.special || null,
         specialHole: data.specialHole || null,
         companions: [{ name: USER_PROFILE.nickname, isMe: true }],
-        photos: [],
+        photos: data.photos || [],
       };
       setDiaries(prev => [newD, ...prev]);
       if (data.special) {
