@@ -1107,13 +1107,14 @@ function DiaryAddModal({ visible, onClose, onSave }) {
   const [saveError, setSaveError] = useState('');
 
   const handleSave = () => {
-    if (!selectedCourse) {
-      setSaveError('골프장을 선택해주세요');
+    const finalCourse = selectedCourse || courseSearch.trim();
+    if (!finalCourse) {
+      setSaveError('골프장을 입력해주세요');
       return;
     }
     setSaveError('');
     onSave('diary', {
-      course: selectedCourse, date: formatDate(date), day: formatDay(date),
+      course: finalCourse, date: formatDate(date), day: formatDay(date),
       score: parseInt(score) || 0, weather, memo, birdieCount, privacy,
       special, specialHole: parseInt(specialHole),
       specialDist, specialBall, specialMemo,
@@ -1134,10 +1135,10 @@ function DiaryAddModal({ visible, onClose, onSave }) {
             <ScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
               <Text style={mS.title}>라운딩 기록 추가</Text>
               <Text style={mS.label}>골프장</Text>
-              <TextInput style={mS.input} placeholder="골프장 이름 검색..."
+              <TextInput style={mS.input} placeholder="골프장 이름 검색 또는 직접 입력..."
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); }} />
-              {searchResults.length > 0 && (
+              {courseSearch.length > 0 && courseSearch !== selectedCourse && (
                 <View style={mS.searchDrop}>
                   {searchResults.map(g => (
                     <TouchableOpacity key={g.id} style={mS.searchItem}
@@ -1146,6 +1147,11 @@ function DiaryAddModal({ visible, onClose, onSave }) {
                       <Text style={mS.searchLoc}>{g.loc}</Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity style={[mS.searchItem, { borderBottomWidth: 0, backgroundColor: C.butter + '33' }]}
+                    onPress={() => { setSelectedCourse(courseSearch.trim()); }}>
+                    <Text style={[mS.searchName, { color: C.burgundy }]}>+ "{courseSearch.trim()}" 직접 입력</Text>
+                    <Text style={mS.searchLoc}>목록에 없는 골프장도 등록 가능</Text>
+                  </TouchableOpacity>
                 </View>
               )}
               <Text style={mS.label}>날짜</Text>
