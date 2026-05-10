@@ -1,0 +1,13 @@
+{memoEntry ? (
+            <TouchableOpacity style={homeS.memoCard} onPress={handleMemoPress} activeOpacity={0.8}>
+              <Text style={homeS.memoTxt}>"{memoEntry.text}"</Text>
+              <Text style={homeS.memoDate}>{memoEntry.date} 쨌 {next.course}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={[homeS.memoCard, homeS.memoCardFirst]}>
+              <Text style={[homeS.memoEye, { color: 'rgba(200,217,230,0.5)' }]}>泥섏쓬 媛??怨녹씠?먯슂</Text>
+              <Text style={[homeS.memoTxt, { color: 'rgba(200,217,230,0.85)', fontStyle: 'normal' }]}>
+                ?ㅻ뒛 ?쇱슫?⑹씠 泥?湲곕줉????嫄곗삁??              </Text>
+            </View>
+          )}
+          <View styl

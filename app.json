@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "dear-golf",
+    "slug": "dear-golf",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "출발지 자동 설정 및 현재 위치 날씨를 위해 위치 권한이 필요해요",
+          "locationWhenInUsePermission": "출발지 자동 설정 및 현재 위치 날씨를 위해 위치 권한이 필요해요"
+        }
+      ]
+    ]
+  }
+}
