@@ -1391,28 +1391,50 @@ function DiaryCard({ item, onPress }) {
 }
 
 // ── 다이어리 상세 ─────────────────────────────────────
-function DiaryDetail({ item, onClose }) {
+function DiaryDetail({ item, onClose, onUpdate }) {
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
-  const [editingPhoto, setEditingPhoto] = useState(null);
   const [showGift, setShowGift] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editScore, setEditScore] = useState(String(item.score || ''));
+  const [editMemo, setEditMemo] = useState(item.memo || '');
+  const [editPhotos, setEditPhotos] = useState(item.photos || []);
   const hasBest = item.badge === 'BEST';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   const me = item.companions?.find(c => c.isMe);
 
-  const pickMedia = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
+  const pickEditPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
-      selectionLimit: 10 - item.photos.length,
       quality: 0.8,
     });
-    if (!result.canceled) console.log('선택:', result.assets.length, '개');
+    if (!result.canceled) {
+      setEditPhotos(prev => [...prev, ...result.assets.map(a => a.uri)]);
+    }
   };
+
+  const handleEditSave = () => {
+    const updated = {
+      ...item,
+      score: Number(editScore) || item.score,
+      memo: editMemo,
+      photos: editPhotos,
+    };
+    onUpdate && onUpdate(updated);
+    setIsEditing(false);
+  };
+
+  const handleEditCancel = () => {
+    setEditScore(String(item.score || ''));
+    setEditMemo(item.memo || '');
+    setEditPhotos(item.photos || []);
+    setIsEditing(false);
+  };
+
+  const photosToShow = isEditing ? editPhotos : item.photos;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }}>
@@ -1426,21 +1448,20 @@ function DiaryDetail({ item, onClose }) {
               <Text style={dS.detailHdrNicknameTxt}>{me.name}</Text>
             </View>
           )}
-          <TouchableOpacity
-            onPress={() => {
-              const options = ['수정', '삭제', '취소'];
-              // 간단한 액션시트 대용 — Alert 사용
-              if (Platform.OS === 'ios') {
-                const { ActionSheetIOS } = require('react-native');
-                ActionSheetIOS.showActionSheetWithOptions(
-                  { options, destructiveButtonIndex: 1, cancelButtonIndex: 2 },
-                  i => { if (i === 1) onClose(); }
-                );
-              }
-            }}
-            style={{ padding: 4 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 18, color: C.warmGrayLight, letterSpacing: 2 }}>⋯</Text>
-          </TouchableOpacity>
+          {isEditing ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={handleEditCancel} style={{ marginRight: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleEditSave}>
+                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '600' }}>저장</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => setIsEditing(true)}>
+              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>수정</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       {isSpecial
@@ -1470,13 +1491,41 @@ function DiaryDetail({ item, onClose }) {
         )}
         <View style={[dS.detailInfoArea, isSpecial && { borderBottomColor: '#C9A84C33' }]}>
           <View style={dS.detailScoreRow}>
-            <Text style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-            <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-            <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
+            {isEditing ? (
+              <>
+                <TextInput
+                  style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' },
+                    { borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingVertical: 0, minWidth: 80 }]}
+                  value={editScore}
+                  onChangeText={setEditScore}
+                  keyboardType="numeric"
+                  maxLength={3}
+                />
+                <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+                <Text style={dS.detailScoreSub}>par {item.par}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+                <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+                <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
+              </>
+            )}
           </View>
           <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
           <View style={[dS.detailMemoBox, isSpecial && { borderLeftColor: '#C9A84C' }]}>
-            <Text style={dS.detailMemoTxt}>"{item.memo}"</Text>
+            {isEditing ? (
+              <TextInput
+                style={[dS.detailMemoTxt, { padding: 0 }]}
+                value={editMemo}
+                onChangeText={setEditMemo}
+                multiline
+                placeholder="메모 입력..."
+                placeholderTextColor={C.warmGrayLight}
+              />
+            ) : (
+              <Text style={dS.detailMemoTxt}>"{item.memo}"</Text>
+            )}
           </View>
           <View style={dS.companionArea}>
             <Text style={dS.companionLabel}>동반자</Text>
@@ -1493,21 +1542,11 @@ function DiaryDetail({ item, onClose }) {
           </View>
         </View>
         <View style={dS.photosArea}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <View style={{ marginBottom: 10 }}>
             <Text style={dS.photosLabel}>PHOTOS & VIDEOS</Text>
-            <TouchableOpacity onPress={() => {
-              if (item.photos && item.photos.length > 0) {
-                setEditingPhoto(item.photos[0]);
-              } else {
-                setEditingPhoto('add');
-              }
-            }}
-              style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>편집</Text>
-            </TouchableOpacity>
           </View>
           <View style={dS.photosGrid}>
-            {item.photos.map((uri, i) => {
+            {photosToShow.map((uri, i) => {
               const src = typeof uri === 'object' ? uri.uri : uri;
               return (
                 <TouchableOpacity key={i} onPress={() => { setViewerStart(i); setPhotoViewer(true); }} style={dS.photoGridItem}>
@@ -1520,18 +1559,19 @@ function DiaryDetail({ item, onClose }) {
                 </TouchableOpacity>
               );
             })}
-            <TouchableOpacity style={[dS.photoGridAdd, { width: (SW - 38) / 2, height: (SW - 38) / 2 }]} onPress={pickMedia}>
-              <Text style={dS.photoGridAddIcon}>+</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 4 }}>
-                사진/영상 추가 ({item.photos.length}/10)
-              </Text>
-            </TouchableOpacity>
+            {isEditing && (
+              <TouchableOpacity style={[dS.photoGridAdd, { width: (SW - 38) / 2, height: (SW - 38) / 2 }]} onPress={pickEditPhoto}>
+                <Text style={dS.photoGridAddIcon}>+</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 4 }}>
+                  사진 추가 ({editPhotos.length}장)
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-      {photoViewer && <PhotoViewer photos={item.photos} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
-      {editingPhoto && editingPhoto !== 'add' && <PhotoEditor photo={editingPhoto} onClose={() => setEditingPhoto(null)} onSave={() => setEditingPhoto(null)} />}
+      {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
       <GiftModal visible={showGift} onClose={() => setShowGift(false)}
         occasion={isSpecial ? { type: item.special, course: item.course, date: item.date, memo: item.memo } : null}
         companions={item.companions} />
@@ -1838,7 +1878,11 @@ function DiaryScreen({ route, navigation }) {
   const best = diaries.length > 0 ? Math.min(...diaries.map(d => d.score)) : 0;
   const tabIdx = TAB_DIARY.findIndex(([k]) => k === tab);
 
-  if (selected) return <DiaryDetail item={selected} onClose={() => setSelected(null)} />;
+  if (selected) return <DiaryDetail item={selected} onClose={() => setSelected(null)}
+    onUpdate={(updated) => {
+      setDiaries(prev => prev.map(d => d.id === updated.id ? updated : d));
+      setSelected(updated);
+    }} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }}>
@@ -2428,73 +2472,6 @@ function MyPageModal({ visible, onClose }) {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// ── 사진 편집 모달 ─────────────────────────────────────
-function PhotoEditor({ photo, onClose, onSave }) {
-  const [filter, setFilter] = useState('original');
-  const [brightness, setBrightness] = useState(1);
-  const [contrast, setContrast] = useState(1);
-  const FILTERS = [{ id: 'original', label: '원본' }, { id: 'bw', label: '흑백' }, { id: 'sepia', label: '세피아' }, { id: 'vivid', label: '비비드' }];
-
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#111' }}>
-        <SafeAreaView>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>취소</Text>
-            </TouchableOpacity>
-            <Text style={{ fontFamily: F.en, fontSize: 16, color: '#fff', fontStyle: 'italic' }}>Edit Photo</Text>
-            <TouchableOpacity onPress={() => onSave({ filter, brightness, contrast })}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter }}>완료</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-        <View style={{ position: 'relative' }}>
-          <Image source={{ uri: photo }} style={{ width: '100%', height: SW * 0.85, opacity: brightness }} resizeMode="cover" />
-          {filter === 'sepia' && <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(112,66,20,0.25)' }} />}
-          {filter === 'vivid' && <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,50,255,0.08)' }} />}
-        </View>
-        <View style={{ flex: 1, padding: 20 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, marginBottom: 12 }}>FILTER</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              {FILTERS.map(f => (
-                <TouchableOpacity key={f.id} onPress={() => setFilter(f.id)} style={{ alignItems: 'center', gap: 6 }}>
-                  <View style={{ width: 60, height: 60, borderRadius: 8, overflow: 'hidden', borderWidth: filter === f.id ? 2 : 0, borderColor: C.butter }}>
-                    <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    {f.id === 'sepia' && <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(112,66,20,0.3)' }} />}
-                    {f.id === 'vivid' && <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,50,255,0.1)' }} />}
-                  </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: filter === f.id ? C.butter : 'rgba(255,255,255,0.4)' }}>{f.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-          {[{ label: '밝기', val: brightness, setVal: setBrightness, color: C.butter }, { label: '대비', val: contrast, setVal: setContrast, color: C.paleSky }].map((s, i) => (
-            <View key={i} style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{s.label}</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: s.color }}>{Math.round((s.val - 0.5) * 200)}%</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <TouchableOpacity onPress={() => s.setVal(Math.max(0.5, s.val - 0.1))}>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 20 }}>−</Text>
-                </TouchableOpacity>
-                <View style={{ flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
-                  <View style={{ width: `${(s.val - 0.5) * 100}%`, height: '100%', backgroundColor: s.color, borderRadius: 2 }} />
-                </View>
-                <TouchableOpacity onPress={() => s.setVal(Math.min(1.5, s.val + 0.1))}>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 20 }}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
     </Modal>
   );
 }
