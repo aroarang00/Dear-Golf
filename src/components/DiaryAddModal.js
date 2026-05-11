@@ -5,8 +5,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { C, F } from '../constants/colors';
 import { GOLF_DB, COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
 import { mS } from '../styles/mS';
+import { UserContext } from '../contexts/UserContext';
 
 export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
+  const { userProfile } = React.useContext(UserContext);
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -32,6 +34,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [specialBall, setSpecialBall] = useState('');
   const [specialMemo, setSpecialMemo] = useState('');
   const [addPhotos, setAddPhotos] = useState([]);
+  const [companions, setCompanions] = useState([]);
+  const [companionInput, setCompanionInput] = useState('');
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -62,6 +66,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
     setPrivacy('friends');
+    setCompanions([]); setCompanionInput('');
   };
 
   useEffect(() => {
@@ -87,6 +92,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setSelectedTags(initial.tags || []);
       setAddPhotos(initial.photos || []);
       setPrivacy(initial.privacy || 'friends');
+      setCompanions(
+        (initial.companions || [])
+          .filter(c => !c.isMe)
+          .map(c => c.name)
+      );
+      setCompanionInput('');
     } else {
       reset();
     }
@@ -121,6 +132,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       starRating,
       tags: selectedTags,
       detailMemo,
+      companions: [
+        { name: userProfile.nickname, isMe: true },
+        ...companions.map(name => ({ name, isMe: false })),
+      ],
       courseId: GOLF_DB.find(g => g.name === finalCourse)?.id || (initial && initial.courseId) || null,
     };
     if (isEdit) {
@@ -228,6 +243,53 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <Text style={mS.label}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={mS.input} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
+              <Text style={mS.label}>동반자 <Text style={{ fontSize: 10, color: '#8B8680' }}>(선택)</Text></Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                <TextInput
+                  style={[mS.input, { flex: 1 }]}
+                  placeholder="이름 입력 후 추가"
+                  placeholderTextColor={C.warmGrayLight}
+                  value={companionInput}
+                  onChangeText={setCompanionInput}
+                  onSubmitEditing={() => {
+                    if (companionInput.trim()) {
+                      setCompanions(prev => [...prev, companionInput.trim()]);
+                      setCompanionInput('');
+                    }
+                  }}
+                />
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: C.charcoal,
+                    borderRadius: 10,
+                    paddingHorizontal: 16,
+                    justifyContent: 'center',
+                  }}
+                  onPress={() => {
+                    if (companionInput.trim()) {
+                      setCompanions(prev => [...prev, companionInput.trim()]);
+                      setCompanionInput('');
+                    }
+                  }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter }}>추가</Text>
+                </TouchableOpacity>
+              </View>
+              {companions.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {companions.map((name, i) => (
+                    <TouchableOpacity key={i}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 4,
+                        backgroundColor: C.charcoal,
+                        borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+                      }}
+                      onPress={() => setCompanions(prev => prev.filter((_, idx) => idx !== i))}>
+                      <Text style={{ fontSize: 12, color: C.butter }}>{name}</Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(245,230,168,0.5)' }}>✕</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               <Text style={mS.label}>날씨</Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {['맑음','흐림','바람','비'].map(w => (
@@ -377,7 +439,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#6B1E2A', textAlign: 'center', marginTop: 8, fontWeight: '500' }}>{saveError}</Text>
               ) : null}
               <TouchableOpacity
-                style={[mS.saveBtn, { backgroundColor: canSave ? '#3D3935' : '#B8B3AB' }]}
+                style={[mS.saveBtn, { backgroundColor: !canSave ? '#B8B3AB' : (isEdit ? C.charcoal : C.burgundy) }]}
                 onPress={handleSave}
                 disabled={!canSave}>
                 <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>

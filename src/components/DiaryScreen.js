@@ -89,7 +89,7 @@ export function DiaryScreen({ route, navigation }) {
         badge: null, weather: data.weather,
         special: data.special || null,
         specialHole: data.specialHole || null,
-        companions: [{ name: userProfile.nickname, isMe: true }],
+        companions: data.companions || [{ name: userProfile.nickname, isMe: true }],
         photos: data.photos || [],
         starRating: data.starRating || 0,
         tags: data.tags || [],
@@ -129,6 +129,12 @@ export function DiaryScreen({ route, navigation }) {
     if (!r || r.length === 0) return 0;
     return (r.reduce((a, b) => a + b, 0) / r.length).toFixed(1);
   };
+
+  const sortedDiaries = [...diaries].sort((a, b) => {
+    const dateA = new Date((a.date || '').replace(/\./g, '-'));
+    const dateB = new Date((b.date || '').replace(/\./g, '-'));
+    return dateB - dateA;
+  });
 
   if (selected) return <DiaryDetail item={selected} onClose={() => setSelected(null)}
     onUpdate={(updated) => {
@@ -211,7 +217,7 @@ export function DiaryScreen({ route, navigation }) {
         const FILTERS = ['전체', '올해', '최근 3개월', '베스트순', '특별한 순간'];
 
         const filtered = (() => {
-          let list = diaries;
+          let list = sortedDiaries;
           const q = search.trim().toLowerCase();
           if (q) {
             list = list.filter(d => {
