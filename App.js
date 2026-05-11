@@ -1291,10 +1291,21 @@ function DiaryAddModal({ visible, onClose, onSave }) {
 
   const [saveError, setSaveError] = useState('');
 
+  const finalCourseLive = selectedCourse || courseSearch.trim();
+  const canSave = !!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim();
+
   const handleSave = () => {
     const finalCourse = selectedCourse || courseSearch.trim();
     if (!finalCourse) {
       setSaveError('골프장을 입력해주세요');
+      return;
+    }
+    if (!score || isNaN(parseInt(score)) || parseInt(score) <= 0) {
+      setSaveError('스코어를 입력해주세요');
+      return;
+    }
+    if (!memo.trim()) {
+      setSaveError('한줄 메모를 입력해주세요');
       return;
     }
     setSaveError('');
@@ -1320,7 +1331,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
             </TouchableOpacity>
             <ScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
               <Text style={mS.title}>라운딩 기록 추가</Text>
-              <Text style={mS.label}>골프장</Text>
+              <Text style={mS.label}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={mS.input} placeholder="골프장 이름 검색 또는 직접 입력..."
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); }} />
@@ -1351,7 +1362,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
                   onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
                   maximumDate={new Date()} locale="ko" />
               )}
-              <Text style={mS.label}>스코어</Text>
+              <Text style={mS.label}>스코어 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={mS.input} placeholder="타수 입력"
                 placeholderTextColor={C.warmGrayLight} value={score}
                 onChangeText={setScore} keyboardType="numeric" />
@@ -1457,7 +1468,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
                     value={specialMemo} onChangeText={setSpecialMemo} />
                 </View>
               )}
-              <Text style={mS.label}>한줄 메모</Text>
+              <Text style={mS.label}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={mS.input} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
               <Text style={mS.label}>공개 범위</Text>
@@ -1486,9 +1497,12 @@ function DiaryAddModal({ visible, onClose, onSave }) {
                 </ScrollView>
               </View>
               {saveError ? (
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, textAlign: 'center', marginTop: 12 }}>{saveError}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#6B1E2A', textAlign: 'center', marginTop: 8, fontWeight: '500' }}>{saveError}</Text>
               ) : null}
-              <TouchableOpacity style={mS.saveBtn} onPress={handleSave}>
+              <TouchableOpacity
+                style={[mS.saveBtn, { backgroundColor: canSave ? '#3D3935' : '#B8B3AB' }]}
+                onPress={handleSave}
+                disabled={!canSave}>
                 <Text style={mS.saveBtnTxt}>저장하기</Text>
               </TouchableOpacity>
               <View style={{ height: 40 }} />
@@ -1586,17 +1600,28 @@ function DiaryCard({ item, onPress, avgScore }) {
 
 // ── 다이어리 상세 ─────────────────────────────────────
 function DiaryDetail({ item, onClose, onUpdate }) {
+  const { userProfile } = React.useContext(UserContext);
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editScore, setEditScore] = useState(String(item.score || ''));
   const [editMemo, setEditMemo] = useState(item.memo || '');
   const [editPhotos, setEditPhotos] = useState(item.photos || []);
+  const [editCompanions, setEditCompanions] = useState(item.companions || []);
+  const [newCompName, setNewCompName] = useState('');
+  const [showCompInput, setShowCompInput] = useState(false);
   const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  const me = item.companions?.find(c => c.isMe);
+  const companionsToShow = isEditing ? editCompanions : (item.companions || []);
+
+  const COMP_PALETTE = [
+    { bg: '#C8D9E6', fg: '#1A3D52' },
+    { bg: '#F5E6A8', fg: '#5A4500' },
+    { bg: '#3D3935', fg: '#F5E6A8' },
+    { bg: '#8B8680', fg: '#fff' },
+  ];
 
   const pickEditPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -1615,16 +1640,34 @@ function DiaryDetail({ item, onClose, onUpdate }) {
       score: Number(editScore) || item.score,
       memo: editMemo,
       photos: editPhotos,
+      companions: editCompanions,
     };
     onUpdate && onUpdate(updated);
     setIsEditing(false);
+    setShowCompInput(false);
+    setNewCompName('');
   };
 
   const handleEditCancel = () => {
     setEditScore(String(item.score || ''));
     setEditMemo(item.memo || '');
     setEditPhotos(item.photos || []);
+    setEditCompanions(item.companions || []);
     setIsEditing(false);
+    setShowCompInput(false);
+    setNewCompName('');
+  };
+
+  const removeCompanion = (idx) => {
+    setEditCompanions(prev => prev.filter((c, i) => i !== idx || c.isMe));
+  };
+
+  const addCompanion = () => {
+    const name = newCompName.trim();
+    if (!name || editCompanions.length >= 4) return;
+    setEditCompanions(prev => [...prev, { name }]);
+    setNewCompName('');
+    setShowCompInput(false);
   };
 
   const photosToShow = isEditing ? editPhotos : item.photos;
@@ -1636,23 +1679,21 @@ function DiaryDetail({ item, onClose, onUpdate }) {
           <Text style={dS.backBtn}>← Diary</Text>
         </TouchableOpacity>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {me && (
-            <View style={[dS.detailHdrNickname, isSpecial && { backgroundColor: '#8B6914' }]}>
-              <Text style={dS.detailHdrNicknameTxt}>{me.name}</Text>
-            </View>
-          )}
+          <View style={[dS.detailHdrNickname, isSpecial && { backgroundColor: '#8B6914' }]}>
+            <Text style={dS.detailHdrNicknameTxt}>{userProfile.nickname}</Text>
+          </View>
           {isEditing ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={handleEditCancel} style={{ marginRight: 16 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>취소</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity onPress={handleEditCancel}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B8680' }}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleEditSave}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '600' }}>저장</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#6B1E2A', fontWeight: '600' }}>저장</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity onPress={() => setIsEditing(true)}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>수정</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B8680' }}>수정</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1717,15 +1758,56 @@ function DiaryDetail({ item, onClose, onUpdate }) {
           </View>
           <View style={dS.companionArea}>
             <Text style={dS.companionLabel}>동반자</Text>
-            <View style={dS.companionBadges}>
-              {item.companions && item.companions.map((c, i) => (
-                <View key={i} style={[dS.companionBadge, c.isMe && dS.companionBadgeMe, c.isMe && isSpecial && { backgroundColor: '#8B6914' }]}>
-                  <Text style={[dS.companionBadgeTxt, c.isMe && dS.companionBadgeTxtMe]}>{c.name}</Text>
+            <View style={{ flex: 1 }}>
+              <View style={dS.avatarLine}>
+                <View style={dS.avatarRow}>
+                  {companionsToShow.map((c, i) => {
+                    const others = companionsToShow.filter(x => !x.isMe);
+                    const colorIdx = others.indexOf(c);
+                    const palette = c.isMe
+                      ? { bg: '#6B1E2A', fg: '#F5E6A8' }
+                      : COMP_PALETTE[colorIdx % COMP_PALETTE.length];
+                    return (
+                      <View key={i} style={[dS.avatar, { backgroundColor: palette.bg, marginLeft: i === 0 ? 0 : -8 }]}>
+                        <Text style={[dS.avatarTxt, { color: palette.fg }]}>{(c.name || '?').charAt(0)}</Text>
+                        {isEditing && !c.isMe && (
+                          <TouchableOpacity style={dS.avatarRemove} onPress={() => removeCompanion(i)} activeOpacity={0.7}>
+                            <Text style={dS.avatarRemoveTxt}>✕</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                  {isEditing && companionsToShow.length < 4 && !showCompInput && (
+                    <TouchableOpacity style={[dS.avatar, dS.avatarAdd, { marginLeft: companionsToShow.length === 0 ? 0 : -8 }]}
+                      onPress={() => setShowCompInput(true)} activeOpacity={0.7}>
+                      <Text style={dS.avatarAddTxt}>+</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              ))}
-              <TouchableOpacity style={dS.companionAdd}>
-                <Text style={dS.companionAddTxt}>+ 추가</Text>
-              </TouchableOpacity>
+                <Text style={dS.compNames} numberOfLines={1}>
+                  {companionsToShow.map(c => c.name).join(' · ')}
+                </Text>
+              </View>
+              {isEditing && showCompInput && companionsToShow.length < 4 && (
+                <View style={dS.compInputRow}>
+                  <TextInput
+                    style={dS.compInput}
+                    placeholder="동반자 이름"
+                    placeholderTextColor={C.warmGrayLight}
+                    value={newCompName}
+                    onChangeText={setNewCompName}
+                    onSubmitEditing={addCompanion}
+                    autoFocus
+                  />
+                  <TouchableOpacity onPress={addCompanion} style={dS.compInputBtn} activeOpacity={0.7}>
+                    <Text style={dS.compInputBtnTxt}>추가</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setShowCompInput(false); setNewCompName(''); }} activeOpacity={0.7}>
+                    <Text style={dS.compInputCancel}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -3085,8 +3167,8 @@ const dS = StyleSheet.create({
   birdieBadgeTxt: { fontFamily: F.sys, fontSize: 9, color: C.burgundy, letterSpacing: 0.3 },
   detailHdr:      { backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 0.5, borderBottomColor: C.hairline, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   backBtn:        { fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight },
-  detailHdrNickname:    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
-  detailHdrNicknameTxt: { fontFamily: F.sys, fontSize: 11, color: C.butter },
+  detailHdrNickname:    { backgroundColor: '#6B1E2A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },
+  detailHdrNicknameTxt: { fontFamily: F.sys, fontSize: 12, color: '#F5E6A8', fontWeight: '600' },
   detailInfoArea:  { padding: 16, borderBottomWidth: 0.5, borderBottomColor: C.hairline },
   detailScoreRow:  { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 4 },
   detailScore:     { fontFamily: F.en, fontSize: 48, color: C.charcoal, lineHeight: 54 },
@@ -3096,14 +3178,21 @@ const dS = StyleSheet.create({
   detailMemoBox:   { borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 10, marginBottom: 14 },
   detailMemoTxt:   { fontFamily: F.en, fontSize: 14, color: C.textPrimary, fontStyle: 'italic', lineHeight: 22 },
   companionArea:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  companionLabel:      { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1, marginTop: 5 },
-  companionBadges:     { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  companionBadge:      { backgroundColor: C.charcoal, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  companionBadgeMe:    { backgroundColor: C.burgundy },
-  companionBadgeTxt:   { fontFamily: F.sys, fontSize: 11, color: C.butter },
-  companionBadgeTxtMe: { color: '#fff' },
-  companionAdd:        { borderWidth: 0.5, borderColor: C.hairline, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: C.bgSecondary },
-  companionAddTxt:     { fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight },
+  companionLabel:      { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1, marginTop: 9 },
+  avatarLine:          { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatarRow:           { flexDirection: 'row', alignItems: 'center' },
+  avatar:              { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#FAF6EC', alignItems: 'center', justifyContent: 'center' },
+  avatarTxt:           { fontFamily: F.sys, fontSize: 13, fontWeight: '600' },
+  avatarRemove:        { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: '#8B8680', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FAF6EC' },
+  avatarRemoveTxt:     { fontFamily: F.sys, fontSize: 9, color: '#fff' },
+  avatarAdd:           { backgroundColor: 'transparent', borderColor: '#B8B3AB', borderStyle: 'dashed' },
+  avatarAddTxt:        { fontFamily: F.sys, fontSize: 16, color: '#8B8680' },
+  compNames:           { fontFamily: F.sys, fontSize: 11, color: '#8B8680', flex: 1 },
+  compInputRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  compInput:           { flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0', paddingVertical: 4 },
+  compInputBtn:        { backgroundColor: '#6B1E2A', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  compInputBtnTxt:     { fontFamily: F.sys, fontSize: 12, color: '#F5E6A8', fontWeight: '600' },
+  compInputCancel:     { fontFamily: F.sys, fontSize: 12, color: '#8B8680' },
   photosArea:      { padding: 16 },
   photosLabel:     { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5 },
   photosGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
