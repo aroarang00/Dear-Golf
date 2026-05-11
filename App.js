@@ -13,6 +13,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Video } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { C, F } from './src/constants/colors';
+import {
+  SCHEDULES_INIT, HALL_OF_FAME, DIARY_DATA, COURSE_LOG, FAVORITES_INIT,
+  MEMO_MAP, MY_RESTAURANTS, USER_RESTAURANTS, GOLF_DB, RECOMMENDED_COURSES,
+  OVERSEAS_COURSE_LOG, TOP_100_COURSES, FRIENDS_DATA, USER_PROFILE_INIT,
+  COURSE_TAGS, COURSE_TAG_COLORS,
+} from './src/constants/data';
 
 const STORAGE_KEYS = {
   schedules: '@dg_schedules',
@@ -36,23 +43,6 @@ const storage = {
 
 const Tab = createBottomTabNavigator();
 const { width: SW } = Dimensions.get('window');
-
-// ── 컬러/폰트 ──────────────────────────────────────────
-const C = {
-  bgPrimary:    '#FAF6EC',
-  bgSecondary:  '#FFFFFF',
-  charcoal:     '#3D3935',
-  charcoalDeep: '#2A2622',
-  burgundy:     '#6B1E2A',
-  butter:       '#F5E6A8',
-  paleSky:      '#C8D9E6',
-  warmGray:     '#8B8680',
-  warmGrayLight:'#B8B3AB',
-  hairline:     '#E8E2D0',
-  textPrimary:  '#3D3935',
-  textSecondary:'#6B6660',
-};
-const F = { en: 'Georgia', sys: '-apple-system' };
 
 // ── 공통 컴포넌트 ──────────────────────────────────────
 const TripleStripe = ({ height = 2 }) => (
@@ -92,159 +82,11 @@ const cmn = StyleSheet.create({
   circleBtnIcon: { fontFamily: F.en, fontSize: 18, color: C.charcoal, lineHeight: 22 },
 });
 
-// ── 데이터 ─────────────────────────────────────────────
-const SCHEDULES_INIT = [
-  { id: '1', course: '제이드팰리스 골프클럽', date: '2026.05.15', day: '금', time: '07:30', members: 4, dDay: 10, weather: '맑음 18°', wind: '북동 3m/s', duration: '1시간 23분', courseLogId: '1' },
-  { id: '2', course: '안성베네스트 CC',       date: '2026.05.22', day: '금', time: '08:00', members: 3, dDay: 17, weather: '구름 15°', wind: '서 2m/s',   duration: '1시간 45분', courseLogId: '2' },
-  { id: '3', course: '사우스링스 CC',         date: '2026.05.28', day: '목', time: '07:00', members: 4, dDay: 23, weather: '맑음 20°', wind: '남 1m/s',   duration: '2시간 10분', courseLogId: '3' },
-];
-
-const HALL_OF_FAME = [
-  { id: 'h1', type: 'HOLE IN ONE', date: '2024.09.15', course: '제이드팰리스 골프클럽', hole: 7, par: 3, distance: '156m', ball: 'Titleist Pro V1', companions: ['김민준', '이수연'], memo: '믿을 수가 없었다. 볼이 그냥 들어갔어' },
-  { id: 'h2', type: 'EAGLE', date: '2025.03.30', course: '남촌 골프클럽', hole: 12, par: 5, distance: '490m', ball: 'Titleist Pro V1', companions: ['오세훈'], memo: '세컨샷이 핀에 딱 붙었다' },
-];
-
-const DIARY_DATA = [
-  { id: '1', date: '2025.03.30', day: '일', course: '남촌 골프클럽', score: 76, par: 72,
-    memo: '베스트 갱신! 아이언이 살아났다', badge: '베스트', weather: '맑음',
-    special: 'EAGLE', specialHole: 12,
-    companions: [{ name: '지현', isMe: true }, { name: '김민준' }, { name: '이수연' }],
-    photos: ['https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800','https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800','https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=800'],
-    detailMemo: '' },
-  { id: '2', date: '2025.04.28', day: '월', course: '제이드팰리스 골프클럽', score: 92, par: 72,
-    memo: '드라이버 컨디션 최고였던 날', badge: null, weather: '흐림',
-    special: null,
-    companions: [{ name: '지현', isMe: true }, { name: '박정호' }],
-    photos: [],
-    detailMemo: '' },
-  { id: '3', date: '2025.02.14', day: '금', course: '블랙스톤 컨트리클럽', score: 88, par: 72,
-    memo: '퍼팅이 아쉬웠지만 즐거웠음', badge: '버디', weather: '맑음',
-    special: 'HOLE IN ONE', specialHole: 7,
-    companions: [{ name: '지현', isMe: true }, { name: '최다은' }, { name: '오세훈' }],
-    photos: ['https://images.unsplash.com/photo-1592919505780-303950717480?w=800','https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=800'],
-    detailMemo: '' },
-  { id: '4', date: '2025.01.20', day: '월', course: '파인크리크 골프장', score: 105, par: 72,
-    memo: '바람 때문에 고생... 그래도 즐거웠음', badge: null, weather: '바람',
-    special: null,
-    companions: [{ name: '지현', isMe: true }],
-    photos: [],
-    detailMemo: '' },
-];
-
-const COURSE_LOG = [
-  { id: '1', name: '제이드팰리스 골프클럽', loc: '경기 용인',   visits: 3, best: 89, avg: 94, memo: '7번홀 OB 조심, 된장찌개 맛있음', tags: ['★★★★', '넓은 페어웨이', '그린 빠름'] },
-  { id: '2', name: '남촌 골프클럽',         loc: '경기 남양주', visits: 2, best: 76, avg: 88, memo: '18번홀 파3 어려움', tags: ['★★★★★', '베스트코스'] },
-  { id: '3', name: '블랙스톤 컨트리클럽',  loc: '충북 음성',   visits: 4, best: 88, avg: 95, memo: '퍼팅 그린 관리 최고', tags: ['★★★', '관리 최상'] },
-];
-
-const FAVORITES_INIT = ['2'];
-
-const MEMO_MAP = {
-  '1': { text: '7번홀 OB 조심, 클럽하우스 된장찌개 맛있음', date: '2025.10.03', courseId: '1' },
-};
-
-const MY_RESTAURANTS  = [{ id: '1', name: '천안 한우명가', type: '한우구이', dist: '500m', memo: '라운딩 후 꼭 가기. 1++ 등심 추천' }];
-const USER_RESTAURANTS = [
-  { id: '2', name: '미락 숯불갈비', type: '갈비', dist: '1.2km', rating: '4.8' },
-  { id: '3', name: '순두부마을', type: '순두부찌개', dist: '800m', rating: '4.5' },
-];
-
-const COURSE_TAGS = {
-  '코스 관리':   ['관리 최상', '관리 보통', '관리 아쉬움'],
-  '코스 특성':   ['그린 빠름', '그린 느림', '넓은 페어웨이', '좁은 페어웨이', '전장 길음', '전장 짧음'],
-  '시설':        ['클하 맛집', '세차 가능', '락커 좋음'],
-  '경관 · 특징': ['뷰 좋음', '레이디 우대', '야간 가능'],
-  '난이도':      ['벙커 많음', '언듈레이션 심함', 'OB 많음', '워터헤저드 많음'],
-  '해외 특화':   ['오션뷰', '마운틴뷰', '리조트형', '열대코스', '링크스형', '챔피언십코스'],
-};
-
-const COURSE_TAG_COLORS = {
-  '코스 관리':   { bg: '#3D3935', text: '#F5E6A8' },
-  '코스 특성':   { bg: '#F5E6A8', text: '#5A4500' },
-  '시설':        { bg: '#C8D9E6', text: '#1A3D52' },
-  '경관 · 특징': { bg: '#6B1E2A', text: '#F5E6A8' },
-  '난이도':      { bg: '#8B8680', text: '#fff' },
-  '해외 특화':   { bg: '#C8D9E6', text: '#1A3D52' },
-};
-
 const getTagColor = (tag) => {
   for (const [category, tags] of Object.entries(COURSE_TAGS)) {
     if (tags.includes(tag)) return COURSE_TAG_COLORS[category];
   }
   return { bg: '#F5E6A8', text: '#5A4500' };
-};
-
-const GOLF_DB = [
-  { id: 'g1', name: '제이드팰리스 골프클럽', loc: '경기 용인' },
-  { id: 'g2', name: '남촌 골프클럽', loc: '경기 남양주' },
-  { id: 'g3', name: '블랙스톤 컨트리클럽', loc: '충북 음성' },
-  { id: 'g4', name: '파인크리크 골프장', loc: '경기 평택' },
-  { id: 'g5', name: '안성베네스트 CC', loc: '경기 안성' },
-  { id: 'g6', name: '사우스링스 CC', loc: '경기 안성' },
-  { id: 'g7', name: '클럽나인브릿지', loc: '제주' },
-  { id: 'g8', name: '핀크스 골프클럽', loc: '제주' },
-  { id: 'g9', name: '레이크사이드CC', loc: '경기 고양' },
-  { id: 'g10', name: '해슬리나인브릿지', loc: '경기 여주' },
-  { id: 'g11', name: '가평베네스트 CC', loc: '경기 가평' },
-  { id: 'g12', name: '스카이72 골프앤리조트', loc: '인천 영종도' },
-  { id: 'g13', name: '오크밸리CC', loc: '강원 원주' },
-  { id: 'g14', name: '골든비치CC', loc: '강원 강릉' },
-  { id: 'g15', name: '웰링턴CC', loc: '경기 여주' },
-];
-
-const RECOMMENDED_COURSES = [
-  { id: 'r1', name: '클럽나인브릿지', loc: '제주', tags: ['★★★★★', '국내 TOP'] },
-  { id: 'r2', name: '핀크스 골프클럽', loc: '제주', tags: ['★★★★★', '오션뷰'] },
-  { id: 'r3', name: '레이크사이드CC', loc: '경기 고양', tags: ['★★★★', '접근 편리'] },
-  { id: 'r4', name: '해슬리나인브릿지', loc: '경기 여주', tags: ['★★★★★', '명문 코스'] },
-];
-
-const OVERSEAS_COURSE_LOG = [
-  { id: 'o1', name: '나루토 골프클럽', loc: '일본 오사카', country: '일본', flag: '🇯🇵', visits: 2, best: 88, avg: 94, memo: '코스 관리 최고, 뷰가 아름다움', tags: ['★★★★★', '오션뷰'] },
-  { id: 'o2', name: '블랙마운틴 CC', loc: '태국 후아힌', country: '태국', flag: '🇹🇭', visits: 1, best: 92, avg: 92, memo: '열대 코스, 캐디 서비스 훌륭', tags: ['★★★★', '리조트형'] },
-  { id: 'o3', name: '발리 국립 GC', loc: '인도네시아 발리', country: '인도네시아', flag: '🇮🇩', visits: 1, best: 95, avg: 95, memo: '발리 여행 중 라운딩, 뷰 최고', tags: ['★★★★', '열대우림'] },
-];
-
-const TOP_100_COURSES = [
-  { rank: 1,  name: '클럽나인브릿지',    loc: '제주', visited: false },
-  { rank: 2,  name: '핀크스 골프클럽',   loc: '제주', visited: false },
-  { rank: 3,  name: '해슬리나인브릿지',  loc: '경기 여주', visited: false },
-  { rank: 4,  name: '레이크사이드CC',    loc: '경기 고양', visited: false },
-  { rank: 5,  name: '남촌 골프클럽',     loc: '경기 남양주', visited: true },
-  { rank: 6,  name: '블랙스톤 컨트리클럽', loc: '충북 음성', visited: true },
-  { rank: 7,  name: '제이드팰리스 골프클럽', loc: '경기 용인', visited: true },
-  { rank: 8,  name: '스카이72 골프앤리조트', loc: '인천 영종도', visited: false },
-  { rank: 9,  name: '오크밸리CC',        loc: '강원 원주', visited: false },
-  { rank: 10, name: '가평베네스트 CC',   loc: '경기 가평', visited: false },
-  { rank: 11, name: '골든비치CC',        loc: '강원 강릉', visited: false },
-  { rank: 12, name: '웰링턴CC',          loc: '경기 여주', visited: false },
-  { rank: 13, name: '안성베네스트 CC',   loc: '경기 안성', visited: false },
-  { rank: 14, name: '사우스링스 CC',     loc: '경기 안성', visited: false },
-  { rank: 15, name: '파인크리크 골프장', loc: '경기 평택', visited: false },
-  { rank: 16, name: '트리니티클럽',      loc: '경기 용인', visited: false },
-  { rank: 17, name: '베어크리크 GC',     loc: '경기 용인', visited: false },
-  { rank: 18, name: '88CC',             loc: '경기 여주', visited: false },
-  { rank: 19, name: '아시아나CC',        loc: '전남 영광', visited: false },
-  { rank: 20, name: '엘리시안 제주',     loc: '제주', visited: false },
-];
-
-const FRIENDS_DATA = [
-  { id: 'f1', nickname: '김민준', realName: '김민준', rounds: 28, best: 82, lastCourse: '남촌 골프클럽', lastDate: '2025.05.01', photos: ['https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=400'] },
-  { id: 'f2', nickname: '이수연', realName: '이수연', rounds: 15, best: 91, lastCourse: '블랙스톤 CC', lastDate: '2025.04.28', photos: ['https://images.unsplash.com/photo-1592919505780-303950717480?w=400'] },
-  { id: 'f3', nickname: '오세훈', realName: '오세훈', rounds: 42, best: 78, lastCourse: '제이드팰리스', lastDate: '2025.04.20', photos: [] },
-];
-
-// ── 유저 프로필 ─────────────────────────────────────────
-const USER_PROFILE_INIT = {
-  realName: '황지현',
-  nickname: '지현',   // 버그수정: Golfer → Jessica
-  avgScore: 92,
-  lifeBest: 76,
-  totalRounds: 24,
-  hasFirstSingle: true,
-  onboardingDone: true,  // 온보딩 완료 상태로 시작
-  departure: '',
-  phone: '',
 };
 
 let USER_PROFILE = { ...USER_PROFILE_INIT };
