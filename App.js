@@ -2310,10 +2310,9 @@ function DiaryScreen({ route, navigation }) {
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 2 }}>나의 골프 이야기</Text>
           <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
-            style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>👤</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity onPress={() => setShowMyPage(true)} style={cmn.circleBtn} activeOpacity={0.7}>
+            <Text style={{ fontFamily: F.en, fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 18 }}>⚙</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowModal(true)} activeOpacity={0.7}
             style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
@@ -3335,7 +3334,7 @@ const dS = StyleSheet.create({
   specialBannerSub:   { fontFamily: F.sys, fontSize: 9, color: 'rgba(201,168,76,0.6)', letterSpacing: 4 },
   photoHero43:        { width: '100%', aspectRatio: 4/3, position: 'relative' },
   photoImg:           { width: '100%', height: '100%' },
-  photoBottomOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '50%', backgroundColor: 'rgba(0,0,0,0.5)' },
+  photoBottomOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '50%', backgroundColor: 'rgba(0,0,0,0.25)' },
   photoOverlayContent:{ position: 'absolute', left: 12, bottom: 10, right: 60 },
   overlayCourse:      { fontFamily: F.sys, fontSize: 13, color: '#fff', fontWeight: '700' },
   overlayDate:        { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
