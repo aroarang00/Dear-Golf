@@ -10,6 +10,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Video } from 'expo-av';
 
 const Tab = createBottomTabNavigator();
@@ -749,14 +750,18 @@ function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather
 // ── 날씨 전체화면 ────────────────────────────────────
 function WeatherFullModal({ visible, schedule, onClose }) {
   if (!schedule) return null;
-  const WEEK = [
-    { day: '오늘',  date: schedule.date.slice(5), icon: '☀️', sky: '맑음',   tmin: 12, tmax: 22, rain: 10 },
-    { day: '내일',  date: '',                     icon: '🌤️', sky: '구름조금', tmin: 13, tmax: 21, rain: 20 },
-    { day: '모레',  date: '',                     icon: '☁️', sky: '흐림',   tmin: 14, tmax: 19, rain: 40 },
-    { day: '목',    date: '',                     icon: '🌧️', sky: '비',     tmin: 13, tmax: 17, rain: 80 },
-    { day: '금',    date: '',                     icon: '🌦️', sky: '소나기', tmin: 12, tmax: 18, rain: 60 },
-    { day: '토',    date: '',                     icon: '⛅',  sky: '구름많음', tmin: 13, tmax: 20, rain: 20 },
-    { day: '일',    date: '',                     icon: '☀️', sky: '맑음',   tmin: 14, tmax: 23, rain: 0  },
+  const hasWarning = true;
+  const FORECAST = [
+    { day: '오늘', date: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남풍 3m/s',  rain: 0, prob: 10, tmin: 12, tmax: 22, isRound: false },
+    { day: '내일', date: '',                     icon: '🌤️', sky: '구름조금', wind: '남동 2m/s',  rain: 0, prob: 20, tmin: 13, tmax: 21, isRound: false },
+    { day: '모레', date: '',                     icon: '☀️', sky: '맑음',     wind: '남 2m/s',   rain: 0, prob: 10, tmin: 14, tmax: 22, isRound: true  },
+    { day: '목',   date: '',                     icon: '☁️', sky: '흐림',     wind: '서 4m/s',   rain: 0, prob: 40, tmin: 14, tmax: 19, isRound: false },
+    { day: '금',   date: '',                     icon: '🌧️', sky: '비',       wind: '북서 5m/s',  rain: 8, prob: 80, tmin: 13, tmax: 17, isRound: false },
+    { day: '토',   date: '',                     icon: '🌦️', sky: '소나기',   wind: '서 3m/s',   rain: 3, prob: 60, tmin: 12, tmax: 18, isRound: false },
+    { day: '일',   date: '',                     icon: '⛅',  sky: '구름많음', wind: '남서 2m/s',  rain: 0, prob: 20, tmin: 13, tmax: 20, isRound: false },
+    { day: '월',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 1m/s',   rain: 0, prob: 0,  tmin: 14, tmax: 23, isRound: false },
+    { day: '화',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 2m/s',   rain: 0, prob: 0,  tmin: 15, tmax: 24, isRound: false },
+    { day: '수',   date: '',                     icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   rain: 0, prob: 10, tmin: 14, tmax: 22, isRound: false },
   ];
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -771,10 +776,39 @@ function WeatherFullModal({ visible, schedule, onClose }) {
           </View>
         </View>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Text style={fullS.sectionLabel}>날씨 예보</Text>
+          {hasWarning && (
+            <View style={fullS.warnBanner}>
+              <Text style={fullS.warnTxt}>⚠️ 강풍 주의보 · 포천 지역</Text>
+            </View>
+          )}
+
+          <Text style={fullS.sectionLabel}>골프 지수</Text>
+          <View style={[fullS.card, { padding: 16 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={fullS.golfIdxIcon}>⛳</Text>
+              <Text style={fullS.golfIdxTitle}>라운딩 당일 기준</Text>
+            </View>
+            <Text style={fullS.golfIdxScore}>좋음</Text>
+            <View style={fullS.golfIdxList}>
+              <View style={fullS.golfIdxRow}>
+                <Text style={fullS.golfIdxLbl}>바람</Text>
+                <Text style={fullS.golfIdxVal}>약함 ✅</Text>
+              </View>
+              <View style={fullS.golfIdxRow}>
+                <Text style={fullS.golfIdxLbl}>강수</Text>
+                <Text style={fullS.golfIdxVal}>없음 ✅</Text>
+              </View>
+              <View style={fullS.golfIdxRow}>
+                <Text style={fullS.golfIdxLbl}>기온</Text>
+                <Text style={fullS.golfIdxVal}>적정 ✅</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={fullS.sectionLabel}>10일 예보</Text>
           <View style={fullS.card}>
-            {WEEK.map((w, i) => (
-              <View key={i} style={[fullS.wxRow, i < WEEK.length - 1 && fullS.wxRowBorder]}>
+            {FORECAST.map((w, i) => (
+              <View key={i} style={[fullS.wxRow, i < FORECAST.length - 1 && fullS.wxRowBorder, w.isRound && fullS.wxRowRound]}>
                 <View style={{ width: 56 }}>
                   <Text style={fullS.wxDay}>{w.day}</Text>
                   {!!w.date && <Text style={fullS.wxDate}>{w.date}</Text>}
@@ -782,16 +816,17 @@ function WeatherFullModal({ visible, schedule, onClose }) {
                 <Text style={fullS.wxIcon}>{w.icon}</Text>
                 <View style={{ flex: 1, marginLeft: 6 }}>
                   <Text style={fullS.wxSky}>{w.sky}</Text>
-                  <Text style={fullS.wxRain}>강수 {w.rain}%</Text>
+                  <Text style={fullS.wxSub}>🌬️ {w.wind} · 💧 {w.rain}mm · {w.prob}%</Text>
                 </View>
                 <Text style={fullS.wxTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
               </View>
             ))}
           </View>
-          <TouchableOpacity style={fullS.linkBtn}
-            onPress={() => Linking.openURL(`https://weather.naver.com/today/${encodeURIComponent(schedule.course)}`)}
+
+          <TouchableOpacity style={fullS.kmaBtn}
+            onPress={() => Linking.openURL('https://www.kma.go.kr/')}
             activeOpacity={0.7}>
-            <Text style={fullS.linkBtnTxt}>네이버 날씨에서 더 자세히 보기</Text>
+            <Text style={fullS.kmaBtnTxt}>기상청 날씨 더 보기</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -801,8 +836,53 @@ function WeatherFullModal({ visible, schedule, onClose }) {
 
 // ── 교통 전체화면 ────────────────────────────────────
 function TrafficFullModal({ visible, schedule, onClose }) {
+  const timeToMin = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const minToTime = (m) => { m = (m + 24 * 60) % (24 * 60); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+  const parseDur = (s) => { const m = (s || '').match(/(\d+)\s*시간\s*(\d+)?/); return m ? parseInt(m[1]) * 60 + parseInt(m[2] || '0') : 90; };
+
+  const teeMin = schedule ? timeToMin(schedule.time) : 7 * 60;
+  const driveMin = schedule ? parseDur(schedule.duration) : 90;
+  const recoMin = teeMin - driveMin - 30;
+  const baseTen = Math.floor(recoMin / 10) * 10;
+  const slots = [-20, -10, 0, 10, 20, 30].map(d => minToTime(baseTen + d));
+
+  const [selectedSlot, setSelectedSlot] = useState(slots[2]);
+  const [origin, setOrigin] = useState('위치 확인 중...');
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (!cancelled) setOrigin('서울 강남구');
+          return;
+        }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const places = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        if (cancelled) return;
+        const p = places[0];
+        if (p) {
+          const label = [p.region, p.city || p.subregion, p.district].filter(Boolean).join(' ');
+          setOrigin(label || '현재 위치');
+        } else {
+          setOrigin('현재 위치');
+        }
+      } catch {
+        if (!cancelled) setOrigin('서울 강남구');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [visible]);
+
   if (!schedule) return null;
-  const origin = '서울 강남구';
+
+  const handleShare = () => {
+    const msg = `[ Dear Golf ]\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일  티오프 ${schedule.time}\n출발 ${selectedSlot}\n\n같이 가요!`;
+    Share.share({ message: msg });
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={fullS.container}>
@@ -817,9 +897,18 @@ function TrafficFullModal({ visible, schedule, onClose }) {
         </View>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           <Text style={fullS.sectionLabel}>추천 출발 시간</Text>
-          <View style={[fullS.card, { padding: 18, marginBottom: 22 }]}>
-            <Text style={fullS.bigTime}>06:07</Text>
+          <View style={[fullS.card, { padding: 14, marginBottom: 22 }]}>
             <Text style={fullS.bigSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
+            <View style={fullS.slotRow}>
+              {slots.map(t => (
+                <TouchableOpacity key={t}
+                  style={[fullS.slotBtn, selectedSlot === t && fullS.slotBtnOn]}
+                  onPress={() => setSelectedSlot(t)}
+                  activeOpacity={0.7}>
+                  <Text style={[fullS.slotTxt, selectedSlot === t && fullS.slotTxtOn]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           <Text style={fullS.sectionLabel}>경로</Text>
@@ -845,17 +934,40 @@ function TrafficFullModal({ visible, schedule, onClose }) {
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
             <TouchableOpacity style={fullS.routeBtn}
               onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                .catch(() => Linking.openURL('https://map.naver.com/v5/directions/-/-/-/car'))}
+                .catch(() => Linking.openURL('https://map.naver.com/'))}
               activeOpacity={0.7}>
-              <Text style={fullS.routeBtnTxt}>네이버 경로</Text>
+              <Text style={fullS.routeBtnTxt}>🗺️ 네이버 경로</Text>
             </TouchableOpacity>
             <TouchableOpacity style={fullS.routeBtn}
               onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
                 .catch(() => Linking.openURL('https://tmap.life'))}
               activeOpacity={0.7}>
-              <Text style={fullS.routeBtnTxt}>티맵 경로</Text>
+              <Text style={fullS.routeBtnTxt}>🗺️ 티맵 경로</Text>
             </TouchableOpacity>
           </View>
+
+          <Text style={fullS.sectionLabel}>대리운전</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🚕 카카오T</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🚗 티맵 대리</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🚙 아이대리</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={fullS.shareBtn} onPress={handleShare} activeOpacity={0.7}>
+            <Text style={fullS.shareBtnTxt}>📩 동반자에게 일정 공유하기</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -2941,12 +3053,28 @@ const fullS = StyleSheet.create({
   wxDate:       { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
   wxIcon:       { fontSize: 22, width: 32, textAlign: 'center' },
   wxSky:        { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
-  wxRain:       { fontFamily: F.sys, fontSize: 10, color: C.paleSky, marginTop: 2 },
+  wxSub:        { fontFamily: F.sys, fontSize: 10, color: C.textSecondary, marginTop: 2 },
   wxTemp:       { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
-  linkBtn:      { backgroundColor: '#03C75A11', borderRadius: 10, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#03C75A55' },
-  linkBtnTxt:   { fontFamily: F.sys, fontSize: 13, color: '#03A452', letterSpacing: 0.3 },
-  bigTime:      { fontFamily: F.en, fontSize: 42, color: C.burgundy, lineHeight: 46, letterSpacing: -0.5 },
-  bigSub:       { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginTop: 4 },
+  wxRowRound:   { backgroundColor: C.butter + '40', borderLeftWidth: 3, borderLeftColor: C.burgundy },
+  warnBanner:   { backgroundColor: '#FFF3CD', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 18, borderWidth: 0.5, borderColor: '#F0E0A8' },
+  warnTxt:      { fontFamily: F.sys, fontSize: 13, color: '#856404', fontWeight: '500' },
+  golfIdxIcon:  { fontSize: 18, marginRight: 6 },
+  golfIdxTitle: { fontFamily: F.sys, fontSize: 12, color: C.textSecondary },
+  golfIdxScore: { fontFamily: F.sys, fontSize: 24, color: C.burgundy, fontWeight: '600', marginBottom: 10 },
+  golfIdxList:  { borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 10, gap: 6 },
+  golfIdxRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  golfIdxLbl:   { fontFamily: F.sys, fontSize: 13, color: C.textSecondary },
+  golfIdxVal:   { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  kmaBtn:       { backgroundColor: C.bgSecondary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: C.burgundy },
+  kmaBtnTxt:    { fontFamily: F.sys, fontSize: 13, color: C.burgundy, letterSpacing: 0.3, fontWeight: '500' },
+  bigSub:       { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginBottom: 12 },
+  slotRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  slotBtn:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary },
+  slotBtnOn:    { backgroundColor: C.burgundy, borderColor: C.burgundy },
+  slotTxt:      { fontFamily: F.en, fontSize: 14, color: C.charcoal },
+  slotTxtOn:    { color: C.butter, fontWeight: '600' },
+  shareBtn:     { backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  shareBtnTxt:  { fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600', letterSpacing: 0.3 },
   routeLabel:   { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 4 },
   routeValue:   { fontFamily: F.sys, fontSize: 14, color: C.charcoal },
   routeArrowRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
