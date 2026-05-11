@@ -237,7 +237,8 @@ function OnboardingScreen({ onComplete }) {
             <Text style={obS.label}>닉네임</Text>
             <TextInput style={obS.input} placeholder="민지 / Jessica" placeholderTextColor={C.warmGrayLight}
               value={nickname} onChangeText={setNickname}
-              autoCapitalize="none" autoCorrect={false} keyboardType="default" />
+              autoCapitalize="none" autoCorrect={false} keyboardType="default"
+              maxLength={10} />
             <Text style={obS.label}>본명 (선택)</Text>
             <TextInput style={obS.input} placeholder="황지현" placeholderTextColor={C.warmGrayLight}
               value={realName} onChangeText={setRealName} />
@@ -2591,6 +2592,29 @@ function MyPageModal({ visible, onClose }) {
     setEditingStats(false);
   };
 
+  useEffect(() => {
+    if (visible) setNickname(USER_PROFILE.nickname);
+  }, [visible]);
+
+  const handleSaveNickname = () => {
+    const trimmed = (nickname || '').trim();
+    if (!trimmed) {
+      setNickname(USER_PROFILE.nickname);
+      setEditingNick(false);
+      return;
+    }
+    if (trimmed === USER_PROFILE.nickname) {
+      setEditingNick(false);
+      return;
+    }
+    const updated = { ...USER_PROFILE, nickname: trimmed };
+    USER_PROFILE = { ...updated };
+    if (_setUserProfile) _setUserProfile({ ...updated });
+    setNickname(trimmed);
+    setEditingNick(false);
+    Alert.alert('완료', '닉네임이 변경되었어요');
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -2606,7 +2630,10 @@ function MyPageModal({ visible, onClose }) {
                 <View style={{ flex: 1 }}>
                   {editingNick ? (
                     <TextInput style={myS.nickInput} value={nickname} onChangeText={setNickname}
-                      onBlur={() => setEditingNick(false)} autoFocus
+                      onBlur={handleSaveNickname}
+                      onSubmitEditing={handleSaveNickname}
+                      returnKeyType="done"
+                      autoFocus maxLength={10}
                       autoCapitalize="none" autoCorrect={false} keyboardType="default" />
                   ) : (
                     <TouchableOpacity onPress={() => setEditingNick(true)}>
