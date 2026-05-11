@@ -1272,7 +1272,7 @@ function ScheduleModal({ visible, onClose, onSave, initial }) {
 }
 
 // ── 라운딩기록 입력 모달 ──────────────────────────────
-function DiaryAddModal({ visible, onClose, onSave }) {
+function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -1327,7 +1327,36 @@ function DiaryAddModal({ visible, onClose, onSave }) {
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
+    setPrivacy('friends');
   };
+
+  useEffect(() => {
+    if (!visible) return;
+    if (isEdit && initial) {
+      setCourseSearch(initial.course || '');
+      setSelectedCourse(initial.course || '');
+      const dParts = (initial.date || '').split('.').map(Number);
+      if (dParts.length === 3 && dParts.every(Number.isFinite)) {
+        setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
+      }
+      setScore(String(initial.score || ''));
+      setWeather(initial.weather || '맑음');
+      setMemo(initial.memo || '');
+      setDetailMemo(initial.detailMemo || '');
+      setBirdieCount(initial.birdieCount || 0);
+      setSpecial(initial.special || null);
+      setSpecialHole(String(initial.specialHole || ''));
+      setSpecialDist(initial.specialDist || '');
+      setSpecialBall(initial.specialBall || '');
+      setSpecialMemo(initial.specialMemo || '');
+      setStarRating(initial.starRating || 0);
+      setSelectedTags(initial.tags || []);
+      setAddPhotos(initial.photos || []);
+      setPrivacy(initial.privacy || 'friends');
+    } else {
+      reset();
+    }
+  }, [visible, isEdit, initial]);
 
   const [saveError, setSaveError] = useState('');
 
@@ -1349,7 +1378,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
       return;
     }
     setSaveError('');
-    onSave('diary', {
+    const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
       score: parseInt(score) || 0, weather, memo, birdieCount, privacy,
       special, specialHole: parseInt(specialHole),
@@ -1358,8 +1387,13 @@ function DiaryAddModal({ visible, onClose, onSave }) {
       starRating,
       tags: selectedTags,
       detailMemo,
-      courseId: GOLF_DB.find(g => g.name === finalCourse)?.id || null,
-    });
+      courseId: GOLF_DB.find(g => g.name === finalCourse)?.id || (initial && initial.courseId) || null,
+    };
+    if (isEdit) {
+      onSave('diary-edit', { id: initial.id, ...payload });
+    } else {
+      onSave('diary', payload);
+    }
     reset(); onClose();
   };
 
@@ -1374,7 +1408,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
               <View style={mS.handle} />
             </TouchableOpacity>
             <ScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
-              <Text style={mS.title}>라운딩 기록 추가</Text>
+              <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
               <Text style={mS.label}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={mS.input} placeholder="골프장 이름 검색 또는 직접 입력..."
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
@@ -1614,7 +1648,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
                 style={[mS.saveBtn, { backgroundColor: canSave ? '#3D3935' : '#B8B3AB' }]}
                 onPress={handleSave}
                 disabled={!canSave}>
-                <Text style={mS.saveBtnTxt}>저장하기</Text>
+                <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
               </TouchableOpacity>
               <View style={{ height: 40 }} />
             </ScrollView>
@@ -1740,18 +1774,12 @@ function DiaryDetail({ item, onClose, onUpdate }) {
   const { userProfile } = React.useContext(UserContext);
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editScore, setEditScore] = useState(String(item.score || ''));
-  const [editMemo, setEditMemo] = useState(item.memo || '');
-  const [editPhotos, setEditPhotos] = useState(item.photos || []);
-  const [editCompanions, setEditCompanions] = useState(item.companions || []);
-  const [newCompName, setNewCompName] = useState('');
-  const [showCompInput, setShowCompInput] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  const companionsToShow = isEditing ? editCompanions : (item.companions || []);
+  const companionsToShow = item.companions || [];
 
   const COMP_PALETTE = [
     { bg: '#C8D9E6', fg: '#1A3D52' },
@@ -1760,54 +1788,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
     { bg: '#8B8680', fg: '#fff' },
   ];
 
-  const pickEditPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      setEditPhotos(prev => [...prev, ...result.assets.map(a => a.uri)]);
-    }
-  };
-
-  const handleEditSave = () => {
-    const updated = {
-      ...item,
-      score: Number(editScore) || item.score,
-      memo: editMemo,
-      photos: editPhotos,
-      companions: editCompanions,
-    };
-    onUpdate && onUpdate(updated);
-    setIsEditing(false);
-    setShowCompInput(false);
-    setNewCompName('');
-  };
-
-  const handleEditCancel = () => {
-    setEditScore(String(item.score || ''));
-    setEditMemo(item.memo || '');
-    setEditPhotos(item.photos || []);
-    setEditCompanions(item.companions || []);
-    setIsEditing(false);
-    setShowCompInput(false);
-    setNewCompName('');
-  };
-
-  const removeCompanion = (idx) => {
-    setEditCompanions(prev => prev.filter((c, i) => i !== idx || c.isMe));
-  };
-
-  const addCompanion = () => {
-    const name = newCompName.trim();
-    if (!name || editCompanions.length >= 4) return;
-    setEditCompanions(prev => [...prev, { name }]);
-    setNewCompName('');
-    setShowCompInput(false);
-  };
-
-  const photosToShow = isEditing ? editPhotos : item.photos;
+  const photosToShow = item.photos || [];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }}>
@@ -1819,20 +1800,9 @@ function DiaryDetail({ item, onClose, onUpdate }) {
           <View style={[dS.detailHdrNickname, isSpecial && { backgroundColor: '#8B6914' }]}>
             <Text style={dS.detailHdrNicknameTxt}>{userProfile.nickname}</Text>
           </View>
-          {isEditing ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <TouchableOpacity onPress={handleEditCancel}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B8680' }}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleEditSave}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#6B1E2A', fontWeight: '600' }}>저장</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={() => setIsEditing(true)}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B8680' }}>수정</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={() => setShowEditModal(true)}>
+            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>수정</Text>
+          </TouchableOpacity>
         </View>
       </View>
       {isSpecial
@@ -1857,20 +1827,9 @@ function DiaryDetail({ item, onClose, onUpdate }) {
         )}
         <View style={[dS.detailInfoArea, isSpecial && { borderBottomColor: '#C9A84C33' }]}>
           <View style={dS.detailScoreRow}>
-            {isEditing ? (
-              <TextInput
-                style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' },
-                  { borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingVertical: 0, minWidth: 80 }]}
-                value={editScore}
-                onChangeText={setEditScore}
-                keyboardType="numeric"
-                maxLength={3}
-              />
-            ) : (
-              <Text style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-            )}
+            <Text style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
             <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-            <Text style={dS.detailScoreSub}>{isEditing ? `par ${item.par}` : `${diffLabel} · par ${item.par}`}</Text>
+            <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
             {item.special && (
               <View style={{
                 backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
@@ -1892,18 +1851,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
           </View>
           <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
           <View style={[dS.detailMemoBox, isSpecial && { borderLeftColor: '#C9A84C' }]}>
-            {isEditing ? (
-              <TextInput
-                style={[dS.detailMemoTxt, { padding: 0 }]}
-                value={editMemo}
-                onChangeText={setEditMemo}
-                multiline
-                placeholder="메모 입력..."
-                placeholderTextColor={C.warmGrayLight}
-              />
-            ) : (
-              <Text style={dS.detailMemoTxt}>"{item.memo}"</Text>
-            )}
+            <Text style={dS.detailMemoTxt}>"{item.memo}"</Text>
           </View>
           {item.detailMemo ? (
             <View style={{
@@ -1930,44 +1878,14 @@ function DiaryDetail({ item, onClose, onUpdate }) {
                     return (
                       <View key={i} style={[dS.avatar, { backgroundColor: palette.bg, marginLeft: i === 0 ? 0 : -8 }]}>
                         <Text style={[dS.avatarTxt, { color: palette.fg }]}>{(c.name || '?').charAt(0)}</Text>
-                        {isEditing && !c.isMe && (
-                          <TouchableOpacity style={dS.avatarRemove} onPress={() => removeCompanion(i)} activeOpacity={0.7}>
-                            <Text style={dS.avatarRemoveTxt}>✕</Text>
-                          </TouchableOpacity>
-                        )}
                       </View>
                     );
                   })}
-                  {isEditing && companionsToShow.length < 4 && !showCompInput && (
-                    <TouchableOpacity style={[dS.avatar, dS.avatarAdd, { marginLeft: companionsToShow.length === 0 ? 0 : -8 }]}
-                      onPress={() => setShowCompInput(true)} activeOpacity={0.7}>
-                      <Text style={dS.avatarAddTxt}>+</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
                 <Text style={dS.compNames} numberOfLines={1}>
                   {companionsToShow.map(c => c.name).join(' · ')}
                 </Text>
               </View>
-              {isEditing && showCompInput && companionsToShow.length < 4 && (
-                <View style={dS.compInputRow}>
-                  <TextInput
-                    style={dS.compInput}
-                    placeholder="동반자 이름"
-                    placeholderTextColor={C.warmGrayLight}
-                    value={newCompName}
-                    onChangeText={setNewCompName}
-                    onSubmitEditing={addCompanion}
-                    autoFocus
-                  />
-                  <TouchableOpacity onPress={addCompanion} style={dS.compInputBtn} activeOpacity={0.7}>
-                    <Text style={dS.compInputBtnTxt}>추가</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setShowCompInput(false); setNewCompName(''); }} activeOpacity={0.7}>
-                    <Text style={dS.compInputCancel}>취소</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
           </View>
         </View>
@@ -1989,19 +1907,23 @@ function DiaryDetail({ item, onClose, onUpdate }) {
                 </TouchableOpacity>
               );
             })}
-            {isEditing && (
-              <TouchableOpacity style={[dS.photoGridAdd, { width: (SW - 38) / 2, height: (SW - 38) / 2 }]} onPress={pickEditPhoto}>
-                <Text style={dS.photoGridAddIcon}>+</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 4 }}>
-                  사진 추가 ({editPhotos.length}장)
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
       {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
+      <DiaryAddModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        initial={item}
+        isEdit
+        onSave={(type, data) => {
+          if (type === 'diary-edit') {
+            onUpdate && onUpdate({ ...item, ...data });
+            setShowEditModal(false);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -2353,6 +2275,8 @@ function DiaryScreen({ route, navigation }) {
         };
         setHallOfFame(prev => [newHof, ...prev]);
       }
+    } else if (type === 'diary-edit') {
+      setDiaries(prev => prev.map(d => d.id === data.id ? { ...d, ...data } : d));
     }
   };
 
