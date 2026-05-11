@@ -12,7 +12,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Video } from 'expo-av';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C, F } from './src/constants/colors';
 import {
   SCHEDULES_INIT, HALL_OF_FAME, DIARY_DATA, COURSE_LOG, FAVORITES_INIT,
@@ -20,26 +19,8 @@ import {
   OVERSEAS_COURSE_LOG, TOP_100_COURSES, FRIENDS_DATA, USER_PROFILE_INIT,
   COURSE_TAGS, COURSE_TAG_COLORS,
 } from './src/constants/data';
-
-const STORAGE_KEYS = {
-  schedules: '@dg_schedules',
-  diaries:   '@dg_diaries',
-  hof:       '@dg_hof',
-  profile:   '@dg_profile',
-  favorites: '@dg_favorites',
-};
-
-const storage = {
-  async save(key, data) {
-    try { await AsyncStorage.setItem(key, JSON.stringify(data)); } catch (e) { console.warn('storage.save', key, e); }
-  },
-  async load(key, fallback) {
-    try {
-      const raw = await AsyncStorage.getItem(key);
-      return raw != null ? JSON.parse(raw) : fallback;
-    } catch (e) { console.warn('storage.load', key, e); return fallback; }
-  },
-};
+import { STORAGE_KEYS, storage } from './src/utils/storage';
+import { normalizeSchedules, getTagColor } from './src/utils/helpers';
 
 const Tab = createBottomTabNavigator();
 const { width: SW } = Dimensions.get('window');
@@ -81,13 +62,6 @@ const cmn = StyleSheet.create({
   circleBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: C.charcoal, alignItems: 'center', justifyContent: 'center' },
   circleBtnIcon: { fontFamily: F.en, fontSize: 18, color: C.charcoal, lineHeight: 22 },
 });
-
-const getTagColor = (tag) => {
-  for (const [category, tags] of Object.entries(COURSE_TAGS)) {
-    if (tags.includes(tag)) return COURSE_TAG_COLORS[category];
-  }
-  return { bg: '#F5E6A8', text: '#5A4500' };
-};
 
 let USER_PROFILE = { ...USER_PROFILE_INIT };
 let _setUserProfile = null;
@@ -595,23 +569,6 @@ function WeatherMiniBar({ onPress }) {
     </TouchableOpacity>
   );
 }
-
-// 일정 배열을 오늘 기준 dDay 재계산 + 지난 일정(dDay < 0) 제거 + 날짜 오름차순 정렬
-const normalizeSchedules = (list) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const MS = 1000 * 60 * 60 * 24;
-  return list
-    .map(s => {
-      const [y, m, d] = (s.date || '').split('.').map(Number);
-      if (!y || !m || !d) return { ...s, dDay: s.dDay ?? 0 };
-      const target = new Date(y, m - 1, d);
-      target.setHours(0, 0, 0, 0);
-      return { ...s, dDay: Math.ceil((target - today) / MS) };
-    })
-    .filter(s => s.dDay >= 0)
-    .sort((a, b) => a.dDay - b.dDay);
-};
 
 // ── 홈 화면 ───────────────────────────────────────────
 function HomeScreen({ navigation }) {
