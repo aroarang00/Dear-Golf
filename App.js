@@ -196,6 +196,7 @@ const USER_PROFILE_INIT = {
 
 let USER_PROFILE = { ...USER_PROFILE_INIT };
 let _setUserProfile = null;
+const UserContext = React.createContext({ userProfile: USER_PROFILE_INIT, setUserProfile: () => {} });
 
 import { createNavigationContainerRef } from '@react-navigation/native';
 export const navigationRef = createNavigationContainerRef();
@@ -863,6 +864,7 @@ function TrafficFullModal({ visible, schedule, onClose }) {
 
 // ── 홈 화면 ───────────────────────────────────────────
 function HomeScreen({ navigation }) {
+  const { userProfile } = React.useContext(UserContext);
   const [showAddModal, setShowAddModal] = useState(false);
   const [schedules, setSchedules] = useState(SCHEDULES_INIT);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -965,7 +967,7 @@ function HomeScreen({ navigation }) {
             <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
             <Text style={homeS.hdrTitle}>Dear Golf</Text>
             <Text style={homeS.hdrGreeting}>
-              안녕하세요, <Text style={homeS.hdrGreetingName}>{USER_PROFILE.nickname}</Text>님
+              안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
             </Text>
           </View>
           <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
@@ -1001,7 +1003,7 @@ function HomeScreen({ navigation }) {
           <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
           <Text style={homeS.hdrTitle}>Dear Golf</Text>
           <Text style={homeS.hdrGreeting}>
-            안녕하세요, <Text style={homeS.hdrGreetingName}>{USER_PROFILE.nickname}</Text>님
+            안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
         </View>
         <View style={{ flex: 1 }} />
@@ -2099,6 +2101,7 @@ function FriendsTab() {
 
 // ── 다이어리 화면 ─────────────────────────────────────
 function DiaryScreen({ route, navigation }) {
+  const { userProfile } = React.useContext(UserContext);
   const [tab, setTab] = useState('round');
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -2173,7 +2176,7 @@ function DiaryScreen({ route, navigation }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <TouchableOpacity onPress={() => setShowMyPage(true)}
             style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>{USER_PROFILE.nickname} ▾</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>{userProfile.nickname} ▾</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowModal(true)}
             style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
@@ -2629,17 +2632,37 @@ function MyPageModal({ visible, onClose }) {
                 </View>
                 <View style={{ flex: 1 }}>
                   {editingNick ? (
-                    <TextInput style={myS.nickInput} value={nickname} onChangeText={setNickname}
-                      onBlur={handleSaveNickname}
-                      onSubmitEditing={handleSaveNickname}
-                      returnKeyType="done"
-                      autoFocus maxLength={10}
-                      autoCapitalize="none" autoCorrect={false} keyboardType="default" />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TextInput
+                        style={[myS.nickInput, { flex: 1 }]}
+                        value={nickname} onChangeText={setNickname}
+                        onSubmitEditing={handleSaveNickname}
+                        returnKeyType="done"
+                        autoFocus maxLength={10}
+                        autoCapitalize="none" autoCorrect={false} keyboardType="default" />
+                      <TouchableOpacity onPress={handleSaveNickname}
+                        style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
+                        activeOpacity={0.7}>
+                        <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: 13 }}>저장</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => {
+                        setNickname(USER_PROFILE.nickname);
+                        setEditingNick(false);
+                      }} activeOpacity={0.6}>
+                        <Text style={{ fontFamily: F.sys, color: C.warmGray, fontSize: 13 }}>취소</Text>
+                      </TouchableOpacity>
+                    </View>
                   ) : (
-                    <TouchableOpacity onPress={() => setEditingNick(true)}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={myS.nickname}>{nickname}</Text>
-                      <Text style={myS.nicknameSub}>닉네임 수정 →</Text>
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setEditingNick(true)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{ marginLeft: 10 }}
+                        activeOpacity={0.6}>
+                        <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: 12 }}>닉네임 수정</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                   <Text style={myS.realName}>{USER_PROFILE.realName}</Text>
                 </View>
@@ -3184,6 +3207,7 @@ export default function App() {
   if (showOnboarding) return <OnboardingScreen onComplete={handleOnboardingComplete} />;
 
   return (
+    <UserContext.Provider value={{ userProfile, setUserProfile }}>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tab.Screen name="홈" component={HomeScreen} />
@@ -3219,5 +3243,6 @@ export default function App() {
         </View>
       </Modal>
     </NavigationContainer>
+    </UserContext.Provider>
   );
 }
