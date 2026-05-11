@@ -794,7 +794,7 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
   };
 
   // 하드코딩 데이터 — 실제 API 연결 시 교체
-  const CURRENT = { temp: 18, sky: '맑음', humidity: 30, wind: '남풍 2.2m/s' };
+  const CURRENT = { temp: 18, sky: '맑음', icon: '☀️', yesterday: 2, feels: 17, tmin: 12, tmax: 22 };
   const HOURLY = [
     { h: '06', t: 12, rain: 0 },
     { h: '07', t: 14, rain: 0 },
@@ -807,63 +807,86 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
   const hMin = Math.min(...HOURLY.map(x => x.t));
   const hMax = Math.max(...HOURLY.map(x => x.t));
   const hRange = (hMax - hMin) || 1;
-  const dust = { pm10: { v: 23, level: '좋음' }, pm25: { v: 12, level: '좋음' } };
-  const golfIndex = { score: 78, label: '좋음', comment: '라운딩에 적합한 날씨입니다' };
+  const golfIndex = { score: 78, label: 'Good', wind: '약함', rain: '없음', tempStatus: '적정' };
   const FORECAST = [
-    { day: '오늘', date: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남 3m/s',   prob: 10, tmin: 12, tmax: 22, isRound: false },
-    { day: '내일', date: '',                     icon: '🌤️', sky: '구름조금', wind: '동 2m/s',   prob: 20, tmin: 13, tmax: 21, isRound: false },
-    { day: '모레', date: '',                     icon: '☀️', sky: '맑음',     wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22, isRound: true  },
-    { day: '목',   date: '',                     icon: '☁️', sky: '흐림',     wind: '서 4m/s',   prob: 40, tmin: 14, tmax: 19, isRound: false },
-    { day: '금',   date: '',                     icon: '🌧️', sky: '비',       wind: '북서 5m/s', prob: 80, tmin: 13, tmax: 17, isRound: false },
-    { day: '토',   date: '',                     icon: '🌦️', sky: '소나기',   wind: '서 3m/s',   prob: 60, tmin: 12, tmax: 18, isRound: false },
-    { day: '일',   date: '',                     icon: '⛅',  sky: '구름많음', wind: '남서 2m/s', prob: 20, tmin: 13, tmax: 20, isRound: false },
-    { day: '월',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 1m/s',   prob: 0,  tmin: 14, tmax: 23, isRound: false },
-    { day: '화',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 2m/s',   prob: 0,  tmin: 15, tmax: 24, isRound: false },
-    { day: '수',   date: '',                     icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22, isRound: false },
+    { day: '오늘', dateStr: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남 3m/s',   prob: 10, tmin: 12, tmax: 22 },
+    { day: '내일', dateStr: '',                     icon: '🌤️', sky: '구름조금', wind: '동 2m/s',   prob: 20, tmin: 13, tmax: 21 },
+    { day: '모레', dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22 },
+    { day: '목',   dateStr: '',                     icon: '☁️', sky: '흐림',     wind: '서 4m/s',   prob: 40, tmin: 14, tmax: 19 },
+    { day: '금',   dateStr: '',                     icon: '🌧️', sky: '비',       wind: '북서 5m/s', prob: 80, tmin: 13, tmax: 17 },
+    { day: '토',   dateStr: '',                     icon: '🌦️', sky: '소나기',   wind: '서 3m/s',   prob: 60, tmin: 12, tmax: 18 },
+    { day: '일',   dateStr: '',                     icon: '⛅',  sky: '구름많음', wind: '남서 2m/s', prob: 20, tmin: 13, tmax: 20 },
+    { day: '월',   dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '동 1m/s',   prob: 0,  tmin: 14, tmax: 23 },
+    { day: '화',   dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '동 2m/s',   prob: 0,  tmin: 15, tmax: 24 },
+    { day: '수',   dateStr: '',                     icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22 },
   ];
-
-  const dustColor = (level) => {
-    if (level === '좋음')   return { bg: '#2E86C133', fg: '#2E86C1' };
-    if (level === '보통')   return { bg: '#27AE6033', fg: '#27AE60' };
-    if (level === '나쁨')   return { bg: '#E67E2233', fg: '#E67E22' };
-    return { bg: '#C0392B33', fg: '#C0392B' };
-  };
+  const roundIdx = Math.min(Math.max(0, schedule.dDay || 0), FORECAST.length - 1);
 
   const durVariance = [-3, 2, 7];
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={fullS.container}>
-        <View style={fullS.header}>
-          <TouchableOpacity onPress={onClose} style={fullS.backBtn} activeOpacity={0.6}>
-            <Text style={fullS.backArrow}>←</Text>
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={fullS.headerTitle} numberOfLines={1}>{schedule.course}</Text>
-            <Text style={fullS.headerSub}>{schedule.date} {schedule.day} · 티오프 {schedule.time}</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.charcoal }}>
+        <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <View style={fullS.dHeader}>
+            <View style={fullS.dTopRow}>
+              <TouchableOpacity onPress={onClose} activeOpacity={0.6}>
+                <Text style={fullS.dCloseBtn}>← 닫기</Text>
+              </TouchableOpacity>
+              <View style={fullS.dTabs}>
+                <TouchableOpacity onPress={() => setTab('weather')} activeOpacity={0.7}
+                  style={[fullS.dTabBtn, tab === 'weather' && fullS.dTabBtnOn]}>
+                  <Text style={[fullS.dTabTxt, tab === 'weather' && fullS.dTabTxtOn]}>날씨</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setTab('traffic')} activeOpacity={0.7}
+                  style={[fullS.dTabBtn, tab === 'traffic' && fullS.dTabBtnOn]}>
+                  <Text style={[fullS.dTabTxt, tab === 'traffic' && fullS.dTabTxtOn]}>교통</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={fullS.dInfoLine}>{schedule.course} · {schedule.date} · D-{schedule.dDay}</Text>
+            {tab === 'weather' && (
+              <>
+                <View style={fullS.dTempRow}>
+                  <Text style={fullS.dTempEmoji}>{CURRENT.icon}</Text>
+                  <Text style={fullS.dTempBig}>{CURRENT.temp}°</Text>
+                  <View style={{ marginLeft: 12 }}>
+                    <Text style={fullS.dTempSky}>{CURRENT.sky}</Text>
+                    <Text style={fullS.dTempCompare}>어제보다 {CURRENT.yesterday > 0 ? '+' : ''}{CURRENT.yesterday}°</Text>
+                  </View>
+                </View>
+                <Text style={fullS.dTempFooter}>체감 {CURRENT.feels}° · 최저 {CURRENT.tmin}° / 최고 {CURRENT.tmax}°</Text>
+              </>
+            )}
           </View>
-        </View>
 
-        <View style={fullS.tabBar}>
-          <TouchableOpacity style={[fullS.tabBtn, tab === 'weather' && fullS.tabBtnOn]} onPress={() => setTab('weather')} activeOpacity={0.7}>
-            <Text style={[fullS.tabTxt, tab === 'weather' && fullS.tabTxtOn]}>날씨</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[fullS.tabBtn, tab === 'traffic' && fullS.tabBtnOn]} onPress={() => setTab('traffic')} activeOpacity={0.7}>
-            <Text style={[fullS.tabTxt, tab === 'traffic' && fullS.tabTxtOn]}>교통 · 출발시간</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           {tab === 'weather' ? (
             <>
-              <View style={[fullS.card, { padding: 24, alignItems: 'center', marginBottom: 16 }]}>
-                <Text style={fullS.bigTemp}>{CURRENT.temp}°</Text>
-                <Text style={fullS.bigSky}>{CURRENT.sky}</Text>
-                <Text style={fullS.bigInfo}>습도 {CURRENT.humidity}% · {CURRENT.wind}</Text>
+              <View style={fullS.gridWrap}>
+                <View style={[fullS.gridCellN, { borderRightWidth: 0.5, borderBottomWidth: 0.5 }]}>
+                  <Text style={fullS.gridLabelN}>바람</Text>
+                  <Text style={fullS.gridValueN}>2.2m/s</Text>
+                  <Text style={fullS.gridSubOK}>라운딩 최적</Text>
+                </View>
+                <View style={[fullS.gridCellN, { borderBottomWidth: 0.5 }]}>
+                  <Text style={fullS.gridLabelN}>습도</Text>
+                  <Text style={fullS.gridValueN}>30%</Text>
+                  <Text style={fullS.gridSubN}>건조함</Text>
+                </View>
+                <View style={[fullS.gridCellN, { borderRightWidth: 0.5 }]}>
+                  <Text style={fullS.gridLabelN}>미세먼지</Text>
+                  <Text style={fullS.gridValueN}>좋음</Text>
+                  <Text style={fullS.gridSubN}>PM10 23㎍/㎥</Text>
+                </View>
+                <View style={fullS.gridCellN}>
+                  <Text style={fullS.gridLabelN}>자외선</Text>
+                  <Text style={fullS.gridValueWarn}>보통</Text>
+                  <Text style={fullS.gridSubN}>차단제 권장</Text>
+                </View>
               </View>
 
-              <Text style={fullS.sectionLabel}>시간별 기온</Text>
-              <View style={[fullS.card, { padding: 16, marginBottom: 16 }]}>
+              <View style={fullS.whiteCard}>
+                <Text style={fullS.cardLabel}>시간별 기온</Text>
                 <View style={fullS.barRow}>
                   {HOURLY.map((x, i) => {
                     const h = 30 + ((x.t - hMin) / hRange) * 60;
@@ -871,89 +894,68 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
                       <View key={i} style={fullS.barCol}>
                         <Text style={fullS.barTemp}>{x.t}°</Text>
                         <View style={[fullS.bar, { height: h }]} />
+                        {x.rain > 0 ? <Text style={fullS.barRain}>{x.rain}%</Text> : <Text style={fullS.barRainEmpty}> </Text>}
                         <Text style={fullS.barHour}>{x.h}시</Text>
-                        {x.rain > 0 ? <Text style={fullS.barRain}>{x.rain}%</Text> : <Text style={fullS.barRain}> </Text>}
                       </View>
                     );
                   })}
                 </View>
               </View>
 
-              <Text style={fullS.sectionLabel}>상세 정보</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 }}>
-                <View style={fullS.gridCell}>
-                  <Text style={fullS.gridLabel}>바람</Text>
-                  <Text style={fullS.gridValue}>2.2m/s</Text>
-                  <Text style={fullS.gridSub}>라운딩 최적</Text>
+              <View style={fullS.whiteCard}>
+                <Text style={fullS.cardLabel}>골프 지수</Text>
+                <Text style={fullS.gIdxBig}>{golfIndex.label}</Text>
+                <Text style={fullS.gIdxScoreNew}>{golfIndex.score} / 100</Text>
+                <View style={fullS.gIdxBarNew}>
+                  <View style={[fullS.gIdxBarFillNew, { width: `${golfIndex.score}%` }]} />
                 </View>
-                <View style={fullS.gridCell}>
-                  <Text style={fullS.gridLabel}>습도</Text>
-                  <Text style={fullS.gridValue}>30%</Text>
-                  <Text style={fullS.gridSub}>건조함</Text>
-                </View>
-                <View style={fullS.gridCell}>
-                  <Text style={fullS.gridLabel}>하늘</Text>
-                  <Text style={fullS.gridValue}>맑음</Text>
-                  <Text style={fullS.gridSub}>우산 불필요</Text>
-                </View>
-                <View style={fullS.gridCell}>
-                  <Text style={fullS.gridLabel}>강수확률</Text>
-                  <Text style={fullS.gridValue}>0%</Text>
-                  <Text style={fullS.gridSub}>우산 불필요</Text>
+                <View style={fullS.gIdxBottom}>
+                  <View style={fullS.gIdxBottomCell}>
+                    <Text style={fullS.gIdxBLabel}>바람</Text>
+                    <Text style={fullS.gIdxBValue}>{golfIndex.wind}</Text>
+                  </View>
+                  <View style={fullS.gIdxBottomCell}>
+                    <Text style={fullS.gIdxBLabel}>강수</Text>
+                    <Text style={fullS.gIdxBValue}>{golfIndex.rain}</Text>
+                  </View>
+                  <View style={fullS.gIdxBottomCell}>
+                    <Text style={fullS.gIdxBLabel}>기온</Text>
+                    <Text style={fullS.gIdxBValue}>{golfIndex.tempStatus}</Text>
+                  </View>
                 </View>
               </View>
 
-              <Text style={fullS.sectionLabel}>미세먼지</Text>
-              <View style={[fullS.card, { padding: 16, marginBottom: 16 }]}>
-                {[
-                  { name: 'PM10',  value: `${dust.pm10.v}㎍/㎥`, level: dust.pm10.level },
-                  { name: 'PM2.5', value: `${dust.pm25.v}㎍/㎥`, level: dust.pm25.level },
-                ].map((d, i) => {
-                  const col = dustColor(d.level);
+              <View style={fullS.whiteCard}>
+                <Text style={fullS.cardLabel}>10일 예보</Text>
+                {FORECAST.map((w, i) => {
+                  const isRound = i === roundIdx;
                   return (
-                    <View key={i} style={[fullS.dustRow, i === 0 && { marginBottom: 10 }]}>
-                      <Text style={fullS.dustName}>{d.name}</Text>
-                      <Text style={fullS.dustValue}>{d.value}</Text>
-                      <View style={[fullS.dustBadge, { backgroundColor: col.bg }]}>
-                        <Text style={[fullS.dustBadgeTxt, { color: col.fg }]}>{d.level}</Text>
+                    <View key={i} style={[fullS.fcRow, i < FORECAST.length - 1 && fullS.fcRowBorder, isRound && fullS.fcRowRound]}>
+                      <View style={{ width: 56 }}>
+                        <Text style={fullS.fcDay}>{w.day}</Text>
+                        {!!w.dateStr && <Text style={fullS.fcDate}>{w.dateStr}</Text>}
                       </View>
+                      <Text style={fullS.fcIcon}>{w.icon}</Text>
+                      <View style={{ flex: 1, marginLeft: 6 }}>
+                        <Text style={[fullS.fcSky, isRound && { color: C.burgundy, fontWeight: '600' }]}>
+                          {w.sky}{isRound ? ' · 라운딩일' : ''}
+                        </Text>
+                        <Text style={fullS.fcSub}>{w.wind} · 강수 {w.prob}%</Text>
+                      </View>
+                      <Text style={fullS.fcTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
                     </View>
                   );
                 })}
               </View>
 
-              <Text style={fullS.sectionLabel}>골프 지수</Text>
-              <View style={[fullS.card, { padding: 16, marginBottom: 16 }]}>
-                <View style={fullS.gIdxRow}>
-                  <Text style={fullS.gIdxLabel}>{golfIndex.label}</Text>
-                  <View style={fullS.gIdxBar}>
-                    <View style={[fullS.gIdxBarFill, { width: `${golfIndex.score}%` }]} />
-                  </View>
-                  <Text style={fullS.gIdxScore}>{golfIndex.score}점</Text>
-                </View>
-                <Text style={fullS.gIdxComment}>{golfIndex.comment}</Text>
-              </View>
-
-              <Text style={fullS.sectionLabel}>10일 예보</Text>
-              <View style={[fullS.card, { marginBottom: 16 }]}>
-                {FORECAST.map((w, i) => (
-                  <View key={i} style={[fullS.wxRow, i < FORECAST.length - 1 && fullS.wxRowBorder, w.isRound && fullS.wxRowRound]}>
-                    <View style={{ width: 56 }}>
-                      <Text style={fullS.wxDay}>{w.day}</Text>
-                      {!!w.date && <Text style={fullS.wxDate}>{w.date}</Text>}
-                    </View>
-                    <Text style={fullS.wxIcon}>{w.icon}</Text>
-                    <View style={{ flex: 1, marginLeft: 6 }}>
-                      <Text style={fullS.wxSky}>{w.sky}</Text>
-                      <Text style={fullS.wxSub}>🌬️ {w.wind} · 💧 {w.prob}%</Text>
-                    </View>
-                    <Text style={fullS.wxTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
-                  </View>
-                ))}
-              </View>
+              <TouchableOpacity style={fullS.kmaBtnNew}
+                onPress={() => Linking.openURL('https://www.kma.go.kr/')}
+                activeOpacity={0.7}>
+                <Text style={fullS.kmaBtnTxtNew}>기상청에서 더 자세히 보기</Text>
+              </TouchableOpacity>
             </>
           ) : (
-            <>
+            <View style={{ padding: 16 }}>
               <Text style={fullS.sectionLabel}>추천 출발 시간</Text>
               <View style={[fullS.card, { padding: 14, marginBottom: 14 }]}>
                 <Text style={fullS.bigSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
@@ -1051,7 +1053,7 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
               <TouchableOpacity style={fullS.shareBtn} onPress={handleShareDaeri} activeOpacity={0.8}>
                 <Text style={fullS.shareBtnTxt}>함께 대리 부르기</Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -3135,52 +3137,65 @@ const sheetS = StyleSheet.create({
 
 // 날씨/교통 전체화면 모달 스타일
 const fullS = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: C.bgPrimary },
-  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline, backgroundColor: C.bgPrimary },
-  backBtn:      { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  backArrow:    { fontSize: 22, color: C.charcoal, lineHeight: 24 },
-  headerTitle:  { fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600' },
-  headerSub:    { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginTop: 2 },
   sectionLabel: { fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, letterSpacing: 1, marginBottom: 8 },
   card:         { backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, overflow: 'hidden' },
-  tabBar:       { flexDirection: 'row', paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 8, backgroundColor: C.bgPrimary },
-  tabBtn:       { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: 'transparent' },
-  tabBtnOn:     { backgroundColor: C.charcoal },
-  tabTxt:       { fontFamily: F.sys, fontSize: 13, color: C.warmGray, fontWeight: '500' },
-  tabTxtOn:     { color: C.butter, fontWeight: '600' },
-  bigTemp:      { fontFamily: F.en, fontSize: 64, color: C.charcoal, lineHeight: 70, letterSpacing: -2 },
-  bigSky:       { fontFamily: F.sys, fontSize: 16, color: C.charcoal, marginTop: 4 },
-  bigInfo:      { fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6 },
-  barRow:       { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 130 },
-  barCol:       { flex: 1, alignItems: 'center' },
-  barTemp:      { fontFamily: F.en, fontSize: 11, color: C.charcoal, marginBottom: 4 },
-  bar:          { width: 12, backgroundColor: C.butter, borderRadius: 4, borderWidth: 0.5, borderColor: '#E0CC78' },
-  barHour:      { fontFamily: F.sys, fontSize: 10, color: C.warmGray, marginTop: 4 },
-  barRain:      { fontFamily: F.sys, fontSize: 9, color: C.paleSky, marginTop: 1 },
-  gridCell:     { width: '49%', backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 16, marginBottom: 8 },
-  gridLabel:    { fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 4 },
-  gridValue:    { fontFamily: F.sys, fontSize: 18, color: C.charcoal, fontWeight: '600' },
-  gridSub:      { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginTop: 2 },
-  dustRow:      { flexDirection: 'row', alignItems: 'center' },
-  dustName:     { fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '500', width: 60 },
-  dustValue:    { fontFamily: F.sys, fontSize: 13, color: C.textSecondary, flex: 1 },
-  dustBadge:    { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
-  dustBadgeTxt: { fontFamily: F.sys, fontSize: 11, fontWeight: '600' },
-  gIdxRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  gIdxLabel:    { fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '600', width: 40 },
-  gIdxBar:      { flex: 1, height: 8, backgroundColor: C.hairline, borderRadius: 4, overflow: 'hidden' },
-  gIdxBarFill:  { height: '100%', backgroundColor: C.burgundy, borderRadius: 4 },
-  gIdxScore:    { fontFamily: F.en, fontSize: 14, color: C.charcoal, width: 44, textAlign: 'right' },
-  gIdxComment:  { fontFamily: F.sys, fontSize: 12, color: C.textSecondary },
-  wxRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
-  wxRowBorder:  { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
-  wxDay:        { fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '500' },
-  wxDate:       { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
-  wxIcon:       { fontSize: 22, width: 32, textAlign: 'center' },
-  wxSky:        { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
-  wxSub:        { fontFamily: F.sys, fontSize: 10, color: C.textSecondary, marginTop: 2 },
-  wxTemp:       { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
-  wxRowRound:   { backgroundColor: C.butter + '40', borderLeftWidth: 3, borderLeftColor: C.burgundy },
+  // Dark header (new design)
+  dHeader:        { backgroundColor: C.charcoal, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 22 },
+  dTopRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  dCloseBtn:      { fontFamily: F.sys, fontSize: 14, color: '#fff', paddingVertical: 6 },
+  dTabs:          { flexDirection: 'row', gap: 6 },
+  dTabBtn:        { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, backgroundColor: 'transparent' },
+  dTabBtnOn:      { backgroundColor: C.burgundy },
+  dTabTxt:        { fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  dTabTxtOn:      { color: C.butter, fontWeight: '600' },
+  dInfoLine:      { fontFamily: F.sys, fontSize: 12, color: 'rgba(245,230,168,0.6)', marginBottom: 12 },
+  dTempRow:       { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  dTempEmoji:     { fontSize: 44, marginRight: 6 },
+  dTempBig:       { fontFamily: F.en, fontSize: 72, fontWeight: '200', color: C.butter, lineHeight: 78, letterSpacing: -3 },
+  dTempSky:       { fontFamily: F.sys, fontSize: 16, color: '#fff', fontWeight: '500' },
+  dTempCompare:   { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  dTempFooter:    { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.45)' },
+  // 2x2 grid (new design)
+  gridWrap:       { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: C.warmGray, marginTop: -8 },
+  gridCellN:      { width: '50%', backgroundColor: C.bgPrimary, paddingVertical: 14, paddingHorizontal: 16, borderColor: C.warmGray },
+  gridLabelN:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
+  gridValueN:     { fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '500' },
+  gridValueWarn:  { fontFamily: F.sys, fontSize: 17, color: C.burgundy, fontWeight: '500' },
+  gridSubOK:      { fontFamily: F.sys, fontSize: 11, color: C.burgundy, marginTop: 2 },
+  gridSubN:       { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 },
+  // White cards (new design)
+  whiteCard:      { backgroundColor: C.bgSecondary, marginTop: 8, paddingHorizontal: 20, paddingVertical: 16 },
+  cardLabel:      { fontFamily: F.sys, fontSize: 11, color: C.warmGray, letterSpacing: 1, marginBottom: 12 },
+  // Hourly bar
+  barRow:         { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 130 },
+  barCol:         { flex: 1, alignItems: 'center' },
+  barTemp:        { fontFamily: F.en, fontSize: 11, color: C.charcoal, marginBottom: 4 },
+  bar:            { width: 14, backgroundColor: C.butter, borderRadius: 4, borderWidth: 0.5, borderColor: C.warmGray },
+  barRain:        { fontFamily: F.sys, fontSize: 9, color: C.paleSky, marginTop: 2 },
+  barRainEmpty:   { fontFamily: F.sys, fontSize: 9, marginTop: 2 },
+  barHour:        { fontFamily: F.sys, fontSize: 9, color: C.warmGray, marginTop: 2 },
+  // Golf index (new design)
+  gIdxBig:        { fontFamily: F.sys, fontSize: 22, color: C.charcoal, fontWeight: '500', marginBottom: 2 },
+  gIdxScoreNew:   { fontFamily: F.sys, fontSize: 13, color: C.warmGray, marginBottom: 10 },
+  gIdxBarNew:     { height: 8, borderRadius: 4, backgroundColor: C.paleSky, overflow: 'hidden', marginBottom: 14 },
+  gIdxBarFillNew: { height: '100%', backgroundColor: C.burgundy, borderRadius: 4 },
+  gIdxBottom:     { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12 },
+  gIdxBottomCell: { flex: 1, alignItems: 'center' },
+  gIdxBLabel:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
+  gIdxBValue:     { fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '500' },
+  // 10-day forecast (new design)
+  fcRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },
+  fcRowBorder:    { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
+  fcRowRound:     { backgroundColor: '#FFF8F0', borderLeftWidth: 3, borderLeftColor: C.burgundy, paddingHorizontal: 10, marginHorizontal: -4 },
+  fcDay:          { fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '500' },
+  fcDate:         { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
+  fcIcon:         { fontSize: 22, width: 32, textAlign: 'center' },
+  fcSky:          { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  fcSub:          { fontFamily: F.sys, fontSize: 10, color: C.textSecondary, marginTop: 2 },
+  fcTemp:         { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
+  // KMA button
+  kmaBtnNew:      { marginTop: 12, marginHorizontal: 20, marginBottom: 24, borderWidth: 1, borderColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center' },
+  kmaBtnTxtNew:   { fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '500' },
   bigSub:       { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginBottom: 12 },
   slotRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   slotBtn:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary },
