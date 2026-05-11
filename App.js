@@ -862,6 +862,19 @@ function TrafficFullModal({ visible, schedule, onClose }) {
   );
 }
 
+// ── 홈 상단 날씨 미니바 ──────────────────────────────
+function WeatherMiniBar({ onPress }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}
+      style={{ flexDirection: 'row', alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
+        borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 }}>
+      <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#fff' }}>☀️ 18° 맑음 · 미세 좋음</Text>
+    </TouchableOpacity>
+  );
+}
+
 // ── 홈 화면 ───────────────────────────────────────────
 function HomeScreen({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
@@ -905,6 +918,17 @@ function HomeScreen({ navigation }) {
   const openTrafficFor = (schedule) => {
     setSelectedSchedule(schedule);
     setShowTrafficFull(true);
+  };
+
+  const openCurrentWeather = () => {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')}`;
+    const target = next || {
+      course: '내 위치', date: dateStr, day: '', time: '--:--',
+      members: 0, dDay: 0, weather: '맑음 18°', wind: '', duration: '',
+    };
+    setSelectedSchedule(target);
+    setShowWeatherFull(true);
   };
 
   const handleShareSchedule = (s) => {
@@ -964,7 +988,10 @@ function HomeScreen({ navigation }) {
         <SafeAreaView style={{ flex: 1 }}>
           <TripleStripe />
           <View style={homeS.hdr}>
-            <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
+              <WeatherMiniBar onPress={openCurrentWeather} />
+            </View>
             <Text style={homeS.hdrTitle}>Dear Golf</Text>
             <Text style={homeS.hdrGreeting}>
               안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
@@ -1000,7 +1027,10 @@ function HomeScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1 }}>
         <TripleStripe />
         <View style={homeS.hdr}>
-          <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
+            <WeatherMiniBar onPress={openCurrentWeather} />
+          </View>
           <Text style={homeS.hdrTitle}>Dear Golf</Text>
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
@@ -1029,7 +1059,6 @@ function HomeScreen({ navigation }) {
               <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                 <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7}>
                   <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
-                  <Text style={homeS.cardDDayLabel}>남은 일수</Text>
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
                   <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openWeatherFor(next)}>
@@ -1037,10 +1066,6 @@ function HomeScreen({ navigation }) {
                   </TouchableOpacity>
                   <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openTrafficFor(next)}>
                     <Text style={homeS.pillTxt}>🚗 {next.duration} →</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[homeS.pill, homeS.pillTap]}
-                    onPress={() => handleShareSchedule(next)}>
-                    <Text style={homeS.pillTxt}>📩 공유</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2844,9 +2869,9 @@ const homeS = StyleSheet.create({
   cardDate:        { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.45)' },
   cardDDay:        { fontFamily: F.en, fontSize: 58, color: C.butter, lineHeight: 62, letterSpacing: -1 },
   cardDDayLabel:   { fontFamily: F.sys, fontSize: 8, color: 'rgba(245,230,168,0.45)', letterSpacing: 1.5, marginBottom: 4 },
-  pill:            { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
+  pill:            { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 22, paddingHorizontal: 12, paddingVertical: 6 },
   pillTap:         { borderColor: 'rgba(200,217,230,0.5)' },
-  pillTxt:         { fontFamily: F.sys, fontSize: 10, color: 'rgba(200,217,230,0.9)' },
+  pillTxt:         { fontFamily: F.sys, fontSize: 16, color: 'rgba(200,217,230,0.95)' },
   subCard:         { width: 114, height: 220, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: 12 },
   subCourse:       { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.7)', lineHeight: 14, marginBottom: 4 },
   subDate:         { fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.32)' },
