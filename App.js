@@ -1037,7 +1037,14 @@ function HomeScreen({ navigation }) {
         </View>
         <View style={{ flex: 1 }} />
         <View style={homeS.bottomArea}>
-          <Text style={homeS.secLabel}>예정 라운딩</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 8 }}>
+            <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>예정 라운딩</Text>
+            {schedules.length < 10 && (
+              <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>+ 추가</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             {/* 메인 카드 */}
@@ -1062,8 +1069,8 @@ function HomeScreen({ navigation }) {
               </View>
             </TouchableOpacity>
 
-            {/* 서브 카드 */}
-            {schedules.slice(1).map(s => (
+            {/* 서브 카드 — 최대 5개까지 표시 (메인 1 + 서브 4) */}
+            {schedules.slice(1, 5).map(s => (
               <TouchableOpacity key={s.id} style={homeS.subCard}
                 activeOpacity={0.85}
                 onPress={() => openScheduleSheet(s)}
@@ -1084,13 +1091,6 @@ function HomeScreen({ navigation }) {
               </TouchableOpacity>
             ))}
 
-            {/* + 추가 박스 — 3개 미만일 때만 표시 */}
-            {schedules.length < 3 && (
-              <TouchableOpacity style={homeS.addCard} onPress={() => setShowAddModal(true)} activeOpacity={0.7}>
-                <Text style={homeS.addCardIcon}>+</Text>
-                <Text style={homeS.addCardTxt}>추가</Text>
-              </TouchableOpacity>
-            )}
           </ScrollView>
 
           <View style={{ marginHorizontal: 20, marginVertical: 12 }}>
@@ -2875,9 +2875,6 @@ const homeS = StyleSheet.create({
   memoDate:        { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
   emptyAddBtn:     { marginTop: 20, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.4)', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 },
   emptyAddTxt:     { fontFamily: F.sys, fontSize: 13, color: 'rgba(245,230,168,0.7)' },
-  addCard:         { width: 80, height: 220, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  addCardIcon:     { fontFamily: F.en, fontSize: 28, color: 'rgba(255,255,255,0.5)', lineHeight: 32 },
-  addCardTxt:      { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.35)' },
   // 팝업
   mask:            { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet:           { backgroundColor: '#0e1f16', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.12)', paddingBottom: 20, maxHeight: '95%', flex: 1 },
