@@ -988,14 +988,14 @@ function HomeScreen({ navigation }) {
         <SafeAreaView style={{ flex: 1 }}>
           <TripleStripe />
           <View style={homeS.hdr}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
-              <WeatherMiniBar onPress={openCurrentWeather} />
-            </View>
+            <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
             <Text style={homeS.hdrTitle}>Dear Golf</Text>
             <Text style={homeS.hdrGreeting}>
               안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
             </Text>
+            <View style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+              <WeatherMiniBar onPress={openCurrentWeather} />
+            </View>
           </View>
           <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
             <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
@@ -1027,14 +1027,14 @@ function HomeScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1 }}>
         <TripleStripe />
         <View style={homeS.hdr}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
-            <WeatherMiniBar onPress={openCurrentWeather} />
-          </View>
+          <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
           <Text style={homeS.hdrTitle}>Dear Golf</Text>
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
+          <View style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+            <WeatherMiniBar onPress={openCurrentWeather} />
+          </View>
         </View>
         <View style={{ flex: 1 }} />
         <View style={homeS.bottomArea}>
@@ -1044,52 +1044,43 @@ function HomeScreen({ navigation }) {
             {/* 메인 카드 */}
             <TouchableOpacity
               style={homeS.mainCard}
-              activeOpacity={1}
+              activeOpacity={0.85}
+              onPress={() => openScheduleSheet(next)}
               onLongPress={() => openScheduleSheet(next)}
               delayLongPress={350}>
               <TouchableOpacity
-                onPress={() => handleCardCoursePress(next)}
-                activeOpacity={next.courseLogId ? 0.7 : 1}
+                onPress={() => next.courseLogId ? handleCardCoursePress(next) : openScheduleSheet(next)}
+                activeOpacity={next.courseLogId ? 0.7 : 0.85}
                 style={{ marginBottom: 4 }}>
                 <Text style={homeS.cardCourse}>{next.course}
-                  {next.courseLogId ? <Text style={{ fontSize: 10, color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
+                  {next.courseLogId ? <Text style={{ fontSize: 11, color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                 </Text>
                 <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
               </TouchableOpacity>
               <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7}>
-                  <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                  <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openWeatherFor(next)}>
-                    <Text style={homeS.pillTxt}>☀️ {next.weather} →</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openTrafficFor(next)}>
-                    <Text style={homeS.pillTxt}>🚗 {next.duration} →</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
+                <Text style={homeS.cardTapHint}>☀️  🚗   탭하여 확인하기 →</Text>
               </View>
             </TouchableOpacity>
 
             {/* 서브 카드 */}
             {schedules.slice(1).map(s => (
               <TouchableOpacity key={s.id} style={homeS.subCard}
-                activeOpacity={1}
+                activeOpacity={0.85}
+                onPress={() => openScheduleSheet(s)}
                 onLongPress={() => openScheduleSheet(s)}
                 delayLongPress={350}>
                 <TouchableOpacity
-                  onPress={() => handleCardCoursePress(s)}
-                  activeOpacity={s.courseLogId ? 0.7 : 1}>
+                  onPress={() => s.courseLogId ? handleCardCoursePress(s) : openScheduleSheet(s)}
+                  activeOpacity={s.courseLogId ? 0.7 : 0.85}>
                   <Text style={homeS.subCourse} numberOfLines={2}>{s.course}
                     {s.courseLogId ? <Text style={{ fontSize: 8, color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
                 </TouchableOpacity>
                 <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                  <TouchableOpacity onPress={() => openScheduleSheet(s)} activeOpacity={0.7}>
-                    <Text style={homeS.subDDay}>D-{s.dDay}</Text>
-                    <Text style={homeS.subDDayLabel}>일</Text>
-                  </TouchableOpacity>
+                  <Text style={homeS.subDDay}>D-{s.dDay}</Text>
+                  <Text style={homeS.subDDayLabel}>일</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -2865,10 +2856,11 @@ const homeS = StyleSheet.create({
   bottomArea:      { paddingBottom: 4 },
   secLabel:        { fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 2.5, paddingHorizontal: 22, marginBottom: 8 },
   mainCard:        { width: 232, height: 220, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: 16 },
-  cardCourse:      { fontFamily: F.sys, fontSize: 13, color: '#fff', marginBottom: 6, lineHeight: 18 },
-  cardDate:        { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.45)' },
+  cardCourse:      { fontFamily: F.sys, fontSize: 15, color: '#fff', marginBottom: 6, lineHeight: 20 },
+  cardDate:        { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)' },
   cardDDay:        { fontFamily: F.en, fontSize: 58, color: C.butter, lineHeight: 62, letterSpacing: -1 },
   cardDDayLabel:   { fontFamily: F.sys, fontSize: 8, color: 'rgba(245,230,168,0.45)', letterSpacing: 1.5, marginBottom: 4 },
+  cardTapHint:     { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6 },
   pill:            { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 22, paddingHorizontal: 12, paddingVertical: 6 },
   pillTap:         { borderColor: 'rgba(200,217,230,0.5)' },
   pillTxt:         { fontFamily: F.sys, fontSize: 16, color: 'rgba(200,217,230,0.95)' },
