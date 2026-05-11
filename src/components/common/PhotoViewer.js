@@ -1,13 +1,34 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
-import { Video } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { F } from '../../constants/colors';
 
 const { width: SW } = Dimensions.get('window');
 
+function VideoItem({ uri, active }) {
+  const player = useVideoPlayer(uri, p => {
+    p.loop = false;
+  });
+
+  useEffect(() => {
+    if (active) player.play();
+    else player.pause();
+  }, [active, player]);
+
+  return (
+    <VideoView
+      player={player}
+      style={{ width: SW, height: SW * 1.2 }}
+      contentFit="contain"
+      nativeControls
+      allowsFullscreen
+      allowsPictureInPicture
+    />
+  );
+}
+
 export function PhotoViewer({ photos, startIndex, onClose }) {
   const [idx, setIdx] = useState(startIndex);
-  const videoRef = useRef(null);
   const current = photos[idx];
   const isVideo = current?.type === 'video';
 
@@ -28,8 +49,7 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
           {photos.map((item, i) => (
             <View key={i} style={{ width: SW, justifyContent: 'center', alignItems: 'center' }}>
               {item.type === 'video' ? (
-                <Video ref={i === idx ? videoRef : null} source={{ uri: item.uri }}
-                  style={{ width: SW, height: SW * 1.2 }} useNativeControls resizeMode="contain" shouldPlay={i === idx} />
+                <VideoItem uri={item.uri} active={i === idx} />
               ) : (
                 <Image source={{ uri: item.uri || item }} style={{ width: SW, height: SW * 1.2 }} resizeMode="contain" />
               )}
