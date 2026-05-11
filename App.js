@@ -1677,47 +1677,61 @@ function DiaryCard({ item, onPress, avgScore }) {
 
   const body = (
     <View style={dS.cardBody}>
+      {/* 1행: 날짜 */}
       <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+
+      {/* 2행: 골프장명 */}
       <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
-      <View style={dS.cardRow}>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-            <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-            <Text style={[dS.cardScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-            {item.special && (
-              <View style={{
-                backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
-                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-                alignSelf: 'center',
-              }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{item.special}</Text>
-              </View>
-            )}
-            {item.birdieCount > 0 && (
-              <View style={{
-                backgroundColor: '#3D3935',
-                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-                alignSelf: 'center',
-              }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '600' }}>버디 ×{item.birdieCount}</Text>
-              </View>
+
+      {/* 3행: 타수 + par + 뱃지들 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+        <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+        <Text style={[dS.cardScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+        <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+        {item.special && (
+          <View style={{
+            backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
+            borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
+            alignSelf: 'center',
+          }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{item.special}</Text>
+          </View>
+        )}
+        {item.birdieCount > 0 && (
+          <View style={{
+            backgroundColor: '#3D3935',
+            borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
+            alignSelf: 'center',
+          }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '600' }}>버디 ×{item.birdieCount}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* 4행: 한줄메모 단독 */}
+      {item.memo ? (
+        <View style={{ borderLeftWidth: 2, borderLeftColor: memoBorderColor, paddingLeft: 8, marginBottom: 8 }}>
+          <Text style={{ fontFamily: F.en, fontSize: 12, color: C.textSecondary, fontStyle: 'italic', lineHeight: 18 }}>"{item.memo}"</Text>
+        </View>
+      ) : null}
+
+      {/* 5행: 태그 가로 스크롤 */}
+      {item.tags && item.tags.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            {item.tags.slice(0, 4).map((tag, i) => {
+              const c = getTagColor(tag);
+              return (
+                <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: c.text, fontWeight: '600' }}>{tag}</Text>
+                </View>
+              );
+            })}
+            {item.tags.length > 4 && (
+              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
             )}
           </View>
-          <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
-        </View>
-        <Text style={[dS.cardMemo, { borderLeftColor: memoBorderColor }]}>"{item.memo}"</Text>
-      </View>
-      {item.tags && item.tags.length > 0 && (
-        <View style={dS.cardTagRow}>
-          {item.tags.slice(0, 4).map((t, i) => {
-            const c = getTagColor(t);
-            return (
-              <View key={i} style={[dS.cardTag, { backgroundColor: c.bg + '22', borderColor: c.bg + '66' }]}>
-                <Text style={[dS.cardTagTxt, { color: c.bg }]}>{t}</Text>
-              </View>
-            );
-          })}
-        </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -3345,14 +3359,9 @@ const dS = StyleSheet.create({
   cardBody:    { padding: 12 },
   cardDate:    { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginBottom: 4 },
   cardCourse:  { fontFamily: F.sys, fontSize: 13, color: C.textPrimary, marginBottom: 8 },
-  cardRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   cardScore:   { fontFamily: F.en, fontSize: 24, color: C.charcoal, lineHeight: 28 },
   cardScoreUnit: { fontFamily: F.sys, fontSize: 14, color: C.charcoal },
   cardPar:     { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 2 },
-  cardMemo:    { fontFamily: F.en, fontSize: 11, color: C.textSecondary, fontStyle: 'italic', flex: 1, marginLeft: 10, lineHeight: 16, borderLeftWidth: 1.5, borderLeftColor: C.hairline, paddingLeft: 8 },
-  cardTagRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 },
-  cardTag:        { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 0.5 },
-  cardTagTxt:     { fontFamily: F.sys, fontSize: 10 },
   detailHdr:      { backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 0.5, borderBottomColor: C.hairline, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   backBtn:        { fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight },
   detailHdrNickname:    { backgroundColor: '#6B1E2A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },
