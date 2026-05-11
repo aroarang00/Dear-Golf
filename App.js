@@ -476,129 +476,129 @@ function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
   ];
   const roundIdx = Math.min(Math.max(0, schedule.dDay || 0), FORECAST.length - 1);
 
+  // 24시간 기온 (하드코딩)
+  const HOURLY24 = [
+    11, 10, 10, 9, 9, 9, 10, 12, 15, 17, 19, 21,
+    22, 22, 22, 21, 20, 18, 16, 14, 13, 12, 11, 11,
+  ].map((t, i) => ({ h: i, t }));
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.charcoal }}>
-        <ScrollView
-          style={{ flex: 1, backgroundColor: popupTab === 'wx' ? C.bgPrimary : C.charcoal }}
-          contentContainerStyle={{ paddingBottom: 30 }}
-          showsVerticalScrollIndicator={false}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: popupTab === 'wx' ? C.charcoal : C.bgPrimary }}>
+        <TripleStripe height={3} />
 
-          {/* ── Dark Header ── */}
-          <View style={wxS.dHeader}>
-            <View style={wxS.dTopRow}>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-                <Text style={wxS.dClose}>← 닫기</Text>
-              </TouchableOpacity>
-              <View style={wxS.dTabs}>
-                <TouchableOpacity onPress={() => setPopupTab('wx')} activeOpacity={0.7}
-                  style={[wxS.dTab, popupTab === 'wx' && wxS.dTabOn]}>
-                  <Text style={[wxS.dTabTxt, popupTab === 'wx' && wxS.dTabTxtOn]}>날씨</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setPopupTab('tr')} activeOpacity={0.7}
-                  style={[wxS.dTab, popupTab === 'tr' && wxS.dTabOn]}>
-                  <Text style={[wxS.dTabTxt, popupTab === 'tr' && wxS.dTabTxtOn]}>교통</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Text style={wxS.dInfo}>{schedule.course} · {schedule.date} · D-{schedule.dDay}</Text>
-
-            {popupTab === 'wx' && (
-              <>
-                <View style={wxS.dTempRow}>
-                  <Text style={wxS.dEmoji}>☀️</Text>
-                  <Text style={wxS.dTempBig}>18°</Text>
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={wxS.dTempSky}>맑음</Text>
-                    <Text style={wxS.dTempCompare}>어제보다 +2°</Text>
-                  </View>
-                </View>
-                <Text style={wxS.dTempFooter}>체감 17° · 최저 12° / 최고 22°</Text>
-              </>
-            )}
+        <View style={[wxS.shellRow, popupTab === 'wx' ? wxS.shellRowDark : wxS.shellRowLight]}>
+          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+            <Text style={popupTab === 'wx' ? wxS.closeLight : wxS.closeDark}>← 닫기</Text>
+          </TouchableOpacity>
+          <View style={wxS.pillTabs}>
+            <TouchableOpacity onPress={() => setPopupTab('wx')} activeOpacity={0.7}
+              style={[wxS.pillTab, popupTab === 'wx' && wxS.pillTabOn]}>
+              <Text style={
+                popupTab === 'wx' ? wxS.pillTxtOn
+                : (popupTab === 'wx' ? wxS.pillTxtLight : wxS.pillTxtDark)
+              }>날씨</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setPopupTab('tr')} activeOpacity={0.7}
+              style={[wxS.pillTab, popupTab === 'tr' && wxS.pillTabOn]}>
+              <Text style={
+                popupTab === 'tr' ? wxS.pillTxtOn
+                : (popupTab === 'wx' ? wxS.pillTxtLight : wxS.pillTxtDark)
+              }>교통</Text>
+            </TouchableOpacity>
           </View>
+        </View>
+
+        <ScrollView
+          style={{ flex: 1, backgroundColor: popupTab === 'wx' ? C.charcoal : C.bgPrimary }}
+          contentContainerStyle={{ paddingBottom: 0 }}
+          showsVerticalScrollIndicator={false}>
 
           {popupTab === 'wx' && (
             <>
-              {/* 2x2 그리드 */}
+              {/* 헤더 (charcoal) */}
+              <View style={wxS.wxHeader}>
+                <Text style={wxS.wxCourse}>{schedule.course}</Text>
+                <Text style={wxS.wxDate}>{schedule.date} · D-{schedule.dDay}</Text>
+              </View>
+
+              {/* 기온 영역 */}
+              <View style={wxS.tempRow}>
+                <Text style={wxS.tempEmoji}>☀️</Text>
+                <View style={{ flex: 1, marginLeft: 14 }}>
+                  <Text style={wxS.tempBig}>18°</Text>
+                  <Text style={wxS.tempSky}>맑음 · 어제보다 +2°</Text>
+                  <Text style={wxS.tempSub}>체감 17° · 최저 12° / 최고 22°</Text>
+                </View>
+              </View>
+
+              {/* 4칸 그리드 */}
               <View style={wxS.gridWrap}>
-                <View style={[wxS.gridCell, { borderRightWidth: 0.5, borderBottomWidth: 0.5, borderColor: C.warmGray }]}>
+                <View style={[wxS.gridCell, { borderRightWidth: 0.5, borderBottomWidth: 0.5, borderColor: C.hairline }]}>
                   <Text style={wxS.gridLabel}>바람</Text>
                   <Text style={wxS.gridValue}>2.2m/s</Text>
                   <Text style={wxS.gridSubOK}>라운딩 최적</Text>
                 </View>
-                <View style={[wxS.gridCell, { borderBottomWidth: 0.5, borderColor: C.warmGray }]}>
+                <View style={[wxS.gridCell, { borderBottomWidth: 0.5, borderColor: C.hairline }]}>
                   <Text style={wxS.gridLabel}>습도</Text>
                   <Text style={wxS.gridValue}>30%</Text>
-                  <Text style={wxS.gridSub}>건조함</Text>
+                  <Text style={wxS.gridSubOK}>건조함</Text>
                 </View>
-                <View style={[wxS.gridCell, { borderRightWidth: 0.5, borderColor: C.warmGray }]}>
+                <View style={[wxS.gridCell, { borderRightWidth: 0.5, borderColor: C.hairline }]}>
                   <Text style={wxS.gridLabel}>미세먼지</Text>
                   <Text style={wxS.gridValue}>좋음</Text>
-                  <Text style={wxS.gridSub}>PM10 {pm10}㎍/㎥</Text>
+                  <Text style={wxS.gridSubOK}>PM10 {pm10}㎍/㎥</Text>
                 </View>
                 <View style={wxS.gridCell}>
                   <Text style={wxS.gridLabel}>자외선</Text>
-                  <Text style={wxS.gridValueWarn}>보통</Text>
-                  <Text style={wxS.gridSub}>차단제 권장</Text>
+                  <Text style={wxS.gridValue}>보통</Text>
+                  <Text style={wxS.gridSubWarn}>차단제 권장</Text>
                 </View>
               </View>
 
-              {/* 시간별 기온 */}
-              <View style={wxS.whiteCard}>
-                <Text style={wxS.cardLabel}>시간별 기온</Text>
-                <View style={wxS.barRow}>
-                  {[
-                    { h: '06시', t: 12, rain: 0 },
-                    { h: '07시', t: 14, rain: 0 },
-                    { h: '08시', t: 16, rain: 0 },
-                    { h: '09시', t: 18, rain: 0 },
-                    { h: '10시', t: 20, rain: 0 },
-                    { h: '11시', t: 21, rain: 0 },
-                    { h: '12시', t: 22, rain: 0 },
-                  ].map((x, i) => {
-                    const bh = 30 + ((x.t - 12) / 10) * 60;
-                    return (
-                      <View key={i} style={wxS.barCol}>
-                        <Text style={wxS.barTemp}>{x.t}°</Text>
-                        <View style={[wxS.bar, { height: bh }]} />
-                        {x.rain > 0
-                          ? <Text style={wxS.barRain}>{x.rain}%</Text>
-                          : <Text style={wxS.barRainEmpty}> </Text>}
-                        <Text style={wxS.barHour}>{x.h}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
+              {/* 24시간 기온 차트 */}
+              <View style={wxS.chartCard}>
+                <Text style={wxS.cardLabel}>시간별 기온 · 24시간</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={wxS.barRow}>
+                    {HOURLY24.map((x, i) => {
+                      const bh = 20 + ((x.t - 8) / 18) * 70;
+                      const isWarm = x.t >= 18;
+                      return (
+                        <View key={i} style={wxS.barCol}>
+                          <Text style={wxS.barTemp}>{x.t}°</Text>
+                          <View style={[wxS.bar, { height: bh, backgroundColor: isWarm ? '#C9A84C' : C.burgundy, opacity: 0.7 }]} />
+                          <Text style={wxS.barHour}>{x.h}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
               </View>
 
               {/* 골프 지수 */}
-              <View style={wxS.whiteCard}>
+              <View style={wxS.gIdxCard}>
                 <Text style={wxS.cardLabel}>골프 지수</Text>
                 <Text style={wxS.gIdxBig}>Good</Text>
                 <Text style={wxS.gIdxScore}>{golfScore} / 100</Text>
                 <View style={wxS.gIdxBar}>
                   <View style={[wxS.gIdxBarFill, { width: `${golfScore}%` }]} />
                 </View>
-                <View style={wxS.gIdxBottom}>
-                  <View style={wxS.gIdxBottomCell}>
-                    <Text style={wxS.gIdxBLabel}>바람</Text>
-                    <Text style={wxS.gIdxBValue}>약함</Text>
+                <View style={wxS.badgeRow}>
+                  <View style={[wxS.badge, { backgroundColor: '#C8D9E6' }]}>
+                    <Text style={[wxS.badgeTxt, { color: '#1A3D52' }]}>바람 약함</Text>
                   </View>
-                  <View style={wxS.gIdxBottomCell}>
-                    <Text style={wxS.gIdxBLabel}>강수</Text>
-                    <Text style={wxS.gIdxBValue}>없음</Text>
+                  <View style={[wxS.badge, { backgroundColor: C.charcoal }]}>
+                    <Text style={[wxS.badgeTxt, { color: C.butter }]}>강수 없음</Text>
                   </View>
-                  <View style={wxS.gIdxBottomCell}>
-                    <Text style={wxS.gIdxBLabel}>기온</Text>
-                    <Text style={wxS.gIdxBValue}>적정</Text>
+                  <View style={[wxS.badge, { backgroundColor: C.burgundy }]}>
+                    <Text style={[wxS.badgeTxt, { color: C.butter }]}>기온 적정</Text>
                   </View>
                 </View>
               </View>
 
               {/* 10일 예보 */}
-              <View style={wxS.whiteCard}>
+              <View style={wxS.fcCard}>
                 <Text style={wxS.cardLabel}>10일 예보</Text>
                 {FORECAST.map((w, i) => {
                   const isRound = i === roundIdx;
@@ -610,9 +610,14 @@ function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
                       </View>
                       <Text style={wxS.fcIcon}>{w.icon}</Text>
                       <View style={{ flex: 1, marginLeft: 6 }}>
-                        <Text style={[wxS.fcSky, isRound && { color: C.burgundy, fontWeight: '600' }]}>
-                          {w.sky}{isRound ? ' · 라운딩일' : ''}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Text style={[wxS.fcSky, isRound && wxS.fcSkyRound]}>{w.sky}</Text>
+                          {isRound && (
+                            <View style={wxS.roundBadge}>
+                              <Text style={wxS.roundBadgeTxt}>라운딩</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={wxS.fcSub}>{w.wind} · 강수 {w.prob}%</Text>
                       </View>
                       <Text style={wxS.fcTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
@@ -630,116 +635,129 @@ function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
             </>
           )}
 
-          {popupTab === 'tr' && (
-            <View style={{ paddingHorizontal: 18, paddingTop: 14 }}>
-              <Text style={homeS.popCourse}>{schedule.course} · {schedule.date.slice(5)} {schedule.day} · 티오프 {schedule.time}</Text>
+          {popupTab === 'tr' && (() => {
+            const [teeH, teeM] = schedule.time.split(':').map(Number);
+            const teeMin = teeH * 60 + teeM;
+            const toHHMM = (m) => {
+              m = (m + 24 * 60) % (24 * 60);
+              return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+            };
+            const recoDriveMin = 80;
+            const recommended = toHHMM(teeMin - 30 - recoDriveMin);
+            const baseTen = Math.floor((teeMin - 30 - recoDriveMin) / 10) * 10;
+            const rows = [-30, -20, -10, 0, 10].map((off, i) => {
+              const t = toHHMM(baseTen + off);
+              const dMin = recoDriveMin + [-8, -4, -2, 0, 6][i];
+              const dStr = `${Math.floor(dMin / 60)}시간 ${dMin % 60}분`;
+              const cong = i <= 1 ? '원활' : i === 2 ? '보통' : '혼잡';
+              return { t, dStr, cong, isReco: off === 0 };
+            });
 
-              {/* 권장 출발 시간 — 크게 */}
-              <View style={homeS.trBox}>
-                <Text style={homeS.trBoxLabel}>RECOMMENDED DEPARTURE</Text>
-                <Text style={homeS.trBoxTime}>06:07</Text>
-                <Text style={homeS.trBoxSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
-              </View>
+            const handleShareDaeri = () => {
+              const msg = `[ Dear Golf ] 같이 대리 부르실 분?\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일 라운딩\n티오프 ${schedule.time}\n\n카카오T 대리: https://www.kakaomobility.com/\n티맵 대리: https://tmap.life\n아이대리: https://www.idaeri.co.kr`;
+              Share.share({ message: msg });
+            };
 
-              {/* 출발시간별 소요시간 표 */}
-              <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, marginBottom: 8 }}>출발시간별 예상 소요시간</Text>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden', marginBottom: 14, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)' }}>
-                {DEPARTURE_TIMES.map((d, i) => {
-                  const trafficColor = d.traffic === '원활' ? C.paleSky : d.traffic === '보통' ? C.butter : C.burgundy;
-                  const isRecommended = d.time === '06:00';
-                  return (
-                    <View key={i} style={{
-                      flexDirection: 'row', alignItems: 'center',
-                      paddingHorizontal: 14, paddingVertical: 10,
-                      borderBottomWidth: i < DEPARTURE_TIMES.length - 1 ? 0.5 : 0,
-                      borderBottomColor: 'rgba(255,255,255,0.07)',
-                      backgroundColor: isRecommended ? 'rgba(245,230,168,0.08)' : 'transparent',
-                    }}>
-                      <Text style={{ fontFamily: F.en, fontSize: 15, color: isRecommended ? C.butter : 'rgba(255,255,255,0.75)', width: 52 }}>{d.time}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.6)', flex: 1 }}>{d.duration}</Text>
-                      <View style={{ backgroundColor: trafficColor + '22', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 10, color: trafficColor }}>{d.traffic}</Text>
-                      </View>
-                      {isRecommended && (
-                        <View style={{ marginLeft: 6, backgroundColor: 'rgba(245,230,168,0.2)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 9, color: C.butter }}>추천</Text>
-                        </View>
-                      )}
+            return (
+              <>
+                {/* 크림 영역 — 헤더부터 경로 카드까지 */}
+                <View style={trS.creamSection}>
+                  {/* 골프장명 + 날짜 */}
+                  <Text style={trS.trCourse}>{schedule.course}</Text>
+                  <Text style={trS.trDate}>{schedule.date} · 티오프 {schedule.time}</Text>
+
+                  {/* 추천 출발 박스 (charcoal 카드) */}
+                  <View style={trS.recoBox}>
+                    <Text style={trS.recoLabel}>추천 출발</Text>
+                    <Text style={trS.recoTime}>{recommended}</Text>
+                    <Text style={trS.recoSub}>티오프 {schedule.time} · 여유 30분 포함</Text>
+                  </View>
+
+                  {/* 출발시간별 소요시간 테이블 (흰 카드) */}
+                  <View style={trS.tblCard}>
+                    <View style={trS.tblHdr}>
+                      <Text style={[trS.tblHdrCell, { flex: 1 }]}>출발</Text>
+                      <Text style={[trS.tblHdrCell, { flex: 1.2, textAlign: 'center' }]}>소요</Text>
+                      <Text style={[trS.tblHdrCell, { flex: 1, textAlign: 'center' }]}>상태</Text>
+                      <Text style={[trS.tblHdrCell, { flex: 0.8, textAlign: 'right' }]}>추천</Text>
                     </View>
-                  );
-                })}
-              </View>
+                    {rows.map((r, i) => {
+                      const congColors = r.cong === '원활' ? { bg: '#C8D9E6', txt: '#1A3D52' }
+                        : r.cong === '보통' ? { bg: '#F5E6A8', txt: '#5A4500' }
+                        : { bg: '#6B1E2A', txt: '#fff' };
+                      return (
+                        <View key={i} style={[trS.tblRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}>
+                          <Text style={[trS.tblTime, { flex: 1 }]}>{r.t}</Text>
+                          <Text style={[trS.tblDur, { flex: 1.2, textAlign: 'center' }]}>{r.dStr}</Text>
+                          <View style={{ flex: 1, alignItems: 'center' }}>
+                            <View style={[trS.congBadge, { backgroundColor: congColors.bg }]}>
+                              <Text style={[trS.congBadgeTxt, { color: congColors.txt }]}>{r.cong}</Text>
+                            </View>
+                          </View>
+                          <View style={{ flex: 0.8, alignItems: 'flex-end' }}>
+                            {r.isReco && (
+                              <View style={trS.recoTagBadge}>
+                                <Text style={trS.recoTagTxt}>추천</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
 
-              {/* 갈 때 */}
-              <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, marginBottom: 8 }}>갈 때</Text>
-              <View style={homeS.trRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={homeS.trMain}>서울 강남구 → {schedule.course}</Text>
-                  <Text style={homeS.trSub}>경부고속도로 · 78.4km · 약 {schedule.duration}</Text>
+                  {/* 골프장 이동경로 카드 (흰 카드) */}
+                  <View style={trS.routeCard}>
+                    <View style={trS.routeFlow}>
+                      <Text style={trS.routeOrigin}>서울 강남구</Text>
+                      <Text style={trS.routeArrow}>→</Text>
+                      <Text style={trS.routeDest} numberOfLines={1}>{schedule.course}</Text>
+                    </View>
+                    <Text style={trS.routeMidTxt}>약 78.4km · 경부고속도로</Text>
+                    <View style={trS.routeBtnRow}>
+                      <TouchableOpacity style={[trS.routeBtn, { backgroundColor: '#03C75A' }]}
+                        onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
+                          .catch(() => Linking.openURL('https://map.naver.com/'))}
+                        activeOpacity={0.85}>
+                        <Text style={[trS.routeBtnTxt, { color: '#fff' }]}>네이버 경로</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[trS.routeBtn, { backgroundColor: C.charcoal }]}
+                        onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
+                          .catch(() => Linking.openURL('https://tmap.life'))}
+                        activeOpacity={0.85}>
+                        <Text style={[trS.routeBtnTxt, { color: C.butter }]}>티맵 경로</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-                <TouchableOpacity style={homeS.routeBtn}
-                  onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                    .catch(() => Linking.openURL(`https://map.naver.com/v5/directions/-/-/-/car`))}>
-                  <Text style={homeS.routeBtnTxt}>네이버 경로</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={homeS.routeBtn}
-                  onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
-                    .catch(() => Linking.openURL('https://tmap.life'))}>
-                  <Text style={homeS.routeBtnTxt}>티맵 경로</Text>
-                </TouchableOpacity>
-              </View>
 
-              {/* 올 때 */}
-              <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, marginBottom: 8 }}>올 때</Text>
-              <View style={homeS.trRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={homeS.trMain}>{schedule.course} → 서울 강남구</Text>
-                  <Text style={homeS.trSub}>약 {schedule.duration} 소요 예상</Text>
+                {/* 챠콜 영역 — 대리운전 + 공유 */}
+                <View style={trS.charcoalSection}>
+                  <Text style={trS.darkLabel}>대리운전</Text>
+                  <View style={trS.daeriRow}>
+                    <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#FEE500' }]}
+                      onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
+                      activeOpacity={0.85}>
+                      <Text style={[trS.daeriBtnTxt, { color: '#3A2000' }]}>카카오T</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#C8D9E6' }]}
+                      onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
+                      activeOpacity={0.85}>
+                      <Text style={[trS.daeriBtnTxt, { color: '#1A3D52' }]}>티맵대리</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#8B8680' }]}
+                      onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
+                      activeOpacity={0.85}>
+                      <Text style={[trS.daeriBtnTxt, { color: '#fff' }]}>아이대리</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity style={trS.shareBtn} onPress={handleShareDaeri} activeOpacity={0.85}>
+                    <Text style={trS.shareBtnTxt}>동반자에게 공유</Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                <TouchableOpacity style={homeS.routeBtn}
-                  onPress={() => Linking.openURL(`nmap://route/car?slat=37.0&slon=127.0&sname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                    .catch(() => Linking.openURL(`https://map.naver.com/v5/directions/-/-/-/car`))}>
-                  <Text style={homeS.routeBtnTxt}>네이버 경로</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={homeS.routeBtn}
-                  onPress={() => Linking.openURL(`tmap://route?startname=${encodeURIComponent(schedule.course)}`)
-                    .catch(() => Linking.openURL('https://tmap.life'))}>
-                  <Text style={homeS.routeBtnTxt}>티맵 경로</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* 대리운전 — 한 번만, 반투명 */}
-              <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, marginBottom: 10 }}>대리운전</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-                <TouchableOpacity style={[homeS.driverBtn, { backgroundColor: 'rgba(254,229,0,0.12)', borderWidth: 1, borderColor: 'rgba(254,229,0,0.3)' }]}
-                  onPress={() => Linking.openURL('kakaot://').catch(() => Linking.openURL('https://t.kakao.com'))}>
-                  <Text style={[homeS.driverBtnTxt, { color: '#FEE500' }]}>카카오T</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[homeS.driverBtn, { backgroundColor: 'rgba(0,104,195,0.15)', borderWidth: 1, borderColor: 'rgba(0,104,195,0.4)' }]}
-                  onPress={() => Linking.openURL('tmap://').catch(() => Linking.openURL('https://tmap.life'))}>
-                  <Text style={[homeS.driverBtnTxt, { color: '#5BA3E0' }]}>티맵</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[homeS.driverBtn, { backgroundColor: 'rgba(200,217,230,0.1)', borderWidth: 1, borderColor: 'rgba(200,217,230,0.3)' }]}
-                  onPress={() => Linking.openURL('https://www.idaree.com')}>
-                  <Text style={[homeS.driverBtnTxt, { color: C.paleSky }]}>아이대리</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* 동반자 공유 */}
-              <TouchableOpacity
-                style={{ backgroundColor: C.burgundy + 'CC', borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginBottom: 20 }}
-                onPress={() => {
-                  const msg = `[ Dear Golf ]\n${schedule.course} · ${schedule.date} ${schedule.day}\n\n권장 출발 06:07 (티오프 ${schedule.time})\n\n대리운전\n카카오T: https://t.kakao.com\n티맵: https://tmap.life\n아이대리: https://www.idaree.com`;
-                  Share.share({ message: msg });
-                }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#fff' }}>동반자에게 공유</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+              </>
+            );
+          })()}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -762,7 +780,7 @@ function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={sheetS.sheet}>
           <View style={sheetS.handle} />
-          <View style={{ paddingHorizontal: 22, paddingTop: 4, paddingBottom: 14 }}>
+          <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 14 }}>
             <TouchableOpacity onPress={onCourseTap} activeOpacity={schedule.courseLogId ? 0.6 : 1}>
               <Text style={sheetS.course}>{schedule.course}
                 {schedule.courseLogId ? <Text style={sheetS.courseArrow}> ›</Text> : null}
@@ -774,7 +792,7 @@ function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather
               <Text style={sheetS.ddayLabel}>{schedule.dDay}일 후 라운딩이에요 🏌️</Text>
             </View>
           </View>
-          <View style={sheetS.divider} />
+          <TripleStripe height={2} />
           {items.map((it, i) => (
             <TouchableOpacity
               key={it.key}
@@ -805,6 +823,23 @@ function WeatherMiniBar({ onPress }) {
   );
 }
 
+// 일정 배열을 오늘 기준 dDay 재계산 + 지난 일정(dDay < 0) 제거 + 날짜 오름차순 정렬
+const normalizeSchedules = (list) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const MS = 1000 * 60 * 60 * 24;
+  return list
+    .map(s => {
+      const [y, m, d] = (s.date || '').split('.').map(Number);
+      if (!y || !m || !d) return { ...s, dDay: s.dDay ?? 0 };
+      const target = new Date(y, m - 1, d);
+      target.setHours(0, 0, 0, 0);
+      return { ...s, dDay: Math.ceil((target - today) / MS) };
+    })
+    .filter(s => s.dDay >= 0)
+    .sort((a, b) => a.dDay - b.dDay);
+};
+
 // ── 홈 화면 ───────────────────────────────────────────
 function HomeScreen({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
@@ -820,7 +855,7 @@ function HomeScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       const loaded = await storage.load(STORAGE_KEYS.schedules, SCHEDULES_INIT);
-      setSchedules(loaded);
+      setSchedules(normalizeSchedules(loaded));
       setSchedulesHydrated(true);
     })();
   }, []);
@@ -915,12 +950,12 @@ function HomeScreen({ navigation }) {
         dDay: data.dDay || 30, weather: '맑음 20°', wind: '남 2m/s',
         duration: '1시간 30분', courseLogId: null,
       };
-      setSchedules(prev => [...prev, newS]);
+      setSchedules(prev => normalizeSchedules([...prev, newS]));
     } else if (type === 'schedule-edit') {
-      setSchedules(prev => prev.map(s => s.id === data.id
+      setSchedules(prev => normalizeSchedules(prev.map(s => s.id === data.id
         ? { ...s, course: data.course, date: data.date, day: data.day,
             time: data.time, members: data.members, dDay: data.dDay }
-        : s));
+        : s)));
     }
   };
 
@@ -1010,7 +1045,8 @@ function HomeScreen({ navigation }) {
               </TouchableOpacity>
               <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                 <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
-                <Text style={homeS.cardTapHint}>☀️  🚗   탭하여 확인하기 →</Text>
+                <Text style={{ fontSize: 26, marginBottom: 6 }}>☀️  🚗</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
               </View>
             </TouchableOpacity>
 
@@ -1049,12 +1085,12 @@ function HomeScreen({ navigation }) {
               <Text style={homeS.memoDate}>{memoEntry.date} · {next.course}</Text>
             </TouchableOpacity>
           ) : (
-            <View style={[homeS.memoCard, homeS.memoCardFirst]}>
-              <Text style={[homeS.memoEye, { color: 'rgba(200,217,230,0.5)' }]}>첫 방문</Text>
-              <Text style={[homeS.memoTxt, { color: 'rgba(200,217,230,0.85)', fontStyle: 'normal' }]}>
-                처음 가는 코스예요.{'\n'}오늘 라운딩이 첫 기록이 될 거예요
-              </Text>
-            </View>
+            <TouchableOpacity style={[homeS.memoCard, homeS.memoCardFirst]}
+              onPress={handleMemoPress} activeOpacity={0.8}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(200,217,230,0.5)', letterSpacing: 1.5, marginBottom: 6 }}>첫 방문</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 20 }}>처음 가는 코스예요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 5 }}>오늘 라운딩이 첫 기록이 될 거예요</Text>
+            </TouchableOpacity>
           )}
           <View style={{ height: 20 }} />
         </View>
@@ -1220,7 +1256,6 @@ function ScheduleModal({ visible, onClose, onSave, initial }) {
   };
 
   const handleSave = () => {
-    console.log('[ScheduleModal] handleSave', { selectedCourse, courseSearch });
     const finalCourse = selectedCourse || courseSearch.trim();
     if (!finalCourse) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -2836,91 +2871,125 @@ const homeS = StyleSheet.create({
   cardCourse:      { fontFamily: F.sys, fontSize: 15, color: '#fff', marginBottom: 6, lineHeight: 20 },
   cardDate:        { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)' },
   cardDDay:        { fontFamily: F.en, fontSize: 58, color: C.butter, lineHeight: 62, letterSpacing: -1 },
-  cardTapHint:     { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6 },
   subCard:         { width: 114, height: 220, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: 12 },
   subCourse:       { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.7)', lineHeight: 14, marginBottom: 4 },
   subDate:         { fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.32)' },
   subDDay:         { fontFamily: F.en, fontSize: 24, color: 'rgba(245,230,168,0.7)', lineHeight: 26 },
   subDDayLabel:    { fontFamily: F.sys, fontSize: 7, color: 'rgba(245,230,168,0.32)', letterSpacing: 1 },
   memoCard:        { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 8 },
-  memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.06)' },
+  memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.08)', paddingVertical: 12 },
   memoEye:         { fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5, marginBottom: 6 },
   memoTxt:         { fontFamily: F.sys, fontSize: 13, fontWeight: '400', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
   memoDate:        { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
-  // 팝업
-  popCourse:       { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10, letterSpacing: 0.5 },
-  trBox:           { backgroundColor: 'rgba(245,230,168,0.08)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.25)', borderRadius: 14, padding: 14, marginBottom: 14 },
-  trBoxLabel:      { fontFamily: F.sys, fontSize: 9, color: 'rgba(245,230,168,0.5)', letterSpacing: 2, marginBottom: 6 },
-  trBoxTime:       { fontFamily: F.en, fontSize: 44, color: C.butter, lineHeight: 48, letterSpacing: -0.5 },
-  trBoxSub:        { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
-  trRow:           { paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.07)', marginBottom: 8 },
-  trMain:          { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.82)', marginBottom: 2 },
-  trSub:           { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.35)' },
-  routeBtn:        { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
-  routeBtnTxt:     { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.8)' },
-  driverBtn:       { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  driverBtnTxt:    { fontFamily: F.sys, fontSize: 12 },
 });
 
-// 날씨/교통 통합 팝업 (새 디자인) 스타일
+// 날씨 탭 (새 디자인) 스타일
 const wxS = StyleSheet.create({
-  // Dark header
-  dHeader:        { backgroundColor: C.charcoal, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 22 },
-  dTopRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  dClose:         { fontFamily: F.sys, fontSize: 14, color: '#fff', paddingVertical: 6 },
-  dTabs:          { flexDirection: 'row', gap: 6 },
-  dTab:           { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, backgroundColor: 'transparent' },
-  dTabOn:         { backgroundColor: C.burgundy },
-  dTabTxt:        { fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
-  dTabTxtOn:     { color: C.butter, fontWeight: '600' },
-  dInfo:          { fontFamily: F.sys, fontSize: 12, color: 'rgba(245,230,168,0.6)', marginBottom: 12 },
-  dTempRow:       { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  dEmoji:         { fontSize: 44, marginRight: 6 },
-  dTempBig:       { fontFamily: F.en, fontSize: 72, fontWeight: '200', color: C.butter, lineHeight: 78, letterSpacing: -3 },
-  dTempSky:       { fontFamily: F.sys, fontSize: 16, color: '#fff', fontWeight: '500' },
-  dTempCompare:   { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  dTempFooter:    { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.45)' },
-  // 2x2 grid
-  gridWrap:       { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: C.warmGray },
-  gridCell:       { width: '50%', backgroundColor: C.bgPrimary, paddingVertical: 14, paddingHorizontal: 16 },
-  gridLabel:      { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
-  gridValue:      { fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '500' },
-  gridValueWarn:  { fontFamily: F.sys, fontSize: 17, color: C.burgundy, fontWeight: '500' },
-  gridSubOK:      { fontFamily: F.sys, fontSize: 11, color: C.burgundy, marginTop: 2 },
-  gridSub:        { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 },
-  // White card
-  whiteCard:      { backgroundColor: '#fff', marginTop: 8, paddingHorizontal: 20, paddingVertical: 16 },
-  cardLabel:      { fontFamily: F.sys, fontSize: 11, color: C.warmGray, letterSpacing: 1, marginBottom: 12 },
-  // Hourly bar
-  barRow:         { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 130 },
-  barCol:         { flex: 1, alignItems: 'center' },
-  barTemp:        { fontFamily: F.en, fontSize: 11, color: C.charcoal, marginBottom: 4 },
-  bar:            { width: 14, backgroundColor: C.butter, borderRadius: 4, borderWidth: 0.5, borderColor: C.warmGray },
-  barRain:        { fontFamily: F.sys, fontSize: 9, color: C.paleSky, marginTop: 2 },
-  barRainEmpty:   { fontFamily: F.sys, fontSize: 9, marginTop: 2 },
-  barHour:        { fontFamily: F.sys, fontSize: 9, color: C.warmGray, marginTop: 2 },
+  // Shell (close + pill tabs row)
+  shellRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
+  shellRowDark:  { backgroundColor: C.charcoal },
+  shellRowLight: { backgroundColor: C.bgPrimary },
+  closeLight:    { fontFamily: F.sys, fontSize: 14, color: '#fff' },
+  closeDark:     { fontFamily: F.sys, fontSize: 14, color: 'rgba(61,57,53,0.5)' },
+  pillTabs:      { flexDirection: 'row', gap: 6 },
+  pillTab:       { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: 'transparent' },
+  pillTabOn:     { backgroundColor: C.burgundy },
+  pillTxtOn:     { fontFamily: F.sys, fontSize: 13, color: '#fff', fontWeight: '600' },
+  pillTxtLight:  { fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  pillTxtDark:   { fontFamily: F.sys, fontSize: 13, color: 'rgba(61,57,53,0.5)' },
+  // Weather header (charcoal)
+  wxHeader:      { backgroundColor: C.charcoal, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 18 },
+  wxCourse:      { fontFamily: F.sys, fontSize: 20, color: '#fff', fontWeight: '700', marginBottom: 4 },
+  wxDate:        { fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.65)' },
+  // 기온 영역
+  tempRow:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: C.bgPrimary },
+  tempEmoji:     { fontSize: 52 },
+  tempBig:       { fontFamily: F.en, fontSize: 54, color: C.charcoal, lineHeight: 60, letterSpacing: -2 },
+  tempSky:       { fontFamily: F.sys, fontSize: 14, color: C.charcoal, marginTop: 4 },
+  tempSub:       { fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 4 },
+  // 4-grid
+  gridWrap:      { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: C.hairline },
+  gridCell:      { width: '50%', backgroundColor: C.bgPrimary, paddingVertical: 14, paddingHorizontal: 16 },
+  gridLabel:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
+  gridValue:     { fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '500' },
+  gridSubOK:     { fontFamily: F.sys, fontSize: 11, color: C.burgundy, marginTop: 2 },
+  gridSubWarn:   { fontFamily: F.sys, fontSize: 11, color: '#C9A84C', marginTop: 2 },
+  // 24h chart
+  chartCard:     { backgroundColor: C.bgPrimary, marginTop: 8, paddingHorizontal: 20, paddingVertical: 16 },
+  cardLabel:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, letterSpacing: 1, marginBottom: 12 },
+  barRow:        { flexDirection: 'row', alignItems: 'flex-end', height: 120 },
+  barCol:        { alignItems: 'center', width: 32 },
+  barTemp:       { fontFamily: F.en, fontSize: 10, color: C.charcoal, marginBottom: 4 },
+  bar:           { width: 16, borderRadius: 4 },
+  barHour:       { fontFamily: F.sys, fontSize: 9, color: C.warmGray, marginTop: 4 },
   // Golf index
-  gIdxBig:        { fontFamily: F.sys, fontSize: 22, color: C.charcoal, fontWeight: '500', marginBottom: 2 },
-  gIdxScore:      { fontFamily: F.sys, fontSize: 13, color: C.warmGray, marginBottom: 10 },
-  gIdxBar:        { height: 8, borderRadius: 4, backgroundColor: C.paleSky, overflow: 'hidden', marginBottom: 14 },
-  gIdxBarFill:    { height: '100%', backgroundColor: C.burgundy, borderRadius: 4 },
-  gIdxBottom:     { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12 },
-  gIdxBottomCell: { flex: 1, alignItems: 'center' },
-  gIdxBLabel:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
-  gIdxBValue:     { fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '500' },
+  gIdxCard:      { backgroundColor: '#fff', marginTop: 8, paddingHorizontal: 20, paddingVertical: 18, borderTopWidth: 0.5, borderTopColor: C.hairline },
+  gIdxBig:       { fontFamily: F.en, fontSize: 28, color: C.charcoal, fontStyle: 'italic', marginBottom: 2 },
+  gIdxScore:     { fontFamily: F.sys, fontSize: 13, color: C.warmGray, marginBottom: 10 },
+  gIdxBar:       { height: 8, borderRadius: 4, backgroundColor: C.hairline, overflow: 'hidden', marginBottom: 14 },
+  gIdxBarFill:   { height: '100%', backgroundColor: C.burgundy, borderRadius: 4 },
+  badgeRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  badge:         { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 },
+  badgeTxt:      { fontFamily: F.sys, fontSize: 12, fontWeight: '500' },
   // Forecast
-  fcRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },
-  fcRowBorder:    { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
-  fcRowRound:     { backgroundColor: '#FFF8F0', borderLeftWidth: 3, borderLeftColor: C.burgundy, paddingHorizontal: 10, marginHorizontal: -4 },
-  fcDay:          { fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '500' },
-  fcDate:         { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
-  fcIcon:         { fontSize: 22, width: 32, textAlign: 'center' },
-  fcSky:          { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
-  fcSub:          { fontFamily: F.sys, fontSize: 10, color: C.textSecondary, marginTop: 2 },
-  fcTemp:         { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
+  fcCard:        { backgroundColor: '#fff', marginTop: 8, paddingHorizontal: 20, paddingVertical: 16 },
+  fcRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },
+  fcRowBorder:   { borderBottomWidth: 0.5, borderBottomColor: '#F0EAD8' },
+  fcRowRound:    { backgroundColor: '#FDF5F5', borderLeftWidth: 3, borderLeftColor: C.burgundy, paddingHorizontal: 10, marginHorizontal: -4 },
+  fcDay:         { fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '500' },
+  fcDate:        { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
+  fcIcon:        { fontSize: 22, width: 32, textAlign: 'center' },
+  fcSky:         { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  fcSkyRound:    { color: C.burgundy, fontWeight: '700' },
+  fcSub:         { fontFamily: F.sys, fontSize: 10, color: C.textSecondary, marginTop: 2 },
+  fcTemp:        { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
+  roundBadge:    { marginLeft: 6, backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  roundBadgeTxt: { fontFamily: F.sys, fontSize: 10, color: C.butter, fontWeight: '600' },
   // KMA button
-  kmaBtn:         { marginTop: 12, marginHorizontal: 20, marginBottom: 24, borderWidth: 1, borderColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center' },
-  kmaBtnTxt:      { fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '500' },
+  kmaBtn:        { marginTop: 12, marginHorizontal: 20, marginBottom: 12, backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy, borderRadius: 10, height: 44, alignItems: 'center', justifyContent: 'center' },
+  kmaBtnTxt:     { fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '500' },
+});
+
+// 교통 탭 (새 디자인) 스타일
+const trS = StyleSheet.create({
+  // Cream section (header → route card)
+  creamSection: { backgroundColor: '#FAF6EC', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 },
+  trCourse:     { fontFamily: F.sys, fontSize: 20, color: '#3D3935', fontWeight: '700', marginBottom: 4 },
+  trDate:       { fontFamily: F.sys, fontSize: 13, color: '#8B8680', marginBottom: 16 },
+  // 추천 출발 박스 (charcoal 카드)
+  recoBox:      { backgroundColor: '#3D3935', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, marginBottom: 16 },
+  recoLabel:    { fontFamily: F.sys, fontSize: 9, color: 'rgba(245,230,168,0.55)', letterSpacing: 2, marginBottom: 4 },
+  recoTime:     { fontFamily: F.en, fontSize: 44, color: '#F5E6A8', letterSpacing: -1, lineHeight: 48 },
+  recoSub:      { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
+  // 출발시간 테이블 (흰 카드)
+  tblCard:      { backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: '#E8E2D0', overflow: 'hidden', marginBottom: 16 },
+  tblHdr:       { flexDirection: 'row', backgroundColor: '#F5F3EE', paddingVertical: 9, paddingHorizontal: 14 },
+  tblHdrCell:   { fontFamily: F.sys, fontSize: 12, color: '#8B8680', fontWeight: '600', letterSpacing: 0.5 },
+  tblRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 0.5, borderBottomColor: '#F0EAD8' },
+  tblTime:      { fontFamily: F.en, fontSize: 14, color: '#3D3935' },
+  tblDur:       { fontFamily: F.sys, fontSize: 12, color: '#3D3935' },
+  congBadge:    { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  congBadgeTxt: { fontFamily: F.sys, fontSize: 11, fontWeight: '500' },
+  recoTagBadge: { backgroundColor: '#3D3935', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  recoTagTxt:   { fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '500' },
+  // 골프장 이동경로 카드 (흰 카드)
+  routeCard:    { backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: '#E8E2D0', padding: 14 },
+  routeFlow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  routeOrigin:  { fontFamily: F.sys, fontSize: 13, color: '#8B8680' },
+  routeArrow:   { fontFamily: F.sys, fontSize: 14, color: '#B8B3AB', marginHorizontal: 8 },
+  routeDest:    { fontFamily: F.sys, fontSize: 14, color: '#3D3935', fontWeight: '700', flex: 1 },
+  routeMidTxt:  { fontFamily: F.sys, fontSize: 12, color: '#8B8680', marginBottom: 10 },
+  routeBtnRow:  { flexDirection: 'row', gap: 8 },
+  routeBtn:     { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  routeBtnTxt:  { fontFamily: F.sys, fontSize: 14, fontWeight: '500' },
+  // 대리운전 + 공유 섹션 (크림)
+  charcoalSection:{ backgroundColor: '#FAF6EC', paddingHorizontal: 18, paddingVertical: 16 },
+  darkLabel:    { fontFamily: F.sys, fontSize: 13, color: '#3D3935', letterSpacing: 0.5, marginBottom: 10 },
+  daeriRow:     { flexDirection: 'row', gap: 8 },
+  daeriBtn:     { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  daeriBtnTxt:  { fontFamily: F.sys, fontSize: 13, fontWeight: '500' },
+  shareBtn:     { backgroundColor: '#6B1E2A', height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  shareBtnTxt:  { fontFamily: F.sys, fontSize: 14, color: '#F5E6A8', fontWeight: '700' },
 });
 
 // D-Day 바텀시트 메뉴 스타일
@@ -2931,10 +3000,9 @@ const sheetS = StyleSheet.create({
   course:      { fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '600' },
   courseArrow: { fontSize: 14, color: C.warmGrayLight, fontWeight: '400' },
   meta:        { fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6 },
-  dday:        { fontFamily: F.en, fontSize: 32, color: C.burgundy, letterSpacing: -0.5, lineHeight: 34 },
+  dday:        { fontFamily: F.en, fontSize: 38, color: C.burgundy, letterSpacing: -0.5, lineHeight: 40 },
   ddayLabel:   { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
-  divider:     { height: 6, backgroundColor: 'rgba(0,0,0,0.03)' },
-  row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 22, gap: 14 },
+  row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 22, gap: 14 },
   rowBorder:   { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
   rowEmoji:    { fontSize: 18, width: 22, textAlign: 'center' },
   rowText:     { fontFamily: F.sys, fontSize: 15, color: C.charcoal },
