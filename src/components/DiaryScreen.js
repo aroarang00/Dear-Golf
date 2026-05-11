@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, ScrollView, TextInput, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA, HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';

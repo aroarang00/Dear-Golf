@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, SafeAreaView, ScrollView, View, Text, TouchableOpacity, Linking, Share } from 'react-native';
+import { Modal, ScrollView, View, Text, TouchableOpacity, Linking, Share } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { C } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  StatusBar, SafeAreaView, View, Text, TouchableOpacity, ScrollView,
+  StatusBar, View, Text, TouchableOpacity, ScrollView,
   PanResponder, Share, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { SCHEDULES_INIT, MEMO_MAP, COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';

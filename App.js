@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
@@ -54,6 +55,7 @@ export default function App() {
   if (showOnboarding) return <OnboardingScreen onComplete={handleOnboardingComplete} />;
 
   return (
+    <SafeAreaProvider>
     <UserContext.Provider value={{ userProfile, setUserProfile }}>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
@@ -91,5 +93,6 @@ export default function App() {
       </Modal>
     </NavigationContainer>
     </UserContext.Provider>
+    </SafeAreaProvider>
   );
 }
