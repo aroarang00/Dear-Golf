@@ -3233,9 +3233,9 @@ const homeS = StyleSheet.create({
   memoSub:         { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.35)' },
   memoScore:       { fontFamily: F.sys, fontSize: 11, color: 'rgba(245,230,168,0.6)', marginBottom: 5 },
   memoTxt:         { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.75)', fontStyle: 'italic', borderLeftWidth: 2, borderLeftColor: 'rgba(107,30,42,0.6)', paddingLeft: 8, lineHeight: 18 },
-  commentCard:     { marginHorizontal: 20, backgroundColor: 'rgba(200,217,230,0.07)', borderWidth: 0.5, borderColor: 'rgba(200,217,230,0.15)', borderRadius: 14, overflow: 'hidden' },
-  commentTxt:      { fontFamily: F.sys, fontSize: 12, color: 'rgba(200,217,230,0.8)', fontStyle: 'italic', borderLeftWidth: 2, borderLeftColor: 'rgba(200,217,230,0.3)', paddingLeft: 8, lineHeight: 18 },
-  commentWho:      { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 5 },
+  commentCard:     { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 14, overflow: 'hidden' },
+  commentTxt:      { fontFamily: F.sys, fontSize: 12, color: '#fff', fontWeight: '500', fontStyle: 'italic', borderLeftWidth: 2, borderLeftColor: 'rgba(200,217,230,0.3)', paddingLeft: 8, lineHeight: 18 },
+  commentWho:      { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 5 },
 });
 
 // 날씨 탭 (새 디자인) 스타일
