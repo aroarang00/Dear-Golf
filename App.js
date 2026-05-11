@@ -32,34 +32,13 @@ import { tabS } from './src/styles/tabS';
 import { mS } from './src/styles/mS';
 import { myS } from './src/styles/myS';
 import { obS } from './src/styles/obS';
+import { TripleStripe } from './src/components/common/TripleStripe';
+import { LightHeader } from './src/components/common/LightHeader';
+import { PhotoViewer } from './src/components/common/PhotoViewer';
+import { HomeBgSlider } from './src/components/common/HomeBgSlider';
 
 const Tab = createBottomTabNavigator();
 const { width: SW } = Dimensions.get('window');
-
-// ── 공통 컴포넌트 ──────────────────────────────────────
-const TripleStripe = ({ height = 2 }) => (
-  <View style={{ flexDirection: 'row', height }}>
-    <View style={{ flex: 1, backgroundColor: C.butter }} />
-    <View style={{ flex: 1, backgroundColor: C.paleSky }} />
-    <View style={{ flex: 1, backgroundColor: C.burgundy }} />
-  </View>
-);
-
-const LightHeader = ({ sub, title, right }) => (
-  <View style={cmn.hdr}>
-    <View>
-      <Text style={cmn.hdrSub}>{sub}</Text>
-      <Text style={cmn.hdrTitle}>{title}</Text>
-    </View>
-    {right}
-  </View>
-);
-
-const CirclePlus = ({ onPress }) => (
-  <TouchableOpacity onPress={onPress} style={cmn.circleBtn} activeOpacity={0.7}>
-    <Text style={cmn.circleBtnIcon}>+</Text>
-  </TouchableOpacity>
-);
 
 
 let USER_PROFILE = { ...USER_PROFILE_INIT };
@@ -154,34 +133,6 @@ function OnboardingScreen({ onComplete }) {
 
 
 // ── 홈 배경 슬라이드쇼 ────────────────────────────────
-const BG_IMAGES = [
-  'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800',
-  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800',
-  'https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=800',
-  'https://images.unsplash.com/photo-1592919505780-303950717480?w=800',
-];
-
-function HomeBgSlider() {
-  const [bgIdx, setBgIdx] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    const interval = setInterval(() => {
-      Animated.sequence([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ]).start();
-      setBgIdx(i => (i + 1) % BG_IMAGES.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-  return (
-    <Animated.View style={{ ...StyleSheet.absoluteFillObject, opacity: fadeAnim }}>
-      <Image source={{ uri: BG_IMAGES[bgIdx] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,30,16,0.72)' }} />
-    </Animated.View>
-  );
-}
-
 // ── 날씨/교통 팝업 (분리 컴포넌트) ───────────────────
 function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
   // ★ 핵심: 팝업 열릴 때마다 initialTab으로 초기화
@@ -921,42 +872,6 @@ function HomeScreen({ navigation }) {
   );
 }
 
-// ── 사진/영상 크게보기 ────────────────────────────────
-function PhotoViewer({ photos, startIndex, onClose }) {
-  const [idx, setIdx] = useState(startIndex);
-  const videoRef = useRef(null);
-  const current = photos[idx];
-  const isVideo = current?.type === 'video';
-
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: 'center' }}>
-        <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 28, lineHeight: 32 }}>✕</Text>
-        </TouchableOpacity>
-        <View style={{ position: 'absolute', top: 56, left: 0, right: 0, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-            {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
-          </Text>
-        </View>
-        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-          contentOffset={{ x: idx * SW, y: 0 }}
-          onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / SW))}>
-          {photos.map((item, i) => (
-            <View key={i} style={{ width: SW, justifyContent: 'center', alignItems: 'center' }}>
-              {item.type === 'video' ? (
-                <Video ref={i === idx ? videoRef : null} source={{ uri: item.uri }}
-                  style={{ width: SW, height: SW * 1.2 }} useNativeControls resizeMode="contain" shouldPlay={i === idx} />
-              ) : (
-                <Image source={{ uri: item.uri || item }} style={{ width: SW, height: SW * 1.2 }} resizeMode="contain" />
-              )}
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-}
 
 // ── 명예의 전당 카드 ──────────────────────────────────
 function HallOfFameCard({ item }) {
