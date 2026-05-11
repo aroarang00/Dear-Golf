@@ -243,17 +243,22 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <Text style={mS.label}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={mS.input} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
-              <Text style={mS.label}>동반자 <Text style={{ fontSize: 10, color: '#8B8680' }}>(선택)</Text></Text>
+              <Text style={mS.label}>
+                동반자
+                <Text style={{ fontSize: 10, color: '#8B8680' }}> (선택 · 탭하여 삭제)</Text>
+              </Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 <TextInput
                   style={[mS.input, { flex: 1 }]}
-                  placeholder="이름 입력 후 추가"
+                  placeholder="이름 입력"
                   placeholderTextColor={C.warmGrayLight}
                   value={companionInput}
                   onChangeText={setCompanionInput}
+                  returnKeyType="done"
                   onSubmitEditing={() => {
-                    if (companionInput.trim()) {
-                      setCompanions(prev => [...prev, companionInput.trim()]);
+                    const name = companionInput.trim();
+                    if (name && companions.length < 3) {
+                      setCompanions(prev => [...prev, name]);
                       setCompanionInput('');
                     }
                   }}
@@ -266,8 +271,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     justifyContent: 'center',
                   }}
                   onPress={() => {
-                    if (companionInput.trim()) {
-                      setCompanions(prev => [...prev, companionInput.trim()]);
+                    const name = companionInput.trim();
+                    if (name && companions.length < 3) {
+                      setCompanions(prev => [...prev, name]);
                       setCompanionInput('');
                     }
                   }}>
@@ -281,13 +287,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       style={{
                         flexDirection: 'row', alignItems: 'center', gap: 4,
                         backgroundColor: C.charcoal,
-                        borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+                        borderRadius: 20,
+                        paddingHorizontal: 10, paddingVertical: 5,
                       }}
                       onPress={() => setCompanions(prev => prev.filter((_, idx) => idx !== i))}>
                       <Text style={{ fontSize: 12, color: C.butter }}>{name}</Text>
                       <Text style={{ fontSize: 10, color: 'rgba(245,230,168,0.5)' }}>✕</Text>
                     </TouchableOpacity>
                   ))}
+                  {companions.length < 3 && (
+                    <Text style={{ fontSize: 10, color: C.warmGrayLight, alignSelf: 'center' }}>
+                      최대 3명 (나 포함 4명)
+                    </Text>
+                  )}
                 </View>
               )}
               <Text style={mS.label}>날씨</Text>
