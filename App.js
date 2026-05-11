@@ -36,6 +36,10 @@ import { TripleStripe } from './src/components/common/TripleStripe';
 import { LightHeader } from './src/components/common/LightHeader';
 import { PhotoViewer } from './src/components/common/PhotoViewer';
 import { HomeBgSlider } from './src/components/common/HomeBgSlider';
+import { ScheduleSheetModal } from './src/components/ScheduleSheetModal';
+import { WeatherMiniBar } from './src/components/WeatherMiniBar';
+import { HallOfFameCard } from './src/components/HallOfFameCard';
+import { DiaryCard } from './src/components/DiaryCard';
 
 const Tab = createBottomTabNavigator();
 const { width: SW } = Dimensions.get('window');
@@ -462,63 +466,9 @@ function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
 }
 
 // ── D-Day 카드 바텀시트 메뉴 ─────────────────────────
-function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete }) {
-  if (!schedule) return null;
-  const items = [
-    { key: 'wx', emoji: '☀️', label: '날씨 확인', onPress: onWeather },
-    { key: 'tr', emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },
-    { key: 'sh', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
-    { key: 'ed', emoji: '✏️', label: '일정 수정', onPress: onEdit },
-    { key: 'rm', emoji: '🗑️', label: '일정 삭제', onPress: onDelete, danger: true },
-  ];
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={sheetS.mask}>
-        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={sheetS.sheet}>
-          <View style={sheetS.handle} />
-          <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 14 }}>
-            <TouchableOpacity onPress={onCourseTap} activeOpacity={schedule.courseLogId ? 0.6 : 1}>
-              <Text style={sheetS.course}>{schedule.course}
-                {schedule.courseLogId ? <Text style={sheetS.courseArrow}> ›</Text> : null}
-              </Text>
-            </TouchableOpacity>
-            <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 14 }}>
-              <Text style={sheetS.dday}>D-{schedule.dDay}</Text>
-              <Text style={sheetS.ddayLabel}>{schedule.dDay}일 후 라운딩이에요 🏌️</Text>
-            </View>
-          </View>
-          <TripleStripe height={2} />
-          {items.map((it, i) => (
-            <TouchableOpacity
-              key={it.key}
-              style={[sheetS.row, i < items.length - 1 && sheetS.rowBorder]}
-              onPress={it.onPress}
-              activeOpacity={0.6}>
-              <Text style={sheetS.rowEmoji}>{it.emoji}</Text>
-              <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger]}>{it.label}</Text>
-            </TouchableOpacity>
-          ))}
-          <View style={{ height: 8 }} />
-        </View>
-      </View>
-    </Modal>
-  );
-}
 
 
 // ── 홈 상단 날씨 미니바 ──────────────────────────────
-function WeatherMiniBar({ onPress }) {
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}
-      style={{ flexDirection: 'row', alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginTop: 6 }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>☀️ 18° 맑음</Text>
-    </TouchableOpacity>
-  );
-}
 
 // ── 홈 화면 ───────────────────────────────────────────
 function HomeScreen({ navigation }) {
@@ -874,47 +824,6 @@ function HomeScreen({ navigation }) {
 
 
 // ── 명예의 전당 카드 ──────────────────────────────────
-function HallOfFameCard({ item }) {
-  const isHIO = item.type === 'HOLE IN ONE';
-  const isAlba = item.type === 'ALBATROSS';
-  const isEagle = item.type === 'EAGLE';
-  const isFirstSingle = item.type === '퍼스트 싱글';
-  const isLifeBest = item.type === '라이프 베스트';
-  const bgColor = isHIO ? '#2A2622' : isAlba ? C.burgundy : isFirstSingle ? '#4A7A8A' : isLifeBest ? '#2A5A3A' : '#6B6660';
-  const accentColor = isFirstSingle ? '#C8D9E6' : isLifeBest ? '#A8D4B4' : '#C9A84C';
-
-  return (
-    <View style={[dS.hofCard, { backgroundColor: bgColor }]}>
-      <View style={{ height: 1, backgroundColor: accentColor + '44' }} />
-      <View style={dS.hofHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={[dS.hofType, { color: accentColor, fontSize: 22, letterSpacing: 6 }]}>{item.type}</Text>
-          <Text style={[dS.hofDate, { color: 'rgba(255,255,255,0.4)' }]}>{item.date} · {item.course}</Text>
-        </View>
-        <View style={[dS.hofGoldDot, { backgroundColor: accentColor }]} />
-      </View>
-      <View style={dS.hofGrid}>
-        {[
-          { label: 'HOLE', value: `${item.hole}번홀`, big: true },
-          { label: 'PAR · DIST', value: `파${item.par} · ${item.distance}` },
-          { label: 'BALL', value: item.ball },
-          { label: 'WITH', value: item.companions.join(', ') },
-        ].map((cell, i) => (
-          <View key={i} style={[dS.hofCell, { backgroundColor: 'rgba(255,255,255,0.07)', borderColor: accentColor + '22' }]}>
-            <Text style={[dS.hofCellLabel, { color: accentColor + 'AA' }]}>{cell.label}</Text>
-            {cell.big
-              ? <Text style={[dS.hofCellBig, { color: accentColor }]}>{cell.value}</Text>
-              : <Text style={[dS.hofCellVal, { color: 'rgba(255,255,255,0.85)' }]}>{cell.value}</Text>
-            }
-          </View>
-        ))}
-      </View>
-      <View style={[dS.hofDivider, { backgroundColor: accentColor + '22' }]} />
-      <Text style={[dS.hofMemo, { color: 'rgba(255,255,255,0.65)' }]}>"{item.memo}"</Text>
-      <View style={{ height: 1, backgroundColor: accentColor + '44' }} />
-    </View>
-  );
-}
 
 // ── 예정라운딩 입력 모달 ──────────────────────────────
 function ScheduleModal({ visible, onClose, onSave, initial }) {
@@ -1431,127 +1340,6 @@ function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 }
 
 // ── 다이어리 카드 ─────────────────────────────────────
-function DiaryCard({ item, onPress, avgScore }) {
-  const [expanded, setExpanded] = useState(false);
-  const diff = item.score - item.par;
-  const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  const hasBest = item.badge === '베스트';
-  const hasPhoto = item.photos && item.photos.length > 0;
-  const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
-
-  // 점수 기준 라인 색상
-  let lineColor;
-  if (hasBest) lineColor = '#6B1E2A';
-  else if (avgScore != null && item.score < avgScore) lineColor = '#F5E6A8';
-  else if (avgScore != null && item.score === avgScore) lineColor = '#C8D9E6';
-  else lineColor = '#8B8680';
-  const memoBorderColor = isSpecial ? '#C9A84C' : lineColor;
-
-  const body = (
-    <View style={dS.cardBody}>
-      {/* 1행: 날짜 */}
-      <Text style={dS.cardDate}>{item.date} {item.day}</Text>
-
-      {/* 2행: 골프장명 */}
-      <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
-
-      {/* 3행: 타수 + par + 뱃지들 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-        <Text style={[dS.cardScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-        <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
-        {item.special && (
-          <View style={{
-            backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
-            borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-            alignSelf: 'center',
-          }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{item.special}</Text>
-          </View>
-        )}
-        {item.birdieCount > 0 && (
-          <View style={{
-            backgroundColor: '#3D3935',
-            borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-            alignSelf: 'center',
-          }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '600' }}>버디 ×{item.birdieCount}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* 4행: 한줄메모 단독 */}
-      {item.memo ? (
-        <View style={{ borderLeftWidth: 2, borderLeftColor: memoBorderColor, paddingLeft: 8, marginBottom: 8 }}>
-          <Text style={{ fontFamily: F.en, fontSize: 12, color: C.textSecondary, fontStyle: 'italic', lineHeight: 18 }}>"{item.memo}"</Text>
-        </View>
-      ) : null}
-
-      {/* 5행: 태그 가로 스크롤 */}
-      {item.tags && item.tags.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', gap: 4 }}>
-            {item.tags.slice(0, 4).map((tag, i) => {
-              const c = getTagColor(tag);
-              return (
-                <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: c.text, fontWeight: '600' }}>{tag}</Text>
-                </View>
-              );
-            })}
-            {item.tags.length > 4 && (
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
-            )}
-          </View>
-        </ScrollView>
-      )}
-    </View>
-  );
-
-  if (hasPhoto) {
-    return (
-      <TouchableOpacity
-        style={[dS.card, isSpecial && dS.cardSpecial]}
-        activeOpacity={0.88} onPress={() => onPress(item)}>
-        {isSpecial && <View style={dS.cardSpecialLine} />}
-        <View style={dS.photoHero43}>
-          <Image source={{ uri: item.photos[0] }} style={dS.photoImg} resizeMode="cover" />
-          <View style={dS.photoBottomOverlay}>
-            <Text style={dS.overlayCourse} numberOfLines={1}>{item.course}</Text>
-            <Text style={dS.overlayDate}>{item.date} {item.day}</Text>
-          </View>
-          {isSpecial && (
-            <View style={dS.specialBadge}>
-              <Text style={dS.specialBadgeTxt}>{item.special}</Text>
-            </View>
-          )}
-          <View style={dS.photoCount}>
-            <Text style={dS.photoCountTxt}>{item.photos.length}장</Text>
-          </View>
-        </View>
-        <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
-          <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
-        </TouchableOpacity>
-        {expanded && body}
-      </TouchableOpacity>
-    );
-  }
-
-  return (
-    <TouchableOpacity
-      style={[dS.card, isSpecial ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]}
-      activeOpacity={0.88} onPress={() => onPress(item)}>
-      {isSpecial && <View style={dS.cardSpecialLine} />}
-      {isSpecial && (
-        <View style={dS.specialNoPhoto}>
-          <Text style={dS.specialNoPhotoTxt}>{item.special}</Text>
-          {item.specialHole && <Text style={dS.specialNoPhotoSub}>{item.specialHole}번홀</Text>}
-        </View>
-      )}
-      {body}
-    </TouchableOpacity>
-  );
-}
 
 // ── 다이어리 상세 ─────────────────────────────────────
 function DiaryDetail({ item, onClose, onUpdate }) {
