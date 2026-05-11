@@ -782,6 +782,15 @@ function HomeScreen({ navigation }) {
   const [showWeatherFull, setShowWeatherFull] = useState(false);
   const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [editSchedule, setEditSchedule] = useState(null);
+  const [cardIndex, setCardIndex] = useState(0);
+
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10,
+    onPanResponderRelease: (_, g) => {
+      if (g.dx < -40) setCardIndex(1);
+      else if (g.dx > 40) setCardIndex(0);
+    },
+  })).current;
 
   useEffect(() => {
     (async () => {
@@ -1009,20 +1018,70 @@ function HomeScreen({ navigation }) {
             <TripleStripe height={1.5} />
           </View>
 
-          {memoEntry ? (
-            <TouchableOpacity style={homeS.memoCard} onPress={handleMemoPress} activeOpacity={0.8}>
-              <Text style={homeS.memoEye}>지난 방문 메모  →</Text>
-              <Text style={homeS.memoTxt}>"{memoEntry.text}"</Text>
-              <Text style={homeS.memoDate}>{memoEntry.date} · {next.course}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={[homeS.memoCard, homeS.memoCardFirst]}
-              onPress={handleMemoPress} activeOpacity={0.8}>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(200,217,230,0.5)', letterSpacing: 1.5, marginBottom: 6 }}>첫 방문</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 20 }}>처음 가는 코스예요</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 5 }}>오늘 라운딩이 첫 기록이 될 거예요</Text>
-            </TouchableOpacity>
-          )}
+          {(() => {
+            const visitCount = COURSE_LOG.find(c => c.name === next?.course)?.visits || 0;
+            const courseComment = {
+              txt: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요',
+              who: 'J***',
+            };
+            return (
+              <View {...panResponder.panHandlers}>
+                {cardIndex === 0 ? (
+                  visitCount === 0 ? (
+                    <View style={[homeS.memoCard, homeS.memoCardFirst]}>
+                      <View style={homeS.memoCardTop}>
+                        <View style={homeS.memoBadgeFirst}>
+                          <Text style={homeS.memoBadgeTxt}>첫 방문</Text>
+                        </View>
+                        <Text style={homeS.memoCardCourse}>{next?.course}</Text>
+                      </View>
+                      <View style={homeS.memoCardBottom}>
+                        <Text style={homeS.memoMain}>처음 가는 코스예요</Text>
+                        <Text style={homeS.memoSub}>오늘이 첫 기록이 될 거예요</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={homeS.memoCard} onPress={handleMemoPress} activeOpacity={0.8}>
+                      <View style={homeS.memoCardTop}>
+                        <View style={homeS.memoBadgeVisit}>
+                          <Text style={homeS.memoBadgeTxt}>{visitCount + 1}번째 방문</Text>
+                        </View>
+                        <Text style={homeS.memoCardCourse}>{next?.course}</Text>
+                      </View>
+                      <View style={homeS.memoCardBottom}>
+                        <Text style={homeS.memoScore}>
+                          지난 방문 · 베스트 {COURSE_LOG.find(c => c.name === next?.course)?.best}타
+                        </Text>
+                        <Text style={homeS.memoTxt}>"{memoEntry?.text || '메모가 없어요'}"</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )
+                ) : (
+                  <View style={homeS.commentCard}>
+                    <View style={homeS.memoCardTop}>
+                      <View style={homeS.memoBadgeComment}>
+                        <Text style={[homeS.memoBadgeTxt, { color: '#C8D9E6' }]}>코스 한마디</Text>
+                      </View>
+                      <Text style={[homeS.memoCardCourse, { color: 'rgba(200,217,230,0.4)' }]}>{next?.course}</Text>
+                    </View>
+                    <View style={homeS.memoCardBottom}>
+                      <Text style={homeS.commentTxt}>"{courseComment.txt}"</Text>
+                      <Text style={homeS.commentWho}>{courseComment.who}</Text>
+                    </View>
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center', marginTop: 8 }}>
+                  {[0, 1].map(i => (
+                    <View key={i} style={{
+                      width: cardIndex === i ? 14 : 5,
+                      height: 5, borderRadius: 3,
+                      backgroundColor: cardIndex === i ? (i === 0 ? '#F5E6A8' : '#C8D9E6') : 'rgba(255,255,255,0.15)',
+                    }} />
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
           <View style={{ height: 20 }} />
         </View>
       </SafeAreaView>
@@ -3161,11 +3220,22 @@ const homeS = StyleSheet.create({
   subDate:         { fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.32)' },
   subDDay:         { fontFamily: F.en, fontSize: 24, color: 'rgba(245,230,168,0.7)', lineHeight: 26 },
   subDDayLabel:    { fontFamily: F.sys, fontSize: 7, color: 'rgba(245,230,168,0.32)', letterSpacing: 1 },
-  memoCard:        { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 8 },
-  memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.08)', paddingVertical: 12 },
-  memoEye:         { fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5, marginBottom: 6 },
-  memoTxt:         { fontFamily: F.sys, fontSize: 13, fontWeight: '400', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
-  memoDate:        { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
+  memoCard:        { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, overflow: 'hidden' },
+  memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.08)' },
+  memoCardTop:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  memoCardBottom:  { paddingHorizontal: 14, paddingVertical: 12 },
+  memoBadgeFirst:  { backgroundColor: '#6B1E2A', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  memoBadgeVisit:  { backgroundColor: '#3D3935', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  memoBadgeComment:{ backgroundColor: '#1A3D52', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  memoBadgeTxt:    { fontFamily: F.sys, fontSize: 9, color: '#F5E6A8', letterSpacing: 1 },
+  memoCardCourse:  { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.4)' },
+  memoMain:        { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 3 },
+  memoSub:         { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.35)' },
+  memoScore:       { fontFamily: F.sys, fontSize: 11, color: 'rgba(245,230,168,0.6)', marginBottom: 5 },
+  memoTxt:         { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.75)', fontStyle: 'italic', borderLeftWidth: 2, borderLeftColor: 'rgba(107,30,42,0.6)', paddingLeft: 8, lineHeight: 18 },
+  commentCard:     { marginHorizontal: 20, backgroundColor: 'rgba(200,217,230,0.07)', borderWidth: 0.5, borderColor: 'rgba(200,217,230,0.15)', borderRadius: 14, overflow: 'hidden' },
+  commentTxt:      { fontFamily: F.sys, fontSize: 12, color: 'rgba(200,217,230,0.8)', fontStyle: 'italic', borderLeftWidth: 2, borderLeftColor: 'rgba(200,217,230,0.3)', paddingLeft: 8, lineHeight: 18 },
+  commentWho:      { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 5 },
 });
 
 // 날씨 탭 (새 디자인) 스타일
