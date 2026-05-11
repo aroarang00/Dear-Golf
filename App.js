@@ -5,12 +5,34 @@ import {
   Modal, Dimensions, Image, FlatList,
   TextInput, KeyboardAvoidingView, Platform,
   PanResponder, Animated, Linking, Share, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Video } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEYS = {
+  schedules: '@dg_schedules',
+  diaries:   '@dg_diaries',
+  hof:       '@dg_hof',
+  profile:   '@dg_profile',
+  favorites: '@dg_favorites',
+};
+
+const storage = {
+  async save(key, data) {
+    try { await AsyncStorage.setItem(key, JSON.stringify(data)); } catch (e) { console.warn('storage.save', key, e); }
+  },
+  async load(key, fallback) {
+    try {
+      const raw = await AsyncStorage.getItem(key);
+      return raw != null ? JSON.parse(raw) : fallback;
+    } catch (e) { console.warn('storage.load', key, e); return fallback; }
+  },
+};
 
 const Tab = createBottomTabNavigator();
 const { width: SW } = Dimensions.get('window');
@@ -746,205 +768,6 @@ function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather
   );
 }
 
-// ── 날씨 전체화면 ────────────────────────────────────
-function WeatherFullModal({ visible, schedule, onClose }) {
-  if (!schedule) return null;
-  const hasWarning = true;
-  const FORECAST = [
-    { day: '오늘', date: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남풍 3m/s',  rain: 0, prob: 10, tmin: 12, tmax: 22, isRound: false },
-    { day: '내일', date: '',                     icon: '🌤️', sky: '구름조금', wind: '남동 2m/s',  rain: 0, prob: 20, tmin: 13, tmax: 21, isRound: false },
-    { day: '모레', date: '',                     icon: '☀️', sky: '맑음',     wind: '남 2m/s',   rain: 0, prob: 10, tmin: 14, tmax: 22, isRound: true  },
-    { day: '목',   date: '',                     icon: '☁️', sky: '흐림',     wind: '서 4m/s',   rain: 0, prob: 40, tmin: 14, tmax: 19, isRound: false },
-    { day: '금',   date: '',                     icon: '🌧️', sky: '비',       wind: '북서 5m/s',  rain: 8, prob: 80, tmin: 13, tmax: 17, isRound: false },
-    { day: '토',   date: '',                     icon: '🌦️', sky: '소나기',   wind: '서 3m/s',   rain: 3, prob: 60, tmin: 12, tmax: 18, isRound: false },
-    { day: '일',   date: '',                     icon: '⛅',  sky: '구름많음', wind: '남서 2m/s',  rain: 0, prob: 20, tmin: 13, tmax: 20, isRound: false },
-    { day: '월',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 1m/s',   rain: 0, prob: 0,  tmin: 14, tmax: 23, isRound: false },
-    { day: '화',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 2m/s',   rain: 0, prob: 0,  tmin: 15, tmax: 24, isRound: false },
-    { day: '수',   date: '',                     icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   rain: 0, prob: 10, tmin: 14, tmax: 22, isRound: false },
-  ];
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={fullS.container}>
-        <View style={fullS.header}>
-          <TouchableOpacity onPress={onClose} style={fullS.backBtn} activeOpacity={0.6}>
-            <Text style={fullS.backArrow}>←</Text>
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={fullS.headerTitle} numberOfLines={1}>{schedule.course}</Text>
-            <Text style={fullS.headerSub}>{schedule.date} {schedule.day} · 티오프 {schedule.time}</Text>
-          </View>
-        </View>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          {hasWarning && (
-            <View style={fullS.warnBanner}>
-              <Text style={fullS.warnTxt}>⚠️ 강풍 주의보 · 포천 지역</Text>
-            </View>
-          )}
-
-          <Text style={fullS.sectionLabel}>골프 지수</Text>
-          <View style={[fullS.card, { padding: 16 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <Text style={fullS.golfIdxIcon}>⛳</Text>
-              <Text style={fullS.golfIdxTitle}>라운딩 당일 기준</Text>
-            </View>
-            <Text style={fullS.golfIdxScore}>좋음</Text>
-            <View style={fullS.golfIdxList}>
-              <View style={fullS.golfIdxRow}>
-                <Text style={fullS.golfIdxLbl}>바람</Text>
-                <Text style={fullS.golfIdxVal}>약함 ✅</Text>
-              </View>
-              <View style={fullS.golfIdxRow}>
-                <Text style={fullS.golfIdxLbl}>강수</Text>
-                <Text style={fullS.golfIdxVal}>없음 ✅</Text>
-              </View>
-              <View style={fullS.golfIdxRow}>
-                <Text style={fullS.golfIdxLbl}>기온</Text>
-                <Text style={fullS.golfIdxVal}>적정 ✅</Text>
-              </View>
-            </View>
-          </View>
-
-          <Text style={fullS.sectionLabel}>10일 예보</Text>
-          <View style={fullS.card}>
-            {FORECAST.map((w, i) => (
-              <View key={i} style={[fullS.wxRow, i < FORECAST.length - 1 && fullS.wxRowBorder, w.isRound && fullS.wxRowRound]}>
-                <View style={{ width: 56 }}>
-                  <Text style={fullS.wxDay}>{w.day}</Text>
-                  {!!w.date && <Text style={fullS.wxDate}>{w.date}</Text>}
-                </View>
-                <Text style={fullS.wxIcon}>{w.icon}</Text>
-                <View style={{ flex: 1, marginLeft: 6 }}>
-                  <Text style={fullS.wxSky}>{w.sky}</Text>
-                  <Text style={fullS.wxSub}>🌬️ {w.wind} · 💧 {w.rain}mm · {w.prob}%</Text>
-                </View>
-                <Text style={fullS.wxTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
-              </View>
-            ))}
-          </View>
-
-          <TouchableOpacity style={fullS.kmaBtn}
-            onPress={() => Linking.openURL('https://www.kma.go.kr/')}
-            activeOpacity={0.7}>
-            <Text style={fullS.kmaBtnTxt}>기상청 날씨 더 보기</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
-
-// ── 교통 전체화면 ────────────────────────────────────
-function TrafficFullModal({ visible, schedule, onClose }) {
-  const origin = '서울 강남구';
-  const timeToMin = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
-  const minToTime = (m) => { m = (m + 24 * 60) % (24 * 60); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
-  const parseDur = (s) => { const m = (s || '').match(/(\d+)\s*시간\s*(\d+)?/); return m ? parseInt(m[1]) * 60 + parseInt(m[2] || '0') : 90; };
-
-  const teeMin = schedule ? timeToMin(schedule.time) : 7 * 60;
-  const driveMin = schedule ? parseDur(schedule.duration) : 90;
-  const recoMin = teeMin - driveMin - 30;
-  const baseTen = Math.floor(recoMin / 10) * 10;
-  const slots = [-20, -10, 0, 10, 20, 30].map(d => minToTime(baseTen + d));
-
-  const [selectedSlot, setSelectedSlot] = useState(slots[2]);
-
-  if (!schedule) return null;
-
-  const handleShare = () => {
-    const msg = `[ Dear Golf ]\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일  티오프 ${schedule.time}\n출발 ${selectedSlot}\n\n같이 가요!`;
-    Share.share({ message: msg });
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={fullS.container}>
-        <View style={fullS.header}>
-          <TouchableOpacity onPress={onClose} style={fullS.backBtn} activeOpacity={0.6}>
-            <Text style={fullS.backArrow}>←</Text>
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={fullS.headerTitle} numberOfLines={1}>{schedule.course}</Text>
-            <Text style={fullS.headerSub}>{schedule.date} {schedule.day} · 티오프 {schedule.time}</Text>
-          </View>
-        </View>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Text style={fullS.sectionLabel}>추천 출발 시간</Text>
-          <View style={[fullS.card, { padding: 14, marginBottom: 22 }]}>
-            <Text style={fullS.bigSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
-            <View style={fullS.slotRow}>
-              {slots.map(t => (
-                <TouchableOpacity key={t}
-                  style={[fullS.slotBtn, selectedSlot === t && fullS.slotBtnOn]}
-                  onPress={() => setSelectedSlot(t)}
-                  activeOpacity={0.7}>
-                  <Text style={[fullS.slotTxt, selectedSlot === t && fullS.slotTxtOn]}>{t}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <Text style={fullS.sectionLabel}>경로</Text>
-          <View style={[fullS.card, { padding: 16, marginBottom: 14 }]}>
-            <View style={{ marginBottom: 14 }}>
-              <Text style={fullS.routeLabel}>출발지</Text>
-              <Text style={fullS.routeValue}>{origin}</Text>
-            </View>
-            <View style={fullS.routeArrowRow}>
-              <View style={fullS.routeLineV} />
-              <Text style={fullS.routeArrow}>↓ 약 78.4km · 경부고속도로</Text>
-            </View>
-            <View style={{ marginTop: 14, marginBottom: 14 }}>
-              <Text style={fullS.routeLabel}>도착지</Text>
-              <Text style={fullS.routeValue}>{schedule.course}</Text>
-            </View>
-            <View style={fullS.durationBox}>
-              <Text style={fullS.durationLabel}>예상 소요시간</Text>
-              <Text style={fullS.durationValue}>{schedule.duration}</Text>
-            </View>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
-            <TouchableOpacity style={fullS.routeBtn}
-              onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                .catch(() => Linking.openURL('https://map.naver.com/'))}
-              activeOpacity={0.7}>
-              <Text style={fullS.routeBtnTxt}>🗺️ 네이버 경로</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={fullS.routeBtn}
-              onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
-                .catch(() => Linking.openURL('https://tmap.life'))}
-              activeOpacity={0.7}>
-              <Text style={fullS.routeBtnTxt}>🗺️ 티맵 경로</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={fullS.sectionLabel}>대리운전</Text>
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
-            <TouchableOpacity style={fullS.routeBtn}
-              onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
-              activeOpacity={0.7}>
-              <Text style={fullS.routeBtnTxt}>🚕 카카오T</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={fullS.routeBtn}
-              onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
-              activeOpacity={0.7}>
-              <Text style={fullS.routeBtnTxt}>🚗 티맵 대리</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={fullS.routeBtn}
-              onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
-              activeOpacity={0.7}>
-              <Text style={fullS.routeBtnTxt}>🚙 아이대리</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={fullS.shareBtn} onPress={handleShare} activeOpacity={0.7}>
-            <Text style={fullS.shareBtnTxt}>📩 동반자에게 일정 공유하기</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
 
 // ── 홈 상단 날씨 미니바 ──────────────────────────────
 function WeatherMiniBar({ onPress }) {
@@ -963,11 +786,25 @@ function HomeScreen({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const [showAddModal, setShowAddModal] = useState(false);
   const [schedules, setSchedules] = useState(SCHEDULES_INIT);
+  const [schedulesHydrated, setSchedulesHydrated] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showWeatherFull, setShowWeatherFull] = useState(false);
   const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [editSchedule, setEditSchedule] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const loaded = await storage.load(STORAGE_KEYS.schedules, SCHEDULES_INIT);
+      setSchedules(loaded);
+      setSchedulesHydrated(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!schedulesHydrated) return;
+    storage.save(STORAGE_KEYS.schedules, schedules);
+  }, [schedules, schedulesHydrated]);
 
   const next = schedules.length > 0 ? schedules[0] : null;
 
@@ -1217,18 +1054,12 @@ function HomeScreen({ navigation }) {
         onDelete={() => handleDeleteSchedule(selectedSchedule)}
       />
 
-      {/* 날씨 전체화면 */}
-      <WeatherFullModal
-        visible={showWeatherFull}
+      {/* 날씨/교통 통합 팝업 */}
+      <WeatherTransportPopup
+        visible={showWeatherFull || showTrafficFull}
+        initialTab={showWeatherFull ? 'wx' : 'tr'}
         schedule={selectedSchedule || next}
-        onClose={() => setShowWeatherFull(false)}
-      />
-
-      {/* 교통 전체화면 */}
-      <TrafficFullModal
-        visible={showTrafficFull}
-        schedule={selectedSchedule || next}
-        onClose={() => setShowTrafficFull(false)}
+        onClose={() => { setShowWeatherFull(false); setShowTrafficFull(false); }}
       />
 
       <ScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleScheduleSave} />
@@ -1365,12 +1196,14 @@ function ScheduleModal({ visible, onClose, onSave, initial }) {
   };
 
   const handleSave = () => {
-    if (!selectedCourse) return;
+    console.log('[ScheduleModal] handleSave', { selectedCourse, courseSearch });
+    const finalCourse = selectedCourse || courseSearch.trim();
+    if (!finalCourse) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const target = new Date(date); target.setHours(0, 0, 0, 0);
     const dDay = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
     const payload = {
-      course: selectedCourse,
+      course: finalCourse,
       date: formatDate(date),
       day: formatDay(date),
       time: formatTime(time),
@@ -2208,6 +2041,29 @@ function DiaryScreen({ route, navigation }) {
   const [hofExpanded, setHofExpanded] = useState(false);
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
+  const [diariesHydrated, setDiariesHydrated] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [d, h] = await Promise.all([
+        storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
+        storage.load(STORAGE_KEYS.hof, HALL_OF_FAME),
+      ]);
+      setDiaries(d);
+      setHallOfFame(h);
+      setDiariesHydrated(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!diariesHydrated) return;
+    storage.save(STORAGE_KEYS.diaries, diaries);
+  }, [diaries, diariesHydrated]);
+
+  useEffect(() => {
+    if (!diariesHydrated) return;
+    storage.save(STORAGE_KEYS.hof, hallOfFame);
+  }, [hallOfFame, diariesHydrated]);
 
   // 통계박스: 처음엔 열려있다가 3초 후 자동 닫힘, 터치로 토글
   const [showStats, setShowStats] = useState(true);
@@ -2360,7 +2216,21 @@ function GuideScreen({ route }) {
   const [selected, setSelected] = useState(null);
   const [innerTab, setInnerTab] = useState('course');
   const [favorites, setFavorites] = useState(FAVORITES_INIT);
+  const [favoritesHydrated, setFavoritesHydrated] = useState(false);
   const [showAllRest, setShowAllRest] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const loaded = await storage.load(STORAGE_KEYS.favorites, FAVORITES_INIT);
+      setFavorites(loaded);
+      setFavoritesHydrated(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!favoritesHydrated) return;
+    storage.save(STORAGE_KEYS.favorites, favorites);
+  }, [favorites, favoritesHydrated]);
 
   useEffect(() => {
     if (route?.params?.openCourseId) {
@@ -3306,16 +3176,42 @@ const obS = StyleSheet.create({
 export default function App() {
   const [userProfile, setUserProfile] = useState(USER_PROFILE_INIT);
   const [showOnboarding, setShowOnboarding] = useState(!USER_PROFILE_INIT.onboardingDone);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
 
   _setUserProfile = setUserProfile;
+
+  useEffect(() => {
+    (async () => {
+      const loaded = await storage.load(STORAGE_KEYS.profile, null);
+      if (loaded) {
+        USER_PROFILE = { ...loaded };
+        setUserProfile(loaded);
+        setShowOnboarding(!loaded.onboardingDone);
+      }
+      setProfileLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!profileLoaded) return;
+    storage.save(STORAGE_KEYS.profile, userProfile);
+  }, [userProfile, profileLoaded]);
 
   const handleOnboardingComplete = (data) => {
     USER_PROFILE = { ...data };
     setUserProfile({ ...data });
     setShowOnboarding(false);
   };
+
+  if (!profileLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgPrimary }}>
+        <ActivityIndicator size="large" color={C.burgundy} />
+      </View>
+    );
+  }
 
   if (showOnboarding) return <OnboardingScreen onComplete={handleOnboardingComplete} />;
 
