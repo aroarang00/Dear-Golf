@@ -306,106 +306,6 @@ function OnboardingScreen({ onComplete }) {
   );
 }
 
-// ── 선물하기 모달 ──────────────────────────────────────
-const GIFT_MESSAGES = [
-  '라운딩의 기쁨을 함께해주셔서 감사합니다',
-  '오늘의 동반을 소중히 기억하겠습니다',
-  '좋은 라운딩, 좋은 인연에 감사드립니다',
-];
-
-function GiftModal({ visible, onClose, occasion, companions = [] }) {
-  const giftItems = ['골프공 각인', '골프공', '볼마커', '골프 티 세트', '캐디백 태그'];
-  const [selectedGift, setSelectedGift] = useState(0);
-  const [selectedPersons, setSelectedPersons] = useState([]);
-  const [selectedMsg, setSelectedMsg] = useState(0);
-
-  // 선물 항목별 카카오/네이버 검색어
-  const giftSearchTerms = ['골프공각인', '골프공선물', '볼마커골프', '골프티세트', '캐디백태그'];
-
-  const togglePerson = (name) => {
-    setSelectedPersons(prev =>
-      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
-    );
-  };
-
-  const autoMsg = occasion
-    ? `${occasion.date}\n${occasion.course}\n\n${GIFT_MESSAGES[selectedMsg]}\n- ${USER_PROFILE.nickname}`
-    : GIFT_MESSAGES[selectedMsg];
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '88%' }}>
-            <View style={{ width: 32, height: 3, backgroundColor: C.hairline, borderRadius: 2, alignSelf: 'center', margin: 12 }} />
-            <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-              <Text style={{ fontFamily: F.sys, fontSize: 18, color: C.charcoal, fontWeight: '600', marginBottom: 4 }}>선물</Text>
-              {occasion && <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 16, letterSpacing: 1 }}>{occasion.type} · {occasion.course}</Text>}
-              {companions.filter(c => !c.isMe).length > 0 && (
-                <>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>받는 분 (여러명 선택 가능)</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                    {companions.filter(c => !c.isMe).map((c, i) => {
-                      const isSelected = selectedPersons.includes(c.name);
-                      return (
-                        <TouchableOpacity key={i}
-                          style={{ borderWidth: 1, borderColor: isSelected ? C.charcoal : C.hairline, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: isSelected ? C.charcoal : C.bgSecondary }}
-                          onPress={() => togglePerson(c.name)}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 12, color: isSelected ? C.butter : C.warmGrayLight }}>
-                            {isSelected ? '✓  ' : ''}{c.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>선물 추천</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                {giftItems.map((g, i) => (
-                  <TouchableOpacity key={i}
-                    style={{ borderWidth: 1, borderColor: selectedGift === i ? C.charcoal : C.hairline, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center', backgroundColor: selectedGift === i ? C.charcoal : C.bgSecondary, minWidth: 80 }}
-                    onPress={() => setSelectedGift(i)}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: selectedGift === i ? C.butter : C.warmGrayLight, textAlign: 'center' }}>{g}</Text>
-                  </TouchableOpacity>
-                ))}
-                </View>
-              </ScrollView>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>각인 문구 추천</Text>
-              <View style={{ gap: 6, marginBottom: 12 }}>
-                {GIFT_MESSAGES.map((msg, i) => (
-                  <TouchableOpacity key={i}
-                    style={{ borderWidth: 1, borderColor: selectedMsg === i ? C.charcoal : C.hairline, borderRadius: 10, padding: 12, backgroundColor: selectedMsg === i ? '#F5F2ED' : C.bgSecondary }}
-                    onPress={() => setSelectedMsg(i)}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: selectedMsg === i ? C.charcoal : C.warmGrayLight, lineHeight: 18 }}>{msg}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, padding: 14, borderWidth: 0.5, borderColor: C.hairline, marginBottom: 8 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>각인 미리보기</Text>
-                <Text style={{ fontFamily: F.en, fontSize: 12, color: C.textSecondary, fontStyle: 'italic', lineHeight: 22 }}>{autoMsg}</Text>
-              </View>
-              <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: 16 }}
-                onPress={() => Share.share({ message: autoMsg })}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.burgundy }}>문구 복사 →</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={{ backgroundColor: C.charcoal, borderRadius: 12, padding: 15, alignItems: 'center', marginBottom: 10 }}
-                onPress={() => { Linking.openURL(`https://gift.kakao.com/search?query=${giftSearchTerms[selectedGift]}`); onClose(); }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, letterSpacing: 0.5 }}>카카오 선물하기로 보기</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={{ backgroundColor: C.bgSecondary, borderRadius: 12, padding: 15, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, marginBottom: 24 }}
-                onPress={() => { Linking.openURL(`https://shopping.naver.com/search/all?query=${giftSearchTerms[selectedGift]}`); onClose(); }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal }}>네이버 쇼핑에서 보기</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
 
 // ── 홈 배경 슬라이드쇼 ────────────────────────────────
 const BG_IMAGES = [
@@ -1601,28 +1501,56 @@ function DiaryAddModal({ visible, onClose, onSave }) {
 }
 
 // ── 다이어리 카드 ─────────────────────────────────────
-function DiaryCard({ item, onPress }) {
+function DiaryCard({ item, onPress, avgScore }) {
+  const [expanded, setExpanded] = useState(false);
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   const hasBest = item.badge === '베스트';
-  const hasBirdie = item.badge === '버디';
   const hasPhoto = item.photos && item.photos.length > 0;
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
 
-  return (
-    <TouchableOpacity
-      style={[dS.card, hasBest && dS.cardBest, hasBirdie && dS.cardBirdie, isSpecial && dS.cardSpecial]}
-      activeOpacity={0.88} onPress={() => onPress(item)}>
-      {isSpecial && <View style={dS.cardSpecialLine} />}
-      {hasPhoto && (
-        <View style={dS.photoHero}>
-          <Image source={{ uri: item.photos[0] }} style={dS.photoImg} resizeMode="cover" />
-          <View style={dS.photoDim} />
-          {item.badge && !isSpecial && (
-            <View style={[dS.badge, hasBest ? dS.badgeBest : dS.badgeBirdie]}>
-              <Text style={[dS.badgeTxt, hasBirdie && { color: C.charcoal }]}>{item.badge}</Text>
+  // 점수 기준 라인 색상
+  let lineColor;
+  if (hasBest) lineColor = '#6B1E2A';
+  else if (avgScore != null && item.score < avgScore) lineColor = '#F5E6A8';
+  else if (avgScore != null && item.score === avgScore) lineColor = '#C8D9E6';
+  else lineColor = '#8B8680';
+  const memoBorderColor = isSpecial ? '#C9A84C' : lineColor;
+
+  const body = (
+    <View style={dS.cardBody}>
+      <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+      <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
+      <View style={dS.cardRow}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+          <View>
+            <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}타</Text>
+            <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+          </View>
+          {item.birdieCount > 0 && (
+            <View style={dS.birdieBadge}>
+              <Text style={dS.birdieBadgeTxt}>Birdie ×{item.birdieCount}</Text>
             </View>
           )}
+        </View>
+        <Text style={[dS.cardMemo, { borderLeftColor: memoBorderColor }]}>"{item.memo}"</Text>
+      </View>
+    </View>
+  );
+
+  if (hasPhoto) {
+    return (
+      <TouchableOpacity
+        style={[dS.card, isSpecial && dS.cardSpecial]}
+        activeOpacity={0.88} onPress={() => onPress(item)}>
+        {isSpecial && <View style={dS.cardSpecialLine} />}
+        <View style={dS.photoHero43}>
+          <Image source={{ uri: item.photos[0] }} style={dS.photoImg} resizeMode="cover" />
+          <View style={dS.photoBottomOverlay} />
+          <View style={dS.photoOverlayContent}>
+            <Text style={dS.overlayCourse} numberOfLines={1}>{item.course}</Text>
+            <Text style={dS.overlayDate}>{item.date} {item.day}</Text>
+          </View>
           {isSpecial && (
             <View style={dS.specialBadge}>
               <Text style={dS.specialBadgeTxt}>{item.special}</Text>
@@ -1632,31 +1560,26 @@ function DiaryCard({ item, onPress }) {
             <Text style={dS.photoCountTxt}>{item.photos.length}장</Text>
           </View>
         </View>
-      )}
-      {!hasPhoto && isSpecial && (
+        <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
+          <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
+        </TouchableOpacity>
+        {expanded && body}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      style={[dS.card, isSpecial ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]}
+      activeOpacity={0.88} onPress={() => onPress(item)}>
+      {isSpecial && <View style={dS.cardSpecialLine} />}
+      {isSpecial && (
         <View style={dS.specialNoPhoto}>
           <Text style={dS.specialNoPhotoTxt}>{item.special}</Text>
           {item.specialHole && <Text style={dS.specialNoPhotoSub}>{item.specialHole}번홀</Text>}
         </View>
       )}
-      <View style={dS.cardBody}>
-        <Text style={dS.cardDate}>{item.date} {item.day}</Text>
-        <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
-        <View style={dS.cardRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-            <View>
-              <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}타</Text>
-              <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
-            </View>
-            {item.birdieCount > 0 && (
-              <View style={dS.birdieBadge}>
-                <Text style={dS.birdieBadgeTxt}>Birdie ×{item.birdieCount}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[dS.cardMemo, hasBest && dS.cardMemoBest, isSpecial && { borderLeftColor: '#C9A84C' }]}>"{item.memo}"</Text>
-        </View>
-      </View>
+      {body}
     </TouchableOpacity>
   );
 }
@@ -1665,7 +1588,6 @@ function DiaryCard({ item, onPress }) {
 function DiaryDetail({ item, onClose, onUpdate }) {
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
-  const [showGift, setShowGift] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editScore, setEditScore] = useState(String(item.score || ''));
   const [editMemo, setEditMemo] = useState(item.memo || '');
@@ -1753,11 +1675,6 @@ function DiaryDetail({ item, onClose, onUpdate }) {
             <Text style={dS.specialBannerSub}>달성</Text>
             <Text style={dS.specialBannerTitle}>{item.special}</Text>
             <Text style={dS.specialBannerSub}>{item.specialHole}번홀 기록</Text>
-            <TouchableOpacity
-              style={{ marginTop: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 }}
-              onPress={() => setShowGift(true)}>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>동반자에게 선물하기</Text>
-            </TouchableOpacity>
           </View>
         )}
         <View style={[dS.detailInfoArea, isSpecial && { borderBottomColor: '#C9A84C33' }]}>
@@ -1843,9 +1760,6 @@ function DiaryDetail({ item, onClose, onUpdate }) {
         <View style={{ height: 40 }} />
       </ScrollView>
       {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
-      <GiftModal visible={showGift} onClose={() => setShowGift(false)}
-        occasion={isSpecial ? { type: item.special, course: item.course, date: item.date, memo: item.memo } : null}
-        companions={item.companions} />
     </SafeAreaView>
   );
 }
@@ -2092,11 +2006,9 @@ function FriendsTab() {
 
 // ── 다이어리 화면 ─────────────────────────────────────
 function DiaryScreen({ route, navigation }) {
-  const { userProfile } = React.useContext(UserContext);
   const [tab, setTab] = useState('round');
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showMyPage, setShowMyPage] = useState(false);
   const [hofExpanded, setHofExpanded] = useState(false);
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
@@ -2185,18 +2097,12 @@ function DiaryScreen({ route, navigation }) {
       <View style={{ backgroundColor: '#6B6660', paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 2 }}>나의 골프 이야기</Text>
-          <Text style={{ fontFamily: F.en, fontSize: 28, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
+          <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity onPress={() => setShowMyPage(true)}
-            style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>{userProfile.nickname} ▾</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowModal(true)}
-            style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 18, color: '#fff', lineHeight: 22 }}>+</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => setShowModal(true)}
+          style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: F.en, fontSize: 18, color: '#fff', lineHeight: 22 }}>+</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 통계박스 — 터치로 토글, 자동 숨김 */}
@@ -2250,13 +2156,18 @@ function DiaryScreen({ route, navigation }) {
             </View>
           )}
           <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-            {diaries.map((item, idx) => (
-              <View key={item.id} style={dS.tlNode}>
-                {idx < diaries.length - 1 && <View style={dS.tlLine} />}
-                <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, item.special && dS.tlDotSpecial]} />
-                <DiaryCard item={item} onPress={(it) => setSelected(it)} />
-              </View>
-            ))}
+            {(() => {
+              const avgScore = diaries.length > 0
+                ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length)
+                : null;
+              return diaries.map((item, idx) => (
+                <View key={item.id} style={dS.tlNode}>
+                  {idx < diaries.length - 1 && <View style={dS.tlLine} />}
+                  <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, item.special && dS.tlDotSpecial]} />
+                  <DiaryCard item={item} avgScore={avgScore} onPress={(it) => setSelected(it)} />
+                </View>
+              ));
+            })()}
           </View>
           <View style={{ height: 32 }} />
         </ScrollView>
@@ -2265,7 +2176,6 @@ function DiaryScreen({ route, navigation }) {
       {tab === 'friends' && <FriendsTab />}
 
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />
-      <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
     </SafeAreaView>
   );
 }
@@ -3028,9 +2938,7 @@ const dS = StyleSheet.create({
   tlDotBest:   { backgroundColor: C.burgundy, borderColor: C.burgundy },
   tlDotBirdie: { backgroundColor: C.butter, borderColor: C.charcoal },
   tlDotSpecial:{ backgroundColor: '#C9A84C', borderColor: '#C9A84C', width: 12, height: 12, left: 1 },
-  card:        { backgroundColor: C.bgSecondary, borderRadius: 12, overflow: 'hidden', borderWidth: 0.5, borderColor: C.hairline },
-  cardBest:    { borderColor: C.burgundy, borderWidth: 1 },
-  cardBirdie:  { borderColor: C.butter, borderWidth: 1 },
+  card:        { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: '#E8E2D0' },
   cardSpecial:     { backgroundColor: '#F5F0E4', borderColor: '#C9A84C', borderWidth: 1 },
   cardSpecialLine: { height: 2, backgroundColor: '#C9A84C' },
   specialBadge:    { position: 'absolute', top: 9, left: 10, backgroundColor: 'rgba(201,168,76,0.9)', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3 },
@@ -3055,15 +2963,16 @@ const dS = StyleSheet.create({
   specialBanner:    { padding: 24, alignItems: 'center' },
   specialBannerTitle: { fontFamily: F.en, fontSize: 34, color: '#C9A84C', fontStyle: 'italic', letterSpacing: 5, marginVertical: 6 },
   specialBannerSub:   { fontFamily: F.sys, fontSize: 9, color: 'rgba(201,168,76,0.6)', letterSpacing: 4 },
-  photoHero:   { width: '100%', height: 130, position: 'relative' },
-  photoImg:    { width: '100%', height: '100%' },
-  photoDim:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.18)' },
-  badge:       { position: 'absolute', top: 9, left: 10, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeBest:   { backgroundColor: C.burgundy },
-  badgeBirdie: { backgroundColor: 'rgba(245,230,168,0.92)' },
-  badgeTxt:    { fontFamily: F.sys, fontSize: 9, color: '#fff', letterSpacing: 0.5 },
-  photoCount:  { position: 'absolute', bottom: 8, right: 10, backgroundColor: 'rgba(0,0,0,0.42)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  photoCountTxt: { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.88)' },
+  photoHero43:        { width: '100%', aspectRatio: 4/3, position: 'relative' },
+  photoImg:           { width: '100%', height: '100%' },
+  photoBottomOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '50%', backgroundColor: 'rgba(0,0,0,0.5)' },
+  photoOverlayContent:{ position: 'absolute', left: 12, bottom: 10, right: 60 },
+  overlayCourse:      { fontFamily: F.sys, fontSize: 13, color: '#fff', fontWeight: '700' },
+  overlayDate:        { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  toggleBtn:          { paddingVertical: 9, borderTopWidth: 0.5, borderTopColor: '#F0EAD8', backgroundColor: '#FDFAF5', alignItems: 'center' },
+  toggleBtnTxt:       { fontFamily: F.sys, fontSize: 11, color: '#8B8680' },
+  photoCount:         { position: 'absolute', bottom: 8, right: 10, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  photoCountTxt:      { fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.9)' },
   cardBody:    { padding: 12 },
   cardDate:    { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginBottom: 4 },
   cardCourse:  { fontFamily: F.sys, fontSize: 13, color: C.textPrimary, marginBottom: 8 },
@@ -3071,7 +2980,6 @@ const dS = StyleSheet.create({
   cardScore:   { fontFamily: F.en, fontSize: 24, color: C.charcoal, lineHeight: 28 },
   cardPar:     { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 2 },
   cardMemo:    { fontFamily: F.en, fontSize: 11, color: C.textSecondary, fontStyle: 'italic', flex: 1, marginLeft: 10, lineHeight: 16, borderLeftWidth: 1.5, borderLeftColor: C.hairline, paddingLeft: 8 },
-  cardMemoBest:{ borderLeftColor: C.burgundy },
   birdieBadge:    { borderWidth: 1, borderColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
   birdieBadgeTxt: { fontFamily: F.sys, fontSize: 9, color: C.burgundy, letterSpacing: 0.3 },
   detailHdr:      { backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 0.5, borderBottomColor: C.hairline, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
