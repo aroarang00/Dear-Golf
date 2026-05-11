@@ -868,8 +868,8 @@ function WeatherMiniBar({ onPress }) {
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}
       style={{ flexDirection: 'row', alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.15)',
-        borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>☀️ 18° 맑음 · 미세 좋음</Text>
+        borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginTop: 6 }}>
+      <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>☀️ 18° 맑음</Text>
     </TouchableOpacity>
   );
 }
@@ -998,7 +998,7 @@ function HomeScreen({ navigation }) {
           </View>
           <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
             <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: '#fff', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
               <Text style={{ fontFamily: F.en, fontSize: 22, color: '#fff', fontStyle: 'italic', marginBottom: 8, lineHeight: 30 }}>
                 Dear Golf에서{'\n'}첫 라운딩을 시작해보세요
               </Text>
@@ -2853,7 +2853,7 @@ const homeS = StyleSheet.create({
   hdrGreeting:     { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.75)' },
   hdrGreetingName: { color: C.butter, fontWeight: '600' },
   bottomArea:      { paddingBottom: 4 },
-  secLabel:        { fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: '#fff', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },
+  secLabel:        { fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },
   mainCard:        { width: 232, height: 220, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: 16 },
   cardCourse:      { fontFamily: F.sys, fontSize: 15, color: '#fff', marginBottom: 6, lineHeight: 20 },
   cardDate:        { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)' },
@@ -2868,10 +2868,10 @@ const homeS = StyleSheet.create({
   subDate:         { fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.32)' },
   subDDay:         { fontFamily: F.en, fontSize: 24, color: 'rgba(245,230,168,0.7)', lineHeight: 26 },
   subDDayLabel:    { fontFamily: F.sys, fontSize: 7, color: 'rgba(245,230,168,0.32)', letterSpacing: 1 },
-  memoCard:        { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 12 },
+  memoCard:        { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 8 },
   memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.06)' },
   memoEye:         { fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5, marginBottom: 6 },
-  memoTxt:         { fontFamily: F.sys, fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
+  memoTxt:         { fontFamily: F.sys, fontSize: 13, fontWeight: '400', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
   memoDate:        { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
   emptyAddBtn:     { marginTop: 20, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.4)', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 },
   emptyAddTxt:     { fontFamily: F.sys, fontSize: 13, color: 'rgba(245,230,168,0.7)' },
