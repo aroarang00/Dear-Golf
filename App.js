@@ -4,7 +4,7 @@ import {
   TouchableOpacity, SafeAreaView, StatusBar,
   Modal, Dimensions, Image, FlatList,
   TextInput, KeyboardAvoidingView, Platform,
-  PanResponder, Animated, Linking, Share,
+  PanResponder, Animated, Linking, Share, Alert,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -697,12 +697,177 @@ function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
   );
 }
 
+// ── D-Day 카드 바텀시트 메뉴 ─────────────────────────
+function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete }) {
+  if (!schedule) return null;
+  const items = [
+    { key: 'wx', emoji: '☀️', label: '날씨 확인', onPress: onWeather },
+    { key: 'tr', emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },
+    { key: 'sh', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
+    { key: 'ed', emoji: '✏️', label: '일정 수정', onPress: onEdit },
+    { key: 'rm', emoji: '🗑️', label: '일정 삭제', onPress: onDelete, danger: true },
+  ];
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={sheetS.mask}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+        <View style={sheetS.sheet}>
+          <View style={sheetS.handle} />
+          <View style={{ paddingHorizontal: 22, paddingTop: 4, paddingBottom: 14 }}>
+            <TouchableOpacity onPress={onCourseTap} activeOpacity={schedule.courseLogId ? 0.6 : 1}>
+              <Text style={sheetS.course}>{schedule.course}
+                {schedule.courseLogId ? <Text style={sheetS.courseArrow}> ›</Text> : null}
+              </Text>
+            </TouchableOpacity>
+            <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 14 }}>
+              <Text style={sheetS.dday}>D-{schedule.dDay}</Text>
+              <Text style={sheetS.ddayLabel}>{schedule.dDay}일 후 라운딩이에요 🏌️</Text>
+            </View>
+          </View>
+          <View style={sheetS.divider} />
+          {items.map((it, i) => (
+            <TouchableOpacity
+              key={it.key}
+              style={[sheetS.row, i < items.length - 1 && sheetS.rowBorder]}
+              onPress={it.onPress}
+              activeOpacity={0.6}>
+              <Text style={sheetS.rowEmoji}>{it.emoji}</Text>
+              <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger]}>{it.label}</Text>
+            </TouchableOpacity>
+          ))}
+          <View style={{ height: 8 }} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── 날씨 전체화면 ────────────────────────────────────
+function WeatherFullModal({ visible, schedule, onClose }) {
+  if (!schedule) return null;
+  const WEEK = [
+    { day: '오늘',  date: schedule.date.slice(5), icon: '☀️', sky: '맑음',   tmin: 12, tmax: 22, rain: 10 },
+    { day: '내일',  date: '',                     icon: '🌤️', sky: '구름조금', tmin: 13, tmax: 21, rain: 20 },
+    { day: '모레',  date: '',                     icon: '☁️', sky: '흐림',   tmin: 14, tmax: 19, rain: 40 },
+    { day: '목',    date: '',                     icon: '🌧️', sky: '비',     tmin: 13, tmax: 17, rain: 80 },
+    { day: '금',    date: '',                     icon: '🌦️', sky: '소나기', tmin: 12, tmax: 18, rain: 60 },
+    { day: '토',    date: '',                     icon: '⛅',  sky: '구름많음', tmin: 13, tmax: 20, rain: 20 },
+    { day: '일',    date: '',                     icon: '☀️', sky: '맑음',   tmin: 14, tmax: 23, rain: 0  },
+  ];
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={fullS.container}>
+        <View style={fullS.header}>
+          <TouchableOpacity onPress={onClose} style={fullS.backBtn} activeOpacity={0.6}>
+            <Text style={fullS.backArrow}>←</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={fullS.headerTitle} numberOfLines={1}>{schedule.course}</Text>
+            <Text style={fullS.headerSub}>{schedule.date} {schedule.day} · 티오프 {schedule.time}</Text>
+          </View>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <Text style={fullS.sectionLabel}>7-DAY FORECAST</Text>
+          <View style={fullS.card}>
+            {WEEK.map((w, i) => (
+              <View key={i} style={[fullS.wxRow, i < WEEK.length - 1 && fullS.wxRowBorder]}>
+                <View style={{ width: 56 }}>
+                  <Text style={fullS.wxDay}>{w.day}</Text>
+                  {!!w.date && <Text style={fullS.wxDate}>{w.date}</Text>}
+                </View>
+                <Text style={fullS.wxIcon}>{w.icon}</Text>
+                <View style={{ flex: 1, marginLeft: 6 }}>
+                  <Text style={fullS.wxSky}>{w.sky}</Text>
+                  <Text style={fullS.wxRain}>강수 {w.rain}%</Text>
+                </View>
+                <Text style={fullS.wxTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity style={fullS.linkBtn}
+            onPress={() => Linking.openURL(`https://weather.naver.com/today/${encodeURIComponent(schedule.course)}`)}
+            activeOpacity={0.7}>
+            <Text style={fullS.linkBtnTxt}>네이버 날씨에서 더 자세히 보기</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// ── 교통 전체화면 ────────────────────────────────────
+function TrafficFullModal({ visible, schedule, onClose }) {
+  if (!schedule) return null;
+  const origin = '서울 강남구';
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={fullS.container}>
+        <View style={fullS.header}>
+          <TouchableOpacity onPress={onClose} style={fullS.backBtn} activeOpacity={0.6}>
+            <Text style={fullS.backArrow}>←</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={fullS.headerTitle} numberOfLines={1}>{schedule.course}</Text>
+            <Text style={fullS.headerSub}>{schedule.date} {schedule.day} · 티오프 {schedule.time}</Text>
+          </View>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <Text style={fullS.sectionLabel}>RECOMMENDED DEPARTURE</Text>
+          <View style={[fullS.card, { padding: 18, marginBottom: 22 }]}>
+            <Text style={fullS.bigTime}>06:07</Text>
+            <Text style={fullS.bigSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
+          </View>
+
+          <Text style={fullS.sectionLabel}>ROUTE</Text>
+          <View style={[fullS.card, { padding: 16, marginBottom: 14 }]}>
+            <View style={{ marginBottom: 14 }}>
+              <Text style={fullS.routeLabel}>출발지</Text>
+              <Text style={fullS.routeValue}>{origin}</Text>
+            </View>
+            <View style={fullS.routeArrowRow}>
+              <View style={fullS.routeLineV} />
+              <Text style={fullS.routeArrow}>↓ 약 78.4km · 경부고속도로</Text>
+            </View>
+            <View style={{ marginTop: 14, marginBottom: 14 }}>
+              <Text style={fullS.routeLabel}>도착지</Text>
+              <Text style={fullS.routeValue}>{schedule.course}</Text>
+            </View>
+            <View style={fullS.durationBox}>
+              <Text style={fullS.durationLabel}>예상 소요시간</Text>
+              <Text style={fullS.durationValue}>{schedule.duration}</Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
+                .catch(() => Linking.openURL('https://map.naver.com/v5/directions/-/-/-/car'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>네이버 경로</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
+                .catch(() => Linking.openURL('https://tmap.life'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>티맵 경로</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 // ── 홈 화면 ───────────────────────────────────────────
 function HomeScreen({ navigation }) {
-  const [popupVisible, setPopupVisible] = useState(false);
-  const [popupTab, setPopupTab] = useState('wx');
   const [showAddModal, setShowAddModal] = useState(false);
   const [schedules, setSchedules] = useState(SCHEDULES_INIT);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showWeatherFull, setShowWeatherFull] = useState(false);
+  const [showTrafficFull, setShowTrafficFull] = useState(false);
+  const [editSchedule, setEditSchedule] = useState(null);
 
   const next = schedules.length > 0 ? schedules[0] : null;
 
@@ -723,9 +888,50 @@ function HomeScreen({ navigation }) {
     }
   };
 
-  const openPopup = (tab) => {
-    setPopupTab(tab);
-    setPopupVisible(true);
+  const openScheduleSheet = (schedule) => {
+    setSelectedSchedule(schedule);
+    setShowScheduleModal(true);
+  };
+
+  const openWeatherFor = (schedule) => {
+    setSelectedSchedule(schedule);
+    setShowWeatherFull(true);
+  };
+
+  const openTrafficFor = (schedule) => {
+    setSelectedSchedule(schedule);
+    setShowTrafficFull(true);
+  };
+
+  const handleShareSchedule = (s) => {
+    if (!s) return;
+    const msg = `[ Dear Golf ]\n\n${s.course}\n${s.date} ${s.day}요일  ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n\n예상 날씨  ${s.weather}\n권장 출발  ${s.duration} 전 출발\n         (티오프 30분 전 도착 기준)\n\n나만의 골프 캐디, Dear Golf와\n함께하는 라운딩입니다\n\ndeargolf.app`;
+    Share.share({ message: msg });
+  };
+
+  const handleEditSchedule = (s) => {
+    setShowScheduleModal(false);
+    setEditSchedule(s);
+  };
+
+  const handleDeleteSchedule = (s) => {
+    if (!s) return;
+    Alert.alert(
+      '일정 삭제',
+      `${s.course}\n${s.date} ${s.day} · ${s.time}\n\n이 일정을 삭제할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            setSchedules(prev => prev.filter(x => x.id !== s.id));
+            setShowScheduleModal(false);
+            setSelectedSchedule(null);
+          },
+        },
+      ],
+    );
   };
 
   const handleScheduleSave = (type, data) => {
@@ -738,6 +944,11 @@ function HomeScreen({ navigation }) {
         duration: '1시간 30분', courseLogId: null,
       };
       setSchedules(prev => [...prev, newS]);
+    } else if (type === 'schedule-edit') {
+      setSchedules(prev => prev.map(s => s.id === data.id
+        ? { ...s, course: data.course, date: data.date, day: data.day,
+            time: data.time, members: data.members, dDay: data.dDay }
+        : s));
     }
   };
 
@@ -797,7 +1008,11 @@ function HomeScreen({ navigation }) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             {/* 메인 카드 */}
-            <View style={homeS.mainCard}>
+            <TouchableOpacity
+              style={homeS.mainCard}
+              activeOpacity={1}
+              onLongPress={() => openScheduleSheet(next)}
+              delayLongPress={350}>
               <TouchableOpacity
                 onPress={() => handleCardCoursePress(next)}
                 activeOpacity={next.courseLogId ? 0.7 : 1}
@@ -808,36 +1023,44 @@ function HomeScreen({ navigation }) {
                 <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
               </TouchableOpacity>
               <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
-                <Text style={homeS.cardDDayLabel}>DAYS TO GO</Text>
+                <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7}>
+                  <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
+                  <Text style={homeS.cardDDayLabel}>DAYS TO GO</Text>
+                </TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                  <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openPopup('wx')}>
+                  <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openWeatherFor(next)}>
                     <Text style={homeS.pillTxt}>☀️ {next.weather} →</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openPopup('tr')}>
+                  <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openTrafficFor(next)}>
                     <Text style={homeS.pillTxt}>🚗 {next.duration} →</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[homeS.pill, homeS.pillTap]}
-                    onPress={() => {
-                      const msg = `[ Dear Golf ]\n\n${next.course}\n${next.date} ${next.day}요일  ${next.time}\n${next.members}명 동반 · D-${next.dDay}\n\n예상 날씨  ${next.weather}\n권장 출발  ${next.duration} 전 출발\n         (티오프 30분 전 도착 기준)\n\n나만의 골프 캐디, Dear Golf와\n함께하는 라운딩입니다\n\ndeargolf.app`;
-                      Share.share({ message: msg });
-                    }}>
+                    onPress={() => handleShareSchedule(next)}>
                     <Text style={homeS.pillTxt}>📩 공유</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* 서브 카드 */}
             {schedules.slice(1).map(s => (
               <TouchableOpacity key={s.id} style={homeS.subCard}
-                onPress={() => handleCardCoursePress(s)}
-                activeOpacity={s.courseLogId ? 0.7 : 0.95}>
-                <Text style={homeS.subCourse} numberOfLines={2}>{s.course}</Text>
-                <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
+                activeOpacity={1}
+                onLongPress={() => openScheduleSheet(s)}
+                delayLongPress={350}>
+                <TouchableOpacity
+                  onPress={() => handleCardCoursePress(s)}
+                  activeOpacity={s.courseLogId ? 0.7 : 1}>
+                  <Text style={homeS.subCourse} numberOfLines={2}>{s.course}
+                    {s.courseLogId ? <Text style={{ fontSize: 8, color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
+                  </Text>
+                  <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
+                </TouchableOpacity>
                 <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                  <Text style={homeS.subDDay}>D-{s.dDay}</Text>
-                  <Text style={homeS.subDDayLabel}>DAYS</Text>
+                  <TouchableOpacity onPress={() => openScheduleSheet(s)} activeOpacity={0.7}>
+                    <Text style={homeS.subDDay}>D-{s.dDay}</Text>
+                    <Text style={homeS.subDDayLabel}>DAYS</Text>
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             ))}
@@ -873,15 +1096,45 @@ function HomeScreen({ navigation }) {
         </View>
       </SafeAreaView>
 
-      {/* 날씨/교통 팝업 — 분리 컴포넌트 사용 */}
-      <WeatherTransportPopup
-        visible={popupVisible}
-        initialTab={popupTab}
-        onClose={() => setPopupVisible(false)}
-        schedule={next}
+      {/* D-Day 바텀시트 메뉴 */}
+      <ScheduleSheetModal
+        visible={showScheduleModal}
+        schedule={selectedSchedule}
+        onClose={() => setShowScheduleModal(false)}
+        onCourseTap={() => {
+          setShowScheduleModal(false);
+          if (selectedSchedule?.courseLogId) {
+            navigation.navigate('가이드', { openCourseId: selectedSchedule.courseLogId });
+          }
+        }}
+        onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
+        onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
+        onShare={() => handleShareSchedule(selectedSchedule)}
+        onEdit={() => handleEditSchedule(selectedSchedule)}
+        onDelete={() => handleDeleteSchedule(selectedSchedule)}
+      />
+
+      {/* 날씨 전체화면 */}
+      <WeatherFullModal
+        visible={showWeatherFull}
+        schedule={selectedSchedule || next}
+        onClose={() => setShowWeatherFull(false)}
+      />
+
+      {/* 교통 전체화면 */}
+      <TrafficFullModal
+        visible={showTrafficFull}
+        schedule={selectedSchedule || next}
+        onClose={() => setShowTrafficFull(false)}
       />
 
       <ScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleScheduleSave} />
+      <ScheduleModal
+        visible={!!editSchedule}
+        initial={editSchedule}
+        onClose={() => setEditSchedule(null)}
+        onSave={handleScheduleSave}
+      />
     </View>
   );
 }
@@ -967,7 +1220,8 @@ function HallOfFameCard({ item }) {
 }
 
 // ── 예정라운딩 입력 모달 ──────────────────────────────
-function ScheduleModal({ visible, onClose, onSave }) {
+function ScheduleModal({ visible, onClose, onSave, initial }) {
+  const isEdit = !!initial;
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -981,6 +1235,23 @@ function ScheduleModal({ visible, onClose, onSave }) {
   const formatDay = (d) => DAYS[d.getDay()];
   const formatTime = (t) => `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
 
+  useEffect(() => {
+    if (visible && initial) {
+      setCourseSearch(initial.course || '');
+      setSelectedCourse(initial.course || '');
+      const dParts = (initial.date || '').split('.').map(Number);
+      if (dParts.length === 3 && !isNaN(dParts[0])) {
+        setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
+      }
+      const tParts = (initial.time || '').split(':').map(Number);
+      if (tParts.length === 2 && !isNaN(tParts[0])) {
+        const t = new Date(); t.setHours(tParts[0], tParts[1], 0, 0);
+        setTime(t);
+      }
+      setMembers(String(initial.members || '4'));
+    }
+  }, [visible, initial]);
+
   const searchResults = courseSearch.length > 0 && courseSearch !== selectedCourse
     ? GOLF_DB.filter(g => g.name.includes(courseSearch) || g.loc.includes(courseSearch)).slice(0, 5)
     : [];
@@ -992,17 +1263,22 @@ function ScheduleModal({ visible, onClose, onSave }) {
 
   const handleSave = () => {
     if (!selectedCourse) return;
-    const today = new Date();
-    const diffTime = date - today;
-    const dDay = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    onSave('schedule', {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const target = new Date(date); target.setHours(0, 0, 0, 0);
+    const dDay = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+    const payload = {
       course: selectedCourse,
       date: formatDate(date),
       day: formatDay(date),
       time: formatTime(time),
       members: parseInt(members) || 4,
       dDay: Math.max(0, dDay),
-    });
+    };
+    if (isEdit) {
+      onSave('schedule-edit', { id: initial.id, ...payload });
+    } else {
+      onSave('schedule', payload);
+    }
     reset(); onClose();
   };
 
@@ -1014,7 +1290,7 @@ function ScheduleModal({ visible, onClose, onSave }) {
           <View style={mS.sheet}>
             <View style={mS.handle} />
             <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-              <Text style={mS.title}>예정 라운딩 추가</Text>
+              <Text style={mS.title}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
               <Text style={mS.label}>골프장</Text>
               <TextInput style={mS.input} placeholder="골프장 이름 검색..."
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
@@ -1058,7 +1334,7 @@ function ScheduleModal({ visible, onClose, onSave }) {
                 ))}
               </View>
               <TouchableOpacity style={mS.saveBtn} onPress={handleSave}>
-                <Text style={mS.saveBtnTxt}>저장하기</Text>
+                <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
               </TouchableOpacity>
               <View style={{ height: 40 }} />
             </ScrollView>
@@ -2564,6 +2840,58 @@ const homeS = StyleSheet.create({
   driverBtnTxt:    { fontFamily: F.sys, fontSize: 12 },
   closeBtn:        { alignItems: 'center', paddingVertical: 10 },
   closeTxt:        { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.3)', letterSpacing: 1 },
+});
+
+// D-Day 바텀시트 메뉴 스타일
+const sheetS = StyleSheet.create({
+  mask:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet:       { backgroundColor: C.bgPrimary, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 20 },
+  handle:      { width: 36, height: 4, backgroundColor: C.hairline, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 6 },
+  course:      { fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '600' },
+  courseArrow: { fontSize: 14, color: C.warmGrayLight, fontWeight: '400' },
+  meta:        { fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6 },
+  dday:        { fontFamily: F.en, fontSize: 32, color: C.burgundy, letterSpacing: -0.5, lineHeight: 34 },
+  ddayLabel:   { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  divider:     { height: 6, backgroundColor: 'rgba(0,0,0,0.03)' },
+  row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 22, gap: 14 },
+  rowBorder:   { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
+  rowEmoji:    { fontSize: 18, width: 22, textAlign: 'center' },
+  rowText:     { fontFamily: F.sys, fontSize: 15, color: C.charcoal },
+  rowDanger:   { color: '#D32F2F' },
+});
+
+// 날씨/교통 전체화면 모달 스타일
+const fullS = StyleSheet.create({
+  container:    { flex: 1, backgroundColor: C.bgPrimary },
+  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline, backgroundColor: C.bgPrimary },
+  backBtn:      { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  backArrow:    { fontSize: 22, color: C.charcoal, lineHeight: 24 },
+  headerTitle:  { fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600' },
+  headerSub:    { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginTop: 2 },
+  sectionLabel: { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 2, marginBottom: 8 },
+  card:         { backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, overflow: 'hidden', marginBottom: 22 },
+  wxRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
+  wxRowBorder:  { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
+  wxDay:        { fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '500' },
+  wxDate:       { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
+  wxIcon:       { fontSize: 22, width: 32, textAlign: 'center' },
+  wxSky:        { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  wxRain:       { fontFamily: F.sys, fontSize: 10, color: C.paleSky, marginTop: 2 },
+  wxTemp:       { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
+  linkBtn:      { backgroundColor: '#03C75A11', borderRadius: 10, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#03C75A55' },
+  linkBtnTxt:   { fontFamily: F.sys, fontSize: 13, color: '#03A452', letterSpacing: 0.3 },
+  bigTime:      { fontFamily: F.en, fontSize: 42, color: C.burgundy, lineHeight: 46, letterSpacing: -0.5 },
+  bigSub:       { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginTop: 4 },
+  routeLabel:   { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 4 },
+  routeValue:   { fontFamily: F.sys, fontSize: 14, color: C.charcoal },
+  routeArrowRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
+  routeLineV:   { width: 1, height: 16, backgroundColor: C.hairline, marginLeft: 6 },
+  routeArrow:   { fontFamily: F.sys, fontSize: 11, color: C.textSecondary },
+  durationBox:  { backgroundColor: '#F5E6A833', borderRadius: 10, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  durationLabel:{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary },
+  durationValue:{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600' },
+  routeBtn:     { flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  routeBtnTxt:  { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
 });
 
 const dS = StyleSheet.create({
