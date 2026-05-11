@@ -2013,6 +2013,9 @@ function DiaryScreen({ route, navigation }) {
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
   const [diariesHydrated, setDiariesHydrated] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterKey, setFilterKey] = useState('전체');
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -2143,35 +2146,118 @@ function DiaryScreen({ route, navigation }) {
         ))}
       </View>
 
-      {tab === 'round' && (
-        <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
-          {hallOfFame.length > 0 && (
-            <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-              <TouchableOpacity style={dS.hofToggle} onPress={() => setHofExpanded(!hofExpanded)}>
-                <Text style={dS.hofSectionLabel}>명예의 전당 · {hallOfFame.length}개</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C9A84C' }}>{hofExpanded ? '접기' : '펼치기'}</Text>
+      {tab === 'round' && (() => {
+        const FILTERS = ['전체', '올해', '최근 3개월', '베스트순', '특별한 순간'];
+
+        const filtered = (() => {
+          let list = diaries;
+          const q = search.trim().toLowerCase();
+          if (q) {
+            list = list.filter(d => {
+              if ((d.course || '').toLowerCase().includes(q)) return true;
+              return (d.companions || []).some(c => (c.name || '').toLowerCase().includes(q));
+            });
+          }
+          const now = new Date();
+          if (filterKey === '올해') {
+            list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
+          } else if (filterKey === '최근 3개월') {
+            const cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3);
+            list = list.filter(d => {
+              const [y, m, day] = (d.date || '').split('.').map(Number);
+              return y ? new Date(y, m - 1, day) >= cutoff : false;
+            });
+          } else if (filterKey === '특별한 순간') {
+            list = list.filter(d => d.special != null);
+          }
+          if (filterKey === '베스트순') {
+            list = [...list].sort((a, b) => a.score - b.score);
+          }
+          return list;
+        })();
+
+        const avgScore = diaries.length > 0
+          ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length)
+          : null;
+
+        return (
+          <>
+            {/* 필터탭 + 검색버튼 한 줄 */}
+            <View style={dS.filterRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                style={{ flex: 1 }} contentContainerStyle={dS.filterTabRow}>
+                {FILTERS.map(f => {
+                  const on = filterKey === f;
+                  return (
+                    <TouchableOpacity key={f} activeOpacity={0.7}
+                      style={[dS.filterTab, on && dS.filterTabOn]}
+                      onPress={() => setFilterKey(on ? '전체' : f)}>
+                      <Text style={[dS.filterTabTxt, on && dS.filterTabTxtOn]}>{f}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity activeOpacity={0.6}
+                style={dS.searchToggleBtn}
+                onPress={() => {
+                  if (showSearch) { setShowSearch(false); setSearch(''); }
+                  else setShowSearch(true);
+                }}>
+                <Text style={[dS.searchToggleTxt, showSearch && { color: '#6B1E2A' }]}>🔍</Text>
               </TouchableOpacity>
-              {hofExpanded && hallOfFame.map(item => <HallOfFameCard key={item.id} item={item} />)}
-              <View style={{ height: 8 }} />
             </View>
-          )}
-          <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-            {(() => {
-              const avgScore = diaries.length > 0
-                ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length)
-                : null;
-              return diaries.map((item, idx) => (
-                <View key={item.id} style={dS.tlNode}>
-                  {idx < diaries.length - 1 && <View style={dS.tlLine} />}
-                  <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, item.special && dS.tlDotSpecial]} />
-                  <DiaryCard item={item} avgScore={avgScore} onPress={(it) => setSelected(it)} />
+
+            {/* 검색바 (토글) */}
+            {showSearch && (
+              <View style={dS.searchWrap}>
+                <Text style={dS.searchIcon}>🔍</Text>
+                <TextInput
+                  style={dS.searchInput}
+                  placeholder="골프장 또는 동반자 이름"
+                  placeholderTextColor={C.warmGrayLight}
+                  value={search}
+                  onChangeText={setSearch}
+                  autoFocus
+                />
+                <TouchableOpacity activeOpacity={0.6}
+                  onPress={() => { setShowSearch(false); setSearch(''); }}>
+                  <Text style={dS.searchCloseTxt}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
+              {hallOfFame.length > 0 && (
+                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+                  <TouchableOpacity style={dS.hofToggle} onPress={() => setHofExpanded(!hofExpanded)}>
+                    <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C9A84C' }}>{hofExpanded ? '접기' : '펼치기'}</Text>
+                  </TouchableOpacity>
+                  {hofExpanded && hallOfFame.map(item => <HallOfFameCard key={item.id} item={item} />)}
+                  <View style={{ height: 8 }} />
                 </View>
-              ));
-            })()}
-          </View>
-          <View style={{ height: 32 }} />
-        </ScrollView>
-      )}
+              )}
+
+              {filtered.length === 0 ? (
+                <View style={dS.emptyWrap}>
+                  <Text style={dS.emptyMsg}>검색 결과가 없어요</Text>
+                </View>
+              ) : (
+                <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
+                  {filtered.map((item, idx) => (
+                    <View key={item.id} style={dS.tlNode}>
+                      {idx < filtered.length - 1 && <View style={dS.tlLine} />}
+                      <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, item.special && dS.tlDotSpecial]} />
+                      <DiaryCard item={item} avgScore={avgScore} onPress={(it) => setSelected(it)} />
+                    </View>
+                  ))}
+                </View>
+              )}
+              <View style={{ height: 32 }} />
+            </ScrollView>
+          </>
+        );
+      })()}
       {tab === 'log' && <CourseLogTab />}
       {tab === 'friends' && <FriendsTab />}
 
@@ -2933,6 +3019,21 @@ const dS = StyleSheet.create({
   tabTxt:      { fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight },
   tabTxtOn:    { color: C.charcoal, fontWeight: '600' },
   tlNode:      { paddingLeft: 24, position: 'relative', marginBottom: 10 },
+  // 검색/필터
+  filterRow:         { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' },
+  filterTabRow:      { paddingLeft: 16 },
+  filterTab:         { paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  filterTabOn:       { borderBottomColor: '#6B1E2A' },
+  filterTabTxt:      { fontFamily: F.sys, fontSize: 11, color: '#8B8680' },
+  filterTabTxtOn:    { color: '#3D3935', fontWeight: '700' },
+  searchToggleBtn:   { paddingHorizontal: 14, paddingVertical: 6, borderLeftWidth: 0.5, borderLeftColor: '#E8E2D0' },
+  searchToggleTxt:   { fontSize: 16 },
+  searchWrap:        { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#E8E2D0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 16, marginVertical: 6 },
+  searchIcon:        { fontSize: 14, marginRight: 8 },
+  searchInput:       { flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, padding: 0 },
+  searchCloseTxt:    { fontSize: 14, color: C.warmGray, paddingHorizontal: 6 },
+  emptyWrap:   { alignItems: 'center', paddingVertical: 60 },
+  emptyMsg:    { fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight },
   tlLine:      { position: 'absolute', left: 7, top: 14, bottom: -10, width: 1, backgroundColor: C.hairline },
   tlDot:       { position: 'absolute', left: 2, top: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: C.bgPrimary, borderWidth: 1.5, borderColor: C.hairline },
   tlDotBest:   { backgroundColor: C.burgundy, borderColor: C.burgundy },
