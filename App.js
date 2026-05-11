@@ -1062,7 +1062,7 @@ function HomeScreen({ navigation }) {
                       <View style={homeS.memoBadgeComment}>
                         <Text style={[homeS.memoBadgeTxt, { color: '#C8D9E6' }]}>코스 한마디</Text>
                       </View>
-                      <Text style={[homeS.memoCardCourse, { color: 'rgba(200,217,230,0.4)' }]}>{next?.course}</Text>
+                      <Text style={[homeS.memoCardCourse, { color: 'rgba(255,255,255,0.6)' }]}>{next?.course}</Text>
                     </View>
                     <View style={homeS.memoCardBottom}>
                       <Text style={homeS.commentTxt}>"{courseComment.txt}"</Text>
