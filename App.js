@@ -109,22 +109,26 @@ const DIARY_DATA = [
     memo: '베스트 갱신! 아이언이 살아났다', badge: '베스트', weather: '맑음',
     special: 'EAGLE', specialHole: 12,
     companions: [{ name: '지현', isMe: true }, { name: '김민준' }, { name: '이수연' }],
-    photos: ['https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800','https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800','https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=800'] },
+    photos: ['https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800','https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800','https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=800'],
+    detailMemo: '' },
   { id: '2', date: '2025.04.28', day: '월', course: '제이드팰리스 골프클럽', score: 92, par: 72,
     memo: '드라이버 컨디션 최고였던 날', badge: null, weather: '흐림',
     special: null,
     companions: [{ name: '지현', isMe: true }, { name: '박정호' }],
-    photos: [] },
+    photos: [],
+    detailMemo: '' },
   { id: '3', date: '2025.02.14', day: '금', course: '블랙스톤 컨트리클럽', score: 88, par: 72,
     memo: '퍼팅이 아쉬웠지만 즐거웠음', badge: '버디', weather: '맑음',
     special: 'HOLE IN ONE', specialHole: 7,
     companions: [{ name: '지현', isMe: true }, { name: '최다은' }, { name: '오세훈' }],
-    photos: ['https://images.unsplash.com/photo-1592919505780-303950717480?w=800','https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=800'] },
+    photos: ['https://images.unsplash.com/photo-1592919505780-303950717480?w=800','https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=800'],
+    detailMemo: '' },
   { id: '4', date: '2025.01.20', day: '월', course: '파인크리크 골프장', score: 105, par: 72,
     memo: '바람 때문에 고생... 그래도 즐거웠음', badge: null, weather: '바람',
     special: null,
     companions: [{ name: '지현', isMe: true }],
-    photos: [] },
+    photos: [],
+    detailMemo: '' },
 ];
 
 const COURSE_LOG = [
@@ -144,6 +148,31 @@ const USER_RESTAURANTS = [
   { id: '2', name: '미락 숯불갈비', type: '갈비', dist: '1.2km', rating: '4.8' },
   { id: '3', name: '순두부마을', type: '순두부찌개', dist: '800m', rating: '4.5' },
 ];
+
+const COURSE_TAGS = {
+  '코스 관리':   ['관리 최상', '관리 보통', '관리 아쉬움'],
+  '코스 특성':   ['그린 빠름', '그린 느림', '넓은 페어웨이', '좁은 페어웨이', '전장 길음', '전장 짧음'],
+  '시설':        ['클하 맛집', '세차 가능', '락커 좋음'],
+  '경관 · 특징': ['뷰 좋음', '레이디 우대', '야간 가능'],
+  '난이도':      ['벙커 많음', '언듈레이션 심함', 'OB 많음', '워터헤저드 많음'],
+  '해외 특화':   ['오션뷰', '마운틴뷰', '리조트형', '열대코스', '링크스형', '챔피언십코스'],
+};
+
+const COURSE_TAG_COLORS = {
+  '코스 관리':   { bg: '#3D3935', text: '#F5E6A8' },
+  '코스 특성':   { bg: '#F5E6A8', text: '#5A4500' },
+  '시설':        { bg: '#C8D9E6', text: '#1A3D52' },
+  '경관 · 특징': { bg: '#6B1E2A', text: '#F5E6A8' },
+  '난이도':      { bg: '#8B8680', text: '#fff' },
+  '해외 특화':   { bg: '#C8D9E6', text: '#1A3D52' },
+};
+
+const getTagColor = (tag) => {
+  for (const [category, tags] of Object.entries(COURSE_TAGS)) {
+    if (tags.includes(tag)) return COURSE_TAG_COLORS[category];
+  }
+  return { bg: '#F5E6A8', text: '#5A4500' };
+};
 
 const GOLF_DB = [
   { id: 'g1', name: '제이드팰리스 골프클럽', loc: '경기 용인' },
@@ -214,6 +243,8 @@ const USER_PROFILE_INIT = {
   totalRounds: 24,
   hasFirstSingle: true,
   onboardingDone: true,  // 온보딩 완료 상태로 시작
+  departure: '',
+  phone: '',
 };
 
 let USER_PROFILE = { ...USER_PROFILE_INIT };
@@ -1253,6 +1284,13 @@ function DiaryAddModal({ visible, onClose, onSave }) {
   const [memo, setMemo] = useState('');
   const [birdieCount, setBirdieCount] = useState(0);
   const [privacy, setPrivacy] = useState('friends');
+  const [starRating, setStarRating] = useState(0);
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [detailMemo, setDetailMemo] = useState('');
+
+  const toggleTag = (tag) => {
+    setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
   const [special, setSpecial] = useState(null);
   const [specialHole, setSpecialHole] = useState('');
   const [specialPar, setSpecialPar] = useState('3');
@@ -1263,7 +1301,7 @@ function DiaryAddModal({ visible, onClose, onSave }) {
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.8,
     });
@@ -1287,6 +1325,8 @@ function DiaryAddModal({ visible, onClose, onSave }) {
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setScoreCardOption('later'); setHoleScores({});
     setAddPhotos([]);
+    setStarRating(0); setSelectedTags([]);
+    setDetailMemo('');
   };
 
   const [saveError, setSaveError] = useState('');
@@ -1315,6 +1355,10 @@ function DiaryAddModal({ visible, onClose, onSave }) {
       special, specialHole: parseInt(specialHole),
       specialDist, specialBall, specialMemo,
       photos: addPhotos,
+      starRating,
+      tags: selectedTags,
+      detailMemo,
+      courseId: GOLF_DB.find(g => g.name === finalCourse)?.id || null,
     });
     reset(); onClose();
   };
@@ -1414,6 +1458,73 @@ function DiaryAddModal({ visible, onClose, onSave }) {
                   )}
                 </View>
               )}
+              <Text style={mS.label}>코스 별점 <Text style={{ color: '#8B8680', fontSize: 10 }}> (이 골프장이 얼마나 좋았나요?)</Text></Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <TouchableOpacity key={i} onPress={() => setStarRating(i)} activeOpacity={0.6}>
+                    <Text style={{ fontSize: 28, color: i <= starRating ? '#C9A84C' : '#E8E2D0' }}>★</Text>
+                  </TouchableOpacity>
+                ))}
+                {starRating > 0 && <Text style={{ fontSize: 12, color: '#8B8680' }}>{starRating}점</Text>}
+              </View>
+
+              <Text style={mS.label}>코스 태그 <Text style={{ color: '#8B8680', fontSize: 10 }}> (선택 · 중복 가능)</Text></Text>
+              {Object.entries(COURSE_TAGS).map(([category, tags]) => {
+                const catColor = COURSE_TAG_COLORS[category];
+                return (
+                  <View key={category} style={{ marginBottom: 10 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#8B8680', marginBottom: 6, letterSpacing: 1 }}>{category}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {tags.map(tag => {
+                        const on = selectedTags.includes(tag);
+                        return (
+                          <TouchableOpacity key={tag} activeOpacity={0.7}
+                            style={{
+                              borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
+                              backgroundColor: on ? catColor.bg : C.bgSecondary,
+                              borderWidth: 0.5,
+                              borderColor: on ? catColor.bg : C.hairline,
+                            }}
+                            onPress={() => toggleTag(tag)}>
+                            <Text style={{ fontFamily: F.sys, fontSize: 12, color: on ? catColor.text : C.warmGrayLight }}>{tag}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
+
+              <View style={{ marginTop: 6 }}>
+                <Text style={mS.label}>
+                  더 기록하기
+                  <Text style={{ color: '#8B8680', fontSize: 10 }}> (선택 · 최대 1000자)</Text>
+                </Text>
+                <View style={{
+                  backgroundColor: C.bgSecondary,
+                  borderWidth: 0.5, borderColor: C.hairline,
+                  borderRadius: 12, padding: 14,
+                  minHeight: 140,
+                }}>
+                  <TextInput
+                    style={{
+                      fontFamily: F.sys, fontSize: 13,
+                      color: C.textPrimary, lineHeight: 22,
+                      minHeight: 100, textAlignVertical: 'top',
+                    }}
+                    placeholder={'MVP 샷은? · 어려웠던 홀은?\n코스·잔디 상태는? · 동반자 소감은?\n다음에 오면 꼭 기억할 것은?'}
+                    placeholderTextColor={C.warmGrayLight}
+                    value={detailMemo}
+                    onChangeText={(t) => { if (t.length <= 1000) setDetailMemo(t); }}
+                    multiline
+                    maxLength={1000}
+                  />
+                  <Text style={{ fontSize: 10, color: C.warmGrayLight, textAlign: 'right', marginTop: 8 }}>
+                    {detailMemo.length} / 1000
+                  </Text>
+                </View>
+              </View>
+
               <Text style={mS.label}>날씨</Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {['맑음','흐림','바람','비'].map(w => (
@@ -1536,19 +1647,45 @@ function DiaryCard({ item, onPress, avgScore }) {
       <Text style={dS.cardDate}>{item.date} {item.day}</Text>
       <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
       <View style={dS.cardRow}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-          <View>
-            <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}타</Text>
-            <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+            <Text style={[dS.cardScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+            {item.special && (
+              <View style={{
+                backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
+                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
+                alignSelf: 'center',
+              }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{item.special}</Text>
+              </View>
+            )}
+            {item.birdieCount > 0 && (
+              <View style={{
+                backgroundColor: '#3D3935',
+                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
+                alignSelf: 'center',
+              }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '600' }}>버디 ×{item.birdieCount}</Text>
+              </View>
+            )}
           </View>
-          {item.birdieCount > 0 && (
-            <View style={dS.birdieBadge}>
-              <Text style={dS.birdieBadgeTxt}>Birdie ×{item.birdieCount}</Text>
-            </View>
-          )}
+          <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
         </View>
         <Text style={[dS.cardMemo, { borderLeftColor: memoBorderColor }]}>"{item.memo}"</Text>
       </View>
+      {item.tags && item.tags.length > 0 && (
+        <View style={dS.cardTagRow}>
+          {item.tags.slice(0, 4).map((t, i) => {
+            const c = getTagColor(t);
+            return (
+              <View key={i} style={[dS.cardTag, { backgroundColor: c.bg + '22', borderColor: c.bg + '66' }]}>
+                <Text style={[dS.cardTagTxt, { color: c.bg }]}>{t}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
@@ -1625,7 +1762,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
 
   const pickEditPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.8,
     });
@@ -1721,24 +1858,36 @@ function DiaryDetail({ item, onClose, onUpdate }) {
         <View style={[dS.detailInfoArea, isSpecial && { borderBottomColor: '#C9A84C33' }]}>
           <View style={dS.detailScoreRow}>
             {isEditing ? (
-              <>
-                <TextInput
-                  style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' },
-                    { borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingVertical: 0, minWidth: 80 }]}
-                  value={editScore}
-                  onChangeText={setEditScore}
-                  keyboardType="numeric"
-                  maxLength={3}
-                />
-                <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-                <Text style={dS.detailScoreSub}>par {item.par}</Text>
-              </>
+              <TextInput
+                style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' },
+                  { borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingVertical: 0, minWidth: 80 }]}
+                value={editScore}
+                onChangeText={setEditScore}
+                keyboardType="numeric"
+                maxLength={3}
+              />
             ) : (
-              <>
-                <Text style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-                <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-                <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
-              </>
+              <Text style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+            )}
+            <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+            <Text style={dS.detailScoreSub}>{isEditing ? `par ${item.par}` : `${diffLabel} · par ${item.par}`}</Text>
+            {item.special && (
+              <View style={{
+                backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
+                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
+                alignSelf: 'center',
+              }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{item.special}</Text>
+              </View>
+            )}
+            {item.birdieCount > 0 && (
+              <View style={{
+                backgroundColor: '#3D3935',
+                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
+                alignSelf: 'center',
+              }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '600' }}>버디 ×{item.birdieCount}</Text>
+              </View>
             )}
           </View>
           <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
@@ -1756,6 +1905,17 @@ function DiaryDetail({ item, onClose, onUpdate }) {
               <Text style={dS.detailMemoTxt}>"{item.memo}"</Text>
             )}
           </View>
+          {item.detailMemo ? (
+            <View style={{
+              marginTop: 12, marginBottom: 14,
+              backgroundColor: C.bgSecondary,
+              borderRadius: 10, padding: 14,
+              borderWidth: 0.5, borderColor: C.hairline,
+            }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>더 기록하기</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary, lineHeight: 22 }}>{item.detailMemo}</Text>
+            </View>
+          ) : null}
           <View style={dS.companionArea}>
             <Text style={dS.companionLabel}>동반자</Text>
             <View style={{ flex: 1 }}>
@@ -1847,7 +2007,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
 }
 
 // ── Course Log 탭 ─────────────────────────────────────
-function CourseLogTab() {
+function CourseLogTab({ avgRating }) {
   const [region, setRegion] = useState('domestic');
   const [show100, setShow100] = useState(false);
   const [countryFilter, setCountryFilter] = useState('전체');
@@ -1909,7 +2069,12 @@ function CourseLogTab() {
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                 <Text style={{ fontSize: 14, color: C.burgundy, marginTop: 1 }}>✓</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={dS.courseName}>{c.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                    <Text style={dS.courseName}>{c.name}</Text>
+                    {avgRating && avgRating(c.id) > 0 && (
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#C9A84C' }}>★ {avgRating(c.id)}</Text>
+                    )}
+                  </View>
                   <Text style={dS.courseLoc}>{c.loc} · {c.visits}회 방문</Text>
                 </View>
               </View>
@@ -1944,7 +2109,12 @@ function CourseLogTab() {
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                 <Text style={{ fontSize: 20 }}>{c.flag}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={dS.courseName}>{c.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                    <Text style={dS.courseName}>{c.name}</Text>
+                    {avgRating && avgRating(c.id) > 0 && (
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#C9A84C' }}>★ {avgRating(c.id)}</Text>
+                    )}
+                  </View>
                   <Text style={dS.courseLoc}>{c.loc} · {c.visits}회 방문</Text>
                 </View>
               </View>
@@ -2088,6 +2258,7 @@ function FriendsTab() {
 
 // ── 다이어리 화면 ─────────────────────────────────────
 function DiaryScreen({ route, navigation }) {
+  const { userProfile } = React.useContext(UserContext);
   const [tab, setTab] = useState('round');
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -2123,9 +2294,24 @@ function DiaryScreen({ route, navigation }) {
 
   // 통계박스: 처음엔 열려있다가 3초 후 자동 닫힘, 터치로 토글
   const [showStats, setShowStats] = useState(true);
+  const [showMyPage, setShowMyPage] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const animateStats = (show) => {
+    Animated.timing(fadeAnim, {
+      toValue: show ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
   useEffect(() => {
     setShowStats(true);
-    const timer = setTimeout(() => setShowStats(false), 3000);
+    animateStats(true);
+    const timer = setTimeout(() => {
+      animateStats(false);
+      setTimeout(() => setShowStats(false), 300);
+    }, 3000);
     return () => clearTimeout(timer);
   }, [tab]);
 
@@ -2150,6 +2336,10 @@ function DiaryScreen({ route, navigation }) {
         specialHole: data.specialHole || null,
         companions: [{ name: USER_PROFILE.nickname, isMe: true }],
         photos: data.photos || [],
+        starRating: data.starRating || 0,
+        tags: data.tags || [],
+        detailMemo: data.detailMemo || '',
+        courseId: data.courseId || null,
       };
       setDiaries(prev => [newD, ...prev]);
       if (data.special) {
@@ -2166,9 +2356,22 @@ function DiaryScreen({ route, navigation }) {
     }
   };
 
-  const avg = diaries.length > 0 ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length) : 0;
-  const best = diaries.length > 0 ? Math.min(...diaries.map(d => d.score)) : 0;
+  const avg = userProfile.avgScore || (diaries.length > 0 ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length) : 0);
+  const best = userProfile.lifeBest || (diaries.length > 0 ? Math.min(...diaries.map(d => d.score)) : 0);
+  const totalRounds = userProfile.totalRounds || diaries.length;
   const tabIdx = TAB_DIARY.findIndex(([k]) => k === tab);
+
+  const courseRatings = {};
+  diaries.forEach(d => {
+    if (d.courseId && d.starRating > 0) {
+      (courseRatings[d.courseId] = courseRatings[d.courseId] || []).push(d.starRating);
+    }
+  });
+  const avgRating = (courseId) => {
+    const r = courseRatings[courseId];
+    if (!r || r.length === 0) return 0;
+    return (r.reduce((a, b) => a + b, 0) / r.length).toFixed(1);
+  };
 
   if (selected) return <DiaryDetail item={selected} onClose={() => setSelected(null)}
     onUpdate={(updated) => {
@@ -2184,31 +2387,46 @@ function DiaryScreen({ route, navigation }) {
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 2 }}>나의 골프 이야기</Text>
           <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
         </View>
-        <TouchableOpacity onPress={() => setShowModal(true)}
-          style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.en, fontSize: 18, color: '#fff', lineHeight: 22 }}>+</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
+            style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>👤</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowModal(true)} activeOpacity={0.7}
+            style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.en, fontSize: 18, color: '#fff', lineHeight: 22 }}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 통계박스 — 터치로 토글, 자동 숨김 */}
-      <TouchableOpacity onPress={() => setShowStats(!showStats)} activeOpacity={0.9}>
+      <TouchableOpacity
+        onPress={() => {
+          const next = !showStats;
+          animateStats(next);
+          if (!next) setTimeout(() => setShowStats(false), 300);
+          else setShowStats(true);
+        }}
+        activeOpacity={0.9}>
         {showStats ? (
-          <View style={dS.statsRow}>
-            {[
-              { label: '라운딩', value: diaries.length },
-              { label: '평균타', value: avg, hi: true },
-              { label: '베스트', value: best }
-            ].map((st, i) => (
-              <View key={i} style={[dS.statBox, st.hi && dS.statBoxHi]}>
-                <Text style={[dS.statVal, st.hi && { color: C.burgundy }]}>{st.value}</Text>
-                <Text style={dS.statLabel}>{st.label}</Text>
-              </View>
-            ))}
-          </View>
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <View style={dS.statsRow}>
+              {[
+                { label: '라운딩', value: totalRounds },
+                { label: '평균타', value: avg, hi: true },
+                { label: '베스트', value: best }
+              ].map((st, i) => (
+                <View key={i} style={[dS.statBox, st.hi && dS.statBoxHi]}>
+                  <Text style={[dS.statVal, st.hi && { color: C.burgundy }]}>{st.value}</Text>
+                  <Text style={dS.statLabel}>{st.label}</Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
         ) : (
           <View style={{ paddingVertical: 7, alignItems: 'center', backgroundColor: C.bgPrimary }}>
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1 }}>
-              라운딩 {diaries.length} · 평균 {avg}타 · 베스트 {best}타  ∨
+              라운딩 {totalRounds} · 평균 {avg}타 · 베스트 {best}타  ∨
             </Text>
           </View>
         )}
@@ -2340,10 +2558,11 @@ function DiaryScreen({ route, navigation }) {
           </>
         );
       })()}
-      {tab === 'log' && <CourseLogTab />}
+      {tab === 'log' && <CourseLogTab avgRating={avgRating} />}
       {tab === 'friends' && <FriendsTab />}
 
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />
+      <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
     </SafeAreaView>
   );
 }
@@ -2678,12 +2897,12 @@ function GuideScreen({ route }) {
 
 // ── 마이페이지 모달 ────────────────────────────────────
 function MyPageModal({ visible, onClose }) {
+  const { setUserProfile } = React.useContext(UserContext);
   const [nickname, setNickname] = useState(USER_PROFILE.nickname);
   const [editingNick, setEditingNick] = useState(false);
-  const [departure, setDeparture] = useState('서울 강남구');
-  const [editingDep, setEditingDep] = useState(false);
-  const [phone, setPhone] = useState('');
-  const [editingPhone, setEditingPhone] = useState(false);
+  const [departure, setDeparture] = useState(USER_PROFILE.departure || '');
+  const [phone, setPhone] = useState(USER_PROFILE.phone || '');
+  const [editingInfo, setEditingInfo] = useState(false);
   const [editingStats, setEditingStats] = useState(false);
   const [avgScore, setAvgScore] = useState(String(USER_PROFILE.avgScore || ''));
   const [lifeBest, setLifeBest] = useState(String(USER_PROFILE.lifeBest || ''));
@@ -2697,13 +2916,44 @@ function MyPageModal({ visible, onClose }) {
       totalRounds: Number(totalRounds) || 0,
     };
     USER_PROFILE = { ...updated };
+    setUserProfile({ ...updated });
     if (_setUserProfile) _setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
     setEditingStats(false);
+    Alert.alert('완료', '통계가 저장되었어요 ✓');
   };
 
   useEffect(() => {
-    if (visible) setNickname(USER_PROFILE.nickname);
+    if (visible) {
+      setNickname(USER_PROFILE.nickname);
+      setDeparture(USER_PROFILE.departure || '');
+      setPhone(USER_PROFILE.phone || '');
+      setEditingInfo(false);
+    }
   }, [visible]);
+
+  const handleSaveInfo = () => {
+    const updated = { ...USER_PROFILE, departure, phone };
+    USER_PROFILE = { ...updated };
+    setUserProfile({ ...updated });
+    if (_setUserProfile) _setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
+    setEditingInfo(false);
+    Alert.alert('완료', '내 정보가 저장되었어요 ✓');
+  };
+
+  const handleCancelInfo = () => {
+    setDeparture(USER_PROFILE.departure || '');
+    setPhone(USER_PROFILE.phone || '');
+    setEditingInfo(false);
+  };
+
+  const formatPhone = (t) => {
+    const numbers = (t || '').replace(/[^0-9]/g, '');
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 7) return numbers.slice(0, 3) + '-' + numbers.slice(3);
+    return numbers.slice(0, 3) + '-' + numbers.slice(3, 7) + '-' + numbers.slice(7, 11);
+  };
 
   const handleSaveNickname = () => {
     const trimmed = (nickname || '').trim();
@@ -2841,21 +3091,37 @@ function MyPageModal({ visible, onClose }) {
               </View>
               <View style={myS.divider} />
               <View style={myS.section}>
-                <Text style={myS.sectionLabel}>내 정보</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={myS.sectionLabel}>내 정보</Text>
+                  <View style={{ flex: 1 }} />
+                  {editingInfo ? (
+                    <>
+                      <TouchableOpacity onPress={handleCancelInfo}>
+                        <Text style={{ fontFamily: F.sys, color: C.warmGray, marginRight: 12, fontSize: 13 }}>취소</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={handleSaveInfo}
+                        style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 }}>
+                        <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: 13 }}>저장</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <TouchableOpacity onPress={() => setEditingInfo(true)}>
+                      <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: 13 }}>수정</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <View style={myS.menuRow}>
                   <Text style={myS.menuIcon}>📍</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>자주 가는 출발지</Text>
-                    {editingDep ? (
+                    {editingInfo ? (
                       <TextInput style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
-                        value={departure} onChangeText={setDeparture} onBlur={() => setEditingDep(false)} autoFocus
-                        placeholder="서울 강남구" placeholderTextColor={C.warmGrayLight} />
+                        value={departure} onChangeText={setDeparture} autoFocus
+                        placeholder="서울 강남구 역삼동" placeholderTextColor={C.warmGrayLight} />
                     ) : (
-                      <TouchableOpacity onPress={() => setEditingDep(true)}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 12, color: departure ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
-                          {departure || '입력하기 →'}
-                        </Text>
-                      </TouchableOpacity>
+                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: departure ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
+                        {departure || '입력하기 →'}
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -2863,16 +3129,14 @@ function MyPageModal({ visible, onClose }) {
                   <Text style={myS.menuIcon}>📱</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>전화번호 (선택)</Text>
-                    {editingPhone ? (
+                    {editingInfo ? (
                       <TextInput style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
-                        value={phone} onChangeText={setPhone} onBlur={() => setEditingPhone(false)} autoFocus
+                        value={phone} onChangeText={(t) => setPhone(formatPhone(t))} maxLength={13}
                         placeholder="010-0000-0000" placeholderTextColor={C.warmGrayLight} keyboardType="phone-pad" />
                     ) : (
-                      <TouchableOpacity onPress={() => setEditingPhone(true)}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 12, color: phone ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
-                          {phone || '입력하기 →'}
-                        </Text>
-                      </TouchableOpacity>
+                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: phone ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
+                        {phone || '입력하기 →'}
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -3161,16 +3425,18 @@ const dS = StyleSheet.create({
   cardCourse:  { fontFamily: F.sys, fontSize: 13, color: C.textPrimary, marginBottom: 8 },
   cardRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   cardScore:   { fontFamily: F.en, fontSize: 24, color: C.charcoal, lineHeight: 28 },
+  cardScoreUnit: { fontFamily: F.sys, fontSize: 14, color: C.charcoal },
   cardPar:     { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 2 },
   cardMemo:    { fontFamily: F.en, fontSize: 11, color: C.textSecondary, fontStyle: 'italic', flex: 1, marginLeft: 10, lineHeight: 16, borderLeftWidth: 1.5, borderLeftColor: C.hairline, paddingLeft: 8 },
-  birdieBadge:    { borderWidth: 1, borderColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  birdieBadgeTxt: { fontFamily: F.sys, fontSize: 9, color: C.burgundy, letterSpacing: 0.3 },
+  cardTagRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 },
+  cardTag:        { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 0.5 },
+  cardTagTxt:     { fontFamily: F.sys, fontSize: 10 },
   detailHdr:      { backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 0.5, borderBottomColor: C.hairline, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   backBtn:        { fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight },
   detailHdrNickname:    { backgroundColor: '#6B1E2A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },
   detailHdrNicknameTxt: { fontFamily: F.sys, fontSize: 12, color: '#F5E6A8', fontWeight: '600' },
   detailInfoArea:  { padding: 16, borderBottomWidth: 0.5, borderBottomColor: C.hairline },
-  detailScoreRow:  { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 4 },
+  detailScoreRow:  { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
   detailScore:     { fontFamily: F.en, fontSize: 48, color: C.charcoal, lineHeight: 54 },
   detailScoreUnit: { fontFamily: F.en, fontSize: 20, color: C.charcoal },
   detailScoreSub:  { fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight },
