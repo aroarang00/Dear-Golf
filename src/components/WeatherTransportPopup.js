@@ -20,14 +20,6 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule }
   const golfScore = 78;
   const pm10 = 23;
 
-  const DEPARTURE_TIMES = [
-    { time: '05:30', duration: '1시간 10분', traffic: '원활' },
-    { time: '06:00', duration: '1시간 20분', traffic: '원활' },
-    { time: '06:30', duration: '1시간 35분', traffic: '보통' },
-    { time: '07:00', duration: '2시간 05분', traffic: '혼잡' },
-    { time: '07:30', duration: '2시간 30분', traffic: '혼잡' },
-  ];
-
   const FORECAST = [
     { day: '오늘', dateStr: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남 3m/s',   prob: 10, tmin: 12, tmax: 22 },
     { day: '내일', dateStr: '',                     icon: '🌤️', sky: '구름조금', wind: '동 2m/s',   prob: 20, tmin: 13, tmax: 21 },
