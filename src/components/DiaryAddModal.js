@@ -1,0 +1,392 @@
+import React, { useState, useEffect } from 'react';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import { C, F } from '../constants/colors';
+import { GOLF_DB, COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
+import { mS } from '../styles/mS';
+
+export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
+  const [courseSearch, setCourseSearch] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [date, setDate] = useState(new Date());
+  const [score, setScore] = useState('');
+  const [scoreCardOption, setScoreCardOption] = useState('later');
+  const [holeScores, setHoleScores] = useState({});
+  const [weather, setWeather] = useState('맑음');
+  const [memo, setMemo] = useState('');
+  const [birdieCount, setBirdieCount] = useState(0);
+  const [privacy, setPrivacy] = useState('friends');
+  const [starRating, setStarRating] = useState(0);
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [detailMemo, setDetailMemo] = useState('');
+
+  const toggleTag = (tag) => {
+    setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
+  const [special, setSpecial] = useState(null);
+  const [specialHole, setSpecialHole] = useState('');
+  const [specialPar, setSpecialPar] = useState('3');
+  const [specialDist, setSpecialDist] = useState('');
+  const [specialBall, setSpecialBall] = useState('');
+  const [specialMemo, setSpecialMemo] = useState('');
+  const [addPhotos, setAddPhotos] = useState([]);
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setAddPhotos(prev => [...prev, ...result.assets.map(a => a.uri)]);
+    }
+  };
+
+  const DAYS = ['일','월','화','수','목','금','토'];
+  const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  const formatDay = (d) => DAYS[d.getDay()];
+
+  const searchResults = courseSearch.length > 0 && courseSearch !== selectedCourse
+    ? GOLF_DB.filter(g => g.name.includes(courseSearch) || g.loc.includes(courseSearch)).slice(0, 5)
+    : [];
+
+  const reset = () => {
+    setCourseSearch(''); setSelectedCourse(''); setDate(new Date());
+    setScore(''); setWeather('맑음'); setMemo(''); setBirdieCount(0);
+    setSpecial(null); setSpecialHole(''); setSpecialPar('3');
+    setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
+    setScoreCardOption('later'); setHoleScores({});
+    setAddPhotos([]);
+    setStarRating(0); setSelectedTags([]);
+    setDetailMemo('');
+    setPrivacy('friends');
+  };
+
+  useEffect(() => {
+    if (!visible) return;
+    if (isEdit && initial) {
+      setCourseSearch(initial.course || '');
+      setSelectedCourse(initial.course || '');
+      const dParts = (initial.date || '').split('.').map(Number);
+      if (dParts.length === 3 && dParts.every(Number.isFinite)) {
+        setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
+      }
+      setScore(String(initial.score || ''));
+      setWeather(initial.weather || '맑음');
+      setMemo(initial.memo || '');
+      setDetailMemo(initial.detailMemo || '');
+      setBirdieCount(initial.birdieCount || 0);
+      setSpecial(initial.special || null);
+      setSpecialHole(String(initial.specialHole || ''));
+      setSpecialDist(initial.specialDist || '');
+      setSpecialBall(initial.specialBall || '');
+      setSpecialMemo(initial.specialMemo || '');
+      setStarRating(initial.starRating || 0);
+      setSelectedTags(initial.tags || []);
+      setAddPhotos(initial.photos || []);
+      setPrivacy(initial.privacy || 'friends');
+    } else {
+      reset();
+    }
+  }, [visible, isEdit, initial]);
+
+  const [saveError, setSaveError] = useState('');
+
+  const finalCourseLive = selectedCourse || courseSearch.trim();
+  const canSave = !!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim();
+
+  const handleSave = () => {
+    const finalCourse = selectedCourse || courseSearch.trim();
+    if (!finalCourse) {
+      setSaveError('골프장을 입력해주세요');
+      return;
+    }
+    if (!score || isNaN(parseInt(score)) || parseInt(score) <= 0) {
+      setSaveError('스코어를 입력해주세요');
+      return;
+    }
+    if (!memo.trim()) {
+      setSaveError('한줄 메모를 입력해주세요');
+      return;
+    }
+    setSaveError('');
+    const payload = {
+      course: finalCourse, date: formatDate(date), day: formatDay(date),
+      score: parseInt(score) || 0, weather, memo, birdieCount, privacy,
+      special, specialHole: parseInt(specialHole),
+      specialDist, specialBall, specialMemo,
+      photos: addPhotos,
+      starRating,
+      tags: selectedTags,
+      detailMemo,
+      courseId: GOLF_DB.find(g => g.name === finalCourse)?.id || (initial && initial.courseId) || null,
+    };
+    if (isEdit) {
+      onSave('diary-edit', { id: initial.id, ...payload });
+    } else {
+      onSave('diary', payload);
+    }
+    reset(); onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={mS.mask}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
+          <View style={mS.sheet}>
+            <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.7}
+              style={{ alignItems: 'center', paddingVertical: 10 }}>
+              <View style={mS.handle} />
+            </TouchableOpacity>
+            <ScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
+              <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
+              <Text style={mS.label}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <TextInput style={mS.input} placeholder="골프장 이름 검색 또는 직접 입력..."
+                placeholderTextColor={C.warmGrayLight} value={courseSearch}
+                onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); }} />
+              {courseSearch.length > 0 && courseSearch !== selectedCourse && (
+                <View style={mS.searchDrop}>
+                  {searchResults.map(g => (
+                    <TouchableOpacity key={g.id} style={mS.searchItem}
+                      onPress={() => { setSelectedCourse(g.name); setCourseSearch(g.name); }}>
+                      <Text style={mS.searchName}>{g.name}</Text>
+                      <Text style={mS.searchLoc}>{g.loc}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity style={[mS.searchItem, { borderBottomWidth: 0, backgroundColor: C.butter + '33' }]}
+                    onPress={() => { setSelectedCourse(courseSearch.trim()); }}>
+                    <Text style={[mS.searchName, { color: C.burgundy }]}>+ "{courseSearch.trim()}" 직접 입력</Text>
+                    <Text style={mS.searchLoc}>목록에 없는 골프장도 등록 가능</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <Text style={mS.label}>날짜</Text>
+              <TouchableOpacity style={mS.input} onPress={() => setShowDatePicker(true)}>
+                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.textPrimary }}>
+                  {formatDate(date)} ({formatDay(date)})
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker value={date} mode="date" display="spinner"
+                  onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
+                  maximumDate={new Date()} locale="ko" />
+              )}
+              <Text style={mS.label}>스코어 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <TextInput style={mS.input} placeholder="타수 입력"
+                placeholderTextColor={C.warmGrayLight} value={score}
+                onChangeText={setScore} keyboardType="numeric" />
+
+              {score !== '' && (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={mS.label}>스코어카드 등록할까요?</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                      { key: 'manual', label: '홀별 직접 입력' },
+                      { key: 'photo', label: '사진으로 등록' },
+                      { key: 'later', label: '나중에' },
+                    ].map(opt => (
+                      <TouchableOpacity key={opt.key}
+                        style={[mS.chip, scoreCardOption === opt.key && mS.chipOn]}
+                        onPress={() => setScoreCardOption(opt.key)}>
+                        <Text style={[mS.chipTxt, scoreCardOption === opt.key && mS.chipTxtOn]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {scoreCardOption === 'photo' && (
+                    <View style={{ marginTop: 8, padding: 12, backgroundColor: C.paleSky + '22', borderRadius: 10, borderWidth: 0.5, borderColor: C.paleSky + '60' }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, lineHeight: 18 }}>사진 자동입력 기능은 준비중이에요. 나중에 추가할 수 있어요.</Text>
+                    </View>
+                  )}
+                  {scoreCardOption === 'manual' && (
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>홀별 타수 입력</Text>
+                      {[{ label: '전반 (1~9홀)', holes: Array.from({length:9}, (_,i)=>i+1) }, { label: '후반 (10~18홀)', holes: Array.from({length:9}, (_,i)=>i+10) }].map((half, hi) => (
+                        <View key={hi} style={{ marginBottom: 12 }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginBottom: 6 }}>{half.label}</Text>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                            {half.holes.map(h => (
+                              <View key={h} style={{ alignItems: 'center', gap: 3 }}>
+                                <Text style={{ fontFamily: F.sys, fontSize: 9, color: C.warmGrayLight }}>{h}H</Text>
+                                <TextInput
+                                  style={{ width: 32, height: 36, backgroundColor: C.bgSecondary, borderRadius: 8, borderWidth: 0.5, borderColor: C.hairline, textAlign: 'center', fontFamily: F.sys, fontSize: 13, color: C.textPrimary }}
+                                  keyboardType="numeric" maxLength={2}
+                                  value={holeScores[h] || ''}
+                                  onChangeText={v => setHoleScores(prev => ({ ...prev, [h]: v }))}
+                                />
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+              <Text style={mS.label}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <TextInput style={mS.input} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
+                value={memo} onChangeText={setMemo} />
+              <Text style={mS.label}>날씨</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {['맑음','흐림','바람','비'].map(w => (
+                  <TouchableOpacity key={w} style={[mS.chip, weather === w && mS.chipOn]} onPress={() => setWeather(w)}>
+                    <Text style={[mS.chipTxt, weather === w && mS.chipTxtOn]}>{w}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={mS.label}>버디</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                <TouchableOpacity onPress={() => setBirdieCount(Math.max(0, birdieCount - 1))} style={mS.countBtn}>
+                  <Text style={mS.countBtnTxt}>−</Text>
+                </TouchableOpacity>
+                <Text style={mS.countVal}>{birdieCount}개</Text>
+                <TouchableOpacity onPress={() => setBirdieCount(Math.min(18, birdieCount + 1))} style={mS.countBtn}>
+                  <Text style={mS.countBtnTxt}>+</Text>
+                </TouchableOpacity>
+                {birdieCount === 0 && <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>버디 없음</Text>}
+              </View>
+              <Text style={mS.label}>특별한 순간</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {['HOLE IN ONE','EAGLE','ALBATROSS','없음'].map(s => (
+                  <TouchableOpacity key={s}
+                    style={[mS.chip, (special === s || (s === '없음' && !special)) && mS.chipOn]}
+                    onPress={() => setSpecial(s === '없음' ? null : s)}>
+                    <Text style={[mS.chipTxt, (special === s || (s === '없음' && !special)) && mS.chipTxtOn]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {special && (
+                <View style={mS.specialBox}>
+                  <Text style={mS.specialBoxTitle}>{special} 기록</Text>
+                  <Text style={mS.label}>몇번 홀?</Text>
+                  <TextInput style={mS.input} placeholder="7" placeholderTextColor={C.warmGrayLight}
+                    value={specialHole} onChangeText={setSpecialHole} keyboardType="numeric" />
+                  <Text style={mS.label}>파(Par)?</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {['3','4','5'].map(p => (
+                      <TouchableOpacity key={p} style={[mS.chip, specialPar === p && mS.chipOn]} onPress={() => setSpecialPar(p)}>
+                        <Text style={[mS.chipTxt, specialPar === p && mS.chipTxtOn]}>파{p}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={mS.label}>거리</Text>
+                  <TextInput style={mS.input} placeholder="156m" placeholderTextColor={C.warmGrayLight}
+                    value={specialDist} onChangeText={setSpecialDist} />
+                  <Text style={mS.label}>사용한 볼</Text>
+                  <TextInput style={mS.input} placeholder="Titleist Pro V1" placeholderTextColor={C.warmGrayLight}
+                    value={specialBall} onChangeText={setSpecialBall} />
+                  <Text style={mS.label}>한마디</Text>
+                  <TextInput style={mS.input} placeholder="그 순간을 기억하며..." placeholderTextColor={C.warmGrayLight}
+                    value={specialMemo} onChangeText={setSpecialMemo} />
+                </View>
+              )}
+              <Text style={mS.label}>코스 별점 <Text style={{ color: '#8B8680', fontSize: 10 }}> (이 골프장이 얼마나 좋았나요?)</Text></Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <TouchableOpacity key={i} onPress={() => setStarRating(i)} activeOpacity={0.6}>
+                    <Text style={{ fontSize: 28, color: i <= starRating ? '#C9A84C' : '#E8E2D0' }}>★</Text>
+                  </TouchableOpacity>
+                ))}
+                {starRating > 0 && <Text style={{ fontSize: 12, color: '#8B8680' }}>{starRating}점</Text>}
+              </View>
+
+              <Text style={mS.label}>코스 태그 <Text style={{ color: '#8B8680', fontSize: 10 }}> (선택 · 중복 가능)</Text></Text>
+              {Object.entries(COURSE_TAGS).map(([category, tags]) => {
+                const catColor = COURSE_TAG_COLORS[category];
+                return (
+                  <View key={category} style={{ marginBottom: 10 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#8B8680', marginBottom: 6, letterSpacing: 1 }}>{category}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {tags.map(tag => {
+                        const on = selectedTags.includes(tag);
+                        return (
+                          <TouchableOpacity key={tag} activeOpacity={0.7}
+                            style={{
+                              borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
+                              backgroundColor: on ? catColor.bg : C.bgSecondary,
+                              borderWidth: 0.5,
+                              borderColor: on ? catColor.bg : C.hairline,
+                            }}
+                            onPress={() => toggleTag(tag)}>
+                            <Text style={{ fontFamily: F.sys, fontSize: 12, color: on ? catColor.text : C.warmGrayLight }}>{tag}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
+
+              <View style={{ marginTop: 6 }}>
+                <Text style={mS.label}>
+                  더 기록하기
+                  <Text style={{ color: '#8B8680', fontSize: 10 }}> (선택 · 최대 1000자)</Text>
+                </Text>
+                <View style={{
+                  backgroundColor: C.bgSecondary,
+                  borderWidth: 0.5, borderColor: C.hairline,
+                  borderRadius: 12, padding: 14,
+                  minHeight: 140,
+                }}>
+                  <TextInput
+                    style={{
+                      fontFamily: F.sys, fontSize: 13,
+                      color: C.textPrimary, lineHeight: 22,
+                      minHeight: 100, textAlignVertical: 'top',
+                    }}
+                    placeholder={'MVP 샷은? · 어려웠던 홀은?\n코스·잔디 상태는? · 동반자 소감은?\n다음에 오면 꼭 기억할 것은?'}
+                    placeholderTextColor={C.warmGrayLight}
+                    value={detailMemo}
+                    onChangeText={(t) => { if (t.length <= 1000) setDetailMemo(t); }}
+                    multiline
+                    maxLength={1000}
+                  />
+                  <Text style={{ fontSize: 10, color: C.warmGrayLight, textAlign: 'right', marginTop: 8 }}>
+                    {detailMemo.length} / 1000
+                  </Text>
+                </View>
+              </View>
+              <Text style={mS.label}>공개 범위</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity style={[mS.chip, privacy === 'friends' && mS.chipOn]} onPress={() => setPrivacy('friends')}>
+                  <Text style={[mS.chipTxt, privacy === 'friends' && mS.chipTxtOn]}>친구공개</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[mS.chip, privacy === 'private' && mS.chipOn]} onPress={() => setPrivacy('private')}>
+                  <Text style={[mS.chipTxt, privacy === 'private' && mS.chipTxtOn]}>나만보기</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ marginTop: 16, marginBottom: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, marginBottom: 8 }}>
+                  사진 · 영상 (선택)
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {addPhotos.map((uri, i) => (
+                    <Image key={i} source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8, marginRight: 8 }} />
+                  ))}
+                  <TouchableOpacity onPress={pickPhoto}
+                    style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
+                      borderWidth: 0.5, borderColor: C.hairline,
+                      alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 24, color: C.warmGrayLight }}>+</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+              {saveError ? (
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#6B1E2A', textAlign: 'center', marginTop: 8, fontWeight: '500' }}>{saveError}</Text>
+              ) : null}
+              <TouchableOpacity
+                style={[mS.saveBtn, { backgroundColor: canSave ? '#3D3935' : '#B8B3AB' }]}
+                onPress={handleSave}
+                disabled={!canSave}>
+                <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
+              </TouchableOpacity>
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
