@@ -822,8 +822,6 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
   ];
   const roundIdx = Math.min(Math.max(0, schedule.dDay || 0), FORECAST.length - 1);
 
-  const durVariance = [-3, 2, 7];
-
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: C.charcoal }}>
@@ -844,9 +842,9 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
                 </TouchableOpacity>
               </View>
             </View>
-            <Text style={fullS.dInfoLine}>{schedule.course} · {schedule.date} · D-{schedule.dDay}</Text>
-            {tab === 'weather' && (
+            {tab === 'weather' ? (
               <>
+                <Text style={fullS.dInfoLine}>{schedule.course} · {schedule.date} · D-{schedule.dDay}</Text>
                 <View style={fullS.dTempRow}>
                   <Text style={fullS.dTempEmoji}>{CURRENT.icon}</Text>
                   <Text style={fullS.dTempBig}>{CURRENT.temp}°</Text>
@@ -856,6 +854,11 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
                   </View>
                 </View>
                 <Text style={fullS.dTempFooter}>체감 {CURRENT.feels}° · 최저 {CURRENT.tmin}° / 최고 {CURRENT.tmax}°</Text>
+              </>
+            ) : (
+              <>
+                <Text style={fullS.dCourseT}>{schedule.course}</Text>
+                <Text style={fullS.dDateT}>{schedule.date} · 티오프 {schedule.time}</Text>
               </>
             )}
           </View>
@@ -955,105 +958,91 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
               </TouchableOpacity>
             </>
           ) : (
-            <View style={{ padding: 16 }}>
-              <Text style={fullS.sectionLabel}>추천 출발 시간</Text>
-              <View style={[fullS.card, { padding: 14, marginBottom: 14 }]}>
-                <Text style={fullS.bigSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
-                <View style={fullS.slotRow}>
-                  {slots.map(t => (
-                    <TouchableOpacity key={t}
-                      style={[fullS.slotBtn, selectedSlot === t && fullS.slotBtnOn]}
-                      onPress={() => setSelectedSlot(t)}
-                      activeOpacity={0.7}>
-                      <Text style={[fullS.slotTxt, selectedSlot === t && fullS.slotTxtOn]}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
+            <>
+              <View style={fullS.whiteCard}>
+                <Text style={fullS.cardLabel}>출발시간별 소요시간</Text>
+                <View style={fullS.tblWrap}>
+                  <View style={fullS.tblHdrN}>
+                    <Text style={[fullS.tblHdrCellN, { flex: 1 }]}>출발시간</Text>
+                    <Text style={[fullS.tblHdrCellN, { flex: 1.3, textAlign: 'center' }]}>소요시간</Text>
+                    <Text style={[fullS.tblHdrCellN, { flex: 1, textAlign: 'right' }]}>도착</Text>
+                  </View>
+                  {[-20, -10, 0, 10, 20].map((off, i) => {
+                    const t = minToTime(baseTen + off);
+                    const dVar = [-5, -2, 0, 3, 8][i];
+                    const dMin = driveMin + dVar;
+                    const dStr = `${Math.floor(dMin / 60)}시간 ${dMin % 60}분`;
+                    const aStr = minToTime(timeToMin(t) + dMin);
+                    const isReco = off === 0;
+                    return (
+                      <TouchableOpacity key={i}
+                        style={[fullS.tblRowN, isReco && fullS.tblRowRecoN]}
+                        onPress={() => setSelectedSlot(t)}
+                        activeOpacity={0.7}>
+                        <Text style={[fullS.tblCellN, isReco && fullS.tblCellRecoN, { flex: 1 }]}>{t}</Text>
+                        <Text style={[fullS.tblCellN, isReco && fullS.tblCellRecoN, { flex: 1.3, textAlign: 'center' }]}>{dStr}</Text>
+                        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <Text style={[fullS.tblCellN, isReco && fullS.tblCellRecoN]}>{aStr}</Text>
+                          {isReco && <Text style={fullS.tblStarN}> ★</Text>}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={fullS.tblFootN}>★ 티오프 30분 전 여유 기준 추천</Text>
+              </View>
+
+              <View style={fullS.whiteCard}>
+                <Text style={fullS.cardLabel}>경로</Text>
+                <View style={fullS.routeCardN}>
+                  <Text style={fullS.routeLabelN}>출발지</Text>
+                  <Text style={fullS.routeValueN}>{origin}</Text>
+                  <View style={fullS.routeMidN}>
+                    <Text style={fullS.routeMidTxtN}>↓ 약 78.4km · 경부고속도로</Text>
+                  </View>
+                  <Text style={fullS.routeLabelN}>도착지</Text>
+                  <Text style={fullS.routeValueN}>{schedule.course}</Text>
+                </View>
+                <View style={fullS.routeBtnRowN}>
+                  <TouchableOpacity style={[fullS.routeBtnN, { backgroundColor: '#03C75A' }]}
+                    onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
+                      .catch(() => Linking.openURL('https://map.naver.com/'))}
+                    activeOpacity={0.7}>
+                    <Text style={[fullS.routeBtnTxtN, { color: '#fff' }]}>네이버 경로</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[fullS.routeBtnN, { backgroundColor: C.charcoal }]}
+                    onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
+                      .catch(() => Linking.openURL('https://tmap.life'))}
+                    activeOpacity={0.7}>
+                    <Text style={[fullS.routeBtnTxtN, { color: C.butter }]}>티맵 경로</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              <View style={[fullS.card, { padding: 0, overflow: 'hidden', marginBottom: 16 }]}>
-                <View style={fullS.tblHdr}>
-                  <Text style={[fullS.tblHdrCell, { flex: 1 }]}>출발시간</Text>
-                  <Text style={[fullS.tblHdrCell, { flex: 1.3 }]}>소요시간</Text>
-                  <Text style={[fullS.tblHdrCell, { flex: 1.5 }]}>도착시간</Text>
+              <View style={fullS.whiteCard}>
+                <Text style={fullS.cardLabel}>대리운전</Text>
+                <View style={fullS.daeriRow}>
+                  <TouchableOpacity style={[fullS.daeriBtn, { backgroundColor: '#FFE400' }]}
+                    onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
+                    activeOpacity={0.7}>
+                    <Text style={[fullS.daeriBtnTxt, { color: C.charcoal }]}>카카오T</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[fullS.daeriBtn, { backgroundColor: C.paleSky }]}
+                    onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
+                    activeOpacity={0.7}>
+                    <Text style={[fullS.daeriBtnTxt, { color: C.charcoal }]}>티맵대리</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[fullS.daeriBtn, { backgroundColor: C.warmGray }]}
+                    onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
+                    activeOpacity={0.7}>
+                    <Text style={[fullS.daeriBtnTxt, { color: '#fff' }]}>아이대리</Text>
+                  </TouchableOpacity>
                 </View>
-                {[-1, 0, 1].map(offset => {
-                  const t = minToTime(baseTen + offset * 10);
-                  const dMin = driveMin + durVariance[offset + 1];
-                  const dStr = `${Math.floor(dMin / 60)}시간 ${dMin % 60}분`;
-                  const aStr = minToTime(timeToMin(t) + dMin);
-                  const isReco = offset === 0;
-                  const isSel = t === selectedSlot;
-                  return (
-                    <TouchableOpacity key={offset}
-                      style={[fullS.tblRow, isSel && fullS.tblRowSel]}
-                      onPress={() => setSelectedSlot(t)}
-                      activeOpacity={0.7}>
-                      <Text style={[fullS.tblCell, { flex: 1 }]}>{t}</Text>
-                      <Text style={[fullS.tblCell, { flex: 1.3 }]}>{dStr}</Text>
-                      <View style={{ flex: 1.5, flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={fullS.tblCell}>{aStr}</Text>
-                        {isReco && <Text style={fullS.tblReco}>  ← 추천</Text>}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <Text style={fullS.sectionLabel}>경로</Text>
-              <View style={[fullS.card, { padding: 16, marginBottom: 14 }]}>
-                <View style={{ marginBottom: 14 }}>
-                  <Text style={fullS.routeLabel}>출발지</Text>
-                  <Text style={fullS.routeValue}>{origin}</Text>
-                </View>
-                <View style={fullS.routeArrowRow}>
-                  <View style={fullS.routeLineV} />
-                  <Text style={fullS.routeArrow}>↓ 약 78.4km · 경부고속도로</Text>
-                </View>
-                <View style={{ marginTop: 14 }}>
-                  <Text style={fullS.routeLabel}>도착지</Text>
-                  <Text style={fullS.routeValue}>{schedule.course}</Text>
-                </View>
-              </View>
-
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                <TouchableOpacity style={[fullS.appBtn, { borderColor: '#03A452' }]}
-                  onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                    .catch(() => Linking.openURL('https://map.naver.com/'))}
-                  activeOpacity={0.7}>
-                  <Text style={[fullS.appBtnTxt, { color: '#03A452' }]}>네이버 경로</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[fullS.appBtn, { borderColor: '#1B3358' }]}
-                  onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
-                    .catch(() => Linking.openURL('https://tmap.life'))}
-                  activeOpacity={0.7}>
-                  <Text style={[fullS.appBtnTxt, { color: '#1B3358' }]}>티맵 경로</Text>
+                <TouchableOpacity style={fullS.shareDaeriBtn} onPress={handleShareDaeri} activeOpacity={0.8}>
+                  <Text style={fullS.shareDaeriTxt}>함께 대리 부르기</Text>
                 </TouchableOpacity>
               </View>
-
-              <Text style={fullS.sectionLabel}>대리운전</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                <TouchableOpacity style={[fullS.appBtn, { borderColor: '#8B6914' }]}
-                  onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
-                  activeOpacity={0.7}>
-                  <Text style={[fullS.appBtnTxt, { color: '#8B6914' }]}>카카오T</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[fullS.appBtn, { borderColor: '#0064FF' }]}
-                  onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
-                  activeOpacity={0.7}>
-                  <Text style={[fullS.appBtnTxt, { color: '#0064FF' }]}>티맵 대리</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[fullS.appBtn, { borderColor: C.charcoal }]}
-                  onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
-                  activeOpacity={0.7}>
-                  <Text style={[fullS.appBtnTxt, { color: C.charcoal }]}>아이대리</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity style={fullS.shareBtn} onPress={handleShareDaeri} activeOpacity={0.8}>
-                <Text style={fullS.shareBtnTxt}>함께 대리 부르기</Text>
-              </TouchableOpacity>
-            </View>
+            </>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -3196,27 +3185,34 @@ const fullS = StyleSheet.create({
   // KMA button
   kmaBtnNew:      { marginTop: 12, marginHorizontal: 20, marginBottom: 24, borderWidth: 1, borderColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center' },
   kmaBtnTxtNew:   { fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '500' },
-  bigSub:       { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginBottom: 12 },
-  slotRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  slotBtn:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary },
-  slotBtnOn:    { backgroundColor: C.burgundy, borderColor: C.burgundy },
-  slotTxt:      { fontFamily: F.en, fontSize: 14, color: C.charcoal },
-  slotTxtOn:    { color: C.butter, fontWeight: '600' },
-  tblHdr:       { flexDirection: 'row', backgroundColor: C.bgPrimary, paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline },
-  tblHdrCell:   { fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, letterSpacing: 1 },
-  tblRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline },
-  tblRowSel:    { backgroundColor: C.butter + '40', borderLeftWidth: 3, borderLeftColor: C.burgundy },
-  tblCell:      { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
-  tblReco:      { fontFamily: F.sys, fontSize: 11, color: C.burgundy, fontWeight: '600' },
-  routeLabel:   { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 4 },
-  routeValue:   { fontFamily: F.sys, fontSize: 14, color: C.charcoal },
-  routeArrowRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
-  routeLineV:   { width: 1, height: 16, backgroundColor: C.hairline, marginLeft: 6 },
-  routeArrow:   { fontFamily: F.sys, fontSize: 11, color: C.textSecondary },
-  appBtn:       { flex: 1, backgroundColor: C.bgSecondary, borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  appBtnTxt:    { fontFamily: F.sys, fontSize: 13, fontWeight: '500' },
-  shareBtn:     { backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  shareBtnTxt:  { fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600', letterSpacing: 0.3 },
+  // Traffic header (course name + date when on traffic tab)
+  dCourseT:     { fontFamily: F.sys, fontSize: 22, color: C.butter, fontWeight: '500', marginBottom: 4 },
+  dDateT:       { fontFamily: F.sys, fontSize: 15, color: 'rgba(255,255,255,0.7)' },
+  // Traffic table
+  tblWrap:      { borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, overflow: 'hidden' },
+  tblHdrN:      { flexDirection: 'row', backgroundColor: C.bgPrimary, paddingVertical: 10, paddingHorizontal: 14 },
+  tblHdrCellN:  { fontFamily: F.sys, fontSize: 11, color: C.warmGray, letterSpacing: 1 },
+  tblRowN:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: '#fff' },
+  tblRowRecoN:  { backgroundColor: '#FFF8F0' },
+  tblCellN:     { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  tblCellRecoN: { color: C.burgundy, fontWeight: '600' },
+  tblStarN:     { fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '600' },
+  tblFootN:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 10 },
+  // Route card (new design)
+  routeCardN:   { borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16 },
+  routeLabelN:  { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
+  routeValueN:  { fontFamily: F.sys, fontSize: 16, color: C.charcoal, fontWeight: '500', marginBottom: 10 },
+  routeMidN:    { borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 10, paddingVertical: 4, marginBottom: 10 },
+  routeMidTxtN: { fontFamily: F.sys, fontSize: 12, color: C.warmGray },
+  routeBtnRowN: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  routeBtnN:    { flex: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  routeBtnTxtN: { fontFamily: F.sys, fontSize: 14, fontWeight: '500' },
+  // Daeri buttons
+  daeriRow:     { flexDirection: 'row', gap: 8 },
+  daeriBtn:     { flex: 1, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 8, alignItems: 'center' },
+  daeriBtnTxt:  { fontFamily: F.sys, fontSize: 13, fontWeight: '500' },
+  shareDaeriBtn:{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 10 },
+  shareDaeriTxt:{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '500' },
 });
 
 const dS = StyleSheet.create({
