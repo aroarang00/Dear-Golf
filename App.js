@@ -1492,6 +1492,63 @@ function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   )}
                 </View>
               )}
+              <Text style={mS.label}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <TextInput style={mS.input} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
+                value={memo} onChangeText={setMemo} />
+              <Text style={mS.label}>날씨</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {['맑음','흐림','바람','비'].map(w => (
+                  <TouchableOpacity key={w} style={[mS.chip, weather === w && mS.chipOn]} onPress={() => setWeather(w)}>
+                    <Text style={[mS.chipTxt, weather === w && mS.chipTxtOn]}>{w}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={mS.label}>버디</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                <TouchableOpacity onPress={() => setBirdieCount(Math.max(0, birdieCount - 1))} style={mS.countBtn}>
+                  <Text style={mS.countBtnTxt}>−</Text>
+                </TouchableOpacity>
+                <Text style={mS.countVal}>{birdieCount}개</Text>
+                <TouchableOpacity onPress={() => setBirdieCount(Math.min(18, birdieCount + 1))} style={mS.countBtn}>
+                  <Text style={mS.countBtnTxt}>+</Text>
+                </TouchableOpacity>
+                {birdieCount === 0 && <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>버디 없음</Text>}
+              </View>
+              <Text style={mS.label}>특별한 순간</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {['HOLE IN ONE','EAGLE','ALBATROSS','없음'].map(s => (
+                  <TouchableOpacity key={s}
+                    style={[mS.chip, (special === s || (s === '없음' && !special)) && mS.chipOn]}
+                    onPress={() => setSpecial(s === '없음' ? null : s)}>
+                    <Text style={[mS.chipTxt, (special === s || (s === '없음' && !special)) && mS.chipTxtOn]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {special && (
+                <View style={mS.specialBox}>
+                  <Text style={mS.specialBoxTitle}>{special} 기록</Text>
+                  <Text style={mS.label}>몇번 홀?</Text>
+                  <TextInput style={mS.input} placeholder="7" placeholderTextColor={C.warmGrayLight}
+                    value={specialHole} onChangeText={setSpecialHole} keyboardType="numeric" />
+                  <Text style={mS.label}>파(Par)?</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {['3','4','5'].map(p => (
+                      <TouchableOpacity key={p} style={[mS.chip, specialPar === p && mS.chipOn]} onPress={() => setSpecialPar(p)}>
+                        <Text style={[mS.chipTxt, specialPar === p && mS.chipTxtOn]}>파{p}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={mS.label}>거리</Text>
+                  <TextInput style={mS.input} placeholder="156m" placeholderTextColor={C.warmGrayLight}
+                    value={specialDist} onChangeText={setSpecialDist} />
+                  <Text style={mS.label}>사용한 볼</Text>
+                  <TextInput style={mS.input} placeholder="Titleist Pro V1" placeholderTextColor={C.warmGrayLight}
+                    value={specialBall} onChangeText={setSpecialBall} />
+                  <Text style={mS.label}>한마디</Text>
+                  <TextInput style={mS.input} placeholder="그 순간을 기억하며..." placeholderTextColor={C.warmGrayLight}
+                    value={specialMemo} onChangeText={setSpecialMemo} />
+                </View>
+              )}
               <Text style={mS.label}>코스 별점 <Text style={{ color: '#8B8680', fontSize: 10 }}> (이 골프장이 얼마나 좋았나요?)</Text></Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 {[1, 2, 3, 4, 5].map(i => (
@@ -1558,64 +1615,6 @@ function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </Text>
                 </View>
               </View>
-
-              <Text style={mS.label}>날씨</Text>
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {['맑음','흐림','바람','비'].map(w => (
-                  <TouchableOpacity key={w} style={[mS.chip, weather === w && mS.chipOn]} onPress={() => setWeather(w)}>
-                    <Text style={[mS.chipTxt, weather === w && mS.chipTxtOn]}>{w}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={mS.label}>버디</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <TouchableOpacity onPress={() => setBirdieCount(Math.max(0, birdieCount - 1))} style={mS.countBtn}>
-                  <Text style={mS.countBtnTxt}>−</Text>
-                </TouchableOpacity>
-                <Text style={mS.countVal}>{birdieCount}개</Text>
-                <TouchableOpacity onPress={() => setBirdieCount(Math.min(18, birdieCount + 1))} style={mS.countBtn}>
-                  <Text style={mS.countBtnTxt}>+</Text>
-                </TouchableOpacity>
-                {birdieCount === 0 && <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>버디 없음</Text>}
-              </View>
-              <Text style={mS.label}>특별한 순간</Text>
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {['HOLE IN ONE','EAGLE','ALBATROSS','없음'].map(s => (
-                  <TouchableOpacity key={s}
-                    style={[mS.chip, (special === s || (s === '없음' && !special)) && mS.chipOn]}
-                    onPress={() => setSpecial(s === '없음' ? null : s)}>
-                    <Text style={[mS.chipTxt, (special === s || (s === '없음' && !special)) && mS.chipTxtOn]}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {special && (
-                <View style={mS.specialBox}>
-                  <Text style={mS.specialBoxTitle}>{special} 기록</Text>
-                  <Text style={mS.label}>몇번 홀?</Text>
-                  <TextInput style={mS.input} placeholder="7" placeholderTextColor={C.warmGrayLight}
-                    value={specialHole} onChangeText={setSpecialHole} keyboardType="numeric" />
-                  <Text style={mS.label}>파(Par)?</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {['3','4','5'].map(p => (
-                      <TouchableOpacity key={p} style={[mS.chip, specialPar === p && mS.chipOn]} onPress={() => setSpecialPar(p)}>
-                        <Text style={[mS.chipTxt, specialPar === p && mS.chipTxtOn]}>파{p}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <Text style={mS.label}>거리</Text>
-                  <TextInput style={mS.input} placeholder="156m" placeholderTextColor={C.warmGrayLight}
-                    value={specialDist} onChangeText={setSpecialDist} />
-                  <Text style={mS.label}>사용한 볼</Text>
-                  <TextInput style={mS.input} placeholder="Titleist Pro V1" placeholderTextColor={C.warmGrayLight}
-                    value={specialBall} onChangeText={setSpecialBall} />
-                  <Text style={mS.label}>한마디</Text>
-                  <TextInput style={mS.input} placeholder="그 순간을 기억하며..." placeholderTextColor={C.warmGrayLight}
-                    value={specialMemo} onChangeText={setSpecialMemo} />
-                </View>
-              )}
-              <Text style={mS.label}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={mS.input} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
-                value={memo} onChangeText={setMemo} />
               <Text style={mS.label}>공개 범위</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity style={[mS.chip, privacy === 'friends' && mS.chipOn]} onPress={() => setPrivacy('friends')}>
