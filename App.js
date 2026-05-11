@@ -2336,8 +2336,8 @@ function DiaryScreen({ route, navigation }) {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowModal(true)} activeOpacity={0.7}
-            style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 18, color: '#fff', lineHeight: 22 }}>+</Text>
+            style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.en, fontSize: 20, color: '#3D3935', lineHeight: 24, fontWeight: '700' }}>+</Text>
           </TouchableOpacity>
         </View>
       </View>
