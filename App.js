@@ -84,24 +84,24 @@ const HALL_OF_FAME = [
 
 const DIARY_DATA = [
   { id: '1', date: '2025.03.30', day: '일', course: '남촌 골프클럽', score: 76, par: 72,
-    memo: '베스트 갱신! 아이언이 살아났다', badge: 'BEST', weather: '맑음',
+    memo: '베스트 갱신! 아이언이 살아났다', badge: '베스트', weather: '맑음',
     special: 'EAGLE', specialHole: 12,
-    companions: [{ name: 'Jessica', isMe: true }, { name: '김민준' }, { name: '이수연' }],
+    companions: [{ name: '지현', isMe: true }, { name: '김민준' }, { name: '이수연' }],
     photos: ['https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800','https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800','https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=800'] },
   { id: '2', date: '2025.04.28', day: '월', course: '제이드팰리스 골프클럽', score: 92, par: 72,
     memo: '드라이버 컨디션 최고였던 날', badge: null, weather: '흐림',
     special: null,
-    companions: [{ name: 'Jessica', isMe: true }, { name: '박정호' }],
+    companions: [{ name: '지현', isMe: true }, { name: '박정호' }],
     photos: [] },
   { id: '3', date: '2025.02.14', day: '금', course: '블랙스톤 컨트리클럽', score: 88, par: 72,
-    memo: '퍼팅이 아쉬웠지만 즐거웠음', badge: 'BIRDIE', weather: '맑음',
+    memo: '퍼팅이 아쉬웠지만 즐거웠음', badge: '버디', weather: '맑음',
     special: 'HOLE IN ONE', specialHole: 7,
-    companions: [{ name: 'Jessica', isMe: true }, { name: '최다은' }, { name: '오세훈' }],
+    companions: [{ name: '지현', isMe: true }, { name: '최다은' }, { name: '오세훈' }],
     photos: ['https://images.unsplash.com/photo-1592919505780-303950717480?w=800','https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=800'] },
   { id: '4', date: '2025.01.20', day: '월', course: '파인크리크 골프장', score: 105, par: 72,
     memo: '바람 때문에 고생... 그래도 즐거웠음', badge: null, weather: '바람',
     special: null,
-    companions: [{ name: 'Jessica', isMe: true }],
+    companions: [{ name: '지현', isMe: true }],
     photos: [] },
 ];
 
@@ -186,7 +186,7 @@ const FRIENDS_DATA = [
 // ── 유저 프로필 ─────────────────────────────────────────
 const USER_PROFILE_INIT = {
   realName: '황지현',
-  nickname: 'Jessica',   // 버그수정: Golfer → Jessica
+  nickname: '지현',   // 버그수정: Golfer → Jessica
   avgScore: 92,
   lifeBest: 76,
   totalRounds: 24,
@@ -233,10 +233,11 @@ function OnboardingScreen({ onComplete }) {
 
         {step === 1 && (
           <View>
-            <Text style={obS.stepLabel}>STEP 1 · 프로필</Text>
+            <Text style={obS.stepLabel}>1단계 · 프로필</Text>
             <Text style={obS.label}>닉네임</Text>
-            <TextInput style={obS.input} placeholder="Jessica" placeholderTextColor={C.warmGrayLight}
-              value={nickname} onChangeText={setNickname} />
+            <TextInput style={obS.input} placeholder="민지 / Jessica" placeholderTextColor={C.warmGrayLight}
+              value={nickname} onChangeText={setNickname}
+              autoCapitalize="none" autoCorrect={false} keyboardType="default" />
             <Text style={obS.label}>본명 (선택)</Text>
             <TextInput style={obS.input} placeholder="황지현" placeholderTextColor={C.warmGrayLight}
               value={realName} onChangeText={setRealName} />
@@ -251,7 +252,7 @@ function OnboardingScreen({ onComplete }) {
 
         {step === 2 && (
           <View>
-            <Text style={obS.stepLabel}>STEP 2 · 골프 정보</Text>
+            <Text style={obS.stepLabel}>2단계 · 골프 정보</Text>
             <Text style={obS.label}>평균 타수</Text>
             <TextInput style={obS.input} placeholder="92" placeholderTextColor={C.warmGrayLight}
               value={avgScore} onChangeText={setAvgScore} keyboardType="numeric" />
@@ -315,7 +316,7 @@ function GiftModal({ visible, onClose, occasion, companions = [] }) {
           <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '88%' }}>
             <View style={{ width: 32, height: 3, backgroundColor: C.hairline, borderRadius: 2, alignSelf: 'center', margin: 12 }} />
             <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-              <Text style={{ fontFamily: F.en, fontSize: 22, color: C.charcoal, fontStyle: 'italic', marginBottom: 4 }}>Gift</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 18, color: C.charcoal, fontWeight: '600', marginBottom: 4 }}>선물</Text>
               {occasion && <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 16, letterSpacing: 1 }}>{occasion.type} · {occasion.course}</Text>}
               {companions.filter(c => !c.isMe).length > 0 && (
                 <>
@@ -768,7 +769,7 @@ function WeatherFullModal({ visible, schedule, onClose }) {
           </View>
         </View>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Text style={fullS.sectionLabel}>7-DAY FORECAST</Text>
+          <Text style={fullS.sectionLabel}>날씨 예보</Text>
           <View style={fullS.card}>
             {WEEK.map((w, i) => (
               <View key={i} style={[fullS.wxRow, i < WEEK.length - 1 && fullS.wxRowBorder]}>
@@ -813,13 +814,13 @@ function TrafficFullModal({ visible, schedule, onClose }) {
           </View>
         </View>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Text style={fullS.sectionLabel}>RECOMMENDED DEPARTURE</Text>
+          <Text style={fullS.sectionLabel}>추천 출발 시간</Text>
           <View style={[fullS.card, { padding: 18, marginBottom: 22 }]}>
             <Text style={fullS.bigTime}>06:07</Text>
             <Text style={fullS.bigSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
           </View>
 
-          <Text style={fullS.sectionLabel}>ROUTE</Text>
+          <Text style={fullS.sectionLabel}>경로</Text>
           <View style={[fullS.card, { padding: 16, marginBottom: 14 }]}>
             <View style={{ marginBottom: 14 }}>
               <Text style={fullS.routeLabel}>출발지</Text>
@@ -968,7 +969,7 @@ function HomeScreen({ navigation }) {
           </View>
           <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
             <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(245,230,168,0.5)', letterSpacing: 2.5, marginBottom: 12 }}>NEXT ROUNDS</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(245,230,168,0.5)', letterSpacing: 2.5, marginBottom: 12 }}>예정 라운딩</Text>
               <Text style={{ fontFamily: F.en, fontSize: 22, color: '#fff', fontStyle: 'italic', marginBottom: 8, lineHeight: 30 }}>
                 Dear Golf에서{'\n'}첫 라운딩을 시작해보세요
               </Text>
@@ -1004,7 +1005,7 @@ function HomeScreen({ navigation }) {
         </View>
         <View style={{ flex: 1 }} />
         <View style={homeS.bottomArea}>
-          <Text style={homeS.secLabel}>NEXT ROUNDS</Text>
+          <Text style={homeS.secLabel}>예정 라운딩</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             {/* 메인 카드 */}
@@ -1025,7 +1026,7 @@ function HomeScreen({ navigation }) {
               <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                 <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7}>
                   <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
-                  <Text style={homeS.cardDDayLabel}>DAYS TO GO</Text>
+                  <Text style={homeS.cardDDayLabel}>남은 일수</Text>
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
                   <TouchableOpacity style={[homeS.pill, homeS.pillTap]} onPress={() => openWeatherFor(next)}>
@@ -1059,7 +1060,7 @@ function HomeScreen({ navigation }) {
                 <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                   <TouchableOpacity onPress={() => openScheduleSheet(s)} activeOpacity={0.7}>
                     <Text style={homeS.subDDay}>D-{s.dDay}</Text>
-                    <Text style={homeS.subDDayLabel}>DAYS</Text>
+                    <Text style={homeS.subDDayLabel}>일</Text>
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -1080,13 +1081,13 @@ function HomeScreen({ navigation }) {
 
           {memoEntry ? (
             <TouchableOpacity style={homeS.memoCard} onPress={handleMemoPress} activeOpacity={0.8}>
-              <Text style={homeS.memoEye}>LAST VISIT MEMO  →</Text>
+              <Text style={homeS.memoEye}>지난 방문 메모  →</Text>
               <Text style={homeS.memoTxt}>"{memoEntry.text}"</Text>
               <Text style={homeS.memoDate}>{memoEntry.date} · {next.course}</Text>
             </TouchableOpacity>
           ) : (
             <View style={[homeS.memoCard, homeS.memoCardFirst]}>
-              <Text style={[homeS.memoEye, { color: 'rgba(200,217,230,0.5)' }]}>FIRST VISIT</Text>
+              <Text style={[homeS.memoEye, { color: 'rgba(200,217,230,0.5)' }]}>첫 방문</Text>
               <Text style={[homeS.memoTxt, { color: 'rgba(200,217,230,0.85)', fontStyle: 'normal' }]}>
                 처음 가는 코스예요.{'\n'}오늘 라운딩이 첫 기록이 될 거예요
               </Text>
@@ -1181,8 +1182,8 @@ function HallOfFameCard({ item }) {
   const isHIO = item.type === 'HOLE IN ONE';
   const isAlba = item.type === 'ALBATROSS';
   const isEagle = item.type === 'EAGLE';
-  const isFirstSingle = item.type === 'FIRST SINGLE';
-  const isLifeBest = item.type === 'LIFE BEST';
+  const isFirstSingle = item.type === '퍼스트 싱글';
+  const isLifeBest = item.type === '라이프 베스트';
   const bgColor = isHIO ? '#2A2622' : isAlba ? C.burgundy : isFirstSingle ? '#4A7A8A' : isLifeBest ? '#2A5A3A' : '#6B6660';
   const accentColor = isFirstSingle ? '#C8D9E6' : isLifeBest ? '#A8D4B4' : '#C9A84C';
 
@@ -1609,8 +1610,8 @@ function DiaryAddModal({ visible, onClose, onSave }) {
 function DiaryCard({ item, onPress }) {
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  const hasBest = item.badge === 'BEST';
-  const hasBirdie = item.badge === 'BIRDIE';
+  const hasBest = item.badge === '베스트';
+  const hasBirdie = item.badge === '버디';
   const hasPhoto = item.photos && item.photos.length > 0;
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
 
@@ -1675,7 +1676,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
   const [editScore, setEditScore] = useState(String(item.score || ''));
   const [editMemo, setEditMemo] = useState(item.memo || '');
   const [editPhotos, setEditPhotos] = useState(item.photos || []);
-  const hasBest = item.badge === 'BEST';
+  const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -1716,7 +1717,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }}>
       <View style={[dS.detailHdr, isSpecial && { borderBottomColor: '#C9A84C44' }]}>
         <TouchableOpacity onPress={onClose}>
-          <Text style={dS.backBtn}>← 다이어리</Text>
+          <Text style={dS.backBtn}>← Diary</Text>
         </TouchableOpacity>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {me && (
@@ -1755,7 +1756,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
             item.special === 'EAGLE' && { backgroundColor: '#6B6660' },
             item.special === 'ALBATROSS' && { backgroundColor: C.burgundy },
           ]}>
-            <Text style={dS.specialBannerSub}>ACHIEVED</Text>
+            <Text style={dS.specialBannerSub}>달성</Text>
             <Text style={dS.specialBannerTitle}>{item.special}</Text>
             <Text style={dS.specialBannerSub}>{item.specialHole}번홀 기록</Text>
             <TouchableOpacity
@@ -1819,7 +1820,7 @@ function DiaryDetail({ item, onClose, onUpdate }) {
         </View>
         <View style={dS.photosArea}>
           <View style={{ marginBottom: 10 }}>
-            <Text style={dS.photosLabel}>PHOTOS & VIDEOS</Text>
+            <Text style={dS.photosLabel}>사진 · 영상</Text>
           </View>
           <View style={dS.photosGrid}>
             {photosToShow.map((uri, i) => {
@@ -2113,7 +2114,7 @@ function DiaryScreen({ route, navigation }) {
     return () => clearTimeout(timer);
   }, [tab]);
 
-  const TAB_DIARY = [['round', 'My Round'], ['log', 'Course Log'], ['friends', 'Friends']];
+  const TAB_DIARY = [['round', '내 라운딩'], ['log', '코스 기록'], ['friends', '친구']];
   const TAB_DIARY_COLORS = [C.butter, C.paleSky, C.burgundy];
 
   useEffect(() => {
@@ -2223,7 +2224,7 @@ function DiaryScreen({ route, navigation }) {
           {hallOfFame.length > 0 && (
             <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
               <TouchableOpacity style={dS.hofToggle} onPress={() => setHofExpanded(!hofExpanded)}>
-                <Text style={dS.hofSectionLabel}>HALL OF FAME · {hallOfFame.length}개</Text>
+                <Text style={dS.hofSectionLabel}>명예의 전당 · {hallOfFame.length}개</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C9A84C' }}>{hofExpanded ? '접기' : '펼치기'}</Text>
               </TouchableOpacity>
               {hofExpanded && hallOfFame.map(item => <HallOfFameCard key={item.id} item={item} />)}
@@ -2234,7 +2235,7 @@ function DiaryScreen({ route, navigation }) {
             {diaries.map((item, idx) => (
               <View key={item.id} style={dS.tlNode}>
                 {idx < diaries.length - 1 && <View style={dS.tlLine} />}
-                <View style={[dS.tlDot, item.badge === 'BEST' && dS.tlDotBest, item.badge === 'BIRDIE' && dS.tlDotBirdie, item.special && dS.tlDotSpecial]} />
+                <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, item.special && dS.tlDotSpecial]} />
                 <DiaryCard item={item} onPress={(it) => setSelected(it)} />
               </View>
             ))}
@@ -2349,7 +2350,7 @@ function GuideScreen({ route }) {
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {innerTab === 'course' && (
             <View style={{ padding: 16 }}>
-              <Text style={gS.secLabel}>COURSE INFO</Text>
+              <Text style={gS.secLabel}>코스 정보</Text>
               <View style={gS.infoCard}>
                 {[['위치', c.loc], ['홀 수', '18홀'], ['Par', '72']].map(([k, v], i) => (
                   <View key={i} style={[gS.infoRow, i === 2 && { borderBottomWidth: 0 }]}>
@@ -2393,7 +2394,7 @@ function GuideScreen({ route }) {
               </View>
 
               {/* 골퍼 코멘트 — 좋아요 순 3개 */}
-              <Text style={gS.secLabel}>GOLFER COMMENTS · 좋아요 순</Text>
+              <Text style={gS.secLabel}>골퍼 코멘트 · 좋아요 순</Text>
               {[
                 { txt: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요', who: 'J***', date: '2025.04', likes: 24 },
                 { txt: '7번홀 왼쪽 OB 많이 납니다. 아이언 공략 추천', who: 'K***', date: '2025.03', likes: 18 },
@@ -2481,7 +2482,7 @@ function GuideScreen({ route }) {
   const hasCourses = chipCourses.length > 0;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      <LightHeader sub="나만의 골프 캐디" title="Guide" right={<Text style={gS.searchTxt}>Search</Text>} />
+      <LightHeader sub="나만의 골프 캐디" title="가이드" right={<Text style={gS.searchTxt}>검색</Text>} />
       <TripleStripe />
       {hasCourses ? (
         <>
@@ -2605,7 +2606,8 @@ function MyPageModal({ visible, onClose }) {
                 <View style={{ flex: 1 }}>
                   {editingNick ? (
                     <TextInput style={myS.nickInput} value={nickname} onChangeText={setNickname}
-                      onBlur={() => setEditingNick(false)} autoFocus />
+                      onBlur={() => setEditingNick(false)} autoFocus
+                      autoCapitalize="none" autoCorrect={false} keyboardType="default" />
                   ) : (
                     <TouchableOpacity onPress={() => setEditingNick(true)}>
                       <Text style={myS.nickname}>{nickname}</Text>
@@ -3165,8 +3167,8 @@ export default function App() {
       <Modal visible={firstSingleAlert} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <View style={{ backgroundColor: '#4A7A8A', borderRadius: 20, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#C8D9E6' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(200,217,230,0.6)', letterSpacing: 4, marginBottom: 8 }}>ACHIEVED</Text>
-            <Text style={{ fontFamily: F.en, fontSize: 32, color: '#C8D9E6', fontStyle: 'italic', letterSpacing: 3, marginBottom: 8 }}>FIRST SINGLE</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(200,217,230,0.6)', letterSpacing: 4, marginBottom: 8 }}>달성</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 26, color: '#C8D9E6', fontWeight: '600', letterSpacing: 3, marginBottom: 8 }}>퍼스트 싱글</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 14, color: 'rgba(200,217,230,0.8)', marginBottom: 20 }}>싱글 달성을 축하해요!</Text>
             <TouchableOpacity style={{ borderWidth: 1, borderColor: '#C8D9E6', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 }}
               onPress={() => setFirstSingleAlert(false)}>
@@ -3179,8 +3181,8 @@ export default function App() {
       <Modal visible={bestAlert} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <View style={{ backgroundColor: C.burgundy, borderRadius: 20, padding: 28, alignItems: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(245,230,168,0.6)', letterSpacing: 4, marginBottom: 8 }}>NEW RECORD</Text>
-            <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', letterSpacing: 2, marginBottom: 8 }}>LIFE BEST!</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(245,230,168,0.6)', letterSpacing: 4, marginBottom: 8 }}>신기록</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 26, color: C.butter, fontWeight: '600', letterSpacing: 2, marginBottom: 8 }}>라이프 베스트!</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>라이프 베스트 갱신!</Text>
             <TouchableOpacity style={{ borderWidth: 1, borderColor: C.butter, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 }}
               onPress={() => setBestAlert(false)}>
