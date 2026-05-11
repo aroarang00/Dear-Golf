@@ -10,7 +10,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { Video } from 'expo-av';
 
 const Tab = createBottomTabNavigator();
@@ -747,303 +746,200 @@ function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather
   );
 }
 
-// ── 날씨/교통 통합 전체화면 ─────────────────────────
-function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClose }) {
-  const [tab, setTab] = useState(initialTab);
-  const [origin, setOrigin] = useState('위치 확인 중...');
+// ── 날씨 전체화면 ────────────────────────────────────
+function WeatherFullModal({ visible, schedule, onClose }) {
+  if (!schedule) return null;
+  const hasWarning = true;
+  const FORECAST = [
+    { day: '오늘', date: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남풍 3m/s',  rain: 0, prob: 10, tmin: 12, tmax: 22, isRound: false },
+    { day: '내일', date: '',                     icon: '🌤️', sky: '구름조금', wind: '남동 2m/s',  rain: 0, prob: 20, tmin: 13, tmax: 21, isRound: false },
+    { day: '모레', date: '',                     icon: '☀️', sky: '맑음',     wind: '남 2m/s',   rain: 0, prob: 10, tmin: 14, tmax: 22, isRound: true  },
+    { day: '목',   date: '',                     icon: '☁️', sky: '흐림',     wind: '서 4m/s',   rain: 0, prob: 40, tmin: 14, tmax: 19, isRound: false },
+    { day: '금',   date: '',                     icon: '🌧️', sky: '비',       wind: '북서 5m/s',  rain: 8, prob: 80, tmin: 13, tmax: 17, isRound: false },
+    { day: '토',   date: '',                     icon: '🌦️', sky: '소나기',   wind: '서 3m/s',   rain: 3, prob: 60, tmin: 12, tmax: 18, isRound: false },
+    { day: '일',   date: '',                     icon: '⛅',  sky: '구름많음', wind: '남서 2m/s',  rain: 0, prob: 20, tmin: 13, tmax: 20, isRound: false },
+    { day: '월',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 1m/s',   rain: 0, prob: 0,  tmin: 14, tmax: 23, isRound: false },
+    { day: '화',   date: '',                     icon: '☀️', sky: '맑음',     wind: '동 2m/s',   rain: 0, prob: 0,  tmin: 15, tmax: 24, isRound: false },
+    { day: '수',   date: '',                     icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   rain: 0, prob: 10, tmin: 14, tmax: 22, isRound: false },
+  ];
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={fullS.container}>
+        <View style={fullS.header}>
+          <TouchableOpacity onPress={onClose} style={fullS.backBtn} activeOpacity={0.6}>
+            <Text style={fullS.backArrow}>←</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={fullS.headerTitle} numberOfLines={1}>{schedule.course}</Text>
+            <Text style={fullS.headerSub}>{schedule.date} {schedule.day} · 티오프 {schedule.time}</Text>
+          </View>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {hasWarning && (
+            <View style={fullS.warnBanner}>
+              <Text style={fullS.warnTxt}>⚠️ 강풍 주의보 · 포천 지역</Text>
+            </View>
+          )}
 
-  useEffect(() => { if (visible) setTab(initialTab); }, [visible, initialTab]);
+          <Text style={fullS.sectionLabel}>골프 지수</Text>
+          <View style={[fullS.card, { padding: 16 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={fullS.golfIdxIcon}>⛳</Text>
+              <Text style={fullS.golfIdxTitle}>라운딩 당일 기준</Text>
+            </View>
+            <Text style={fullS.golfIdxScore}>좋음</Text>
+            <View style={fullS.golfIdxList}>
+              <View style={fullS.golfIdxRow}>
+                <Text style={fullS.golfIdxLbl}>바람</Text>
+                <Text style={fullS.golfIdxVal}>약함 ✅</Text>
+              </View>
+              <View style={fullS.golfIdxRow}>
+                <Text style={fullS.golfIdxLbl}>강수</Text>
+                <Text style={fullS.golfIdxVal}>없음 ✅</Text>
+              </View>
+              <View style={fullS.golfIdxRow}>
+                <Text style={fullS.golfIdxLbl}>기온</Text>
+                <Text style={fullS.golfIdxVal}>적정 ✅</Text>
+              </View>
+            </View>
+          </View>
 
-  useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') { if (!cancelled) setOrigin('서울 강남구'); return; }
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const places = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        if (cancelled) return;
-        const p = places[0];
-        if (p) {
-          const label = [p.region, p.city || p.subregion, p.district].filter(Boolean).join(' ');
-          setOrigin(label || '현재 위치');
-        } else setOrigin('현재 위치');
-      } catch { if (!cancelled) setOrigin('서울 강남구'); }
-    })();
-    return () => { cancelled = true; };
-  }, [visible]);
+          <Text style={fullS.sectionLabel}>10일 예보</Text>
+          <View style={fullS.card}>
+            {FORECAST.map((w, i) => (
+              <View key={i} style={[fullS.wxRow, i < FORECAST.length - 1 && fullS.wxRowBorder, w.isRound && fullS.wxRowRound]}>
+                <View style={{ width: 56 }}>
+                  <Text style={fullS.wxDay}>{w.day}</Text>
+                  {!!w.date && <Text style={fullS.wxDate}>{w.date}</Text>}
+                </View>
+                <Text style={fullS.wxIcon}>{w.icon}</Text>
+                <View style={{ flex: 1, marginLeft: 6 }}>
+                  <Text style={fullS.wxSky}>{w.sky}</Text>
+                  <Text style={fullS.wxSub}>🌬️ {w.wind} · 💧 {w.rain}mm · {w.prob}%</Text>
+                </View>
+                <Text style={fullS.wxTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
+              </View>
+            ))}
+          </View>
 
+          <TouchableOpacity style={fullS.kmaBtn}
+            onPress={() => Linking.openURL('https://www.kma.go.kr/')}
+            activeOpacity={0.7}>
+            <Text style={fullS.kmaBtnTxt}>기상청 날씨 더 보기</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// ── 교통 전체화면 ────────────────────────────────────
+function TrafficFullModal({ visible, schedule, onClose }) {
+  const origin = '서울 강남구';
   const timeToMin = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
   const minToTime = (m) => { m = (m + 24 * 60) % (24 * 60); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
   const parseDur = (s) => { const m = (s || '').match(/(\d+)\s*시간\s*(\d+)?/); return m ? parseInt(m[1]) * 60 + parseInt(m[2] || '0') : 90; };
+
   const teeMin = schedule ? timeToMin(schedule.time) : 7 * 60;
   const driveMin = schedule ? parseDur(schedule.duration) : 90;
   const recoMin = teeMin - driveMin - 30;
   const baseTen = Math.floor(recoMin / 10) * 10;
-  const slots = [-50, -40, -30, -20, -10, 0].map(d => minToTime(baseTen + d));
+  const slots = [-20, -10, 0, 10, 20, 30].map(d => minToTime(baseTen + d));
 
-  const [selectedSlot, setSelectedSlot] = useState(slots[slots.length - 1]);
-  useEffect(() => { if (visible) setSelectedSlot(slots[slots.length - 1]); }, [visible, schedule?.id]);
+  const [selectedSlot, setSelectedSlot] = useState(slots[2]);
 
   if (!schedule) return null;
 
-  const handleShareDaeri = () => {
-    const msg = `[ Dear Golf ] 같이 대리 부르실 분?\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일 라운딩\n티오프 ${schedule.time} · 출발 ${selectedSlot}\n\n카카오T 대리: https://www.kakaomobility.com/\n티맵 대리: https://tmap.life\n아이대리: https://www.idaeri.co.kr`;
+  const handleShare = () => {
+    const msg = `[ Dear Golf ]\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일  티오프 ${schedule.time}\n출발 ${selectedSlot}\n\n같이 가요!`;
     Share.share({ message: msg });
   };
 
-  // 하드코딩 데이터 — 실제 API 연결 시 교체
-  const CURRENT = { temp: 18, sky: '맑음', icon: '☀️', yesterday: 2, feels: 17, tmin: 12, tmax: 22 };
-  const HOURLY = [
-    { h: '06', t: 12, rain: 0 },
-    { h: '07', t: 14, rain: 0 },
-    { h: '08', t: 16, rain: 0 },
-    { h: '09', t: 18, rain: 0 },
-    { h: '10', t: 20, rain: 0 },
-    { h: '11', t: 21, rain: 0 },
-    { h: '12', t: 22, rain: 0 },
-  ];
-  const hMin = Math.min(...HOURLY.map(x => x.t));
-  const hMax = Math.max(...HOURLY.map(x => x.t));
-  const hRange = (hMax - hMin) || 1;
-  const golfIndex = { score: 78, label: 'Good', wind: '약함', rain: '없음', tempStatus: '적정' };
-  const FORECAST = [
-    { day: '오늘', dateStr: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남 3m/s',   prob: 10, tmin: 12, tmax: 22 },
-    { day: '내일', dateStr: '',                     icon: '🌤️', sky: '구름조금', wind: '동 2m/s',   prob: 20, tmin: 13, tmax: 21 },
-    { day: '모레', dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22 },
-    { day: '목',   dateStr: '',                     icon: '☁️', sky: '흐림',     wind: '서 4m/s',   prob: 40, tmin: 14, tmax: 19 },
-    { day: '금',   dateStr: '',                     icon: '🌧️', sky: '비',       wind: '북서 5m/s', prob: 80, tmin: 13, tmax: 17 },
-    { day: '토',   dateStr: '',                     icon: '🌦️', sky: '소나기',   wind: '서 3m/s',   prob: 60, tmin: 12, tmax: 18 },
-    { day: '일',   dateStr: '',                     icon: '⛅',  sky: '구름많음', wind: '남서 2m/s', prob: 20, tmin: 13, tmax: 20 },
-    { day: '월',   dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '동 1m/s',   prob: 0,  tmin: 14, tmax: 23 },
-    { day: '화',   dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '동 2m/s',   prob: 0,  tmin: 15, tmax: 24 },
-    { day: '수',   dateStr: '',                     icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22 },
-  ];
-  const roundIdx = Math.min(Math.max(0, schedule.dDay || 0), FORECAST.length - 1);
-
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.charcoal }}>
-        <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <View style={fullS.dHeader}>
-            <View style={fullS.dTopRow}>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.6}>
-                <Text style={fullS.dCloseBtn}>← 닫기</Text>
-              </TouchableOpacity>
-              <View style={fullS.dTabs}>
-                <TouchableOpacity onPress={() => setTab('weather')} activeOpacity={0.7}
-                  style={[fullS.dTabBtn, tab === 'weather' && fullS.dTabBtnOn]}>
-                  <Text style={[fullS.dTabTxt, tab === 'weather' && fullS.dTabTxtOn]}>날씨</Text>
+      <SafeAreaView style={fullS.container}>
+        <View style={fullS.header}>
+          <TouchableOpacity onPress={onClose} style={fullS.backBtn} activeOpacity={0.6}>
+            <Text style={fullS.backArrow}>←</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={fullS.headerTitle} numberOfLines={1}>{schedule.course}</Text>
+            <Text style={fullS.headerSub}>{schedule.date} {schedule.day} · 티오프 {schedule.time}</Text>
+          </View>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <Text style={fullS.sectionLabel}>추천 출발 시간</Text>
+          <View style={[fullS.card, { padding: 14, marginBottom: 22 }]}>
+            <Text style={fullS.bigSub}>티오프 {schedule.time} 기준 · 여유 30분 포함</Text>
+            <View style={fullS.slotRow}>
+              {slots.map(t => (
+                <TouchableOpacity key={t}
+                  style={[fullS.slotBtn, selectedSlot === t && fullS.slotBtnOn]}
+                  onPress={() => setSelectedSlot(t)}
+                  activeOpacity={0.7}>
+                  <Text style={[fullS.slotTxt, selectedSlot === t && fullS.slotTxtOn]}>{t}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setTab('traffic')} activeOpacity={0.7}
-                  style={[fullS.dTabBtn, tab === 'traffic' && fullS.dTabBtnOn]}>
-                  <Text style={[fullS.dTabTxt, tab === 'traffic' && fullS.dTabTxtOn]}>교통</Text>
-                </TouchableOpacity>
-              </View>
+              ))}
             </View>
-            {tab === 'weather' ? (
-              <>
-                <Text style={fullS.dInfoLine}>{schedule.course} · {schedule.date} · D-{schedule.dDay}</Text>
-                <View style={fullS.dTempRow}>
-                  <Text style={fullS.dTempEmoji}>{CURRENT.icon}</Text>
-                  <Text style={fullS.dTempBig}>{CURRENT.temp}°</Text>
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={fullS.dTempSky}>{CURRENT.sky}</Text>
-                    <Text style={fullS.dTempCompare}>어제보다 {CURRENT.yesterday > 0 ? '+' : ''}{CURRENT.yesterday}°</Text>
-                  </View>
-                </View>
-                <Text style={fullS.dTempFooter}>체감 {CURRENT.feels}° · 최저 {CURRENT.tmin}° / 최고 {CURRENT.tmax}°</Text>
-              </>
-            ) : (
-              <>
-                <Text style={fullS.dCourseT}>{schedule.course}</Text>
-                <Text style={fullS.dDateT}>{schedule.date} · 티오프 {schedule.time}</Text>
-              </>
-            )}
           </View>
 
-          {tab === 'weather' ? (
-            <>
-              <View style={fullS.gridWrap}>
-                <View style={[fullS.gridCellN, { borderRightWidth: 0.5, borderBottomWidth: 0.5 }]}>
-                  <Text style={fullS.gridLabelN}>바람</Text>
-                  <Text style={fullS.gridValueN}>2.2m/s</Text>
-                  <Text style={fullS.gridSubOK}>라운딩 최적</Text>
-                </View>
-                <View style={[fullS.gridCellN, { borderBottomWidth: 0.5 }]}>
-                  <Text style={fullS.gridLabelN}>습도</Text>
-                  <Text style={fullS.gridValueN}>30%</Text>
-                  <Text style={fullS.gridSubN}>건조함</Text>
-                </View>
-                <View style={[fullS.gridCellN, { borderRightWidth: 0.5 }]}>
-                  <Text style={fullS.gridLabelN}>미세먼지</Text>
-                  <Text style={fullS.gridValueN}>좋음</Text>
-                  <Text style={fullS.gridSubN}>PM10 23㎍/㎥</Text>
-                </View>
-                <View style={fullS.gridCellN}>
-                  <Text style={fullS.gridLabelN}>자외선</Text>
-                  <Text style={fullS.gridValueWarn}>보통</Text>
-                  <Text style={fullS.gridSubN}>차단제 권장</Text>
-                </View>
-              </View>
+          <Text style={fullS.sectionLabel}>경로</Text>
+          <View style={[fullS.card, { padding: 16, marginBottom: 14 }]}>
+            <View style={{ marginBottom: 14 }}>
+              <Text style={fullS.routeLabel}>출발지</Text>
+              <Text style={fullS.routeValue}>{origin}</Text>
+            </View>
+            <View style={fullS.routeArrowRow}>
+              <View style={fullS.routeLineV} />
+              <Text style={fullS.routeArrow}>↓ 약 78.4km · 경부고속도로</Text>
+            </View>
+            <View style={{ marginTop: 14, marginBottom: 14 }}>
+              <Text style={fullS.routeLabel}>도착지</Text>
+              <Text style={fullS.routeValue}>{schedule.course}</Text>
+            </View>
+            <View style={fullS.durationBox}>
+              <Text style={fullS.durationLabel}>예상 소요시간</Text>
+              <Text style={fullS.durationValue}>{schedule.duration}</Text>
+            </View>
+          </View>
 
-              <View style={fullS.whiteCard}>
-                <Text style={fullS.cardLabel}>시간별 기온</Text>
-                <View style={fullS.barRow}>
-                  {HOURLY.map((x, i) => {
-                    const h = 30 + ((x.t - hMin) / hRange) * 60;
-                    return (
-                      <View key={i} style={fullS.barCol}>
-                        <Text style={fullS.barTemp}>{x.t}°</Text>
-                        <View style={[fullS.bar, { height: h }]} />
-                        {x.rain > 0 ? <Text style={fullS.barRain}>{x.rain}%</Text> : <Text style={fullS.barRainEmpty}> </Text>}
-                        <Text style={fullS.barHour}>{x.h}시</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
+                .catch(() => Linking.openURL('https://map.naver.com/'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🗺️ 네이버 경로</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
+                .catch(() => Linking.openURL('https://tmap.life'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🗺️ 티맵 경로</Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={fullS.whiteCard}>
-                <Text style={fullS.cardLabel}>골프 지수</Text>
-                <Text style={fullS.gIdxBig}>{golfIndex.label}</Text>
-                <Text style={fullS.gIdxScoreNew}>{golfIndex.score} / 100</Text>
-                <View style={fullS.gIdxBarNew}>
-                  <View style={[fullS.gIdxBarFillNew, { width: `${golfIndex.score}%` }]} />
-                </View>
-                <View style={fullS.gIdxBottom}>
-                  <View style={fullS.gIdxBottomCell}>
-                    <Text style={fullS.gIdxBLabel}>바람</Text>
-                    <Text style={fullS.gIdxBValue}>{golfIndex.wind}</Text>
-                  </View>
-                  <View style={fullS.gIdxBottomCell}>
-                    <Text style={fullS.gIdxBLabel}>강수</Text>
-                    <Text style={fullS.gIdxBValue}>{golfIndex.rain}</Text>
-                  </View>
-                  <View style={fullS.gIdxBottomCell}>
-                    <Text style={fullS.gIdxBLabel}>기온</Text>
-                    <Text style={fullS.gIdxBValue}>{golfIndex.tempStatus}</Text>
-                  </View>
-                </View>
-              </View>
+          <Text style={fullS.sectionLabel}>대리운전</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🚕 카카오T</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🚗 티맵 대리</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={fullS.routeBtn}
+              onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
+              activeOpacity={0.7}>
+              <Text style={fullS.routeBtnTxt}>🚙 아이대리</Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={fullS.whiteCard}>
-                <Text style={fullS.cardLabel}>10일 예보</Text>
-                {FORECAST.map((w, i) => {
-                  const isRound = i === roundIdx;
-                  return (
-                    <View key={i} style={[fullS.fcRow, i < FORECAST.length - 1 && fullS.fcRowBorder, isRound && fullS.fcRowRound]}>
-                      <View style={{ width: 56 }}>
-                        <Text style={fullS.fcDay}>{w.day}</Text>
-                        {!!w.dateStr && <Text style={fullS.fcDate}>{w.dateStr}</Text>}
-                      </View>
-                      <Text style={fullS.fcIcon}>{w.icon}</Text>
-                      <View style={{ flex: 1, marginLeft: 6 }}>
-                        <Text style={[fullS.fcSky, isRound && { color: C.burgundy, fontWeight: '600' }]}>
-                          {w.sky}{isRound ? ' · 라운딩일' : ''}
-                        </Text>
-                        <Text style={fullS.fcSub}>{w.wind} · 강수 {w.prob}%</Text>
-                      </View>
-                      <Text style={fullS.fcTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
-                    </View>
-                  );
-                })}
-              </View>
-
-              <TouchableOpacity style={fullS.kmaBtnNew}
-                onPress={() => Linking.openURL('https://www.kma.go.kr/')}
-                activeOpacity={0.7}>
-                <Text style={fullS.kmaBtnTxtNew}>기상청에서 더 자세히 보기</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <View style={fullS.whiteCard}>
-                <Text style={fullS.cardLabel}>출발시간별 소요시간</Text>
-                <View style={fullS.tblWrap}>
-                  <View style={fullS.tblHdrN}>
-                    <Text style={[fullS.tblHdrCellN, { flex: 1 }]}>출발시간</Text>
-                    <Text style={[fullS.tblHdrCellN, { flex: 1.3, textAlign: 'center' }]}>소요시간</Text>
-                    <Text style={[fullS.tblHdrCellN, { flex: 1, textAlign: 'right' }]}>도착</Text>
-                  </View>
-                  {[-20, -10, 0, 10, 20].map((off, i) => {
-                    const t = minToTime(baseTen + off);
-                    const dVar = [-5, -2, 0, 3, 8][i];
-                    const dMin = driveMin + dVar;
-                    const dStr = `${Math.floor(dMin / 60)}시간 ${dMin % 60}분`;
-                    const aStr = minToTime(timeToMin(t) + dMin);
-                    const isReco = off === 0;
-                    return (
-                      <TouchableOpacity key={i}
-                        style={[fullS.tblRowN, isReco && fullS.tblRowRecoN]}
-                        onPress={() => setSelectedSlot(t)}
-                        activeOpacity={0.7}>
-                        <Text style={[fullS.tblCellN, isReco && fullS.tblCellRecoN, { flex: 1 }]}>{t}</Text>
-                        <Text style={[fullS.tblCellN, isReco && fullS.tblCellRecoN, { flex: 1.3, textAlign: 'center' }]}>{dStr}</Text>
-                        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
-                          <Text style={[fullS.tblCellN, isReco && fullS.tblCellRecoN]}>{aStr}</Text>
-                          {isReco && <Text style={fullS.tblStarN}> ★</Text>}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <Text style={fullS.tblFootN}>★ 티오프 30분 전 여유 기준 추천</Text>
-              </View>
-
-              <View style={fullS.whiteCard}>
-                <Text style={fullS.cardLabel}>경로</Text>
-                <View style={fullS.routeCardN}>
-                  <Text style={fullS.routeLabelN}>출발지</Text>
-                  <Text style={fullS.routeValueN}>{origin}</Text>
-                  <View style={fullS.routeMidN}>
-                    <Text style={fullS.routeMidTxtN}>↓ 약 78.4km · 경부고속도로</Text>
-                  </View>
-                  <Text style={fullS.routeLabelN}>도착지</Text>
-                  <Text style={fullS.routeValueN}>{schedule.course}</Text>
-                </View>
-                <View style={fullS.routeBtnRowN}>
-                  <TouchableOpacity style={[fullS.routeBtnN, { backgroundColor: '#03C75A' }]}
-                    onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                      .catch(() => Linking.openURL('https://map.naver.com/'))}
-                    activeOpacity={0.7}>
-                    <Text style={[fullS.routeBtnTxtN, { color: '#fff' }]}>네이버 경로</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[fullS.routeBtnN, { backgroundColor: C.charcoal }]}
-                    onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
-                      .catch(() => Linking.openURL('https://tmap.life'))}
-                    activeOpacity={0.7}>
-                    <Text style={[fullS.routeBtnTxtN, { color: C.butter }]}>티맵 경로</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={fullS.whiteCard}>
-                <Text style={fullS.cardLabel}>대리운전</Text>
-                <View style={fullS.daeriRow}>
-                  <TouchableOpacity style={[fullS.daeriBtn, { backgroundColor: '#FFE400' }]}
-                    onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
-                    activeOpacity={0.7}>
-                    <Text style={[fullS.daeriBtnTxt, { color: C.charcoal }]}>카카오T</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[fullS.daeriBtn, { backgroundColor: C.paleSky }]}
-                    onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
-                    activeOpacity={0.7}>
-                    <Text style={[fullS.daeriBtnTxt, { color: C.charcoal }]}>티맵대리</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[fullS.daeriBtn, { backgroundColor: C.warmGray }]}
-                    onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
-                    activeOpacity={0.7}>
-                    <Text style={[fullS.daeriBtnTxt, { color: '#fff' }]}>아이대리</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={fullS.shareDaeriBtn} onPress={handleShareDaeri} activeOpacity={0.8}>
-                  <Text style={fullS.shareDaeriTxt}>함께 대리 부르기</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+          <TouchableOpacity style={fullS.shareBtn} onPress={handleShare} activeOpacity={0.7}>
+            <Text style={fullS.shareBtnTxt}>📩 동반자에게 일정 공유하기</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -1052,30 +948,12 @@ function WeatherTrafficModal({ visible, schedule, initialTab = 'weather', onClos
 
 // ── 홈 상단 날씨 미니바 ──────────────────────────────
 function WeatherMiniBar({ onPress }) {
-  const [loc, setLoc] = useState('서울');
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest });
-        const places = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        if (cancelled) return;
-        const p = places[0];
-        if (p) setLoc(p.city || p.subregion || p.region || '서울');
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}
       style={{ flexDirection: 'row', alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.15)',
         borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginTop: 6 }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>📍 {loc} · ☀️ 18° 맑음</Text>
+      <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#fff' }}>☀️ 18° 맑음</Text>
     </TouchableOpacity>
   );
 }
@@ -1087,7 +965,8 @@ function HomeScreen({ navigation }) {
   const [schedules, setSchedules] = useState(SCHEDULES_INIT);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [wxtModal, setWxtModal] = useState({ visible: false, tab: 'weather' });
+  const [showWeatherFull, setShowWeatherFull] = useState(false);
+  const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [editSchedule, setEditSchedule] = useState(null);
 
   const next = schedules.length > 0 ? schedules[0] : null;
@@ -1116,12 +995,12 @@ function HomeScreen({ navigation }) {
 
   const openWeatherFor = (schedule) => {
     setSelectedSchedule(schedule);
-    setWxtModal({ visible: true, tab: 'weather' });
+    setShowWeatherFull(true);
   };
 
   const openTrafficFor = (schedule) => {
     setSelectedSchedule(schedule);
-    setWxtModal({ visible: true, tab: 'traffic' });
+    setShowTrafficFull(true);
   };
 
   const openCurrentWeather = () => {
@@ -1132,7 +1011,7 @@ function HomeScreen({ navigation }) {
       members: 0, dDay: 0, weather: '맑음 18°', wind: '', duration: '',
     };
     setSelectedSchedule(target);
-    setWxtModal({ visible: true, tab: 'weather' });
+    setShowWeatherFull(true);
   };
 
   const handleShareSchedule = (s) => {
@@ -1331,19 +1210,25 @@ function HomeScreen({ navigation }) {
             navigation.navigate('가이드', { openCourseId: selectedSchedule.courseLogId });
           }
         }}
-        onWeather={() => { setShowScheduleModal(false); setWxtModal({ visible: true, tab: 'weather' }); }}
-        onTraffic={() => { setShowScheduleModal(false); setWxtModal({ visible: true, tab: 'traffic' }); }}
+        onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
+        onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
         onShare={() => handleShareSchedule(selectedSchedule)}
         onEdit={() => handleEditSchedule(selectedSchedule)}
         onDelete={() => handleDeleteSchedule(selectedSchedule)}
       />
 
-      {/* 날씨/교통 통합 전체화면 */}
-      <WeatherTrafficModal
-        visible={wxtModal.visible}
-        initialTab={wxtModal.tab}
+      {/* 날씨 전체화면 */}
+      <WeatherFullModal
+        visible={showWeatherFull}
         schedule={selectedSchedule || next}
-        onClose={() => setWxtModal(prev => ({ ...prev, visible: false }))}
+        onClose={() => setShowWeatherFull(false)}
+      />
+
+      {/* 교통 전체화면 */}
+      <TrafficFullModal
+        visible={showTrafficFull}
+        schedule={selectedSchedule || next}
+        onClose={() => setShowTrafficFull(false)}
       />
 
       <ScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleScheduleSave} />
@@ -3126,93 +3011,52 @@ const sheetS = StyleSheet.create({
 
 // 날씨/교통 전체화면 모달 스타일
 const fullS = StyleSheet.create({
-  sectionLabel: { fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, letterSpacing: 1, marginBottom: 8 },
-  card:         { backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, overflow: 'hidden' },
-  // Dark header (new design)
-  dHeader:        { backgroundColor: C.charcoal, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 22 },
-  dTopRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  dCloseBtn:      { fontFamily: F.sys, fontSize: 14, color: '#fff', paddingVertical: 6 },
-  dTabs:          { flexDirection: 'row', gap: 6 },
-  dTabBtn:        { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, backgroundColor: 'transparent' },
-  dTabBtnOn:      { backgroundColor: C.burgundy },
-  dTabTxt:        { fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
-  dTabTxtOn:      { color: C.butter, fontWeight: '600' },
-  dInfoLine:      { fontFamily: F.sys, fontSize: 12, color: 'rgba(245,230,168,0.6)', marginBottom: 12 },
-  dTempRow:       { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  dTempEmoji:     { fontSize: 44, marginRight: 6 },
-  dTempBig:       { fontFamily: F.en, fontSize: 72, fontWeight: '200', color: C.butter, lineHeight: 78, letterSpacing: -3 },
-  dTempSky:       { fontFamily: F.sys, fontSize: 16, color: '#fff', fontWeight: '500' },
-  dTempCompare:   { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  dTempFooter:    { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.45)' },
-  // 2x2 grid (new design)
-  gridWrap:       { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: C.warmGray, marginTop: -8 },
-  gridCellN:      { width: '50%', backgroundColor: C.bgPrimary, paddingVertical: 14, paddingHorizontal: 16, borderColor: C.warmGray },
-  gridLabelN:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
-  gridValueN:     { fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '500' },
-  gridValueWarn:  { fontFamily: F.sys, fontSize: 17, color: C.burgundy, fontWeight: '500' },
-  gridSubOK:      { fontFamily: F.sys, fontSize: 11, color: C.burgundy, marginTop: 2 },
-  gridSubN:       { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 },
-  // White cards (new design)
-  whiteCard:      { backgroundColor: C.bgSecondary, marginTop: 8, paddingHorizontal: 20, paddingVertical: 16 },
-  cardLabel:      { fontFamily: F.sys, fontSize: 11, color: C.warmGray, letterSpacing: 1, marginBottom: 12 },
-  // Hourly bar
-  barRow:         { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 130 },
-  barCol:         { flex: 1, alignItems: 'center' },
-  barTemp:        { fontFamily: F.en, fontSize: 11, color: C.charcoal, marginBottom: 4 },
-  bar:            { width: 14, backgroundColor: C.butter, borderRadius: 4, borderWidth: 0.5, borderColor: C.warmGray },
-  barRain:        { fontFamily: F.sys, fontSize: 9, color: C.paleSky, marginTop: 2 },
-  barRainEmpty:   { fontFamily: F.sys, fontSize: 9, marginTop: 2 },
-  barHour:        { fontFamily: F.sys, fontSize: 9, color: C.warmGray, marginTop: 2 },
-  // Golf index (new design)
-  gIdxBig:        { fontFamily: F.sys, fontSize: 22, color: C.charcoal, fontWeight: '500', marginBottom: 2 },
-  gIdxScoreNew:   { fontFamily: F.sys, fontSize: 13, color: C.warmGray, marginBottom: 10 },
-  gIdxBarNew:     { height: 8, borderRadius: 4, backgroundColor: C.paleSky, overflow: 'hidden', marginBottom: 14 },
-  gIdxBarFillNew: { height: '100%', backgroundColor: C.burgundy, borderRadius: 4 },
-  gIdxBottom:     { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12 },
-  gIdxBottomCell: { flex: 1, alignItems: 'center' },
-  gIdxBLabel:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
-  gIdxBValue:     { fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '500' },
-  // 10-day forecast (new design)
-  fcRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },
-  fcRowBorder:    { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
-  fcRowRound:     { backgroundColor: '#FFF8F0', borderLeftWidth: 3, borderLeftColor: C.burgundy, paddingHorizontal: 10, marginHorizontal: -4 },
-  fcDay:          { fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '500' },
-  fcDate:         { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
-  fcIcon:         { fontSize: 22, width: 32, textAlign: 'center' },
-  fcSky:          { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
-  fcSub:          { fontFamily: F.sys, fontSize: 10, color: C.textSecondary, marginTop: 2 },
-  fcTemp:         { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
-  // KMA button
-  kmaBtnNew:      { marginTop: 12, marginHorizontal: 20, marginBottom: 24, borderWidth: 1, borderColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center' },
-  kmaBtnTxtNew:   { fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '500' },
-  // Traffic header (course name + date when on traffic tab)
-  dCourseT:     { fontFamily: F.sys, fontSize: 22, color: C.butter, fontWeight: '500', marginBottom: 4 },
-  dDateT:       { fontFamily: F.sys, fontSize: 15, color: 'rgba(255,255,255,0.7)' },
-  // Traffic table
-  tblWrap:      { borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, overflow: 'hidden' },
-  tblHdrN:      { flexDirection: 'row', backgroundColor: C.bgPrimary, paddingVertical: 10, paddingHorizontal: 14 },
-  tblHdrCellN:  { fontFamily: F.sys, fontSize: 11, color: C.warmGray, letterSpacing: 1 },
-  tblRowN:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: '#fff' },
-  tblRowRecoN:  { backgroundColor: '#FFF8F0' },
-  tblCellN:     { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
-  tblCellRecoN: { color: C.burgundy, fontWeight: '600' },
-  tblStarN:     { fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '600' },
-  tblFootN:     { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 10 },
-  // Route card (new design)
-  routeCardN:   { borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16 },
-  routeLabelN:  { fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 4 },
-  routeValueN:  { fontFamily: F.sys, fontSize: 16, color: C.charcoal, fontWeight: '500', marginBottom: 10 },
-  routeMidN:    { borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 10, paddingVertical: 4, marginBottom: 10 },
-  routeMidTxtN: { fontFamily: F.sys, fontSize: 12, color: C.warmGray },
-  routeBtnRowN: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  routeBtnN:    { flex: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  routeBtnTxtN: { fontFamily: F.sys, fontSize: 14, fontWeight: '500' },
-  // Daeri buttons
-  daeriRow:     { flexDirection: 'row', gap: 8 },
-  daeriBtn:     { flex: 1, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 8, alignItems: 'center' },
-  daeriBtnTxt:  { fontFamily: F.sys, fontSize: 13, fontWeight: '500' },
-  shareDaeriBtn:{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 10 },
-  shareDaeriTxt:{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '500' },
+  container:    { flex: 1, backgroundColor: C.bgPrimary },
+  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline, backgroundColor: C.bgPrimary },
+  backBtn:      { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  backArrow:    { fontSize: 22, color: C.charcoal, lineHeight: 24 },
+  headerTitle:  { fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600' },
+  headerSub:    { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginTop: 2 },
+  sectionLabel: { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 2, marginBottom: 8 },
+  card:         { backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, overflow: 'hidden', marginBottom: 22 },
+  wxRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
+  wxRowBorder:  { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
+  wxDay:        { fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '500' },
+  wxDate:       { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1 },
+  wxIcon:       { fontSize: 22, width: 32, textAlign: 'center' },
+  wxSky:        { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  wxSub:        { fontFamily: F.sys, fontSize: 10, color: C.textSecondary, marginTop: 2 },
+  wxTemp:       { fontFamily: F.en, fontSize: 14, color: C.warmGrayLight },
+  wxRowRound:   { backgroundColor: C.butter + '40', borderLeftWidth: 3, borderLeftColor: C.burgundy },
+  warnBanner:   { backgroundColor: '#FFF3CD', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 18, borderWidth: 0.5, borderColor: '#F0E0A8' },
+  warnTxt:      { fontFamily: F.sys, fontSize: 13, color: '#856404', fontWeight: '500' },
+  golfIdxIcon:  { fontSize: 18, marginRight: 6 },
+  golfIdxTitle: { fontFamily: F.sys, fontSize: 12, color: C.textSecondary },
+  golfIdxScore: { fontFamily: F.sys, fontSize: 24, color: C.burgundy, fontWeight: '600', marginBottom: 10 },
+  golfIdxList:  { borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 10, gap: 6 },
+  golfIdxRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  golfIdxLbl:   { fontFamily: F.sys, fontSize: 13, color: C.textSecondary },
+  golfIdxVal:   { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
+  kmaBtn:       { backgroundColor: C.bgSecondary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: C.burgundy },
+  kmaBtnTxt:    { fontFamily: F.sys, fontSize: 13, color: C.burgundy, letterSpacing: 0.3, fontWeight: '500' },
+  bigSub:       { fontFamily: F.sys, fontSize: 11, color: C.textSecondary, marginBottom: 12 },
+  slotRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  slotBtn:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary },
+  slotBtnOn:    { backgroundColor: C.burgundy, borderColor: C.burgundy },
+  slotTxt:      { fontFamily: F.en, fontSize: 14, color: C.charcoal },
+  slotTxtOn:    { color: C.butter, fontWeight: '600' },
+  shareBtn:     { backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  shareBtnTxt:  { fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600', letterSpacing: 0.3 },
+  routeLabel:   { fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 4 },
+  routeValue:   { fontFamily: F.sys, fontSize: 14, color: C.charcoal },
+  routeArrowRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
+  routeLineV:   { width: 1, height: 16, backgroundColor: C.hairline, marginLeft: 6 },
+  routeArrow:   { fontFamily: F.sys, fontSize: 11, color: C.textSecondary },
+  durationBox:  { backgroundColor: '#F5E6A833', borderRadius: 10, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  durationLabel:{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary },
+  durationValue:{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600' },
+  routeBtn:     { flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  routeBtnTxt:  { fontFamily: F.sys, fontSize: 13, color: C.charcoal },
 });
 
 const dS = StyleSheet.create({
