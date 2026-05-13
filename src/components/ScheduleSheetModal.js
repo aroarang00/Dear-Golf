@@ -3,14 +3,17 @@ import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { sheetS } from '../styles/sheetS';
 import { TripleStripe } from './common/TripleStripe';
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, navigation }) {
   if (!schedule) return null;
+  const handleManage = () => {
+    onClose && onClose();
+    navigation && navigation.navigate('다이어리', { initialTab: '내 일정' });
+  };
   const items = [
     { key: 'wx', emoji: '☀️', label: '날씨 확인', onPress: onWeather },
     { key: 'tr', emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },
     { key: 'sh', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
-    { key: 'ed', emoji: '✏️', label: '일정 수정', onPress: onEdit },
-    { key: 'rm', emoji: '🗑️', label: '일정 삭제', onPress: onDelete, danger: true },
+    { key: 'mg', emoji: '✏️', label: '일정 수정 · 삭제', onPress: handleManage },
   ];
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

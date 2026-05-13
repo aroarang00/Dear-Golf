@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
+import { COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
 import { dS } from '../styles/dS';
 import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
 import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
+import { PhotoEditModal } from './PhotoEditModal';
 
 export function DiaryDetail({ item, onClose, onUpdate }) {
   const { userProfile } = React.useContext(UserContext);
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editPhotos, setEditPhotos] = useState(item.photos || []);
+  const [editorIndex, setEditorIndex] = useState(null);
+
+  useEffect(() => {
+    setEditPhotos(item.photos || []);
+  }, [item.photos]);
   const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const diff = item.score - item.par;
@@ -27,6 +37,36 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
   ];
 
   const photosToShow = item.photos || [];
+
+  const handlePhotoLongPress = (index) => {
+    if (!isEditing) return;
+    Alert.alert(
+      '사진 옵션',
+      null,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '대표사진으로 지정',
+          onPress: () => {
+            if (index === 0) return;
+            setEditPhotos(prev => {
+              const next = [...prev];
+              const [picked] = next.splice(index, 1);
+              next.unshift(picked);
+              return next;
+            });
+          },
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            setEditPhotos(prev => prev.filter((_, i) => i !== index));
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }}>
@@ -88,6 +128,23 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
             )}
           </View>
           <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
+          {item.tags && item.tags.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, marginBottom: 4 }}>
+              {item.tags.map(tag => {
+                const entry = Object.entries(COURSE_TAGS).find(([, tags]) => tags.includes(tag));
+                const color = entry ? COURSE_TAG_COLORS[entry[0]] : { bg: C.bgSecondary, text: C.warmGrayLight };
+                return (
+                  <View key={tag} style={{
+                    backgroundColor: color.bg,
+                    paddingHorizontal: 10, paddingVertical: 4,
+                    borderRadius: 12,
+                  }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: color.text }}>{tag}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
           <View style={[dS.detailMemoBox, isSpecial && { borderLeftColor: '#C9A84C' }]}>
             <Text style={dS.detailMemoTxt}>"{item.memo}"</Text>
           </View>
@@ -128,15 +185,48 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
           </View>
         </View>
         <View style={dS.photosArea}>
-          <View style={{ marginBottom: 10 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={dS.photosLabel}>사진 · 영상</Text>
+            {isEditing ? (
+              <View style={{ flexDirection: 'row', gap: 14 }}>
+                <TouchableOpacity onPress={() => {
+                  setEditPhotos(item.photos || []);
+                  setIsEditing(false);
+                }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => {
+                  onUpdate && onUpdate({ ...item, photos: editPhotos });
+                  setIsEditing(false);
+                }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '600' }}>완료</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => setIsEditing(true)}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy }}>편집</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <View style={dS.photosGrid}>
-            {photosToShow.map((uri, i) => {
+            {(isEditing ? editPhotos : photosToShow).map((uri, i) => {
               const src = typeof uri === 'object' ? uri.uri : uri;
               return (
-                <TouchableOpacity key={i} onPress={() => { setViewerStart(i); setPhotoViewer(true); }} style={dS.photoGridItem}>
-                  <Image source={{ uri: src }} style={dS.photoGridImg} resizeMode="cover" />
+                <TouchableOpacity key={i}
+                  onPress={() => {
+                    if (isEditing) {
+                      const isVideo = typeof uri === 'object' && uri?.type === 'video';
+                      if (isVideo) {
+                        Alert.alert('편집 불가', '동영상은 회전 편집을 지원하지 않습니다.\n길게 눌러 대표 지정/삭제만 가능해요.');
+                        return;
+                      }
+                      setEditorIndex(i);
+                    } else { setViewerStart(i); setPhotoViewer(true); }
+                  }}
+                  onLongPress={() => handlePhotoLongPress(i)}
+                  delayLongPress={400}
+                  style={dS.photoGridItem}>
+                  <GridThumb item={uri} src={src} />
                   {i === 0 && (
                     <View style={{ position: 'absolute', top: 6, left: 6, backgroundColor: C.burgundy, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: 8, color: '#fff' }}>대표</Text>
@@ -150,6 +240,20 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
         <View style={{ height: 40 }} />
       </ScrollView>
       {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
+      <PhotoEditModal
+        visible={editorIndex !== null}
+        uri={editorIndex !== null ? (typeof editPhotos[editorIndex] === 'object' ? editPhotos[editorIndex].uri : editPhotos[editorIndex]) : null}
+        onClose={() => setEditorIndex(null)}
+        onSave={(newUri) => {
+          setEditPhotos(prev => {
+            const next = [...prev];
+            const orig = next[editorIndex];
+            next[editorIndex] = typeof orig === 'object' ? { ...orig, uri: newUri } : newUri;
+            return next;
+          });
+          setEditorIndex(null);
+        }}
+      />
       <DiaryAddModal
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -164,4 +268,49 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
       />
     </SafeAreaView>
   );
+}
+
+function GridThumb({ item, src }) {
+  const isVideo = typeof item === 'object' && item?.type === 'video';
+  const [thumb, setThumb] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isVideo) return;
+    (async () => {
+      try {
+        const { uri } = await VideoThumbnails.getThumbnailAsync(src, { time: 0, quality: 0.6 });
+        if (!cancelled) setThumb(uri);
+      } catch (e) {
+        if (!cancelled) console.warn('thumbnail failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isVideo, src]);
+
+  if (isVideo) {
+    return (
+      <View style={{ flex: 1 }}>
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={dS.photoGridImg} resizeMode="cover" />
+        ) : (
+          <View style={[dS.photoGridImg, { backgroundColor: '#2A2622' }]} />
+        )}
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <View style={{
+            width: 32, height: 32, borderRadius: 16,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 14, marginLeft: 2 }}>▶</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return <Image source={{ uri: src }} style={dS.photoGridImg} resizeMode="cover" />;
 }

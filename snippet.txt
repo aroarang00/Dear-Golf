@@ -458,7 +458,7 @@ function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
           <View style={homeS.handle} />
 
           {/* 탭 */}
-          <View style={homeS.popTabs}>
+          <View style={[homeS.popTabs, { marginTop: 4, marginBottom: 14 }]}>
             {[['wx', '날씨'], ['tr', '교통 · 출발시간']].map(([k, l]) => (
               <TouchableOpacity key={k}
                 style={[homeS.popTab, popupTab === k && homeS.popTabOn]}
@@ -1195,7 +1195,7 @@ function HomeScreen({ navigation }) {
               </Text>
             </View>
           )}
-          <View style={{ height: 20 }} />
+          <View style={{ height: 6 }} />
         </View>
       </SafeAreaView>
 
@@ -2936,7 +2936,7 @@ const homeS = StyleSheet.create({
   hdrTitle:        { fontFamily: F.en, fontSize: 40, color: '#fff', fontStyle: 'italic', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
   hdrGreeting:     { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.75)' },
   hdrGreetingName: { color: C.butter, fontWeight: '600' },
-  bottomArea:      { paddingBottom: 4 },
+  bottomArea:      { paddingBottom: 0 },
   secLabel:        { fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },
   mainCard:        { width: 232, height: 220, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: 16 },
   cardCourse:      { fontFamily: F.sys, fontSize: 15, color: '#fff', marginBottom: 6, lineHeight: 20 },
@@ -2961,7 +2961,7 @@ const homeS = StyleSheet.create({
   emptyAddTxt:     { fontFamily: F.sys, fontSize: 13, color: 'rgba(245,230,168,0.7)' },
   // 팝업
   mask:            { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet:           { backgroundColor: '#0e1f16', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.12)', paddingBottom: 20, maxHeight: '95%', flex: 1 },
+  sheet:           { backgroundColor: '#0e1f16', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.12)', paddingBottom: 20, height: '85%' },
   handle:          { width: 32, height: 3, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 2, alignSelf: 'center', margin: 12 },
   popTabs:         { flexDirection: 'row', marginHorizontal: 18, marginBottom: 10, gap: 8 },
   popTab:          { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.06)' },

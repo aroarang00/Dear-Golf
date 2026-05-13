@@ -2,6 +2,7 @@ export const SCHEDULES_INIT = [
   { id: '1', course: '제이드팰리스 골프클럽', date: '2026.05.15', day: '금', time: '07:30', members: 4, dDay: 10, weather: '맑음 18°', wind: '북동 3m/s', duration: '1시간 23분', courseLogId: '1' },
   { id: '2', course: '안성베네스트 CC',       date: '2026.05.22', day: '금', time: '08:00', members: 3, dDay: 17, weather: '구름 15°', wind: '서 2m/s',   duration: '1시간 45분', courseLogId: '2' },
   { id: '3', course: '사우스링스 CC',         date: '2026.05.28', day: '목', time: '07:00', members: 4, dDay: 23, weather: '맑음 20°', wind: '남 1m/s',   duration: '2시간 10분', courseLogId: '3' },
+  { id: '4', course: '포천베어크리크CC',      date: '2026.06.15', day: '월', time: '09:00', members: 4, dDay: 33, weather: '맑음 22°', wind: '북 2m/s',   duration: '1시간 30분', courseLogId: '4' },
 ];
 
 export const HALL_OF_FAME = [
@@ -40,6 +41,20 @@ export const COURSE_LOG = [
   { id: '1', name: '제이드팰리스 골프클럽', loc: '경기 용인',   visits: 3, best: 89, avg: 94, memo: '7번홀 OB 조심, 된장찌개 맛있음', tags: ['★★★★', '넓은 페어웨이', '그린 빠름'] },
   { id: '2', name: '남촌 골프클럽',         loc: '경기 남양주', visits: 2, best: 76, avg: 88, memo: '18번홀 파3 어려움', tags: ['★★★★★', '베스트코스'] },
   { id: '3', name: '블랙스톤 컨트리클럽',  loc: '충북 음성',   visits: 4, best: 88, avg: 95, memo: '퍼팅 그린 관리 최고', tags: ['★★★', '관리 최상'] },
+  { id: '4', name: '포천베어크리크CC',      loc: '경기 포천',   visits: 2, best: 88, avg: 94, memo: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요', tags: ['★★★★', '산악 코스', '그린 빠름'] },
+];
+
+export const COURSE_COMMENTS = [
+  { id: 'cc1', courseId: '1', txt: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요', who: 'J***', likes: 87 },
+  { id: 'cc2', courseId: '1', txt: '7번홀 OB 위험 구간이라 안전하게 가는 게 좋아요', who: 'P***', likes: 45 },
+  { id: 'cc3', courseId: '1', txt: '클럽하우스 된장찌개 강추합니다', who: 'L***', likes: 28 },
+  { id: 'cc4', courseId: '2', txt: '18번홀 파3 정말 어려워요. 한 클럽 더 잡으세요', who: 'K***', likes: 62 },
+  { id: 'cc5', courseId: '2', txt: '베스트 코스라는 평이 괜히 있는 게 아니네요', who: 'S***', likes: 31 },
+  { id: 'cc6', courseId: '3', txt: '그린 관리는 최상급, 페어웨이 좁은 편이라 정확성 필수', who: 'M***', likes: 54 },
+  { id: 'cc7', courseId: '3', txt: '캐디 친절하고 시설도 깔끔합니다', who: 'C***', likes: 22 },
+  { id: 'cc8', courseId: '4', txt: '코스 전장이 길어요. 드라이버 거리 잘 나오는 분께 유리합니다', who: 'W***', likes: 71 },
+  { id: 'cc9', courseId: '4', txt: '산악 코스라 업힐 라이가 많아요. 클럽 한 단계 길게 잡으세요', who: 'Y***', likes: 49 },
+  { id: 'cc10', courseId: '4', txt: '그린이 빠른 편, 퍼팅 연습 추천', who: 'H***', likes: 26 },
 ];
 
 export const FAVORITES_INIT = ['2'];
@@ -73,23 +88,8 @@ export const COURSE_TAG_COLORS = {
   '해외 특화':   { bg: '#C8D9E6', text: '#1A3D52' },
 };
 
-export const GOLF_DB = [
-  { id: 'g1', name: '제이드팰리스 골프클럽', loc: '경기 용인' },
-  { id: 'g2', name: '남촌 골프클럽', loc: '경기 남양주' },
-  { id: 'g3', name: '블랙스톤 컨트리클럽', loc: '충북 음성' },
-  { id: 'g4', name: '파인크리크 골프장', loc: '경기 평택' },
-  { id: 'g5', name: '안성베네스트 CC', loc: '경기 안성' },
-  { id: 'g6', name: '사우스링스 CC', loc: '경기 안성' },
-  { id: 'g7', name: '클럽나인브릿지', loc: '제주' },
-  { id: 'g8', name: '핀크스 골프클럽', loc: '제주' },
-  { id: 'g9', name: '레이크사이드CC', loc: '경기 고양' },
-  { id: 'g10', name: '해슬리나인브릿지', loc: '경기 여주' },
-  { id: 'g11', name: '가평베네스트 CC', loc: '경기 가평' },
-  { id: 'g12', name: '스카이72 골프앤리조트', loc: '인천 영종도' },
-  { id: 'g13', name: '오크밸리CC', loc: '강원 원주' },
-  { id: 'g14', name: '골든비치CC', loc: '강원 강릉' },
-  { id: 'g15', name: '웰링턴CC', loc: '경기 여주' },
-];
+// GOLF_DB는 카카오 로컬 API 검색 + USER_COURSES(AsyncStorage)로 대체됨
+// src/utils/kakao.js, src/utils/userCourses.js 참고
 
 export const RECOMMENDED_COURSES = [
   { id: 'r1', name: '클럽나인브릿지', loc: '제주', tags: ['★★★★★', '국내 TOP'] },

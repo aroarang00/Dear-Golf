@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const STORAGE_KEYS = {
-  schedules: '@dg_schedules',
-  diaries:   '@dg_diaries',
-  hof:       '@dg_hof',
-  profile:   '@dg_profile',
-  favorites: '@dg_favorites',
+  schedules:   '@dg_schedules',
+  diaries:     '@dg_diaries',
+  hof:         '@dg_hof',
+  profile:     '@dg_profile',
+  favorites:   '@dg_favorites',
+  userCourses: '@dg_user_courses',
 };
 
 export const storage = {

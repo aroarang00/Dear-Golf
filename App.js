@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -55,13 +57,14 @@ export default function App() {
   if (showOnboarding) return <OnboardingScreen onComplete={handleOnboardingComplete} />;
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
     <UserContext.Provider value={{ userProfile, setUserProfile }}>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tab.Screen name="홈" component={HomeScreen} />
         <Tab.Screen name="다이어리" component={DiaryScreen} />
-        <Tab.Screen name="가이드" component={GuideScreen} />
+        <Tab.Screen name="코스" component={GuideScreen} />
       </Tab.Navigator>
 
       <Modal visible={firstSingleAlert} transparent animationType="fade">
@@ -94,5 +97,6 @@ export default function App() {
     </NavigationContainer>
     </UserContext.Provider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

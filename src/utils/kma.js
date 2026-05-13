@@ -1,0 +1,243 @@
+import {
+  KMA_SERVICE_KEY, KMA_SHORT_URL, KMA_MID_URL,
+  dfsXyConv, locToMidRegion,
+} from '../constants/api';
+
+const pad = (n) => String(n).padStart(2, '0');
+
+// =============================================================
+// 발표 시각 계산
+// =============================================================
+// 단기예보 base_time: 02 05 08 11 14 17 20 23 (KST). 발표 후 ~10분 이후 조회 가능.
+function getShortBaseDateTime(now = new Date()) {
+  const baseTimes = [2, 5, 8, 11, 14, 17, 20, 23];
+  const h = now.getHours();
+  const m = now.getMinutes();
+  // 발표 후 10분 안전 마진
+  const safeH = m < 10 ? h - 1 : h;
+  let bt = baseTimes.filter(t => t <= safeH).pop();
+  const d = new Date(now);
+  if (bt === undefined) {
+    // 02시 이전이면 어제 23시 발표
+    d.setDate(d.getDate() - 1);
+    bt = 23;
+  }
+  const base_date = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+  const base_time = `${pad(bt)}00`;
+  return { base_date, base_time };
+}
+
+// 중기예보 tmFc: 매일 06, 18시 발표. tmFc=YYYYMMDDHHMM
+function getMidTmFc(now = new Date()) {
+  const d = new Date(now);
+  const hh = d.getHours();
+  let fcH;
+  if (hh >= 18) fcH = 18;
+  else if (hh >= 6) fcH = 6;
+  else { d.setDate(d.getDate() - 1); fcH = 18; }
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(fcH)}00`;
+}
+
+// =============================================================
+// 공통 fetch (실패 시 null 반환)
+// =============================================================
+async function fetchJson(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { console.warn('[kma] HTTP', res.status, url); return null; }
+    const text = await res.text();
+    try { return JSON.parse(text); } catch {
+      console.warn('[kma] non-JSON response:', text.slice(0, 200));
+      return null;
+    }
+  } catch (e) {
+    console.warn('[kma] fetch failed:', e?.message);
+    return null;
+  }
+}
+
+const keyParam = () => `serviceKey=${encodeURIComponent(KMA_SERVICE_KEY)}`;
+
+// =============================================================
+// 단기예보 (D-0 ~ D-3) — 격자 nx,ny 필요
+// 반환: { current: {temp, sky, pop, wind, humidity, ...}, hourly: [...], daily: [...] }
+// =============================================================
+export async function getShortForecast(lat, lng) {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+  const { nx, ny } = dfsXyConv(lat, lng);
+  const { base_date, base_time } = getShortBaseDateTime();
+  const url = `${KMA_SHORT_URL}/getVilageFcst?${keyParam()}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
+  const data = await fetchJson(url);
+  const items = data?.response?.body?.items?.item;
+  if (!items) return null;
+
+  // category별 그룹핑: { fcstDate, fcstTime, category, fcstValue }
+  // 일별·시간별 정리
+  const byKey = {}; // 'YYYYMMDD_HHMM' -> {category: value}
+  for (const it of items) {
+    const k = `${it.fcstDate}_${it.fcstTime}`;
+    if (!byKey[k]) byKey[k] = { fcstDate: it.fcstDate, fcstTime: it.fcstTime };
+    byKey[k][it.category] = it.fcstValue;
+  }
+  const slots = Object.values(byKey).sort((a, b) => (a.fcstDate + a.fcstTime).localeCompare(b.fcstDate + b.fcstTime));
+
+  // 현재(가장 가까운 시각)
+  const now = new Date();
+  const nowKey = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}00`;
+  let current = slots.find(s => (s.fcstDate + s.fcstTime) >= nowKey) || slots[0];
+
+  // 일별 (최저/최고)
+  const dayMap = {};
+  for (const s of slots) {
+    const d = s.fcstDate;
+    if (!dayMap[d]) dayMap[d] = { date: d, tmin: null, tmax: null, sky: s.SKY, pty: s.PTY, pop: 0 };
+    if (s.TMN !== undefined) dayMap[d].tmin = parseFloat(s.TMN);
+    if (s.TMX !== undefined) dayMap[d].tmax = parseFloat(s.TMX);
+    if (s.POP !== undefined) dayMap[d].pop = Math.max(dayMap[d].pop, parseFloat(s.POP) || 0);
+    // 정오 기준 sky 우선
+    if (s.fcstTime === '1200' && s.SKY !== undefined) dayMap[d].sky = s.SKY;
+    if (s.fcstTime === '1200' && s.PTY !== undefined) dayMap[d].pty = s.PTY;
+  }
+  const daily = Object.values(dayMap).map(d => ({
+    date: `${d.date.slice(0,4)}.${d.date.slice(4,6)}.${d.date.slice(6,8)}`,
+    tmin: d.tmin, tmax: d.tmax,
+    sky: skyToText(d.sky, d.pty),
+    icon: skyToIcon(d.sky, d.pty),
+    pop: d.pop,
+  }));
+
+  return {
+    current: {
+      temp: current ? parseFloat(current.TMP) : null,
+      sky: current ? skyToText(current.SKY, current.PTY) : null,
+      icon: current ? skyToIcon(current.SKY, current.PTY) : null,
+      pop: current ? parseFloat(current.POP || 0) : 0,
+      humidity: current ? parseFloat(current.REH || 0) : 0,
+      windSpeed: current ? parseFloat(current.WSD || 0) : 0,
+    },
+    daily,
+    raw: slots,
+  };
+}
+
+// SKY: 1맑음 3구름많음 4흐림 / PTY: 0없음 1비 2비/눈 3눈 4소나기
+function skyToText(sky, pty) {
+  if (pty === '1' || pty === 1) return '비';
+  if (pty === '2' || pty === 2) return '비/눈';
+  if (pty === '3' || pty === 3) return '눈';
+  if (pty === '4' || pty === 4) return '소나기';
+  if (sky === '1' || sky === 1) return '맑음';
+  if (sky === '3' || sky === 3) return '구름많음';
+  if (sky === '4' || sky === 4) return '흐림';
+  return '';
+}
+function skyToIcon(sky, pty) {
+  if (pty === '1' || pty === 1) return '🌧️';
+  if (pty === '2' || pty === 2) return '🌨️';
+  if (pty === '3' || pty === 3) return '❄️';
+  if (pty === '4' || pty === 4) return '🌦️';
+  if (sky === '1' || sky === 1) return '☀️';
+  if (sky === '3' || sky === 3) return '⛅';
+  if (sky === '4' || sky === 4) return '☁️';
+  return '🌤️';
+}
+
+// =============================================================
+// 중기예보 (D-3 ~ D-10) — 지역코드 + 발표시각 필요
+// 반환: [{ dayOffset, sky, icon, rnSt, tmin, tmax }]
+// dayOffset: 3 ~ 10 (오늘 기준)
+// =============================================================
+export async function getMidForecast(loc) {
+  const region = locToMidRegion(loc);
+  const tmFc = getMidTmFc();
+
+  const landUrl = `${KMA_MID_URL}/getMidLandFcst?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.land}&tmFc=${tmFc}`;
+  const taUrl   = `${KMA_MID_URL}/getMidTa?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.temp}&tmFc=${tmFc}`;
+
+  const [landData, taData] = await Promise.all([fetchJson(landUrl), fetchJson(taUrl)]);
+  const land = landData?.response?.body?.items?.item?.[0];
+  const ta   = taData?.response?.body?.items?.item?.[0];
+  if (!land || !ta) return [];
+
+  // D+3 ~ D+10
+  const out = [];
+  for (let i = 3; i <= 10; i++) {
+    // 중기육상예보: wf3Am, wf3Pm, wf4Am, ... rnSt3Am, ...
+    // 중기기온: taMin3, taMax3 ...
+    const wfAm = land[`wf${i}Am`];
+    const wfPm = land[`wf${i}Pm`];
+    const wf   = land[`wf${i}`] || wfAm || wfPm;
+    const rnStAm = land[`rnSt${i}Am`];
+    const rnStPm = land[`rnSt${i}Pm`];
+    const rnSt = Math.max(parseFloat(rnStAm) || 0, parseFloat(rnStPm) || 0);
+    const tmin = parseFloat(ta[`taMin${i}`]);
+    const tmax = parseFloat(ta[`taMax${i}`]);
+    const sky = wf || '';
+    out.push({
+      dayOffset: i,
+      sky,
+      icon: midWfToIcon(sky),
+      rnSt,
+      tmin: isNaN(tmin) ? null : tmin,
+      tmax: isNaN(tmax) ? null : tmax,
+    });
+  }
+  return out;
+}
+
+function midWfToIcon(wf) {
+  if (!wf) return '🌤️';
+  if (wf.includes('비/눈') || wf.includes('비/눈')) return '🌨️';
+  if (wf.includes('소나기')) return '🌦️';
+  if (wf.includes('비')) return '🌧️';
+  if (wf.includes('눈')) return '❄️';
+  if (wf.includes('흐림')) return '☁️';
+  if (wf.includes('구름많음')) return '⛅';
+  if (wf.includes('맑음')) return '☀️';
+  return '🌤️';
+}
+
+// =============================================================
+// 통합: D-3 이내는 단기, D-4~10은 중기로 10일치 예보
+// loc: 주소(중기 지역 매핑용), lat/lng: 단기 격자 변환용
+// 반환: { current, days: [{day, date, icon, sky, tmin, tmax, pop}] }
+// =============================================================
+export async function getCombinedForecast({ lat, lng, loc }) {
+  const [short, mid] = await Promise.all([
+    getShortForecast(lat, lng),
+    getMidForecast(loc),
+  ]);
+
+  const out = { current: short?.current || null, days: [] };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+  for (let i = 0; i < 10; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const ds = `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+    const day = i === 0 ? '오늘' : i === 1 ? '내일' : DAYS_KO[d.getDay()];
+
+    if (i <= 3) {
+      const found = (short?.daily || []).find(x => x.date === ds);
+      if (found) {
+        out.days.push({ day, date: ds, ...found });
+        continue;
+      }
+    }
+    if (i >= 3) {
+      const midItem = mid.find(x => x.dayOffset === i);
+      if (midItem) {
+        out.days.push({
+          day, date: ds, icon: midItem.icon, sky: midItem.sky,
+          tmin: midItem.tmin, tmax: midItem.tmax, pop: midItem.rnSt,
+        });
+        continue;
+      }
+    }
+    out.days.push({ day, date: ds, icon: '🌤️', sky: '', tmin: null, tmax: null, pop: 0 });
+  }
+
+  return out;
+}

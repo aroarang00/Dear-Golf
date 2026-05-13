@@ -1,309 +1,474 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, ScrollView, View, Text, TouchableOpacity, Linking, Share } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, ScrollView, View, Text, TouchableOpacity, Linking, Share, PanResponder, Animated, useWindowDimensions } from 'react-native';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
-import { TripleStripe } from './common/TripleStripe';
+import { getCombinedForecast } from '../utils/kma';
+import { findUserCourseById } from '../utils/userCourses';
+import { getCurrentLocation, reverseGeocode } from '../utils/location';
 
-export function WeatherTransportPopup({ visible, initialTab, onClose, schedule }) {
-  const [popupTab, setPopupTab] = useState(initialTab || 'wx');
+const BG = '#0a1e10';
+
+const WEATHER_10DAYS = [
+  { day: '오늘', date: '05.14', icon: '☀️', sky: '맑음',     wind: '남 3m/s',   rain: 10, tmin: 12, tmax: 22 },
+  { day: '내일', date: '05.15', icon: '🌤️', sky: '구름조금', wind: '동 2m/s',   rain: 20, tmin: 13, tmax: 21 },
+  { day: '목',   date: '05.16', icon: '🌧️', sky: '비',       wind: '북서 5m/s', rain: 80, tmin: 11, tmax: 17 },
+  { day: '금',   date: '05.17', icon: '⛅',  sky: '구름많음', wind: '서 3m/s',   rain: 30, tmin: 12, tmax: 19 },
+  { day: '토',   date: '05.18', icon: '☀️', sky: '맑음',     wind: '남 2m/s',   rain: 0,  tmin: 14, tmax: 23 },
+  { day: '일',   date: '05.19', icon: '☀️', sky: '맑음',     wind: '동 1m/s',   rain: 0,  tmin: 15, tmax: 24 },
+  { day: '월',   date: '05.20', icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   rain: 10, tmin: 14, tmax: 22 },
+  { day: '화',   date: '05.21', icon: '🌦️', sky: '소나기',   wind: '서 4m/s',   rain: 60, tmin: 13, tmax: 20 },
+  { day: '수',   date: '05.22', icon: '⛅',  sky: '구름많음', wind: '북 3m/s',   rain: 20, tmin: 12, tmax: 19 },
+  { day: '목',   date: '05.23', icon: '☀️', sky: '맑음',     wind: '동 2m/s',   rain: 0,  tmin: 14, tmax: 23 },
+];
+
+const HOUR_SLOTS = [
+  { time: '오전 6시',  hour: 6,  icon: '🌤️', temp: 14, wind: 2, rain: 0  },
+  { time: '오전 9시',  hour: 9,  icon: '☀️', temp: 18, wind: 2, rain: 0  },
+  { time: '오후 12시', hour: 12, icon: '☀️', temp: 22, wind: 3, rain: 0  },
+  { time: '오후 3시',  hour: 15, icon: '☀️', temp: 21, wind: 4, rain: 0  },
+  { time: '오후 6시',  hour: 18, icon: '🌤️', temp: 17, wind: 3, rain: 0  },
+  { time: '오후 9시',  hour: 21, icon: '🌙', temp: 13, wind: 2, rain: 10 },
+];
+
+const calcDots = ({ temp, wind, rain }) => {
+  if (rain >= 50) return { dots: 1, label: '어려움' };
+  if (temp >= 29 || wind >= 12) return { dots: 2, label: '주의' };
+  if ((temp >= 25 && temp <= 28) || (wind >= 8 && wind < 12)) return { dots: 3, label: '보통' };
+  if ((temp >= 15 && temp <= 17) || (wind >= 5 && wind < 8)) return { dots: 4, label: '좋음' };
+  if (temp >= 18 && temp <= 24 && wind <= 5 && rain <= 20) return { dots: 5, label: '최적' };
+  return { dots: 3, label: '보통' };
+};
+
+export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, schedules, weatherOnly }) {
+  const [tab, setTab] = useState(initialTab || 'wx');
+  const { width: SW } = useWindowDimensions();
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const slideBase = useRef(0);
+
+  // 핀치 줌 (날씨 탭 한정)
+  const scale = useRef(new Animated.Value(1)).current;
+  const lastScale = useRef(1);
+
+  const onPinchEvent = Animated.event(
+    [{ nativeEvent: { scale } }],
+    { useNativeDriver: true }
+  );
+
+  const onPinchStateChange = (event) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      let next = lastScale.current * event.nativeEvent.scale;
+      next = Math.max(1, Math.min(2, next));
+      lastScale.current = next;
+      scale.setValue(next);
+    }
+  };
+
+  const animateTo = (target, newTab) => {
+    Animated.spring(slideAnim, {
+      toValue: target,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 12,
+    }).start();
+    slideBase.current = target;
+    if (newTab) setTab(newTab);
+  };
 
   useEffect(() => {
     if (visible) {
-      setPopupTab(initialTab || 'wx');
+      const t = weatherOnly ? 'wx' : (initialTab || 'wx');
+      setTab(t);
+      const target = t === 'wx' ? 0 : -SW;
+      slideAnim.setValue(target);
+      slideBase.current = target;
     }
-  }, [visible, initialTab]);
+  }, [visible, initialTab, SW, weatherOnly]);
+
+  // 탭 변경 시 핀치 줌 리셋
+  useEffect(() => {
+    scale.setValue(1);
+    lastScale.current = 1;
+  }, [tab]);
+
+  const handleTabPress = (newTab) => {
+    if (newTab === tab) return;
+    animateTo(newTab === 'wx' ? 0 : -SW, newTab);
+  };
+
+  const weatherOnlyRef = useRef(weatherOnly);
+  useEffect(() => { weatherOnlyRef.current = weatherOnly; }, [weatherOnly]);
+
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponder: (_, gs) =>
+      !weatherOnlyRef.current && Math.abs(gs.dx) > 10 && Math.abs(gs.dy) < 15,
+    onMoveShouldSetPanResponderCapture: (_, gs) =>
+      !weatherOnlyRef.current && Math.abs(gs.dx) > 10 && Math.abs(gs.dy) < 15,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderMove: (_, gs) => {
+      let next = slideBase.current + gs.dx;
+      if (next > 0) next = 0;
+      if (next < -SW) next = -SW;
+      slideAnim.setValue(next);
+    },
+    onPanResponderRelease: (_, gs) => {
+      if (gs.dx < -50 && slideBase.current === 0) {
+        animateTo(-SW, 'tr');
+      } else if (gs.dx > 50 && slideBase.current === -SW) {
+        animateTo(0, 'wx');
+      } else {
+        animateTo(slideBase.current, null);
+      }
+    },
+    onPanResponderTerminate: () => {
+      animateTo(slideBase.current, null);
+    },
+  })).current;
 
   if (!schedule) return null;
 
-  const golfScore = 78;
-  const pm10 = 23;
+  const [teeH, teeM] = (schedule.time || '08:00').split(':').map(Number);
+  const teeMin = teeH * 60 + teeM;
 
-  const FORECAST = [
-    { day: '오늘', dateStr: schedule.date.slice(5), icon: '☀️', sky: '맑음',     wind: '남 3m/s',   prob: 10, tmin: 12, tmax: 22 },
-    { day: '내일', dateStr: '',                     icon: '🌤️', sky: '구름조금', wind: '동 2m/s',   prob: 20, tmin: 13, tmax: 21 },
-    { day: '모레', dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22 },
-    { day: '목',   dateStr: '',                     icon: '☁️', sky: '흐림',     wind: '서 4m/s',   prob: 40, tmin: 14, tmax: 19 },
-    { day: '금',   dateStr: '',                     icon: '🌧️', sky: '비',       wind: '북서 5m/s', prob: 80, tmin: 13, tmax: 17 },
-    { day: '토',   dateStr: '',                     icon: '🌦️', sky: '소나기',   wind: '서 3m/s',   prob: 60, tmin: 12, tmax: 18 },
-    { day: '일',   dateStr: '',                     icon: '⛅',  sky: '구름많음', wind: '남서 2m/s', prob: 20, tmin: 13, tmax: 20 },
-    { day: '월',   dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '동 1m/s',   prob: 0,  tmin: 14, tmax: 23 },
-    { day: '화',   dateStr: '',                     icon: '☀️', sky: '맑음',     wind: '동 2m/s',   prob: 0,  tmin: 15, tmax: 24 },
-    { day: '수',   dateStr: '',                     icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   prob: 10, tmin: 14, tmax: 22 },
-  ];
-  const roundIdx = Math.min(Math.max(0, schedule.dDay || 0), FORECAST.length - 1);
+  // 교통 탭 계산
+  const toHHMM = (m) => {
+    m = (m + 24 * 60) % (24 * 60);
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  };
+  const recoDriveMin = 80;
+  const recommended = toHHMM(teeMin - 30 - recoDriveMin);
+  const baseTen = Math.floor((teeMin - 30 - recoDriveMin) / 10) * 10;
+  const rows = [-30, -20, -10, 0, 10].map((off, i) => {
+    const t = toHHMM(baseTen + off);
+    const dMin = recoDriveMin + [-8, -4, -2, 0, 6][i];
+    const dStr = `${Math.floor(dMin / 60)}시간 ${dMin % 60}분`;
+    const cong = i <= 1 ? '원활' : i === 2 ? '보통' : '혼잡';
+    return { t, dStr, cong, isReco: off === 0 };
+  });
 
-  const HOURLY24 = [
-    11, 10, 10, 9, 9, 9, 10, 12, 15, 17, 19, 21,
-    22, 22, 22, 21, 20, 18, 16, 14, 13, 12, 11, 11,
-  ].map((t, i) => ({ h: i, t }));
+  const handleShareDaeri = () => {
+    const msg = `[ Dear Golf ] 같이 대리 부르실 분?\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일 라운딩\n티오프 ${schedule.time}\n\n카카오T 대리: https://www.kakaomobility.com/\n티맵 대리: https://tmap.life\n아이대리: https://www.idaeri.co.kr`;
+    Share.share({ message: msg });
+  };
+
+  // 티오프와 가장 가까운 슬롯
+  const teeoffSlotIdx = HOUR_SLOTS.reduce((best, s, i) => {
+    const diff = Math.abs(s.hour * 60 - teeMin);
+    return diff < best.diff ? { idx: i, diff } : best;
+  }, { idx: -1, diff: Infinity }).idx;
+
+  // 일정 날짜 매칭용
+  const scheduleDateSet = new Set(
+    (schedules || [schedule]).map(s => (s.date || '').slice(5))
+  );
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: popupTab === 'wx' ? C.charcoal : C.bgPrimary }}>
-        <TripleStripe height={3} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+      <View style={{ flex: 1, backgroundColor: BG }}>
+        {/* 라디얼 배경 효과 (큰 원형 View로 흉내) */}
+        <View style={wxS.glowTopRight} pointerEvents="none" />
+        <View style={wxS.glowBotLeft} pointerEvents="none" />
 
-        <View style={[wxS.shellRow, popupTab === 'wx' ? wxS.shellRowDark : wxS.shellRowLight]}>
-          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Text style={popupTab === 'wx' ? wxS.closeLight : wxS.closeDark}>← 닫기</Text>
-          </TouchableOpacity>
-          <View style={wxS.pillTabs}>
-            <TouchableOpacity onPress={() => setPopupTab('wx')} activeOpacity={0.7}
-              style={[wxS.pillTab, popupTab === 'wx' && wxS.pillTabOn]}>
-              <Text style={
-                popupTab === 'wx' ? wxS.pillTxtOn
-                : (popupTab === 'wx' ? wxS.pillTxtLight : wxS.pillTxtDark)
-              }>날씨</Text>
+        <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
+          {/* 헤더 */}
+          <View style={wxS.shellRow}>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.6} style={wxS.backBtn}>
+              <Text style={wxS.backArrow}>←</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setPopupTab('tr')} activeOpacity={0.7}
-              style={[wxS.pillTab, popupTab === 'tr' && wxS.pillTabOn]}>
-              <Text style={
-                popupTab === 'tr' ? wxS.pillTxtOn
-                : (popupTab === 'wx' ? wxS.pillTxtLight : wxS.pillTxtDark)
-              }>교통</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <ScrollView
-          style={{ flex: 1, backgroundColor: popupTab === 'wx' ? C.charcoal : C.bgPrimary }}
-          contentContainerStyle={{ paddingBottom: 0 }}
-          showsVerticalScrollIndicator={false}>
-
-          {popupTab === 'wx' && (
-            <>
-              <View style={wxS.wxHeader}>
-                <Text style={wxS.wxCourse}>{schedule.course}</Text>
-                <Text style={wxS.wxDate}>{schedule.date} · D-{schedule.dDay}</Text>
-              </View>
-
-              <View style={wxS.tempRow}>
-                <Text style={wxS.tempEmoji}>☀️</Text>
-                <View style={{ flex: 1, marginLeft: 14 }}>
-                  <Text style={wxS.tempBig}>18°</Text>
-                  <Text style={wxS.tempSky}>맑음 · 어제보다 +2°</Text>
-                  <Text style={wxS.tempSub}>체감 17° · 최저 12° / 최고 22°</Text>
-                </View>
-              </View>
-
-              <View style={wxS.gridWrap}>
-                <View style={[wxS.gridCell, { borderRightWidth: 0.5, borderBottomWidth: 0.5, borderColor: C.hairline }]}>
-                  <Text style={wxS.gridLabel}>바람</Text>
-                  <Text style={wxS.gridValue}>2.2m/s</Text>
-                  <Text style={wxS.gridSubOK}>라운딩 최적</Text>
-                </View>
-                <View style={[wxS.gridCell, { borderBottomWidth: 0.5, borderColor: C.hairline }]}>
-                  <Text style={wxS.gridLabel}>습도</Text>
-                  <Text style={wxS.gridValue}>30%</Text>
-                  <Text style={wxS.gridSubOK}>건조함</Text>
-                </View>
-                <View style={[wxS.gridCell, { borderRightWidth: 0.5, borderColor: C.hairline }]}>
-                  <Text style={wxS.gridLabel}>미세먼지</Text>
-                  <Text style={wxS.gridValue}>좋음</Text>
-                  <Text style={wxS.gridSubOK}>PM10 {pm10}㎍/㎥</Text>
-                </View>
-                <View style={wxS.gridCell}>
-                  <Text style={wxS.gridLabel}>자외선</Text>
-                  <Text style={wxS.gridValue}>보통</Text>
-                  <Text style={wxS.gridSubWarn}>차단제 권장</Text>
-                </View>
-              </View>
-
-              <View style={wxS.chartCard}>
-                <Text style={wxS.cardLabel}>시간별 기온 · 24시간</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={wxS.barRow}>
-                    {HOURLY24.map((x, i) => {
-                      const bh = 20 + ((x.t - 8) / 18) * 70;
-                      const isWarm = x.t >= 18;
-                      return (
-                        <View key={i} style={wxS.barCol}>
-                          <Text style={wxS.barTemp}>{x.t}°</Text>
-                          <View style={[wxS.bar, { height: bh, backgroundColor: isWarm ? '#C9A84C' : C.burgundy, opacity: 0.7 }]} />
-                          <Text style={wxS.barHour}>{x.h}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-              </View>
-
-              <View style={wxS.gIdxCard}>
-                <Text style={wxS.cardLabel}>골프 지수</Text>
-                <Text style={wxS.gIdxBig}>Good</Text>
-                <Text style={wxS.gIdxScore}>{golfScore} / 100</Text>
-                <View style={wxS.gIdxBar}>
-                  <View style={[wxS.gIdxBarFill, { width: `${golfScore}%` }]} />
-                </View>
-                <View style={wxS.badgeRow}>
-                  <View style={[wxS.badge, { backgroundColor: '#C8D9E6' }]}>
-                    <Text style={[wxS.badgeTxt, { color: '#1A3D52' }]}>바람 약함</Text>
-                  </View>
-                  <View style={[wxS.badge, { backgroundColor: C.charcoal }]}>
-                    <Text style={[wxS.badgeTxt, { color: C.butter }]}>강수 없음</Text>
-                  </View>
-                  <View style={[wxS.badge, { backgroundColor: C.burgundy }]}>
-                    <Text style={[wxS.badgeTxt, { color: C.butter }]}>기온 적정</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={wxS.fcCard}>
-                <Text style={wxS.cardLabel}>10일 예보</Text>
-                {FORECAST.map((w, i) => {
-                  const isRound = i === roundIdx;
+            {weatherOnly ? (
+              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>현재 위치 날씨</Text>
+            ) : (
+              <View style={wxS.pillTabs}>
+                {[{ k: 'wx', l: '날씨' }, { k: 'tr', l: '교통' }].map(t => {
+                  const on = tab === t.k;
                   return (
-                    <View key={i} style={[wxS.fcRow, i < FORECAST.length - 1 && wxS.fcRowBorder, isRound && wxS.fcRowRound]}>
-                      <View style={{ width: 56 }}>
-                        <Text style={wxS.fcDay}>{w.day}</Text>
-                        {!!w.dateStr && <Text style={wxS.fcDate}>{w.dateStr}</Text>}
+                    <TouchableOpacity key={t.k} onPress={() => handleTabPress(t.k)} activeOpacity={0.7}
+                      style={[wxS.pillTab, on ? wxS.pillTabOn : wxS.pillTabOff]}>
+                      <Text style={on ? wxS.pillTxtOn : wxS.pillTxtOff}>{t.l}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* 가로 슬라이더 — 두 페이지를 나란히 배치 + translateX */}
+          <View style={{ flex: 1, overflow: 'hidden' }}>
+            <Animated.View
+              {...panResponder.panHandlers}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                width: SW * 2,
+                transform: [{ translateX: slideAnim }],
+              }}>
+            <View style={{ width: SW }}>
+            <PinchGestureHandler onGestureEvent={onPinchEvent} onHandlerStateChange={onPinchStateChange}>
+            <Animated.ScrollView
+              style={{ flex: 1, transform: [{ scale }] }}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}>
+
+              {/* ① 구장명 + 날짜 */}
+              <View style={wxS.wxHeader}>
+                {weatherOnly ? (
+                  <>
+                    <Text style={[wxS.wxCourse, { fontSize: 18 }]}>📍 현재 위치</Text>
+                    <Text style={wxS.wxDate}>{schedule.date}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={wxS.wxCourse}>{schedule.course}</Text>
+                    <Text style={wxS.wxDate}>{schedule.date} · 티오프 {schedule.time}</Text>
+                  </>
+                )}
+              </View>
+
+              {/* ② 기온 히어로 */}
+              <View style={wxS.tempHero}>
+                <Text style={wxS.tempEmoji}>☀️</Text>
+                <Text style={wxS.tempBig}>18°</Text>
+                <View style={wxS.tempRight}>
+                  <Text style={wxS.tempSky}>맑음</Text>
+                  <Text style={wxS.tempSub}>체감 17°</Text>
+                  <Text style={wxS.tempSub}>최저 12° / 최고 22°</Text>
+                </View>
+              </View>
+
+              {/* ③ 4칸 카드 */}
+              <View style={wxS.gridCard}>
+                {[
+                  { label: '바람',     val: '2.2m/s', sub: '약함' },
+                  { label: '습도',     val: '30%',    sub: '건조' },
+                  { label: '미세먼지', val: '좋음',   sub: 'PM10 23' },
+                  { label: '자외선',   val: '보통',   sub: '차단제 권장' },
+                ].map((c, i, arr) => (
+                  <View key={i} style={[wxS.gridCell, i < arr.length - 1 && wxS.gridCellBorder]}>
+                    <Text style={wxS.gridLabel}>{c.label}</Text>
+                    <Text style={wxS.gridValue}>{c.val}</Text>
+                    <Text style={wxS.gridSub}>{c.sub}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* ④ 골프 지수 카드 */}
+              <View style={wxS.gIdxCard}>
+                <View style={wxS.gIdxHeadRow}>
+                  <Text style={wxS.gIdxBig}>Good</Text>
+                  <Text style={wxS.gIdxScore}>78 / 100</Text>
+                </View>
+                <View style={wxS.gIdxBar}>
+                  <View style={[wxS.gIdxBarFill, { width: '78%' }]} />
+                </View>
+                <View style={wxS.gIdxBadgeRow}>
+                  {[
+                    { txt: '바람 약함', bg: '#C8D9E6', color: '#1A3D52' },
+                    { txt: '강수 없음', bg: '#FFFFFF', color: '#3D3935' },
+                    { txt: '기온 적정', bg: '#F5E6A8', color: '#5A4500' },
+                  ].map((b, i) => (
+                    <View key={i} style={[wxS.gIdxBadge, { backgroundColor: b.bg }]}>
+                      <Text style={[wxS.gIdxBadgeTxt, { color: b.color }]}>{b.txt}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* ⑤ 라운딩 컨디션 */}
+              <View style={wxS.condWrap}>
+                <Text style={wxS.sectionLabel}>라운딩 컨디션</Text>
+                {HOUR_SLOTS.map((slot, i) => {
+                  const isTee = i === teeoffSlotIdx;
+                  const { dots, label } = calcDots(slot);
+                  return (
+                    <View key={i} style={[wxS.condRow, isTee && wxS.condRowTee]}>
+                      <Text style={wxS.condTime}>{slot.time}</Text>
+                      <Text style={wxS.condIcon}>{slot.icon}</Text>
+                      <View style={wxS.condDots}>
+                        {[1, 2, 3, 4, 5].map(d => {
+                          const on = d <= dots;
+                          const isHalf = d === dots && dots >= 3 && dots < 5;
+                          return (
+                            <View key={d} style={[wxS.condDot, {
+                              backgroundColor: on
+                                ? (isHalf ? 'rgba(201,168,76,0.55)' : '#F5E6A8')
+                                : 'rgba(255,255,255,0.1)',
+                            }]} />
+                          );
+                        })}
                       </View>
-                      <Text style={wxS.fcIcon}>{w.icon}</Text>
-                      <View style={{ flex: 1, marginLeft: 6 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Text style={[wxS.fcSky, isRound && wxS.fcSkyRound]}>{w.sky}</Text>
-                          {isRound && (
-                            <View style={wxS.roundBadge}>
-                              <Text style={wxS.roundBadgeTxt}>라운딩</Text>
-                            </View>
-                          )}
+                      <Text style={wxS.condLabel}>{label}</Text>
+                      {isTee && (
+                        <View style={wxS.teeBadge}>
+                          <Text style={wxS.teeBadgeTxt}>티오프</Text>
                         </View>
-                        <Text style={wxS.fcSub}>{w.wind} · 강수 {w.prob}%</Text>
-                      </View>
-                      <Text style={wxS.fcTemp}>{w.tmin}° / <Text style={{ color: C.charcoal }}>{w.tmax}°</Text></Text>
+                      )}
                     </View>
                   );
                 })}
               </View>
 
-              <TouchableOpacity style={wxS.kmaBtn}
-                onPress={() => Linking.openURL('https://www.kma.go.kr/')}
-                activeOpacity={0.7}>
-                <Text style={wxS.kmaBtnTxt}>기상청에서 더 자세히 보기</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {popupTab === 'tr' && (() => {
-            const [teeH, teeM] = schedule.time.split(':').map(Number);
-            const teeMin = teeH * 60 + teeM;
-            const toHHMM = (m) => {
-              m = (m + 24 * 60) % (24 * 60);
-              return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-            };
-            const recoDriveMin = 80;
-            const recommended = toHHMM(teeMin - 30 - recoDriveMin);
-            const baseTen = Math.floor((teeMin - 30 - recoDriveMin) / 10) * 10;
-            const rows = [-30, -20, -10, 0, 10].map((off, i) => {
-              const t = toHHMM(baseTen + off);
-              const dMin = recoDriveMin + [-8, -4, -2, 0, 6][i];
-              const dStr = `${Math.floor(dMin / 60)}시간 ${dMin % 60}분`;
-              const cong = i <= 1 ? '원활' : i === 2 ? '보통' : '혼잡';
-              return { t, dStr, cong, isReco: off === 0 };
-            });
-
-            const handleShareDaeri = () => {
-              const msg = `[ Dear Golf ] 같이 대리 부르실 분?\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일 라운딩\n티오프 ${schedule.time}\n\n카카오T 대리: https://www.kakaomobility.com/\n티맵 대리: https://tmap.life\n아이대리: https://www.idaeri.co.kr`;
-              Share.share({ message: msg });
-            };
-
-            return (
-              <>
-                <View style={trS.creamSection}>
-                  <Text style={trS.trCourse}>{schedule.course}</Text>
-                  <Text style={trS.trDate}>{schedule.date} · 티오프 {schedule.time}</Text>
-
-                  <View style={trS.recoBox}>
-                    <Text style={trS.recoLabel}>추천 출발</Text>
-                    <Text style={trS.recoTime}>{recommended}</Text>
-                    <Text style={trS.recoSub}>티오프 {schedule.time} · 여유 30분 포함</Text>
-                  </View>
-
-                  <View style={trS.tblCard}>
-                    <View style={trS.tblHdr}>
-                      <Text style={[trS.tblHdrCell, { flex: 1 }]}>출발</Text>
-                      <Text style={[trS.tblHdrCell, { flex: 1.2, textAlign: 'center' }]}>소요</Text>
-                      <Text style={[trS.tblHdrCell, { flex: 1, textAlign: 'center' }]}>상태</Text>
-                      <Text style={[trS.tblHdrCell, { flex: 0.8, textAlign: 'right' }]}>추천</Text>
-                    </View>
-                    {rows.map((r, i) => {
-                      const congColors = r.cong === '원활' ? { bg: '#C8D9E6', txt: '#1A3D52' }
-                        : r.cong === '보통' ? { bg: '#F5E6A8', txt: '#5A4500' }
-                        : { bg: '#6B1E2A', txt: '#fff' };
-                      return (
-                        <View key={i} style={[trS.tblRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}>
-                          <Text style={[trS.tblTime, { flex: 1 }]}>{r.t}</Text>
-                          <Text style={[trS.tblDur, { flex: 1.2, textAlign: 'center' }]}>{r.dStr}</Text>
-                          <View style={{ flex: 1, alignItems: 'center' }}>
-                            <View style={[trS.congBadge, { backgroundColor: congColors.bg }]}>
-                              <Text style={[trS.congBadgeTxt, { color: congColors.txt }]}>{r.cong}</Text>
-                            </View>
-                          </View>
-                          <View style={{ flex: 0.8, alignItems: 'flex-end' }}>
-                            {r.isReco && (
-                              <View style={trS.recoTagBadge}>
-                                <Text style={trS.recoTagTxt}>추천</Text>
+              {/* ⑥ 10일 예보 */}
+              <View style={wxS.fcWrap}>
+                <Text style={wxS.sectionLabel}>10일 예보</Text>
+                <View style={wxS.fcCard}>
+                  {WEATHER_10DAYS.map((w, i) => {
+                    const isToday = w.day === '오늘';
+                    const isRound = scheduleDateSet.has(w.date);
+                    const isLast = i === WEATHER_10DAYS.length - 1;
+                    return (
+                      <View key={i} style={[
+                        wxS.fcRow,
+                        isLast && wxS.fcRowLast,
+                        isToday && wxS.fcRowToday,
+                      ]}>
+                        <View style={wxS.fcDayBox}>
+                          <Text style={[wxS.fcDay, isToday && wxS.fcDayToday]}>{w.day}</Text>
+                          <Text style={wxS.fcDate}>{w.date}</Text>
+                        </View>
+                        <Text style={wxS.fcIcon}>{w.icon}</Text>
+                        <View style={wxS.fcMain}>
+                          <View style={wxS.fcSkyRow}>
+                            <Text style={wxS.fcSky}>{w.sky}</Text>
+                            {isRound && (
+                              <View style={wxS.roundBadge}>
+                                <Text style={wxS.roundBadgeTxt}>라운딩</Text>
                               </View>
                             )}
                           </View>
+                          <Text style={wxS.fcSub}>{w.wind} · 강수 {w.rain}%</Text>
                         </View>
-                      );
-                    })}
-                  </View>
+                        <Text style={wxS.fcTempMin}>{w.tmin}° / </Text>
+                        <Text style={wxS.fcTempMax}>{w.tmax}°</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
 
-                  <View style={trS.routeCard}>
-                    <View style={trS.routeFlow}>
-                      <Text style={trS.routeOrigin}>서울 강남구</Text>
-                      <Text style={trS.routeArrow}>→</Text>
-                      <Text style={trS.routeDest} numberOfLines={1}>{schedule.course}</Text>
-                    </View>
-                    <Text style={trS.routeMidTxt}>약 78.4km · 경부고속도로</Text>
-                    <View style={trS.routeBtnRow}>
-                      <TouchableOpacity style={[trS.routeBtn, { backgroundColor: '#03C75A' }]}
-                        onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                          .catch(() => Linking.openURL('https://map.naver.com/'))}
-                        activeOpacity={0.85}>
-                        <Text style={[trS.routeBtnTxt, { color: '#fff' }]}>네이버 경로</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[trS.routeBtn, { backgroundColor: C.charcoal }]}
-                        onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
-                          .catch(() => Linking.openURL('https://tmap.life'))}
-                        activeOpacity={0.85}>
-                        <Text style={[trS.routeBtnTxt, { color: C.butter }]}>티맵 경로</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+              {/* ⑦ 네이버 날씨 더보기 */}
+              <TouchableOpacity
+                onPress={() => Linking.openURL('https://m.weather.naver.com/')}
+                activeOpacity={0.7}
+                style={wxS.naverBtn}>
+                <Text style={wxS.naverBtnTxt}>네이버 날씨 더보기 →</Text>
+              </TouchableOpacity>
+            </Animated.ScrollView>
+            </PinchGestureHandler>
+            </View>
+
+            <View style={{ width: SW }}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}>
+
+              {/* 교통 탭 헤더 (다크 톤 통일) */}
+              <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
+                <Text style={{ fontSize: 18, color: '#fff', fontWeight: '600', marginBottom: 4 }}>{schedule.course}</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{schedule.date} · 티오프 {schedule.time}</Text>
+              </View>
+
+              <View style={{ paddingHorizontal: 20 }}>
+                <View style={trS.recoBox}>
+                  <Text style={trS.recoLabel}>추천 출발</Text>
+                  <Text style={trS.recoTime}>{recommended}</Text>
+                  <Text style={trS.recoSub}>티오프 {schedule.time} · 여유 30분 포함</Text>
                 </View>
 
-                <View style={trS.charcoalSection}>
-                  <Text style={trS.darkLabel}>대리운전</Text>
-                  <View style={trS.daeriRow}>
-                    <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#FEE500' }]}
-                      onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
+                <View style={trS.tblCard}>
+                  <View style={trS.tblHdr}>
+                    <Text style={[trS.tblHdrCell, { flex: 1 }]}>출발</Text>
+                    <Text style={[trS.tblHdrCell, { flex: 1.2, textAlign: 'center' }]}>소요</Text>
+                    <Text style={[trS.tblHdrCell, { flex: 1, textAlign: 'center' }]}>상태</Text>
+                    <Text style={[trS.tblHdrCell, { flex: 0.8, textAlign: 'right' }]}>추천</Text>
+                  </View>
+                  {rows.map((r, i) => {
+                    const congColors = r.cong === '원활' ? { bg: '#C8D9E6', txt: '#1A3D52' }
+                      : r.cong === '보통' ? { bg: '#F5E6A8', txt: '#5A4500' }
+                      : { bg: '#6B1E2A', txt: '#fff' };
+                    return (
+                      <View key={i} style={[trS.tblRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}>
+                        <Text style={[trS.tblTime, { flex: 1 }]}>{r.t}</Text>
+                        <Text style={[trS.tblDur, { flex: 1.2, textAlign: 'center' }]}>{r.dStr}</Text>
+                        <View style={{ flex: 1, alignItems: 'center' }}>
+                          <View style={[trS.congBadge, { backgroundColor: congColors.bg }]}>
+                            <Text style={[trS.congBadgeTxt, { color: congColors.txt }]}>{r.cong}</Text>
+                          </View>
+                        </View>
+                        <View style={{ flex: 0.8, alignItems: 'flex-end' }}>
+                          {r.isReco && (
+                            <View style={trS.recoTagBadge}>
+                              <Text style={trS.recoTagTxt}>추천</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View style={trS.routeCard}>
+                  <View style={trS.routeFlow}>
+                    <Text style={trS.routeOrigin}>서울 강남구</Text>
+                    <Text style={trS.routeArrow}>→</Text>
+                    <Text style={trS.routeDest} numberOfLines={1}>{schedule.course}</Text>
+                  </View>
+                  <Text style={trS.routeMidTxt}>약 78.4km · 경부고속도로</Text>
+                  <View style={trS.routeBtnRow}>
+                    <TouchableOpacity style={[trS.routeBtn, { backgroundColor: '#03C75A' }]}
+                      onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
+                        .catch(() => Linking.openURL('https://map.naver.com/'))}
                       activeOpacity={0.85}>
-                      <Text style={[trS.daeriBtnTxt, { color: '#3A2000' }]}>카카오T</Text>
+                      <Text style={[trS.routeBtnTxt, { color: '#fff' }]}>네이버 경로</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#C8D9E6' }]}
-                      onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
+                    <TouchableOpacity style={[trS.routeBtn, { backgroundColor: C.charcoal }]}
+                      onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
+                        .catch(() => Linking.openURL('https://tmap.life'))}
                       activeOpacity={0.85}>
-                      <Text style={[trS.daeriBtnTxt, { color: '#1A3D52' }]}>티맵대리</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#8B8680' }]}
-                      onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
-                      activeOpacity={0.85}>
-                      <Text style={[trS.daeriBtnTxt, { color: '#fff' }]}>아이대리</Text>
+                      <Text style={[trS.routeBtnTxt, { color: C.butter }]}>티맵 경로</Text>
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity style={trS.shareBtn} onPress={handleShareDaeri} activeOpacity={0.85}>
-                    <Text style={trS.shareBtnTxt}>동반자에게 공유</Text>
+                </View>
+              </View>
+
+              <View style={[trS.charcoalSection, { marginTop: 16 }]}>
+                <Text style={trS.darkLabel}>대리운전</Text>
+                <View style={trS.daeriRow}>
+                  <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#FEE500' }]}
+                    onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
+                    activeOpacity={0.85}>
+                    <Text style={[trS.daeriBtnTxt, { color: '#3A2000' }]}>카카오T</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#C8D9E6' }]}
+                    onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
+                    activeOpacity={0.85}>
+                    <Text style={[trS.daeriBtnTxt, { color: '#1A3D52' }]}>티맵대리</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#8B8680' }]}
+                    onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
+                    activeOpacity={0.85}>
+                    <Text style={[trS.daeriBtnTxt, { color: '#fff' }]}>아이대리</Text>
                   </TouchableOpacity>
                 </View>
-              </>
-            );
-          })()}
-        </ScrollView>
-      </SafeAreaView>
+                <TouchableOpacity style={trS.shareBtn} onPress={handleShareDaeri} activeOpacity={0.85}>
+                  <Text style={trS.shareBtnTxt}>동반자에게 공유</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+            </View>
+            </Animated.View>
+          </View>
+        </SafeAreaView>
+      </View>
+      </SafeAreaProvider>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

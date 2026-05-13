@@ -9,8 +9,8 @@ import { UserContext } from '../contexts/UserContext';
 import { HallOfFameCard } from './HallOfFameCard';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
-import { CourseLogTab } from './CourseLogTab';
 import { FriendsTab } from './FriendsTab';
+import { MyScheduleTab } from './MyScheduleTab';
 import { DiaryAddModal } from './DiaryAddModal';
 import { MyPageModal } from './MyPageModal';
 
@@ -26,6 +26,20 @@ export function DiaryScreen({ route, navigation }) {
   const [search, setSearch] = useState('');
   const [filterKey, setFilterKey] = useState('전체');
   const [showSearch, setShowSearch] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress', () => {
+      setSelected(null);
+      setShowModal(false);
+      setShowMyPage(false);
+      setShowSearch(false);
+      setTab('round');
+      setHofExpanded(false);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     (async () => {
@@ -49,29 +63,35 @@ export function DiaryScreen({ route, navigation }) {
     storage.save(STORAGE_KEYS.hof, hallOfFame);
   }, [hallOfFame, diariesHydrated]);
 
-  const [showStats, setShowStats] = useState(true);
   const [showMyPage, setShowMyPage] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const statsAnim = useRef(new Animated.Value(0)).current;
+  const timerRef = useRef(null);
+  const STATS_HEIGHT = 80;
 
-  const animateStats = (show) => {
-    Animated.timing(fadeAnim, {
-      toValue: show ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
+  const showStatsTemporary = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    Animated.timing(statsAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
     }).start();
+    timerRef.current = setTimeout(() => {
+      Animated.timing(statsAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }, 1500);
   };
 
   useEffect(() => {
-    setShowStats(true);
-    animateStats(true);
-    const timer = setTimeout(() => {
-      animateStats(false);
-      setTimeout(() => setShowStats(false), 300);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [tab]);
+    showStatsTemporary();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
-  const TAB_DIARY = [['round', '내 라운딩'], ['log', '코스 기록'], ['friends', '친구']];
+  const TAB_DIARY = [['round', '내 라운딩'], ['log', '내 일정'], ['friends', '친구']];
   const TAB_DIARY_COLORS = [C.butter, C.paleSky, C.burgundy];
 
   useEffect(() => {
@@ -80,6 +100,20 @@ export function DiaryScreen({ route, navigation }) {
       if (target) setSelected(target);
     }
   }, [route?.params?.openDiaryId]);
+
+  useEffect(() => {
+    if (route?.params?.openAddModal) {
+      setShowModal(true);
+      navigation.setParams({ openAddModal: undefined });
+    }
+  }, [route?.params?.openAddModal]);
+
+  useEffect(() => {
+    const t = route?.params?.initialTab ?? route?.params?.tab;
+    if (!t) return;
+    const match = TAB_DIARY.find(([, label]) => label === t);
+    if (match) setTab(match[0]);
+  }, [route?.params?.initialTab, route?.params?.tab]);
 
   const handleSave = (type, data) => {
     if (type === 'diary') {
@@ -119,18 +153,6 @@ export function DiaryScreen({ route, navigation }) {
   const totalRounds = userProfile.totalRounds || diaries.length;
   const tabIdx = TAB_DIARY.findIndex(([k]) => k === tab);
 
-  const courseRatings = {};
-  diaries.forEach(d => {
-    if (d.courseId && d.starRating > 0) {
-      (courseRatings[d.courseId] = courseRatings[d.courseId] || []).push(d.starRating);
-    }
-  });
-  const avgRating = (courseId) => {
-    const r = courseRatings[courseId];
-    if (!r || r.length === 0) return 0;
-    return (r.reduce((a, b) => a + b, 0) / r.length).toFixed(1);
-  };
-
   const sortedDiaries = [...diaries].sort((a, b) => {
     const dateA = new Date((a.date || '').replace(/\./g, '-'));
     const dateB = new Date((b.date || '').replace(/\./g, '-'));
@@ -144,7 +166,7 @@ export function DiaryScreen({ route, navigation }) {
     }} />;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       <View style={{ backgroundColor: '#6B6660', paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 2 }}>나의 골프 이야기</Text>
@@ -169,36 +191,30 @@ export function DiaryScreen({ route, navigation }) {
         </View>
       </View>
 
-      <TouchableOpacity
-        onPress={() => {
-          const next = !showStats;
-          animateStats(next);
-          if (!next) setTimeout(() => setShowStats(false), 300);
-          else setShowStats(true);
-        }}
-        activeOpacity={0.9}>
-        {showStats ? (
-          <Animated.View style={{ opacity: fadeAnim }}>
-            <View style={dS.statsRow}>
-              {[
-                { label: '라운딩', value: totalRounds },
-                { label: '평균타', value: avg, hi: true },
-                { label: '베스트', value: best }
-              ].map((st, i) => (
-                <View key={i} style={[dS.statBox, st.hi && dS.statBoxHi]}>
-                  <Text style={[dS.statVal, st.hi && { color: C.burgundy }]}>{st.value}</Text>
-                  <Text style={dS.statLabel}>{st.label}</Text>
-                </View>
-              ))}
-            </View>
-          </Animated.View>
-        ) : (
-          <View style={{ paddingVertical: 7, alignItems: 'center', backgroundColor: C.bgPrimary }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1 }}>
-              라운딩 {totalRounds} · 평균 {avg}타 · 베스트 {best}타  ∨
-            </Text>
+      <TouchableOpacity onPress={showStatsTemporary} activeOpacity={1}>
+        <Animated.View style={{
+          height: statsAnim.interpolate({ inputRange: [0, 1], outputRange: [0, STATS_HEIGHT] }),
+          opacity: statsAnim,
+          overflow: 'hidden',
+        }}>
+          <View style={dS.statsRow}>
+            {[
+              { label: '라운딩', value: totalRounds },
+              { label: '평균타', value: avg, hi: true },
+              { label: '베스트', value: best }
+            ].map((st, i) => (
+              <View key={i} style={[dS.statBox, st.hi && dS.statBoxHi]}>
+                <Text style={[dS.statVal, st.hi && { color: C.burgundy }]}>{st.value}</Text>
+                <Text style={dS.statLabel}>{st.label}</Text>
+              </View>
+            ))}
           </View>
-        )}
+        </Animated.View>
+        <View style={{ paddingVertical: 7, alignItems: 'center', backgroundColor: C.bgPrimary }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1 }}>
+            라운딩 {totalRounds} · 평균 {avg}타 · 베스트 {best}타  ∨
+          </Text>
+        </View>
       </TouchableOpacity>
 
       <View style={dS.tabStripeRow}>
@@ -292,7 +308,7 @@ export function DiaryScreen({ route, navigation }) {
               </View>
             )}
 
-            <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
+            <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
               {hallOfFame.length > 0 && (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => setHofExpanded(!hofExpanded)}>
@@ -324,7 +340,14 @@ export function DiaryScreen({ route, navigation }) {
           </>
         );
       })()}
-      {tab === 'log' && <CourseLogTab avgRating={avgRating} />}
+      {tab === 'log' && (
+        <MyScheduleTab
+          onRequestAddDiary={() => {
+            setTab('round');
+            setShowModal(true);
+          }}
+        />
+      )}
       {tab === 'friends' && <FriendsTab />}
 
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { C, F } from '../constants/colors';
-import { GOLF_DB, COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
+import { COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
+import { searchGolfCourses } from '../utils/kakao';
+import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
 
@@ -11,6 +14,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const { userProfile } = React.useContext(UserContext);
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedCourseObj, setSelectedCourseObj] = useState(null); // USER_COURSES 항목
+  const [kakaoResults, setKakaoResults] = useState([]);
+  const [kakaoSearching, setKakaoSearching] = useState(false);
+  const debounceRef = useRef(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
   const [score, setScore] = useState('');
@@ -39,12 +46,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
       quality: 0.8,
     });
     if (!result.canceled) {
-      setAddPhotos(prev => [...prev, ...result.assets.map(a => a.uri)]);
+      const items = result.assets.map(a =>
+        a.type === 'video' ? { uri: a.uri, type: 'video' } : a.uri
+      );
+      setAddPhotos(prev => [...prev, ...items]);
     }
   };
 
@@ -52,12 +62,43 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   const formatDay = (d) => DAYS[d.getDay()];
 
-  const searchResults = courseSearch.length > 0 && courseSearch !== selectedCourse
-    ? GOLF_DB.filter(g => g.name.includes(courseSearch) || g.loc.includes(courseSearch)).slice(0, 5)
-    : [];
+  // 카카오 API debounce 검색
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!courseSearch || courseSearch === selectedCourse) {
+      setKakaoResults([]);
+      setKakaoSearching(false);
+      return;
+    }
+    setKakaoSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      const results = await searchGolfCourses(courseSearch);
+      setKakaoResults(results);
+      setKakaoSearching(false);
+    }, 300);
+    return () => debounceRef.current && clearTimeout(debounceRef.current);
+  }, [courseSearch, selectedCourse]);
+
+  const handleSelectKakaoResult = async (r) => {
+    const saved = await addUserCourse({ name: r.name, loc: r.loc, x: r.x, y: r.y, kakaoId: r.kakaoId });
+    setSelectedCourseObj(saved);
+    setSelectedCourse(saved.name);
+    setCourseSearch(saved.name);
+    setKakaoResults([]);
+  };
+
+  const handleSelectManual = async () => {
+    const name = courseSearch.trim();
+    if (!name) return;
+    const saved = await addUserCourse({ name, loc: '', x: null, y: null, kakaoId: null });
+    setSelectedCourseObj(saved);
+    setSelectedCourse(saved.name);
+    setKakaoResults([]);
+  };
 
   const reset = () => {
-    setCourseSearch(''); setSelectedCourse(''); setDate(new Date());
+    setCourseSearch(''); setSelectedCourse(''); setSelectedCourseObj(null); setKakaoResults([]);
+    setDate(new Date());
     setScore(''); setWeather('맑음'); setMemo(''); setBirdieCount(0);
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
@@ -74,6 +115,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     if (isEdit && initial) {
       setCourseSearch(initial.course || '');
       setSelectedCourse(initial.course || '');
+      if (initial.courseId) {
+        findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
+      }
       const dParts = (initial.date || '').split('.').map(Number);
       if (dParts.length === 3 && dParts.every(Number.isFinite)) {
         setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
@@ -136,7 +180,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         { name: userProfile.nickname, isMe: true },
         ...companions.map(name => ({ name, isMe: false })),
       ],
-      courseId: GOLF_DB.find(g => g.name === finalCourse)?.id || (initial && initial.courseId) || null,
+      courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
     };
     if (isEdit) {
       onSave('diary-edit', { id: initial.id, ...payload });
@@ -159,20 +203,24 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             <ScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
               <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
               <Text style={mS.label}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={mS.input} placeholder="골프장 이름 검색 또는 직접 입력..."
+              <TextInput style={mS.input} placeholder="카카오로 골프장 검색 또는 직접 입력..."
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
-                onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); }} />
-              {courseSearch.length > 0 && courseSearch !== selectedCourse && (
+                autoCorrect={false} autoCapitalize="none"
+                onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); setSelectedCourseObj(null); }} />
+              {kakaoSearching && (
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>검색 중...</Text>
+              )}
+              {courseSearch.length > 0 && courseSearch !== selectedCourse && !kakaoSearching && (
                 <View style={mS.searchDrop}>
-                  {searchResults.map(g => (
-                    <TouchableOpacity key={g.id} style={mS.searchItem}
-                      onPress={() => { setSelectedCourse(g.name); setCourseSearch(g.name); }}>
-                      <Text style={mS.searchName}>{g.name}</Text>
-                      <Text style={mS.searchLoc}>{g.loc}</Text>
+                  {kakaoResults.map(r => (
+                    <TouchableOpacity key={r.kakaoId} style={mS.searchItem}
+                      onPress={() => handleSelectKakaoResult(r)}>
+                      <Text style={mS.searchName}>{r.name}</Text>
+                      <Text style={mS.searchLoc}>{r.loc}</Text>
                     </TouchableOpacity>
                   ))}
                   <TouchableOpacity style={[mS.searchItem, { borderBottomWidth: 0, backgroundColor: C.butter + '33' }]}
-                    onPress={() => { setSelectedCourse(courseSearch.trim()); }}>
+                    onPress={handleSelectManual}>
                     <Text style={[mS.searchName, { color: C.burgundy }]}>+ "{courseSearch.trim()}" 직접 입력</Text>
                     <Text style={mS.searchLoc}>목록에 없는 골프장도 등록 가능</Text>
                   </TouchableOpacity>
@@ -436,8 +484,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   사진 · 영상 (선택)
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {addPhotos.map((uri, i) => (
-                    <Image key={i} source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8, marginRight: 8 }} />
+                  {addPhotos.map((item, i) => (
+                    <AddPhotoThumb key={i} item={item} />
                   ))}
                   <TouchableOpacity onPress={pickPhoto}
                     style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
@@ -463,4 +511,52 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       </KeyboardAvoidingView>
     </Modal>
   );
+}
+
+function AddPhotoThumb({ item }) {
+  const isVideo = typeof item === 'object' && item?.type === 'video';
+  const src = typeof item === 'object' ? item.uri : item;
+  const [thumb, setThumb] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isVideo) return;
+    (async () => {
+      try {
+        const { uri } = await VideoThumbnails.getThumbnailAsync(src, { time: 0, quality: 0.6 });
+        if (!cancelled) setThumb(uri);
+      } catch (e) {
+        if (!cancelled) console.warn('thumbnail failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isVideo, src]);
+
+  const baseStyle = { width: 80, height: 80, borderRadius: 8, marginRight: 8 };
+
+  if (isVideo) {
+    return (
+      <View style={baseStyle}>
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={[baseStyle, { marginRight: 0 }]} />
+        ) : (
+          <View style={[baseStyle, { marginRight: 0, backgroundColor: '#2A2622' }]} />
+        )}
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <View style={{
+            width: 28, height: 28, borderRadius: 14,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 12, marginLeft: 2 }}>▶</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return <Image source={{ uri: src }} style={baseStyle} />;
 }
