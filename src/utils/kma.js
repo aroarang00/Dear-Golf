@@ -1,6 +1,6 @@
 import {
-  KMA_SERVICE_KEY, KMA_SHORT_URL, KMA_MID_URL,
-  dfsXyConv, locToMidRegion,
+  KMA_SERVICE_KEY, KMA_SHORT_URL, KMA_MID_URL, KMA_LIVING_URL,
+  dfsXyConv, locToMidRegion, locToAreaNo,
 } from '../constants/api';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -44,7 +44,11 @@ function getMidTmFc(now = new Date()) {
 async function fetchJson(url) {
   try {
     const res = await fetch(url);
-    if (!res.ok) { console.warn('[kma] HTTP', res.status, url); return null; }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.warn('[kma] HTTP', res.status, url, '→', body.slice(0, 300));
+      return null;
+    }
     const text = await res.text();
     try { return JSON.parse(text); } catch {
       console.warn('[kma] non-JSON response:', text.slice(0, 200));
@@ -86,6 +90,13 @@ export async function getShortForecast(lat, lng) {
   const nowKey = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}00`;
   let current = slots.find(s => (s.fcstDate + s.fcstTime) >= nowKey) || slots[0];
 
+  // 날짜별 시간 슬롯 — 6/9/12/15/18/21시 추출용
+  const slotsByDate = {};
+  for (const s of slots) {
+    if (!slotsByDate[s.fcstDate]) slotsByDate[s.fcstDate] = [];
+    slotsByDate[s.fcstDate].push(s);
+  }
+
   // 일별 (최저/최고)
   const dayMap = {};
   for (const s of slots) {
@@ -116,8 +127,30 @@ export async function getShortForecast(lat, lng) {
       windSpeed: current ? parseFloat(current.WSD || 0) : 0,
     },
     daily,
+    slotsByDate,
     raw: slots,
   };
+}
+
+// 라운딩 컨디션 6시간대(6/9/12/15/18/21시) 추출.
+// dateStr: 'YYYYMMDD'. 없거나 범위 밖이면 [] 반환.
+export function pickHourSlots(slotsByDate, dateStr) {
+  const slots = slotsByDate?.[dateStr] || [];
+  if (!slots.length) return [];
+  const TARGET_HOURS = [6, 9, 12, 15, 18, 21];
+  return TARGET_HOURS.map(h => {
+    const slot = slots.find(s => parseInt(s.fcstTime, 10) === h * 100);
+    if (!slot) return null;
+    return {
+      time: h < 12 ? `오전 ${h}시` : h === 12 ? '오후 12시' : `오후 ${h - 12}시`,
+      hour: h,
+      icon: skyToIcon(slot.SKY, slot.PTY),
+      sky: skyToText(slot.SKY, slot.PTY),
+      temp: parseFloat(slot.TMP),
+      wind: parseFloat(slot.WSD || 0),
+      rain: parseFloat(slot.POP || 0),
+    };
+  }).filter(Boolean);
 }
 
 // SKY: 1맑음 3구름많음 4흐림 / PTY: 0없음 1비 2비/눈 3눈 4소나기
@@ -185,6 +218,53 @@ export async function getMidForecast(loc) {
   return out;
 }
 
+// =============================================================
+// 자외선지수 (LivingWthrIdxServiceV5/getUVIdxV5)
+// 매일 06시 발표, 3시간 간격으로 72시간까지 예보 (h0, h3, ..., h72)
+// 반환: { uv: number, label: '낮음'|'보통'|'높음'|'매우높음'|'위험' } | null
+// =============================================================
+function getUVBaseTime(now = new Date()) {
+  const d = new Date(now);
+  // 06시 발표 → 07시 이전이면 어제 06시 사용
+  if (d.getHours() < 7) d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}06`;
+}
+
+function uvLabel(v) {
+  if (v <= 2) return '낮음';
+  if (v <= 5) return '보통';
+  if (v <= 7) return '높음';
+  if (v <= 10) return '매우높음';
+  return '위험';
+}
+
+export async function getUVIndex(loc) {
+  const areaNo = locToAreaNo(loc);
+  const time = getUVBaseTime();
+  const url = `${KMA_LIVING_URL}/getUVIdxV5?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&areaNo=${areaNo}&time=${time}`;
+  const data = await fetchJson(url);
+  const item = data?.response?.body?.items?.item?.[0];
+  if (!item) return null;
+
+  // 현재 시각의 base time 대비 offset 시간 → 3의 배수로 snap
+  const baseDate = new Date();
+  baseDate.setHours(6, 0, 0, 0);
+  if (new Date().getHours() < 7) baseDate.setDate(baseDate.getDate() - 1);
+  const offsetH = Math.round((Date.now() - baseDate.getTime()) / 3600000);
+  const snapH = Math.max(0, Math.min(72, Math.round(offsetH / 3) * 3));
+
+  // h{snapH}부터 가장 가까운 유효 값 찾기 (값이 빈 시간대 있을 수 있어)
+  let value = NaN;
+  for (let d = 0; d <= 6 && !Number.isFinite(value); d += 3) {
+    const k1 = `h${snapH - d}`;
+    const k2 = `h${snapH + d}`;
+    if (item[k1] !== undefined && item[k1] !== '') value = parseFloat(item[k1]);
+    if (!Number.isFinite(value) && item[k2] !== undefined && item[k2] !== '') value = parseFloat(item[k2]);
+  }
+  if (!Number.isFinite(value)) return null;
+  return { uv: value, label: uvLabel(value) };
+}
+
 function midWfToIcon(wf) {
   if (!wf) return '🌤️';
   if (wf.includes('비/눈') || wf.includes('비/눈')) return '🌨️';
@@ -208,7 +288,11 @@ export async function getCombinedForecast({ lat, lng, loc }) {
     getMidForecast(loc),
   ]);
 
-  const out = { current: short?.current || null, days: [] };
+  const out = {
+    current: short?.current || null,
+    slotsByDate: short?.slotsByDate || {},
+    days: [],
+  };
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];

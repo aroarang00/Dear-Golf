@@ -5,15 +5,18 @@
 export const KAKAO_REST_API_KEY = 'edb7385e0d3233ccd44423118331345a';
 
 // =============================================================
-// 기상청(공공데이터포털) 일반 인증키
-// https://www.data.go.kr/
-//  - 단기예보: VilageFcstInfoService_2.0
-//  - 중기예보: MidFcstInfoService
+// 공공데이터포털(data.go.kr) 일반 인증키 — 활용신청한 모든 서비스 공용
+//  - 기상청 단기예보: VilageFcstInfoService_2.0
+//  - 기상청 중기예보: MidFcstInfoService
+//  - 기상청 생활기상지수(자외선): LivingWthrIdxServiceV5
+//  - 한국환경공단 미세먼지(에어코리아): ArpltnInforInqireSvc
 // =============================================================
 export const KMA_SERVICE_KEY = '31659a77e32d5d3e729cce10c45734cde85e56b77e5c588ac8ecd282ac6667b4';
 
-export const KMA_SHORT_URL = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0';
-export const KMA_MID_URL   = 'https://apis.data.go.kr/1360000/MidFcstInfoService';
+export const KMA_SHORT_URL    = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0';
+export const KMA_MID_URL      = 'https://apis.data.go.kr/1360000/MidFcstInfoService';
+export const KMA_LIVING_URL   = 'https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5';
+export const AIRKOREA_URL     = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc';
 
 // =============================================================
 // 기상청 LCC DFS 좌표 변환 (위경도 → 격자 nx, ny)
@@ -77,4 +80,55 @@ export function locToMidRegion(loc) {
   if (/부산|울산|경남|경상남도/.test(s))                  return { land: '11H20000', temp: '11H20201' };
   if (/제주/.test(s))                                    return { land: '11G00000', temp: '11G00201' };
   return                                                         { land: '11B00000', temp: '11B10101' };
+}
+
+// =============================================================
+// 주소 → 자외선지수 areaNo (행정구역 10자리)
+// 시도 단위 매핑 (시군구 단위까진 정확도가 의미 없어서 생략)
+// =============================================================
+export function locToAreaNo(loc) {
+  const s = loc || '';
+  if (/서울/.test(s))                   return '1100000000';
+  if (/부산/.test(s))                   return '2600000000';
+  if (/대구/.test(s))                   return '2700000000';
+  if (/인천/.test(s))                   return '2800000000';
+  if (/광주/.test(s))                   return '2900000000';
+  if (/대전/.test(s))                   return '3000000000';
+  if (/울산/.test(s))                   return '3100000000';
+  if (/세종/.test(s))                   return '3600000000';
+  if (/경기/.test(s))                   return '4100000000';
+  if (/강원특별자치도|강원/.test(s))    return '5100000000';
+  if (/충북|충청북/.test(s))            return '4300000000';
+  if (/충남|충청남/.test(s))            return '4400000000';
+  if (/전북|전라북/.test(s))            return '4500000000';
+  if (/전남|전라남/.test(s))            return '4600000000';
+  if (/경북|경상북/.test(s))            return '4700000000';
+  if (/경남|경상남/.test(s))            return '4800000000';
+  if (/제주/.test(s))                   return '5000000000';
+  return '1100000000'; // 기본: 서울
+}
+
+// =============================================================
+// 주소 → 미세먼지 sidoName (에어코리아 시도 약칭)
+// =============================================================
+export function locToSidoName(loc) {
+  const s = loc || '';
+  if (/서울/.test(s))                   return '서울';
+  if (/부산/.test(s))                   return '부산';
+  if (/대구/.test(s))                   return '대구';
+  if (/인천/.test(s))                   return '인천';
+  if (/광주/.test(s))                   return '광주';
+  if (/대전/.test(s))                   return '대전';
+  if (/울산/.test(s))                   return '울산';
+  if (/세종/.test(s))                   return '세종';
+  if (/경기/.test(s))                   return '경기';
+  if (/강원특별자치도|강원/.test(s))    return '강원';
+  if (/충북|충청북/.test(s))            return '충북';
+  if (/충남|충청남/.test(s))            return '충남';
+  if (/전북|전라북/.test(s))            return '전북';
+  if (/전남|전라남/.test(s))            return '전남';
+  if (/경북|경상북/.test(s))            return '경북';
+  if (/경남|경상남/.test(s))            return '경남';
+  if (/제주/.test(s))                   return '제주';
+  return '전국';
 }

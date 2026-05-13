@@ -5,33 +5,40 @@ import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native
 import { C } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
-import { getCombinedForecast } from '../utils/kma';
-import { findUserCourseById } from '../utils/userCourses';
+import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
+import { getAirQuality } from '../utils/airkorea';
+import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
 
 const BG = '#0a1e10';
 
-const WEATHER_10DAYS = [
-  { day: '오늘', date: '05.14', icon: '☀️', sky: '맑음',     wind: '남 3m/s',   rain: 10, tmin: 12, tmax: 22 },
-  { day: '내일', date: '05.15', icon: '🌤️', sky: '구름조금', wind: '동 2m/s',   rain: 20, tmin: 13, tmax: 21 },
-  { day: '목',   date: '05.16', icon: '🌧️', sky: '비',       wind: '북서 5m/s', rain: 80, tmin: 11, tmax: 17 },
-  { day: '금',   date: '05.17', icon: '⛅',  sky: '구름많음', wind: '서 3m/s',   rain: 30, tmin: 12, tmax: 19 },
-  { day: '토',   date: '05.18', icon: '☀️', sky: '맑음',     wind: '남 2m/s',   rain: 0,  tmin: 14, tmax: 23 },
-  { day: '일',   date: '05.19', icon: '☀️', sky: '맑음',     wind: '동 1m/s',   rain: 0,  tmin: 15, tmax: 24 },
-  { day: '월',   date: '05.20', icon: '🌤️', sky: '구름조금', wind: '남 2m/s',   rain: 10, tmin: 14, tmax: 22 },
-  { day: '화',   date: '05.21', icon: '🌦️', sky: '소나기',   wind: '서 4m/s',   rain: 60, tmin: 13, tmax: 20 },
-  { day: '수',   date: '05.22', icon: '⛅',  sky: '구름많음', wind: '북 3m/s',   rain: 20, tmin: 12, tmax: 19 },
-  { day: '목',   date: '05.23', icon: '☀️', sky: '맑음',     wind: '동 2m/s',   rain: 0,  tmin: 14, tmax: 23 },
-];
+// 자외선 V5 활용신청 게이트웨이 propagation 대기 중 — 풀리면 true로 전환
+const UV_ENABLED = false;
 
-const HOUR_SLOTS = [
-  { time: '오전 6시',  hour: 6,  icon: '🌤️', temp: 14, wind: 2, rain: 0  },
-  { time: '오전 9시',  hour: 9,  icon: '☀️', temp: 18, wind: 2, rain: 0  },
-  { time: '오후 12시', hour: 12, icon: '☀️', temp: 22, wind: 3, rain: 0  },
-  { time: '오후 3시',  hour: 15, icon: '☀️', temp: 21, wind: 4, rain: 0  },
-  { time: '오후 6시',  hour: 18, icon: '🌤️', temp: 17, wind: 3, rain: 0  },
-  { time: '오후 9시',  hour: 21, icon: '🌙', temp: 13, wind: 2, rain: 10 },
-];
+// 'YYYY.MM.DD' → 'YYYYMMDD'
+const compactDate = (d) => (d || '').replace(/\./g, '');
+// 오늘 'YYYYMMDD'
+const todayCompact = () => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+};
+
+// 풍속 m/s → 등급 라벨
+const windLabel = (ws) => {
+  if (ws == null) return '';
+  if (ws < 4) return '약함';
+  if (ws < 9) return '보통';
+  if (ws < 14) return '강함';
+  return '매우강함';
+};
+// 습도 % → 등급 라벨
+const humidityLabel = (h) => {
+  if (h == null) return '';
+  if (h < 40) return '건조';
+  if (h <= 70) return '적정';
+  return '습함';
+};
 
 const calcDots = ({ temp, wind, rain }) => {
   if (rain >= 50) return { dots: 1, label: '어려움' };
@@ -44,6 +51,10 @@ const calcDots = ({ temp, wind, rain }) => {
 
 export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, schedules, weatherOnly }) {
   const [tab, setTab] = useState(initialTab || 'wx');
+  const [forecast, setForecast] = useState(null);
+  const [airQuality, setAirQuality] = useState(null);
+  const [uvIndex, setUvIndex] = useState(null);
+  const [resolvedLoc, setResolvedLoc] = useState('');
   const { width: SW } = useWindowDimensions();
 
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -93,6 +104,49 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     scale.setValue(1);
     lastScale.current = 1;
   }, [tab]);
+
+  // KMA 예보 fetch — visible 변경 / 일정 변경 / weatherOnly 변경 시
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    (async () => {
+      setForecast(null);
+      setAirQuality(null);
+      setUvIndex(null);
+      setResolvedLoc('');
+      try {
+        let lat, lng, loc;
+        if (weatherOnly) {
+          const pos = await getCurrentLocation();
+          if (!pos || cancelled) return;
+          lat = pos.lat; lng = pos.lng;
+          loc = await reverseGeocode(lat, lng);
+          if (cancelled) return;
+          setResolvedLoc(loc || '');
+        } else if (schedule?.courseId) {
+          const course = await findUserCourseById(schedule.courseId);
+          const withCoord = await ensureCourseCoord(course);
+          if (!withCoord || cancelled) return;
+          lat = withCoord.y; lng = withCoord.x; loc = withCoord.loc;
+        } else {
+          return; // courseId 없는 일정 → fetch 불가
+        }
+        // 예보 + 미세먼지 + (UV: 활성화 시) 병렬 호출
+        const [f, aq, uv] = await Promise.all([
+          getCombinedForecast({ lat, lng, loc }),
+          getAirQuality(loc),
+          UV_ENABLED ? getUVIndex(loc) : Promise.resolve(null),
+        ]);
+        if (cancelled) return;
+        setForecast(f);
+        setAirQuality(aq);
+        setUvIndex(uv);
+      } catch (e) {
+        console.warn('[wx popup] forecast fetch failed:', e?.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [visible, weatherOnly, schedule?.courseId]);
 
   const handleTabPress = (newTab) => {
     if (newTab === tab) return;
@@ -156,15 +210,23 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     Share.share({ message: msg });
   };
 
-  // 티오프와 가장 가까운 슬롯
-  const teeoffSlotIdx = HOUR_SLOTS.reduce((best, s, i) => {
+  // KMA 예보 derive
+  const cur = forecast?.current || null;
+  const days = forecast?.days || [];
+  const todayDay = days[0] || null;
+  // 라운딩 컨디션 슬롯: 일정 모드는 라운드 날짜, weatherOnly는 오늘
+  const targetDateCompact = weatherOnly ? todayCompact() : compactDate(schedule?.date);
+  const hourSlots = pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
+
+  // 티오프와 가장 가까운 슬롯 (hourSlots가 비어있으면 -1)
+  const teeoffSlotIdx = hourSlots.length === 0 ? -1 : hourSlots.reduce((best, s, i) => {
     const diff = Math.abs(s.hour * 60 - teeMin);
     return diff < best.diff ? { idx: i, diff } : best;
   }, { idx: -1, diff: Infinity }).idx;
 
-  // 일정 날짜 매칭용
+  // 일정 날짜 매칭용 (full 'YYYY.MM.DD'로 비교)
   const scheduleDateSet = new Set(
-    (schedules || [schedule]).map(s => (s.date || '').slice(5))
+    (schedules || [schedule]).map(s => s.date || '')
   );
 
   return (
@@ -220,7 +282,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               <View style={wxS.wxHeader}>
                 {weatherOnly ? (
                   <>
-                    <Text style={[wxS.wxCourse, { fontSize: 18 }]}>📍 현재 위치</Text>
+                    <Text style={[wxS.wxCourse, { fontSize: 18 }]}>
+                      📍 {resolvedLoc || '현재 위치'}
+                    </Text>
                     <Text style={wxS.wxDate}>{schedule.date}</Text>
                   </>
                 ) : (
@@ -233,22 +297,46 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
               {/* ② 기온 히어로 */}
               <View style={wxS.tempHero}>
-                <Text style={wxS.tempEmoji}>☀️</Text>
-                <Text style={wxS.tempBig}>18°</Text>
+                <Text style={wxS.tempEmoji}>{cur?.icon || '🌤️'}</Text>
+                <Text style={wxS.tempBig}>
+                  {Number.isFinite(cur?.temp) ? `${Math.round(cur.temp)}°` : '—'}
+                </Text>
                 <View style={wxS.tempRight}>
-                  <Text style={wxS.tempSky}>맑음</Text>
-                  <Text style={wxS.tempSub}>체감 17°</Text>
-                  <Text style={wxS.tempSub}>최저 12° / 최고 22°</Text>
+                  <Text style={wxS.tempSky}>{cur?.sky || (forecast === null ? '로딩 중…' : '—')}</Text>
+                  <Text style={wxS.tempSub}>
+                    강수확률 {Number.isFinite(cur?.pop) ? `${Math.round(cur.pop)}%` : '—'}
+                  </Text>
+                  <Text style={wxS.tempSub}>
+                    {todayDay && Number.isFinite(todayDay.tmin) && Number.isFinite(todayDay.tmax)
+                      ? `최저 ${Math.round(todayDay.tmin)}° / 최고 ${Math.round(todayDay.tmax)}°`
+                      : '최저 — / 최고 —'}
+                  </Text>
                 </View>
               </View>
 
               {/* ③ 4칸 카드 */}
               <View style={wxS.gridCard}>
                 {[
-                  { label: '바람',     val: '2.2m/s', sub: '약함' },
-                  { label: '습도',     val: '30%',    sub: '건조' },
-                  { label: '미세먼지', val: '좋음',   sub: 'PM10 23' },
-                  { label: '자외선',   val: '보통',   sub: '차단제 권장' },
+                  {
+                    label: '바람',
+                    val: Number.isFinite(cur?.windSpeed) ? `${cur.windSpeed.toFixed(1)}m/s` : '—',
+                    sub: Number.isFinite(cur?.windSpeed) ? windLabel(cur.windSpeed) : '',
+                  },
+                  {
+                    label: '습도',
+                    val: Number.isFinite(cur?.humidity) ? `${Math.round(cur.humidity)}%` : '—',
+                    sub: Number.isFinite(cur?.humidity) ? humidityLabel(cur.humidity) : '',
+                  },
+                  {
+                    label: '미세먼지',
+                    val: airQuality?.label || '—',
+                    sub: airQuality?.pm10 != null ? `PM10 ${airQuality.pm10}` : '',
+                  },
+                  {
+                    label: '자외선',
+                    val: uvIndex?.label || '—',
+                    sub: Number.isFinite(uvIndex?.uv) ? `UV ${Math.round(uvIndex.uv)}` : '',
+                  },
                 ].map((c, i, arr) => (
                   <View key={i} style={[wxS.gridCell, i < arr.length - 1 && wxS.gridCellBorder]}>
                     <Text style={wxS.gridLabel}>{c.label}</Text>
@@ -283,7 +371,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {/* ⑤ 라운딩 컨디션 */}
               <View style={wxS.condWrap}>
                 <Text style={wxS.sectionLabel}>라운딩 컨디션</Text>
-                {HOUR_SLOTS.map((slot, i) => {
+                {hourSlots.length === 0 ? (
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 16, textAlign: 'center' }}>
+                    {forecast === null ? '예보 로딩 중…' : '시간대 예보 정보가 없습니다 (D+3 이후)'}
+                  </Text>
+                ) : hourSlots.map((slot, i) => {
                   const isTee = i === teeoffSlotIdx;
                   const { dots, label } = calcDots(slot);
                   return (
@@ -318,10 +410,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               <View style={wxS.fcWrap}>
                 <Text style={wxS.sectionLabel}>10일 예보</Text>
                 <View style={wxS.fcCard}>
-                  {WEATHER_10DAYS.map((w, i) => {
+                  {days.length === 0 ? (
+                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 16, textAlign: 'center' }}>
+                      {forecast === null ? '예보 로딩 중…' : '예보 정보가 없습니다'}
+                    </Text>
+                  ) : days.map((w, i) => {
                     const isToday = w.day === '오늘';
                     const isRound = scheduleDateSet.has(w.date);
-                    const isLast = i === WEATHER_10DAYS.length - 1;
+                    const isLast = i === days.length - 1;
+                    const dateLabel = (w.date || '').slice(5); // 'YYYY.MM.DD' → 'MM.DD'
                     return (
                       <View key={i} style={[
                         wxS.fcRow,
@@ -330,22 +427,22 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       ]}>
                         <View style={wxS.fcDayBox}>
                           <Text style={[wxS.fcDay, isToday && wxS.fcDayToday]}>{w.day}</Text>
-                          <Text style={wxS.fcDate}>{w.date}</Text>
+                          <Text style={wxS.fcDate}>{dateLabel}</Text>
                         </View>
                         <Text style={wxS.fcIcon}>{w.icon}</Text>
                         <View style={wxS.fcMain}>
                           <View style={wxS.fcSkyRow}>
-                            <Text style={wxS.fcSky}>{w.sky}</Text>
+                            <Text style={wxS.fcSky}>{w.sky || '—'}</Text>
                             {isRound && (
                               <View style={wxS.roundBadge}>
                                 <Text style={wxS.roundBadgeTxt}>라운딩</Text>
                               </View>
                             )}
                           </View>
-                          <Text style={wxS.fcSub}>{w.wind} · 강수 {w.rain}%</Text>
+                          <Text style={wxS.fcSub}>강수 {Math.round(w.pop || 0)}%</Text>
                         </View>
-                        <Text style={wxS.fcTempMin}>{w.tmin}° / </Text>
-                        <Text style={wxS.fcTempMax}>{w.tmax}°</Text>
+                        <Text style={wxS.fcTempMin}>{Number.isFinite(w.tmin) ? `${Math.round(w.tmin)}°` : '—'} / </Text>
+                        <Text style={wxS.fcTempMax}>{Number.isFinite(w.tmax) ? `${Math.round(w.tmax)}°` : '—'}</Text>
                       </View>
                     );
                   })}
