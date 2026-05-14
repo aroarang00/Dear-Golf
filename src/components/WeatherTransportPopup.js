@@ -229,6 +229,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   };
   const endStr = toHHMM(teeMin + ROUND_MIN + endOffsetMin);
+  const recoDriveMin = 80; // 기본 운전시간 가정치 (실제 경로 API 미연동)
+  const recommended = toHHMM(teeMin - 30 - recoDriveMin);
 
   // 슬롯 (mode) → 표시용 라벨/좌표 해석
   const resolveSlot = (slotKey) => {
@@ -622,6 +624,14 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {/* 갈 때 섹션 */}
               <View style={trS.twoSection}>
                 <Text style={trS.twoLabel}>갈 때</Text>
+                <View style={trS.recoBox}>
+                  <Text style={trS.recoLabel}>추천 출발</Text>
+                  <Text style={trS.recoTime}>{recommended}</Text>
+                  <Text style={trS.recoSub}>티오프 {schedule.time} · 여유 30분 포함</Text>
+                </View>
+                <Text style={{ fontFamily: 'System', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
+                  ⓘ 실제 소요시간은 출발지/도로상황에 따라 다를 수 있어요
+                </Text>
                 {renderSlot('goOrigin', '출발')}
                 {renderSlot('goDest', '도착')}
                 <View style={trS.linkBtnRow}>
