@@ -508,14 +508,14 @@ export function HomeScreen({ navigation }) {
             }}>
               <TouchableOpacity
                 activeOpacity={0.6}
-                onPress={() => {
-                  setShowDDayMenu(false);
-                  setTimeout(() => {
-                    if (!next) return;
-                    Share.share({
+                onPress={async () => {
+                  if (!next) { setShowDDayMenu(false); return; }
+                  try {
+                    await Share.share({
                       message: `[ Dear Golf ]\n\n${next.course}\n${next.date} ${next.day}요일  ${next.time}\n${next.members}명 동반 · D-${next.dDay}\n\nDear Golf와 함께하는 라운딩입니다`,
                     });
-                  }, 300);
+                  } catch (e) { console.warn('[share schedule]', e?.message); }
+                  setShowDDayMenu(false);
                 }}
                 style={{ paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#3D3935' }}>📩  일정 공유</Text>

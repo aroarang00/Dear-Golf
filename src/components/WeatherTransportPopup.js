@@ -11,9 +11,76 @@ import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { addressToCoord } from '../utils/kakao';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
 import { UserContext } from '../contexts/UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ROUND_MIN = 5 * 60; // 라운드 평균 5시간
 const MODE_LABEL = { home: '마이페이지', course: '골프장', current: '현재위치', custom: '직접입력' };
+
+// 동일 코스 재오픈 시 즉시 표시. in-flight 요청 dedupe + AsyncStorage 영속 캐시
+const wxCache = new Map(); // courseId → { data, pending?, ts }
+const WX_TTL = 30 * 60 * 1000;
+const WX_CACHE_KEY = '@dg_wx_cache';
+
+// 모듈 로드 즉시 디스크 캐시 복원 시작 (복원 완료 대기용 promise 보관)
+const wxRestorePromise = (async () => {
+  try {
+    const raw = await AsyncStorage.getItem(WX_CACHE_KEY);
+    if (!raw) return;
+    const persisted = JSON.parse(raw);
+    for (const [k, v] of Object.entries(persisted)) {
+      if (v && Date.now() - v.ts < WX_TTL) wxCache.set(k, { data: v.data, ts: v.ts });
+    }
+  } catch {}
+})();
+
+function persistWxCache() {
+  try {
+    const dump = {};
+    for (const [k, v] of wxCache.entries()) if (v.data) dump[k] = { data: v.data, ts: v.ts };
+    AsyncStorage.setItem(WX_CACHE_KEY, JSON.stringify(dump)).catch(() => {});
+  } catch {}
+}
+
+// 날씨 fetch (캐시키 + 좌표해석기) — 디스크 복원 대기 + 캐시 적중 시 즉시 반환 + in-flight dedupe
+async function fetchWeatherCached(cacheKey, resolveCoords) {
+  await wxRestorePromise;
+  const existing = wxCache.get(cacheKey);
+  if (existing?.data && Date.now() - existing.ts < WX_TTL) return existing.data;
+  if (existing?.pending) return existing.pending;
+
+  const promise = (async () => {
+    const cc = await resolveCoords();
+    if (!cc) return null;
+    const [f, aq, uv] = await Promise.all([
+      getCombinedForecast({ lat: cc.y, lng: cc.x, loc: cc.loc }),
+      getAirQuality(cc.loc),
+      UV_ENABLED ? getUVIndex(cc.loc) : Promise.resolve(null),
+    ]);
+    return { forecast: f, airQuality: aq, uvIndex: uv, courseCoord: cc };
+  })().then(data => {
+    if (data) { wxCache.set(cacheKey, { data, ts: Date.now() }); persistWxCache(); }
+    else { wxCache.delete(cacheKey); }
+    return data;
+  }).catch(err => { wxCache.delete(cacheKey); throw err; });
+
+  wxCache.set(cacheKey, { pending: promise });
+  return promise;
+}
+
+// courseId 있는 일정 — userCourses에서 좌표 로드
+const fetchWeatherForCourse = (courseId) => fetchWeatherCached(`course:${courseId}`, async () => {
+  const course = await findUserCourseById(courseId);
+  const withCoord = await ensureCourseCoord(course);
+  return withCoord ? { x: withCoord.x, y: withCoord.y, loc: withCoord.loc } : null;
+});
+
+// courseId 없는 일정 (데모 데이터 등) — 코스명으로 카카오 검색 + reverseGeocode
+const fetchWeatherByName = (name) => fetchWeatherCached(`name:${name}`, async () => {
+  const coord = await addressToCoord(name);
+  if (!coord) return null;
+  const loc = await reverseGeocode(coord.y, coord.x);
+  return { x: coord.x, y: coord.y, loc: loc || '' };
+});
 
 const BG = '#0a1e10';
 
@@ -123,44 +190,47 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     lastScale.current = 1;
   }, [tab]);
 
-  // KMA 예보 fetch — visible 변경 / 일정 변경 / weatherOnly 변경 시
+  // 날씨 fetch — visible 변경 / 일정 변경 / weatherOnly 변경 시
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
     (async () => {
-      setForecast(null);
-      setAirQuality(null);
-      setUvIndex(null);
-      setResolvedLoc('');
       try {
-        let lat, lng, loc;
         if (weatherOnly) {
+          setForecast(null); setAirQuality(null); setUvIndex(null); setResolvedLoc('');
           const pos = await getCurrentLocation();
           if (!pos || cancelled) return;
-          lat = pos.lat; lng = pos.lng;
           setCurrentCoord({ x: pos.lng, y: pos.lat });
-          loc = await reverseGeocode(lat, lng);
+          const loc = await reverseGeocode(pos.lat, pos.lng);
           if (cancelled) return;
           setResolvedLoc(loc || '');
-        } else if (schedule?.courseId) {
-          const course = await findUserCourseById(schedule.courseId);
-          const withCoord = await ensureCourseCoord(course);
-          if (!withCoord || cancelled) return;
-          setCourseCoord({ x: withCoord.x, y: withCoord.y, loc: withCoord.loc });
-          lat = withCoord.y; lng = withCoord.x; loc = withCoord.loc;
-        } else {
-          return; // courseId 없는 일정 → fetch 불가
+          const [f, aq, uv] = await Promise.all([
+            getCombinedForecast({ lat: pos.lat, lng: pos.lng, loc }),
+            getAirQuality(loc),
+            UV_ENABLED ? getUVIndex(loc) : Promise.resolve(null),
+          ]);
+          if (cancelled) return;
+          setForecast(f); setAirQuality(aq); setUvIndex(uv);
+        } else if (schedule?.courseId || schedule?.course) {
+          // 디스크 캐시 복원 대기 후 cache 체크 (보통 즉시 resolve)
+          await wxRestorePromise;
+          if (cancelled) return;
+          const useCourseId = !!schedule.courseId;
+          const key = useCourseId ? `course:${schedule.courseId}` : `name:${schedule.course}`;
+          const existing = wxCache.get(key);
+          const hasFresh = existing?.data && Date.now() - existing.ts < WX_TTL;
+          if (!hasFresh) {
+            setForecast(null); setAirQuality(null); setUvIndex(null);
+          }
+          const data = useCourseId
+            ? await fetchWeatherForCourse(schedule.courseId)
+            : await fetchWeatherByName(schedule.course);
+          if (cancelled || !data) return;
+          setForecast(data.forecast);
+          setAirQuality(data.airQuality);
+          setUvIndex(data.uvIndex);
+          setCourseCoord(data.courseCoord);
         }
-        // 예보 + 미세먼지 + (UV: 활성화 시) 병렬 호출
-        const [f, aq, uv] = await Promise.all([
-          getCombinedForecast({ lat, lng, loc }),
-          getAirQuality(loc),
-          UV_ENABLED ? getUVIndex(loc) : Promise.resolve(null),
-        ]);
-        if (cancelled) return;
-        setForecast(f);
-        setAirQuality(aq);
-        setUvIndex(uv);
       } catch (e) {
         console.warn('[wx popup] forecast fetch failed:', e?.message);
       }
@@ -178,6 +248,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     })();
     return () => { cancelled = true; };
   }, [homeAddress]);
+
+  // 백그라운드 prefetch — 일정이 정해지면 팝업 열기 전부터 미리 받아둠 (in-flight dedupe로 중복 fetch 방지)
+  useEffect(() => {
+    if (weatherOnly) return;
+    if (schedule?.courseId) fetchWeatherForCourse(schedule.courseId).catch(() => {});
+    else if (schedule?.course) fetchWeatherByName(schedule.course).catch(() => {});
+  }, [schedule?.courseId, schedule?.course, weatherOnly]);
 
   // 일정 바뀌면 종료시간 오프셋 리셋
   useEffect(() => { setEndOffsetMin(0); }, [schedule?.courseId, schedule?.time]);
