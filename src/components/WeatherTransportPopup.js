@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, ScrollView, View, Text, TouchableOpacity, Linking, Share, PanResponder, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Share, PanResponder, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C } from '../constants/colors';
@@ -8,7 +8,12 @@ import { trS } from '../styles/trS';
 import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
+import { addressToCoord } from '../utils/kakao';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
+import { UserContext } from '../contexts/UserContext';
+
+const ROUND_MIN = 5 * 60; // 라운드 평균 5시간
+const MODE_LABEL = { home: '마이페이지', course: '골프장', current: '현재위치', custom: '직접입력' };
 
 const BG = '#0a1e10';
 
@@ -55,6 +60,20 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [uvIndex, setUvIndex] = useState(null);
   const [resolvedLoc, setResolvedLoc] = useState('');
   const { width: SW } = useWindowDimensions();
+
+  const { userProfile } = React.useContext(UserContext);
+  const homeAddress = userProfile?.departure || '';
+  const [courseCoord, setCourseCoord] = useState(null);   // { x, y, loc }
+  const [currentCoord, setCurrentCoord] = useState(null); // { x, y }
+  const [homeCoord, setHomeCoord] = useState(null);       // { x, y }
+  const [trSlots, setTrSlots] = useState({
+    goOrigin:   { mode: 'home',   custom: '', customCoord: null },
+    goDest:     { mode: 'course', custom: '', customCoord: null },
+    backOrigin: { mode: 'course', custom: '', customCoord: null },
+    backDest:   { mode: 'home',   custom: '', customCoord: null },
+  });
+  const [expandedSlot, setExpandedSlot] = useState(null);
+  const [endOffsetMin, setEndOffsetMin] = useState(0);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const slideBase = useRef(0);
@@ -119,6 +138,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
           const pos = await getCurrentLocation();
           if (!pos || cancelled) return;
           lat = pos.lat; lng = pos.lng;
+          setCurrentCoord({ x: pos.lng, y: pos.lat });
           loc = await reverseGeocode(lat, lng);
           if (cancelled) return;
           setResolvedLoc(loc || '');
@@ -126,6 +146,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
           const course = await findUserCourseById(schedule.courseId);
           const withCoord = await ensureCourseCoord(course);
           if (!withCoord || cancelled) return;
+          setCourseCoord({ x: withCoord.x, y: withCoord.y, loc: withCoord.loc });
           lat = withCoord.y; lng = withCoord.x; loc = withCoord.loc;
         } else {
           return; // courseId 없는 일정 → fetch 불가
@@ -146,6 +167,20 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     })();
     return () => { cancelled = true; };
   }, [visible, weatherOnly, schedule?.courseId]);
+
+  // 마이페이지 저장 출발지 → 좌표 변환 (1회 캐시)
+  useEffect(() => {
+    let cancelled = false;
+    if (!homeAddress) { setHomeCoord(null); return; }
+    (async () => {
+      const coord = await addressToCoord(homeAddress);
+      if (!cancelled) setHomeCoord(coord);
+    })();
+    return () => { cancelled = true; };
+  }, [homeAddress]);
+
+  // 일정 바뀌면 종료시간 오프셋 리셋
+  useEffect(() => { setEndOffsetMin(0); }, [schedule?.courseId, schedule?.time]);
 
   const handleTabPress = (newTab) => {
     if (newTab === tab) return;
@@ -193,16 +228,114 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     m = (m + 24 * 60) % (24 * 60);
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   };
-  const recoDriveMin = 80;
-  const recommended = toHHMM(teeMin - 30 - recoDriveMin);
-  const baseTen = Math.floor((teeMin - 30 - recoDriveMin) / 10) * 10;
-  const rows = [-30, -20, -10, 0, 10].map((off, i) => {
-    const t = toHHMM(baseTen + off);
-    const dMin = recoDriveMin + [-8, -4, -2, 0, 6][i];
-    const dStr = `${Math.floor(dMin / 60)}시간 ${dMin % 60}분`;
-    const cong = i <= 1 ? '원활' : i === 2 ? '보통' : '혼잡';
-    return { t, dStr, cong, isReco: off === 0 };
-  });
+  const endStr = toHHMM(teeMin + ROUND_MIN + endOffsetMin);
+
+  // 슬롯 (mode) → 표시용 라벨/좌표 해석
+  const resolveSlot = (slotKey) => {
+    const slot = trSlots[slotKey];
+    if (slot.mode === 'home') {
+      return { label: homeAddress || '마이페이지에 출발지 미설정', coord: homeCoord, placeholder: !homeAddress };
+    }
+    if (slot.mode === 'course') {
+      return { label: schedule.course, coord: courseCoord ? { x: courseCoord.x, y: courseCoord.y } : null };
+    }
+    if (slot.mode === 'current') {
+      return { label: resolvedLoc || '현재 위치', coord: currentCoord, placeholder: !currentCoord };
+    }
+    return { label: slot.custom || '주소 입력', coord: slot.customCoord, placeholder: !slot.custom };
+  };
+
+  const setSlotMode = async (slotKey, mode) => {
+    setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], mode } }));
+    if (mode === 'current' && !currentCoord) {
+      const pos = await getCurrentLocation();
+      if (pos) setCurrentCoord({ x: pos.lng, y: pos.lat });
+    }
+  };
+
+  const setCustomText = (slotKey, text) => {
+    setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], custom: text, customCoord: null } }));
+  };
+
+  const resolveCustomCoord = async (slotKey) => {
+    const slot = trSlots[slotKey];
+    if (!slot.custom || slot.customCoord) return;
+    const coord = await addressToCoord(slot.custom);
+    if (coord) {
+      setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], customCoord: coord } }));
+    }
+  };
+
+  const openNaverRoute = async (originKey, destKey) => {
+    if (trSlots[originKey].mode === 'custom') await resolveCustomCoord(originKey);
+    if (trSlots[destKey].mode === 'custom') await resolveCustomCoord(destKey);
+    const orig = resolveSlot(originKey);
+    const dest = resolveSlot(destKey);
+    const p = [];
+    if (orig.coord) { p.push(`slat=${orig.coord.y}`); p.push(`slng=${orig.coord.x}`); }
+    if (orig.label) p.push(`sname=${encodeURIComponent(orig.label)}`);
+    if (dest.coord) { p.push(`dlat=${dest.coord.y}`); p.push(`dlng=${dest.coord.x}`); }
+    if (dest.label) p.push(`dname=${encodeURIComponent(dest.label)}`);
+    p.push('appname=deargolf');
+    Linking.openURL(`nmap://route/car?${p.join('&')}`).catch(() => Linking.openURL('https://map.naver.com/'));
+  };
+
+  const openTmapRoute = async (originKey, destKey) => {
+    if (trSlots[originKey].mode === 'custom') await resolveCustomCoord(originKey);
+    if (trSlots[destKey].mode === 'custom') await resolveCustomCoord(destKey);
+    const orig = resolveSlot(originKey);
+    const dest = resolveSlot(destKey);
+    const p = [];
+    if (orig.coord) { p.push(`startx=${orig.coord.x}`); p.push(`starty=${orig.coord.y}`); }
+    if (orig.label) p.push(`startname=${encodeURIComponent(orig.label)}`);
+    if (dest.coord) { p.push(`goalx=${dest.coord.x}`); p.push(`goaly=${dest.coord.y}`); }
+    if (dest.label) p.push(`goalname=${encodeURIComponent(dest.label)}`);
+    Linking.openURL(`tmap://route?${p.join('&')}`).catch(() => Linking.openURL('https://tmap.life'));
+  };
+
+  const renderSlot = (slotKey, kind) => {
+    const expanded = expandedSlot === slotKey;
+    const slot = trSlots[slotKey];
+    const info = resolveSlot(slotKey);
+    const defaultMode = (slotKey === 'goOrigin' || slotKey === 'backDest') ? 'home' : 'course';
+    const modes = [defaultMode, 'current', 'custom'];
+    return (
+      <View key={slotKey}>
+        <TouchableOpacity style={trS.slotRow} activeOpacity={0.7}
+          onPress={() => setExpandedSlot(expanded ? null : slotKey)}>
+          <Text style={trS.slotKindTxt}>{kind}</Text>
+          <Text style={info.placeholder ? trS.slotLocPh : trS.slotLocTxt} numberOfLines={1}>{info.label}</Text>
+          <Text style={trS.slotChevTxt}>{expanded ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        {expanded && (
+          <View style={trS.slotPicker}>
+            <View style={trS.pickerRow}>
+              {modes.map(m => {
+                const on = slot.mode === m;
+                return (
+                  <TouchableOpacity key={m} activeOpacity={0.75}
+                    style={[trS.pickerPill, on ? trS.pickerPillOn : trS.pickerPillOff]}
+                    onPress={() => setSlotMode(slotKey, m)}>
+                    <Text style={on ? trS.pickerPillTxtOn : trS.pickerPillTxtOff}>{MODE_LABEL[m]}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {slot.mode === 'custom' && (
+              <TextInput style={trS.customInput}
+                value={slot.custom}
+                onChangeText={(t) => setCustomText(slotKey, t)}
+                onBlur={() => resolveCustomCoord(slotKey)}
+                onSubmitEditing={() => resolveCustomCoord(slotKey)}
+                placeholder="주소 또는 장소명 입력"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                returnKeyType="done" />
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const handleShareDaeri = () => {
     const msg = `[ Dear Golf ] 같이 대리 부르실 분?\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일 라운딩\n티오프 ${schedule.time}\n\n카카오T 대리: https://www.kakaomobility.com/\n티맵 대리: https://tmap.life\n아이대리: https://www.idaeri.co.kr`;
@@ -486,66 +619,47 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{schedule.date} · 티오프 {schedule.time}</Text>
               </View>
 
-              <View style={{ paddingHorizontal: 20 }}>
-                <View style={trS.recoBox}>
-                  <Text style={trS.recoLabel}>추천 출발</Text>
-                  <Text style={trS.recoTime}>{recommended}</Text>
-                  <Text style={trS.recoSub}>티오프 {schedule.time} · 여유 30분 포함</Text>
+              {/* 갈 때 섹션 */}
+              <View style={trS.twoSection}>
+                <Text style={trS.twoLabel}>갈 때</Text>
+                {renderSlot('goOrigin', '출발')}
+                {renderSlot('goDest', '도착')}
+                <View style={trS.linkBtnRow}>
+                  <TouchableOpacity style={[trS.linkBtn, { backgroundColor: '#03C75A' }]}
+                    onPress={() => openNaverRoute('goOrigin', 'goDest')} activeOpacity={0.85}>
+                    <Text style={[trS.linkBtnTxt, { color: '#fff' }]}>네이버 경로</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[trS.linkBtn, { backgroundColor: C.charcoal }]}
+                    onPress={() => openTmapRoute('goOrigin', 'goDest')} activeOpacity={0.85}>
+                    <Text style={[trS.linkBtnTxt, { color: C.butter }]}>티맵 경로</Text>
+                  </TouchableOpacity>
                 </View>
+              </View>
 
-                <View style={trS.tblCard}>
-                  <View style={trS.tblHdr}>
-                    <Text style={[trS.tblHdrCell, { flex: 1 }]}>출발</Text>
-                    <Text style={[trS.tblHdrCell, { flex: 1.2, textAlign: 'center' }]}>소요</Text>
-                    <Text style={[trS.tblHdrCell, { flex: 1, textAlign: 'center' }]}>상태</Text>
-                    <Text style={[trS.tblHdrCell, { flex: 0.8, textAlign: 'right' }]}>추천</Text>
-                  </View>
-                  {rows.map((r, i) => {
-                    const congColors = r.cong === '원활' ? { bg: '#C8D9E6', txt: '#1A3D52' }
-                      : r.cong === '보통' ? { bg: '#F5E6A8', txt: '#5A4500' }
-                      : { bg: '#6B1E2A', txt: '#fff' };
-                    return (
-                      <View key={i} style={[trS.tblRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}>
-                        <Text style={[trS.tblTime, { flex: 1 }]}>{r.t}</Text>
-                        <Text style={[trS.tblDur, { flex: 1.2, textAlign: 'center' }]}>{r.dStr}</Text>
-                        <View style={{ flex: 1, alignItems: 'center' }}>
-                          <View style={[trS.congBadge, { backgroundColor: congColors.bg }]}>
-                            <Text style={[trS.congBadgeTxt, { color: congColors.txt }]}>{r.cong}</Text>
-                          </View>
-                        </View>
-                        <View style={{ flex: 0.8, alignItems: 'flex-end' }}>
-                          {r.isReco && (
-                            <View style={trS.recoTagBadge}>
-                              <Text style={trS.recoTagTxt}>추천</Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })}
+              {/* 올 때 섹션 */}
+              <View style={trS.twoSection}>
+                <Text style={trS.twoLabel}>올 때</Text>
+                <View style={trS.endTimeRow}>
+                  <Text style={trS.endLabel}>예상 종료</Text>
+                  <TouchableOpacity style={trS.endBtn} onPress={() => setEndOffsetMin(o => o - 30)} activeOpacity={0.7}>
+                    <Text style={trS.endBtnTxt}>−</Text>
+                  </TouchableOpacity>
+                  <Text style={trS.endValue}>{endStr}</Text>
+                  <TouchableOpacity style={trS.endBtn} onPress={() => setEndOffsetMin(o => o + 30)} activeOpacity={0.7}>
+                    <Text style={trS.endBtnTxt}>+</Text>
+                  </TouchableOpacity>
                 </View>
-
-                <View style={trS.routeCard}>
-                  <View style={trS.routeFlow}>
-                    <Text style={trS.routeOrigin}>서울 강남구</Text>
-                    <Text style={trS.routeArrow}>→</Text>
-                    <Text style={trS.routeDest} numberOfLines={1}>{schedule.course}</Text>
-                  </View>
-                  <Text style={trS.routeMidTxt}>약 78.4km · 경부고속도로</Text>
-                  <View style={trS.routeBtnRow}>
-                    <TouchableOpacity style={[trS.routeBtn, { backgroundColor: '#03C75A' }]}
-                      onPress={() => Linking.openURL(`nmap://route/car?dlat=37.0&dlon=127.0&dname=${encodeURIComponent(schedule.course)}&appname=deargolf`)
-                        .catch(() => Linking.openURL('https://map.naver.com/'))}
-                      activeOpacity={0.85}>
-                      <Text style={[trS.routeBtnTxt, { color: '#fff' }]}>네이버 경로</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[trS.routeBtn, { backgroundColor: C.charcoal }]}
-                      onPress={() => Linking.openURL(`tmap://route?goalname=${encodeURIComponent(schedule.course)}`)
-                        .catch(() => Linking.openURL('https://tmap.life'))}
-                      activeOpacity={0.85}>
-                      <Text style={[trS.routeBtnTxt, { color: C.butter }]}>티맵 경로</Text>
-                    </TouchableOpacity>
-                  </View>
+                {renderSlot('backOrigin', '출발')}
+                {renderSlot('backDest', '도착')}
+                <View style={trS.linkBtnRow}>
+                  <TouchableOpacity style={[trS.linkBtn, { backgroundColor: '#03C75A' }]}
+                    onPress={() => openNaverRoute('backOrigin', 'backDest')} activeOpacity={0.85}>
+                    <Text style={[trS.linkBtnTxt, { color: '#fff' }]}>네이버 경로</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[trS.linkBtn, { backgroundColor: C.charcoal }]}
+                    onPress={() => openTmapRoute('backOrigin', 'backDest')} activeOpacity={0.85}>
+                    <Text style={[trS.linkBtnTxt, { color: C.butter }]}>티맵 경로</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 

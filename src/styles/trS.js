@@ -32,6 +32,35 @@ export const trS = StyleSheet.create({
   routeBtnRow:  { flexDirection: 'row', gap: 8 },
   routeBtn:     { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   routeBtnTxt:  { fontFamily: F.sys, fontSize: 14, fontWeight: '500' },
+  // ── 갈 때/올 때 2-섹션 레이아웃 ──────────────────────────
+  twoSection:   { paddingHorizontal: 20, marginBottom: 24 },
+  twoLabel:     { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600', letterSpacing: 0.5, marginBottom: 14 },
+  // 출발/도착 row
+  slotRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8 },
+  slotKindTxt:  { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.5)', width: 32 },
+  slotLocTxt:   { fontFamily: F.sys, fontSize: 14, color: '#fff', flex: 1 },
+  slotLocPh:    { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.35)', flex: 1, fontStyle: 'italic' },
+  slotChevTxt:  { fontFamily: F.sys, fontSize: 11, color: 'rgba(245,230,168,0.7)', marginLeft: 8 },
+  // 모드 선택 영역
+  slotPicker:   { marginTop: -4, marginBottom: 8, paddingHorizontal: 4 },
+  pickerRow:    { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 8 },
+  pickerPill:   { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 0.5 },
+  pickerPillOff:{ backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.25)' },
+  pickerPillOn: { backgroundColor: '#F5E6A8', borderColor: '#F5E6A8' },
+  pickerPillTxtOff: { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
+  pickerPillTxtOn:  { fontFamily: F.sys, fontSize: 12, color: '#3A2000', fontWeight: '600' },
+  customInput:  { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontFamily: F.sys, fontSize: 13, color: '#fff' },
+  // 예상 종료시간 ± 30분 row
+  endTimeRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 },
+  endLabel:     { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  endValue:     { fontFamily: F.en, fontSize: 20, color: '#F5E6A8', fontWeight: '700', marginHorizontal: 14, minWidth: 70, textAlign: 'center' },
+  endBtn:       { width: 32, height: 32, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)', alignItems: 'center', justifyContent: 'center' },
+  endBtnTxt:    { fontFamily: F.sys, fontSize: 18, color: '#F5E6A8', lineHeight: 20 },
+  // 딥링크 버튼
+  linkBtnRow:   { flexDirection: 'row', gap: 8, marginTop: 8 },
+  linkBtn:      { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  linkBtnTxt:   { fontFamily: F.sys, fontSize: 14, fontWeight: '500' },
+
   // 대리운전 + 공유 섹션 (크림)
   charcoalSection:{ backgroundColor: '#0e1f16', paddingHorizontal: 18, paddingVertical: 16 },
   darkLabel:    { fontFamily: F.sys, fontSize: 13, color: '#fff', letterSpacing: 0.5, marginBottom: 10 },
