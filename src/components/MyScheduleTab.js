@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { C, F } from '../constants/colors';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { SCHEDULES_INIT, DIARY_DATA } from '../constants/data';
+import { DIARY_DATA } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
+import { SchedulesContext } from '../contexts/SchedulesContext';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export function MyScheduleTab({ onRequestAddDiary }) {
+  const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [schedules, setSchedules] = useState(SCHEDULES_INIT);
   const [completedDates, setCompletedDates] = useState([]);
-  const [hydrated, setHydrated] = useState(false);
   const [modal, setModal] = useState({ visible: false, initial: null });
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
@@ -24,18 +24,10 @@ export function MyScheduleTab({ onRequestAddDiary }) {
 
   useEffect(() => {
     (async () => {
-      const s = await storage.load(STORAGE_KEYS.schedules, SCHEDULES_INIT);
       const d = await storage.load(STORAGE_KEYS.diaries, DIARY_DATA);
-      setSchedules(s);
       setCompletedDates((d || []).map(x => x.date).filter(Boolean));
-      setHydrated(true);
     })();
   }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    storage.save(STORAGE_KEYS.schedules, schedules);
-  }, [schedules, hydrated]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();

@@ -5,6 +5,12 @@
 export const KAKAO_REST_API_KEY = 'edb7385e0d3233ccd44423118331345a';
 
 // =============================================================
+// Unsplash Access Key — 홈화면 배경사진 (시간대/날씨별 골프장 이미지)
+// https://unsplash.com/developers
+// =============================================================
+export const UNSPLASH_ACCESS_KEY = 'dXWP0IZhR45qkx6-eZhzmkhsr42rq9H12LjcN5c6kbI';
+
+// =============================================================
 // 공공데이터포털(data.go.kr) 일반 인증키 — 활용신청한 모든 서비스 공용
 //  - 기상청 단기예보: VilageFcstInfoService_2.0
 //  - 기상청 중기예보: MidFcstInfoService

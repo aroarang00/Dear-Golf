@@ -9,6 +9,7 @@ import { C, F } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
 import { UserContext } from './src/contexts/UserContext';
+import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { HomeScreen } from './src/components/HomeScreen';
 import { DiaryScreen } from './src/components/DiaryScreen';
@@ -60,6 +61,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
     <UserContext.Provider value={{ userProfile, setUserProfile }}>
+    <SchedulesProvider>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tab.Screen name="홈" component={HomeScreen} />
@@ -95,6 +97,7 @@ export default function App() {
         </View>
       </Modal>
     </NavigationContainer>
+    </SchedulesProvider>
     </UserContext.Provider>
     </SafeAreaProvider>
     </GestureHandlerRootView>

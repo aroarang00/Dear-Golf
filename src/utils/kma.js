@@ -28,14 +28,16 @@ function getShortBaseDateTime(now = new Date()) {
 }
 
 // 중기예보 tmFc: 매일 06, 18시 발표. tmFc=YYYYMMDDHHMM
+// 18시 발표는 wf5*부터만 제공(D+4 누락) → 06시 발표를 우선 사용.
+// dayShift: 발표일이 오늘 기준 며칠 전인지 (필드 N 보정에 사용)
 function getMidTmFc(now = new Date()) {
   const d = new Date(now);
   const hh = d.getHours();
-  let fcH;
-  if (hh >= 18) fcH = 18;
-  else if (hh >= 6) fcH = 6;
-  else { d.setDate(d.getDate() - 1); fcH = 18; }
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(fcH)}00`;
+  let fcH, dayShift;
+  if (hh >= 6) { fcH = 6; dayShift = 0; }
+  else { d.setDate(d.getDate() - 1); fcH = 18; dayShift = 1; }
+  const tmFc = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(fcH)}00`;
+  return { tmFc, dayShift };
 }
 
 // =============================================================
@@ -191,7 +193,7 @@ function skyToIcon(sky, pty) {
 // =============================================================
 export async function getMidForecast(loc) {
   const region = locToMidRegion(loc);
-  const tmFc = getMidTmFc();
+  const { tmFc, dayShift } = getMidTmFc();
 
   const landUrl = `${KMA_MID_URL}/getMidLandFcst?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.land}&tmFc=${tmFc}`;
   const taUrl   = `${KMA_MID_URL}/getMidTa?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.temp}&tmFc=${tmFc}`;
@@ -201,22 +203,22 @@ export async function getMidForecast(loc) {
   const ta   = taData?.response?.body?.items?.item?.[0];
   if (!land || !ta) return [];
 
-  // D+3 ~ D+10
+  // dayOffset: 오늘 기준 며칠 후인지. KMA 필드명 N = dayOffset + dayShift (발표일 기준).
   const out = [];
-  for (let i = 3; i <= 10; i++) {
-    // 중기육상예보: wf3Am, wf3Pm, wf4Am, ... rnSt3Am, ...
-    // 중기기온: taMin3, taMax3 ...
-    const wfAm = land[`wf${i}Am`];
-    const wfPm = land[`wf${i}Pm`];
-    const wf   = land[`wf${i}`] || wfAm || wfPm;
-    const rnStAm = land[`rnSt${i}Am`];
-    const rnStPm = land[`rnSt${i}Pm`];
+  for (let dayOffset = 3; dayOffset <= 10; dayOffset++) {
+    const N = dayOffset + dayShift;
+    if (N > 10) break; // KMA는 wf10/taMax10까지만 제공
+    const wfAm = land[`wf${N}Am`];
+    const wfPm = land[`wf${N}Pm`];
+    const wf   = land[`wf${N}`] || wfAm || wfPm;
+    const rnStAm = land[`rnSt${N}Am`];
+    const rnStPm = land[`rnSt${N}Pm`];
     const rnSt = Math.max(parseFloat(rnStAm) || 0, parseFloat(rnStPm) || 0);
-    const tmin = parseFloat(ta[`taMin${i}`]);
-    const tmax = parseFloat(ta[`taMax${i}`]);
+    const tmin = parseFloat(ta[`taMin${N}`]);
+    const tmax = parseFloat(ta[`taMax${N}`]);
     const sky = wf || '';
     out.push({
-      dayOffset: i,
+      dayOffset,
       sky,
       icon: midWfToIcon(sky),
       rnSt,

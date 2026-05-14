@@ -5,12 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
-import { SCHEDULES_INIT, COURSE_LOG, DIARY_DATA, COURSE_COMMENTS } from '../constants/data';
-import { STORAGE_KEYS, storage } from '../utils/storage';
+import { COURSE_LOG, DIARY_DATA, COURSE_COMMENTS } from '../constants/data';
 import { getUserCourses } from '../utils/userCourses';
 import { normalizeSchedules } from '../utils/helpers';
 import { homeS } from '../styles/homeS';
 import { UserContext } from '../contexts/UserContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
 import { HomeBgSlider } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
@@ -23,9 +23,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export function HomeScreen({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
+  const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [schedules, setSchedules] = useState(SCHEDULES_INIT);
-  const [schedulesHydrated, setSchedulesHydrated] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -60,14 +59,6 @@ export function HomeScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
-  useEffect(() => {
-    (async () => {
-      const loaded = await storage.load(STORAGE_KEYS.schedules, SCHEDULES_INIT);
-      setSchedules(normalizeSchedules(loaded));
-      setSchedulesHydrated(true);
-    })();
-  }, []);
-
   // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함
   useEffect(() => {
     (async () => {
@@ -75,11 +66,6 @@ export function HomeScreen({ navigation }) {
       setUserCoursesList(list || []);
     })();
   }, []);
-
-  useEffect(() => {
-    if (!schedulesHydrated) return;
-    storage.save(STORAGE_KEYS.schedules, schedules);
-  }, [schedules, schedulesHydrated]);
 
   const next = schedules.length > 0 ? schedules[0] : null;
 
@@ -289,8 +275,6 @@ export function HomeScreen({ navigation }) {
             <View style={homeS.mainCard}>
               <TouchableOpacity
                 onPress={() => handleCardCoursePress(next)}
-                onLongPress={() => openScheduleSheet(next)}
-                delayLongPress={350}
                 activeOpacity={resolveCourseLogId(next) ? 0.7 : 1}
                 style={{ marginBottom: 4 }}>
                 <Text style={homeS.cardCourse}>{next.course}
@@ -302,16 +286,12 @@ export function HomeScreen({ navigation }) {
                 <TouchableOpacity
                   ref={dDayRef}
                   onPress={openDDayMenu}
-                  onLongPress={() => openScheduleSheet(next)}
-                  delayLongPress={350}
                   activeOpacity={0.7}
                   style={{ alignSelf: 'flex-start' }}>
                   <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
-                  onLongPress={() => openScheduleSheet(next)}
-                  delayLongPress={350}
                   activeOpacity={0.7}>
                   <Text style={{ fontSize: 26, marginBottom: 6 }}>🌤  🚗</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
@@ -495,7 +475,8 @@ export function HomeScreen({ navigation }) {
         onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
         onShare={() => handleShareSchedule(selectedSchedule)}
-        navigation={navigation}
+        onEdit={() => handleEditSchedule(selectedSchedule)}
+        onDelete={() => { setShowScheduleModal(false); handleDeleteSchedule(selectedSchedule); }}
       />
 
       <WeatherTransportPopup

@@ -19,7 +19,7 @@ const MODE_LABEL = { home: '마이페이지', course: '골프장', current: '현
 // 동일 코스 재오픈 시 즉시 표시. in-flight 요청 dedupe + AsyncStorage 영속 캐시
 const wxCache = new Map(); // courseId → { data, pending?, ts }
 const WX_TTL = 30 * 60 * 1000;
-const WX_CACHE_KEY = '@dg_wx_cache';
+const WX_CACHE_KEY = '@dg_wx_cache_v2';
 
 // 모듈 로드 즉시 디스크 캐시 복원 시작 (복원 완료 대기용 promise 보관)
 const wxRestorePromise = (async () => {
@@ -445,6 +445,83 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     (schedules || [schedule]).map(s => s.date || '')
   );
 
+  // 골프 지수: 풍속(30) + 강수확률(35) + 기온(35) = 100
+  // 데이터 소스: weatherOnly→현재, 일정 D+0~D+3→티오프(또는 정오) 슬롯, D+4~D+10→중기 일별
+  // 일정 D+11 이후는 예보 범위 밖 → kind:'too-far' 반환해서 UI에서 안내 문구 표시
+  const golfIdx = React.useMemo(() => {
+    if (!weatherOnly && Number.isFinite(schedule?.dDay) && schedule.dDay > 10) {
+      return { kind: 'too-far' };
+    }
+
+    let temp = null, wind = null, pop = null, windKnown = true;
+    if (weatherOnly) {
+      temp = cur?.temp;
+      wind = cur?.windSpeed;
+      pop = cur?.pop ?? todayDay?.pop ?? 0;
+    } else if (hourSlots.length > 0) {
+      const slot = hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)];
+      temp = slot?.temp; wind = slot?.wind; pop = slot?.rain;
+    } else {
+      const roundDay = days.find(d => d.date === schedule?.date);
+      if (roundDay && Number.isFinite(roundDay.tmin) && Number.isFinite(roundDay.tmax)) {
+        temp = (roundDay.tmin + roundDay.tmax) / 2;
+        pop = roundDay.pop || 0;
+        windKnown = false; // 중기예보엔 풍속 없음
+      }
+    }
+    if (temp == null || !Number.isFinite(temp)) return null;
+
+    // 풍속 (30점)
+    let windScore;
+    if (!windKnown || wind == null || !Number.isFinite(wind)) windScore = 21;
+    else if (wind <= 3) windScore = 30;
+    else if (wind <= 5) windScore = 25;
+    else if (wind <= 7) windScore = 18;
+    else if (wind <= 10) windScore = 10;
+    else windScore = 0;
+
+    // 강수확률 (35점)
+    const p = Number.isFinite(pop) ? pop : 0;
+    let popScore;
+    if (p <= 10) popScore = 35;
+    else if (p <= 30) popScore = 25;
+    else if (p <= 50) popScore = 15;
+    else if (p <= 70) popScore = 6;
+    else popScore = 0;
+
+    // 기온 (35점)
+    let tempScore;
+    if (temp >= 18 && temp <= 24) tempScore = 35;
+    else if ((temp >= 15 && temp < 18) || (temp > 24 && temp <= 27)) tempScore = 28;
+    else if ((temp >= 10 && temp < 15) || (temp > 27 && temp <= 30)) tempScore = 18;
+    else if ((temp >= 5 && temp < 10) || (temp > 30 && temp <= 33)) tempScore = 8;
+    else tempScore = 0;
+
+    const total = Math.round(windScore + popScore + tempScore);
+    let label;
+    if (total >= 80) label = 'Great';
+    else if (total >= 60) label = 'Good';
+    else if (total >= 40) label = 'OK';
+    else if (total >= 20) label = 'Poor';
+    else label = 'Bad';
+
+    const badges = [];
+    if (windKnown && wind != null && Number.isFinite(wind)) {
+      if (wind <= 5) badges.push({ txt: '바람 약함', bg: '#C8D9E6', color: '#1A3D52' });
+      else if (wind <= 10) badges.push({ txt: '바람 보통', bg: '#C8D9E6', color: '#1A3D52' });
+      else badges.push({ txt: '바람 강함', bg: '#E6C8C8', color: '#5C1E1E' });
+    }
+    if (p <= 10) badges.push({ txt: '강수 없음', bg: '#FFFFFF', color: '#3D3935' });
+    else if (p <= 50) badges.push({ txt: '강수 가능', bg: '#FFFFFF', color: '#3D3935' });
+    else badges.push({ txt: '강수 높음', bg: '#E6C8C8', color: '#5C1E1E' });
+
+    if (temp >= 15 && temp <= 27) badges.push({ txt: '기온 적정', bg: '#F5E6A8', color: '#5A4500' });
+    else if (temp < 15) badges.push({ txt: '기온 낮음', bg: '#C8D9E6', color: '#1A3D52' });
+    else badges.push({ txt: '기온 높음', bg: '#E6C8C8', color: '#5C1E1E' });
+
+    return { total, label, badges };
+  }, [weatherOnly, cur, days, hourSlots, teeoffSlotIdx, schedule, todayDay]);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -572,24 +649,32 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {/* ④ 골프 지수 카드 */}
               <Text style={[wxS.sectionLabel, { paddingHorizontal: 20, marginTop: 28 }]}>골프 지수</Text>
               <View style={[wxS.gIdxCard, { marginTop: 0 }]}>
-                <View style={wxS.gIdxHeadRow}>
-                  <Text style={wxS.gIdxBig}>Good</Text>
-                  <Text style={wxS.gIdxScore}>78 / 100</Text>
-                </View>
-                <View style={wxS.gIdxBar}>
-                  <View style={[wxS.gIdxBarFill, { width: '78%' }]} />
-                </View>
-                <View style={wxS.gIdxBadgeRow}>
-                  {[
-                    { txt: '바람 약함', bg: '#C8D9E6', color: '#1A3D52' },
-                    { txt: '강수 없음', bg: '#FFFFFF', color: '#3D3935' },
-                    { txt: '기온 적정', bg: '#F5E6A8', color: '#5A4500' },
-                  ].map((b, i) => (
-                    <View key={i} style={[wxS.gIdxBadge, { backgroundColor: b.bg }]}>
-                      <Text style={[wxS.gIdxBadgeTxt, { color: b.color }]}>{b.txt}</Text>
+                {golfIdx?.kind === 'too-far' ? (
+                  <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, paddingVertical: 10, textAlign: 'center' }}>
+                    10일 전부터 확인할 수 있어요
+                  </Text>
+                ) : golfIdx ? (
+                  <>
+                    <View style={wxS.gIdxHeadRow}>
+                      <Text style={wxS.gIdxBig}>{golfIdx.label}</Text>
+                      <Text style={wxS.gIdxScore}>{golfIdx.total} / 100</Text>
                     </View>
-                  ))}
-                </View>
+                    <View style={wxS.gIdxBar}>
+                      <View style={[wxS.gIdxBarFill, { width: `${golfIdx.total}%` }]} />
+                    </View>
+                    <View style={wxS.gIdxBadgeRow}>
+                      {golfIdx.badges.map((b, i) => (
+                        <View key={i} style={[wxS.gIdxBadge, { backgroundColor: b.bg }]}>
+                          <Text style={[wxS.gIdxBadgeTxt, { color: b.color }]}>{b.txt}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 8, textAlign: 'center' }}>
+                    데이터 부족
+                  </Text>
+                )}
               </View>
 
               {/* ⑤ 라운딩 컨디션 */}
