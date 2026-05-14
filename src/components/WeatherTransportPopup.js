@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, ScrollView, View, Text, TouchableOpacity, Linking, Share, PanResponder, Animated, useWindowDimensions } from 'react-native';
+import { Modal, ScrollView, View, Text, TouchableOpacity, Linking, Share, PanResponder, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C } from '../constants/colors';
@@ -12,8 +12,7 @@ import { getCurrentLocation, reverseGeocode } from '../utils/location';
 
 const BG = '#0a1e10';
 
-// 자외선 V5 활용신청 게이트웨이 propagation 대기 중 — 풀리면 true로 전환
-const UV_ENABLED = false;
+const UV_ENABLED = true;
 
 // 'YYYY.MM.DD' → 'YYYYMMDD'
 const compactDate = (d) => (d || '').replace(/\./g, '');
@@ -295,6 +294,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 )}
               </View>
 
+              {forecast === null ? (
+                <View style={{ paddingVertical: 80, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#F5E6A8" />
+                  <Text style={{ marginTop: 12, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>날씨 데이터 불러오는 중…</Text>
+                </View>
+              ) : (
+              <>
               {/* ② 기온 히어로 */}
               <View style={wxS.tempHero}>
                 <Text style={wxS.tempEmoji}>{cur?.icon || '🌤️'}</Text>
@@ -302,7 +308,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   {Number.isFinite(cur?.temp) ? `${Math.round(cur.temp)}°` : '—'}
                 </Text>
                 <View style={wxS.tempRight}>
-                  <Text style={wxS.tempSky}>{cur?.sky || (forecast === null ? '로딩 중…' : '—')}</Text>
+                  <Text style={wxS.tempSky}>{cur?.sky || '—'}</Text>
                   <Text style={wxS.tempSub}>
                     강수확률 {Number.isFinite(cur?.pop) ? `${Math.round(cur.pop)}%` : '—'}
                   </Text>
@@ -347,7 +353,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               </View>
 
               {/* ④ 골프 지수 카드 */}
-              <View style={wxS.gIdxCard}>
+              <Text style={[wxS.sectionLabel, { paddingHorizontal: 20, marginTop: 28 }]}>골프 지수</Text>
+              <View style={[wxS.gIdxCard, { marginTop: 0 }]}>
                 <View style={wxS.gIdxHeadRow}>
                   <Text style={wxS.gIdxBig}>Good</Text>
                   <Text style={wxS.gIdxScore}>78 / 100</Text>
@@ -373,7 +380,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 <Text style={wxS.sectionLabel}>라운딩 컨디션</Text>
                 {hourSlots.length === 0 ? (
                   <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 16, textAlign: 'center' }}>
-                    {forecast === null ? '예보 로딩 중…' : '시간대 예보 정보가 없습니다 (D+3 이후)'}
+                    시간대 예보 정보가 없습니다 (D+3 이후)
                   </Text>
                 ) : hourSlots.map((slot, i) => {
                   const isTee = i === teeoffSlotIdx;
@@ -412,7 +419,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 <View style={wxS.fcCard}>
                   {days.length === 0 ? (
                     <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 16, textAlign: 'center' }}>
-                      {forecast === null ? '예보 로딩 중…' : '예보 정보가 없습니다'}
+                      예보 정보가 없습니다
                     </Text>
                   ) : days.map((w, i) => {
                     const isToday = w.day === '오늘';
@@ -456,6 +463,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 style={wxS.naverBtn}>
                 <Text style={wxS.naverBtnTxt}>네이버 날씨 더보기 →</Text>
               </TouchableOpacity>
+              </>
+              )}
             </Animated.ScrollView>
             </PinchGestureHandler>
             </View>
