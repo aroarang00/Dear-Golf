@@ -85,10 +85,11 @@ export async function getShortForecast(lat, lng) {
   }
   const slots = Object.values(byKey).sort((a, b) => (a.fcstDate + a.fcstTime).localeCompare(b.fcstDate + b.fcstTime));
 
-  // 현재(가장 가까운 시각)
+  // 현재(가장 가까운 시각) — SKY 카테고리가 있는 슬롯 우선 (부분 슬롯 방어)
   const now = new Date();
   const nowKey = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}00`;
-  let current = slots.find(s => (s.fcstDate + s.fcstTime) >= nowKey) || slots[0];
+  const future = slots.filter(s => (s.fcstDate + s.fcstTime) >= nowKey);
+  let current = future.find(s => s.SKY !== undefined) || future[0] || slots[0];
 
   // 날짜별 시간 슬롯 — 6/9/12/15/18/21시 추출용
   const slotsByDate = {};
@@ -97,21 +98,29 @@ export async function getShortForecast(lat, lng) {
     slotsByDate[s.fcstDate].push(s);
   }
 
-  // 일별 (최저/최고)
+  // 일별 (최저/최고) — TMN/TMX 없는 날은 TMP min/max로 폴백 (오늘 오후엔 TMN/TMX 미발표)
   const dayMap = {};
   for (const s of slots) {
     const d = s.fcstDate;
-    if (!dayMap[d]) dayMap[d] = { date: d, tmin: null, tmax: null, sky: s.SKY, pty: s.PTY, pop: 0 };
+    if (!dayMap[d]) dayMap[d] = { date: d, tmin: null, tmax: null, tmpMin: null, tmpMax: null, sky: s.SKY, pty: s.PTY, pop: 0 };
     if (s.TMN !== undefined) dayMap[d].tmin = parseFloat(s.TMN);
     if (s.TMX !== undefined) dayMap[d].tmax = parseFloat(s.TMX);
     if (s.POP !== undefined) dayMap[d].pop = Math.max(dayMap[d].pop, parseFloat(s.POP) || 0);
+    if (s.TMP !== undefined) {
+      const tmp = parseFloat(s.TMP);
+      if (Number.isFinite(tmp)) {
+        if (dayMap[d].tmpMin === null || tmp < dayMap[d].tmpMin) dayMap[d].tmpMin = tmp;
+        if (dayMap[d].tmpMax === null || tmp > dayMap[d].tmpMax) dayMap[d].tmpMax = tmp;
+      }
+    }
     // 정오 기준 sky 우선
     if (s.fcstTime === '1200' && s.SKY !== undefined) dayMap[d].sky = s.SKY;
     if (s.fcstTime === '1200' && s.PTY !== undefined) dayMap[d].pty = s.PTY;
   }
   const daily = Object.values(dayMap).map(d => ({
     date: `${d.date.slice(0,4)}.${d.date.slice(4,6)}.${d.date.slice(6,8)}`,
-    tmin: d.tmin, tmax: d.tmax,
+    tmin: d.tmin !== null ? d.tmin : d.tmpMin,
+    tmax: d.tmax !== null ? d.tmax : d.tmpMax,
     sky: skyToText(d.sky, d.pty),
     icon: skyToIcon(d.sky, d.pty),
     pop: d.pop,

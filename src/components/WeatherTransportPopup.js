@@ -217,11 +217,16 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const targetDateCompact = weatherOnly ? todayCompact() : compactDate(schedule?.date);
   const hourSlots = pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
 
-  // 티오프와 가장 가까운 슬롯 (hourSlots가 비어있으면 -1)
-  const teeoffSlotIdx = hourSlots.length === 0 ? -1 : hourSlots.reduce((best, s, i) => {
-    const diff = Math.abs(s.hour * 60 - teeMin);
-    return diff < best.diff ? { idx: i, diff } : best;
-  }, { idx: -1, diff: Infinity }).idx;
+  // 티오프와 가장 가까운 슬롯 — 90분(슬롯 간격의 절반) 초과면 표시 안 함
+  // (이른 슬롯이 base_time 이전이라 빠진 경우 멀리 떨어진 오후 슬롯에 잘못 붙는 것 방지)
+  const teeoffSlotIdx = (() => {
+    if (hourSlots.length === 0) return -1;
+    const best = hourSlots.reduce((b, s, i) => {
+      const diff = Math.abs(s.hour * 60 - teeMin);
+      return diff < b.diff ? { idx: i, diff } : b;
+    }, { idx: -1, diff: Infinity });
+    return best.diff <= 90 ? best.idx : -1;
+  })();
 
   // 일정 날짜 매칭용 (full 'YYYY.MM.DD'로 비교)
   const scheduleDateSet = new Set(

@@ -15,7 +15,7 @@ export const wxS = StyleSheet.create({
   pillTxtOff:    { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.4)' },
 
   // 섹션 레이블 ("라운딩 컨디션", "10일 예보" 등)
-  sectionLabel:  { fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 2, marginBottom: 12, textTransform: 'uppercase' },
+  sectionLabel:  { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600', letterSpacing: 0.5, marginBottom: 12 },
 
   // ① 구장명 + 날짜
   wxHeader:      { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
