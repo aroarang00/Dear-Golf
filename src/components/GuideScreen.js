@@ -13,10 +13,11 @@ const COURSE_IMAGES = {
 };
 import { C, F } from '../constants/colors';
 import {
-  FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG,
+  FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG, DIARY_DATA,
   MY_RESTAURANTS, RECOMMENDED_COURSES,
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { getUserCourses } from '../utils/userCourses';
 import { gS } from '../styles/gS';
 import { CourseLogTab } from './CourseLogTab';
 
@@ -26,6 +27,8 @@ export function GuideScreen({ route, navigation }) {
   const [innerTab, setInnerTab] = useState('course');
   const [favorites, setFavorites] = useState(FAVORITES_INIT);
   const [favoritesHydrated, setFavoritesHydrated] = useState(false);
+  const [userCoursesList, setUserCoursesList] = useState([]);
+  const [userCoursesHydrated, setUserCoursesHydrated] = useState(false);
   const [showAllRest, setShowAllRest] = useState(false);
   const [showAllCafe, setShowAllCafe] = useState(false);
   const [comments, setComments] = useState([]);
@@ -74,6 +77,25 @@ export function GuideScreen({ route, navigation }) {
     })();
   }, []);
 
+  // userCourses (사용자가 카카오 검색으로 추가한 코스) 로드 — COURSE_LOG에 없는 코스 상세 표시용
+  useEffect(() => {
+    (async () => {
+      const list = await getUserCourses();
+      setUserCoursesList(list || []);
+      setUserCoursesHydrated(true);
+    })();
+  }, []);
+
+  // selected id를 COURSE_LOG 또는 userCourses에서 찾아 { name, loc, _source } 반환
+  const getCourseData = (id) => {
+    if (!id) return null;
+    const fromLog = COURSE_LOG.find(c => c.id === id);
+    if (fromLog) return { ...fromLog, _source: 'log' };
+    const fromUser = userCoursesList.find(c => c.id === id);
+    if (fromUser) return { ...fromUser, _source: 'user' };
+    return null;
+  };
+
   useEffect(() => {
     if (!favoritesHydrated) return;
     storage.save(STORAGE_KEYS.favorites, favorites);
@@ -83,6 +105,7 @@ export function GuideScreen({ route, navigation }) {
     if (route?.params?.openCourseId) {
       setSelected(route.params.openCourseId);
       setInnerTab('course');
+      navigation.setParams({ openCourseId: undefined });
     }
   }, [route?.params?.openCourseId]);
 
@@ -95,19 +118,22 @@ export function GuideScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!selected) return;
-    const exists = COURSE_LOG.find(x => x.id === selected);
-    if (!exists) {
-      setSelected(null);
+    const inLog = COURSE_LOG.find(x => x.id === selected);
+    const inUser = userCoursesList.find(x => x.id === selected);
+    if (!inLog && !inUser) {
+      // 로드 완료 후에도 못 찾으면 정리 (그 전엔 race 가능성으로 유지)
+      if (userCoursesHydrated) setSelected(null);
       return;
     }
-    setComments([
+    // 코멘트는 COURSE_LOG 코스에만 (mock)
+    setComments(inLog ? [
       { id: '1', txt: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요', who: 'J***', date: '2025.04', likes: 24, likedByMe: false },
       { id: '2', txt: '7번홀 왼쪽 OB 많이 납니다. 아이언 공략 추천', who: 'K***', date: '2025.03', likes: 18, likedByMe: false },
       { id: '3', txt: '클럽하우스 식당 된장찌개 강추. 라운딩 후 꼭 드세요', who: 'P***', date: '2025.02', likes: 11, likedByMe: false },
-    ]);
+    ] : []);
     setShowCommentInput(false);
     setCommentInput('');
-  }, [selected]);
+  }, [selected, userCoursesList, userCoursesHydrated]);
 
   const toggleLike = (id) => {
     setComments(prev => prev.map(c => c.id === id
@@ -148,9 +174,27 @@ export function GuideScreen({ route, navigation }) {
   ].filter(Boolean);
 
   if (selected) {
-    const c = COURSE_LOG.find(x => x.id === selected);
-    if (!c) return null;
+    const c = getCourseData(selected);
+    if (!c) {
+      // userCoursesList 로딩 race — 헤더+스피너로 placeholder
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+          <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
+            <TouchableOpacity onPress={() => { setSelected(null); setInnerTab('course'); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 22, color: C.warmGray }}>←</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={C.burgundy} />
+          </View>
+        </SafeAreaView>
+      );
+    }
+    const isUserCourse = c._source === 'user';
     const guideTabIdx = innerTab === 'course' ? 0 : 1;
+    // 내 코스기록 — 코스명으로 DIARY_DATA 매칭
+    const myDiaries = DIARY_DATA.filter(d => d.course === c.name);
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
@@ -276,7 +320,44 @@ export function GuideScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
 
-              {/* 골퍼 코멘트 헤더 */}
+              {/* 내 코스기록 — 이 코스 다이어리 엔트리 */}
+              {myDiaries.length > 0 && (
+                <>
+                  <Text style={[gS.secLabel, { marginBottom: 8 }]}>내 코스기록 · {myDiaries.length}회</Text>
+                  {myDiaries.map(d => {
+                    const diff = d.score - d.par;
+                    const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
+                    return (
+                      <View key={d.id} style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: '#E8E2D0', padding: 12, marginBottom: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>{d.date} {d.day}</Text>
+                          <Text style={{ fontFamily: F.en, fontSize: 20, color: C.charcoal, fontWeight: '600' }}>{d.score}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>타 · {diffLabel}</Text>
+                          {d.special && (
+                            <View style={{ backgroundColor: d.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
+                              <Text style={{ fontFamily: F.sys, fontSize: 9, color: d.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{d.special}</Text>
+                            </View>
+                          )}
+                        </View>
+                        {d.memo ? (
+                          <Text style={{ fontFamily: F.en, fontSize: 12, color: C.textSecondary, fontStyle: 'italic', marginTop: 6, lineHeight: 17 }}>"{d.memo}"</Text>
+                        ) : null}
+                        {d.photos?.length > 0 && (
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                            {d.photos.slice(0, 4).map((p, i) => (
+                              <Image key={i} source={{ uri: p }} style={{ width: 76, height: 76, borderRadius: 6, marginRight: 6 }} />
+                            ))}
+                          </ScrollView>
+                        )}
+                      </View>
+                    );
+                  })}
+                  <View style={{ height: 12 }} />
+                </>
+              )}
+
+              {/* 골퍼 코멘트 헤더 — COURSE_LOG 코스에만 (user-added는 코멘트 DB 없음) */}
+              {!isUserCourse && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={gS.secLabel}>골퍼 코멘트 · 좋아요 순</Text>
                 <TouchableOpacity
@@ -285,6 +366,7 @@ export function GuideScreen({ route, navigation }) {
                   <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.burgundy }}>+ 코멘트</Text>
                 </TouchableOpacity>
               </View>
+              )}
 
               {/* 코멘트 입력 */}
               {showCommentInput && (
@@ -545,7 +627,7 @@ export function GuideScreen({ route, navigation }) {
         }}>Golf 코스</Text>
       </View>
       <View style={{ flexDirection: 'row', backgroundColor: C.bgPrimary, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-        {[['log', '코스 기록', '#F5E6A8'], ['explore', '탐색', '#6B1E2A']].map(([k, l, color]) => {
+        {[['explore', '탐색', '#6B1E2A'], ['log', '내 코스기록', '#F5E6A8']].map(([k, l, color]) => {
           const on = topTab === k;
           return (
             <TouchableOpacity key={k}

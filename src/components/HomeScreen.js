@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { SCHEDULES_INIT, COURSE_LOG, DIARY_DATA, COURSE_COMMENTS } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { getUserCourses } from '../utils/userCourses';
 import { normalizeSchedules } from '../utils/helpers';
 import { homeS } from '../styles/homeS';
 import { UserContext } from '../contexts/UserContext';
@@ -25,6 +26,7 @@ export function HomeScreen({ navigation }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [schedules, setSchedules] = useState(SCHEDULES_INIT);
   const [schedulesHydrated, setSchedulesHydrated] = useState(false);
+  const [userCoursesList, setUserCoursesList] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showWeatherFull, setShowWeatherFull] = useState(false);
@@ -66,6 +68,14 @@ export function HomeScreen({ navigation }) {
     })();
   }, []);
 
+  // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함
+  useEffect(() => {
+    (async () => {
+      const list = await getUserCourses();
+      setUserCoursesList(list || []);
+    })();
+  }, []);
+
   useEffect(() => {
     if (!schedulesHydrated) return;
     storage.save(STORAGE_KEYS.schedules, schedules);
@@ -102,10 +112,34 @@ export function HomeScreen({ navigation }) {
     setCardSlide(prev => (prev === 0 ? 1 : 0));
   };
 
-  const handleCardCoursePress = (schedule) => {
-    if (schedule.courseLogId) {
-      navigation.navigate('코스', { openCourseId: schedule.courseLogId });
+  // 일정 → 코스 상세에 쓸 id (COURSE_LOG id 우선, 없으면 userCourses id).
+  // GuideScreen이 둘 다 처리하므로 어느 쪽이든 OK.
+  const resolveCourseLogId = (schedule) => {
+    if (!schedule) return null;
+    if (schedule.courseLogId) return schedule.courseLogId;
+    const name = (schedule.course || '').toLowerCase().trim();
+    if (name) {
+      const exact = COURSE_LOG.find(c => c.name.toLowerCase() === name);
+      if (exact) return exact.id;
+      const fuzzy = COURSE_LOG.find(c => {
+        const n = c.name.toLowerCase();
+        return n.includes(name) || name.includes(n);
+      });
+      if (fuzzy) return fuzzy.id;
     }
+    // userCourses fallback — 카카오 검색으로 추가한 코스(블루헤런 등)
+    if (schedule.courseId) return schedule.courseId;
+    // 코스명으로 userCourses 매칭 (사용자가 카카오 없이 타이핑만 한 케이스)
+    if (name) {
+      const userCourse = userCoursesList.find(c => c.name.toLowerCase() === name);
+      if (userCourse) return userCourse.id;
+    }
+    return null;
+  };
+
+  const handleCardCoursePress = (schedule) => {
+    const id = resolveCourseLogId(schedule);
+    if (id) navigation.navigate('코스', { openCourseId: id });
   };
 
   const openScheduleSheet = (schedule) => {
@@ -252,22 +286,15 @@ export function HomeScreen({ navigation }) {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-            <TouchableOpacity
-              style={homeS.mainCard}
-              activeOpacity={0.85}
-              onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
-              onLongPress={() => openScheduleSheet(next)}
-              delayLongPress={350}>
+            <View style={homeS.mainCard}>
               <TouchableOpacity
                 onPress={() => handleCardCoursePress(next)}
                 onLongPress={() => openScheduleSheet(next)}
                 delayLongPress={350}
-                activeOpacity={next.courseLogId ? 0.7 : 1}
-                onStartShouldSetResponder={() => true}
-                onTouchEnd={(e) => e.stopPropagation()}
+                activeOpacity={resolveCourseLogId(next) ? 0.7 : 1}
                 style={{ marginBottom: 4 }}>
                 <Text style={homeS.cardCourse}>{next.course}
-                  {next.courseLogId ? <Text style={{ fontSize: 11, color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
+                  {resolveCourseLogId(next) ? <Text style={{ fontSize: 11, color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                 </Text>
                 <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
               </TouchableOpacity>
@@ -281,33 +308,39 @@ export function HomeScreen({ navigation }) {
                   style={{ alignSelf: 'flex-start' }}>
                   <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
                 </TouchableOpacity>
-                <Text style={{ fontSize: 26, marginBottom: 6 }}>🌤  🚗</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
+                <TouchableOpacity
+                  onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
+                  onLongPress={() => openScheduleSheet(next)}
+                  delayLongPress={350}
+                  activeOpacity={0.7}>
+                  <Text style={{ fontSize: 26, marginBottom: 6 }}>🌤  🚗</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
 
             {schedules.slice(1, 5).map((s, i) => {
               const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;
               return (
-              <TouchableOpacity key={s.id} style={[homeS.subCard, { opacity }]}
-                activeOpacity={0.85}
-                onPress={() => openScheduleSheet(s)}
-                onLongPress={() => openScheduleSheet(s)}
-                delayLongPress={350}>
+              <View key={s.id} style={[homeS.subCard, { opacity }]}>
                 <TouchableOpacity
-                  onPress={() => { if (s.courseLogId) handleCardCoursePress(s); }}
+                  onPress={() => handleCardCoursePress(s)}
                   onLongPress={() => openScheduleSheet(s)}
                   delayLongPress={350}
-                  activeOpacity={s.courseLogId ? 0.7 : 1}
-                  onStartShouldSetResponder={() => true}
-                  onTouchEnd={(e) => e.stopPropagation()}>
+                  activeOpacity={resolveCourseLogId(s) ? 0.7 : 1}>
                   <Text style={homeS.subCourse} numberOfLines={2}>{s.course}
-                    {s.courseLogId ? <Text style={{ fontSize: 8, color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
+                    {resolveCourseLogId(s) ? <Text style={{ fontSize: 8, color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
                 </TouchableOpacity>
-                <Text style={homeS.subDDay}>D-{s.dDay}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => openScheduleSheet(s)}
+                  onLongPress={() => openScheduleSheet(s)}
+                  delayLongPress={350}
+                  activeOpacity={0.85}>
+                  <Text style={homeS.subDDay}>D-{s.dDay}</Text>
+                </TouchableOpacity>
+              </View>
               );
             })}
 
@@ -456,9 +489,8 @@ export function HomeScreen({ navigation }) {
         onClose={() => setShowScheduleModal(false)}
         onCourseTap={() => {
           setShowScheduleModal(false);
-          if (selectedSchedule?.courseLogId) {
-            navigation.navigate('코스', { openCourseId: selectedSchedule.courseLogId });
-          }
+          const id = resolveCourseLogId(selectedSchedule);
+          if (id) navigation.navigate('코스', { openCourseId: id });
         }}
         onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}

@@ -22,9 +22,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
         <View style={sheetS.sheet}>
           <View style={sheetS.handle} />
           <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 14 }}>
-            <TouchableOpacity onPress={onCourseTap} activeOpacity={schedule.courseLogId ? 0.6 : 1}>
+            <TouchableOpacity onPress={onCourseTap} activeOpacity={(schedule.courseLogId || schedule.courseId) ? 0.6 : 1}>
               <Text style={sheetS.course}>{schedule.course}
-                {schedule.courseLogId ? <Text style={sheetS.courseArrow}> ›</Text> : null}
+                {(schedule.courseLogId || schedule.courseId) ? <Text style={sheetS.courseArrow}> ›</Text> : null}
               </Text>
             </TouchableOpacity>
             <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
