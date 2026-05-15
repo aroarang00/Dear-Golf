@@ -7,6 +7,15 @@ export const KAKAO_REST_API_KEY = 'edb7385e0d3233ccd44423118331345a';
 export const KAKAO_JS_KEY = 'c44ff0a40a680fa9e75bb2c59a08654f';
 
 // =============================================================
+// 네이버 클라우드 플랫폼 — Maps Static Map API (정적 지도 이미지)
+// https://www.ncloud.com/product/applicationService/maps
+//  - 인증: x-ncp-apigw-api-key-id / x-ncp-apigw-api-key 헤더
+// =============================================================
+export const NAVER_MAP_CLIENT_ID     = '374yfyklgp';
+export const NAVER_MAP_CLIENT_SECRET = 'AC8Bfcfelo4kqqJPWukL48IoogOmPr2yx7jMvdDL';
+export const NAVER_STATIC_MAP_URL    = 'https://maps.apigw.ntruss.com/map-static/v2/raster';
+
+// =============================================================
 // Unsplash Access Key — 홈화면 배경사진 (시간대/날씨별 골프장 이미지)
 // https://unsplash.com/developers
 // =============================================================

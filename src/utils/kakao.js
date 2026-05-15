@@ -1,7 +1,8 @@
 import { KAKAO_REST_API_KEY } from '../constants/api';
 
-const KEYWORD_URL = 'https://dapi.kakao.com/v2/local/search/keyword.json';
-const ADDRESS_URL = 'https://dapi.kakao.com/v2/local/search/address.json';
+const KEYWORD_URL  = 'https://dapi.kakao.com/v2/local/search/keyword.json';
+const ADDRESS_URL  = 'https://dapi.kakao.com/v2/local/search/address.json';
+const CATEGORY_URL = 'https://dapi.kakao.com/v2/local/search/category.json';
 
 const isKeyConfigured = () =>
   KAKAO_REST_API_KEY && KAKAO_REST_API_KEY !== 'YOUR_KAKAO_REST_API_KEY';
@@ -81,6 +82,90 @@ export async function searchNearbyDrivingRanges(lat, lng, radius = 10000) {
 // 가까운 스크린골프
 export async function searchNearbyScreenGolf(lat, lng, radius = 5000) {
   return searchNearbyByKeyword('스크린골프', lat, lng, radius, /(스크린|실내골프)/);
+}
+
+// 좌표 기준 반경 내 골프장 거리순 검색 — 코스 상세 '주변 골프장'
+export async function searchNearbyGolfCourses(lat, lng, radius = 10000) {
+  return searchNearbyByKeyword('골프장', lat, lng, radius, /골프장/);
+}
+
+// 좌표 기준 반경 내 카테고리 장소 거리순 검색 (공통)
+//  code: FD6(음식점) | CE7(카페)
+//  반환: [{ kakaoId, name, type, kind, loc, x, y, distance, phone, url }]
+async function searchNearbyByCategory(code, lat, lng, radius) {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return [];
+  if (!isKeyConfigured()) {
+    console.warn('[kakao] KAKAO_REST_API_KEY not configured.');
+    return [];
+  }
+  try {
+    // 거리순, 반경 radius(m, 최대 20000)
+    const url = `${CATEGORY_URL}?category_group_code=${code}&x=${lng}&y=${lat}&radius=${radius}&sort=distance&size=15`;
+    const res = await fetch(url, {
+      headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
+    });
+    if (!res.ok) { console.warn('[kakao] nearby HTTP', res.status, code); return []; }
+    const data = await res.json();
+    return (data.documents || []).map(d => ({
+      kakaoId: d.id,
+      name: d.place_name,
+      // "음식점 > 한식 > 육류,고기" → 마지막 분류만
+      type: (d.category_name || '').split('>').pop().trim() || (code === 'CE7' ? '카페' : '음식점'),
+      kind: code === 'CE7' ? 'cafe' : 'food',
+      loc: d.road_address_name || d.address_name || '',
+      x: parseFloat(d.x), // 경도
+      y: parseFloat(d.y), // 위도
+      distance: parseInt(d.distance, 10) || 0,
+      phone: d.phone || '',
+      url: d.place_url || '',
+    }));
+  } catch (e) {
+    console.warn('[kakao] nearby category failed:', code, e?.message);
+    return [];
+  }
+}
+
+// 골프장 주변 음식점(FD6) 거리순 검색
+export async function searchNearbyRestaurants(lat, lng, radius = 3000) {
+  return searchNearbyByCategory('FD6', lat, lng, radius);
+}
+
+// 골프장 주변 카페(CE7) 거리순 검색
+export async function searchNearbyCafes(lat, lng, radius = 3000) {
+  return searchNearbyByCategory('CE7', lat, lng, radius);
+}
+
+// 키워드로 음식점(FD6) 검색 — 맛집 직접 검색·저장용
+// 골프장 좌표를 주면 그 주변(반경 20km) 거리순으로 정렬
+// 반환: [{ kakaoId, name, type, loc, x, y, distance, phone, url }]
+export async function searchRestaurantsByKeyword(query, lat, lng) {
+  const q = (query || '').trim();
+  if (!q || !isKeyConfigured()) return [];
+  try {
+    let url = `${KEYWORD_URL}?query=${encodeURIComponent(q)}&category_group_code=FD6&size=12`;
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      url += `&x=${lng}&y=${lat}&radius=20000&sort=distance`;
+    }
+    const res = await fetch(url, {
+      headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
+    });
+    if (!res.ok) { console.warn('[kakao] keyword food HTTP', res.status); return []; }
+    const data = await res.json();
+    return (data.documents || []).map(d => ({
+      kakaoId: d.id,
+      name: d.place_name,
+      type: (d.category_name || '').split('>').pop().trim() || '음식점',
+      loc: d.road_address_name || d.address_name || '',
+      x: parseFloat(d.x),
+      y: parseFloat(d.y),
+      distance: parseInt(d.distance, 10) || 0,
+      phone: d.phone || '',
+      url: d.place_url || '',
+    }));
+  } catch (e) {
+    console.warn('[kakao] keyword food failed:', e?.message);
+    return [];
+  }
 }
 
 // 골프장명 키워드 검색 → 첫 결과의 phone 등 메타정보 반환

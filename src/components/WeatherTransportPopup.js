@@ -82,6 +82,12 @@ const fetchWeatherByName = (name) => fetchWeatherCached(`name:${name}`, async ()
   return { x: coord.x, y: coord.y, loc: loc || '' };
 });
 
+// 좌표를 직접 받은 일정 (코스 상세 화면 등) — 재해석 없이 그대로 사용
+const fetchWeatherByCoord = (x, y, loc) => fetchWeatherCached(`coord:${x},${y}`, async () => {
+  const l = loc || (await reverseGeocode(y, x));
+  return { x, y, loc: l || '' };
+});
+
 const BG = '#0a1e10';
 
 const UV_ENABLED = true;
@@ -211,20 +217,26 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
           ]);
           if (cancelled) return;
           setForecast(f); setAirQuality(aq); setUvIndex(uv);
-        } else if (schedule?.courseId || schedule?.course) {
+        } else if ((schedule?.courseX != null && schedule?.courseY != null) || schedule?.courseId || schedule?.course) {
           // 디스크 캐시 복원 대기 후 cache 체크 (보통 즉시 resolve)
           await wxRestorePromise;
           if (cancelled) return;
-          const useCourseId = !!schedule.courseId;
-          const key = useCourseId ? `course:${schedule.courseId}` : `name:${schedule.course}`;
+          // 좌표를 직접 받았으면 그대로 사용 (코스 상세 화면 — 해당 구장 보장)
+          const hasCoord = schedule?.courseX != null && schedule?.courseY != null;
+          const useCourseId = !hasCoord && !!schedule.courseId;
+          const key = hasCoord
+            ? `coord:${schedule.courseX},${schedule.courseY}`
+            : useCourseId ? `course:${schedule.courseId}` : `name:${schedule.course}`;
           const existing = wxCache.get(key);
           const hasFresh = existing?.data && Date.now() - existing.ts < WX_TTL;
           if (!hasFresh) {
             setForecast(null); setAirQuality(null); setUvIndex(null);
           }
-          const data = useCourseId
-            ? await fetchWeatherForCourse(schedule.courseId)
-            : await fetchWeatherByName(schedule.course);
+          const data = hasCoord
+            ? await fetchWeatherByCoord(schedule.courseX, schedule.courseY, schedule.courseLoc)
+            : useCourseId
+              ? await fetchWeatherForCourse(schedule.courseId)
+              : await fetchWeatherByName(schedule.course);
           if (cancelled || !data) return;
           setForecast(data.forecast);
           setAirQuality(data.airQuality);
@@ -236,7 +248,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       }
     })();
     return () => { cancelled = true; };
-  }, [visible, weatherOnly, schedule?.courseId]);
+  }, [visible, weatherOnly, schedule?.courseId, schedule?.courseX, schedule?.courseY]);
 
   // 마이페이지 저장 출발지 → 좌표 변환 (1회 캐시)
   useEffect(() => {
@@ -252,9 +264,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   // 백그라운드 prefetch — 일정이 정해지면 팝업 열기 전부터 미리 받아둠 (in-flight dedupe로 중복 fetch 방지)
   useEffect(() => {
     if (weatherOnly) return;
-    if (schedule?.courseId) fetchWeatherForCourse(schedule.courseId).catch(() => {});
+    if (schedule?.courseX != null && schedule?.courseY != null) {
+      fetchWeatherByCoord(schedule.courseX, schedule.courseY, schedule.courseLoc).catch(() => {});
+    } else if (schedule?.courseId) fetchWeatherForCourse(schedule.courseId).catch(() => {});
     else if (schedule?.course) fetchWeatherByName(schedule.course).catch(() => {});
-  }, [schedule?.courseId, schedule?.course, weatherOnly]);
+  }, [schedule?.courseId, schedule?.course, schedule?.courseX, schedule?.courseY, weatherOnly]);
 
   // 일정 바뀌면 종료시간 오프셋 리셋
   useEffect(() => { setEndOffsetMin(0); }, [schedule?.courseId, schedule?.time]);
@@ -295,9 +309,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     },
   })).current;
 
-  if (!schedule) return null;
-
-  const [teeH, teeM] = (schedule.time || '08:00').split(':').map(Number);
+  const [teeH, teeM] = (schedule?.time || '08:00').split(':').map(Number);
   const teeMin = teeH * 60 + teeM;
 
   // 교통 탭 계산
@@ -442,7 +454,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
   // 일정 날짜 매칭용 (full 'YYYY.MM.DD'로 비교)
   const scheduleDateSet = new Set(
-    (schedules || [schedule]).map(s => s.date || '')
+    (schedules || [schedule]).filter(Boolean).map(s => s.date || '')
   );
 
   // 골프 지수: 풍속(30) + 강수확률(35) + 기온(35) = 100
@@ -521,6 +533,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
     return { total, label, badges };
   }, [weatherOnly, cur, days, hourSlots, teeoffSlotIdx, schedule, todayDay]);
+
+  // 모든 훅 실행 이후 조기 반환 — 훅 순서 보장 (Rules of Hooks)
+  if (!schedule) return null;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

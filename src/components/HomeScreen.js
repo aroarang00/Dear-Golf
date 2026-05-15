@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { COURSE_LOG, DIARY_DATA, COURSE_COMMENTS } from '../constants/data';
 import { getUserCourses } from '../utils/userCourses';
+import { STORAGE_KEYS, storage } from '../utils/storage';
 import { normalizeSchedules } from '../utils/helpers';
 import { homeS } from '../styles/homeS';
 import { UserContext } from '../contexts/UserContext';
@@ -35,8 +36,23 @@ export function HomeScreen({ navigation }) {
   const [cardSlide, setCardSlide] = useState(0);
   const [showDDayMenu, setShowDDayMenu] = useState(false);
   const [dDayPos, setDDayPos] = useState({ x: 0, y: 0 });
+  const [now, setNow] = useState(Date.now());
+  const [diaries, setDiaries] = useState(DIARY_DATA);
   const dDayRef = useRef(null);
   const cardsScrollRef = useRef(null);
+
+  // 라운딩 기록 완료 여부 확인용 — 다이어리 로드
+  const loadDiaries = React.useCallback(() => {
+    storage.load(STORAGE_KEYS.diaries, DIARY_DATA)
+      .then(d => setDiaries(Array.isArray(d) ? d : DIARY_DATA));
+  }, []);
+
+  // 1분마다 현재 시각 갱신 — 라운딩 종료(티오프+5h)/자정 전환 감지
+  useEffect(() => {
+    loadDiaries();
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, [loadDiaries]);
 
   const openDDayMenu = () => {
     dDayRef.current?.measureInWindow((x, y) => {
@@ -65,6 +81,10 @@ export function HomeScreen({ navigation }) {
     if (!navigation) return;
     const unsubscribe = navigation.addListener('focus', () => {
       cardsScrollRef.current?.scrollTo({ x: 0, animated: false });
+      // userCourses 최신화 — 코스명→id 매칭(resolveCourseLogId)이 최신 목록을 쓰도록
+      getUserCourses().then(list => setUserCoursesList(list || []));
+      // 다이어리 최신화 — 라운딩 기록 완료 시 종료 카드 → 다음 일정 전환
+      loadDiaries();
     });
     return unsubscribe;
   }, [navigation]);
@@ -77,12 +97,27 @@ export function HomeScreen({ navigation }) {
     })();
   }, []);
 
-  // 홈 D-day 카드는 미래(또는 오늘) 일정만 — 지난 일정은 캘린더 전용
-  const upcomingSchedules = React.useMemo(
-    () => schedules.filter(s => (s.dDay ?? 0) >= 0),
-    [schedules],
-  );
+  // 홈 D-day 카드 — 날짜 기준(자정 넘어가면 자동 갱신) + 다이어리 기록 완료분 제외
+  const now0 = (() => {
+    const d = new Date(now);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  })();
+  const parseSchedDate = (s) => {
+    const [y, m, d] = (s?.date || '').split('.').map(Number);
+    return new Date(y || 1970, (m || 1) - 1, d || 1).getTime();
+  };
+  const isRecorded = (s) => !!s && diaries.some(d => d.course === s.course && d.date === s.date);
+  const upcomingSchedules = schedules
+    .filter(s => parseSchedDate(s) >= now0 && !isRecorded(s))
+    .sort((a, b) => parseSchedDate(a) - parseSchedDate(b));
   const next = upcomingSchedules.length > 0 ? upcomingSchedules[0] : null;
+  // 자정 기준 재계산 D-day / 라운딩 종료 판정(티오프 + 5시간)
+  const freshDDay = (s) => (s ? Math.max(0, Math.round((parseSchedDate(s) - now0) / 86400000)) : 0);
+  const teeoffEndMs = (s) => {
+    const [hh, mm] = (s?.time || '08:00').split(':').map(Number);
+    return parseSchedDate(s) + (hh || 8) * 3600000 + (mm || 0) * 60000 + 5 * 3600000;
+  };
+  const roundEnded = !!next && freshDDay(next) === 0 && now >= teeoffEndMs(next);
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
@@ -205,14 +240,21 @@ export function HomeScreen({ navigation }) {
         course: data.course, date: data.date, day: data.day || '토',
         time: data.time || '08:00', members: data.members || 4,
         dDay: data.dDay || 30, weather: '맑음 20°', wind: '남 2m/s',
-        duration: '1시간 30분', courseLogId: null,
+        duration: '1시간 30분',
+        // 코스 상세 이동용 — ScheduleModal이 넘긴 코스 id 보존
+        courseLogId: data.courseLogId || null,
+        courseId: data.courseId || null,
       };
       setSchedules(prev => normalizeSchedules([...prev, newS]));
+      // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
+      getUserCourses().then(list => setUserCoursesList(list || []));
     } else if (type === 'schedule-edit') {
       setSchedules(prev => normalizeSchedules(prev.map(s => s.id === data.id
         ? { ...s, course: data.course, date: data.date, day: data.day,
-            time: data.time, members: data.members, dDay: data.dDay }
+            time: data.time, members: data.members, dDay: data.dDay,
+            courseId: data.courseId || null }
         : s)));
+      getUserCourses().then(list => setUserCoursesList(list || []));
     }
   };
 
@@ -289,30 +331,73 @@ export function HomeScreen({ navigation }) {
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             <View style={homeS.mainCard}>
-              <TouchableOpacity
-                onPress={() => handleCardCoursePress(next)}
-                activeOpacity={resolveCourseLogId(next) ? 0.7 : 1}
-                style={{ marginBottom: 4 }}>
-                <Text style={homeS.cardCourse}>{next.course}
-                  {resolveCourseLogId(next) ? <Text style={{ fontSize: 11, color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
-                </Text>
-                <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
-              </TouchableOpacity>
-              <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <TouchableOpacity
-                  ref={dDayRef}
-                  onPress={openDDayMenu}
-                  activeOpacity={0.7}
-                  style={{ alignSelf: 'flex-start' }}>
-                  <Text style={homeS.cardDDay}>D-{next.dDay}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
-                  activeOpacity={0.7}>
-                  <Text style={{ fontSize: 26, marginBottom: 6 }}>🌤  🚗</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
-                </TouchableOpacity>
-              </View>
+              {roundEnded ? (
+                <>
+                  {/* 라운딩 종료 카드 — 티오프 + 5시간 경과 */}
+                  <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+                    <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 9, color: C.butter, letterSpacing: 1 }}>라운딩 종료</Text>
+                    </View>
+                  </View>
+                  <Text style={homeS.cardCourse} numberOfLines={1}>{next.course}</Text>
+                  <Text style={[homeS.cardDate, { marginBottom: 12 }]}>{next.date.slice(5)} {next.day} 라운딩</Text>
+
+                  {/* 기록 유도 박스 */}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('다이어리', { openAddModal: true })}
+                    style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '600' }}>기록 남기기 →</Text>
+                  </TouchableOpacity>
+
+                  {/* 귀가 교통 / 주변 맛집 */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 'auto' }}>
+                    <TouchableOpacity
+                      onPress={() => { setSelectedSchedule(next); setShowTrafficFull(true); }}
+                      activeOpacity={0.8}
+                      style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff' }}>🚗 귀가 교통</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const id = resolveCourseLogId(next);
+                        if (id) navigation.navigate('코스', { openCourseId: id, openCourseTab: 'food' });
+                      }}
+                      activeOpacity={0.8}
+                      style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff' }}>🍴 주변 맛집</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => handleCardCoursePress(next)}
+                    activeOpacity={resolveCourseLogId(next) ? 0.7 : 1}
+                    style={{ marginBottom: 4 }}>
+                    <Text style={homeS.cardCourse}>{next.course}
+                      {resolveCourseLogId(next) ? <Text style={{ fontSize: 11, color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
+                    </Text>
+                    <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
+                  </TouchableOpacity>
+                  <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                    <TouchableOpacity
+                      ref={dDayRef}
+                      onPress={openDDayMenu}
+                      activeOpacity={0.7}
+                      style={{ alignSelf: 'flex-start' }}>
+                      <Text style={homeS.cardDDay}>D-{freshDDay(next)}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
+                      activeOpacity={0.7}>
+                      <Text style={{ fontSize: 26, marginBottom: 6 }}>🌤  🚗</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
             </View>
 
             {upcomingSchedules.slice(1, 5).map((s, i) => {
@@ -334,7 +419,7 @@ export function HomeScreen({ navigation }) {
                   onLongPress={() => openScheduleSheet(s)}
                   delayLongPress={350}
                   activeOpacity={0.85}>
-                  <Text style={homeS.subDDay}>D-{s.dDay}</Text>
+                  <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
                 </TouchableOpacity>
               </View>
               );
