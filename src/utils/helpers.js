@@ -1,6 +1,6 @@
 import { COURSE_TAGS, COURSE_TAG_COLORS, COURSE_LOG } from '../constants/data';
 
-// 일정 배열을 오늘 기준 dDay 재계산 + 지난 일정(dDay < 0) 제거 + 날짜 오름차순 정렬
+// 일정 배열을 오늘 기준 dDay 재계산 + 날짜 오름차순 정렬 (지난 일정도 유지: 캘린더용)
 // + course 이름을 COURSE_LOG의 정식 이름으로 case-insensitive 자동 매핑 (courseLogId도 보충)
 export const normalizeSchedules = (list) => {
   const today = new Date();
@@ -25,7 +25,6 @@ export const normalizeSchedules = (list) => {
       target.setHours(0, 0, 0, 0);
       return { ...mapped, dDay: Math.ceil((target - today) / MS) };
     })
-    .filter(s => s.dDay >= 0)
     .sort((a, b) => a.dDay - b.dDay);
 };
 

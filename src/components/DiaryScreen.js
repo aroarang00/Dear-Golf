@@ -342,6 +342,7 @@ export function DiaryScreen({ route, navigation }) {
       })()}
       {tab === 'log' && (
         <MyScheduleTab
+          diaries={diaries}
           onRequestAddDiary={() => {
             setTab('round');
             setShowModal(true);

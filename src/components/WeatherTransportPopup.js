@@ -758,9 +758,17 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 </View>
               </View>
 
-              {/* ⑦ 네이버 날씨 더보기 */}
+              {/* ⑦ 네이버 날씨 더보기 — 해당 골프장(또는 현재 위치)으로 검색 연결 */}
               <TouchableOpacity
-                onPress={() => Linking.openURL('https://m.weather.naver.com/')}
+                onPress={() => {
+                  const courseName = (schedule?.course || '').trim();
+                  const locName = (courseCoord?.loc || '').trim();
+                  const q = (weatherOnly || courseName === '현재 위치')
+                    ? (locName || '날씨')
+                    : (courseName || locName || '날씨');
+                  const url = `https://search.naver.com/search.naver?query=${encodeURIComponent(q + ' 날씨')}`;
+                  Linking.openURL(url).catch(() => Linking.openURL('https://m.weather.naver.com/'));
+                }}
                 activeOpacity={0.7}
                 style={wxS.naverBtn}>
                 <Text style={wxS.naverBtnTxt}>네이버 날씨 더보기 →</Text>

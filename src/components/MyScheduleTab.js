@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { C, F } from '../constants/colors';
-import { STORAGE_KEYS, storage } from '../utils/storage';
-import { DIARY_DATA } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export function MyScheduleTab({ onRequestAddDiary }) {
+export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [completedDates, setCompletedDates] = useState([]);
   const [modal, setModal] = useState({ visible: false, initial: null });
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
@@ -22,12 +19,10 @@ export function MyScheduleTab({ onRequestAddDiary }) {
     setPicker(p => ({ ...p, visible: false }));
   };
 
-  useEffect(() => {
-    (async () => {
-      const d = await storage.load(STORAGE_KEYS.diaries, DIARY_DATA);
-      setCompletedDates((d || []).map(x => x.date).filter(Boolean));
-    })();
-  }, []);
+  const completedDates = React.useMemo(
+    () => diaries.map(x => x.date).filter(Boolean),
+    [diaries],
+  );
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -53,10 +48,14 @@ export function MyScheduleTab({ onRequestAddDiary }) {
     return ymd.getTime() < todayMid;
   };
 
-  // status: 'today' | 'upcoming' | 'completed-record' | 'completed-norecord' | 'other' | 'normal'
+  // status: 'today' | 'today-round' | 'upcoming' | 'completed-record' | 'completed-norecord' | 'normal'
   const getStatus = (m, d) => {
     const dateStr = dateStrFor(m, d);
-    if (isToday(m, d)) return 'today';
+    if (isToday(m, d)) {
+      const sched = schedOnStr(dateStr);
+      if (sched || hasRecord(dateStr)) return 'today-round';
+      return 'today';
+    }
     const sched = schedOnStr(dateStr);
     const past = isPast(m, d);
     if (sched && !past) return 'upcoming';
@@ -101,7 +100,11 @@ export function MyScheduleTab({ onRequestAddDiary }) {
 
   const handleSave = (type, data) => {
     if (type === 'schedule') {
-      setSchedules(prev => [...prev, { id: String(Date.now()), ...data }]);
+      setSchedules(prev => [...prev, {
+        id: String(Date.now()),
+        weather: '맑음 20°', wind: '남 2m/s', duration: '1시간 30분',
+        ...data,
+      }]);
     } else if (type === 'schedule-edit') {
       setSchedules(prev => prev.map(s => (s.id === data.id ? { ...s, ...data } : s)));
     }
@@ -121,6 +124,23 @@ export function MyScheduleTab({ onRequestAddDiary }) {
   };
 
   const monthSchedules = schedules.filter(s => s.date && s.date.startsWith(monthStr));
+  // 일정 없이 다이어리만 있는 날짜 → 가상 카드로 추가 (오늘 라운딩을 다이어리에만 입력한 케이스)
+  const scheduleDateSet = new Set(monthSchedules.map(s => s.date));
+  const orphanDiaries = diaries.filter(d => d.date && d.date.startsWith(monthStr) && !scheduleDateSet.has(d.date));
+  const orphanItems = orphanDiaries.map(d => {
+    const [y, mm, dd] = d.date.split('.').map(Number);
+    const dt = new Date(y, mm - 1, dd);
+    return {
+      id: `diary-${d.id}`,
+      virtual: true,
+      course: d.course,
+      date: d.date,
+      day: d.day || DAYS[dt.getDay()],
+      time: d.time || '',
+      members: d.members || 0,
+    };
+  });
+  const monthItems = [...monthSchedules, ...orphanItems];
 
   const renderDateCircle = (cell) => {
     const { d, monthOffset } = cell;
@@ -144,22 +164,32 @@ export function MyScheduleTab({ onRequestAddDiary }) {
             <Text style={[baseText, { color: C.butter, fontWeight: '600' }]}>{d}</Text>
           </View>
         );
-      case 'upcoming':
+      case 'today-round':
+        // 오늘 라운딩 있음: 차콜 fill + 골드 테두리
         return (
-          <View style={[base, { backgroundColor: '#C8D9E6' }]}>
-            <Text style={[baseText, { color: '#1A3A5C', fontWeight: '600' }]}>{d}</Text>
+          <View style={[base, { backgroundColor: C.charcoal, borderWidth: 2, borderColor: '#C9A84C' }]}>
+            <Text style={[baseText, { color: C.butter, fontWeight: '600' }]}>{d}</Text>
+          </View>
+        );
+      case 'upcoming':
+        // 예정: 버건디 fill 원
+        return (
+          <View style={[base, { backgroundColor: C.burgundy }]}>
+            <Text style={[baseText, { color: '#fff', fontWeight: '600' }]}>{d}</Text>
           </View>
         );
       case 'completed-record':
+        // 완료+기록있음: 버터색 fill 원
         return (
-          <View style={[base, { borderWidth: 2, borderColor: '#C9A84C', opacity: 0.5 }]}>
-            <Text style={[baseText, { color: '#C9A84C' }]}>{d}</Text>
+          <View style={[base, { backgroundColor: C.butter, opacity: 0.85 }]}>
+            <Text style={[baseText, { color: C.charcoal, fontWeight: '600' }]}>{d}</Text>
           </View>
         );
       case 'completed-norecord':
+        // 완료+기록없음: 점선 원
         return (
-          <View style={[base, { borderWidth: 2, borderColor: '#8B8680', borderStyle: 'dashed' }]}>
-            <Text style={[baseText, { color: '#6B1E2A', fontWeight: '600' }]}>{d}</Text>
+          <View style={[base, { borderWidth: 1.5, borderColor: C.warmGray, borderStyle: 'dashed' }]}>
+            <Text style={[baseText, { color: C.warmGray }]}>{d}</Text>
           </View>
         );
       default:
@@ -215,15 +245,15 @@ export function MyScheduleTab({ onRequestAddDiary }) {
         {/* Legend */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#C8D9E6' }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.burgundy }} />
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>예정</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#C9A84C', opacity: 0.5 }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.butter, opacity: 0.85 }} />
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>완료·기록</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#8B8680', borderStyle: 'dashed' }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: C.warmGray, borderStyle: 'dashed' }} />
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>완료·미기록</Text>
           </View>
         </View>
@@ -231,43 +261,46 @@ export function MyScheduleTab({ onRequestAddDiary }) {
         {/* This month list */}
         <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 10 }}>
-            이번달 일정 · {monthSchedules.length}개
+            이번달 일정 · {monthItems.length}개
           </Text>
-          {monthSchedules.length === 0 ? (
+          {monthItems.length === 0 ? (
             <View style={{ paddingVertical: 28, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>이번달 일정이 없어요</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>날짜를 탭해서 일정을 추가하세요</Text>
             </View>
           ) : (
-            monthSchedules
+            monthItems
               .slice()
               .sort((a, b) => a.date.localeCompare(b.date))
               .map(s => {
                 const past = new Date(s.date.replace(/\./g, '-')).getTime() < todayMid;
                 const rec = hasRecord(s.date);
                 let status, sideColor, badgeBg, badgeFg, badgeTxt;
-                if (!past) {
-                  status = 'upcoming';
-                  sideColor = '#6B1E2A';
-                  badgeBg = '#F5EAEC'; badgeFg = '#6B1E2A'; badgeTxt = '예정';
-                } else if (rec) {
+                if (rec) {
+                  // 다이어리 기록 있으면 완료로 간주 (오늘 입력한 케이스 포함)
                   status = 'completed-record';
-                  sideColor = '#C9A84C';
-                  badgeBg = '#FBF7EE'; badgeFg = '#C9A84C'; badgeTxt = '기록완료';
-                } else {
+                  sideColor = C.butter;
+                  badgeBg = '#FBF7EE'; badgeFg = '#A88A2E'; badgeTxt = '기록완료';
+                } else if (past) {
                   status = 'completed-norecord';
-                  sideColor = '#8B8680';
-                  badgeBg = '#F0EDE6'; badgeFg = '#8B8680'; badgeTxt = '미기록';
+                  sideColor = C.warmGray;
+                  badgeBg = '#F0EDE6'; badgeFg = C.warmGray; badgeTxt = '미기록';
+                } else {
+                  status = 'upcoming';
+                  sideColor = C.burgundy;
+                  badgeBg = '#F5EAEC'; badgeFg = C.burgundy; badgeTxt = '예정';
                 }
 
                 const cardBorder = status === 'completed-norecord'
-                  ? { borderWidth: 1, borderColor: '#8B8680', borderStyle: 'dashed' }
+                  ? { borderWidth: 1, borderColor: C.warmGray, borderStyle: 'dashed' }
                   : { borderWidth: 0.5, borderColor: C.hairline };
-                const cardOpacity = past ? 0.45 : 1;
+                // 완료된 카드 흐리게 (기록 유무 무관)
+                const cardOpacity = (past || rec) ? 0.55 : 1;
 
                 return (
                   <TouchableOpacity key={s.id}
-                    onPress={() => setSheet({ visible: true, schedule: s })}
+                    onPress={() => s.virtual ? null : setSheet({ visible: true, schedule: s })}
+                    disabled={s.virtual}
                     activeOpacity={0.85}
                     style={{
                       flexDirection: 'row',
@@ -285,7 +318,7 @@ export function MyScheduleTab({ onRequestAddDiary }) {
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>{s.course}</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>
-                        {s.date} {s.day} · {s.time} · {s.members}명
+                        {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
                       </Text>
                     </View>
 
@@ -298,13 +331,13 @@ export function MyScheduleTab({ onRequestAddDiary }) {
                         <TouchableOpacity
                           onPress={(e) => { e.stopPropagation?.(); onRequestAddDiary && onRequestAddDiary(s); }}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          style={{ marginTop: 8 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.burgundy, fontWeight: '600' }}>기록 추가하기 →</Text>
+                          style={{ marginTop: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: C.burgundy }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff', fontWeight: '600' }}>기록 추가하기</Text>
                         </TouchableOpacity>
                       )}
                       {status === 'completed-record' && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#C9A84C', fontWeight: '600' }}>📔 다이어리</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#A88A2E', fontWeight: '600' }}>📔 다이어리</Text>
                         </View>
                       )}
                     </View>

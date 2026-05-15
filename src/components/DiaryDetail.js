@@ -71,8 +71,8 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }}>
       <View style={[dS.detailHdr, isSpecial && { borderBottomColor: '#C9A84C44' }]}>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={dS.backBtn}>← Diary</Text>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={dS.backBtn}>←</Text>
         </TouchableOpacity>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={[dS.detailHdrNickname, isSpecial && { backgroundColor: '#8B6914' }]}>

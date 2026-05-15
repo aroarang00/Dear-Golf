@@ -36,6 +36,7 @@ export function HomeScreen({ navigation }) {
   const [showDDayMenu, setShowDDayMenu] = useState(false);
   const [dDayPos, setDDayPos] = useState({ x: 0, y: 0 });
   const dDayRef = useRef(null);
+  const cardsScrollRef = useRef(null);
 
   const openDDayMenu = () => {
     dDayRef.current?.measureInWindow((x, y) => {
@@ -59,6 +60,15 @@ export function HomeScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
+  // 다른 탭에서 홈으로 돌아오면 D-day 카드 스크롤을 첫번째(메인카드)로 초기화
+  useEffect(() => {
+    if (!navigation) return;
+    const unsubscribe = navigation.addListener('focus', () => {
+      cardsScrollRef.current?.scrollTo({ x: 0, animated: false });
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함
   useEffect(() => {
     (async () => {
@@ -67,7 +77,12 @@ export function HomeScreen({ navigation }) {
     })();
   }, []);
 
-  const next = schedules.length > 0 ? schedules[0] : null;
+  // 홈 D-day 카드는 미래(또는 오늘) 일정만 — 지난 일정은 캘린더 전용
+  const upcomingSchedules = React.useMemo(
+    () => schedules.filter(s => (s.dDay ?? 0) >= 0),
+    [schedules],
+  );
+  const next = upcomingSchedules.length > 0 ? upcomingSchedules[0] : null;
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
@@ -151,10 +166,11 @@ export function HomeScreen({ navigation }) {
     setShowWeatherPopup(true);
   };
 
-  const handleShareSchedule = (s) => {
+  const handleShareSchedule = async (s) => {
     if (!s) return;
-    const msg = `[ Dear Golf ]\n\n${s.course}\n${s.date} ${s.day}요일  ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n\n예상 날씨  ${s.weather}\n권장 출발  ${s.duration} 전 출발\n         (티오프 30분 전 도착 기준)\n\n나만의 골프 캐디, Dear Golf와\n함께하는 라운딩입니다\n\ndeargolf.app`;
-    Share.share({ message: msg });
+    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳`;
+    try { await Share.share({ message: msg }); }
+    catch (e) { console.warn('[share schedule]', e?.message); }
   };
 
   const handleEditSchedule = (s) => {
@@ -264,13 +280,13 @@ export function HomeScreen({ navigation }) {
         <View style={homeS.bottomArea}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 8 }}>
             <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>예정 라운딩</Text>
-            {schedules.length < 10 && (
+            {upcomingSchedules.length < 10 && (
               <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>+ 추가</Text>
               </TouchableOpacity>
             )}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             <View style={homeS.mainCard}>
               <TouchableOpacity
@@ -299,7 +315,7 @@ export function HomeScreen({ navigation }) {
               </View>
             </View>
 
-            {schedules.slice(1, 5).map((s, i) => {
+            {upcomingSchedules.slice(1, 5).map((s, i) => {
               const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;
               return (
               <View key={s.id} style={[homeS.subCard, { opacity }]}>
@@ -524,9 +540,7 @@ export function HomeScreen({ navigation }) {
                 onPress={async () => {
                   if (!next) { setShowDDayMenu(false); return; }
                   try {
-                    await Share.share({
-                      message: `[ Dear Golf ]\n\n${next.course}\n${next.date} ${next.day}요일  ${next.time}\n${next.members}명 동반 · D-${next.dDay}\n\nDear Golf와 함께하는 라운딩입니다`,
-                    });
+                    await handleShareSchedule(next);
                   } catch (e) { console.warn('[share schedule]', e?.message); }
                   setShowDDayMenu(false);
                 }}
