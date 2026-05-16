@@ -69,26 +69,28 @@ export function MyScreen({ navigation }) {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
 
-  // [DEV] 신규 가입 유저 상태로 초기화 — 모든 로컬 데이터 삭제 + 더미 폴백 차단 후 앱 재시작
+  // [DEV] 개발자용 초기화 — 'demo'(더미 데이터) / 'fresh'(신규 가입 유저) 상태로 전환 후 앱 재시작
+  const applyDevReset = async (mode) => {
+    await storage.clear();
+    if (mode === 'fresh') {
+      // 신규 유저 — 더미 폴백 차단(빈 배열 명시) + 온보딩 재노출
+      await storage.save(STORAGE_KEYS.diaries, []);
+      await storage.save(STORAGE_KEYS.schedules, []);
+      await storage.save(STORAGE_KEYS.hof, []);
+      await storage.save(STORAGE_KEYS.profile, { ...USER_PROFILE_INIT, onboardingDone: false });
+    }
+    // 'demo' — 스토리지를 비우기만 하면 각 로더가 더미 데이터로 자동 폴백됨
+    DevSettings.reload();
+  };
+
   const handleDevReset = () => {
     Alert.alert(
-      '신규 유저로 초기화',
-      '모든 로컬 데이터(일정·다이어리·기록·프로필)를 삭제하고\n첫 가입 유저 상태로 앱을 재시작합니다.\n\n계속할까요?',
+      '개발자용 초기화',
+      '앱 상태를 초기화합니다. 현재 입력한 데이터는 모두 삭제됩니다.\n\n· 데모 데이터 — 기본 더미 데이터 상태\n· 신규 유저 — 온보딩부터 시작, 빈 상태',
       [
         { text: '취소', style: 'cancel' },
-        {
-          text: '초기화', style: 'destructive',
-          onPress: async () => {
-            await storage.clear();
-            // 더미 데이터 폴백 차단 — 빈 배열 명시 저장
-            await storage.save(STORAGE_KEYS.diaries, []);
-            await storage.save(STORAGE_KEYS.schedules, []);
-            await storage.save(STORAGE_KEYS.hof, []);
-            // 온보딩 다시 뜨도록 onboardingDone:false 프로필 저장
-            await storage.save(STORAGE_KEYS.profile, { ...USER_PROFILE_INIT, onboardingDone: false });
-            DevSettings.reload();
-          },
-        },
+        { text: '데모 데이터로', onPress: () => applyDevReset('demo') },
+        { text: '신규 유저로', style: 'destructive', onPress: () => applyDevReset('fresh') },
       ],
     );
   };
@@ -187,7 +189,7 @@ export function MyScreen({ navigation }) {
             borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8,
             borderWidth: 1, borderColor: 'rgba(245,230,168,0.4)',
           }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>🔧 신규유저 초기화</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>🔧 개발자 초기화</Text>
         </TouchableOpacity>
       )}
     </SafeAreaView>
