@@ -185,6 +185,9 @@ export function DiaryScreen({ route, navigation }) {
     return dateB - dateA;
   });
 
+  // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
+  const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
+
   if (selected) return <DiaryDetail item={selected} onClose={() => setSelected(null)}
     onUpdate={(updated) => {
       setDiaries(prev => prev.map(d => d.id === updated.id ? updated : d));
@@ -343,13 +346,16 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : (
                 <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-                  {filtered.map((item, idx) => (
+                  {filtered.map((item, idx) => {
+                    const isFS = !!firstSingleId && item.id === firstSingleId;
+                    return (
                     <View key={item.id} style={dS.tlNode}>
                       {idx < filtered.length - 1 && <View style={dS.tlLine} />}
-                      <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, item.special && dS.tlDotSpecial]} />
-                      <DiaryCard item={item} avgScore={avgScore} onPress={(it) => setSelected(it)} />
+                      <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial]} />
+                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} onPress={(it) => setSelected(it)} />
                     </View>
-                  ))}
+                    );
+                  })}
                 </View>
               )}
               <View style={{ height: 32 }} />

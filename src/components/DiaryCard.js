@@ -4,7 +4,7 @@ import { C, F } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
 
-export function DiaryCard({ item, onPress, avgScore }) {
+export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
   const [expanded, setExpanded] = useState(false);
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -12,6 +12,7 @@ export function DiaryCard({ item, onPress, avgScore }) {
   const hasPhoto = item.photos && item.photos.length > 0;
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
+  const highlight = isSpecial || isFirstSingle; // 골드 프레임 강조 (특별한 순간·첫 싱글)
 
   let lineColor;
   if (hasBest) lineColor = '#6B1E2A';
@@ -84,9 +85,9 @@ export function DiaryCard({ item, onPress, avgScore }) {
   if (hasPhoto) {
     return (
       <TouchableOpacity
-        style={[dS.card, isSpecial && dS.cardSpecial]}
+        style={[dS.card, highlight && dS.cardSpecial]}
         activeOpacity={0.88} onPress={() => onPress(item)}>
-        {isSpecial && <View style={dS.cardSpecialLine} />}
+        {highlight && <View style={dS.cardSpecialLine} />}
         <View style={dS.photoHero43}>
           <Image source={{ uri: item.photos[0] }} style={dS.photoImg} resizeMode="cover" />
           <View style={dS.photoBottomOverlay}>
@@ -96,6 +97,11 @@ export function DiaryCard({ item, onPress, avgScore }) {
           {isSpecial && (
             <View style={dS.specialBadge}>
               <Text style={dS.specialBadgeTxt}>{item.special}</Text>
+            </View>
+          )}
+          {isFirstSingle && !isSpecial && (
+            <View style={dS.specialBadge}>
+              <Text style={dS.specialBadgeTxt}>FIRST SINGLE</Text>
             </View>
           )}
           <View style={dS.photoCount}>
@@ -112,13 +118,19 @@ export function DiaryCard({ item, onPress, avgScore }) {
 
   return (
     <TouchableOpacity
-      style={[dS.card, isSpecial ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]}
+      style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]}
       activeOpacity={0.88} onPress={() => onPress(item)}>
-      {isSpecial && <View style={dS.cardSpecialLine} />}
+      {highlight && <View style={dS.cardSpecialLine} />}
       {isSpecial && (
         <View style={dS.specialNoPhoto}>
           <Text style={dS.specialNoPhotoTxt}>{item.special}</Text>
           {item.specialHole && <Text style={dS.specialNoPhotoSub}>{item.specialHole}번홀</Text>}
+        </View>
+      )}
+      {isFirstSingle && !isSpecial && (
+        <View style={dS.specialNoPhoto}>
+          <Text style={dS.specialNoPhotoTxt}>FIRST SINGLE</Text>
+          <Text style={dS.specialNoPhotoSub}>명예의 전당 등재</Text>
         </View>
       )}
       {body}

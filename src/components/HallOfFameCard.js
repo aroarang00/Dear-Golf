@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { C, F } from '../constants/colors';
+import { C } from '../constants/colors';
 import { dS } from '../styles/dS';
 
 export function HallOfFameCard({ item }) {
@@ -11,15 +11,15 @@ export function HallOfFameCard({ item }) {
   const isRound = isFirstSingle || isLifeBest; // 라운드 단위 성취 — 홀 정보 없음
   const bgColor = isHIO ? '#2A2622' : isAlba ? C.burgundy : isFirstSingle ? '#1A3D52' : isLifeBest ? '#2A5A3A' : '#6B6660';
   const accentColor = isLifeBest ? '#A8D4B4' : '#C9A84C';
+  // 카드 타입 표기 — 홀인원·이글·알바와 통일되게 영문으로
+  const typeLabel = isFirstSingle ? 'FIRST SINGLE' : isLifeBest ? 'LIFE BEST' : item.type;
 
   return (
     <View style={[dS.hofCard, { backgroundColor: bgColor }]}>
       <View style={{ height: 1, backgroundColor: accentColor + '44' }} />
       <View style={dS.hofHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[dS.hofType, isRound
-            ? { color: accentColor, fontFamily: F.sys, fontStyle: 'normal', fontSize: 18, fontWeight: '700', letterSpacing: 1 }
-            : { color: accentColor, fontSize: 22, letterSpacing: 6 }]}>{item.type}</Text>
+          <Text style={[dS.hofType, { color: accentColor, fontSize: 22, letterSpacing: 6 }]}>{typeLabel}</Text>
           <Text style={[dS.hofDate, { color: 'rgba(255,255,255,0.4)' }]}>{item.date} · {item.course}</Text>
         </View>
         <View style={[dS.hofGoldDot, { backgroundColor: accentColor }]} />
