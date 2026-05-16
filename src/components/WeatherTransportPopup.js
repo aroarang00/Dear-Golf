@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Share, PanResponder, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, PanResponder, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C } from '../constants/colors';
@@ -426,11 +426,6 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
         )}
       </View>
     );
-  };
-
-  const handleShareDaeri = () => {
-    const msg = `[ Dear Golf ] 같이 대리 부르실 분?\n\n${schedule.course}\n${schedule.date} ${schedule.day}요일 라운딩\n티오프 ${schedule.time}\n\n카카오T 대리: https://www.kakaomobility.com/\n티맵 대리: https://tmap.life\n아이대리: https://www.idaeri.co.kr`;
-    Share.share({ message: msg });
   };
 
   // KMA 예보 derive
@@ -862,7 +857,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 <Text style={trS.darkLabel}>대리운전</Text>
                 <View style={trS.daeriRow}>
                   <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#FEE500' }]}
-                    onPress={() => Linking.openURL('kakaotalk://chauffeur').catch(() => Linking.openURL('https://www.kakaomobility.com/'))}
+                    onPress={() => Linking.openURL('kakaot://').catch(() => Linking.openURL('https://kakaot.kakao.com/'))}
                     activeOpacity={0.85}>
                     <Text style={[trS.daeriBtnTxt, { color: '#3A2000' }]}>카카오T</Text>
                   </TouchableOpacity>
@@ -871,15 +866,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                     activeOpacity={0.85}>
                     <Text style={[trS.daeriBtnTxt, { color: C.navy }]}>티맵대리</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#8B8680' }]}
-                    onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}
-                    activeOpacity={0.85}>
+                  {/* 아이대리 — 연동 준비 중 (버튼만 표시, 비활성) */}
+                  <View style={[trS.daeriBtn, { backgroundColor: '#8B8680', opacity: 0.45 }]}>
                     <Text style={[trS.daeriBtnTxt, { color: '#fff' }]}>아이대리</Text>
-                  </TouchableOpacity>
+                  </View>
                 </View>
-                <TouchableOpacity style={trS.shareBtn} onPress={handleShareDaeri} activeOpacity={0.85}>
-                  <Text style={trS.shareBtnTxt}>동반자에게 공유</Text>
-                </TouchableOpacity>
               </View>
             </ScrollView>
             </View>

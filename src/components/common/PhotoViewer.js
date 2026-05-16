@@ -29,9 +29,17 @@ function VideoItem({ uri, active }) {
   );
 }
 
-function PinchableImage({ uri, width, height }) {
+function PinchableImage({ uri, width, height, active }) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
+
+  // 다른 사진으로 스와이프하면 확대 상태 초기화
+  useEffect(() => {
+    if (!active) {
+      scale.value = withSpring(1);
+      savedScale.value = 1;
+    }
+  }, [active]);
 
   const pinch = Gesture.Pinch()
     .onUpdate(e => {
@@ -79,11 +87,11 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
           contentOffset={{ x: idx * SW, y: 0 }}
           onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / SW))}>
           {photos.map((item, i) => (
-            <View key={i} style={{ width: SW, justifyContent: 'center', alignItems: 'center' }}>
+            <View key={i} style={{ width: SW, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
                 <VideoItem uri={item.uri} active={i === idx} />
               ) : (
-                <PinchableImage uri={item.uri || item} width={SW} height={SW * 1.2} />
+                <PinchableImage uri={item.uri || item} width={SW} height={SW * 1.2} active={i === idx} />
               )}
             </View>
           ))}

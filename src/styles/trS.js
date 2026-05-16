@@ -39,7 +39,7 @@ export const trS = StyleSheet.create({
   slotRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8 },
   slotKindTxt:  { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.5)', width: 32 },
   slotLocTxt:   { fontFamily: F.sys, fontSize: 14, color: '#fff', flex: 1 },
-  slotLocPh:    { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.35)', flex: 1, fontStyle: 'italic' },
+  slotLocPh:    { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.35)', flex: 1 },
   slotChevTxt:  { fontFamily: F.sys, fontSize: 11, color: 'rgba(245,230,168,0.7)', marginLeft: 8 },
   // 모드 선택 영역
   slotPicker:   { marginTop: -4, marginBottom: 8, paddingHorizontal: 4 },

@@ -60,7 +60,7 @@ export function FriendsTab() {
               {confirmedFriends.map(f => (
                 <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: F.en, fontSize: 16, color: C.charcoal, fontStyle: 'italic' }}>{f.nickname.charAt(0)}</Text>
+                    <Text style={{ fontFamily: F.en, fontSize: 16, color: C.charcoal }}>{f.nickname.charAt(0)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary }}>{f.nickname}</Text>
@@ -71,7 +71,7 @@ export function FriendsTab() {
               {pendingFriends.map(f => (
                 <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: C.hairline, opacity: 0.5 }}>
                   <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.warmGrayLight, borderStyle: 'dashed' }}>
-                    <Text style={{ fontFamily: F.en, fontSize: 16, color: C.warmGrayLight, fontStyle: 'italic' }}>{f.nickname.charAt(0)}</Text>
+                    <Text style={{ fontFamily: F.en, fontSize: 16, color: C.warmGrayLight }}>{f.nickname.charAt(0)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>{f.nickname}</Text>
@@ -92,7 +92,7 @@ export function FriendsTab() {
             <View key={f.id} style={{ backgroundColor: C.bgSecondary, borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 0.5, borderColor: C.hairline }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.en, fontSize: 16, color: C.charcoal, fontStyle: 'italic' }}>{f.nickname.charAt(0)}</Text>
+                  <Text style={{ fontFamily: F.en, fontSize: 16, color: C.charcoal }}>{f.nickname.charAt(0)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary }}>{f.nickname}</Text>

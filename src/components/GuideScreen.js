@@ -48,6 +48,7 @@ export function GuideScreen({ route, navigation }) {
   // 상세화면 코스 정보 (phone) + 갤러리
   const [coursePhone, setCoursePhone] = useState('');
   const [courseAddress, setCourseAddress] = useState('');
+  const [coursePlaceLoading, setCoursePlaceLoading] = useState(false);
   // 맛집/코스 탭 — 골프장 좌표 + 주변 장소(카카오)
   const [courseCoord, setCourseCoord] = useState(null);
   const [nearbyFood, setNearbyFood] = useState([]);
@@ -215,16 +216,17 @@ export function GuideScreen({ route, navigation }) {
 
   // selected 변경 시 카카오 place 정보(전화번호 + 주소) fetch
   useEffect(() => {
-    if (!selected) { setCoursePhone(''); setCourseAddress(''); return; }
+    if (!selected) { setCoursePhone(''); setCourseAddress(''); setCoursePlaceLoading(false); return; }
     const data = getCourseData(selected);
     if (!data?.name) return;
-    setCoursePhone(''); setCourseAddress('');
+    setCoursePhone(''); setCourseAddress(''); setCoursePlaceLoading(true);
     let cancelled = false;
     (async () => {
       const info = await fetchCoursePlaceInfo(data.name);
-      if (cancelled || !info) return;
-      if (info.phone) setCoursePhone(info.phone);
-      if (info.address) setCourseAddress(info.address);
+      if (cancelled) return;
+      if (info?.phone) setCoursePhone(info.phone);
+      if (info?.address) setCourseAddress(info.address);
+      setCoursePlaceLoading(false);
     })();
     return () => { cancelled = true; };
   }, [selected, userCoursesList]);
@@ -458,7 +460,7 @@ export function GuideScreen({ route, navigation }) {
           </TouchableOpacity>
           <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 22, color: C.charcoal }}
+              <Text style={{ fontFamily: 'Georgia', fontSize: 22, color: C.charcoal }}
                 numberOfLines={1}>{c.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {courseAddress || c.loc}
@@ -530,7 +532,7 @@ export function GuideScreen({ route, navigation }) {
               })()}
               {/* COURSE INFO — 홀수 · 파 · 타입 · 전화번호(탭 → 전화) */}
               <Text style={[gS.secLabel, { marginBottom: 6 }]}>COURSE INFO</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 22 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary }}>
                   18홀 · Par 72 · 회원제
                 </Text>
@@ -541,30 +543,35 @@ export function GuideScreen({ route, navigation }) {
                       {'  ·  '}📞 {coursePhone}
                     </Text>
                   </TouchableOpacity>
+                ) : coursePlaceLoading ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
+                    <ActivityIndicator size="small" color={C.warmGrayLight} />
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginLeft: 5 }}>전화번호 불러오는 중…</Text>
+                  </View>
                 ) : null}
               </View>
 
               {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 */}
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 18 }}>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 26 }}>
                 <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
                   style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: C.charcoal, borderBottomWidth: 4, borderBottomColor: C.charcoalDeep,
+                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: C.charcoal,
                   }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: C.butter }}>날씨</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
                   style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: C.burgundy, borderBottomWidth: 4, borderBottomColor: '#4A1420',
+                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: C.burgundy,
                   }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: C.butter }}>교통</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`)}
                   activeOpacity={0.8}
                   style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: '#03C75A', borderBottomWidth: 4, borderBottomColor: '#02934A',
+                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: '#03C75A',
                   }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: '#fff' }}>네이버정보</Text>
                 </TouchableOpacity>
@@ -584,9 +591,9 @@ export function GuideScreen({ route, navigation }) {
                     backgroundColor: '#fff',
                     borderLeftWidth: 4, borderLeftColor: C.burgundy,
                     borderRadius: 10,
-                    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
+                    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 22,
                   }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 13, fontStyle: 'italic', color: '#3D3935', lineHeight: 21 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#3D3935', lineHeight: 21 }}>
                       {memo || '처음 방문하는 코스예요. 라운딩 후 한마디를 남겨보세요 ✏️'}
                     </Text>
                     {memo && latestDiary?.date ? (
@@ -601,8 +608,8 @@ export function GuideScreen({ route, navigation }) {
               {/* 내 코스기록 — 차콜 액센트 바 헤더 (상세 회차는 MY 탭에서) */}
               {myDiaries.length > 0 && (
                 <>
-                  <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 6, marginBottom: 16 }} />
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 16 }}>
+                  <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 8, marginBottom: 20 }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 20 }}>
                     <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.charcoal }} />
                     <Text style={[gS.secLabel, { marginBottom: 0 }]}>내 코스기록 · {myDiaries.length}회</Text>
                   </View>
@@ -610,7 +617,7 @@ export function GuideScreen({ route, navigation }) {
               )}
 
               {/* 내 기록 ↔ 골퍼 코멘트 구분선 */}
-              <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 4, marginBottom: 18 }} />
+              <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 8, marginBottom: 24 }} />
 
               {/* 골퍼 코멘트 헤더 — 네이비 액센트 바 */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -620,7 +627,7 @@ export function GuideScreen({ route, navigation }) {
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowCommentInput(v => !v)}
-                  style={{ borderWidth: 0.5, borderColor: C.burgundy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  style={{ borderWidth: 0.5, borderColor: C.burgundy, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.burgundy }}>+ 코멘트</Text>
                 </TouchableOpacity>
               </View>
@@ -652,7 +659,7 @@ export function GuideScreen({ route, navigation }) {
                       <TouchableOpacity
                         onPress={submitComment}
                         disabled={!commentInput.trim()}
-                        style={{ backgroundColor: commentInput.trim() ? C.burgundy : C.hairline, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 }}>
+                        style={{ backgroundColor: commentInput.trim() ? C.burgundy : C.hairline, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}>
                         <Text style={{ fontFamily: F.sys, fontSize: 12, color: commentInput.trim() ? C.butter : C.warmGrayLight, fontWeight: '600' }}>등록</Text>
                       </TouchableOpacity>
                     </View>
@@ -732,7 +739,7 @@ export function GuideScreen({ route, navigation }) {
               badgeTxt: { fontFamily: F.sys, fontSize: 9, fontWeight: '600' },
               name: { fontFamily: F.sys, fontSize: 13, color: '#2A2622', fontWeight: '600' },
               meta: { fontFamily: F.sys, fontSize: 10, color: C.warmGray, marginTop: 1 },
-              memo: { fontFamily: F.sys, fontSize: 10, color: '#5A4A00', fontStyle: 'italic', marginTop: 4 },
+              memo: { fontFamily: F.sys, fontSize: 10, color: '#5A4A00', marginTop: 4 },
               ratingBox: { backgroundColor: '#F5E6A8', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 },
               ratingTxt: { fontFamily: F.sys, fontSize: 10, color: '#5A4A00', fontWeight: '600' },
               reviewsTxt: { fontFamily: F.sys, fontSize: 9, color: C.warmGray },
@@ -789,7 +796,7 @@ export function GuideScreen({ route, navigation }) {
                       .catch(() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`))}
                     style={{
                       position: 'absolute', bottom: 8, right: 8,
-                      backgroundColor: '#03C75A', borderRadius: 8,
+                      backgroundColor: '#03C75A', borderRadius: 10,
                       paddingHorizontal: 10, paddingVertical: 6,
                     }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff', fontWeight: '600' }}>네이버지도 →</Text>
@@ -883,7 +890,7 @@ export function GuideScreen({ route, navigation }) {
                             // 메모 있을 때 — 메모 자체를 탭하면 수정, 수정 힌트는 옅게
                             <TouchableOpacity onPress={() => openSaveModal({ ...r })} activeOpacity={0.7}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5 }}>
-                              <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#5A4A00', fontStyle: 'italic', lineHeight: 16 }}>
+                              <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#5A4A00', lineHeight: 16 }}>
                                 "{r.memo}"  <Text style={{ fontSize: 9, fontStyle: 'normal', color: C.warmGrayLight }}>✏️ 수정</Text>
                               </Text>
                             </TouchableOpacity>
@@ -1074,7 +1081,6 @@ export function GuideScreen({ route, navigation }) {
         <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(245,230,168,0.6)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
         <Text style={{
           fontFamily: 'Georgia',
-          fontStyle: 'italic',
           fontSize: 28,
           color: C.butter,
         }}>Golf 코스</Text>

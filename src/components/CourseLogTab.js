@@ -130,7 +130,7 @@ function UnrecordedCard({ c, rs, onAdd }) {
         <RegionTag rs={rs} />
       </View>
       <TouchableOpacity onPress={onAdd} activeOpacity={0.8}
-        style={{ backgroundColor: NAVY, borderRadius: 6, paddingVertical: 9, alignItems: 'center' }}>
+        style={{ backgroundColor: NAVY, borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>✏️ 기록 추가하기 →</Text>
       </TouchableOpacity>
     </View>
@@ -257,7 +257,7 @@ export function CourseLogTab({ avgRating, navigation }) {
             <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
             <Text style={[dS.bannerSub, { color: '#C9A84C' }]}>{visitedCount}/100 달성 · {visitedCount}%</Text>
           </View>
-          <View style={{ backgroundColor: '#C9A84C', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
+          <View style={{ backgroundColor: '#C9A84C', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 }}>
             <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff', fontWeight: '600' }}>{show100 ? '접기' : '보기'}</Text>
           </View>
         </View>
@@ -287,7 +287,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           <View style={{ height: 8 }} />
         </View>
       )}
-      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
+      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
         {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
           <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>
             <Text style={{ fontFamily: F.sys, fontSize: 13, color: region === k ? C.butter : C.warmGrayLight }}>{l}</Text>
@@ -296,7 +296,7 @@ export function CourseLogTab({ avgRating, navigation }) {
       </View>
       {region === 'domestic' && (
         <View>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 10, marginHorizontal: 16 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
             방문한 골프장 · {myCourses.length}곳
           </Text>
           {myCourses.length === 0 ? (

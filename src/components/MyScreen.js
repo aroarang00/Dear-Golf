@@ -77,7 +77,7 @@ export function MyScreen({ navigation }) {
                 borderWidth: 1.5, borderColor: '#F5E6A8',
                 alignItems: 'center', justifyContent: 'center',
               }}>
-              <Text style={{ fontFamily: F.en, fontSize: 14, color: '#F5E6A8', fontStyle: 'italic', lineHeight: 18 }}>
+              <Text style={{ fontFamily: F.en, fontSize: 14, color: '#F5E6A8', lineHeight: 18 }}>
                 {userProfile.nickname?.charAt(0).toUpperCase() || 'G'}
               </Text>
             </TouchableOpacity>

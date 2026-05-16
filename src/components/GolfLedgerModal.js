@@ -81,7 +81,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
           ) : (
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
               {/* 올해 요약 — 버터 박스 */}
-              <View style={{ backgroundColor: C.butter, borderRadius: 14, padding: 16, marginBottom: 14 }}>
+              <View style={{ backgroundColor: C.butter, borderRadius: 14, padding: 16, marginBottom: 20 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, opacity: 0.65, marginBottom: 4 }}>{thisYear}년 총 지출</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 26, color: C.charcoal, fontWeight: '700' }}>{won(yearTotal)}원</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, opacity: 0.8, marginTop: 4 }}>
@@ -90,7 +90,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
               </View>
 
               {/* 이번달 / 지난달 / 총 라운딩 */}
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
                 {cards.map(card => (
                   <View key={card.label} style={{
                     flex: 1, backgroundColor: C.bgSecondary, borderRadius: 12,
@@ -112,7 +112,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                 const open = isOpen(m);
                 const rounds = byMonth[m];
                 return (
-                  <View key={m} style={{ marginBottom: 10 }}>
+                  <View key={m} style={{ marginBottom: 14 }}>
                     <TouchableOpacity onPress={() => toggle(m)} activeOpacity={0.7}
                       style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.bgSecondary,
                         borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>

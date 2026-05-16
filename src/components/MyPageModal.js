@@ -106,7 +106,7 @@ export function MyPageModal({ visible, onClose }) {
                         autoFocus maxLength={10}
                         autoCapitalize="none" autoCorrect={false} keyboardType="default" />
                       <TouchableOpacity onPress={handleSaveNickname}
-                        style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
+                        style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}
                         activeOpacity={0.7}>
                         <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: 13 }}>저장</Text>
                       </TouchableOpacity>
@@ -148,7 +148,7 @@ export function MyPageModal({ visible, onClose }) {
                         <Text style={{ color: '#8B8680', marginRight: 12, fontSize: 13 }}>취소</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={handleSaveStats}
-                        style={{ backgroundColor: '#6B1E2A', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 }}>
+                        style={{ backgroundColor: '#6B1E2A', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 6 }}>
                         <Text style={{ color: '#F5E6A8', fontSize: 13 }}>저장</Text>
                       </TouchableOpacity>
                     </>
@@ -209,7 +209,7 @@ export function MyPageModal({ visible, onClose }) {
                         <Text style={{ fontFamily: F.sys, color: C.warmGray, marginRight: 12, fontSize: 13 }}>취소</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={handleSaveInfo}
-                        style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 }}>
+                        style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 6 }}>
                         <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: 13 }}>저장</Text>
                       </TouchableOpacity>
                     </>

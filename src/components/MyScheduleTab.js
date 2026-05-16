@@ -289,7 +289,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
         </GestureDetector>
 
         {/* Legend */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.burgundy }} />
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>예정</Text>
@@ -305,8 +305,8 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
         </View>
 
         {/* This month list */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 10 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 14 }}>
             이번달 일정 · {monthItems.length}개
           </Text>
           {monthItems.length === 0 ? (
@@ -355,7 +355,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
                       backgroundColor: C.bgSecondary,
                       borderRadius: 12,
                       padding: 14,
-                      marginBottom: 8,
+                      marginBottom: 12,
                       opacity: cardOpacity,
                       ...cardBorder,
                     }}>
@@ -379,7 +379,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
                         <TouchableOpacity
                           onPress={(e) => { e.stopPropagation?.(); onRequestAddDiary && onRequestAddDiary(s); }}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          style={{ marginTop: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: C.burgundy }}>
+                          style={{ marginTop: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: C.navy }}>
                           <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff', fontWeight: '600' }}>기록 추가하기</Text>
                         </TouchableOpacity>
                       )}

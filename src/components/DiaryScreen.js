@@ -144,8 +144,10 @@ export function DiaryScreen({ route, navigation }) {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.7}
-            style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 20, color: '#3D3935', lineHeight: 24, fontWeight: '700' }}>+</Text>
+            style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
+            {/* + 아이콘 — 얇은 선 2개로 원 중앙에 정확히 배치 */}
+            <View style={{ width: 14, height: 2, borderRadius: 1, backgroundColor: '#3D3935' }} />
+            <View style={{ position: 'absolute', width: 2, height: 14, borderRadius: 1, backgroundColor: '#3D3935' }} />
           </TouchableOpacity>
         </View>
       </View>

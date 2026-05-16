@@ -280,7 +280,7 @@ export function HomeScreen({ navigation }) {
           <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
             <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
               <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
-              <Text style={{ fontFamily: F.en, fontSize: 22, color: '#fff', fontStyle: 'italic', marginBottom: 8, lineHeight: 30 }}>
+              <Text style={{ fontFamily: F.en, fontSize: 22, color: '#fff', marginBottom: 8, lineHeight: 30 }}>
                 Dear Golf에서{'\n'}첫 라운딩을 시작해보세요
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 18, marginBottom: 20 }}>
@@ -427,7 +427,7 @@ export function HomeScreen({ navigation }) {
 
           </ScrollView>
 
-          <View style={{ marginHorizontal: 20, marginVertical: 12 }}>
+          <View style={{ marginHorizontal: 20, marginVertical: 20 }}>
             <TripleStripe height={1.5} />
           </View>
 
