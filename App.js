@@ -12,8 +12,10 @@ import { UserContext } from './src/contexts/UserContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { HomeScreen } from './src/components/HomeScreen';
+import { ScheduleScreen } from './src/components/ScheduleScreen';
 import { DiaryScreen } from './src/components/DiaryScreen';
 import { GuideScreen } from './src/components/GuideScreen';
+import { MyScreen } from './src/components/MyScreen';
 import { TabBar } from './src/components/TabBar';
 
 const Tab = createBottomTabNavigator();
@@ -65,8 +67,10 @@ export default function App() {
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tab.Screen name="홈" component={HomeScreen} />
+        <Tab.Screen name="일정" component={ScheduleScreen} />
         <Tab.Screen name="다이어리" component={DiaryScreen} />
         <Tab.Screen name="코스" component={GuideScreen} />
+        <Tab.Screen name="MY" component={MyScreen} />
       </Tab.Navigator>
 
       <Modal visible={firstSingleAlert} transparent animationType="fade">

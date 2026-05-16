@@ -9,14 +9,11 @@ import { UserContext } from '../contexts/UserContext';
 import { HallOfFameCard } from './HallOfFameCard';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
-import { FriendsTab } from './FriendsTab';
-import { MyScheduleTab } from './MyScheduleTab';
 import { DiaryAddModal } from './DiaryAddModal';
 import { MyPageModal } from './MyPageModal';
 
 export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
-  const [tab, setTab] = useState('round');
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [hofExpanded, setHofExpanded] = useState(false);
@@ -34,7 +31,6 @@ export function DiaryScreen({ route, navigation }) {
       setShowModal(false);
       setShowMyPage(false);
       setShowSearch(false);
-      setTab('round');
       setHofExpanded(false);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     });
@@ -91,9 +87,6 @@ export function DiaryScreen({ route, navigation }) {
     };
   }, []);
 
-  const TAB_DIARY = [['round', '내 라운딩'], ['log', '내 일정'], ['friends', '친구']];
-  const TAB_DIARY_COLORS = [C.butter, C.paleSky, C.burgundy];
-
   useEffect(() => {
     if (route?.params?.openDiaryId) {
       const target = diaries.find(d => d.id === route.params.openDiaryId);
@@ -107,13 +100,6 @@ export function DiaryScreen({ route, navigation }) {
       navigation.setParams({ openAddModal: undefined });
     }
   }, [route?.params?.openAddModal]);
-
-  useEffect(() => {
-    const t = route?.params?.initialTab ?? route?.params?.tab;
-    if (!t) return;
-    const match = TAB_DIARY.find(([, label]) => label === t);
-    if (match) setTab(match[0]);
-  }, [route?.params?.initialTab, route?.params?.tab]);
 
   const handleSave = (type, data) => {
     if (type === 'diary') {
@@ -151,7 +137,6 @@ export function DiaryScreen({ route, navigation }) {
   const avg = userProfile.avgScore || (diaries.length > 0 ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length) : 0);
   const best = userProfile.lifeBest || (diaries.length > 0 ? Math.min(...diaries.map(d => d.score)) : 0);
   const totalRounds = userProfile.totalRounds || diaries.length;
-  const tabIdx = TAB_DIARY.findIndex(([k]) => k === tab);
 
   const sortedDiaries = [...diaries].sort((a, b) => {
     const dateA = new Date((a.date || '').replace(/\./g, '-'));
@@ -217,20 +202,7 @@ export function DiaryScreen({ route, navigation }) {
         </View>
       </TouchableOpacity>
 
-      <View style={dS.tabStripeRow}>
-        {TAB_DIARY_COLORS.map((color, i) => (
-          <View key={i} style={[dS.tabStripeSegment, { backgroundColor: color }, tabIdx === i && dS.tabStripeSegmentOn]} />
-        ))}
-      </View>
-      <View style={dS.tabRow}>
-        {TAB_DIARY.map(([k, l]) => (
-          <TouchableOpacity key={k} style={dS.tabBtn} onPress={() => setTab(k)}>
-            <Text style={[dS.tabTxt, tab === k && dS.tabTxtOn]}>{l}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {tab === 'round' && (() => {
+      {(() => {
         const FILTERS = ['전체', '올해', '최근 3개월', '베스트순', '특별한 순간'];
 
         const filtered = (() => {
@@ -340,16 +312,6 @@ export function DiaryScreen({ route, navigation }) {
           </>
         );
       })()}
-      {tab === 'log' && (
-        <MyScheduleTab
-          diaries={diaries}
-          onRequestAddDiary={() => {
-            setTab('round');
-            setShowModal(true);
-          }}
-        />
-      )}
-      {tab === 'friends' && <FriendsTab />}
 
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />

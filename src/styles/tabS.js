@@ -8,7 +8,7 @@ export const tabS = StyleSheet.create({
   stripeSegmentOn:  { opacity: 1, height: 8 },
   tabRow:           { flexDirection: 'row', paddingTop: 12, paddingBottom: 4 },
   tab:              { flex: 1, alignItems: 'center', paddingVertical: 6 },
-  label:            { fontFamily: F.sys, fontSize: 15, marginTop: 2 },
+  label:            { fontFamily: F.sys, fontSize: 13, marginTop: 2 },
   labelOn:          { color: C.charcoal, fontWeight: '700' },
   labelOff:         { color: C.warmGrayLight, fontWeight: '400' },
 });

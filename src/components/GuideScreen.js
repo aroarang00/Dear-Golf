@@ -18,7 +18,6 @@ import {
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses, addUserCourse, deleteUserCourse } from '../utils/userCourses';
 import { gS } from '../styles/gS';
-import { CourseLogTab } from './CourseLogTab';
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchGolfCourses, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword } from '../utils/kakao';
@@ -38,7 +37,6 @@ export function GuideScreen({ route, navigation }) {
   const [comments, setComments] = useState([]);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
-  const [topTab, setTopTab] = useState('explore');
   const [search, setSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('전체');
   // 코스 상세에서 날씨/교통 팝업
@@ -90,7 +88,6 @@ export function GuideScreen({ route, navigation }) {
       setCommentInput('');
       setSearch('');
       setRegionFilter('전체');
-      setTopTab('explore');
       setFoodSearch('');
       setFoodSearchResults([]);
       setSaveModalVisible(false);
@@ -1091,26 +1088,10 @@ export function GuideScreen({ route, navigation }) {
           color: '#1A3D52',
         }}>Golf 코스</Text>
       </View>
-      <View style={{ flexDirection: 'row', backgroundColor: C.bgPrimary, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-        {[['explore', '탐색', '#6B1E2A'], ['log', '내 코스기록', '#F5E6A8']].map(([k, l, color]) => {
-          const on = topTab === k;
-          return (
-            <TouchableOpacity key={k}
-              onPress={() => setTopTab(k)}
-              style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: on ? 3 : 0, borderBottomColor: color }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: on ? C.charcoal : C.warmGrayLight, fontWeight: on ? '600' : '400' }}>{l}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      {topTab === 'log' ? (
-        <CourseLogTab navigation={navigation} />
-      ) : (
-        <CourseExploreTab
-          onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
-          onOpenPreview={handleOpenPreview}
-        />
-      )}
+      <CourseExploreTab
+        onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
+        onOpenPreview={handleOpenPreview}
+      />
     </SafeAreaView>
   );
 }
