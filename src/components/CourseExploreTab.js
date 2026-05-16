@@ -249,7 +249,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         <Section
           title={`🔍 최근 검색 ${recentCourses.length}곳`}
           right="최근 검색순"
-          headerBg={C.burgundy}
+          headerBg={C.charcoal}
           titleColor={C.butter}>
           {filteredRecent.length === 0 ? (
             <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>

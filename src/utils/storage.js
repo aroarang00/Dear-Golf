@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   courseComments:   '@dg_course_comments',
   savedRestaurants: '@dg_saved_restaurants',
   foodRecs:         '@dg_food_recs',
+  homeTooltipDone:  '@dg_home_tooltip_done',
 };
 
 export const storage = {

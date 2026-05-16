@@ -37,6 +37,17 @@ export function MyScreen({ navigation }) {
     return unsub;
   }, [navigation]);
 
+  // 하단 MY 탭 재탭 시 — 처음 화면(내 코스기록 · 모달 닫힘)으로 복귀
+  useEffect(() => {
+    if (!navigation) return;
+    const unsub = navigation.addListener('tabPress', () => {
+      setTab('course');
+      setShowMyPage(false);
+      setShowLedger(false);
+    });
+    return unsub;
+  }, [navigation]);
+
   const avg = userProfile.avgScore || (diaries.length > 0 ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length) : 0);
   const best = userProfile.lifeBest || (diaries.length > 0 ? Math.min(...diaries.map(d => d.score)) : 0);
   const totalRounds = userProfile.totalRounds || diaries.length;

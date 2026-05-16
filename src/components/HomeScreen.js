@@ -17,6 +17,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleModal } from './ScheduleModal';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
+import { HomeTooltip } from './HomeTooltip';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -38,6 +39,7 @@ export function HomeScreen({ navigation }) {
   const [dDayPos, setDDayPos] = useState({ x: 0, y: 0 });
   const [now, setNow] = useState(Date.now());
   const [diaries, setDiaries] = useState(DIARY_DATA);
+  const [showTooltip, setShowTooltip] = useState(false);
   const dDayRef = useRef(null);
   const cardsScrollRef = useRef(null);
 
@@ -53,6 +55,13 @@ export function HomeScreen({ navigation }) {
     const id = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(id);
   }, [loadDiaries]);
+
+  // 홈 첫 진입 안내 툴팁 — 최초 1회만
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.homeTooltipDone, false).then(done => {
+      if (!done) setShowTooltip(true);
+    });
+  }, []);
 
   const openDDayMenu = () => {
     dDayRef.current?.measureInWindow((x, y) => {
@@ -662,6 +671,11 @@ export function HomeScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <HomeTooltip
+        visible={showTooltip}
+        onClose={() => { setShowTooltip(false); storage.save(STORAGE_KEYS.homeTooltipDone, true); }}
+      />
     </View>
   );
 }

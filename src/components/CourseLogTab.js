@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import { C, F } from '../constants/colors';
 import { TOP_100_COURSES, OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
@@ -146,6 +146,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   const [expanded, setExpanded] = useState({});
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [userCourses, setUserCourses] = useState([]);
+  const scrollRef = useRef(null);
 
   const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -162,6 +163,18 @@ export function CourseLogTab({ avgRating, navigation }) {
     load();
     if (!navigation) return;
     const unsub = navigation.addListener('focus', load);
+    return unsub;
+  }, [navigation]);
+
+  // MY 탭 재탭 시 — 목록 맨 위로 + 기본 상태(국내·100대 접힘·카드 접힘)로
+  useEffect(() => {
+    if (!navigation) return;
+    const unsub = navigation.addListener('tabPress', () => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      setRegion('domestic');
+      setShow100(false);
+      setExpanded({});
+    });
     return unsub;
   }, [navigation]);
 
@@ -248,7 +261,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
       <TouchableOpacity
         style={[dS.banner, { backgroundColor: '#fff', borderColor: '#C9A84C', borderWidth: 1.5 }]}
         onPress={() => setShow100(!show100)}>

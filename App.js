@@ -11,6 +11,7 @@ import { STORAGE_KEYS, storage } from './src/utils/storage';
 import { UserContext } from './src/contexts/UserContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
+import { OnboardingIntro } from './src/components/OnboardingIntro';
 import { HomeScreen } from './src/components/HomeScreen';
 import { ScheduleScreen } from './src/components/ScheduleScreen';
 import { DiaryScreen } from './src/components/DiaryScreen';
@@ -24,6 +25,7 @@ export const navigationRef = createNavigationContainerRef();
 export default function App() {
   const [userProfile, setUserProfile] = useState(USER_PROFILE_INIT);
   const [showOnboarding, setShowOnboarding] = useState(!USER_PROFILE_INIT.onboardingDone);
+  const [introDone, setIntroDone] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
@@ -57,7 +59,11 @@ export default function App() {
     );
   }
 
-  if (showOnboarding) return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  if (showOnboarding) {
+    // 4장 기능 소개 인트로 → 프로필 입력 온보딩
+    if (!introDone) return <OnboardingIntro onDone={() => setIntroDone(true)} />;
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
