@@ -7,7 +7,8 @@ import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/us
 import { mS } from '../styles/mS';
 
 export function ScheduleModal({ visible, onClose, onSave, initial }) {
-  const isEdit = !!initial;
+  // initial에 id가 있으면 기존 일정 수정, 없으면(날짜만 채워진 경우) 새 일정 추가
+  const isEdit = !!(initial && initial.id);
   const [courseSearch, setCourseSearch] = useState('');
   const [selected, setSelected] = useState(null); // { id, name, loc, x, y, kakaoId } — USER_COURSES 항목
   const [searchResults, setSearchResults] = useState([]);

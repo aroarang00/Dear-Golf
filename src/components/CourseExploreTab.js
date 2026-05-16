@@ -4,6 +4,7 @@ import { C, F } from '../constants/colors';
 import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf } from '../utils/kakao';
 import { getCurrentLocation } from '../utils/location';
 import { getUserCourses, addUserCourse, deleteUserCourse } from '../utils/userCourses';
+import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 
 const REGIONS = ['전체', '수도권', '강원', '충청', '경상', '전라', '제주'];
 const getRegion = (loc) => {
@@ -24,15 +25,15 @@ const distLabel = (m) => {
   return `${(m / 1000).toFixed(1)}km`;
 };
 
-// 공통 섹션 래퍼 — 헤더 배경색 섹션별 지정
-function Section({ title, right, headerBg, children }) {
+// 공통 섹션 래퍼 — 헤더를 섹션별 단색 컬러 바로 표시 (리스트와 명확히 구분)
+function Section({ title, right, headerBg, titleColor, children }) {
+  const tc = titleColor || C.charcoal;
   return (
     <View style={{ backgroundColor: C.bgPrimary }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: headerBg || C.bgSecondary, paddingHorizontal: 14, paddingVertical: 10, gap: 8,
-        borderTopWidth: 0.5, borderBottomWidth: 0.5, borderColor: C.hairline }}>
-        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{title}</Text>
-        {right ? <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: 10, color: C.warmGray }}>{right}</Text> : null}
+        backgroundColor: headerBg || C.charcoal, paddingHorizontal: 14, paddingVertical: 11, gap: 8 }}>
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sys, fontSize: 14, color: tc, fontWeight: '700', letterSpacing: 0.3 }}>{title}</Text>
+        {right ? <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: 10, color: tc, opacity: 0.7 }}>{right}</Text> : null}
       </View>
       {children}
     </View>
@@ -58,8 +59,9 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   const [searching, setSearching] = useState(false);
   const [region, setRegion] = useState('전체');
 
-  const [savedCourses, setSavedCourses] = useState([]);
-  const [savedExpanded, setSavedExpanded] = useState(false);
+  const [savedCourses, setSavedCourses] = useState([]); // userCourses — 검색결과 ❤️·기존코스 판별용
+  const [recentCourses, setRecentCourses] = useState([]);
+  const [recentExpanded, setRecentExpanded] = useState(false);
 
   const [nearby, setNearby] = useState([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
@@ -76,7 +78,12 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
     setSavedCourses(list || []);
   }, []);
 
-  useEffect(() => { refreshSaved(); }, [refreshSaved]);
+  const refreshRecent = useCallback(async () => {
+    const list = await getRecentCourses();
+    setRecentCourses(list || []);
+  }, []);
+
+  useEffect(() => { refreshSaved(); refreshRecent(); }, [refreshSaved, refreshRecent]);
 
   // 가까운 연습장 + 스크린골프 — 마운트 시 1회 fetch
   useEffect(() => {
@@ -144,12 +151,11 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
     Linking.openURL(url).catch(() => Linking.openURL('https://map.kakao.com/'));
   };
 
-  const filteredSaved = region === '전체'
-    ? savedCourses
-    : savedCourses.filter(c => getRegion(c.loc) === region);
-  const sortedSaved = [...filteredSaved].sort((a, b) => (b.id || '').localeCompare(a.id || ''));
-  const visibleSaved = savedExpanded ? sortedSaved : sortedSaved.slice(0, 5);
-  const moreSaved = sortedSaved.length - visibleSaved.length;
+  const filteredRecent = region === '전체'
+    ? recentCourses
+    : recentCourses.filter(c => getRegion(c.loc) === region);
+  const visibleRecent = recentExpanded ? filteredRecent : filteredRecent.slice(0, 5);
+  const moreRecent = filteredRecent.length - visibleRecent.length;
 
   const visibleNearby = nearbyExpanded ? nearby : nearby.slice(0, 5);
   const moreNearby = nearby.length - visibleNearby.length;
@@ -160,25 +166,37 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
       {/* 1. 검색창 */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 }}>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="골프장 검색 (카카오)"
-          placeholderTextColor={C.warmGrayLight}
-          style={{
-            backgroundColor: C.bgSecondary,
-            borderRadius: 10,
-            borderWidth: 0.5,
-            borderColor: C.hairline,
-            paddingHorizontal: 14,
-            paddingVertical: 10,
-            fontFamily: F.sys,
-            fontSize: 13,
-            color: C.charcoal,
-          }}
-          returnKeyType="search"
-        />
+      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: C.bgSecondary,
+          borderRadius: 12,
+          borderWidth: 1.5,
+          borderColor: C.burgundy,
+          paddingHorizontal: 14,
+          shadowColor: '#000',
+          shadowOpacity: 0.1,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 3,
+        }}>
+          <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="골프장 검색"
+            placeholderTextColor={C.warmGray}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              fontFamily: F.sys,
+              fontSize: 15,
+              color: C.charcoal,
+            }}
+            returnKeyType="search"
+          />
+        </View>
       </View>
 
       {/* 2. 지역 퀵탭 */}
@@ -217,7 +235,10 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
               const saved = isSaved(r.kakaoId);
               return (
                 <TouchableOpacity key={r.kakaoId || i}
-                  onPress={() => {
+                  onPress={async () => {
+                    // 검색 결과 탭 → 최근 검색 이력에 기록
+                    await addRecentCourse(r);
+                    refreshRecent();
                     // 이미 저장된 골프장이면 바로 그 entry로, 아니면 미리보기로
                     const existing = savedCourses.find(c => c.kakaoId === r.kakaoId);
                     if (existing) onSelectCourse?.(existing.id);
@@ -227,7 +248,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>{r.name}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {r.name}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{r.loc}</Text>
                   </View>
                   {saved && <Text style={{ fontSize: 16, marginRight: 6 }}>❤️</Text>}
@@ -239,42 +260,52 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         </View>
       )}
 
-      {/* 3. 저장된 골프장 — 5개 보이는 고정 박스, 내부 스크롤 */}
-      <Section
-        title={`⛳ 저장된 골프장 ${sortedSaved.length}곳`}
-        right="최근 저장순"
-        headerBg="#6B1E2A15">
-        {sortedSaved.length === 0 ? (
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
-            {savedCourses.length === 0
-              ? '저장된 골프장이 없어요\n검색 결과의 🤍 버튼으로 추가하세요'
-              : `${region}에 저장된 골프장이 없어요`}
-          </Text>
-        ) : (
-          <View style={{ paddingHorizontal: 14 }}>
-            {visibleSaved.map(c => (
-              <TouchableOpacity key={c.id} onPress={() => onSelectCourse && onSelectCourse(c.id)} activeOpacity={0.7}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
-                  borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>{c.name}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>
-                    {c.loc || '위치 미상'} · 18홀
-                  </Text>
-                </View>
-                <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
-              </TouchableOpacity>
-            ))}
-            <MoreButton moreCount={moreSaved} onPress={() => setSavedExpanded(true)} />
-          </View>
-        )}
-      </Section>
+      {/* 3. 최근 검색 골프장 — 검색 이력 (이력 없으면 섹션 숨김) */}
+      {recentCourses.length > 0 && (
+        <Section
+          title={`🔍 최근 검색 ${recentCourses.length}곳`}
+          right="최근 검색순"
+          headerBg={C.burgundy}
+          titleColor={C.butter}>
+          {filteredRecent.length === 0 ? (
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
+              {`${region}에 최근 검색한 골프장이 없어요`}
+            </Text>
+          ) : (
+            <View style={{ paddingHorizontal: 14 }}>
+              {visibleRecent.map((c, i) => (
+                <TouchableOpacity key={c.kakaoId || `${c.name}_${i}`}
+                  onPress={async () => {
+                    await addRecentCourse(c);
+                    refreshRecent();
+                    const existing = savedCourses.find(s => s.kakaoId === c.kakaoId);
+                    if (existing) onSelectCourse?.(existing.id);
+                    else onOpenPreview?.(c);
+                  }}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
+                    borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {c.name}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>
+                      {c.loc || '위치 미상'}
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
+                </TouchableOpacity>
+              ))}
+              <MoreButton moreCount={moreRecent} onPress={() => setRecentExpanded(true)} />
+            </View>
+          )}
+        </Section>
+      )}
 
       {/* 4. 내 주변 연습장 */}
       <Section
         title="🏌️ 내 주변 연습장"
         right="현재위치 기준"
-        headerBg="#C8D9E630">
+        headerBg={C.paleSky}
+        titleColor="#1A3D52">
         {nearbyLoading ? (
           <View style={{ paddingVertical: 22, alignItems: 'center' }}>
             <ActivityIndicator size="small" color={C.warmGray} />
@@ -311,7 +342,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       <Section
         title="🖥️ 내 주변 스크린골프"
         right="현재위치 기준"
-        headerBg="#F5E6A830">
+        headerBg={C.butter}
+        titleColor={C.charcoal}>
         {screenLoading ? (
           <View style={{ paddingVertical: 22, alignItems: 'center' }}>
             <ActivityIndicator size="small" color={C.warmGray} />

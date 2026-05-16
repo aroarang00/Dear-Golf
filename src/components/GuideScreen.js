@@ -1079,13 +1079,13 @@ export function GuideScreen({ route, navigation }) {
   const hasCourses = chipCourses.length > 0;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
+      <View style={{ backgroundColor: C.burgundy, paddingHorizontal: 20, paddingVertical: 13 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(245,230,168,0.6)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
         <Text style={{
           fontFamily: 'Georgia',
           fontStyle: 'italic',
           fontSize: 28,
-          color: '#1A3D52',
+          color: C.butter,
         }}>Golf 코스</Text>
       </View>
       <CourseExploreTab

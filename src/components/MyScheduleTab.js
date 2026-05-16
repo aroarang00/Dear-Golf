@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -77,8 +78,19 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
     cells.push({ d: cells.length - daysInMonth - firstDay + 1, monthOffset: 1 });
   }
 
-  const goPrev = () => setCurrentDate(new Date(year, month - 1, 1));
-  const goNext = () => setCurrentDate(new Date(year, month + 1, 1));
+  const goPrev = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  const goNext = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+
+  // 캘린더 좌우 스와이프로 전달/다음달 이동
+  // activeOffsetX: 가로로 살짝만 움직여도 활성화 / failOffsetY: 세로 움직임이 먼저면 실패 → 세로 스크롤 유지
+  const monthSwipe = Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-18, 18])
+    .onEnd((e) => {
+      if (e.translationX > 35 || e.velocityX > 350) goPrev();
+      else if (e.translationX < -35 || e.velocityX < -350) goNext();
+    });
 
   const handleDateTap = (m, d) => {
     if (m !== 0) {
@@ -89,13 +101,18 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
     const existing = schedOnStr(dateStr);
     if (existing) {
       setSheet({ visible: true, schedule: existing });
-    } else {
-      const dt = new Date(year, month, d);
-      setModal({
-        visible: true,
-        initial: { date: dateStr, day: DAYS[dt.getDay()], time: '07:00', members: 4 },
-      });
+      return;
     }
+    const dt = new Date(year, month, d);
+    // 오늘 이전 날짜는 '예정 일정'이 아니라 '라운딩 기록' 입력으로 연결
+    if (dt.getTime() < todayMid) {
+      onRequestAddDiary && onRequestAddDiary({ date: dateStr, day: DAYS[dt.getDay()] });
+      return;
+    }
+    setModal({
+      visible: true,
+      initial: { date: dateStr, day: DAYS[dt.getDay()], time: '07:00', members: 4 },
+    });
   };
 
   const handleSave = (type, data) => {
@@ -204,6 +221,9 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* 캘린더 영역 (좌우 스와이프 → 전달/다음달) */}
+        <GestureDetector gesture={monthSwipe}>
+        <View>
         {/* Month header */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 14 }}>
           <TouchableOpacity onPress={goPrev} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -241,6 +261,8 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
             </TouchableOpacity>
           ))}
         </View>
+        </View>
+        </GestureDetector>
 
         {/* Legend */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: 12 }}>
@@ -445,3 +467,4 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
     </View>
   );
 }
+

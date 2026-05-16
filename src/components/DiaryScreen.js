@@ -16,6 +16,7 @@ export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
@@ -96,8 +97,10 @@ export function DiaryScreen({ route, navigation }) {
 
   useEffect(() => {
     if (route?.params?.openAddModal) {
+      // 일정 탭 캘린더에서 과거 날짜 탭 시 날짜를 미리 채워서 전달
+      setAddSeed(route.params.addDate ? { date: route.params.addDate } : null);
       setShowModal(true);
-      navigation.setParams({ openAddModal: undefined });
+      navigation.setParams({ openAddModal: undefined, addDate: undefined });
     }
   }, [route?.params?.openAddModal]);
 
@@ -169,7 +172,7 @@ export function DiaryScreen({ route, navigation }) {
               {userProfile.nickname?.charAt(0).toUpperCase() || 'G'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowModal(true)} activeOpacity={0.7}
+          <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.7}
             style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: F.en, fontSize: 20, color: '#3D3935', lineHeight: 24, fontWeight: '700' }}>+</Text>
           </TouchableOpacity>
@@ -313,7 +316,7 @@ export function DiaryScreen({ route, navigation }) {
         );
       })()}
 
-      <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />
+      <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} initial={addSeed} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
     </SafeAreaView>
   );

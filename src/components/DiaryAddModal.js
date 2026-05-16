@@ -144,6 +144,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setCompanionInput('');
     } else {
       reset();
+      // 일정 캘린더에서 넘어온 날짜가 있으면 미리 채움
+      if (initial?.date) {
+        const dParts = String(initial.date).split('.').map(Number);
+        if (dParts.length === 3 && dParts.every(Number.isFinite)) {
+          setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
+        }
+      }
     }
   }, [visible, isEdit, initial]);
 
