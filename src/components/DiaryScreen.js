@@ -12,6 +12,14 @@ import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
 
+// 빈 상태 예시 카드용 더미 데이터 (실제 DiaryCard 컴포넌트로 렌더)
+const SAMPLE_DIARY = {
+  id: 'sample', date: '2026.05.24', day: '토',
+  course: '제이드팰리스 GC', score: 88, par: 72,
+  memo: '드라이버가 잘 맞은 날 ⛳', badge: null, special: null,
+  photos: [], tags: ['넓은 페어웨이', '그린 빠름'], birdieCount: 2, companions: [],
+};
+
 export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const { setSchedules } = React.useContext(SchedulesContext);
@@ -185,6 +193,32 @@ export function DiaryScreen({ route, navigation }) {
         const avgScore = diaries.length > 0
           ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length)
           : null;
+
+        // 기록이 하나도 없을 때 — 빈 상태 (예시 카드 + CTA)
+        if (diaries.length === 0) {
+          return (
+            <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ alignItems: 'center', paddingTop: 40, paddingBottom: 48 }}>
+              <Text style={{ fontSize: 40, marginBottom: 14 }}>⛳</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 6 }}>
+                아직 라운딩 기록이 없어요
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight, textAlign: 'center', lineHeight: 20 }}>
+                첫 라운딩을 기록하면 이렇게 남아요
+              </Text>
+              <View style={{ width: '100%', marginTop: 22 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8, marginLeft: 16 }}>예시</Text>
+                <View style={{ opacity: 0.6, paddingHorizontal: 16 }} pointerEvents="none">
+                  <DiaryCard item={SAMPLE_DIARY} avgScore={null} onPress={() => {}} />
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.85}
+                style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 32 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>✏️ 첫 기록 남기기</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          );
+        }
 
         return (
           <>

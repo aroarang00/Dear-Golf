@@ -1,11 +1,34 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { BlurView } from 'expo-blur';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+// 일정이 없을 때 빈 상태 뒤에 흐릿하게 깔리는 샘플 카드 (장식용 · 비활성)
+function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTxt, dashed, fade }) {
+  return (
+    <View style={{
+      flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12,
+      padding: 14, marginBottom: 12, opacity: fade,
+      ...(dashed
+        ? { borderWidth: 1, borderColor: C.warmGray, borderStyle: 'dashed' }
+        : { borderWidth: 0.5, borderColor: C.hairline }),
+    }}>
+      <View style={{ width: 3, borderRadius: 2, backgroundColor: sideColor, marginRight: 12, alignSelf: 'stretch' }} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>{course}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>{meta}</Text>
+      </View>
+      <View style={{ backgroundColor: badgeBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' }}>
+        <Text style={{ fontFamily: F.sys, fontSize: 10, color: badgeFg, fontWeight: '600' }}>{badgeTxt}</Text>
+      </View>
+    </View>
+  );
+}
 
 export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
@@ -310,9 +333,41 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
             이번달 일정 · {monthItems.length}개
           </Text>
           {monthItems.length === 0 ? (
-            <View style={{ paddingVertical: 28, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>이번달 일정이 없어요</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>날짜를 탭해서 일정을 추가하세요</Text>
+            <View style={{ position: 'relative' }}>
+              {/* 흐릿한 샘플 카드 — 지난 라운딩(더 흐릿) / 예정 라운딩 */}
+              <SampleScheduleCard
+                course="레이크사이드 컨트리클럽"
+                meta="05.06 화 · 07:30 · 4명"
+                sideColor={C.warmGray}
+                badgeBg="#F0EDE6" badgeFg={C.warmGray} badgeTxt="미기록"
+                dashed fade={0.32}
+              />
+              <SampleScheduleCard
+                course="제이드팰리스 골프클럽"
+                meta="05.24 토 · 07:00 · 4명"
+                sideColor={C.burgundy}
+                badgeBg="#F5EAEC" badgeFg={C.burgundy} badgeTxt="예정"
+                fade={0.55}
+              />
+              {/* blur 오버레이 + CTA */}
+              <BlurView intensity={22} tint="light" style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                alignItems: 'center', justifyContent: 'center',
+                borderRadius: 12, overflow: 'hidden',
+                backgroundColor: 'rgba(250,248,243,0.32)',
+              }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 14 }}>
+                  첫 라운드를 등록해보세요
+                </Text>
+                <TouchableOpacity activeOpacity={0.85}
+                  onPress={() => {
+                    const dt = new Date(year, month, 1);
+                    setModal({ visible: true, initial: { date: dateStrFor(0, 1), day: DAYS[dt.getDay()], time: '07:00', members: 4 } });
+                  }}
+                  style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 26 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>+ 일정 추가하기</Text>
+                </TouchableOpacity>
+              </BlurView>
             </View>
           ) : (
             monthItems
