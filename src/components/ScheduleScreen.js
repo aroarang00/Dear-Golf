@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
@@ -22,14 +22,31 @@ export function ScheduleScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 캘린더</Text>
-        <Text style={{
-          fontFamily: 'Georgia',
-          fontStyle: 'italic',
-          fontSize: 28,
-          color: '#1A3D52',
-        }}>Schedule</Text>
+      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 캘린더</Text>
+          <Text style={{
+            fontFamily: 'Georgia',
+            fontStyle: 'italic',
+            fontSize: 28,
+            color: '#1A3D52',
+          }}>Schedule</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => Alert.alert(
+            '일정 삭제 안내',
+            '지난 일정을 삭제하려면\n일정 카드를 길게 누르세요.\n\n다이어리 기록이 있는 일정은\n다이어리 탭에서 삭제할 수 있어요.',
+            [{ text: '확인' }],
+          )}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{
+            width: 24, height: 24, borderRadius: 12,
+            borderWidth: 1.5, borderColor: '#1A3D52',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+          <Text style={{ fontFamily: F.en, fontSize: 14, color: '#1A3D52', fontWeight: '700', lineHeight: 17 }}>!</Text>
+        </TouchableOpacity>
       </View>
       <MyScheduleTab
         diaries={diaries}

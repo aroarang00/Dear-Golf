@@ -144,12 +144,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setCompanionInput('');
     } else {
       reset();
-      // 일정 캘린더에서 넘어온 날짜가 있으면 미리 채움
+      // 일정 캘린더·내 코스기록에서 넘어온 날짜·골프장 미리 채움
       if (initial?.date) {
         const dParts = String(initial.date).split('.').map(Number);
         if (dParts.length === 3 && dParts.every(Number.isFinite)) {
           setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
         }
+      }
+      if (initial?.course) {
+        setCourseSearch(initial.course);
+        setSelectedCourse(initial.course);
+      }
+      if (initial?.courseId) {
+        findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
       }
     }
   }, [visible, isEdit, initial]);

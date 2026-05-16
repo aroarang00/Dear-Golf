@@ -11,7 +11,7 @@ import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
 import { PhotoEditModal } from './PhotoEditModal';
 
-export function DiaryDetail({ item, onClose, onUpdate }) {
+export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
   const { userProfile } = React.useContext(UserContext);
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
@@ -37,6 +37,18 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
   ];
 
   const photosToShow = item.photos || [];
+
+  const handleDelete = () => {
+    Alert.alert(
+      '라운딩 삭제',
+      '어떻게 삭제할까요?',
+      [
+        { text: '다이어리 기록만 삭제', onPress: () => onDelete && onDelete(item, 'diaryOnly') },
+        { text: '전체 삭제 (일정까지)', style: 'destructive', onPress: () => onDelete && onDelete(item, 'all') },
+        { text: '취소', style: 'cancel' },
+      ],
+    );
+  };
 
   const handlePhotoLongPress = (index) => {
     if (!isEditing) return;
@@ -80,6 +92,9 @@ export function DiaryDetail({ item, onClose, onUpdate }) {
           </View>
           <TouchableOpacity onPress={() => setShowEditModal(true)}>
             <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>수정</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDelete}>
+            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>삭제</Text>
           </TouchableOpacity>
         </View>
       </View>

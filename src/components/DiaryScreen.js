@@ -6,6 +6,7 @@ import { DIARY_DATA, HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { dS } from '../styles/dS';
 import { UserContext } from '../contexts/UserContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
 import { HallOfFameCard } from './HallOfFameCard';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
@@ -13,6 +14,7 @@ import { DiaryAddModal } from './DiaryAddModal';
 
 export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
+  const { setSchedules } = React.useContext(SchedulesContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [addSeed, setAddSeed] = useState(null);
@@ -67,10 +69,13 @@ export function DiaryScreen({ route, navigation }) {
 
   useEffect(() => {
     if (route?.params?.openAddModal) {
-      // 일정 탭 캘린더에서 과거 날짜 탭 시 날짜를 미리 채워서 전달
-      setAddSeed(route.params.addDate ? { date: route.params.addDate } : null);
+      // 일정 캘린더·내 코스기록에서 날짜·골프장을 미리 채워서 전달
+      const { addDate, addCourse, addCourseId } = route.params;
+      setAddSeed((addDate || addCourse)
+        ? { date: addDate, course: addCourse, courseId: addCourseId }
+        : null);
       setShowModal(true);
-      navigation.setParams({ openAddModal: undefined, addDate: undefined });
+      navigation.setParams({ openAddModal: undefined, addDate: undefined, addCourse: undefined, addCourseId: undefined });
     }
   }, [route?.params?.openAddModal]);
 
@@ -107,6 +112,15 @@ export function DiaryScreen({ route, navigation }) {
     }
   };
 
+  // 다이어리 기록 삭제 — diaryOnly: 기록만 / all: 같은 날짜·골프장의 일정까지 삭제
+  const handleDeleteDiary = (target, mode) => {
+    setDiaries(prev => prev.filter(d => d.id !== target.id));
+    if (mode === 'all') {
+      setSchedules(prev => prev.filter(s => !(s.date === target.date && s.course === target.course)));
+    }
+    setSelected(null);
+  };
+
   const sortedDiaries = [...diaries].sort((a, b) => {
     const dateA = new Date((a.date || '').replace(/\./g, '-'));
     const dateB = new Date((b.date || '').replace(/\./g, '-'));
@@ -117,7 +131,8 @@ export function DiaryScreen({ route, navigation }) {
     onUpdate={(updated) => {
       setDiaries(prev => prev.map(d => d.id === updated.id ? updated : d));
       setSelected(updated);
-    }} />;
+    }}
+    onDelete={handleDeleteDiary} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
@@ -134,10 +134,32 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
     setModal({ visible: true, initial: s });
   };
 
+  // 일정 삭제 — 상황별 확인. 시트의 삭제 버튼 + 목록 카드 길게누르기 양쪽에서 사용
+  const deleteSchedule = (s) => {
+    if (!s) return;
+    const isPast = new Date((s.date || '').replace(/\./g, '-')).getTime() < todayMid;
+    const hasRec = hasRecord(s.date);
+    const remove = () => setSchedules(prev => prev.filter(x => x.id !== s.id));
+
+    // 과거 라운딩 + 다이어리 기록 있음 → 다이어리에서 삭제하도록 안내
+    if (isPast && hasRec) {
+      Alert.alert('삭제 안내', '이 라운딩은 다이어리 기록이 있어요.\n다이어리 탭에서 삭제해주세요.', [{ text: '확인' }]);
+      return;
+    }
+    // 과거 + 기록 없음 → 일정·코스기록 모두 삭제 / 예정 → 단순 확인
+    const msg = isPast
+      ? '이 일정을 삭제하면 일정과 내 코스기록이 모두 삭제됩니다.\n삭제할까요?'
+      : '이 예정 라운딩을 삭제할까요?';
+    Alert.alert('일정 삭제', msg, [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: remove },
+    ]);
+  };
+
   const handleDelete = () => {
     const s = sheet.schedule;
-    setSchedules(prev => prev.filter(x => x.id !== s.id));
     setSheet({ visible: false, schedule: null });
+    deleteSchedule(s);
   };
 
   const monthSchedules = schedules.filter(s => s.date && s.date.startsWith(monthStr));
@@ -322,6 +344,8 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
                 return (
                   <TouchableOpacity key={s.id}
                     onPress={() => s.virtual ? null : setSheet({ visible: true, schedule: s })}
+                    onLongPress={() => { if (!s.virtual) deleteSchedule(s); }}
+                    delayLongPress={400}
                     disabled={s.virtual}
                     activeOpacity={0.85}
                     style={{
