@@ -4,7 +4,7 @@ import { C } from '../constants/colors';
 import { tabS } from '../styles/tabS';
 
 // 탭 순서: 홈 · 일정 · 다이어리 · 코스 · MY
-const TAB_COLORS = [C.butter, C.paleSky, C.warmGray, C.burgundy, C.navy];
+const TAB_COLORS = [C.butter, C.paleSky, C.warmGray, C.butter, C.navy];
 
 export function TabBar({ state, navigation }) {
   return (

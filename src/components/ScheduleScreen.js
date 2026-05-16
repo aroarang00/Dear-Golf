@@ -26,11 +26,11 @@ export function ScheduleScreen({ navigation }) {
         <View>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 캘린더</Text>
           <Text style={{
-            fontFamily: 'Georgia',
-            fontStyle: 'italic',
-            fontSize: 28,
+            fontFamily: F.sys,
+            fontSize: 26,
+            fontWeight: '700',
             color: C.navy,
-          }}>Schedule</Text>
+          }}>일정</Text>
         </View>
         <TouchableOpacity
           onPress={() => Alert.alert(
