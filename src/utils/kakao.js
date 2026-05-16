@@ -3,6 +3,7 @@ import { KAKAO_REST_API_KEY } from '../constants/api';
 const KEYWORD_URL  = 'https://dapi.kakao.com/v2/local/search/keyword.json';
 const ADDRESS_URL  = 'https://dapi.kakao.com/v2/local/search/address.json';
 const CATEGORY_URL = 'https://dapi.kakao.com/v2/local/search/category.json';
+const DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'; // 카카오모빌리티 자동차 길찾기
 
 const isKeyConfigured = () =>
   KAKAO_REST_API_KEY && KAKAO_REST_API_KEY !== 'YOUR_KAKAO_REST_API_KEY';
@@ -186,6 +187,84 @@ export async function fetchCoursePlaceInfo(name) {
     };
   } catch (e) {
     console.warn('[kakao] place info failed:', e?.message);
+    return null;
+  }
+}
+
+// 출발지/주소 검색 — 도로명·지번 주소 + 장소명(아파트·건물·랜드마크) 모두 매칭.
+// 주소 API와 키워드 API를 함께 조회해 합침. 반환: [{ kakaoId, name, loc, x, y }]
+//   name = 저장·표시용 라벨, loc = 보조 설명줄
+export async function searchPlaces(query) {
+  const q = (query || '').trim();
+  if (!q) return [];
+  if (!isKeyConfigured()) {
+    console.warn('[kakao] KAKAO_REST_API_KEY not configured. src/constants/api.js 참고.');
+    return [];
+  }
+  const headers = { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` };
+  const out = [];
+  const seen = new Set();
+  const push = (name, loc, x, y, id) => {
+    if (!name || !(x > 0) || !(y > 0)) return;
+    const key = id || `${x},${y}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ kakaoId: key, name, loc: loc || '', x, y });
+  };
+  try {
+    const [addrRes, kwRes] = await Promise.all([
+      fetch(`${ADDRESS_URL}?query=${encodeURIComponent(q)}&size=5`, { headers }).catch(() => null),
+      fetch(`${KEYWORD_URL}?query=${encodeURIComponent(q)}&size=10`, { headers }).catch(() => null),
+    ]);
+    if (addrRes && addrRes.ok) {
+      const data = await addrRes.json();
+      (data.documents || []).forEach(d => {
+        const road = d.road_address?.address_name;
+        // 도로명 주소를 우선 라벨로, 지번은 보조줄
+        push(road || d.address_name, road ? d.address_name : '', parseFloat(d.x), parseFloat(d.y), null);
+      });
+    }
+    if (kwRes && kwRes.ok) {
+      const data = await kwRes.json();
+      (data.documents || []).forEach(d => {
+        push(d.place_name, d.road_address_name || d.address_name || '', parseFloat(d.x), parseFloat(d.y), d.id);
+      });
+    }
+    return out.slice(0, 12);
+  } catch (e) {
+    console.warn('[kakao] searchPlaces failed:', e?.message);
+    return [];
+  }
+}
+
+// 자동차 길찾기 — 출발/도착 좌표로 실제 소요시간 조회 (카카오모빌리티, 실시간 교통 반영)
+// origin/destination: { x: 경도, y: 위도 }
+// 반환: { durationMin, distanceM } | null
+export async function getDrivingDirections(origin, destination) {
+  if (!origin || !destination) return null;
+  if (!(origin.x > 0) || !(origin.y > 0) || !(destination.x > 0) || !(destination.y > 0)) return null;
+  if (!isKeyConfigured()) {
+    console.warn('[kakao] KAKAO_REST_API_KEY not configured.');
+    return null;
+  }
+  try {
+    const url = `${DIRECTIONS_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}`;
+    const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+    if (!res.ok) { console.warn('[kakao] directions HTTP', res.status); return null; }
+    const data = await res.json();
+    const route = data.routes?.[0];
+    // result_code 0 = 정상. 그 외(예: 104 출발지·목적지 동일)는 실패 처리
+    if (!route || route.result_code !== 0) {
+      if (route) console.warn('[kakao] directions result', route.result_code, route.result_msg);
+      return null;
+    }
+    const s = route.summary || {};
+    return {
+      durationMin: Math.round((s.duration || 0) / 60),
+      distanceM: s.distance || 0,
+    };
+  } catch (e) {
+    console.warn('[kakao] getDrivingDirections failed:', e?.message);
     return null;
   }
 }

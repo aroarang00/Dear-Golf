@@ -8,7 +8,7 @@ import { trS } from '../styles/trS';
 import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
-import { addressToCoord } from '../utils/kakao';
+import { addressToCoord, getDrivingDirections } from '../utils/kakao';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
 import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -136,9 +136,12 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
   const { userProfile } = React.useContext(UserContext);
   const homeAddress = userProfile?.departure || '';
+  const savedDepX = userProfile?.departureCoord?.x;
+  const savedDepY = userProfile?.departureCoord?.y;
   const [courseCoord, setCourseCoord] = useState(null);   // { x, y, loc }
   const [currentCoord, setCurrentCoord] = useState(null); // { x, y }
   const [homeCoord, setHomeCoord] = useState(null);       // { x, y }
+  const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 카카오 길찾기
   const [trSlots, setTrSlots] = useState({
     goOrigin:   { mode: 'home',   custom: '', customCoord: null },
     goDest:     { mode: 'course', custom: '', customCoord: null },
@@ -250,16 +253,21 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     return () => { cancelled = true; };
   }, [visible, weatherOnly, schedule?.courseId, schedule?.courseX, schedule?.courseY]);
 
-  // 마이페이지 저장 출발지 → 좌표 변환 (1회 캐시)
+  // 마이페이지 저장 출발지 → 좌표
+  // 검색에서 선택해 저장한 정확 좌표가 있으면 그대로 사용, 없으면 주소 텍스트로 변환(폴백)
   useEffect(() => {
     let cancelled = false;
+    if (typeof savedDepX === 'number' && typeof savedDepY === 'number') {
+      setHomeCoord({ x: savedDepX, y: savedDepY });
+      return;
+    }
     if (!homeAddress) { setHomeCoord(null); return; }
     (async () => {
       const coord = await addressToCoord(homeAddress);
       if (!cancelled) setHomeCoord(coord);
     })();
     return () => { cancelled = true; };
-  }, [homeAddress]);
+  }, [homeAddress, savedDepX, savedDepY]);
 
   // 백그라운드 prefetch — 일정이 정해지면 팝업 열기 전부터 미리 받아둠 (in-flight dedupe로 중복 fetch 방지)
   useEffect(() => {
@@ -318,7 +326,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   };
   const endStr = toHHMM(teeMin + ROUND_MIN + endOffsetMin);
-  const recoDriveMin = 80; // 기본 운전시간 가정치 (실제 경로 API 미연동)
+  const recoDriveMin = driveMin ?? 80; // 길찾기 API 실측 소요, 없으면 기본 가정치
   const recommended = toHHMM(teeMin - 30 - recoDriveMin);
 
   // 슬롯 (mode) → 표시용 라벨/좌표 해석
@@ -335,6 +343,20 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     }
     return { label: slot.custom || '주소 입력', coord: slot.customCoord, placeholder: !slot.custom };
   };
+
+  // 갈 때 출발→도착 실제 소요시간 (카카오모빌리티 길찾기) — 좌표 변경 시 1회 조회
+  const goOriginCoord = resolveSlot('goOrigin').coord;
+  const goDestCoord = resolveSlot('goDest').coord;
+  useEffect(() => {
+    let cancelled = false;
+    if (!goOriginCoord || !goDestCoord) { setDriveMin(null); return; }
+    (async () => {
+      const r = await getDrivingDirections(goOriginCoord, goDestCoord);
+      if (!cancelled) setDriveMin(r ? r.durationMin : null);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goOriginCoord?.x, goOriginCoord?.y, goDestCoord?.x, goDestCoord?.y]);
 
   const setSlotMode = async (slotKey, mode) => {
     setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], mode } }));
@@ -807,10 +829,14 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 <View style={trS.recoBox}>
                   <Text style={trS.recoLabel}>추천 출발</Text>
                   <Text style={trS.recoTime}>{recommended}</Text>
-                  <Text style={trS.recoSub}>티오프 {schedule.time} · 여유 30분 포함</Text>
+                  <Text style={trS.recoSub}>
+                    티오프 {schedule.time} · {driveMin != null ? `운전 ${driveMin}분 · ` : ''}여유 30분 포함
+                  </Text>
                 </View>
                 <Text style={{ fontFamily: 'System', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
-                  ⓘ 실제 소요시간은 출발지/도로상황에 따라 다를 수 있어요
+                  {driveMin != null
+                    ? 'ⓘ 카카오 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요'
+                    : 'ⓘ 출발지 좌표가 있어야 실제 소요시간으로 계산해요 (지금은 기본 추정치)'}
                 </Text>
                 {renderSlot('goOrigin', '출발')}
                 {renderSlot('goDest', '도착')}

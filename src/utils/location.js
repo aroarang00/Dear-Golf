@@ -29,6 +29,16 @@ export async function getCurrentLocation() {
   }
 }
 
+// 현재 위치 권한이 허용 상태인지만 확인 (OS 팝업 없음)
+export async function hasLocationPermission() {
+  try {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 // 역지오코딩 (좌표 → 주소 텍스트) — 중기예보 지역코드 매핑용
 export async function reverseGeocode(lat, lng) {
   try {

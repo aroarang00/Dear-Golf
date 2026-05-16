@@ -142,5 +142,6 @@ export const USER_PROFILE_INIT = {
   hasFirstSingle: true,
   onboardingDone: true,
   departure: '',
+  departureCoord: null, // { x, y } — 출발지 검색에서 선택 시 저장되는 정확 좌표
   phone: '',
 };

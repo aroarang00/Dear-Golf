@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal, View, ScrollView, Text, TouchableOpacity, TextInput,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert, Linking,
 } from 'react-native';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
@@ -9,12 +9,18 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { myS } from '../styles/myS';
 import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
+import { searchPlaces } from '../utils/kakao';
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
+  const scrollRef = useRef(null);
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
   const [departure, setDeparture] = useState(userProfile.departure || '');
+  const [departureCoord, setDepartureCoord] = useState(userProfile.departureCoord || null);
+  const [depResults, setDepResults] = useState([]);
+  const [depSearching, setDepSearching] = useState(false);
+  const depTimerRef = useRef(null);
   const [phone, setPhone] = useState(userProfile.phone || '');
   const [editingInfo, setEditingInfo] = useState(false);
   const [editingStats, setEditingStats] = useState(false);
@@ -39,23 +45,58 @@ export function MyPageModal({ visible, onClose }) {
     if (visible) {
       setNickname(userProfile.nickname);
       setDeparture(userProfile.departure || '');
+      setDepartureCoord(userProfile.departureCoord || null);
+      setDepResults([]);
+      setDepSearching(false);
       setPhone(userProfile.phone || '');
       setEditingInfo(false);
     }
   }, [visible]);
 
+  // 디바운스 타이머 정리
+  useEffect(() => () => { if (depTimerRef.current) clearTimeout(depTimerRef.current); }, []);
+
   const handleSaveInfo = () => {
-    const updated = { ...userProfile, departure, phone };
+    const updated = { ...userProfile, departure, departureCoord, phone };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
+    setDepResults([]);
+    setDepSearching(false);
     setEditingInfo(false);
     Alert.alert('완료', '내 정보가 저장되었어요 ✓');
   };
 
   const handleCancelInfo = () => {
     setDeparture(userProfile.departure || '');
+    setDepartureCoord(userProfile.departureCoord || null);
+    setDepResults([]);
+    setDepSearching(false);
     setPhone(userProfile.phone || '');
     setEditingInfo(false);
+  };
+
+  // 출발지 입력 — 350ms 디바운스 후 카카오 검색
+  const handleDepartureChange = (t) => {
+    setDeparture(t);
+    setDepartureCoord(null); // 직접 수정하면 이전 좌표 무효화
+    if (depTimerRef.current) clearTimeout(depTimerRef.current);
+    const q = t.trim();
+    if (q.length < 2) { setDepResults([]); setDepSearching(false); return; }
+    setDepSearching(true);
+    depTimerRef.current = setTimeout(async () => {
+      const results = await searchPlaces(q);
+      setDepResults(results);
+      setDepSearching(false);
+    }, 350);
+  };
+
+  // 검색 결과 선택 — 라벨 + 정확 좌표 저장
+  const handleSelectDeparture = (r) => {
+    if (depTimerRef.current) clearTimeout(depTimerRef.current);
+    setDeparture(r.name);
+    setDepartureCoord({ x: r.x, y: r.y });
+    setDepResults([]);
+    setDepSearching(false);
   };
 
   const formatPhone = (t) => {
@@ -90,7 +131,7 @@ export function MyPageModal({ visible, onClose }) {
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
           <View style={myS.sheet}>
             <View style={myS.handle} />
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
               <View style={myS.profileArea}>
                 <View style={myS.avatar}>
                   <Text style={myS.avatarTxt}>{nickname.charAt(0)}</Text>
@@ -118,16 +159,7 @@ export function MyPageModal({ visible, onClose }) {
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={myS.nickname}>{nickname}</Text>
-                      <TouchableOpacity
-                        onPress={() => setEditingNick(true)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={{ marginLeft: 10 }}
-                        activeOpacity={0.6}>
-                        <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: 12 }}>닉네임 수정</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <Text style={myS.nickname}>{nickname}</Text>
                   )}
                   <Text style={myS.realName}>{userProfile.realName}</Text>
                 </View>
@@ -224,9 +256,32 @@ export function MyPageModal({ visible, onClose }) {
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>자주 가는 출발지</Text>
                     {editingInfo ? (
-                      <TextInput style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
-                        value={departure} onChangeText={setDeparture} autoFocus
-                        placeholder="서울 강남구 역삼동" placeholderTextColor={C.warmGrayLight} />
+                      <>
+                        <TextInput style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
+                          value={departure} onChangeText={handleDepartureChange} autoFocus
+                          autoCapitalize="none" autoCorrect={false}
+                          placeholder="동·아파트·건물명으로 검색" placeholderTextColor={C.warmGrayLight} />
+                        {depSearching && (
+                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>검색 중…</Text>
+                        )}
+                        {!depSearching && depResults.length > 0 && (
+                          <View style={{ marginTop: 6, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8, overflow: 'hidden' }}>
+                            {depResults.map((r, i) => (
+                              <TouchableOpacity key={r.kakaoId} activeOpacity={0.7}
+                                onPress={() => handleSelectDeparture(r)}
+                                style={{ paddingVertical: 8, paddingHorizontal: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+                                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal }} numberOfLines={1}>{r.name}</Text>
+                                {!!r.loc && <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.loc}</Text>}
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+                        <Text style={{ fontFamily: F.sys, fontSize: 10, color: departureCoord ? '#3C7D4F' : C.warmGrayLight, marginTop: 6, lineHeight: 15 }}>
+                          {departureCoord
+                            ? '✓ 정확한 위치가 저장돼 교통 소요시간이 정확해져요'
+                            : '검색 결과에서 선택해야 위치가 정확히 저장돼요'}
+                        </Text>
+                      </>
                     ) : (
                       <Text style={{ fontFamily: F.sys, fontSize: 12, color: departure ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
                         {departure || '입력하기 →'}
@@ -253,8 +308,18 @@ export function MyPageModal({ visible, onClose }) {
               <View style={myS.divider} />
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>설정</Text>
-                {[{ icon: '✏️', label: '닉네임 변경' }, { icon: '🔔', label: '알림 설정' }, { icon: '📷', label: '앱 권한 (사진·위치)' }].map((item, i) => (
-                  <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7}>
+                {[
+                  {
+                    icon: '✏️', label: '닉네임 변경',
+                    onPress: () => {
+                      scrollRef.current?.scrollTo({ y: 0, animated: true });
+                      setEditingNick(true);
+                    },
+                  },
+                  { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
+                  { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
+                ].map((item, i) => (
+                  <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
                     <Text style={myS.menuIcon}>{item.icon}</Text>
                     <Text style={myS.menuLabel}>{item.label}</Text>
                     <Text style={myS.menuValue}>›</Text>
