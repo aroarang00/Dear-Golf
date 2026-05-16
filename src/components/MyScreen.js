@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, Alert, DevSettings } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
-import { DIARY_DATA } from '../constants/data';
+import { DIARY_DATA, USER_PROFILE_INIT } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { dS } from '../styles/dS';
 import { UserContext } from '../contexts/UserContext';
@@ -68,6 +68,30 @@ export function MyScreen({ navigation }) {
     showStatsTemporary();
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
+
+  // [DEV] 신규 가입 유저 상태로 초기화 — 모든 로컬 데이터 삭제 + 더미 폴백 차단 후 앱 재시작
+  const handleDevReset = () => {
+    Alert.alert(
+      '신규 유저로 초기화',
+      '모든 로컬 데이터(일정·다이어리·기록·프로필)를 삭제하고\n첫 가입 유저 상태로 앱을 재시작합니다.\n\n계속할까요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '초기화', style: 'destructive',
+          onPress: async () => {
+            await storage.clear();
+            // 더미 데이터 폴백 차단 — 빈 배열 명시 저장
+            await storage.save(STORAGE_KEYS.diaries, []);
+            await storage.save(STORAGE_KEYS.schedules, []);
+            await storage.save(STORAGE_KEYS.hof, []);
+            // 온보딩 다시 뜨도록 onboardingDone:false 프로필 저장
+            await storage.save(STORAGE_KEYS.profile, { ...USER_PROFILE_INIT, onboardingDone: false });
+            DevSettings.reload();
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
@@ -151,6 +175,21 @@ export function MyScreen({ navigation }) {
 
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
+
+      {/* DEV ONLY — 신규 유저 테스트용 초기화 버튼. __DEV__ 라서 출시 빌드에선 자동 숨김 */}
+      {__DEV__ && (
+        <TouchableOpacity
+          onPress={handleDevReset}
+          activeOpacity={0.8}
+          style={{
+            position: 'absolute', bottom: 16, right: 14,
+            backgroundColor: 'rgba(61,57,53,0.88)',
+            borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8,
+            borderWidth: 1, borderColor: 'rgba(245,230,168,0.4)',
+          }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>🔧 신규유저 초기화</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }

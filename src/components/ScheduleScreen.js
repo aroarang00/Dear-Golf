@@ -24,13 +24,13 @@ export function ScheduleScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 캘린더</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 일정</Text>
           <Text style={{
             fontFamily: F.sys,
             fontSize: 26,
             fontWeight: '700',
             color: C.navy,
-          }}>일정</Text>
+          }}>캘린더</Text>
         </View>
         <TouchableOpacity
           onPress={() => Alert.alert(

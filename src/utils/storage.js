@@ -24,4 +24,7 @@ export const storage = {
       return raw != null ? JSON.parse(raw) : fallback;
     } catch (e) { console.warn('storage.load', key, e); return fallback; }
   },
+  async clear() {
+    try { await AsyncStorage.clear(); } catch (e) { console.warn('storage.clear', e); }
+  },
 };

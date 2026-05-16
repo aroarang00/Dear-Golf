@@ -61,8 +61,16 @@ export default function App() {
 
   if (showOnboarding) {
     // 4장 기능 소개 인트로 → 프로필 입력 온보딩
-    if (!introDone) return <OnboardingIntro onDone={() => setIntroDone(true)} />;
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+    // SafeAreaProvider 안에서 렌더해야 함 — OnboardingIntro가 useSafeAreaInsets 사용
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          {!introDone
+            ? <OnboardingIntro onDone={() => setIntroDone(true)} />
+            : <OnboardingScreen onComplete={handleOnboardingComplete} />}
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
   }
 
   return (
