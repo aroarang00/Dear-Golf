@@ -336,7 +336,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       return { label: homeAddress || '마이페이지에 출발지 미설정', coord: homeCoord, placeholder: !homeAddress };
     }
     if (slot.mode === 'course') {
-      return { label: schedule.course, coord: courseCoord ? { x: courseCoord.x, y: courseCoord.y } : null };
+      return { label: schedule?.course, coord: courseCoord ? { x: courseCoord.x, y: courseCoord.y } : null };
     }
     if (slot.mode === 'current') {
       return { label: resolvedLoc || '현재 위치', coord: currentCoord, placeholder: !currentCoord };
@@ -345,8 +345,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   };
 
   // 갈 때 출발→도착 실제 소요시간 (카카오모빌리티 길찾기) — 좌표 변경 시 1회 조회
-  const goOriginCoord = resolveSlot('goOrigin').coord;
-  const goDestCoord = resolveSlot('goDest').coord;
+  // schedule 없는 렌더(가드 이전)에서도 안전하도록 schedule 있을 때만 해석
+  const goOriginCoord = schedule ? resolveSlot('goOrigin').coord : null;
+  const goDestCoord = schedule ? resolveSlot('goDest').coord : null;
   useEffect(() => {
     let cancelled = false;
     if (!goOriginCoord || !goDestCoord) { setDriveMin(null); return; }
