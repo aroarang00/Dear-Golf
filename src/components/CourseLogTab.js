@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import { C, F } from '../constants/colors';
-import { TOP_100_COURSES, OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
+import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses } from '../utils/userCourses';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -140,9 +140,7 @@ function UnrecordedCard({ c, rs, onAdd }) {
 export function CourseLogTab({ avgRating, navigation }) {
   const { schedules } = React.useContext(SchedulesContext);
   const [region, setRegion] = useState('domestic');
-  const [show100, setShow100] = useState(false);
   const [countryFilter, setCountryFilter] = useState('전체');
-  const [top100Filter, setTop100Filter] = useState('전체');
   const [expanded, setExpanded] = useState({});
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [userCourses, setUserCourses] = useState([]);
@@ -172,7 +170,6 @@ export function CourseLogTab({ avgRating, navigation }) {
     const unsub = navigation.addListener('tabPress', () => {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       setRegion('domestic');
-      setShow100(false);
       setExpanded({});
     });
     return unsub;
@@ -249,10 +246,8 @@ export function CourseLogTab({ avgRating, navigation }) {
     });
   };
 
-  const visitedCount = TOP_100_COURSES.filter(c => c.visited).length;
   const countries = ['전체', ...new Set(OVERSEAS_COURSE_LOG.map(c => c.country))];
   const filteredOverseas = countryFilter === '전체' ? OVERSEAS_COURSE_LOG : OVERSEAS_COURSE_LOG.filter(c => c.country === countryFilter);
-  const filteredTop100 = top100Filter === '전체' ? TOP_100_COURSES : top100Filter === '방문' ? TOP_100_COURSES.filter(c => c.visited) : TOP_100_COURSES.filter(c => !c.visited);
 
   const renderRegionTag = (bg, fg, label) => (
     <View style={{ backgroundColor: bg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
@@ -262,44 +257,18 @@ export function CourseLogTab({ avgRating, navigation }) {
 
   return (
     <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity
-        style={[dS.banner, { backgroundColor: '#fff', borderColor: '#C9A84C', borderWidth: 1.5 }]}
-        onPress={() => setShow100(!show100)}>
+      {/* 100대 코스 — 서비스 준비중 */}
+      <View style={[dS.banner, { backgroundColor: '#fff', borderColor: '#C9A84C', borderWidth: 1.5 }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
-            <Text style={[dS.bannerSub, { color: '#C9A84C' }]}>{visitedCount}/100 달성 · {visitedCount}%</Text>
-          </View>
-          <View style={{ backgroundColor: '#C9A84C', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff', fontWeight: '600' }}>{show100 ? '접기' : '보기'}</Text>
+          <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
+          <View style={{ backgroundColor: '#C9A84C', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#fff', fontWeight: '600' }}>준비중</Text>
           </View>
         </View>
-        <View style={{ marginTop: 10, height: 4, backgroundColor: C.hairline, borderRadius: 2 }}>
-          <View style={{ width: `${visitedCount}%`, height: '100%', backgroundColor: '#C9A84C', borderRadius: 2 }} />
-        </View>
-      </TouchableOpacity>
-      {show100 && (
-        <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
-            {['전체', '방문', '미방문'].map(f => (
-              <TouchableOpacity key={f} style={[dS.tag, top100Filter === f && { backgroundColor: C.charcoal }]} onPress={() => setTop100Filter(f)}>
-                <Text style={[dS.tagTxt, top100Filter === f && { color: C.butter }]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {filteredTop100.map(c => (
-            <View key={c.rank} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-              <Text style={{ fontFamily: F.en, fontSize: 13, color: c.visited ? C.burgundy : C.warmGrayLight, width: 30 }}>{c.rank}</Text>
-              <Text style={{ fontSize: 14, marginRight: 8 }}>{c.visited ? '✓' : '○'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: c.visited ? C.textPrimary : C.warmGrayLight }}>{c.name}</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>{c.loc}</Text>
-              </View>
-            </View>
-          ))}
-          <View style={{ height: 8 }} />
-        </View>
-      )}
+        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 8, lineHeight: 18 }}>
+          🏌️ 100대 골프코스 서비스를 준비중이에요
+        </Text>
+      </View>
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
         {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
           <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>

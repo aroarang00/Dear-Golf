@@ -476,30 +476,28 @@ export function GuideScreen({ route, navigation }) {
           <View style={{ flex: 1, backgroundColor: C.burgundy }} />
         </View>
 
-        <View style={{ backgroundColor: C.bgPrimary }}>
-          <View style={{ flexDirection: 'row' }}>
+        {/* 내부 메뉴 — 세그먼트 토글 */}
+        <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingVertical: 12 }}>
+          <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
             {[
-              ['course', '코스 & 코멘트', C.charcoal, C.charcoal],
-              ['food',   '맛집 & 주변',  C.burgundy, C.burgundy],
-            ].map(([k, l, textColor, barColor]) => {
+              ['course', '코스 & 코멘트'],
+              ['food',   '맛집 & 주변'],
+            ].map(([k, l]) => {
               const on = innerTab === k;
               return (
                 <TouchableOpacity key={k}
-                  style={{ flex: 1, paddingVertical: 13, alignItems: 'center' }}
+                  activeOpacity={0.7}
+                  style={[
+                    { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
+                    on && { backgroundColor: C.charcoal },
+                  ]}
                   onPress={() => setInnerTab(k)}>
                   <Text style={{
                     fontFamily: F.sys,
-                    fontSize: 14,
-                    color: on ? textColor : C.warmGrayLight,
-                    fontWeight: on ? '700' : '400',
+                    fontSize: 13,
+                    color: on ? C.butter : C.warmGray,
+                    fontWeight: on ? '700' : '500',
                   }}>{l}</Text>
-                  {on && (
-                    <View style={{
-                      position: 'absolute', left: 0, right: 0, bottom: 0,
-                      height: 3,
-                      backgroundColor: barColor,
-                    }} />
-                  )}
                 </TouchableOpacity>
               );
             })}
