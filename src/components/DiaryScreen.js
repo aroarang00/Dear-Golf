@@ -38,6 +38,20 @@ function buildHofEntry(data, diaryId) {
   };
 }
 
+// 라운딩 기록 → 퍼스트 싱글 명예의 전당 엔트리 (라운드 단위 성취 — 80타 미만)
+function buildSingleHofEntry(data, diaryId) {
+  return {
+    id: 'hof_single_' + diaryId,
+    diaryId,
+    type: '퍼스트 싱글',
+    date: data.date,
+    course: data.course,
+    score: data.score,
+    companions: (data.companions || []).filter(c => !c.isMe).map(c => c.name),
+    memo: data.memo || '',
+  };
+}
+
 export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const { setSchedules } = React.useContext(SchedulesContext);
@@ -127,21 +141,29 @@ export function DiaryScreen({ route, navigation }) {
         cost: data.cost || null,
       };
       setDiaries(prev => [newD, ...prev]);
-      if (data.special) {
-        setHallOfFame(prev => [buildHofEntry(data, newD.id), ...prev]);
-      }
+      setHallOfFame(prev => {
+        let next = prev;
+        // 특별한 순간(홀인원·이글·알바트로스) 카드
+        if (data.special) next = [buildHofEntry(data, newD.id), ...next];
+        // 퍼스트 싱글 — 80타 미만 첫 기록 시 1회 자동 등재
+        if (data.score <= 79 && !prev.some(h => h.type === '퍼스트 싱글')) {
+          next = [buildSingleHofEntry(data, newD.id), ...next];
+        }
+        return next;
+      });
     } else if (type === 'diary-edit') {
       setDiaries(prev => prev.map(d => d.id === data.id ? { ...d, ...data } : d));
-      // 명예의 전당 동기화 — diaryId로 연결된 카드를 등재/갱신/해제
+      // 명예의 전당 동기화 — 홀 성취 카드(hof_<diaryId>)만 등재/갱신/해제
+      // (퍼스트 싱글 카드는 최초 1회 마일스톤이라 수정으로 건드리지 않음)
       setHallOfFame(prev => {
-        const linked = prev.some(h => h.diaryId === data.id);
+        const holeId = 'hof_' + data.id;
+        const exists = prev.some(h => h.id === holeId);
         if (data.special) {
-          return linked
-            ? prev.map(h => h.diaryId === data.id ? buildHofEntry(data, data.id) : h)
+          return exists
+            ? prev.map(h => h.id === holeId ? buildHofEntry(data, data.id) : h)
             : [buildHofEntry(data, data.id), ...prev];
         }
-        // 특별한 순간이 해제됨 → 연결된 명예의 전당 카드 제거
-        return linked ? prev.filter(h => h.diaryId !== data.id) : prev;
+        return exists ? prev.filter(h => h.id !== holeId) : prev;
       });
     }
   };

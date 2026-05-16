@@ -11,6 +11,7 @@ export function DiaryCard({ item, onPress, avgScore }) {
   const hasBest = item.badge === '베스트';
   const hasPhoto = item.photos && item.photos.length > 0;
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
+  const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
 
   let lineColor;
   if (hasBest) lineColor = '#6B1E2A';
@@ -24,9 +25,18 @@ export function DiaryCard({ item, onPress, avgScore }) {
       <Text style={dS.cardDate}>{item.date} {item.day}</Text>
       <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <Text style={[dS.cardScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-        <Text style={[dS.cardScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+        <Text style={[dS.cardScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+        <Text style={[dS.cardScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
         <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+        {isSingle && (
+          <View style={{
+            backgroundColor: '#C9A84C',
+            borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
+            minWidth: 52, alignItems: 'center', alignSelf: 'center',
+          }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#2A2622', fontWeight: '600' }}>싱글</Text>
+          </View>
+        )}
         {item.special && (
           <View style={{
             backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',

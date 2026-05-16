@@ -25,6 +25,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
   }, [item.photos]);
   const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
+  const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   const companionsToShow = item.companions || [];
@@ -120,9 +121,18 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
         )}
         <View style={[dS.detailInfoArea, isSpecial && { borderBottomColor: '#C9A84C33' }]}>
           <View style={dS.detailScoreRow}>
-            <Text style={[dS.detailScore, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-            <Text style={[dS.detailScoreUnit, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+            <Text style={[dS.detailScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+            <Text style={[dS.detailScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
             <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
+            {isSingle && (
+              <View style={{
+                backgroundColor: '#C9A84C',
+                borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
+                minWidth: 52, alignItems: 'center', alignSelf: 'center',
+              }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#2A2622', fontWeight: '600' }}>싱글</Text>
+              </View>
+            )}
             {item.special && (
               <View style={{
                 backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
