@@ -59,7 +59,7 @@ export function DiaryScreen({ route, navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);
-  const [showHofTeaser, setShowHofTeaser] = useState(false); // 명예의 전당 티저 — 최초 1회만
+  const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
   const [diariesHydrated, setDiariesHydrated] = useState(false);
@@ -81,7 +81,7 @@ export function DiaryScreen({ route, navigation }) {
 
   useEffect(() => {
     (async () => {
-      const [d, h, teaserSeen] = await Promise.all([
+      const [d, h, teaserDismissed] = await Promise.all([
         storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
         storage.load(STORAGE_KEYS.hof, HALL_OF_FAME),
         storage.load(STORAGE_KEYS.hofTeaserSeen, false),
@@ -89,11 +89,7 @@ export function DiaryScreen({ route, navigation }) {
       setDiaries(d);
       setHallOfFame(h);
       setDiariesHydrated(true);
-      // 명예의 전당 티저 — 특별한 기록이 없을 때 최초 1회만 노출하고 영구 감춤
-      if (!teaserSeen && h.length === 0) {
-        setShowHofTeaser(true);
-        storage.save(STORAGE_KEYS.hofTeaserSeen, true);
-      }
+      setHofTeaserDismissed(teaserDismissed);
     })();
   }, []);
 
@@ -184,6 +180,12 @@ export function DiaryScreen({ route, navigation }) {
       setSchedules(prev => prev.filter(s => !(s.date === target.date && s.course === target.course)));
     }
     setSelected(null);
+  };
+
+  // 명예의 전당 티저 '다시 보지 않기' — 영구 감춤
+  const dismissHofTeaser = () => {
+    setHofTeaserDismissed(true);
+    storage.save(STORAGE_KEYS.hofTeaserSeen, true);
   };
 
   const sortedDiaries = [...diaries].sort((a, b) => {
@@ -333,8 +335,8 @@ export function DiaryScreen({ route, navigation }) {
                   {hofExpanded && hallOfFame.map(item => <HallOfFameCard key={item.id} item={item} />)}
                   <View style={{ height: 8 }} />
                 </View>
-              ) : showHofTeaser ? (
-                /* 특별한 기록이 없을 때 — 명예의 전당 잠금 티저 (최초 1회만) */
+              ) : !hofTeaserDismissed ? (
+                /* 특별한 기록이 없을 때 — 명예의 전당 잠금 티저 ('다시 보지 않기' 전까지) */
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <Text style={dS.hofSectionLabel}>명예의 전당</Text>
                   <View style={{ marginTop: 10, marginBottom: 8, backgroundColor: '#2A2622', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C44', paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' }}>
@@ -343,6 +345,10 @@ export function DiaryScreen({ route, navigation }) {
                     <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 6, textAlign: 'center', lineHeight: 17 }}>
                       홀인원 · 알바트로스 · 이글을 기록하면{'\n'}명예의 전당 카드가 만들어져요
                     </Text>
+                    <TouchableOpacity onPress={dismissHofTeaser} activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginTop: 14 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.4)', textDecorationLine: 'underline' }}>더 이상 보지 않기</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               ) : null}

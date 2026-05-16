@@ -67,6 +67,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     }
   };
 
+  // 동반자 추가 — 공백·쉼표로 여러 명 한 번에 입력 가능 (최대 3명)
+  const handleAddCompanions = () => {
+    if (companions.length >= 3) return;
+    const names = companionInput.trim().split(/[\s,]+/).filter(Boolean);
+    if (!names.length) return;
+    setCompanions(prev => [...prev, ...names].slice(0, 3));
+    setCompanionInput('');
+  };
+
   const DAYS = ['일','월','화','수','목','금','토'];
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   const formatDay = (d) => DAYS[d.getDay()];
@@ -323,18 +332,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 <TextInput
                   style={[mS.input, { flex: 1 }]}
-                  placeholder="이름 한 명씩 입력"
+                  placeholder="이름 입력 (공백으로 여러 명)"
                   placeholderTextColor={C.warmGrayLight}
                   value={companionInput}
                   onChangeText={setCompanionInput}
                   returnKeyType="done"
-                  onSubmitEditing={() => {
-                    const name = companionInput.trim();
-                    if (name && companions.length < 3) {
-                      setCompanions(prev => [...prev, name]);
-                      setCompanionInput('');
-                    }
-                  }}
+                  onSubmitEditing={handleAddCompanions}
                 />
                 <TouchableOpacity
                   style={{
@@ -343,19 +346,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     paddingHorizontal: 16,
                     justifyContent: 'center',
                   }}
-                  onPress={() => {
-                    const name = companionInput.trim();
-                    if (name && companions.length < 3) {
-                      setCompanions(prev => [...prev, name]);
-                      setCompanionInput('');
-                    }
-                  }}>
+                  onPress={handleAddCompanions}>
                   <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter }}>추가</Text>
                 </TouchableOpacity>
               </View>
               {companions.length === 0 && (
                 <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginBottom: 8 }}>
-                  한 명씩 입력하고 '추가'를 눌러주세요 (여러 명을 한 칸에 적지 마세요)
+                  이름을 공백으로 띄우면 여러 명을 한 번에 추가할 수 있어요 (최대 3명)
                 </Text>
               )}
               {companions.length > 0 && (
