@@ -125,10 +125,10 @@ export function HomeScreen({ navigation }) {
     const courseRow = COURSE_LOG.find(c => c.name === course);
     if (!courseRow) return false;
     if ((courseRow.visits || 0) === 0) return false;
-    const hasMyMemo = DIARY_DATA.some(d => d.course === course && d.memo);
+    const hasMyMemo = diaries.some(d => d.course === course && d.memo);
     if (!hasMyMemo) return false;
     return COURSE_COMMENTS.some(c => c.courseId === courseRow.id);
-  }, [next?.course]);
+  }, [next?.course, diaries]);
 
   useEffect(() => {
     if (!carouselActive) {
@@ -433,12 +433,13 @@ export function HomeScreen({ navigation }) {
 
           {(() => {
             const courseRow = COURSE_LOG.find(c => c.name === next?.course);
-            const visitCount = courseRow?.visits || 0;
-            const isFirstVisit = visitCount === 0;
             const courseLabel = next?.course || '';
 
-            const diaryEntries = DIARY_DATA.filter(d => d.course === next?.course);
+            const diaryEntries = diaries.filter(d => d.course === next?.course);
             const myMemo = diaryEntries[0]?.memo;
+            // 방문 여부는 실제 라운딩 기록 기준 (COURSE_LOG 목업이 아님)
+            const visitCount = diaryEntries.length;
+            const isFirstVisit = visitCount === 0;
             const topComment = courseRow
               ? [...COURSE_COMMENTS].filter(c => c.courseId === courseRow.id).sort((a, b) => b.likes - a.likes)[0]
               : null;

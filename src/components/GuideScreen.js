@@ -129,7 +129,13 @@ export function GuideScreen({ route, navigation }) {
     setUserCoursesHydrated(true);
   }, []);
 
-  useEffect(() => { refreshUserCourses(); }, [refreshUserCourses]);
+  useEffect(() => {
+    refreshUserCourses();
+    if (!navigation) return;
+    // 다른 탭에서 등록한 코스가 반영되도록 탭 진입 시마다 갱신
+    const unsub = navigation.addListener('focus', refreshUserCourses);
+    return unsub;
+  }, [refreshUserCourses, navigation]);
 
   // 미저장 검색 결과 미리보기 — 카카오 검색 결과를 임시 코스 객체로 보관
   const [previewCourse, setPreviewCourse] = useState(null);
@@ -333,9 +339,18 @@ export function GuideScreen({ route, navigation }) {
     const inLog = COURSE_LOG.find(x => x.id === selected);
     const inUser = userCoursesList.find(x => x.id === selected);
     if (!inLog && !inUser) {
-      // 로드 완료 후에도 못 찾으면 정리 (그 전엔 race 가능성으로 유지)
-      if (userCoursesHydrated) setSelected(null);
-      return;
+      // userCoursesList가 최신이 아닐 수 있어 — 최신 목록으로 한 번 더 재확인 후에만 정리
+      let cancelledLookup = false;
+      (async () => {
+        const fresh = await getUserCourses();
+        if (cancelledLookup) return;
+        if (fresh.some(c => c.id === selected)) {
+          setUserCoursesList(fresh); // 최신 반영 → 효과 재실행되며 코스를 찾음
+        } else if (userCoursesHydrated) {
+          setSelected(null);
+        }
+      })();
+      return () => { cancelledLookup = true; };
     }
     setShowCommentInput(false);
     setCommentInput('');

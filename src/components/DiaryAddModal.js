@@ -561,7 +561,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {addPhotos.map((item, i) => (
-                    <AddPhotoThumb key={i} item={item} />
+                    <AddPhotoThumb key={i} item={item}
+                      onRemove={() => setAddPhotos(prev => prev.filter((_, idx) => idx !== i))} />
                   ))}
                   <TouchableOpacity onPress={pickPhoto}
                     style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
@@ -589,7 +590,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   );
 }
 
-function AddPhotoThumb({ item }) {
+function AddPhotoThumb({ item, onRemove }) {
   const isVideo = typeof item === 'object' && item?.type === 'video';
   const src = typeof item === 'object' ? item.uri : item;
   const [thumb, setThumb] = useState(null);
@@ -608,31 +609,45 @@ function AddPhotoThumb({ item }) {
     return () => { cancelled = true; };
   }, [isVideo, src]);
 
-  const baseStyle = { width: 80, height: 80, borderRadius: 8, marginRight: 8 };
+  const imgStyle = { width: 80, height: 80, borderRadius: 8 };
 
-  if (isVideo) {
-    return (
-      <View style={baseStyle}>
-        {thumb ? (
-          <Image source={{ uri: thumb }} style={[baseStyle, { marginRight: 0 }]} />
-        ) : (
-          <View style={[baseStyle, { marginRight: 0, backgroundColor: '#2A2622' }]} />
-        )}
-        <View style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          alignItems: 'center', justifyContent: 'center',
-        }}>
+  return (
+    <View style={{ width: 80, height: 80, marginRight: 8 }}>
+      {isVideo ? (
+        <View style={imgStyle}>
+          {thumb ? (
+            <Image source={{ uri: thumb }} style={imgStyle} />
+          ) : (
+            <View style={[imgStyle, { backgroundColor: '#2A2622' }]} />
+          )}
           <View style={{
-            width: 28, height: 28, borderRadius: 14,
-            backgroundColor: 'rgba(0,0,0,0.55)',
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <Text style={{ color: '#fff', fontSize: 12, marginLeft: 2 }}>▶</Text>
+            <View style={{
+              width: 28, height: 28, borderRadius: 14,
+              backgroundColor: 'rgba(0,0,0,0.55)',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Text style={{ color: '#fff', fontSize: 12, marginLeft: 2 }}>▶</Text>
+            </View>
           </View>
         </View>
-      </View>
-    );
-  }
-
-  return <Image source={{ uri: src }} style={baseStyle} />;
+      ) : (
+        <Image source={{ uri: src }} style={imgStyle} />
+      )}
+      {onRemove && (
+        <TouchableOpacity onPress={onRemove}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{
+            position: 'absolute', top: 3, right: 3,
+            width: 22, height: 22, borderRadius: 11,
+            backgroundColor: 'rgba(0,0,0,0.78)',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+          <Text style={{ color: '#fff', fontSize: 11, lineHeight: 13 }}>✕</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 }
