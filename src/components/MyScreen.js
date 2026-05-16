@@ -9,6 +9,7 @@ import { UserContext } from '../contexts/UserContext';
 import { CourseLogTab } from './CourseLogTab';
 import { FriendsTab } from './FriendsTab';
 import { MyPageModal } from './MyPageModal';
+import { GolfLedgerModal } from './GolfLedgerModal';
 
 const SUB_TABS = [
   ['course', '내 코스기록', C.butter],
@@ -22,6 +23,7 @@ export function MyScreen({ navigation }) {
   const [tab, setTab] = useState('course');
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [showMyPage, setShowMyPage] = useState(false);
+  const [showLedger, setShowLedger] = useState(false);
 
   // 라운딩 기록 로드 — 통계 박스용. 탭 진입 시마다 최신값 반영
   useEffect(() => {
@@ -58,26 +60,35 @@ export function MyScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      <View style={{ backgroundColor: '#1A3D52', paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(250,246,236,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 라이프</Text>
-          <Text style={{
-            fontFamily: 'Georgia',
-            fontStyle: 'italic',
-            fontSize: 28,
-            color: C.bgPrimary,
-          }}>My</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={{
+              fontFamily: 'Georgia',
+              fontStyle: 'italic',
+              fontSize: 28,
+              color: C.bgPrimary,
+            }}>My</Text>
+            <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
+              style={{
+                width: 30, height: 30, borderRadius: 15,
+                backgroundColor: '#6B1E2A',
+                borderWidth: 1.5, borderColor: '#F5E6A8',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+              <Text style={{ fontFamily: F.en, fontSize: 14, color: '#F5E6A8', fontStyle: 'italic', lineHeight: 18 }}>
+                {userProfile.nickname?.charAt(0).toUpperCase() || 'G'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
+        <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
           style={{
-            width: 30, height: 30, borderRadius: 15,
-            backgroundColor: '#6B1E2A',
-            borderWidth: 1.5, borderColor: '#F5E6A8',
-            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 1, borderColor: 'rgba(200,217,230,0.45)',
+            borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7,
           }}>
-          <Text style={{ fontFamily: F.en, fontSize: 14, color: '#F5E6A8', fontStyle: 'italic', lineHeight: 18 }}>
-            {userProfile.nickname?.charAt(0).toUpperCase() || 'G'}
-          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C8D9E6', fontWeight: '600' }}>📒 골프 가계부</Text>
         </TouchableOpacity>
       </View>
 
@@ -128,6 +139,7 @@ export function MyScreen({ navigation }) {
       )}
 
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
+      <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
     </SafeAreaView>
   );
 }

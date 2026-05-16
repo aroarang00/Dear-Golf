@@ -457,7 +457,7 @@ export function HomeScreen({ navigation }) {
                   <View style={homeS.memoCard}>
                     <View style={homeS.memoCardTop}>
                       <View style={[homeS.memoBadgeFirst, { backgroundColor: '#C8D9E6' }]}>
-                        <Text style={[homeS.memoBadgeTxt, { color: '#1A3D52' }]}>첫 방문</Text>
+                        <Text style={[homeS.memoBadgeTxt, { color: C.navy }]}>첫 방문</Text>
                       </View>
                       {labelCourseTxt('골퍼 코멘트')}
                     </View>

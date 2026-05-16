@@ -198,13 +198,15 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
 
     switch (status) {
       case 'today':
+        // 오늘 — 큰 숫자 + 차콜 언더바 (동그라미 X)
         return (
-          <View style={[base, { backgroundColor: C.charcoal }]}>
-            <Text style={[baseText, { color: C.butter, fontWeight: '600' }]}>{d}</Text>
+          <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.en, fontSize: 17, color: C.charcoal, fontWeight: '700' }}>{d}</Text>
+            <View style={{ position: 'absolute', bottom: 2, width: 16, height: 3, borderRadius: 2, backgroundColor: C.charcoal }} />
           </View>
         );
       case 'today-round':
-        // 오늘 라운딩 있음: 차콜 fill + 골드 테두리
+        // 오늘 라운딩 있음: 차콜 fill + 골드 테두리 (기존 유지)
         return (
           <View style={[base, { backgroundColor: C.charcoal, borderWidth: 2, borderColor: '#C9A84C' }]}>
             <Text style={[baseText, { color: C.butter, fontWeight: '600' }]}>{d}</Text>
@@ -265,7 +267,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
         <View style={{ flexDirection: 'row', paddingHorizontal: 12 }}>
           {DAYS.map((dl, i) => (
             <View key={i} style={{ flex: 1, alignItems: 'center', paddingBottom: 6 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: i === 0 ? '#6B1E2A' : i === 6 ? '#1A3D52' : C.warmGrayLight, fontWeight: '500' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: i === 0 ? '#6B1E2A' : i === 6 ? C.navy : C.warmGrayLight, fontWeight: '500' }}>
                 {dl}
               </Text>
             </View>

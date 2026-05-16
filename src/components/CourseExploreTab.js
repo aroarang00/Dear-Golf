@@ -289,7 +289,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         title="🏌️ 내 주변 연습장"
         right="현재위치 기준"
         headerBg={C.paleSky}
-        titleColor="#1A3D52">
+        titleColor={C.navy}>
         {nearbyLoading ? (
           <View style={{ paddingVertical: 22, alignItems: 'center' }}>
             <ActivityIndicator size="small" color={C.warmGray} />

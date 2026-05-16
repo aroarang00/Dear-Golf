@@ -10,6 +10,14 @@ import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
 
+const COST_ITEMS = [
+  ['green', '그린피'],
+  ['caddie', '캐디피'],
+  ['cart', '카트피'],
+  ['meal', '식사비'],
+  ['etc', '기타'],
+];
+
 export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const { userProfile } = React.useContext(UserContext);
   const [courseSearch, setCourseSearch] = useState('');
@@ -22,7 +30,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [date, setDate] = useState(new Date());
   const [score, setScore] = useState('');
   const [scoreCardOption, setScoreCardOption] = useState('later');
-  const [holeScores, setHoleScores] = useState({});
+  const [showCost, setShowCost] = useState(false);
+  const [costs, setCosts] = useState({ green: '', caddie: '', cart: '', meal: '', etc: '' });
   const [weather, setWeather] = useState('맑음');
   const [memo, setMemo] = useState('');
   const [birdieCount, setBirdieCount] = useState(0);
@@ -102,7 +111,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setScore(''); setWeather('맑음'); setMemo(''); setBirdieCount(0);
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
-    setScoreCardOption('later'); setHoleScores({});
+    setScoreCardOption('later');
+    setShowCost(false); setCosts({ green: '', caddie: '', cart: '', meal: '', etc: '' });
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
@@ -142,6 +152,16 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           .map(c => c.name)
       );
       setCompanionInput('');
+      if (initial.cost) {
+        setCosts({
+          green: initial.cost.green ? String(initial.cost.green) : '',
+          caddie: initial.cost.caddie ? String(initial.cost.caddie) : '',
+          cart: initial.cost.cart ? String(initial.cost.cart) : '',
+          meal: initial.cost.meal ? String(initial.cost.meal) : '',
+          etc: initial.cost.etc ? String(initial.cost.etc) : '',
+        });
+        setShowCost(true);
+      }
     } else {
       reset();
       // 일정 캘린더·내 코스기록에서 넘어온 날짜·골프장 미리 채움
@@ -165,6 +185,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   const finalCourseLive = selectedCourse || courseSearch.trim();
   const canSave = !!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim();
+
+  const costTotal = COST_ITEMS.reduce((sum, [k]) => sum + (parseInt(costs[k]) || 0), 0);
+  const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   const handleSave = () => {
     const finalCourse = selectedCourse || courseSearch.trim();
@@ -190,6 +213,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       starRating,
       tags: selectedTags,
       detailMemo,
+      cost: costTotal > 0 ? {
+        green: parseInt(costs.green) || 0,
+        caddie: parseInt(costs.caddie) || 0,
+        cart: parseInt(costs.cart) || 0,
+        meal: parseInt(costs.meal) || 0,
+        etc: parseInt(costs.etc) || 0,
+        total: costTotal,
+      } : null,
       companions: [
         { name: userProfile.nickname, isMe: true },
         ...companions.map(name => ({ name, isMe: false })),
@@ -261,7 +292,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   <Text style={mS.label}>스코어카드 등록할까요?</Text>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     {[
-                      { key: 'manual', label: '홀별 직접 입력' },
                       { key: 'photo', label: '사진으로 등록' },
                       { key: 'later', label: '나중에' },
                     ].map(opt => (
@@ -274,30 +304,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </View>
                   {scoreCardOption === 'photo' && (
                     <View style={{ marginTop: 8, padding: 12, backgroundColor: C.paleSky + '22', borderRadius: 10, borderWidth: 0.5, borderColor: C.paleSky + '60' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, lineHeight: 18 }}>사진 자동입력 기능은 준비중이에요. 나중에 추가할 수 있어요.</Text>
-                    </View>
-                  )}
-                  {scoreCardOption === 'manual' && (
-                    <View style={{ marginTop: 10 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>홀별 타수 입력</Text>
-                      {[{ label: '전반 (1~9홀)', holes: Array.from({length:9}, (_,i)=>i+1) }, { label: '후반 (10~18홀)', holes: Array.from({length:9}, (_,i)=>i+10) }].map((half, hi) => (
-                        <View key={hi} style={{ marginBottom: 12 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginBottom: 6 }}>{half.label}</Text>
-                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                            {half.holes.map(h => (
-                              <View key={h} style={{ alignItems: 'center', gap: 3 }}>
-                                <Text style={{ fontFamily: F.sys, fontSize: 9, color: C.warmGrayLight }}>{h}H</Text>
-                                <TextInput
-                                  style={{ width: 32, height: 36, backgroundColor: C.bgSecondary, borderRadius: 8, borderWidth: 0.5, borderColor: C.hairline, textAlign: 'center', fontFamily: F.sys, fontSize: 13, color: C.textPrimary }}
-                                  keyboardType="numeric" maxLength={2}
-                                  value={holeScores[h] || ''}
-                                  onChangeText={v => setHoleScores(prev => ({ ...prev, [h]: v }))}
-                                />
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      ))}
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, lineHeight: 18 }}>
+                        📷 스코어카드를 사진으로 찍으면 홀별 타수를 자동으로 인식하는 기능이에요.{'\n'}아직 준비 중이며 곧 추가될 예정이에요.
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -484,6 +493,59 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </Text>
                 </View>
               </View>
+
+              {/* 비용 기록 — 접기/펼치기 (선택) */}
+              <TouchableOpacity
+                onPress={() => setShowCost(v => !v)}
+                activeOpacity={0.7}
+                style={{
+                  marginTop: 14,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: C.bgSecondary,
+                  borderWidth: 0.5, borderColor: C.hairline,
+                  borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+                }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary, fontWeight: '600' }}>
+                  💰 비용 기록하기 <Text style={{ color: '#8B8680', fontSize: 10, fontWeight: '400' }}>(선택)</Text>
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 18, color: C.warmGray }}>{showCost ? '−' : '+'}</Text>
+              </TouchableOpacity>
+              {showCost && (
+                <View style={{
+                  marginTop: 8, backgroundColor: C.bgSecondary,
+                  borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, padding: 14,
+                }}>
+                  {COST_ITEMS.map(([key, label]) => (
+                    <View key={key} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textSecondary, width: 64 }}>{label}</Text>
+                      <TextInput
+                        style={{
+                          flex: 1, backgroundColor: C.bgPrimary,
+                          borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8,
+                          paddingHorizontal: 12, paddingVertical: 8,
+                          fontFamily: F.sys, fontSize: 13, color: C.textPrimary, textAlign: 'right',
+                        }}
+                        placeholder="0"
+                        placeholderTextColor={C.warmGrayLight}
+                        keyboardType="numeric"
+                        value={costs[key]}
+                        onChangeText={(t) => setCosts(prev => ({ ...prev, [key]: t.replace(/[^0-9]/g, '') }))}
+                      />
+                      <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, marginLeft: 8 }}>원</Text>
+                    </View>
+                  ))}
+                  <View style={{
+                    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                    borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12, marginTop: 2,
+                  }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary, fontWeight: '600' }}>합계</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.burgundy, fontWeight: '700' }}>
+                      {won(costTotal)}원
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <Text style={mS.label}>공개 범위</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity style={[mS.chip, privacy === 'friends' && mS.chipOn]} onPress={() => setPrivacy('friends')}>

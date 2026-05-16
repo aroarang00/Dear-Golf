@@ -23,7 +23,7 @@ export const homeS = StyleSheet.create({
   memoCardBottom:  { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10, position: 'relative', overflow: 'hidden' },
   memoBadgeFirst:  { backgroundColor: '#6B1E2A', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   memoBadgeVisit:  { backgroundColor: '#3D3935', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  memoBadgeComment:{ backgroundColor: '#1A3D52', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  memoBadgeComment:{ backgroundColor: C.navy, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   memoBadgeTxt:    { fontFamily: F.sys, fontSize: 9, color: '#F5E6A8', letterSpacing: 1 },
   memoCardCourse:  { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.4)' },
   memoMain:        { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 3 },

@@ -30,7 +30,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
   const companionsToShow = item.companions || [];
 
   const COMP_PALETTE = [
-    { bg: '#C8D9E6', fg: '#1A3D52' },
+    { bg: '#C8D9E6', fg: C.navy },
     { bg: '#F5E6A8', fg: '#5A4500' },
     { bg: '#3D3935', fg: '#F5E6A8' },
     { bg: '#8B8680', fg: '#fff' },

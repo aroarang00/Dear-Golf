@@ -8,7 +8,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { dS } from '../styles/dS';
 
 const REGION_STYLE = {
-  capital:     { bg: '#C8D9E6', fg: '#1A3D52', label: '수도권' },
+  capital:     { bg: '#C8D9E6', fg: C.navy, label: '수도권' },
   chungcheong: { bg: '#F5E6A8', fg: '#5A4500', label: '충청' },
   gangwon:     { bg: '#6B8B5E', fg: '#fff',    label: '강원' },
   gyeongsang:  { bg: '#8B8680', fg: '#fff',    label: '경상' },
@@ -17,13 +17,13 @@ const REGION_STYLE = {
   other:       { bg: '#8B8680', fg: '#fff',    label: '국내' },
 };
 
-const OVERSEAS_STYLE = { bg: '#C8D9E6', fg: '#1A3D52' };
+const OVERSEAS_STYLE = { bg: '#C8D9E6', fg: C.navy };
 
 // 위치 정보가 없을 때
 const ETC_STYLE = { bg: '#B8B3AB', fg: '#fff', label: '기타' };
 
 // MY 헤더와 동일한 네이비
-const NAVY = '#1A3D52';
+const NAVY = C.navy;
 
 function getRegionStyle(loc) {
   if (!loc) return REGION_STYLE.other;

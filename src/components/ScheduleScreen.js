@@ -29,7 +29,7 @@ export function ScheduleScreen({ navigation }) {
             fontFamily: 'Georgia',
             fontStyle: 'italic',
             fontSize: 28,
-            color: '#1A3D52',
+            color: C.navy,
           }}>Schedule</Text>
         </View>
         <TouchableOpacity
@@ -42,10 +42,10 @@ export function ScheduleScreen({ navigation }) {
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={{
             width: 24, height: 24, borderRadius: 12,
-            borderWidth: 1.5, borderColor: '#1A3D52',
+            borderWidth: 1.5, borderColor: C.navy,
             alignItems: 'center', justifyContent: 'center',
           }}>
-          <Text style={{ fontFamily: F.en, fontSize: 14, color: '#1A3D52', fontWeight: '700', lineHeight: 17 }}>!</Text>
+          <Text style={{ fontFamily: F.en, fontSize: 14, color: C.navy, fontWeight: '700', lineHeight: 17 }}>!</Text>
         </TouchableOpacity>
       </View>
       <MyScheduleTab

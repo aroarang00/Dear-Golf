@@ -519,8 +519,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
     const badges = [];
     if (windKnown && wind != null && Number.isFinite(wind)) {
-      if (wind <= 5) badges.push({ txt: '바람 약함', bg: '#C8D9E6', color: '#1A3D52' });
-      else if (wind <= 10) badges.push({ txt: '바람 보통', bg: '#C8D9E6', color: '#1A3D52' });
+      if (wind <= 5) badges.push({ txt: '바람 약함', bg: '#C8D9E6', color: C.navy });
+      else if (wind <= 10) badges.push({ txt: '바람 보통', bg: '#C8D9E6', color: C.navy });
       else badges.push({ txt: '바람 강함', bg: '#E6C8C8', color: '#5C1E1E' });
     }
     if (p <= 10) badges.push({ txt: '강수 없음', bg: '#FFFFFF', color: '#3D3935' });
@@ -528,7 +528,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     else badges.push({ txt: '강수 높음', bg: '#E6C8C8', color: '#5C1E1E' });
 
     if (temp >= 15 && temp <= 27) badges.push({ txt: '기온 적정', bg: '#F5E6A8', color: '#5A4500' });
-    else if (temp < 15) badges.push({ txt: '기온 낮음', bg: '#C8D9E6', color: '#1A3D52' });
+    else if (temp < 15) badges.push({ txt: '기온 낮음', bg: '#C8D9E6', color: C.navy });
     else badges.push({ txt: '기온 높음', bg: '#E6C8C8', color: '#5C1E1E' });
 
     return { total, label, badges };
@@ -869,7 +869,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#C8D9E6' }]}
                     onPress={() => Linking.openURL('tmap://daeri').catch(() => Linking.openURL('https://tmap.life'))}
                     activeOpacity={0.85}>
-                    <Text style={[trS.daeriBtnTxt, { color: '#1A3D52' }]}>티맵대리</Text>
+                    <Text style={[trS.daeriBtnTxt, { color: C.navy }]}>티맵대리</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[trS.daeriBtn, { backgroundColor: '#8B8680' }]}
                     onPress={() => Linking.openURL('idaeri://').catch(() => Linking.openURL('https://www.idaeri.co.kr/'))}

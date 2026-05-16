@@ -6,6 +6,7 @@ export const C = {
   burgundy:     '#6B1E2A',
   butter:       '#F5E6A8',
   paleSky:      '#C8D9E6',
+  navy:         '#1A3D52',
   warmGray:     '#8B8680',
   warmGrayLight:'#B8B3AB',
   hairline:     '#E8E2D0',

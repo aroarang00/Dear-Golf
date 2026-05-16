@@ -507,7 +507,7 @@ export function GuideScreen({ route, navigation }) {
                         i === 2 && { backgroundColor: C.burgundy },
                         i > 2 && { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline },
                       ]}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 10, color: i === 2 ? '#FAF6EC' : i === 0 ? '#5A4A00' : i === 1 ? '#1A4060' : C.warmGray }}>{t}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: 10, color: i === 2 ? '#FAF6EC' : i === 0 ? '#5A4A00' : i === 1 ? C.navy : C.warmGray }}>{t}</Text>
                       </View>
                     ))}
                   </View>
@@ -600,7 +600,7 @@ export function GuideScreen({ route, navigation }) {
               {/* 골퍼 코멘트 헤더 — 네이비 액센트 바 */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                  <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: '#1A4060' }} />
+                  <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.navy }} />
                   <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트 · 좋아요 순</Text>
                 </View>
                 <TouchableOpacity
@@ -984,7 +984,7 @@ export function GuideScreen({ route, navigation }) {
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', gap: 4, marginBottom: 2 }}>
                             <View style={{ backgroundColor: isCafe ? '#C8D9E6' : '#F5E6A8', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                              <Text style={[styles.badgeTxt, { color: isCafe ? '#1A4060' : '#5A4A00' }]}>{isCafe ? '카페' : '식당'}</Text>
+                              <Text style={[styles.badgeTxt, { color: isCafe ? C.navy : '#5A4A00' }]}>{isCafe ? '카페' : '식당'}</Text>
                             </View>
                           </View>
                           <Text style={styles.name}>{r.name}</Text>
