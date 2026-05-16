@@ -59,6 +59,7 @@ export function DiaryScreen({ route, navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);
+  const [showHofTeaser, setShowHofTeaser] = useState(false); // 명예의 전당 티저 — 최초 1회만
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
   const [diariesHydrated, setDiariesHydrated] = useState(false);
@@ -80,13 +81,19 @@ export function DiaryScreen({ route, navigation }) {
 
   useEffect(() => {
     (async () => {
-      const [d, h] = await Promise.all([
+      const [d, h, teaserSeen] = await Promise.all([
         storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
         storage.load(STORAGE_KEYS.hof, HALL_OF_FAME),
+        storage.load(STORAGE_KEYS.hofTeaserSeen, false),
       ]);
       setDiaries(d);
       setHallOfFame(h);
       setDiariesHydrated(true);
+      // 명예의 전당 티저 — 특별한 기록이 없을 때 최초 1회만 노출하고 영구 감춤
+      if (!teaserSeen && h.length === 0) {
+        setShowHofTeaser(true);
+        storage.save(STORAGE_KEYS.hofTeaserSeen, true);
+      }
     })();
   }, []);
 
@@ -326,8 +333,8 @@ export function DiaryScreen({ route, navigation }) {
                   {hofExpanded && hallOfFame.map(item => <HallOfFameCard key={item.id} item={item} />)}
                   <View style={{ height: 8 }} />
                 </View>
-              ) : (
-                /* 특별한 기록이 아직 없을 때 — 명예의 전당 잠금 티저 */
+              ) : showHofTeaser ? (
+                /* 특별한 기록이 없을 때 — 명예의 전당 잠금 티저 (최초 1회만) */
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <Text style={dS.hofSectionLabel}>명예의 전당</Text>
                   <View style={{ marginTop: 10, marginBottom: 8, backgroundColor: '#2A2622', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C44', paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' }}>
@@ -338,7 +345,7 @@ export function DiaryScreen({ route, navigation }) {
                     </Text>
                   </View>
                 </View>
-              )}
+              ) : null}
 
               {filtered.length === 0 ? (
                 <View style={dS.emptyWrap}>

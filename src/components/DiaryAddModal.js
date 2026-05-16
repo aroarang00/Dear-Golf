@@ -323,7 +323,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 <TextInput
                   style={[mS.input, { flex: 1 }]}
-                  placeholder="이름 입력"
+                  placeholder="이름 한 명씩 입력"
                   placeholderTextColor={C.warmGrayLight}
                   value={companionInput}
                   onChangeText={setCompanionInput}
@@ -353,6 +353,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter }}>추가</Text>
                 </TouchableOpacity>
               </View>
+              {companions.length === 0 && (
+                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginBottom: 8 }}>
+                  한 명씩 입력하고 '추가'를 눌러주세요 (여러 명을 한 칸에 적지 마세요)
+                </Text>
+              )}
               {companions.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                   {companions.map((name, i) => (
