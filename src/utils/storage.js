@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   favorites:        '@dg_favorites',
   userCourses:      '@dg_user_courses',
   recentCourses:    '@dg_recent_courses',
+  courseComments:   '@dg_course_comments',
   savedRestaurants: '@dg_saved_restaurants',
   foodRecs:         '@dg_food_recs',
 };

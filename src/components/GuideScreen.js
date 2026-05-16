@@ -3,20 +3,13 @@ import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardA
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserContext } from '../contexts/UserContext';
 
-// TODO: 추후 카카오 로컬 API로 골프장 이미지 동적 가져오기 — 현재는 Unsplash 임시 매핑
-const COURSE_IMAGES = {
-  '1': 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800',
-  '2': 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800',
-  '3': 'https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=800',
-  default: 'https://images.unsplash.com/photo-1592919505780-303950717480?w=800',
-};
 import { C, F } from '../constants/colors';
 import {
   FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG, DIARY_DATA,
   RECOMMENDED_COURSES,
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { getUserCourses, addUserCourse, deleteUserCourse } from '../utils/userCourses';
+import { getUserCourses } from '../utils/userCourses';
 import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
@@ -24,7 +17,15 @@ import { fetchCoursePlaceInfo, searchGolfCourses, searchNearbyRestaurants, searc
 import { buildFoodMapUrl, NAVER_MAP_HEADERS } from '../utils/naverMap';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
+import { getCourseComments, setCourseCommentsForCourse } from '../utils/courseComments';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
+
+// COURSE_LOG 코스에 보이는 mock 코멘트 (사용자 코멘트와 별개, 저장 안 됨)
+const MOCK_COMMENTS = [
+  { id: 'm1', txt: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요', who: 'J***', date: '2025.04', likes: 24, likedByMe: false },
+  { id: 'm2', txt: '7번홀 왼쪽 OB 많이 납니다. 아이언 공략 추천', who: 'K***', date: '2025.03', likes: 18, likedByMe: false },
+  { id: 'm3', txt: '클럽하우스 식당 된장찌개 강추. 라운딩 후 꼭 드세요', who: 'P***', date: '2025.02', likes: 11, likedByMe: false },
+];
 
 export function GuideScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
@@ -152,22 +153,6 @@ export function GuideScreen({ route, navigation }) {
     });
     setCoursePopupTab(tab);
     setShowCoursePopup(true);
-  };
-
-  // 상세 화면에서 코스 저장/해제 토글 (이름 매칭 — COURSE_LOG/userCourses 양쪽 동작)
-  const handleToggleSaveDetail = async (course) => {
-    if (!course?.name) return;
-    const found = userCoursesList.find(uc => uc.name === course.name);
-    if (found) {
-      await deleteUserCourse(found.id);
-    } else {
-      await addUserCourse({
-        name: course.name, loc: course.loc,
-        x: course.x ?? null, y: course.y ?? null,
-        kakaoId: course.kakaoId || null,
-      });
-    }
-    refreshUserCourses();
   };
 
   // selected id를 COURSE_LOG 또는 userCourses에서 찾아 { name, loc, _source } 반환
@@ -338,20 +323,29 @@ export function GuideScreen({ route, navigation }) {
       if (userCoursesHydrated) setSelected(null);
       return;
     }
-    // 코멘트는 COURSE_LOG 코스에만 (mock)
-    setComments(inLog ? [
-      { id: '1', txt: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요', who: 'J***', date: '2025.04', likes: 24, likedByMe: false },
-      { id: '2', txt: '7번홀 왼쪽 OB 많이 납니다. 아이언 공략 추천', who: 'K***', date: '2025.03', likes: 18, likedByMe: false },
-      { id: '3', txt: '클럽하우스 식당 된장찌개 강추. 라운딩 후 꼭 드세요', who: 'P***', date: '2025.02', likes: 11, likedByMe: false },
-    ] : []);
     setShowCommentInput(false);
     setCommentInput('');
+    // 저장된 사용자 코멘트 로드 + mock 코멘트(COURSE_LOG 코스만) 병합
+    // 코스가 바뀌면 in-flight 결과는 버려서 엉뚱한 코스에 표시되지 않게 함
+    const courseId = selected;
+    let cancelled = false;
+    (async () => {
+      const userComments = await getCourseComments(courseId);
+      if (cancelled) return;
+      setComments([...userComments, ...(inLog ? MOCK_COMMENTS : [])]);
+    })();
+    return () => { cancelled = true; };
   }, [selected, userCoursesList, userCoursesHydrated]);
 
   const toggleLike = (id) => {
-    setComments(prev => prev.map(c => c.id === id
+    const next = comments.map(c => c.id === id
       ? { ...c, likedByMe: !c.likedByMe, likes: c.likes + (c.likedByMe ? -1 : 1) }
-      : c));
+      : c);
+    setComments(next);
+    // 내가 쓴 코멘트는 좋아요 상태까지 저장
+    if (selected && selected !== PREVIEW_ID) {
+      setCourseCommentsForCourse(selected, next.filter(c => c.mine));
+    }
   };
 
   const anonymize = (name = '') => {
@@ -365,10 +359,13 @@ export function GuideScreen({ route, navigation }) {
     const anon = anonymize(userProfile?.nickname);
     const now = new Date();
     const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}`;
-    setComments(prev => [
-      { id: String(Date.now()), txt, who: anon, date: dateStr, likes: 0, likedByMe: false },
-      ...prev,
-    ]);
+    const comment = { id: String(Date.now()), txt, who: anon, date: dateStr, likes: 0, likedByMe: false, mine: true };
+    const next = [comment, ...comments];
+    setComments(next);
+    // 내가 쓴 코멘트는 골프장별로 영구 저장 — 다른 코스 다녀와도 유지
+    if (selected && selected !== PREVIEW_ID) {
+      setCourseCommentsForCourse(selected, next.filter(c => c.mine));
+    }
     setCommentInput('');
     setShowCommentInput(false);
   };
@@ -424,34 +421,22 @@ export function GuideScreen({ route, navigation }) {
                 {courseAddress || c.loc}
               </Text>
             </View>
-            {(() => {
-              const saved = userCoursesList.some(uc => uc.name === c.name);
-              return (
-                <TouchableOpacity onPress={() => handleToggleSaveDetail(c)}
-                  activeOpacity={0.8}
-                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                  style={{
-                    borderWidth: 1, borderColor: C.burgundy, borderBottomWidth: 3,
-                    borderRadius: 8, paddingHorizontal: 16, paddingVertical: 6,
-                    backgroundColor: saved ? C.burgundy : 'transparent',
-                  }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '700', color: saved ? C.butter : C.burgundy }}>
-                    {saved ? '저장됨' : '저장'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })()}
           </View>
         </View>
 
-        <View style={{ height: 1, backgroundColor: C.warmGrayLight }} />
+        {/* 코스명 아래 구분선 — 삼색바 */}
+        <View style={{ flexDirection: 'row', height: 3 }}>
+          <View style={{ flex: 1, backgroundColor: C.butter }} />
+          <View style={{ flex: 1, backgroundColor: C.paleSky }} />
+          <View style={{ flex: 1, backgroundColor: C.burgundy }} />
+        </View>
 
         <View style={{ backgroundColor: C.bgPrimary }}>
           <View style={{ flexDirection: 'row' }}>
             {[
-              ['course', '코스 & 코멘트', '#1A4060'],
-              ['food',   '맛집 & 주변',  C.burgundy],
-            ].map(([k, l, accent]) => {
+              ['course', '코스 & 코멘트', C.charcoal, C.charcoal],
+              ['food',   '맛집 & 주변',  C.burgundy, C.burgundy],
+            ].map(([k, l, textColor, barColor]) => {
               const on = innerTab === k;
               return (
                 <TouchableOpacity key={k}
@@ -460,14 +445,14 @@ export function GuideScreen({ route, navigation }) {
                   <Text style={{
                     fontFamily: F.sys,
                     fontSize: 14,
-                    color: on ? accent : C.warmGrayLight,
+                    color: on ? textColor : C.warmGrayLight,
                     fontWeight: on ? '700' : '400',
                   }}>{l}</Text>
                   {on && (
                     <View style={{
                       position: 'absolute', left: 0, right: 0, bottom: 0,
                       height: 3,
-                      backgroundColor: accent,
+                      backgroundColor: barColor,
                     }} />
                   )}
                 </TouchableOpacity>
@@ -479,30 +464,27 @@ export function GuideScreen({ route, navigation }) {
         <ScrollView ref={r => { scrollRefs.current.detail = r; }} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {innerTab === 'course' && (
             <>
-            <View style={{ height: 200, position: 'relative', justifyContent: 'flex-end' }}>
-              {/* TODO: 카카오 로컬 API 사진으로 교체 예정 */}
-              <Image
-                source={{ uri: COURSE_IMAGES[selected] || COURSE_IMAGES.default }}
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
-                resizeMode="cover"
-              />
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)' }} />
-              <View style={{ padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-                  {(c.tags || []).map((t, i) => (
-                    <View key={i} style={[
-                      { borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3 },
-                      i === 0 && { backgroundColor: 'rgba(245,230,168,0.92)' },
-                      i === 1 && { backgroundColor: 'rgba(200,217,230,0.92)' },
-                      i === 2 && { backgroundColor: 'rgba(107,30,42,0.9)' },
-                    ]}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 10, color: i === 2 ? '#FAF6EC' : i === 0 ? '#5A4A00' : '#1A4060' }}>{t}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
             <View style={{ padding: 16 }}>
+              {/* 코스 특징 태그 칩 — 별점(★) 태그는 제외하고 특징 태그만 */}
+              {(() => {
+                const featureTags = (c.tags || []).filter(t => !(typeof t === 'string' && t.startsWith('★')));
+                if (featureTags.length === 0) return null;
+                return (
+                  <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                    {featureTags.map((t, i) => (
+                      <View key={i} style={[
+                        { borderRadius: 5, paddingHorizontal: 9, paddingVertical: 4 },
+                        i === 0 && { backgroundColor: C.butter },
+                        i === 1 && { backgroundColor: C.paleSky },
+                        i === 2 && { backgroundColor: C.burgundy },
+                        i > 2 && { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline },
+                      ]}>
+                        <Text style={{ fontFamily: F.sys, fontSize: 10, color: i === 2 ? '#FAF6EC' : i === 0 ? '#5A4A00' : i === 1 ? '#1A4060' : C.warmGray }}>{t}</Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
               {/* COURSE INFO — 홀수 · 파 · 타입 · 전화번호(탭 → 전화) */}
               <Text style={[gS.secLabel, { marginBottom: 6 }]}>COURSE INFO</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
@@ -519,8 +501,8 @@ export function GuideScreen({ route, navigation }) {
                 ) : null}
               </View>
 
-              {/* 날씨 / 교통 — 챠콜 버튼 (아래 3버튼과 동일 사이즈, 하단 테두리 입체감) */}
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 */}
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 18 }}>
                 <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
                   style={{
                     flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
@@ -531,37 +513,22 @@ export function GuideScreen({ route, navigation }) {
                 <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
                   style={{
                     flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: C.charcoal, borderBottomWidth: 4, borderBottomColor: C.charcoalDeep,
+                    backgroundColor: C.burgundy, borderBottomWidth: 4, borderBottomColor: '#4A1420',
                   }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: C.butter }}>교통</Text>
                 </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: '#03C75A', borderBottomWidth: 4, borderBottomColor: '#02934A',
+                  }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: '#fff' }}>네이버정보</Text>
+                </TouchableOpacity>
               </View>
 
-              {/* 예약 / 정보 버튼 3개 — 카카오골프 / 네이버정보 / 네이버지도 */}
-              {(() => {
-                const btnBase = { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 4 };
-                const txt = { fontFamily: F.sys, fontSize: 13, fontWeight: '600' };
-                return (
-                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 18 }}>
-                    <TouchableOpacity style={[btnBase, { backgroundColor: C.burgundy, borderBottomColor: '#4A1420' }]}
-                      onPress={() => Linking.openURL(`https://golf.kakao.com/search?query=${encodeURIComponent(c.name)}`)}>
-                      <Text style={[txt, { color: '#FEE500' }]}>카카오골프</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[btnBase, { backgroundColor: '#03C75A', borderBottomColor: '#02934A' }]}
-                      onPress={() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`)}>
-                      <Text style={[txt, { color: '#fff' }]}>네이버정보</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[btnBase, { backgroundColor: '#8B8680', borderBottomColor: '#615D58' }]}
-                      onPress={() => Linking.openURL(`nmap://search?query=${encodeURIComponent(c.name)}`)
-                        .catch(() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`))}>
-                      <Text style={[txt, { color: '#fff' }]}>네이버지도</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })()}
-
-              {/* 코스 한마디 — 왼쪽 버건디 세로바 + 이탤릭 */}
-              <Text style={[gS.secLabel, { marginTop: 4 }]}>코스 한마디</Text>
+              {/* 한줄 메모 — 왼쪽 버건디 세로바 + 이탤릭 */}
+              <Text style={[gS.secLabel, { marginTop: 4 }]}>한줄 메모</Text>
               {(() => {
                 // 최근 라운딩 (날짜 내림차순) 첫 번째의 memo
                 const latestDiary = [...myDiaries].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];

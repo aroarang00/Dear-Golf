@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityI
 import { C, F } from '../constants/colors';
 import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf } from '../utils/kakao';
 import { getCurrentLocation } from '../utils/location';
-import { getUserCourses, addUserCourse, deleteUserCourse } from '../utils/userCourses';
+import { getUserCourses } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 
 const REGIONS = ['전체', '수도권', '강원', '충청', '경상', '전라', '제주'];
@@ -132,20 +132,6 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
     return () => clearTimeout(t);
   }, [search]);
 
-  const isSaved = (kakaoId) => savedCourses.some(c => c.kakaoId === kakaoId);
-
-  const handleToggleSave = async (item) => {
-    const existing = savedCourses.find(c => c.kakaoId === item.kakaoId);
-    if (existing) {
-      await deleteUserCourse(existing.id);
-    } else {
-      await addUserCourse({
-        name: item.name, loc: item.loc, x: item.x, y: item.y, kakaoId: item.kakaoId,
-      });
-    }
-    refreshSaved();
-  };
-
   const openMap = (item) => {
     const url = item.url || `https://map.kakao.com/link/map/${encodeURIComponent(item.name)},${item.y},${item.x}`;
     Linking.openURL(url).catch(() => Linking.openURL('https://map.kakao.com/'));
@@ -232,7 +218,6 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
             </Text>
           ) : (
             searchResults.map((r, i) => {
-              const saved = isSaved(r.kakaoId);
               return (
                 <TouchableOpacity key={r.kakaoId || i}
                   onPress={async () => {
@@ -251,7 +236,6 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                     <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {r.name}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{r.loc}</Text>
                   </View>
-                  {saved && <Text style={{ fontSize: 16, marginRight: 6 }}>❤️</Text>}
                   <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
                 </TouchableOpacity>
               );

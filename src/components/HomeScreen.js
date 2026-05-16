@@ -493,7 +493,7 @@ export function HomeScreen({ navigation }) {
                   <View style={homeS.memoCard}>
                     <View style={homeS.memoCardTop}>
                       <View style={homeS.memoBadgeVisit}>
-                        <Text style={homeS.memoBadgeTxt}>내 한줄 메모</Text>
+                        <Text style={homeS.memoBadgeTxt}>한줄 메모</Text>
                       </View>
                       <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
                     </View>
@@ -523,7 +523,7 @@ export function HomeScreen({ navigation }) {
                     <View style={homeS.memoCard}>
                       <View style={homeS.memoCardTop}>
                         <View style={homeS.memoBadgeVisit}>
-                          <Text style={homeS.memoBadgeTxt}>내 한줄 메모</Text>
+                          <Text style={homeS.memoBadgeTxt}>한줄 메모</Text>
                         </View>
                         <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
                       </View>
