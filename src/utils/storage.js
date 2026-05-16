@@ -12,7 +12,7 @@ export const STORAGE_KEYS = {
   savedRestaurants: '@dg_saved_restaurants',
   foodRecs:         '@dg_food_recs',
   homeTooltipDone:  '@dg_home_tooltip_done',
-  hofTeaserSeen:    '@dg_hof_teaser_seen',
+  hofTeaserDismissed: '@dg_hof_teaser_dismissed',
 };
 
 export const storage = {

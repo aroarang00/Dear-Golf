@@ -84,7 +84,7 @@ export function DiaryScreen({ route, navigation }) {
       const [d, h, teaserDismissed] = await Promise.all([
         storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
         storage.load(STORAGE_KEYS.hof, HALL_OF_FAME),
-        storage.load(STORAGE_KEYS.hofTeaserSeen, false),
+        storage.load(STORAGE_KEYS.hofTeaserDismissed, false),
       ]);
       setDiaries(d);
       setHallOfFame(h);
@@ -185,7 +185,7 @@ export function DiaryScreen({ route, navigation }) {
   // 명예의 전당 티저 '다시 보지 않기' — 영구 감춤
   const dismissHofTeaser = () => {
     setHofTeaserDismissed(true);
-    storage.save(STORAGE_KEYS.hofTeaserSeen, true);
+    storage.save(STORAGE_KEYS.hofTeaserDismissed, true);
   };
 
   const sortedDiaries = [...diaries].sort((a, b) => {
