@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA, HALL_OF_FAME } from '../constants/data';
@@ -10,7 +10,6 @@ import { HallOfFameCard } from './HallOfFameCard';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
-import { MyPageModal } from './MyPageModal';
 
 export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
@@ -30,7 +29,6 @@ export function DiaryScreen({ route, navigation }) {
     const unsubscribe = navigation.addListener('tabPress', () => {
       setSelected(null);
       setShowModal(false);
-      setShowMyPage(false);
       setShowSearch(false);
       setHofExpanded(false);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -59,34 +57,6 @@ export function DiaryScreen({ route, navigation }) {
     if (!diariesHydrated) return;
     storage.save(STORAGE_KEYS.hof, hallOfFame);
   }, [hallOfFame, diariesHydrated]);
-
-  const [showMyPage, setShowMyPage] = useState(false);
-  const statsAnim = useRef(new Animated.Value(0)).current;
-  const timerRef = useRef(null);
-  const STATS_HEIGHT = 80;
-
-  const showStatsTemporary = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    Animated.timing(statsAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-    timerRef.current = setTimeout(() => {
-      Animated.timing(statsAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    }, 1500);
-  };
-
-  useEffect(() => {
-    showStatsTemporary();
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     if (route?.params?.openDiaryId) {
@@ -137,10 +107,6 @@ export function DiaryScreen({ route, navigation }) {
     }
   };
 
-  const avg = userProfile.avgScore || (diaries.length > 0 ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length) : 0);
-  const best = userProfile.lifeBest || (diaries.length > 0 ? Math.min(...diaries.map(d => d.score)) : 0);
-  const totalRounds = userProfile.totalRounds || diaries.length;
-
   const sortedDiaries = [...diaries].sort((a, b) => {
     const dateA = new Date((a.date || '').replace(/\./g, '-'));
     const dateB = new Date((b.date || '').replace(/\./g, '-'));
@@ -161,49 +127,12 @@ export function DiaryScreen({ route, navigation }) {
           <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
-            style={{
-              width: 30, height: 30, borderRadius: 15,
-              backgroundColor: '#6B1E2A',
-              borderWidth: 1.5, borderColor: '#F5E6A8',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-            <Text style={{ fontFamily: F.en, fontSize: 14, color: '#F5E6A8', fontStyle: 'italic', lineHeight: 18 }}>
-              {userProfile.nickname?.charAt(0).toUpperCase() || 'G'}
-            </Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.7}
             style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: F.en, fontSize: 20, color: '#3D3935', lineHeight: 24, fontWeight: '700' }}>+</Text>
           </TouchableOpacity>
         </View>
       </View>
-
-      <TouchableOpacity onPress={showStatsTemporary} activeOpacity={1}>
-        <Animated.View style={{
-          height: statsAnim.interpolate({ inputRange: [0, 1], outputRange: [0, STATS_HEIGHT] }),
-          opacity: statsAnim,
-          overflow: 'hidden',
-        }}>
-          <View style={dS.statsRow}>
-            {[
-              { label: '라운딩', value: totalRounds },
-              { label: '평균타', value: avg, hi: true },
-              { label: '베스트', value: best }
-            ].map((st, i) => (
-              <View key={i} style={[dS.statBox, st.hi && dS.statBoxHi]}>
-                <Text style={[dS.statVal, st.hi && { color: C.burgundy }]}>{st.value}</Text>
-                <Text style={dS.statLabel}>{st.label}</Text>
-              </View>
-            ))}
-          </View>
-        </Animated.View>
-        <View style={{ paddingVertical: 7, alignItems: 'center', backgroundColor: C.bgPrimary }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1 }}>
-            라운딩 {totalRounds} · 평균 {avg}타 · 베스트 {best}타  ∨
-          </Text>
-        </View>
-      </TouchableOpacity>
 
       {(() => {
         const FILTERS = ['전체', '올해', '최근 3개월', '베스트순', '특별한 순간'];
@@ -317,7 +246,6 @@ export function DiaryScreen({ route, navigation }) {
       })()}
 
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} initial={addSeed} />
-      <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
     </SafeAreaView>
   );
 }

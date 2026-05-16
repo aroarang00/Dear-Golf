@@ -35,6 +35,7 @@ export function GuideScreen({ route, navigation }) {
   const [favoritesHydrated, setFavoritesHydrated] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [userCoursesHydrated, setUserCoursesHydrated] = useState(false);
+  const [diaries, setDiaries] = useState(DIARY_DATA);
   const [comments, setComments] = useState([]);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
@@ -107,6 +108,19 @@ export function GuideScreen({ route, navigation }) {
       setFavoritesHydrated(true);
     })();
   }, []);
+
+  // 라운딩 기록 로드 — 코스 상세의 '한줄 메모'·'내 코스기록'에 사용
+  // 다이어리 탭에서 새 기록을 저장하므로 코스 탭 진입 시마다 최신값 재로드
+  useEffect(() => {
+    const loadDiaries = async () => {
+      const d = await storage.load(STORAGE_KEYS.diaries, DIARY_DATA);
+      setDiaries(d || DIARY_DATA);
+    };
+    loadDiaries();
+    if (!navigation) return;
+    const unsub = navigation.addListener('focus', loadDiaries);
+    return unsub;
+  }, [navigation]);
 
   // userCourses (사용자가 카카오 검색으로 추가한 코스) 로드 — COURSE_LOG에 없는 코스 상세 표시용
   const refreshUserCourses = React.useCallback(async () => {
@@ -403,8 +417,22 @@ export function GuideScreen({ route, navigation }) {
     }
     const isUserCourse = c._source === 'user';
     const guideTabIdx = innerTab === 'course' ? 0 : 1;
-    // 내 코스기록 — 코스명으로 DIARY_DATA 매칭
-    const myDiaries = DIARY_DATA.filter(d => d.course === c.name);
+    // 내 코스기록 — courseId 우선, 없으면 코스명으로 매칭
+    // 코스명은 공백·구두점·골프장 표기어(CC·컨트리클럽 등)를 제거해 직접 입력 표기 차이를 흡수,
+    // 정규화 후 동일하거나 한쪽이 다른 쪽을 포함하면 같은 코스로 간주
+    const normName = (s) => (s || '')
+      .toLowerCase()
+      .replace(/[\s·.\-_]/g, '')
+      .replace(/컨트리클럽|골프클럽|골프장|컨트리|클럽|countryclub|golfclub|cc|gc/g, '');
+    const nameMatch = (a, b) => {
+      const na = normName(a), nb = normName(b);
+      if (na.length < 2 || nb.length < 2) return false;
+      return na === nb || na.includes(nb) || nb.includes(na);
+    };
+    const myDiaries = diaries.filter(d =>
+      (d.courseId && c.id && d.courseId === c.id) ||
+      nameMatch(d.course, c.name)
+    );
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
@@ -527,8 +555,11 @@ export function GuideScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
 
-              {/* 한줄 메모 — 왼쪽 버건디 세로바 + 이탤릭 */}
-              <Text style={[gS.secLabel, { marginTop: 4 }]}>한줄 메모</Text>
+              {/* 한줄 메모 — 버건디 액센트 바 헤더 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4, marginBottom: 10 }}>
+                <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
+                <Text style={[gS.secLabel, { marginBottom: 0 }]}>한줄 메모</Text>
+              </View>
               {(() => {
                 // 최근 라운딩 (날짜 내림차순) 첫 번째의 memo
                 const latestDiary = [...myDiaries].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
@@ -552,48 +583,26 @@ export function GuideScreen({ route, navigation }) {
                 );
               })()}
 
-              {/* 내 코스기록 — 이 코스 다이어리 엔트리 */}
+              {/* 내 코스기록 — 차콜 액센트 바 헤더 (상세 회차는 MY 탭에서) */}
               {myDiaries.length > 0 && (
                 <>
-                  <Text style={[gS.secLabel, { marginBottom: 8 }]}>내 코스기록 · {myDiaries.length}회</Text>
-                  {myDiaries.map(d => {
-                    const diff = d.score - d.par;
-                    const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-                    return (
-                      <View key={d.id} style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: '#E8E2D0', padding: 12, marginBottom: 8 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>{d.date} {d.day}</Text>
-                          <Text style={{ fontFamily: F.en, fontSize: 20, color: C.charcoal, fontWeight: '600' }}>{d.score}</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>타 · {diffLabel}</Text>
-                          {d.special && (
-                            <View style={{ backgroundColor: d.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
-                              <Text style={{ fontFamily: F.sys, fontSize: 9, color: d.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{d.special}</Text>
-                            </View>
-                          )}
-                        </View>
-                        {d.memo ? (
-                          <Text style={{ fontFamily: F.en, fontSize: 12, color: C.textSecondary, fontStyle: 'italic', marginTop: 6, lineHeight: 17 }}>"{d.memo}"</Text>
-                        ) : null}
-                        {d.photos?.length > 0 && (
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                            {d.photos.slice(0, 4).map((p, i) => (
-                              <Image key={i} source={{ uri: p }} style={{ width: 76, height: 76, borderRadius: 6, marginRight: 6 }} />
-                            ))}
-                          </ScrollView>
-                        )}
-                      </View>
-                    );
-                  })}
-                  <View style={{ height: 12 }} />
+                  <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 6, marginBottom: 16 }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 16 }}>
+                    <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.charcoal }} />
+                    <Text style={[gS.secLabel, { marginBottom: 0 }]}>내 코스기록 · {myDiaries.length}회</Text>
+                  </View>
                 </>
               )}
 
-              {/* 코스 한마디·내 기록 ↔ 골퍼 코멘트 구분선 */}
+              {/* 내 기록 ↔ 골퍼 코멘트 구분선 */}
               <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 4, marginBottom: 18 }} />
 
-              {/* 골퍼 코멘트 헤더 — 모든 코스 */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={gS.secLabel}>골퍼 코멘트 · 좋아요 순</Text>
+              {/* 골퍼 코멘트 헤더 — 네이비 액센트 바 */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                  <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: '#1A4060' }} />
+                  <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트 · 좋아요 순</Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => setShowCommentInput(v => !v)}
                   style={{ borderWidth: 0.5, borderColor: C.burgundy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
