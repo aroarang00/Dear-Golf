@@ -139,6 +139,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setBirdieCount(initial.birdieCount || 0);
       setSpecial(initial.special || null);
       setSpecialHole(String(initial.specialHole || ''));
+      setSpecialPar(String(initial.specialPar || '3'));
       setSpecialDist(initial.specialDist || '');
       setSpecialBall(initial.specialBall || '');
       setSpecialMemo(initial.specialMemo || '');
@@ -208,6 +209,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
       score: parseInt(score) || 0, weather, memo, birdieCount, privacy,
       special, specialHole: parseInt(specialHole),
+      specialPar: parseInt(specialPar) || null,
       specialDist, specialBall, specialMemo,
       photos: addPhotos,
       starRating,

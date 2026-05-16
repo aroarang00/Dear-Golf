@@ -20,6 +20,24 @@ const SAMPLE_DIARY = {
   photos: [], tags: ['넓은 페어웨이', '그린 빠름'], birdieCount: 2, companions: [],
 };
 
+// 라운딩 기록 → 명예의 전당 카드 엔트리. diaryId로 기록과 연결해 수정 시 동기화 가능
+function buildHofEntry(data, diaryId) {
+  return {
+    id: 'hof_' + diaryId,
+    diaryId,
+    type: data.special,
+    date: data.date,
+    course: data.course,
+    hole: data.specialHole,
+    par: data.specialPar || 3,
+    distance: data.specialDist || '',
+    ball: data.specialBall || '',
+    // 라운딩 동반자(나 제외)를 카드에 연동
+    companions: (data.companions || []).filter(c => !c.isMe).map(c => c.name),
+    memo: data.specialMemo || '',
+  };
+}
+
 export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const { setSchedules } = React.useContext(SchedulesContext);
@@ -96,6 +114,10 @@ export function DiaryScreen({ route, navigation }) {
         badge: null, weather: data.weather,
         special: data.special || null,
         specialHole: data.specialHole || null,
+        specialPar: data.specialPar || null,
+        specialDist: data.specialDist || '',
+        specialBall: data.specialBall || '',
+        specialMemo: data.specialMemo || '',
         companions: data.companions || [{ name: userProfile.nickname, isMe: true }],
         photos: data.photos || [],
         starRating: data.starRating || 0,
@@ -106,24 +128,29 @@ export function DiaryScreen({ route, navigation }) {
       };
       setDiaries(prev => [newD, ...prev]);
       if (data.special) {
-        const newHof = {
-          id: String(Date.now()),
-          type: data.special, date: data.date,
-          course: data.course, hole: data.specialHole,
-          par: 3, distance: data.specialDist || '',
-          ball: data.specialBall || '', companions: [],
-          memo: data.specialMemo || '',
-        };
-        setHallOfFame(prev => [newHof, ...prev]);
+        setHallOfFame(prev => [buildHofEntry(data, newD.id), ...prev]);
       }
     } else if (type === 'diary-edit') {
       setDiaries(prev => prev.map(d => d.id === data.id ? { ...d, ...data } : d));
+      // 명예의 전당 동기화 — diaryId로 연결된 카드를 등재/갱신/해제
+      setHallOfFame(prev => {
+        const linked = prev.some(h => h.diaryId === data.id);
+        if (data.special) {
+          return linked
+            ? prev.map(h => h.diaryId === data.id ? buildHofEntry(data, data.id) : h)
+            : [buildHofEntry(data, data.id), ...prev];
+        }
+        // 특별한 순간이 해제됨 → 연결된 명예의 전당 카드 제거
+        return linked ? prev.filter(h => h.diaryId !== data.id) : prev;
+      });
     }
   };
 
   // 다이어리 기록 삭제 — diaryOnly: 기록만 / all: 같은 날짜·골프장의 일정까지 삭제
   const handleDeleteDiary = (target, mode) => {
     setDiaries(prev => prev.filter(d => d.id !== target.id));
+    // 연결된 명예의 전당 카드도 함께 삭제
+    setHallOfFame(prev => prev.filter(h => h.diaryId !== target.id));
     if (mode === 'all') {
       setSchedules(prev => prev.filter(s => !(s.date === target.date && s.course === target.course)));
     }
@@ -265,7 +292,7 @@ export function DiaryScreen({ route, navigation }) {
             )}
 
             <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
-              {hallOfFame.length > 0 && (
+              {hallOfFame.length > 0 ? (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => setHofExpanded(!hofExpanded)}>
                     <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
@@ -273,6 +300,18 @@ export function DiaryScreen({ route, navigation }) {
                   </TouchableOpacity>
                   {hofExpanded && hallOfFame.map(item => <HallOfFameCard key={item.id} item={item} />)}
                   <View style={{ height: 8 }} />
+                </View>
+              ) : (
+                /* 특별한 기록이 아직 없을 때 — 명예의 전당 잠금 티저 */
+                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+                  <Text style={dS.hofSectionLabel}>명예의 전당</Text>
+                  <View style={{ marginTop: 10, marginBottom: 8, backgroundColor: '#2A2622', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C44', paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 26 }}>🔒</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#C9A84C', fontWeight: '600', marginTop: 8 }}>아직 특별한 순간이 없어요</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 6, textAlign: 'center', lineHeight: 17 }}>
+                      홀인원 · 알바트로스 · 이글을 기록하면{'\n'}명예의 전당 카드가 만들어져요
+                    </Text>
+                  </View>
                 </View>
               )}
 

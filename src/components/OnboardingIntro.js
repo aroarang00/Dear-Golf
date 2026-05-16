@@ -25,7 +25,7 @@ function Feature({ icon, title, sub }) {
   );
 }
 
-// 5장 스와이프 인트로 — 기능 소개 + 위치 권한 안내. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
+// 6장 스와이프 인트로 — 기능 소개 + 명예의 전당 + 위치 권한 안내. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
 export function OnboardingIntro({ onDone }) {
   const insets = useSafeAreaInsets();
   const [idx, setIdx] = useState(0);
@@ -144,10 +144,46 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
-        {/* 4 — 위치 권한 안내 (팔레스카이 배너) */}
+        {/* 4 — 명예의 전당 (버건디 상단 배너) */}
+        <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
+          <View style={{ backgroundColor: C.burgundy, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
+            <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: C.butter, letterSpacing: 2 }}>03</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 21, color: '#fff', fontWeight: '700', marginTop: 4 }}>명예의 전당</Text>
+          </View>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingVertical: 24, justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 21, marginBottom: 18 }}>
+              홀인원·알바트로스·이글 같은 특별한 순간은{'\n'}자동으로 기념 카드가 만들어져 따로 보관돼요.
+            </Text>
+            {/* 미니 명예의 전당 카드 예시 */}
+            <View style={{ backgroundColor: '#2A2622', borderRadius: 14, borderWidth: 0.5, borderColor: '#C9A84C44', padding: 16 }}>
+              <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 17, color: '#C9A84C', letterSpacing: 3 }}>HOLE IN ONE</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 3 }}>2024.09.15 · 제이드팰리스 GC</Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: 9 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 7, color: '#C9A84CAA', letterSpacing: 2 }}>HOLE</Text>
+                  <Text style={{ fontFamily: F.en, fontSize: 19, color: '#C9A84C', marginTop: 2 }}>7번홀</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: 9 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 7, color: '#C9A84CAA', letterSpacing: 2 }}>PAR · DIST</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 5 }}>파3 · 156m</Text>
+                </View>
+              </View>
+            </View>
+            {/* 기능 하이라이트 */}
+            <View style={{ marginTop: 24, gap: 16 }}>
+              <Feature icon="🏆" title="홀인원·알바트로스·이글" sub="특별한 한 샷이 자동으로 기념 카드로" />
+              <Feature icon="⛳" title="퍼스트 싱글·라이프 베스트" sub="기록 경신의 순간도 명예의 전당에" />
+              <Feature icon="📇" title="그 순간 그대로" sub="홀·파·거리·볼·동반자까지 카드에 새겨서" />
+              <Feature icon="📖" title="따로 모아보기" sub="다이어리 상단에서 특별한 순간만 펼쳐보기" />
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* 5 — 위치 권한 안내 (팔레스카이 배너) */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <View style={{ backgroundColor: C.paleSky, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: '#1A3D52', letterSpacing: 2 }}>03</Text>
+            <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: '#1A3D52', letterSpacing: 2 }}>04</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700', marginTop: 4 }}>위치 권한</Text>
           </View>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
@@ -192,7 +228,7 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
-        {/* 5 — 시작 (팔레스카이 배경) */}
+        {/* 6 — 시작 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: 44, marginBottom: 14 }}>⛳</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700' }}>지금 시작해보세요</Text>
@@ -209,7 +245,7 @@ export function OnboardingIntro({ onDone }) {
 
       {/* 하단 스와이프 인디케이터 */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: insets.bottom + 14 }}>
-        {[0, 1, 2, 3, 4].map(i => (
+        {[0, 1, 2, 3, 4, 5].map(i => (
           <View key={i} style={{
             width: idx === i ? 22 : 7, height: 7, borderRadius: 4,
             backgroundColor: idx === i ? C.burgundy : C.hairline,
