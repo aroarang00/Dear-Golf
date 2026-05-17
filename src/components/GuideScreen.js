@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
@@ -345,11 +345,17 @@ export function GuideScreen({ route, navigation }) {
   useEffect(() => {
     if (!selected) return;
     if (selected === PREVIEW_ID) {
-      // 미저장 미리보기 — 코멘트 빈 배열로 시작
-      setComments([]);
+      // 미저장 미리보기 — 카카오ID 기반으로 코멘트 공유 (저장 안 한 골프장도 코멘트 가능)
       setShowCommentInput(false);
       setCommentInput('');
-      return;
+      const kid = previewCourse?.kakaoId ? `kakao:${previewCourse.kakaoId}` : null;
+      if (!kid) { setComments([]); return; }
+      let cancelledP = false;
+      (async () => {
+        const list = await getCourseComments(kid);
+        if (!cancelledP) setComments(list);
+      })();
+      return () => { cancelledP = true; };
     }
     const inLog = COURSE_LOG.find(x => x.id === selected);
     const inUser = userCoursesList.find(x => x.id === selected);
@@ -379,7 +385,7 @@ export function GuideScreen({ route, navigation }) {
       setComments(list);
     })();
     return () => { cancelled = true; };
-  }, [selected, userCoursesList, userCoursesHydrated]);
+  }, [selected, previewCourse?.kakaoId, userCoursesList, userCoursesHydrated]);
 
   // 좋아요 토글 — 낙관적 업데이트 후 Firestore 반영, 실패 시 롤백
   const toggleLike = async (cm) => {
@@ -403,14 +409,20 @@ export function GuideScreen({ route, navigation }) {
   // 코멘트 작성 — Firestore에 저장(전체 유저 공유)
   const submitComment = async () => {
     const txt = commentInput.trim();
-    if (!txt || !selected || selected === PREVIEW_ID) return;
+    if (!txt || !selected) return;
+    // 미리보기(미저장) 코스는 카카오ID로 키 지정 — 저장 안 한 골프장도 코멘트 가능
+    const courseKey = selected === PREVIEW_ID
+      ? (previewCourse?.kakaoId ? `kakao:${previewCourse.kakaoId}` : null)
+      : selected;
+    if (!courseKey) { Alert.alert('코멘트', '이 골프장에는 코멘트를 남길 수 없어요.'); return; }
     const anon = anonymize(userProfile?.nickname);
     const now = new Date();
     const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}`;
     setCommentInput('');
     setShowCommentInput(false);
-    const created = await addCourseComment(selected, txt, anon, dateStr);
+    const created = await addCourseComment(courseKey, txt, anon, dateStr);
     if (created) setComments(prev => [created, ...prev]);
+    else Alert.alert('코멘트 저장 실패', '네트워크 상태를 확인하고 다시 시도해주세요.');
   };
 
   const toggleFavorite = (id) => {
