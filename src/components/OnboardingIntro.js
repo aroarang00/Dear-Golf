@@ -63,49 +63,63 @@ export function OnboardingIntro({ onDone }) {
           </Text>
         </View>
 
-        {/* 2 — 일정·날씨·교통 (버터 상단 배너) */}
-        <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
-          <View style={{ backgroundColor: C.butter, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: '#8B7000', letterSpacing: 2 }}>01</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700', marginTop: 4 }}>라운딩 준비</Text>
-          </View>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingVertical: 24, justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 21, marginBottom: 18 }}>
-              일정·날씨·교통은 기본, 동반자와 일정을 나누고{'\n'}구장 맛집·골퍼 코멘트까지 한 곳에서 챙겨요.
-            </Text>
-            {/* 미니 D-day 카드 예시 */}
-            <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 2, marginBottom: 8 }}>예정 라운딩</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* 2 — 라운딩 준비 (새 스타일: 데모 앱 화면 + 한 줄 설명) */}
+        {/* ⚠️ 데모 — 닉네임·구장·일정 전부 가짜 샘플 데이터 (실제 사용자 정보 아님) */}
+        <View style={{ width: SW, backgroundColor: C.navy }}>
+          {/* 위쪽 — 실제 홈 화면 모양의 데모 화면 */}
+          <View style={{ flex: 1, backgroundColor: '#0a1e10', paddingTop: insets.top + 12 }}>
+            {/* 삼색 스트라이프 */}
+            <View style={{ flexDirection: 'row', height: 3 }}>
+              <View style={{ flex: 1, backgroundColor: C.butter }} />
+              <View style={{ flex: 1, backgroundColor: C.paleSky }} />
+              <View style={{ flex: 1, backgroundColor: C.burgundy }} />
+            </View>
+            {/* 헤더 */}
+            <View style={{ paddingHorizontal: 22, paddingTop: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
+              <Text style={{ fontFamily: F.en, fontSize: 32, color: '#fff', fontStyle: 'italic' }}>Dear Golf</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 5 }}>
+                안녕하세요, <Text style={{ color: C.butter, fontWeight: '600' }}>민지</Text>님
+              </Text>
+            </View>
+            {/* 예정 라운딩 카드 */}
+            <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)', letterSpacing: 2, paddingHorizontal: 22, marginTop: 26, marginBottom: 10 }}>예정 라운딩</Text>
+            <View style={{ paddingHorizontal: 22, flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#fff', marginBottom: 4 }}>제이드팰리스 GC</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>5월 24일 토 · 07:30</Text>
+                <Text style={{ fontFamily: F.en, fontSize: 52, color: C.butter, marginTop: 6 }}>D-7</Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                  <View style={{ backgroundColor: 'rgba(200,217,230,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#C8D9E6' }}>☀ 22°</Text>
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>🚗 1시간 20분</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={{ width: 92, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: 12, justifyContent: 'space-between' }}>
                 <View>
-                  <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600' }}>제이드팰리스 GC</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 3 }}>5월 24일 토 · 07:30</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff' }}>로얄CC</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 3 }}>06.03 수</Text>
                 </View>
-                <View style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
-                  <Text style={{ fontFamily: F.en, fontSize: 16, color: C.butter, fontWeight: '700' }}>D-7</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
-                <View style={{ backgroundColor: C.paleSky + '55', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#1A3D52' }}>☀ 맑음 22°</Text>
-                </View>
-                <View style={{ backgroundColor: C.hairline, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray }}>🚗 1시간 20분</Text>
-                </View>
+                <Text style={{ fontFamily: F.en, fontSize: 24, color: 'rgba(245,230,168,0.8)' }}>D-17</Text>
               </View>
             </View>
-            {/* 기능 하이라이트 */}
-            <View style={{ marginTop: 24, gap: 16 }}>
-              <Feature icon="🗓" title="D-day 자동 카운트" sub="다음 라운딩까지 남은 날을 한눈에" />
-              <Feature icon="☀️" title="골프장 날씨 예보" sub="코스 위치 기준 시간대별 예보" />
-              <Feature icon="🚗" title="출발 시간 추천" sub="예상 소요시간으로 늦지 않게" />
-              <Feature icon="🔔" title="메모 리마인드" sub="같은 구장 라운딩 때 지난 한줄 메모를 다시" />
-              <Feature icon="👥" title="동반자 일정 공유" sub="스케줄표에서 함께 칠 라운딩을 한눈에" />
-              <Feature icon="💬" title="골퍼 실시간 코멘트" sub="구장별 생생한 후기로 현장 정보 확인" />
-              <Feature icon="🍴" title="맛집 저장" sub="내가·다른 골퍼가 저장한 구장 근처 맛집을 한눈에" />
+            {/* 골퍼 코멘트 카드 */}
+            <View style={{ marginHorizontal: 22, marginTop: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, padding: 14 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 9, color: '#F5E6A8', letterSpacing: 1, marginBottom: 6 }}>골퍼 코멘트</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.8)', borderLeftWidth: 2, borderLeftColor: 'rgba(200,217,230,0.35)', paddingLeft: 8, lineHeight: 18 }}>
+                페어웨이 상태가 정말 좋았어요. 그늘집 추천!
+              </Text>
             </View>
-          </ScrollView>
+          </View>
+          {/* 아래쪽 — 한 줄 설명 패널 */}
+          <View style={{ backgroundColor: C.navy, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center', lineHeight: 30 }}>
+              일정·날씨·교통을 한 곳에서
+            </Text>
+          </View>
         </View>
 
         {/* 3 — 기록·통계 (워밍그레이 상단 배너) */}
