@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
@@ -38,6 +39,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
 export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
+  const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modal, setModal] = useState({ visible: false, initial: null });
   const [pendingAlarm, setPendingAlarm] = useState(null);
@@ -524,7 +526,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1}
             onPress={() => setSheet({ visible: false, schedule: null })} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 28 }}>
+          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 28 + insets.bottom }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 14 }} />
             {sheet.schedule && (
               <>
@@ -556,7 +558,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1}
             onPress={() => setPicker(p => ({ ...p, visible: false }))} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 28 }}>
+          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 28 + insets.bottom }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 14 }} />
 
             {/* 연도 선택 */}
