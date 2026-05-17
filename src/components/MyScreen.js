@@ -76,7 +76,7 @@ export function MyScreen({ navigation }) {
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(250,246,236,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 라이프</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{
-              fontFamily: 'Georgia',
+              fontFamily: F.en,
               fontStyle: 'italic',
               fontSize: 28,
               color: C.bgPrimary,

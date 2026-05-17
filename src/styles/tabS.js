@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 import { C, F } from '../constants/colors';
 
 export const tabS = StyleSheet.create({
-  bar:              { backgroundColor: C.bgPrimary, borderTopWidth: 0.5, borderTopColor: C.hairline, paddingBottom: 28 },
+  bar:              { backgroundColor: C.bgPrimary, borderTopWidth: 0.5, borderTopColor: C.hairline },
   stripeRow:        { flexDirection: 'row', height: 8, alignItems: 'flex-start' },
   stripeSegment:    { flex: 1, height: 2, opacity: 0.35 },
   stripeSegmentOn:  { opacity: 1, height: 8 },

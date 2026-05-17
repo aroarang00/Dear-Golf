@@ -452,7 +452,7 @@ export function GuideScreen({ route, navigation }) {
           </TouchableOpacity>
           <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: 'Georgia', fontSize: 22, color: C.charcoal }}
+              <Text style={{ fontFamily: F.serifKR, fontSize: 22, color: C.charcoal }}
                 numberOfLines={1}>{c.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {courseAddress || c.loc}
@@ -1090,7 +1090,7 @@ export function GuideScreen({ route, navigation }) {
       <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13 }}>
         <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(61,57,53,0.55)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
         <Text style={{
-          fontFamily: 'Georgia',
+          fontFamily: F.serifKR,
           fontSize: 28,
           color: C.charcoal,
         }}>Golf 코스</Text>

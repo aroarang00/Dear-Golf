@@ -55,7 +55,7 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 1 — Dear Golf 인트로 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
+          <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
           <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
           <Text style={{ fontFamily: F.sys, fontSize: 16, color: '#1A3D52', fontWeight: '600', letterSpacing: 1 }}>나만의 골프 캐디</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
@@ -66,7 +66,7 @@ export function OnboardingIntro({ onDone }) {
         {/* 2 — 일정·날씨·교통 (버터 상단 배너) */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <View style={{ backgroundColor: C.butter, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: '#8B7000', letterSpacing: 2 }}>01</Text>
+            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: '#8B7000', letterSpacing: 2 }}>01</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700', marginTop: 4 }}>라운딩 준비</Text>
           </View>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
@@ -111,7 +111,7 @@ export function OnboardingIntro({ onDone }) {
         {/* 3 — 기록·통계 (워밍그레이 상단 배너) */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <View style={{ backgroundColor: C.warmGray, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }}>02</Text>
+            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }}>02</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 21, color: '#fff', fontWeight: '700', marginTop: 4 }}>기록 · 통계</Text>
           </View>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
@@ -147,7 +147,7 @@ export function OnboardingIntro({ onDone }) {
         {/* 4 — 명예의 전당 (버건디 상단 배너) */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <View style={{ backgroundColor: C.burgundy, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: C.butter, letterSpacing: 2 }}>03</Text>
+            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: C.butter, letterSpacing: 2 }}>03</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 21, color: '#fff', fontWeight: '700', marginTop: 4 }}>명예의 전당</Text>
           </View>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
@@ -157,7 +157,7 @@ export function OnboardingIntro({ onDone }) {
             </Text>
             {/* 미니 명예의 전당 카드 예시 */}
             <View style={{ backgroundColor: '#2A2622', borderRadius: 14, borderWidth: 0.5, borderColor: '#C9A84C44', padding: 16 }}>
-              <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 17, color: '#C9A84C', letterSpacing: 3 }}>HOLE IN ONE</Text>
+              <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 17, color: '#C9A84C', letterSpacing: 3 }}>HOLE IN ONE</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 3 }}>2024.09.15 · 제이드팰리스 GC</Text>
               <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: 9 }}>
@@ -183,7 +183,7 @@ export function OnboardingIntro({ onDone }) {
         {/* 5 — 위치 권한 안내 (팔레스카이 배너) */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <View style={{ backgroundColor: C.paleSky, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: '#1A3D52', letterSpacing: 2 }}>04</Text>
+            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: '#1A3D52', letterSpacing: 2 }}>04</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700', marginTop: 4 }}>위치 권한</Text>
           </View>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}

@@ -6,6 +6,9 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
+import { useFonts } from 'expo-font';
+import { PlayfairDisplay_500Medium } from '@expo-google-fonts/playfair-display';
+import { NotoSerifKR_500Medium } from '@expo-google-fonts/noto-serif-kr';
 import { C, F } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
@@ -31,6 +34,8 @@ export default function App() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
+  // 커스텀 폰트 로드 — Android에 Georgia가 없어 직접 번들 (Playfair Display + Noto Serif KR)
+  const [fontsLoaded] = useFonts({ PlayfairDisplay_500Medium, NotoSerifKR_500Medium });
 
   useEffect(() => {
     (async () => {
@@ -75,7 +80,7 @@ export default function App() {
     setShowOnboarding(false);
   };
 
-  if (!profileLoaded) {
+  if (!profileLoaded || !fontsLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgPrimary }}>
         <ActivityIndicator size="large" color={C.burgundy} />

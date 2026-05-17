@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants/colors';
 import { tabS } from '../styles/tabS';
 
@@ -7,8 +8,9 @@ import { tabS } from '../styles/tabS';
 const TAB_COLORS = [C.butter, C.paleSky, C.warmGray, C.butter, C.navy];
 
 export function TabBar({ state, navigation }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={tabS.bar}>
+    <View style={[tabS.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={tabS.stripeRow}>
         {state.routes.map((route, i) => (
           <View key={route.key} style={[tabS.stripeSegment, { backgroundColor: TAB_COLORS[i % TAB_COLORS.length] }, state.index === i && tabS.stripeSegmentOn]} />
