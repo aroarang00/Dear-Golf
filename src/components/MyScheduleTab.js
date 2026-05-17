@@ -39,7 +39,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
   );
 }
 
-export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation }) {
+export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jumpDate }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
@@ -56,6 +56,11 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation }) {
     setCurrentDate(new Date(picker.year, picker.month - 1, 1));
     setPicker(p => ({ ...p, visible: false }));
   };
+
+  // 예정 라운딩 목록(캘린더 헤더 + 버튼)에서 항목 선택 → 해당 월로 이동
+  React.useEffect(() => {
+    if (jumpDate) setCurrentDate(new Date(jumpDate.y, jumpDate.m, 1));
+  }, [jumpDate]);
 
   const completedDates = React.useMemo(
     () => diaries.map(x => x.date).filter(Boolean),
