@@ -255,11 +255,11 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
 
     switch (status) {
       case 'today':
-        // 오늘 — 큰 숫자 + 차콜 언더바 (동그라미 X)
+        // 오늘 — 크고 버건디색 숫자 + 버건디 언더바 (동그라미 X)
         return (
           <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 17, color: C.charcoal, fontWeight: '700' }}>{d}</Text>
-            <View style={{ position: 'absolute', bottom: 2, width: 16, height: 3, borderRadius: 2, backgroundColor: C.charcoal }} />
+            <Text style={{ fontFamily: F.en, fontSize: 20, color: C.burgundy, fontWeight: '700' }}>{d}</Text>
+            <View style={{ position: 'absolute', bottom: 1, width: 20, height: 3.5, borderRadius: 2, backgroundColor: C.burgundy }} />
           </View>
         );
       case 'today-round':
