@@ -26,9 +26,8 @@ export function ScheduleScreen({ navigation }) {
         <View>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 일정</Text>
           <Text style={{
-            fontFamily: F.sys,
-            fontSize: 26,
-            fontWeight: '700',
+            fontFamily: 'Georgia',
+            fontSize: 28,
             color: C.navy,
           }}>캘린더</Text>
         </View>

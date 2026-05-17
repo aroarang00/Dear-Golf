@@ -57,6 +57,8 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const month = currentDate.getMonth();
   const today = new Date();
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  // 표시 중인 달이 과거 달인지 — 지난달엔 '첫 라운드 등록' 안내를 띄우지 않음
+  const isPastMonth = year < today.getFullYear() || (year === today.getFullYear() && month < today.getMonth());
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevMonthDays = new Date(year, month, 0).getDate();
@@ -357,6 +359,11 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
             이번달 일정 · {monthItems.length}개
           </Text>
           {monthItems.length === 0 ? (
+            isPastMonth ? (
+              <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>이 달엔 등록된 라운딩이 없어요</Text>
+              </View>
+            ) : (
             <View style={{ position: 'relative' }}>
               {/* 흐릿한 샘플 카드 — 지난 라운딩(더 흐릿) / 예정 라운딩 */}
               <SampleScheduleCard
@@ -393,6 +400,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
                 </TouchableOpacity>
               </BlurView>
             </View>
+            )
           ) : (
             monthItems
               .slice()
