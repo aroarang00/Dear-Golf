@@ -76,14 +76,9 @@ async function searchNearbyByKeyword(query, lat, lng, radius, filterRe) {
   }
 }
 
-// 가까운 골프 연습장 — 실내(인도어)/실외 분류 포함
+// 가까운 골프 연습장
 export async function searchNearbyDrivingRanges(lat, lng, radius = 10000) {
-  const list = await searchNearbyByKeyword('골프 연습장', lat, lng, radius, /(연습장|골프장)/);
-  // 이름·카테고리에 실내 신호가 있으면 실내, 없으면 실외(타석형 연습장이 다수)
-  return list.map(d => ({
-    ...d,
-    indoor: /실내|인도어|in[\s-]?door|스크린|gdr/i.test(`${d.name} ${d.category}`),
-  }));
+  return searchNearbyByKeyword('골프 연습장', lat, lng, radius, /(연습장|골프장)/);
 }
 
 // 가까운 스크린골프
