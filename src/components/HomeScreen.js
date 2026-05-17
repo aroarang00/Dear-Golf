@@ -38,6 +38,8 @@ export function HomeScreen({ navigation }) {
   const [showWeatherFull, setShowWeatherFull] = useState(false);
   const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
+  const [showUpcomingList, setShowUpcomingList] = useState(false);
+  const [upcomingPos, setUpcomingPos] = useState({ x: 0, y: 0 });
   const [editSchedule, setEditSchedule] = useState(null);
   const [cardSlide, setCardSlide] = useState(0);
   const [showDDayMenu, setShowDDayMenu] = useState(false);
@@ -49,6 +51,7 @@ export function HomeScreen({ navigation }) {
   const [homeTopComment, setHomeTopComment] = useState(null);
   const dDayRef = useRef(null);
   const cardsScrollRef = useRef(null);
+  const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
 
   // 라운딩 기록 완료 여부 확인용 — 다이어리 로드
   const loadDiaries = React.useCallback(() => {
@@ -74,6 +77,14 @@ export function HomeScreen({ navigation }) {
     dDayRef.current?.measureInWindow((x, y) => {
       setDDayPos({ x, y });
       setShowDDayMenu(true);
+    });
+  };
+
+  // '예정 라운딩' 라벨 탭 → 라벨 위쪽에 예정 라운딩 목록 팝업
+  const openUpcomingList = () => {
+    upcomingLabelRef.current?.measureInWindow((x, y) => {
+      setUpcomingPos({ x, y });
+      setShowUpcomingList(true);
     });
   };
 
@@ -383,7 +394,15 @@ export function HomeScreen({ navigation }) {
         <View style={{ flex: 1 }} />
         <View style={homeS.bottomArea}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 8 }}>
-            <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>예정 라운딩</Text>
+            <TouchableOpacity
+              ref={upcomingLabelRef}
+              onPress={openUpcomingList}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>예정 라운딩</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.6)', marginLeft: 5, marginTop: 1 }}>›</Text>
+            </TouchableOpacity>
             {upcomingSchedules.length < 10 && (
               <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>+ 추가</Text>
@@ -662,6 +681,59 @@ export function HomeScreen({ navigation }) {
         schedule={pendingAlarmSchedule}
         onClose={() => setPendingAlarmSchedule(null)}
       />
+
+      {/* 예정 라운딩 목록 — 라벨 위쪽 팝업 (카드 5개를 넘는 일정도 한눈에) */}
+      <Modal
+        visible={showUpcomingList}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUpcomingList(false)}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowUpcomingList(false)}>
+          <View style={{ position: 'absolute', left: upcomingPos.x, top: upcomingPos.y, width: 0, height: 0 }}>
+            <View style={{
+              position: 'absolute', bottom: 12, left: 0,
+              backgroundColor: '#FAF6EC', borderRadius: 14,
+              width: 272, paddingVertical: 6,
+              shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.3, shadowRadius: 32, elevation: 20,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '700', color: '#3D3935' }}>예정 라운딩</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#A89F8C' }}>{upcomingSchedules.length}건</Text>
+              </View>
+              <ScrollView style={{ maxHeight: 286 }} showsVerticalScrollIndicator={false}>
+                {upcomingSchedules.map((s, i) => {
+                  const dd = freshDDay(s);
+                  return (
+                    <TouchableOpacity
+                      key={s.id}
+                      activeOpacity={0.6}
+                      onPress={() => { setShowUpcomingList(false); setTimeout(() => openScheduleSheet({ ...s, dDay: dd }), 260); }}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 10,
+                        paddingVertical: 10, paddingHorizontal: 16,
+                        borderTopWidth: 0.5, borderColor: '#E8E2D0',
+                      }}>
+                      <View style={{
+                        minWidth: 46, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 7, alignItems: 'center',
+                        backgroundColor: dd === 0 ? C.burgundy : '#EFE9D8',
+                      }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: 11, fontWeight: '700', color: dd === 0 ? C.butter : '#3D3935' }}>
+                          {dd === 0 ? 'D-DAY' : `D-${dd}`}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: '#3D3935' }} numberOfLines={1}>{s.course}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#A89F8C', marginTop: 2 }}>{s.date} {s.day} · {s.time}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         visible={showDDayMenu}
