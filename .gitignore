@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# 개발용 QR 이미지
+expo_qr.png
