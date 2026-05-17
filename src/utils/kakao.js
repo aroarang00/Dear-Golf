@@ -18,13 +18,14 @@ export async function searchGolfCourses(query) {
     return [];
   }
 
-  // 골프장만 남기는 필터 — category_name 기준
+  // 골프장만 남기는 필터 — category_name + place_name 기준
   //  ex) "스포츠,레저 > 골프 > 골프장" / "... > 골프 > 컨트리클럽"
-  //  연습장·스크린골프·골프용품 등은 제외
-  const isGolfCourse = (cat) => {
-    const c = cat || '';
-    if (/(연습장|스크린|실내골프|용품|아카데미|레슨)/.test(c)) return false;
-    return c.includes('골프');
+  //  파크골프장·연습장·스크린골프·골프용품 등은 제외
+  const isGolfCourse = (d) => {
+    const cat = d.category_name || '';
+    const text = cat + ' ' + (d.place_name || '');
+    if (/(파크골프|연습장|스크린|실내골프|용품|아카데미|레슨)/.test(text)) return false;
+    return cat.includes('골프');
   };
 
   // 키워드 검색 — pages 페이지까지(페이지당 15건) 모아 골프장만 반환.
@@ -44,7 +45,7 @@ export async function searchGolfCourses(query) {
       if (data.meta?.is_end || page.length < 15) break;
     }
     return docs
-      .filter(d => isGolfCourse(d.category_name))
+      .filter(d => isGolfCourse(d))
       .map(d => ({
         kakaoId: d.id,
         name: d.place_name,
