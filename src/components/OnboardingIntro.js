@@ -55,7 +55,7 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 1 — Dear Golf 인트로 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
+          <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 44, lineHeight: 60, color: C.charcoal }}>Dear Golf</Text>
           <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
           <Text style={{ fontFamily: F.sys, fontSize: 16, color: '#1A3D52', fontWeight: '600', letterSpacing: 1 }}>나만의 골프 캐디</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>

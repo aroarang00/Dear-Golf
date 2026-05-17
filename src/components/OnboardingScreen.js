@@ -34,7 +34,7 @@ export function OnboardingScreen({ onComplete }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       <TripleStripe />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 28, paddingBottom: 60 }}>
-        <Text style={{ fontFamily: F.en, fontSize: 32, color: C.charcoal, fontStyle: 'italic', marginBottom: 6 }}>Dear Golf</Text>
+        <Text style={{ fontFamily: F.en, fontSize: 32, lineHeight: 44, color: C.charcoal, fontStyle: 'italic', marginBottom: 6 }}>Dear Golf</Text>
         <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGrayLight, marginBottom: 40 }}>나만의 골프 캐디를 시작해요</Text>
 
         {step === 1 && (
