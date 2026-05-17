@@ -298,9 +298,9 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
           </View>
         );
       case 'completed-norecord':
-        // 완료+기록없음: 점선 원
+        // 완료+기록없음: 실선 테두리 원 (Android는 점선+borderRadius를 네모로 그려서 실선 사용)
         return (
-          <View style={[base, { borderWidth: 1.5, borderColor: C.warmGray, borderStyle: 'dashed' }]}>
+          <View style={[base, { borderWidth: 1.5, borderColor: C.warmGray }]}>
             <Text style={[baseText, { color: C.warmGray }]}>{d}</Text>
           </View>
         );
@@ -370,7 +370,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>완료·기록</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: C.warmGray, borderStyle: 'dashed' }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: C.warmGray }} />
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>완료·미기록</Text>
           </View>
         </View>
