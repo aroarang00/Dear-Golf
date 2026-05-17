@@ -232,15 +232,13 @@ export function OnboardingIntro({ onDone }) {
           </View>
         </View>
 
-        {/* 5 — 위치 권한 안내 (팔레스카이 배너) */}
+        {/* 5 — 위치 권한 안내 */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
-          <View style={{ backgroundColor: C.paleSky, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: '#1A3D52', letterSpacing: 2 }}>04</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700', marginTop: 4 }}>위치 권한</Text>
-          </View>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingVertical: 24, justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 21, marginBottom: 20 }}>
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
+            <Text style={{ fontSize: 38, marginBottom: 14 }}>📍</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 24, color: C.charcoal, fontWeight: '700', marginBottom: 10 }}>위치 권한</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 21, marginBottom: 24 }}>
               현재 위치를 알려주시면 더 편하게 쓸 수 있어요.{'\n'}허용은 선택이고, 언제든 바꿀 수 있어요.
             </Text>
             {/* 위치로 가능한 것 */}
