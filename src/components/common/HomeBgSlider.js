@@ -1,62 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet, AppState } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getShortForecast } from '../../utils/kma';
-import { getCurrentLocation } from '../../utils/location';
-import { fetchBgImages, classifyTime, classifyWeather } from '../../utils/unsplash';
 
-// Unsplash 실패 시 fallback 정적 이미지
-const FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800',
-  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800',
-  'https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=800',
-  'https://images.unsplash.com/photo-1592919505780-303950717480?w=800',
-];
+// 시간대별 홈 배경 사진 — 직접 검증한 큐레이션 세트.
+// (Unsplash 키워드 검색은 "morning"으로 검색해도 노을 사진이 섞여 나와 시간대를 못 맞춤)
+const U = (base) => `${base}?w=1080&q=80&auto=format`;
+const TIME_IMAGES = {
+  // 새벽·이른 아침 (05~09시) — 안개·서리·여명
+  dawn: [
+    U('https://images.unsplash.com/photo-1725835567442-7f39d9199f8c'),
+    U('https://images.unsplash.com/photo-1672871583025-701bdb84b370'),
+  ],
+  // 낮 (09~17시) — 밝은 햇살·파란 하늘
+  day: [
+    U('https://images.unsplash.com/photo-1758190153146-a1507e2e000d'),
+    U('https://images.unsplash.com/photo-1634140255781-e900c47ecf1f'),
+    U('https://images.unsplash.com/photo-1592919505780-303950717480'),
+  ],
+  // 저녁·밤 (17~05시) — 노을·골든아워·일몰
+  evening: [
+    U('https://images.unsplash.com/photo-1709525617237-778500c895a8'),
+    U('https://images.unsplash.com/photo-1672871583040-42826d4e9ca4'),
+    U('https://images.unsplash.com/photo-1629293821758-a0400037edf1'),
+  ],
+};
 
-// 현재 좌표 + 날씨 캐시 (1시간 TTL) — 슬라이더 전용
-const WX_KEY = '@dg_bg_currentwx_v1';
-const WX_TTL = 60 * 60 * 1000;
-async function getCurrentWxClass() {
-  try {
-    const raw = await AsyncStorage.getItem(WX_KEY);
-    if (raw) {
-      const cached = JSON.parse(raw);
-      if (cached && Date.now() - cached.ts < WX_TTL) return cached.weather;
-    }
-  } catch {}
-  try {
-    const loc = await getCurrentLocation();
-    if (!loc) return 'clear';
-    const f = await getShortForecast(loc.lat, loc.lng);
-    const weather = classifyWeather(f?.current);
-    AsyncStorage.setItem(WX_KEY, JSON.stringify({ weather, ts: Date.now() })).catch(() => {});
-    return weather;
-  } catch (e) {
-    console.warn('[bg slider wx]', e?.message);
-    return 'clear';
-  }
+// 현재 시각 → 시간대 버킷
+function timeBucket(d = new Date()) {
+  const h = d.getHours();
+  if (h >= 5 && h < 9) return 'dawn';
+  if (h >= 9 && h < 17) return 'day';
+  return 'evening';
+}
+
+// 현재 시간대 사진 중 무작위 1장
+function pickImage() {
+  const arr = TIME_IMAGES[timeBucket()] || TIME_IMAGES.day;
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 export function HomeBgSlider() {
-  const [imageUri, setImageUri] = useState(FALLBACK_IMAGES[0]);
+  const [imageUri, setImageUri] = useState(pickImage);
 
   useEffect(() => {
-    let cancelled = false;
-    // 현재 시간대·날씨에 맞는 배경 로드 — 같은 조합이라도 여러 장 중 무작위로 골라 변화를 줌
-    const loadBg = async () => {
-      const timeOfDay = classifyTime();
-      const weather = await getCurrentWxClass();
-      const urls = await fetchBgImages(timeOfDay, weather);
-      if (cancelled || !urls || !urls.length) return;
-      setImageUri(urls[Math.floor(Math.random() * urls.length)]);
-    };
-    loadBg();
-    // 앱이 포그라운드로 돌아올 때마다 — 시간이 지났으면 그 시간대·날씨에 맞춰 배경 갱신
+    // 앱이 포그라운드로 돌아올 때마다 — 현재 시간대에 맞춰 배경 갱신
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') loadBg();
+      if (s === 'active') setImageUri(pickImage());
     });
-    return () => { cancelled = true; sub.remove(); };
+    return () => sub.remove();
   }, []);
 
   return (
