@@ -18,6 +18,8 @@ import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleModal } from './ScheduleModal';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
+import { AlarmSetupModal } from './AlarmSetupModal';
+import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -40,6 +42,7 @@ export function HomeScreen({ navigation }) {
   const [now, setNow] = useState(Date.now());
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const dDayRef = useRef(null);
   const cardsScrollRef = useRef(null);
 
@@ -81,6 +84,7 @@ export function HomeScreen({ navigation }) {
       setShowDDayMenu(false);
       setEditSchedule(null);
       setSelectedSchedule(null);
+      setPendingAlarmSchedule(null);
     });
     return unsubscribe;
   }, [navigation]);
@@ -234,6 +238,7 @@ export function HomeScreen({ navigation }) {
           style: 'destructive',
           onPress: () => {
             setSchedules(prev => prev.filter(x => x.id !== s.id));
+            cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
             setShowScheduleModal(false);
             setSelectedSchedule(null);
           },
@@ -257,6 +262,12 @@ export function HomeScreen({ navigation }) {
       setSchedules(prev => normalizeSchedules([...prev, newS]));
       // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
       getUserCourses().then(list => setUserCoursesList(list || []));
+      // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
+      if (userProfile.alarmPromptDisabled) {
+        applyDefaultAlarms(newS, userProfile.alarmDefaults);
+      } else {
+        setPendingAlarmSchedule(newS);
+      }
     } else if (type === 'schedule-edit') {
       setSchedules(prev => normalizeSchedules(prev.map(s => s.id === data.id
         ? { ...s, course: data.course, date: data.date, day: data.day,
@@ -264,6 +275,15 @@ export function HomeScreen({ navigation }) {
             courseId: data.courseId || null }
         : s)));
       getUserCourses().then(list => setUserCoursesList(list || []));
+      // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
+      getAlarmTypes(data.id).then(types => {
+        if (types && types.length) {
+          scheduleRoundAlarms(
+            { id: data.id, course: data.course, date: data.date, time: data.time },
+            types,
+          );
+        }
+      });
     }
   };
 
@@ -305,6 +325,11 @@ export function HomeScreen({ navigation }) {
           </View>
         </SafeAreaView>
         <ScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleScheduleSave} />
+        <AlarmSetupModal
+          visible={!!pendingAlarmSchedule}
+          schedule={pendingAlarmSchedule}
+          onClose={() => setPendingAlarmSchedule(null)}
+        />
       </View>
     );
   }
@@ -570,7 +595,7 @@ export function HomeScreen({ navigation }) {
               </View>
             );
           })()}
-          <View style={{ height: 6 }} />
+          <View style={{ height: 22 }} />
         </View>
       </SafeAreaView>
 
@@ -605,6 +630,12 @@ export function HomeScreen({ navigation }) {
         initial={editSchedule}
         onClose={() => setEditSchedule(null)}
         onSave={handleScheduleSave}
+      />
+
+      <AlarmSetupModal
+        visible={!!pendingAlarmSchedule}
+        schedule={pendingAlarmSchedule}
+        onClose={() => setPendingAlarmSchedule(null)}
       />
 
       <Modal

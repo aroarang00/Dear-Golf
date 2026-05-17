@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
 import { C, F } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
@@ -45,6 +46,22 @@ export default function App() {
     if (!profileLoaded) return;
     storage.save(STORAGE_KEYS.profile, userProfile);
   }, [userProfile, profileLoaded]);
+
+  // 라운딩 알람을 탭하면 홈 탭(D-day 카드)으로 이동
+  useEffect(() => {
+    const goHome = () => {
+      if (navigationRef.isReady()) {
+        try { navigationRef.navigate('홈'); } catch (e) { /* 네비게이션 미준비 */ }
+      }
+    };
+    // 앱이 종료된 상태에서 알림 탭으로 실행된 경우
+    Notifications.getLastNotificationResponseAsync().then(resp => {
+      if (resp) setTimeout(goHome, 400);
+    });
+    // 앱 실행 중 알림 탭
+    const sub = Notifications.addNotificationResponseReceivedListener(() => goHome());
+    return () => sub.remove();
+  }, []);
 
   const handleOnboardingComplete = (data) => {
     setUserProfile({ ...data });

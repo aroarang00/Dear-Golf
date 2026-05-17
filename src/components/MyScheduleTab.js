@@ -4,7 +4,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
+import { AlarmSetupModal } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
+import { UserContext } from '../contexts/UserContext';
+import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -32,8 +35,10 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
 
 export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
+  const { userProfile } = React.useContext(UserContext);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modal, setModal] = useState({ visible: false, initial: null });
+  const [pendingAlarm, setPendingAlarm] = useState(null);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
 
@@ -140,13 +145,29 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
 
   const handleSave = (type, data) => {
     if (type === 'schedule') {
-      setSchedules(prev => [...prev, {
+      const newS = {
         id: String(Date.now()),
         weather: '맑음 20°', wind: '남 2m/s', duration: '1시간 30분',
         ...data,
-      }]);
+      };
+      setSchedules(prev => [...prev, newS]);
+      // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
+      if (userProfile.alarmPromptDisabled) {
+        applyDefaultAlarms(newS, userProfile.alarmDefaults);
+      } else {
+        setPendingAlarm(newS);
+      }
     } else if (type === 'schedule-edit') {
       setSchedules(prev => prev.map(s => (s.id === data.id ? { ...s, ...data } : s)));
+      // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
+      getAlarmTypes(data.id).then(types => {
+        if (types && types.length) {
+          scheduleRoundAlarms(
+            { id: data.id, course: data.course, date: data.date, time: data.time },
+            types,
+          );
+        }
+      });
     }
     setModal({ visible: false, initial: null });
   };
@@ -162,7 +183,10 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
     if (!s) return;
     const isPast = new Date((s.date || '').replace(/\./g, '-')).getTime() < todayMid;
     const hasRec = hasRecord(s.date);
-    const remove = () => setSchedules(prev => prev.filter(x => x.id !== s.id));
+    const remove = () => {
+      setSchedules(prev => prev.filter(x => x.id !== s.id));
+      cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
+    };
 
     // 과거 라운딩 + 다이어리 기록 있음 → 다이어리에서 삭제하도록 안내
     if (isPast && hasRec) {
@@ -456,6 +480,12 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
         initial={modal.initial}
         onClose={() => setModal({ visible: false, initial: null })}
         onSave={handleSave}
+      />
+
+      <AlarmSetupModal
+        visible={!!pendingAlarm}
+        schedule={pendingAlarm}
+        onClose={() => setPendingAlarm(null)}
       />
 
       {/* Edit/Delete Bottom Sheet */}

@@ -144,4 +144,6 @@ export const USER_PROFILE_INIT = {
   departure: '',
   departureCoord: null, // { x, y } — 출발지 검색에서 선택 시 저장되는 정확 좌표
   phone: '',
+  alarmDefaults: { d3: true, d1: true, teeoff: true }, // 새 일정 추가 시 기본 알람 시점
+  alarmPromptDisabled: false, // true면 일정 추가 시 알람 팝업 없이 기본값 자동 적용
 };

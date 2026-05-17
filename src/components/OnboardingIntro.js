@@ -135,11 +135,11 @@ export function OnboardingIntro({ onDone }) {
             <View style={{ marginTop: 24, gap: 16 }}>
               <Feature icon="🏆" title="코스별 베스트·평균" sub="어느 코스가 잘 맞는지 한눈에" />
               <Feature icon="✍️" title="한줄 다이어리" sub="그날의 감각을 짧게 남기기" />
-              <Feature icon="📈" title="스코어 추이" sub="시즌 흐름을 그래프로 확인" />
+              <Feature icon="📊" title="라운딩 통계 요약" sub="평균타·베스트·라운딩 수를 한눈에" />
               <Feature icon="📷" title="라운딩 사진 기록" sub="그날의 코스·순간을 사진으로 함께" />
               <Feature icon="💰" title="골프 가계부" sub="그린피·식대 등 라운딩 지출 관리" />
               <Feature icon="🌏" title="해외 라운딩 기록" sub="해외 골프장 기록도 저장해 한눈에" />
-              <Feature icon="⛳" title="100대 코스 도전하기" sub="국내 100대 골프장 정복 현황을 한눈에" />
+              <Feature icon="⛳" title="100대 코스 도전하기" sub="국내 100대 코스, 몇 곳이나 갔는지 확인" />
             </View>
           </ScrollView>
         </View>

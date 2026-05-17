@@ -8,7 +8,7 @@ import { trS } from '../styles/trS';
 import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
-import { addressToCoord, getDrivingDirections } from '../utils/kakao';
+import { addressToCoord, getDrivingDirections, searchGolfCourses } from '../utils/kakao';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
 import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -74,12 +74,15 @@ const fetchWeatherForCourse = (courseId) => fetchWeatherCached(`course:${courseI
   return withCoord ? { x: withCoord.x, y: withCoord.y, loc: withCoord.loc } : null;
 });
 
-// courseId 없는 일정 (데모 데이터 등) — 코스명으로 카카오 검색 + reverseGeocode
+// courseId 없는 일정 (직접 입력·데모 데이터 등) — 코스명으로 카카오 골프장 검색.
+// 골프장 카테고리 필터가 적용된 searchGolfCourses를 써서 엉뚱한 장소 매칭을 방지.
+// 검색 결과의 loc(도로명/지번 주소)에 지역명이 들어 있어 중기예보·미세먼지 매핑에 그대로 사용.
 const fetchWeatherByName = (name) => fetchWeatherCached(`name:${name}`, async () => {
-  const coord = await addressToCoord(name);
-  if (!coord) return null;
-  const loc = await reverseGeocode(coord.y, coord.x);
-  return { x: coord.x, y: coord.y, loc: loc || '' };
+  const results = await searchGolfCourses(name);
+  const top = results && results[0];
+  if (!top || !(top.x > 0) || !(top.y > 0)) return null;
+  const loc = top.loc || (await reverseGeocode(top.y, top.x)) || '';
+  return { x: top.x, y: top.y, loc };
 });
 
 // 좌표를 직접 받은 일정 (코스 상세 화면 등) — 재해석 없이 그대로 사용
@@ -132,6 +135,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [airQuality, setAirQuality] = useState(null);
   const [uvIndex, setUvIndex] = useState(null);
   const [resolvedLoc, setResolvedLoc] = useState('');
+  const [wxFailed, setWxFailed] = useState(false); // 날씨 데이터 로드 실패 (좌표 미해석 등)
+  const [retryTick, setRetryTick] = useState(0);   // 다시 시도 트리거
   const { width: SW } = useWindowDimensions();
 
   const { userProfile } = React.useContext(UserContext);
@@ -205,10 +210,12 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     let cancelled = false;
     (async () => {
       try {
+        setWxFailed(false);
         if (weatherOnly) {
           setForecast(null); setAirQuality(null); setUvIndex(null); setResolvedLoc('');
           const pos = await getCurrentLocation();
-          if (!pos || cancelled) return;
+          if (cancelled) return;
+          if (!pos) { setWxFailed(true); return; }
           setCurrentCoord({ x: pos.lng, y: pos.lat });
           const loc = await reverseGeocode(pos.lat, pos.lng);
           if (cancelled) return;
@@ -240,7 +247,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             : useCourseId
               ? await fetchWeatherForCourse(schedule.courseId)
               : await fetchWeatherByName(schedule.course);
-          if (cancelled || !data) return;
+          if (cancelled) return;
+          if (!data) { setWxFailed(true); return; }
           setForecast(data.forecast);
           setAirQuality(data.airQuality);
           setUvIndex(data.uvIndex);
@@ -248,10 +256,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
         }
       } catch (e) {
         console.warn('[wx popup] forecast fetch failed:', e?.message);
+        if (!cancelled) setWxFailed(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [visible, weatherOnly, schedule?.courseId, schedule?.courseX, schedule?.courseY]);
+  }, [visible, weatherOnly, schedule?.courseId, schedule?.courseX, schedule?.courseY, retryTick]);
 
   // 마이페이지 저장 출발지 → 좌표
   // 검색에서 선택해 저장한 정확 좌표가 있으면 그대로 사용, 없으면 주소 텍스트로 변환(폴백)
@@ -622,10 +631,30 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               </View>
 
               {forecast === null ? (
-                <View style={{ paddingVertical: 80, alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color="#F5E6A8" />
-                  <Text style={{ marginTop: 12, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>날씨 데이터 불러오는 중…</Text>
-                </View>
+                wxFailed ? (
+                  <View style={{ paddingVertical: 72, paddingHorizontal: 32, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 30, marginBottom: 12 }}>🌧️</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
+                      {weatherOnly ? '현재 위치를 가져올 수 없어요' : '날씨 정보를 불러올 수 없어요'}
+                    </Text>
+                    <Text style={{ marginTop: 8, color: 'rgba(255,255,255,0.45)', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                      {weatherOnly
+                        ? '위치 권한을 확인하거나\n잠시 후 다시 시도해주세요'
+                        : '골프장 위치를 찾지 못했어요.\n일정 수정에서 카카오 검색으로\n골프장을 선택하면 정확해져요'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setRetryTick(t => t + 1)}
+                      activeOpacity={0.8}
+                      style={{ marginTop: 18, borderWidth: 1, borderColor: 'rgba(245,230,168,0.6)', borderRadius: 20, paddingHorizontal: 22, paddingVertical: 9 }}>
+                      <Text style={{ color: '#F5E6A8', fontSize: 13 }}>다시 시도</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={{ paddingVertical: 80, alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color="#F5E6A8" />
+                    <Text style={{ marginTop: 12, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>날씨 데이터 불러오는 중…</Text>
+                  </View>
+                )
               ) : (
               <>
               {/* ② 기온 히어로 */}

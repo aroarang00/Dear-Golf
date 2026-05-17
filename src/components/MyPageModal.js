@@ -8,11 +8,14 @@ import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { myS } from '../styles/myS';
 import { UserContext } from '../contexts/UserContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
 import { TripleStripe } from './common/TripleStripe';
 import { searchPlaces } from '../utils/kakao';
+import { requestNotificationPermission, syncAlarmTypeAcrossSchedules } from '../utils/notifications';
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
+  const { schedules } = React.useContext(SchedulesContext);
   const scrollRef = useRef(null);
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
@@ -27,6 +30,36 @@ export function MyPageModal({ visible, onClose }) {
   const [avgScore, setAvgScore] = useState(String(userProfile.avgScore || ''));
   const [lifeBest, setLifeBest] = useState(String(userProfile.lifeBest || ''));
   const [totalRounds, setTotalRounds] = useState(String(userProfile.totalRounds || ''));
+  const [alarmDefaults, setAlarmDefaults] = useState(userProfile.alarmDefaults || { d3: true, d1: true, teeoff: true });
+
+  // 라운딩 알람 시점 토글 — 즉시 저장 + 예정된 모든 일정에 바로 반영.
+  const toggleAlarmDefault = async (key) => {
+    const value = !alarmDefaults[key];
+    const next = { ...alarmDefaults, [key]: value };
+    setAlarmDefaults(next);
+    const updated = { ...userProfile, alarmDefaults: next };
+    setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
+    // 켜는 경우 알림 권한 확인
+    if (value) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        Alert.alert('알림 권한이 필요해요', '알람을 받으려면 알림 권한을 허용해주세요.', [
+          { text: '확인', style: 'cancel' },
+          { text: '설정 열기', onPress: () => Linking.openSettings() },
+        ]);
+      }
+    }
+    // 예정된 모든 일정에 즉시 반영
+    syncAlarmTypeAcrossSchedules(schedules, key, value);
+  };
+
+  // 일정 추가 시 알람 팝업 표시 여부 토글. 즉시 저장.
+  const toggleAlarmPrompt = () => {
+    const updated = { ...userProfile, alarmPromptDisabled: !userProfile.alarmPromptDisabled };
+    setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
+  };
 
   const handleSaveStats = () => {
     const updated = {
@@ -50,6 +83,7 @@ export function MyPageModal({ visible, onClose }) {
       setDepSearching(false);
       setPhone(userProfile.phone || '');
       setEditingInfo(false);
+      setAlarmDefaults(userProfile.alarmDefaults || { d3: true, d1: true, teeoff: true });
     }
   }, [visible]);
 
@@ -304,6 +338,55 @@ export function MyPageModal({ visible, onClose }) {
                     )}
                   </View>
                 </View>
+              </View>
+              <View style={myS.divider} />
+              <View style={myS.section}>
+                <Text style={myS.sectionLabel}>라운딩 알람</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: -4, marginBottom: 6, lineHeight: 16 }}>
+                  예정된 모든 라운딩에 함께 적용돼요. 끄면 즉시 해제돼요.
+                </Text>
+                {[
+                  { key: 'd3', label: 'D-3 알람', sub: '3일 전 오전 10시' },
+                  { key: 'd1', label: 'D-1 알람', sub: '전날 오후 6시' },
+                  { key: 'teeoff', label: '당일 알람', sub: '티오프 2시간 전' },
+                ].map((item) => {
+                  const on = !!alarmDefaults[item.key];
+                  return (
+                    <View key={item.key} style={myS.menuRow}>
+                      <Text style={myS.menuIcon}>{on ? '🔔' : '🔕'}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={myS.menuLabel}>{item.label}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>{item.sub}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => toggleAlarmDefault(item.key)} activeOpacity={0.8}
+                        style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center',
+                          backgroundColor: on ? C.burgundy : C.hairline }}>
+                        <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff',
+                          alignSelf: on ? 'flex-end' : 'flex-start' }} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+                {(() => {
+                  const on = !userProfile.alarmPromptDisabled;
+                  return (
+                    <View style={[myS.menuRow, { borderBottomWidth: 0, marginTop: 4 }]}>
+                      <Text style={myS.menuIcon}>💬</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={myS.menuLabel}>일정 추가 시 알람 팝업 표시</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>
+                          {on ? '추가할 때마다 알람 설정을 물어봐요' : '팝업 없이 위 기본 설정대로 자동 적용돼요'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={toggleAlarmPrompt} activeOpacity={0.8}
+                        style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center',
+                          backgroundColor: on ? C.burgundy : C.hairline }}>
+                        <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff',
+                          alignSelf: on ? 'flex-end' : 'flex-start' }} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })()}
               </View>
               <View style={myS.divider} />
               <View style={myS.section}>

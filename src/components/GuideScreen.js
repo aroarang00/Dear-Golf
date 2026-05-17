@@ -584,6 +584,26 @@ export function GuideScreen({ route, navigation }) {
                 // 최근 라운딩 (날짜 내림차순) 첫 번째의 memo
                 const latestDiary = [...myDiaries].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
                 const memo = latestDiary?.memo;
+                if (!memo) {
+                  // 미방문 코스 — 입력칸이 아니라 '기록하면 자동으로 채워진다'는 안내.
+                  // 점선 테두리 = 앱 전반의 '미기록' 표시와 일관 (메모 카드처럼 보이지 않게)
+                  return (
+                    <View style={{
+                      backgroundColor: C.bgSecondary,
+                      borderWidth: 1, borderColor: C.hairline, borderStyle: 'dashed',
+                      borderRadius: 10,
+                      paddingHorizontal: 14, paddingVertical: 16, marginBottom: 22,
+                      alignItems: 'center',
+                    }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, textAlign: 'center' }}>
+                        아직 이 코스 라운딩 기록이 없어요
+                      </Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, textAlign: 'center', marginTop: 5, lineHeight: 16 }}>
+                        라운딩 후 다이어리에 기록을 남기면{'\n'}그날의 한줄 메모가 여기에 표시돼요
+                      </Text>
+                    </View>
+                  );
+                }
                 return (
                   <View style={{
                     backgroundColor: '#fff',
@@ -592,9 +612,9 @@ export function GuideScreen({ route, navigation }) {
                     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 22,
                   }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#3D3935', lineHeight: 21 }}>
-                      {memo || '처음 방문하는 코스예요. 라운딩 후 한마디를 남겨보세요 ✏️'}
+                      {memo}
                     </Text>
-                    {memo && latestDiary?.date ? (
+                    {latestDiary?.date ? (
                       <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray, marginTop: 6 }}>
                         {latestDiary.date} 라운딩
                       </Text>

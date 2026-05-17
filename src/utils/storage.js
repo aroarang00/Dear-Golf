@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   foodRecs:         '@dg_food_recs',
   homeTooltipDone:  '@dg_home_tooltip_done',
   hofTeaserDismissed: '@dg_hof_teaser_dismissed',
+  alarms:           '@dg_alarms',
 };
 
 export const storage = {

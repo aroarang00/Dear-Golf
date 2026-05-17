@@ -35,7 +35,13 @@
           "locationWhenInUsePermission": "출발지 자동 설정 및 현재 위치 날씨를 위해 위치 권한이 필요해요"
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-notifications",
+        {
+          "color": "#6B1E2A"
+        }
+      ]
     ]
   }
 }

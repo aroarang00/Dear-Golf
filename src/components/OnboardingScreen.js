@@ -25,6 +25,8 @@ export function OnboardingScreen({ onComplete }) {
       totalRounds: 0,
       hasFirstSingle,
       onboardingDone: true,
+      alarmDefaults: { d3: true, d1: true, teeoff: true },
+      alarmPromptDisabled: false,
     });
   };
 
