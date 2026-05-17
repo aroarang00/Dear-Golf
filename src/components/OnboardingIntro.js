@@ -142,15 +142,24 @@ export function OnboardingIntro({ onDone }) {
                 </View>
               ))}
             </View>
-            <View style={{ marginHorizontal: 24, marginTop: 16, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>2026.05.24 토</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600', marginTop: 3 }}>제이드팰리스 GC</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
-                <Text style={{ fontFamily: F.en, fontSize: 34, color: C.burgundy, fontWeight: '700' }}>88</Text>
+            <View style={{ marginHorizontal: 24, marginTop: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>2026.05.24 토 · 제이드팰리스 GC</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                <Text style={{ fontFamily: F.en, fontSize: 30, color: C.burgundy, fontWeight: '700' }}>88</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>타 · +16</Text>
               </View>
-              <View style={{ borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 8, marginTop: 8 }}>
+              <View style={{ borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 8, marginTop: 6 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary }}>드라이버가 잘 맞은 날 ⛳</Text>
+              </View>
+            </View>
+            <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>2026.04.18 토 · 안성베네스트 CC</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                <Text style={{ fontFamily: F.en, fontSize: 30, color: C.charcoal, fontWeight: '700' }}>91</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>타 · +19</Text>
+              </View>
+              <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 6 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary }}>퍼팅 감이 좋았던 하루 ⛳</Text>
               </View>
             </View>
           </View>
@@ -173,19 +182,28 @@ export function OnboardingIntro({ onDone }) {
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(201,168,76,0.7)', letterSpacing: 3, marginBottom: 4 }}>HALL OF FAME</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.butter, fontWeight: '700' }}>명예의 전당</Text>
             </View>
-            <View style={{ marginHorizontal: 24, marginTop: 24, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(201,168,76,0.5)', padding: 20 }}>
-              <Text style={{ fontFamily: F.en, fontSize: 22, color: '#C9A84C', letterSpacing: 3 }}>HOLE IN ONE</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 5 }}>2024.09.15 · 제이드팰리스 GC</Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 12 }}>
+            <View style={{ marginHorizontal: 24, marginTop: 18, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(201,168,76,0.5)', padding: 18 }}>
+              <Text style={{ fontFamily: F.en, fontSize: 21, color: '#C9A84C', letterSpacing: 3 }}>HOLE IN ONE</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>2024.09.15 · 제이드팰리스 GC</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 11 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 8, color: 'rgba(201,168,76,0.75)', letterSpacing: 2 }}>HOLE</Text>
-                  <Text style={{ fontFamily: F.en, fontSize: 22, color: '#C9A84C', marginTop: 4 }}>7번홀</Text>
+                  <Text style={{ fontFamily: F.en, fontSize: 20, color: '#C9A84C', marginTop: 4 }}>7번홀</Text>
                 </View>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 12 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 11 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 8, color: 'rgba(201,168,76,0.75)', letterSpacing: 2 }}>PAR · DIST</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 8 }}>파3 · 156m</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 7 }}>파3 · 156m</Text>
                 </View>
               </View>
+            </View>
+            {/* 첫 싱글 카드 */}
+            <View style={{ marginHorizontal: 24, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(200,217,230,0.45)', padding: 18, flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: F.en, fontSize: 17, color: '#C8D9E6', letterSpacing: 2 }}>FIRST SINGLE</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#fff', fontWeight: '600', marginTop: 4 }}>퍼스트 싱글 달성</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>2025.06.20 · 우정힐스 CC</Text>
+              </View>
+              <Text style={{ fontFamily: F.en, fontSize: 38, color: '#C8D9E6', fontWeight: '700' }}>79</Text>
             </View>
           </View>
           <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
