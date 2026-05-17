@@ -8,6 +8,7 @@ import { AlarmSetupModal } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
+import { syncRoundToCalendar, removeRoundFromCalendar } from '../utils/deviceCalendar';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -153,6 +154,8 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
         ...data,
       };
       setSchedules(prev => [...prev, newS]);
+      // 폰 기본 캘린더에 자동 추가
+      syncRoundToCalendar(newS);
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
         applyDefaultAlarms(newS, userProfile.alarmDefaults);
@@ -169,6 +172,10 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
             types,
           );
         }
+      });
+      // 캘린더 이벤트도 변경된 내용으로 갱신
+      syncRoundToCalendar({
+        id: data.id, course: data.course, date: data.date, time: data.time, members: data.members,
       });
     }
     setModal({ visible: false, initial: null });
@@ -188,6 +195,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
     const remove = () => {
       setSchedules(prev => prev.filter(x => x.id !== s.id));
       cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
+      removeRoundFromCalendar(s.id); // 기기 캘린더 이벤트도 제거
     };
 
     // 과거 라운딩 + 다이어리 기록 있음 → 다이어리에서 삭제하도록 안내

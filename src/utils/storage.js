@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   homeTooltipDone:  '@dg_home_tooltip_done',
   hofTeaserDismissed: '@dg_hof_teaser_dismissed',
   alarms:           '@dg_alarms',
+  calendarEvents:   '@dg_calendar_events',
 };
 
 export const storage = {

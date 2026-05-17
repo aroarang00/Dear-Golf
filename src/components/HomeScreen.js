@@ -21,6 +21,7 @@ import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal } from './AlarmSetupModal';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
+import { syncRoundToCalendar, removeRoundFromCalendar } from '../utils/deviceCalendar';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -250,6 +251,7 @@ export function HomeScreen({ navigation }) {
           onPress: () => {
             setSchedules(prev => prev.filter(x => x.id !== s.id));
             cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
+            removeRoundFromCalendar(s.id); // 기기 캘린더 이벤트도 제거
             setShowScheduleModal(false);
             setSelectedSchedule(null);
           },
@@ -273,6 +275,8 @@ export function HomeScreen({ navigation }) {
       setSchedules(prev => normalizeSchedules([...prev, newS]));
       // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
       getUserCourses().then(list => setUserCoursesList(list || []));
+      // 폰 기본 캘린더에 자동 추가
+      syncRoundToCalendar(newS);
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
         applyDefaultAlarms(newS, userProfile.alarmDefaults);
@@ -294,6 +298,10 @@ export function HomeScreen({ navigation }) {
             types,
           );
         }
+      });
+      // 캘린더 이벤트도 변경된 내용으로 갱신
+      syncRoundToCalendar({
+        id: data.id, course: data.course, date: data.date, time: data.time, members: data.members,
       });
     }
   };

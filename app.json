@@ -51,6 +51,12 @@
         {
           "color": "#6B1E2A"
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "라운딩 일정을 기기 캘린더에 자동으로 추가하기 위해 캘린더 접근 권한이 필요해요"
+        }
       ]
     ],
     "extra": {
