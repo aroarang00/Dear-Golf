@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const C = {
   bgPrimary:    '#FAF6EC',
   bgSecondary:  '#FFFFFF',
@@ -14,11 +16,10 @@ export const C = {
   textSecondary:'#6B6660',
 };
 
-// en: 영문·숫자 디스플레이 (Playfair Display) — Android엔 Georgia가 없어 직접 번들
-// serifKR: 한글 포함 헤더 — 시스템 폰트 (Noto Serif KR은 14MB라 제외)
-// sys: 본문 — 시스템 폰트
+// en: 영문·숫자 디스플레이 세리프 — iOS는 Georgia, Android는 내장 세리프(Noto Serif)
+// serifKR / sys: 한글 헤더·본문 — 시스템 폰트
 export const F = {
-  en: 'PlayfairDisplay_500Medium',
+  en: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }),
   serifKR: '-apple-system',
   sys: '-apple-system',
 };
