@@ -50,6 +50,14 @@ export const KMA_LIVING_URL   = 'https://apis.data.go.kr/1360000/LivingWthrIdxSe
 export const AIRKOREA_URL     = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc';
 
 // =============================================================
+// OpenWeatherMap — 해외 골프장 날씨 (기상청은 국내 전용이라 해외용 별도)
+// https://openweathermap.org/api
+// ※ 해외 라운딩 기능 구현 시 연동 예정 — 현재는 키만 보관 (미사용)
+// =============================================================
+export const OPENWEATHER_API_KEY = 'f88cbb67b3dac21b6f09ed6cf101d5c7';
+export const OPENWEATHER_URL     = 'https://api.openweathermap.org/data/2.5';
+
+// =============================================================
 // 기상청 LCC DFS 좌표 변환 (위경도 → 격자 nx, ny)
 // 단기예보에서 사용
 // =============================================================
