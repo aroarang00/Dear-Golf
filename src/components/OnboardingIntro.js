@@ -55,7 +55,7 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 1 — Dear Golf 인트로 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
+          <Text style={{ fontFamily: F.en, fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
           <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
           <Text style={{ fontFamily: F.sys, fontSize: 16, color: '#1A3D52', fontWeight: '600', letterSpacing: 1 }}>나만의 골프 캐디</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
@@ -77,7 +77,7 @@ export function OnboardingIntro({ onDone }) {
             {/* 헤더 */}
             <View style={{ paddingHorizontal: 22, paddingTop: 18 }}>
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
-              <Text style={{ fontFamily: F.en, fontSize: 32, color: '#fff', fontStyle: 'italic' }}>Dear Golf</Text>
+              <Text style={{ fontFamily: F.en, fontSize: 32, color: '#fff' }}>Dear Golf</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 5 }}>
                 안녕하세요, <Text style={{ color: C.butter, fontWeight: '600' }}>민지</Text>님
               </Text>
@@ -117,81 +117,82 @@ export function OnboardingIntro({ onDone }) {
           {/* 아래쪽 — 한 줄 설명 패널 */}
           <View style={{ backgroundColor: C.navy, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
             <Text style={{ fontFamily: F.sys, fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center', lineHeight: 30 }}>
-              일정·날씨·교통을 한 곳에서
+              일정·날씨·교통을 한눈에
             </Text>
           </View>
         </View>
 
-        {/* 3 — 기록·통계 (워밍그레이 상단 배너) */}
-        <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
-          <View style={{ backgroundColor: C.warmGray, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }}>02</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 21, color: '#fff', fontWeight: '700', marginTop: 4 }}>기록 · 통계</Text>
-          </View>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingVertical: 24, justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 21, marginBottom: 18 }}>
-              스코어·메모부터 사진·가계부·해외 기록까지,{'\n'}100대 코스 도전하기 현황도 한눈에 모아봐요.
-            </Text>
-            {/* 미니 라운딩 기록 카드 예시 */}
-            <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
+        {/* 3 — 기록·통계 (새 스타일: 데모 화면 + 한 줄 설명 / 전부 가짜 샘플) */}
+        <View style={{ width: SW, backgroundColor: C.burgundy }}>
+          <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top + 12 }}>
+            <View style={{ flexDirection: 'row', height: 3 }}>
+              <View style={{ flex: 1, backgroundColor: C.butter }} />
+              <View style={{ flex: 1, backgroundColor: C.paleSky }} />
+              <View style={{ flex: 1, backgroundColor: C.burgundy }} />
+            </View>
+            <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, letterSpacing: 2, marginBottom: 3 }}>나의 라운딩 기록</Text>
+              <Text style={{ fontFamily: F.en, fontSize: 30, color: C.charcoal }}>Diary</Text>
+            </View>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginTop: 18 }}>
+              {[['라운딩', '24'], ['평균타', '92'], ['베스트', '78']].map(([l, v]) => (
+                <View key={l} style={{ flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.en, fontSize: 24, color: C.charcoal, fontWeight: '700' }}>{v}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{l}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ marginHorizontal: 24, marginTop: 16, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>2026.05.24 토</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '600', marginTop: 3 }}>제이드팰리스 GC</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
-                <Text style={{ fontFamily: F.en, fontSize: 30, color: C.charcoal, fontWeight: '700' }}>88</Text>
+                <Text style={{ fontFamily: F.en, fontSize: 34, color: C.burgundy, fontWeight: '700' }}>88</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>타 · +16</Text>
               </View>
               <View style={{ borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 8, marginTop: 8 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary }}>드라이버가 잘 맞은 날 ⛳</Text>
               </View>
             </View>
-            {/* 기능 하이라이트 */}
-            <View style={{ marginTop: 24, gap: 16 }}>
-              <Feature icon="🏆" title="코스별 베스트·평균" sub="어느 코스가 잘 맞는지 한눈에" />
-              <Feature icon="✍️" title="한줄 다이어리" sub="그날의 감각을 짧게 남기기" />
-              <Feature icon="📊" title="라운딩 통계 요약" sub="평균타·베스트·라운딩 수를 한눈에" />
-              <Feature icon="📷" title="라운딩 사진 기록" sub="그날의 코스·순간을 사진으로 함께" />
-              <Feature icon="💰" title="골프 가계부" sub="그린피·식대 등 라운딩 지출 관리" />
-              <Feature icon="🌏" title="해외 라운딩 기록" sub="해외 골프장 기록도 저장해 한눈에" />
-              <Feature icon="⛳" title="100대 코스 도전하기" sub="국내 100대 코스, 몇 곳이나 갔는지 확인" />
-            </View>
-          </ScrollView>
+          </View>
+          <View style={{ backgroundColor: C.burgundy, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center', lineHeight: 30 }}>
+              나만의 골프 기록을 모아서
+            </Text>
+          </View>
         </View>
 
-        {/* 4 — 명예의 전당 (버건디 상단 배너) */}
-        <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
-          <View style={{ backgroundColor: C.burgundy, paddingTop: insets.top + 28, paddingBottom: 26, paddingHorizontal: 36 }}>
-            <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 14, color: C.butter, letterSpacing: 2 }}>03</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 21, color: '#fff', fontWeight: '700', marginTop: 4 }}>명예의 전당</Text>
-          </View>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingVertical: 24, justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 21, marginBottom: 18 }}>
-              홀인원·알바트로스·이글 같은 특별한 순간은{'\n'}자동으로 기념 카드가 만들어져 따로 보관돼요.
-            </Text>
-            {/* 미니 명예의 전당 카드 예시 */}
-            <View style={{ backgroundColor: '#2A2622', borderRadius: 14, borderWidth: 0.5, borderColor: '#C9A84C44', padding: 16 }}>
-              <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 17, color: '#C9A84C', letterSpacing: 3 }}>HOLE IN ONE</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 3 }}>2024.09.15 · 제이드팰리스 GC</Text>
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: 9 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 7, color: '#C9A84CAA', letterSpacing: 2 }}>HOLE</Text>
-                  <Text style={{ fontFamily: F.en, fontSize: 19, color: '#C9A84C', marginTop: 2 }}>7번홀</Text>
+        {/* 4 — 명예의 전당 (새 스타일: 데모 화면 + 한 줄 설명 / 전부 가짜 샘플) */}
+        <View style={{ width: SW, backgroundColor: C.charcoal }}>
+          <View style={{ flex: 1, backgroundColor: '#2A2622', paddingTop: insets.top + 12 }}>
+            <View style={{ flexDirection: 'row', height: 3 }}>
+              <View style={{ flex: 1, backgroundColor: C.butter }} />
+              <View style={{ flex: 1, backgroundColor: C.paleSky }} />
+              <View style={{ flex: 1, backgroundColor: C.burgundy }} />
+            </View>
+            <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(201,168,76,0.7)', letterSpacing: 3, marginBottom: 4 }}>HALL OF FAME</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.butter, fontWeight: '700' }}>명예의 전당</Text>
+            </View>
+            <View style={{ marginHorizontal: 24, marginTop: 24, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(201,168,76,0.5)', padding: 20 }}>
+              <Text style={{ fontFamily: F.en, fontSize: 22, color: '#C9A84C', letterSpacing: 3 }}>HOLE IN ONE</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 5 }}>2024.09.15 · 제이드팰리스 GC</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 12 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 8, color: 'rgba(201,168,76,0.75)', letterSpacing: 2 }}>HOLE</Text>
+                  <Text style={{ fontFamily: F.en, fontSize: 22, color: '#C9A84C', marginTop: 4 }}>7번홀</Text>
                 </View>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: 9 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 7, color: '#C9A84CAA', letterSpacing: 2 }}>PAR · DIST</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 5 }}>파3 · 156m</Text>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 12 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 8, color: 'rgba(201,168,76,0.75)', letterSpacing: 2 }}>PAR · DIST</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 8 }}>파3 · 156m</Text>
                 </View>
               </View>
             </View>
-            {/* 기능 하이라이트 */}
-            <View style={{ marginTop: 24, gap: 16 }}>
-              <Feature icon="🏆" title="홀인원·알바트로스·이글" sub="특별한 한 샷이 자동으로 기념 카드로" />
-              <Feature icon="⛳" title="퍼스트 싱글·라이프 베스트" sub="기록 경신의 순간도 명예의 전당에" />
-              <Feature icon="📇" title="그 순간 그대로" sub="홀·파·거리·볼·동반자까지 카드에 새겨서" />
-              <Feature icon="📖" title="따로 모아보기" sub="다이어리 상단에서 특별한 순간만 펼쳐보기" />
-            </View>
-          </ScrollView>
+          </View>
+          <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center', lineHeight: 30 }}>
+              특별한 순간은 명예의 전당에
+            </Text>
+          </View>
         </View>
 
         {/* 5 — 위치 권한 안내 (팔레스카이 배너) */}
