@@ -265,20 +265,63 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         </Section>
       )}
 
-      {/* 검색 결과 (검색어 있을 때만) */}
-      {!!search.trim() && (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 }}>
-          {searching ? (
-            <View style={{ paddingVertical: 18, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={C.warmGray} />
-            </View>
-          ) : searchResults.length === 0 ? (
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 12, textAlign: 'center' }}>
-              검색 결과가 없어요
-            </Text>
-          ) : (
-            searchResults.map((r, i) => {
-              return (
+      {/* 검색 결과 — 로컬(최근·저장·100대) 포함검색 + 카카오 검색을 합쳐 표시.
+          로컬은 네트워크 없이 즉시 떠서, 두 글자만 입력해도 자동 목록이 보인다. */}
+      {!!search.trim() && (() => {
+        const q = search.trim();
+        const norm = (s) => (s || '').replace(/\s/g, '').toLowerCase();
+        const inKakao = new Set(searchResults.map(r => norm(r.name)));
+        const seen = new Set();
+        const localMatches = [];
+        const addLocal = (c, kind, loc) => {
+          if (!c?.name || !c.name.includes(q)) return; // 이름 포함검색
+          const k = norm(c.name);
+          if (seen.has(k) || inKakao.has(k)) return;
+          seen.add(k);
+          localMatches.push({ ...c, _kind: kind, _loc: loc });
+        };
+        recentCourses.forEach(c => addLocal(c, 'recent', c.loc));
+        savedCourses.forEach(c => addLocal(c, 'saved', c.loc));
+        top100.forEach(c => addLocal(c, 'top100', c.region));
+        const shownLocal = localMatches.slice(0, 10);
+
+        const onLocalTap = async (m) => {
+          if (m._kind === 'top100') { openTop100Course(m); return; }
+          await addRecentCourse(m);
+          refreshRecent();
+          const existing = savedCourses.find(s => s.kakaoId === m.kakaoId);
+          if (existing) onSelectCourse?.(existing.id);
+          else onOpenPreview?.(m);
+        };
+
+        const noResult = !searching && shownLocal.length === 0 && searchResults.length === 0;
+        const rowStyle = { flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+          borderBottomWidth: 0.5, borderBottomColor: C.hairline };
+        return (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 }}>
+            {shownLocal.map((m, i) => (
+              <TouchableOpacity key={`L_${m.kakaoId || m.rank || i}`} onPress={() => onLocalTap(m)}
+                activeOpacity={0.7} style={rowStyle}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {m.name}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{m._loc || '위치 미상'}</Text>
+                </View>
+                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginRight: 6 }}>
+                  {m._kind === 'top100' ? '100대' : '최근'}
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
+              </TouchableOpacity>
+            ))}
+            {searching ? (
+              <View style={{ paddingVertical: 18, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={C.warmGray} />
+              </View>
+            ) : noResult ? (
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 12, textAlign: 'center' }}>
+                검색 결과가 없어요
+              </Text>
+            ) : (
+              searchResults.map((r, i) => (
                 <TouchableOpacity key={r.kakaoId || i}
                   onPress={async () => {
                     // 검색 결과 탭 → 최근 검색 이력에 기록
@@ -289,20 +332,18 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                     if (existing) onSelectCourse?.(existing.id);
                     else onOpenPreview?.(r);
                   }}
-                  activeOpacity={0.7}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
-                    borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                  activeOpacity={0.7} style={rowStyle}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {r.name}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{r.loc}</Text>
                   </View>
                   <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
                 </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
-      )}
+              ))
+            )}
+          </View>
+        );
+      })()}
 
       {/* 3. 최근 검색 골프장 — 검색 이력 (이력 없으면 섹션 숨김) */}
       {recentCourses.length > 0 && (

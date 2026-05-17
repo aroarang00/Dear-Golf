@@ -65,15 +65,26 @@ export async function searchGolfCourses(query) {
   };
 
   try {
-    // 입력어를 그대로 여러 페이지 검색 — 두 글자만 쳐도 이름에 포함된 골프장이 뜨도록.
-    // 골프장은 'CC·컨트리클럽' 이름이 많아 '골프장'을 덧붙이면 매칭이 깨지므로 원문 우선.
-    let results = dedupe(await runQuery(q, 3));
-    if (results.length === 0) {
-      // 폴백 1: 일반 단어일 수 있어 '골프장'을 붙여 재검색
-      results = dedupe(await runQuery(q + ' 골프장', 2));
+    const hasGolfWord = /(골프|gc|cc|컨트리클럽|country\s*club)/i.test(q);
+    let results;
+    if (hasGolfWord) {
+      // 이미 골프 관련어가 있으면 입력어 그대로 (예: "동촌cc")
+      results = dedupe(await runQuery(q, 3));
+    } else {
+      // 골프장 이름은 'CC·GC·컨트리클럽'으로 끝나는 곳이 많다. 이름 한 단어("동촌")만
+      // 쳐도, 카카오 검색에선 동명 지명에 밀려 골프장이 안 뜬다. → 입력어 + 골프 접미어
+      // 변형을 함께 검색해 합친다. ("동촌" → "동촌cc"가 동촌CC를 찾아냄)
+      const lists = await Promise.all([
+        runQuery(q, 2),
+        runQuery(q + 'cc', 1),
+        runQuery(q + 'gc', 1),
+        runQuery(q + ' 컨트리클럽', 1),
+        runQuery(q + ' 골프장', 1),
+      ]);
+      results = dedupe(lists.flat());
     }
     if (results.length === 0) {
-      // 폴백 2: 'GC/CC/골프클럽' 약어를 떼고 재검색 (예: 킹스데일GC → 킹스데일)
+      // 폴백: 'GC/CC/골프클럽' 약어를 떼고 재검색 (예: 킹스데일GC → 킹스데일)
       const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
       if (bare && bare !== q) results = dedupe(await runQuery(bare, 3));
     }
