@@ -5,6 +5,7 @@ import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
 import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
+import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 import { mS } from '../styles/mS';
 
 export function ScheduleModal({ visible, onClose, onSave, initial }) {
@@ -21,6 +22,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [members, setMembers] = useState('4');
   const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState('');
+  const [recentCourses, setRecentCourses] = useState([]); // 최근 검색한 골프장
   const debounceRef = useRef(null);
   // 해외 라운딩 — 국내/해외 + 도시(날씨 조회용)
   const [overseas, setOverseas] = useState(false);
@@ -72,6 +74,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     }
   }, [visible, initial]);
 
+  // 일정 등록 화면 열릴 때 — 최근 검색한 골프장 로드
+  useEffect(() => {
+    if (visible) getRecentCourses().then(r => setRecentCourses(r || []));
+  }, [visible]);
+
   // 검색어 debounce (300ms) → 카카오 API 호출
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -115,6 +122,20 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setSelected(saved);
     setCourseSearch(saved.name);
     setSearchResults([]);
+    // 최근 검색 이력에 기록
+    addRecentCourse({ name: r.name, loc: r.loc, x: r.x, y: r.y, kakaoId: r.kakaoId })
+      .then(list => setRecentCourses(list || []));
+  };
+
+  // 최근 검색한 골프장 탭 → 바로 자동 입력
+  const handleSelectRecent = async (rc) => {
+    const saved = await addUserCourse({
+      name: rc.name, loc: rc.loc, x: rc.x, y: rc.y, kakaoId: rc.kakaoId,
+    });
+    setSelected(saved);
+    setCourseSearch(saved.name);
+    setSearchResults([]);
+    addRecentCourse(rc).then(list => setRecentCourses(list || []));
   };
 
   const handleRenameSave = async () => {
@@ -235,6 +256,22 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                       <Text style={mS.searchLoc}>{r.loc}</Text>
                     </TouchableOpacity>
                   ))}
+                </View>
+              )}
+
+              {/* 입력 전 — 최근 검색한 골프장 바로 선택 */}
+              {!overseas && !selected && !courseSearch && recentCourses.length > 0 && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 6 }}>🕘 최근 검색</Text>
+                  <View style={mS.searchDrop}>
+                    {recentCourses.slice(0, 5).map((rc, i) => (
+                      <TouchableOpacity key={rc.kakaoId || `${rc.name}_${i}`} style={mS.searchItem}
+                        onPress={() => handleSelectRecent(rc)}>
+                        <Text style={mS.searchName}>{rc.name}</Text>
+                        {!!rc.loc && <Text style={mS.searchLoc}>{rc.loc}</Text>}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               )}
 
