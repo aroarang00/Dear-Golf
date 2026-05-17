@@ -162,6 +162,16 @@ export function OnboardingIntro({ onDone }) {
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary }}>퍼팅 감이 좋았던 하루 ⛳</Text>
               </View>
             </View>
+            <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>2026.03.22 일 · 남서울 CC</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                <Text style={{ fontFamily: F.en, fontSize: 30, color: C.charcoal, fontWeight: '700' }}>85</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>타 · +13</Text>
+              </View>
+              <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 6 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary }}>아이언이 살아난 라운드 ⛳</Text>
+              </View>
+            </View>
           </View>
           <View style={{ backgroundColor: C.burgundy, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
             <Text style={{ fontFamily: F.sys, fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center', lineHeight: 30 }}>
@@ -204,6 +214,15 @@ export function OnboardingIntro({ onDone }) {
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>2025.06.20 · 우정힐스 CC</Text>
               </View>
               <Text style={{ fontFamily: F.en, fontSize: 38, color: '#C8D9E6', fontWeight: '700' }}>79</Text>
+            </View>
+            {/* 이글 카드 */}
+            <View style={{ marginHorizontal: 24, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(168,197,137,0.5)', padding: 18, flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: F.en, fontSize: 17, color: '#A8C589', letterSpacing: 2 }}>EAGLE</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#fff', fontWeight: '600', marginTop: 4 }}>14번홀 파5 · 이글</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>2025.09.07 · 블랙스톤 제주</Text>
+              </View>
+              <Text style={{ fontFamily: F.en, fontSize: 36, color: '#A8C589', fontWeight: '700' }}>−2</Text>
             </View>
           </View>
           <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
