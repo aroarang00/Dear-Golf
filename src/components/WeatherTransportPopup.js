@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, PanResponder, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C } from '../constants/colors';
 import { wxS } from '../styles/wxS';
@@ -138,6 +138,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [wxFailed, setWxFailed] = useState(false); // 날씨 데이터 로드 실패 (좌표 미해석 등)
   const [retryTick, setRetryTick] = useState(0);   // 다시 시도 트리거
   const { width: SW } = useWindowDimensions();
+  const insets = useSafeAreaInsets(); // 하단 시스템바 — 스크롤 끝 버튼이 안 잘리도록
 
   const { userProfile } = React.useContext(UserContext);
   const homeAddress = userProfile?.departure || '';
@@ -610,7 +611,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             <PinchGestureHandler onGestureEvent={onPinchEvent} onHandlerStateChange={onPinchStateChange}>
             <Animated.ScrollView
               style={{ flex: 1, transform: [{ scale }] }}
-              contentContainerStyle={{ paddingBottom: 40 }}
+              contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
               showsVerticalScrollIndicator={false}>
 
               {/* ① 구장명 + 날짜 */}
@@ -844,7 +845,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             <View style={{ width: SW }}>
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 40 }}
+              contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
               showsVerticalScrollIndicator={false}>
 
               {/* 교통 탭 헤더 (다크 톤 통일) */}
