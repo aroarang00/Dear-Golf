@@ -199,7 +199,7 @@ export function CourseLogTab({ avgRating, navigation }) {
       if (!map[k]) map[k] = { name: k, records: [], scheduleEntries: [] };
       return map[k];
     };
-    (diaries || []).forEach(d => { const e = entryOf(d.course); if (e) e.records.push(d); });
+    (diaries || []).filter(d => !d.overseas).forEach(d => { const e = entryOf(d.course); if (e) e.records.push(d); });
     // 예정(미래) 일정은 제외 — 지난 일정만 '완료된 라운딩'으로 집계
     (schedules || []).forEach(s => {
       if (!isPast(s.date)) return;
@@ -243,6 +243,31 @@ export function CourseLogTab({ avgRating, navigation }) {
       })
       .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
   }, [diaries, schedules, userCourses]);
+
+  // 해외 라운딩 — 다이어리 기록 중 overseas만 골프장별 집계
+  const overseasCourses = React.useMemo(() => {
+    const map = {};
+    (diaries || []).filter(d => d.overseas).forEach(d => {
+      const k = (d.course || '').trim();
+      if (!k) return;
+      if (!map[k]) map[k] = { key: k, name: k, country: d.country || '', records: [] };
+      map[k].records.push(d);
+      if (d.country && !map[k].country) map[k].country = d.country;
+    });
+    return Object.values(map).map(e => {
+      const scores = e.records.map(r => r.score).filter(s => typeof s === 'number' && s > 0);
+      const dates = e.records.map(r => r.date).filter(Boolean).sort((a, b) => (b || '').localeCompare(a || ''));
+      const latestRec = [...e.records].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+      return {
+        key: e.key, name: e.name, country: e.country,
+        visits: e.records.length,
+        best: scores.length ? Math.min(...scores) : 0,
+        avg: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
+        memo: latestRec?.memo || '',
+        latestDate: dates[0] || '',
+      };
+    }).sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
+  }, [diaries]);
 
   // 100대 코스 체크 상태
   //  자동: 완료된 라운딩(다이어리 기록 + 지난 일정)이 있는 코스
@@ -334,75 +359,32 @@ export function CourseLogTab({ avgRating, navigation }) {
         </View>
       )}
       {region === 'overseas' && (
-        <View style={{ paddingHorizontal: 16 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {countries.map(country => (
-                <TouchableOpacity key={country} style={[dS.tag, countryFilter === country && { backgroundColor: C.charcoal }]} onPress={() => setCountryFilter(country)}>
-                  <Text style={[dS.tagTxt, countryFilter === country && { color: C.butter }]}>
-                    {country === '전체' ? '전체' : `${OVERSEAS_COURSE_LOG.find(c => c.country === country)?.flag} ${country}`}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        <View>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
+            해외 골프장 · {overseasCourses.length}곳
+          </Text>
+          {overseasCourses.length === 0 ? (
+            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>아직 해외 라운딩 기록이 없어요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>라운딩 기록 추가에서 '해외'를 선택하면 모여요</Text>
             </View>
-          </ScrollView>
-          {filteredOverseas.map(c => {
-            const stars = (c.tags || []).filter(isStarTag);
-            const features = (c.tags || []).filter(t => !isStarTag(t));
-            const isOpen = !!expanded[c.id];
-            const rs = { bg: OVERSEAS_STYLE.bg, fg: OVERSEAS_STYLE.fg, label: c.country };
-            return (
-              <TouchableOpacity key={c.id}
-                style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: rs.bg }]}
-                activeOpacity={0.85}
-                onPress={() => toggle(c.id)}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <Text style={{ fontSize: 20 }}>{c.flag}</Text>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-                      <Text style={dS.courseName}>{c.name}</Text>
-                      {avgRating && avgRating(c.id) > 0 && (
-                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#C9A84C' }}>★ {avgRating(c.id)}</Text>
-                      )}
-                    </View>
-                    <Text style={dS.courseLoc}>{c.loc} · {c.visits}회 방문</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <TouchableOpacity
-                      activeOpacity={0.6}
-                      onPress={() => navigation && navigation.navigate('코스', { openCourseId: c.id })}
-                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-                      <Text style={{ fontSize: 18, color: C.warmGrayLight }}>›</Text>
-                    </TouchableOpacity>
-                    <View style={{ width: 1, height: 14, backgroundColor: C.hairline }} />
-                    <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>{isOpen ? '▴' : '▾'}</Text>
-                    </View>
-                  </View>
+          ) : overseasCourses.map(c => (
+            <View key={c.key} style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: C.paleSky }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Text style={{ fontSize: 15 }}>✈️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={dS.courseName}>{c.name}</Text>
+                  <Text style={dS.courseLoc}>{c.country || '해외'} · {c.visits}회 방문</Text>
                 </View>
-
-                <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginBottom: isOpen ? 10 : 0 }}>
-                  {stars.map((t, i) => <View key={`s${i}`} style={dS.tag}><Text style={dS.tagTxt}>{t}</Text></View>)}
-                  {!isOpen && renderRegionTag(rs.bg, rs.fg, rs.label)}
-                </View>
-
-                {isOpen && (
-                  <>
-                    <View style={dS.recordRow}>
-                      <View style={dS.recVisit}><Text style={dS.recValDark}>{c.visits}</Text><Text style={dS.recLblDark}>방문</Text></View>
-                      <View style={dS.recBest}><Text style={dS.recValWhite}>{c.best}</Text><Text style={dS.recLblWhite}>베스트</Text></View>
-                      <View style={dS.recAvg}><Text style={dS.recValButter}>{c.avg}</Text><Text style={dS.recLblButter}>평균</Text></View>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
-                      {features.map((t, i) => <View key={`f${i}`} style={dS.tag}><Text style={dS.tagTxt}>{t}</Text></View>)}
-                      {renderRegionTag(rs.bg, rs.fg, rs.label)}
-                    </View>
-                    <Text style={dS.courseMemo}>"{c.memo}"</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+              </View>
+              <View style={dS.recordRow}>
+                <View style={dS.recVisit}><Text style={dS.recValDark}>{c.visits}</Text><Text style={dS.recLblDark}>방문</Text></View>
+                <View style={dS.recBest}><Text style={dS.recValWhite}>{c.best || '-'}</Text><Text style={dS.recLblWhite}>베스트</Text></View>
+                <View style={dS.recAvg}><Text style={dS.recValButter}>{c.avg || '-'}</Text><Text style={dS.recLblButter}>평균</Text></View>
+              </View>
+              {c.memo ? <Text style={[dS.courseMemo, { marginTop: 8 }]}>"{c.memo}"</Text> : null}
+            </View>
+          ))}
         </View>
       )}
       <View style={{ height: 32 }} />

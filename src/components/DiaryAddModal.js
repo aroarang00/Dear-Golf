@@ -39,6 +39,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [starRating, setStarRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState([]);
   const [detailMemo, setDetailMemo] = useState('');
+  const [overseas, setOverseas] = useState(false); // 국내/해외 라운딩
+  const [country, setCountry] = useState('');      // 해외일 때 국가·지역
 
   const toggleTag = (tag) => {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
@@ -83,7 +85,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   // 카카오 API debounce 검색
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!courseSearch || courseSearch === selectedCourse) {
+    if (overseas || !courseSearch || courseSearch === selectedCourse) {
       setKakaoResults([]);
       setKakaoSearching(false);
       return;
@@ -95,7 +97,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setKakaoSearching(false);
     }, 300);
     return () => debounceRef.current && clearTimeout(debounceRef.current);
-  }, [courseSearch, selectedCourse]);
+  }, [courseSearch, selectedCourse, overseas]);
 
   const handleSelectKakaoResult = async (r) => {
     const saved = await addUserCourse({ name: r.name, loc: r.loc, x: r.x, y: r.y, kakaoId: r.kakaoId });
@@ -127,6 +129,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setDetailMemo('');
     setPrivacy('friends');
     setCompanions([]); setCompanionInput('');
+    setOverseas(false); setCountry('');
   };
 
   useEffect(() => {
@@ -162,6 +165,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           .map(c => c.name)
       );
       setCompanionInput('');
+      setOverseas(!!initial.overseas);
+      setCountry(initial.country || '');
       if (initial.cost) {
         setCosts({
           green: initial.cost.green ? String(initial.cost.green) : '',
@@ -188,6 +193,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (initial?.courseId) {
         findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
       }
+      if (initial?.overseas) { setOverseas(true); setCountry(initial.country || ''); }
     }
   }, [visible, isEdit, initial]);
 
@@ -237,6 +243,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         ...companions.map(name => ({ name, isMe: false })),
       ],
       courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
+      overseas,
+      country: overseas ? country.trim() : '',
     };
     if (isEdit) {
       onSave('diary-edit', { id: initial.id, ...payload });
@@ -258,15 +266,34 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             </TouchableOpacity>
             <ScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
               <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
+              {/* 국내 / 해외 */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                {[['국내', false], ['해외', true]].map(([l, v]) => (
+                  <TouchableOpacity key={l} activeOpacity={0.7}
+                    onPress={() => { setOverseas(v); setKakaoResults([]); }}
+                    style={[mS.chip, overseas === v && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                    <Text style={[mS.chipTxt, overseas === v && mS.chipTxtOn]}>{l}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <Text style={mS.label}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={mS.input} placeholder="카카오로 골프장 검색 또는 직접 입력..."
+              <TextInput style={mS.input}
+                placeholder={overseas ? '골프장 이름 입력' : '카카오로 골프장 검색 또는 직접 입력...'}
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
                 autoCorrect={false} autoCapitalize="none"
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); setSelectedCourseObj(null); }} />
-              {kakaoSearching && (
+              {!overseas && kakaoSearching && (
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>검색 중...</Text>
               )}
-              {courseSearch.length > 0 && courseSearch !== selectedCourse && !kakaoSearching && (
+              {overseas && (
+                <>
+                  <Text style={mS.label}>국가 · 지역</Text>
+                  <TextInput style={mS.input} placeholder="예: 일본 오키나와 / 베트남 다낭"
+                    placeholderTextColor={C.warmGrayLight} value={country} onChangeText={setCountry}
+                    autoCorrect={false} />
+                </>
+              )}
+              {!overseas && courseSearch.length > 0 && courseSearch !== selectedCourse && !kakaoSearching && (
                 <View style={mS.searchDrop}>
                   {kakaoResults.map(r => (
                     <TouchableOpacity key={r.kakaoId} style={mS.searchItem}
