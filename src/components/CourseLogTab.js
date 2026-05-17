@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses } from '../utils/userCourses';
+import { getTop100Courses, matchVisitedTop100 } from '../utils/top100';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { dS } from '../styles/dS';
 
@@ -144,6 +146,8 @@ export function CourseLogTab({ avgRating, navigation }) {
   const [expanded, setExpanded] = useState({});
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [userCourses, setUserCourses] = useState([]);
+  const [top100, setTop100] = useState([]);
+  const [top100Open, setTop100Open] = useState(false);
   const scrollRef = useRef(null);
 
   const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -151,12 +155,14 @@ export function CourseLogTab({ avgRating, navigation }) {
   // 라운딩 기록 + 등록 코스 로드 — 탭 진입 시마다 갱신 (다이어리 기록 후 즉시 반영)
   useEffect(() => {
     const load = async () => {
-      const [d, uc] = await Promise.all([
+      const [d, uc, t100] = await Promise.all([
         storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
         getUserCourses(),
+        getTop100Courses(),
       ]);
       setDiaries(d || DIARY_DATA);
       setUserCourses(uc || []);
+      if (t100 && t100.length) setTop100(t100);
     };
     load();
     if (!navigation) return;
@@ -235,6 +241,16 @@ export function CourseLogTab({ avgRating, navigation }) {
       .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
   }, [diaries, schedules, userCourses]);
 
+  // 100대 코스 중 방문한 코스 (myCourses = 다이어리·지난 일정으로 집계된 방문 골프장)
+  const visitedTop100 = React.useMemo(
+    () => matchVisitedTop100(top100, myCourses.map(c => c.name)),
+    [top100, myCourses],
+  );
+  const visitedTop100Set = React.useMemo(
+    () => new Set(visitedTop100.map(c => c.rank)),
+    [visitedTop100],
+  );
+
   // 기록 없는 카드 → 해당 골프장·날짜로 다이어리 기록 입력 화면 이동
   const handleAddRecord = (c) => {
     if (!navigation) return;
@@ -256,19 +272,32 @@ export function CourseLogTab({ avgRating, navigation }) {
   );
 
   return (
+    <>
     <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
-      {/* 100대 코스 — 서비스 준비중 */}
-      <View style={[dS.banner, { backgroundColor: '#fff', borderColor: '#C9A84C', borderWidth: 1.5 }]}>
+      {/* 100대 코스 도전하기 — 방문 현황 (탭하면 전체 목록) */}
+      <TouchableOpacity
+        style={[dS.banner, { backgroundColor: '#fff', borderColor: '#C9A84C', borderWidth: 1.5 }]}
+        activeOpacity={0.85}
+        onPress={() => setTop100Open(true)}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
-          <View style={{ backgroundColor: '#C9A84C', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#fff', fontWeight: '600' }}>준비중</Text>
-          </View>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#A88A2E', fontWeight: '600' }}>전체 보기 ›</Text>
         </View>
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 8, lineHeight: 18 }}>
-          🏌️ 100대 골프코스 서비스를 준비중이에요
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
+          <Text style={{ fontFamily: F.en, fontSize: 30, color: '#C9A84C', fontWeight: '700' }}>{visitedTop100.length}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>/ 100 곳 방문</Text>
+        </View>
+        <View style={{ height: 6, borderRadius: 3, backgroundColor: '#F0EDE6', marginTop: 8, overflow: 'hidden' }}>
+          <View style={{ height: 6, borderRadius: 3, backgroundColor: '#C9A84C', width: `${visitedTop100.length}%` }} />
+        </View>
+        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 8 }}>
+          {top100.length === 0
+            ? '목록을 불러오는 중…'
+            : visitedTop100.length === 0
+              ? '🏌️ 한국 100대 골프코스, 몇 곳이나 가보셨나요?'
+              : `한국 100대 골프코스 중 ${visitedTop100.length}곳을 다녀왔어요`}
         </Text>
-      </View>
+      </TouchableOpacity>
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
         {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
           <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>
@@ -369,5 +398,57 @@ export function CourseLogTab({ avgRating, navigation }) {
       )}
       <View style={{ height: 32 }} />
     </ScrollView>
+
+    {/* 100대 코스 전체 목록 모달 */}
+    <Modal visible={top100Open} animationType="slide" onRequestClose={() => setTop100Open(false)}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+          <View>
+            <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.charcoal, fontWeight: '700' }}>100대 코스 도전하기</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 }}>
+              한국골프관광협회 2024-2025 · {visitedTop100.length}/100 방문
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => setTop100Open(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ fontSize: 22, color: C.warmGray }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingBottom: 32 }}>
+          {top100.length === 0 ? (
+            <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>목록을 불러오는 중…</Text>
+            </View>
+          ) : top100.map(c => {
+            const visited = visitedTop100Set.has(c.rank);
+            const rs = getRegionStyle(c.region);
+            return (
+              <View key={c.rank} style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                paddingHorizontal: 18, paddingVertical: 10,
+                backgroundColor: visited ? '#FBF7EE' : 'transparent',
+              }}>
+                <Text style={{ fontFamily: F.en, fontSize: 14, fontWeight: '700', width: 30, color: visited ? '#A88A2E' : C.warmGrayLight }}>
+                  {c.rank}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: visited ? '700' : '400' }}>
+                    {c.name}
+                  </Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 1 }}>{c.region}</Text>
+                </View>
+                {visited ? (
+                  <View style={{ backgroundColor: '#C9A84C', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff', fontWeight: '600' }}>✓ 방문</Text>
+                  </View>
+                ) : (
+                  <RegionTag rs={rs} />
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+    </>
   );
 }
