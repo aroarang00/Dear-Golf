@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getShortForecast } from '../../utils/kma';
 import { getCurrentLocation } from '../../utils/location';
@@ -55,7 +56,18 @@ export function HomeBgSlider() {
   return (
     <View style={StyleSheet.absoluteFillObject}>
       <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,30,16,0.72)' }} />
+      {/* 균일한 어두운 막 대신 그라데이션 — 글씨가 있는 위(헤더)·아래(메모)는 진하게,
+          가운데(D-day 카드 영역)는 옅게 해서 배경 사진이 밝게 보이도록 */}
+      <LinearGradient
+        style={StyleSheet.absoluteFillObject}
+        colors={[
+          'rgba(8,24,14,0.86)',
+          'rgba(8,24,14,0.40)',
+          'rgba(8,24,14,0.46)',
+          'rgba(8,24,14,0.74)',
+        ]}
+        locations={[0, 0.34, 0.6, 1]}
+      />
     </View>
   );
 }

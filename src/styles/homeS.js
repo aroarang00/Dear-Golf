@@ -10,7 +10,7 @@ export const homeS = StyleSheet.create({
   bottomArea:      { paddingBottom: 0 },
   secLabel:        { fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },
   mainCard:        { width: 232, height: 220, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: 16 },
-  cardCourse:      { fontFamily: F.sys, fontSize: 15, color: '#fff', marginBottom: 6, lineHeight: 20 },
+  cardCourse:      { fontFamily: F.sys, fontSize: 15, color: '#fff', marginBottom: 6, lineHeight: 20, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   cardDate:        { fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)' },
   cardDDay:        { fontFamily: F.en, fontSize: 58, color: C.butter, lineHeight: 62, letterSpacing: -1 },
   subCard:         { width: 110, height: 220, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: 12, justifyContent: 'space-between' },

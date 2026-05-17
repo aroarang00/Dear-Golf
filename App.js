@@ -75,6 +75,13 @@ export default function App() {
     setShowOnboarding(false);
   };
 
+  // 계정 탈퇴 완료 — 프로필 초기화 후 온보딩 화면으로
+  const handleAccountDeleted = () => {
+    setUserProfile(USER_PROFILE_INIT);
+    setIntroDone(false);
+    setShowOnboarding(true);
+  };
+
   if (!profileLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgPrimary }}>
@@ -100,7 +107,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
-    <UserContext.Provider value={{ userProfile, setUserProfile }}>
+    <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted }}>
     <SchedulesProvider>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>

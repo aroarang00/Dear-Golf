@@ -12,9 +12,10 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { TripleStripe } from './common/TripleStripe';
 import { searchPlaces } from '../utils/kakao';
 import { requestNotificationPermission, syncAlarmTypeAcrossSchedules } from '../utils/notifications';
+import { deleteAccount } from '../utils/account';
 
 export function MyPageModal({ visible, onClose }) {
-  const { userProfile, setUserProfile } = React.useContext(UserContext);
+  const { userProfile, setUserProfile, onAccountDeleted } = React.useContext(UserContext);
   const { schedules } = React.useContext(SchedulesContext);
   const scrollRef = useRef(null);
   const [nickname, setNickname] = useState(userProfile.nickname);
@@ -156,6 +157,30 @@ export function MyPageModal({ visible, onClose }) {
     setNickname(trimmed);
     setEditingNick(false);
     Alert.alert('완료', '닉네임이 변경되었어요');
+  };
+
+  // 계정 탈퇴 — 확인 후 Firebase 계정·Firestore 데이터·로컬 데이터를 모두 삭제하고 온보딩으로
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      '정말 탈퇴하시겠어요?',
+      '탈퇴하면 계정과 모든 기록(일정·다이어리·명예의 전당·골퍼 코멘트)이 삭제되며 복구할 수 없어요.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+            } catch (e) {
+              console.warn('[account] 탈퇴 처리 오류', e?.message);
+            }
+            onClose();
+            onAccountDeleted && onAccountDeleted();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -420,6 +445,15 @@ export function MyPageModal({ visible, onClose }) {
                     <Text style={myS.menuValue}>›</Text>
                   </TouchableOpacity>
                 ))}
+              </View>
+              <View style={myS.divider} />
+              <View style={myS.section}>
+                <Text style={myS.sectionLabel}>계정</Text>
+                <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7} onPress={handleDeleteAccount}>
+                  <Text style={myS.menuIcon}>⚠️</Text>
+                  <Text style={[myS.menuLabel, { color: C.burgundy }]}>계정 탈퇴</Text>
+                  <Text style={myS.menuValue}>›</Text>
+                </TouchableOpacity>
               </View>
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>Dear Golf v1.0.0</Text>
