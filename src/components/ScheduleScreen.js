@@ -53,21 +53,15 @@ export function ScheduleScreen({ navigation }) {
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 일정</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+          <TouchableOpacity
+            ref={plusRef}
+            onPress={openUpcoming}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 14 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ fontFamily: F.serifKR, fontSize: 28, color: C.navy }}>캘린더</Text>
-            <TouchableOpacity
-              ref={plusRef}
-              onPress={openUpcoming}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{
-                width: 24, height: 24, borderRadius: 12,
-                borderWidth: 1.5, borderColor: C.navy,
-                alignItems: 'center', justifyContent: 'center', marginTop: 5,
-              }}>
-              <Text style={{ fontFamily: F.en, fontSize: 16, color: C.navy, fontWeight: '700', lineHeight: 18 }}>+</Text>
-            </TouchableOpacity>
-          </View>
+            <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.navy, fontWeight: '700', marginTop: 3 }}>›</Text>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity
           onPress={() => showAppAlert(
