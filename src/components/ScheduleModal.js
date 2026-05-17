@@ -264,7 +264,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 <View style={{ marginTop: 8 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 6 }}>🕘 최근 검색</Text>
                   <View style={mS.searchDrop}>
-                    {recentCourses.slice(0, 5).map((rc, i) => (
+                    {recentCourses.slice(0, 3).map((rc, i) => (
                       <TouchableOpacity key={rc.kakaoId || `${rc.name}_${i}`} style={mS.searchItem}
                         onPress={() => handleSelectRecent(rc)}>
                         <Text style={mS.searchName}>{rc.name}</Text>
