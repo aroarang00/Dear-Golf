@@ -15,7 +15,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.deargolf",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +26,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "app.deargolf"
+      "package": "app.deargolf",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -45,6 +52,11 @@
           "color": "#6B1E2A"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "17a8133b-1b3e-4832-a435-4489015e3493"
+      }
+    }
   }
 }
