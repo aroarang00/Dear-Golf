@@ -5,6 +5,7 @@ import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf } 
 import { getCurrentLocation } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
+import { getTop100Courses } from '../utils/top100';
 
 const REGIONS = ['전체', '수도권', '강원', '충청', '경상', '전라', '제주'];
 const getRegion = (loc) => {
@@ -62,6 +63,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   const [savedCourses, setSavedCourses] = useState([]); // userCourses — 검색결과 ❤️·기존코스 판별용
   const [recentCourses, setRecentCourses] = useState([]);
   const [recentExpanded, setRecentExpanded] = useState(false);
+  const [top100, setTop100] = useState([]); // 지역별 100대 코스 둘러보기용
 
   const [nearby, setNearby] = useState([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
@@ -84,6 +86,9 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   }, []);
 
   useEffect(() => { refreshSaved(); refreshRecent(); }, [refreshSaved, refreshRecent]);
+
+  // 100대 코스 목록 로드 (지역 탭 둘러보기용)
+  useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
 
   // 가까운 연습장 + 스크린골프 — 마운트 시 1회 fetch
   useEffect(() => {
@@ -137,9 +142,30 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
     Linking.openURL(url).catch(() => Linking.openURL('https://map.kakao.com/'));
   };
 
+  // 지역 100대 코스 항목 탭 → 카카오 검색으로 해당 코스 열기 (목록엔 좌표가 없어서 검색으로 해석)
+  const openTop100Course = async (c) => {
+    try {
+      const list = await searchGolfCourses(c.name);
+      const top = list && list[0];
+      if (top) {
+        await addRecentCourse(top);
+        refreshRecent();
+        const existing = savedCourses.find(s => s.kakaoId === top.kakaoId);
+        if (existing) onSelectCourse?.(existing.id);
+        else onOpenPreview?.(top);
+        return;
+      }
+    } catch {}
+    setSearch(c.name); // 검색 실패 시 검색창에라도 채워줌
+  };
+
   const filteredRecent = region === '전체'
     ? recentCourses
     : recentCourses.filter(c => getRegion(c.loc) === region);
+  // 선택한 지역의 100대 코스 (순위순)
+  const regionCourses = region === '전체'
+    ? []
+    : top100.filter(c => getRegion(c.region) === region);
   const visibleRecent = recentExpanded ? filteredRecent : filteredRecent.slice(0, 5);
   const moreRecent = filteredRecent.length - visibleRecent.length;
 
@@ -204,6 +230,40 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
           );
         })}
       </ScrollView>
+
+      {/* 지역 선택 시 — 그 지역 100대 코스 둘러보기 */}
+      {region !== '전체' && !search.trim() && (
+        <Section
+          title={`🏆 ${region} 100대 코스`}
+          right={top100.length ? `${regionCourses.length}곳` : ''}
+          headerBg={C.burgundy}
+          titleColor={C.butter}>
+          {top100.length === 0 ? (
+            <View style={{ paddingVertical: 22, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={C.warmGray} />
+            </View>
+          ) : regionCourses.length === 0 ? (
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
+              {`${region} 지역의 100대 코스가 없어요`}
+            </Text>
+          ) : (
+            <View style={{ paddingHorizontal: 14 }}>
+              {regionCourses.map(c => (
+                <TouchableOpacity key={c.rank} onPress={() => openTop100Course(c)} activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+                    borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                  <Text style={{ fontFamily: F.en, fontSize: 14, fontWeight: '700', color: '#A88A2E', width: 34 }}>{c.rank}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {c.name}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{c.region}</Text>
+                  </View>
+                  <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </Section>
+      )}
 
       {/* 검색 결과 (검색어 있을 때만) */}
       {!!search.trim() && (
