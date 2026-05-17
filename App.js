@@ -9,6 +9,7 @@ import * as Notifications from 'expo-notifications';
 import { C, F } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
+import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';

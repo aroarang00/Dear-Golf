@@ -7,6 +7,20 @@ export const KAKAO_REST_API_KEY = 'edb7385e0d3233ccd44423118331345a';
 export const KAKAO_JS_KEY = 'c44ff0a40a680fa9e75bb2c59a08654f';
 
 // =============================================================
+// Firebase — 골퍼 코멘트 공유 백엔드 (Firestore + 익명 인증)
+// https://console.firebase.google.com → 프로젝트 설정 → 웹 앱
+//  - apiKey는 클라이언트 노출되어도 무방 (보안은 Firestore 규칙으로 처리)
+// =============================================================
+export const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyCLIFX7lHlhpAVBpycNRLJBoLfdF_xArZE',
+  authDomain: 'dear-golf.firebaseapp.com',
+  projectId: 'dear-golf',
+  storageBucket: 'dear-golf.firebasestorage.app',
+  messagingSenderId: '16566595645',
+  appId: '1:16566595645:web:064cc5d3c707a62b123a54',
+};
+
+// =============================================================
 // 네이버 클라우드 플랫폼 — Maps Static Map API (정적 지도 이미지)
 // https://www.ncloud.com/product/applicationService/maps
 //  - 인증: x-ncp-apigw-api-key-id / x-ncp-apigw-api-key 헤더

@@ -17,15 +17,8 @@ import { fetchCoursePlaceInfo, searchGolfCourses, searchNearbyRestaurants, searc
 import { buildFoodMapUrl, NAVER_MAP_HEADERS } from '../utils/naverMap';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
-import { getCourseComments, setCourseCommentsForCourse } from '../utils/courseComments';
+import { getCourseComments, addCourseComment, toggleCommentLike } from '../utils/courseComments';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
-
-// COURSE_LOG 코스에 보이는 mock 코멘트 (사용자 코멘트와 별개, 저장 안 됨)
-const MOCK_COMMENTS = [
-  { id: 'm1', txt: '그린이 정말 빠릅니다. 퍼팅 연습 충분히 하고 가세요', who: 'J***', date: '2025.04', likes: 24, likedByMe: false },
-  { id: 'm2', txt: '7번홀 왼쪽 OB 많이 납니다. 아이언 공략 추천', who: 'K***', date: '2025.03', likes: 18, likedByMe: false },
-  { id: 'm3', txt: '클럽하우스 식당 된장찌개 강추. 라운딩 후 꼭 드세요', who: 'P***', date: '2025.02', likes: 11, likedByMe: false },
-];
 
 export function GuideScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
@@ -356,26 +349,29 @@ export function GuideScreen({ route, navigation }) {
     }
     setShowCommentInput(false);
     setCommentInput('');
-    // 저장된 사용자 코멘트 로드 + mock 코멘트(COURSE_LOG 코스만) 병합
+    // Firestore에서 전체 유저 공유 코멘트 로드
     // 코스가 바뀌면 in-flight 결과는 버려서 엉뚱한 코스에 표시되지 않게 함
     const courseId = selected;
     let cancelled = false;
     (async () => {
-      const userComments = await getCourseComments(courseId);
+      const list = await getCourseComments(courseId);
       if (cancelled) return;
-      setComments([...userComments, ...(inLog ? MOCK_COMMENTS : [])]);
+      setComments(list);
     })();
     return () => { cancelled = true; };
   }, [selected, userCoursesList, userCoursesHydrated]);
 
-  const toggleLike = (id) => {
-    const next = comments.map(c => c.id === id
-      ? { ...c, likedByMe: !c.likedByMe, likes: c.likes + (c.likedByMe ? -1 : 1) }
-      : c);
-    setComments(next);
-    // 내가 쓴 코멘트는 좋아요 상태까지 저장
-    if (selected && selected !== PREVIEW_ID) {
-      setCourseCommentsForCourse(selected, next.filter(c => c.mine));
+  // 좋아요 토글 — 낙관적 업데이트 후 Firestore 반영, 실패 시 롤백
+  const toggleLike = async (cm) => {
+    const wasLiked = cm.likedByMe;
+    setComments(prev => prev.map(c => c.id === cm.id
+      ? { ...c, likedByMe: !wasLiked, likes: c.likes + (wasLiked ? -1 : 1) }
+      : c));
+    const ok = await toggleCommentLike(cm.id, wasLiked);
+    if (!ok) {
+      setComments(prev => prev.map(c => c.id === cm.id
+        ? { ...c, likedByMe: wasLiked, likes: c.likes + (wasLiked ? 1 : -1) }
+        : c));
     }
   };
 
@@ -384,21 +380,17 @@ export function GuideScreen({ route, navigation }) {
     return name.charAt(0) + '***';
   };
 
-  const submitComment = () => {
+  // 코멘트 작성 — Firestore에 저장(전체 유저 공유)
+  const submitComment = async () => {
     const txt = commentInput.trim();
-    if (!txt) return;
+    if (!txt || !selected || selected === PREVIEW_ID) return;
     const anon = anonymize(userProfile?.nickname);
     const now = new Date();
     const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const comment = { id: String(Date.now()), txt, who: anon, date: dateStr, likes: 0, likedByMe: false, mine: true };
-    const next = [comment, ...comments];
-    setComments(next);
-    // 내가 쓴 코멘트는 골프장별로 영구 저장 — 다른 코스 다녀와도 유지
-    if (selected && selected !== PREVIEW_ID) {
-      setCourseCommentsForCourse(selected, next.filter(c => c.mine));
-    }
     setCommentInput('');
     setShowCommentInput(false);
+    const created = await addCourseComment(selected, txt, anon, dateStr);
+    if (created) setComments(prev => [created, ...prev]);
   };
 
   const toggleFavorite = (id) => {
@@ -692,7 +684,7 @@ export function GuideScreen({ route, navigation }) {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
                     <Text style={gS.commentWho}>{cm.who} · {cm.date}</Text>
                     <TouchableOpacity
-                      onPress={() => toggleLike(cm.id)}
+                      onPress={() => toggleLike(cm)}
                       activeOpacity={0.6}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 0.5, borderColor: cm.likedByMe ? C.burgundy : C.burgundy + '60', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.burgundy }}>{cm.likedByMe ? '♥' : '♡'} {cm.likes}</Text>

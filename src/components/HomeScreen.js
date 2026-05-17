@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
-import { COURSE_LOG, DIARY_DATA, COURSE_COMMENTS } from '../constants/data';
+import { COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { getUserCourses } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { normalizeSchedules } from '../utils/helpers';
@@ -20,6 +20,7 @@ import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal } from './AlarmSetupModal';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
+import { getTopComment } from '../utils/courseComments';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -43,6 +44,7 @@ export function HomeScreen({ navigation }) {
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
+  const [homeTopComment, setHomeTopComment] = useState(null);
   const dDayRef = useRef(null);
   const cardsScrollRef = useRef(null);
 
@@ -135,13 +137,10 @@ export function HomeScreen({ navigation }) {
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
     if (!course) return false;
-    const courseRow = COURSE_LOG.find(c => c.name === course);
-    if (!courseRow) return false;
-    if ((courseRow.visits || 0) === 0) return false;
     const hasMyMemo = diaries.some(d => d.course === course && d.memo);
     if (!hasMyMemo) return false;
-    return COURSE_COMMENTS.some(c => c.courseId === courseRow.id);
-  }, [next?.course, diaries]);
+    return !!homeTopComment;
+  }, [next?.course, diaries, homeTopComment]);
 
   useEffect(() => {
     if (!carouselActive) {
@@ -185,6 +184,18 @@ export function HomeScreen({ navigation }) {
     }
     return null;
   };
+
+  // 다음 라운딩 코스 id — COURSE_LOG·userCourses 모두 해석. 코멘트 조회 키로 사용.
+  const nextCourseId = resolveCourseLogId(next);
+
+  // 홈 골퍼 코멘트 — 다음 라운딩 코스의 좋아요 1위 코멘트 (Firestore 공유)
+  useEffect(() => {
+    if (!nextCourseId) { setHomeTopComment(null); return; }
+    let cancelled = false;
+    setHomeTopComment(null); // 코스 바뀜 — 이전 코스 코멘트 잔상 방지
+    getTopComment(nextCourseId).then(c => { if (!cancelled) setHomeTopComment(c); });
+    return () => { cancelled = true; };
+  }, [nextCourseId]);
 
   const handleCardCoursePress = (schedule) => {
     const id = resolveCourseLogId(schedule);
@@ -466,7 +477,6 @@ export function HomeScreen({ navigation }) {
           </View>
 
           {(() => {
-            const courseRow = COURSE_LOG.find(c => c.name === next?.course);
             const courseLabel = next?.course || '';
 
             const diaryEntries = diaries.filter(d => d.course === next?.course);
@@ -474,9 +484,7 @@ export function HomeScreen({ navigation }) {
             // 방문 여부는 실제 라운딩 기록 기준 (COURSE_LOG 목업이 아님)
             const visitCount = diaryEntries.length;
             const isFirstVisit = visitCount === 0;
-            const topComment = courseRow
-              ? [...COURSE_COMMENTS].filter(c => c.courseId === courseRow.id).sort((a, b) => b.likes - a.likes)[0]
-              : null;
+            const topComment = homeTopComment;
             const hasGolfer = !!topComment;
 
             const labelCourseTxt = (label) => (
@@ -508,7 +516,7 @@ export function HomeScreen({ navigation }) {
                           <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => {
-                              if (courseRow) navigation.navigate('코스', { openCourseId: courseRow.id, openComment: true });
+                              if (nextCourseId) navigation.navigate('코스', { openCourseId: nextCourseId, openComment: true });
                             }}
                             style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                             <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8' }}>첫 번째 코멘트의 주인공이 되어보세요 →</Text>

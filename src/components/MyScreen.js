@@ -10,6 +10,7 @@ import { CourseLogTab } from './CourseLogTab';
 import { FriendsTab } from './FriendsTab';
 import { MyPageModal } from './MyPageModal';
 import { GolfLedgerModal } from './GolfLedgerModal';
+import { seedCourseComments } from '../utils/courseComments';
 
 const SUB_TABS = [
   ['course', '내 코스기록', C.butter],
@@ -81,6 +82,17 @@ export function MyScreen({ navigation }) {
     }
     // 'demo' — 스토리지를 비우기만 하면 각 로더가 더미 데이터로 자동 폴백됨
     DevSettings.reload();
+  };
+
+  // [DEV] 기존 목업 골퍼 코멘트를 Firestore에 1회 업로드
+  const handleSeedComments = async () => {
+    const r = await seedCourseComments();
+    Alert.alert(
+      '코멘트 시드',
+      r.skipped
+        ? `시드하지 않음 — ${r.reason}`
+        : `${r.seeded}개 코멘트를 Firestore에 업로드했어요.`,
+    );
   };
 
   const handleDevReset = () => {
@@ -180,17 +192,28 @@ export function MyScreen({ navigation }) {
 
       {/* DEV ONLY — 신규 유저 테스트용 초기화 버튼. __DEV__ 라서 출시 빌드에선 자동 숨김 */}
       {__DEV__ && (
-        <TouchableOpacity
-          onPress={handleDevReset}
-          activeOpacity={0.8}
-          style={{
-            position: 'absolute', bottom: 16, right: 14,
-            backgroundColor: 'rgba(61,57,53,0.88)',
-            borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8,
-            borderWidth: 1, borderColor: 'rgba(245,230,168,0.4)',
-          }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>🔧 개발자 초기화</Text>
-        </TouchableOpacity>
+        <View style={{ position: 'absolute', bottom: 16, right: 14, gap: 8, alignItems: 'flex-end' }}>
+          <TouchableOpacity
+            onPress={handleSeedComments}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: 'rgba(61,57,53,0.88)',
+              borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8,
+              borderWidth: 1, borderColor: 'rgba(245,230,168,0.4)',
+            }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>🌱 코멘트 시드</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDevReset}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: 'rgba(61,57,53,0.88)',
+              borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8,
+              borderWidth: 1, borderColor: 'rgba(245,230,168,0.4)',
+            }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>🔧 개발자 초기화</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </SafeAreaView>
   );
