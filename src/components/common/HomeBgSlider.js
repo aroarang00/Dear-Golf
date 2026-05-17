@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, AppState } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getShortForecast } from '../../utils/kma';
@@ -43,14 +43,20 @@ export function HomeBgSlider() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    // 현재 시간대·날씨에 맞는 배경 로드 — 같은 조합이라도 여러 장 중 무작위로 골라 변화를 줌
+    const loadBg = async () => {
       const timeOfDay = classifyTime();
       const weather = await getCurrentWxClass();
       const urls = await fetchBgImages(timeOfDay, weather);
-      if (cancelled) return;
-      if (urls && urls.length) setImageUri(urls[0]);
-    })();
-    return () => { cancelled = true; };
+      if (cancelled || !urls || !urls.length) return;
+      setImageUri(urls[Math.floor(Math.random() * urls.length)]);
+    };
+    loadBg();
+    // 앱이 포그라운드로 돌아올 때마다 — 시간이 지났으면 그 시간대·날씨에 맞춰 배경 갱신
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') loadBg();
+    });
+    return () => { cancelled = true; sub.remove(); };
   }, []);
 
   return (
