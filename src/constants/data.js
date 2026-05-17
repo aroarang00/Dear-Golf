@@ -133,14 +133,15 @@ export const FRIENDS_DATA = [
   { id: 'f3', nickname: '오세훈', realName: '오세훈', rounds: 42, best: 78, lastCourse: '제이드팰리스', lastDate: '2025.04.20', photos: [] },
 ];
 
+// 신규 유저 초기 프로필 — 빈 상태로 시작, 온보딩에서 채워진다
 export const USER_PROFILE_INIT = {
-  realName: '황지현',
-  nickname: '지현',
-  avgScore: 92,
-  lifeBest: 76,
-  totalRounds: 24,
-  hasFirstSingle: true,
-  onboardingDone: true,
+  realName: '',
+  nickname: '',
+  avgScore: 0,
+  lifeBest: 0,
+  totalRounds: 0,
+  hasFirstSingle: false,
+  onboardingDone: false,
   departure: '',
   departureCoord: null, // { x, y } — 출발지 검색에서 선택 시 저장되는 정확 좌표
   phone: '',

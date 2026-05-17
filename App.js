@@ -38,6 +38,12 @@ export default function App() {
       if (loaded) {
         setUserProfile(loaded);
         setShowOnboarding(!loaded.onboardingDone);
+      } else {
+        // 신규 설치 — 데모 데이터 폴백을 막고 빈 상태로 시작 (온보딩 노출)
+        await storage.save(STORAGE_KEYS.schedules, []);
+        await storage.save(STORAGE_KEYS.diaries, []);
+        await storage.save(STORAGE_KEYS.hof, []);
+        setShowOnboarding(true);
       }
       setProfileLoaded(true);
     })();

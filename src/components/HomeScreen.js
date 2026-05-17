@@ -341,6 +341,14 @@ export function HomeScreen({ navigation }) {
           schedule={pendingAlarmSchedule}
           onClose={() => setPendingAlarmSchedule(null)}
         />
+        {/* 현재 위치 날씨 — 예정 일정이 없을 때도 ☀️ 버튼이 동작하도록 */}
+        <WeatherTransportPopup
+          visible={showWeatherPopup}
+          schedule={selectedSchedule}
+          schedules={schedules}
+          weatherOnly
+          onClose={() => setShowWeatherPopup(false)}
+        />
       </View>
     );
   }
