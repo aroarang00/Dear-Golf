@@ -401,6 +401,7 @@ export function MyPageModal({ visible, onClose }) {
                   },
                   { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
                   { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
+                  { icon: '🔒', label: '개인정보 처리방침', onPress: () => Linking.openURL('https://dear-golf.web.app/privacy') },
                 ].map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
                     <Text style={myS.menuIcon}>{item.icon}</Text>

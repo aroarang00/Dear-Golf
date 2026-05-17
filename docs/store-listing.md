@@ -76,7 +76,7 @@ Dear Golf는 골퍼를 위한 나만의 골프 캐디 앱입니다.
 ```
 
 ### 피드백 받을 이메일
-> aroarang00@gmail.com
+> deargolf.official@gmail.com
 
 ---
 
