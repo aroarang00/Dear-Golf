@@ -17,22 +17,25 @@ export async function searchGolfCourses(query) {
     console.warn('[kakao] KAKAO_REST_API_KEY not configured. src/constants/api.js 참고.');
     return [];
   }
-  try {
-    // "골프" 키워드를 강제로 붙여 골프장만 검색되게
-    const fullQ = /(골프|골프장|cc|CC|컨트리클럽)/.test(q) ? q : q + ' 골프장';
-    const url = `${KEYWORD_URL}?query=${encodeURIComponent(fullQ)}&size=15`;
+
+  // 골프장만 남기는 필터 — category_name 기준
+  //  ex) "스포츠,레저 > 골프 > 골프장" / "... > 골프 > 컨트리클럽"
+  //  연습장·스크린골프·골프용품 등은 제외
+  const isGolfCourse = (cat) => {
+    const c = cat || '';
+    if (/(연습장|스크린|실내골프|용품|아카데미|레슨)/.test(c)) return false;
+    return c.includes('골프');
+  };
+
+  const runQuery = async (qstr) => {
+    const url = `${KEYWORD_URL}?query=${encodeURIComponent(qstr)}&size=15`;
     const res = await fetch(url, {
       headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
     });
-    if (!res.ok) {
-      console.warn('[kakao] HTTP', res.status);
-      return [];
-    }
+    if (!res.ok) { console.warn('[kakao] HTTP', res.status); return []; }
     const data = await res.json();
-    // 카카오는 category_group_code를 골프장에 안 줘서, category_name으로 필터
-    // ex) "스포츠,레저 > 골프 > 골프장"
     return (data.documents || [])
-      .filter(d => (d.category_name || '').includes('골프장'))
+      .filter(d => isGolfCourse(d.category_name))
       .map(d => ({
         kakaoId: d.id,
         name: d.place_name,
@@ -41,6 +44,25 @@ export async function searchGolfCourses(query) {
         y: parseFloat(d.y), // 위도(latitude)
         url: d.place_url,
       }));
+  };
+
+  try {
+    // 골프 관련 단어(골프·GC·CC·컨트리클럽)가 있으면 그대로, 없으면 '골프장'을 붙여 검색
+    const hasGolfWord = /(골프|gc|cc|컨트리클럽|country\s*club)/i.test(q);
+    let results = await runQuery(hasGolfWord ? q : q + ' 골프장');
+    if (results.length === 0) {
+      // 폴백: 'GC/CC/골프클럽' 같은 약어를 떼고 '골프장'을 붙여 재검색
+      //  예) "킹스데일GC" → 카카오엔 "킹스데일 컨트리클럽" → "킹스데일 골프장"으로 매칭
+      const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
+      if (bare && bare !== q) results = await runQuery(bare + ' 골프장');
+    }
+    // kakaoId 중복 제거
+    const seen = new Set();
+    return results.filter(r => {
+      if (!r.kakaoId || seen.has(r.kakaoId)) return false;
+      seen.add(r.kakaoId);
+      return true;
+    });
   } catch (e) {
     console.warn('[kakao] search failed:', e?.message);
     return [];

@@ -202,6 +202,15 @@ export function GuideScreen({ route, navigation }) {
     return null;
   };
 
+  // 코멘트 키 — 카카오로 등록된 코스(미리보기·저장 무관)는 kakaoId로 키를 통일해
+  // 같은 골프장의 코멘트를 항상 함께 보이게 함. COURSE_LOG 기본 코스는 자체 id 사용.
+  const commentKeyFor = (id) => {
+    if (!id) return null;
+    if (id === PREVIEW_ID) return previewCourse?.kakaoId ? `kakao:${previewCourse.kakaoId}` : null;
+    const d = getCourseData(id);
+    return d?.kakaoId ? `kakao:${d.kakaoId}` : id;
+  };
+
   useEffect(() => {
     if (!favoritesHydrated) return;
     storage.save(STORAGE_KEYS.favorites, favorites);
@@ -349,7 +358,7 @@ export function GuideScreen({ route, navigation }) {
       // 미저장 미리보기 — 카카오ID 기반으로 코멘트 공유 (저장 안 한 골프장도 코멘트 가능)
       setShowCommentInput(false);
       setCommentInput('');
-      const kid = previewCourse?.kakaoId ? `kakao:${previewCourse.kakaoId}` : null;
+      const kid = commentKeyFor(PREVIEW_ID);
       if (!kid) { setComments([]); return; }
       let cancelledP = false;
       (async () => {
@@ -378,7 +387,7 @@ export function GuideScreen({ route, navigation }) {
     setCommentInput('');
     // Firestore에서 전체 유저 공유 코멘트 로드
     // 코스가 바뀌면 in-flight 결과는 버려서 엉뚱한 코스에 표시되지 않게 함
-    const courseId = selected;
+    const courseId = commentKeyFor(selected);
     let cancelled = false;
     (async () => {
       const list = await getCourseComments(courseId);
@@ -411,10 +420,8 @@ export function GuideScreen({ route, navigation }) {
   const submitComment = async () => {
     const txt = commentInput.trim();
     if (!txt || !selected) return;
-    // 미리보기(미저장) 코스는 카카오ID로 키 지정 — 저장 안 한 골프장도 코멘트 가능
-    const courseKey = selected === PREVIEW_ID
-      ? (previewCourse?.kakaoId ? `kakao:${previewCourse.kakaoId}` : null)
-      : selected;
+    // 카카오 코스는 kakaoId로 키 통일 — 미리보기/저장 코스가 같은 코멘트 공유
+    const courseKey = commentKeyFor(selected);
     if (!courseKey) { showAppAlert('코멘트', '이 골프장에는 코멘트를 남길 수 없어요.'); return; }
     const anon = anonymize(userProfile?.nickname);
     const now = new Date();
