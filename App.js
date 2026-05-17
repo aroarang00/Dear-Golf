@@ -82,6 +82,12 @@ export default function App() {
     setShowOnboarding(true);
   };
 
+  // 개발용 — 데이터 보존한 채 온보딩만 미리보기 (앱을 리로드하면 원래 화면으로 복귀)
+  const previewOnboarding = () => {
+    setIntroDone(false);
+    setShowOnboarding(true);
+  };
+
   if (!profileLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgPrimary }}>
@@ -107,7 +113,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
-    <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted }}>
+    <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>

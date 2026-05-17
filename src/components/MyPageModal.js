@@ -15,7 +15,7 @@ import { requestNotificationPermission, syncAlarmTypeAcrossSchedules } from '../
 import { deleteAccount } from '../utils/account';
 
 export function MyPageModal({ visible, onClose }) {
-  const { userProfile, setUserProfile, onAccountDeleted } = React.useContext(UserContext);
+  const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
   const { schedules } = React.useContext(SchedulesContext);
   const scrollRef = useRef(null);
   const [nickname, setNickname] = useState(userProfile.nickname);
@@ -446,6 +446,20 @@ export function MyPageModal({ visible, onClose }) {
                   </TouchableOpacity>
                 ))}
               </View>
+              {__DEV__ && (
+                <>
+                  <View style={myS.divider} />
+                  <View style={myS.section}>
+                    <Text style={myS.sectionLabel}>개발용</Text>
+                    <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                      onPress={() => { onClose(); previewOnboarding && previewOnboarding(); }}>
+                      <Text style={myS.menuIcon}>🧪</Text>
+                      <Text style={myS.menuLabel}>온보딩 미리보기</Text>
+                      <Text style={myS.menuValue}>›</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
               <View style={myS.divider} />
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>계정</Text>
