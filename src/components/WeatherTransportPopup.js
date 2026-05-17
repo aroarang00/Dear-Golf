@@ -332,6 +332,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const endStr = toHHMM(teeMin + ROUND_MIN + endOffsetMin);
   const recoDriveMin = driveMin ?? 80; // 길찾기 API 실측 소요, 없으면 기본 가정치
   const recommended = toHHMM(teeMin - 30 - recoDriveMin);
+  const arrival = toHHMM(teeMin - 30); // 추천 출발로 가면 티오프 30분 전 도착
 
   // 슬롯 (mode) → 표시용 라벨/좌표 해석
   const resolveSlot = (slotKey) => {
@@ -852,8 +853,17 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               <View style={trS.twoSection}>
                 <Text style={trS.twoLabel}>갈 때</Text>
                 <View style={trS.recoBox}>
-                  <Text style={trS.recoLabel}>추천 출발</Text>
-                  <Text style={trS.recoTime}>{recommended}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={trS.recoLabel}>추천 출발</Text>
+                      <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{recommended}</Text>
+                    </View>
+                    <Text style={{ fontSize: 22, color: 'rgba(245,230,168,0.55)', marginHorizontal: 8 }}>→</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={trS.recoLabel}>도착 예정</Text>
+                      <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{arrival}</Text>
+                    </View>
+                  </View>
                   <Text style={trS.recoSub}>
                     티오프 {schedule.time} · {driveMin != null ? `운전 ${driveMin}분 · ` : ''}여유 30분 포함
                   </Text>
