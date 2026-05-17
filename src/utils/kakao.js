@@ -27,14 +27,23 @@ export async function searchGolfCourses(query) {
     return c.includes('골프');
   };
 
-  const runQuery = async (qstr) => {
-    const url = `${KEYWORD_URL}?query=${encodeURIComponent(qstr)}&size=15`;
-    const res = await fetch(url, {
-      headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
-    });
-    if (!res.ok) { console.warn('[kakao] HTTP', res.status); return []; }
-    const data = await res.json();
-    return (data.documents || [])
+  // 키워드 검색 — pages 페이지까지(페이지당 15건) 모아 골프장만 반환.
+  // 짧은 글자(2글자)로 검색해도 결과가 15건 밖으로 밀리지 않도록 여러 페이지를 본다.
+  const runQuery = async (qstr, pages = 1) => {
+    const docs = [];
+    for (let p = 1; p <= pages; p++) {
+      const url = `${KEYWORD_URL}?query=${encodeURIComponent(qstr)}&size=15&page=${p}`;
+      let res;
+      try {
+        res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+      } catch (e) { break; }
+      if (!res.ok) { if (p === 1) console.warn('[kakao] HTTP', res.status); break; }
+      const data = await res.json();
+      const page = data.documents || [];
+      docs.push(...page);
+      if (data.meta?.is_end || page.length < 15) break;
+    }
+    return docs
       .filter(d => isGolfCourse(d.category_name))
       .map(d => ({
         kakaoId: d.id,
@@ -46,23 +55,29 @@ export async function searchGolfCourses(query) {
       }));
   };
 
-  try {
-    // 골프 관련 단어(골프·GC·CC·컨트리클럽)가 있으면 그대로, 없으면 '골프장'을 붙여 검색
-    const hasGolfWord = /(골프|gc|cc|컨트리클럽|country\s*club)/i.test(q);
-    let results = await runQuery(hasGolfWord ? q : q + ' 골프장');
-    if (results.length === 0) {
-      // 폴백: 'GC/CC/골프클럽' 같은 약어를 떼고 '골프장'을 붙여 재검색
-      //  예) "킹스데일GC" → 카카오엔 "킹스데일 컨트리클럽" → "킹스데일 골프장"으로 매칭
-      const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
-      if (bare && bare !== q) results = await runQuery(bare + ' 골프장');
-    }
-    // kakaoId 중복 제거
+  const dedupe = (arr) => {
     const seen = new Set();
-    return results.filter(r => {
+    return arr.filter(r => {
       if (!r.kakaoId || seen.has(r.kakaoId)) return false;
       seen.add(r.kakaoId);
       return true;
     });
+  };
+
+  try {
+    // 입력어를 그대로 여러 페이지 검색 — 두 글자만 쳐도 이름에 포함된 골프장이 뜨도록.
+    // 골프장은 'CC·컨트리클럽' 이름이 많아 '골프장'을 덧붙이면 매칭이 깨지므로 원문 우선.
+    let results = dedupe(await runQuery(q, 3));
+    if (results.length === 0) {
+      // 폴백 1: 일반 단어일 수 있어 '골프장'을 붙여 재검색
+      results = dedupe(await runQuery(q + ' 골프장', 2));
+    }
+    if (results.length === 0) {
+      // 폴백 2: 'GC/CC/골프클럽' 약어를 떼고 재검색 (예: 킹스데일GC → 킹스데일)
+      const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
+      if (bare && bare !== q) results = dedupe(await runQuery(bare, 3));
+    }
+    return results;
   } catch (e) {
     console.warn('[kakao] search failed:', e?.message);
     return [];
