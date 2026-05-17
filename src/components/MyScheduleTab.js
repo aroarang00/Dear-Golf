@@ -186,8 +186,11 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   };
 
   // 첫 일정 등록 시 — 캘린더를 한 번도 안 골랐으면 선택 팝업 노출
+  // 앞선 모달(일정·알람)이 완전히 닫힌 뒤 열어야 iOS 모달 표시 충돌이 안 남
   const maybePromptCalendar = () => {
-    getCalendarChoice().then(choice => { if (!choice) setCalPickerOpen(true); });
+    getCalendarChoice().then(choice => {
+      if (!choice) setTimeout(() => setCalPickerOpen(true), 450);
+    });
   };
 
   const handleEdit = () => {

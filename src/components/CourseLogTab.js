@@ -245,15 +245,13 @@ export function CourseLogTab({ avgRating, navigation }) {
   }, [diaries, schedules, userCourses]);
 
   // 100대 코스 체크 상태
-  //  자동: Dear Golf 일정(예정 포함) + 다이어리 기록이 있는 코스
+  //  자동: 완료된 라운딩(다이어리 기록 + 지난 일정)이 있는 코스
+  //        — 예정 일정은 취소될 수 있어 제외, 일정 삭제 시 자동으로 해제됨
   //  수동: 사용자가 목록에서 직접 체크한 코스
-  const autoCheckedRanks = React.useMemo(() => {
-    const names = [
-      ...(schedules || []).map(s => s.course),
-      ...(diaries || []).map(d => d.course),
-    ].filter(Boolean);
-    return new Set(matchVisitedTop100(top100, names).map(c => c.rank));
-  }, [top100, schedules, diaries]);
+  const autoCheckedRanks = React.useMemo(
+    () => new Set(matchVisitedTop100(top100, myCourses.map(c => c.name)).map(c => c.rank)),
+    [top100, myCourses],
+  );
   const checkedRanks = React.useMemo(
     () => new Set([...autoCheckedRanks, ...manualChecks]),
     [autoCheckedRanks, manualChecks],
@@ -414,20 +412,28 @@ export function CourseLogTab({ avgRating, navigation }) {
     <Modal visible={top100Open} animationType="slide" onRequestClose={() => setTop100Open(false)}>
       <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.charcoal, fontWeight: '700' }}>100대 코스 도전하기</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 }}>
-              한국골프관광협회 2024-2025 · {checkedCount}/100
+        <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.butter, fontWeight: '700' }}>🏆 100대 코스 도전하기</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>한국골프관광협회 2024-2025</Text>
+            </View>
+            <TouchableOpacity onPress={() => setTop100Open(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)' }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+            <View style={{ flex: 1, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.13)', overflow: 'hidden' }}>
+              <View style={{ height: 7, borderRadius: 4, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
+            </View>
+            <Text style={{ fontFamily: F.en, fontSize: 15, color: C.butter, fontWeight: '700' }}>
+              {checkedCount}<Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}> / 100</Text>
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setTop100Open(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 20, color: C.warmGray }}>✕</Text>
-          </TouchableOpacity>
         </View>
         <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, paddingHorizontal: 18, paddingTop: 10, lineHeight: 16 }}>
-          라운딩 기록이 있으면 자동 체크 · 다녀온 곳은 오른쪽 ○를 탭해 직접 체크할 수 있어요
+          완료한 라운딩은 자동 체크 · 다녀온 곳은 오른쪽 ○를 탭해 직접 체크할 수 있어요
         </Text>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingBottom: 24 }}>
           {top100.length === 0 ? (
