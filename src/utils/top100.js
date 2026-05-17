@@ -5,6 +5,7 @@
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from './firebase';
+import { STORAGE_KEYS, storage } from './storage';
 
 const CACHE_KEY = '@dg_top100_v1';
 const TTL = 24 * 60 * 60 * 1000; // 하루 (거의 안 바뀌는 고정 데이터)
@@ -69,4 +70,13 @@ export async function getTop100Courses() {
 export function matchVisitedTop100(top100List, visitedNames) {
   const visitedSet = new Set((visitedNames || []).map(normalizeCourseName).filter(Boolean));
   return (top100List || []).filter(c => visitedSet.has(normalizeCourseName(c.name)));
+}
+
+// 사용자가 100대 코스 목록에서 직접 체크한 순위(rank) 배열 — 로컬 저장
+export async function getManualTop100Checks() {
+  const list = await storage.load(STORAGE_KEYS.top100Checks, []);
+  return Array.isArray(list) ? list : [];
+}
+export async function saveManualTop100Checks(ranks) {
+  await storage.save(STORAGE_KEYS.top100Checks, Array.isArray(ranks) ? ranks : []);
 }

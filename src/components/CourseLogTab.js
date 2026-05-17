@@ -5,7 +5,7 @@ import { C, F } from '../constants/colors';
 import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses } from '../utils/userCourses';
-import { getTop100Courses, matchVisitedTop100 } from '../utils/top100';
+import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks } from '../utils/top100';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { dS } from '../styles/dS';
 
@@ -148,6 +148,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   const [userCourses, setUserCourses] = useState([]);
   const [top100, setTop100] = useState([]);
   const [top100Open, setTop100Open] = useState(false);
+  const [manualChecks, setManualChecks] = useState([]); // 사용자가 직접 체크한 100대 코스 rank
   const scrollRef = useRef(null);
 
   const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -155,14 +156,16 @@ export function CourseLogTab({ avgRating, navigation }) {
   // 라운딩 기록 + 등록 코스 로드 — 탭 진입 시마다 갱신 (다이어리 기록 후 즉시 반영)
   useEffect(() => {
     const load = async () => {
-      const [d, uc, t100] = await Promise.all([
+      const [d, uc, t100, checks] = await Promise.all([
         storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
         getUserCourses(),
         getTop100Courses(),
+        getManualTop100Checks(),
       ]);
       setDiaries(d || DIARY_DATA);
       setUserCourses(uc || []);
       if (t100 && t100.length) setTop100(t100);
+      setManualChecks(checks || []);
     };
     load();
     if (!navigation) return;
@@ -241,15 +244,30 @@ export function CourseLogTab({ avgRating, navigation }) {
       .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
   }, [diaries, schedules, userCourses]);
 
-  // 100대 코스 중 방문한 코스 (myCourses = 다이어리·지난 일정으로 집계된 방문 골프장)
-  const visitedTop100 = React.useMemo(
-    () => matchVisitedTop100(top100, myCourses.map(c => c.name)),
-    [top100, myCourses],
+  // 100대 코스 체크 상태
+  //  자동: Dear Golf 일정(예정 포함) + 다이어리 기록이 있는 코스
+  //  수동: 사용자가 목록에서 직접 체크한 코스
+  const autoCheckedRanks = React.useMemo(() => {
+    const names = [
+      ...(schedules || []).map(s => s.course),
+      ...(diaries || []).map(d => d.course),
+    ].filter(Boolean);
+    return new Set(matchVisitedTop100(top100, names).map(c => c.rank));
+  }, [top100, schedules, diaries]);
+  const checkedRanks = React.useMemo(
+    () => new Set([...autoCheckedRanks, ...manualChecks]),
+    [autoCheckedRanks, manualChecks],
   );
-  const visitedTop100Set = React.useMemo(
-    () => new Set(visitedTop100.map(c => c.rank)),
-    [visitedTop100],
-  );
+  const checkedCount = checkedRanks.size;
+
+  // 직접 체크 토글 — 자동 체크된 코스(라운딩 기록 있음)는 토글 불가
+  const toggleManualCheck = (rank) => {
+    setManualChecks(prev => {
+      const next = prev.includes(rank) ? prev.filter(r => r !== rank) : [...prev, rank];
+      saveManualTop100Checks(next);
+      return next;
+    });
+  };
 
   // 기록 없는 카드 → 해당 골프장·날짜로 다이어리 기록 입력 화면 이동
   const handleAddRecord = (c) => {
@@ -282,13 +300,13 @@ export function CourseLogTab({ avgRating, navigation }) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 18, color: '#C9A84C', fontWeight: '700' }}>{visitedTop100.length}</Text>
+            <Text style={{ fontFamily: F.en, fontSize: 18, color: '#C9A84C', fontWeight: '700' }}>{checkedCount}</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight }}> / 100</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#A88A2E', fontWeight: '600', marginLeft: 6 }}>›</Text>
           </View>
         </View>
         <View style={{ height: 5, borderRadius: 3, backgroundColor: '#F0EDE6', marginTop: 8, overflow: 'hidden' }}>
-          <View style={{ height: 5, borderRadius: 3, backgroundColor: '#C9A84C', width: `${visitedTop100.length}%` }} />
+          <View style={{ height: 5, borderRadius: 3, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
         </View>
       </TouchableOpacity>
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
@@ -400,7 +418,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.charcoal, fontWeight: '700' }}>100대 코스 도전하기</Text>
             <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 }}>
-              한국골프관광협회 2024-2025 · {visitedTop100.length}/100 방문
+              한국골프관광협회 2024-2025 · {checkedCount}/100
             </Text>
           </View>
           <TouchableOpacity onPress={() => setTop100Open(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -408,35 +426,46 @@ export function CourseLogTab({ avgRating, navigation }) {
             <Text style={{ fontSize: 20, color: C.warmGray }}>✕</Text>
           </TouchableOpacity>
         </View>
+        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, paddingHorizontal: 18, paddingTop: 10, lineHeight: 16 }}>
+          라운딩 기록이 있으면 자동 체크 · 다녀온 곳은 오른쪽 ○를 탭해 직접 체크할 수 있어요
+        </Text>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingBottom: 24 }}>
           {top100.length === 0 ? (
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>목록을 불러오는 중…</Text>
             </View>
           ) : top100.map(c => {
-            const visited = visitedTop100Set.has(c.rank);
+            const checked = checkedRanks.has(c.rank);
+            const isAuto = autoCheckedRanks.has(c.rank);
             return (
               <View key={c.rank} style={{
                 flexDirection: 'row', alignItems: 'center', gap: 10,
                 paddingHorizontal: 18, paddingVertical: 9,
-                backgroundColor: visited ? '#FBF7EE' : 'transparent',
+                backgroundColor: checked ? '#FBF7EE' : 'transparent',
               }}>
-                <Text style={{ fontFamily: F.en, fontSize: 14, fontWeight: '700', width: 30, color: visited ? '#A88A2E' : C.warmGrayLight }}>
+                <Text style={{ fontFamily: F.en, fontSize: 14, fontWeight: '700', width: 30, color: checked ? '#A88A2E' : C.warmGrayLight }}>
                   {c.rank}
                 </Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: visited ? '700' : '400' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: checked ? '700' : '400' }}>
                     {c.name}
                   </Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 1 }}>{c.region}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 1 }}>
+                    {c.region}{isAuto ? ' · 라운딩 기록' : ''}
+                  </Text>
                 </View>
-                {visited ? (
-                  <View style={{ width: 24, height: 24, borderRadius: 7, backgroundColor: '#C9A84C', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 14, color: '#fff', fontWeight: '800' }}>✓</Text>
-                  </View>
-                ) : (
-                  <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: C.hairline }} />
-                )}
+                <TouchableOpacity
+                  onPress={() => { if (!isAuto) toggleManualCheck(c.rank); }}
+                  activeOpacity={isAuto ? 1 : 0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  {checked ? (
+                    <View style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: '#C9A84C', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 15, color: '#fff', fontWeight: '800' }}>✓</Text>
+                    </View>
+                  ) : (
+                    <View style={{ width: 26, height: 26, borderRadius: 7, borderWidth: 1.5, borderColor: C.warmGrayLight }} />
+                  )}
+                </TouchableOpacity>
               </View>
             );
           })}

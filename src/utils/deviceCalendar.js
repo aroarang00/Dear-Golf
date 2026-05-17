@@ -29,17 +29,56 @@ async function ensurePermission() {
   }
 }
 
-// 쓰기 가능한 캘린더 id — iOS는 기본 캘린더, Android는 기본/소유 캘린더
+// 캘린더 계정 종류 → 사용자용 라벨 (구글/애플/삼성/기기)
+function accountLabel(cal) {
+  const t = `${cal?.source?.type || ''} ${cal?.source?.name || ''}`.toLowerCase();
+  if (/google|gmail|com\.google/.test(t)) return '구글';
+  if (/icloud|caldav|apple|me\.com|mobileme/.test(t)) return '애플';
+  if (/samsung/.test(t)) return '삼성';
+  if (/local/.test(t)) return '기기 기본';
+  return cal?.source?.name || '기타';
+}
+
+// 연동 가능한(쓰기 가능) 캘린더 목록 — 피커용
+export async function getAvailableCalendars() {
+  const granted = await ensurePermission();
+  if (!granted) return [];
+  try {
+    const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    return (cals || [])
+      .filter(c => c.allowsModifications)
+      .map(c => ({ id: c.id, title: c.title, account: accountLabel(c), color: c.color }));
+  } catch (e) {
+    console.warn('[calendar] list', e?.message);
+    return [];
+  }
+}
+
+// 사용자가 고른 캘린더 — null(아직 안 물어봄) | '__auto__'(자동) | 캘린더 id
+export async function getCalendarChoice() {
+  return await storage.load(STORAGE_KEYS.calendarChoice, null);
+}
+export async function setCalendarChoice(id) {
+  await storage.save(STORAGE_KEYS.calendarChoice, id || '__auto__');
+}
+
+// 쓰기 가능한 캘린더 id — 사용자가 고른 캘린더 우선, 없으면 자동 선택
 async function getWritableCalendarId() {
   try {
     const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    const writable = (cals || []).filter(c => c.allowsModifications);
+    // 사용자가 직접 고른 캘린더 우선 (목록에 아직 존재할 때만)
+    const chosen = await storage.load(STORAGE_KEYS.calendarChoice, null);
+    if (chosen && chosen !== '__auto__') {
+      const hit = writable.find(c => c.id === chosen);
+      if (hit) return hit.id;
+    }
     if (Platform.OS === 'ios') {
       try {
         const def = await Calendar.getDefaultCalendarAsync();
         if (def?.allowsModifications) return def.id;
       } catch (e) { /* 기본 캘린더 조회 실패 — 아래 폴백 */ }
     }
-    const writable = (cals || []).filter(c => c.allowsModifications);
     const pick = writable.find(c => c.isPrimary)
       || writable.find(c => c.accessLevel === Calendar.CalendarAccessLevel.OWNER)
       || writable[0];

@@ -182,6 +182,7 @@ export function GuideScreen({ route, navigation }) {
       courseY: courseCoord?.y ?? (Number.isFinite(course.y) ? course.y : undefined),
       courseLoc: courseAddress || course.loc || '',
       date: dateStr, day, time: '07:00', members: 4, dDay: 0,
+      isPreview: true, // 예정 라운딩이 아닌 코스 둘러보기 — 추천 출발시간 대신 안내 문구
       weather: '맑음 20°', wind: '', duration: '',
     });
     setCoursePopupTab(tab);

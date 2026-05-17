@@ -15,6 +15,8 @@ export const STORAGE_KEYS = {
   hofTeaserDismissed: '@dg_hof_teaser_dismissed',
   alarms:           '@dg_alarms',
   calendarEvents:   '@dg_calendar_events',
+  top100Checks:     '@dg_top100_checks',
+  calendarChoice:   '@dg_calendar_choice',
 };
 
 export const storage = {

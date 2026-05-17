@@ -8,7 +8,8 @@ import { AlarmSetupModal } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
-import { syncRoundToCalendar, removeRoundFromCalendar } from '../utils/deviceCalendar';
+import { syncRoundToCalendar, removeRoundFromCalendar, getCalendarChoice } from '../utils/deviceCalendar';
+import { CalendarPickerModal } from './CalendarPickerModal';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -40,6 +41,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modal, setModal] = useState({ visible: false, initial: null });
   const [pendingAlarm, setPendingAlarm] = useState(null);
+  const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
 
@@ -160,6 +162,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
         applyDefaultAlarms(newS, userProfile.alarmDefaults);
+        maybePromptCalendar(); // 알람 팝업이 없으면 바로 캘린더 선택 안내
       } else {
         setPendingAlarm(newS);
       }
@@ -180,6 +183,11 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
       });
     }
     setModal({ visible: false, initial: null });
+  };
+
+  // 첫 일정 등록 시 — 캘린더를 한 번도 안 골랐으면 선택 팝업 노출
+  const maybePromptCalendar = () => {
+    getCalendarChoice().then(choice => { if (!choice) setCalPickerOpen(true); });
   };
 
   const handleEdit = () => {
@@ -502,8 +510,10 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
       <AlarmSetupModal
         visible={!!pendingAlarm}
         schedule={pendingAlarm}
-        onClose={() => setPendingAlarm(null)}
+        onClose={() => { setPendingAlarm(null); maybePromptCalendar(); }}
       />
+
+      <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
 
       {/* Edit/Delete Bottom Sheet */}
       <Modal visible={sheet.visible} transparent animationType="slide"

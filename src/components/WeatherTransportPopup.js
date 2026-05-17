@@ -621,7 +621,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 ) : (
                   <>
                     <Text style={wxS.wxCourse}>{schedule.course}</Text>
-                    <Text style={wxS.wxDate}>{schedule.date} · 티오프 {schedule.time}</Text>
+                    <Text style={wxS.wxDate}>
+                      {schedule.isPreview ? '날씨 미리보기' : `${schedule.date} · 티오프 ${schedule.time}`}
+                    </Text>
                   </>
                 )}
               </View>
@@ -846,33 +848,45 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {/* 교통 탭 헤더 (다크 톤 통일) */}
               <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
                 <Text style={{ fontSize: 18, color: '#fff', fontWeight: '600', marginBottom: 4 }}>{schedule.course}</Text>
-                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{schedule.date} · 티오프 {schedule.time}</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                  {schedule.isPreview ? '교통편 미리보기' : `${schedule.date} · 티오프 ${schedule.time}`}
+                </Text>
               </View>
 
               {/* 갈 때 섹션 */}
               <View style={trS.twoSection}>
                 <Text style={trS.twoLabel}>갈 때</Text>
-                <View style={trS.recoBox}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={trS.recoLabel}>추천 출발</Text>
-                      <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{recommended}</Text>
-                    </View>
-                    <Text style={{ fontSize: 22, color: 'rgba(245,230,168,0.55)', marginHorizontal: 8 }}>→</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={trS.recoLabel}>도착 예정</Text>
-                      <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{arrival}</Text>
-                    </View>
+                {schedule.isPreview ? (
+                  <View style={{ backgroundColor: 'rgba(245,230,168,0.1)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 22, marginBottom: 16 }}>
+                    <Text style={{ fontFamily: 'System', fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 21 }}>
+                      📅 라운딩 일정을 등록하면{'\n'}출발 시간을 알려드려요
+                    </Text>
                   </View>
-                  <Text style={trS.recoSub}>
-                    티오프 {schedule.time} · {driveMin != null ? `운전 ${driveMin}분 · ` : ''}여유 30분 포함
-                  </Text>
-                </View>
-                <Text style={{ fontFamily: 'System', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
-                  {driveMin != null
-                    ? 'ⓘ 카카오 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요'
-                    : 'ⓘ 출발지 좌표가 있어야 실제 소요시간으로 계산해요 (지금은 기본 추정치)'}
-                </Text>
+                ) : (
+                  <>
+                    <View style={trS.recoBox}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={trS.recoLabel}>추천 출발</Text>
+                          <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{recommended}</Text>
+                        </View>
+                        <Text style={{ fontSize: 22, color: 'rgba(245,230,168,0.55)', marginHorizontal: 8 }}>→</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={trS.recoLabel}>도착 예정</Text>
+                          <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{arrival}</Text>
+                        </View>
+                      </View>
+                      <Text style={trS.recoSub}>
+                        티오프 {schedule.time} · {driveMin != null ? `운전 ${driveMin}분 · ` : ''}여유 30분 포함
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: 'System', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
+                      {driveMin != null
+                        ? 'ⓘ 카카오 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요'
+                        : 'ⓘ 출발지 좌표가 있어야 실제 소요시간으로 계산해요 (지금은 기본 추정치)'}
+                    </Text>
+                  </>
+                )}
                 {renderSlot('goOrigin', '출발')}
                 {renderSlot('goDest', '도착')}
                 <View style={trS.linkBtnRow}>

@@ -13,11 +13,13 @@ import { TripleStripe } from './common/TripleStripe';
 import { searchPlaces } from '../utils/kakao';
 import { requestNotificationPermission, syncAlarmTypeAcrossSchedules } from '../utils/notifications';
 import { deleteAccount } from '../utils/account';
+import { CalendarPickerModal } from './CalendarPickerModal';
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
   const { schedules } = React.useContext(SchedulesContext);
   const scrollRef = useRef(null);
+  const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
   const [departure, setDeparture] = useState(userProfile.departure || '');
@@ -426,6 +428,7 @@ export function MyPageModal({ visible, onClose }) {
                   },
                   { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
                   { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
+                  { icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
                   { icon: '🔒', label: '개인정보 처리방침', onPress: () => Linking.openURL('https://dear-golf.web.app/privacy') },
                 ].map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
@@ -476,6 +479,7 @@ export function MyPageModal({ visible, onClose }) {
           </View>
         </View>
       </KeyboardAvoidingView>
+      <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
     </Modal>
   );
 }

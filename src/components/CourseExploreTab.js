@@ -370,6 +370,12 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                     {distLabel(n.distance) || n.loc}
                   </Text>
                 </View>
+                <View style={{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, marginRight: 8,
+                  backgroundColor: n.indoor ? '#E5EEF4' : '#E8EFE3' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 10, fontWeight: '600', color: n.indoor ? C.navy : '#4A6B3E' }}>
+                    {n.indoor ? '실내' : '실외'}
+                  </Text>
+                </View>
                 <TouchableOpacity onPress={() => openMap(n)} activeOpacity={0.7}
                   style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: C.bgSecondary,
                     borderWidth: 0.5, borderColor: C.hairline }}>
