@@ -9,6 +9,6 @@ export const tabS = StyleSheet.create({
   tabRow:           { flexDirection: 'row', paddingTop: 12, paddingBottom: 4 },
   tab:              { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
   label:            { fontFamily: F.sys, marginTop: 2 },
-  labelOn:          { fontSize: 16, fontWeight: '600', color: C.charcoal },
-  labelOff:         { fontSize: 13, fontWeight: '400', color: C.charcoal, opacity: 0.5 },
+  labelOn:          { fontSize: 18, fontWeight: '700', color: C.charcoal },
+  labelOff:         { fontSize: 15, fontWeight: '400', color: C.charcoal, opacity: 0.5 },
 });

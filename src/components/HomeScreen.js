@@ -312,7 +312,7 @@ export function HomeScreen({ navigation }) {
         <StatusBar barStyle="light-content" />
         <HomeBgSlider />
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-          <TripleStripe />
+          <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 10 : 0 }} />
           <View style={homeS.hdr}>
             <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -366,7 +366,7 @@ export function HomeScreen({ navigation }) {
       <StatusBar barStyle="light-content" />
       <HomeBgSlider />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-        <TripleStripe />
+        <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 10 : 0 }} />
         <View style={homeS.hdr}>
           <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

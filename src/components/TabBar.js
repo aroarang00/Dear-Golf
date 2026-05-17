@@ -32,7 +32,7 @@ export function TabBar({ state, navigation }) {
           return (
             <TouchableOpacity key={route.key} style={tabS.tab}
               onPress={handlePress} activeOpacity={0.7}>
-              <Text style={[tabS.label, focused ? tabS.labelOn : tabS.labelOff]}>{route.name}</Text>
+              <Text numberOfLines={1} style={[tabS.label, focused ? tabS.labelOn : tabS.labelOff]}>{route.name}</Text>
             </TouchableOpacity>
           );
         })}
