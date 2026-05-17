@@ -1112,7 +1112,7 @@ export function GuideScreen({ route, navigation }) {
           fontFamily: F.serifKR,
           fontSize: 28,
           color: C.charcoal,
-        }}>Golf 코스</Text>
+        }}>코스</Text>
       </View>
       <CourseExploreTab
         onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
