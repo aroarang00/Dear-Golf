@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, Alert } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Share } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
+import { ScheduleSheetModal } from './ScheduleSheetModal';
+import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { showAppAlert } from './AppAlert';
 import { AlarmSetupModal } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -37,7 +39,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
   );
 }
 
-export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
+export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
@@ -46,6 +48,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const [pendingAlarm, setPendingAlarm] = useState(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
+  const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
 
   const openPicker = () => setPicker({ visible: true, year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 });
@@ -200,6 +203,41 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
     const s = sheet.schedule;
     setSheet({ visible: false, schedule: null });
     setModal({ visible: true, initial: s });
+  };
+
+  // 일정의 D-day 계산 (0=오늘, 음수=지난 라운딩)
+  const computeDDay = (s) => {
+    if (!s || !s.date) return 0;
+    const t = new Date(s.date.replace(/\./g, '-')).getTime();
+    return Math.round((t - todayMid) / 86400000);
+  };
+
+  // 바텀시트 → 날씨/교통 팝업 (시트가 닫힌 뒤 열어 iOS 모달 표시 충돌 방지)
+  const openWxFromSheet = (tab) => {
+    const s = sheet.schedule;
+    if (!s) return;
+    setSheet({ visible: false, schedule: null });
+    setTimeout(() => setWxPopup({ visible: true, schedule: s, tab }), 280);
+  };
+
+  // 바텀시트 → 코스 상세 (코스기록과 연결된 일정일 때만)
+  const handleSheetCourse = () => {
+    const s = sheet.schedule;
+    const id = s && (s.courseLogId || s.courseId);
+    if (!id || !navigation) return;
+    setSheet({ visible: false, schedule: null });
+    navigation.navigate('코스', { openCourseId: id });
+  };
+
+  // 바텀시트 → 동반자에게 공유
+  const handleSheetShare = async () => {
+    const s = sheet.schedule;
+    if (!s) return;
+    const dd = computeDDay(s);
+    const ddText = dd > 0 ? `D-${dd}` : dd === 0 ? 'D-DAY' : '지난 라운딩';
+    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · ${ddText}\n나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳`;
+    try { await Share.share({ message: msg }); }
+    catch (e) { console.warn('[share schedule]', e?.message); }
   };
 
   // 일정 삭제 — 상황별 확인. 시트의 삭제 버튼 + 목록 카드 길게누르기 양쪽에서 사용
@@ -525,37 +563,26 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
 
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
 
-      {/* Edit/Delete Bottom Sheet */}
-      <Modal visible={sheet.visible} transparent animationType="slide"
-        onRequestClose={() => setSheet({ visible: false, schedule: null })}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1}
-            onPress={() => setSheet({ visible: false, schedule: null })} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 28 + insets.bottom }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 14 }} />
-            {sheet.schedule && (
-              <>
-                <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.charcoal, fontWeight: '600', marginBottom: 4 }}>
-                  {sheet.schedule.course}
-                </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, marginBottom: 16 }}>
-                  {sheet.schedule.date} {sheet.schedule.day} · {sheet.schedule.time} · {sheet.schedule.members}명
-                </Text>
-                <TouchableOpacity onPress={handleEdit} activeOpacity={0.6}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                  <Text style={{ fontSize: 18 }}>✏️</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal }}>일정 수정</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleDelete} activeOpacity={0.6}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 }}>
-                  <Text style={{ fontSize: 18 }}>🗑️</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>일정 삭제</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* 일정 바텀시트 — 코스정보 · 날씨 · 교통 · 공유 · 수정 · 삭제 (홈 화면과 동일) */}
+      <ScheduleSheetModal
+        visible={sheet.visible}
+        schedule={sheet.schedule ? { ...sheet.schedule, dDay: computeDDay(sheet.schedule) } : null}
+        onClose={() => setSheet(prev => ({ ...prev, visible: false }))}
+        onCourseTap={handleSheetCourse}
+        onWeather={() => openWxFromSheet('wx')}
+        onTraffic={() => openWxFromSheet('tr')}
+        onShare={handleSheetShare}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      <WeatherTransportPopup
+        visible={wxPopup.visible}
+        initialTab={wxPopup.tab}
+        schedule={wxPopup.schedule}
+        schedules={schedules}
+        onClose={() => setWxPopup({ visible: false, schedule: null, tab: 'wx' })}
+      />
 
       {/* 년/월 피커 */}
       <Modal visible={picker.visible} transparent animationType="slide"

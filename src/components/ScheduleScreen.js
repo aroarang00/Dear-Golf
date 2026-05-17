@@ -50,6 +50,7 @@ export function ScheduleScreen({ navigation }) {
       </View>
       <MyScheduleTab
         diaries={diaries}
+        navigation={navigation}
         onRequestAddDiary={(seed) => navigation.navigate('다이어리', { openAddModal: true, addDate: seed?.date })}
       />
     </SafeAreaView>
