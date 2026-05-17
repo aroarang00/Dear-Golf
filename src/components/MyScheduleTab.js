@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Modal, View, Text, TouchableOpacity, Alert } from 'react-native';
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
@@ -113,15 +113,16 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const goNext = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
 
   // 캘린더 좌우 스와이프로 전달/다음달 이동
-  // activeOffsetX: 가로로 살짝만 움직여도 활성화 / failOffsetY: 세로 움직임이 먼저면 실패 → 세로 스크롤 유지
-  const monthSwipe = Gesture.Pan()
+  // activeOffsetX: 가로로 10px만 움직여도 활성화 / failOffsetY: 세로 움직임이 먼저면 실패 → 세로 스크롤 유지
+  // (ScrollView를 gesture-handler 버전으로 교체해 Android에서도 중첩 제스처가 동작)
+  const monthSwipe = React.useMemo(() => Gesture.Pan()
     .runOnJS(true)
-    .activeOffsetX([-12, 12])
-    .failOffsetY([-18, 18])
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-22, 22])
     .onEnd((e) => {
-      if (e.translationX > 35 || e.velocityX > 350) goPrev();
-      else if (e.translationX < -35 || e.velocityX < -350) goNext();
-    });
+      if (e.translationX > 24 || e.velocityX > 260) goPrev();
+      else if (e.translationX < -24 || e.velocityX < -260) goNext();
+    }), []);
 
   const handleDateTap = (m, d) => {
     if (m !== 0) {

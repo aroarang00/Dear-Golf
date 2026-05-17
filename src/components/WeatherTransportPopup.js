@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, PanResponder, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
@@ -296,36 +296,30 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     animateTo(newTab === 'wx' ? 0 : -SW, newTab);
   };
 
-  const weatherOnlyRef = useRef(weatherOnly);
-  useEffect(() => { weatherOnlyRef.current = weatherOnly; }, [weatherOnly]);
-
-  const panResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onStartShouldSetPanResponderCapture: () => false,
-    onMoveShouldSetPanResponder: (_, gs) =>
-      !weatherOnlyRef.current && Math.abs(gs.dx) > 10 && Math.abs(gs.dy) < 15,
-    onMoveShouldSetPanResponderCapture: (_, gs) =>
-      !weatherOnlyRef.current && Math.abs(gs.dx) > 10 && Math.abs(gs.dy) < 15,
-    onPanResponderTerminationRequest: () => false,
-    onPanResponderMove: (_, gs) => {
-      let next = slideBase.current + gs.dx;
+  // 날씨 ↔ 교통 가로 스와이프 — gesture-handler Pan
+  // activeOffsetX: 가로로 8px만 움직여도 인식 (감도↑) / failOffsetY: 세로 스크롤이 먼저면 양보
+  const slidePan = React.useMemo(() => Gesture.Pan()
+    .enabled(!weatherOnly)
+    .activeOffsetX([-8, 8])
+    .failOffsetY([-16, 16])
+    .runOnJS(true)
+    .onUpdate((e) => {
+      let next = slideBase.current + e.translationX;
       if (next > 0) next = 0;
       if (next < -SW) next = -SW;
       slideAnim.setValue(next);
-    },
-    onPanResponderRelease: (_, gs) => {
-      if (gs.dx < -50 && slideBase.current === 0) {
+    })
+    .onEnd((e) => {
+      const commit = SW * 0.18;            // 페이지의 18%만 끌어도 전환
+      const flick = Math.abs(e.velocityX) > 300; // 빠른 플릭이면 거리 무관 전환
+      if ((e.translationX < -commit || (flick && e.velocityX < 0)) && slideBase.current === 0) {
         animateTo(-SW, 'tr');
-      } else if (gs.dx > 50 && slideBase.current === -SW) {
+      } else if ((e.translationX > commit || (flick && e.velocityX > 0)) && slideBase.current === -SW) {
         animateTo(0, 'wx');
       } else {
         animateTo(slideBase.current, null);
       }
-    },
-    onPanResponderTerminate: () => {
-      animateTo(slideBase.current, null);
-    },
-  })).current;
+    }), [weatherOnly, SW]);
 
   const [teeH, teeM] = (schedule?.time || '08:00').split(':').map(Number);
   const teeMin = teeH * 60 + teeM;
@@ -599,8 +593,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
           {/* 가로 슬라이더 — 두 페이지를 나란히 배치 + translateX */}
           <View style={{ flex: 1, overflow: 'hidden' }}>
+            <GestureDetector gesture={slidePan}>
             <Animated.View
-              {...panResponder.panHandlers}
               style={{
                 flex: 1,
                 flexDirection: 'row',
@@ -932,6 +926,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             </ScrollView>
             </View>
             </Animated.View>
+            </GestureDetector>
           </View>
         </SafeAreaView>
       </View>
