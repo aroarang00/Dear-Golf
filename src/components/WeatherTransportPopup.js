@@ -9,6 +9,7 @@ import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { addressToCoord, getDrivingDirections, searchGolfCourses } from '../utils/kakao';
+import { getOverseasWeather } from '../utils/openweather';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
 import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -191,13 +192,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
   useEffect(() => {
     if (visible) {
-      const t = weatherOnly ? 'wx' : (initialTab || 'wx');
+      const t = (weatherOnly || schedule?.overseas) ? 'wx' : (initialTab || 'wx');
       setTab(t);
       const target = t === 'wx' ? 0 : -SW;
       slideAnim.setValue(target);
       slideBase.current = target;
     }
-  }, [visible, initialTab, SW, weatherOnly]);
+  }, [visible, initialTab, SW, weatherOnly, schedule?.overseas]);
 
   // 탭 변경 시 핀치 줌 리셋
   useEffect(() => {
@@ -212,7 +213,17 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     (async () => {
       try {
         setWxFailed(false);
-        if (weatherOnly) {
+        if (schedule?.overseas) {
+          // 해외 일정 — OpenWeather로 현지 날씨 (입력한 도시 좌표 기반)
+          setForecast(null); setAirQuality(null); setUvIndex(null);
+          if (typeof schedule.cityLat !== 'number' || typeof schedule.cityLon !== 'number') {
+            setWxFailed(true); return;
+          }
+          const ow = await getOverseasWeather(schedule.cityLat, schedule.cityLon);
+          if (cancelled) return;
+          if (!ow) { setWxFailed(true); return; }
+          setForecast({ current: ow.current, days: ow.days, slotsByDate: {} });
+        } else if (weatherOnly) {
           setForecast(null); setAirQuality(null); setUvIndex(null); setResolvedLoc('');
           const pos = await getCurrentLocation();
           if (cancelled) return;
@@ -261,7 +272,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       }
     })();
     return () => { cancelled = true; };
-  }, [visible, weatherOnly, schedule?.courseId, schedule?.courseX, schedule?.courseY, retryTick]);
+  }, [visible, weatherOnly, schedule?.overseas, schedule?.cityLat, schedule?.cityLon, schedule?.courseId, schedule?.courseX, schedule?.courseY, retryTick]);
 
   // 마이페이지 저장 출발지 → 좌표
   // 검색에서 선택해 저장한 정확 좌표가 있으면 그대로 사용, 없으면 주소 텍스트로 변환(폴백)
@@ -299,7 +310,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   // 날씨 ↔ 교통 가로 스와이프 — gesture-handler Pan
   // activeOffsetX: 가로로 8px만 움직여도 인식 (감도↑) / failOffsetY: 세로 스크롤이 먼저면 양보
   const slidePan = React.useMemo(() => Gesture.Pan()
-    .enabled(!weatherOnly)
+    .enabled(!weatherOnly && !schedule?.overseas)
     .activeOffsetX([-8, 8])
     .failOffsetY([-16, 16])
     .runOnJS(true)
@@ -319,7 +330,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       } else {
         animateTo(slideBase.current, null);
       }
-    }), [weatherOnly, SW]);
+    }), [weatherOnly, SW, schedule?.overseas]);
 
   const [teeH, teeM] = (schedule?.time || '08:00').split(':').map(Number);
   const teeMin = teeH * 60 + teeM;
@@ -484,12 +495,12 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   // 데이터 소스: weatherOnly→현재, 일정 D+0~D+3→티오프(또는 정오) 슬롯, D+4~D+10→중기 일별
   // 일정 D+11 이후는 예보 범위 밖 → kind:'too-far' 반환해서 UI에서 안내 문구 표시
   const golfIdx = React.useMemo(() => {
-    if (!weatherOnly && Number.isFinite(schedule?.dDay) && schedule.dDay > 10) {
+    if (!weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay) && schedule.dDay > 10) {
       return { kind: 'too-far' };
     }
 
     let temp = null, wind = null, pop = null, windKnown = true;
-    if (weatherOnly) {
+    if (weatherOnly || schedule?.overseas) {
       temp = cur?.temp;
       wind = cur?.windSpeed;
       pop = cur?.pop ?? todayDay?.pop ?? 0;
@@ -575,8 +586,10 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             <TouchableOpacity onPress={onClose} activeOpacity={0.6} style={wxS.backBtn}>
               <Text style={wxS.backArrow}>←</Text>
             </TouchableOpacity>
-            {weatherOnly ? (
-              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>현재 위치 날씨</Text>
+            {weatherOnly || schedule.overseas ? (
+              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>
+                {weatherOnly ? '현재 위치 날씨' : '현지 날씨'}
+              </Text>
             ) : (
               <View style={wxS.pillTabs}>
                 {[{ k: 'wx', l: '날씨' }, { k: 'tr', l: '교통' }].map(t => {

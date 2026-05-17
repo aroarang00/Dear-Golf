@@ -3,6 +3,7 @@ import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvo
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
+import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 
@@ -21,6 +22,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const debounceRef = useRef(null);
+  // 해외 라운딩 — 국내/해외 + 도시(날씨 조회용)
+  const [overseas, setOverseas] = useState(false);
+  const [cityQuery, setCityQuery] = useState('');
+  const [cityResults, setCityResults] = useState([]);
+  const [citySearching, setCitySearching] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(null); // { name, enName, country, lat, lon }
+  const cityDebounce = useRef(null);
 
   const DAYS = ['일','월','화','수','목','금','토'];
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
@@ -48,6 +56,15 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         setTime(t);
       }
       setMembers(String(initial.members || '4'));
+      setOverseas(!!initial.overseas);
+      if (initial.overseas && initial.city) {
+        setCityQuery(initial.city);
+        setSelectedCity(typeof initial.cityLat === 'number'
+          ? { name: initial.city, country: initial.cityCountry || '', lat: initial.cityLat, lon: initial.cityLon }
+          : null);
+      } else {
+        setCityQuery(''); setSelectedCity(null);
+      }
     }
     if (!visible) {
       setSearchResults([]);
@@ -59,7 +76,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     // 골프장이 이미 선택된 상태에서 input 텍스트가 같으면 검색 안 함
-    if (!courseSearch || (selected && courseSearch === selected.name)) {
+    if (overseas || !courseSearch || (selected && courseSearch === selected.name)) {
       setSearchResults([]);
       setSearching(false);
       return;
@@ -71,7 +88,24 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       setSearching(false);
     }, 300);
     return () => debounceRef.current && clearTimeout(debounceRef.current);
-  }, [courseSearch, selected]);
+  }, [courseSearch, selected, overseas]);
+
+  // 해외 — 도시명 debounce 지오코딩 (OpenWeather)
+  useEffect(() => {
+    if (cityDebounce.current) clearTimeout(cityDebounce.current);
+    if (!overseas || !cityQuery || (selectedCity && cityQuery === selectedCity.name)) {
+      setCityResults([]);
+      setCitySearching(false);
+      return;
+    }
+    setCitySearching(true);
+    cityDebounce.current = setTimeout(async () => {
+      const r = await geocodeCity(cityQuery);
+      setCityResults(r);
+      setCitySearching(false);
+    }, 400);
+    return () => cityDebounce.current && clearTimeout(cityDebounce.current);
+  }, [cityQuery, overseas, selectedCity]);
 
   const handleSelectResult = async (r) => {
     // USER_COURSES에 등록 (중복이면 기존 항목 반환)
@@ -98,6 +132,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setCourseSearch(''); setSelected(null); setSearchResults([]);
     setDate(new Date()); setTime(new Date()); setMembers('4');
     setEditingName(false); setEditName('');
+    setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
   };
 
   const handleSave = () => {
@@ -108,7 +143,12 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     const dDay = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
     const payload = {
       course: finalCourse,
-      courseId: selected ? selected.id : null,
+      courseId: overseas ? null : (selected ? selected.id : null),
+      overseas,
+      city: overseas ? (selectedCity?.name || cityQuery.trim()) : '',
+      cityCountry: overseas ? (selectedCity?.country || '') : '',
+      cityLat: overseas ? (selectedCity?.lat ?? null) : null,
+      cityLon: overseas ? (selectedCity?.lon ?? null) : null,
       date: formatDate(date),
       day: formatDay(date),
       time: formatTime(time),
@@ -132,6 +172,17 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
             <View style={mS.handle} />
             <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={mS.title}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
+
+              {/* 국내 / 해외 */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                {[['국내', false], ['해외', true]].map(([l, v]) => (
+                  <TouchableOpacity key={l} activeOpacity={0.7}
+                    onPress={() => { setOverseas(v); setSearchResults([]); setCityResults([]); }}
+                    style={[mS.chip, overseas === v && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                    <Text style={[mS.chipTxt, overseas === v && mS.chipTxtOn]}>{l}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 6 }}>
                 <Text style={[mS.label, { marginTop: 0, marginBottom: 0 }]}>골프장</Text>
@@ -159,7 +210,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TextInput style={mS.input} placeholder="카카오 검색으로 골프장 찾기..."
+                <TextInput style={mS.input} placeholder={overseas ? '골프장 이름 입력' : '카카오 검색으로 골프장 찾기...'}
                   placeholderTextColor={C.warmGrayLight} value={courseSearch}
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseSearch(t); setSelected(null); }} />
@@ -171,11 +222,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 </Text>
               )}
 
-              {searching && (
+              {!overseas && searching && (
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>검색 중...</Text>
               )}
 
-              {!searching && searchResults.length > 0 && (
+              {!overseas && !searching && searchResults.length > 0 && (
                 <View style={mS.searchDrop}>
                   {searchResults.map(r => (
                     <TouchableOpacity key={r.kakaoId} style={mS.searchItem}
@@ -185,6 +236,35 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                     </TouchableOpacity>
                   ))}
                 </View>
+              )}
+
+              {overseas && (
+                <>
+                  <Text style={mS.label}>도시 <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(현지 날씨 조회용)</Text></Text>
+                  <TextInput style={mS.input} placeholder="예: Okinawa / Da Nang / 다낭"
+                    placeholderTextColor={C.warmGrayLight} value={cityQuery}
+                    autoCorrect={false} autoCapitalize="none"
+                    onChangeText={t => { setCityQuery(t); setSelectedCity(null); }} />
+                  {citySearching && (
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>도시 검색 중...</Text>
+                  )}
+                  {!citySearching && cityResults.length > 0 && (
+                    <View style={mS.searchDrop}>
+                      {cityResults.map((c, i) => (
+                        <TouchableOpacity key={`${c.lat}_${c.lon}_${i}`} style={mS.searchItem}
+                          onPress={() => { setSelectedCity(c); setCityQuery(c.name); setCityResults([]); }}>
+                          <Text style={mS.searchName}>{c.name}{c.enName && c.enName !== c.name ? ` (${c.enName})` : ''}</Text>
+                          <Text style={mS.searchLoc}>{[c.state, c.country].filter(Boolean).join(' · ') || '위치'}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  {selectedCity && (
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#3C7D4F', marginTop: 4 }}>
+                      ✓ {selectedCity.name} — 현지 날씨를 보여드려요
+                    </Text>
+                  )}
+                </>
               )}
 
               <Text style={mS.label}>날짜</Text>
