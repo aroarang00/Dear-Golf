@@ -6,6 +6,7 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
+import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
 import { C, F } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
@@ -31,6 +32,9 @@ export default function App() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
+
+  // "Dear Golf" 워드마크용 이탤릭 폰트 (Lora Italic) — 번들 로드
+  const [fontsLoaded, fontError] = useFonts({ Lora_500Medium_Italic });
 
   useEffect(() => {
     (async () => {
@@ -88,7 +92,8 @@ export default function App() {
     setShowOnboarding(true);
   };
 
-  if (!profileLoaded) {
+  // 폰트 로드 실패해도(fontError) 시스템 폰트로 폴백하며 진행 — 앱이 멈추지 않게
+  if (!profileLoaded || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgPrimary }}>
         <ActivityIndicator size="large" color={C.burgundy} />
