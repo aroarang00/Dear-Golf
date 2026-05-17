@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { C, F } from '../constants/colors';
 import { ScheduleModal } from './ScheduleModal';
+import { showAppAlert } from './AppAlert';
 import { AlarmSetupModal } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
@@ -46,7 +47,6 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
-  const [confirm, setConfirm] = useState(null); // 커스텀 확인창 { title, message, confirmLabel, onConfirm }
 
   const openPicker = () => setPicker({ visible: true, year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 });
   const confirmPicker = () => {
@@ -215,22 +215,20 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
 
     // 과거 라운딩 + 다이어리 기록 있음 → 다이어리에서 삭제하도록 안내
     if (isPast && hasRec) {
-      setConfirm({
-        title: '삭제 안내',
-        message: '이 라운딩은 다이어리 기록이 있어요.\n다이어리 탭에서 삭제해주세요.',
-        onConfirm: null,
-      });
+      showAppAlert('삭제 안내', '이 라운딩은 다이어리 기록이 있어요.\n다이어리 탭에서 삭제해주세요.', [{ text: '확인' }]);
       return;
     }
     // 과거 + 기록 없음 → 일정·코스기록 모두 삭제 / 예정 → 단순 확인
-    setConfirm({
-      title: '일정 삭제',
-      message: isPast
+    showAppAlert(
+      '일정 삭제',
+      isPast
         ? '이 일정을 삭제하면 일정과\n내 코스기록이 모두 삭제됩니다.'
         : '이 예정 라운딩을 삭제할까요?',
-      confirmLabel: '삭제',
-      onConfirm: remove,
-    });
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: remove },
+      ],
+    );
   };
 
   const handleDelete = () => {
@@ -610,41 +608,6 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [] }) {
                 style={{ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: C.charcoal }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>확인</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 커스텀 확인창 — Android 기본 다이얼로그 대신 앱 디자인에 맞춤 */}
-      <Modal visible={!!confirm} transparent animationType="fade"
-        onRequestClose={() => setConfirm(null)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 340 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 16, fontWeight: '700', color: C.charcoal, textAlign: 'center', marginBottom: 8 }}>
-              {confirm?.title}
-            </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
-              {confirm?.message}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {confirm?.onConfirm ? (
-                <>
-                  <TouchableOpacity activeOpacity={0.8} onPress={() => setConfirm(null)}
-                    style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 0.5, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>취소</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={0.85}
-                    onPress={() => { const fn = confirm.onConfirm; setConfirm(null); fn && fn(); }}
-                    style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: C.burgundy }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>{confirm.confirmLabel || '삭제'}</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity activeOpacity={0.85} onPress={() => setConfirm(null)}
-                  style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: C.charcoal }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>확인</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </View>
         </View>

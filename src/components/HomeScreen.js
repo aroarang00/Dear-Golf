@@ -3,6 +3,7 @@ import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
   Share, Alert, Modal, LayoutAnimation, Platform, UIManager,
 } from 'react-native';
+import { showAppAlert } from './AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { COURSE_LOG, DIARY_DATA } from '../constants/data';
@@ -240,7 +241,7 @@ export function HomeScreen({ navigation }) {
 
   const handleDeleteSchedule = (s) => {
     if (!s) return;
-    Alert.alert(
+    showAppAlert(
       '일정 삭제',
       `${s.course}\n${s.date} ${s.day} · ${s.time}\n\n이 일정을 삭제할까요?`,
       [

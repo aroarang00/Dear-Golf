@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { showAppAlert } from './AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
@@ -32,7 +33,7 @@ export function ScheduleScreen({ navigation }) {
           }}>캘린더</Text>
         </View>
         <TouchableOpacity
-          onPress={() => Alert.alert(
+          onPress={() => showAppAlert(
             '일정 삭제 안내',
             '지난 일정을 삭제하려면\n일정 카드를 길게 누르세요.\n\n다이어리 기록이 있는 일정은\n다이어리 탭에서 삭제할 수 있어요.',
             [{ text: '확인' }],

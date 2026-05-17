@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Alert, Linking } from 'react-native';
+import { showAppAlert } from './AppAlert';
 import { C, F } from '../constants/colors';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { UserContext } from '../contexts/UserContext';
@@ -58,7 +59,7 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
     const granted = await requestNotificationPermission();
     if (!granted) {
       setSaving(false);
-      Alert.alert(
+      showAppAlert(
         '알림 권한이 필요해요',
         '라운딩 알람을 받으려면 알림 권한을 허용해주세요.',
         [

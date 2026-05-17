@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { showAppAlert } from './AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
@@ -414,7 +415,7 @@ export function GuideScreen({ route, navigation }) {
     const courseKey = selected === PREVIEW_ID
       ? (previewCourse?.kakaoId ? `kakao:${previewCourse.kakaoId}` : null)
       : selected;
-    if (!courseKey) { Alert.alert('코멘트', '이 골프장에는 코멘트를 남길 수 없어요.'); return; }
+    if (!courseKey) { showAppAlert('코멘트', '이 골프장에는 코멘트를 남길 수 없어요.'); return; }
     const anon = anonymize(userProfile?.nickname);
     const now = new Date();
     const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -422,7 +423,7 @@ export function GuideScreen({ route, navigation }) {
     setShowCommentInput(false);
     const created = await addCourseComment(courseKey, txt, anon, dateStr);
     if (created) setComments(prev => [created, ...prev]);
-    else Alert.alert('코멘트 저장 실패', '네트워크 상태를 확인하고 다시 시도해주세요.');
+    else showAppAlert('코멘트 저장 실패', '네트워크 상태를 확인하고 다시 시도해주세요.');
   };
 
   const toggleFavorite = (id) => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { showAppAlert } from './AppAlert';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
@@ -40,7 +41,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
   const photosToShow = item.photos || [];
 
   const handleDelete = () => {
-    Alert.alert(
+    showAppAlert(
       '라운딩 삭제',
       '어떻게 삭제할까요?',
       [
@@ -53,7 +54,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
 
   const handlePhotoLongPress = (index) => {
     if (!isEditing) return;
-    Alert.alert(
+    showAppAlert(
       '사진 옵션',
       null,
       [
@@ -242,7 +243,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
                     if (isEditing) {
                       const isVideo = typeof uri === 'object' && uri?.type === 'video';
                       if (isVideo) {
-                        Alert.alert('편집 불가', '동영상은 회전 편집을 지원하지 않습니다.\n길게 눌러 대표 지정/삭제만 가능해요.');
+                        showAppAlert('편집 불가', '동영상은 회전 편집을 지원하지 않습니다.\n길게 눌러 대표 지정/삭제만 가능해요.');
                         return;
                       }
                       setEditorIndex(i);

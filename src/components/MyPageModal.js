@@ -3,6 +3,7 @@ import {
   Modal, View, ScrollView, Text, TouchableOpacity, TextInput,
   KeyboardAvoidingView, Platform, Alert, Linking,
 } from 'react-native';
+import { showAppAlert } from './AppAlert';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -47,7 +48,7 @@ export function MyPageModal({ visible, onClose }) {
     if (value) {
       const granted = await requestNotificationPermission();
       if (!granted) {
-        Alert.alert('알림 권한이 필요해요', '알람을 받으려면 알림 권한을 허용해주세요.', [
+        showAppAlert('알림 권한이 필요해요', '알람을 받으려면 알림 권한을 허용해주세요.', [
           { text: '확인', style: 'cancel' },
           { text: '설정 열기', onPress: () => Linking.openSettings() },
         ]);
@@ -74,7 +75,7 @@ export function MyPageModal({ visible, onClose }) {
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
     setEditingStats(false);
-    Alert.alert('완료', '통계가 저장되었어요 ✓');
+    showAppAlert('완료', '통계가 저장되었어요 ✓');
   };
 
   useEffect(() => {
@@ -100,7 +101,7 @@ export function MyPageModal({ visible, onClose }) {
     setDepResults([]);
     setDepSearching(false);
     setEditingInfo(false);
-    Alert.alert('완료', '내 정보가 저장되었어요 ✓');
+    showAppAlert('완료', '내 정보가 저장되었어요 ✓');
   };
 
   const handleCancelInfo = () => {
@@ -158,12 +159,12 @@ export function MyPageModal({ visible, onClose }) {
     setUserProfile({ ...updated });
     setNickname(trimmed);
     setEditingNick(false);
-    Alert.alert('완료', '닉네임이 변경되었어요');
+    showAppAlert('완료', '닉네임이 변경되었어요');
   };
 
   // 계정 탈퇴 — 확인 후 Firebase 계정·Firestore 데이터·로컬 데이터를 모두 삭제하고 온보딩으로
   const handleDeleteAccount = () => {
-    Alert.alert(
+    showAppAlert(
       '정말 탈퇴하시겠어요?',
       '탈퇴하면 계정과 모든 기록(일정·다이어리·명예의 전당·골퍼 코멘트)이 삭제되며 복구할 수 없어요.',
       [

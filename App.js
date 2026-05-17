@@ -21,6 +21,7 @@ import { DiaryScreen } from './src/components/DiaryScreen';
 import { GuideScreen } from './src/components/GuideScreen';
 import { MyScreen } from './src/components/MyScreen';
 import { TabBar } from './src/components/TabBar';
+import { AppAlertHost } from './src/components/AppAlert';
 
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -156,6 +157,8 @@ export default function App() {
           </View>
         </View>
       </Modal>
+
+      <AppAlertHost />
     </NavigationContainer>
     </SchedulesProvider>
     </UserContext.Provider>
