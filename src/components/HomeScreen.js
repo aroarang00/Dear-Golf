@@ -216,7 +216,8 @@ export function HomeScreen({ navigation }) {
   };
 
   const openScheduleSheet = (schedule) => {
-    setSelectedSchedule(schedule);
+    // 일정 시트(ScheduleSheetModal)가 D-day를 표시하므로 항상 최신 D-day를 주입
+    setSelectedSchedule(schedule ? { ...schedule, dDay: freshDDay(schedule) } : schedule);
     setShowScheduleModal(true);
   };
 
