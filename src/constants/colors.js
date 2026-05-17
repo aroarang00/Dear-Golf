@@ -15,10 +15,10 @@ export const C = {
 };
 
 // en: 영문·숫자 디스플레이 (Playfair Display) — Android엔 Georgia가 없어 직접 번들
-// serifKR: 한글 포함 세리프 헤더 (Noto Serif KR)
+// serifKR: 한글 포함 헤더 — 시스템 폰트 (Noto Serif KR은 14MB라 제외)
 // sys: 본문 — 시스템 폰트
 export const F = {
   en: 'PlayfairDisplay_500Medium',
-  serifKR: 'NotoSerifKR_500Medium',
+  serifKR: '-apple-system',
   sys: '-apple-system',
 };

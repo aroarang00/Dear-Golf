@@ -8,7 +8,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
 import { PlayfairDisplay_500Medium } from '@expo-google-fonts/playfair-display';
-import { NotoSerifKR_500Medium } from '@expo-google-fonts/noto-serif-kr';
 import { C, F } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
@@ -34,8 +33,9 @@ export default function App() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
-  // 커스텀 폰트 로드 — Android에 Georgia가 없어 직접 번들 (Playfair Display + Noto Serif KR)
-  const [fontsLoaded] = useFonts({ PlayfairDisplay_500Medium, NotoSerifKR_500Medium });
+  // 커스텀 폰트 로드 — Android에 Georgia가 없어 Playfair Display를 번들
+  // (Noto Serif KR은 14MB라 런타임 로딩 실패 → 제거, 한글 헤더는 시스템 폰트 사용)
+  const [fontsLoaded] = useFonts({ PlayfairDisplay_500Medium });
 
   useEffect(() => {
     (async () => {
