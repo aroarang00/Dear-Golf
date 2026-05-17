@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
 
 import { C, F } from '../constants/colors';
@@ -148,6 +149,24 @@ export function GuideScreen({ route, navigation }) {
     setSelected(PREVIEW_ID);
     setInnerTab('course');
   };
+
+  // Android 시스템 뒤로가기 — 코스 상세가 열려 있으면 홈으로 가지 않고 상세만 닫는다
+  // (코스 탭에 머물러 검색·최근검색 상태 유지)
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBack = () => {
+        if (selected || previewCourse) {
+          setSelected(null);
+          setPreviewCourse(null);
+          setInnerTab('course');
+          return true;
+        }
+        return false;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      return () => sub.remove();
+    }, [selected, previewCourse]),
+  );
 
   // 코스 상세에서 날씨/교통 팝업 열기 — 오늘 라운딩 가상 일정으로 fetch
   const openCourseInfo = (course, tab) => {
