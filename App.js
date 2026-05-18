@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -22,6 +22,15 @@ import { GuideScreen } from './src/components/GuideScreen';
 import { MyScreen } from './src/components/MyScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
+
+// 시스템 글꼴 크기 설정(안드로이드 '글꼴 크기'/iOS 동적 타입)이 앱 레이아웃을
+// 깨지 않도록 — 모든 Text·TextInput의 글꼴 스케일링을 꺼서 텍스트 크기를 고정.
+if (Text.defaultProps == null) Text.defaultProps = {};
+Text.defaultProps.allowFontScaling = false;
+Text.defaultProps.maxFontSizeMultiplier = 1;
+if (TextInput.defaultProps == null) TextInput.defaultProps = {};
+TextInput.defaultProps.allowFontScaling = false;
+TextInput.defaultProps.maxFontSizeMultiplier = 1;
 
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
