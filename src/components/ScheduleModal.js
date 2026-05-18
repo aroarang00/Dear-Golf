@@ -158,7 +158,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
   const reset = () => {
     setCourseSearch(''); setSelected(null); setSearchResults([]);
-    setDate(new Date()); setTime(new Date()); setMembers('4');
+    setDate(new Date()); setHourText('07'); setMinText('00'); setMembers('4');
     setEditingName(false); setEditName('');
     setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
   };
