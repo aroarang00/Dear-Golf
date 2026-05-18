@@ -18,7 +18,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState(new Date());
+  const [hourText, setHourText] = useState('07'); // 티오프 시 (직접입력)
+  const [minText, setMinText] = useState('00');   // 티오프 분 (직접입력)
   const [members, setMembers] = useState('4');
   const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState('');
@@ -35,7 +36,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const DAYS = ['일','월','화','수','목','금','토'];
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   const formatDay = (d) => DAYS[d.getDay()];
-  const formatTime = (t) => `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const clampNum = (s, max) => {
+    const n = parseInt(s, 10);
+    return isNaN(n) ? 0 : Math.min(Math.max(n, 0), max);
+  };
+  // 티오프 시간 — 시/분 직접입력값을 정규화한 최종 "HH:MM"
+  const resolvedTime = () => `${pad2(clampNum(hourText, 23))}:${pad2(clampNum(minText, 59))}`;
 
   useEffect(() => {
     if (visible && initial) {
@@ -54,8 +61,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       }
       const tParts = (initial.time || '').split(':').map(Number);
       if (tParts.length === 2 && !isNaN(tParts[0])) {
-        const t = new Date(); t.setHours(tParts[0], tParts[1], 0, 0);
-        setTime(t);
+        setHourText(pad2(tParts[0]));
+        setMinText(pad2(tParts[1]));
       }
       setMembers(String(initial.members || '4'));
       setOverseas(!!initial.overseas);
@@ -172,7 +179,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       cityLon: overseas ? (selectedCity?.lon ?? null) : null,
       date: formatDate(date),
       day: formatDay(date),
-      time: formatTime(time),
+      time: resolvedTime(),
       members: parseInt(members) || 4,
       dDay: Math.max(0, dDay),
     };
@@ -316,12 +323,42 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   minimumDate={new Date()} locale="ko" />
               )}
               <Text style={mS.label}>티오프 시간</Text>
-              <TouchableOpacity style={mS.input} onPress={() => setShowTimePicker(true)}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.textPrimary }}>{formatTime(time)}</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput
+                  style={[mS.input, { flex: 1, textAlign: 'center' }]}
+                  value={hourText}
+                  onChangeText={(v) => setHourText(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  onBlur={() => setHourText(pad2(clampNum(hourText, 23)))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="시"
+                  placeholderTextColor={C.warmGrayLight}
+                />
+                <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.textPrimary }}>:</Text>
+                <TextInput
+                  style={[mS.input, { flex: 1, textAlign: 'center' }]}
+                  value={minText}
+                  onChangeText={(v) => setMinText(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  onBlur={() => setMinText(pad2(clampNum(minText, 59)))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="분"
+                  placeholderTextColor={C.warmGrayLight}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(true)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                  <Text style={{ fontSize: 18 }}>🕐</Text>
+                </TouchableOpacity>
+              </View>
               {showTimePicker && (
-                <DateTimePicker value={time} mode="time" display="spinner" is24Hour
-                  onChange={(e, t) => { setShowTimePicker(false); if (t) setTime(t); }} />
+                <DateTimePicker
+                  value={(() => { const d = new Date(); d.setHours(clampNum(hourText, 23), clampNum(minText, 59), 0, 0); return d; })()}
+                  mode="time" display="spinner" is24Hour
+                  onChange={(e, t) => {
+                    setShowTimePicker(false);
+                    if (t) { setHourText(pad2(t.getHours())); setMinText(pad2(t.getMinutes())); }
+                  }} />
               )}
               <Text style={mS.label}>인원</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
