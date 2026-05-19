@@ -4,13 +4,33 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustGradeModal } from './common/TrustBadge';
+import { WhoLikedModal } from './common/WhoLikedModal';
 
-// 친구 라운딩 피드 1건
-function FeedCard({ item }) {
+// 특별한 순간 타입 → 한글 라벨
+const SPECIAL_LABEL = { 'HOLE IN ONE': '홀인원', 'EAGLE': '이글', 'ALBATROSS': '알바트로스' };
+
+// 친구 라운딩 피드 1건 — 특별한 순간이면 강조 카드 + 좋아요
+function FeedCard({ item, onShowLikers }) {
+  const [liked, setLiked] = useState(false);
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
+  const isSpecial = !!item.special;
+  const likers = liked ? [...(item.likedBy || []), '나'] : (item.likedBy || []);
+
   return (
-    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 10 }}>
+    <View style={{
+      backgroundColor: isSpecial ? '#FBF6E8' : C.bgSecondary, borderRadius: 12,
+      borderWidth: isSpecial ? 1 : 0.5, borderColor: isSpecial ? '#C9A84C' : C.hairline,
+      padding: 14, marginBottom: 10,
+    }}>
+      {isSpecial && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
+          <Text style={{ fontSize: 13 }}>🏆</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#8B6914', fontWeight: '700', letterSpacing: 1 }}>
+            {SPECIAL_LABEL[item.special] || item.special}
+          </Text>
+        </View>
+      )}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{item.course}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>{item.date}</Text>
@@ -25,6 +45,21 @@ function FeedCard({ item }) {
       {item.memo ? (
         <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6, lineHeight: 18 }}>"{item.memo}"</Text>
       ) : null}
+      {/* 좋아요 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingTop: 10,
+        borderTopWidth: 0.5, borderTopColor: isSpecial ? '#E8D9A8' : C.hairline }}>
+        <TouchableOpacity onPress={() => setLiked(v => !v)} activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 12,
+            backgroundColor: liked ? '#F0E0E2' : 'transparent', borderWidth: 0.5, borderColor: liked ? C.burgundy : C.hairline }}>
+          <Text style={{ fontSize: 12 }}>👍</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '700', color: liked ? C.burgundy : C.warmGray }}>{likers.length}</Text>
+        </TouchableOpacity>
+        {likers.length > 0 && (
+          <TouchableOpacity onPress={() => onShowLikers(likers)} activeOpacity={0.7}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>좋아요 누른 사람 보기</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -32,6 +67,7 @@ function FeedCard({ item }) {
 // 친구 풀 프로필 — 프로필 / 통계 / 라운딩 피드
 export function FriendProfile({ friend, visible, onClose }) {
   const [gradeOpen, setGradeOpen] = useState(false);
+  const [likers, setLikers] = useState(null);   // 좋아요 누른 사람 목록 팝업
   if (!friend) return null;
   const palette = friend.palette || { bg: '#C8D9E6', fg: '#1A3D52' };
   const stats = friend.stats || {};
@@ -109,7 +145,7 @@ export function FriendProfile({ friend, visible, onClose }) {
                   아직 공개된 라운딩 기록이 없어요
                 </Text>
               ) : (
-                friend.feed.map(item => <FeedCard key={item.id} item={item} />)
+                friend.feed.map(item => <FeedCard key={item.id} item={item} onShowLikers={setLikers} />)
               )}
             </View>
           </ScrollView>
@@ -117,6 +153,9 @@ export function FriendProfile({ friend, visible, onClose }) {
           {/* 신뢰 등급 설명 팝업 */}
           <TrustGradeModal visible={gradeOpen} highlightKey={grade.key}
             onClose={() => setGradeOpen(false)} />
+
+          {/* 좋아요 누른 사람 */}
+          <WhoLikedModal names={likers} onClose={() => setLikers(null)} />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

@@ -7,6 +7,7 @@ import { RoundupTab } from './RoundupTab';
 import { MyPageModal } from './MyPageModal';
 import { MyProfile } from './MyProfile';
 import { UserContext } from '../contexts/UserContext';
+import { STORAGE_KEYS, storage } from '../utils/storage';
 
 // 친구 화면 — 기존 MY 자리. 라운딩 모집은 별도 풀스크린으로 열린다.
 export function FriendsScreen({ navigation }) {
@@ -14,6 +15,7 @@ export function FriendsScreen({ navigation }) {
   const [showMyPage, setShowMyPage] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
   const [showRoundup, setShowRoundup] = useState(false);
+  const [showCoach, setShowCoach] = useState(false);   // 친구 탭 첫 진입 툴팁 (1회)
 
   // 하단 탭 재탭 시 — 모든 풀스크린 닫고 친구 화면으로 복귀
   useEffect(() => {
@@ -25,6 +27,16 @@ export function FriendsScreen({ navigation }) {
     });
     return unsub;
   }, [navigation]);
+
+  // 첫 진입 시 1회 툴팁
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.friendCoachDone, false).then(done => { if (!done) setShowCoach(true); });
+  }, []);
+
+  const dismissCoach = () => {
+    setShowCoach(false);
+    storage.save(STORAGE_KEYS.friendCoachDone, true);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
@@ -77,6 +89,42 @@ export function FriendsScreen({ navigation }) {
       </View>
 
       <FriendsTab />
+
+      {/* 친구 탭 첫 진입 코치마크 — 1회만 */}
+      {showCoach && (
+        <TouchableOpacity activeOpacity={1} onPress={dismissCoach}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.62)' }}>
+          {/* 라운딩 모집 배너 안내 */}
+          <View style={{ marginTop: 132, marginHorizontal: 30, alignItems: 'center' }}>
+            <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 9,
+              borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fff' }} />
+            <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600', textAlign: 'center', lineHeight: 19 }}>
+                ⛳ 위 '라운딩 모집'에서{'\n'}라운딩 파트너를 찾아보세요!
+              </Text>
+            </View>
+          </View>
+          {/* 친구 카드 안내 */}
+          <View style={{ marginTop: 56, marginHorizontal: 30, alignItems: 'center' }}>
+            <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 9,
+              borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fff' }} />
+            <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600', textAlign: 'center', lineHeight: 19 }}>
+                👆 친구 카드를 길게 누르면{'\n'}옵션(알림 끄기·숨기기)이 열려요
+              </Text>
+            </View>
+          </View>
+          {/* 닫기 */}
+          <View style={{ marginTop: 30, alignItems: 'center' }}>
+            <View style={{ backgroundColor: C.butter, borderRadius: 22, paddingHorizontal: 34, paddingVertical: 12 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>알겠어요</Text>
+            </View>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 10 }}>
+              화면을 탭하면 닫혀요
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       <MyProfile visible={showMyProfile} onClose={() => setShowMyProfile(false)} />

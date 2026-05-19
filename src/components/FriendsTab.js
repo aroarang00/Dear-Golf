@@ -4,6 +4,7 @@ import { C, F } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
+import { showAppAlert } from './AppAlert';
 
 const AVATARS = [
   { bg: '#C8D9E6', fg: '#1A3D52' },
@@ -20,9 +21,9 @@ const DUMMY_FRIENDS = [
     recent: { course: '남촌 골프클럽', date: '5.01', score: 84, par: 72 },
     stats: { rounds: 28, avg: 89, best: 82 },
     feed: [
-      { id: 'm1', course: '남촌 골프클럽', date: '2025.05.01', score: 84, par: 72, rating: 4, memo: '드라이버가 잘 맞은 날' },
+      { id: 'm1', course: '남촌 골프클럽', date: '2025.05.01', score: 84, par: 72, rating: 4, memo: '드라이버가 잘 맞은 날', special: 'EAGLE', likedBy: ['이수연', '오세훈', '박지영'] },
       { id: 'm2', course: '제이드팰리스 GC', date: '2025.04.18', score: 88, par: 72, rating: 3, memo: '' },
-      { id: 'm3', course: '베어크리크 GC', date: '2025.03.30', score: 91, par: 72, rating: 3, memo: '바람이 강해 고전했다' },
+      { id: 'm3', course: '베어크리크 GC', date: '2025.03.30', score: 91, par: 72, rating: 3, memo: '바람이 강해 고전했다', likedBy: ['김도윤'] },
     ],
   },
   {
@@ -31,7 +32,7 @@ const DUMMY_FRIENDS = [
     recent: { course: '블랙스톤 CC', date: '4.28', score: 92, par: 72 },
     stats: { rounds: 15, avg: 95, best: 91 },
     feed: [
-      { id: 's1', course: '블랙스톤 CC', date: '2025.04.28', score: 92, par: 72, rating: 4, memo: '퍼팅 감이 좋았어요' },
+      { id: 's1', course: '블랙스톤 CC', date: '2025.04.28', score: 92, par: 72, rating: 4, memo: '퍼팅 감이 좋았어요', likedBy: ['오세훈', '문하린'] },
       { id: 's2', course: '레이크사이드 CC', date: '2025.04.05', score: 97, par: 72, rating: 3, memo: '' },
     ],
   },
@@ -41,7 +42,7 @@ const DUMMY_FRIENDS = [
     recent: { course: '제이드팰리스 GC', date: '4.20', score: 78, par: 72 },
     stats: { rounds: 42, avg: 81, best: 75 },
     feed: [
-      { id: 'o1', course: '제이드팰리스 GC', date: '2025.04.20', score: 78, par: 72, rating: 5, memo: '인생 라운딩 ⛳' },
+      { id: 'o1', course: '제이드팰리스 GC', date: '2025.04.20', score: 78, par: 72, rating: 5, memo: '인생 라운딩 ⛳', special: 'HOLE IN ONE', likedBy: ['김민준', '이수연', '한도현', '서주아'] },
       { id: 'o2', course: '사우스스프링스 CC', date: '2025.04.02', score: 80, par: 72, rating: 4, memo: '' },
       { id: 'o3', course: '남촌 골프클럽', date: '2025.03.15', score: 79, par: 72, rating: 4, memo: '아이언이 핀에 잘 붙었다' },
     ],
@@ -171,9 +172,27 @@ export function FriendsTab() {
         )}
 
         {visible.length === 0 ? (
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 36 }}>
-            {q ? '검색 결과가 없어요' : '아직 친구가 없어요'}
-          </Text>
+          q ? (
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 36 }}>
+              검색 결과가 없어요
+            </Text>
+          ) : (
+            /* 빈 화면 가이드 — 친구 0명 */
+            <View style={{ alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: 42 }}>👥</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginTop: 14 }}>
+                아직 친구가 없어요
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+                카카오 친구 중 Dear Golf 유저를{'\n'}찾아보세요!
+              </Text>
+              <TouchableOpacity activeOpacity={0.85}
+                onPress={() => showAppAlert('준비 중이에요', '카카오 친구 중 Dear Golf 유저 찾기는 곧 추가될 예정이에요.')}
+                style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>친구 찾기</Text>
+              </TouchableOpacity>
+            </View>
+          )
         ) : (
           visible.map(f => {
             const grade = getTrustGrade(f.roundupsCompleted, f.noShowCount);

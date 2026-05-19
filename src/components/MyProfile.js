@@ -10,14 +10,35 @@ import { UserContext } from '../contexts/UserContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustGradeModal } from './common/TrustBadge';
+import { WhoLikedModal } from './common/WhoLikedModal';
+import { pickNames } from '../constants/roundup';
 
-// 라운딩 피드 1건 — 친구 프로필 피드와 동일한 카드
-function FeedCard({ item }) {
+// 특별한 순간 타입 → 한글 라벨
+const SPECIAL_LABEL = { 'HOLE IN ONE': '홀인원', 'EAGLE': '이글', 'ALBATROSS': '알바트로스' };
+
+// 라운딩 피드 1건 — 특별한 순간이면 강조, 내 기록에 받은 좋아요 표시
+function FeedCard({ item, onShowLikers }) {
   const par = item.par || 72;
   const diff = item.score - par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
+  const isSpecial = !!item.special;
+  // 더미 — 내 기록에 좋아요 누른 사람 (id 기반 결정적)
+  const likers = pickNames('like' + (item.id || ''), ((item.id || '0').charCodeAt(0) || 0) % 4);
+
   return (
-    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 10 }}>
+    <View style={{
+      backgroundColor: isSpecial ? '#FBF6E8' : C.bgSecondary, borderRadius: 12,
+      borderWidth: isSpecial ? 1 : 0.5, borderColor: isSpecial ? '#C9A84C' : C.hairline,
+      padding: 14, marginBottom: 10,
+    }}>
+      {isSpecial && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
+          <Text style={{ fontSize: 13 }}>🏆</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#8B6914', fontWeight: '700', letterSpacing: 1 }}>
+            {SPECIAL_LABEL[item.special] || item.special}
+          </Text>
+        </View>
+      )}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{item.course}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>{item.date}</Text>
@@ -32,6 +53,19 @@ function FeedCard({ item }) {
       {item.memo ? (
         <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6, lineHeight: 18 }}>"{item.memo}"</Text>
       ) : null}
+      {/* 좋아요 — 내 기록에 누가 좋아요 눌렀는지 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingTop: 10,
+        borderTopWidth: 0.5, borderTopColor: isSpecial ? '#E8D9A8' : C.hairline }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Text style={{ fontSize: 12 }}>👍</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '700', color: C.warmGray }}>{likers.length}</Text>
+        </View>
+        {likers.length > 0 && (
+          <TouchableOpacity onPress={() => onShowLikers(likers)} activeOpacity={0.7}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>누가 좋아요 눌렀는지 보기</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -117,6 +151,7 @@ export function MyProfile({ visible, onClose }) {
   const [editing, setEditing] = useState(false);
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
   const [alert, setAlert] = useState(null);   // 프로필 내 알럿/액션시트
+  const [likers, setLikers] = useState(null); // 좋아요 누른 사람 목록 팝업
 
   const privacy = userProfile.privacy || { stats: true, feed: true, phone: false };
   const myGrade = getTrustGrade(userProfile.roundupsCompleted || 0);
@@ -318,7 +353,7 @@ export function MyProfile({ visible, onClose }) {
                   아직 라운딩 기록이 없어요
                 </Text>
               ) : (
-                feed.map(item => <FeedCard key={item.id} item={item} />)
+                feed.map(item => <FeedCard key={item.id} item={item} onShowLikers={setLikers} />)
               )}
             </View>
           </ScrollView>
@@ -326,6 +361,9 @@ export function MyProfile({ visible, onClose }) {
           {/* 신뢰 등급 설명 팝업 */}
           <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key}
             onClose={() => setGradeModalOpen(false)} />
+
+          {/* 좋아요 누른 사람 */}
+          <WhoLikedModal names={likers} onClose={() => setLikers(null)} />
         </SafeAreaView>
 
         {/* 사진 변경 액션시트 / 알럿 — 화면 전체 위에 오버레이 */}

@@ -3,6 +3,7 @@ import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvo
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
+import { STORAGE_KEYS, storage } from '../utils/storage';
 import { mS } from '../styles/mS';
 
 const SCOPES = [
@@ -27,7 +28,19 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [teams, setTeams] = useState(2);                // 단체: 팀 수 2~4 (1팀=4명)
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
+  const [showTip, setShowTip] = useState(false);     // 모집 형태 안내 툴팁 (1회)
   const debounceRef = useRef(null);
+
+  // 처음 작성 화면을 열 때 1회 툴팁 표시
+  useEffect(() => {
+    if (!visible) return;
+    storage.load(STORAGE_KEYS.roundupTipDone, false).then(done => { if (!done) setShowTip(true); });
+  }, [visible]);
+
+  const dismissTip = () => {
+    setShowTip(false);
+    storage.save(STORAGE_KEYS.roundupTipDone, true);
+  };
 
   const fmtDate = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   const fmtTime = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -81,6 +94,23 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
             <Text style={mS.title}>라운딩 모집글 작성</Text>
+
+            {/* 모집 형태 안내 툴팁 — 처음 1회만 */}
+            {showTip && (
+              <View style={{ backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#E2D2A8',
+                borderRadius: 12, padding: 13, marginTop: 10 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#8B6914', fontWeight: '700', marginBottom: 6 }}>
+                  💡 모집 형태 안내
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, lineHeight: 19 }}>
+                  <Text style={{ fontWeight: '700' }}>확정형</Text> — 골프장·날짜가 정해진 모집{'\n'}
+                  <Text style={{ fontWeight: '700' }}>오픈형</Text> — 날짜·장소 미정, 동반자를 먼저 모으는 모집
+                </Text>
+                <TouchableOpacity onPress={dismissTip} activeOpacity={0.7} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#8B6914', fontWeight: '700' }}>알겠어요</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* 확정형 / 오픈형 */}
             <Text style={mS.label}>모집 형태</Text>

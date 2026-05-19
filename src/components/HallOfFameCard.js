@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { C } from '../constants/colors';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { C, F } from '../constants/colors';
 import { dS } from '../styles/dS';
 
-export function HallOfFameCard({ item }) {
+export function HallOfFameCard({ item, onShare }) {
   const isHIO = item.type === 'HOLE IN ONE';
   const isAlba = item.type === 'ALBATROSS';
   const isFirstSingle = item.type === '퍼스트 싱글';
@@ -22,6 +22,16 @@ export function HallOfFameCard({ item }) {
           <Text style={[dS.hofType, { color: accentColor, fontSize: 22, letterSpacing: 6 }]}>{typeLabel}</Text>
           <Text style={[dS.hofDate, { color: 'rgba(255,255,255,0.4)' }]}>{item.date} · {item.course}</Text>
         </View>
+        {onShare && (
+          <TouchableOpacity onPress={onShare} activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 10,
+              borderWidth: 1, borderColor: accentColor + '66', borderRadius: 12,
+              paddingHorizontal: 10, paddingVertical: 5 }}>
+            <Text style={{ fontSize: 11 }}>↗</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: accentColor, fontWeight: '700' }}>공유</Text>
+          </TouchableOpacity>
+        )}
         <View style={[dS.hofGoldDot, { backgroundColor: accentColor }]} />
       </View>
       <View style={dS.hofGrid}>

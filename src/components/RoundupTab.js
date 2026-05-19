@@ -321,9 +321,26 @@ export function RoundupTab({ visible, onClose }) {
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}>
         {list.length === 0 ? (
-          <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
-            {view === 'mine' ? '아직 참여 중인 모집이 없어요' : '모집글이 없어요'}
-          </Text>
+          view === 'mine' ? (
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
+              아직 참여 중인 모집이 없어요
+            </Text>
+          ) : (
+            /* 빈 화면 가이드 — 모집글 0개 */
+            <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: 42 }}>⛳</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginTop: 14 }}>
+                아직 모집글이 없어요
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+                첫 번째 라운딩을 모집해보세요!
+              </Text>
+              <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.85}
+                style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>+ 모집글 작성</Text>
+              </TouchableOpacity>
+            </View>
+          )
         ) : (
           list.map(p => (
             <PostCard key={p.id} post={p} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}

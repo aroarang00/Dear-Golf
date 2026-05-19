@@ -9,6 +9,7 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { HallOfFameCard } from './HallOfFameCard';
+import { ShareMomentModal } from './ShareMomentModal';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
@@ -66,6 +67,7 @@ export function DiaryScreen({ route, navigation }) {
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
   const [hofHydrated, setHofHydrated] = useState(false);
+  const [shareMoment, setShareMoment] = useState(null);   // 특별한 순간 공유 대상
   const [search, setSearch] = useState('');
   const [filterKey, setFilterKey] = useState('전체');
   const [showSearch, setShowSearch] = useState(false);
@@ -334,7 +336,9 @@ export function DiaryScreen({ route, navigation }) {
                     <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C9A84C' }}>{hofExpanded ? '접기' : '펼치기'}</Text>
                   </TouchableOpacity>
-                  {hofExpanded && hallOfFame.map(item => <HallOfFameCard key={item.id} item={item} />)}
+                  {hofExpanded && hallOfFame.map(item => (
+                    <HallOfFameCard key={item.id} item={item} onShare={() => setShareMoment(item)} />
+                  ))}
                   <View style={{ height: 8 }} />
                 </View>
               ) : !hofTeaserDismissed ? (
@@ -381,6 +385,7 @@ export function DiaryScreen({ route, navigation }) {
 
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} initial={addSeed} />
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
+      <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
     </SafeAreaView>
   );
 }
