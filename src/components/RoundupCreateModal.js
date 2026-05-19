@@ -22,7 +22,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [date, setDate] = useState(() => { const d = new Date(); d.setHours(7, 0, 0, 0); return d; });
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
-  const [members, setMembers] = useState('4');
+  const [teams, setTeams] = useState(1);             // 모집 팀 수 (1팀=4명)
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
   const debounceRef = useRef(null);
@@ -47,7 +47,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
-    setMembers('4'); setScope('all'); setWord('');
+    setTeams(1); setScope('all'); setWord('');
   };
   const close = () => { reset(); onClose(); };
 
@@ -60,7 +60,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       date: type === 'fixed' ? fmtDate(date) : null,
       day: type === 'fixed' ? DAYS[date.getDay()] : null,
       time: type === 'fixed' ? fmtTime(date) : null,
-      capacity: parseInt(members, 10) || 4,
+      teams,
+      capacity: teams * 4,
       scope,
       word: word.trim(),
     });
@@ -146,12 +147,20 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
 
             <Text style={mS.label}>모집 인원</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {['2', '3', '4'].map(n => (
-                <TouchableOpacity key={n} style={[mS.chip, members === n && mS.chipOn]} onPress={() => setMembers(n)}>
-                  <Text style={[mS.chipTxt, members === n && mS.chipTxtOn]}>{n}명</Text>
-                </TouchableOpacity>
-              ))}
+              {[1, 2, 3, 4].map(n => {
+                const on = teams === n;
+                return (
+                  <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setTeams(n)}
+                    style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center', paddingVertical: 9 }]}>
+                    <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: 13, fontWeight: '700' }]}>{n}팀</Text>
+                    <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: 10, marginTop: 1 }]}>{n * 4}명</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>
+              한 팀은 4명 — 2팀 이상은 단체 모집이에요
+            </Text>
 
             <Text style={mS.label}>공개 범위</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>

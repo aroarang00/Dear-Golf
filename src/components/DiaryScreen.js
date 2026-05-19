@@ -214,10 +214,10 @@ export function DiaryScreen({ route, navigation }) {
           <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {/* 골프 가계부 — 기존 MY 화면에서 이동 (버튼 모양 그대로) */}
+          {/* 골프 가계부 — 버건디 채움 버튼 (옆 + 버튼의 버터색과 구분) */}
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
-            style={{ borderWidth: 1, borderColor: 'rgba(200,217,230,0.45)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C8D9E6', fontWeight: '600' }}>📒 골프 가계부</Text>
+            style={{ backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>📒 골프 가계부</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.7}
             style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, ScrollView, Text, TextInput, TouchableOpacity, Modal } from 'react-native';
 import { C, F } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
+import { getTrustGrade } from '../constants/trustGrade';
+import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 
 const AVATARS = [
   { bg: '#C8D9E6', fg: '#1A3D52' },
@@ -14,6 +16,7 @@ const AVATARS = [
 const DUMMY_FRIENDS = [
   {
     id: 'f1', name: '김민준', style: '장타형 드라이버', handicap: 12, roundsTogether: 8,
+    roundupsCompleted: 7, noShowCount: 0,   // 신뢰 등급: 브론즈
     recent: { course: '남촌 골프클럽', date: '5.01', score: 84, par: 72 },
     stats: { rounds: 28, avg: 89, best: 82 },
     feed: [
@@ -24,6 +27,7 @@ const DUMMY_FRIENDS = [
   },
   {
     id: 'f2', name: '이수연', style: '정교한 아이언샷', handicap: 18, roundsTogether: 3,
+    roundupsCompleted: 22, noShowCount: 0,   // 신뢰 등급: 골드
     recent: { course: '블랙스톤 CC', date: '4.28', score: 92, par: 72 },
     stats: { rounds: 15, avg: 95, best: 91 },
     feed: [
@@ -33,6 +37,7 @@ const DUMMY_FRIENDS = [
   },
   {
     id: 'f3', name: '오세훈', style: '안정적인 코스매니지먼트', handicap: 6, roundsTogether: 15,
+    roundupsCompleted: 35, noShowCount: 0,   // 신뢰 등급: 챔피언
     recent: { course: '제이드팰리스 GC', date: '4.20', score: 78, par: 72 },
     stats: { rounds: 42, avg: 81, best: 75 },
     feed: [
@@ -43,7 +48,7 @@ const DUMMY_FRIENDS = [
   },
 ];
 
-function FriendCard({ friend, palette, muted, onPress, onLongPress }) {
+function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGradePress }) {
   const r = friend.recent;
   const diff = r ? r.score - r.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -55,15 +60,16 @@ function FriendCard({ friend, palette, muted, onPress, onLongPress }) {
           <Text style={{ fontFamily: F.sys, fontSize: 19, color: palette.fg, fontWeight: '700' }}>{friend.name.charAt(0)}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>{friend.name}</Text>
+            <TrustBadge grade={grade} onPress={onGradePress} />
             {muted && <Text style={{ fontSize: 11 }}>🔕</Text>}
           </View>
           <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 2 }}>{friend.style}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <View style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>HC {friend.handicap}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>핸디 {friend.stats?.avg ?? '—'}</Text>
           </View>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 4 }}>함께 {friend.roundsTogether}회</Text>
         </View>
@@ -91,14 +97,18 @@ export function FriendsTab() {
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [profileFriend, setProfileFriend] = useState(null);
   const [optionTarget, setOptionTarget] = useState(null);
+  const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
+  const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
 
   const q = search.trim();
   const visible = friends.filter(f => !hidden[f.id] && (!q || f.name.includes(q)));
+  const hiddenFriends = friends.filter(f => hidden[f.id]);
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
 
   const closeOptions = () => setOptionTarget(null);
   const toggleMute = (id) => { setMuted(p => ({ ...p, [id]: !p[id] })); closeOptions(); };
   const hideFriend = (id) => { setHidden(p => ({ ...p, [id]: true })); closeOptions(); };
+  const unhideFriend = (id) => setHidden(p => { const n = { ...p }; delete n[id]; return n; });
   const deleteFriend = (id) => { setFriends(p => p.filter(f => f.id !== id)); closeOptions(); };
 
   return (
@@ -130,21 +140,52 @@ export function FriendsTab() {
             {q ? '검색 결과가 없어요' : '아직 친구가 없어요'}
           </Text>
         ) : (
-          visible.map(f => (
-            <FriendCard
-              key={f.id}
-              friend={f}
-              palette={paletteOf(f.id)}
-              muted={!!muted[f.id]}
-              onPress={() => setProfileFriend(f)}
-              onLongPress={() => setOptionTarget(f)}
-            />
-          ))
+          visible.map(f => {
+            const grade = getTrustGrade(f.roundupsCompleted, f.noShowCount);
+            return (
+              <FriendCard
+                key={f.id}
+                friend={f}
+                palette={paletteOf(f.id)}
+                muted={!!muted[f.id]}
+                grade={grade}
+                onPress={() => setProfileFriend(f)}
+                onLongPress={() => setOptionTarget(f)}
+                onGradePress={() => setGradeModalKey(grade.key)}
+              />
+            );
+          })
         )}
 
         <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, textAlign: 'center', marginTop: 6 }}>
           친구 카드를 길게 누르면 옵션이 열려요
         </Text>
+
+        {/* 숨긴 친구 — 접이식 섹션 */}
+        {hiddenFriends.length > 0 && (
+          <View style={{ marginTop: 22, borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 14 }}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, fontWeight: '600' }}>
+                🙈 숨긴 친구 {hiddenFriends.length}명
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight }}>{showHidden ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            {showHidden && hiddenFriends.map(f => (
+              <View key={f.id}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 12, paddingVertical: 10 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: paletteOf(f.id).bg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: paletteOf(f.id).fg, fontWeight: '700' }}>{f.name.charAt(0)}</Text>
+                </View>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{f.name}</Text>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => unhideFriend(f.id)}
+                  style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '600' }}>숨김 해제</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* 풀 프로필 */}
@@ -171,6 +212,10 @@ export function FriendsTab() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* 신뢰 등급 설명 팝업 */}
+      <TrustGradeModal visible={!!gradeModalKey} highlightKey={gradeModalKey}
+        onClose={() => setGradeModalKey(null)} />
     </View>
   );
 }

@@ -1139,8 +1139,8 @@ export function GuideScreen({ route, navigation }) {
           }}>코스</Text>
         </View>
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
-          style={{ borderWidth: 1, borderColor: 'rgba(61,57,53,0.3)', borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, fontWeight: '600' }}>📊 내 코스기록</Text>
+          style={{ backgroundColor: C.charcoal, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 9 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>내 코스기록</Text>
         </TouchableOpacity>
       </View>
       <CourseExploreTab
