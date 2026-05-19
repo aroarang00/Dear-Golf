@@ -1,9 +1,11 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sheetS } from '../styles/sheetS';
 import { TripleStripe } from './common/TripleStripe';
 
 export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete }) {
+  const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   if (!schedule) return null;
   const dd = schedule.dDay;
   const isPast = dd != null && dd < 0;        // 지난 라운딩 — 날씨·교통 숨김
@@ -26,7 +28,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheetS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={sheetS.sheet}>
+        <View style={[sheetS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={sheetS.handle} />
           <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 14 }}>
             <TouchableOpacity onPress={onCourseTap} activeOpacity={(schedule.courseLogId || schedule.courseId) ? 0.6 : 1}>

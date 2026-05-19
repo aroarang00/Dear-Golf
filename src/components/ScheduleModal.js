@@ -193,12 +193,20 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <View style={mS.mask}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
-          <View style={mS.sheet}>
-            <View style={mS.handle} />
-            <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View style={mS.mask}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
+        {/* KAV를 시트 자체에 적용 — 키보드가 올라와도 시트가 화면 밖으로 밀리지 않고 내부에서만 줄어듦 */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={mS.sheet}>
+          <View style={mS.handle} />
+          {/* flexShrink:1 — 시트 maxHeight(92%)에 맞춰 스크롤뷰가 줄어들어 스크롤 가능해짐 */}
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag">
               <Text style={mS.title}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
 
               {/* 국내 / 해외 */}
@@ -373,9 +381,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               </TouchableOpacity>
               <View style={{ height: 40 }} />
             </ScrollView>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

@@ -4,7 +4,7 @@ import {
   Share, Alert, Modal, LayoutAnimation, Platform, UIManager,
 } from 'react-native';
 import { showAppAlert } from './AppAlert';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { getUserCourses } from '../utils/userCourses';
@@ -31,6 +31,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export function HomeScreen({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
+  const insets = useSafeAreaInsets();
   const [showAddModal, setShowAddModal] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -702,7 +703,9 @@ export function HomeScreen({ navigation }) {
                 <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '700', color: '#3D3935' }}>예정 라운딩</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#A89F8C' }}>{upcomingSchedules.length}건</Text>
               </View>
-              <ScrollView style={{ maxHeight: 286 }} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={{ maxHeight: Math.max(160, Math.min(286, upcomingPos.y - 54 - insets.top)) }}
+                showsVerticalScrollIndicator={false}>
                 {upcomingSchedules.map((s, i) => {
                   const dd = freshDDay(s);
                   return (
