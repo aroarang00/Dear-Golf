@@ -42,3 +42,7 @@ yarn-error.*
 
 # 개발용 QR 이미지
 expo_qr.png
+
+# Expo 빌드 산출물
+expo-qr.png
+expo-start.log
