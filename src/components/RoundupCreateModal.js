@@ -22,7 +22,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [date, setDate] = useState(() => { const d = new Date(); d.setHours(7, 0, 0, 0); return d; });
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
-  const [teams, setTeams] = useState(1);             // 모집 팀 수 (1팀=4명)
+  const [groupMode, setGroupMode] = useState('single'); // single(개별) | team(단체)
+  const [members, setMembers] = useState(4);            // 개별: 총 모집 인원 2~4
+  const [teams, setTeams] = useState(2);                // 단체: 팀 수 2~4 (1팀=4명)
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
   const debounceRef = useRef(null);
@@ -47,21 +49,22 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
-    setTeams(1); setScope('all'); setWord('');
+    setGroupMode('single'); setMembers(4); setTeams(2); setScope('all'); setWord('');
   };
   const close = () => { reset(); onClose(); };
 
   const handleSubmit = () => {
     const courseName = course?.name || courseQuery.trim();
     if (type === 'fixed' && !courseName) return; // 확정형은 골프장 필수
+    const isTeam = groupMode === 'team';
     onCreate({
       type,
       course: type === 'fixed' ? courseName : null,
       date: type === 'fixed' ? fmtDate(date) : null,
       day: type === 'fixed' ? DAYS[date.getDay()] : null,
       time: type === 'fixed' ? fmtTime(date) : null,
-      teams,
-      capacity: teams * 4,
+      teams: isTeam ? teams : 1,
+      capacity: isTeam ? teams * 4 : members,
       scope,
       word: word.trim(),
     });
@@ -146,20 +149,45 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             )}
 
             <Text style={mS.label}>모집 인원</Text>
+            {/* 개별 / 단체 선택 */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[1, 2, 3, 4].map(n => {
-                const on = teams === n;
-                return (
-                  <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setTeams(n)}
-                    style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center', paddingVertical: 9 }]}>
-                    <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: 13, fontWeight: '700' }]}>{n}팀</Text>
-                    <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: 10, marginTop: 1 }]}>{n * 4}명</Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => (
+                <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setGroupMode(k)}
+                  style={[mS.chip, groupMode === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                  <Text style={[mS.chipTxt, groupMode === k && mS.chipTxtOn]}>{l}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
+            {groupMode === 'single' ? (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {[2, 3, 4].map(n => {
+                  const on = members === n;
+                  return (
+                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setMembers(n)}
+                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                      <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{n}명</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {[2, 3, 4].map(n => {
+                  const on = teams === n;
+                  return (
+                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setTeams(n)}
+                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center', paddingVertical: 9 }]}>
+                      <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: 13, fontWeight: '700' }]}>{n}팀</Text>
+                      <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: 10, marginTop: 1 }]}>{n * 4}명</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
             <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>
-              한 팀은 4명 — 2팀 이상은 단체 모집이에요
+              {groupMode === 'single'
+                ? '함께 칠 동반자를 모아요 (최대 한 팀 4명)'
+                : '여러 팀이 함께하는 단체 모집이에요 (한 팀 4명)'}
             </Text>
 
             <Text style={mS.label}>공개 범위</Text>

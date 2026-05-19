@@ -8,27 +8,20 @@ import { MyPageModal } from './MyPageModal';
 import { MyProfile } from './MyProfile';
 import { UserContext } from '../contexts/UserContext';
 
-// 세그먼트 서브 탭 — 친구 / 라운딩모집
-const SUB_TABS = [
-  ['friends', '친구'],
-  ['roundup', '라운딩모집'],
-];
-
-// 친구 화면 — 기존 MY 자리. 헤더 디자인은 MY 그대로 유지하고
-// 골프 가계부는 다이어리, 내 코스기록은 코스 탭으로 이동했다.
+// 친구 화면 — 기존 MY 자리. 라운딩 모집은 별도 풀스크린으로 열린다.
 export function FriendsScreen({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
-  const [tab, setTab] = useState('friends');
   const [showMyPage, setShowMyPage] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
+  const [showRoundup, setShowRoundup] = useState(false);
 
-  // 하단 탭 재탭 시 — 친구 탭 + 설정 닫힘 상태로 복귀
+  // 하단 탭 재탭 시 — 모든 풀스크린 닫고 친구 화면으로 복귀
   useEffect(() => {
     if (!navigation) return;
     const unsub = navigation.addListener('tabPress', () => {
-      setTab('friends');
       setShowMyPage(false);
       setShowMyProfile(false);
+      setShowRoundup(false);
     });
     return unsub;
   }, [navigation]);
@@ -66,28 +59,28 @@ export function FriendsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* 세그먼트 서브 탭 — 친구 / 라운딩모집 */}
+      {/* 라운딩 모집 진입 배너 — 탭하면 풀스크린으로 열림 */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.bgPrimary, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-        <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 3 }}>
-          {SUB_TABS.map(([k, l]) => {
-            const on = tab === k;
-            return (
-              <TouchableOpacity key={k} onPress={() => setTab(k)} activeOpacity={0.8}
-                style={{
-                  flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8,
-                  backgroundColor: on ? C.charcoal : 'transparent',
-                }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: on ? '700' : '500', color: on ? C.butter : C.warmGray }}>{l}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <TouchableOpacity onPress={() => setShowRoundup(true)} activeOpacity={0.85}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.paleSky,
+            borderWidth: 1, borderColor: 'rgba(26,61,82,0.18)',
+            borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14 }}>
+          <Text style={{ fontSize: 22 }}>⛳</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.navy, fontWeight: '700' }}>라운딩 모집</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(26,61,82,0.7)', marginTop: 2 }}>
+              함께 칠 동반자를 찾아보세요
+            </Text>
+          </View>
+          <Text style={{ fontSize: 18, color: C.navy }}>›</Text>
+        </TouchableOpacity>
       </View>
 
-      {tab === 'friends' ? <FriendsTab /> : <RoundupTab />}
+      <FriendsTab />
 
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       <MyProfile visible={showMyProfile} onClose={() => setShowMyProfile(false)} />
+      <RoundupTab visible={showRoundup} onClose={() => setShowRoundup(false)} />
     </SafeAreaView>
   );
 }
