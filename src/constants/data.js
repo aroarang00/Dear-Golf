@@ -148,7 +148,9 @@ export const USER_PROFILE_INIT = {
   alarmDefaults: { d3: true, d1: true, teeoff: true }, // 새 일정 추가 시 기본 알람 시점
   alarmPromptDisabled: false, // true면 일정 추가 시 알람 팝업 없이 기본값 자동 적용
   roundupsCompleted: 0,  // 라운딩 모집 완료 횟수 — 신뢰 등급 산출 기준
-  avatarUri: null,   // 직접 업로드한 프로필 사진 URI (없으면 이니셜 표시)
+  avatarUri: null,   // 프로필 사진 URI (직접 업로드 또는 카카오 프로필)
+  kakaoLinked: false, // 카카오 로그인 연동 여부
+  kakaoId: null,      // 카카오 사용자 ID
   // 친구에게 공개 여부 — 내 프로필을 친구가 볼 때 노출되는 항목
   privacy: { stats: true, feed: true, phone: false },
 };

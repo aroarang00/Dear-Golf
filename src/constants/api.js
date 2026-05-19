@@ -1,8 +1,9 @@
 // =============================================================
-// 카카오 디벨로퍼스 REST API 키
+// 카카오 디벨로퍼스 키
 // https://developers.kakao.com/console/app
 // =============================================================
-export const KAKAO_REST_API_KEY = 'edb7385e0d3233ccd44423118331345a';
+export const KAKAO_REST_API_KEY = 'edb7385e0d3233ccd44423118331345a';   // REST API — 로그인 OAuth
+export const KAKAO_NATIVE_APP_KEY = 'e93926287118bc64ae456a0178fa7dca'; // 네이티브 앱 키
 // JavaScript 키 — Kakao Maps SDK (developers.kakao.com 앱 등록한 웹 플랫폼 도메인 필요)
 export const KAKAO_JS_KEY = 'c44ff0a40a680fa9e75bb2c59a08654f';
 

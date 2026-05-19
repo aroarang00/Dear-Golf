@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { obS } from '../styles/obS';
 import { TripleStripe } from './common/TripleStripe';
+import { loginWithKakao } from '../utils/kakaoAuth';
 
 export function OnboardingScreen({ onComplete }) {
   const [nickname, setNickname] = useState('');
@@ -11,23 +12,44 @@ export function OnboardingScreen({ onComplete }) {
   const [avgScore, setAvgScore] = useState('');
   const [lifeBest, setLifeBest] = useState('');
   const [step, setStep] = useState(1);
+  const [kakaoLoading, setKakaoLoading] = useState(false);
 
-  const handleComplete = () => {
-    const nick = nickname.trim() || '';
-    if (!nick) return;
+  // 입력값으로 프로필 객체 구성 (수동 입력 / 카카오 공통)
+  const buildProfile = (extra) => {
     const best = parseInt(lifeBest) || 99;
-    const hasFirstSingle = best <= 79;
-    onComplete({
-      nickname: nick,
+    return {
+      nickname: '',
       realName: realName || '',
       avgScore: parseInt(avgScore) || 90,
       lifeBest: best,
       totalRounds: 0,
-      hasFirstSingle,
+      hasFirstSingle: best <= 79,
       onboardingDone: true,
       alarmDefaults: { d3: true, d1: true, teeoff: true },
       alarmPromptDisabled: false,
-    });
+      ...extra,
+    };
+  };
+
+  const handleComplete = () => {
+    const nick = nickname.trim() || '';
+    if (!nick) return;
+    onComplete(buildProfile({ nickname: nick }));
+  };
+
+  // 카카오로 시작 — 닉네임·프로필 사진을 가져와 적용. Firebase는 익명 로그인을 그대로 유지.
+  const handleKakao = async () => {
+    if (kakaoLoading) return;
+    setKakaoLoading(true);
+    const result = await loginWithKakao();
+    setKakaoLoading(false);
+    if (!result) return;   // 취소 또는 실패
+    onComplete(buildProfile({
+      nickname: result.nickname || nickname.trim() || '골퍼',
+      avatarUri: result.profileImageUrl || null,
+      kakaoLinked: true,
+      kakaoId: result.kakaoId || null,
+    }));
   };
 
   return (
@@ -82,6 +104,25 @@ export function OnboardingScreen({ onComplete }) {
                 <Text style={obS.nextBtnTxt}>시작하기</Text>
               </TouchableOpacity>
             </View>
+
+            {/* 카카오로 시작 */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 24 }}>
+              <View style={{ flex: 1, height: 0.5, backgroundColor: C.hairline }} />
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>또는</Text>
+              <View style={{ flex: 1, height: 0.5, backgroundColor: C.hairline }} />
+            </View>
+            <TouchableOpacity onPress={handleKakao} activeOpacity={0.85} disabled={kakaoLoading}
+              style={{ marginTop: 14, backgroundColor: '#FEE500', borderRadius: 12, paddingVertical: 15,
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+                opacity: kakaoLoading ? 0.6 : 1 }}>
+              <Text style={{ fontSize: 16 }}>💬</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#191600', fontWeight: '700' }}>
+                {kakaoLoading ? '카카오 로그인 중…' : '카카오로 시작하기'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, textAlign: 'center', marginTop: 8, lineHeight: 16 }}>
+              카카오 닉네임·프로필 사진을 가져와 적용해요
+            </Text>
           </View>
         )}
       </ScrollView>
