@@ -11,6 +11,7 @@ import { HallOfFameCard } from './HallOfFameCard';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
+import { GolfLedgerModal } from './GolfLedgerModal';
 
 // 빈 상태 예시 카드용 더미 데이터 (실제 DiaryCard 컴포넌트로 렌더)
 const SAMPLE_DIARY = {
@@ -57,6 +58,7 @@ export function DiaryScreen({ route, navigation }) {
   const { setSchedules } = React.useContext(SchedulesContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showLedger, setShowLedger] = useState(false); // 골프 가계부
   const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
@@ -212,6 +214,11 @@ export function DiaryScreen({ route, navigation }) {
           <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {/* 골프 가계부 — 기존 MY 화면에서 이동 (버튼 모양 그대로) */}
+          <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
+            style={{ borderWidth: 1, borderColor: 'rgba(200,217,230,0.45)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C8D9E6', fontWeight: '600' }}>📒 골프 가계부</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.7}
             style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
             {/* + 아이콘 — 얇은 선 2개로 원 중앙에 정확히 배치 */}
@@ -378,6 +385,7 @@ export function DiaryScreen({ route, navigation }) {
       })()}
 
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} initial={addSeed} />
+      <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
     </SafeAreaView>
   );
 }

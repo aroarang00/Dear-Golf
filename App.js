@@ -19,7 +19,7 @@ import { HomeScreen } from './src/components/HomeScreen';
 import { ScheduleScreen } from './src/components/ScheduleScreen';
 import { DiaryScreen } from './src/components/DiaryScreen';
 import { GuideScreen } from './src/components/GuideScreen';
-import { MyScreen } from './src/components/MyScreen';
+import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 
@@ -136,7 +136,7 @@ export default function App() {
         <Tab.Screen name="일정" component={ScheduleScreen} />
         <Tab.Screen name="다이어리" component={DiaryScreen} />
         <Tab.Screen name="코스" component={GuideScreen} />
-        <Tab.Screen name="MY" component={MyScreen} />
+        <Tab.Screen name="친구" component={FriendsScreen} />
       </Tab.Navigator>
 
       <Modal visible={firstSingleAlert} transparent animationType="fade">

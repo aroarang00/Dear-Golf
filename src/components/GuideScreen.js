@@ -21,11 +21,13 @@ import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateS
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
 import { getCourseComments, addCourseComment, toggleCommentLike } from '../utils/courseComments';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
+import { CourseLogModal } from './CourseLogModal';
 
 export function GuideScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
   const [innerTab, setInnerTab] = useState('course');
+  const [showCourseLog, setShowCourseLog] = useState(false); // 내 코스기록 페이지
   const [favorites, setFavorites] = useState(FAVORITES_INIT);
   const [favoritesHydrated, setFavoritesHydrated] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
@@ -1127,17 +1129,28 @@ export function GuideScreen({ route, navigation }) {
   const hasCourses = chipCourses.length > 0;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(61,57,53,0.55)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
-        <Text style={{
-          fontFamily: F.serifKR,
-          fontSize: 28,
-          color: C.charcoal,
-        }}>코스</Text>
+      <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(61,57,53,0.55)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
+          <Text style={{
+            fontFamily: F.serifKR,
+            fontSize: 28,
+            color: C.charcoal,
+          }}>코스</Text>
+        </View>
+        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
+          style={{ borderWidth: 1, borderColor: 'rgba(61,57,53,0.3)', borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, fontWeight: '600' }}>📊 내 코스기록</Text>
+        </TouchableOpacity>
       </View>
       <CourseExploreTab
         onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
         onOpenPreview={handleOpenPreview}
+      />
+      <CourseLogModal
+        visible={showCourseLog}
+        onClose={() => setShowCourseLog(false)}
+        navigation={navigation}
       />
     </SafeAreaView>
   );

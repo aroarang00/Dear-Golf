@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants/colors';
 import { tabS } from '../styles/tabS';
 
-// 탭 순서: 홈 · 일정 · 다이어리 · 코스 · MY
+// 탭 순서: 홈 · 일정 · 다이어리 · 코스 · 친구
 const TAB_COLORS = [C.butter, C.paleSky, C.warmGray, C.butter, C.navy];
 
 export function TabBar({ state, navigation }) {

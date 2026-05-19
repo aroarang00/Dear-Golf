@@ -1,144 +1,176 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, ScrollView, Text, TextInput, TouchableOpacity, Modal } from 'react-native';
 import { C, F } from '../constants/colors';
-import { FRIENDS_DATA } from '../constants/data';
+import { FriendProfile } from './FriendProfile';
 
-// 더미 친구 피드 — Firebase 연동 전 UI 표시용
-const FEED = [
-  { id: 'fd1', name: '오세훈', course: '제이드팰리스 GC', date: '5.12', isPublic: true,  score: 78, par: 72, rating: 5, memo: '인생 베스트 갱신! 퍼팅이 다 들어간 날', claps: 14 },
-  { id: 'fd2', name: '김민준', course: '남촌 골프클럽',   date: '5.10', isPublic: true,  score: 88, par: 72, rating: 4, memo: '드라이버가 잘 맞은 날 ⛳',            claps: 8 },
-  { id: 'fd3', name: '이수연', course: '블랙스톤 CC',     date: '5.08', isPublic: false, claps: 5 },
-  { id: 'fd4', name: '박지영', course: '레이크사이드 CC', date: '5.03', isPublic: true,  score: 94, par: 72, rating: 3, memo: '바람이 강해서 고전했어요',          claps: 3 },
-  { id: 'fd5', name: '정현우', course: '베어크리크 GC',   date: '4.29', isPublic: false, claps: 11 },
-];
-
-const AVATAR_COLORS = [
+const AVATARS = [
   { bg: '#C8D9E6', fg: '#1A3D52' },
   { bg: '#F5E6A8', fg: '#5A4500' },
   { bg: '#6B1E2A', fg: '#F5E6A8' },
-  { bg: '#8B8680', fg: '#fff' },
   { bg: '#6B8B5E', fg: '#fff' },
 ];
 
-function FeedCard({ item, palette, clapped, onClap }) {
-  const diff = item.isPublic ? item.score - item.par : 0;
+// 친구 더미 데이터 — Firebase 연동 전 UI 표시용
+const DUMMY_FRIENDS = [
+  {
+    id: 'f1', name: '김민준', style: '장타형 드라이버', handicap: 12, roundsTogether: 8,
+    recent: { course: '남촌 골프클럽', date: '5.01', score: 84, par: 72 },
+    stats: { rounds: 28, avg: 89, best: 82 },
+    feed: [
+      { id: 'm1', course: '남촌 골프클럽', date: '2025.05.01', score: 84, par: 72, rating: 4, memo: '드라이버가 잘 맞은 날' },
+      { id: 'm2', course: '제이드팰리스 GC', date: '2025.04.18', score: 88, par: 72, rating: 3, memo: '' },
+      { id: 'm3', course: '베어크리크 GC', date: '2025.03.30', score: 91, par: 72, rating: 3, memo: '바람이 강해 고전했다' },
+    ],
+  },
+  {
+    id: 'f2', name: '이수연', style: '정교한 아이언샷', handicap: 18, roundsTogether: 3,
+    recent: { course: '블랙스톤 CC', date: '4.28', score: 92, par: 72 },
+    stats: { rounds: 15, avg: 95, best: 91 },
+    feed: [
+      { id: 's1', course: '블랙스톤 CC', date: '2025.04.28', score: 92, par: 72, rating: 4, memo: '퍼팅 감이 좋았어요' },
+      { id: 's2', course: '레이크사이드 CC', date: '2025.04.05', score: 97, par: 72, rating: 3, memo: '' },
+    ],
+  },
+  {
+    id: 'f3', name: '오세훈', style: '안정적인 코스매니지먼트', handicap: 6, roundsTogether: 15,
+    recent: { course: '제이드팰리스 GC', date: '4.20', score: 78, par: 72 },
+    stats: { rounds: 42, avg: 81, best: 75 },
+    feed: [
+      { id: 'o1', course: '제이드팰리스 GC', date: '2025.04.20', score: 78, par: 72, rating: 5, memo: '인생 라운딩 ⛳' },
+      { id: 'o2', course: '사우스스프링스 CC', date: '2025.04.02', score: 80, par: 72, rating: 4, memo: '' },
+      { id: 'o3', course: '남촌 골프클럽', date: '2025.03.15', score: 79, par: 72, rating: 4, memo: '아이언이 핀에 잘 붙었다' },
+    ],
+  },
+];
+
+function FriendCard({ friend, palette, muted, onPress, onLongPress }) {
+  const r = friend.recent;
+  const diff = r ? r.score - r.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  const clapCount = item.claps + (clapped ? 1 : 0);
   return (
-    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 12 }}>
-      {/* 헤더 — 아바타 + 이름 + 골프장·날짜 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 16, color: palette.fg, fontWeight: '600' }}>{item.name.charAt(0)}</Text>
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
+      style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 19, color: palette.fg, fontWeight: '700' }}>{friend.name.charAt(0)}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>{item.name}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>{item.course} · {item.date}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>{friend.name}</Text>
+            {muted && <Text style={{ fontSize: 11 }}>🔕</Text>}
+          </View>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 2 }}>{friend.style}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <View style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>HC {friend.handicap}</Text>
+          </View>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 4 }}>함께 {friend.roundsTogether}회</Text>
         </View>
       </View>
 
-      {/* 본문 — 공개면 스코어/별점/메모, 비공개면 안내 */}
-      {item.isPublic ? (
-        <View style={{ backgroundColor: C.bgPrimary, borderRadius: 10, padding: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 26, color: C.charcoal, fontWeight: '700' }}>{item.score}</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>타 · {diffLabel}</Text>
-            {item.rating > 0 && (
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C9A84C', marginLeft: 4 }}>{'★'.repeat(item.rating)}</Text>
-            )}
-          </View>
-          {item.memo ? (
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6, lineHeight: 18 }}>"{item.memo}"</Text>
-          ) : null}
-        </View>
-      ) : (
-        <View style={{ backgroundColor: C.bgPrimary, borderRadius: 10, paddingVertical: 16, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>라운딩 다녀왔어요 ⛳</Text>
+      {/* 최근 라운딩 미리보기 */}
+      {r && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1 }}>최근</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, flex: 1 }} numberOfLines={1}>
+            {r.course} · {r.date}
+          </Text>
+          <Text style={{ fontFamily: F.en, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>{r.score}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>{diffLabel}</Text>
         </View>
       )}
-
-      {/* 잘쳤다 버튼 */}
-      <TouchableOpacity onPress={onClap} activeOpacity={0.7}
-        style={{
-          flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-          marginTop: 10, paddingVertical: 9, borderRadius: 10,
-          backgroundColor: clapped ? C.butter : C.bgPrimary,
-          borderWidth: 0.5, borderColor: clapped ? C.butter : C.hairline,
-        }}>
-        <Text style={{ fontSize: 13 }}>👏</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: clapped ? '#5A4500' : C.warmGray }}>
-          잘쳤다 {clapCount}
-        </Text>
-      </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export function FriendsTab() {
-  const [searchNick, setSearchNick] = useState('');
-  const [claps, setClaps] = useState({});
+  const [search, setSearch] = useState('');
+  const [friends, setFriends] = useState(DUMMY_FRIENDS);
+  const [muted, setMuted] = useState({});           // { [id]: true }
+  const [hidden, setHidden] = useState({});          // 숨긴 친구
+  const [profileFriend, setProfileFriend] = useState(null);
+  const [optionTarget, setOptionTarget] = useState(null);
 
-  const friendCount = FRIENDS_DATA.length;
-  const pendingCount = 1;
-  const toggleClap = (id) => setClaps(prev => ({ ...prev, [id]: !prev[id] }));
+  const q = search.trim();
+  const visible = friends.filter(f => !hidden[f.id] && (!q || f.name.includes(q)));
+  const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
+
+  const closeOptions = () => setOptionTarget(null);
+  const toggleMute = (id) => { setMuted(p => ({ ...p, [id]: !p[id] })); closeOptions(); };
+  const hideFriend = (id) => { setHidden(p => ({ ...p, [id]: true })); closeOptions(); };
+  const deleteFriend = (id) => { setFriends(p => p.filter(f => f.id !== id)); closeOptions(); };
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      {/* 닉네임 검색 */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 }}>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+      {/* 친구 검색창 */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
+          <Text style={{ fontSize: 13 }}>🔍</Text>
           <TextInput
-            style={{
-              flex: 1, backgroundColor: C.bgSecondary,
-              borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
-              fontFamily: F.sys, fontSize: 13, color: C.textPrimary,
-              borderWidth: 0.5, borderColor: C.hairline,
-            }}
-            placeholder="닉네임으로 친구 찾기..."
+            style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.textPrimary, padding: 0 }}
+            placeholder="이름으로 친구 검색"
             placeholderTextColor={C.warmGrayLight}
-            value={searchNick}
-            onChangeText={setSearchNick}
+            value={search}
+            onChangeText={setSearch}
             returnKeyType="search"
           />
-          <TouchableOpacity activeOpacity={0.8}
-            style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '600' }}>검색</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}>
-        {/* 친구 수 + 친구 추가 */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>
-            친구 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{friendCount}</Text>명
-            {pendingCount > 0 ? ` · 신청중 ${pendingCount}명` : ''}
-          </Text>
-          <TouchableOpacity activeOpacity={0.7}
-            style={{ borderWidth: 1, borderColor: C.burgundy, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 6 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, fontWeight: '600' }}>+ 친구 추가</Text>
-          </TouchableOpacity>
-        </View>
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled">
+        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 12 }}>
+          친구 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{visible.length}</Text>명
+        </Text>
 
-        {/* 친구 피드 */}
-        {FEED.map((item, i) => (
-          <FeedCard
-            key={item.id}
-            item={item}
-            palette={AVATAR_COLORS[i % AVATAR_COLORS.length]}
-            clapped={!!claps[item.id]}
-            onClap={() => toggleClap(item.id)}
-          />
-        ))}
-
-        {/* Firebase 안내 */}
-        <View style={{ marginTop: 6, backgroundColor: C.paleSky + '33', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
-            🔒 친구 기능은 Firebase 연동 후{'\n'}정식 오픈 예정이에요
+        {visible.length === 0 ? (
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 36 }}>
+            {q ? '검색 결과가 없어요' : '아직 친구가 없어요'}
           </Text>
-        </View>
+        ) : (
+          visible.map(f => (
+            <FriendCard
+              key={f.id}
+              friend={f}
+              palette={paletteOf(f.id)}
+              muted={!!muted[f.id]}
+              onPress={() => setProfileFriend(f)}
+              onLongPress={() => setOptionTarget(f)}
+            />
+          ))
+        )}
+
+        <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, textAlign: 'center', marginTop: 6 }}>
+          친구 카드를 길게 누르면 옵션이 열려요
+        </Text>
       </ScrollView>
+
+      {/* 풀 프로필 */}
+      <FriendProfile friend={profileFriend} visible={!!profileFriend} onClose={() => setProfileFriend(null)} />
+
+      {/* 롱프레스 옵션 팝업 */}
+      <Modal visible={!!optionTarget} transparent animationType="fade" onRequestClose={closeOptions}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 40 }}
+          activeOpacity={1} onPress={closeOptions}>
+          <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700', textAlign: 'center', paddingTop: 16, paddingBottom: 10 }}>
+              {optionTarget?.name}
+            </Text>
+            {[
+              { txt: muted[optionTarget?.id] ? '🔔  알림 켜기' : '🔕  알림 끄기', onPress: () => toggleMute(optionTarget.id) },
+              { txt: '🙈  숨기기', onPress: () => hideFriend(optionTarget.id) },
+              { txt: '❌  친구 삭제', onPress: () => deleteFriend(optionTarget.id), danger: true },
+            ].map((opt, i) => (
+              <TouchableOpacity key={i} activeOpacity={0.6} onPress={opt.onPress}
+                style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 14, color: opt.danger ? '#D32F2F' : C.charcoal, textAlign: 'center' }}>{opt.txt}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
