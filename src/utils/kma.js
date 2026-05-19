@@ -160,6 +160,7 @@ export function pickHourSlots(slotsByDate, dateStr) {
       temp: parseFloat(slot.TMP),
       wind: parseFloat(slot.WSD || 0),
       rain: parseFloat(slot.POP || 0),
+      humidity: parseFloat(slot.REH || 0), // 체감온도 산출용
     };
   }).filter(Boolean);
 }

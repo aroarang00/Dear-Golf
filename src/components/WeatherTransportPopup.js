@@ -121,13 +121,114 @@ const humidityLabel = (h) => {
   return '습함';
 };
 
-const calcDots = ({ temp, wind, rain }) => {
-  if (rain >= 50) return { dots: 1, label: '어려움' };
-  if (temp >= 29 || wind >= 12) return { dots: 2, label: '주의' };
-  if ((temp >= 25 && temp <= 28) || (wind >= 8 && wind < 12)) return { dots: 3, label: '보통' };
-  if ((temp >= 15 && temp <= 17) || (wind >= 5 && wind < 8)) return { dots: 4, label: '좋음' };
-  if (temp >= 18 && temp <= 24 && wind <= 5 && rain <= 20) return { dots: 5, label: '최적' };
-  return { dots: 3, label: '보통' };
+// 구간 사이를 직선 보간 — 점수가 계단식으로 튀지 않고 연속적으로 변하게 함
+const lerp = (x, x0, x1, y0, y1) => y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+
+// 체감온도 — 추울 땐 바람으로 더 춥게, 더울 땐 습도로 더 덥게 보정
+const feelsLike = (temp, wind, humidity) => {
+  if (!Number.isFinite(temp)) return temp;
+  let f = temp;
+  if (temp <= 15 && Number.isFinite(wind) && wind > 1.5) {
+    f -= Math.min(8, (wind - 1.5) * 0.7);            // 풍속 냉각
+  }
+  if (temp >= 26 && Number.isFinite(humidity) && humidity > 60) {
+    f += Math.min(6, ((humidity - 60) / 10) * 1.5);  // 습도 — 더울 때 체감 상승
+  }
+  return f;
+};
+
+// 미세먼지 감점 (PM10 기준: 좋음0~30 / 보통31~80 / 나쁨81~150 / 매우나쁨151~)
+const airPenalty = (airQuality) => {
+  const lbl = airQuality?.label || '';
+  const pm10 = airQuality?.pm10;
+  if (lbl.includes('매우나쁨') || (Number.isFinite(pm10) && pm10 > 150)) return 18;
+  if (lbl.includes('나쁨') || (Number.isFinite(pm10) && pm10 > 80)) return 10;
+  if (lbl.includes('보통') || (Number.isFinite(pm10) && pm10 > 30)) return 3;
+  return 0;
+};
+
+// 자외선 감점 (UV 지수: 6~ 높음 / 8~ 매우높음 / 11~ 위험)
+const uvPenalty = (uvIndex) => {
+  const uv = uvIndex?.uv;
+  if (!Number.isFinite(uv)) return 0;
+  if (uv >= 11) return 10;
+  if (uv >= 8) return 6;
+  if (uv >= 6) return 3;
+  return 0;
+};
+
+// 날씨 점수 (0~100) — 골프 지수와 라운딩 컨디션이 공통으로 사용하는 단일 공식
+// 풍속(30) + 강수확률(35) + 체감기온(35), 연속 보간 + 강수 상한 + 미세먼지·자외선 감점
+const scoreWeather = ({ temp, wind, pop, humidity, windKnown = true, airQuality = null, uvIndex = null }) => {
+  if (temp == null || !Number.isFinite(temp)) return null;
+  const ft = feelsLike(temp, wind, humidity); // 기온 점수는 체감온도 기준
+
+  // 풍속 (0~30) — 데이터 없으면(중기예보 등) 평균값 21
+  let windScore;
+  if (!windKnown || wind == null || !Number.isFinite(wind)) windScore = 21;
+  else if (wind <= 3) windScore = 30;
+  else if (wind <= 5) windScore = lerp(wind, 3, 5, 30, 25);
+  else if (wind <= 7) windScore = lerp(wind, 5, 7, 25, 18);
+  else if (wind <= 10) windScore = lerp(wind, 7, 10, 18, 10);
+  else if (wind <= 15) windScore = lerp(wind, 10, 15, 10, 0);
+  else windScore = 0;
+
+  // 강수확률 (0~35)
+  const p = Number.isFinite(pop) ? pop : 0;
+  let popScore;
+  if (p <= 10) popScore = 35;
+  else if (p <= 30) popScore = lerp(p, 10, 30, 35, 25);
+  else if (p <= 50) popScore = lerp(p, 30, 50, 25, 15);
+  else if (p <= 70) popScore = lerp(p, 50, 70, 15, 6);
+  else if (p <= 100) popScore = lerp(p, 70, 100, 6, 0);
+  else popScore = 0;
+
+  // 체감기온 (0~35) — 18~24°C 최적, 양쪽으로 대칭 감점
+  let tempScore;
+  if (ft >= 18 && ft <= 24) tempScore = 35;
+  else if (ft >= 15 && ft < 18) tempScore = lerp(ft, 15, 18, 28, 35);
+  else if (ft > 24 && ft <= 27) tempScore = lerp(ft, 24, 27, 35, 28);
+  else if (ft >= 10 && ft < 15) tempScore = lerp(ft, 10, 15, 18, 28);
+  else if (ft > 27 && ft <= 30) tempScore = lerp(ft, 27, 30, 28, 18);
+  else if (ft >= 5 && ft < 10) tempScore = lerp(ft, 5, 10, 8, 18);
+  else if (ft > 30 && ft <= 33) tempScore = lerp(ft, 30, 33, 18, 8);
+  else if (ft >= 0 && ft < 5) tempScore = lerp(ft, 0, 5, 0, 8);
+  else if (ft > 33 && ft <= 38) tempScore = lerp(ft, 33, 38, 8, 0);
+  else tempScore = 0;
+
+  let total = windScore + popScore + tempScore;
+  // 강수 상한 — 비 올 확률이 높으면 기온·바람이 좋아도 등급 상한을 둠
+  if (p >= 70) total = Math.min(total, 38);       // 최대 '주의'
+  else if (p >= 50) total = Math.min(total, 58);  // 최대 '보통'
+  // 미세먼지·자외선 감점 (해당일 데이터가 있을 때만 전달됨)
+  total -= airPenalty(airQuality);
+  total -= uvPenalty(uvIndex);
+
+  return Math.round(Math.max(0, Math.min(100, total)));
+};
+
+// 점수(0~100) → 등급 — 골프 지수(idx)와 라운딩 컨디션(dots·cond)이 같은 기준에서 파생
+// dots: 0.5 단위(10단계)로 세분화, cond/idx 라벨은 dots와 1:1 대응 → 두 지표가 절대 어긋나지 않음
+const gradeFromScore = (total) => {
+  const dots = Math.max(0.5, Math.min(5, Math.round(total / 10) / 2));
+  let cond, idx;
+  if (dots >= 4.5) { cond = '최적'; idx = 'Great'; }
+  else if (dots >= 3.5) { cond = '좋음'; idx = 'Good'; }
+  else if (dots >= 2.5) { cond = '보통'; idx = 'OK'; }
+  else if (dots >= 1.5) { cond = '주의'; idx = 'Poor'; }
+  else { cond = '어려움'; idx = 'Bad'; }
+  return { dots, cond, idx };
+};
+
+// 라운딩 컨디션 시간대별 — 골프 지수와 동일한 scoreWeather 공식 사용
+const calcDots = (slot, airQuality, uvIndex) => {
+  const total = scoreWeather({
+    temp: slot?.temp, wind: slot?.wind, pop: slot?.rain,
+    humidity: slot?.humidity, windKnown: true, airQuality, uvIndex,
+  });
+  if (total == null) return { dots: 0, label: '—', total: null };
+  const g = gradeFromScore(total);
+  return { dots: g.dots, label: g.cond, total };
 };
 
 export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, schedules, weatherOnly }) {
@@ -475,6 +576,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const targetDateCompact = weatherOnly ? todayCompact() : compactDate(schedule?.date);
   const hourSlots = pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
 
+  // 미세먼지·자외선은 '오늘' 측정값만 정확 — 오늘 라운딩/현재날씨일 때만 점수에 반영
+  const isTodayWx = weatherOnly || schedule?.dDay === 0;
+  const airForScore = isTodayWx ? airQuality : null;
+  const uvForScore = isTodayWx ? uvIndex : null;
+
   // 티오프와 가장 가까운 슬롯 — 90분(슬롯 간격의 절반) 초과면 표시 안 함
   // (이른 슬롯이 base_time 이전이라 빠진 경우 멀리 떨어진 오후 슬롯에 잘못 붙는 것 방지)
   const teeoffSlotIdx = (() => {
@@ -491,7 +597,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     (schedules || [schedule]).filter(Boolean).map(s => s.date || '')
   );
 
-  // 골프 지수: 풍속(30) + 강수확률(35) + 기온(35) = 100
+  // 골프 지수 — 라운딩 컨디션과 동일한 scoreWeather 공식 (풍속·강수·체감온도 + 미세먼지·자외선)
   // 데이터 소스: weatherOnly→현재, 일정 D+0~D+3→티오프(또는 정오) 슬롯, D+4~D+10→중기 일별
   // 일정 D+11 이후는 예보 범위 밖 → kind:'too-far' 반환해서 UI에서 안내 문구 표시
   const golfIdx = React.useMemo(() => {
@@ -499,14 +605,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       return { kind: 'too-far' };
     }
 
-    let temp = null, wind = null, pop = null, windKnown = true;
+    let temp = null, wind = null, pop = null, humidity = null, windKnown = true;
     if (weatherOnly || schedule?.overseas) {
       temp = cur?.temp;
       wind = cur?.windSpeed;
       pop = cur?.pop ?? todayDay?.pop ?? 0;
+      humidity = cur?.humidity;
     } else if (hourSlots.length > 0) {
       const slot = hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)];
-      temp = slot?.temp; wind = slot?.wind; pop = slot?.rain;
+      temp = slot?.temp; wind = slot?.wind; pop = slot?.rain; humidity = slot?.humidity;
     } else {
       const roundDay = days.find(d => d.date === schedule?.date);
       if (roundDay && Number.isFinite(roundDay.tmin) && Number.isFinite(roundDay.tmax)) {
@@ -515,41 +622,14 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
         windKnown = false; // 중기예보엔 풍속 없음
       }
     }
-    if (temp == null || !Number.isFinite(temp)) return null;
 
-    // 풍속 (30점)
-    let windScore;
-    if (!windKnown || wind == null || !Number.isFinite(wind)) windScore = 21;
-    else if (wind <= 3) windScore = 30;
-    else if (wind <= 5) windScore = 25;
-    else if (wind <= 7) windScore = 18;
-    else if (wind <= 10) windScore = 10;
-    else windScore = 0;
-
-    // 강수확률 (35점)
-    const p = Number.isFinite(pop) ? pop : 0;
-    let popScore;
-    if (p <= 10) popScore = 35;
-    else if (p <= 30) popScore = 25;
-    else if (p <= 50) popScore = 15;
-    else if (p <= 70) popScore = 6;
-    else popScore = 0;
-
-    // 기온 (35점)
-    let tempScore;
-    if (temp >= 18 && temp <= 24) tempScore = 35;
-    else if ((temp >= 15 && temp < 18) || (temp > 24 && temp <= 27)) tempScore = 28;
-    else if ((temp >= 10 && temp < 15) || (temp > 27 && temp <= 30)) tempScore = 18;
-    else if ((temp >= 5 && temp < 10) || (temp > 30 && temp <= 33)) tempScore = 8;
-    else tempScore = 0;
-
-    const total = Math.round(windScore + popScore + tempScore);
-    let label;
-    if (total >= 80) label = 'Great';
-    else if (total >= 60) label = 'Good';
-    else if (total >= 40) label = 'OK';
-    else if (total >= 20) label = 'Poor';
-    else label = 'Bad';
+    const total = scoreWeather({
+      temp, wind, pop, humidity, windKnown,
+      airQuality: airForScore, uvIndex: uvForScore,
+    });
+    if (total == null) return null;
+    const label = gradeFromScore(total).idx;
+    const p = Number.isFinite(pop) ? pop : 0; // 아래 배지 표시용
 
     const badges = [];
     if (windKnown && wind != null && Number.isFinite(wind)) {
@@ -565,8 +645,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     else if (temp < 15) badges.push({ txt: '기온 낮음', bg: '#C8D9E6', color: C.navy });
     else badges.push({ txt: '기온 높음', bg: '#E6C8C8', color: '#5C1E1E' });
 
+    const ap = airPenalty(airForScore);
+    if (ap >= 18) badges.push({ txt: '미세먼지 매우나쁨', bg: '#E6C8C8', color: '#5C1E1E' });
+    else if (ap >= 10) badges.push({ txt: '미세먼지 나쁨', bg: '#E6C8C8', color: '#5C1E1E' });
+    const up = uvPenalty(uvForScore);
+    if (up >= 10) badges.push({ txt: '자외선 위험', bg: '#E6C8C8', color: '#5C1E1E' });
+    else if (up >= 6) badges.push({ txt: '자외선 매우높음', bg: '#E6C8C8', color: '#5C1E1E' });
+
     return { total, label, badges };
-  }, [weatherOnly, cur, days, hourSlots, teeoffSlotIdx, schedule, todayDay]);
+  }, [weatherOnly, cur, days, hourSlots, teeoffSlotIdx, schedule, todayDay, airForScore, uvForScore]);
 
   // 모든 훅 실행 이후 조기 반환 — 훅 순서 보장 (Rules of Hooks)
   if (!schedule) return null;
@@ -759,20 +846,20 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   </Text>
                 ) : hourSlots.map((slot, i) => {
                   const isTee = i === teeoffSlotIdx;
-                  const { dots, label } = calcDots(slot);
+                  const { dots, label } = calcDots(slot, airForScore, uvForScore);
                   return (
                     <View key={i} style={[wxS.condRow, isTee && wxS.condRowTee]}>
                       <Text style={wxS.condTime}>{slot.time}</Text>
                       <Text style={wxS.condIcon}>{slot.icon}</Text>
                       <View style={wxS.condDots}>
                         {[1, 2, 3, 4, 5].map(d => {
-                          const on = d <= dots;
-                          const isHalf = d === dots && dots >= 3 && dots < 5;
+                          const full = d <= Math.floor(dots);
+                          const half = !full && d === Math.ceil(dots) && dots % 1 !== 0;
                           return (
                             <View key={d} style={[wxS.condDot, {
-                              backgroundColor: on
-                                ? (isHalf ? 'rgba(201,168,76,0.55)' : '#F5E6A8')
-                                : 'rgba(255,255,255,0.1)',
+                              backgroundColor: full
+                                ? '#F5E6A8'
+                                : half ? 'rgba(245,230,168,0.45)' : 'rgba(255,255,255,0.1)',
                             }]} />
                           );
                         })}
