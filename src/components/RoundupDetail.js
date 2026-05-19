@@ -87,7 +87,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onClose, onApply, onWaitlist }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onClose, onApply, onWaitlist, onDelete }) {
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
 
@@ -96,6 +96,7 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
   if (!post) return null;
 
   const isTeam = post.teams > 1;
+  const isMine = post.author === '나';   // 내가 올린 모집글
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const allFull = isTeam
     ? post.teamJoined.every(c => c >= 4)
@@ -118,10 +119,32 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
     message: '참여자들과 함께할 카카오톡 단체방을 만들어요. (Firebase 연동 후 제공돼요)',
     buttons: [{ text: '확인' }],
   });
+  const confirmDelete = () => setAlert({
+    title: '모집글을 삭제할까요?',
+    message: '삭제하면 참여자·대기자에게 더 이상 보이지 않아요. 되돌릴 수 없어요.',
+    buttons: [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: onDelete },
+    ],
+  });
 
   // 참여 / 마감(대기) 버튼
   let actionBtn;
-  if (joined) {
+  if (isMine) {
+    actionBtn = (
+      <View>
+        <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+          backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray, fontWeight: '700' }}>내가 올린 모집글</Text>
+        </View>
+        <TouchableOpacity activeOpacity={0.85} onPress={confirmDelete}
+          style={{ marginTop: 8, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '700' }}>모집글 삭제</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  } else if (joined) {
     actionBtn = (
       <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
         backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>

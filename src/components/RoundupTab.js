@@ -54,6 +54,7 @@ function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onG
   const capTotal = rows.reduce((s, r) => s + r.cap, 0);
   const allFull = rows.every(r => r.cur >= r.cap);
   const isClosed = post.closed || allFull;
+  const isMine = post.author === '나';   // 내가 올린 모집글
   const respondHours = waitlistRespondHours(post.date);
 
   return (
@@ -135,7 +136,12 @@ function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onG
 
       {/* 참여 / 대기 */}
       <View style={{ marginTop: 12 }}>
-        {joined ? (
+        {isMine ? (
+          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, fontWeight: '700' }}>내가 올린 모집글</Text>
+          </View>
+        ) : joined ? (
           <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
             <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
@@ -198,7 +204,7 @@ export function RoundupTab({ visible, onClose }) {
   // 탭별 목록 — 전체: 전체공개 + 친구의 친구공개 / 친구: 친구 글(친구지정 제외) / 내 참여 중
   const allTab = posts.filter(p => p.scope === 'all' || (p.scope === 'friends' && p.isFriend));
   const friendTab = posts.filter(p => p.isFriend && p.scope !== 'select');
-  const mineTab = posts.filter(p => joined[p.id] || applied[p.id] || waitlist[p.id]);
+  const mineTab = posts.filter(p => p.author === '나' || joined[p.id] || applied[p.id] || waitlist[p.id]);
   const list = [...(view === 'friend' ? friendTab : view === 'mine' ? mineTab : allTab)]
     .sort((a, b) => b.ts - a.ts);
 
@@ -244,6 +250,12 @@ export function RoundupTab({ visible, onClose }) {
   const handleWaitlist = (id) => {
     const post = posts.find(p => p.id === id);
     setWaitlist(prev => ({ ...prev, [id]: (post?.waitlistCount || 0) + 1 }));
+  };
+
+  // 내 모집글 삭제 — 상세 화면도 닫는다
+  const handleDelete = (id) => {
+    setPosts(prev => prev.filter(p => p.id !== id));
+    setDetailId(null);
   };
 
   // 주최자 — 참여 신청 수락 / 거절
@@ -374,7 +386,8 @@ export function RoundupTab({ visible, onClose }) {
         waitlistNum={detailId ? waitlist[detailId] : undefined}
         onClose={() => setDetailId(null)}
         onApply={() => detailId && setApplied(prev => ({ ...prev, [detailId]: true }))}
-        onWaitlist={() => detailId && handleWaitlist(detailId)} />
+        onWaitlist={() => detailId && handleWaitlist(detailId)}
+        onDelete={() => detailId && handleDelete(detailId)} />
 
           {/* 알림함 */}
           <RoundupNotifications
