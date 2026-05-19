@@ -13,6 +13,7 @@ import { STORAGE_KEYS, storage } from './src/utils/storage';
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
+import { DiariesProvider } from './src/contexts/DiariesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { OnboardingIntro } from './src/components/OnboardingIntro';
 import { HomeScreen } from './src/components/HomeScreen';
@@ -130,6 +131,7 @@ export default function App() {
     <SafeAreaProvider>
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
+    <DiariesProvider>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tab.Screen name="홈" component={HomeScreen} />
@@ -169,6 +171,7 @@ export default function App() {
 
       <AppAlertHost />
     </NavigationContainer>
+    </DiariesProvider>
     </SchedulesProvider>
     </UserContext.Provider>
     </SafeAreaProvider>

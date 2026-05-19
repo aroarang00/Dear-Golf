@@ -87,7 +87,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, waitlistNum, onClose, onJoin, onWaitlist }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onClose, onApply, onWaitlist }) {
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
 
@@ -105,12 +105,12 @@ export function RoundupDetail({ post, visible, joined, waitlistNum, onClose, onJ
   const slots = buildSlots(post, isTeam ? teamTab : null);
   const waiters = pickNames(post.id + ':wait', post.waitlistCount || 0);
 
-  const confirmJoin = () => setAlert({
-    title: '이 라운딩에 참여할까요?',
-    message: '참여하면 모집자와 다른 동반자에게 바로 표시돼요. 신중하게 선택해주세요.',
+  const confirmApply = () => setAlert({
+    title: '이 라운딩에 참여 신청할까요?',
+    message: '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
     buttons: [
       { text: '취소', style: 'cancel' },
-      { text: '참여하기', onPress: onJoin },
+      { text: '참여 신청', onPress: onApply },
     ],
   });
   const handleKakao = () => setAlert({
@@ -125,14 +125,21 @@ export function RoundupDetail({ post, visible, joined, waitlistNum, onClose, onJ
     actionBtn = (
       <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
         backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '700' }}>참여 완료 ✓</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
+      </View>
+    );
+  } else if (applied) {
+    actionBtn = (
+      <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+        backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#8B6914', fontWeight: '700' }}>신청 완료 · 수락 대기 중</Text>
       </View>
     );
   } else if (!isClosed) {
     actionBtn = (
-      <TouchableOpacity activeOpacity={0.85} onPress={confirmJoin}
+      <TouchableOpacity activeOpacity={0.85} onPress={confirmApply}
         style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: C.burgundy }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>참여하기</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
       </TouchableOpacity>
     );
   } else if (waitlistNum) {

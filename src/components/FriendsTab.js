@@ -131,9 +131,44 @@ export function FriendsTab() {
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled">
-        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginBottom: 12 }}>
-          친구 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{visible.length}</Text>명
-        </Text>
+        {/* 친구 수 + 숨긴 친구 관리 (목록 위에 배치 — 스크롤 없이 접근) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>
+            친구 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{visible.length}</Text>명
+          </Text>
+          {hiddenFriends.length > 0 && (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
+              style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4,
+                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, fontWeight: '600' }}>
+                🙈 숨긴 친구 {hiddenFriends.length}
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>{showHidden ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 숨긴 친구 목록 — 펼침 시 */}
+        {showHidden && hiddenFriends.length > 0 && (
+          <View style={{ marginBottom: 14 }}>
+            {hiddenFriends.map(f => (
+              <View key={f.id}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8,
+                  backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
+                  paddingHorizontal: 12, paddingVertical: 10 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: paletteOf(f.id).bg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: paletteOf(f.id).fg, fontWeight: '700' }}>{f.name.charAt(0)}</Text>
+                </View>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{f.name}</Text>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => unhideFriend(f.id)}
+                  style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '600' }}>숨김 해제</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         {visible.length === 0 ? (
           <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 36 }}>
@@ -160,32 +195,6 @@ export function FriendsTab() {
         <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, textAlign: 'center', marginTop: 6 }}>
           친구 카드를 길게 누르면 옵션이 열려요
         </Text>
-
-        {/* 숨긴 친구 — 접이식 섹션 */}
-        {hiddenFriends.length > 0 && (
-          <View style={{ marginTop: 22, borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 14 }}>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, fontWeight: '600' }}>
-                🙈 숨긴 친구 {hiddenFriends.length}명
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight }}>{showHidden ? '▲' : '▼'}</Text>
-            </TouchableOpacity>
-            {showHidden && hiddenFriends.map(f => (
-              <View key={f.id}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 12, paddingVertical: 10 }}>
-                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: paletteOf(f.id).bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: paletteOf(f.id).fg, fontWeight: '700' }}>{f.name.charAt(0)}</Text>
-                </View>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{f.name}</Text>
-                <TouchableOpacity activeOpacity={0.7} onPress={() => unhideFriend(f.id)}
-                  style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '600' }}>숨김 해제</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
       </ScrollView>
 
       {/* 풀 프로필 */}

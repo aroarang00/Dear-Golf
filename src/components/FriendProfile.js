@@ -41,10 +41,9 @@ export function FriendProfile({ friend, visible, onClose }) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
-          {/* 헤더 — 크림 바탕으로 통일 */}
-          <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
-            flexDirection: 'row', alignItems: 'center', gap: 12,
-            borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+          {/* 헤더 — 버터 */}
+          <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13,
+            flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
             </TouchableOpacity>

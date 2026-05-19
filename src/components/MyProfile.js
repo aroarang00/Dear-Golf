@@ -5,15 +5,16 @@ import {
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { C, F } from '../constants/colors';
-import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { UserContext } from '../contexts/UserContext';
+import { DiariesContext } from '../contexts/DiariesContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustGradeModal } from './common/TrustBadge';
 
 // 라운딩 피드 1건 — 친구 프로필 피드와 동일한 카드
 function FeedCard({ item }) {
-  const diff = item.score - item.par;
+  const par = item.par || 72;
+  const diff = item.score - par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   return (
     <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 10 }}>
@@ -112,6 +113,7 @@ function LocalAlert({ data, onClose }) {
 // 내 프로필 — 친구에게 보이는 모습 미리보기 + 공개 범위 설정
 export function MyProfile({ visible, onClose }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
+  const { diaries } = React.useContext(DiariesContext);
   const [editing, setEditing] = useState(false);
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
   const [alert, setAlert] = useState(null);   // 프로필 내 알럿/액션시트
@@ -174,10 +176,18 @@ export function MyProfile({ visible, onClose }) {
 
   const name = userProfile.nickname || '나';
   const initial = name.charAt(0);
-  const rounds = userProfile.totalRounds || DIARY_DATA.length;
-  const avg = userProfile.avgScore || Math.round(DIARY_DATA.reduce((s, d) => s + d.score, 0) / DIARY_DATA.length);
-  const best = userProfile.lifeBest || Math.min(...DIARY_DATA.map(d => d.score));
-  const feed = [...DIARY_DATA].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
+  const myDiaries = diaries || [];
+  const rounds = userProfile.totalRounds || myDiaries.length;
+  const avg = userProfile.avgScore
+    || (myDiaries.length ? Math.round(myDiaries.reduce((s, d) => s + d.score, 0) / myDiaries.length) : 0);
+  const best = userProfile.lifeBest
+    || (myDiaries.length ? Math.min(...myDiaries.map(d => d.score)) : 0);
+  // 라운딩 피드 — 다이어리에서 '나만보기'(private)로 한 기록은 제외, 공개 기록만 노출
+  const feed = myDiaries
+    .filter(d => d.privacy !== 'private')
+    .slice()
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 5);
 
   const statBoxes = [
     { label: '총 라운딩', value: rounds },
@@ -189,10 +199,9 @@ export function MyProfile({ visible, onClose }) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
-          {/* 헤더 — 크림 바탕으로 통일 */}
-          <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
-            flexDirection: 'row', alignItems: 'center', gap: 12,
-            borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+          {/* 헤더 — 팔레스카이 */}
+          <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13,
+            flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
             </TouchableOpacity>

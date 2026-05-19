@@ -62,17 +62,17 @@ export function FriendsScreen({ navigation }) {
       {/* 라운딩 모집 진입 배너 — 탭하면 풀스크린으로 열림 */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.bgPrimary, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
         <TouchableOpacity onPress={() => setShowRoundup(true)} activeOpacity={0.85}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.paleSky,
-            borderWidth: 1, borderColor: 'rgba(26,61,82,0.18)',
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.burgundy,
+            borderWidth: 1, borderColor: 'rgba(245,230,168,0.25)',
             borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14 }}>
           <Text style={{ fontSize: 22 }}>⛳</Text>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.navy, fontWeight: '700' }}>라운딩 모집</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(26,61,82,0.7)', marginTop: 2 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>라운딩 모집</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(250,246,236,0.7)', marginTop: 2 }}>
               함께 칠 동반자를 찾아보세요
             </Text>
           </View>
-          <Text style={{ fontSize: 18, color: C.navy }}>›</Text>
+          <Text style={{ fontSize: 18, color: C.butter }}>›</Text>
         </TouchableOpacity>
       </View>
 

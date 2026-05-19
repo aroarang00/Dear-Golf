@@ -7,6 +7,7 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { OverlayAlert } from './common/OverlayAlert';
 import { RoundupDetail } from './RoundupDetail';
+import { RoundupNotifications } from './RoundupNotifications';
 import { SCOPE_BADGE, waitlistRespondHours } from '../constants/roundup';
 
 // 모집글 더미 데이터 — Firebase 연동 전 UI 표시용.
@@ -31,7 +32,17 @@ const DUMMY_POSTS = [
     word: '평일 휴무라 1명만 더 구해요 (둘이 라운딩)', closed: false, ts: 2 },
 ];
 
-function PostCard({ post, joined, waitlistNum, onJoin, onWaitlist, onGradePress, onOpenDetail }) {
+// 알림 더미 — 내 모집글 알림(apply/cancel) + 내 참여·대기 알림(slotOpen/confirmed)
+// apply: status pending이면 수락/거절 가능
+const DUMMY_NOTIFICATIONS = [
+  { id: 'n1', type: 'apply',     actor: '이수연', postId: 'r1', postTitle: '제이드팰리스 GC', time: '10분 전', read: false, status: 'pending' },
+  { id: 'n2', type: 'slotOpen',  actor: '',       postId: 'r3', postTitle: '블랙스톤 CC',     time: '40분 전', read: false },
+  { id: 'n3', type: 'apply',     actor: '김민준', postId: 'r1', postTitle: '제이드팰리스 GC', time: '1시간 전', read: false, status: 'pending' },
+  { id: 'n4', type: 'confirmed', actor: '',       postId: 'r1', postTitle: '제이드팰리스 GC', time: '3시간 전', read: true },
+  { id: 'n5', type: 'cancel',    actor: '박지영', postId: 'r1', postTitle: '제이드팰리스 GC', time: '어제',     read: true },
+];
+
+function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onGradePress, onOpenDetail }) {
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorCompleted, post.authorNoShow);
   const isTeam = post.teams > 1;
@@ -127,12 +138,17 @@ function PostCard({ post, joined, waitlistNum, onJoin, onWaitlist, onGradePress,
         {joined ? (
           <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>참여 완료 ✓</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
+          </View>
+        ) : applied ? (
+          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+            backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B6914', fontWeight: '700' }}>신청 완료 · 수락 대기 중</Text>
           </View>
         ) : !isClosed ? (
-          <TouchableOpacity activeOpacity={0.85} onPress={onJoin}
+          <TouchableOpacity activeOpacity={0.85} onPress={onApply}
             style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>참여하기</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
           </TouchableOpacity>
         ) : waitlistNum ? (
           <View>
@@ -164,21 +180,27 @@ function PostCard({ post, joined, waitlistNum, onJoin, onWaitlist, onGradePress,
 }
 
 export function RoundupTab({ visible, onClose }) {
-  const [sort, setSort] = useState('recent');   // recent | friend
   const [posts, setPosts] = useState(DUMMY_POSTS);
-  const [joined, setJoined] = useState({});
-  const [waitlist, setWaitlist] = useState({});       // { [id]: 내 대기 순번 }
+  const [joined, setJoined] = useState({ r1: true });   // 더미: r1 참여 확정
+  const [applied, setApplied] = useState({});           // 참여 신청함 (주최자 수락 대기)
+  const [waitlist, setWaitlist] = useState({ r3: 3 });  // 더미: r3 대기 3번
+  const [view, setView] = useState('all');              // all | friend | mine
   const [showCreate, setShowCreate] = useState(false);
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
+  const [notifications, setNotifications] = useState(DUMMY_NOTIFICATIONS);
+  const [showNoti, setShowNoti] = useState(false);            // 알림함
 
   const detailPost = posts.find(p => p.id === detailId) || null;
+  const unreadCount = notifications.filter(n => !n.read).length;
 
-  const sorted = [...posts].sort((a, b) => {
-    if (sort === 'friend' && !!a.isFriend !== !!b.isFriend) return a.isFriend ? -1 : 1;
-    return b.ts - a.ts;
-  });
+  // 탭별 목록 — 전체: 전체공개 + 친구의 친구공개 / 친구: 친구 글(친구지정 제외) / 내 참여 중
+  const allTab = posts.filter(p => p.scope === 'all' || (p.scope === 'friends' && p.isFriend));
+  const friendTab = posts.filter(p => p.isFriend && p.scope !== 'select');
+  const mineTab = posts.filter(p => joined[p.id] || applied[p.id] || waitlist[p.id]);
+  const list = [...(view === 'friend' ? friendTab : view === 'mine' ? mineTab : allTab)]
+    .sort((a, b) => b.ts - a.ts);
 
   const handleCreate = (post) => {
     const teams = post.teams || 1;
@@ -187,18 +209,13 @@ export function RoundupTab({ visible, onClose }) {
       authorCompleted: 0, authorNoShow: 0, waitlistCount: 0,
       teams, closed: false, ts: Date.now(),
     };
-    if (teams > 1) {
-      // 단체 — 첫 팀에 작성자 1명
-      base.teamJoined = Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0));
-    } else {
-      // 개별 — 작성자 1명
-      base.joined = 1;
-    }
+    if (teams > 1) base.teamJoined = Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0));
+    else base.joined = 1;
     setPosts(prev => [base, ...prev]);
   };
 
-  // 참여 확정 — 단체는 빈 첫 팀에, 개별은 인원 +1
-  const handleJoin = (id) => {
+  // 모집 인원 +1 — 단체는 빈 첫 팀에, 개별은 인원 (주최자가 신청을 수락할 때 호출)
+  const bumpPostCount = (id) => {
     setPosts(prev => prev.map(p => {
       if (p.id !== id) return p;
       if (p.teams > 1) {
@@ -209,17 +226,16 @@ export function RoundupTab({ visible, onClose }) {
       }
       return { ...p, joined: (p.joined || 0) + 1 };
     }));
-    setJoined(prev => ({ ...prev, [id]: true }));
   };
 
-  // 참여하기 버튼 — 확인 후 참여 (실수·남발 방지)
-  const confirmJoin = (id) => {
+  // 참여 신청 — 확인 후 신청 (주최자 수락 대기)
+  const confirmApply = (id) => {
     setAlert({
-      title: '이 라운딩에 참여할까요?',
-      message: '참여하면 모집자와 다른 동반자에게 바로 표시돼요. 신중하게 선택해주세요.',
+      title: '이 라운딩에 참여 신청할까요?',
+      message: '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
       buttons: [
         { text: '취소', style: 'cancel' },
-        { text: '참여하기', onPress: () => handleJoin(id) },
+        { text: '참여 신청', onPress: () => setApplied(prev => ({ ...prev, [id]: true })) },
       ],
     });
   };
@@ -229,6 +245,23 @@ export function RoundupTab({ visible, onClose }) {
     const post = posts.find(p => p.id === id);
     setWaitlist(prev => ({ ...prev, [id]: (post?.waitlistCount || 0) + 1 }));
   };
+
+  // 주최자 — 참여 신청 수락 / 거절
+  const acceptApply = (n) => {
+    setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, status: 'accepted', read: true } : x)));
+    bumpPostCount(n.postId);
+  };
+  const rejectApply = (n) => {
+    setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, status: 'rejected', read: true } : x)));
+  };
+
+  // 알림 탭 — 읽음 처리 후 해당 모집글 상세 열기
+  const openNotiPost = (n) => {
+    setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
+    setShowNoti(false);
+    setDetailId(n.postId);
+  };
+  const readAllNoti = () => setNotifications(prev => prev.map(x => ({ ...x, read: true })));
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -241,43 +274,72 @@ export function RoundupTab({ visible, onClose }) {
           <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
         </TouchableOpacity>
         <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>라운딩 모집</Text>
-      </View>
-
-      {/* 정렬 필터 + 모집글 작성 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, gap: 8 }}>
-        {[['recent', '최근순'], ['friend', '친구최근순']].map(([k, l]) => {
-          const on = sort === k;
-          return (
-            <TouchableOpacity key={k} onPress={() => setSort(k)} activeOpacity={0.8}
-              style={{
-                paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16,
-                backgroundColor: on ? C.charcoal : C.bgSecondary,
-                borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline,
-              }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: on ? '700' : '500', color: on ? C.butter : C.warmGray }}>{l}</Text>
-            </TouchableOpacity>
-          );
-        })}
-        <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.8}
-          style={{ marginLeft: 'auto', backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 7 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>+ 모집글 작성</Text>
+        <View style={{ flex: 1 }} />
+        {/* 알림함 */}
+        <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={{ fontSize: 20 }}>🔔</Text>
+          {unreadCount > 0 && (
+            <View style={{ position: 'absolute', top: -5, right: -7, minWidth: 16, height: 16, borderRadius: 8,
+              backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 9, color: '#fff', fontWeight: '700' }}>{unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 32 }}>
-        {sorted.map(p => (
-          <PostCard key={p.id} post={p} joined={!!joined[p.id]} waitlistNum={waitlist[p.id]}
-            onJoin={() => confirmJoin(p.id)}
-            onWaitlist={() => handleWaitlist(p.id)}
-            onGradePress={(key) => setGradeModalKey(key)}
-            onOpenDetail={() => setDetailId(p.id)} />
-        ))}
-        <View style={{ marginTop: 4, backgroundColor: C.paleSky + '33', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
-            🔒 라운딩 모집은 Firebase 연동 후 정식 오픈 예정이에요
-          </Text>
+      {/* 전체 / 친구 / 내 참여 중 세그먼트 */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 2 }}>
+        <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 3 }}>
+          {[['all', '전체'], ['friend', '친구'], ['mine', '내 참여 중']].map(([k, l]) => {
+            const on = view === k;
+            return (
+              <TouchableOpacity key={k} onPress={() => setView(k)} activeOpacity={0.8}
+                style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8,
+                  backgroundColor: on ? C.charcoal : 'transparent' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: on ? '700' : '500', color: on ? C.butter : C.warmGray }}>
+                  {l}{k === 'mine' && mineTab.length > 0 ? ` ${mineTab.length}` : ''}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
+      </View>
+
+      {/* 모집글 작성 (내 참여 중 외) */}
+      {view !== 'mine' && (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>
+            {view === 'friend' ? '친구가 올린 모집글이에요' : '전체공개·친구공개 모집글이에요'}
+          </Text>
+          <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.8}
+            style={{ marginLeft: 'auto', backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 7 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>+ 모집글 작성</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}>
+        {list.length === 0 ? (
+          <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
+            {view === 'mine' ? '아직 참여 중인 모집이 없어요' : '모집글이 없어요'}
+          </Text>
+        ) : (
+          list.map(p => (
+            <PostCard key={p.id} post={p} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
+              onApply={() => confirmApply(p.id)}
+              onWaitlist={() => handleWaitlist(p.id)}
+              onGradePress={(key) => setGradeModalKey(key)}
+              onOpenDetail={() => setDetailId(p.id)} />
+          ))
+        )}
+        {view === 'all' && list.length > 0 && (
+          <View style={{ marginTop: 4, backgroundColor: C.paleSky + '33', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
+              🔒 라운딩 모집은 Firebase 연동 후 정식 오픈 예정이에요
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       <RoundupCreateModal visible={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
@@ -291,10 +353,21 @@ export function RoundupTab({ visible, onClose }) {
         post={detailPost}
         visible={!!detailPost}
         joined={!!(detailId && joined[detailId])}
+        applied={!!(detailId && applied[detailId])}
         waitlistNum={detailId ? waitlist[detailId] : undefined}
         onClose={() => setDetailId(null)}
-        onJoin={() => detailId && handleJoin(detailId)}
+        onApply={() => detailId && setApplied(prev => ({ ...prev, [detailId]: true }))}
         onWaitlist={() => detailId && handleWaitlist(detailId)} />
+
+          {/* 알림함 */}
+          <RoundupNotifications
+            visible={showNoti}
+            notifications={notifications}
+            onClose={() => setShowNoti(false)}
+            onOpenPost={openNotiPost}
+            onReadAll={readAllNoti}
+            onAccept={acceptApply}
+            onReject={rejectApply} />
 
           {/* 참여 확인 팝업 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />

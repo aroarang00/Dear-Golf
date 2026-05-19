@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
-import { DIARY_DATA, HALL_OF_FAME } from '../constants/data';
+import { HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { dS } from '../styles/dS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
+import { DiariesContext } from '../contexts/DiariesContext';
 import { HallOfFameCard } from './HallOfFameCard';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
@@ -56,15 +57,15 @@ function buildSingleHofEntry(data, diaryId) {
 export function DiaryScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const { setSchedules } = React.useContext(SchedulesContext);
+  const { diaries, setDiaries } = React.useContext(DiariesContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
   const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
-  const [diaries, setDiaries] = useState(DIARY_DATA);
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
-  const [diariesHydrated, setDiariesHydrated] = useState(false);
+  const [hofHydrated, setHofHydrated] = useState(false);
   const [search, setSearch] = useState('');
   const [filterKey, setFilterKey] = useState('전체');
   const [showSearch, setShowSearch] = useState(false);
@@ -83,27 +84,20 @@ export function DiaryScreen({ route, navigation }) {
 
   useEffect(() => {
     (async () => {
-      const [d, h, teaserDismissed] = await Promise.all([
-        storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
+      const [h, teaserDismissed] = await Promise.all([
         storage.load(STORAGE_KEYS.hof, HALL_OF_FAME),
         storage.load(STORAGE_KEYS.hofTeaserDismissed, false),
       ]);
-      setDiaries(d);
       setHallOfFame(h);
-      setDiariesHydrated(true);
+      setHofHydrated(true);
       setHofTeaserDismissed(teaserDismissed);
     })();
   }, []);
 
   useEffect(() => {
-    if (!diariesHydrated) return;
-    storage.save(STORAGE_KEYS.diaries, diaries);
-  }, [diaries, diariesHydrated]);
-
-  useEffect(() => {
-    if (!diariesHydrated) return;
+    if (!hofHydrated) return;
     storage.save(STORAGE_KEYS.hof, hallOfFame);
-  }, [hallOfFame, diariesHydrated]);
+  }, [hallOfFame, hofHydrated]);
 
   useEffect(() => {
     if (route?.params?.openDiaryId) {
@@ -214,10 +208,11 @@ export function DiaryScreen({ route, navigation }) {
           <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {/* 골프 가계부 — 버건디 채움 버튼 (옆 + 버튼의 버터색과 구분) */}
+          {/* 골프 가계부 — 헤더 톤에 맞춘 투명 버튼 */}
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
-            style={{ backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>📒 골프 가계부</Text>
+            style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
+              borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.92)', fontWeight: '600' }}>📒 골프 가계부</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.7}
             style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
