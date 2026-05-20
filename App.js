@@ -19,6 +19,7 @@ import { OnboardingIntro } from './src/components/OnboardingIntro';
 import { OnboardingKakao } from './src/components/OnboardingKakao';
 import { HomeScreen } from './src/components/HomeScreen';
 import { ScheduleScreen } from './src/components/ScheduleScreen';
+import { LoungeScreen } from './src/components/LoungeScreen';
 import { DiaryScreen } from './src/components/DiaryScreen';
 import { GuideScreen } from './src/components/GuideScreen';
 import { FriendsScreen } from './src/components/FriendsScreen';
@@ -148,10 +149,10 @@ export default function App() {
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tab.Screen name="홈" component={HomeScreen} />
-        <Tab.Screen name="일정" component={ScheduleScreen} />
+        <Tab.Screen name="라운지" component={LoungeScreen} />
         <Tab.Screen name="다이어리" component={DiaryScreen} />
-        <Tab.Screen name="코스" component={GuideScreen} />
         <Tab.Screen name="친구" component={FriendsScreen} />
+        <Tab.Screen name="코스" component={GuideScreen} />
       </Tab.Navigator>
 
       <Modal visible={firstSingleAlert} transparent animationType="fade">

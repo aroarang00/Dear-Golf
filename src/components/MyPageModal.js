@@ -491,6 +491,32 @@ export function MyPageModal({ visible, onClose }) {
                     <Text style={myS.menuValue}>›</Text>
                   </TouchableOpacity>
                 ))}
+                {/* 라운지 — 모르는 사람 모집 숨기기 토글 (켜면 '전체' 탭 사라짐, 친구 모집만 보임) */}
+                {(() => {
+                  const on = !!userProfile.hideStrangerRoundups;
+                  const toggle = () => {
+                    const next = { ...userProfile, hideStrangerRoundups: !on };
+                    setUserProfile(next);
+                    storage.save(STORAGE_KEYS.profile, next);
+                  };
+                  return (
+                    <View style={myS.menuRow}>
+                      <Text style={myS.menuIcon}>🤝</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={myS.menuLabel}>친구 모집만 보기</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>
+                          라운지에서 '전체' 탭을 숨기고 친구 모집만 표시
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={toggle} activeOpacity={0.8}
+                        style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center',
+                          backgroundColor: on ? C.burgundy : C.hairline }}>
+                        <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff',
+                          alignSelf: on ? 'flex-end' : 'flex-start' }} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })()}
               </View>
               <View style={myS.divider} />
               <View style={myS.section}>

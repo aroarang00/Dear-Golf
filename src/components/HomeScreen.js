@@ -17,6 +17,7 @@ import { HomeBgSlider } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleModal } from './ScheduleModal';
+import { ScheduleScreen } from './ScheduleScreen';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal } from './AlarmSetupModal';
@@ -40,6 +41,7 @@ export function HomeScreen({ navigation }) {
   const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
   const [showUpcomingList, setShowUpcomingList] = useState(false);
+  const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
   const [upcomingPos, setUpcomingPos] = useState({ x: 0, y: 0 });
   const [editSchedule, setEditSchedule] = useState(null);
   const [cardSlide, setCardSlide] = useState(0);
@@ -101,6 +103,8 @@ export function HomeScreen({ navigation }) {
       setEditSchedule(null);
       setSelectedSchedule(null);
       setPendingAlarmSchedule(null);
+      setShowScheduleScreen(false);
+      setShowUpcomingList(false);
     });
     return unsubscribe;
   }, [navigation]);
@@ -398,11 +402,11 @@ export function HomeScreen({ navigation }) {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 8 }}>
             <TouchableOpacity
               ref={upcomingLabelRef}
-              onPress={openUpcomingList}
+              onPress={() => setShowScheduleScreen(true)}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>예정 라운딩</Text>
+              <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>일정</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.6)', marginLeft: 5, marginTop: 1 }}>›</Text>
             </TouchableOpacity>
             {upcomingSchedules.length < 10 && (
@@ -807,6 +811,14 @@ export function HomeScreen({ navigation }) {
       <HomeTooltip
         visible={showTooltip}
         onClose={() => { setShowTooltip(false); storage.save(STORAGE_KEYS.homeTooltipDone, true); }}
+      />
+
+      {/* 일정 풀스크린 — 홈의 '일정' 라벨 탭 시 캘린더 화면 표시 */}
+      <ScheduleScreen
+        asModal
+        visible={showScheduleScreen}
+        onClose={() => setShowScheduleScreen(false)}
+        navigation={navigation}
       />
     </View>
   );

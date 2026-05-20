@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
-import { RoundupTab } from './RoundupTab';
 import { MyPageModal } from './MyPageModal';
 import { MyProfile } from './MyProfile';
 import { UserContext } from '../contexts/UserContext';
@@ -15,7 +14,6 @@ export function FriendsScreen({ navigation }) {
   const insets = useSafeAreaInsets();   // 코치마크 위치 계산용 (노치/홈바)
   const [showMyPage, setShowMyPage] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
-  const [showRoundup, setShowRoundup] = useState(false);
   const [showCoach, setShowCoach] = useState(false);   // 친구 탭 첫 진입 툴팁 (1회)
 
   // 하단 탭 재탭 시 — 모든 풀스크린 닫고 친구 화면으로 복귀
@@ -24,7 +22,6 @@ export function FriendsScreen({ navigation }) {
     const unsub = navigation.addListener('tabPress', () => {
       setShowMyPage(false);
       setShowMyProfile(false);
-      setShowRoundup(false);
     });
     return unsub;
   }, [navigation]);
@@ -72,41 +69,14 @@ export function FriendsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* 라운딩 모집 진입 배너 — 탭하면 풀스크린으로 열림 */}
-      <View style={{ paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.bgPrimary, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-        <TouchableOpacity onPress={() => setShowRoundup(true)} activeOpacity={0.85}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.burgundy,
-            borderWidth: 1, borderColor: 'rgba(245,230,168,0.25)',
-            borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14 }}>
-          <Text style={{ fontSize: 22 }}>⛳</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>라운딩 모집</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(250,246,236,0.7)', marginTop: 2 }}>
-              함께 칠 동반자를 찾아보세요
-            </Text>
-          </View>
-          <Text style={{ fontSize: 18, color: C.butter }}>›</Text>
-        </TouchableOpacity>
-      </View>
-
       <FriendsTab />
 
       {/* 친구 탭 첫 진입 코치마크 — 1회만. 헤더(76) + 배너(79)·검색(60)·카운트(40) 기준 위치. */}
       {showCoach && (
         <TouchableOpacity activeOpacity={1} onPress={dismissCoach}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.62)' }}>
-          {/* 라운딩 모집 배너 안내 — 배너 바로 아래 (헤더 76 + 배너 79 = 155) */}
-          <View style={{ position: 'absolute', top: insets.top + 158, left: 30, right: 30, alignItems: 'center' }}>
-            <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 9,
-              borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fff' }} />
-            <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600', textAlign: 'center', lineHeight: 19 }}>
-                ⛳ 위 '라운딩 모집'에서{'\n'}라운딩 파트너를 찾아보세요!
-              </Text>
-            </View>
-          </View>
-          {/* 친구 카드 안내 — 검색·카운트 지나 첫 카드 바로 위 (155 + 60 검색 + 40 카운트 ≈ 255) */}
-          <View style={{ position: 'absolute', top: insets.top + 258, left: 30, right: 30, alignItems: 'center' }}>
+          {/* 친구 카드 안내 — 검색·카운트 지나 첫 카드 바로 위 (헤더 76 + 검색 60 + 카운트 40 ≈ 176) */}
+          <View style={{ position: 'absolute', top: insets.top + 180, left: 30, right: 30, alignItems: 'center' }}>
             <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 9,
               borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fff' }} />
             <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
@@ -129,7 +99,6 @@ export function FriendsScreen({ navigation }) {
 
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       <MyProfile visible={showMyProfile} onClose={() => setShowMyProfile(false)} />
-      <RoundupTab visible={showRoundup} onClose={() => setShowRoundup(false)} />
     </SafeAreaView>
   );
 }

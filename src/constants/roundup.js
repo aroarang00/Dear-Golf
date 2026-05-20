@@ -7,36 +7,57 @@ export const SCOPE_BADGE = {
   select:  { label: '친구지정', bg: '#6B1E2A', fg: '#F5E6A8' },
 };
 
-// 동반자 조건 — 모집 필터 (모두 단일 선택)
-// ageGroup:  'any' | '30s' | '40s' | '50s'  — 누구나/~30대/~40대/~50대
+// 지역 필터 — 모집글 카드의 골프장 주소에서 자동 분류해 region 필드에 저장
+export const REGION_OPTIONS = [
+  ['all', '전체'],
+  ['capital', '수도권'],
+  ['gangwon', '강원'],
+  ['chungcheong', '충청'],
+  ['jeolla', '전라'],
+  ['gyeongsang', '경상'],
+  ['jeju', '제주'],
+];
+export const REGION_LABEL = Object.fromEntries(REGION_OPTIONS);
+
+// 골프장 주소(예: '경기 용인', '제주특별자치도 서귀포') → region 키
+export function regionFromAddress(addr) {
+  if (!addr || typeof addr !== 'string') return null;
+  if (/서울|경기|인천/.test(addr)) return 'capital';
+  if (/강원/.test(addr)) return 'gangwon';
+  if (/충남|충북|충청|대전|세종/.test(addr)) return 'chungcheong';
+  if (/전남|전북|전라|광주/.test(addr)) return 'jeolla';
+  if (/경남|경북|경상|대구|부산|울산/.test(addr)) return 'gyeongsang';
+  if (/제주/.test(addr)) return 'jeju';
+  return null;
+}
+
+// 동반자 조건 — 전체공개 모집에서만 표시 (친구공개·친구지정은 의미 없으므로 숨김)
 // companion: 'any' | 'male' | 'female' | 'couple' | 'mixed'
 // skill:     'any' | 'pro' | 'mid' | 'high' | 'beginner'  — pro=80↓, mid=80~90, high=90~100, beginner=100↑
-export const AGE_OPTIONS = [
-  ['any', '누구나'], ['30s', '~30대'], ['40s', '~40대'], ['50s', '~50대'],
-];
+// tags:      해시태그 다중 선택 (분위기·연령·수준 자유 표현)
 export const COMPANION_OPTIONS = [
   ['any', '상관없음'], ['male', '남성만'], ['female', '여성만'], ['couple', '커플'], ['mixed', '혼성'],
 ];
 export const SKILL_OPTIONS = [
   ['any', '상관없음'], ['beginner', '100타 이상'], ['high', '90-100타'], ['mid', '80-90타'], ['pro', '80타 이하'],
 ];
+export const TAG_OPTIONS = [
+  '젊은분위기', '시니어환영', '연령무관',
+  '편안한라운딩', '즐기는라운딩',
+  '초보환영', '실력자환영',
+  '여성환영',
+];
 
-export const AGE_LABEL = Object.fromEntries(AGE_OPTIONS);
 export const COMPANION_LABEL = Object.fromEntries(COMPANION_OPTIONS);
 export const SKILL_LABEL = Object.fromEntries(SKILL_OPTIONS);
 
 // 동반자 조건 뱃지 색상 — 카드에 표시
 export const FILTER_BADGE = {
-  age:       { bg: '#E8DCC8', fg: '#5A4500' },
+  tag:       { bg: '#E8DCC8', fg: '#5A4500' },
   companion: { bg: '#C8D9E6', fg: '#1A3D52' },
   skill:     { bg: '#D9C8E0', fg: '#4A2A5C' },
 };
 
-// 연령대 표시 라벨 — 단일 키. 'any'는 null 반환(뱃지 숨김).
-export function ageLabelShort(ageGroup) {
-  if (!ageGroup || ageGroup === 'any') return null;
-  return AGE_LABEL[ageGroup] || null;
-}
 // 실력 — 카드용 짧은 표기 ('90-100타' → '90타대')
 export function skillLabelShort(skill) {
   if (!skill || skill === 'any') return null;

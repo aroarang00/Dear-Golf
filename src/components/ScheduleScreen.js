@@ -1,30 +1,37 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { showAppAlert } from './AppAlert';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { MyScheduleTab } from './MyScheduleTab';
 
-export function ScheduleScreen({ navigation }) {
+// asModal={true} + visible/onClose 모드로도 사용 가능 (홈에서 풀스크린 모달로 띄울 때).
+// asModal=false면 기존 탭 화면처럼 동작 (navigation 필수).
+export function ScheduleScreen({ navigation, asModal = false, visible: modalVisible = false, onClose }) {
   const [diaries, setDiaries] = useState(DIARY_DATA);
   const { schedules } = useContext(SchedulesContext);
   const [upcoming, setUpcoming] = useState({ visible: false, y: 0 });
   const [jumpDate, setJumpDate] = useState(null);
   const plusRef = useRef(null);
 
-  // 다이어리(라운딩 기록)는 캘린더 완료 표시에만 쓰임 → 탭 진입 시마다 최신값 로드
+  // 다이어리(라운딩 기록)는 캘린더 완료 표시에만 쓰임
+  // asModal: 모달이 열릴 때마다 / 탭 모드: navigation focus 시점
   useEffect(() => {
     const load = async () => {
       const d = await storage.load(STORAGE_KEYS.diaries, DIARY_DATA);
       setDiaries(d);
     };
+    if (asModal) {
+      if (modalVisible) load();
+      return;
+    }
     load();
-    const unsubscribe = navigation.addListener('focus', load);
+    const unsubscribe = navigation?.addListener?.('focus', load);
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, asModal, modalVisible]);
 
   // 오늘 이후 예정 라운딩 — 월 무관 전체 (캘린더는 한 달만 보이므로 다음 달까지 한눈에)
   const now0 = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); })();
@@ -48,10 +55,10 @@ export function ScheduleScreen({ navigation }) {
     setJumpDate({ y, m: m - 1, n: Date.now() });
   };
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
+  const content = (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={asModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
+      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flex: 1 }}>
           <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 일정</Text>
           <TouchableOpacity
             ref={plusRef}
@@ -78,12 +85,21 @@ export function ScheduleScreen({ navigation }) {
           }}>
           <Text style={{ fontFamily: F.en, fontSize: 14, color: C.navy, fontWeight: '700', lineHeight: 17 }}>!</Text>
         </TouchableOpacity>
+        {asModal && (
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: C.navy }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.navy, fontWeight: '700' }}>닫기</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <MyScheduleTab
         diaries={diaries}
         navigation={navigation}
         jumpDate={jumpDate}
-        onRequestAddDiary={(seed) => navigation.navigate('다이어리', { openAddModal: true, addDate: seed?.date })}
+        onRequestAddDiary={(seed) => {
+          if (asModal) { onClose?.(); }
+          navigation?.navigate?.('다이어리', { openAddModal: true, addDate: seed?.date });
+        }}
       />
 
       {/* 예정 라운딩 전체 목록 — '캘린더' 헤더 아래 드롭다운 (월별 그룹) */}
@@ -147,5 +163,12 @@ export function ScheduleScreen({ navigation }) {
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
+  );
+
+  if (!asModal) return content;
+  return (
+    <Modal visible={modalVisible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaProvider>{content}</SafeAreaProvider>
+    </Modal>
   );
 }

@@ -171,4 +171,6 @@ export const USER_PROFILE_INIT = {
   blockCountDate: null,      // 차단 카운터의 기준 날짜 ('YYYY.MM.DD')
   // 닉네임 변경 제한 — 일반 30일/1회, 카카오 연동 15일/1회
   lastNicknameChange: null,  // 마지막 변경 시각 (ISO 문자열)
+  // 라운지 — 모르는 사람 모집 숨김. true면 '전체' 탭이 사라지고 친구 모집만 보임.
+  hideStrangerRoundups: false,
 };

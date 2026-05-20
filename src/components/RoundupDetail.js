@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, SKILL_LABEL, ageLabelShort, waitlistRespondHours, pickNames } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
+import { MannerBadge } from './common/MannerBadge';
 
 // 참여자 아바타 색상
 const AV = [
@@ -277,9 +278,12 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>{post.author}</Text>
                 <TrustBadge grade={authorGrade} onPress={() => onGradePress?.(authorGrade.key)} />
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginLeft: 'auto' }}>
-                  주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{post.authorHostedCount || 0}</Text>회 · 매너 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{post.authorMannerScore || 0}</Text>
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>
+                    주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{post.authorHostedCount || 0}</Text>회 ·
+                  </Text>
+                  <MannerBadge score={post.authorMannerScore} size={14} />
+                </View>
               </TouchableOpacity>
 
               {post.type === 'fixed' ? (
@@ -296,19 +300,21 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 </>
               )}
 
-              {/* 동반자 조건 — 연령대·구성·실력. 상세에서는 라벨도 함께 보여줘 의미를 명확히 */}
+              {/* 동반자 조건 — 구성·실력·태그. 'any'/빈배열은 숨김 */}
               {(() => {
-                const ageTxt = ageLabelShort(post.ageGroup);
                 const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
                 const skillTxt = post.skill && post.skill !== 'any' ? SKILL_LABEL[post.skill] : null;
-                if (!ageTxt && !compTxt && !skillTxt) return null;
+                const tagList = Array.isArray(post.tags) ? post.tags : [];
+                if (!compTxt && !skillTxt && tagList.length === 0) return null;
                 return (
                   <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 6 }}>동반자 조건</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                      {ageTxt && <Badge bg={FILTER_BADGE.age.bg} fg={FILTER_BADGE.age.fg} text={ageTxt} />}
                       {compTxt && <Badge bg={FILTER_BADGE.companion.bg} fg={FILTER_BADGE.companion.fg} text={compTxt} />}
                       {skillTxt && <Badge bg={FILTER_BADGE.skill.bg} fg={FILTER_BADGE.skill.fg} text={skillTxt} />}
+                      {tagList.map(t => (
+                        <Badge key={t} bg={FILTER_BADGE.tag.bg} fg={FILTER_BADGE.tag.fg} text={`#${t}`} />
+                      ))}
                     </View>
                   </View>
                 );

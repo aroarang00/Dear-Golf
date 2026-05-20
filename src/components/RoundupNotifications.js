@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
+import { MannerBadge } from './common/MannerBadge';
 
 const NOTI_ICON = { apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳' };
 // 주최자(내 모집글)에 오는 알림 / 그 외는 내가 참여·대기한 모집의 알림
@@ -88,8 +89,9 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                           <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '700' }}>{n.actor}</Text>
                           <TrustBadge grade={actorGrade} onPress={() => onGradePress?.(actorGrade.key)} />
                           <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray }}>
-                            주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{n.actorHostedCount || 0}</Text>회 · 매너 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{n.actorMannerScore}</Text>
+                            주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{n.actorHostedCount || 0}</Text>회 ·
                           </Text>
+                          <MannerBadge score={n.actorMannerScore} size={13} />
                         </View>
                       )}
                       <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>{n.time}</Text>

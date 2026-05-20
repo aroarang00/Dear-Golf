@@ -10,7 +10,7 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, ageLabelShort, skillLabelShort, waitlistRespondHours } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, waitlistRespondHours } from '../constants/roundup';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { applyMannerDelta, MANNER_DELTAS } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -23,25 +23,25 @@ const DUMMY_POSTS = [
     authorHostedCount: 220, authorAttendedCount: 88, authorMannerScore: 96,
     course: '제이드팰리스 GC', date: '2026.05.31', day: '일', time: '07:12',
     teams: 3, teamJoined: [4, 2, 0], waitlistCount: 0, scope: 'all',
-    ageGroup: '40s', companion: 'mixed', skill: 'mid',
+    companion: 'mixed', skill: 'mid', region: 'capital', tags: ['편안한라운딩', '즐기는라운딩'],
     word: '주말 모닝 단체 라운딩 — 팀 더 모아요!', closed: false, ts: 5 },
   { id: 'r2', type: 'open', author: '김민준', authorId: 'kmj', isFriend: true,
     authorHostedCount: 7, authorAttendedCount: 14, authorMannerScore: 82,
     course: null, date: null, day: null, time: null,
     teams: 1, joined: 1, capacity: 4, waitlistCount: 0, scope: 'friends',
-    ageGroup: 'any', companion: 'any', skill: 'any',
+    companion: 'any', skill: 'any', region: null, tags: [],
     word: '5월 안에 한 번 치고 싶어요. 장소는 같이 정해요', closed: false, ts: 4 },
   { id: 'r3', type: 'fixed', author: '이수연', authorId: 'lsy', isFriend: true,
     authorHostedCount: 22, authorAttendedCount: 18, authorMannerScore: 95,
     course: '블랙스톤 CC', date: '2026.05.23', day: '토', time: '12:30',
     teams: 1, joined: 3, capacity: 3, waitlistCount: 2, scope: 'select',
-    ageGroup: '30s', companion: 'female', skill: 'high',
+    companion: 'female', skill: 'high', region: 'chungcheong', tags: ['젊은분위기', '여성환영'],
     word: '인원 다 찼습니다. 대기 신청 받아요 🙏', closed: true, ts: 3 },
   { id: 'r4', type: 'open', author: '박지영', authorId: 'pjy', isFriend: false,
     authorHostedCount: 1, authorAttendedCount: 3, authorMannerScore: 75,
     course: null, date: null, day: null, time: null,
     teams: 1, joined: 1, capacity: 2, waitlistCount: 0, scope: 'all',
-    ageGroup: '50s', companion: 'couple', skill: 'pro',
+    companion: 'couple', skill: 'pro', region: null, tags: ['시니어환영', '실력자환영'],
     word: '평일 휴무라 1명만 더 구해요 (둘이 라운딩)', closed: false, ts: 2 },
 ];
 
@@ -125,19 +125,14 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         </>
       )}
 
-      {/* 동반자 조건 뱃지 — 연령대·구성·실력. 'any'/null은 숨김. 최대 3개 표시 (예: [~40대] [남성만] [90타대]) */}
+      {/* 동반자 조건 뱃지 — 구성·실력·태그 최대 2개. 'any'/빈배열은 숨김 (전체공개 모집에만 의미) */}
       {(() => {
-        const ageTxt = ageLabelShort(post.ageGroup);
         const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
         const skillTxt = skillLabelShort(post.skill);
-        if (!ageTxt && !compTxt && !skillTxt) return null;
+        const tagList = Array.isArray(post.tags) ? post.tags.slice(0, 2) : [];
+        if (!compTxt && !skillTxt && tagList.length === 0) return null;
         return (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-            {ageTxt && (
-              <View style={{ backgroundColor: FILTER_BADGE.age.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: FILTER_BADGE.age.fg, fontWeight: '600' }}>{ageTxt}</Text>
-              </View>
-            )}
             {compTxt && (
               <View style={{ backgroundColor: FILTER_BADGE.companion.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 10, color: FILTER_BADGE.companion.fg, fontWeight: '600' }}>{compTxt}</Text>
@@ -148,6 +143,11 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
                 <Text style={{ fontFamily: F.sys, fontSize: 10, color: FILTER_BADGE.skill.fg, fontWeight: '600' }}>{skillTxt}</Text>
               </View>
             )}
+            {tagList.map(t => (
+              <View key={t} style={{ backgroundColor: FILTER_BADGE.tag.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 10, color: FILTER_BADGE.tag.fg, fontWeight: '600' }}>#{t}</Text>
+              </View>
+            ))}
           </View>
         );
       })()}
@@ -156,33 +156,16 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 8, lineHeight: 18 }}>"{post.word}"</Text>
       ) : null}
 
-      {/* 모집 현황 — 개별/단체 공통 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5 }}>모집 현황</Text>
-        {isTeam && (
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginLeft: 'auto' }}>
-            총 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{total}</Text> / {capTotal}명
-          </Text>
-        )}
-      </View>
-      <View style={{ gap: 6 }}>
-        {rows.map((r, i) => {
-          const rowFull = r.cur >= r.cap;
-          return (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
-              backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
-              {r.label && (
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, fontWeight: '700', width: 32 }}>{r.label}</Text>
-              )}
-              <Text style={{ fontSize: 13 }}>{rowFull ? '✅' : '🔄'}</Text>
-              <Text style={{ fontFamily: F.en, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>{r.cur}/{r.cap}</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, fontWeight: '600',
-                color: rowFull ? '#3C7D4F' : C.warmGray, marginLeft: 'auto' }}>
-                {rowFull ? (isTeam ? '확정' : '모집 완료') : '모집중'}
-              </Text>
-            </View>
-          );
-        })}
+      {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
+        backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
+        <Text style={{ fontSize: 13 }}>{allFull ? '✅' : '🔄'}</Text>
+        <Text style={{ fontFamily: F.en, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>{total}/{capTotal}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>명</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: 11, fontWeight: '600',
+          color: allFull ? '#3C7D4F' : C.warmGray, marginLeft: 'auto' }}>
+          {allFull ? '모집 완료' : '모집중'}
+        </Text>
       </View>
 
       {/* 참여 / 대기 */}
@@ -254,7 +237,7 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
   );
 }
 
-export function RoundupTab({ visible, onClose }) {
+export function RoundupTab({ visible, onClose, asScreen = false }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, setSchedules } = useContext(SchedulesContext);
   const [posts, setPosts] = useState(DUMMY_POSTS);
@@ -262,7 +245,15 @@ export function RoundupTab({ visible, onClose }) {
   const [applied, setApplied] = useState({});           // 참여 신청함 (주최자 수락 대기)
   const [waitlist, setWaitlist] = useState({ r3: 3 });  // 더미: r3 대기 3번
   const [bookmarks, setBookmarks] = useState({});       // 관심 모집 {postId: true}
-  const [view, setView] = useState('all');              // all | friend | mine | watch
+  // 친구 모집만 보기 토글 — true면 '전체' 탭 숨김 + 기본 view 'friend'
+  const hideStranger = !!userProfile?.hideStrangerRoundups;
+  const [view, setView] = useState(hideStranger ? 'friend' : 'all');  // all | friend | mine | watch
+  const [regionFilter, setRegionFilter] = useState('all'); // 전체 탭 지역 칩 (all 외엔 capital/gangwon/chungcheong/jeolla/gyeongsang/jeju)
+
+  // 토글이 켜진 상태에서 view가 'all'이면 자동으로 'friend'로 전환
+  useEffect(() => {
+    if (hideStranger && view === 'all') setView('friend');
+  }, [hideStranger, view]);
   const [showCreate, setShowCreate] = useState(false);
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
@@ -331,8 +322,10 @@ export function RoundupTab({ visible, onClose }) {
   // (단, 내가 직접 올린 모집은 mine 탭에서 항상 보임. joined/applied/waitlist도 본인 활동 보존)
   const visiblePosts = posts.filter(p => isPostVisible(p, userProfile));
 
-  // 탭별 목록 — 전체: 전체공개 + 친구의 친구공개 / 친구: 친구 글 + 내가 친구공개로 올린 글 (친구지정 제외) / 내 참여 중 / 관심
-  const allTab = visiblePosts.filter(p => p.scope === 'all' || (p.scope === 'friends' && p.isFriend));
+  // 탭별 목록 — 전체: 전체공개만 (+ 지역 필터) / 친구: 친구 글 + 내가 친구공개로 올린 글 (친구지정 제외) / 내 참여 중 / 관심
+  const allTab = visiblePosts
+    .filter(p => p.scope === 'all')
+    .filter(p => regionFilter === 'all' || p.region === regionFilter);
   const friendTab = visiblePosts.filter(p => {
     if (p.scope === 'select') return false;
     if (p.author === '나') return p.scope === 'friends';
@@ -351,10 +344,11 @@ export function RoundupTab({ visible, onClose }) {
     const base = {
       ...post, id: 'r' + Date.now(), author: '나', isFriend: false,
       authorHostedCount: 0, authorAttendedCount: 0, authorMannerScore: 70, waitlistCount: 0,
-      // 동반자 조건 기본값 — post에 없으면 '상관없음'
-      ageGroup: post.ageGroup || 'any',
+      // 동반자 조건 기본값 — post에 없으면 '상관없음'/빈 배열
       companion: post.companion || 'any',
       skill: post.skill || 'any',
+      region: post.region || null,
+      tags: post.tags || [],
       teams, closed: false, ts: Date.now(),
     };
     if (teams > 1) base.teamJoined = Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0));
@@ -522,34 +516,52 @@ export function RoundupTab({ visible, onClose }) {
     ],
   });
 
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
-      {/* 헤더 */}
-      <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
-        flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
-        </TouchableOpacity>
-        <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>라운딩 모집</Text>
-        <View style={{ flex: 1 }} />
-        {/* 알림함 */}
-        <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ fontSize: 20 }}>🔔</Text>
-          {unreadCount > 0 && (
-            <View style={{ position: 'absolute', top: -5, right: -7, minWidth: 16, height: 16, borderRadius: 8,
-              backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 9, color: '#fff', fontWeight: '700' }}>{unreadCount}</Text>
-            </View>
+  // 라운지 탭(asScreen)으로 띄울 땐 Modal 래퍼 없이 일반 화면처럼 동작
+  const body = (
+    <>
+      {/* 헤더 — 정식 메뉴이므로 친구 화면과 동일한 네이비 헤더 (큰 타이틀 + 서브) */}
+      <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingVertical: 13,
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+          {!asScreen && (
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontSize: 22, color: C.butter }}>←</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+          <View>
+            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(250,246,236,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 파트너 찾기</Text>
+            <Text style={{ fontFamily: F.serifKR, fontSize: 28, color: C.bgPrimary }}>라운지</Text>
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          {/* 모집글 작성 */}
+          <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7,
+              flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>+</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>모집글</Text>
+          </TouchableOpacity>
+          {/* 알림함 */}
+          <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ fontSize: 22 }}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={{ position: 'absolute', top: -5, right: -7, minWidth: 16, height: 16, borderRadius: 8,
+                backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 9, color: '#fff', fontWeight: '700' }}>{unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* 전체 / 친구 / 내 참여 중 / 관심 세그먼트 */}
+      {/* 전체 / 친구 / 내 참여 중 / 관심 세그먼트 — hideStranger 토글 시 '전체' 숨김 */}
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 2 }}>
         <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 3 }}>
-          {[['all', '전체'], ['friend', '친구'], ['mine', '내 참여'], ['watch', '관심']].map(([k, l]) => {
+          {(hideStranger
+            ? [['friend', '친구'], ['mine', '내 참여'], ['watch', '관심']]
+            : [['all', '전체'], ['friend', '친구'], ['mine', '내 참여'], ['watch', '관심']]
+          ).map(([k, l]) => {
             const on = view === k;
             const count = k === 'mine' ? mineTab.length : k === 'watch' ? watchTab.length : 0;
             return (
@@ -565,16 +577,32 @@ export function RoundupTab({ visible, onClose }) {
         </View>
       </View>
 
-      {/* 모집글 작성 (내 참여·관심 외) */}
+      {/* 전체 탭 — 지역 칩 필터 (수도권/강원/충청/전라/경상/제주) */}
+      {view === 'all' && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, gap: 6, alignItems: 'center' }}>
+          {REGION_OPTIONS.map(([k, l]) => {
+            const on = regionFilter === k;
+            return (
+              <TouchableOpacity key={k} onPress={() => setRegionFilter(k)} activeOpacity={0.8}
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+                  backgroundColor: on ? C.navy : C.bgSecondary,
+                  borderWidth: 0.5, borderColor: on ? C.navy : C.hairline }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: on ? '700' : '500',
+                  color: on ? C.butter : C.warmGray }}>{l}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {/* 안내 텍스트 — 모집글 작성 버튼은 헤더로 이동 */}
       {view !== 'mine' && view !== 'watch' && (
-        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
           <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>
-            {view === 'friend' ? '친구가 올린 모집글이에요' : '전체공개·친구공개 모집글이에요'}
+            {view === 'friend' ? '친구가 올린 모집글이에요' : '전체공개 모집글이에요'}
           </Text>
-          <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.8}
-            style={{ marginLeft: 'auto', backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 7 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>+ 모집글 작성</Text>
-          </TouchableOpacity>
         </View>
       )}
 
@@ -684,6 +712,21 @@ export function RoundupTab({ visible, onClose }) {
 
           {/* 참여 확인 팝업 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
+    </>
+  );
+
+  if (asScreen) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+        {body}
+      </SafeAreaView>
+    );
+  }
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaProvider>
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
+          {body}
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>
