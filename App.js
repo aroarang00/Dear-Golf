@@ -16,6 +16,7 @@ import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { DiariesProvider } from './src/contexts/DiariesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { OnboardingIntro } from './src/components/OnboardingIntro';
+import { OnboardingKakao } from './src/components/OnboardingKakao';
 import { HomeScreen } from './src/components/HomeScreen';
 import { ScheduleScreen } from './src/components/ScheduleScreen';
 import { DiaryScreen } from './src/components/DiaryScreen';
@@ -40,6 +41,8 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(USER_PROFILE_INIT);
   const [showOnboarding, setShowOnboarding] = useState(!USER_PROFILE_INIT.onboardingDone);
   const [introDone, setIntroDone] = useState(false);
+  const [kakaoDone, setKakaoDone] = useState(false);   // 온보딩 카카오 단계 완료/건너뜀
+  const [kakaoSeed, setKakaoSeed] = useState({});      // 카카오에서 받은 닉네임·사진 — 프로필 입력 화면에 prefill
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
@@ -94,12 +97,16 @@ export default function App() {
   const handleAccountDeleted = () => {
     setUserProfile(USER_PROFILE_INIT);
     setIntroDone(false);
+    setKakaoDone(false);
+    setKakaoSeed({});
     setShowOnboarding(true);
   };
 
   // 개발용 — 데이터 보존한 채 온보딩만 미리보기 (앱을 리로드하면 원래 화면으로 복귀)
   const previewOnboarding = () => {
     setIntroDone(false);
+    setKakaoDone(false);
+    setKakaoSeed({});
     setShowOnboarding(true);
   };
 
@@ -113,15 +120,21 @@ export default function App() {
   }
 
   if (showOnboarding) {
-    // 4장 기능 소개 인트로 → 프로필 입력 온보딩
+    // 인트로(7장) → 카카오 로그인(선택) → 프로필 입력 → 홈
     // SafeAreaProvider 안에서 렌더해야 함 — OnboardingIntro가 useSafeAreaInsets 사용
+    let screen;
+    if (!introDone) {
+      screen = <OnboardingIntro onDone={() => setIntroDone(true)} />;
+    } else if (!kakaoDone) {
+      screen = <OnboardingKakao
+        onKakaoSuccess={(seed) => { setKakaoSeed(seed); setKakaoDone(true); }}
+        onSkip={() => setKakaoDone(true)} />;
+    } else {
+      screen = <OnboardingScreen seed={kakaoSeed} onComplete={handleOnboardingComplete} />;
+    }
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          {!introDone
-            ? <OnboardingIntro onDone={() => setIntroDone(true)} />
-            : <OnboardingScreen onComplete={handleOnboardingComplete} />}
-        </SafeAreaProvider>
+        <SafeAreaProvider>{screen}</SafeAreaProvider>
       </GestureHandlerRootView>
     );
   }
