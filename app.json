@@ -65,6 +65,14 @@
         {
           "kakaoAppKey": "e8dc118cf11c666f292f86a17b71f853"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": ["https://devrepo.kakao.com/nexus/content/groups/public/"]
+          }
+        }
       ]
     ],
     "extra": {
