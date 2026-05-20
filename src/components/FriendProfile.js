@@ -3,6 +3,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
+import { getMannerGrade } from '../constants/mannerGrade';
 import { TrustGradeModal } from './common/TrustBadge';
 import { WhoLikedModal } from './common/WhoLikedModal';
 
@@ -71,7 +72,8 @@ export function FriendProfile({ friend, visible, onClose }) {
   if (!friend) return null;
   const palette = friend.palette || { bg: '#C8D9E6', fg: '#1A3D52' };
   const stats = friend.stats || {};
-  const grade = getTrustGrade(friend.roundupsCompleted);
+  const grade = getTrustGrade(friend.hostedCount, friend.mannerScore);
+  const manner = getMannerGrade(friend.mannerScore || 70);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -100,18 +102,30 @@ export function FriendProfile({ friend, visible, onClose }) {
                   <View style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>핸디 {stats.avg ?? '—'}</Text>
                   </View>
-                  {/* 신뢰 등급 — 탭하면 등급 설명 */}
+                  {/* 활동 등급 — 탭하면 등급 설명 */}
                   <TouchableOpacity onPress={() => setGradeOpen(true)} activeOpacity={0.7}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
                       borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
                     <Text style={{ fontSize: 13 }}>{grade.emoji}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, fontWeight: '700' }}>{grade.label}</Text>
                   </TouchableOpacity>
+                  {/* 매너 등급 */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
+                    borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
+                    <Text style={{ fontSize: 13 }}>{manner.emoji}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: manner.color, fontWeight: '700' }}>{manner.label}</Text>
+                  </View>
                   <View style={{ backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline,
                     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>함께 {friend.roundsTogether}회</Text>
                   </View>
                 </View>
+                {/* 주최 · 참석 횟수 */}
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 8 }}>
+                  주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{friend.hostedCount || 0}</Text>회
+                  {'  ·  '}
+                  참석 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{friend.attendedCount || 0}</Text>회
+                </Text>
               </View>
             </View>
 

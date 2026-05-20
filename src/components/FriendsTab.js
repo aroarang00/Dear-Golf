@@ -17,7 +17,7 @@ const AVATARS = [
 const DUMMY_FRIENDS = [
   {
     id: 'f1', name: '김민준', style: '장타형 드라이버', handicap: 12, roundsTogether: 8,
-    roundupsCompleted: 7, noShowCount: 0,   // 신뢰 등급: 브론즈
+    hostedCount: 7, attendedCount: 14, mannerScore: 82,   // 활동: 브론즈 / 매너: 좋음
     recent: { course: '남촌 골프클럽', date: '5.01', score: 84, par: 72 },
     stats: { rounds: 28, avg: 89, best: 82 },
     feed: [
@@ -28,7 +28,7 @@ const DUMMY_FRIENDS = [
   },
   {
     id: 'f2', name: '이수연', style: '정교한 아이언샷', handicap: 18, roundsTogether: 3,
-    roundupsCompleted: 22, noShowCount: 0,   // 신뢰 등급: 골드
+    hostedCount: 22, attendedCount: 18, mannerScore: 95,   // 활동: 실버 / 매너: 매너왕
     recent: { course: '블랙스톤 CC', date: '4.28', score: 92, par: 72 },
     stats: { rounds: 15, avg: 95, best: 91 },
     feed: [
@@ -38,7 +38,7 @@ const DUMMY_FRIENDS = [
   },
   {
     id: 'f3', name: '오세훈', style: '안정적인 코스매니지먼트', handicap: 6, roundsTogether: 15,
-    roundupsCompleted: 35, noShowCount: 0,   // 신뢰 등급: 챔피언
+    hostedCount: 220, attendedCount: 88, mannerScore: 96,   // 활동: 레전드 / 매너: 매너왕
     recent: { course: '제이드팰리스 GC', date: '4.20', score: 78, par: 72 },
     stats: { rounds: 42, avg: 81, best: 75 },
     feed: [
@@ -195,7 +195,7 @@ export function FriendsTab() {
           )
         ) : (
           visible.map(f => {
-            const grade = getTrustGrade(f.roundupsCompleted, f.noShowCount);
+            const grade = getTrustGrade(f.hostedCount, f.mannerScore);
             return (
               <FriendCard
                 key={f.id}

@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { SCOPE_BADGE, waitlistRespondHours, pickNames } from '../constants/roundup';
 import { OverlayAlert } from './common/OverlayAlert';
+import { UserContext } from '../contexts/UserContext';
 
 // 참여자 아바타 색상
 const AV = [
@@ -88,6 +89,7 @@ function buildSlots(post, teamIdx) {
 
 // 라운딩 모집 상세 화면
 export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onClose, onApply, onWaitlist, onDelete }) {
+  const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
 
@@ -158,13 +160,6 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
         <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#8B6914', fontWeight: '700' }}>신청 완료 · 수락 대기 중</Text>
       </View>
     );
-  } else if (!isClosed) {
-    actionBtn = (
-      <TouchableOpacity activeOpacity={0.85} onPress={confirmApply}
-        style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: C.burgundy }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
-      </TouchableOpacity>
-    );
   } else if (waitlistNum) {
     actionBtn = (
       <View>
@@ -176,6 +171,27 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
           취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
         </Text>
       </View>
+    );
+  } else if (userProfile?.isRestricted) {
+    actionBtn = (
+      <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+        backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#8B2A2A', fontWeight: '700' }}>🚫 이용 제한 중</Text>
+      </View>
+    );
+  } else if (userProfile?.mannerEvaluationPending) {
+    actionBtn = (
+      <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+        backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#8B6914', fontWeight: '700' }}>지난 라운딩 평가 후 신청 가능해요</Text>
+      </View>
+    );
+  } else if (!isClosed) {
+    actionBtn = (
+      <TouchableOpacity activeOpacity={0.85} onPress={confirmApply}
+        style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: C.burgundy }}>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
+      </TouchableOpacity>
     );
   } else {
     actionBtn = (

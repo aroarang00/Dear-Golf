@@ -6,6 +6,7 @@ import { RoundupCreateModal } from './RoundupCreateModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { OverlayAlert } from './common/OverlayAlert';
+import { UserContext } from '../contexts/UserContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
 import { SCOPE_BADGE, waitlistRespondHours } from '../constants/roundup';
@@ -14,19 +15,19 @@ import { SCOPE_BADGE, waitlistRespondHours } from '../constants/roundup';
 // 개별 모집: teams=1 + joined/capacity / 단체 모집: teams>1 + teamJoined(팀별 인원, 한 팀 4명)
 // waitlistCount: 현재 대기 인원
 const DUMMY_POSTS = [
-  { id: 'r1', type: 'fixed', author: '오세훈', isFriend: true, authorCompleted: 35, authorNoShow: 0,
+  { id: 'r1', type: 'fixed', author: '오세훈', isFriend: true, authorHostedCount: 220, authorAttendedCount: 88, authorMannerScore: 96,
     course: '제이드팰리스 GC', date: '2026.05.31', day: '일', time: '07:12',
     teams: 3, teamJoined: [4, 2, 0], waitlistCount: 0, scope: 'all',
     word: '주말 모닝 단체 라운딩 — 팀 더 모아요!', closed: false, ts: 5 },
-  { id: 'r2', type: 'open', author: '김민준', isFriend: true, authorCompleted: 7, authorNoShow: 0,
+  { id: 'r2', type: 'open', author: '김민준', isFriend: true, authorHostedCount: 7, authorAttendedCount: 14, authorMannerScore: 82,
     course: null, date: null, day: null, time: null,
     teams: 1, joined: 1, capacity: 4, waitlistCount: 0, scope: 'friends',
     word: '5월 안에 한 번 치고 싶어요. 장소는 같이 정해요', closed: false, ts: 4 },
-  { id: 'r3', type: 'fixed', author: '이수연', isFriend: true, authorCompleted: 22, authorNoShow: 0,
+  { id: 'r3', type: 'fixed', author: '이수연', isFriend: true, authorHostedCount: 22, authorAttendedCount: 18, authorMannerScore: 95,
     course: '블랙스톤 CC', date: '2026.05.23', day: '토', time: '12:30',
     teams: 1, joined: 3, capacity: 3, waitlistCount: 2, scope: 'select',
     word: '인원 다 찼습니다. 대기 신청 받아요 🙏', closed: true, ts: 3 },
-  { id: 'r4', type: 'open', author: '박지영', isFriend: false, authorCompleted: 1, authorNoShow: 0,
+  { id: 'r4', type: 'open', author: '박지영', isFriend: false, authorHostedCount: 1, authorAttendedCount: 3, authorMannerScore: 75,
     course: null, date: null, day: null, time: null,
     teams: 1, joined: 1, capacity: 2, waitlistCount: 0, scope: 'all',
     word: '평일 휴무라 1명만 더 구해요 (둘이 라운딩)', closed: false, ts: 2 },
@@ -43,8 +44,9 @@ const DUMMY_NOTIFICATIONS = [
 ];
 
 function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onGradePress, onOpenDetail }) {
+  const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
-  const authorGrade = getTrustGrade(post.authorCompleted, post.authorNoShow);
+  const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
   const isTeam = post.teams > 1;
   // 개별 모집과 단체 모집을 동일한 행 구조로 통일
   const rows = isTeam
@@ -151,11 +153,6 @@ function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onG
             backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
             <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B6914', fontWeight: '700' }}>신청 완료 · 수락 대기 중</Text>
           </View>
-        ) : !isClosed ? (
-          <TouchableOpacity activeOpacity={0.85} onPress={onApply}
-            style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
-          </TouchableOpacity>
         ) : waitlistNum ? (
           <View>
             <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
@@ -166,6 +163,21 @@ function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onG
               취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
             </Text>
           </View>
+        ) : userProfile?.isRestricted ? (
+          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B2A2A', fontWeight: '700' }}>🚫 이용 제한 중</Text>
+          </View>
+        ) : userProfile?.mannerEvaluationPending ? (
+          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+            backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B6914', fontWeight: '700' }}>지난 라운딩 평가 후 신청 가능해요</Text>
+          </View>
+        ) : !isClosed ? (
+          <TouchableOpacity activeOpacity={0.85} onPress={onApply}
+            style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
+          </TouchableOpacity>
         ) : (
           <View>
             <TouchableOpacity activeOpacity={0.85} onPress={onWaitlist}
@@ -212,7 +224,7 @@ export function RoundupTab({ visible, onClose }) {
     const teams = post.teams || 1;
     const base = {
       ...post, id: 'r' + Date.now(), author: '나', isFriend: false,
-      authorCompleted: 0, authorNoShow: 0, waitlistCount: 0,
+      authorHostedCount: 0, authorAttendedCount: 0, authorMannerScore: 70, waitlistCount: 0,
       teams, closed: false, ts: Date.now(),
     };
     if (teams > 1) base.teamJoined = Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0));

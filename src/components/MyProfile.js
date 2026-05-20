@@ -9,6 +9,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { UserContext } from '../contexts/UserContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { getTrustGrade } from '../constants/trustGrade';
+import { getMannerGrade } from '../constants/mannerGrade';
 import { TrustGradeModal } from './common/TrustBadge';
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { pickNames } from '../constants/roundup';
@@ -154,7 +155,8 @@ export function MyProfile({ visible, onClose }) {
   const [likers, setLikers] = useState(null); // 좋아요 누른 사람 목록 팝업
 
   const privacy = userProfile.privacy || { stats: true, feed: true, phone: false };
-  const myGrade = getTrustGrade(userProfile.roundupsCompleted || 0);
+  const myGrade = getTrustGrade(userProfile.hostedCount || 0, userProfile.mannerScore || 0);
+  const myManner = getMannerGrade(userProfile.mannerScore || 70);
 
   const showLocal = (title, message, buttons) => setAlert({ title, message, buttons });
 
@@ -284,14 +286,26 @@ export function MyProfile({ visible, onClose }) {
                       핸디 {avg}
                     </Text>
                   </View>
-                  {/* 나의 신뢰 등급 — 탭하면 등급 설명 */}
+                  {/* 활동 등급 — 탭하면 등급 설명 */}
                   <TouchableOpacity onPress={() => setGradeModalOpen(true)} activeOpacity={0.7}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
                       borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
                     <Text style={{ fontSize: 13 }}>{myGrade.emoji}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, fontWeight: '700' }}>{myGrade.label}</Text>
                   </TouchableOpacity>
+                  {/* 매너 등급 */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
+                    borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
+                    <Text style={{ fontSize: 13 }}>{myManner.emoji}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: myManner.color, fontWeight: '700' }}>{myManner.label}</Text>
+                  </View>
                 </View>
+                {/* 주최 · 참석 횟수 */}
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 8 }}>
+                  주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{userProfile.hostedCount || 0}</Text>회
+                  {'  ·  '}
+                  참석 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{userProfile.attendedCount || 0}</Text>회
+                </Text>
                 {editing && (
                   <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 8 }}>
                     프로필 사진을 탭하면 바꿀 수 있어요

@@ -147,10 +147,21 @@ export const USER_PROFILE_INIT = {
   phone: '',
   alarmDefaults: { d3: true, d1: true, teeoff: true }, // 새 일정 추가 시 기본 알람 시점
   alarmPromptDisabled: false, // true면 일정 추가 시 알람 팝업 없이 기본값 자동 적용
-  roundupsCompleted: 0,  // 라운딩 모집 완료 횟수 — 신뢰 등급 산출 기준
   avatarUri: null,   // 프로필 사진 URI (직접 업로드 또는 카카오 프로필)
   kakaoLinked: false, // 카카오 로그인 연동 여부
   kakaoId: null,      // 카카오 사용자 ID
+  // 라운딩 모집 활동 — 활동 등급 산출 기준
+  hostedCount: 0,            // 주최 완료 횟수
+  attendedCount: 0,          // 참석 완료 횟수
+  cancelDayBeforeCount: 0,   // 전날 취소 횟수
+  cancelDayCount: 0,         // 당일 취소 횟수
+  noshowCount: 0,            // 노쇼 횟수
+  // 매너 — 평가 시스템
+  mannerScore: 70,                   // 매너 점수 (0~100, 신규 70점 시작)
+  mannerEvaluationPending: false,    // 평가 대기 — true면 다음 모집 신청 비활성화
+  // 이용 제한
+  isRestricted: false,       // 이용 제한 여부
+  restrictUntil: null,       // 이용 제한 해제 날짜 (ISO 문자열)
   // 친구에게 공개 여부 — 내 프로필을 친구가 볼 때 노출되는 항목
   privacy: { stats: true, feed: true, phone: false },
 };

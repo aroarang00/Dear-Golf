@@ -7,6 +7,7 @@ import { showAppAlert } from './AppAlert';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -21,6 +22,7 @@ export function MyPageModal({ visible, onClose }) {
   const { schedules } = React.useContext(SchedulesContext);
   const scrollRef = useRef(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
+  const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
   const [departure, setDeparture] = useState(userProfile.departure || '');
@@ -455,11 +457,39 @@ export function MyPageModal({ visible, onClose }) {
                   <View style={myS.divider} />
                   <View style={myS.section}>
                     <Text style={myS.sectionLabel}>개발용</Text>
-                    <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                    <TouchableOpacity style={myS.menuRow} activeOpacity={0.7}
                       onPress={() => { onClose(); previewOnboarding && previewOnboarding(); }}>
                       <Text style={myS.menuIcon}>🧪</Text>
                       <Text style={myS.menuLabel}>온보딩 미리보기</Text>
                       <Text style={myS.menuValue}>›</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={myS.menuRow} activeOpacity={0.7}
+                      onPress={() => setEvalOpen(true)}>
+                      <Text style={myS.menuIcon}>🧪</Text>
+                      <Text style={myS.menuLabel}>라운딩 평가 모달 미리보기</Text>
+                      <Text style={myS.menuValue}>›</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={myS.menuRow} activeOpacity={0.7}
+                      onPress={() => {
+                        const v = !userProfile.mannerEvaluationPending;
+                        const u = { ...userProfile, mannerEvaluationPending: v };
+                        setUserProfile(u);
+                        storage.save(STORAGE_KEYS.profile, u);
+                      }}>
+                      <Text style={myS.menuIcon}>🧪</Text>
+                      <Text style={myS.menuLabel}>평가 대기 토글</Text>
+                      <Text style={myS.menuValue}>{userProfile.mannerEvaluationPending ? 'ON' : 'OFF'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                      onPress={() => {
+                        const v = !userProfile.isRestricted;
+                        const u = { ...userProfile, isRestricted: v };
+                        setUserProfile(u);
+                        storage.save(STORAGE_KEYS.profile, u);
+                      }}>
+                      <Text style={myS.menuIcon}>🧪</Text>
+                      <Text style={myS.menuLabel}>이용 제한 토글</Text>
+                      <Text style={myS.menuValue}>{userProfile.isRestricted ? 'ON' : 'OFF'}</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -481,6 +511,25 @@ export function MyPageModal({ visible, onClose }) {
         </View>
       </KeyboardAvoidingView>
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
+      {/* 라운딩 평가 미리보기 (개발용) */}
+      <RoundEvaluationModal
+        visible={evalOpen}
+        round={{
+          course: '제이드팰리스 GC',
+          date: '2026.05.18 (일)',
+          participants: [
+            { id: 'p1', name: '오세훈', role: '주최자' },
+            { id: 'p2', name: '김민준', role: '참석자' },
+            { id: 'p3', name: '이수연', role: '참석자' },
+          ],
+        }}
+        onClose={() => setEvalOpen(false)}
+        onSubmit={() => {
+          // 평가 제출 → 평가 대기 해제
+          const u = { ...userProfile, mannerEvaluationPending: false };
+          setUserProfile(u);
+          storage.save(STORAGE_KEYS.profile, u);
+        }} />
     </Modal>
   );
 }
