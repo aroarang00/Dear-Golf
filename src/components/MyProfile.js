@@ -11,66 +11,12 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { TrustGradeModal } from './common/TrustBadge';
-import { WhoLikedModal } from './common/WhoLikedModal';
 import { pickNames } from '../constants/roundup';
 
 // 특별한 순간 타입 → 한글 라벨
 const SPECIAL_LABEL = { 'HOLE IN ONE': '홀인원', 'EAGLE': '이글', 'ALBATROSS': '알바트로스' };
 
 // 라운딩 피드 1건 — 특별한 순간이면 강조, 내 기록에 받은 좋아요 표시
-function FeedCard({ item, onShowLikers }) {
-  const par = item.par || 72;
-  const diff = item.score - par;
-  const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  const isSpecial = !!item.special;
-  // 더미 — 내 기록에 좋아요 누른 사람 (id 기반 결정적)
-  const likers = pickNames('like' + (item.id || ''), ((item.id || '0').charCodeAt(0) || 0) % 4);
-
-  return (
-    <View style={{
-      backgroundColor: isSpecial ? '#FBF6E8' : C.bgSecondary, borderRadius: 12,
-      borderWidth: isSpecial ? 1 : 0.5, borderColor: isSpecial ? '#C9A84C' : C.hairline,
-      padding: 14, marginBottom: 10,
-    }}>
-      {isSpecial && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-          <Text style={{ fontSize: 13 }}>🏆</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#8B6914', fontWeight: '700', letterSpacing: 1 }}>
-            {SPECIAL_LABEL[item.special] || item.special}
-          </Text>
-        </View>
-      )}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{item.course}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>{item.date}</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-        <Text style={{ fontFamily: F.en, fontSize: 24, color: C.charcoal, fontWeight: '700' }}>{item.score}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>타 · {diffLabel}</Text>
-        {item.badge ? (
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#C9A84C', marginLeft: 4 }}>{item.badge}</Text>
-        ) : null}
-      </View>
-      {item.memo ? (
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6, lineHeight: 18 }}>"{item.memo}"</Text>
-      ) : null}
-      {/* 좋아요 — 내 기록에 누가 좋아요 눌렀는지 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingTop: 10,
-        borderTopWidth: 0.5, borderTopColor: isSpecial ? '#E8D9A8' : C.hairline }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <Text style={{ fontSize: 12 }}>👍</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '700', color: C.warmGray }}>{likers.length}</Text>
-        </View>
-        {likers.length > 0 && (
-          <TouchableOpacity onPress={() => onShowLikers(likers)} activeOpacity={0.7}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>누가 좋아요 눌렀는지 보기</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-}
-
 // "친구에게 비공개" 배지 — 공개 설정이 꺼진 섹션에 표시
 function HiddenBadge() {
   return (
@@ -152,7 +98,6 @@ export function MyProfile({ visible, onClose }) {
   const [editing, setEditing] = useState(false);
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
   const [alert, setAlert] = useState(null);   // 프로필 내 알럿/액션시트
-  const [likers, setLikers] = useState(null); // 좋아요 누른 사람 목록 팝업
 
   const privacy = userProfile.privacy || { stats: true, feed: true, phone: false };
   const myGrade = getTrustGrade(userProfile.hostedCount || 0, userProfile.mannerScore || 0);
@@ -219,12 +164,6 @@ export function MyProfile({ visible, onClose }) {
     || (myDiaries.length ? Math.round(myDiaries.reduce((s, d) => s + d.score, 0) / myDiaries.length) : 0);
   const best = userProfile.lifeBest
     || (myDiaries.length ? Math.min(...myDiaries.map(d => d.score)) : 0);
-  // 라운딩 피드 — 다이어리에서 '나만보기'(private)로 한 기록은 제외, 공개 기록만 노출
-  const feed = myDiaries
-    .filter(d => d.privacy !== 'private')
-    .slice()
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-    .slice(0, 5);
 
   const statBoxes = [
     { label: '총 라운딩', value: rounds },
@@ -355,29 +294,11 @@ export function MyProfile({ visible, onClose }) {
               ))}
             </View>
 
-            {/* 라운딩 피드 */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 22, marginBottom: 10 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5 }}>라운딩 피드</Text>
-              <View style={{ flex: 1 }} />
-              {!privacy.feed && <HiddenBadge />}
-            </View>
-            <View style={{ paddingHorizontal: 16, opacity: privacy.feed ? 1 : 0.45 }}>
-              {feed.length === 0 ? (
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 24 }}>
-                  아직 라운딩 기록이 없어요
-                </Text>
-              ) : (
-                feed.map(item => <FeedCard key={item.id} item={item} onShowLikers={setLikers} />)
-              )}
-            </View>
           </ScrollView>
 
           {/* 신뢰 등급 설명 팝업 */}
           <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key}
             onClose={() => setGradeModalOpen(false)} />
-
-          {/* 좋아요 누른 사람 */}
-          <WhoLikedModal names={likers} onClose={() => setLikers(null)} />
         </SafeAreaView>
 
         {/* 사진 변경 액션시트 / 알럿 — 화면 전체 위에 오버레이 */}
