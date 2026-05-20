@@ -116,7 +116,19 @@ export function FriendsTab() {
   const toggleMute = (id) => { setMuted(p => ({ ...p, [id]: !p[id] })); closeOptions(); };
   const hideFriend = (id) => { setHidden(p => ({ ...p, [id]: true })); closeOptions(); };
   const unhideFriend = (id) => setHidden(p => { const n = { ...p }; delete n[id]; return n; });
-  const deleteFriend = (id) => { setFriends(p => p.filter(f => f.id !== id)); closeOptions(); };
+  const deleteFriend = (id) => {
+    const target = friends.find(f => f.id === id);
+    if (!target) { closeOptions(); return; }
+    closeOptions();
+    showAppAlert(
+      `${target.name}님을 친구에서 삭제할까요?`,
+      `함께 라운딩한 기록(${target.roundsTogether || 0}회)은 남지만, 친구 목록에서 사라져요. 다시 추가하려면 친구 신청이 필요해요.`,
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: () => setFriends(p => p.filter(f => f.id !== id)) },
+      ],
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
