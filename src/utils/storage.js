@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
   calendarChoice:   '@dg_calendar_choice',
   friendCoachDone:  '@dg_friend_coach_done',     // 친구 탭 첫 진입 툴팁 1회
   roundupTipDone:   '@dg_roundup_tip_done',      // 모집글 작성 화면 툴팁 1회
+  roundupBookmarks: '@dg_roundup_bookmarks',     // 관심 모집 북마크 {postId: true}
 };
 
 export const storage = {

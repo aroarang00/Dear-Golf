@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { AGE_OPTIONS, COMPANION_OPTIONS, SKILL_OPTIONS } from '../constants/roundup';
 import { mS } from '../styles/mS';
 
 const SCOPES = [
@@ -28,6 +29,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [teams, setTeams] = useState(2);                // 단체: 팀 수 2~4 (1팀=4명)
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
+  const [kakaoOpenChatUrl, setKakaoOpenChatUrl] = useState(''); // 카카오톡 오픈채팅 URL (선택)
+  // 동반자 조건 필터 — 연령대(중복), 동반자 구성(단일), 실력(단일). 모두 'any'는 상관없음
+  const [ageGroups, setAgeGroups] = useState(['any']);
+  const [companion, setCompanion] = useState('any');
+  const [skill, setSkill] = useState('any');
   const [showTip, setShowTip] = useState(false);     // 모집 형태 안내 툴팁 (1회)
   const debounceRef = useRef(null);
 
@@ -63,6 +69,18 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
     setGroupMode('single'); setMembers(4); setTeams(2); setScope('all'); setWord('');
+    setKakaoOpenChatUrl('');
+    setAgeGroups(['any']); setCompanion('any'); setSkill('any');
+  };
+
+  // 연령대 중복 선택 토글 — '상관없음' 선택 시 다른 선택 해제, 다른 선택 시 '상관없음' 해제
+  const toggleAge = (key) => {
+    setAgeGroups(prev => {
+      if (key === 'any') return ['any'];
+      const without = prev.filter(k => k !== 'any');
+      const next = without.includes(key) ? without.filter(k => k !== key) : [...without, key];
+      return next.length === 0 ? ['any'] : next;
+    });
   };
   const close = () => { reset(); onClose(); };
 
@@ -80,6 +98,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       capacity: isTeam ? teams * 4 : members,
       scope,
       word: word.trim(),
+      kakaoOpenChatUrl: kakaoOpenChatUrl.trim() || null,
+      // 동반자 조건 — Firebase 동반자 매칭·검색 필터로도 활용
+      ageGroups,
+      companion,
+      skill,
     });
     reset(); onClose();
   };
@@ -229,6 +252,55 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* 동반자 조건 — 연령대(중복), 동반자 구성(단일), 실력(단일) */}
+            <Text style={mS.label}>연령대 <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(중복 선택 가능)</Text></Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {[...AGE_OPTIONS, ['any', '상관없음']].map(([k, l]) => {
+                const on = ageGroups.includes(k);
+                return (
+                  <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => toggleAge(k)}
+                    style={[mS.chip, on && mS.chipOn, { alignItems: 'center' }]}>
+                    <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{l}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={mS.label}>동반자 구성</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {COMPANION_OPTIONS.map(([k, l]) => {
+                const on = companion === k;
+                return (
+                  <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setCompanion(k)}
+                    style={[mS.chip, on && mS.chipOn, { alignItems: 'center' }]}>
+                    <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{l}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={mS.label}>실력 <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(평균 타수)</Text></Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {SKILL_OPTIONS.map(([k, l]) => {
+                const on = skill === k;
+                return (
+                  <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setSkill(k)}
+                    style={[mS.chip, on && mS.chipOn, { alignItems: 'center' }]}>
+                    <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{l}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={mS.label}>카카오톡 오픈채팅 URL <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(선택)</Text></Text>
+            <TextInput style={mS.input}
+              placeholder="https://open.kakao.com/o/..." placeholderTextColor={C.warmGrayLight}
+              value={kakaoOpenChatUrl} onChangeText={setKakaoOpenChatUrl}
+              autoCorrect={false} autoCapitalize="none" keyboardType="url" />
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>
+              직접 만든 오픈채팅방 링크를 등록하면 참여자들이 마감 후 입장할 수 있어요
+            </Text>
 
             <Text style={mS.label}>한마디 <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(선택)</Text></Text>
             <TextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline

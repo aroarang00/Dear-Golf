@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
-import { SCOPE_BADGE, waitlistRespondHours, pickNames } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, SKILL_LABEL, ageLabelShort, waitlistRespondHours, pickNames } from '../constants/roundup';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
+import { getTrustGrade } from '../constants/trustGrade';
+import { TrustBadge } from './common/TrustBadge';
 
 // 참여자 아바타 색상
 const AV = [
@@ -88,7 +90,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onClose, onApply, onWaitlist, onCancel, onDelete }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, onClose, onApply, onWaitlist, onCancel, onDelete, onGradePress, onToggleBookmark }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -100,6 +102,7 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
   const isTeam = post.teams > 1;
   const isMine = post.author === '나';   // 내가 올린 모집글
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
+  const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
   const allFull = isTeam
     ? post.teamJoined.every(c => c >= 4)
     : (post.joined || 0) >= (post.capacity || 4);
@@ -116,11 +119,25 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
       { text: '참여 신청', onPress: onApply },
     ],
   });
-  const handleKakao = () => setAlert({
-    title: '카카오톡 단체방',
-    message: '참여자들과 함께할 카카오톡 단체방을 만들어요. (Firebase 연동 후 제공돼요)',
-    buttons: [{ text: '확인' }],
-  });
+  // 카카오 단체방 — 주최자가 등록한 오픈채팅 URL을 외부 카카오톡 앱으로 열기
+  const handleKakao = () => {
+    const url = post.kakaoOpenChatUrl;
+    if (!url) {
+      setAlert({
+        title: isMine ? '오픈채팅방을 만들어주세요' : '단체방이 아직 준비되지 않았어요',
+        message: isMine
+          ? '카카오톡에서 오픈채팅방을 만든 뒤, 모집글에 URL을 등록해주세요. (모집글 수정 기능은 곧 추가될 예정이에요)'
+          : '주최자가 아직 단체방 링크를 등록하지 않았어요. 잠시 후 다시 확인해주세요.',
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    Linking.openURL(url).catch(() => setAlert({
+      title: '링크를 열 수 없어요',
+      message: '카카오톡이 설치되어 있는지 확인해주세요.',
+      buttons: [{ text: '확인' }],
+    }));
+  };
   const confirmDelete = () => setAlert({
     title: '모집글을 삭제할까요?',
     message: '삭제하면 참여자·대기자에게 더 이상 보이지 않아요. 되돌릴 수 없어요.',
@@ -229,6 +246,14 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
               <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
             </TouchableOpacity>
             <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>모집 상세</Text>
+            <View style={{ flex: 1 }} />
+            {!isMine && onToggleBookmark && (
+              <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontSize: 22, color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
+                  {isBookmarked ? '★' : '☆'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
@@ -239,6 +264,17 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
                 {isTeam && <Badge bg={C.navy} fg={C.butter} text={`단체 ${post.teams}팀`} />}
                 <Badge bg={sb.bg} fg={sb.fg} text={sb.label} />
                 {isClosed && <Badge bg="#E6C8C8" fg="#5C1E1E" text="마감" />}
+              </View>
+
+              {/* 주최자 — 이름·신뢰도·매너 점수 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12,
+                backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: 12 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>{post.author}</Text>
+                <TrustBadge grade={authorGrade} onPress={() => onGradePress?.(authorGrade.key)} />
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginLeft: 'auto' }}>
+                  주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{post.authorHostedCount || 0}</Text>회 · 매너 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{post.authorMannerScore || 0}</Text>
+                </Text>
               </View>
 
               {post.type === 'fixed' ? (
@@ -254,6 +290,24 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
                   <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textSecondary, marginTop: 4 }}>동반자와 함께 정해요</Text>
                 </>
               )}
+
+              {/* 동반자 조건 — 연령대·구성·실력. 상세에서는 라벨도 함께 보여줘 의미를 명확히 */}
+              {(() => {
+                const ageTxt = ageLabelShort(post.ageGroups);
+                const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
+                const skillTxt = post.skill && post.skill !== 'any' ? SKILL_LABEL[post.skill] : null;
+                if (!ageTxt && !compTxt && !skillTxt) return null;
+                return (
+                  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 6 }}>동반자 조건</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {ageTxt && <Badge bg={FILTER_BADGE.age.bg} fg={FILTER_BADGE.age.fg} text={ageTxt} />}
+                      {compTxt && <Badge bg={FILTER_BADGE.companion.bg} fg={FILTER_BADGE.companion.fg} text={compTxt} />}
+                      {skillTxt && <Badge bg={FILTER_BADGE.skill.bg} fg={FILTER_BADGE.skill.fg} text={skillTxt} />}
+                    </View>
+                  </View>
+                );
+              })()}
 
               {post.word ? (
                 <View style={{ backgroundColor: C.bgPrimary, borderRadius: 10, padding: 12, marginTop: 12 }}>
@@ -306,13 +360,34 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
               </>
             )}
 
-            {/* 4. 카카오톡 단체방 */}
-            <TouchableOpacity onPress={handleKakao} activeOpacity={0.85}
-              style={{ marginHorizontal: 16, marginTop: 22, backgroundColor: '#FEE500', borderRadius: 12,
-                paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 15 }}>💬</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#3C1E1E', fontWeight: '700' }}>카카오톡 단체방 만들기</Text>
-            </TouchableOpacity>
+            {/* 4. 카카오톡 단체방 — 주최자: 항상 활성 / 참여자: 마감 후에만 활성 / 그 외: 숨김 */}
+            {(isMine || joined) && (() => {
+              const kakaoEnabled = isMine || (joined && isClosed);
+              const hintText = isMine
+                ? '참여자 확정 후 단체방을 만들어 일정을 공유하세요'
+                : kakaoEnabled
+                  ? '주최자가 만든 단체방으로 입장해요'
+                  : '모집이 마감되면 단체방 입장이 열려요';
+              return (
+                <>
+                  <TouchableOpacity onPress={kakaoEnabled ? handleKakao : undefined}
+                    disabled={!kakaoEnabled} activeOpacity={0.85}
+                    style={{ marginHorizontal: 16, marginTop: 22, borderRadius: 12,
+                      paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      backgroundColor: kakaoEnabled ? '#FEE500' : C.bgSecondary,
+                      borderWidth: kakaoEnabled ? 0 : 0.5, borderColor: C.hairline,
+                      opacity: kakaoEnabled ? 1 : 0.7 }}>
+                    <Text style={{ fontSize: 15 }}>💬</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 14, fontWeight: '700',
+                      color: kakaoEnabled ? '#3C1E1E' : C.warmGrayLight }}>
+                      {isMine ? '카카오톡 단체방 만들기' : '카카오톡 단체방 입장'}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight,
+                    marginHorizontal: 16, marginTop: 6, textAlign: 'center' }}>{hintText}</Text>
+                </>
+              );
+            })()}
 
             {/* 댓글 영역 — UI만 (기능은 추후 추가) */}
             <Text style={sectionLabel}>댓글</Text>

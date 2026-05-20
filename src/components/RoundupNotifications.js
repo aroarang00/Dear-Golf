@@ -2,10 +2,14 @@ import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
+import { getTrustGrade } from '../constants/trustGrade';
+import { TrustBadge } from './common/TrustBadge';
 
 const NOTI_ICON = { apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳' };
 // 주최자(내 모집글)에 오는 알림 / 그 외는 내가 참여·대기한 모집의 알림
 const HOST_TYPES = ['apply', 'cancel', 'waitlist'];
+// 신청자 신뢰도가 표시되는 알림 타입 — 주최자가 승인·확인 판단 시 참고
+const ACTOR_GRADE_TYPES = ['apply', 'cancel', 'waitlist'];
 
 function notiText(n) {
   switch (n.type) {
@@ -22,8 +26,9 @@ function notiText(n) {
 }
 
 // 알림함 — 내 모집글 알림 + 내가 참여·대기한 모집 알림. 참여 신청은 수락/거절 가능.
-export function RoundupNotifications({ visible, notifications = [], onClose, onOpenPost, onReadAll, onAccept, onReject }) {
+export function RoundupNotifications({ visible, notifications = [], onClose, onOpenPost, onReadAll, onAccept, onReject, onGradePress, onDelete, onClearAll }) {
   const hasUnread = notifications.some(n => !n.read);
+  const hasAny = notifications.length > 0;
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -31,7 +36,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}
           <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
-            flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+            flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
             </TouchableOpacity>
@@ -40,6 +45,11 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
             {hasUnread && (
               <TouchableOpacity onPress={onReadAll} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>모두 읽음</Text>
+              </TouchableOpacity>
+            )}
+            {hasAny && onClearAll && (
+              <TouchableOpacity onPress={onClearAll} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, fontWeight: '600' }}>전체삭제</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -53,12 +63,14 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
               notifications.map(n => {
                 const isHost = HOST_TYPES.includes(n.type);
                 const pending = n.type === 'apply' && n.status === 'pending';
+                const showActorGrade = ACTOR_GRADE_TYPES.includes(n.type) && n.actor && n.actorMannerScore != null;
+                const actorGrade = showActorGrade ? getTrustGrade(n.actorHostedCount || 0, n.actorMannerScore) : null;
                 return (
                   <TouchableOpacity key={n.id} activeOpacity={0.8} onPress={() => onOpenPost(n)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, marginBottom: 8,
+                    style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 12, marginBottom: 8,
                       backgroundColor: n.read ? C.bgSecondary : '#F0E8D8',
                       borderWidth: 0.5, borderColor: n.read ? C.hairline : '#E2D2A8' }}>
-                    <Text style={{ fontSize: 18 }}>{NOTI_ICON[n.type] || '🔔'}</Text>
+                    <Text style={{ fontSize: 18, marginTop: 1 }}>{NOTI_ICON[n.type] || '🔔'}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: 10, fontWeight: '700', marginBottom: 2,
                         color: isHost ? C.burgundy : '#3C7D4F' }}>
@@ -68,7 +80,19 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                         fontWeight: n.read ? '400' : '600' }}>
                         {notiText(n)}
                       </Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{n.time}</Text>
+                      {/* 신청자 신뢰도 — 주최자가 승인 판단 시 참고 */}
+                      {showActorGrade && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6,
+                          paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: C.bgPrimary,
+                          borderWidth: 0.5, borderColor: C.hairline, alignSelf: 'flex-start' }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '700' }}>{n.actor}</Text>
+                          <TrustBadge grade={actorGrade} onPress={() => onGradePress?.(actorGrade.key)} />
+                          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray }}>
+                            주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{n.actorHostedCount || 0}</Text>회 · 매너 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{n.actorMannerScore}</Text>
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>{n.time}</Text>
                       {/* 참여 신청 — 수락 / 거절 */}
                       {pending && (
                         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
@@ -84,9 +108,17 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                         </View>
                       )}
                     </View>
-                    {!n.read && (
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.burgundy }} />
-                    )}
+                    <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                      {!n.read && (
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.burgundy, marginTop: 4 }} />
+                      )}
+                      {onDelete && (
+                        <TouchableOpacity onPress={() => onDelete(n)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          style={{ paddingHorizontal: 2 }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.warmGrayLight, fontWeight: '300', lineHeight: 18 }}>×</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 );
               })
