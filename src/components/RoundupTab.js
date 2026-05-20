@@ -10,6 +10,8 @@ import { UserContext } from '../contexts/UserContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
 import { SCOPE_BADGE, waitlistRespondHours } from '../constants/roundup';
+import { applyMannerDelta, MANNER_DELTAS } from '../constants/mannerGrade';
+import { STORAGE_KEYS, storage } from '../utils/storage';
 
 // 모집글 더미 데이터 — Firebase 연동 전 UI 표시용.
 // 개별 모집: teams=1 + joined/capacity / 단체 모집: teams>1 + teamJoined(팀별 인원, 한 팀 4명)
@@ -43,7 +45,7 @@ const DUMMY_NOTIFICATIONS = [
   { id: 'n5', type: 'cancel',    actor: '박지영', postId: 'r1', postTitle: '제이드팰리스 GC', time: '어제',     read: true },
 ];
 
-function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onGradePress, onOpenDetail }) {
+function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -144,9 +146,17 @@ function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onG
             <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, fontWeight: '700' }}>내가 올린 모집글</Text>
           </View>
         ) : joined ? (
-          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
+          <View>
+            <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
+            </View>
+            <TouchableOpacity onPress={onCancel} activeOpacity={0.7}
+              style={{ marginTop: 4, alignItems: 'center', paddingVertical: 6 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textDecorationLine: 'underline' }}>
+                참여 취소
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : applied ? (
           <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
@@ -198,6 +208,7 @@ function PostCard({ post, joined, applied, waitlistNum, onApply, onWaitlist, onG
 }
 
 export function RoundupTab({ visible, onClose }) {
+  const { userProfile, setUserProfile } = React.useContext(UserContext);
   const [posts, setPosts] = useState(DUMMY_POSTS);
   const [joined, setJoined] = useState({ r1: true });   // 더미: r1 참여 확정
   const [applied, setApplied] = useState({});           // 참여 신청함 (주최자 수락 대기)
@@ -262,6 +273,60 @@ export function RoundupTab({ visible, onClose }) {
   const handleWaitlist = (id) => {
     const post = posts.find(p => p.id === id);
     setWaitlist(prev => ({ ...prev, [id]: (post?.waitlistCount || 0) + 1 }));
+  };
+
+  // 참여 취소 — 취소 시점에 따라 매너 점수 자동 차감.
+  // 대기자 자동 승격·주최자 푸시·노쇼 자동 신고는 Phase 2 (Cloud Functions).
+  const cancelParticipation = (id) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    // 시점 계산 (오픈형은 날짜 미정이라 전날 취소로 간주)
+    let daysUntil = 1;
+    if (post.date) {
+      const [y, m, d] = post.date.split('.').map(Number);
+      const target = new Date(y, m - 1, d);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      daysUntil = Math.round((target - today) / 86400000);
+    }
+    const isSameDay = daysUntil <= 0;
+    const deltaKind = isSameDay ? 'cancelDay' : 'cancelDayBefore';
+    const deltaVal = MANNER_DELTAS[deltaKind];
+    const countField = isSameDay ? 'cancelDayCount' : 'cancelDayBeforeCount';
+    const label = isSameDay ? '당일 취소' : '전날(또는 그 이전) 취소';
+
+    setAlert({
+      title: '참여를 취소할까요?',
+      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.\n(주최자 알림·대기자 자동 승격은 추후 추가될 예정)`,
+      buttons: [
+        { text: '계속 참여', style: 'cancel' },
+        {
+          text: '취소하기', style: 'destructive', onPress: () => {
+            // 1) 모집글 인원 -1 (마지막 채워진 자리에서)
+            setPosts(prev => prev.map(p => {
+              if (p.id !== id) return p;
+              if (p.teams > 1) {
+                const tj = [...p.teamJoined];
+                for (let i = tj.length - 1; i >= 0; i--) {
+                  if (tj[i] > 0) { tj[i] -= 1; break; }
+                }
+                return { ...p, teamJoined: tj };
+              }
+              return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
+            }));
+            // 2) 내 joined 플래그 해제
+            setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
+            // 3) 매너 점수 차감 + 취소 카운트 +1, 로컬 저장
+            const next = {
+              ...userProfile,
+              mannerScore: applyMannerDelta(userProfile.mannerScore, deltaKind),
+              [countField]: (userProfile[countField] || 0) + 1,
+            };
+            setUserProfile(next);
+            storage.save(STORAGE_KEYS.profile, next);
+          },
+        },
+      ],
+    });
   };
 
   // 내 모집글 삭제 — 상세 화면도 닫는다
@@ -370,6 +435,7 @@ export function RoundupTab({ visible, onClose }) {
             <PostCard key={p.id} post={p} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
               onApply={() => confirmApply(p.id)}
               onWaitlist={() => handleWaitlist(p.id)}
+              onCancel={() => cancelParticipation(p.id)}
               onGradePress={(key) => setGradeModalKey(key)}
               onOpenDetail={() => setDetailId(p.id)} />
           ))
@@ -399,6 +465,7 @@ export function RoundupTab({ visible, onClose }) {
         onClose={() => setDetailId(null)}
         onApply={() => detailId && setApplied(prev => ({ ...prev, [detailId]: true }))}
         onWaitlist={() => detailId && handleWaitlist(detailId)}
+        onCancel={() => detailId && cancelParticipation(detailId)}
         onDelete={() => detailId && handleDelete(detailId)} />
 
           {/* 알림함 */}

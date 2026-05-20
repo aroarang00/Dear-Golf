@@ -88,7 +88,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onClose, onApply, onWaitlist, onDelete }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onClose, onApply, onWaitlist, onCancel, onDelete }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -148,9 +148,17 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, onC
     );
   } else if (joined) {
     actionBtn = (
-      <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
-        backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
+      <View>
+        <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+          backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
+        </View>
+        <TouchableOpacity onPress={onCancel} activeOpacity={0.7}
+          style={{ marginTop: 6, alignItems: 'center', paddingVertical: 6 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, textDecorationLine: 'underline' }}>
+            참여 취소
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   } else if (applied) {
