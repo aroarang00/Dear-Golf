@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
 import { RoundupTab } from './RoundupTab';
@@ -12,6 +12,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 // 친구 화면 — 기존 MY 자리. 라운딩 모집은 별도 풀스크린으로 열린다.
 export function FriendsScreen({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
+  const insets = useSafeAreaInsets();   // 코치마크 위치 계산용 (노치/홈바)
   const [showMyPage, setShowMyPage] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
   const [showRoundup, setShowRoundup] = useState(false);
@@ -90,12 +91,12 @@ export function FriendsScreen({ navigation }) {
 
       <FriendsTab />
 
-      {/* 친구 탭 첫 진입 코치마크 — 1회만 */}
+      {/* 친구 탭 첫 진입 코치마크 — 1회만. 헤더(76) + 배너(79)·검색(60)·카운트(40) 기준 위치. */}
       {showCoach && (
         <TouchableOpacity activeOpacity={1} onPress={dismissCoach}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.62)' }}>
-          {/* 라운딩 모집 배너 안내 */}
-          <View style={{ marginTop: 132, marginHorizontal: 30, alignItems: 'center' }}>
+          {/* 라운딩 모집 배너 안내 — 배너 바로 아래 (헤더 76 + 배너 79 = 155) */}
+          <View style={{ position: 'absolute', top: insets.top + 158, left: 30, right: 30, alignItems: 'center' }}>
             <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 9,
               borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fff' }} />
             <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
@@ -104,8 +105,8 @@ export function FriendsScreen({ navigation }) {
               </Text>
             </View>
           </View>
-          {/* 친구 카드 안내 */}
-          <View style={{ marginTop: 56, marginHorizontal: 30, alignItems: 'center' }}>
+          {/* 친구 카드 안내 — 검색·카운트 지나 첫 카드 바로 위 (155 + 60 검색 + 40 카운트 ≈ 255) */}
+          <View style={{ position: 'absolute', top: insets.top + 258, left: 30, right: 30, alignItems: 'center' }}>
             <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 9,
               borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fff' }} />
             <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
@@ -114,8 +115,8 @@ export function FriendsScreen({ navigation }) {
               </Text>
             </View>
           </View>
-          {/* 닫기 */}
-          <View style={{ marginTop: 30, alignItems: 'center' }}>
+          {/* 닫기 — 화면 하단 고정 */}
+          <View style={{ position: 'absolute', bottom: insets.bottom + 90, left: 0, right: 0, alignItems: 'center' }}>
             <View style={{ backgroundColor: C.butter, borderRadius: 22, paddingHorizontal: 34, paddingVertical: 12 }}>
               <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>알겠어요</Text>
             </View>

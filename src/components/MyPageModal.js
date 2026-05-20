@@ -480,7 +480,7 @@ export function MyPageModal({ visible, onClose }) {
                       <Text style={myS.menuLabel}>평가 대기 토글</Text>
                       <Text style={myS.menuValue}>{userProfile.mannerEvaluationPending ? 'ON' : 'OFF'}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                    <TouchableOpacity style={myS.menuRow} activeOpacity={0.7}
                       onPress={() => {
                         const v = !userProfile.isRestricted;
                         const u = { ...userProfile, isRestricted: v };
@@ -490,6 +490,16 @@ export function MyPageModal({ visible, onClose }) {
                       <Text style={myS.menuIcon}>🧪</Text>
                       <Text style={myS.menuLabel}>이용 제한 토글</Text>
                       <Text style={myS.menuValue}>{userProfile.isRestricted ? 'ON' : 'OFF'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                      onPress={async () => {
+                        await storage.save(STORAGE_KEYS.friendCoachDone, false);
+                        await storage.save(STORAGE_KEYS.roundupTipDone, false);
+                        showAppAlert('리셋 완료', '친구 탭 / 모집글 작성 화면을 다시 진입하면 안내가 표시돼요.');
+                      }}>
+                      <Text style={myS.menuIcon}>🧪</Text>
+                      <Text style={myS.menuLabel}>안내 툴팁 리셋</Text>
+                      <Text style={myS.menuValue}>›</Text>
                     </TouchableOpacity>
                   </View>
                 </>
