@@ -164,4 +164,11 @@ export const USER_PROFILE_INIT = {
   restrictUntil: null,       // 이용 제한 해제 날짜 (ISO 문자열)
   // 친구에게 공개 여부 — 내 프로필을 친구가 볼 때 노출되는 항목
   privacy: { stats: true, feed: true, phone: false },
+  // 차단 — 양방향 모집글 숨김. 친구 숨김(친구 목록 한정)과 별개, 통합 필터링.
+  // blockCountDate가 오늘이면 blockCountToday가 일일 차단 한도(5) 카운터로 사용됨.
+  blockedUsers: [],          // 차단한 사용자 ID 배열
+  blockCountToday: 0,        // 오늘 차단한 횟수
+  blockCountDate: null,      // 차단 카운터의 기준 날짜 ('YYYY.MM.DD')
+  // 닉네임 변경 제한 — 일반 30일/1회, 카카오 연동 15일/1회
+  lastNicknameChange: null,  // 마지막 변경 시각 (ISO 문자열)
 };

@@ -5,6 +5,7 @@ import { FriendProfile } from './FriendProfile';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { showAppAlert } from './AppAlert';
+import { UserContext } from '../contexts/UserContext';
 
 const AVATARS = [
   { bg: '#C8D9E6', fg: '#1A3D52' },
@@ -92,6 +93,7 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
 }
 
 export function FriendsTab() {
+  const { userProfile } = React.useContext(UserContext);
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState(DUMMY_FRIENDS);
   const [muted, setMuted] = useState({});           // { [id]: true }
@@ -101,9 +103,13 @@ export function FriendsTab() {
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
 
+  // 차단된 사용자는 친구 탭에서 자동 숨김 — 친구 숨김(hidden)과 차단(blockedUsers) 통합 필터
+  const blockedIds = userProfile?.blockedUsers || [];
+  const isBlocked = (f) => blockedIds.includes(f.id) || blockedIds.includes(f.name);
+
   const q = search.trim();
-  const visible = friends.filter(f => !hidden[f.id] && (!q || f.name.includes(q)));
-  const hiddenFriends = friends.filter(f => hidden[f.id]);
+  const visible = friends.filter(f => !hidden[f.id] && !isBlocked(f) && (!q || f.name.includes(q)));
+  const hiddenFriends = friends.filter(f => hidden[f.id] && !isBlocked(f));
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
 
   const closeOptions = () => setOptionTarget(null);

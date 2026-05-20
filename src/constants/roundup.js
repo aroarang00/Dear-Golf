@@ -7,12 +7,12 @@ export const SCOPE_BADGE = {
   select:  { label: '친구지정', bg: '#6B1E2A', fg: '#F5E6A8' },
 };
 
-// 동반자 조건 — 모집 필터
-// ageGroups: 중복 선택 가능 (배열). 빈 배열·null·['any']는 '상관없음'으로 해석.
-// companion: 단일 선택 ('any' | 'male' | 'female' | 'couple' | 'mixed')
-// skill:     단일 선택 ('any' | 'pro' | 'mid' | 'high' | 'beginner')  — pro=80타 이하, mid=80~90, high=90~100, beginner=100타+
+// 동반자 조건 — 모집 필터 (모두 단일 선택)
+// ageGroup:  'any' | '30s' | '40s' | '50s'  — 누구나/~30대/~40대/~50대
+// companion: 'any' | 'male' | 'female' | 'couple' | 'mixed'
+// skill:     'any' | 'pro' | 'mid' | 'high' | 'beginner'  — pro=80↓, mid=80~90, high=90~100, beginner=100↑
 export const AGE_OPTIONS = [
-  ['20s', '20대'], ['30s', '30대'], ['40s', '40대'], ['50s', '50대'], ['60+', '60대 이상'],
+  ['any', '누구나'], ['30s', '~30대'], ['40s', '~40대'], ['50s', '~50대'],
 ];
 export const COMPANION_OPTIONS = [
   ['any', '상관없음'], ['male', '남성만'], ['female', '여성만'], ['couple', '커플'], ['mixed', '혼성'],
@@ -32,14 +32,16 @@ export const FILTER_BADGE = {
   skill:     { bg: '#D9C8E0', fg: '#4A2A5C' },
 };
 
-// 연령대 배열 → "20·30대" 같은 짧은 라벨로
-export function ageLabelShort(ageGroups) {
-  if (!ageGroups || ageGroups.length === 0 || ageGroups.includes('any')) return null;
-  const order = ['20s', '30s', '40s', '50s', '60+'];
-  const sorted = [...ageGroups].sort((a, b) => order.indexOf(a) - order.indexOf(b));
-  if (sorted.length === 1) return AGE_LABEL[sorted[0]];
-  const parts = sorted.map(k => k === '60+' ? '60+' : k.replace('s', ''));
-  return parts.join('·') + '대';
+// 연령대 표시 라벨 — 단일 키. 'any'는 null 반환(뱃지 숨김).
+export function ageLabelShort(ageGroup) {
+  if (!ageGroup || ageGroup === 'any') return null;
+  return AGE_LABEL[ageGroup] || null;
+}
+// 실력 — 카드용 짧은 표기 ('90-100타' → '90타대')
+export function skillLabelShort(skill) {
+  if (!skill || skill === 'any') return null;
+  const SHORT = { beginner: '100타+', high: '90타대', mid: '80타대', pro: '80타-' };
+  return SHORT[skill] || SKILL_LABEL[skill] || null;
 }
 
 // 라운딩 날짜까지 남은 일수로 대기자 응답 제한 시간(시간)을 계산

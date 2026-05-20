@@ -10,7 +10,8 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, SKILL_LABEL, ageLabelShort, waitlistRespondHours } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, ageLabelShort, skillLabelShort, waitlistRespondHours } from '../constants/roundup';
+import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { applyMannerDelta, MANNER_DELTAS } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 
@@ -18,25 +19,29 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 // 개별 모집: teams=1 + joined/capacity / 단체 모집: teams>1 + teamJoined(팀별 인원, 한 팀 4명)
 // waitlistCount: 현재 대기 인원
 const DUMMY_POSTS = [
-  { id: 'r1', type: 'fixed', author: '오세훈', isFriend: true, authorHostedCount: 220, authorAttendedCount: 88, authorMannerScore: 96,
+  { id: 'r1', type: 'fixed', author: '오세훈', authorId: 'oseh', isFriend: true,
+    authorHostedCount: 220, authorAttendedCount: 88, authorMannerScore: 96,
     course: '제이드팰리스 GC', date: '2026.05.31', day: '일', time: '07:12',
     teams: 3, teamJoined: [4, 2, 0], waitlistCount: 0, scope: 'all',
-    ageGroups: ['30s', '40s'], companion: 'mixed', skill: 'mid',
+    ageGroup: '40s', companion: 'mixed', skill: 'mid',
     word: '주말 모닝 단체 라운딩 — 팀 더 모아요!', closed: false, ts: 5 },
-  { id: 'r2', type: 'open', author: '김민준', isFriend: true, authorHostedCount: 7, authorAttendedCount: 14, authorMannerScore: 82,
+  { id: 'r2', type: 'open', author: '김민준', authorId: 'kmj', isFriend: true,
+    authorHostedCount: 7, authorAttendedCount: 14, authorMannerScore: 82,
     course: null, date: null, day: null, time: null,
     teams: 1, joined: 1, capacity: 4, waitlistCount: 0, scope: 'friends',
-    ageGroups: ['any'], companion: 'any', skill: 'any',
+    ageGroup: 'any', companion: 'any', skill: 'any',
     word: '5월 안에 한 번 치고 싶어요. 장소는 같이 정해요', closed: false, ts: 4 },
-  { id: 'r3', type: 'fixed', author: '이수연', isFriend: true, authorHostedCount: 22, authorAttendedCount: 18, authorMannerScore: 95,
+  { id: 'r3', type: 'fixed', author: '이수연', authorId: 'lsy', isFriend: true,
+    authorHostedCount: 22, authorAttendedCount: 18, authorMannerScore: 95,
     course: '블랙스톤 CC', date: '2026.05.23', day: '토', time: '12:30',
     teams: 1, joined: 3, capacity: 3, waitlistCount: 2, scope: 'select',
-    ageGroups: ['20s', '30s'], companion: 'female', skill: 'high',
+    ageGroup: '30s', companion: 'female', skill: 'high',
     word: '인원 다 찼습니다. 대기 신청 받아요 🙏', closed: true, ts: 3 },
-  { id: 'r4', type: 'open', author: '박지영', isFriend: false, authorHostedCount: 1, authorAttendedCount: 3, authorMannerScore: 75,
+  { id: 'r4', type: 'open', author: '박지영', authorId: 'pjy', isFriend: false,
+    authorHostedCount: 1, authorAttendedCount: 3, authorMannerScore: 75,
     course: null, date: null, day: null, time: null,
     teams: 1, joined: 1, capacity: 2, waitlistCount: 0, scope: 'all',
-    ageGroups: ['40s', '50s'], companion: 'couple', skill: 'pro',
+    ageGroup: '50s', companion: 'couple', skill: 'pro',
     word: '평일 휴무라 1명만 더 구해요 (둘이 라운딩)', closed: false, ts: 2 },
 ];
 
@@ -120,11 +125,11 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         </>
       )}
 
-      {/* 동반자 조건 뱃지 — 연령대·구성·실력. '상관없음'은 표시 안 함 */}
+      {/* 동반자 조건 뱃지 — 연령대·구성·실력. 'any'/null은 숨김. 최대 3개 표시 (예: [~40대] [남성만] [90타대]) */}
       {(() => {
-        const ageTxt = ageLabelShort(post.ageGroups);
+        const ageTxt = ageLabelShort(post.ageGroup);
         const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
-        const skillTxt = post.skill && post.skill !== 'any' ? SKILL_LABEL[post.skill] : null;
+        const skillTxt = skillLabelShort(post.skill);
         if (!ageTxt && !compTxt && !skillTxt) return null;
         return (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
@@ -322,17 +327,24 @@ export function RoundupTab({ visible, onClose }) {
     setSchedules(prev => [...prev, ...toAdd]);
   }, [posts, joined, schedules, setSchedules]);
 
+  // 차단 필터 — 내가 차단한 사람의 모집 + 나를 차단한 사람의 모집은 어디서도 안 보임
+  // (단, 내가 직접 올린 모집은 mine 탭에서 항상 보임. joined/applied/waitlist도 본인 활동 보존)
+  const visiblePosts = posts.filter(p => isPostVisible(p, userProfile));
+
   // 탭별 목록 — 전체: 전체공개 + 친구의 친구공개 / 친구: 친구 글 + 내가 친구공개로 올린 글 (친구지정 제외) / 내 참여 중 / 관심
-  const allTab = posts.filter(p => p.scope === 'all' || (p.scope === 'friends' && p.isFriend));
-  const friendTab = posts.filter(p => {
+  const allTab = visiblePosts.filter(p => p.scope === 'all' || (p.scope === 'friends' && p.isFriend));
+  const friendTab = visiblePosts.filter(p => {
     if (p.scope === 'select') return false;
     if (p.author === '나') return p.scope === 'friends';
     return p.isFriend;
   });
+  // mine 탭은 내가 직접 관여한 모집이므로 차단 필터 무시 (애초에 본인은 차단 못 함)
   const mineTab = posts.filter(p => p.author === '나' || joined[p.id] || applied[p.id] || waitlist[p.id]);
-  const watchTab = posts.filter(p => bookmarks[p.id]);
+  const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   const tabList = view === 'friend' ? friendTab : view === 'mine' ? mineTab : view === 'watch' ? watchTab : allTab;
   const list = [...tabList].sort((a, b) => b.ts - a.ts);
+  // 소도시 예외 — 전체/친구 탭에서 보이는 모집글이 3개 이하면 조건 완화 안내
+  const showSparseHint = (view === 'all' || view === 'friend') && list.length > 0 && list.length <= 3;
 
   const handleCreate = (post) => {
     const teams = post.teams || 1;
@@ -340,7 +352,7 @@ export function RoundupTab({ visible, onClose }) {
       ...post, id: 'r' + Date.now(), author: '나', isFriend: false,
       authorHostedCount: 0, authorAttendedCount: 0, authorMannerScore: 70, waitlistCount: 0,
       // 동반자 조건 기본값 — post에 없으면 '상관없음'
-      ageGroups: post.ageGroups || ['any'],
+      ageGroup: post.ageGroup || 'any',
       companion: post.companion || 'any',
       skill: post.skill || 'any',
       teams, closed: false, ts: Date.now(),
@@ -459,6 +471,48 @@ export function RoundupTab({ visible, onClose }) {
   };
   const readAllNoti = () => setNotifications(prev => prev.map(x => ({ ...x, read: true })));
   const deleteNoti = (n) => setNotifications(prev => prev.filter(x => x.id !== n.id));
+
+  // 사용자 차단 — 일일 한도 5명, 양방향 모집글 숨김. 차단 사실은 상대에게 알리지 않음.
+  const handleBlock = (target) => {
+    if (!target?.id) return;
+    const remaining = remainingBlocksToday(userProfile);
+    if (remaining <= 0) {
+      setAlert({
+        title: '차단 횟수 초과',
+        message: '오늘 차단 가능한 횟수를 초과했어요.\n내일 다시 시도해주세요.',
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    setAlert({
+      title: `${target.name}님을 차단할까요?`,
+      message: '차단하면 서로의 모집글이 보이지 않아요.\n오늘 남은 차단 횟수: ' + remaining + '회',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '차단', style: 'destructive', onPress: () => {
+            const result = blockUser(userProfile, target.id);
+            if (!result.ok) return;
+            setUserProfile(result.profile);
+            storage.save(STORAGE_KEYS.profile, result.profile);
+            setDetailId(null); // 차단 후 상세 닫기 — 더 이상 보이지 않으므로
+          },
+        },
+      ],
+    });
+  };
+  const handleReport = (target) => {
+    setAlert({
+      title: '신고하기',
+      message: `${target.name}님을 신고할까요?\n(신고 사유 입력 화면은 정식 운영 시 제공돼요)`,
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '신고 접수', onPress: () => {
+          setAlert({ title: '신고가 접수됐어요', message: '검토 후 조치할게요.', buttons: [{ text: '확인' }] });
+        }},
+      ],
+    });
+  };
   const clearAllNoti = () => setAlert({
     title: '모든 알림을 삭제할까요?',
     message: '복구할 수 없어요.',
@@ -576,6 +630,19 @@ export function RoundupTab({ visible, onClose }) {
             </Text>
           </View>
         )}
+        {/* 소도시 예외 — 표시 가능한 모집글이 3개 이하일 때 조건 완화 안내 */}
+        {showSparseHint && (
+          <View style={{ marginTop: 8, backgroundColor: '#F0E8D8', borderRadius: 12,
+            borderWidth: 0.5, borderColor: '#E2D2A8', paddingVertical: 12, paddingHorizontal: 16 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#8B6914', fontWeight: '700', textAlign: 'center' }}>
+              주변 모집글이 적어요
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textAlign: 'center',
+              marginTop: 4, lineHeight: 16 }}>
+              연령대·실력 등 동반자 조건을 넓혀 모집해보세요
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       <RoundupCreateModal visible={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
@@ -598,7 +665,9 @@ export function RoundupTab({ visible, onClose }) {
         onCancel={() => detailId && cancelParticipation(detailId)}
         onDelete={() => detailId && handleDelete(detailId)}
         onGradePress={(key) => setGradeModalKey(key)}
-        onToggleBookmark={() => detailId && toggleBookmark(detailId)} />
+        onToggleBookmark={() => detailId && toggleBookmark(detailId)}
+        onBlock={handleBlock}
+        onReport={handleReport} />
 
           {/* 알림함 */}
           <RoundupNotifications

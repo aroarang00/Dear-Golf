@@ -3,6 +3,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Linking } from 'react-
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, SKILL_LABEL, ageLabelShort, waitlistRespondHours, pickNames } from '../constants/roundup';
+import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
@@ -28,8 +29,8 @@ function Badge({ bg, fg, text }) {
   );
 }
 
-// 참여자 / 빈 슬롯 한 줄
-function SlotRow({ slot, idx }) {
+// 참여자 / 빈 슬롯 한 줄. onPress 시 신고/차단 시트.
+function SlotRow({ slot, idx, onPress }) {
   if (slot.open) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
@@ -43,7 +44,8 @@ function SlotRow({ slot, idx }) {
   }
   const pal = AV[idx % AV.length];
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
+    <TouchableOpacity activeOpacity={onPress ? 0.7 : 1} onPress={onPress}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: pal.bg, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.sys, fontSize: 16, color: pal.fg, fontWeight: '700' }}>{slot.name.charAt(0)}</Text>
       </View>
@@ -54,7 +56,7 @@ function SlotRow({ slot, idx }) {
         </View>
       )}
       <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#3C7D4F', fontWeight: '600', marginLeft: 'auto' }}>참여 확정</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -90,10 +92,11 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, onClose, onApply, onWaitlist, onCancel, onDelete, onGradePress, onToggleBookmark }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, onClose, onApply, onWaitlist, onCancel, onDelete, onGradePress, onToggleBookmark, onBlock, onReport }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
+  const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
 
   useEffect(() => { if (visible) setTeamTab(0); }, [visible]);
 
@@ -266,16 +269,18 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 {isClosed && <Badge bg="#E6C8C8" fg="#5C1E1E" text="마감" />}
               </View>
 
-              {/* 주최자 — 이름·신뢰도·매너 점수 */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12,
-                backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: 12 }}>
+              {/* 주최자 — 이름·신뢰도·매너 점수. 영역 탭 시 신고/차단 시트 */}
+              <TouchableOpacity activeOpacity={0.8}
+                onPress={() => setActionTarget({ id: post.authorId || post.author, name: post.author, role: 'host' })}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12,
+                  backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: 12 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>{post.author}</Text>
                 <TrustBadge grade={authorGrade} onPress={() => onGradePress?.(authorGrade.key)} />
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginLeft: 'auto' }}>
                   주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{post.authorHostedCount || 0}</Text>회 · 매너 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{post.authorMannerScore || 0}</Text>
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               {post.type === 'fixed' ? (
                 <>
@@ -293,7 +298,7 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
 
               {/* 동반자 조건 — 연령대·구성·실력. 상세에서는 라벨도 함께 보여줘 의미를 명확히 */}
               {(() => {
-                const ageTxt = ageLabelShort(post.ageGroups);
+                const ageTxt = ageLabelShort(post.ageGroup);
                 const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
                 const skillTxt = post.skill && post.skill !== 'any' ? SKILL_LABEL[post.skill] : null;
                 if (!ageTxt && !compTxt && !skillTxt) return null;
@@ -345,7 +350,10 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                   })}
                 </View>
               )}
-              {slots.map((s, i) => <SlotRow key={i} slot={s} idx={i} />)}
+              {slots.map((s, i) => (
+                <SlotRow key={i} slot={s} idx={i}
+                  onPress={s.name ? () => setActionTarget({ id: s.name, name: s.name, role: s.host ? 'host' : 'participant' }) : null} />
+              ))}
             </View>
 
             {/* 대기자 */}
@@ -399,6 +407,14 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
 
           {/* 참여 확인 / 카카오 안내 — 모달 위 오버레이 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
+          {/* 프로필 액션 시트 — 주최자/참여자 신고·차단 */}
+          <ProfileActionSheet
+            visible={!!actionTarget}
+            target={actionTarget}
+            isMe={actionTarget?.name === '나'}
+            onClose={() => setActionTarget(null)}
+            onReport={(t) => onReport?.(t)}
+            onBlock={(t) => onBlock?.(t)} />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

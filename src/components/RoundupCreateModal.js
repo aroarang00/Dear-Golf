@@ -30,8 +30,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
   const [kakaoOpenChatUrl, setKakaoOpenChatUrl] = useState(''); // 카카오톡 오픈채팅 URL (선택)
-  // 동반자 조건 필터 — 연령대(중복), 동반자 구성(단일), 실력(단일). 모두 'any'는 상관없음
-  const [ageGroups, setAgeGroups] = useState(['any']);
+  // 동반자 조건 필터 — 연령대·구성·실력 모두 단일 선택. 'any'는 상관없음
+  const [ageGroup, setAgeGroup] = useState('any');
   const [companion, setCompanion] = useState('any');
   const [skill, setSkill] = useState('any');
   const [showTip, setShowTip] = useState(false);     // 모집 형태 안내 툴팁 (1회)
@@ -70,17 +70,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
     setGroupMode('single'); setMembers(4); setTeams(2); setScope('all'); setWord('');
     setKakaoOpenChatUrl('');
-    setAgeGroups(['any']); setCompanion('any'); setSkill('any');
-  };
-
-  // 연령대 중복 선택 토글 — '상관없음' 선택 시 다른 선택 해제, 다른 선택 시 '상관없음' 해제
-  const toggleAge = (key) => {
-    setAgeGroups(prev => {
-      if (key === 'any') return ['any'];
-      const without = prev.filter(k => k !== 'any');
-      const next = without.includes(key) ? without.filter(k => k !== key) : [...without, key];
-      return next.length === 0 ? ['any'] : next;
-    });
+    setAgeGroup('any'); setCompanion('any'); setSkill('any');
   };
   const close = () => { reset(); onClose(); };
 
@@ -100,7 +90,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       word: word.trim(),
       kakaoOpenChatUrl: kakaoOpenChatUrl.trim() || null,
       // 동반자 조건 — Firebase 동반자 매칭·검색 필터로도 활용
-      ageGroups,
+      ageGroup,
       companion,
       skill,
     });
@@ -253,13 +243,13 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
               ))}
             </View>
 
-            {/* 동반자 조건 — 연령대(중복), 동반자 구성(단일), 실력(단일) */}
-            <Text style={mS.label}>연령대 <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(중복 선택 가능)</Text></Text>
+            {/* 동반자 조건 — 연령대·구성·실력 모두 단일 선택 */}
+            <Text style={mS.label}>연령대</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {[...AGE_OPTIONS, ['any', '상관없음']].map(([k, l]) => {
-                const on = ageGroups.includes(k);
+              {AGE_OPTIONS.map(([k, l]) => {
+                const on = ageGroup === k;
                 return (
-                  <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => toggleAge(k)}
+                  <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setAgeGroup(k)}
                     style={[mS.chip, on && mS.chipOn, { alignItems: 'center' }]}>
                     <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{l}</Text>
                   </TouchableOpacity>

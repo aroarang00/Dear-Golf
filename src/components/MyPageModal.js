@@ -16,6 +16,8 @@ import { searchPlaces } from '../utils/kakao';
 import { requestNotificationPermission, syncAlarmTypeAcrossSchedules } from '../utils/notifications';
 import { deleteAccount } from '../utils/account';
 import { CalendarPickerModal } from './CalendarPickerModal';
+import { BlockManageScreen } from './BlockManageScreen';
+import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
@@ -23,6 +25,7 @@ export function MyPageModal({ visible, onClose }) {
   const scrollRef = useRef(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
+  const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
   const [departure, setDeparture] = useState(userProfile.departure || '');
@@ -157,7 +160,24 @@ export function MyPageModal({ visible, onClose }) {
       setEditingNick(false);
       return;
     }
-    const updated = { ...userProfile, nickname: trimmed };
+    // 변경 제한 — 일반 30일/1회, 카카오 15일/1회
+    const status = nicknameChangeStatus(userProfile);
+    if (!status.canChange) {
+      const buttons = [{ text: '확인' }];
+      const baseMsg = `닉네임은 ${status.daysLeft}일 후에 변경할 수 있어요.`;
+      const extra = userProfile?.kakaoLinked
+        ? ''
+        : '\n\n💡 카카오 로그인 연동 시 더 빠르게(15일) 변경할 수 있어요';
+      showAppAlert('변경 가능 시점이 아니에요', baseMsg + extra, buttons);
+      setNickname(userProfile.nickname);
+      setEditingNick(false);
+      return;
+    }
+    const updated = {
+      ...userProfile,
+      nickname: trimmed,
+      lastNicknameChange: new Date().toISOString(),
+    };
     setUserProfile({ ...updated });
     setNickname(trimmed);
     setEditingNick(false);
@@ -223,7 +243,25 @@ export function MyPageModal({ visible, onClose }) {
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <Text style={myS.nickname}>{nickname}</Text>
+                    <>
+                      <Text style={myS.nickname}>{nickname}</Text>
+                      {/* 닉네임 변경 가능 여부 — 다음 변경일 또는 가능 안내 */}
+                      {(() => {
+                        const st = nicknameChangeStatus(userProfile);
+                        if (st.canChange) {
+                          return (
+                            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 2 }}>
+                              닉네임 변경 가능 · {st.cooldownDays}일에 1번
+                            </Text>
+                          );
+                        }
+                        return (
+                          <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#8B6914', marginTop: 2 }}>
+                            다음 변경일 {formatNextDate(st.nextDate)} ({st.daysLeft}일 후)
+                          </Text>
+                        );
+                      })()}
+                    </>
                   )}
                   <Text style={myS.realName}>{userProfile.realName}</Text>
                 </View>
@@ -432,11 +470,24 @@ export function MyPageModal({ visible, onClose }) {
                   { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
                   { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
                   { icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
+                  { icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
+                    onPress: () => setBlockManageOpen(true) },
+                  ...(userProfile.kakaoLinked
+                    ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
+                    : [{ icon: '💛', label: '카카오 로그인 연동',
+                        onPress: () => showAppAlert(
+                          '카카오 로그인 연동',
+                          '카카오 로그인을 연동하면 닉네임 변경 주기가 30일 → 15일로 단축돼요.\n(연동 화면은 추후 추가될 예정)',
+                          [{ text: '확인' }],
+                        ) }]),
                   { icon: '🔒', label: '개인정보 처리방침', onPress: () => Linking.openURL('https://dear-golf.web.app/privacy') },
                 ].map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
                     <Text style={myS.menuIcon}>{item.icon}</Text>
                     <Text style={myS.menuLabel}>{item.label}</Text>
+                    {item.value ? (
+                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, marginRight: 4 }}>{item.value}</Text>
+                    ) : null}
                     <Text style={myS.menuValue}>›</Text>
                   </TouchableOpacity>
                 ))}
@@ -521,6 +572,7 @@ export function MyPageModal({ visible, onClose }) {
         </View>
       </KeyboardAvoidingView>
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
+      <BlockManageScreen visible={blockManageOpen} onClose={() => setBlockManageOpen(false)} />
       {/* 라운딩 평가 미리보기 (개발용) */}
       <RoundEvaluationModal
         visible={evalOpen}

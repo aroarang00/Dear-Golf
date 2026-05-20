@@ -15,6 +15,10 @@
 | **`gender`** | `'male' \| 'female'` | 본인 성별 — 모집의 companion 매칭용 |
 | **`avgScore`** | number? | 평균 타수 — skill 필터 매칭용 (다이어리 평균 자동 계산도 가능) |
 | `avgScoreManual` | boolean? | true면 사용자가 직접 입력한 값, false면 다이어리 자동 계산 |
+| **`blockedUsers`** | string[] | 차단한 사용자 uid 배열 (양방향 모집글 필터) |
+| **`blockCountToday`** | number | 오늘 차단 횟수 (한도: 5/일) |
+| **`blockCountDate`** | string? | 차단 카운터 기준 날짜 'YYYY.MM.DD'. 오늘이 아니면 카운터 리셋 |
+| **`lastNicknameChange`** | timestamp? | 마지막 닉네임 변경 시각. 일반 30일/카카오 15일 쿨다운 |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
 
@@ -52,9 +56,10 @@
 | `closed` | boolean | 모집 마감 여부 |
 | `word` | string | 한마디 |
 | `kakaoOpenChatUrl` | string? | 카카오톡 오픈채팅 URL — 주최자 입력 |
-| **`ageGroups`** | `('20s' \| '30s' \| '40s' \| '50s' \| '60+' \| 'any')[]` | 동반자 연령대 조건 (중복). `['any']`는 상관없음 |
+| **`ageGroup`** | `'any' \| '30s' \| '40s' \| '50s'` | 동반자 연령대 (단일). 누구나/~30대/~40대/~50대 |
 | **`companion`** | `'any' \| 'male' \| 'female' \| 'couple' \| 'mixed'` | 동반자 구성 |
 | **`skill`** | `'any' \| 'pro' \| 'mid' \| 'high' \| 'beginner'` | 실력 (평균 타수 기준) |
+| `authorBlockedUids` | string[]? | 주최자가 차단한 사용자 uid (역방향 필터용 denormalize) |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
 
