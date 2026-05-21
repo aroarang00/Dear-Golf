@@ -5,17 +5,14 @@ import { C, F } from '../constants/colors';
 import { HallOfFameCard } from './HallOfFameCard';
 import { OverlayAlert } from './common/OverlayAlert';
 
-// 공유 옵션
+// 공유 옵션 — 갤러리 저장(범용). 저장한 이미지를 사용자가 원하는 앱으로 공유.
+// 카카오 직접 공유는 출시 후 추가 예정, 인스타는 제외.
 const OPTIONS = [
-  { key: 'kakao', icon: '💬', label: '카카오톡으로 공유',      bg: '#FEE500',    fg: '#191600', border: false },
-  { key: 'insta', icon: '📸', label: '인스타그램 스토리 공유', bg: '#8A3AB9',    fg: '#fff',    border: false },
-  { key: 'save',  icon: '🖼', label: '이미지 저장 (갤러리)',   bg: C.bgSecondary, fg: C.charcoal, border: true },
+  { key: 'save', icon: '🖼', label: '이미지 저장 (갤러리)', bg: C.bgSecondary, fg: C.charcoal, border: true },
 ];
 
 const STUB_MSG = {
-  kakao: '카카오톡 공유는 카카오 SDK 연동 후 제공돼요. 지금은 UI 미리보기예요.',
-  insta: '인스타그램 스토리 공유는 이미지 캡처 기능 연동 후 제공돼요.',
-  save:  '갤러리 저장은 이미지 캡처 기능 연동 후 제공돼요.',
+  save: '갤러리 저장은 이미지 캡처 기능 연동 후 제공돼요.',
 };
 
 // 특별한 순간 공유 — 카드 미리보기(워터마크 포함) + 공유 옵션. 현재는 UI만.
