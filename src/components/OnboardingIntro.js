@@ -25,7 +25,7 @@ function Feature({ icon, title, sub }) {
   );
 }
 
-// 7장 스와이프 인트로 — 기능 소개 + 명예의 전당 + 골프 친구 + 위치 권한 안내. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
+// 8장 스와이프 인트로 — 기능 소개 + 명예의 전당 + 골프 친구 + 라운지 + 위치 권한 안내. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
 export function OnboardingIntro({ onDone }) {
   const insets = useSafeAreaInsets();
   const [idx, setIdx] = useState(0);
@@ -59,7 +59,7 @@ export function OnboardingIntro({ onDone }) {
           <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
           <Text style={{ fontFamily: F.sys, fontSize: 16, color: '#1A3D52', fontWeight: '600', letterSpacing: 1 }}>나만의 골프 캐디</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
-            일정부터 기록까지,{'\n'}골프 라이프를 한 곳에서
+            혼자서도, 함께서도{'\n'}골프 라이프를 한 곳에서
           </Text>
         </View>
 
@@ -244,7 +244,6 @@ export function OnboardingIntro({ onDone }) {
             <View style={{ gap: 16 }}>
               {[
                 ['👥', '카카오 친구 중 Dear Golf 유저 찾기'],
-                ['⛳', '라운딩 파트너 모집하기'],
                 ['🏆', '친구 라운딩 기록 피드 보기'],
                 ['👍', '특별한 순간 공유하기'],
               ].map(([icon, txt]) => (
@@ -263,7 +262,38 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
-        {/* 6 — 위치 권한 안내 */}
+        {/* 6 — 라운지 (커뮤니티) */}
+        <View style={{ width: SW, backgroundColor: C.navy }}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
+            <Text style={{ fontSize: 38, marginBottom: 14 }}>⛳</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 24, color: '#fff', fontWeight: '700', marginBottom: 10 }}>라운지</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
+              함께 라운딩할 동반자를 만나는 곳{'\n'}모집글을 올리고, 참여하고, 모아 보세요
+            </Text>
+            <View style={{ gap: 16 }}>
+              {[
+                ['📋', '라운딩 동반자 모집·참여하기'],
+                ['🎯', '내 조건에 맞는 모집 모아보기'],
+                ['🛡️', '신뢰·매너 등급으로 안심하고'],
+                ['⭐', '관심 있는 모집 저장해두기'],
+              ].map(([icon, txt]) => (
+                <View key={txt} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)',
+                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                  }}>
+                    <Text style={{ fontSize: 17 }}>{icon}</Text>
+                  </View>
+                  <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 14, color: '#fff', fontWeight: '500' }}>{txt}</Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* 7 — 위치 권한 안내 */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
@@ -314,7 +344,7 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
-        {/* 7 — 시작 (팔레스카이 배경) */}
+        {/* 8 — 시작 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: 44, marginBottom: 14 }}>⛳</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700' }}>지금 시작해보세요</Text>
@@ -331,7 +361,7 @@ export function OnboardingIntro({ onDone }) {
 
       {/* 하단 스와이프 인디케이터 */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: insets.bottom + 14 }}>
-        {[0, 1, 2, 3, 4, 5, 6].map(i => (
+        {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
           <View key={i} style={{
             width: idx === i ? 22 : 7, height: 7, borderRadius: 4,
             backgroundColor: idx === i ? C.burgundy : C.hairline,
