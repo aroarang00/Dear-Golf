@@ -216,7 +216,8 @@ export function DiaryScreen({ route, navigation }) {
 
   if (selected) return <DiaryDetail item={selected} onClose={() => setSelected(null)}
     onUpdate={(updated) => {
-      setDiaries(prev => prev.map(d => d.id === updated.id ? updated : d));
+      // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
+      handleSave('diary-edit', updated);
       setSelected(updated);
     }}
     onDelete={handleDeleteDiary} />;
