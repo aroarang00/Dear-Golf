@@ -923,10 +923,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 onPress={() => {
                   const courseName = (schedule?.course || '').trim();
                   const locName = (courseCoord?.loc || '').trim();
-                  const q = (weatherOnly || courseName === '현재 위치')
-                    ? (locName || '날씨')
-                    : (courseName || locName || '날씨');
-                  const url = `https://search.naver.com/search.naver?query=${encodeURIComponent(q + ' 날씨')}`;
+                  const place = (weatherOnly || courseName === '현재 위치')
+                    ? locName
+                    : (courseName || locName);
+                  const q = place ? `${place} 날씨` : '날씨';
+                  const url = `https://search.naver.com/search.naver?query=${encodeURIComponent(q)}`;
                   Linking.openURL(url).catch(() => Linking.openURL('https://m.weather.naver.com/'));
                 }}
                 activeOpacity={0.7}
