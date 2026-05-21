@@ -12,6 +12,7 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
+import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { TrustGradeModal } from './common/TrustBadge';
 import { pickNames } from '../constants/roundup';
@@ -99,7 +100,7 @@ export function MyProfile({ visible, onClose }) {
         aspect,
         quality: 0.8,
       });
-      return result.canceled ? null : result.assets[0].uri;
+      return result.canceled ? null : await persistPhoto(result.assets[0].uri);
     } catch (e) {
       console.warn('[MyProfile] 이미지 선택 오류', e?.message);
       return null;
@@ -167,7 +168,7 @@ export function MyProfile({ visible, onClose }) {
                   style={{ width: 104, height: 104, borderRadius: 52,
                     backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {userProfile.avatarUri ? (
-                    <Image source={{ uri: userProfile.avatarUri }} style={{ width: '100%', height: '100%' }} />
+                    <Image source={{ uri: resolvePhotoUri(userProfile.avatarUri) }} style={{ width: '100%', height: '100%' }} />
                   ) : (
                     <Text style={{ fontFamily: F.en, fontSize: 42, color: '#fff' }}>{initial}</Text>
                   )}

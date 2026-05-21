@@ -11,6 +11,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
 import { PhotoEditModal } from './PhotoEditModal';
+import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 
 export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
   const { userProfile } = React.useContext(UserContext);
@@ -236,7 +237,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
           </View>
           <View style={dS.photosGrid}>
             {(isEditing ? editPhotos : photosToShow).map((uri, i) => {
-              const src = typeof uri === 'object' ? uri.uri : uri;
+              const src = resolvePhotoUri(typeof uri === 'object' ? uri.uri : uri);
               return (
                 <TouchableOpacity key={i}
                   onPress={() => {
@@ -268,13 +269,15 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
       {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
       <PhotoEditModal
         visible={editorIndex !== null}
-        uri={editorIndex !== null ? (typeof editPhotos[editorIndex] === 'object' ? editPhotos[editorIndex].uri : editPhotos[editorIndex]) : null}
+        uri={editorIndex !== null ? resolvePhotoUri(typeof editPhotos[editorIndex] === 'object' ? editPhotos[editorIndex].uri : editPhotos[editorIndex]) : null}
         onClose={() => setEditorIndex(null)}
-        onSave={(newUri) => {
+        onSave={async (newUri) => {
+          // 회전 등 편집 결과(임시 캐시 uri)를 영구 저장
+          const persisted = await persistPhoto(newUri);
           setEditPhotos(prev => {
             const next = [...prev];
             const orig = next[editorIndex];
-            next[editorIndex] = typeof orig === 'object' ? { ...orig, uri: newUri } : newUri;
+            next[editorIndex] = typeof orig === 'object' ? { ...orig, uri: persisted } : persisted;
             return next;
           });
           setEditorIndex(null);

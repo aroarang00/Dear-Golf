@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { C, F } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
+import { resolvePhotoUri } from '../utils/photoStorage';
 
 export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
   const [expanded, setExpanded] = useState(false);
@@ -10,6 +11,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   const hasBest = item.badge === '베스트';
   const hasPhoto = item.photos && item.photos.length > 0;
+  const firstPhoto = hasPhoto ? item.photos[0] : null;
+  const heroUri = resolvePhotoUri(typeof firstPhoto === 'object' ? firstPhoto?.uri : firstPhoto);
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
   const highlight = isSpecial || isFirstSingle; // 골드 프레임 강조 (특별한 순간·첫 싱글)
@@ -89,7 +92,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
         activeOpacity={0.88} onPress={() => onPress(item)}>
         {highlight && <View style={dS.cardSpecialLine} />}
         <View style={dS.photoHero43}>
-          <Image source={{ uri: item.photos[0] }} style={dS.photoImg} resizeMode="cover" />
+          <Image source={{ uri: heroUri }} style={dS.photoImg} resizeMode="cover" />
           <View style={dS.photoBottomOverlay}>
             <Text style={dS.overlayCourse} numberOfLines={1}>{item.course}</Text>
             <Text style={dS.overlayDate}>{item.date} {item.day}</Text>

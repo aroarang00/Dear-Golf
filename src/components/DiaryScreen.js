@@ -21,6 +21,7 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
+import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
@@ -229,7 +230,7 @@ export function DiaryScreen({ route, navigation }) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
       });
-      return result.canceled ? null : result.assets[0].uri;
+      return result.canceled ? null : await persistPhoto(result.assets[0].uri);
     } catch (e) {
       console.warn('[DiaryScreen] 이미지 선택 오류', e?.message);
       return null;
@@ -294,7 +295,7 @@ export function DiaryScreen({ route, navigation }) {
               style={{ width: 80, height: 80, borderRadius: 40,
                 backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {userProfile.avatarUri ? (
-                <Image source={{ uri: userProfile.avatarUri }} style={{ width: '100%', height: '100%' }} />
+                <Image source={{ uri: resolvePhotoUri(userProfile.avatarUri) }} style={{ width: '100%', height: '100%' }} />
               ) : (
                 <Text style={{ fontFamily: F.en, fontSize: 32, color: '#fff' }}>{myInitial}</Text>
               )}

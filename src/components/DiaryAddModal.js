@@ -9,6 +9,7 @@ import { searchGolfCourses } from '../utils/kakao';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
+import { persistPhotos, resolvePhotoUri } from '../utils/photoStorage';
 
 const COST_ITEMS = [
   ['green', '그린피'],
@@ -75,9 +76,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       quality: 0.8,
     });
     if (!result.canceled) {
-      const items = result.assets.map(a =>
+      const rawItems = result.assets.map(a =>
         a.type === 'video' ? { uri: a.uri, type: 'video' } : a.uri
       );
+      // 선택 직후 영구 폴더로 복사 — 앱 업데이트 후에도 사진이 유지되도록
+      const items = await persistPhotos(rawItems);
       setAddPhotos(prev => [...prev, ...items]);
     }
   };
@@ -651,7 +654,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
 function AddPhotoThumb({ item, onRemove }) {
   const isVideo = typeof item === 'object' && item?.type === 'video';
-  const src = typeof item === 'object' ? item.uri : item;
+  const src = resolvePhotoUri(typeof item === 'object' ? item.uri : item);
   const [thumb, setThumb] = useState(null);
 
   useEffect(() => {

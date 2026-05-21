@@ -4,6 +4,7 @@ import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handl
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { F } from '../../constants/colors';
+import { resolvePhotoUri } from '../../utils/photoStorage';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -89,9 +90,9 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
           {photos.map((item, i) => (
             <View key={i} style={{ width: SW, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
-                <VideoItem uri={item.uri} active={i === idx} />
+                <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} />
               ) : (
-                <PinchableImage uri={item.uri || item} width={SW} height={SW * 1.2} active={i === idx} />
+                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={SW * 1.2} active={i === idx} />
               )}
             </View>
           ))}
