@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
@@ -120,10 +120,10 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             style={{ alignSelf: 'center', paddingVertical: 8 }}>
             <View style={mS.handle} />
           </TouchableOpacity>
-          <KeyboardAwareScrollView style={{ flexShrink: 1 }}
+          <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
+          <ScrollView style={{ flex: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}
-            showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
-            bottomOffset={24}>
+            showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
             {/* 타이틀 줄 — 우측에 명시적 ✕ 닫기 버튼 */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Text style={[mS.title, { flex: 1, marginBottom: 0 }]}>라운딩 모집글 작성</Text>
@@ -341,7 +341,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
               <Text style={mS.saveBtnTxt}>모집글 등록</Text>
             </TouchableOpacity>
             <View style={{ height: 24 }} />
-          </KeyboardAwareScrollView>
+          </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </View>
     </Modal>
