@@ -173,4 +173,7 @@ export const USER_PROFILE_INIT = {
   lastNicknameChange: null,  // 마지막 변경 시각 (ISO 문자열)
   // 라운지 — 모르는 사람 모집 숨김. true면 '전체' 탭이 사라지고 친구 모집만 보임.
   hideStrangerRoundups: false,
+  // 라운지 맞춤 모집 조건 — 새 모집글이 이 조건에 맞으면 라운지에서 알려줌(인앱).
+  // regions: 관심 지역 키 배열 / dayType: 'weekend'|'weekday'|'any' / date: 'YYYY.MM.DD'|null(특정 날짜)
+  roundupMatch: { regions: [], dayType: 'any', date: null },
 };

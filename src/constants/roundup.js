@@ -77,6 +77,32 @@ export function waitlistRespondHours(dateStr) {
   return 1;
 }
 
+// 맞춤 모집 — 사용자가 설정한 조건(roundupMatch)이 의미 있게 채워졌는지
+export function hasRoundupMatch(cfg) {
+  if (!cfg) return false;
+  return (cfg.regions?.length > 0) || (cfg.dayType && cfg.dayType !== 'any') || !!cfg.date;
+}
+
+// 맞춤 모집 — 모집글이 사용자의 조건(roundupMatch)에 맞는지.
+// 지역 일치 AND (요일 일치 OR 특정 날짜 일치). 오픈형(날짜 미정)은 지역만 본다.
+export function matchesRoundup(post, cfg) {
+  if (!post || !hasRoundupMatch(cfg)) return false;
+  const regions = cfg.regions || [];
+  const dayType = cfg.dayType || 'any';
+  const date = cfg.date || null;
+  // 지역 — 지정했으면 post.region이 포함돼야 함
+  if (regions.length > 0 && (!post.region || !regions.includes(post.region))) return false;
+  // 오픈형(날짜 미정) — 지역만 통과하면 포함
+  if (post.type === 'open' || !post.date) return true;
+  // 확정형 — 요일 일치 또는 특정 날짜 일치
+  const isWeekend = post.day === '토' || post.day === '일';
+  const dayMatch = dayType === 'any'
+    || (dayType === 'weekend' && isWeekend)
+    || (dayType === 'weekday' && !isWeekend);
+  const dateMatch = !!date && post.date === date;
+  return dayMatch || dateMatch;
+}
+
 // 더미 참여자 이름 — seed 기반 결정적 선택 (렌더마다 동일)
 const NAME_POOL = ['김도윤', '이서준', '박하준', '정시우', '최주원', '강민재', '윤지호', '임예성', '한도현', '오건우', '서주아', '문하린'];
 export function pickNames(seed, count) {

@@ -10,7 +10,8 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, waitlistRespondHours } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, waitlistRespondHours, matchesRoundup, hasRoundupMatch } from '../constants/roundup';
+import { RoundupMatchModal } from './RoundupMatchModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { applyMannerDelta, MANNER_DELTAS } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -260,6 +261,7 @@ export function RoundupTab({ visible, onClose, asScreen = false }) {
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
   const [notifications, setNotifications] = useState(DUMMY_NOTIFICATIONS);
   const [showNoti, setShowNoti] = useState(false);            // 알림함
+  const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
 
   const detailPost = posts.find(p => p.id === detailId) || null;
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -334,10 +336,22 @@ export function RoundupTab({ visible, onClose, asScreen = false }) {
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터 무시 (애초에 본인은 차단 못 함)
   const mineTab = posts.filter(p => p.author === '나' || joined[p.id] || applied[p.id] || waitlist[p.id]);
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
-  const tabList = view === 'friend' ? friendTab : view === 'mine' ? mineTab : view === 'watch' ? watchTab : allTab;
+  // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집
+  const matchTab = visiblePosts.filter(p => matchesRoundup(p, userProfile.roundupMatch));
+  const matchCount = matchTab.length;
+  const hasMatch = hasRoundupMatch(userProfile.roundupMatch);
+  const tabList = view === 'friend' ? friendTab : view === 'mine' ? mineTab
+    : view === 'watch' ? watchTab : view === 'match' ? matchTab : allTab;
   const list = [...tabList].sort((a, b) => b.ts - a.ts);
   // 소도시 예외 — 전체/친구 탭에서 보이는 모집글이 3개 이하면 조건 완화 안내
   const showSparseHint = (view === 'all' || view === 'friend') && list.length > 0 && list.length <= 3;
+
+  // 맞춤 모집 조건 저장
+  const saveRoundupMatch = (cfg) => {
+    const next = { ...userProfile, roundupMatch: cfg };
+    setUserProfile(next);
+    storage.save(STORAGE_KEYS.profile, next);
+  };
 
   const handleCreate = (post) => {
     const teams = post.teams || 1;
@@ -597,11 +611,47 @@ export function RoundupTab({ visible, onClose, asScreen = false }) {
         </ScrollView>
       )}
 
+      {/* 맞춤 모집 배너 — 내 조건에 맞는 모집 모아보기 */}
+      {view !== 'mine' && view !== 'watch' && (
+        hasMatch ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 10,
+            backgroundColor: view === 'match' ? C.burgundy : C.bgSecondary, borderRadius: 12,
+            borderWidth: 0.5, borderColor: view === 'match' ? C.burgundy : C.hairline,
+            paddingHorizontal: 14, paddingVertical: 11 }}>
+            <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              activeOpacity={0.7}
+              onPress={() => setView(view === 'match' ? (hideStranger ? 'friend' : 'all') : 'match')}>
+              <Text style={{ fontSize: 14 }}>🎯</Text>
+              <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, fontWeight: '600',
+                color: view === 'match' ? C.butter : C.charcoal }}>
+                내 조건에 맞는 모집 {matchCount}건{view === 'match' ? ' · 보는 중' : ''}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowMatchModal(true)} activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 15 }}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => setShowMatchModal(true)} activeOpacity={0.7}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: 10,
+              backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
+              paddingHorizontal: 14, paddingVertical: 11 }}>
+            <Text style={{ fontSize: 14 }}>🎯</Text>
+            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>
+              맞춤 모집 알림 설정하기
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>›</Text>
+          </TouchableOpacity>
+        )
+      )}
+
       {/* 안내 텍스트 — 모집글 작성 버튼은 헤더로 이동 */}
       {view !== 'mine' && view !== 'watch' && (
         <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
           <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>
-            {view === 'friend' ? '친구가 올린 모집글이에요' : '전체공개 모집글이에요'}
+            {view === 'match' ? '내 조건에 맞는 모집이에요'
+              : view === 'friend' ? '친구가 올린 모집글이에요' : '전체공개 모집글이에요'}
           </Text>
         </View>
       )}
@@ -621,6 +671,16 @@ export function RoundupTab({ visible, onClose, asScreen = false }) {
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
                 모집글의 별을 눌러 관심 모집으로 등록하세요
+              </Text>
+            </View>
+          ) : view === 'match' ? (
+            <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: 36 }}>🎯</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700', marginTop: 14 }}>
+                조건에 맞는 모집이 없어요
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+                지금은 없지만 새 모집이 올라오면{'\n'}여기에 모여요
               </Text>
             </View>
           ) : (
@@ -674,6 +734,13 @@ export function RoundupTab({ visible, onClose, asScreen = false }) {
       </ScrollView>
 
       <RoundupCreateModal visible={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
+
+      {/* 맞춤 모집 조건 설정 */}
+      <RoundupMatchModal
+        visible={showMatchModal}
+        initial={userProfile.roundupMatch}
+        onClose={() => setShowMatchModal(false)}
+        onSave={saveRoundupMatch} />
 
       {/* 신뢰 등급 설명 팝업 */}
       <TrustGradeModal visible={!!gradeModalKey} highlightKey={gradeModalKey}
