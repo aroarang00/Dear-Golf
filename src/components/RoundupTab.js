@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Modal, View, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
@@ -238,7 +238,7 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
   );
 }
 
-export function RoundupTab({ visible, onClose, asScreen = false }) {
+export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, setSchedules } = useContext(SchedulesContext);
   const [posts, setPosts] = useState(DUMMY_POSTS);
@@ -262,6 +262,22 @@ export function RoundupTab({ visible, onClose, asScreen = false }) {
   const [notifications, setNotifications] = useState(DUMMY_NOTIFICATIONS);
   const [showNoti, setShowNoti] = useState(false);            // 알림함
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
+  const listScrollRef = useRef(null);
+
+  // 라운지 탭 재방문 시 — 상세·모달 닫고 기본 탭·목록 맨 위로 초기화
+  useEffect(() => {
+    if (!asScreen || !navigation?.addListener) return;
+    const unsub = navigation.addListener('tabPress', () => {
+      setView(hideStranger ? 'friend' : 'all');
+      setRegionFilter('all');
+      setDetailId(null);
+      setShowCreate(false);
+      setShowNoti(false);
+      setShowMatchModal(false);
+      listScrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return unsub;
+  }, [navigation, asScreen, hideStranger]);
 
   const detailPost = posts.find(p => p.id === detailId) || null;
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -656,7 +672,7 @@ export function RoundupTab({ visible, onClose, asScreen = false }) {
         </View>
       )}
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+      <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}>
         {list.length === 0 ? (
           view === 'mine' ? (

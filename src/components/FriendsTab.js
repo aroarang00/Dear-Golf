@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, ScrollView, Text, TextInput, TouchableOpacity } from 'react-native';
 import { C, F } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
@@ -103,7 +103,7 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
   );
 }
 
-export function FriendsTab() {
+export function FriendsTab({ navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState(DUMMY_FRIENDS);
@@ -113,6 +113,21 @@ export function FriendsTab() {
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
+  const listScrollRef = useRef(null);
+
+  // 친구 탭 재방문 시 — 검색·프로필·찾기 닫고 목록 맨 위로 초기화
+  useEffect(() => {
+    if (!navigation?.addListener) return;
+    const unsub = navigation.addListener('tabPress', () => {
+      setSearch('');
+      setProfileFriend(null);
+      setFinder(null);
+      setShowHidden(false);
+      setGradeModalKey(null);
+      listScrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return unsub;
+  }, [navigation]);
   const [sentRequests, setSentRequests] = useState([]);   // 보낸 신청 — 후보 id 배열
   const [receivedRequests, setReceivedRequests] = useState([   // 받은 신청 (더미)
     { id: 'r1', name: '문하린', hostedCount: 9, attendedCount: 12, mannerScore: 87, avg: 94 },
@@ -183,7 +198,7 @@ export function FriendsTab() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+      <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled">
         {/* 받은 친구 신청 배너 — 있을 때만 */}

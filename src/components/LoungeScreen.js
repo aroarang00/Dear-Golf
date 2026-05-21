@@ -3,6 +3,6 @@
 import React from 'react';
 import { RoundupTab } from './RoundupTab';
 
-export function LoungeScreen() {
-  return <RoundupTab asScreen visible />;
+export function LoungeScreen({ navigation }) {
+  return <RoundupTab asScreen visible navigation={navigation} />;
 }

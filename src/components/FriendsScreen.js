@@ -6,7 +6,7 @@ import { FriendsTab } from './FriendsTab';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 
 // 친구 화면 — 내 프로필·설정은 MY 탭으로 이관, 친구 목록 전용.
-export function FriendsScreen() {
+export function FriendsScreen({ navigation }) {
   const insets = useSafeAreaInsets();   // 코치마크 위치 계산용 (노치/홈바)
   const [showCoach, setShowCoach] = useState(false);   // 친구 탭 첫 진입 툴팁 (1회)
 
@@ -28,7 +28,7 @@ export function FriendsScreen() {
         <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 28, color: C.navy }}>Friends</Text>
       </View>
 
-      <FriendsTab />
+      <FriendsTab navigation={navigation} />
 
       {/* 친구 탭 첫 진입 코치마크 — 1회만. 화면 중앙 안내 (레이아웃 변경에 안전) */}
       {showCoach && (
