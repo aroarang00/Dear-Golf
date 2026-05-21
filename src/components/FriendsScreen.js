@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { C, F } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 
 // 친구 화면 — 내 프로필·설정은 MY 탭으로 이관, 친구 목록 전용.
 export function FriendsScreen({ navigation }) {
@@ -19,6 +20,7 @@ export function FriendsScreen({ navigation }) {
     setShowCoach(false);
     storage.save(STORAGE_KEYS.friendCoachDone, true);
   };
+  useAndroidBack(showCoach, dismissCoach); // 코치마크 떠 있을 때 뒤로가기 → 닫기
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>

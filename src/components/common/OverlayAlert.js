@@ -2,12 +2,15 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../../constants/colors';
+import { useAndroidBack } from '../../hooks/useAndroidBack';
 
 // 풀스크린 모달 위에서도 보이는 알럿/액션시트.
 // 네이티브 Modal이 아닌 오버레이 View로 띄워 모달 전환 충돌을 피한다.
 //   data: { title, message, buttons: [{ text, onPress, style }] }
 export function OverlayAlert({ data, onClose }) {
   const insets = useSafeAreaInsets();
+  // 안드로이드 뒤로가기 — 알럿이 떠 있으면 닫기만 하고 네비게이션으로 넘기지 않음
+  useAndroidBack(!!data, onClose);
   if (!data) return null;
   const buttons = data.buttons && data.buttons.length ? data.buttons : [{ text: '확인' }];
   const inRow = buttons.length <= 2;

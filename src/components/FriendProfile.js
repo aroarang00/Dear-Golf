@@ -8,6 +8,7 @@ import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { WhoLikedModal } from './common/WhoLikedModal';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 
 // 특별한 순간 타입 → 한글 라벨
 const SPECIAL_LABEL = { 'HOLE IN ONE': '홀인원', 'EAGLE': '이글', 'ALBATROSS': '알바트로스' };
@@ -75,6 +76,7 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
   const [likers, setLikers] = useState(null);   // 좋아요 누른 사람 목록 팝업
   const [optionsOpen, setOptionsOpen] = useState(false);   // 헤더 ⋯ 옵션
+  useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   if (!friend) return null;
 
   const handleOption = (fn) => () => { setOptionsOpen(false); fn && fn(); };

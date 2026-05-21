@@ -6,6 +6,7 @@ import { C, F } from '../constants/colors';
 import { HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { dS } from '../styles/dS';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -79,6 +80,7 @@ export function DiaryScreen({ route, navigation }) {
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
   const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
+  useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
   const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
