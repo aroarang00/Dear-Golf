@@ -204,7 +204,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
           {/* flexShrink:1 — 시트 maxHeight(92%)에 맞춰 스크롤뷰가 줄어들어 스크롤 가능해짐 */}
           <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
           <ScrollView
-            style={{ flex: 1 }}
+            style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

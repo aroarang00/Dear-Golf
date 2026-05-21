@@ -283,7 +283,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <View style={mS.handle} />
             </TouchableOpacity>
             <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
-            <ScrollView style={{ flex: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
+            <ScrollView style={{ flexShrink: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
               <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
               {/* 국내 / 해외 */}

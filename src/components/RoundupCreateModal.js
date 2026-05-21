@@ -121,7 +121,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             <View style={mS.handle} />
           </TouchableOpacity>
           <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
-          <ScrollView style={{ flex: 1 }}
+          <ScrollView style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
             {/* 타이틀 줄 — 우측에 명시적 ✕ 닫기 버튼 */}

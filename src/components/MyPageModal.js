@@ -198,7 +198,7 @@ export function MyPageModal({ visible, onClose }) {
           <View style={myS.sheet}>
             <View style={myS.handle} />
             <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
-            <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+            <ScrollView ref={scrollRef} style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
               <View style={myS.profileArea}>
                 <View style={myS.avatar}>
