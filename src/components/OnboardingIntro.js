@@ -25,7 +25,7 @@ function Feature({ icon, title, sub }) {
   );
 }
 
-// 8장 스와이프 인트로 — 기능 소개 + 명예의 전당 + 골프 친구 + 라운지 + 위치 권한 안내. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
+// 9장 스와이프 인트로 — 기능 소개 + 명예의 전당 + 골프 친구 + 라운지 + 코스 + 위치 권한 안내. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
 export function OnboardingIntro({ onDone }) {
   const insets = useSafeAreaInsets();
   const [idx, setIdx] = useState(0);
@@ -293,7 +293,38 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
-        {/* 7 — 위치 권한 안내 */}
+        {/* 7 — 코스 */}
+        <View style={{ width: SW, backgroundColor: '#2E4A3A' }}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
+            <Text style={{ fontSize: 38, marginBottom: 14 }}>🗺️</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 24, color: '#fff', fontWeight: '700', marginBottom: 10 }}>코스</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
+              전국 골프장을 찾아보세요{'\n'}100대 코스와 골퍼들의 생생한 평가까지
+            </Text>
+            <View style={{ gap: 16 }}>
+              {[
+                ['🔍', '전국 골프장 검색'],
+                ['🏆', '100대 코스 한눈에 보기'],
+                ['💬', '골퍼들이 남긴 코스 코멘트'],
+                ['🍴', '골프장 근처 맛집 정보'],
+              ].map(([icon, txt]) => (
+                <View key={txt} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)',
+                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                  }}>
+                    <Text style={{ fontSize: 17 }}>{icon}</Text>
+                  </View>
+                  <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 14, color: '#fff', fontWeight: '500' }}>{txt}</Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* 8 — 위치 권한 안내 */}
         <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
@@ -344,7 +375,7 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
-        {/* 8 — 시작 (팔레스카이 배경) */}
+        {/* 9 — 시작 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: 44, marginBottom: 14 }}>⛳</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 21, color: C.charcoal, fontWeight: '700' }}>지금 시작해보세요</Text>
@@ -361,7 +392,7 @@ export function OnboardingIntro({ onDone }) {
 
       {/* 하단 스와이프 인디케이터 */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: insets.bottom + 14 }}>
-        {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => (
           <View key={i} style={{
             width: idx === i ? 22 : 7, height: 7, borderRadius: 4,
             backgroundColor: idx === i ? C.burgundy : C.hairline,
