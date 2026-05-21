@@ -342,9 +342,26 @@ export function CourseLogTab({ avgRating, navigation }) {
             방문한 골프장 · {myCourses.length}곳
           </Text>
           {myCourses.length === 0 ? (
-            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>아직 등록된 코스가 없어요</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>지난 일정이 있거나 라운딩을 기록하면 모여요</Text>
+            <View style={{ marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
+              <Text style={{ fontSize: 30, marginBottom: 10 }}>⛳</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 6 }}>
+                다녀온 코스가 여기 모여요
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 19, marginBottom: 16 }}>
+                예정 라운딩을 추가하거나 과거에 다녀온 라운딩을 일정에 등록하면 — 따로 코스 기록을 하지 않아도 다녀온 골프장의 통계와 기록이 자동으로 모여요.
+              </Text>
+              <View style={{ gap: 12 }}>
+                {[
+                  ['🗓️', '예정·지난 라운딩을 일정에 등록하면 자동으로 집계돼요'],
+                  ['✈️', "해외 라운딩은 '해외' 탭에서 따로 모아 볼 수 있어요"],
+                  ['🏆', '다녀온 100대 코스를 체크하며 도전할 수 있어요'],
+                ].map(([icon, txt]) => (
+                  <View key={txt} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
+                    <Text style={{ fontSize: 14 }}>{icon}</Text>
+                    <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           ) : myCourses.map(c => {
             const rs = c.loc ? getRegionStyle(c.loc) : ETC_STYLE;
