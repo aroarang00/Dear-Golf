@@ -1,3 +1,6 @@
+// 요일 — JS Date.getDay() 인덱스 순서 (0=일 ~ 6=토)
+export const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
 export const SCHEDULES_INIT = [
   { id: '1', course: '제이드팰리스 골프클럽', date: '2026.05.15', day: '금', time: '07:30', members: 4, dDay: 10, weather: '맑음 18°', wind: '북동 3m/s', duration: '1시간 23분', courseLogId: '1' },
   { id: '2', course: '안성베네스트 CC',       date: '2026.05.22', day: '금', time: '08:00', members: 3, dDay: 17, weather: '구름 15°', wind: '서 2m/s',   duration: '1시간 45분', courseLogId: '2' },

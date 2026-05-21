@@ -4,7 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { C, F } from '../constants/colors';
-import { COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
+import { COURSE_TAGS, COURSE_TAG_COLORS, WEEKDAYS } from '../constants/data';
 import { searchGolfCourses } from '../utils/kakao';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
@@ -94,7 +94,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setCompanionInput('');
   };
 
-  const DAYS = ['일','월','화','수','목','금','토'];
+  const DAYS = WEEKDAYS;
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   const formatDay = (d) => DAYS[d.getDay()];
 

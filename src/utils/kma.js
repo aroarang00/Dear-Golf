@@ -2,6 +2,7 @@ import {
   KMA_SERVICE_KEY, KMA_SHORT_URL, KMA_MID_URL, KMA_LIVING_URL,
   dfsXyConv, locToMidRegion, locToAreaNo,
 } from '../constants/api';
+import { WEEKDAYS } from '../constants/data';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -307,7 +308,7 @@ export async function getCombinedForecast({ lat, lng, loc }) {
   };
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
+  const DAYS_KO = WEEKDAYS;
 
   for (let i = 0; i < 10; i++) {
     const d = new Date(today);

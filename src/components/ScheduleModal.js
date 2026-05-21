@@ -7,6 +7,7 @@ import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 import { mS } from '../styles/mS';
+import { WEEKDAYS } from '../constants/data';
 
 export function ScheduleModal({ visible, onClose, onSave, initial }) {
   // initial에 id가 있으면 기존 일정 수정, 없으면(날짜만 채워진 경우) 새 일정 추가
@@ -33,7 +34,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [selectedCity, setSelectedCity] = useState(null); // { name, enName, country, lat, lon }
   const cityDebounce = useRef(null);
 
-  const DAYS = ['일','월','화','수','목','금','토'];
+  const DAYS = WEEKDAYS;
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   const formatDay = (d) => DAYS[d.getDay()];
   const pad2 = (n) => String(n).padStart(2, '0');

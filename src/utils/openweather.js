@@ -4,6 +4,7 @@
 //    그 좌표로 현지 날씨를 호출한다.
 // =============================================================
 import { OPENWEATHER_API_KEY, OPENWEATHER_URL } from '../constants/api';
+import { WEEKDAYS } from '../constants/data';
 
 const GEO_URL = 'https://api.openweathermap.org/geo/1.0/direct';
 
@@ -42,7 +43,7 @@ export async function geocodeCity(query) {
 
 // 3시간 간격 예보 목록 → 일별 집계 (기상청 days 형식과 호환되게)
 function aggregateDays(list) {
-  const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+  const DAYS = WEEKDAYS;
   const todayKey = new Date().toISOString().slice(0, 10);
   const byDate = {};
   (list || []).forEach(it => {

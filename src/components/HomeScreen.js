@@ -6,7 +6,7 @@ import {
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
-import { COURSE_LOG, DIARY_DATA } from '../constants/data';
+import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
 import { getUserCourses } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { normalizeSchedules } from '../utils/helpers';
@@ -243,7 +243,7 @@ export function HomeScreen({ navigation }) {
     const currentLocationSchedule = {
       course: '현재 위치',
       date: dateStr,
-      day: ['일','월','화','수','목','금','토'][today.getDay()],
+      day: WEEKDAYS[today.getDay()],
       time: '--:--',
       members: 0,
       dDay: 0,

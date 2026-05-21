@@ -4,6 +4,7 @@ import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handl
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { C, F } from '../constants/colors';
+import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
@@ -15,7 +16,7 @@ import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlar
 import { syncRoundToCalendar, removeRoundFromCalendar, getCalendarChoice } from '../utils/deviceCalendar';
 import { CalendarPickerModal } from './CalendarPickerModal';
 
-const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const DAYS = WEEKDAYS;
 
 // 일정이 없을 때 빈 상태 뒤에 흐릿하게 깔리는 샘플 카드 (장식용 · 비활성)
 function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTxt, dashed, fade }) {

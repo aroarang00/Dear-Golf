@@ -6,13 +6,14 @@ import { searchGolfCourses } from '../utils/kakao';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { COMPANION_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, REGION_OPTIONS, regionFromAddress } from '../constants/roundup';
 import { mS } from '../styles/mS';
+import { WEEKDAYS } from '../constants/data';
 
 const SCOPES = [
   ['all', '전체공개'],
   ['friends', '친구공개'],
   ['select', '친구지정'],
 ];
-const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const DAYS = WEEKDAYS;
 
 // 라운딩 모집글 작성 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디
 export function RoundupCreateModal({ visible, onClose, onCreate }) {

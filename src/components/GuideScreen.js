@@ -8,7 +8,7 @@ import { UserContext } from '../contexts/UserContext';
 import { C, F } from '../constants/colors';
 import {
   FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG, DIARY_DATA,
-  RECOMMENDED_COURSES,
+  RECOMMENDED_COURSES, WEEKDAYS,
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses } from '../utils/userCourses';
@@ -175,7 +175,7 @@ export function GuideScreen({ route, navigation }) {
   const openCourseInfo = (course, tab) => {
     const today = new Date();
     const dateStr = `${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')}`;
-    const day = ['일','월','화','수','목','금','토'][today.getDay()];
+    const day = WEEKDAYS[today.getDay()];
     setCoursePopupSched({
       course: course.name,
       courseLogId: course._source !== 'user' ? course.id : undefined,
