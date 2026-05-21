@@ -152,7 +152,7 @@ export default function App() {
     <SchedulesProvider>
     <DiariesProvider>
     <NavigationContainer ref={navigationRef}>
-      <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
+      <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }} backBehavior="history">
         <Tab.Screen name="홈" component={HomeScreen} />
         <Tab.Screen name="라운지" component={LoungeScreen} />
         <Tab.Screen name="MY" component={DiaryScreen} />

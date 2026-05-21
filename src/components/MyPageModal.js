@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Modal, View, ScrollView, Text, TouchableOpacity, TextInput,
-  KeyboardAvoidingView, Platform, Alert, Linking,
+  Modal, View, Text, TouchableOpacity, TextInput,
+  Platform, Alert, Linking,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { showAppAlert } from './AppAlert';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
@@ -192,12 +193,12 @@ export function MyPageModal({ visible, onClose }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={myS.mask}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
           <View style={myS.sheet}>
             <View style={myS.handle} />
-            <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollView ref={scrollRef} showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled" bottomOffset={24}>
               <View style={myS.profileArea}>
                 <View style={myS.avatar}>
                   <Text style={myS.avatarTxt}>{nickname.charAt(0)}</Text>
@@ -591,10 +592,9 @@ export function MyPageModal({ visible, onClose }) {
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>Dear Golf v1.0.0</Text>
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </View>
         </View>
-      </KeyboardAvoidingView>
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
       <BlockManageScreen visible={blockManageOpen} onClose={() => setBlockManageOpen(false)} />
       {/* 라운딩 평가 미리보기 (개발용) */}
