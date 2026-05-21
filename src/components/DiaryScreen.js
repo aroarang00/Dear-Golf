@@ -173,17 +173,24 @@ export function DiaryScreen({ route, navigation }) {
       });
     } else if (type === 'diary-edit') {
       setDiaries(prev => prev.map(d => d.id === data.id ? { ...d, ...data } : d));
-      // 명예의 전당 동기화 — 홀 성취 카드(hof_<diaryId>)만 등재/갱신/해제
-      // (퍼스트 싱글 카드는 최초 1회 마일스톤이라 수정으로 건드리지 않음)
+      // 명예의 전당 동기화
       setHallOfFame(prev => {
         const holeId = 'hof_' + data.id;
-        const exists = prev.some(h => h.id === holeId);
+        const singleId = 'hof_single_' + data.id;
+        let next = prev;
+        // 홀 성취 카드(홀인원·이글·알바트로스) — special 값으로 등재/갱신/해제
+        const holeExists = next.some(h => h.id === holeId);
         if (data.special) {
-          return exists
-            ? prev.map(h => h.id === holeId ? buildHofEntry(data, data.id) : h)
-            : [buildHofEntry(data, data.id), ...prev];
+          next = holeExists
+            ? next.map(h => h.id === holeId ? buildHofEntry(data, data.id) : h)
+            : [buildHofEntry(data, data.id), ...next];
+        } else if (holeExists) {
+          next = next.filter(h => h.id !== holeId);
         }
-        return exists ? prev.filter(h => h.id !== holeId) : prev;
+        // 퍼스트 싱글 카드 — '자격'(최초 1회 마일스톤)은 건드리지 않고,
+        // 이미 등재된 카드면 골프장·날짜·동반자·메모 등 내용만 갱신
+        next = next.map(h => h.id === singleId ? buildSingleHofEntry(data, data.id) : h);
+        return next;
       });
     }
   };
