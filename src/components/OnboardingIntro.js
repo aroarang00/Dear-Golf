@@ -132,7 +132,7 @@ export function OnboardingIntro({ onDone }) {
             </View>
             <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, letterSpacing: 2, marginBottom: 3 }}>나의 라운딩 기록</Text>
-              <Text style={{ fontFamily: F.en, fontSize: 30, color: C.charcoal }}>Diary</Text>
+              <Text style={{ fontFamily: F.en, fontSize: 30, color: C.charcoal }}>MY</Text>
             </View>
             <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginTop: 18 }}>
               {[['라운딩', '24'], ['평균타', '92'], ['베스트', '78']].map(([l, v]) => (
