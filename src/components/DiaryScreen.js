@@ -320,7 +320,7 @@ export function DiaryScreen({ route, navigation }) {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Text style={{ fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '700' }}>{myName}</Text>
-              {/* 핸디 — 베스트 3개 평균. 탭하면 계산 방식 설명 */}
+              {/* 핸디 — 베스트 5개 평균. 탭하면 계산 방식 설명 */}
               <TouchableOpacity onPress={() => setHandicapInfoOpen(true)} activeOpacity={0.7}
                 style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '700' }}>핸디 {myHandicap ?? '—'}</Text>
