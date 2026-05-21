@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -168,7 +169,11 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
   if (!asModal) return content;
   return (
     <Modal visible={modalVisible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaProvider>{content}</SafeAreaProvider>
+      {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라
+          내부 제스처(캘린더 월 스와이프)가 동작하려면 여기서 다시 감싸야 함 */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>{content}</SafeAreaProvider>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
