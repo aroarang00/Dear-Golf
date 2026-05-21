@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { mS } from '../styles/mS';
 import { REGION_OPTIONS } from '../constants/roundup';
 
-const DAY_OPTIONS = [['weekend', '주말'], ['weekday', '평일'], ['any', '상관없음']];
+const DAY_OPTIONS = [['weekend', '주말'], ['weekday', '평일']];
 const REGION_CHIPS = REGION_OPTIONS.filter(([k]) => k !== 'all'); // 구체 지역만
 
 const fmtDate = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
@@ -15,24 +16,31 @@ const parseDate = (s) => {
   return new Date(y, (m || 1) - 1, d || 1);
 };
 
-// 라운지 맞춤 모집 알림 — 관심 지역·요일·특정 날짜 설정 시트
+// 라운지 맞춤 모집 알림 — 관심 지역·요일·특정 기간 설정 시트
 export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
+  const insets = useSafeAreaInsets();
   const [regions, setRegions] = useState([]);
-  const [dayType, setDayType] = useState('any');
-  const [date, setDate] = useState(null);
-  const [showPicker, setShowPicker] = useState(false);
+  const [days, setDays] = useState([]);
+  const [dateFrom, setDateFrom] = useState(null);
+  const [dateTo, setDateTo] = useState(null);
+  const [femaleOnly, setFemaleOnly] = useState(false);
+  const [showPicker, setShowPicker] = useState(null); // null | 'from' | 'to'
 
   useEffect(() => {
     if (visible) {
       setRegions(initial?.regions || []);
-      setDayType(initial?.dayType || 'any');
-      setDate(initial?.date || null);
-      setShowPicker(false);
+      setDays(initial?.days || []);
+      setDateFrom(initial?.dateFrom || null);
+      setDateTo(initial?.dateTo || null);
+      setFemaleOnly(!!initial?.femaleOnly);
+      setShowPicker(null);
     }
   }, [visible]);
 
   const toggleRegion = (k) =>
     setRegions(prev => (prev.includes(k) ? prev.filter(r => r !== k) : [...prev, k]));
+  const toggleDay = (k) =>
+    setDays(prev => (prev.includes(k) ? prev.filter(d => d !== k) : [...prev, k]));
 
   const sectionLabel = { fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, letterSpacing: 1, marginTop: 20, marginBottom: 10 };
 
@@ -40,7 +48,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={mS.sheet}>
+        <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
           <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
             <Text style={{ fontFamily: F.sys, fontSize: 17, fontWeight: '700', color: C.charcoal }}>맞춤 모집 알림</Text>
@@ -65,13 +73,13 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               })}
             </View>
 
-            {/* 요일 — 3택 */}
-            <Text style={sectionLabel}>요일</Text>
+            {/* 요일 — 다중 선택 (선택 안 하면 요일 무관) */}
+            <Text style={sectionLabel}>요일 (선택 안 하면 요일 무관)</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {DAY_OPTIONS.map(([k, l]) => {
-                const on = dayType === k;
+                const on = days.includes(k);
                 return (
-                  <TouchableOpacity key={k} onPress={() => setDayType(k)} activeOpacity={0.7}
+                  <TouchableOpacity key={k} onPress={() => toggleDay(k)} activeOpacity={0.7}
                     style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
                       backgroundColor: on ? C.burgundy : C.bgSecondary,
                       borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
@@ -82,38 +90,70 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               })}
             </View>
 
-            {/* 특정 날짜 — 선택 사항 */}
-            <Text style={sectionLabel}>특정 날짜 (선택 — 시간 나는 날이 있다면)</Text>
-            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => setShowPicker(true)} activeOpacity={0.7}
-                style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 10,
+            {/* 특정 기간 — 선택 사항 (시작~끝) */}
+            <Text style={sectionLabel}>특정 기간 (선택 — 시간 나는 날이 있다면)</Text>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => setShowPicker('from')} activeOpacity={0.7}
+                style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10,
                   backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: date ? C.charcoal : C.warmGrayLight }}>
-                  {date || '날짜 선택 안 함'}
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: dateFrom ? C.charcoal : C.warmGrayLight }}>
+                  {dateFrom || '시작 날짜'}
                 </Text>
               </TouchableOpacity>
-              {date && (
-                <TouchableOpacity onPress={() => setDate(null)} activeOpacity={0.7}
+              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>~</Text>
+              <TouchableOpacity onPress={() => setShowPicker('to')} activeOpacity={0.7}
+                style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10,
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: dateTo ? C.charcoal : C.warmGrayLight }}>
+                  {dateTo || '끝 날짜'}
+                </Text>
+              </TouchableOpacity>
+              {(dateFrom || dateTo) && (
+                <TouchableOpacity onPress={() => { setDateFrom(null); setDateTo(null); }} activeOpacity={0.7}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={{ paddingHorizontal: 10, paddingVertical: 8 }}>
+                  style={{ paddingHorizontal: 6, paddingVertical: 8 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>지우기</Text>
                 </TouchableOpacity>
               )}
             </View>
             {showPicker && (
               <DateTimePicker
-                value={parseDate(date)}
+                value={parseDate(showPicker === 'from' ? dateFrom : dateTo)}
                 mode="date"
-                minimumDate={new Date()}
+                display="spinner"
+                locale="ko"
+                minimumDate={showPicker === 'to' && dateFrom ? parseDate(dateFrom) : new Date()}
                 onChange={(e, d) => {
-                  setShowPicker(Platform.OS === 'ios');
-                  if (e.type === 'set' && d) setDate(fmtDate(d));
+                  setShowPicker(Platform.OS === 'ios' ? showPicker : null);
+                  if (e.type === 'set' && d) {
+                    const v = fmtDate(d);
+                    if (showPicker === 'from') {
+                      setDateFrom(v);
+                      if (dateTo && v > dateTo) setDateTo(v); // 시작이 끝보다 늦으면 끝도 맞춤
+                    } else {
+                      setDateTo(v);
+                    }
+                  }
                 }}
               />
             )}
 
+            {/* 여성 환영 모집만 */}
+            <Text style={sectionLabel}>동반자</Text>
+            <TouchableOpacity onPress={() => setFemaleOnly(v => !v)} activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10,
+                backgroundColor: femaleOnly ? C.burgundy : C.bgSecondary,
+                borderWidth: 0.5, borderColor: femaleOnly ? C.burgundy : C.hairline }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: femaleOnly ? '700' : '500',
+                color: femaleOnly ? C.butter : C.warmGray }}>여성 환영 모집만</Text>
+              <Text style={{ fontSize: 14, color: femaleOnly ? C.butter : C.warmGrayLight }}>
+                {femaleOnly ? '✓' : ''}
+              </Text>
+            </TouchableOpacity>
+
             {/* 저장 */}
-            <TouchableOpacity onPress={() => { onSave({ regions, dayType, date }); onClose(); }} activeOpacity={0.85}
+            <TouchableOpacity onPress={() => { onSave({ regions, days, dateFrom, dateTo, femaleOnly }); onClose(); }} activeOpacity={0.85}
               style={{ marginTop: 24, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>저장</Text>
             </TouchableOpacity>

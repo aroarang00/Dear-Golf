@@ -352,8 +352,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터 무시 (애초에 본인은 차단 못 함)
   const mineTab = posts.filter(p => p.author === '나' || joined[p.id] || applied[p.id] || waitlist[p.id]);
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
-  // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집
-  const matchTab = visiblePosts.filter(p => matchesRoundup(p, userProfile.roundupMatch));
+  // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
+  const matchTab = visiblePosts.filter(p => p.author !== '나' && matchesRoundup(p, userProfile.roundupMatch));
   const matchCount = matchTab.length;
   const hasMatch = hasRoundupMatch(userProfile.roundupMatch);
   const tabList = view === 'friend' ? friendTab : view === 'mine' ? mineTab

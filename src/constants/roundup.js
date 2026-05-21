@@ -80,26 +80,31 @@ export function waitlistRespondHours(dateStr) {
 // 맞춤 모집 — 사용자가 설정한 조건(roundupMatch)이 의미 있게 채워졌는지
 export function hasRoundupMatch(cfg) {
   if (!cfg) return false;
-  return (cfg.regions?.length > 0) || (cfg.dayType && cfg.dayType !== 'any') || !!cfg.date;
+  return (cfg.regions?.length > 0) || (cfg.days?.length > 0) || !!cfg.dateFrom || !!cfg.femaleOnly;
 }
 
 // 맞춤 모집 — 모집글이 사용자의 조건(roundupMatch)에 맞는지.
-// 지역 일치 AND (요일 일치 OR 특정 날짜 일치). 오픈형(날짜 미정)은 지역만 본다.
+// 지역·여성 조건 AND (요일 일치 OR 특정 기간 내). 오픈형(날짜 미정)은 요일/기간을 보지 않는다.
 export function matchesRoundup(post, cfg) {
   if (!post || !hasRoundupMatch(cfg)) return false;
   const regions = cfg.regions || [];
-  const dayType = cfg.dayType || 'any';
-  const date = cfg.date || null;
+  const days = cfg.days || [];
+  const dateFrom = cfg.dateFrom || null;
+  const dateTo = cfg.dateTo || dateFrom; // 끝 날짜 미지정 시 시작 날짜 하루
+  const femaleOnly = !!cfg.femaleOnly;
   // 지역 — 지정했으면 post.region이 포함돼야 함
   if (regions.length > 0 && (!post.region || !regions.includes(post.region))) return false;
-  // 오픈형(날짜 미정) — 지역만 통과하면 포함
+  // 여성 환영 — companion이 'female'인 모집만
+  if (femaleOnly && post.companion !== 'female') return false;
+  // 오픈형(날짜 미정) — 지역·여성 조건만 통과하면 포함
   if (post.type === 'open' || !post.date) return true;
-  // 확정형 — 요일 일치 또는 특정 날짜 일치
+  // 확정형 — 요일 일치 또는 특정 기간 내 (요일 미선택 시 요일 무관)
   const isWeekend = post.day === '토' || post.day === '일';
-  const dayMatch = dayType === 'any'
-    || (dayType === 'weekend' && isWeekend)
-    || (dayType === 'weekday' && !isWeekend);
-  const dateMatch = !!date && post.date === date;
+  const dayMatch = days.length === 0
+    || (days.includes('weekend') && isWeekend)
+    || (days.includes('weekday') && !isWeekend);
+  // 날짜 문자열 'YYYY.MM.DD'는 자릿수 고정이라 사전순 비교 = 날짜순 비교
+  const dateMatch = !!dateFrom && post.date >= dateFrom && post.date <= dateTo;
   return dayMatch || dateMatch;
 }
 
