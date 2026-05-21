@@ -389,7 +389,9 @@ export function DiaryScreen({ route, navigation }) {
               return y ? new Date(y, m - 1, day) >= cutoff : false;
             });
           } else if (filterKey === '특별한 순간') {
-            list = list.filter(d => d.special != null);
+            // 명예의 전당에 오른 기록 모두 — special(홀인원·이글 등) + 퍼스트 싱글
+            const hofIds = new Set(hallOfFame.map(h => h.diaryId).filter(Boolean));
+            list = list.filter(d => d.special != null || hofIds.has(d.id));
           }
           if (filterKey === '베스트순') {
             list = [...list].sort((a, b) => a.score - b.score);
