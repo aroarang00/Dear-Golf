@@ -24,7 +24,7 @@ export function FriendsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       {/* 헤더 — Friends 타이틀만 (내 프로필·설정은 MY 탭) */}
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 라이프</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 파트너</Text>
         <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 28, color: C.navy }}>Friends</Text>
       </View>
 

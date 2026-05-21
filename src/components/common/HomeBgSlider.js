@@ -22,7 +22,6 @@ const TIME_IMAGES = {
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
     U('https://images.unsplash.com/photo-1758190153146-a1507e2e000d'),
     U('https://images.unsplash.com/photo-1634140255781-e900c47ecf1f'),
-    U('https://images.unsplash.com/photo-1592919505780-303950717480'),
   ],
   lateAfternoon: [ // 늦은 오후 (16~19시) — 골든아워
     U('https://images.unsplash.com/photo-1709525617237-778500c895a8'),
@@ -55,10 +54,11 @@ function pickImage() {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// 현재 날씨 분류 (1시간 캐시) — 위치 권한 없으면 'clear'
+// 현재 날씨 분류 (1시간 캐시) — 위치 권한 없으면 'clear'. 반환: clear|cloudy|rain|wind
+// 홈 배경 + 홈 헤더의 날씨 이모지 버튼이 같은 캐시를 공유한다.
 const WX_KEY = '@dg_bg_currentwx_v2';
 const WX_TTL = 60 * 60 * 1000;
-async function getCurrentWxClass() {
+export async function getCurrentWxClass() {
   try {
     const raw = await AsyncStorage.getItem(WX_KEY);
     if (raw) { const c = JSON.parse(raw); if (c && Date.now() - c.ts < WX_TTL) return c.weather; }

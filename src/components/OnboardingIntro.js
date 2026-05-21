@@ -292,6 +292,11 @@ export function OnboardingIntro({ onDone }) {
                 {locStatus === 'granted' ? '✓ 위치 권한 허용됨' : '위치 권한 허용하기'}
               </Text>
             </TouchableOpacity>
+            {locStatus === 'idle' && (
+              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, textAlign: 'center', marginTop: 10, lineHeight: 16 }}>
+                팝업에서 '앱을 사용하는 동안 허용'을 선택하면{'\n'}앱을 켤 때마다 다시 묻지 않아요
+              </Text>
+            )}
             {locStatus === 'denied' && (
               <View style={{ marginTop: 12, alignItems: 'center' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.burgundy, textAlign: 'center', lineHeight: 17 }}>

@@ -13,7 +13,7 @@ import { normalizeSchedules } from '../utils/helpers';
 import { homeS } from '../styles/homeS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
-import { HomeBgSlider } from './common/HomeBgSlider';
+import { HomeBgSlider, getCurrentWxClass } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleModal } from './ScheduleModal';
@@ -52,6 +52,7 @@ export function HomeScreen({ navigation }) {
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [homeTopComment, setHomeTopComment] = useState(null);
+  const [wxEmoji, setWxEmoji] = useState('☀️'); // 헤더 현재 날씨 이모지
   const dDayRef = useRef(null);
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
@@ -68,6 +69,16 @@ export function HomeScreen({ navigation }) {
     const id = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(id);
   }, [loadDiaries]);
+
+  // 헤더 날씨 이모지 — 현재 날씨에 맞춰 표시 (홈 배경과 같은 캐시 공유)
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentWxClass().then(w => {
+      if (cancelled) return;
+      setWxEmoji({ clear: '☀️', cloudy: '⛅', rain: '🌧️', wind: '💨' }[w] || '☀️');
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // 홈 첫 진입 안내 툴팁 — 최초 1회만
   useEffect(() => {
@@ -324,61 +335,6 @@ export function HomeScreen({ navigation }) {
     }
   };
 
-  if (!next) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0a1e10' }}>
-        <StatusBar barStyle="light-content" />
-        <HomeBgSlider />
-        <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-          <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 10 : 0 }} />
-          <View style={homeS.hdr}>
-            <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={homeS.hdrTitle}>Dear Golf</Text>
-              <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontSize: 22, marginTop: 4 }}>☀️</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={homeS.hdrGreeting}>
-              안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
-            </Text>
-          </View>
-          <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
-            <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
-              <Text style={{ fontFamily: F.en, fontSize: 22, color: '#fff', marginBottom: 8, lineHeight: 30 }}>
-                Dear Golf에서{'\n'}첫 라운딩을 시작해보세요
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 18, marginBottom: 20 }}>
-                날씨 · 교통 · 코스 정보를{'\n'}한눈에 확인할 수 있어요
-              </Text>
-              <TouchableOpacity
-                style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}
-                activeOpacity={0.8}
-                onPress={() => setShowAddModal(true)}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </SafeAreaView>
-        <ScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleScheduleSave} />
-        <AlarmSetupModal
-          visible={!!pendingAlarmSchedule}
-          schedule={pendingAlarmSchedule}
-          onClose={() => setPendingAlarmSchedule(null)}
-        />
-        {/* 현재 위치 날씨 — 예정 일정이 없을 때도 ☀️ 버튼이 동작하도록 */}
-        <WeatherTransportPopup
-          visible={showWeatherPopup}
-          schedule={selectedSchedule}
-          schedules={schedules}
-          weatherOnly
-          onClose={() => setShowWeatherPopup(false)}
-        />
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: '#0a1e10' }}>
       <StatusBar barStyle="light-content" />
@@ -390,13 +346,15 @@ export function HomeScreen({ navigation }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={homeS.hdrTitle}>Dear Golf</Text>
             <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 22, marginTop: 4 }}>☀️</Text>
+              <Text style={{ fontSize: 22, marginTop: 4 }}>{wxEmoji}</Text>
             </TouchableOpacity>
           </View>
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
         </View>
+        {next ? (
+        <>
         <View style={{ flex: 1 }} />
         <View style={homeS.bottomArea}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 8 }}>
@@ -647,6 +605,26 @@ export function HomeScreen({ navigation }) {
           })()}
           <View style={{ height: 22 }} />
         </View>
+        </>
+        ) : (
+        <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
+          <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
+            <Text style={{ fontFamily: F.en, fontSize: 22, color: '#fff', marginBottom: 8, lineHeight: 30 }}>
+              Dear Golf에서{'\n'}첫 라운딩을 시작해보세요
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 18, marginBottom: 20 }}>
+              날씨 · 교통 · 코스 정보를{'\n'}한눈에 확인할 수 있어요
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}
+              activeOpacity={0.8}
+              onPress={() => setShowAddModal(true)}>
+              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        )}
       </SafeAreaView>
 
       <ScheduleSheetModal

@@ -38,3 +38,20 @@ export async function loginWithKakao() {
     };
   }
 }
+
+// 카카오 프로필 사진 URL만 다시 가져오기 — 이미 연동된 사용자가 사진을 카카오 것으로 되돌릴 때 사용.
+// 토큰이 살아있으면 getProfile()만, 만료됐으면 login() 후 재시도. 실패 시 null.
+export async function fetchKakaoProfileImage() {
+  const pick = (p) => p?.profileImageUrl || p?.thumbnailImageUrl || null;
+  try {
+    return pick(await getProfile());
+  } catch (e) {
+    try {
+      await login();
+      return pick(await getProfile());
+    } catch (e2) {
+      console.warn('[kakao] 프로필 이미지 가져오기 실패', e2?.message || e2);
+      return null;
+    }
+  }
+}

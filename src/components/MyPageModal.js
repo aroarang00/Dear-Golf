@@ -279,7 +279,7 @@ export function MyPageModal({ visible, onClose }) {
                     {/* 핸디 자동 계산 안내 — 수동 입력값은 기록 전 시작값 */}
                     <View style={{ backgroundColor: '#FBF3D3', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, lineHeight: 17 }}>
-                        💡 라운딩을 기록하면 핸디는 잘 친 라운드 위주로 자동 계산돼요. 아래 값은 기록이 없을 때 쓰는 시작값이에요.
+                        💡 라운딩 기록이 3개 모이면 핸디는 베스트 라운드 위주로 자동 계산돼요. 그 전까지는 아래 입력값을 사용해요.
                       </Text>
                     </View>
                     {[

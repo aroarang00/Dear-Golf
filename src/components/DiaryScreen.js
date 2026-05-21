@@ -20,6 +20,7 @@ import { MyPageModal } from './MyPageModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
+import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
@@ -237,7 +238,13 @@ export function DiaryScreen({ route, navigation }) {
   // 자체 오버레이 시트로 처리 — Modal 위에서 갤러리 피커 호출 시 전환 충돌 회피
   const avatarOptions = [
     { text: '갤러리에서 선택', onPress: async () => { const uri = await pickAvatarImage(); if (uri) persistProfile({ avatarUri: uri }); } },
-    { text: '카카오 프로필 가져오기 (준비 중)', onPress: () => showAppAlert('준비 중이에요', '카카오 프로필 연동은 곧 추가될 예정이에요.') },
+    ...(userProfile.kakaoLinked
+      ? [{ text: '카카오 프로필 사진 가져오기', onPress: async () => {
+          const uri = await fetchKakaoProfileImage();
+          if (uri) persistProfile({ avatarUri: uri });
+          else showAppAlert('가져오지 못했어요', '카카오 프로필 사진을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+        } }]
+      : []),
     ...(userProfile.avatarUri
       ? [{ text: '기본 이미지로 변경', danger: true, onPress: () => persistProfile({ avatarUri: null }) }]
       : []),

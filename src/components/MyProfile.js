@@ -11,6 +11,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
+import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { TrustGradeModal } from './common/TrustBadge';
 import { pickNames } from '../constants/roundup';
@@ -105,18 +106,24 @@ export function MyProfile({ visible, onClose }) {
     }
   };
 
-  // 아바타 변경 — 갤러리 / 카카오(준비 중) / 기본 이미지
+  // 아바타 변경 — 갤러리 / 카카오 프로필(연동 시) / 기본 이미지
   const changeAvatar = () => {
     const buttons = [
       {
         text: '갤러리에서 선택',
         onPress: async () => { const uri = await pickImage([1, 1]); if (uri) persist({ avatarUri: uri }); },
       },
-      {
-        text: '카카오 프로필 가져오기 (준비 중)',
-        onPress: () => showLocal('준비 중이에요', '카카오 프로필 연동은 곧 추가될 예정이에요.'),
-      },
     ];
+    if (userProfile.kakaoLinked) {
+      buttons.push({
+        text: '카카오 프로필 사진 가져오기',
+        onPress: async () => {
+          const uri = await fetchKakaoProfileImage();
+          if (uri) persist({ avatarUri: uri });
+          else showLocal('가져오지 못했어요', '카카오 프로필 사진을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+        },
+      });
+    }
     if (userProfile.avatarUri) {
       buttons.push({ text: '기본 이미지로 변경', style: 'destructive', onPress: () => persist({ avatarUri: null }) });
     }
