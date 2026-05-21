@@ -177,6 +177,7 @@ export const USER_PROFILE_INIT = {
   // 라운지 — 모르는 사람 모집 숨김. true면 '전체' 탭이 사라지고 친구 모집만 보임.
   hideStrangerRoundups: false,
   // 라운지 맞춤 모집 조건 — 새 모집글이 이 조건에 맞으면 라운지에서 알려줌(인앱).
-  // regions: 관심 지역 / days: 요일 다중(빈 배열=무관) / dateFrom~dateTo: 특정 기간 / femaleOnly: 여성 환영만
-  roundupMatch: { regions: [], days: [], dateFrom: null, dateTo: null, femaleOnly: false },
+  // regions: 관심 지역 / days: 요일 다중(빈 배열=무관) / dateFrom~dateTo: 특정 기간
+  // companion: 'female'(여성만)·'couple'(부부·커플)·null(상관없음)
+  roundupMatch: { regions: [], days: [], dateFrom: null, dateTo: null, companion: null },
 };

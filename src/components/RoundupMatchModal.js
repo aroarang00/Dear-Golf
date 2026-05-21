@@ -23,7 +23,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
   const [days, setDays] = useState([]);
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
-  const [femaleOnly, setFemaleOnly] = useState(false);
+  const [companion, setCompanion] = useState(null); // null | 'female' | 'couple'
   const [showPicker, setShowPicker] = useState(null); // null | 'from' | 'to'
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
       setDays(initial?.days || []);
       setDateFrom(initial?.dateFrom || null);
       setDateTo(initial?.dateTo || null);
-      setFemaleOnly(!!initial?.femaleOnly);
+      setCompanion(initial?.companion || null);
       setShowPicker(null);
     }
   }, [visible]);
@@ -138,22 +138,25 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               />
             )}
 
-            {/* 여성 환영 모집만 */}
-            <Text style={sectionLabel}>동반자</Text>
-            <TouchableOpacity onPress={() => setFemaleOnly(v => !v)} activeOpacity={0.7}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10,
-                backgroundColor: femaleOnly ? C.burgundy : C.bgSecondary,
-                borderWidth: 0.5, borderColor: femaleOnly ? C.burgundy : C.hairline }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: femaleOnly ? '700' : '500',
-                color: femaleOnly ? C.butter : C.warmGray }}>여성 환영 모집만</Text>
-              <Text style={{ fontSize: 14, color: femaleOnly ? C.butter : C.warmGrayLight }}>
-                {femaleOnly ? '✓' : ''}
-              </Text>
-            </TouchableOpacity>
+            {/* 동반자 구성 — 여성만 / 부부·커플 택1 */}
+            <Text style={sectionLabel}>동반자 (선택 안 하면 상관없음)</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[['female', '레이디만'], ['couple', '부부·커플']].map(([k, l]) => {
+                const on = companion === k;
+                return (
+                  <TouchableOpacity key={k} onPress={() => setCompanion(on ? null : k)} activeOpacity={0.7}
+                    style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
+                      backgroundColor: on ? C.burgundy : C.bgSecondary,
+                      borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: on ? '700' : '500',
+                      color: on ? C.butter : C.warmGray }}>{l}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {/* 저장 */}
-            <TouchableOpacity onPress={() => { onSave({ regions, days, dateFrom, dateTo, femaleOnly }); onClose(); }} activeOpacity={0.85}
+            <TouchableOpacity onPress={() => { onSave({ regions, days, dateFrom, dateTo, companion }); onClose(); }} activeOpacity={0.85}
               style={{ marginTop: 24, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>저장</Text>
             </TouchableOpacity>

@@ -80,23 +80,23 @@ export function waitlistRespondHours(dateStr) {
 // 맞춤 모집 — 사용자가 설정한 조건(roundupMatch)이 의미 있게 채워졌는지
 export function hasRoundupMatch(cfg) {
   if (!cfg) return false;
-  return (cfg.regions?.length > 0) || (cfg.days?.length > 0) || !!cfg.dateFrom || !!cfg.femaleOnly;
+  return (cfg.regions?.length > 0) || (cfg.days?.length > 0) || !!cfg.dateFrom || !!cfg.companion;
 }
 
 // 맞춤 모집 — 모집글이 사용자의 조건(roundupMatch)에 맞는지.
-// 지역·여성 조건 AND (요일 일치 OR 특정 기간 내). 오픈형(날짜 미정)은 요일/기간을 보지 않는다.
+// 지역·동반자 조건 AND (요일 일치 OR 특정 기간 내). 오픈형(날짜 미정)은 요일/기간을 보지 않는다.
 export function matchesRoundup(post, cfg) {
   if (!post || !hasRoundupMatch(cfg)) return false;
   const regions = cfg.regions || [];
   const days = cfg.days || [];
   const dateFrom = cfg.dateFrom || null;
   const dateTo = cfg.dateTo || dateFrom; // 끝 날짜 미지정 시 시작 날짜 하루
-  const femaleOnly = !!cfg.femaleOnly;
+  const companion = cfg.companion || null;
   // 지역 — 지정했으면 post.region이 포함돼야 함
   if (regions.length > 0 && (!post.region || !regions.includes(post.region))) return false;
-  // 여성 환영 — companion이 'female'인 모집만
-  if (femaleOnly && post.companion !== 'female') return false;
-  // 오픈형(날짜 미정) — 지역·여성 조건만 통과하면 포함
+  // 동반자 — 'female'(여성만)·'couple'(부부·커플) 지정 시 일치하는 모집만
+  if (companion && post.companion !== companion) return false;
+  // 오픈형(날짜 미정) — 지역·동반자 조건만 통과하면 포함
   if (post.type === 'open' || !post.date) return true;
   // 확정형 — 요일 일치 또는 특정 기간 내 (요일 미선택 시 요일 무관)
   const isWeekend = post.day === '토' || post.day === '일';
