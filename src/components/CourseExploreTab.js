@@ -213,8 +213,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         </View>
       </View>
 
-      {/* 코스 검색 안내 — 검색 전에만 */}
-      {!search.trim() && (
+      {/* 코스 검색 안내 — 첫 사용(최근 검색 기록이 아직 없을 때)에만 */}
+      {!search.trim() && recentCourses.length === 0 && (
         <View style={{ marginHorizontal: 16, marginBottom: 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 12, borderWidth: 0.5, borderColor: C.hairline }}>
           <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, lineHeight: 17 }}>
             💡 골프장을 검색해 탭하면 — 코스 정보·맛집·골퍼들의 코멘트를 한눈에 볼 수 있어요. 다녀온 코스라면 직접 생생한 코멘트를 남겨 다른 골퍼와 정보를 나눌 수도 있어요.
