@@ -46,6 +46,7 @@ export default function App() {
   const [kakaoDone, setKakaoDone] = useState(false);   // 온보딩 카카오 단계 완료/건너뜀
   const [kakaoSeed, setKakaoSeed] = useState({});      // 카카오에서 받은 닉네임·사진 — 프로필 입력 화면에 prefill
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [minSplashDone, setMinSplashDone] = useState(false); // 로딩 화면 최소 표시 시간
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
 
@@ -76,6 +77,12 @@ export default function App() {
     if (!profileLoaded) return;
     storage.save(STORAGE_KEYS.profile, userProfile);
   }, [userProfile, profileLoaded]);
+
+  // 로딩 화면이 너무 빨리 사라지지 않게 — 최소 1.6초는 브랜드 화면을 보여준다
+  useEffect(() => {
+    const t = setTimeout(() => setMinSplashDone(true), 1600);
+    return () => clearTimeout(t);
+  }, []);
 
   // 라운딩 알람을 탭하면 홈 탭(D-day 카드)으로 이동
   useEffect(() => {
@@ -116,7 +123,7 @@ export default function App() {
   };
 
   // 폰트 로드 실패해도(fontError) 시스템 폰트로 폴백하며 진행 — 앱이 멈추지 않게
-  if (!profileLoaded || (!fontsLoaded && !fontError)) {
+  if (!profileLoaded || (!fontsLoaded && !fontError) || !minSplashDone) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A3D52' }}>
         <Image source={require('./assets/splash-icon.png')}
