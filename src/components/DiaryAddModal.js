@@ -542,7 +542,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     ref={detailMemoRef}
                     style={{
                       fontFamily: F.sys, fontSize: 13,
-                      color: C.textPrimary, lineHeight: 22,
+                      color: C.textPrimary,
+                      // multiline TextInput에 lineHeight를 주면 첫 줄이 밀리는 버그가 있어 미지정
                       minHeight: 100, textAlignVertical: 'top',
                     }}
                     placeholder="그날의 라운딩을 자유롭게 남겨보세요"
