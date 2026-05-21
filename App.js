@@ -48,8 +48,11 @@ export default function App() {
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
 
-  // "Dear Golf" 워드마크용 이탤릭 폰트 (Lora Italic) — 번들 로드
-  const [fontsLoaded, fontError] = useFonts({ Lora_500Medium_Italic });
+  // 번들 폰트 — Pretendard(한글 본문, iOS·Android 통일) + Lora Italic("Dear Golf" 워드마크)
+  const [fontsLoaded, fontError] = useFonts({
+    Lora_500Medium_Italic,
+    Pretendard: require('./assets/fonts/PretendardVariable.ttf'),
+  });
 
   useEffect(() => {
     (async () => {

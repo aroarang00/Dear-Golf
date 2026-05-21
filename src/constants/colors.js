@@ -18,10 +18,10 @@ export const C = {
 
 // en: 영문·숫자 디스플레이 세리프 — iOS는 Georgia, Android는 내장 세리프(Noto Serif)
 // brand: "Dear Golf" 워드마크 전용 이탤릭 — 번들 폰트 Lora Italic (양 기기 동일, f 안 잘림)
-// serifKR / sys: 한글 헤더·본문 — 시스템 폰트
+// serifKR / sys: 한글 헤더·본문 — 번들 폰트 Pretendard (iOS·Android 동일하게 표시)
 export const F = {
   en: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }),
   brand: 'Lora_500Medium_Italic',
-  serifKR: '-apple-system',
-  sys: '-apple-system',
+  serifKR: 'Pretendard',
+  sys: 'Pretendard',
 };
