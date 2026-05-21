@@ -5,6 +5,8 @@ import { C, F } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { TrustGradeModal } from './common/TrustBadge';
+import { MannerGradeModal } from './common/MannerBadge';
+import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { WhoLikedModal } from './common/WhoLikedModal';
 
 // 특별한 순간 타입 → 한글 라벨
@@ -65,11 +67,22 @@ function FeedCard({ item, onShowLikers }) {
   );
 }
 
-// 친구 풀 프로필 — 프로필 / 통계 / 라운딩 피드
-export function FriendProfile({ friend, visible, onClose }) {
+// 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
+// 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
+export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, onHide, onDelete }) {
   const [gradeOpen, setGradeOpen] = useState(false);
+  const [mannerOpen, setMannerOpen] = useState(false);
+  const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
   const [likers, setLikers] = useState(null);   // 좋아요 누른 사람 목록 팝업
+  const [optionsOpen, setOptionsOpen] = useState(false);   // 헤더 ⋯ 옵션
   if (!friend) return null;
+
+  const handleOption = (fn) => () => { setOptionsOpen(false); fn && fn(); };
+  const options = [
+    { text: muted ? '🔔  알림 켜기' : '🔕  알림 끄기', onPress: handleOption(onToggleMute) },
+    { text: '🙈  친구 숨기기', onPress: handleOption(onHide) },
+    { text: '❌  친구 삭제', danger: true, onPress: handleOption(onDelete) },
+  ];
   const palette = friend.palette || { bg: '#C8D9E6', fg: '#1A3D52' };
   const stats = friend.stats || {};
   const grade = getTrustGrade(friend.hostedCount, friend.mannerScore);
@@ -79,78 +92,60 @@ export function FriendProfile({ friend, visible, onClose }) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
-          {/* 헤더 — 버터 */}
+          {/* 헤더 — 버터. 우측 ⋯ 옵션(알림·숨기기·삭제) */}
           <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
             </TouchableOpacity>
             <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>친구 프로필</Text>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity onPress={() => setOptionsOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.charcoal, fontWeight: '700', lineHeight: 22 }}>⋯</Text>
+            </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             {/* 프로필 — 인스타그램 스타일: 아바타(좌) + 이름·핸디·등급(우) */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
               paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12, backgroundColor: C.bgPrimary }}>
-              <View style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: palette.bg,
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
                 alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 42, color: palette.fg, fontWeight: '700' }}>{friend.name.charAt(0)}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 32, color: palette.fg, fontWeight: '700' }}>{friend.name.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 20, color: C.charcoal, fontWeight: '700' }}>{friend.name}</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <View style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>핸디 {stats.avg ?? '—'}</Text>
-                  </View>
-                  {/* 활동 등급 — 탭하면 등급 설명 */}
+                {/* 이름 + 핸디 — 같은 줄 */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 20, color: C.charcoal, fontWeight: '700' }}>{friend.name}</Text>
+                  <TouchableOpacity onPress={() => setHandicapInfoOpen(true)} activeOpacity={0.7}
+                    style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '700' }}>핸디 {stats.avg ?? '—'}</Text>
+                  </TouchableOpacity>
+                </View>
+                {/* 신뢰 + 매너 — 이름 아래 줄 */}
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                   <TouchableOpacity onPress={() => setGradeOpen(true)} activeOpacity={0.7}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
-                      borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
-                    <Text style={{ fontSize: 13 }}>{grade.emoji}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, fontWeight: '700' }}>{grade.label}</Text>
+                      borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ fontSize: 12 }}>{grade.emoji}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '700' }}>{grade.label}</Text>
                   </TouchableOpacity>
-                  {/* 매너 등급 */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
-                    borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
-                    <Text style={{ fontSize: 13 }}>{manner.emoji}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: manner.color, fontWeight: '700' }}>{manner.label}</Text>
-                  </View>
-                  <View style={{ backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline,
-                    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>함께 {friend.roundsTogether}회</Text>
-                  </View>
+                  <TouchableOpacity onPress={() => setMannerOpen(true)} activeOpacity={0.7}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
+                      borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ fontSize: 12 }}>{manner.emoji}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: manner.color, fontWeight: '700' }}>{manner.label}</Text>
+                  </TouchableOpacity>
                 </View>
-                {/* 주최 · 참석 횟수 */}
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 8 }}>
-                  주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{friend.hostedCount || 0}</Text>회
-                  {'  ·  '}
-                  참석 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{friend.attendedCount || 0}</Text>회
+                {/* 함께 N회 — 주최·참석은 신뢰/매너로 짐작 가능하므로 비공개 */}
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 6 }}>
+                  함께 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{friend.roundsTogether || 0}</Text>회
                 </Text>
               </View>
             </View>
 
-            {/* 통계 */}
-            <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 18, gap: 10 }}>
-              {[
-                { label: '라운딩', value: stats.rounds },
-                { label: '평균타', value: stats.avg, hi: true },
-                { label: '베스트', value: stats.best },
-              ].map((st, i) => (
-                <View key={i} style={{
-                  flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
-                  backgroundColor: st.hi ? '#F5F0E4' : C.bgSecondary,
-                  borderWidth: st.hi ? 1 : 0.5, borderColor: st.hi ? C.burgundy : C.hairline,
-                }}>
-                  <Text style={{ fontFamily: F.en, fontSize: 22, color: st.hi ? C.burgundy : C.charcoal, fontWeight: '700' }}>
-                    {st.value != null ? st.value : '—'}
-                  </Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{st.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* 라운딩 피드 */}
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginHorizontal: 16, marginBottom: 10 }}>
+            {/* 라운딩 피드 — 평균타(핸디)는 명함의 핸디 뱃지로 노출 */}
+            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 12, marginBottom: 10 }}>
               라운딩 피드
             </Text>
             <View style={{ paddingHorizontal: 16 }}>
@@ -167,6 +162,38 @@ export function FriendProfile({ friend, visible, onClose }) {
           {/* 신뢰 등급 설명 팝업 */}
           <TrustGradeModal visible={gradeOpen} highlightKey={grade.key}
             onClose={() => setGradeOpen(false)} />
+
+          {/* 매너 등급 설명 팝업 */}
+          <MannerGradeModal visible={mannerOpen} highlightKey={manner.key}
+            onClose={() => setMannerOpen(false)} />
+
+          {/* 핸디 계산 방식 설명 */}
+          <HandicapInfoModal visible={handicapInfoOpen} onClose={() => setHandicapInfoOpen(false)} />
+
+          {/* 헤더 ⋯ 옵션 — 자체 오버레이 (Modal 위 Modal 충돌 회피) */}
+          {optionsOpen && (
+            <TouchableOpacity activeOpacity={1} onPress={() => setOptionsOpen(false)}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
+              <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700', textAlign: 'center', paddingTop: 16, paddingBottom: 10 }}>
+                  {friend.name}
+                </Text>
+                {options.map((opt, i) => (
+                  <TouchableOpacity key={i} activeOpacity={0.6} onPress={opt.onPress}
+                    style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: opt.danger ? '#D32F2F' : C.charcoal, textAlign: 'center' }}>
+                      {opt.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity activeOpacity={0.6} onPress={() => setOptionsOpen(false)}
+                  style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray, textAlign: 'center' }}>취소</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* 좋아요 누른 사람 */}
           <WhoLikedModal names={likers} onClose={() => setLikers(null)} />

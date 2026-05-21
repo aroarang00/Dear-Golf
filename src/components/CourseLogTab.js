@@ -24,9 +24,6 @@ const OVERSEAS_STYLE = { bg: '#C8D9E6', fg: C.navy };
 // 위치 정보가 없을 때
 const ETC_STYLE = { bg: '#B8B3AB', fg: '#fff', label: '기타' };
 
-// MY 헤더와 동일한 네이비
-const NAVY = C.navy;
-
 function getRegionStyle(loc) {
   if (!loc) return REGION_STYLE.other;
   const first = loc.split(' ')[0];
@@ -132,7 +129,7 @@ function UnrecordedCard({ c, rs, onAdd }) {
         <RegionTag rs={rs} />
       </View>
       <TouchableOpacity onPress={onAdd} activeOpacity={0.8}
-        style={{ backgroundColor: NAVY, borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
+        style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>✏️ 기록 추가하기 →</Text>
       </TouchableOpacity>
     </View>
@@ -295,7 +292,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   // 기록 없는 카드 → 해당 골프장·날짜로 다이어리 기록 입력 화면 이동
   const handleAddRecord = (c) => {
     if (!navigation) return;
-    navigation.navigate('다이어리', {
+    navigation.navigate('MY', {
       openAddModal: true,
       addDate: c.latestDate || undefined,
       addCourse: c.name,

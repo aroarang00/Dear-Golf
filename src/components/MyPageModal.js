@@ -294,6 +294,12 @@ export function MyPageModal({ visible, onClose }) {
                 </View>
                 {editingStats ? (
                   <View>
+                    {/* 핸디 자동 계산 안내 — 수동 입력값은 기록 전 시작값 */}
+                    <View style={{ backgroundColor: '#FBF3D3', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, lineHeight: 17 }}>
+                        💡 라운딩을 기록하면 핸디는 잘 친 라운드 위주로 자동 계산돼요. 아래 값은 기록이 없을 때 쓰는 시작값이에요.
+                      </Text>
+                    </View>
                     {[
                       { label: '평균 타수', value: avgScore, set: setAvgScore, ph: '92' },
                       { label: '베스트 스코어', value: lifeBest, set: setLifeBest, ph: '78' },

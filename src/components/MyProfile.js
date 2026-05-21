@@ -10,41 +10,13 @@ import { UserContext } from '../contexts/UserContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
+import { calcHandicap } from '../utils/handicap';
+import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { TrustGradeModal } from './common/TrustBadge';
 import { pickNames } from '../constants/roundup';
 
 // 특별한 순간 타입 → 한글 라벨
 const SPECIAL_LABEL = { 'HOLE IN ONE': '홀인원', 'EAGLE': '이글', 'ALBATROSS': '알바트로스' };
-
-// 라운딩 피드 1건 — 특별한 순간이면 강조, 내 기록에 받은 좋아요 표시
-// "친구에게 비공개" 배지 — 공개 설정이 꺼진 섹션에 표시
-function HiddenBadge() {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFEADC', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-      <Text style={{ fontSize: 9 }}>🔒</Text>
-      <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray, fontWeight: '600' }}>친구에게 비공개</Text>
-    </View>
-  );
-}
-
-// 공개 설정 토글 한 줄
-function PrivacyRow({ icon, label, sub, on, onToggle }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
-      <Text style={{ fontSize: 16, marginRight: 10 }}>{icon}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{label}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>{sub}</Text>
-      </View>
-      <TouchableOpacity onPress={onToggle} activeOpacity={0.8}
-        style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center',
-          backgroundColor: on ? C.burgundy : C.hairline }}>
-        <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff',
-          alignSelf: on ? 'flex-end' : 'flex-start' }} />
-      </TouchableOpacity>
-    </View>
-  );
-}
 
 // 내 프로필 전용 알럿/액션시트 — 네이티브 Modal이 아닌 오버레이 View로 띄운다.
 // (Modal로 띄우면 닫히는 도중 네이티브 사진 피커와 전환이 충돌해 피커가 안 뜬다)
@@ -97,9 +69,9 @@ export function MyProfile({ visible, onClose }) {
   const { diaries } = React.useContext(DiariesContext);
   const [editing, setEditing] = useState(false);
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
+  const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
   const [alert, setAlert] = useState(null);   // 프로필 내 알럿/액션시트
 
-  const privacy = userProfile.privacy || { stats: true, feed: true, phone: false };
   const myGrade = getTrustGrade(userProfile.hostedCount || 0, userProfile.mannerScore || 0);
   const myManner = getMannerGrade(userProfile.mannerScore || 70);
 
@@ -114,10 +86,6 @@ export function MyProfile({ visible, onClose }) {
     const updated = { ...userProfile, ...patch };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
-  };
-
-  const togglePrivacy = (key) => {
-    persist({ privacy: { ...privacy, [key]: !privacy[key] } });
   };
 
   // 갤러리에서 이미지 선택 — aspect: [w,h] 자르기 비율.
@@ -159,17 +127,8 @@ export function MyProfile({ visible, onClose }) {
   const name = userProfile.nickname || '나';
   const initial = name.charAt(0);
   const myDiaries = diaries || [];
-  const rounds = userProfile.totalRounds || myDiaries.length;
-  const avg = userProfile.avgScore
-    || (myDiaries.length ? Math.round(myDiaries.reduce((s, d) => s + d.score, 0) / myDiaries.length) : 0);
-  const best = userProfile.lifeBest
-    || (myDiaries.length ? Math.min(...myDiaries.map(d => d.score)) : 0);
-
-  const statBoxes = [
-    { label: '총 라운딩', value: rounds },
-    { label: '평균타', value: avg, hi: true },
-    { label: '베스트', value: best },
-  ];
+  // 핸디 — 베스트 3개 라운드 평균. 기록 없으면 수동 입력값 폴백
+  const avg = calcHandicap(myDiaries, userProfile.avgScore);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -219,12 +178,13 @@ export function MyProfile({ visible, onClose }) {
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 20, color: C.charcoal, fontWeight: '700' }}>{name}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {/* 핸디 — 마이페이지 평균타 값을 핸디로 사용 */}
-                  <View style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
+                  {/* 핸디 — 베스트 3개 라운드 평균. 탭하면 계산 방식 설명 */}
+                  <TouchableOpacity onPress={() => setHandicapInfoOpen(true)} activeOpacity={0.7}
+                    style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>
-                      핸디 {avg}
+                      핸디 {avg ?? '—'}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                   {/* 활동 등급 — 탭하면 등급 설명 */}
                   <TouchableOpacity onPress={() => setGradeModalOpen(true)} activeOpacity={0.7}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
@@ -253,52 +213,16 @@ export function MyProfile({ visible, onClose }) {
               </View>
             </View>
 
-            {/* 공개 설정 — 편집 모드에서만 표시 (한 번 설정하면 잘 안 바꾸는 항목) */}
-            {editing && (
-              <View style={{ marginTop: 14, marginHorizontal: 16, backgroundColor: C.bgSecondary,
-                borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 16, paddingVertical: 14 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5 }}>친구에게 공개</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
-                  친구가 내 프로필을 볼 때 보이는 항목을 정할 수 있어요.
-                </Text>
-                <View style={{ height: 8 }} />
-                <PrivacyRow icon="📊" label="통계 공개" sub="평균타 · 베스트 · 라운딩 수"
-                  on={privacy.stats} onToggle={() => togglePrivacy('stats')} />
-                <View style={{ height: 0.5, backgroundColor: C.hairline }} />
-                <PrivacyRow icon="⛳" label="라운딩 피드 공개" sub="최근 라운딩 기록"
-                  on={privacy.feed} onToggle={() => togglePrivacy('feed')} />
-                <View style={{ height: 0.5, backgroundColor: C.hairline }} />
-                <PrivacyRow icon="📱" label="전화번호 공개" sub={userProfile.phone || '설정 > 내 정보에서 입력'}
-                  on={privacy.phone} onToggle={() => togglePrivacy('phone')} />
-              </View>
-            )}
-
-            {/* 통계 */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 8, marginBottom: 10 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5 }}>통계</Text>
-              <View style={{ flex: 1 }} />
-              {!privacy.stats && <HiddenBadge />}
-            </View>
-            <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 10, opacity: privacy.stats ? 1 : 0.45 }}>
-              {statBoxes.map((st, i) => (
-                <View key={i} style={{
-                  flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
-                  backgroundColor: st.hi ? '#F5F0E4' : C.bgSecondary,
-                  borderWidth: st.hi ? 1 : 0.5, borderColor: st.hi ? C.burgundy : C.hairline,
-                }}>
-                  <Text style={{ fontFamily: F.en, fontSize: 22, color: st.hi ? C.burgundy : C.charcoal, fontWeight: '700' }}>
-                    {st.value != null ? st.value : '—'}
-                  </Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{st.label}</Text>
-                </View>
-              ))}
-            </View>
+            {/* 통계 박스 제거 — 친구에겐 평균타(핸디)만 공개. 명함의 '핸디 N' 뱃지로 노출 */}
 
           </ScrollView>
 
           {/* 신뢰 등급 설명 팝업 */}
           <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key}
             onClose={() => setGradeModalOpen(false)} />
+
+          {/* 핸디 계산 방식 설명 */}
+          <HandicapInfoModal visible={handicapInfoOpen} onClose={() => setHandicapInfoOpen(false)} />
         </SafeAreaView>
 
         {/* 사진 변경 액션시트 / 알럿 — 화면 전체 위에 오버레이 */}

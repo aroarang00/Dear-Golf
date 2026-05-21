@@ -432,7 +432,7 @@ export function HomeScreen({ navigation }) {
                   {/* 기록 유도 박스 */}
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => navigation.navigate('다이어리', { openAddModal: true })}
+                    onPress={() => navigation.navigate('MY', { openAddModal: true })}
                     style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '600' }}>기록 남기기 →</Text>
@@ -586,7 +586,7 @@ export function HomeScreen({ navigation }) {
                       <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
                       <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => navigation.navigate('다이어리', { openAddModal: true })}
+                        onPress={() => navigation.navigate('MY', { openAddModal: true })}
                         style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                         <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8' }}>메모 남기기 →</Text>
                       </TouchableOpacity>

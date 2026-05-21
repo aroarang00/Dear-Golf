@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { C, F } from '../constants/colors';
 import { HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -8,12 +9,20 @@ import { dS } from '../styles/dS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
+import { showAppAlert } from './AppAlert';
 import { HallOfFameCard } from './HallOfFameCard';
 import { ShareMomentModal } from './ShareMomentModal';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
 import { GolfLedgerModal } from './GolfLedgerModal';
+import { MyPageModal } from './MyPageModal';
+import { getTrustGrade } from '../constants/trustGrade';
+import { getMannerGrade } from '../constants/mannerGrade';
+import { calcHandicap } from '../utils/handicap';
+import { TrustGradeModal } from './common/TrustBadge';
+import { MannerGradeModal } from './common/MannerBadge';
+import { HandicapInfoModal } from './common/HandicapInfoModal';
 
 // 빈 상태 예시 카드용 더미 데이터 (실제 DiaryCard 컴포넌트로 렌더)
 const SAMPLE_DIARY = {
@@ -56,12 +65,18 @@ function buildSingleHofEntry(data, diaryId) {
 }
 
 export function DiaryScreen({ route, navigation }) {
-  const { userProfile } = React.useContext(UserContext);
+  const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { setSchedules } = React.useContext(SchedulesContext);
   const { diaries, setDiaries } = React.useContext(DiariesContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
+  const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
+  const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
+  const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
+  const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
+  const [statsExpanded, setStatsExpanded] = useState(true); // 통계 박스 펼침 (기본 펼침, 검색 토글과 독립)
+  const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
@@ -202,27 +217,146 @@ export function DiaryScreen({ route, navigation }) {
     }}
     onDelete={handleDeleteDiary} />;
 
+  // 프로필 사진 변경 — 갤러리·카카오·기본
+  const persistProfile = (patch) => {
+    const updated = { ...userProfile, ...patch };
+    setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
+  };
+  const pickAvatarImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      });
+      return result.canceled ? null : result.assets[0].uri;
+    } catch (e) {
+      console.warn('[DiaryScreen] 이미지 선택 오류', e?.message);
+      return null;
+    }
+  };
+  // 자체 오버레이 시트로 처리 — Modal 위에서 갤러리 피커 호출 시 전환 충돌 회피
+  const avatarOptions = [
+    { text: '갤러리에서 선택', onPress: async () => { const uri = await pickAvatarImage(); if (uri) persistProfile({ avatarUri: uri }); } },
+    { text: '카카오 프로필 가져오기 (준비 중)', onPress: () => showAppAlert('준비 중이에요', '카카오 프로필 연동은 곧 추가될 예정이에요.') },
+    ...(userProfile.avatarUri
+      ? [{ text: '기본 이미지로 변경', danger: true, onPress: () => persistProfile({ avatarUri: null }) }]
+      : []),
+  ];
+
+  // 명함·통계용 값
+  const myName = userProfile.nickname || '나';
+  const myInitial = myName.charAt(0);
+  const myGrade = getTrustGrade(userProfile.hostedCount || 0, userProfile.mannerScore || 0);
+  const myManner = getMannerGrade(userProfile.mannerScore || 70);
+  const myHandicap = calcHandicap(diaries, userProfile.avgScore);
+  // 통계 박스 — 기록 있으면 다이어리 자동 집계, 하나도 없으면 수동 입력값 폴백
+  const hasRecords = diaries.length > 0;
+  const totalRounds = hasRecords ? diaries.length : (userProfile.totalRounds || null);
+  const avgScore = hasRecords
+    ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length)
+    : (userProfile.avgScore || null);
+  const bestScore = hasRecords
+    ? Math.min(...diaries.map(d => d.score))
+    : (userProfile.lifeBest || null);
+  const statBoxes = [
+    { label: '총 라운딩', value: totalRounds },
+    { label: '평균타', value: avgScore, hi: true },
+    { label: '베스트', value: bestScore },
+  ];
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      <View style={{ backgroundColor: C.warmGray, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 2 }}>나의 골프 이야기</Text>
-          <Text style={{ fontFamily: F.en, fontSize: 32, color: C.butter, fontStyle: 'italic', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Diary</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {/* 골프 가계부 — 헤더 톤에 맞춘 투명 버튼 */}
+      {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
+        <View style={{ position: 'absolute', top: 14, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
-            style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
-              borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.92)', fontWeight: '600' }}>📒 골프 가계부</Text>
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 18 }}>💰</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.7}
-            style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#F5E6A8', alignItems: 'center', justifyContent: 'center' }}>
-            {/* + 아이콘 — 얇은 선 2개로 원 중앙에 정확히 배치 */}
-            <View style={{ width: 14, height: 2, borderRadius: 1, backgroundColor: '#3D3935' }} />
-            <View style={{ position: 'absolute', width: 2, height: 14, borderRadius: 1, backgroundColor: '#3D3935' }} />
+          <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 18 }}>⚙️</Text>
           </TouchableOpacity>
         </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingRight: 80 }}>
+          {/* 아바타 — 탭하면 사진 변경 액션시트 */}
+          <View>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
+              style={{ width: 80, height: 80, borderRadius: 40,
+                backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {userProfile.avatarUri ? (
+                <Image source={{ uri: userProfile.avatarUri }} style={{ width: '100%', height: '100%' }} />
+              ) : (
+                <Text style={{ fontFamily: F.en, fontSize: 32, color: '#fff' }}>{myInitial}</Text>
+              )}
+            </TouchableOpacity>
+            <View pointerEvents="none" style={{ position: 'absolute', right: -2, bottom: -2,
+              width: 26, height: 26, borderRadius: 13, backgroundColor: C.charcoal,
+              borderWidth: 2, borderColor: C.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 12 }}>📷</Text>
+            </View>
+          </View>
+          {/* 닉네임·핸디 / 신뢰·매너 등급 / 주최·참석 — 3단 */}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '700' }}>{myName}</Text>
+              {/* 핸디 — 베스트 3개 평균. 탭하면 계산 방식 설명 */}
+              <TouchableOpacity onPress={() => setHandicapInfoOpen(true)} activeOpacity={0.7}
+                style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '700' }}>핸디 {myHandicap ?? '—'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+              <TouchableOpacity onPress={() => setGradeModalOpen(true)} activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
+                  borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12 }}>{myGrade.emoji}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '700' }}>{myGrade.label}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setMannerModalOpen(true)} activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
+                  borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12 }}>{myManner.emoji}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: myManner.color, fontWeight: '700' }}>{myManner.label}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 6 }}>
+              주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{userProfile.hostedCount || 0}</Text>회
+              {'  ·  '}
+              참석 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{userProfile.attendedCount || 0}</Text>회
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 통계 토글 — 검색 토글과 완전히 독립. 기본 펼침 */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
+        {statsExpanded && (
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
+            {statBoxes.map((st, i) => (
+              <View key={i} style={{
+                flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12,
+                backgroundColor: st.hi ? '#F5F0E4' : C.bgSecondary,
+                borderWidth: st.hi ? 1 : 0.5, borderColor: st.hi ? C.burgundy : C.hairline,
+              }}>
+                <Text style={{ fontFamily: F.en, fontSize: 20, color: st.hi ? C.burgundy : C.charcoal, fontWeight: '700' }}>
+                  {st.value != null ? st.value : '—'}
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{st.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        <TouchableOpacity onPress={() => setStatsExpanded(v => !v)} activeOpacity={0.7}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 12 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, fontWeight: '600' }}>
+            통계 {statsExpanded ? '접기' : '펼치기'}
+          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: 9, color: C.warmGrayLight }}>{statsExpanded ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
       </View>
 
       {(() => {
@@ -383,9 +517,50 @@ export function DiaryScreen({ route, navigation }) {
         );
       })()}
 
+      {/* + 다이어리 추가 — 우하단 FAB */}
+      <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.85}
+        style={{ position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28,
+          backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center',
+          shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
+        <View style={{ width: 18, height: 2.5, borderRadius: 1, backgroundColor: '#fff' }} />
+        <View style={{ position: 'absolute', width: 2.5, height: 18, borderRadius: 1, backgroundColor: '#fff' }} />
+      </TouchableOpacity>
+
       <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} initial={addSeed} />
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
+      <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
+      <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key} onClose={() => setGradeModalOpen(false)} />
+      <MannerGradeModal visible={mannerModalOpen} highlightKey={myManner.key} onClose={() => setMannerModalOpen(false)} />
+      <HandicapInfoModal visible={handicapInfoOpen} onClose={() => setHandicapInfoOpen(false)} />
+
+      {/* 프로필 사진 변경 시트 — 자체 오버레이 (Modal 전환 충돌 회피) */}
+      {avatarSheetOpen && (
+        <TouchableOpacity activeOpacity={1} onPress={() => setAvatarSheetOpen(false)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 16, overflow: 'hidden' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, fontWeight: '700', textAlign: 'center', paddingTop: 16, paddingBottom: 12 }}>
+              프로필 사진
+            </Text>
+            {avatarOptions.map((opt, i) => (
+              <TouchableOpacity key={i} activeOpacity={0.6}
+                onPress={() => { setAvatarSheetOpen(false); opt.onPress(); }}
+                style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline,
+                  backgroundColor: i === 0 ? '#FBF3D3' : 'transparent' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 14, fontWeight: i === 0 ? '700' : '500',
+                  color: opt.danger ? C.warmGray : C.charcoal, textAlign: 'center' }}>
+                  {opt.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity activeOpacity={0.6} onPress={() => setAvatarSheetOpen(false)}
+              style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGrayLight, textAlign: 'center' }}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }

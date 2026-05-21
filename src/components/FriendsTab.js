@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Text, TextInput, TouchableOpacity, Modal } from 'react-native';
+import { View, ScrollView, Text, TextInput, TouchableOpacity } from 'react-native';
 import { C, F } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
+import { FriendFinder } from './FriendFinder';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { showAppAlert } from './AppAlert';
 import { UserContext } from '../contexts/UserContext';
+
+// 친구 찾기에서 받은 후보(간단 필드) → 친구 목록 객체로 변환
+const personToFriend = (p) => ({
+  id: p.id, name: p.name, style: '', roundsTogether: 0,
+  hostedCount: p.hostedCount || 0, attendedCount: p.attendedCount || 0,
+  mannerScore: p.mannerScore || 70,
+  recent: null,
+  stats: { rounds: 0, avg: p.avg ?? null, best: null },
+  feed: [],
+});
 
 const AVATARS = [
   { bg: '#C8D9E6', fg: '#1A3D52' },
@@ -99,9 +110,14 @@ export function FriendsTab() {
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [profileFriend, setProfileFriend] = useState(null);
-  const [optionTarget, setOptionTarget] = useState(null);
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
+  const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
+  const [sentRequests, setSentRequests] = useState([]);   // 보낸 신청 — 후보 id 배열
+  const [receivedRequests, setReceivedRequests] = useState([   // 받은 신청 (더미)
+    { id: 'r1', name: '문하린', hostedCount: 9, attendedCount: 12, mannerScore: 87, avg: 94 },
+    { id: 'r2', name: '배수지', hostedCount: 3, attendedCount: 7, mannerScore: 79, avg: 99 },
+  ]);
 
   // 차단된 사용자는 친구 탭에서 자동 숨김 — 친구 숨김(hidden)과 차단(blockedUsers) 통합 필터
   const blockedIds = userProfile?.blockedUsers || [];
@@ -112,14 +128,24 @@ export function FriendsTab() {
   const hiddenFriends = friends.filter(f => hidden[f.id] && !isBlocked(f));
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
 
-  const closeOptions = () => setOptionTarget(null);
-  const toggleMute = (id) => { setMuted(p => ({ ...p, [id]: !p[id] })); closeOptions(); };
-  const hideFriend = (id) => { setHidden(p => ({ ...p, [id]: true })); closeOptions(); };
+  const toggleMute = (id) => setMuted(p => ({ ...p, [id]: !p[id] }));
+  const hideFriend = (id) => setHidden(p => ({ ...p, [id]: true }));
+
+  // 친구 신청 — 보낸 신청 목록에 추가 (양쪽 수락 흐름: 상대 수락 전까지 '신청함')
+  const sendRequest = (person) => {
+    setSentRequests(p => (p.includes(person.id) ? p : [...p, person.id]));
+  };
+  // 받은 신청 수락 — 친구 목록에 추가하고 신청 목록에서 제거
+  const acceptRequest = (person) => {
+    setFriends(p => (p.some(f => f.id === person.id) ? p : [...p, personToFriend(person)]));
+    setReceivedRequests(p => p.filter(r => r.id !== person.id));
+  };
+  // 무시 — 신청 목록에서만 제거. 상대방에게 통보 없음 (거절 알림 X)
+  const ignoreRequest = (id) => setReceivedRequests(p => p.filter(r => r.id !== id));
   const unhideFriend = (id) => setHidden(p => { const n = { ...p }; delete n[id]; return n; });
   const deleteFriend = (id) => {
     const target = friends.find(f => f.id === id);
-    if (!target) { closeOptions(); return; }
-    closeOptions();
+    if (!target) return;
     showAppAlert(
       `${target.name}님을 친구에서 삭제할까요?`,
       `함께 라운딩한 기록(${target.roundsTogether || 0}회)은 남지만, 친구 목록에서 사라져요. 다시 추가하려면 친구 신청이 필요해요.`,
@@ -132,9 +158,9 @@ export function FriendsTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      {/* 친구 검색창 */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
+      {/* 친구 검색창 + 친구 추가 */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
           <Text style={{ fontSize: 13 }}>🔍</Text>
           <TextInput
             style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.textPrimary, padding: 0 }}
@@ -145,11 +171,34 @@ export function FriendsTab() {
             returnKeyType="search"
           />
         </View>
+        {/* 친구 추가 — 받은 신청 있으면 빨간 점 */}
+        <TouchableOpacity onPress={() => setFinder('kakao')} activeOpacity={0.8}
+          style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: C.navy,
+            alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 20, color: C.bgPrimary, fontWeight: '700', lineHeight: 22 }}>+</Text>
+          {receivedRequests.length > 0 && (
+            <View style={{ position: 'absolute', top: 4, right: 4, width: 9, height: 9, borderRadius: 5,
+              backgroundColor: '#E5484D', borderWidth: 1, borderColor: C.bgPrimary }} />
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled">
+        {/* 받은 친구 신청 배너 — 있을 때만 */}
+        {receivedRequests.length > 0 && (
+          <TouchableOpacity onPress={() => setFinder('received')} activeOpacity={0.8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
+              backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
+            <Text style={{ fontSize: 15 }}>📬</Text>
+            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>
+              받은 친구 신청 <Text style={{ color: C.burgundy, fontWeight: '700' }}>{receivedRequests.length}</Text>건
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>›</Text>
+          </TouchableOpacity>
+        )}
+
         {/* 친구 수 + 숨긴 친구 관리 (목록 위에 배치 — 스크롤 없이 접근) */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
           <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>
@@ -205,9 +254,9 @@ export function FriendsTab() {
                 카카오 친구 중 Dear Golf 유저를{'\n'}찾아보세요!
               </Text>
               <TouchableOpacity activeOpacity={0.85}
-                onPress={() => showAppAlert('준비 중이에요', '카카오 친구 중 Dear Golf 유저 찾기는 곧 추가될 예정이에요.')}
-                style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>친구 찾기</Text>
+                onPress={() => setFinder('kakao')}
+                style={{ marginTop: 18, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.bgPrimary, fontWeight: '700' }}>친구 찾기</Text>
               </TouchableOpacity>
             </View>
           )
@@ -222,7 +271,6 @@ export function FriendsTab() {
                 muted={!!muted[f.id]}
                 grade={grade}
                 onPress={() => setProfileFriend(f)}
-                onLongPress={() => setOptionTarget(f)}
                 onGradePress={() => setGradeModalKey(grade.key)}
               />
             );
@@ -230,38 +278,45 @@ export function FriendsTab() {
         )}
 
         <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, textAlign: 'center', marginTop: 6 }}>
-          친구 카드를 길게 누르면 옵션이 열려요
+          친구 카드를 탭하면 프로필이 열려요
         </Text>
       </ScrollView>
 
-      {/* 풀 프로필 */}
-      <FriendProfile friend={profileFriend} visible={!!profileFriend} onClose={() => setProfileFriend(null)} />
-
-      {/* 롱프레스 옵션 팝업 */}
-      <Modal visible={!!optionTarget} transparent animationType="fade" onRequestClose={closeOptions}>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 40 }}
-          activeOpacity={1} onPress={closeOptions}>
-          <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700', textAlign: 'center', paddingTop: 16, paddingBottom: 10 }}>
-              {optionTarget?.name}
-            </Text>
-            {[
-              { txt: muted[optionTarget?.id] ? '🔔  알림 켜기' : '🔕  알림 끄기', onPress: () => toggleMute(optionTarget.id) },
-              { txt: '🙈  숨기기', onPress: () => hideFriend(optionTarget.id) },
-              { txt: '❌  친구 삭제', onPress: () => deleteFriend(optionTarget.id), danger: true },
-            ].map((opt, i) => (
-              <TouchableOpacity key={i} activeOpacity={0.6} onPress={opt.onPress}
-                style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: opt.danger ? '#D32F2F' : C.charcoal, textAlign: 'center' }}>{opt.txt}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {/* 풀 프로필 — 옵션(알림·숨기기·삭제)도 프로필 상단에서 처리 */}
+      <FriendProfile
+        friend={profileFriend}
+        visible={!!profileFriend}
+        onClose={() => setProfileFriend(null)}
+        muted={profileFriend ? !!muted[profileFriend.id] : false}
+        onToggleMute={() => profileFriend && toggleMute(profileFriend.id)}
+        onHide={() => {
+          const id = profileFriend?.id;
+          if (!id) return;
+          setProfileFriend(null);
+          hideFriend(id);
+        }}
+        onDelete={() => {
+          const target = profileFriend;
+          if (!target) return;
+          setProfileFriend(null);
+          deleteFriend(target.id);
+        }} />
 
       {/* 신뢰 등급 설명 팝업 */}
       <TrustGradeModal visible={!!gradeModalKey} highlightKey={gradeModalKey}
         onClose={() => setGradeModalKey(null)} />
+
+      {/* 친구 찾기 — 카카오/검색/받은 신청 */}
+      <FriendFinder
+        visible={!!finder}
+        initialTab={finder || 'kakao'}
+        onClose={() => setFinder(null)}
+        sentIds={sentRequests}
+        friendIds={friends.map(f => f.id)}
+        received={receivedRequests}
+        onSend={sendRequest}
+        onAccept={acceptRequest}
+        onIgnore={ignoreRequest} />
     </View>
   );
 }

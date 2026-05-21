@@ -150,7 +150,7 @@ export default function App() {
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tab.Screen name="홈" component={HomeScreen} />
         <Tab.Screen name="라운지" component={LoungeScreen} />
-        <Tab.Screen name="다이어리" component={DiaryScreen} />
+        <Tab.Screen name="MY" component={DiaryScreen} />
         <Tab.Screen name="친구" component={FriendsScreen} />
         <Tab.Screen name="코스" component={GuideScreen} />
       </Tab.Navigator>

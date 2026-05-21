@@ -87,7 +87,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
         </TouchableOpacity>
         {asModal && (
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: C.navy }}>
+            style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 14, backgroundColor: C.bgSecondary }}>
             <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.navy, fontWeight: '700' }}>닫기</Text>
           </TouchableOpacity>
         )}
@@ -98,7 +98,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
         jumpDate={jumpDate}
         onRequestAddDiary={(seed) => {
           if (asModal) { onClose?.(); }
-          navigation?.navigate?.('다이어리', { openAddModal: true, addDate: seed?.date });
+          navigation?.navigate?.('MY', { openAddModal: true, addDate: seed?.date });
         }}
       />
 
