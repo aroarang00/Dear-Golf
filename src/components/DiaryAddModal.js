@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -274,7 +275,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={mS.mask}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
           <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
@@ -282,7 +282,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               style={{ alignItems: 'center', paddingVertical: 10 }}>
               <View style={mS.handle} />
             </TouchableOpacity>
-            <ScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollView style={{ padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled" bottomOffset={24}>
               <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
               {/* 국내 / 해외 */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
@@ -646,10 +647,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
               </TouchableOpacity>
               <View style={{ height: 40 }} />
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </View>
         </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }

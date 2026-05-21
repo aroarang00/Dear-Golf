@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
@@ -110,7 +111,6 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
@@ -120,9 +120,10 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             style={{ alignSelf: 'center', paddingVertical: 8 }}>
             <View style={mS.handle} />
           </TouchableOpacity>
-          <ScrollView style={{ flexShrink: 1 }}
+          <KeyboardAwareScrollView style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}
-            showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+            showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+            bottomOffset={24}>
             {/* 타이틀 줄 — 우측에 명시적 ✕ 닫기 버튼 */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Text style={[mS.title, { flex: 1, marginBottom: 0 }]}>라운딩 모집글 작성</Text>
@@ -340,10 +341,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
               <Text style={mS.saveBtnTxt}>모집글 등록</Text>
             </TouchableOpacity>
             <View style={{ height: 24 }} />
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </View>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
