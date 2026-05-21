@@ -608,11 +608,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           )}
           <View>
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(250,246,236,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 파트너 찾기</Text>
-            <Text style={{ fontFamily: F.serifKR, fontSize: 28, color: C.bgPrimary }}>라운지</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontFamily: F.serifKR, fontSize: 28, color: C.bgPrimary }}>라운지</Text>
+              <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontSize: 17 }}>ℹ️</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ fontSize: 17 }}>ℹ️</Text>
-          </TouchableOpacity>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           {/* 모집글 작성 */}
