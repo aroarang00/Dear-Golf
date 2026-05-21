@@ -344,13 +344,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // (단, 내가 직접 올린 모집은 mine 탭에서 항상 보임. joined/applied/waitlist도 본인 활동 보존)
   const visiblePosts = posts.filter(p => isPostVisible(p, userProfile));
 
-  // 탭별 목록 — 전체: 전체공개만 (+ 지역 필터) / 친구: 친구 글 + 내가 친구공개로 올린 글 (친구지정 제외) / 내 참여 중 / 관심
+  // 탭별 목록 — 전체: 전체공개만 (+ 지역 필터) / 친구: 친구공개 모집만 (친구가 올린 것 + 내가 올린 것) / 내 참여 중 / 관심
   const allTab = visiblePosts
     .filter(p => p.scope === 'all')
     .filter(p => regionFilter === 'all' || p.region === regionFilter);
+  // 친구 탭은 친구공개(friends) 모집만 — 전체공개는 '전체' 탭, 친구지정은 당사자에게만 따로 노출
   const friendTab = visiblePosts.filter(p => {
-    if (p.scope === 'select') return false;
-    if (p.author === '나') return p.scope === 'friends';
+    if (p.scope !== 'friends') return false;
+    if (p.author === '나') return true;
     return p.isFriend;
   });
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터 무시 (애초에 본인은 차단 못 함)
