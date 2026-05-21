@@ -30,19 +30,16 @@ export function FriendsScreen() {
 
       <FriendsTab />
 
-      {/* 친구 탭 첫 진입 코치마크 — 1회만. 헤더(76) + 배너(79)·검색(60)·카운트(40) 기준 위치. */}
+      {/* 친구 탭 첫 진입 코치마크 — 1회만. 화면 중앙 안내 (레이아웃 변경에 안전) */}
       {showCoach && (
         <TouchableOpacity activeOpacity={1} onPress={dismissCoach}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.62)' }}>
-          {/* 친구 카드 안내 — 화살표 끝이 첫 카드 중앙을 가리키게 (헤더 76 + 검색 53 + 카운트 31 ≈ 160 + 카드높이 절반 ≈ 220) */}
-          <View style={{ position: 'absolute', top: insets.top + 220, left: 30, right: 30, alignItems: 'center' }}>
-            <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 9,
-              borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#fff' }} />
-            <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600', textAlign: 'center', lineHeight: 19 }}>
-                👆 친구 카드를 탭하면 프로필이 열려요{'\n'}우상단 ⋯ 에서 알림·숨기기·삭제 가능
-              </Text>
-            </View>
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.62)', alignItems: 'center', justifyContent: 'center' }}>
+          {/* 친구 카드 안내 — 화면 중앙 */}
+          <View style={{ marginHorizontal: 30, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 22, paddingVertical: 20 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600', textAlign: 'center', lineHeight: 21 }}>
+              👆 친구 카드를 탭하면 프로필이 열려요{'\n'}우상단 ⋯ 에서 알림·숨기기·삭제 가능
+            </Text>
           </View>
           {/* 닫기 — 화면 하단 고정 */}
           <View style={{ position: 'absolute', bottom: insets.bottom + 90, left: 0, right: 0, alignItems: 'center' }}>

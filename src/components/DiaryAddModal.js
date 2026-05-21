@@ -18,6 +18,9 @@ const COST_ITEMS = [
   ['etc', '기타'],
 ];
 
+// '더 기록하기' 예시 칩 — 누르면 입력칸에 항목이 삽입돼 글쓰기 시작점이 된다
+const GUIDE_CHIPS = ['MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
+
 export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const { userProfile } = React.useContext(UserContext);
   const [courseSearch, setCourseSearch] = useState('');
@@ -26,6 +29,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [kakaoResults, setKakaoResults] = useState([]);
   const [kakaoSearching, setKakaoSearching] = useState(false);
   const debounceRef = useRef(null);
+  const detailMemoRef = useRef(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
   const [score, setScore] = useState('');
@@ -44,6 +48,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   const toggleTag = (tag) => {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
+  // 예시 칩 탭 → '더 기록하기' 입력칸에 '라벨: ' 삽입 + 포커스
+  const insertGuideChip = (label) => {
+    setDetailMemo(prev => {
+      const sep = prev && !prev.endsWith('\n') ? '\n' : '';
+      const next = `${prev}${sep}${label}: `;
+      return next.length <= 1000 ? next : prev;
+    });
+    detailMemoRef.current?.focus();
   };
   const [special, setSpecial] = useState(null);
   const [specialHole, setSpecialHole] = useState('');
@@ -500,6 +513,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   더 기록하기
                   <Text style={{ color: '#8B8680', fontSize: 10 }}> (선택 · 최대 1000자)</Text>
                 </Text>
+                {/* 예시 칩 — 누르면 입력칸에 항목이 추가돼 글쓰기 시작점이 된다 */}
+                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 6 }}>
+                  뭘 쓸지 막막하면 눌러서 시작해보세요
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {GUIDE_CHIPS.map(c => (
+                    <TouchableOpacity key={c} onPress={() => insertGuideChip(c)} activeOpacity={0.7}
+                      style={{ backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline,
+                        borderRadius: 14, paddingHorizontal: 11, paddingVertical: 6 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, fontWeight: '600' }}>+ {c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 <View style={{
                   backgroundColor: C.bgSecondary,
                   borderWidth: 0.5, borderColor: C.hairline,
@@ -507,16 +533,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   minHeight: 140,
                 }}>
                   <TextInput
+                    ref={detailMemoRef}
                     style={{
                       fontFamily: F.sys, fontSize: 13,
                       color: C.textPrimary, lineHeight: 22,
                       minHeight: 100, textAlignVertical: 'top',
                     }}
-                    placeholder={'MVP 샷은? · 어려웠던 홀은?\n코스·잔디 상태는? · 동반자 소감은?\n다음에 오면 꼭 기억할 것은?'}
+                    placeholder="그날의 라운딩을 자유롭게 남겨보세요"
                     placeholderTextColor={C.warmGrayLight}
                     value={detailMemo}
                     onChangeText={(t) => { if (t.length <= 1000) setDetailMemo(t); }}
                     multiline
+                    textAlignVertical="top"
                     maxLength={1000}
                   />
                   <Text style={{ fontSize: 10, color: C.warmGrayLight, textAlign: 'right', marginTop: 8 }}>

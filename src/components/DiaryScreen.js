@@ -75,7 +75,7 @@ export function DiaryScreen({ route, navigation }) {
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
-  const [statsExpanded, setStatsExpanded] = useState(true); // 통계 박스 펼침 (기본 펼침, 검색 토글과 독립)
+  const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   const [addSeed, setAddSeed] = useState(null);
   const [hofExpanded, setHofExpanded] = useState(false);

@@ -137,9 +137,11 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
     return () => clearTimeout(t);
   }, [search]);
 
+  // 네이버 지도(스마트플레이스)에서 이름으로 검색 — 데이터는 카카오, 지도는 네이버로 통일
   const openMap = (item) => {
-    const url = item.url || `https://map.kakao.com/link/map/${encodeURIComponent(item.name)},${item.y},${item.x}`;
-    Linking.openURL(url).catch(() => Linking.openURL('https://map.kakao.com/'));
+    const q = (item.name || '').trim();
+    Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(q)}`)
+      .catch(() => Linking.openURL('https://map.naver.com/'));
   };
 
   // 지역 100대 코스 항목 탭 → 카카오 검색으로 해당 코스 열기 (목록엔 좌표가 없어서 검색으로 해석)
@@ -345,14 +347,18 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         );
       })()}
 
-      {/* 3. 최근 검색 골프장 — 검색 이력 (이력 없으면 섹션 숨김) */}
-      {recentCourses.length > 0 && (
+      {/* 3. 최근 검색 골프장 — 검색 안 할 때 항상 표시 (이력 없어도 기능을 알 수 있게) */}
+      {!search.trim() && (
         <Section
-          title={`🔍 최근 검색 ${recentCourses.length}곳`}
-          right="최근 검색순"
+          title={`🔍 최근 검색${recentCourses.length ? ` ${recentCourses.length}곳` : ''}`}
+          right={recentCourses.length ? '최근 검색순' : ''}
           headerBg={C.charcoal}
           titleColor={C.butter}>
-          {filteredRecent.length === 0 ? (
+          {recentCourses.length === 0 ? (
+            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center', lineHeight: 18 }}>
+              위 검색창에서 골프장을 검색하면{'\n'}여기에 최근 검색이 모여요
+            </Text>
+          ) : filteredRecent.length === 0 ? (
             <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
               {`${region}에 최근 검색한 골프장이 없어요`}
             </Text>
