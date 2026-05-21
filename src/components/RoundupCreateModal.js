@@ -107,9 +107,10 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={mS.sheet}>
+        <View style={mS.sheet}>
           {/* handle 영역 자체를 탭 가능한 닫기로 — 마스크 영역이 좁아 안 닫히는 문제 해결 */}
           <TouchableOpacity onPress={close} activeOpacity={0.7}
             hitSlop={{ top: 12, bottom: 12, left: 60, right: 60 }}
@@ -337,8 +338,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             </TouchableOpacity>
             <View style={{ height: 24 }} />
           </ScrollView>
-        </KeyboardAvoidingView>
+        </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
