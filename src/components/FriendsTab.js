@@ -260,19 +260,33 @@ export function FriendsTab({ navigation }) {
             </Text>
           ) : (
             /* 빈 화면 가이드 — 친구 0명 */
-            <View style={{ alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: 42 }}>👥</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginTop: 14 }}>
-                아직 친구가 없어요
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-                카카오 친구 중 Dear Golf 유저를{'\n'}찾아보세요!
-              </Text>
-              <TouchableOpacity activeOpacity={0.85}
-                onPress={() => setFinder('kakao')}
-                style={{ marginTop: 18, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.bgPrimary, fontWeight: '700' }}>친구 찾기</Text>
-              </TouchableOpacity>
+            <View style={{ paddingTop: 18 }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
+                <Text style={{ fontSize: 30, marginBottom: 10 }}>👥</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 6 }}>
+                  골프 친구를 추가해보세요
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 19, marginBottom: 16 }}>
+                  카카오 친구 중 Dear Golf를 쓰는 사람을 찾아 친구를 맺으면 — 함께 라운딩하고 서로의 골프 기록을 나눌 수 있어요.
+                </Text>
+                <View style={{ gap: 12 }}>
+                  {[
+                    ['📋', '라운지에서 친구와 라운딩 모집·참여하기'],
+                    ['🏆', '친구의 라운딩 기록을 피드로 보기'],
+                    ['👍', '특별한 순간을 공유하고 응원하기'],
+                  ].map(([icon, txt]) => (
+                    <View key={txt} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
+                      <Text style={{ fontSize: 14 }}>{icon}</Text>
+                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
+                    </View>
+                  ))}
+                </View>
+                <TouchableOpacity activeOpacity={0.85}
+                  onPress={() => setFinder('kakao')}
+                  style={{ marginTop: 18, backgroundColor: C.navy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.bgPrimary, fontWeight: '700' }}>친구 찾기</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )
         ) : (
