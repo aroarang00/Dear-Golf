@@ -12,9 +12,12 @@ import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
 import { PhotoEditModal } from './PhotoEditModal';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 
 export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
   const { userProfile } = React.useContext(UserContext);
+  // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
+  useAndroidBack(true, onClose);
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
