@@ -8,8 +8,10 @@ import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/us
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function ScheduleModal({ visible, onClose, onSave, initial }) {
+  const insets = useSafeAreaInsets();
   // initial에 id가 있으면 기존 일정 수정, 없으면(날짜만 채워진 경우) 새 일정 추가
   const isEdit = !!(initial && initial.id);
   const [courseSearch, setCourseSearch] = useState('');
@@ -199,7 +201,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         {/* KAV를 시트 자체에 적용 — 키보드가 올라와도 시트가 화면 밖으로 밀리지 않고 내부에서만 줄어듦 */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={mS.sheet}>
+          style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
           {/* flexShrink:1 — 시트 maxHeight(92%)에 맞춰 스크롤뷰가 줄어들어 스크롤 가능해짐 */}
           <ScrollView

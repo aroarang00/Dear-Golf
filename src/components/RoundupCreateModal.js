@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
@@ -17,6 +18,7 @@ const DAYS = WEEKDAYS;
 
 // 라운딩 모집글 작성 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디
 export function RoundupCreateModal({ visible, onClose, onCreate }) {
+  const insets = useSafeAreaInsets();
   const [type, setType] = useState('fixed');         // fixed | open
   const [courseQuery, setCourseQuery] = useState('');
   const [course, setCourse] = useState(null);
@@ -112,7 +114,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
-        <View style={mS.sheet}>
+        <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           {/* handle 영역 자체를 탭 가능한 닫기로 — 마스크 영역이 좁아 안 닫히는 문제 해결 */}
           <TouchableOpacity onPress={close} activeOpacity={0.7}
             hitSlop={{ top: 12, bottom: 12, left: 60, right: 60 }}

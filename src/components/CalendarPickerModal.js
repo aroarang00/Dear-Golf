@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 import { getAvailableCalendars, getCalendarChoice, setCalendarChoice } from '../utils/deviceCalendar';
 
 // 라운딩 일정을 동기화할 캘린더 선택 (구글/애플/삼성). 네이버는 API 미지원이라 제외.
 export function CalendarPickerModal({ visible, onClose }) {
+  const insets = useSafeAreaInsets();
   const [cals, setCals] = useState(null); // null = 로딩 중
   const [chosen, setChosen] = useState(null);
 
@@ -39,7 +41,7 @@ export function CalendarPickerModal({ visible, onClose }) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={handleClose} />
-        <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 28 }}>
+        <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 28 + insets.bottom }}>
           <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 16 }} />
           <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.charcoal, fontWeight: '700', marginBottom: 4 }}>캘린더 연동</Text>
           <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, marginBottom: 14 }}>

@@ -2,9 +2,11 @@
 // 차단 사실은 상대에게 알리지 않음(UI에 그런 노출 없음).
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../../constants/colors';
 
 export function ProfileActionSheet({ visible, target, onClose, onReport, onBlock, isMe }) {
+  const insets = useSafeAreaInsets();
   if (!target) return null;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -12,7 +14,7 @@ export function ProfileActionSheet({ visible, target, onClose, onReport, onBlock
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}}
             style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18,
-              paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 }}>
+              paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 + insets.bottom }}>
             <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
               backgroundColor: C.hairline, marginBottom: 14 }} />
             <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight,

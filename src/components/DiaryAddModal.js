@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -23,6 +24,7 @@ const COST_ITEMS = [
 const GUIDE_CHIPS = ['MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
 
 export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
+  const insets = useSafeAreaInsets();
   const { userProfile } = React.useContext(UserContext);
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -275,7 +277,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={mS.mask}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
-          <View style={mS.sheet}>
+          <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
             <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.7}
               style={{ alignItems: 'center', paddingVertical: 10 }}>
               <View style={mS.handle} />

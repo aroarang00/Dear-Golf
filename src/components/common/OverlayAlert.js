@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../../constants/colors';
 
 // 풀스크린 모달 위에서도 보이는 알럿/액션시트.
 // 네이티브 Modal이 아닌 오버레이 View로 띄워 모달 전환 충돌을 피한다.
 //   data: { title, message, buttons: [{ text, onPress, style }] }
 export function OverlayAlert({ data, onClose }) {
+  const insets = useSafeAreaInsets();
   if (!data) return null;
   const buttons = data.buttons && data.buttons.length ? data.buttons : [{ text: '확인' }];
   const inRow = buttons.length <= 2;
@@ -16,7 +18,8 @@ export function OverlayAlert({ data, onClose }) {
   };
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+      paddingTop: 32, paddingHorizontal: 32, paddingBottom: Math.max(32, insets.bottom + 24) }}>
       <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 340 }}>
         {!!data.title && (
           <Text style={{ fontFamily: F.sys, fontSize: 16, fontWeight: '700', color: C.charcoal, textAlign: 'center', marginBottom: data.message ? 8 : 18 }}>

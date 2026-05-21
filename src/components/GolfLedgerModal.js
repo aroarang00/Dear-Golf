@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '../constants/colors';
 
 // 팔레트: 챠콜 / 버터 / 크림
@@ -13,6 +14,7 @@ const monthLabel = (m) => {
 };
 
 export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
+  const insets = useSafeAreaInsets();
   // 비용이 기록된 라운딩만 (최신순)
   const costRounds = (diaries || [])
     .filter(d => d && d.cost && (d.cost.total || 0) > 0)
@@ -79,7 +81,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
               </Text>
             </View>
           ) : (
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom }} showsVerticalScrollIndicator={false}>
               {/* 올해 요약 — 버터 박스 */}
               <View style={{ backgroundColor: C.butter, borderRadius: 14, padding: 16, marginBottom: 20 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, opacity: 0.65, marginBottom: 4 }}>{thisYear}년 총 지출</Text>
