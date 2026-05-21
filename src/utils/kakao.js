@@ -24,7 +24,7 @@ export async function searchGolfCourses(query) {
   const isGolfCourse = (d) => {
     const cat = d.category_name || '';
     const text = cat + ' ' + (d.place_name || '');
-    if (/(파크골프|연습장|스크린|실내골프|용품|아카데미|레슨)/.test(text)) return false;
+    if (/(파크골프|연습장|스크린|실내골프|용품|아카데미|레슨|클럽하우스)/.test(text)) return false;
     return cat.includes('골프');
   };
 

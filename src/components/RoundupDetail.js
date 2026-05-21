@@ -9,6 +9,7 @@ import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
+import { MANNER_DELTAS } from '../constants/mannerGrade';
 
 // 참여자 아바타 색상
 const AV = [
@@ -93,7 +94,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, onClose, onApply, onWaitlist, onCancel, onDelete, onGradePress, onToggleBookmark, onBlock, onReport }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -115,12 +116,48 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
   const slots = buildSlots(post, isTeam ? teamTab : null);
   const waiters = pickNames(post.id + ':wait', post.waitlistCount || 0);
 
-  const confirmApply = () => setAlert({
-    title: '이 라운딩에 참여 신청할까요?',
-    message: '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
+  // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
+  const confirmApply = () => {
+    const instant = post.scope !== 'all';
+    setAlert({
+      title: instant ? '이 라운딩에 참여할까요?' : '이 라운딩에 참여 신청할까요?',
+      message: instant
+        ? '친구 대상 모집이라 바로 참여가 확정돼요.'
+        : '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: instant ? '참여하기' : '참여 신청', onPress: onApply },
+      ],
+    });
+  };
+  // 참여 취소 — 상세 모달 위 오버레이로 확인창을 띄운다(모달 뒤에 가리지 않게)
+  const confirmCancel = () => {
+    let daysUntil = 1;
+    if (post.date) {
+      const [y, m, d] = post.date.split('.').map(Number);
+      const target = new Date(y, m - 1, d);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      daysUntil = Math.round((target - today) / 86400000);
+    }
+    const isSameDay = daysUntil <= 0;
+    const deltaVal = MANNER_DELTAS[isSameDay ? 'cancelDay' : 'cancelDayBefore'];
+    const label = isSameDay ? '당일 취소' : '전날(또는 그 이전) 취소';
+    setAlert({
+      title: '참여를 취소할까요?',
+      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.\n취소하면 자리는 다시 열려요.`,
+      buttons: [
+        { text: '계속 참여', style: 'cancel' },
+        { text: '참여 취소', style: 'destructive', onPress: onCancel },
+      ],
+    });
+  };
+  // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
+  const confirmCancelWait = () => setAlert({
+    title: '대기를 취소할까요?',
+    message: '대기 신청이 취소돼요. 필요하면 다시 대기 신청할 수 있어요.',
     buttons: [
-      { text: '취소', style: 'cancel' },
-      { text: '참여 신청', onPress: onApply },
+      { text: '닫기', style: 'cancel' },
+      { text: '대기 취소', style: 'destructive', onPress: onCancelWait },
     ],
   });
   // 카카오 단체방 — 주최자가 등록한 오픈채팅 URL을 외부 카카오톡 앱으로 열기
@@ -174,7 +211,7 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
           backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
           <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
         </View>
-        <TouchableOpacity onPress={onCancel} activeOpacity={0.7}
+        <TouchableOpacity onPress={confirmCancel} activeOpacity={0.7}
           style={{ marginTop: 6, alignItems: 'center', paddingVertical: 6 }}>
           <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, textDecorationLine: 'underline' }}>
             참여 취소
@@ -199,6 +236,12 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
         <Text style={hintStyle}>
           취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
         </Text>
+        <TouchableOpacity onPress={confirmCancelWait} activeOpacity={0.7}
+          style={{ marginTop: 4, alignItems: 'center', paddingVertical: 6 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, textDecorationLine: 'underline' }}>
+            대기 취소
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   } else if (userProfile?.isRestricted) {
@@ -216,10 +259,11 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       </View>
     );
   } else if (!isClosed) {
+    const instant = post.scope !== 'all';
     actionBtn = (
       <TouchableOpacity activeOpacity={0.85} onPress={confirmApply}
         style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: C.burgundy }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>{instant ? '참여하기' : '참여 신청'}</Text>
       </TouchableOpacity>
     );
   } else {

@@ -32,7 +32,6 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [teams, setTeams] = useState(2);                // 단체: 팀 수 2~4 (1팀=4명)
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
-  const scrollRef = useRef(null);
   // 동반자 조건 필터 — 구성·실력 단일 선택, 태그 다중 선택. 전체공개에서만 노출.
   const [companion, setCompanion] = useState('any');
   const [skill, setSkill] = useState('any');
@@ -111,7 +110,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
@@ -121,10 +120,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             style={{ alignSelf: 'center', paddingVertical: 8 }}>
             <View style={mS.handle} />
           </TouchableOpacity>
-          <ScrollView ref={scrollRef} style={{ flexShrink: 1 }}
+          <ScrollView style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}
-            showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
-            automaticallyAdjustKeyboardInsets>
+            showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
             {/* 타이틀 줄 — 우측에 명시적 ✕ 닫기 버튼 */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Text style={[mS.title, { flex: 1, marginBottom: 0 }]}>라운딩 모집글 작성</Text>
@@ -336,8 +334,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             <Text style={mS.label}>한마디 <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(선택)</Text></Text>
             <TextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline
               placeholder="동반자에게 남길 한마디를 적어주세요" placeholderTextColor={C.warmGrayLight}
-              value={word} onChangeText={setWord} maxLength={120}
-              onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250)} />
+              value={word} onChangeText={setWord} maxLength={120} />
 
             <TouchableOpacity style={mS.saveBtn} onPress={handleSubmit}>
               <Text style={mS.saveBtnTxt}>모집글 등록</Text>

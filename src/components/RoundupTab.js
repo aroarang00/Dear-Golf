@@ -12,6 +12,7 @@ import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
 import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, waitlistRespondHours, matchesRoundup, hasRoundupMatch } from '../constants/roundup';
 import { RoundupMatchModal } from './RoundupMatchModal';
+import { RoundupGuideModal } from './RoundupGuideModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { applyMannerDelta, MANNER_DELTAS } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -217,7 +218,9 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         ) : !isClosed ? (
           <TouchableOpacity activeOpacity={0.85} onPress={onApply}
             style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>참여 신청</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>
+              {post.scope === 'all' ? '참여 신청' : '참여하기'}
+            </Text>
           </TouchableOpacity>
         ) : (
           <View>
@@ -262,6 +265,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [notifications, setNotifications] = useState(DUMMY_NOTIFICATIONS);
   const [showNoti, setShowNoti] = useState(false);            // 알림함
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
+  const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
   const listScrollRef = useRef(null);
 
   // 라운지 탭 재방문 시 — 상세·모달 닫고 기본 탭·목록 맨 위로 초기화
@@ -401,13 +405,41 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   };
 
   // 참여 신청 — 확인 후 신청 (주최자 수락 대기)
+  // 참여 처리 — 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여 확정
+  const performJoinOrApply = (id) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    if (post.scope === 'all') {
+      setApplied(prev => ({ ...prev, [id]: true }));
+      return;
+    }
+    // 친구공개·친구지정 — 바로 참여 확정 + 모집글 인원 +1
+    setJoined(prev => ({ ...prev, [id]: true }));
+    setPosts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      if (p.teams > 1) {
+        const tj = [...p.teamJoined];
+        for (let i = 0; i < tj.length; i++) {
+          if (tj[i] < 4) { tj[i] += 1; break; }
+        }
+        return { ...p, teamJoined: tj };
+      }
+      return { ...p, joined: (p.joined || 0) + 1 };
+    }));
+  };
+
   const confirmApply = (id) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    const instant = post.scope !== 'all';
     setAlert({
-      title: '이 라운딩에 참여 신청할까요?',
-      message: '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
+      title: instant ? '이 라운딩에 참여할까요?' : '이 라운딩에 참여 신청할까요?',
+      message: instant
+        ? '친구 대상 모집이라 바로 참여가 확정돼요.'
+        : '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
       buttons: [
         { text: '취소', style: 'cancel' },
-        { text: '참여 신청', onPress: () => setApplied(prev => ({ ...prev, [id]: true })) },
+        { text: instant ? '참여하기' : '참여 신청', onPress: () => performJoinOrApply(id) },
       ],
     });
   };
@@ -420,10 +452,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
   // 참여 취소 — 취소 시점에 따라 매너 점수 자동 차감.
   // 대기자 자동 승격·주최자 푸시·노쇼 자동 신고는 Phase 2 (Cloud Functions).
-  const cancelParticipation = (id) => {
-    const post = posts.find(p => p.id === id);
-    if (!post) return;
-    // 시점 계산 (오픈형은 날짜 미정이라 전날 취소로 간주)
+  // 취소 시점 정보 — 매너 점수 차감 종류·라벨 산출 (오픈형은 날짜 미정이라 전날 취소로 간주)
+  const getCancelInfo = (post) => {
     let daysUntil = 1;
     if (post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
@@ -433,43 +463,61 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
     const isSameDay = daysUntil <= 0;
     const deltaKind = isSameDay ? 'cancelDay' : 'cancelDayBefore';
-    const deltaVal = MANNER_DELTAS[deltaKind];
-    const countField = isSameDay ? 'cancelDayCount' : 'cancelDayBeforeCount';
-    const label = isSameDay ? '당일 취소' : '전날(또는 그 이전) 취소';
+    return {
+      deltaKind,
+      deltaVal: MANNER_DELTAS[deltaKind],
+      countField: isSameDay ? 'cancelDayCount' : 'cancelDayBeforeCount',
+      label: isSameDay ? '당일 취소' : '전날(또는 그 이전) 취소',
+    };
+  };
 
+  // 참여 취소 실행 — 확인은 호출 측에서 (모집 상세는 자체 오버레이로 확인)
+  const performCancel = (id) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    const { deltaKind, countField } = getCancelInfo(post);
+    // 1) 모집글 인원 -1 (마지막 채워진 자리에서)
+    setPosts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      if (p.teams > 1) {
+        const tj = [...p.teamJoined];
+        for (let i = tj.length - 1; i >= 0; i--) {
+          if (tj[i] > 0) { tj[i] -= 1; break; }
+        }
+        return { ...p, teamJoined: tj };
+      }
+      return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
+    }));
+    // 2) 내 joined 플래그 해제
+    setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
+    // 3) 매너 점수 차감 + 취소 카운트 +1, 로컬 저장
+    const next = {
+      ...userProfile,
+      mannerScore: applyMannerDelta(userProfile.mannerScore, deltaKind),
+      [countField]: (userProfile[countField] || 0) + 1,
+    };
+    setUserProfile(next);
+    storage.save(STORAGE_KEYS.profile, next);
+  };
+
+  // 참여 취소 — 확인창 + 실행 (목록 카드용)
+  const cancelParticipation = (id) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    const { deltaVal, label } = getCancelInfo(post);
     setAlert({
       title: '참여를 취소할까요?',
       message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.\n(주최자 알림·대기자 자동 승격은 추후 추가될 예정)`,
       buttons: [
         { text: '계속 참여', style: 'cancel' },
-        {
-          text: '취소하기', style: 'destructive', onPress: () => {
-            // 1) 모집글 인원 -1 (마지막 채워진 자리에서)
-            setPosts(prev => prev.map(p => {
-              if (p.id !== id) return p;
-              if (p.teams > 1) {
-                const tj = [...p.teamJoined];
-                for (let i = tj.length - 1; i >= 0; i--) {
-                  if (tj[i] > 0) { tj[i] -= 1; break; }
-                }
-                return { ...p, teamJoined: tj };
-              }
-              return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
-            }));
-            // 2) 내 joined 플래그 해제
-            setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
-            // 3) 매너 점수 차감 + 취소 카운트 +1, 로컬 저장
-            const next = {
-              ...userProfile,
-              mannerScore: applyMannerDelta(userProfile.mannerScore, deltaKind),
-              [countField]: (userProfile[countField] || 0) + 1,
-            };
-            setUserProfile(next);
-            storage.save(STORAGE_KEYS.profile, next);
-          },
-        },
+        { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
       ],
     });
+  };
+
+  // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
+  const cancelWaitlist = (id) => {
+    setWaitlist(prev => { const n = { ...prev }; delete n[id]; return n; });
   };
 
   // 내 모집글 삭제 — 상세 화면도 닫는다
@@ -562,6 +610,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(250,246,236,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 파트너 찾기</Text>
             <Text style={{ fontFamily: F.serifKR, fontSize: 28, color: C.bgPrimary }}>라운지</Text>
           </View>
+          <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ fontSize: 17 }}>ℹ️</Text>
+          </TouchableOpacity>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           {/* 모집글 작성 */}
@@ -758,6 +809,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onClose={() => setShowMatchModal(false)}
         onSave={saveRoundupMatch} />
 
+      {/* 라운지 이용 안내 */}
+      <RoundupGuideModal visible={showGuide} onClose={() => setShowGuide(false)} />
+
       {/* 신뢰 등급 설명 팝업 */}
       <TrustGradeModal visible={!!gradeModalKey} highlightKey={gradeModalKey}
         onClose={() => setGradeModalKey(null)} />
@@ -771,9 +825,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         waitlistNum={detailId ? waitlist[detailId] : undefined}
         isBookmarked={!!(detailId && bookmarks[detailId])}
         onClose={() => setDetailId(null)}
-        onApply={() => detailId && setApplied(prev => ({ ...prev, [detailId]: true }))}
+        onApply={() => detailId && performJoinOrApply(detailId)}
         onWaitlist={() => detailId && handleWaitlist(detailId)}
-        onCancel={() => detailId && cancelParticipation(detailId)}
+        onCancel={() => detailId && performCancel(detailId)}
+        onCancelWait={() => detailId && cancelWaitlist(detailId)}
         onDelete={() => detailId && handleDelete(detailId)}
         onGradePress={(key) => setGradeModalKey(key)}
         onToggleBookmark={() => detailId && toggleBookmark(detailId)}
