@@ -11,6 +11,7 @@ import {
   RECOMMENDED_COURSES, WEEKDAYS,
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { getTop100Courses, normalizeCourseName } from '../utils/top100';
 import { getUserCourses } from '../utils/userCourses';
 import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
@@ -36,6 +37,7 @@ export function GuideScreen({ route, navigation }) {
   const [comments, setComments] = useState([]);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
+  const [showAllComments, setShowAllComments] = useState(false); // 골퍼 코멘트 — 상위 5개 + 더보기
   const [search, setSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('전체');
   // 코스 상세에서 날씨/교통 팝업
@@ -63,7 +65,11 @@ export function GuideScreen({ route, navigation }) {
   const [foodSearchLoading, setFoodSearchLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [saveModalSeed, setSaveModalSeed] = useState(null);
+  const [top100, setTop100] = useState([]); // 100대 코스 — 코스 상세 배지용
   const scrollRefs = useRef({});
+
+  // 100대 코스 목록 — 마운트 시 1회 로드
+  useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
 
   const REGIONS = ['전체', '수도권', '충청', '강원', '전라', '경상', '제주'];
   const getRegion = (loc) => {
@@ -499,6 +505,21 @@ export function GuideScreen({ route, navigation }) {
               <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {courseAddress || c.loc}
               </Text>
+              {(() => {
+                // 100대 코스 배지 — 골프장명이 top100Courses에 매칭되면 순위 표시
+                const rank = top100.find(t => normalizeCourseName(t.name) === normalizeCourseName(c.name))?.rank;
+                if (!rank) return null;
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4,
+                    backgroundColor: '#FBF3D3', borderWidth: 0.5, borderColor: '#C9A84C', borderRadius: 6,
+                    paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 }}>
+                    <Text style={{ fontSize: 11 }}>🏆</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#8B6914', fontWeight: '700' }}>
+                      100대 코스 {rank}위
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
           </View>
         </View>
@@ -562,26 +583,27 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                 );
               })()}
-              {/* COURSE INFO — 홀수 · 파 · 타입 · 전화번호(탭 → 전화) */}
-              <Text style={[gS.secLabel, { marginBottom: 6 }]}>COURSE INFO</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 22 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary }}>
-                  18홀 · Par 72 · 회원제
-                </Text>
-                {coursePhone ? (
-                  <TouchableOpacity onPress={() => Linking.openURL(`tel:${coursePhone.replace(/[^0-9]/g, '')}`)}
-                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, fontWeight: '600' }}>
-                      {'  ·  '}📞 {coursePhone}
-                    </Text>
-                  </TouchableOpacity>
-                ) : coursePlaceLoading ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
-                    <ActivityIndicator size="small" color={C.warmGrayLight} />
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginLeft: 5 }}>전화번호 불러오는 중…</Text>
+              {/* 연락처 — 카카오 place 전화번호 (탭 → 전화). 홀수·파 등 골프장 정보는 미보유 */}
+              {(coursePhone || coursePlaceLoading) && (
+                <>
+                  <Text style={[gS.secLabel, { marginBottom: 6 }]}>연락처</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 22 }}>
+                    {coursePhone ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(`tel:${coursePhone.replace(/[^0-9]/g, '')}`)}
+                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '600' }}>
+                          📞 {coursePhone}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <ActivityIndicator size="small" color={C.warmGrayLight} />
+                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginLeft: 5 }}>전화번호 불러오는 중…</Text>
+                      </View>
+                    )}
                   </View>
-                ) : null}
-              </View>
+                </>
+              )}
 
               {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 */}
               <View style={{ flexDirection: 'row', gap: 6, marginBottom: 26 }}>
@@ -719,21 +741,37 @@ export function GuideScreen({ route, navigation }) {
                 </KeyboardAvoidingView>
               )}
 
-              {/* 코멘트 리스트 (좋아요순) */}
-              {[...comments].sort((a, b) => b.likes - a.likes).map((cm) => (
-                <View key={cm.id} style={gS.commentCard}>
-                  <Text style={gS.commentTxt}>"{cm.txt}"</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                    <Text style={gS.commentWho}>{cm.who} · {cm.date}</Text>
-                    <TouchableOpacity
-                      onPress={() => toggleLike(cm)}
-                      activeOpacity={0.6}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 0.5, borderColor: cm.likedByMe ? C.burgundy : C.burgundy + '60', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.burgundy }}>{cm.likedByMe ? '♥' : '♡'} {cm.likes}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
+              {/* 코멘트 리스트 (좋아요순) — 상위 5개 + 더보기 */}
+              {(() => {
+                const sorted = [...comments].sort((a, b) => b.likes - a.likes);
+                const visible = showAllComments ? sorted : sorted.slice(0, 5);
+                return (
+                  <>
+                    {visible.map((cm) => (
+                      <View key={cm.id} style={gS.commentCard}>
+                        <Text style={gS.commentTxt}>"{cm.txt}"</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                          <Text style={gS.commentWho}>{cm.who} · {cm.date}</Text>
+                          <TouchableOpacity
+                            onPress={() => toggleLike(cm)}
+                            activeOpacity={0.6}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 0.5, borderColor: cm.likedByMe ? C.burgundy : C.burgundy + '60', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.burgundy }}>{cm.likedByMe ? '♥' : '♡'} {cm.likes}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                    {sorted.length > 5 && (
+                      <TouchableOpacity onPress={() => setShowAllComments(v => !v)} activeOpacity={0.7}
+                        style={{ paddingVertical: 10, alignItems: 'center' }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy }}>
+                          {showAllComments ? '접기' : `코멘트 ${sorted.length - 5}개 더보기`}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* 주변 골프장 — 카카오 로컬 반경 10km */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 8 }}>
