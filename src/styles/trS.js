@@ -33,8 +33,9 @@ export const trS = StyleSheet.create({
   routeBtn:     { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   routeBtnTxt:  { fontFamily: F.sys, fontSize: 14, fontWeight: '500' },
   // ── 갈 때/올 때 2-섹션 레이아웃 ──────────────────────────
-  twoSection:   { paddingHorizontal: 20, marginBottom: 24 },
-  twoLabel:     { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600', letterSpacing: 0.5, marginBottom: 14 },
+  // 섹션 간격은 컴팩트하게 — Android는 폰트 줄높이가 커서 콘텐츠가 길어지므로
+  twoSection:   { paddingHorizontal: 20, marginBottom: 16 },
+  twoLabel:     { fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600', letterSpacing: 0.5, marginBottom: 10 },
   // 출발/도착 row
   slotRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8 },
   slotKindTxt:  { fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.5)', width: 32 },

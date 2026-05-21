@@ -26,7 +26,6 @@ export function CourseLogModal({ visible, onClose, navigation }) {
               <Text style={{ fontSize: 22, color: C.butter }}>←</Text>
             </TouchableOpacity>
             <View>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 라이프</Text>
               <Text style={{ fontFamily: F.sys, fontSize: 17, color: C.butter, fontWeight: '700' }}>내 코스기록</Text>
             </View>
           </View>
