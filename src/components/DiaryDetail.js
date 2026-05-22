@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image, Alert } from 'react-na
 import { showAppAlert } from './AppAlert';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
 import { dS } from '../styles/dS';
 import { UserContext } from '../contexts/UserContext';
@@ -97,10 +97,10 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
             <Text style={dS.detailHdrNicknameTxt}>{userProfile.nickname}</Text>
           </View>
           <TouchableOpacity onPress={() => setShowEditModal(true)}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>수정</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>수정</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleDelete}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>삭제</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>삭제</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -135,7 +135,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
                 borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
                 minWidth: 52, alignItems: 'center', alignSelf: 'center',
               }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#2A2622', fontWeight: '600' }}>싱글</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
               </View>
             )}
             {item.special && (
@@ -144,7 +144,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
                 borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
                 alignSelf: 'center',
               }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{item.special}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8' }}>{item.special}</Text>
               </View>
             )}
             {item.birdieCount > 0 && (
@@ -153,7 +153,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
                 borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
                 alignSelf: 'center',
               }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '600' }}>버디 ×{item.birdieCount}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
               </View>
             )}
           </View>
@@ -169,7 +169,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
                     paddingHorizontal: 10, paddingVertical: 4,
                     borderRadius: 12,
                   }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: color.text }}>{tag}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: color.text }}>{tag}</Text>
                   </View>
                 );
               })}
@@ -185,8 +185,8 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
               borderRadius: 10, padding: 14,
               borderWidth: 0.5, borderColor: C.hairline,
             }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>더 기록하기</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary, lineHeight: 22 }}>{item.detailMemo}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>더 기록하기</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, lineHeight: 22 }}>{item.detailMemo}</Text>
             </View>
           ) : null}
           <View style={dS.companionArea}>
@@ -223,18 +223,18 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
                   setEditPhotos(item.photos || []);
                   setIsEditing(false);
                 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>취소</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>취소</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => {
                   onUpdate && onUpdate({ ...item, photos: editPhotos });
                   setIsEditing(false);
                 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '600' }}>완료</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>완료</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity onPress={() => setIsEditing(true)}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy }}>편집</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.burgundy }}>편집</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -259,7 +259,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
                   <GridThumb item={uri} src={src} />
                   {i === 0 && (
                     <View style={{ position: 'absolute', top: 6, left: 6, backgroundColor: C.burgundy, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 8, color: '#fff' }}>대표</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(8), color: '#fff' }}>대표</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -337,7 +337,7 @@ function GridThumb({ item, src }) {
             backgroundColor: 'rgba(0,0,0,0.55)',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <Text style={{ color: '#fff', fontSize: 14, marginLeft: 2 }}>▶</Text>
+            <Text style={{ color: '#fff', fontSize: fs(14), marginLeft: 2 }}>▶</Text>
           </View>
         </View>
       </View>

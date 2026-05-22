@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { obS } from '../styles/obS';
 import { TripleStripe } from './common/TripleStripe';
 
@@ -39,14 +39,14 @@ export function OnboardingScreen({ seed = {}, onComplete }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       <TripleStripe />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 28, paddingBottom: 60 }}>
-        <Text style={{ fontFamily: F.brand, fontSize: 32, color: C.charcoal, marginBottom: 6 }}>Dear Golf</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGrayLight, marginBottom: 40 }}>나만의 골프 캐디를 시작해요</Text>
+        <Text style={{ fontFamily: F.brand, fontSize: fs(32), color: C.charcoal, marginBottom: 6 }}>Dear Golf</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGrayLight, marginBottom: 40 }}>나만의 골프 캐디를 시작해요</Text>
 
         {step === 1 && (
           <View>
             <Text style={obS.stepLabel}>1단계 · 프로필</Text>
             {seed.kakaoLinked && (
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#8B6914', marginBottom: 10 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginBottom: 10 }}>
                 💬 카카오 닉네임을 가져왔어요 — 그대로 쓰거나 수정할 수 있어요
               </Text>
             )}
@@ -78,7 +78,7 @@ export function OnboardingScreen({ seed = {}, onComplete }) {
               value={lifeBest} onChangeText={setLifeBest} keyboardType="numeric" />
             {lifeBest !== '' && (
               <View style={{ marginTop: 12, padding: 12, backgroundColor: parseInt(lifeBest) <= 79 ? '#F5F0E4' : C.bgSecondary, borderRadius: 10, borderWidth: 1, borderColor: parseInt(lifeBest) <= 79 ? '#C9A84C' : C.hairline }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: parseInt(lifeBest) <= 79 ? '#8B6914' : C.warmGrayLight }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: parseInt(lifeBest) <= 79 ? '#8B6914' : C.warmGrayLight }}>
                   {parseInt(lifeBest) <= 79 ? '싱글 골퍼이시네요!' : `싱글까지 ${parseInt(lifeBest) - 79}타 남았어요`}
                 </Text>
               </View>

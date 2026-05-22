@@ -31,7 +31,10 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.local
 .env*.local
+!.env.example
 
 # typescript
 *.tsbuildinfo
@@ -46,3 +49,6 @@ expo_qr.png
 # Expo 빌드 산출물
 expo-qr.png
 expo-start.log
+
+# Claude Code (로컬 설정)
+.claude/settings.local.json

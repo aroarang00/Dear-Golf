@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
 
 // 라운지 이용 안내 — 헤더 ℹ️ 버튼으로 열림. 모집 진행 방식을 처음 보는 사람도 알 수 있게.
@@ -41,8 +41,8 @@ export function RoundupGuideModal({ visible, onClose }) {
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
           <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 17, fontWeight: '700', color: C.charcoal }}>라운지 이용 안내</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>라운지 이용 안내</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>
               라운딩 모집이 어떻게 진행되는지 알려드려요.
             </Text>
           </View>
@@ -52,16 +52,16 @@ export function RoundupGuideModal({ visible, onClose }) {
             {SECTIONS.map(s => (
               <View key={s.title} style={{ marginBottom: 18 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 6 }}>
-                  <Text style={{ fontSize: 15 }}>{s.icon}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, fontWeight: '700', color: C.charcoal }}>{s.title}</Text>
+                  <Text style={{ fontSize: fs(15) }}>{s.icon}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{s.title}</Text>
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 20 }}>{s.body}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 20 }}>{s.body}</Text>
               </View>
             ))}
           </ScrollView>
           <TouchableOpacity onPress={onClose} activeOpacity={0.85}
             style={{ marginHorizontal: 20, marginTop: 4, backgroundColor: C.charcoal, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>확인</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>확인</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, Image, ActivityIndicator, Dimensions } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -54,10 +54,10 @@ export function PhotoEditModal({ visible, uri, onSave, onClose }) {
         {/* Top bar */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20 }}>
           <TouchableOpacity onPress={handleClose} disabled={saving}>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: '#fff' }}>취소</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: '#fff' }}>취소</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleSave} disabled={saving}>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.butter, fontWeight: '600' }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>
               {saving ? '저장 중…' : '저장'}
             </Text>
           </TouchableOpacity>
@@ -96,7 +96,7 @@ function ToolBtn({ label, onPress }) {
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#fff' }}>{label}</Text>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#fff' }}>{label}</Text>
     </TouchableOpacity>
   );
 }

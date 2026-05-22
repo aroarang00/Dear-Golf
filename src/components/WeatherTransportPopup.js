@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { C } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
 import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
@@ -559,7 +559,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 onBlur={() => resolveCustomCoord(slotKey)}
                 onSubmitEditing={() => resolveCustomCoord(slotKey)}
                 placeholder="주소 또는 장소명 입력"
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor="rgba(255,255,255,0.5)"
                 returnKeyType="done" />
             )}
           </View>
@@ -674,7 +674,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               <Text style={wxS.backArrow}>←</Text>
             </TouchableOpacity>
             {weatherOnly || schedule.overseas ? (
-              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: 'rgba(255,255,255,0.85)' }}>
                 {weatherOnly ? '현재 위치 날씨' : '현지 날씨'}
               </Text>
             ) : (
@@ -713,7 +713,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               <View style={wxS.wxHeader}>
                 {weatherOnly ? (
                   <>
-                    <Text style={[wxS.wxCourse, { fontSize: 18 }]}>
+                    <Text style={[wxS.wxCourse, { fontSize: fs(19) }]}>
                       📍 {resolvedLoc || '현재 위치'}
                     </Text>
                     <Text style={wxS.wxDate}>{schedule.date}</Text>
@@ -731,11 +731,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {forecast === null ? (
                 wxFailed ? (
                   <View style={{ paddingVertical: 72, paddingHorizontal: 32, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 30, marginBottom: 12 }}>🌧️</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
+                    <Text style={{ fontSize: fs(30), marginBottom: 12 }}>🌧️</Text>
+                    <Text style={{ fontFamily: F.sysSb, color: 'rgba(255,255,255,0.85)', fontSize: fs(14), textAlign: 'center' }}>
                       {weatherOnly ? '현재 위치를 가져올 수 없어요' : '날씨 정보를 불러올 수 없어요'}
                     </Text>
-                    <Text style={{ marginTop: 8, color: 'rgba(255,255,255,0.45)', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                    <Text style={{ marginTop: 8, color: 'rgba(255,255,255,0.45)', fontSize: fs(12), textAlign: 'center', lineHeight: 18 }}>
                       {weatherOnly
                         ? '위치 권한을 확인하거나\n잠시 후 다시 시도해주세요'
                         : '골프장 위치를 찾지 못했어요.\n일정 수정에서 카카오 검색으로\n골프장을 선택하면 정확해져요'}
@@ -744,13 +744,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       onPress={() => setRetryTick(t => t + 1)}
                       activeOpacity={0.8}
                       style={{ marginTop: 18, borderWidth: 1, borderColor: 'rgba(245,230,168,0.6)', borderRadius: 20, paddingHorizontal: 22, paddingVertical: 9 }}>
-                      <Text style={{ color: '#F5E6A8', fontSize: 13 }}>다시 시도</Text>
+                      <Text style={{ color: '#F5E6A8', fontSize: fs(13) }}>다시 시도</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <View style={{ paddingVertical: 80, alignItems: 'center' }}>
                     <ActivityIndicator size="large" color="#F5E6A8" />
-                    <Text style={{ marginTop: 12, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>날씨 데이터 불러오는 중…</Text>
+                    <Text style={{ marginTop: 12, color: 'rgba(255,255,255,0.5)', fontSize: fs(12) }}>날씨 데이터 불러오는 중…</Text>
                   </View>
                 )
               ) : (
@@ -810,7 +810,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               <Text style={[wxS.sectionLabel, { paddingHorizontal: 20, marginTop: 28 }]}>골프 지수</Text>
               <View style={[wxS.gIdxCard, { marginTop: 0 }]}>
                 {golfIdx?.kind === 'too-far' ? (
-                  <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, paddingVertical: 10, textAlign: 'center' }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: fs(13), paddingVertical: 10, textAlign: 'center' }}>
                     10일 전부터 확인할 수 있어요
                   </Text>
                 ) : golfIdx ? (
@@ -831,7 +831,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                     </View>
                   </>
                 ) : (
-                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 8, textAlign: 'center' }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: fs(12), paddingVertical: 8, textAlign: 'center' }}>
                     데이터 부족
                   </Text>
                 )}
@@ -841,7 +841,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               <View style={wxS.condWrap}>
                 <Text style={wxS.sectionLabel}>라운딩 컨디션</Text>
                 {hourSlots.length === 0 ? (
-                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 16, textAlign: 'center' }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: fs(12), paddingVertical: 16, textAlign: 'center' }}>
                     시간대 예보 정보가 없습니다 (D+3 이후)
                   </Text>
                 ) : hourSlots.map((slot, i) => {
@@ -849,7 +849,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   const { dots, label } = calcDots(slot, airForScore, uvForScore);
                   return (
                     <View key={i} style={[wxS.condRow, isTee && wxS.condRowTee]}>
-                      <Text style={wxS.condTime}>{slot.time}</Text>
+                      <Text style={wxS.condTime} numberOfLines={1}>{slot.time}</Text>
                       <Text style={wxS.condIcon}>{slot.icon}</Text>
                       <View style={wxS.condDots}>
                         {[1, 2, 3, 4, 5].map(d => {
@@ -880,7 +880,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 <Text style={wxS.sectionLabel}>10일 예보</Text>
                 <View style={wxS.fcCard}>
                   {days.length === 0 ? (
-                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, paddingVertical: 16, textAlign: 'center' }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: fs(12), paddingVertical: 16, textAlign: 'center' }}>
                       예보 정보가 없습니다
                     </Text>
                   ) : days.map((w, i) => {
@@ -948,8 +948,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
               {/* 교통 탭 헤더 (다크 톤 통일) */}
               <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
-                <Text style={{ fontSize: 18, color: '#fff', fontWeight: '600', marginBottom: 4 }}>{schedule.course}</Text>
-                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(18), color: '#fff', marginBottom: 4 }}>{schedule.course}</Text>
+                <Text style={{ fontSize: fs(11), color: 'rgba(255,255,255,0.65)' }}>
                   {schedule.isPreview ? '교통편 미리보기' : `${schedule.date} · 티오프 ${schedule.time}`}
                 </Text>
               </View>
@@ -959,7 +959,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 <Text style={trS.twoLabel}>갈 때</Text>
                 {schedule.isPreview ? (
                   <View style={{ backgroundColor: 'rgba(245,230,168,0.1)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 22, marginBottom: 16 }}>
-                    <Text style={{ fontFamily: 'System', fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 21 }}>
+                    <Text style={{ fontFamily: 'System', fontSize: fs(13), color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 21 }}>
                       📅 라운딩 일정을 등록하면{'\n'}출발 시간을 알려드려요
                     </Text>
                   </View>
@@ -969,19 +969,19 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ flex: 1 }}>
                           <Text style={trS.recoLabel}>추천 출발</Text>
-                          <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{recommended}</Text>
+                          <Text style={[trS.recoTime, { fontSize: fs(38), lineHeight: 42 }]}>{recommended}</Text>
                         </View>
-                        <Text style={{ fontSize: 22, color: 'rgba(245,230,168,0.55)', marginHorizontal: 8 }}>→</Text>
+                        <Text style={{ fontSize: fs(22), color: 'rgba(245,230,168,0.55)', marginHorizontal: 8 }}>→</Text>
                         <View style={{ flex: 1 }}>
                           <Text style={trS.recoLabel}>도착 예정</Text>
-                          <Text style={[trS.recoTime, { fontSize: 34, lineHeight: 38 }]}>{arrival}</Text>
+                          <Text style={[trS.recoTime, { fontSize: fs(38), lineHeight: 42 }]}>{arrival}</Text>
                         </View>
                       </View>
                       <Text style={trS.recoSub}>
                         티오프 {schedule.time} · {driveMin != null ? `운전 ${driveMin}분 · ` : ''}여유 30분 포함
                       </Text>
                     </View>
-                    <Text style={{ fontFamily: 'System', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
+                    <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
                       {driveMin != null
                         ? 'ⓘ 카카오 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요'
                         : 'ⓘ 출발지 좌표가 있어야 실제 소요시간으로 계산해요 (지금은 기본 추정치)'}

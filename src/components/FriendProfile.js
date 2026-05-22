@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { TrustGradeModal } from './common/TrustBadge';
@@ -29,25 +29,25 @@ function FeedCard({ item, onShowLikers }) {
     }}>
       {isSpecial && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-          <Text style={{ fontSize: 13 }}>🏆</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#8B6914', fontWeight: '700', letterSpacing: 1 }}>
+          <Text style={{ fontSize: fs(13) }}>🏆</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914', letterSpacing: 1 }}>
             {SPECIAL_LABEL[item.special] || item.special}
           </Text>
         </View>
       )}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{item.course}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>{item.date}</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{item.course}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>{item.date}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-        <Text style={{ fontFamily: F.en, fontSize: 24, color: C.charcoal, fontWeight: '700' }}>{item.score}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>타 · {diffLabel}</Text>
+        <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>{item.score}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>타 · {diffLabel}</Text>
         {item.rating > 0 && (
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#C9A84C', marginLeft: 4 }}>{'★'.repeat(item.rating)}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C', marginLeft: 4 }}>{'★'.repeat(item.rating)}</Text>
         )}
       </View>
       {item.memo ? (
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 6, lineHeight: 18 }}>"{item.memo}"</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 6, lineHeight: 18 }}>"{item.memo}"</Text>
       ) : null}
       {/* 좋아요 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingTop: 10,
@@ -55,12 +55,12 @@ function FeedCard({ item, onShowLikers }) {
         <TouchableOpacity onPress={() => setLiked(v => !v)} activeOpacity={0.7}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 12,
             backgroundColor: liked ? '#F0E0E2' : 'transparent', borderWidth: 0.5, borderColor: liked ? C.burgundy : C.hairline }}>
-          <Text style={{ fontSize: 12 }}>👍</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '700', color: liked ? C.burgundy : C.warmGray }}>{likers.length}</Text>
+          <Text style={{ fontSize: fs(12) }}>👍</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: liked ? C.burgundy : C.warmGray }}>{likers.length}</Text>
         </TouchableOpacity>
         {likers.length > 0 && (
           <TouchableOpacity onPress={() => onShowLikers(likers)} activeOpacity={0.7}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>좋아요 누른 사람 보기</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>좋아요 누른 사람 보기</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -98,12 +98,12 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
           <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>친구 프로필</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>친구 프로필</Text>
             <View style={{ flex: 1 }} />
             <TouchableOpacity onPress={() => setOptionsOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.charcoal, fontWeight: '700', lineHeight: 22 }}>⋯</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal, lineHeight: 22 }}>⋯</Text>
             </TouchableOpacity>
           </View>
 
@@ -113,15 +113,15 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
               paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12, backgroundColor: C.bgPrimary }}>
               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
                 alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 32, color: palette.fg, fontWeight: '700' }}>{friend.name.charAt(0)}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{friend.name.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 {/* 이름 + 핸디 — 같은 줄 */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 20, color: C.charcoal, fontWeight: '700' }}>{friend.name}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal }}>{friend.name}</Text>
                   <TouchableOpacity onPress={() => setHandicapInfoOpen(true)} activeOpacity={0.7}
                     style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '700' }}>핸디 {stats.avg ?? '—'}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>핸디 {stats.avg ?? '—'}</Text>
                   </TouchableOpacity>
                 </View>
                 {/* 신뢰 + 매너 — 이름 아래 줄 */}
@@ -129,30 +129,30 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
                   <TouchableOpacity onPress={() => setGradeOpen(true)} activeOpacity={0.7}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
                       borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ fontSize: 12 }}>{grade.emoji}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '700' }}>{grade.label}</Text>
+                    <Text style={{ fontSize: fs(12) }}>{grade.emoji}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{grade.label}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setMannerOpen(true)} activeOpacity={0.7}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
                       borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ fontSize: 12 }}>{manner.emoji}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: manner.color, fontWeight: '700' }}>{manner.label}</Text>
+                    <Text style={{ fontSize: fs(12) }}>{manner.emoji}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: manner.color }}>{manner.label}</Text>
                   </TouchableOpacity>
                 </View>
                 {/* 함께 N회 — 주최·참석은 신뢰/매너로 짐작 가능하므로 비공개 */}
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 6 }}>
-                  함께 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{friend.roundsTogether || 0}</Text>회
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
+                  함께 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{friend.roundsTogether || 0}</Text>회
                 </Text>
               </View>
             </View>
 
             {/* 라운딩 피드 — 평균타(핸디)는 명함의 핸디 뱃지로 노출 */}
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 12, marginBottom: 10 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 12, marginBottom: 10 }}>
               라운딩 피드
             </Text>
             <View style={{ paddingHorizontal: 16 }}>
               {(friend.feed || []).length === 0 ? (
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 24 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 24 }}>
                   아직 공개된 라운딩 기록이 없어요
                 </Text>
               ) : (
@@ -178,20 +178,20 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                 backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
               <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700', textAlign: 'center', paddingTop: 16, paddingBottom: 10 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, textAlign: 'center', paddingTop: 16, paddingBottom: 10 }}>
                   {friend.name}
                 </Text>
                 {options.map((opt, i) => (
                   <TouchableOpacity key={i} activeOpacity={0.6} onPress={opt.onPress}
                     style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: opt.danger ? '#D32F2F' : C.charcoal, textAlign: 'center' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: opt.danger ? '#D32F2F' : C.charcoal, textAlign: 'center' }}>
                       {opt.text}
                     </Text>
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity activeOpacity={0.6} onPress={() => setOptionsOpen(false)}
                   style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgSecondary }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray, textAlign: 'center' }}>취소</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, textAlign: 'center' }}>취소</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>

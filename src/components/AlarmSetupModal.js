@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Alert, Linking } from 'react-native';
 import { showAppAlert } from './AppAlert';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { UserContext } from '../contexts/UserContext';
 import {
@@ -82,19 +82,19 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
 
           {stage === 'ask' ? (
             <>
-              <Text style={{ fontSize: 34, textAlign: 'center', marginBottom: 10 }}>🔔</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 18, color: C.charcoal, fontWeight: '700', textAlign: 'center' }}>
+              <Text style={{ fontSize: fs(34), textAlign: 'center', marginBottom: 10 }}>🔔</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, textAlign: 'center' }}>
                 라운딩 알람을 설정할까요?
               </Text>
               <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, padding: 14, marginTop: 16 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }} numberOfLines={1}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>
                   {schedule.course}
                 </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 4 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }}>
                   {schedule.date} {schedule.day} · {schedule.time}
                 </Text>
               </View>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, textAlign: 'center', marginTop: 14, lineHeight: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 14, lineHeight: 18 }}>
                 라운딩 전에 잊지 않도록{'\n'}미리 알림을 보내드릴 수 있어요.
               </Text>
 
@@ -109,9 +109,9 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
                   borderWidth: 1.5, borderColor: dontAsk ? C.burgundy : C.warmGrayLight,
                   backgroundColor: dontAsk ? C.burgundy : 'transparent',
                 }}>
-                  {dontAsk && <Text style={{ color: C.butter, fontSize: 11, fontWeight: '700' }}>✓</Text>}
+                  {dontAsk && <Text style={{ color: C.butter, fontSize: fs(11), fontWeight: '700' }}>✓</Text>}
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
                   다시 묻지 않기 (기본 설정대로 자동 적용)
                 </Text>
               </TouchableOpacity>
@@ -121,27 +121,27 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
                   activeOpacity={0.8}
                   onPress={close}
                   style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>나중에</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>나중에</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => setStage('select')}
                   style={{ flex: 1.4, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: C.burgundy }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>네, 설정할게요</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>네, 설정할게요</Text>
                 </TouchableOpacity>
               </View>
               {dontAsk && (
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, textAlign: 'center', marginTop: 10, lineHeight: 15 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, textAlign: 'center', marginTop: 10, lineHeight: 15 }}>
                   다음부터는 이 팝업 없이 마이페이지 기본 설정대로 적용돼요.{'\n'}마이페이지에서 다시 켤 수 있어요.
                 </Text>
               )}
             </>
           ) : (
             <>
-              <Text style={{ fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '700' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>
                 알람 받을 시점
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, marginBottom: 14 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, marginBottom: 14 }}>
                 원하는 시점을 선택해주세요.
               </Text>
 
@@ -169,13 +169,13 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
                       borderWidth: 1.5, borderColor: on ? C.burgundy : C.warmGrayLight,
                       backgroundColor: on ? C.burgundy : 'transparent',
                     }}>
-                      {on && <Text style={{ color: C.butter, fontSize: 13, fontWeight: '700' }}>✓</Text>}
+                      {on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>
                         {def.label}
                       </Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
                         {past ? '이미 지난 시점이에요' : def.title}
                       </Text>
                     </View>
@@ -188,14 +188,14 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
                   activeOpacity={0.8}
                   onPress={close}
                   style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>건너뛰기</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>건너뛰기</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   disabled={saving}
                   onPress={handleConfirm}
                   style={{ flex: 1.4, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: anyPicked ? C.burgundy : C.warmGrayLight }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>
                     {saving ? '설정 중…' : anyPicked ? '알람 설정' : '선택 안 함'}
                   </Text>
                 </TouchableOpacity>

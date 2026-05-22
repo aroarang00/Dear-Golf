@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 
 // 참여자 아바타 색상
 const AV = ['#C8D9E6', '#F5E6A8', '#6B8B5E', '#D9B8B8'];
@@ -33,20 +33,20 @@ export function RoundEvaluationModal({ visible, round, onClose, onSubmit }) {
           <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>라운딩 평가</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>라운딩 평가</Text>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>
               {round.course || '지난 라운딩'}
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 3 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>
               {round.date || ''}
             </Text>
             <View style={{ backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#E2D2A8', borderRadius: 10, padding: 12, marginTop: 14 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#8B6914', lineHeight: 16 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', lineHeight: 16 }}>
                 💡 48시간 후 익명으로 일괄 반영돼요.{'\n'}누가 어떤 평가를 했는지는 절대 표시되지 않아요.
               </Text>
             </View>
@@ -61,14 +61,14 @@ export function RoundEvaluationModal({ visible, round, onClose, onSubmit }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: pal,
                         alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '700' }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>
                           {p.name.charAt(0)}
                         </Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>{p.name}</Text>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{p.name}</Text>
                         {p.role && (
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>{p.role}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>{p.role}</Text>
                         )}
                       </View>
                     </View>
@@ -81,8 +81,8 @@ export function RoundEvaluationModal({ visible, round, onClose, onSubmit }) {
                             style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
                               backgroundColor: on ? o.bg : C.bgPrimary,
                               borderWidth: 1, borderColor: on ? o.color : C.hairline }}>
-                            <Text style={{ fontSize: 17 }}>{o.icon}</Text>
-                            <Text style={{ fontFamily: F.sys, fontSize: 11, marginTop: 3, fontWeight: '600',
+                            <Text style={{ fontSize: fs(17) }}>{o.icon}</Text>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), marginTop: 3,
                               color: on ? o.color : C.warmGray }}>{o.label}</Text>
                           </TouchableOpacity>
                         );
@@ -97,8 +97,8 @@ export function RoundEvaluationModal({ visible, round, onClose, onSubmit }) {
               onPress={() => { onSubmit && onSubmit(ratings); onClose(); }}
               style={{ marginTop: 22, backgroundColor: allRated ? C.burgundy : C.hairline,
                 borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14,
-                color: allRated ? C.butter : C.warmGrayLight, fontWeight: '700' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14),
+                color: allRated ? C.butter : C.warmGrayLight }}>
                 {allRated ? '평가 제출' : '모든 동반자를 평가해주세요'}
               </Text>
             </TouchableOpacity>

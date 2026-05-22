@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
@@ -39,25 +39,25 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
           <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>알림</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>알림</Text>
             <View style={{ flex: 1 }} />
             {hasUnread && (
               <TouchableOpacity onPress={onReadAll} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>모두 읽음</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>모두 읽음</Text>
               </TouchableOpacity>
             )}
             {hasAny && onClearAll && (
               <TouchableOpacity onPress={onClearAll} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, fontWeight: '600' }}>전체삭제</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>전체삭제</Text>
               </TouchableOpacity>
             )}
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16 }}>
             {notifications.length === 0 ? (
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
                 새 알림이 없어요
               </Text>
             ) : (
@@ -71,14 +71,13 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                     style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 12, marginBottom: 8,
                       backgroundColor: n.read ? C.bgSecondary : '#F0E8D8',
                       borderWidth: 0.5, borderColor: n.read ? C.hairline : '#E2D2A8' }}>
-                    <Text style={{ fontSize: 18, marginTop: 1 }}>{NOTI_ICON[n.type] || '🔔'}</Text>
+                    <Text style={{ fontSize: fs(18), marginTop: 1 }}>{NOTI_ICON[n.type] || '🔔'}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 10, fontWeight: '700', marginBottom: 2,
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(10), marginBottom: 2,
                         color: isHost ? C.burgundy : '#3C7D4F' }}>
                         {isHost ? '내 모집글' : '내 참여·대기'}
                       </Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, lineHeight: 18,
-                        fontWeight: n.read ? '400' : '600' }}>
+                      <Text style={{ fontFamily: n.read ? F.sys : F.sysSb, fontSize: fs(13), color: C.charcoal, lineHeight: 18 }}>
                         {notiText(n)}
                       </Text>
                       {/* 신청자 신뢰도 — 주최자가 승인 판단 시 참고 */}
@@ -86,26 +85,26 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6,
                           paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: C.bgPrimary,
                           borderWidth: 0.5, borderColor: C.hairline, alignSelf: 'flex-start' }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '700' }}>{n.actor}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{n.actor}</Text>
                           <TrustBadge grade={actorGrade} onPress={() => onGradePress?.(actorGrade.key)} />
-                          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray }}>
-                            주최 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{n.actorHostedCount || 0}</Text>회 ·
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>
+                            주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{n.actorHostedCount || 0}</Text>회 ·
                           </Text>
                           <MannerBadge score={n.actorMannerScore} size={13} />
                         </View>
                       )}
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>{n.time}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>{n.time}</Text>
                       {/* 참여 신청 — 수락 / 거절 */}
                       {pending && (
                         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                           <TouchableOpacity activeOpacity={0.85} onPress={() => onAccept(n)}
                             style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8, backgroundColor: C.burgundy }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>수락</Text>
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>수락</Text>
                           </TouchableOpacity>
                           <TouchableOpacity activeOpacity={0.85} onPress={() => onReject(n)}
                             style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8,
                               backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, fontWeight: '600' }}>거절</Text>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>거절</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -117,7 +116,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                       {onDelete && (
                         <TouchableOpacity onPress={() => onDelete(n)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           style={{ paddingHorizontal: 2 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.warmGrayLight, fontWeight: '300', lineHeight: 18 }}>×</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGrayLight, lineHeight: 18 }}>×</Text>
                         </TouchableOpacity>
                       )}
                     </View>

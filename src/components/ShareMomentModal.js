@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { HallOfFameCard } from './HallOfFameCard';
 import { OverlayAlert } from './common/OverlayAlert';
 
@@ -28,23 +28,23 @@ export function ShareMomentModal({ moment, visible, onClose }) {
           <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 22, color: C.charcoal }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>특별한 순간 공유</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>특별한 순간 공유</Text>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>
               공유 미리보기
             </Text>
 
             {/* 공유될 카드 — 명예의 전당 카드 + Dear Golf 워터마크 */}
             <HallOfFameCard item={moment} />
             <View style={{ alignItems: 'center', marginTop: 6, marginBottom: 6 }}>
-              <Text style={{ fontFamily: F.brand, fontSize: 17, color: C.charcoal }}>Dear Golf</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 1, letterSpacing: 1 }}>deargolf.app</Text>
+              <Text style={{ fontFamily: F.brand, fontSize: fs(17), color: C.charcoal }}>Dear Golf</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 1, letterSpacing: 1 }}>deargolf.app</Text>
             </View>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
               공유하면 카드 하단에 Dear Golf 워터마크가 자동으로 들어가요.
             </Text>
 
@@ -56,8 +56,8 @@ export function ShareMomentModal({ moment, visible, onClose }) {
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                     backgroundColor: o.bg, borderRadius: 12, paddingVertical: 14,
                     borderWidth: o.border ? 1 : 0, borderColor: C.hairline }}>
-                  <Text style={{ fontSize: 16 }}>{o.icon}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: o.fg, fontWeight: '700' }}>{o.label}</Text>
+                  <Text style={{ fontSize: fs(16) }}>{o.icon}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: o.fg }}>{o.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>

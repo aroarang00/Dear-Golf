@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '../../constants/colors';
+import { C, F, fs } from '../../constants/colors';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
 
 // 풀스크린 모달 위에서도 보이는 알럿/액션시트.
@@ -25,12 +25,12 @@ export function OverlayAlert({ data, onClose }) {
       paddingTop: 32, paddingHorizontal: 32, paddingBottom: Math.max(32, insets.bottom + 24) }}>
       <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 340 }}>
         {!!data.title && (
-          <Text style={{ fontFamily: F.sys, fontSize: 16, fontWeight: '700', color: C.charcoal, textAlign: 'center', marginBottom: data.message ? 8 : 18 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, textAlign: 'center', marginBottom: data.message ? 8 : 18 }}>
             {data.title}
           </Text>
         )}
         {!!data.message && (
-          <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
             {data.message}
           </Text>
         )}
@@ -42,7 +42,7 @@ export function OverlayAlert({ data, onClose }) {
                 onPress={() => { onClose(); b.onPress && b.onPress(); }}
                 style={{ flex: inRow ? 1 : undefined, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
                   backgroundColor: s.bg, borderWidth: s.border ? 0.5 : 0, borderColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: s.fg, fontWeight: b.style === 'cancel' ? '400' : '600' }}>
+                <Text style={{ fontFamily: b.style === 'cancel' ? F.sys : F.sysSb, fontSize: fs(14), color: s.fg }}>
                   {b.text}
                 </Text>
               </TouchableOpacity>

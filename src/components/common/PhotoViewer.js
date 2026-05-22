@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, Image, Dimensions } from 'react-na
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { F } from '../../constants/colors';
+import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 
 const { width: SW } = Dimensions.get('window');
@@ -77,10 +77,10 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: 'center' }}>
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 28, lineHeight: 32 }}>✕</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
         <View style={{ position: 'absolute', top: 56, left: 0, right: 0, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.3)' }}>
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
           </Text>
         </View>

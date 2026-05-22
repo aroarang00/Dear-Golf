@@ -1,0 +1,175 @@
+rules_version = '2';
+
+// =============================================================
+// Dear Golf — Firestore 보안 규칙
+//  - 앱은 익명 인증(signInAnonymously) 기반 — request.auth는 익명 유저도 채워짐
+//  - 원칙: 본인 데이터만 쓰기(ownerUid/authorUid == request.auth.uid 강제)
+//  - 명시되지 않은 모든 경로는 기본 거부(default deny)
+//  - 규칙은 "필터"가 아님 — 목록 쿼리는 클라이언트가 ownerUid 등으로
+//    직접 필터해야 통과함 (하단 컬렉션별 주석 참고)
+// =============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== 공통 헬퍼 =====
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    // 두 uid로 친구 문서 ID 생성 — 항상 (작은uid)_(큰uid) 순서로 정렬
+    function pairId(a, b) {
+      return a < b ? (a + '_' + b) : (b + '_' + a);
+    }
+    // a와 b가 '수락된' 친구 사이인지 (friendships 문서 조회)
+    function areFriends(a, b) {
+      return exists(/databases/$(database)/documents/friendships/$(pairId(a, b)))
+        && get(/databases/$(database)/documents/friendships/$(pairId(a, b))).data.status == 'accepted';
+    }
+    // update 시 변경된 필드가 허용 목록 안에만 있는지
+    function changedKeysWithin(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+    // 호출자가 배열에서 '자기 자신'의 포함 여부만 토글했는지 (가입/탈퇴·좋아요)
+    function selfMembershipToggled(field) {
+      return (request.auth.uid in resource.data[field])
+          != (request.auth.uid in request.resource.data[field]);
+    }
+
+    // ===== users — 골퍼 프로필 (명함). MY 탭 = 친구 프로필 = 같은 스키마 =====
+    // 읽기: 로그인한 누구나 (친구 검색·친구 프로필·모집 작성자 표시에 필요)
+    //   ※ 민감 정보(전화번호 등)는 users 문서에 직접 저장하지 말 것
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(uid) && request.resource.data.uid == uid;
+      allow update: if isOwner(uid) && request.resource.data.uid == uid;
+      allow delete: if isOwner(uid);
+    }
+
+    // ===== rounds — 라운딩 기록 (구 diaries + 친구 feed 통합) =====
+    // 클라이언트 쿼리 규칙 (규칙은 필터가 아님):
+    //   · 내 기록      : where('ownerUid','==', 내uid)
+    //   · 친구 feed    : where('ownerUid','==', 친구uid).where('visibility','==','friends')
+    // 위 형태로 필터해야 list 쿼리가 통과함.
+    match /rounds/{roundId} {
+      allow read: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid
+        || (resource.data.visibility == 'friends'
+            && areFriends(request.auth.uid, resource.data.ownerUid))
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.visibility in ['friends', 'private'];
+      allow update: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid;   // ownerUid 변조 금지
+      allow delete: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // ===== friendships — 친구 관계. 문서 ID = pairId(uidA, uidB) =====
+    // { users:[uidA,uidB], requesterUid, recipientUid, status:'pending'|'accepted' }
+    match /friendships/{fid} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.users;
+
+      // 신청: 본인이 requester, status는 pending, users는 정확히 두 당사자,
+      //       문서 ID는 정규 pairId 여야 함 (areFriends가 ID를 계산해 조회하므로)
+      allow create: if isSignedIn()
+        && request.resource.data.requesterUid == request.auth.uid
+        && request.resource.data.recipientUid != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.users.hasOnly([request.resource.data.requesterUid, request.resource.data.recipientUid])
+        && request.resource.data.users.hasAll([request.resource.data.requesterUid, request.resource.data.recipientUid])
+        && fid == pairId(request.resource.data.requesterUid, request.resource.data.recipientUid);
+
+      // 수락: 수신자만, status를 pending → accepted 로만
+      allow update: if isSignedIn()
+        && request.auth.uid == resource.data.recipientUid
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'accepted'
+        && changedKeysWithin(['status', 'updatedAt']);
+
+      // 삭제: 양쪽 당사자 누구나 (신청 취소·거절·친구 끊기)
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.users;
+    }
+
+    // ===== roundups — 라운딩 모집글. 공개범위 2단계: 'all' | 'friends' =====
+    // 클라이언트 쿼리 규칙:
+    //   · 전체 모집 : where('scope','==','all')
+    //   · 친구 모집 : where('scope','==','friends').where('authorUid','==', 친구uid)
+    //   · 내 모집   : where('authorUid','==', 내uid)
+    match /roundups/{postId} {
+      allow read: if isSignedIn() && (
+        resource.data.scope == 'all'
+        || resource.data.authorUid == request.auth.uid
+        || (resource.data.scope == 'friends'
+            && areFriends(request.auth.uid, resource.data.authorUid))
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.scope in ['all', 'friends']
+        && request.resource.data.participantUids is list
+        && request.resource.data.waitlistUids is list;
+
+      // 주최자: 전체 수정 / 참여자: 참여·대기 배열만, 본인 포함 여부만 토글
+      //   ※ "남의 uid를 건드리지 않음"까지의 완전한 보장은 규칙만으론 불가 —
+      //     정확한 정원 처리는 Cloud Function(트랜잭션)으로 이관 권장
+      allow update: if isSignedIn() && (
+        resource.data.authorUid == request.auth.uid
+        || (
+          resource.data.authorUid != request.auth.uid
+          && changedKeysWithin(['participantUids', 'waitlistUids', 'joined', 'teamJoined', 'updatedAt'])
+          && (selfMembershipToggled('participantUids') || selfMembershipToggled('waitlistUids'))
+        )
+      );
+      allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // ===== roundupNotifications — 모집 알림 =====
+    //   ※ create를 클라이언트에 열어두면 알림 스팸이 가능 —
+    //     운영 단계에선 Cloud Function 생성으로 이관 권장
+    match /roundupNotifications/{notiId} {
+      allow read: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.recipientUid != request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.recipientUid == request.auth.uid
+        && changedKeysWithin(['read']);          // 읽음 처리만
+      allow delete: if isSignedIn()
+        && resource.data.recipientUid == request.auth.uid;
+    }
+
+    // ===== courseComments — 골퍼 코멘트 (이미 운영 중) =====
+    match /courseComments/{commentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.likes == 0;
+      // 작성자: 본인 코멘트 수정 / 그 외: 좋아요 토글만
+      //   likes는 ±1로만 변동 — 본인을 likedBy에 추가하면 +1, 제거하면 -1
+      //   (시딩 코멘트는 likes>0·likedBy 빈 배열이라 길이 일치 검증은 못 씀)
+      allow update: if isSignedIn() && (
+        resource.data.authorUid == request.auth.uid
+        || (
+          changedKeysWithin(['likedBy', 'likes'])
+          && selfMembershipToggled('likedBy')
+          && request.resource.data.likes == resource.data.likes
+               + ((request.auth.uid in request.resource.data.likedBy) ? 1 : -1)
+        )
+      );
+      allow delete: if isSignedIn()
+        && resource.data.authorUid == request.auth.uid;
+    }
+
+    // ===== top100Courses — 100대 코스 (시딩 완료, 읽기 전용) =====
+    match /top100Courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if false;     // 콘솔/관리자 스크립트로만 수정
+    }
+
+    // 위에 없는 모든 컬렉션은 기본 거부됨 (schedules·userCourses 등은 현재 로컬 보관)
+  }
+}

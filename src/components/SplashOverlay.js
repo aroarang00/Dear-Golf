@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Text, ActivityIndicator } from 'react-native';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 
 // 로딩 화면 오버레이 — 콘텐츠 위에 떠 있다가 appReady가 되면 페이드아웃 후 사라진다.
 // (조건부 언마운트로 휙 사라지는 대신 부드럽게 전환)
@@ -27,7 +27,7 @@ export function SplashOverlay({ appReady }) {
         alignItems: 'center', justifyContent: 'center',
         backgroundColor: C.paleSky, opacity,
       }}>
-      <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
+      <Text style={{ fontFamily: F.brand, fontSize: fs(44), color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
       <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
     </Animated.View>
   );

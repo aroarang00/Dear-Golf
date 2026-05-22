@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { CourseLogTab } from './CourseLogTab';
 
 // 내 코스기록 — 코스 탭 헤더에서 진입하는 전체화면 페이지.
@@ -23,10 +23,10 @@ export function CourseLogModal({ visible, onClose, navigation }) {
           {/* 헤더 — 웜그레이 + 버터 글씨 (네이비는 라운지 전용) */}
           <View style={{ backgroundColor: C.warmGray, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 22, color: C.butter }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: C.butter }}>←</Text>
             </TouchableOpacity>
             <View>
-              <Text style={{ fontFamily: F.sys, fontSize: 17, color: C.butter, fontWeight: '700' }}>내 코스기록</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter }}>내 코스기록</Text>
             </View>
           </View>
 

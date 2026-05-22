@@ -1,8 +1,11 @@
 import { login, getProfile } from '@react-native-seoul/kakao-login';
+import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
+import { auth, authReady } from './firebase';
 
 // 카카오 네이티브 SDK 로그인.
 // 카카오톡 앱이 있으면 앱으로, 없으면 카카오계정 웹으로 로그인.
-// 성공 시 { ok: true, kakaoId, nickname, profileImageUrl }
+// 성공 시 { ok: true, kakaoId, nickname, profileImageUrl, idToken }
+//   idToken: Firebase OIDC 연동용 JWT — 카카오 OpenID Connect 미활성 시 null
 // 실패 시 { ok: false, step, error } — 어느 단계에서 실패했는지 step에 기록.
 export async function loginWithKakao() {
   let step = 'login';
@@ -28,6 +31,7 @@ export async function loginWithKakao() {
       kakaoId: profile?.id != null ? String(profile.id) : null,
       nickname: profile?.nickname || '',
       profileImageUrl: profile?.profileImageUrl || profile?.thumbnailImageUrl || null,
+      idToken: token?.idToken || null,   // Firebase OIDC 연동용
     };
   } catch (e) {
     console.warn(`[kakao] FAIL @ ${step}`, e);
@@ -36,6 +40,52 @@ export async function loginWithKakao() {
       step,
       error: e?.message || e?.code || String(e),
     };
+  }
+}
+
+// 카카오 idToken으로 Firebase Auth 연동 (OIDC 공급자 'oidc.kakao').
+//  ① 첫 로그인        → 익명 계정을 카카오 신원으로 승격 (linkWithCredential, uid 유지)
+//  ② 재설치·기기변경  → 이미 그 카카오에 Firebase 계정 존재 → 기존 계정 로그인 (uid 변경)
+//  ③ 이미 연동된 계정 → no-op
+// 반환: { ok: true, mode: 'linked'|'existing'|'already', uid } | { ok: false, error }
+// 콘솔 설정·주의할 난점(nonce·aud 등)은 docs/kakao-firebase-auth.md 참고.
+export async function linkOrSignInWithKakao(kakaoIdToken) {
+  if (!kakaoIdToken) {
+    // 카카오 OpenID Connect 미활성 시 login()이 idToken을 주지 않음 — 콘솔 설정 확인
+    return { ok: false, error: 'no-idtoken' };
+  }
+
+  // 익명 로그인 완료 보장 — linkWithCredential은 현재 User 객체가 필요
+  await authReady;
+  const current = auth.currentUser;
+  if (!current) return { ok: false, error: 'no-current-user' };
+
+  // Firebase 콘솔에 등록한 OIDC 공급자 ID('oidc.kakao')와 정확히 일치해야 함
+  const credential = new OAuthProvider('oidc.kakao').credential({ idToken: kakaoIdToken });
+
+  try {
+    // ① 익명 계정을 카카오 신원으로 승격 — uid가 유지돼 rounds·friendships 데이터 보존
+    const result = await linkWithCredential(current, credential);
+    return { ok: true, mode: 'linked', uid: result.user.uid };
+  } catch (e) {
+    // ② 이 카카오에 이미 Firebase 계정이 있음 → 기존 계정으로 로그인 (uid 변경됨)
+    if (e?.code === 'auth/credential-already-in-use') {
+      try {
+        const result = await signInWithCredential(auth, credential);
+        return { ok: true, mode: 'existing', uid: result.user.uid };
+      } catch (e2) {
+        console.warn('[kakao-firebase] signIn 실패', e2?.code || e2?.message);
+        return { ok: false, error: e2?.code || e2?.message || 'sign-in-failed' };
+      }
+    }
+    // ③ 현재 계정에 이미 카카오가 연결돼 있음
+    if (e?.code === 'auth/provider-already-linked') {
+      return { ok: true, mode: 'already', uid: current.uid };
+    }
+    // 그 외 — auth/invalid-credential(aud 불일치), nonce 오류 등은
+    // docs/kakao-firebase-auth.md '주의할 난점 4가지' 참고
+    console.warn('[kakao-firebase] link 실패', e?.code || e?.message);
+    return { ok: false, error: e?.code || e?.message || 'link-failed' };
   }
 }
 

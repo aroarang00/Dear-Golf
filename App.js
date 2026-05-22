@@ -1,13 +1,13 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ActivityIndicator, Image } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
-import { C, F } from './src/constants/colors';
+import { C, F, fs } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
@@ -27,15 +27,6 @@ import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { SplashOverlay } from './src/components/SplashOverlay';
 
-// 시스템 글꼴 크기 설정(안드로이드 '글꼴 크기'/iOS 동적 타입)이 앱 레이아웃을
-// 깨지 않도록 — 모든 Text·TextInput의 글꼴 스케일링을 꺼서 텍스트 크기를 고정.
-if (Text.defaultProps == null) Text.defaultProps = {};
-Text.defaultProps.allowFontScaling = false;
-Text.defaultProps.maxFontSizeMultiplier = 1;
-if (TextInput.defaultProps == null) TextInput.defaultProps = {};
-TextInput.defaultProps.allowFontScaling = false;
-TextInput.defaultProps.maxFontSizeMultiplier = 1;
-
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
 
@@ -50,10 +41,15 @@ export default function App() {
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
 
-  // 번들 폰트 — Pretendard(한글 본문, iOS·Android 통일) + Lora Italic("Dear Golf" 워드마크)
+  // 번들 폰트 — Pretendard 정적 굵기 4종(한글 본문) + Lora Italic("Dear Golf" 워드마크)
+  // RN은 가변 폰트의 fontWeight를 못 살리므로 굵기별 파일을 각각 패밀리로 로드한다
+  // (사용은 constants/colors.js의 F.sys / F.sysM / F.sysSb / F.sysB 참고)
   const [fontsLoaded, fontError] = useFonts({
     Lora_500Medium_Italic,
-    Pretendard: require('./assets/fonts/PretendardVariable.ttf'),
+    'Pretendard-Regular':  require('./assets/fonts/Pretendard-Regular.otf'),
+    'Pretendard-Medium':   require('./assets/fonts/Pretendard-Medium.otf'),
+    'Pretendard-SemiBold': require('./assets/fonts/Pretendard-SemiBold.otf'),
+    'Pretendard-Bold':     require('./assets/fonts/Pretendard-Bold.otf'),
   });
 
   useEffect(() => {
@@ -128,7 +124,7 @@ export default function App() {
   if (!profileLoaded || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paleSky }}>
-        <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
+        <Text style={{ fontFamily: F.brand, fontSize: fs(44), color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
         <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
       </View>
     );
@@ -173,12 +169,12 @@ export default function App() {
       <Modal visible={firstSingleAlert} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <View style={{ backgroundColor: '#4A7A8A', borderRadius: 20, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#C8D9E6' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(200,217,230,0.6)', letterSpacing: 4, marginBottom: 8 }}>달성</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 26, color: '#C8D9E6', fontWeight: '600', letterSpacing: 3, marginBottom: 8 }}>퍼스트 싱글</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: 'rgba(200,217,230,0.8)', marginBottom: 20 }}>싱글 달성을 축하해요!</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(200,217,230,0.6)', letterSpacing: 4, marginBottom: 8 }}>달성</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(26), color: '#C8D9E6', fontWeight: '600', letterSpacing: 3, marginBottom: 8 }}>퍼스트 싱글</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: 'rgba(200,217,230,0.8)', marginBottom: 20 }}>싱글 달성을 축하해요!</Text>
             <TouchableOpacity style={{ borderWidth: 1, borderColor: '#C8D9E6', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 }}
               onPress={() => setFirstSingleAlert(false)}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#C8D9E6' }}>감사해요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#C8D9E6' }}>감사해요</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -187,12 +183,12 @@ export default function App() {
       <Modal visible={bestAlert} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <View style={{ backgroundColor: C.burgundy, borderRadius: 20, padding: 28, alignItems: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(245,230,168,0.6)', letterSpacing: 4, marginBottom: 8 }}>신기록</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 26, color: C.butter, fontWeight: '600', letterSpacing: 2, marginBottom: 8 }}>라이프 베스트!</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>라이프 베스트 갱신!</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(245,230,168,0.6)', letterSpacing: 4, marginBottom: 8 }}>신기록</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(26), color: C.butter, fontWeight: '600', letterSpacing: 2, marginBottom: 8 }}>라이프 베스트!</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>라이프 베스트 갱신!</Text>
             <TouchableOpacity style={{ borderWidth: 1, borderColor: C.butter, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 }}
               onPress={() => setBestAlert(false)}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter }}>감사해요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.butter }}>감사해요</Text>
             </TouchableOpacity>
           </View>
         </View>

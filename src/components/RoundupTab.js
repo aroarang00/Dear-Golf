@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Modal, View, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { RoundupCreateModal } from './RoundupCreateModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
@@ -82,29 +82,29 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
       {/* 뱃지 줄 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         <View style={{ backgroundColor: post.type === 'fixed' ? C.charcoal : '#6B8B5E', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#fff', fontWeight: '700' }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff' }}>
             {post.type === 'fixed' ? '확정형' : '오픈형'}
           </Text>
         </View>
         {post.teams > 1 && (
           <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.butter, fontWeight: '700' }}>단체 {post.teams}팀</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>단체 {post.teams}팀</Text>
           </View>
         )}
         <View style={{ backgroundColor: sb.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: sb.fg, fontWeight: '600' }}>{sb.label}</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: sb.fg }}>{sb.label}</Text>
         </View>
         {isClosed && (
           <View style={{ backgroundColor: '#E6C8C8', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#5C1E1E', fontWeight: '700' }}>마감</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#5C1E1E' }}>마감</Text>
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>{post.author}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>{post.author}</Text>
           <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />
           {!isMine && (
             <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 16, color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
+              <Text style={{ fontSize: fs(16), color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
                 {isBookmarked ? '★' : '☆'}
               </Text>
             </TouchableOpacity>
@@ -115,15 +115,15 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
       {/* 라운딩 정보 */}
       {post.type === 'fixed' ? (
         <>
-          <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>{post.course}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 3 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{post.course}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>
             {post.date} ({post.day}) · {post.time}
           </Text>
         </>
       ) : (
         <>
-          <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>장소 · 날짜 미정</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 3 }}>동반자와 함께 정해요</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>장소 · 날짜 미정</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>동반자와 함께 정해요</Text>
         </>
       )}
 
@@ -137,17 +137,17 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
             {compTxt && (
               <View style={{ backgroundColor: FILTER_BADGE.companion.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: FILTER_BADGE.companion.fg, fontWeight: '600' }}>{compTxt}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.companion.fg }}>{compTxt}</Text>
               </View>
             )}
             {skillTxt && (
               <View style={{ backgroundColor: FILTER_BADGE.skill.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: FILTER_BADGE.skill.fg, fontWeight: '600' }}>{skillTxt}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.skill.fg }}>{skillTxt}</Text>
               </View>
             )}
             {tagList.map(t => (
               <View key={t} style={{ backgroundColor: FILTER_BADGE.tag.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: FILTER_BADGE.tag.fg, fontWeight: '600' }}>#{t}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.tag.fg }}>#{t}</Text>
               </View>
             ))}
           </View>
@@ -155,16 +155,16 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
       })()}
 
       {post.word ? (
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, marginTop: 8, lineHeight: 18 }}>"{post.word}"</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: 18 }}>"{post.word}"</Text>
       ) : null}
 
       {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
         backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
-        <Text style={{ fontSize: 13 }}>{allFull ? '✅' : '🔄'}</Text>
-        <Text style={{ fontFamily: F.en, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>{total}/{capTotal}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>명</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 11, fontWeight: '600',
+        <Text style={{ fontSize: fs(13) }}>{allFull ? '✅' : '🔄'}</Text>
+        <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal, fontWeight: '700' }}>{total}/{capTotal}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>명</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
           color: allFull ? '#3C7D4F' : C.warmGray, marginLeft: 'auto' }}>
           {allFull ? '모집 완료' : '모집중'}
         </Text>
@@ -175,17 +175,17 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         {isMine ? (
           <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, fontWeight: '700' }}>내가 올린 모집글</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.warmGray }}>내가 올린 모집글</Text>
           </View>
         ) : joined ? (
           <View>
             <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
               backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.burgundy, fontWeight: '700' }}>참여 확정 ✓</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>참여 확정 ✓</Text>
             </View>
             <TouchableOpacity onPress={onCancel} activeOpacity={0.7}
               style={{ marginTop: 4, alignItems: 'center', paddingVertical: 6 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textDecorationLine: 'underline' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>
                 참여 취소
               </Text>
             </TouchableOpacity>
@@ -193,32 +193,32 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         ) : applied ? (
           <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
             backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B6914', fontWeight: '700' }}>신청 완료 · 수락 대기 중</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>신청 완료 · 수락 대기 중</Text>
           </View>
         ) : waitlistNum ? (
           <View>
             <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
               backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B6914', fontWeight: '700' }}>⏳ 대기 {waitlistNum}번</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>⏳ 대기 {waitlistNum}번</Text>
             </View>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
               취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
             </Text>
           </View>
         ) : userProfile?.isRestricted ? (
           <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B2A2A', fontWeight: '700' }}>🚫 이용 제한 중</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B2A2A' }}>🚫 이용 제한 중</Text>
           </View>
         ) : userProfile?.mannerEvaluationPending ? (
           <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
             backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: '#8B6914', fontWeight: '700' }}>지난 라운딩 평가 후 신청 가능해요</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>지난 라운딩 평가 후 신청 가능해요</Text>
           </View>
         ) : !isClosed ? (
           <TouchableOpacity activeOpacity={0.85} onPress={onApply}
             style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
               {post.scope === 'all' ? '참여 신청' : '참여하기'}
             </Text>
           </TouchableOpacity>
@@ -227,11 +227,11 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
             <TouchableOpacity activeOpacity={0.85} onPress={onWaitlist}
               style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
                 backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
                 대기 신청{post.waitlistCount > 0 ? ` (현재 ${post.waitlistCount}명 대기)` : ''}
               </Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
               마감된 모집이에요. 대기 신청하면 취소자 발생 시 알림을 받고 {respondHours}시간 내 응답하면 합류돼요.
             </Text>
           </View>
@@ -604,15 +604,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
           {!asScreen && (
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 22, color: C.butter }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: C.butter }}>←</Text>
             </TouchableOpacity>
           )}
           <View>
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(250,246,236,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 파트너 찾기</Text>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(250,246,236,0.72)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 파트너 찾기</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontFamily: F.serifKR, fontSize: 28, color: C.bgPrimary }}>라운지</Text>
+              <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.bgPrimary }}>라운지</Text>
               <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontSize: 17 }}>ℹ️</Text>
+                <Text style={{ fontSize: fs(17) }}>ℹ️</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -623,16 +623,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7,
               flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>+</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>모집글</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>+</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter }}>모집글</Text>
           </TouchableOpacity>
           {/* 알림함 */}
           <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ fontSize: 22 }}>🔔</Text>
+            <Text style={{ fontSize: fs(22) }}>🔔</Text>
             {unreadCount > 0 && (
               <View style={{ position: 'absolute', top: -5, right: -7, minWidth: 16, height: 16, borderRadius: 8,
                 backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 9, color: '#fff', fontWeight: '700' }}>{unreadCount}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>{unreadCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -652,7 +652,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
               <TouchableOpacity key={k} onPress={() => setView(k)} activeOpacity={0.8}
                 style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8,
                   backgroundColor: on ? C.charcoal : 'transparent' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: on ? '700' : '500', color: on ? C.butter : C.warmGray }}>
+                <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(12), color: on ? C.butter : C.warmGray }}>
                   {l}{count > 0 ? ` ${count}` : ''}
                 </Text>
               </TouchableOpacity>
@@ -673,7 +673,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
                   backgroundColor: on ? C.navy : C.bgSecondary,
                   borderWidth: 0.5, borderColor: on ? C.navy : C.hairline }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: on ? '700' : '500',
+                <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(12),
                   color: on ? C.butter : C.warmGray }}>{l}</Text>
               </TouchableOpacity>
             );
@@ -691,15 +691,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}
               activeOpacity={0.7}
               onPress={() => setView(view === 'match' ? (hideStranger ? 'friend' : 'all') : 'match')}>
-              <Text style={{ fontSize: 14 }}>🎯</Text>
-              <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, fontWeight: '600',
+              <Text style={{ fontSize: fs(14) }}>🎯</Text>
+              <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13),
                 color: view === 'match' ? C.butter : C.charcoal }}>
                 내 조건에 맞는 모집 {matchCount}건{view === 'match' ? ' · 보는 중' : ''}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowMatchModal(true)} activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 15 }}>⚙️</Text>
+              <Text style={{ fontSize: fs(15) }}>⚙️</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -707,11 +707,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: 10,
               backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
               paddingHorizontal: 14, paddingVertical: 11 }}>
-            <Text style={{ fontSize: 14 }}>🎯</Text>
-            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>
+            <Text style={{ fontSize: fs(14) }}>🎯</Text>
+            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>
               맞춤 모집 알림 설정하기
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>›</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>›</Text>
           </TouchableOpacity>
         )
       )}
@@ -719,7 +719,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       {/* 안내 텍스트 — 모집글 작성 버튼은 헤더로 이동 */}
       {view !== 'mine' && view !== 'watch' && (
         <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
             {view === 'match' ? '내 조건에 맞는 모집이에요'
               : view === 'friend' ? '친구가 올린 모집글이에요' : '전체공개 모집글이에요'}
           </Text>
@@ -730,42 +730,42 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}>
         {list.length === 0 ? (
           view === 'mine' ? (
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
               아직 참여 중인 모집이 없어요
             </Text>
           ) : view === 'watch' ? (
             <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: 36 }}>⭐</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700', marginTop: 14 }}>
+              <Text style={{ fontSize: fs(36) }}>⭐</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 14 }}>
                 관심 모집이 없어요
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
                 모집글의 별을 눌러 관심 모집으로 등록하세요
               </Text>
             </View>
           ) : view === 'match' ? (
             <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: 36 }}>🎯</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700', marginTop: 14 }}>
+              <Text style={{ fontSize: fs(36) }}>🎯</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 14 }}>
                 조건에 맞는 모집이 없어요
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
                 지금은 없지만 새 모집이 올라오면{'\n'}여기에 모여요
               </Text>
             </View>
           ) : (
             /* 빈 화면 가이드 — 모집글 0개 */
             <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: 42 }}>⛳</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginTop: 14 }}>
+              <Text style={{ fontSize: fs(42) }}>⛳</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginTop: 14 }}>
                 아직 모집글이 없어요
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
                 첫 번째 라운딩을 모집해보세요!
               </Text>
               <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.85}
                 style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '700' }}>+ 모집글 작성</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>+ 모집글 작성</Text>
               </TouchableOpacity>
             </View>
           )
@@ -783,7 +783,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         )}
         {view === 'all' && list.length > 0 && (
           <View style={{ marginTop: 4, backgroundColor: C.paleSky + '33', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
               🔒 라운딩 모집은 Firebase 연동 후 정식 오픈 예정이에요
             </Text>
           </View>
@@ -792,10 +792,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         {showSparseHint && (
           <View style={{ marginTop: 8, backgroundColor: '#F0E8D8', borderRadius: 12,
             borderWidth: 0.5, borderColor: '#E2D2A8', paddingVertical: 12, paddingHorizontal: 16 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#8B6914', fontWeight: '700', textAlign: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#8B6914', textAlign: 'center' }}>
               주변 모집글이 적어요
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, textAlign: 'center',
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center',
               marginTop: 4, lineHeight: 16 }}>
               연령대·실력 등 동반자 조건을 넓혀 모집해보세요
             </Text>

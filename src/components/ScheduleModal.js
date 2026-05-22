@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
 import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
@@ -168,7 +168,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
   const handleSave = () => {
     const finalCourse = selected ? selected.name : courseSearch.trim();
-    if (!finalCourse) return;
+    if (!finalCourse) {
+      Alert.alert('골프장을 입력해주세요', '저장하려면 골프장을 먼저 입력하거나 검색해 선택해주세요.');
+      return;
+    }
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const target = new Date(date); target.setHours(0, 0, 0, 0);
     const dDay = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
@@ -208,7 +211,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             automaticallyAdjustKeyboardInsets>
-              <Text style={mS.title}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
+              <Text style={[mS.title, { fontSize: fs(21) }]}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
 
               {/* 국내 / 해외 */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
@@ -222,10 +225,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               </View>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 6 }}>
-                <Text style={[mS.label, { marginTop: 0, marginBottom: 0 }]}>골프장</Text>
+                <Text style={[mS.label, { marginTop: 0, marginBottom: 0, fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>골프장</Text>
                 {selected && !editingName && (
                   <TouchableOpacity onPress={() => { setEditName(selected.name); setEditingName(true); }} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.burgundy }}>이름 수정</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.burgundy }}>이름 수정</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -239,28 +242,28 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                     autoFocus />
                   <TouchableOpacity onPress={handleRenameSave}
                     style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: 13 }}>저장</Text>
+                    <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: fs(13) }}>저장</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setEditingName(false)}
                     style={{ borderRadius: 10, paddingHorizontal: 12, justifyContent: 'center', borderWidth: 0.5, borderColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sys, color: C.warmGray, fontSize: 13 }}>취소</Text>
+                    <Text style={{ fontFamily: F.sys, color: C.warmGray, fontSize: fs(13) }}>취소</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TextInput style={mS.input} placeholder={overseas ? '골프장 이름 입력' : '카카오 검색으로 골프장 찾기...'}
+                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder={overseas ? '골프장 이름 입력' : '카카오 검색으로 골프장 찾기...'}
                   placeholderTextColor={C.warmGrayLight} value={courseSearch}
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseSearch(t); setSelected(null); }} />
               )}
 
               {selected && !editingName && (
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>
                   📍 {selected.loc || '주소 정보 없음'}
                 </Text>
               )}
 
               {!overseas && searching && (
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>검색 중...</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 6 }}>검색 중...</Text>
               )}
 
               {!overseas && !searching && searchResults.length > 0 && (
@@ -278,7 +281,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               {/* 입력 전 — 최근 검색한 골프장 바로 선택 */}
               {!overseas && !selected && !courseSearch && recentCourses.length > 0 && (
                 <View style={{ marginTop: 8 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 6 }}>🕘 최근 검색</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginBottom: 6 }}>🕘 최근 검색</Text>
                   <View style={mS.searchDrop}>
                     {recentCourses.slice(0, 3).map((rc, i) => (
                       <TouchableOpacity key={rc.kakaoId || `${rc.name}_${i}`} style={mS.searchItem}
@@ -293,13 +296,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
               {overseas && (
                 <>
-                  <Text style={mS.label}>도시 <Text style={{ fontSize: 10, color: C.warmGrayLight }}>(현지 날씨 조회용)</Text></Text>
+                  <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>도시 <Text style={{ fontSize: fs(11), fontFamily: F.sys, color: C.warmGrayLight }}>(현지 날씨 조회용)</Text></Text>
                   <TextInput style={mS.input} placeholder="예: Okinawa / Da Nang / 다낭"
                     placeholderTextColor={C.warmGrayLight} value={cityQuery}
                     autoCorrect={false} autoCapitalize="none"
                     onChangeText={t => { setCityQuery(t); setSelectedCity(null); }} />
                   {citySearching && (
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 6 }}>도시 검색 중...</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 6 }}>도시 검색 중...</Text>
                   )}
                   {!citySearching && cityResults.length > 0 && (
                     <View style={mS.searchDrop}>
@@ -313,16 +316,16 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                     </View>
                   )}
                   {selectedCity && (
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#3C7D4F', marginTop: 4 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#3C7D4F', marginTop: 4 }}>
                       ✓ {selectedCity.name} — 현지 날씨를 보여드려요
                     </Text>
                   )}
                 </>
               )}
 
-              <Text style={mS.label}>날짜</Text>
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>날짜</Text>
               <TouchableOpacity style={mS.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.textPrimary }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>
                   {formatDate(date)} ({formatDay(date)})
                 </Text>
               </TouchableOpacity>
@@ -331,10 +334,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
                   minimumDate={new Date()} locale="ko" />
               )}
-              <Text style={mS.label}>티오프 시간</Text>
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>티오프 시간</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <TextInput
-                  style={[mS.input, { flex: 1, textAlign: 'center' }]}
+                  style={[mS.input, { flex: 1, textAlign: 'center', fontSize: fs(15), fontFamily: F.sysSb }]}
                   value={hourText}
                   onChangeText={(v) => setHourText(v.replace(/[^0-9]/g, '').slice(0, 2))}
                   onBlur={() => setHourText(pad2(clampNum(hourText, 23)))}
@@ -343,9 +346,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   placeholder="시"
                   placeholderTextColor={C.warmGrayLight}
                 />
-                <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.textPrimary }}>:</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.textPrimary }}>:</Text>
                 <TextInput
-                  style={[mS.input, { flex: 1, textAlign: 'center' }]}
+                  style={[mS.input, { flex: 1, textAlign: 'center', fontSize: fs(15), fontFamily: F.sysSb }]}
                   value={minText}
                   onChangeText={(v) => setMinText(v.replace(/[^0-9]/g, '').slice(0, 2))}
                   onBlur={() => setMinText(pad2(clampNum(minText, 59)))}
@@ -357,7 +360,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 <TouchableOpacity
                   onPress={() => setShowTimePicker(true)}
                   style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                  <Text style={{ fontSize: 18 }}>🕐</Text>
+                  <Text style={{ fontSize: fs(18) }}>🕐</Text>
                 </TouchableOpacity>
               </View>
               {showTimePicker && (
@@ -369,11 +372,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                     if (t) { setHourText(pad2(t.getHours())); setMinText(pad2(t.getMinutes())); }
                   }} />
               )}
-              <Text style={mS.label}>인원</Text>
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>인원</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {['2','3','4'].map(n => (
                   <TouchableOpacity key={n} style={[mS.chip, members === n && mS.chipOn]} onPress={() => setMembers(n)}>
-                    <Text style={[mS.chipTxt, members === n && mS.chipTxtOn]}>{n}명</Text>
+                    <Text style={[mS.chipTxt, members === n && mS.chipTxtOn, { fontSize: fs(13) }]}>{n}명</Text>
                   </TouchableOpacity>
                 ))}
               </View>

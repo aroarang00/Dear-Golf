@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 
 // 홈 첫 진입 안내 — 3단계 (0·1: 탭/3초 후 자동, 2: 메뉴 안내 + 버튼)
 const TIPS = [
@@ -47,16 +47,16 @@ export function HomeTooltip({ visible, onClose }) {
             activeOpacity={1}
             onPress={advance}>
             <View style={{ backgroundColor: C.bgPrimary, borderRadius: 14, padding: 18, borderLeftWidth: 4, borderLeftColor: C.burgundy }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray, letterSpacing: 1.5, marginBottom: 6 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 6 }}>
                 {step + 1} / 3
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 5 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 5 }}>
                 {TIPS[step].title}
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, lineHeight: 20 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 20 }}>
                 {TIPS[step].desc}
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 10 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 10 }}>
                 화면을 탭하거나 잠시 기다리면 넘어가요
               </Text>
             </View>
@@ -64,21 +64,21 @@ export function HomeTooltip({ visible, onClose }) {
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 28 }}>
             <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 22 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray, letterSpacing: 1.5, marginBottom: 6 }}>3 / 3</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 17, color: C.charcoal, fontWeight: '700', marginBottom: 16 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 6 }}>3 / 3</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, marginBottom: 16 }}>
                 메뉴 한눈에 보기
               </Text>
               {MENUS.map(([name, desc]) => (
                 <View key={name} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 11 }}>
                   <View style={{ backgroundColor: C.charcoal, borderRadius: 6, paddingVertical: 4, marginRight: 10, width: 56, alignItems: 'center' }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>{name}</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>{name}</Text>
                   </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, flex: 1, lineHeight: 18 }}>{desc}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, flex: 1, lineHeight: 18 }}>{desc}</Text>
                 </View>
               ))}
               <TouchableOpacity onPress={onClose} activeOpacity={0.85}
                 style={{ marginTop: 10, backgroundColor: C.charcoal, borderRadius: 10, paddingVertical: 13, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>시작할게요!</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>시작할게요!</Text>
               </TouchableOpacity>
             </View>
           </View>

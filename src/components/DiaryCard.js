@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
 import { resolvePhotoUri } from '../utils/photoStorage';
@@ -38,7 +38,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
             borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
             minWidth: 52, alignItems: 'center', alignSelf: 'center',
           }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#2A2622', fontWeight: '600' }}>싱글</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
           </View>
         )}
         {item.special && (
@@ -47,7 +47,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
             borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
             alignSelf: 'center',
           }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8', fontWeight: '600' }}>{item.special}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8' }}>{item.special}</Text>
           </View>
         )}
         {item.birdieCount > 0 && (
@@ -56,13 +56,13 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
             borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
             alignSelf: 'center',
           }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8', fontWeight: '600' }}>버디 ×{item.birdieCount}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
           </View>
         )}
       </View>
       {item.memo ? (
         <View style={{ borderLeftWidth: 2, borderLeftColor: memoBorderColor, paddingLeft: 8, marginBottom: 8 }}>
-          <Text style={{ fontFamily: F.en, fontSize: 12, color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
         </View>
       ) : null}
       {item.tags && item.tags.length > 0 && (
@@ -72,12 +72,12 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
               const c = getTagColor(tag);
               return (
                 <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: c.text, fontWeight: '600' }}>{tag}</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: c.text }}>{tag}</Text>
                 </View>
               );
             })}
             {item.tags.length > 4 && (
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
             )}
           </View>
         </ScrollView>

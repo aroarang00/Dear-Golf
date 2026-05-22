@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
-import { C, F } from '../../constants/colors';
+import { C, F, fs } from '../../constants/colors';
 import { TRUST_GRADES } from '../../constants/trustGrade';
 
 // 신뢰 등급 뱃지 — 이름 옆 트로피 이모지. 탭하면 onPress로 등급 설명 팝업을 연다.
@@ -9,7 +9,7 @@ export function TrustBadge({ grade, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.6}
       hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}>
-      <Text style={{ fontSize: 13 }}>{grade.emoji}</Text>
+      <Text style={{ fontSize: fs(13) }}>{grade.emoji}</Text>
     </TouchableOpacity>
   );
 }
@@ -22,8 +22,8 @@ export function TrustGradeModal({ visible, onClose, highlightKey }) {
         activeOpacity={1} onPress={onClose}>
         <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
           <View style={{ backgroundColor: C.navy, paddingVertical: 16, paddingHorizontal: 18 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.bgPrimary, fontWeight: '700' }}>신뢰 등급 안내</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(250,246,236,0.7)', marginTop: 4 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.bgPrimary }}>신뢰 등급 안내</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(250,246,236,0.7)', marginTop: 4 }}>
               라운딩 모집을 완료할수록 등급이 올라가요
             </Text>
           </View>
@@ -35,10 +35,10 @@ export function TrustGradeModal({ visible, onClose, highlightKey }) {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12,
                     paddingVertical: 11, paddingHorizontal: 18,
                     backgroundColor: on ? '#F5F0E4' : 'transparent' }}>
-                  <Text style={{ fontSize: 22 }}>{g.emoji}</Text>
+                  <Text style={{ fontSize: fs(22) }}>{g.emoji}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700' }}>{g.label}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, marginTop: 2 }}>{g.cond}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{g.label}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{g.cond}</Text>
                   </View>
                 </View>
               );
@@ -46,7 +46,7 @@ export function TrustGradeModal({ visible, onClose, highlightKey }) {
           </View>
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}
             style={{ paddingVertical: 13, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600', textAlign: 'center' }}>확인</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, textAlign: 'center' }}>확인</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS, WEEKDAYS } from '../constants/data';
 import { searchGolfCourses } from '../utils/kakao';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
@@ -272,6 +272,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     reset(); onClose();
   };
 
+  // 라벨 공통 — 입력 모달 라벨을 키우고 진하게 (mS.label 오버라이드)
+  const bigLabel = [mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }];
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
         <View style={mS.mask}>
@@ -294,18 +297,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={mS.label}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={mS.input}
+              <Text style={bigLabel}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]}
                 placeholder={overseas ? '골프장 이름 입력' : '카카오로 골프장 검색 또는 직접 입력...'}
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
                 autoCorrect={false} autoCapitalize="none"
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); setSelectedCourseObj(null); }} />
               {!overseas && kakaoSearching && (
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>검색 중...</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>검색 중...</Text>
               )}
               {overseas && (
                 <>
-                  <Text style={mS.label}>국가 · 지역</Text>
+                  <Text style={bigLabel}>국가 · 지역</Text>
                   <TextInput style={mS.input} placeholder="예: 일본 오키나와 / 베트남 다낭"
                     placeholderTextColor={C.warmGrayLight} value={country} onChangeText={setCountry}
                     autoCorrect={false} />
@@ -327,9 +330,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </TouchableOpacity>
                 </View>
               )}
-              <Text style={mS.label}>날짜</Text>
+              <Text style={bigLabel}>날짜</Text>
               <TouchableOpacity style={mS.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.textPrimary }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>
                   {formatDate(date)} ({formatDay(date)})
                 </Text>
               </TouchableOpacity>
@@ -338,14 +341,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
                   maximumDate={new Date()} locale="ko" />
               )}
-              <Text style={mS.label}>스코어 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={mS.input} placeholder="타수 입력"
+              <Text style={bigLabel}>스코어 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="타수 입력"
                 placeholderTextColor={C.warmGrayLight} value={score}
                 onChangeText={setScore} keyboardType="numeric" />
 
               {score !== '' && (
                 <View style={{ marginTop: 14 }}>
-                  <Text style={mS.label}>스코어카드 등록할까요?</Text>
+                  <Text style={bigLabel}>스코어카드 등록할까요?</Text>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     {[
                       { key: 'photo', label: '사진으로 등록' },
@@ -360,23 +363,23 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </View>
                   {scoreCardOption === 'photo' && (
                     <View style={{ marginTop: 8, padding: 12, backgroundColor: C.paleSky + '22', borderRadius: 10, borderWidth: 0.5, borderColor: C.paleSky + '60' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, lineHeight: 18 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, lineHeight: 18 }}>
                         📷 스코어카드를 사진으로 찍으면 홀별 타수를 자동으로 인식하는 기능이에요.{'\n'}아직 준비 중이며 곧 추가될 예정이에요.
                       </Text>
                     </View>
                   )}
                 </View>
               )}
-              <Text style={mS.label}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={mS.input} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
+              <Text style={bigLabel}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
-              <Text style={mS.label}>
+              <Text style={bigLabel}>
                 동반자
-                <Text style={{ fontSize: 10, color: '#8B8680' }}> (선택 · 탭하여 삭제)</Text>
+                <Text style={{ fontSize: fs(11), fontFamily: F.sys, color: '#8B8680' }}> (선택 · 탭하여 삭제)</Text>
               </Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 <TextInput
-                  style={[mS.input, { flex: 1 }]}
+                  style={[mS.input, { flex: 1, fontSize: fs(16), fontFamily: F.sysSb }]}
                   placeholder="이름 입력 (공백으로 여러 명)"
                   placeholderTextColor={C.warmGrayLight}
                   value={companionInput}
@@ -392,11 +395,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     justifyContent: 'center',
                   }}
                   onPress={handleAddCompanions}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter }}>추가</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.butter }}>추가</Text>
                 </TouchableOpacity>
               </View>
               {companions.length === 0 && (
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginBottom: 8 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 8 }}>
                   이름을 공백으로 띄우면 여러 명을 한 번에 추가할 수 있어요 (최대 3명)
                 </Text>
               )}
@@ -411,18 +414,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         paddingHorizontal: 10, paddingVertical: 5,
                       }}
                       onPress={() => setCompanions(prev => prev.filter((_, idx) => idx !== i))}>
-                      <Text style={{ fontSize: 12, color: C.butter }}>{name}</Text>
-                      <Text style={{ fontSize: 10, color: 'rgba(245,230,168,0.5)' }}>✕</Text>
+                      <Text style={{ fontSize: fs(12), color: C.butter }}>{name}</Text>
+                      <Text style={{ fontSize: fs(10), color: 'rgba(245,230,168,0.5)' }}>✕</Text>
                     </TouchableOpacity>
                   ))}
                   {companions.length < 3 && (
-                    <Text style={{ fontSize: 10, color: C.warmGrayLight, alignSelf: 'center' }}>
+                    <Text style={{ fontSize: fs(10), color: C.warmGrayLight, alignSelf: 'center' }}>
                       최대 3명 (나 포함 4명)
                     </Text>
                   )}
                 </View>
               )}
-              <Text style={mS.label}>날씨</Text>
+              <Text style={bigLabel}>날씨</Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {['맑음','흐림','바람','비'].map(w => (
                   <TouchableOpacity key={w} style={[mS.chip, weather === w && mS.chipOn]} onPress={() => setWeather(w)}>
@@ -430,7 +433,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={mS.label}>버디</Text>
+              <Text style={bigLabel}>버디</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 <TouchableOpacity onPress={() => setBirdieCount(Math.max(0, birdieCount - 1))} style={mS.countBtn}>
                   <Text style={mS.countBtnTxt}>−</Text>
@@ -439,9 +442,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <TouchableOpacity onPress={() => setBirdieCount(Math.min(18, birdieCount + 1))} style={mS.countBtn}>
                   <Text style={mS.countBtnTxt}>+</Text>
                 </TouchableOpacity>
-                {birdieCount === 0 && <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>버디 없음</Text>}
+                {birdieCount === 0 && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>버디 없음</Text>}
               </View>
-              <Text style={mS.label}>특별한 순간</Text>
+              <Text style={bigLabel}>특별한 순간</Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {['HOLE IN ONE','EAGLE','ALBATROSS','없음'].map(s => (
                   <TouchableOpacity key={s}
@@ -454,10 +457,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               {special && (
                 <View style={mS.specialBox}>
                   <Text style={mS.specialBoxTitle}>{special} 기록</Text>
-                  <Text style={mS.label}>몇번 홀?</Text>
+                  <Text style={bigLabel}>몇번 홀?</Text>
                   <TextInput style={mS.input} placeholder="7" placeholderTextColor={C.warmGrayLight}
                     value={specialHole} onChangeText={setSpecialHole} keyboardType="numeric" />
-                  <Text style={mS.label}>파(Par)?</Text>
+                  <Text style={bigLabel}>파(Par)?</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     {['3','4','5'].map(p => (
                       <TouchableOpacity key={p} style={[mS.chip, specialPar === p && mS.chipOn]} onPress={() => setSpecialPar(p)}>
@@ -465,33 +468,33 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       </TouchableOpacity>
                     ))}
                   </View>
-                  <Text style={mS.label}>거리</Text>
+                  <Text style={bigLabel}>거리</Text>
                   <TextInput style={mS.input} placeholder="156m" placeholderTextColor={C.warmGrayLight}
                     value={specialDist} onChangeText={setSpecialDist} />
-                  <Text style={mS.label}>사용한 볼</Text>
+                  <Text style={bigLabel}>사용한 볼</Text>
                   <TextInput style={mS.input} placeholder="Titleist Pro V1" placeholderTextColor={C.warmGrayLight}
                     value={specialBall} onChangeText={setSpecialBall} />
-                  <Text style={mS.label}>한마디</Text>
+                  <Text style={bigLabel}>한마디</Text>
                   <TextInput style={mS.input} placeholder="그 순간을 기억하며..." placeholderTextColor={C.warmGrayLight}
                     value={specialMemo} onChangeText={setSpecialMemo} />
                 </View>
               )}
-              <Text style={mS.label}>코스 별점 <Text style={{ color: '#8B8680', fontSize: 10 }}> (이 골프장이 얼마나 좋았나요?)</Text></Text>
+              <Text style={bigLabel}>코스 별점 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (이 골프장이 얼마나 좋았나요?)</Text></Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 {[1, 2, 3, 4, 5].map(i => (
                   <TouchableOpacity key={i} onPress={() => setStarRating(i)} activeOpacity={0.6}>
-                    <Text style={{ fontSize: 28, color: i <= starRating ? '#C9A84C' : '#E8E2D0' }}>★</Text>
+                    <Text style={{ fontSize: fs(28), color: i <= starRating ? '#C9A84C' : '#E8E2D0' }}>★</Text>
                   </TouchableOpacity>
                 ))}
-                {starRating > 0 && <Text style={{ fontSize: 12, color: '#8B8680' }}>{starRating}점</Text>}
+                {starRating > 0 && <Text style={{ fontSize: fs(12), color: '#8B8680' }}>{starRating}점</Text>}
               </View>
 
-              <Text style={mS.label}>코스 태그 <Text style={{ color: '#8B8680', fontSize: 10 }}> (선택 · 중복 가능)</Text></Text>
+              <Text style={bigLabel}>코스 태그 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · 중복 가능)</Text></Text>
               {Object.entries(COURSE_TAGS).map(([category, tags]) => {
                 const catColor = COURSE_TAG_COLORS[category];
                 return (
                   <View key={category} style={{ marginBottom: 10 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: '#8B8680', marginBottom: 6, letterSpacing: 1 }}>{category}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B8680', marginBottom: 6, letterSpacing: 1 }}>{category}</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                       {tags.map(tag => {
                         const on = selectedTags.includes(tag);
@@ -504,7 +507,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                               borderColor: on ? catColor.bg : C.hairline,
                             }}
                             onPress={() => toggleTag(tag)}>
-                            <Text style={{ fontFamily: F.sys, fontSize: 12, color: on ? catColor.text : C.warmGrayLight }}>{tag}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: on ? catColor.text : C.warmGrayLight }}>{tag}</Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -514,12 +517,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               })}
 
               <View style={{ marginTop: 6 }}>
-                <Text style={mS.label}>
+                <Text style={bigLabel}>
                   더 기록하기
-                  <Text style={{ color: '#8B8680', fontSize: 10 }}> (선택 · 최대 1000자)</Text>
+                  <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · 최대 1000자)</Text>
                 </Text>
                 {/* 예시 칩 — 누르면 입력칸에 항목이 추가돼 글쓰기 시작점이 된다 */}
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 6 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 6 }}>
                   뭘 쓸지 막막하면 눌러서 시작해보세요
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
@@ -527,7 +530,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     <TouchableOpacity key={c} onPress={() => insertGuideChip(c)} activeOpacity={0.7}
                       style={{ backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline,
                         borderRadius: 14, paddingHorizontal: 11, paddingVertical: 6 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.burgundy, fontWeight: '600' }}>+ {c}</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>+ {c}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -540,7 +543,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   <TextInput
                     ref={detailMemoRef}
                     style={{
-                      fontFamily: F.sys, fontSize: 13,
+                      fontFamily: F.sys, fontSize: fs(13),
                       color: C.textPrimary,
                       // multiline TextInput에 lineHeight를 주면 첫 줄이 밀리는 버그가 있어 미지정
                       minHeight: 100, textAlignVertical: 'top',
@@ -553,7 +556,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     textAlignVertical="top"
                     maxLength={1000}
                   />
-                  <Text style={{ fontSize: 10, color: C.warmGrayLight, textAlign: 'right', marginTop: 8 }}>
+                  <Text style={{ fontSize: fs(10), color: C.warmGrayLight, textAlign: 'right', marginTop: 8 }}>
                     {detailMemo.length} / 1000
                   </Text>
                 </View>
@@ -570,10 +573,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   borderWidth: 0.5, borderColor: C.hairline,
                   borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
                 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary, fontWeight: '600' }}>
-                  💰 비용 기록하기 <Text style={{ color: '#8B8680', fontSize: 10, fontWeight: '400' }}>(선택)</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary }}>
+                  💰 비용 기록하기 <Text style={{ color: '#8B8680', fontSize: fs(10), fontWeight: '400' }}>(선택)</Text>
                 </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 18, color: C.warmGray }}>{showCost ? '−' : '+'}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: C.warmGray }}>{showCost ? '−' : '+'}</Text>
               </TouchableOpacity>
               {showCost && (
                 <View style={{
@@ -582,13 +585,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 }}>
                   {COST_ITEMS.map(([key, label]) => (
                     <View key={key} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textSecondary, width: 64 }}>{label}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, width: 64 }}>{label}</Text>
                       <TextInput
                         style={{
                           flex: 1, backgroundColor: C.bgPrimary,
                           borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8,
                           paddingHorizontal: 12, paddingVertical: 8,
-                          fontFamily: F.sys, fontSize: 13, color: C.textPrimary, textAlign: 'right',
+                          fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, textAlign: 'right',
                         }}
                         placeholder="0"
                         placeholderTextColor={C.warmGrayLight}
@@ -596,22 +599,22 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         value={costs[key]}
                         onChangeText={(t) => setCosts(prev => ({ ...prev, [key]: t.replace(/[^0-9]/g, '') }))}
                       />
-                      <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, marginLeft: 8 }}>원</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginLeft: 8 }}>원</Text>
                     </View>
                   ))}
                   <View style={{
                     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
                     borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12, marginTop: 2,
                   }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.textPrimary, fontWeight: '600' }}>합계</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.burgundy, fontWeight: '700' }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary }}>합계</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.burgundy }}>
                       {won(costTotal)}원
                     </Text>
                   </View>
                 </View>
               )}
 
-              <Text style={mS.label}>공개 범위</Text>
+              <Text style={bigLabel}>공개 범위</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity style={[mS.chip, privacy === 'friends' && mS.chipOn]} onPress={() => setPrivacy('friends')}>
                   <Text style={[mS.chipTxt, privacy === 'friends' && mS.chipTxtOn]}>친구공개</Text>
@@ -621,7 +624,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </TouchableOpacity>
               </View>
               <View style={{ marginTop: 16, marginBottom: 16 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, marginBottom: 8 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, marginBottom: 8 }}>
                   사진 · 영상 (선택)
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -633,12 +636,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
                       borderWidth: 0.5, borderColor: C.hairline,
                       alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 24, color: C.warmGrayLight }}>+</Text>
+                    <Text style={{ fontSize: fs(24), color: C.warmGrayLight }}>+</Text>
                   </TouchableOpacity>
                 </ScrollView>
               </View>
               {saveError ? (
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#6B1E2A', textAlign: 'center', marginTop: 8, fontWeight: '500' }}>{saveError}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#6B1E2A', textAlign: 'center', marginTop: 8 }}>{saveError}</Text>
               ) : null}
               <TouchableOpacity
                 style={[mS.saveBtn, { backgroundColor: !canSave ? '#B8B3AB' : (isEdit ? C.charcoal : C.burgundy) }]}
@@ -693,7 +696,7 @@ function AddPhotoThumb({ item, onRemove }) {
               backgroundColor: 'rgba(0,0,0,0.55)',
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Text style={{ color: '#fff', fontSize: 12, marginLeft: 2 }}>▶</Text>
+              <Text style={{ color: '#fff', fontSize: fs(12), marginLeft: 2 }}>▶</Text>
             </View>
           </View>
         </View>
@@ -709,7 +712,7 @@ function AddPhotoThumb({ item, onRemove }) {
             backgroundColor: 'rgba(0,0,0,0.78)',
             alignItems: 'center', justifyContent: 'center',
           }}>
-          <Text style={{ color: '#fff', fontSize: 11, lineHeight: 13 }}>✕</Text>
+          <Text style={{ color: '#fff', fontSize: fs(11), lineHeight: 13 }}>✕</Text>
         </TouchableOpacity>
       )}
     </View>

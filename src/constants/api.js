@@ -1,61 +1,49 @@
 // =============================================================
-// 카카오 디벨로퍼스 키
-// https://developers.kakao.com/console/app
+// API 키 · 시크릿 — 프로젝트 루트 .env 파일에서 로드
+//  - Expo는 EXPO_PUBLIC_ 접두사 변수만 process.env에 주입한다.
+//    (접두사 없는 변수는 번들에서 undefined)
+//  - .env는 .gitignore 처리됨 — 키 이름 목록은 .env.example 참고
+//  - .env 수정 후에는 expo 개발 서버를 재시작해야 반영됨
+//  ※ 주의: EXPO_PUBLIC_ 변수도 빌드 결과(JS 번들)에 인라인되므로
+//    완전한 비밀 유지는 불가. 쿼터·과금 키는 서버 프록시가 정석.
 // =============================================================
-export const KAKAO_REST_API_KEY = 'edb7385e0d3233ccd44423118331345a';   // REST API — 로그인 OAuth
-export const KAKAO_NATIVE_APP_KEY = 'e8dc118cf11c666f292f86a17b71f853'; // 네이티브 앱 키
-// JavaScript 키 — Kakao Maps SDK (developers.kakao.com 앱 등록한 웹 플랫폼 도메인 필요)
-export const KAKAO_JS_KEY = 'c44ff0a40a680fa9e75bb2c59a08654f';
 
-// =============================================================
+// 카카오 디벨로퍼스 (https://developers.kakao.com/console/app)
+export const KAKAO_REST_API_KEY   = process.env.EXPO_PUBLIC_KAKAO_REST_API_KEY;   // REST API — 로그인 OAuth
+export const KAKAO_NATIVE_APP_KEY = process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY; // 네이티브 앱 키
+export const KAKAO_JS_KEY         = process.env.EXPO_PUBLIC_KAKAO_JS_KEY;         // JS 키 — Kakao Maps SDK
+
 // Firebase — 골퍼 코멘트 공유 백엔드 (Firestore + 익명 인증)
-// https://console.firebase.google.com → 프로젝트 설정 → 웹 앱
 //  - apiKey는 클라이언트 노출되어도 무방 (보안은 Firestore 규칙으로 처리)
-// =============================================================
 export const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyCLIFX7lHlhpAVBpycNRLJBoLfdF_xArZE',
-  authDomain: 'dear-golf.firebaseapp.com',
-  projectId: 'dear-golf',
-  storageBucket: 'dear-golf.firebasestorage.app',
-  messagingSenderId: '16566595645',
-  appId: '1:16566595645:web:064cc5d3c707a62b123a54',
+  apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// =============================================================
 // 네이버 클라우드 플랫폼 — Maps Static Map API (정적 지도 이미지)
-// https://www.ncloud.com/product/applicationService/maps
 //  - 인증: x-ncp-apigw-api-key-id / x-ncp-apigw-api-key 헤더
-// =============================================================
-export const NAVER_MAP_CLIENT_ID     = '374yfyklgp';
-export const NAVER_MAP_CLIENT_SECRET = 'AC8Bfcfelo4kqqJPWukL48IoogOmPr2yx7jMvdDL';
+export const NAVER_MAP_CLIENT_ID     = process.env.EXPO_PUBLIC_NAVER_MAP_CLIENT_ID;
+export const NAVER_MAP_CLIENT_SECRET = process.env.EXPO_PUBLIC_NAVER_MAP_CLIENT_SECRET;
 export const NAVER_STATIC_MAP_URL    = 'https://maps.apigw.ntruss.com/map-static/v2/raster';
 
-// =============================================================
 // Unsplash Access Key — 홈화면 배경사진 (시간대/날씨별 골프장 이미지)
-// https://unsplash.com/developers
-// =============================================================
-export const UNSPLASH_ACCESS_KEY = 'dXWP0IZhR45qkx6-eZhzmkhsr42rq9H12LjcN5c6kbI';
+export const UNSPLASH_ACCESS_KEY = process.env.EXPO_PUBLIC_UNSPLASH_ACCESS_KEY;
 
-// =============================================================
 // 공공데이터포털(data.go.kr) 일반 인증키 — 활용신청한 모든 서비스 공용
-//  - 기상청 단기예보: VilageFcstInfoService_2.0
-//  - 기상청 중기예보: MidFcstInfoService
-//  - 기상청 생활기상지수(자외선): LivingWthrIdxServiceV5
-//  - 한국환경공단 미세먼지(에어코리아): ArpltnInforInqireSvc
-// =============================================================
-export const KMA_SERVICE_KEY = '31659a77e32d5d3e729cce10c45734cde85e56b77e5c588ac8ecd282ac6667b4';
+//  - 기상청 단기예보 / 중기예보 / 생활기상지수(자외선), 한국환경공단 미세먼지
+export const KMA_SERVICE_KEY = process.env.EXPO_PUBLIC_KMA_SERVICE_KEY;
 
 export const KMA_SHORT_URL    = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0';
 export const KMA_MID_URL      = 'https://apis.data.go.kr/1360000/MidFcstInfoService';
 export const KMA_LIVING_URL   = 'https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5';
 export const AIRKOREA_URL     = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc';
 
-// =============================================================
 // OpenWeatherMap — 해외 골프장 날씨 (기상청은 국내 전용이라 해외용 별도)
-// https://openweathermap.org/api
-// ※ 해외 라운딩 기능 구현 시 연동 예정 — 현재는 키만 보관 (미사용)
-// =============================================================
-export const OPENWEATHER_API_KEY = 'f88cbb67b3dac21b6f09ed6cf101d5c7';
+export const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 export const OPENWEATHER_URL     = 'https://api.openweathermap.org/data/2.5';
 
 // =============================================================

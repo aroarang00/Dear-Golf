@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 
@@ -40,14 +40,14 @@ function PersonRow({ person, right }) {
       paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10 }}>
       <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: palette.bg,
         alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 18, color: palette.fg, fontWeight: '700' }}>{person.name.charAt(0)}</Text>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: palette.fg }}>{person.name.charAt(0)}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>{person.name}</Text>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{person.name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>핸디 {person.avg ?? '—'}</Text>
-          <Text style={{ fontSize: 12 }}>{grade.emoji}</Text>
-          <Text style={{ fontSize: 12 }}>{manner.emoji}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>핸디 {person.avg ?? '—'}</Text>
+          <Text style={{ fontSize: fs(12) }}>{grade.emoji}</Text>
+          <Text style={{ fontSize: fs(12) }}>{manner.emoji}</Text>
         </View>
       </View>
       {right}
@@ -61,14 +61,14 @@ function RequestButton({ sent, onPress }) {
     return (
       <View style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
         backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, fontWeight: '600' }}>신청함</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGrayLight }}>신청함</Text>
       </View>
     );
   }
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}
       style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: C.burgundy }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>친구 신청</Text>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>친구 신청</Text>
     </TouchableOpacity>
   );
 }
@@ -76,7 +76,7 @@ function RequestButton({ sent, onPress }) {
 // 빈 상태 한 줄
 function EmptyHint({ text }) {
   return (
-    <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 40 }}>
+    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 40 }}>
       {text}
     </Text>
   );
@@ -116,7 +116,7 @@ export function FriendFinder({
       return (
         <View style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
           backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, fontWeight: '600' }}>친구</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGrayLight }}>친구</Text>
         </View>
       );
     }
@@ -131,9 +131,9 @@ export function FriendFinder({
           <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 22, color: C.bgPrimary }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: C.bgPrimary }}>←</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.bgPrimary, fontWeight: '700' }}>친구 찾기</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.bgPrimary }}>친구 찾기</Text>
           </View>
 
           {/* 탭 */}
@@ -144,7 +144,7 @@ export function FriendFinder({
                 <TouchableOpacity key={t.key} onPress={() => setTab(t.key)} activeOpacity={0.7}
                   style={{ flex: 1, alignItems: 'center', paddingVertical: 13,
                     borderBottomWidth: 2, borderBottomColor: on ? C.burgundy : 'transparent' }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: on ? '700' : '500',
+                  <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
                     color: on ? C.burgundy : C.warmGray }}>{t.label}</Text>
                 </TouchableOpacity>
               );
@@ -156,9 +156,9 @@ export function FriendFinder({
             <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary,
                 borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
-                <Text style={{ fontSize: 13 }}>🔍</Text>
+                <Text style={{ fontSize: fs(13) }}>🔍</Text>
                 <TextInput
-                  style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.textPrimary, padding: 0 }}
+                  style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
                   placeholder="닉네임으로 검색"
                   placeholderTextColor={C.warmGrayLight}
                   value={query}
@@ -178,7 +178,7 @@ export function FriendFinder({
             {/* 카카오 친구 */}
             {tab === 'kakao' && (
               <>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginBottom: 10, lineHeight: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 10, lineHeight: 16 }}>
                   카카오 친구 중 Dear Golf를 쓰는 사람이에요
                 </Text>
                 {KAKAO_CANDIDATES.length === 0
@@ -209,12 +209,12 @@ export function FriendFinder({
                       <View style={{ flexDirection: 'row', gap: 6 }}>
                         <TouchableOpacity onPress={() => onAccept && onAccept(p)} activeOpacity={0.8}
                           style={{ borderRadius: 14, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.burgundy }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '700' }}>수락</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>수락</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => onIgnore && onIgnore(p.id)} activeOpacity={0.8}
                           style={{ borderRadius: 14, paddingHorizontal: 13, paddingVertical: 7,
                             backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, fontWeight: '600' }}>무시</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>무시</Text>
                         </TouchableOpacity>
                       </View>
                     } />

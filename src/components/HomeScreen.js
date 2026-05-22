@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
 import { getUserCourses } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -343,10 +343,10 @@ export function HomeScreen({ navigation }) {
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 10 : 0 }} />
         <View style={homeS.hdr}>
           <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={homeS.hdrTitle}>Dear Golf</Text>
             <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 22, marginTop: 4 }}>{wxEmoji}</Text>
+              <Text style={{ fontSize: fs(24), marginTop: 4 }}>{wxEmoji}</Text>
             </TouchableOpacity>
           </View>
           <Text style={homeS.hdrGreeting}>
@@ -365,11 +365,11 @@ export function HomeScreen({ navigation }) {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>일정</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.6)', marginLeft: 5, marginTop: 1 }}>›</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.6)', marginLeft: 5, marginTop: 1 }}>›</Text>
             </TouchableOpacity>
             {upcomingSchedules.length < 10 && (
               <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>+ 추가</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.6)' }}>+ 추가</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -381,7 +381,7 @@ export function HomeScreen({ navigation }) {
                   {/* 라운딩 종료 카드 — 티오프 + 5시간 경과 */}
                   <View style={{ flexDirection: 'row', marginBottom: 6 }}>
                     <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 9, color: C.butter, letterSpacing: 1 }}>라운딩 종료</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>라운딩 종료</Text>
                     </View>
                   </View>
                   <Text style={homeS.cardCourse} numberOfLines={1}>{next.course}</Text>
@@ -392,8 +392,8 @@ export function HomeScreen({ navigation }) {
                     activeOpacity={0.85}
                     onPress={() => navigation.navigate('MY', { openAddModal: true })}
                     style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.butter, fontWeight: '600' }}>기록 남기기 →</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
                   </TouchableOpacity>
 
                   {/* 귀가 교통 / 주변 맛집 */}
@@ -402,7 +402,7 @@ export function HomeScreen({ navigation }) {
                       onPress={() => { setSelectedSchedule(next); setShowTrafficFull(true); }}
                       activeOpacity={0.8}
                       style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff' }}>🚗 귀가 교통</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🚗 귀가 교통</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => {
@@ -411,7 +411,7 @@ export function HomeScreen({ navigation }) {
                       }}
                       activeOpacity={0.8}
                       style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff' }}>🍴 주변 맛집</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🍴 주변 맛집</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -422,7 +422,7 @@ export function HomeScreen({ navigation }) {
                     activeOpacity={resolveCourseLogId(next) ? 0.7 : 1}
                     style={{ marginBottom: 4 }}>
                     <Text style={homeS.cardCourse}>{next.course}
-                      {resolveCourseLogId(next) ? <Text style={{ fontSize: 11, color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
+                      {resolveCourseLogId(next) ? <Text style={{ fontSize: fs(11), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                     </Text>
                     <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
                   </TouchableOpacity>
@@ -437,8 +437,8 @@ export function HomeScreen({ navigation }) {
                     <TouchableOpacity
                       onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
                       activeOpacity={0.7}>
-                      <Text style={{ fontSize: 26, marginBottom: 6 }}>🌤  🚗</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
+                      <Text style={{ fontSize: fs(26), marginBottom: 6 }}>🌤  🚗</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -455,7 +455,7 @@ export function HomeScreen({ navigation }) {
                   delayLongPress={350}
                   activeOpacity={resolveCourseLogId(s) ? 0.7 : 1}>
                   <Text style={homeS.subCourse} numberOfLines={2}>{s.course}
-                    {resolveCourseLogId(s) ? <Text style={{ fontSize: 8, color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
+                    {resolveCourseLogId(s) ? <Text style={{ fontSize: fs(8), color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
                 </TouchableOpacity>
@@ -488,7 +488,7 @@ export function HomeScreen({ navigation }) {
             const hasGolfer = !!topComment;
 
             const labelCourseTxt = (label) => (
-              <Text style={[homeS.memoCardCourse, { fontSize: 11 }]} numberOfLines={1}>
+              <Text style={[homeS.memoCardCourse, { fontSize: fs(11) }]} numberOfLines={1}>
                 {label} · <Text style={{ color: 'rgba(255,255,255,0.55)' }}>{courseLabel}</Text>
               </Text>
             );
@@ -519,7 +519,7 @@ export function HomeScreen({ navigation }) {
                               if (nextCourseId) navigation.navigate('코스', { openCourseId: nextCourseId, openComment: true });
                             }}
                             style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8' }}>첫 번째 코멘트의 주인공이 되어보세요 →</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>첫 번째 코멘트의 주인공이 되어보세요 →</Text>
                           </TouchableOpacity>
                         </>
                       )}
@@ -546,7 +546,7 @@ export function HomeScreen({ navigation }) {
                         activeOpacity={0.7}
                         onPress={() => navigation.navigate('MY', { openAddModal: true })}
                         style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#F5E6A8' }}>메모 남기기 →</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -609,18 +609,18 @@ export function HomeScreen({ navigation }) {
         ) : (
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
           <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
-            <Text style={{ fontFamily: F.en, fontSize: 22, color: '#fff', marginBottom: 8, lineHeight: 30 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', marginBottom: 8, lineHeight: 30 }}>
               Dear Golf에서{'\n'}첫 라운딩을 시작해보세요
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 18, marginBottom: 20 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.45)', lineHeight: 18, marginBottom: 20 }}>
               날씨 · 교통 · 코스 정보를{'\n'}한눈에 확인할 수 있어요
             </Text>
             <TouchableOpacity
               style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}
               activeOpacity={0.8}
               onPress={() => setShowAddModal(true)}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -682,8 +682,8 @@ export function HomeScreen({ navigation }) {
               shadowOpacity: 0.3, shadowRadius: 32, elevation: 20,
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '700', color: '#3D3935' }}>예정 라운딩</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: '#A89F8C' }}>{upcomingSchedules.length}건</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#3D3935' }}>예정 라운딩</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#A89F8C' }}>{upcomingSchedules.length}건</Text>
               </View>
               <ScrollView
                 style={{ maxHeight: Math.max(160, Math.min(286, upcomingPos.y - 54 - insets.top)) }}
@@ -704,13 +704,13 @@ export function HomeScreen({ navigation }) {
                         minWidth: 46, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 7, alignItems: 'center',
                         backgroundColor: dd === 0 ? C.burgundy : '#EFE9D8',
                       }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 11, fontWeight: '700', color: dd === 0 ? C.butter : '#3D3935' }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: dd === 0 ? C.butter : '#3D3935' }}>
                           {dd === 0 ? 'D-DAY' : `D-${dd}`}
                         </Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: '#3D3935' }} numberOfLines={1}>{s.course}</Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#A89F8C', marginTop: 2 }}>{s.date} {s.day} · {s.time}</Text>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#3D3935' }} numberOfLines={1}>{s.course}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#A89F8C', marginTop: 2 }}>{s.date} {s.day} · {s.time}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -754,19 +754,19 @@ export function HomeScreen({ navigation }) {
                   setShowDDayMenu(false);
                 }}
                 style={{ paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#3D3935' }}>📩  일정 공유</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#3D3935' }}>📩  일정 공유</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={() => { setShowDDayMenu(false); handleEditSchedule(next); }}
                 style={{ paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#3D3935' }}>✏️  일정 수정</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#3D3935' }}>✏️  일정 수정</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={() => { setShowDDayMenu(false); handleDeleteSchedule(next); }}
                 style={{ paddingVertical: 13, paddingHorizontal: 16 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#D32F2F' }}>🗑️  일정 삭제</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#D32F2F' }}>🗑️  일정 삭제</Text>
               </TouchableOpacity>
               <View style={{
                 position: 'absolute',

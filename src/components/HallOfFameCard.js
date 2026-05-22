@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 
 export function HallOfFameCard({ item, onShare }) {
@@ -19,7 +19,7 @@ export function HallOfFameCard({ item, onShare }) {
       <View style={{ height: 1, backgroundColor: accentColor + '44' }} />
       <View style={dS.hofHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[dS.hofType, { color: accentColor, fontSize: 22, letterSpacing: 6 }]}>{typeLabel}</Text>
+          <Text style={[dS.hofType, { color: accentColor, fontSize: fs(22), letterSpacing: 6 }]}>{typeLabel}</Text>
           <Text style={[dS.hofDate, { color: 'rgba(255,255,255,0.4)' }]}>{item.date} · {item.course}</Text>
         </View>
         {onShare && (
@@ -28,8 +28,8 @@ export function HallOfFameCard({ item, onShare }) {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 10,
               borderWidth: 1, borderColor: accentColor + '66', borderRadius: 12,
               paddingHorizontal: 10, paddingVertical: 5 }}>
-            <Text style={{ fontSize: 11 }}>↗</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: accentColor, fontWeight: '700' }}>공유</Text>
+            <Text style={{ fontSize: fs(11) }}>↗</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: accentColor }}>공유</Text>
           </TouchableOpacity>
         )}
         <View style={[dS.hofGoldDot, { backgroundColor: accentColor }]} />

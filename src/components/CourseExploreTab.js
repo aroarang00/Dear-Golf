@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf } from '../utils/kakao';
 import { getCurrentLocation } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
@@ -33,8 +33,8 @@ function Section({ title, right, headerBg, titleColor, children }) {
     <View style={{ backgroundColor: C.bgPrimary }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         backgroundColor: headerBg || C.charcoal, paddingHorizontal: 14, paddingVertical: 11, gap: 8 }}>
-        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sys, fontSize: 14, color: tc, fontWeight: '700', letterSpacing: 0.3 }}>{title}</Text>
-        {right ? <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: 10, color: tc, opacity: 0.7 }}>{right}</Text> : null}
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(14), color: tc, letterSpacing: 0.3 }}>{title}</Text>
+        {right ? <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: fs(10), color: tc, opacity: 0.7 }}>{right}</Text> : null}
       </View>
       {children}
     </View>
@@ -47,7 +47,7 @@ function MoreButton({ moreCount, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}
       style={{ paddingVertical: 12, alignItems: 'center' }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
         더보기 ({moreCount}개 더) →
       </Text>
     </TouchableOpacity>
@@ -195,7 +195,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
           shadowOffset: { width: 0, height: 2 },
           elevation: 3,
         }}>
-          <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
+          <Text style={{ fontSize: fs(16), marginRight: 8 }}>🔍</Text>
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -205,7 +205,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
               flex: 1,
               paddingVertical: 12,
               fontFamily: F.sys,
-              fontSize: 15,
+              fontSize: fs(15),
               color: C.charcoal,
             }}
             returnKeyType="search"
@@ -216,7 +216,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       {/* 코스 검색 안내 — 첫 사용(최근 검색 기록이 아직 없을 때)에만 */}
       {!search.trim() && recentCourses.length === 0 && (
         <View style={{ marginHorizontal: 16, marginBottom: 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 12, borderWidth: 0.5, borderColor: C.hairline }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, lineHeight: 17 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
             💡 골프장을 검색해 탭하면 — 코스 정보·맛집·골퍼들의 코멘트를 한눈에 볼 수 있어요. 다녀온 코스라면 직접 생생한 코멘트를 남겨 다른 골퍼와 정보를 나눌 수도 있어요.
           </Text>
         </View>
@@ -236,7 +236,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                 backgroundColor: on ? C.charcoal : C.bgSecondary,
                 borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline,
               }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: on ? C.butter : C.warmGray, fontWeight: on ? '600' : '400' }}>{r}</Text>
+              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.butter : C.warmGray }}>{r}</Text>
             </TouchableOpacity>
           );
         })}
@@ -254,7 +254,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
               <ActivityIndicator size="small" color={C.warmGray} />
             </View>
           ) : regionCourses.length === 0 ? (
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
               {`${region} 지역의 100대 코스가 없어요`}
             </Text>
           ) : (
@@ -263,12 +263,12 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                 <TouchableOpacity key={c.rank} onPress={() => openTop100Course(c)} activeOpacity={0.7}
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                  <Text style={{ fontFamily: F.en, fontSize: 14, fontWeight: '700', color: '#A88A2E', width: 34 }}>{c.rank}</Text>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(14), fontWeight: '700', color: '#A88A2E', width: 34 }}>{c.rank}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {c.name}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{c.region}</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>⛳ {c.name}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 3 }}>{c.region}</Text>
                   </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGrayLight }}>›</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -314,13 +314,13 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
               <TouchableOpacity key={`L_${m.kakaoId || m.rank || i}`} onPress={() => onLocalTap(m)}
                 activeOpacity={0.7} style={rowStyle}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {m.name}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{m._loc || '위치 미상'}</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>⛳ {m.name}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 3 }}>{m._loc || '위치 미상'}</Text>
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginRight: 6 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginRight: 6 }}>
                   {m._kind === 'top100' ? '100대' : '최근'}
                 </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGrayLight }}>›</Text>
               </TouchableOpacity>
             ))}
             {searching ? (
@@ -328,7 +328,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                 <ActivityIndicator size="small" color={C.warmGray} />
               </View>
             ) : noResult ? (
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 12, textAlign: 'center' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, paddingVertical: 12, textAlign: 'center' }}>
                 검색 결과가 없어요
               </Text>
             ) : (
@@ -345,10 +345,10 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                   }}
                   activeOpacity={0.7} style={rowStyle}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {r.name}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>{r.loc}</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>⛳ {r.name}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 3 }}>{r.loc}</Text>
                   </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGrayLight }}>›</Text>
                 </TouchableOpacity>
               ))
             )}
@@ -364,11 +364,11 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
           headerBg={C.charcoal}
           titleColor={C.butter}>
           {recentCourses.length === 0 ? (
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center', lineHeight: 18 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center', lineHeight: 18 }}>
               위 검색창에서 골프장을 검색하면{'\n'}여기에 최근 검색이 모여요
             </Text>
           ) : filteredRecent.length === 0 ? (
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
               {`${region}에 최근 검색한 골프장이 없어요`}
             </Text>
           ) : (
@@ -386,12 +386,12 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>⛳ {c.name}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 3 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>⛳ {c.name}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 3 }}>
                       {c.loc || '위치 미상'}
                     </Text>
                   </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGrayLight }}>›</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGrayLight }}>›</Text>
                 </TouchableOpacity>
               ))}
               <MoreButton moreCount={moreRecent} onPress={() => setRecentExpanded(true)} />
@@ -411,7 +411,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
             <ActivityIndicator size="small" color={C.warmGray} />
           </View>
         ) : visibleNearby.length === 0 ? (
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
             {nearbyMsg}
           </Text>
         ) : (
@@ -421,15 +421,15 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{n.name}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 2 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{n.name}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 2 }}>
                     {distLabel(n.distance) || n.loc}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => openMap(n)} activeOpacity={0.7}
                   style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: C.bgSecondary,
                     borderWidth: 0.5, borderColor: C.hairline }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal }}>지도 →</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.charcoal }}>지도 →</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -449,7 +449,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
             <ActivityIndicator size="small" color={C.warmGray} />
           </View>
         ) : visibleScreen.length === 0 ? (
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
             {screenMsg}
           </Text>
         ) : (
@@ -459,15 +459,15 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{n.name}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 2 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{n.name}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 2 }}>
                     {distLabel(n.distance) || n.loc}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => openMap(n)} activeOpacity={0.7}
                   style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: C.bgSecondary,
                     borderWidth: 0.5, borderColor: C.hairline }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal }}>지도 →</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.charcoal }}>지도 →</Text>
                 </TouchableOpacity>
               </View>
             ))}

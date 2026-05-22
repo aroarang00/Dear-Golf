@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, ScrollView, Text, TextInput, TouchableOpacity } from 'react-native';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
 import { FriendFinder } from './FriendFinder';
 import { getTrustGrade } from '../constants/trustGrade';
@@ -70,33 +70,33 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
       style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 19, color: palette.fg, fontWeight: '700' }}>{friend.name.charAt(0)}</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: palette.fg }}>{friend.name.charAt(0)}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>{friend.name}</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{friend.name}</Text>
             <TrustBadge grade={grade} onPress={onGradePress} />
-            {muted && <Text style={{ fontSize: 11 }}>🔕</Text>}
+            {muted && <Text style={{ fontSize: fs(11) }}>🔕</Text>}
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 2 }}>{friend.style}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>{friend.style}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <View style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.butter, fontWeight: '600' }}>핸디 {friend.stats?.avg ?? '—'}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>핸디 {friend.stats?.avg ?? '—'}</Text>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 4 }}>함께 {friend.roundsTogether}회</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 4 }}>함께 {friend.roundsTogether}회</Text>
         </View>
       </View>
 
       {/* 최근 라운딩 미리보기 */}
       {r && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1 }}>최근</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.textSecondary, flex: 1 }} numberOfLines={1}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1 }}>최근</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, flex: 1 }} numberOfLines={1}>
             {r.course} · {r.date}
           </Text>
-          <Text style={{ fontFamily: F.en, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>{r.score}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>{diffLabel}</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.charcoal, fontWeight: '700' }}>{r.score}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{diffLabel}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -176,9 +176,9 @@ export function FriendsTab({ navigation }) {
       {/* 친구 검색창 + 친구 추가 */}
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
-          <Text style={{ fontSize: 13 }}>🔍</Text>
+          <Text style={{ fontSize: fs(13) }}>🔍</Text>
           <TextInput
-            style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.textPrimary, padding: 0 }}
+            style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
             placeholder="이름으로 친구 검색"
             placeholderTextColor={C.warmGrayLight}
             value={search}
@@ -190,7 +190,7 @@ export function FriendsTab({ navigation }) {
         <TouchableOpacity onPress={() => setFinder('kakao')} activeOpacity={0.8}
           style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: C.navy,
             alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 20, color: C.bgPrimary, fontWeight: '700', lineHeight: 22 }}>+</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.bgPrimary, lineHeight: 22 }}>+</Text>
           {receivedRequests.length > 0 && (
             <View style={{ position: 'absolute', top: 4, right: 4, width: 9, height: 9, borderRadius: 5,
               backgroundColor: '#E5484D', borderWidth: 1, borderColor: C.bgPrimary }} />
@@ -206,28 +206,28 @@ export function FriendsTab({ navigation }) {
           <TouchableOpacity onPress={() => setFinder('received')} activeOpacity={0.8}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
               backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
-            <Text style={{ fontSize: 15 }}>📬</Text>
-            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>
-              받은 친구 신청 <Text style={{ color: C.burgundy, fontWeight: '700' }}>{receivedRequests.length}</Text>건
+            <Text style={{ fontSize: fs(15) }}>📬</Text>
+            <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
+              받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{receivedRequests.length}</Text>건
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.burgundy }}>›</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>›</Text>
           </TouchableOpacity>
         )}
 
         {/* 친구 수 + 숨긴 친구 관리 (목록 위에 배치 — 스크롤 없이 접근) */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray }}>
-            친구 <Text style={{ color: C.charcoal, fontWeight: '700' }}>{visible.length}</Text>명
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
+            친구 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{visible.length}</Text>명
           </Text>
           {hiddenFriends.length > 0 && (
             <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
               style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4,
                 backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
                 borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGray, fontWeight: '600' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
                 🙈 숨긴 친구 {hiddenFriends.length}
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>{showHidden ? '▲' : '▼'}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>{showHidden ? '▲' : '▼'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -241,12 +241,12 @@ export function FriendsTab({ navigation }) {
                   backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
                   paddingHorizontal: 12, paddingVertical: 10 }}>
                 <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: paletteOf(f.id).bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: paletteOf(f.id).fg, fontWeight: '700' }}>{f.name.charAt(0)}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: paletteOf(f.id).fg }}>{f.name.charAt(0)}</Text>
                 </View>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600' }}>{f.name}</Text>
+                <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{f.name}</Text>
                 <TouchableOpacity activeOpacity={0.7} onPress={() => unhideFriend(f.id)}
                   style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, fontWeight: '600' }}>숨김 해제</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>숨김 해제</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -255,18 +255,18 @@ export function FriendsTab({ navigation }) {
 
         {visible.length === 0 ? (
           q ? (
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight, textAlign: 'center', paddingVertical: 36 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 36 }}>
               검색 결과가 없어요
             </Text>
           ) : (
             /* 빈 화면 가이드 — 친구 0명 */
             <View style={{ paddingTop: 18 }}>
               <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
-                <Text style={{ fontSize: 30, marginBottom: 10 }}>👥</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 6 }}>
+                <Text style={{ fontSize: fs(30), marginBottom: 10 }}>👥</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
                   골프 친구를 추가해보세요
                 </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 19, marginBottom: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19, marginBottom: 16 }}>
                   카카오 친구 중 Dear Golf를 쓰는 사람을 찾아 친구를 맺으면 — 함께 라운딩하고 서로의 골프 기록을 나눌 수 있어요.
                 </Text>
                 <View style={{ gap: 12 }}>
@@ -276,15 +276,15 @@ export function FriendsTab({ navigation }) {
                     ['👍', '특별한 순간을 공유하고 응원하기'],
                   ].map(([icon, txt]) => (
                     <View key={txt} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
-                      <Text style={{ fontSize: 14 }}>{icon}</Text>
-                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
+                      <Text style={{ fontSize: fs(14) }}>{icon}</Text>
+                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
                     </View>
                   ))}
                 </View>
                 <TouchableOpacity activeOpacity={0.85}
                   onPress={() => setFinder('kakao')}
                   style={{ marginTop: 18, backgroundColor: C.navy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.bgPrimary, fontWeight: '700' }}>친구 찾기</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.bgPrimary }}>친구 찾기</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -306,7 +306,7 @@ export function FriendsTab({ navigation }) {
           })
         )}
 
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, textAlign: 'center', marginTop: 6 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, textAlign: 'center', marginTop: 6 }}>
           친구 카드를 탭하면 프로필이 열려요
         </Text>
       </ScrollView>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -26,8 +26,8 @@ export function FriendsScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       {/* 헤더 — Friends 타이틀만 (내 프로필·설정은 MY 탭) */}
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 파트너</Text>
-        <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: 28, color: C.navy }}>Friends</Text>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 파트너</Text>
+        <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: fs(28), fontWeight: '500', color: C.navy }}>Friends</Text>
       </View>
 
       <FriendsTab navigation={navigation} />
@@ -39,16 +39,16 @@ export function FriendsScreen({ navigation }) {
             backgroundColor: 'rgba(0,0,0,0.62)', alignItems: 'center', justifyContent: 'center' }}>
           {/* 친구 카드 안내 — 화면 중앙 */}
           <View style={{ marginHorizontal: 30, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 22, paddingVertical: 20 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600', textAlign: 'center', lineHeight: 21 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, textAlign: 'center', lineHeight: 21 }}>
               👆 친구 카드를 탭하면 프로필이 열려요{'\n'}우상단 ⋯ 에서 알림·숨기기·삭제 가능
             </Text>
           </View>
           {/* 닫기 — 화면 하단 고정 */}
           <View style={{ position: 'absolute', bottom: insets.bottom + 90, left: 0, right: 0, alignItems: 'center' }}>
             <View style={{ backgroundColor: C.butter, borderRadius: 22, paddingHorizontal: 34, paddingVertical: 12 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700' }}>알겠어요</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>알겠어요</Text>
             </View>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 10 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', marginTop: 10 }}>
               화면을 탭하면 닫혀요
             </Text>
           </View>

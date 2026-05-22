@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses } from '../utils/userCourses';
@@ -41,7 +41,7 @@ const isStarTag = (t) => typeof t === 'string' && t.startsWith('★');
 function RegionTag({ rs }) {
   return (
     <View style={{ backgroundColor: rs.bg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 11, color: rs.fg, fontWeight: '500' }}>{rs.label}</Text>
+      <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: rs.fg }}>{rs.label}</Text>
     </View>
   );
 }
@@ -54,12 +54,12 @@ function RecordedCard({ c, rs, navigation, isOpen, onToggle }) {
       activeOpacity={0.85}
       onPress={onToggle}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <Text style={{ fontSize: 14, color: C.burgundy }}>✓</Text>
+        <Text style={{ fontSize: fs(14), color: C.burgundy }}>✓</Text>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <Text style={dS.courseName}>{c.name}</Text>
             {c.rating > 0 && isOpen && (
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#C9A84C' }}>★ {c.rating}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#C9A84C' }}>★ {c.rating}</Text>
             )}
           </View>
           <Text style={dS.courseLoc}>{c.visits}회 방문</Text>
@@ -71,13 +71,13 @@ function RecordedCard({ c, rs, navigation, isOpen, onToggle }) {
                 activeOpacity={0.6}
                 onPress={() => navigation.navigate('코스', { openCourseId: c.courseId })}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-                <Text style={{ fontSize: 18, color: C.warmGrayLight }}>›</Text>
+                <Text style={{ fontSize: fs(18), color: C.warmGrayLight }}>›</Text>
               </TouchableOpacity>
               <View style={{ width: 1, height: 14, backgroundColor: C.hairline }} />
             </>
           ) : null}
           <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>{isOpen ? '▴' : '▾'}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>{isOpen ? '▴' : '▾'}</Text>
           </View>
         </View>
       </View>
@@ -116,21 +116,21 @@ function UnrecordedCard({ c, rs, onAdd }) {
   return (
     <View style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: C.warmGrayLight }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <Text style={{ fontSize: 14 }}>🗓️</Text>
+        <Text style={{ fontSize: fs(14) }}>🗓️</Text>
         <View style={{ flex: 1 }}>
           <Text style={dS.courseName}>{c.name}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>
             {c.latestDate || '날짜 미정'} · {c.visits}회 방문
           </Text>
         </View>
         <View style={{ backgroundColor: '#F0EDE6', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, marginRight: 2 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray, fontWeight: '600' }}>미기록</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray }}>미기록</Text>
         </View>
         <RegionTag rs={rs} />
       </View>
       <TouchableOpacity onPress={onAdd} activeOpacity={0.8}
         style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.butter, fontWeight: '600' }}>✏️ 기록 추가하기 →</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter }}>✏️ 기록 추가하기 →</Text>
       </TouchableOpacity>
     </View>
   );
@@ -305,7 +305,7 @@ export function CourseLogTab({ avgRating, navigation }) {
 
   const renderRegionTag = (bg, fg, label) => (
     <View style={{ backgroundColor: bg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-      <Text style={{ fontFamily: F.sys, fontSize: 11, color: fg, fontWeight: '500' }}>{label}</Text>
+      <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: fg }}>{label}</Text>
     </View>
   );
 
@@ -320,9 +320,9 @@ export function CourseLogTab({ avgRating, navigation }) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 18, color: '#C9A84C', fontWeight: '700' }}>{checkedCount}</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight }}> / 100</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 14, color: '#A88A2E', fontWeight: '600', marginLeft: 6 }}>›</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(18), color: '#C9A84C', fontWeight: '700' }}>{checkedCount}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}> / 100</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#A88A2E', marginLeft: 6 }}>›</Text>
           </View>
         </View>
         <View style={{ height: 5, borderRadius: 3, backgroundColor: '#F0EDE6', marginTop: 8, overflow: 'hidden' }}>
@@ -332,22 +332,22 @@ export function CourseLogTab({ avgRating, navigation }) {
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
         {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
           <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: region === k ? C.butter : C.warmGrayLight }}>{l}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: region === k ? C.butter : C.warmGrayLight }}>{l}</Text>
           </TouchableOpacity>
         ))}
       </View>
       {region === 'domestic' && (
         <View>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
             방문한 골프장 · {myCourses.length}곳
           </Text>
           {myCourses.length === 0 ? (
             <View style={{ marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
-              <Text style={{ fontSize: 30, marginBottom: 10 }}>⛳</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 6 }}>
+              <Text style={{ fontSize: fs(30), marginBottom: 10 }}>⛳</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
                 다녀온 코스가 여기 모여요
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 19, marginBottom: 16 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19, marginBottom: 16 }}>
                 예정 라운딩을 추가하거나 과거에 다녀온 라운딩을 일정에 등록하면 — 따로 코스 기록을 하지 않아도 다녀온 골프장의 통계와 기록이 자동으로 모여요.
               </Text>
               <View style={{ gap: 12 }}>
@@ -357,8 +357,8 @@ export function CourseLogTab({ avgRating, navigation }) {
                   ['🏆', '다녀온 100대 코스를 체크하며 도전할 수 있어요'],
                 ].map(([icon, txt]) => (
                   <View key={txt} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
-                    <Text style={{ fontSize: 14 }}>{icon}</Text>
-                    <Text style={{ flex: 1, fontFamily: F.sys, fontSize: 12, color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
+                    <Text style={{ fontSize: fs(14) }}>{icon}</Text>
+                    <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
                   </View>
                 ))}
               </View>
@@ -374,18 +374,18 @@ export function CourseLogTab({ avgRating, navigation }) {
       )}
       {region === 'overseas' && (
         <View>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
             해외 골프장 · {overseasCourses.length}곳
           </Text>
           {overseasCourses.length === 0 ? (
             <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>아직 해외 라운딩 기록이 없어요</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>라운딩 기록 추가에서 '해외'를 선택하면 모여요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>아직 해외 라운딩 기록이 없어요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>라운딩 기록 추가에서 '해외'를 선택하면 모여요</Text>
             </View>
           ) : overseasCourses.map(c => (
             <View key={c.key} style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: C.paleSky }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Text style={{ fontSize: 15 }}>✈️</Text>
+                <Text style={{ fontSize: fs(15) }}>✈️</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={dS.courseName}>{c.name}</Text>
                   <Text style={dS.courseLoc}>{c.country || '해외'} · {c.visits}회 방문</Text>
@@ -411,30 +411,30 @@ export function CourseLogTab({ avgRating, navigation }) {
         <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 16, color: C.butter, fontWeight: '700' }}>🏆 100대 코스 도전하기</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>한국골프관광협회 2024-2025</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>🏆 100대 코스 도전하기</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>한국골프관광협회 2024-2025</Text>
             </View>
             <TouchableOpacity onPress={() => setTop100Open(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)' }}>✕</Text>
+              <Text style={{ fontSize: fs(20), color: 'rgba(255,255,255,0.7)' }}>✕</Text>
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
             <View style={{ flex: 1, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.13)', overflow: 'hidden' }}>
               <View style={{ height: 7, borderRadius: 4, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
             </View>
-            <Text style={{ fontFamily: F.en, fontSize: 15, color: C.butter, fontWeight: '700' }}>
-              {checkedCount}<Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}> / 100</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(15), color: C.butter, fontWeight: '700' }}>
+              {checkedCount}<Text style={{ fontSize: fs(11), color: 'rgba(255,255,255,0.5)' }}> / 100</Text>
             </Text>
           </View>
         </View>
-        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, paddingHorizontal: 18, paddingTop: 10, lineHeight: 16 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, paddingHorizontal: 18, paddingTop: 10, lineHeight: 16 }}>
           완료한 라운딩은 자동 체크 · 다녀온 곳은 오른쪽 ○를 탭해 직접 체크할 수 있어요
         </Text>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingBottom: 24 }}>
           {top100.length === 0 ? (
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>목록을 불러오는 중…</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>목록을 불러오는 중…</Text>
             </View>
           ) : top100.map(c => {
             const checked = checkedRanks.has(c.rank);
@@ -445,14 +445,14 @@ export function CourseLogTab({ avgRating, navigation }) {
                 paddingHorizontal: 18, paddingVertical: 9,
                 backgroundColor: checked ? '#FBF7EE' : 'transparent',
               }}>
-                <Text style={{ fontFamily: F.en, fontSize: 14, fontWeight: '700', width: 30, color: checked ? '#A88A2E' : C.warmGrayLight }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(14), fontWeight: '700', width: 30, color: checked ? '#A88A2E' : C.warmGrayLight }}>
                   {c.rank}
                 </Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: checked ? '700' : '400' }}>
+                  <Text style={{ fontFamily: checked ? F.sysB : F.sys, fontSize: fs(14), color: C.charcoal }}>
                     {c.name}
                   </Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 1 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 1 }}>
                     {c.region}{isAuto ? ' · 라운딩 기록' : ''}
                   </Text>
                 </View>
@@ -462,7 +462,7 @@ export function CourseLogTab({ avgRating, navigation }) {
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   {checked ? (
                     <View style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: '#C9A84C', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 15, color: '#fff', fontWeight: '800' }}>✓</Text>
+                      <Text style={{ fontSize: fs(15), color: '#fff', fontWeight: '800' }}>✓</Text>
                     </View>
                   ) : (
                     <View style={{ width: 26, height: 26, borderRadius: 7, borderWidth: 1.5, borderColor: C.warmGrayLight }} />

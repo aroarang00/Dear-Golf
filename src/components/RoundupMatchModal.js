@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
 import { REGION_OPTIONS } from '../constants/roundup';
 
@@ -42,7 +42,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
   const toggleDay = (k) =>
     setDays(prev => (prev.includes(k) ? prev.filter(d => d !== k) : [...prev, k]));
 
-  const sectionLabel = { fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, letterSpacing: 1, marginTop: 20, marginBottom: 10 };
+  const sectionLabel = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, letterSpacing: 1, marginTop: 20, marginBottom: 10 };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -51,8 +51,8 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
           <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 17, fontWeight: '700', color: C.charcoal }}>맞춤 모집 알림</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray, marginTop: 6, lineHeight: 18 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>맞춤 모집 알림</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 18 }}>
               조건에 맞는 새 모집을 라운지에서 모아 보여드려요.
             </Text>
 
@@ -66,7 +66,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
                     style={{ borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8,
                       backgroundColor: on ? C.burgundy : C.bgSecondary,
                       borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: on ? '700' : '500',
+                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
                       color: on ? C.butter : C.warmGray }}>{l}</Text>
                   </TouchableOpacity>
                 );
@@ -83,7 +83,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
                     style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
                       backgroundColor: on ? C.burgundy : C.bgSecondary,
                       borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: on ? '700' : '500',
+                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
                       color: on ? C.butter : C.warmGray }}>{l}</Text>
                   </TouchableOpacity>
                 );
@@ -96,15 +96,15 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               <TouchableOpacity onPress={() => setShowPicker('from')} activeOpacity={0.7}
                 style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10,
                   backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: dateFrom ? C.charcoal : C.warmGrayLight }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: dateFrom ? C.charcoal : C.warmGrayLight }}>
                   {dateFrom || '시작 날짜'}
                 </Text>
               </TouchableOpacity>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray }}>~</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>~</Text>
               <TouchableOpacity onPress={() => setShowPicker('to')} activeOpacity={0.7}
                 style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10,
                   backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: dateTo ? C.charcoal : C.warmGrayLight }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: dateTo ? C.charcoal : C.warmGrayLight }}>
                   {dateTo || '끝 날짜'}
                 </Text>
               </TouchableOpacity>
@@ -112,7 +112,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
                 <TouchableOpacity onPress={() => { setDateFrom(null); setDateTo(null); }} activeOpacity={0.7}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={{ paddingHorizontal: 6, paddingVertical: 8 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGray }}>지우기</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -148,7 +148,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
                     style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
                       backgroundColor: on ? C.burgundy : C.bgSecondary,
                       borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: on ? '700' : '500',
+                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
                       color: on ? C.butter : C.warmGray }}>{l}</Text>
                   </TouchableOpacity>
                 );
@@ -158,7 +158,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
             {/* 저장 */}
             <TouchableOpacity onPress={() => { onSave({ regions, days, dateFrom, dateTo, companion }); onClose(); }} activeOpacity={0.85}
               style={{ marginTop: 24, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '700' }}>저장</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>저장</Text>
             </TouchableOpacity>
           </View>
         </View>

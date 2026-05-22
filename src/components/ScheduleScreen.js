@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -60,15 +60,14 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={asModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(26,61,82,0.6)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 일정</Text>
           <TouchableOpacity
             ref={plusRef}
             onPress={openUpcoming}
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 14 }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontFamily: F.serifKR, fontSize: 28, color: C.navy }}>캘린더</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.navy, fontWeight: '700', marginTop: 3 }}>›</Text>
+            <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.navy }}>일정</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.navy, marginTop: 3 }}>›</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity
@@ -84,12 +83,12 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
             borderWidth: 1.5, borderColor: C.navy,
             alignItems: 'center', justifyContent: 'center',
           }}>
-          <Text style={{ fontFamily: F.en, fontSize: 14, color: C.navy, fontWeight: '700', lineHeight: 17 }}>!</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.navy, fontWeight: '700', lineHeight: 17 }}>!</Text>
         </TouchableOpacity>
         {asModal && (
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 14, backgroundColor: C.bgSecondary }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.navy, fontWeight: '700' }}>닫기</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.navy }}>닫기</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -113,11 +112,11 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
             shadowOpacity: 0.28, shadowRadius: 28, elevation: 20,
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 16, paddingTop: 9, paddingBottom: 7 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 14, fontWeight: '700', color: C.charcoal }}>예정 라운딩</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight }}>{upcomingSchedules.length}건</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>예정 라운딩</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>{upcomingSchedules.length}건</Text>
             </View>
             {upcomingSchedules.length === 0 ? (
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight, paddingHorizontal: 16, paddingVertical: 18, textAlign: 'center' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, paddingHorizontal: 16, paddingVertical: 18, textAlign: 'center' }}>
                 예정된 라운딩이 없어요
               </Text>
             ) : (
@@ -130,7 +129,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
                   return (
                     <View key={s.id}>
                       {showMonth && (
-                        <Text style={{ fontFamily: F.sys, fontSize: 11, fontWeight: '700', color: C.burgundy, letterSpacing: 1, paddingHorizontal: 16, paddingTop: i === 0 ? 2 : 10, paddingBottom: 4 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy, letterSpacing: 1, paddingHorizontal: 16, paddingTop: i === 0 ? 2 : 10, paddingBottom: 4 }}>
                           {m}월
                         </Text>
                       )}
@@ -146,13 +145,13 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
                           minWidth: 46, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 7, alignItems: 'center',
                           backgroundColor: dd === 0 ? C.burgundy : C.bgSecondary,
                         }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, fontWeight: '700', color: dd === 0 ? C.butter : C.charcoal }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: dd === 0 ? C.butter : C.charcoal }}>
                             {dd === 0 ? 'D-DAY' : `D-${dd}`}
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 13, fontWeight: '600', color: C.charcoal }} numberOfLines={1}>{s.course}</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 2 }}>{s.date} {s.day} · {s.time}</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }} numberOfLines={1}>{s.course}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>{s.date} {s.day} · {s.time}</Text>
                         </View>
                       </TouchableOpacity>
                     </View>

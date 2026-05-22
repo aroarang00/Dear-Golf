@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 
 // 팔레트: 챠콜 / 버터 / 크림
 const COST_LABELS = { green: '그린피', caddie: '캐디피', cart: '카트피', meal: '식사비', etc: '기타' };
@@ -65,18 +65,18 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
           {/* 헤더 — 챠콜 배경 + 버터 텍스트 */}
           <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View>
-              <Text style={{ fontFamily: F.sys, fontSize: 10, color: 'rgba(245,230,168,0.6)', letterSpacing: 2, marginBottom: 3 }}>나의 골프 지출</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 20, color: C.butter, fontWeight: '700' }}>골프 가계부</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(245,230,168,0.6)', letterSpacing: 2, marginBottom: 3 }}>나의 골프 지출</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.butter }}>골프 가계부</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: 20, color: C.butter }}>✕</Text>
+              <Text style={{ fontSize: fs(20), color: C.butter }}>✕</Text>
             </TouchableOpacity>
           </View>
 
           {costRounds.length === 0 ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-              <Text style={{ fontSize: 36, marginBottom: 14 }}>💰</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGray, textAlign: 'center', lineHeight: 21 }}>
+              <Text style={{ fontSize: fs(36), marginBottom: 14 }}>💰</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 21 }}>
                 비용 기록은 라운딩 기록 입력 시{'\n'}비용 항목에서 추가할 수 있어요
               </Text>
             </View>
@@ -84,9 +84,9 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom }} showsVerticalScrollIndicator={false}>
               {/* 올해 요약 — 버터 박스 */}
               <View style={{ backgroundColor: C.butter, borderRadius: 14, padding: 16, marginBottom: 20 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.charcoal, opacity: 0.65, marginBottom: 4 }}>{thisYear}년 총 지출</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 26, color: C.charcoal, fontWeight: '700' }}>{won(yearTotal)}원</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.charcoal, opacity: 0.8, marginTop: 4 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.charcoal, opacity: 0.65, marginBottom: 4 }}>{thisYear}년 총 지출</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(26), color: C.charcoal }}>{won(yearTotal)}원</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, opacity: 0.8, marginTop: 4 }}>
                   라운딩당 평균 {won(yearAvg)}원
                 </Text>
               </View>
@@ -99,12 +99,12 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                     paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center',
                     borderWidth: 0.5, borderColor: C.hairline,
                   }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGray, marginBottom: 6 }}>{card.label}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginBottom: 6 }}>{card.label}</Text>
                     <Text numberOfLines={1} adjustsFontSizeToFit
-                      style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700' }}>
+                      style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
                       {won(sumOf(card.list))}원
                     </Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 4 }}>{card.list.length}라운딩</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 4 }}>{card.list.length}라운딩</Text>
                   </View>
                 ))}
               </View>
@@ -119,27 +119,27 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                       style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.bgSecondary,
                         borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
                       <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: C.charcoal, marginRight: 10 }} />
-                      <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600', flex: 1 }}>{monthLabel(m)}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '700', marginRight: 8 }}>{won(sumOf(rounds))}원</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 12, color: C.warmGrayLight }}>{open ? '▴' : '▾'}</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>{monthLabel(m)}</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginRight: 8 }}>{won(sumOf(rounds))}원</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>{open ? '▴' : '▾'}</Text>
                     </TouchableOpacity>
                     {open && rounds.map(d => (
                       <View key={d.id} style={{ marginTop: 6, marginLeft: 13, backgroundColor: C.bgSecondary,
                         borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '600', flex: 1 }} numberOfLines={1}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }} numberOfLines={1}>
                             {d.course}
                           </Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.charcoal, fontWeight: '700', marginLeft: 8 }}>{won(d.cost.total)}원</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginLeft: 8 }}>{won(d.cost.total)}원</Text>
                         </View>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
                           {COST_KEYS.filter(k => (d.cost[k] || 0) > 0).map(k => (
                             <View key={k} style={{ backgroundColor: C.butter + '55', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
-                              <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.charcoal }}>{COST_LABELS[k]} {won(d.cost[k])}</Text>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.charcoal }}>{COST_LABELS[k]} {won(d.cost[k])}</Text>
                             </View>
                           ))}
                         </View>
-                        <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, marginTop: 6 }}>{d.date}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 6 }}>{d.date}</Text>
                       </View>
                     ))}
                   </View>

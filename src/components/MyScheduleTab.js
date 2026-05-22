@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, Share } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { C, F } from '../constants/colors';
+import { C, F, fs } from '../constants/colors';
 import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
@@ -30,11 +30,11 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
     }}>
       <View style={{ width: 3, borderRadius: 2, backgroundColor: sideColor, marginRight: 12, alignSelf: 'stretch' }} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>{course}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>{meta}</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>{course}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>{meta}</Text>
       </View>
       <View style={{ backgroundColor: badgeBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' }}>
-        <Text style={{ fontFamily: F.sys, fontSize: 10, color: badgeFg, fontWeight: '600' }}>{badgeTxt}</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: badgeFg }}>{badgeTxt}</Text>
       </View>
     </View>
   );
@@ -307,21 +307,21 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
     if (monthOffset !== 0) {
       return (
         <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.en, fontSize: 14, color: '#C8C4BC' }}>{d}</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(16), color: '#C8C4BC' }}>{d}</Text>
         </View>
       );
     }
 
     const status = getStatus(0, d);
     const base = { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' };
-    const baseText = { fontFamily: F.en, fontSize: 14 };
+    const baseText = { fontFamily: F.en, fontSize: fs(16) };
 
     switch (status) {
       case 'today':
         // 오늘 — 크고 버건디색 숫자 + 버건디 언더바 (동그라미 X)
         return (
           <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 20, color: C.burgundy, fontWeight: '700' }}>{d}</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.burgundy, fontWeight: '700' }}>{d}</Text>
             <View style={{ position: 'absolute', bottom: 1, width: 20, height: 3.5, borderRadius: 2, backgroundColor: C.burgundy }} />
           </View>
         );
@@ -371,15 +371,15 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
         {/* Month header */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 14 }}>
           <TouchableOpacity onPress={goPrev} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGray }}>‹</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>‹</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={openPicker} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} activeOpacity={0.6}>
-            <Text style={{ fontFamily: F.en, fontSize: 18, color: C.charcoal, fontWeight: '600' }}>
+            <Text style={{ fontFamily: F.en, fontSize: fs(19), color: C.charcoal, fontWeight: '600' }}>
               {year}. {String(month + 1).padStart(2, '0')} ▾
             </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={goNext} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: 22, color: C.warmGray }}>›</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
           </TouchableOpacity>
         </View>
 
@@ -387,7 +387,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
         <View style={{ flexDirection: 'row', paddingHorizontal: 12 }}>
           {DAYS.map((dl, i) => (
             <View key={i} style={{ flex: 1, alignItems: 'center', paddingBottom: 6 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: 11, color: i === 0 ? '#6B1E2A' : i === 6 ? C.navy : C.warmGrayLight, fontWeight: '500' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: i === 0 ? '#6B1E2A' : i === 6 ? C.navy : C.warmGrayLight }}>
                 {dl}
               </Text>
             </View>
@@ -412,27 +412,27 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.burgundy }} />
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>예정</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>예정</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.butter, opacity: 0.85 }} />
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>완료·기록</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>완료·기록</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: C.warmGray }} />
-            <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight }}>완료·미기록</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>완료·미기록</Text>
           </View>
         </View>
 
         {/* This month list */}
         <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: 10, color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 14 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14 }}>
             이번달 일정 · {monthItems.length}개
           </Text>
           {monthItems.length === 0 ? (
             isPastMonth ? (
               <View style={{ paddingVertical: 28, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 13, color: C.warmGrayLight }}>이 달엔 등록된 라운딩이 없어요</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>이 달엔 등록된 라운딩이 없어요</Text>
               </View>
             ) : (
             <View style={{ position: 'relative' }}>
@@ -458,7 +458,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
                 borderRadius: 12, overflow: 'hidden',
                 backgroundColor: 'rgba(250,248,243,0.32)',
               }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 15, color: C.charcoal, fontWeight: '700', marginBottom: 14 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 14 }}>
                   첫 라운드를 등록해보세요
                 </Text>
                 <TouchableOpacity activeOpacity={0.85}
@@ -467,7 +467,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
                     setModal({ visible: true, initial: { date: dateStrFor(0, 1), day: DAYS[dt.getDay()], time: '07:00', members: 4 } });
                   }}
                   style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 26 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>+ 일정 추가하기</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>+ 일정 추가하기</Text>
                 </TouchableOpacity>
               </BlurView>
             </View>
@@ -522,8 +522,8 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
 
                     {/* Left content */}
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.charcoal, fontWeight: '600' }}>{s.course}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight, marginTop: 4 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>{s.course}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>
                         {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
                       </Text>
                     </View>
@@ -531,19 +531,19 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
                     {/* Right: badge + record link */}
                     <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', marginLeft: 8 }}>
                       <View style={{ backgroundColor: badgeBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: 10, color: badgeFg, fontWeight: '600' }}>{badgeTxt}</Text>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: badgeFg }}>{badgeTxt}</Text>
                       </View>
                       {status === 'completed-norecord' && (
                         <TouchableOpacity
                           onPress={(e) => { e.stopPropagation?.(); onRequestAddDiary && onRequestAddDiary(s); }}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           style={{ marginTop: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: C.navy }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#fff', fontWeight: '600' }}>기록 추가하기</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#fff' }}>기록 추가하기</Text>
                         </TouchableOpacity>
                       )}
                       {status === 'completed-record' && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: 11, color: '#A88A2E', fontWeight: '600' }}>📔 다이어리</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A88A2E' }}>📔 다이어리</Text>
                         </View>
                       )}
                     </View>
@@ -602,11 +602,11 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
             {/* 연도 선택 */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28, paddingVertical: 10, marginBottom: 8 }}>
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, year: p.year - 1 }))} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
-                <Text style={{ fontSize: 26, color: C.warmGray }}>‹</Text>
+                <Text style={{ fontSize: fs(26), color: C.warmGray }}>‹</Text>
               </TouchableOpacity>
-              <Text style={{ fontFamily: F.en, fontSize: 28, color: C.charcoal, fontWeight: '600', minWidth: 100, textAlign: 'center' }}>{picker.year}</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.charcoal, fontWeight: '600', minWidth: 100, textAlign: 'center' }}>{picker.year}</Text>
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, year: p.year + 1 }))} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
-                <Text style={{ fontSize: 26, color: C.warmGray }}>›</Text>
+                <Text style={{ fontSize: fs(26), color: C.warmGray }}>›</Text>
               </TouchableOpacity>
             </View>
 
@@ -622,7 +622,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
                         backgroundColor: on ? C.charcoal : C.bgSecondary,
                         borderWidth: on ? 0 : 0.5, borderColor: C.hairline,
                       }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: 14, color: on ? C.butter : C.charcoal, fontWeight: on ? '700' : '400' }}>
+                      <Text style={{ fontFamily: on ? F.sysB : F.sys, fontSize: fs(14), color: on ? C.butter : C.charcoal }}>
                         {m}월
                       </Text>
                     </TouchableOpacity>
@@ -635,11 +635,11 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, visible: false }))} activeOpacity={0.7}
                 style={{ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', borderWidth: 0.5, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.warmGray }}>취소</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmPicker} activeOpacity={0.8}
                 style={{ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: C.charcoal }}>
-                <Text style={{ fontFamily: F.sys, fontSize: 14, color: C.butter, fontWeight: '600' }}>확인</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>확인</Text>
               </TouchableOpacity>
             </View>
           </View>
