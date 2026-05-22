@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -282,9 +281,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               style={{ alignItems: 'center', paddingVertical: 10 }}>
               <View style={mS.handle} />
             </TouchableOpacity>
-            <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
             <ScrollView style={{ flexShrink: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled">
+              keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
               <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
               {/* 국내 / 해외 */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
@@ -650,7 +648,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               </TouchableOpacity>
               <View style={{ height: 40 }} />
             </ScrollView>
-            </KeyboardAvoidingView>
           </View>
         </View>
     </Modal>

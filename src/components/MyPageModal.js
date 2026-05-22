@@ -3,7 +3,6 @@ import {
   Modal, View, Text, TouchableOpacity, TextInput, ScrollView,
   Alert, Linking,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { showAppAlert } from './AppAlert';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
@@ -197,9 +196,8 @@ export function MyPageModal({ visible, onClose }) {
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
           <View style={myS.sheet}>
             <View style={myS.handle} />
-            <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
             <ScrollView ref={scrollRef} style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled">
+              keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
               <View style={myS.profileArea}>
                 <View style={myS.avatar}>
                   <Text style={myS.avatarTxt}>{nickname.charAt(0)}</Text>
@@ -594,7 +592,6 @@ export function MyPageModal({ visible, onClose }) {
                 <Text style={{ fontFamily: F.sys, fontSize: 11, color: C.warmGrayLight }}>Dear Golf v1.0.0</Text>
               </View>
             </ScrollView>
-            </KeyboardAvoidingView>
           </View>
         </View>
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />

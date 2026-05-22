@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
@@ -202,13 +201,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
           {/* flexShrink:1 — 시트 maxHeight(92%)에 맞춰 스크롤뷰가 줄어들어 스크롤 가능해짐 */}
-          <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flexShrink: 1 }}>
           <ScrollView
             style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag">
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets>
               <Text style={mS.title}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
 
               {/* 국내 / 해외 */}
@@ -383,7 +382,6 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               </TouchableOpacity>
               <View style={{ height: 40 }} />
             </ScrollView>
-          </KeyboardAvoidingView>
         </View>
       </View>
     </Modal>
