@@ -124,11 +124,9 @@ export default function App() {
   // 폰트 로드 실패해도(fontError) 시스템 폰트로 폴백하며 진행 — 앱이 멈추지 않게
   if (!profileLoaded || (!fontsLoaded && !fontError) || !minSplashDone) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A3D52' }}>
-        <Image source={require('./assets/splash-icon.png')}
-          resizeMode="contain"
-          style={{ width: '64%', aspectRatio: 1 }} />
-        <ActivityIndicator size="small" color={C.butter} style={{ marginTop: 28 }} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paleSky }}>
+        <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
+        <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
       </View>
     );
   }
