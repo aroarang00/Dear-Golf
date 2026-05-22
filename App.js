@@ -127,7 +127,7 @@ export default function App() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A3D52' }}>
         <Image source={require('./assets/splash-icon.png')}
           resizeMode="contain"
-          style={{ width: '88%', aspectRatio: 1 }} />
+          style={{ width: '64%', aspectRatio: 1 }} />
         <ActivityIndicator size="small" color={C.butter} style={{ marginTop: 28 }} />
       </View>
     );
