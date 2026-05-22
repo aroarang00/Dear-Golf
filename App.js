@@ -25,6 +25,7 @@ import { GuideScreen } from './src/components/GuideScreen';
 import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
+import { SplashOverlay } from './src/components/SplashOverlay';
 
 // 시스템 글꼴 크기 설정(안드로이드 '글꼴 크기'/iOS 동적 타입)이 앱 레이아웃을
 // 깨지 않도록 — 모든 Text·TextInput의 글꼴 스케일링을 꺼서 텍스트 크기를 고정.
@@ -121,8 +122,10 @@ export default function App() {
     setShowOnboarding(true);
   };
 
-  // 폰트 로드 실패해도(fontError) 시스템 폰트로 폴백하며 진행 — 앱이 멈추지 않게
-  if (!profileLoaded || (!fontsLoaded && !fontError) || !minSplashDone) {
+  // 폰트 로드 실패해도(fontError) 시스템 폰트로 폴백하며 진행 — 앱이 멈추지 않게.
+  // 콘텐츠(프로필·폰트) 준비 전엔 정적 로딩 화면, 준비된 뒤엔 SplashOverlay가 페이드아웃.
+  const appReady = profileLoaded && (fontsLoaded || fontError) && minSplashDone;
+  if (!profileLoaded || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paleSky }}>
         <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
@@ -147,6 +150,7 @@ export default function App() {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>{screen}</SafeAreaProvider>
+        <SplashOverlay appReady={appReady} />
       </GestureHandlerRootView>
     );
   }
@@ -200,6 +204,7 @@ export default function App() {
     </SchedulesProvider>
     </UserContext.Provider>
     </SafeAreaProvider>
+    <SplashOverlay appReady={appReady} />
     </GestureHandlerRootView>
   );
 }
