@@ -88,7 +88,6 @@ export function MyPageModal({ visible, onClose }) {
     setDepResults([]);
     setDepSearching(false);
     setEditingInfo(false);
-    showAppAlert('완료', '내 정보가 저장되었어요 ✓');
   };
 
   const handleCancelInfo = () => {
