@@ -40,7 +40,7 @@ export function OnboardingScreen({ seed = {}, onComplete }) {
       <TripleStripe />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 28, paddingBottom: 60 }}>
         <Text style={{ fontFamily: F.brand, fontSize: fs(32), color: C.charcoal, marginBottom: 6 }}>Dear Golf</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGrayLight, marginBottom: 40 }}>나만의 골프 캐디를 시작해요</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, marginBottom: 40 }}>나만의 골프 캐디를 시작해요</Text>
 
         {step === 1 && (
           <View>
@@ -86,7 +86,7 @@ export function OnboardingScreen({ seed = {}, onComplete }) {
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
               <TouchableOpacity style={[obS.nextBtn, { flex: 0, backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.hairline }]}
                 onPress={() => setStep(1)}>
-                <Text style={[obS.nextBtnTxt, { color: C.warmGrayLight }]}>이전</Text>
+                <Text style={[obS.nextBtnTxt, { color: C.warmGray }]}>이전</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={handleComplete}>
                 <Text style={obS.nextBtnTxt}>시작하기</Text>

@@ -84,14 +84,14 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
           <View style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>핸디 {friend.stats?.avg ?? '—'}</Text>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 4 }}>함께 {friend.roundsTogether}회</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 4 }}>함께 {friend.roundsTogether}회</Text>
         </View>
       </View>
 
       {/* 최근 라운딩 미리보기 */}
       {r && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1 }}>최근</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1 }}>최근</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, flex: 1 }} numberOfLines={1}>
             {r.course} · {r.date}
           </Text>
@@ -227,7 +227,7 @@ export function FriendsTab({ navigation }) {
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
                 🙈 숨긴 친구 {hiddenFriends.length}
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>{showHidden ? '▲' : '▼'}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{showHidden ? '▲' : '▼'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -255,7 +255,7 @@ export function FriendsTab({ navigation }) {
 
         {visible.length === 0 ? (
           q ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 36 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36 }}>
               검색 결과가 없어요
             </Text>
           ) : (
@@ -306,7 +306,7 @@ export function FriendsTab({ navigation }) {
           })
         )}
 
-        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, textAlign: 'center', marginTop: 6 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 6 }}>
           친구 카드를 탭하면 프로필이 열려요
         </Text>
       </ScrollView>

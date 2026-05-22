@@ -131,7 +131,7 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
                 </TouchableOpacity>
               </View>
               {dontAsk && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, textAlign: 'center', marginTop: 10, lineHeight: 15 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, textAlign: 'center', marginTop: 10, lineHeight: 15 }}>
                   다음부터는 이 팝업 없이 마이페이지 기본 설정대로 적용돼요.{'\n'}마이페이지에서 다시 켤 수 있어요.
                 </Text>
               )}

@@ -61,7 +61,7 @@ function RequestButton({ sent, onPress }) {
     return (
       <View style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
         backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGrayLight }}>신청함</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>신청함</Text>
       </View>
     );
   }
@@ -76,7 +76,7 @@ function RequestButton({ sent, onPress }) {
 // 빈 상태 한 줄
 function EmptyHint({ text }) {
   return (
-    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 40 }}>
+    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 40 }}>
       {text}
     </Text>
   );
@@ -116,7 +116,7 @@ export function FriendFinder({
       return (
         <View style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
           backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGrayLight }}>친구</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>친구</Text>
         </View>
       );
     }
@@ -178,7 +178,7 @@ export function FriendFinder({
             {/* 카카오 친구 */}
             {tab === 'kakao' && (
               <>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 10, lineHeight: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 10, lineHeight: 16 }}>
                   카카오 친구 중 Dear Golf를 쓰는 사람이에요
                 </Text>
                 {KAKAO_CANDIDATES.length === 0

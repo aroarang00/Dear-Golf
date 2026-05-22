@@ -65,7 +65,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
               style={[inputBase, { fontSize: fs(14), marginBottom: fromKakao && seed?.loc ? 6 : 14 }]}
             />
             {fromKakao && !!seed?.loc && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 14 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 14 }}>
                 📍 {seed.loc}
               </Text>
             )}

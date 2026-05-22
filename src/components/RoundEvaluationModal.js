@@ -68,7 +68,7 @@ export function RoundEvaluationModal({ visible, round, onClose, onSubmit }) {
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{p.name}</Text>
                         {p.role && (
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>{p.role}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{p.role}</Text>
                         )}
                       </View>
                     </View>

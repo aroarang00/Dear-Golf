@@ -304,7 +304,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 autoCorrect={false} autoCapitalize="none"
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); setSelectedCourseObj(null); }} />
               {!overseas && kakaoSearching && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>검색 중...</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>검색 중...</Text>
               )}
               {overseas && (
                 <>
@@ -363,7 +363,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </View>
                   {scoreCardOption === 'photo' && (
                     <View style={{ marginTop: 8, padding: 12, backgroundColor: C.paleSky + '22', borderRadius: 10, borderWidth: 0.5, borderColor: C.paleSky + '60' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, lineHeight: 18 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 18 }}>
                         📷 스코어카드를 사진으로 찍으면 홀별 타수를 자동으로 인식하는 기능이에요.{'\n'}아직 준비 중이며 곧 추가될 예정이에요.
                       </Text>
                     </View>
@@ -419,7 +419,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     </TouchableOpacity>
                   ))}
                   {companions.length < 3 && (
-                    <Text style={{ fontSize: fs(10), color: C.warmGrayLight, alignSelf: 'center' }}>
+                    <Text style={{ fontSize: fs(10), color: C.warmGray, alignSelf: 'center' }}>
                       최대 3명 (나 포함 4명)
                     </Text>
                   )}
@@ -442,7 +442,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <TouchableOpacity onPress={() => setBirdieCount(Math.min(18, birdieCount + 1))} style={mS.countBtn}>
                   <Text style={mS.countBtnTxt}>+</Text>
                 </TouchableOpacity>
-                {birdieCount === 0 && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>버디 없음</Text>}
+                {birdieCount === 0 && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>버디 없음</Text>}
               </View>
               <Text style={bigLabel}>특별한 순간</Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -522,7 +522,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · 최대 1000자)</Text>
                 </Text>
                 {/* 예시 칩 — 누르면 입력칸에 항목이 추가돼 글쓰기 시작점이 된다 */}
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 6 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6 }}>
                   뭘 쓸지 막막하면 눌러서 시작해보세요
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
@@ -556,7 +556,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     textAlignVertical="top"
                     maxLength={1000}
                   />
-                  <Text style={{ fontSize: fs(10), color: C.warmGrayLight, textAlign: 'right', marginTop: 8 }}>
+                  <Text style={{ fontSize: fs(10), color: C.warmGray, textAlign: 'right', marginTop: 8 }}>
                     {detailMemo.length} / 1000
                   </Text>
                 </View>
@@ -624,7 +624,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </TouchableOpacity>
               </View>
               <View style={{ marginTop: 16, marginBottom: 16 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, marginBottom: 8 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 8 }}>
                   사진 · 영상 (선택)
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -636,7 +636,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
                       borderWidth: 0.5, borderColor: C.hairline,
                       alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: fs(24), color: C.warmGrayLight }}>+</Text>
+                    <Text style={{ fontSize: fs(24), color: C.warmGray }}>+</Text>
                   </TouchableOpacity>
                 </ScrollView>
               </View>

@@ -131,19 +131,19 @@ export function OnboardingIntro({ onDone }) {
               <View style={{ flex: 1, backgroundColor: C.burgundy }} />
             </View>
             <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, letterSpacing: 2, marginBottom: 3 }}>나의 라운딩 기록</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 2, marginBottom: 3 }}>나의 라운딩 기록</Text>
               <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.charcoal }}>MY</Text>
             </View>
             <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginTop: 18 }}>
               {[['라운딩', '24'], ['평균타', '92'], ['베스트', '78']].map(([l, v]) => (
                 <View key={l} style={{ flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>{v}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 3 }}>{l}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{l}</Text>
                 </View>
               ))}
             </View>
             <View style={{ marginHorizontal: 24, marginTop: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>2026.05.24 토 · 제이드팰리스 GC</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.05.24 토 · 제이드팰리스 GC</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
                 <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.burgundy, fontWeight: '700' }}>88</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +16</Text>
@@ -153,7 +153,7 @@ export function OnboardingIntro({ onDone }) {
               </View>
             </View>
             <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>2026.04.18 토 · 안성베네스트 CC</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.04.18 토 · 안성베네스트 CC</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
                 <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.charcoal, fontWeight: '700' }}>91</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +19</Text>
@@ -163,7 +163,7 @@ export function OnboardingIntro({ onDone }) {
               </View>
             </View>
             <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>2026.03.22 일 · 남서울 CC</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.03.22 일 · 남서울 CC</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
                 <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.charcoal, fontWeight: '700' }}>85</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +13</Text>
@@ -354,7 +354,7 @@ export function OnboardingIntro({ onDone }) {
               </Text>
             </TouchableOpacity>
             {locStatus === 'idle' && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, textAlign: 'center', marginTop: 10, lineHeight: 16 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 10, lineHeight: 16 }}>
                 팝업에서 '앱을 사용하는 동안 허용'을 선택하면{'\n'}앱을 켤 때마다 다시 묻지 않아요
               </Text>
             )}
@@ -369,7 +369,7 @@ export function OnboardingIntro({ onDone }) {
                 </TouchableOpacity>
               </View>
             )}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 14, textAlign: 'center' }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 14, textAlign: 'center' }}>
               건너뛰고 나중에 설정해도 괜찮아요
             </Text>
           </ScrollView>

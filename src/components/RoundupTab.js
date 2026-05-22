@@ -100,7 +100,7 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>{post.author}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{post.author}</Text>
           <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />
           {!isMine && (
             <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -163,7 +163,7 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
         <Text style={{ fontSize: fs(13) }}>{allFull ? '✅' : '🔄'}</Text>
         <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal, fontWeight: '700' }}>{total}/{capTotal}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>명</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
           color: allFull ? '#3C7D4F' : C.warmGray, marginLeft: 'auto' }}>
           {allFull ? '모집 완료' : '모집중'}
@@ -711,7 +711,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>
               맞춤 모집 알림 설정하기
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>›</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>›</Text>
           </TouchableOpacity>
         )
       )}
@@ -730,7 +730,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}>
         {list.length === 0 ? (
           view === 'mine' ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 48 }}>
               아직 참여 중인 모집이 없어요
             </Text>
           ) : view === 'watch' ? (

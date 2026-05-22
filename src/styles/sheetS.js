@@ -6,7 +6,7 @@ export const sheetS = StyleSheet.create({
   sheet:       { backgroundColor: C.bgPrimary, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 20 },
   handle:      { width: 36, height: 4, backgroundColor: C.hairline, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 6 },
   course:      { fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal },
-  courseArrow: { fontSize: fs(14), color: C.warmGrayLight, fontWeight: '400' },
+  courseArrow: { fontSize: fs(14), color: C.warmGray, fontWeight: '400' },
   meta:        { fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 6 },
   dday:        { fontFamily: F.en, fontSize: fs(38), color: C.burgundy, letterSpacing: -0.5, lineHeight: 40 },
   ddayLabel:   { fontFamily: F.sys, fontSize: fs(13), color: C.charcoal },

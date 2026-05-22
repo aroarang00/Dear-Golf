@@ -80,7 +80,7 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
         <View style={{ position: 'absolute', top: 56, left: 0, right: 0, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.3)' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
           </Text>
         </View>

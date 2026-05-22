@@ -71,13 +71,13 @@ function RecordedCard({ c, rs, navigation, isOpen, onToggle }) {
                 activeOpacity={0.6}
                 onPress={() => navigation.navigate('코스', { openCourseId: c.courseId })}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-                <Text style={{ fontSize: fs(18), color: C.warmGrayLight }}>›</Text>
+                <Text style={{ fontSize: fs(18), color: C.warmGray }}>›</Text>
               </TouchableOpacity>
               <View style={{ width: 1, height: 14, backgroundColor: C.hairline }} />
             </>
           ) : null}
           <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>{isOpen ? '▴' : '▾'}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{isOpen ? '▴' : '▾'}</Text>
           </View>
         </View>
       </View>
@@ -119,7 +119,7 @@ function UnrecordedCard({ c, rs, onAdd }) {
         <Text style={{ fontSize: fs(14) }}>🗓️</Text>
         <View style={{ flex: 1 }}>
           <Text style={dS.courseName}>{c.name}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
             {c.latestDate || '날짜 미정'} · {c.visits}회 방문
           </Text>
         </View>
@@ -321,7 +321,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
             <Text style={{ fontFamily: F.en, fontSize: fs(18), color: '#C9A84C', fontWeight: '700' }}>{checkedCount}</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}> / 100</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}> / 100</Text>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#A88A2E', marginLeft: 6 }}>›</Text>
           </View>
         </View>
@@ -379,8 +379,8 @@ export function CourseLogTab({ avgRating, navigation }) {
           </Text>
           {overseasCourses.length === 0 ? (
             <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>아직 해외 라운딩 기록이 없어요</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>라운딩 기록 추가에서 '해외'를 선택하면 모여요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>아직 해외 라운딩 기록이 없어요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>라운딩 기록 추가에서 '해외'를 선택하면 모여요</Text>
             </View>
           ) : overseasCourses.map(c => (
             <View key={c.key} style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: C.paleSky }]}>
@@ -428,13 +428,13 @@ export function CourseLogTab({ avgRating, navigation }) {
             </Text>
           </View>
         </View>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, paddingHorizontal: 18, paddingTop: 10, lineHeight: 16 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 18, paddingTop: 10, lineHeight: 16 }}>
           완료한 라운딩은 자동 체크 · 다녀온 곳은 오른쪽 ○를 탭해 직접 체크할 수 있어요
         </Text>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingBottom: 24 }}>
           {top100.length === 0 ? (
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>목록을 불러오는 중…</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>목록을 불러오는 중…</Text>
             </View>
           ) : top100.map(c => {
             const checked = checkedRanks.has(c.rank);
@@ -449,10 +449,10 @@ export function CourseLogTab({ avgRating, navigation }) {
                   {c.rank}
                 </Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: checked ? F.sysB : F.sys, fontSize: fs(14), color: C.charcoal }}>
+                  <Text style={{ fontFamily: checked ? F.sysB : F.sysM, fontSize: fs(15), color: C.charcoal }}>
                     {c.name}
                   </Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 1 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>
                     {c.region}{isAuto ? ' · 라운딩 기록' : ''}
                   </Text>
                 </View>

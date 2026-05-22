@@ -57,7 +57,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16 }}>
             {notifications.length === 0 ? (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 48 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 48 }}>
                 새 알림이 없어요
               </Text>
             ) : (
@@ -93,7 +93,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                           <MannerBadge score={n.actorMannerScore} size={13} />
                         </View>
                       )}
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>{n.time}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>{n.time}</Text>
                       {/* 참여 신청 — 수락 / 거절 */}
                       {pending && (
                         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
@@ -116,7 +116,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                       {onDelete && (
                         <TouchableOpacity onPress={() => onDelete(n)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           style={{ paddingHorizontal: 2 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGrayLight, lineHeight: 18 }}>×</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGray, lineHeight: 18 }}>×</Text>
                         </TouchableOpacity>
                       )}
                     </View>

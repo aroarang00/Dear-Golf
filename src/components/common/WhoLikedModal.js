@@ -18,7 +18,7 @@ export function WhoLikedModal({ names, onClose }) {
             </Text>
           </View>
           {names.length === 0 ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 28 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>
               아직 좋아요가 없어요
             </Text>
           ) : (

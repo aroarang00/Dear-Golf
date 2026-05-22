@@ -232,13 +232,13 @@ export function MyPageModal({ visible, onClose }) {
                         const st = nicknameChangeStatus(userProfile);
                         if (st.canChange) {
                           return (
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 2 }}>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
                               닉네임 변경 가능 · {st.cooldownDays}일에 1번
                             </Text>
                           );
                         }
                         return (
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#8B6914', marginTop: 2 }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginTop: 2 }}>
                             다음 변경일 {formatNextDate(st.nextDate)} ({st.daysLeft}일 후)
                           </Text>
                         );
@@ -288,7 +288,7 @@ export function MyPageModal({ visible, onClose }) {
                       { label: '총 라운딩 수', value: totalRounds, set: setTotalRounds, ph: '0' },
                     ].map((field, i) => (
                       <View key={i} style={{ marginBottom: 10 }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 4 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 4 }}>
                           {field.label}
                         </Text>
                         <TextInput
@@ -352,7 +352,7 @@ export function MyPageModal({ visible, onClose }) {
                           autoCapitalize="none" autoCorrect={false}
                           placeholder="동·아파트·건물명으로 검색" placeholderTextColor={C.warmGrayLight} />
                         {depSearching && (
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 6 }}>검색 중…</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>검색 중…</Text>
                         )}
                         {!depSearching && depResults.length > 0 && (
                           <View style={{ marginTop: 6, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8, overflow: 'hidden' }}>
@@ -361,12 +361,12 @@ export function MyPageModal({ visible, onClose }) {
                                 onPress={() => handleSelectDeparture(r)}
                                 style={{ paddingVertical: 8, paddingHorizontal: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
                                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal }} numberOfLines={1}>{r.name}</Text>
-                                {!!r.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.loc}</Text>}
+                                {!!r.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.loc}</Text>}
                               </TouchableOpacity>
                             ))}
                           </View>
                         )}
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: departureCoord ? '#3C7D4F' : C.warmGrayLight, marginTop: 6, lineHeight: 15 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: departureCoord ? '#3C7D4F' : C.warmGrayLight, marginTop: 6, lineHeight: 15 }}>
                           {departureCoord
                             ? '✓ 정확한 위치가 저장돼 교통 소요시간이 정확해져요'
                             : '검색 결과에서 선택해야 위치가 정확히 저장돼요'}
@@ -406,7 +406,7 @@ export function MyPageModal({ visible, onClose }) {
                       <Text style={myS.menuIcon}>💬</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={myS.menuLabel}>라운딩마다 알람 직접 설정</Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
                           {on ? '일정을 추가할 때마다 알람 설정을 물어봐요' : '팝업 없이 D-3·D-1·당일 알람이 자동 적용돼요'}
                         </Text>
                       </View>
@@ -433,7 +433,7 @@ export function MyPageModal({ visible, onClose }) {
                       <Text style={myS.menuIcon}>{item.icon}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={myS.menuLabel}>{item.label}</Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>{item.sub}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{item.sub}</Text>
                       </View>
                       <TouchableOpacity onPress={() => toggleNotifyPref(item.key)} activeOpacity={0.8}
                         style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center',
@@ -475,7 +475,7 @@ export function MyPageModal({ visible, onClose }) {
                     <Text style={myS.menuIcon}>{item.icon}</Text>
                     <Text style={myS.menuLabel}>{item.label}</Text>
                     {item.value ? (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, marginRight: 4 }}>{item.value}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginRight: 4 }}>{item.value}</Text>
                     ) : null}
                     <Text style={myS.menuValue}>›</Text>
                   </TouchableOpacity>
@@ -493,7 +493,7 @@ export function MyPageModal({ visible, onClose }) {
                       <Text style={myS.menuIcon}>🤝</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={myS.menuLabel}>친구 모집만 보기</Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
                           라운지에서 '전체' 탭을 숨기고 친구 모집만 표시
                         </Text>
                       </View>
@@ -589,7 +589,7 @@ export function MyPageModal({ visible, onClose }) {
                 </TouchableOpacity>
               </View>
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>Dear Golf v1.0.0</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>Dear Golf v1.0.0</Text>
               </View>
             </ScrollView>
           </View>

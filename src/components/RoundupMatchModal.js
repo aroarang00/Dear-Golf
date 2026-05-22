@@ -42,7 +42,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
   const toggleDay = (k) =>
     setDays(prev => (prev.includes(k) ? prev.filter(d => d !== k) : [...prev, k]));
 
-  const sectionLabel = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, letterSpacing: 1, marginTop: 20, marginBottom: 10 };
+  const sectionLabel = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginTop: 20, marginBottom: 10 };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

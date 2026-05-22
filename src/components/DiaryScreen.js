@@ -290,12 +290,12 @@ export function DiaryScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(18) }}>💰</Text>
+            <Text style={{ fontSize: fs(24) }}>💰</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(18) }}>⚙️</Text>
+            <Text style={{ fontSize: fs(24) }}>⚙️</Text>
           </TouchableOpacity>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingRight: 80 }}>
@@ -362,7 +362,7 @@ export function DiaryScreen({ route, navigation }) {
                 <Text style={{ fontFamily: F.en, fontSize: fs(20), color: st.hi ? C.burgundy : C.charcoal, fontWeight: '700' }}>
                   {st.value != null ? st.value : '—'}
                 </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 3 }}>{st.label}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{st.label}</Text>
               </View>
             ))}
           </View>
@@ -370,10 +370,10 @@ export function DiaryScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => setStatsExpanded(v => !v)} activeOpacity={0.7}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 12 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGrayLight }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
             통계 {statsExpanded ? '접기' : '펼치기'}
           </Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGrayLight }}>{statsExpanded ? '▲' : '▼'}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGray }}>{statsExpanded ? '▲' : '▼'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -422,11 +422,11 @@ export function DiaryScreen({ route, navigation }) {
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
                 아직 라운딩 기록이 없어요
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, textAlign: 'center', lineHeight: 20 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
                 첫 라운딩을 기록하면 이렇게 남아요
               </Text>
               <View style={{ width: '100%', marginTop: 22 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8, marginLeft: 16 }}>예시</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8, marginLeft: 16 }}>예시</Text>
                 <View style={{ opacity: 0.6, paddingHorizontal: 16 }} pointerEvents="none">
                   <DiaryCard item={SAMPLE_DIARY} avgScore={null} onPress={() => {}} />
                 </View>
@@ -576,7 +576,7 @@ export function DiaryScreen({ route, navigation }) {
             ))}
             <TouchableOpacity activeOpacity={0.6} onPress={() => setAvatarSheetOpen(false)}
               style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGrayLight, textAlign: 'center' }}>취소</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, textAlign: 'center' }}>취소</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

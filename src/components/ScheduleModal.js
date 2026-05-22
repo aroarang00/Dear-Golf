@@ -263,7 +263,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               )}
 
               {!overseas && searching && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 6 }}>검색 중...</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>검색 중...</Text>
               )}
 
               {!overseas && !searching && searchResults.length > 0 && (
@@ -296,13 +296,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
               {overseas && (
                 <>
-                  <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>도시 <Text style={{ fontSize: fs(11), fontFamily: F.sys, color: C.warmGrayLight }}>(현지 날씨 조회용)</Text></Text>
+                  <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>도시 <Text style={{ fontSize: fs(11), fontFamily: F.sys, color: C.warmGray }}>(현지 날씨 조회용)</Text></Text>
                   <TextInput style={mS.input} placeholder="예: Okinawa / Da Nang / 다낭"
                     placeholderTextColor={C.warmGrayLight} value={cityQuery}
                     autoCorrect={false} autoCapitalize="none"
                     onChangeText={t => { setCityQuery(t); setSelectedCity(null); }} />
                   {citySearching && (
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 6 }}>도시 검색 중...</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>도시 검색 중...</Text>
                   )}
                   {!citySearching && cityResults.length > 0 && (
                     <View style={mS.searchDrop}>

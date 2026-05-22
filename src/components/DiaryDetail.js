@@ -185,7 +185,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
               borderRadius: 10, padding: 14,
               borderWidth: 0.5, borderColor: C.hairline,
             }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>더 기록하기</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>더 기록하기</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, lineHeight: 22 }}>{item.detailMemo}</Text>
             </View>
           ) : null}

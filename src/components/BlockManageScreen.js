@@ -60,7 +60,7 @@ export function BlockManageScreen({ visible, onClose }) {
             {blocked.length === 0 ? (
               <View style={{ paddingTop: 56, alignItems: 'center' }}>
                 <Text style={{ fontSize: fs(36) }}>🤝</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, marginTop: 12 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 12 }}>
                   차단한 사용자가 없어요
                 </Text>
               </View>

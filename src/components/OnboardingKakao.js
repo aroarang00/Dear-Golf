@@ -104,7 +104,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
             나중에 하기
           </Text>
         </TouchableOpacity>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, textAlign: 'center', marginTop: 4 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 4 }}>
           카카오 없이도 사용할 수 있어요
         </Text>
       </ScrollView>

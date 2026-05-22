@@ -113,10 +113,10 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 16, paddingTop: 9, paddingBottom: 7 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>예정 라운딩</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>{upcomingSchedules.length}건</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{upcomingSchedules.length}건</Text>
             </View>
             {upcomingSchedules.length === 0 ? (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight, paddingHorizontal: 16, paddingVertical: 18, textAlign: 'center' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, paddingHorizontal: 16, paddingVertical: 18, textAlign: 'center' }}>
                 예정된 라운딩이 없어요
               </Text>
             ) : (
@@ -151,7 +151,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }} numberOfLines={1}>{s.course}</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>{s.date} {s.day} · {s.time}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{s.date} {s.day} · {s.time}</Text>
                         </View>
                       </TouchableOpacity>
                     </View>

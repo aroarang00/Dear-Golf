@@ -56,7 +56,7 @@ export function HomeTooltip({ visible, onClose }) {
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 20 }}>
                 {TIPS[step].desc}
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 10 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 10 }}>
                 화면을 탭하거나 잠시 기다리면 넘어가요
               </Text>
             </View>

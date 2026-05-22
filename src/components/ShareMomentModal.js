@@ -34,7 +34,7 @@ export function ShareMomentModal({ moment, visible, onClose }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1.5, marginBottom: 8 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>
               공유 미리보기
             </Text>
 
@@ -42,7 +42,7 @@ export function ShareMomentModal({ moment, visible, onClose }) {
             <HallOfFameCard item={moment} />
             <View style={{ alignItems: 'center', marginTop: 6, marginBottom: 6 }}>
               <Text style={{ fontFamily: F.brand, fontSize: fs(17), color: C.charcoal }}>Dear Golf</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 1, letterSpacing: 1 }}>deargolf.app</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1, letterSpacing: 1 }}>deargolf.app</Text>
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
               공유하면 카드 하단에 Dear Golf 워터마크가 자동으로 들어가요.

@@ -31,7 +31,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
       <View style={{ width: 3, borderRadius: 2, backgroundColor: sideColor, marginRight: 12, alignSelf: 'stretch' }} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>{course}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>{meta}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>{meta}</Text>
       </View>
       <View style={{ backgroundColor: badgeBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' }}>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: badgeFg }}>{badgeTxt}</Text>
@@ -412,15 +412,15 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.burgundy }} />
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>예정</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>예정</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.butter, opacity: 0.85 }} />
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>완료·기록</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>완료·기록</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: C.warmGray }} />
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>완료·미기록</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>완료·미기록</Text>
           </View>
         </View>
 
@@ -432,7 +432,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
           {monthItems.length === 0 ? (
             isPastMonth ? (
               <View style={{ paddingVertical: 28, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight }}>이 달엔 등록된 라운딩이 없어요</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>이 달엔 등록된 라운딩이 없어요</Text>
               </View>
             ) : (
             <View style={{ position: 'relative' }}>
@@ -523,7 +523,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
                     {/* Left content */}
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>{s.course}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>
                         {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
                       </Text>
                     </View>

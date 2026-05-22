@@ -364,12 +364,12 @@ export function HomeScreen({ navigation }) {
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0 }]}>일정</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.6)', marginLeft: 5, marginTop: 1 }}>›</Text>
+              <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0, fontSize: fs(17), color: 'rgba(255,255,255,0.9)' }]}>일정</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(17), color: 'rgba(255,255,255,0.9)', marginLeft: 5, marginTop: 1 }}>›</Text>
             </TouchableOpacity>
             {upcomingSchedules.length < 10 && (
               <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.6)' }}>+ 추가</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(17), color: 'rgba(255,255,255,0.9)' }}>+ 추가</Text>
               </TouchableOpacity>
             )}
           </View>

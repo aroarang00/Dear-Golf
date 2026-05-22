@@ -37,7 +37,7 @@ function FeedCard({ item, onShowLikers }) {
       )}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{item.course}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>{item.date}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{item.date}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
         <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>{item.score}</Text>
@@ -147,12 +147,12 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
             </View>
 
             {/* 라운딩 피드 — 평균타(핸디)는 명함의 핸디 뱃지로 노출 */}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 12, marginBottom: 10 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 12, marginBottom: 10 }}>
               라운딩 피드
             </Text>
             <View style={{ paddingHorizontal: 16 }}>
               {(friend.feed || []).length === 0 ? (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', paddingVertical: 24 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 24 }}>
                   아직 공개된 라운딩 기록이 없어요
                 </Text>
               ) : (

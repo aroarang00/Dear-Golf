@@ -77,7 +77,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
               );
             })}
             {item.tags.length > 4 && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
             )}
           </View>
         </ScrollView>

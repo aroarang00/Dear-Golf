@@ -500,7 +500,7 @@ export function GuideScreen({ route, navigation }) {
           </TouchableOpacity>
           <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.serifKR, fontSize: fs(22), color: C.charcoal }}
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal }}
                 numberOfLines={1}>{c.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {courseAddress || c.loc}
@@ -597,7 +597,7 @@ export function GuideScreen({ route, navigation }) {
                     ) : (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <ActivityIndicator size="small" color={C.warmGrayLight} />
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginLeft: 5 }}>전화번호 불러오는 중…</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 5 }}>전화번호 불러오는 중…</Text>
                       </View>
                     )}
                   </View>
@@ -653,7 +653,7 @@ export function GuideScreen({ route, navigation }) {
                       <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center' }}>
                         아직 이 코스 라운딩 기록이 없어요
                       </Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, textAlign: 'center', marginTop: 5, lineHeight: 16 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 5, lineHeight: 16 }}>
                         라운딩 후 다이어리에 기록을 남기면{'\n'}그날의 한줄 메모가 여기에 표시돼요
                       </Text>
                     </View>
@@ -710,10 +710,10 @@ export function GuideScreen({ route, navigation }) {
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                   <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 12, marginBottom: 14 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
                         {anonymize(userProfile?.nickname)} · 전체공개
                       </Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>{commentInput.length}/200</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{commentInput.length}/200</Text>
                     </View>
                     <TextInput
                       value={commentInput}
@@ -726,7 +726,7 @@ export function GuideScreen({ route, navigation }) {
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, gap: 8 }}>
                       <TouchableOpacity onPress={() => { setShowCommentInput(false); setCommentInput(''); }}>
                         <View style={{ paddingHorizontal: 14, paddingVertical: 7 }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>취소</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>취소</Text>
                         </View>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -789,7 +789,7 @@ export function GuideScreen({ route, navigation }) {
                 </View>
               ) : nearbyGolf.length === 0 ? (
                 <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
                     반경 10km 내 다른 골프장을 찾지 못했어요.
                   </Text>
                 </View>
@@ -864,7 +864,7 @@ export function GuideScreen({ route, navigation }) {
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                       {nearbyFoodLoading
                         ? <ActivityIndicator color={C.burgundy} />
-                        : <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>지도를 불러올 수 없습니다</Text>}
+                        : <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>지도를 불러올 수 없습니다</Text>}
                     </View>
                   )}
                   {/* 범례 */}
@@ -910,7 +910,7 @@ export function GuideScreen({ route, navigation }) {
                     />
                     {foodSearch.length > 0 && (
                       <TouchableOpacity onPress={() => setFoodSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Text style={{ color: C.warmGrayLight, fontSize: fs(13) }}>✕</Text>
+                        <Text style={{ color: C.warmGray, fontSize: fs(13) }}>✕</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -943,7 +943,7 @@ export function GuideScreen({ route, navigation }) {
                         style={{ flexDirection: 'row', alignItems: 'center', padding: 11, borderTopWidth: i ? 0.5 : 0, borderTopColor: C.hairline }}>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>{r.name}</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }} numberOfLines={1}>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }} numberOfLines={1}>
                             {r.type}{r.loc ? ` · ${r.loc}` : ''}
                           </Text>
                         </View>
@@ -980,7 +980,7 @@ export function GuideScreen({ route, navigation }) {
                             <TouchableOpacity onPress={() => openSaveModal({ ...r })} activeOpacity={0.7}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5 }}>
                               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#5A4A00', lineHeight: 16 }}>
-                                "{r.memo}"  <Text style={{ fontSize: fs(9), fontStyle: 'normal', color: C.warmGrayLight }}>✏️ 수정</Text>
+                                "{r.memo}"  <Text style={{ fontSize: fs(9), fontStyle: 'normal', color: C.warmGray }}>✏️ 수정</Text>
                               </Text>
                             </TouchableOpacity>
                           ) : (
@@ -993,7 +993,7 @@ export function GuideScreen({ route, navigation }) {
                         </View>
                         <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch' }}>
                           <TouchableOpacity onPress={() => handleRemoveSaved(r.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>삭제</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>삭제</Text>
                           </TouchableOpacity>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>→</Text>
                         </View>
@@ -1010,7 +1010,7 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                 ) : nearbyFood.length === 0 ? (
                   <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, lineHeight: 17 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
                       반경 3km 내 맛집 정보를 찾지 못했어요.
                     </Text>
                   </View>
@@ -1028,7 +1028,7 @@ export function GuideScreen({ route, navigation }) {
                         <View style={{ flex: 1 }}>
                           <Text style={styles.name}>{r.name}</Text>
                           <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
-                          {!!r.loc && <Text style={[styles.meta, { color: C.warmGrayLight }]} numberOfLines={1}>{r.loc}</Text>}
+                          {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
                           <View style={{ flexDirection: 'row', gap: 6, marginTop: 7 }}>
                             {/* 추천하기 ♥ */}
                             <TouchableOpacity onPress={() => handleToggleRec(r.kakaoId)} activeOpacity={0.7}
@@ -1078,7 +1078,7 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                 ) : nearbyAll.length === 0 ? (
                   <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, lineHeight: 17 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
                       반경 3km 내 맛집/카페 정보를 찾지 못했어요.
                     </Text>
                   </View>
@@ -1100,7 +1100,7 @@ export function GuideScreen({ route, navigation }) {
                           </View>
                           <Text style={styles.name}>{r.name}</Text>
                           <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
-                          {!!r.loc && <Text style={[styles.meta, { color: C.warmGrayLight }]} numberOfLines={1}>{r.loc}</Text>}
+                          {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
                         </View>
                         <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch' }}>
                           <TouchableOpacity onPress={() => !saved && openSaveModal(r)} activeOpacity={0.7} disabled={saved}

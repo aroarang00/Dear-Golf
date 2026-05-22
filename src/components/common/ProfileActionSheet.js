@@ -17,7 +17,7 @@ export function ProfileActionSheet({ visible, target, onClose, onReport, onBlock
               paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 + insets.bottom }}>
             <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
               backgroundColor: C.hairline, marginBottom: 14 }} />
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGrayLight,
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray,
               textAlign: 'center', marginBottom: 10 }}>
               {target.name}
             </Text>

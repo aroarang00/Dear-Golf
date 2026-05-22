@@ -104,7 +104,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                       style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
                       {won(sumOf(card.list))}원
                     </Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 4 }}>{card.list.length}라운딩</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 4 }}>{card.list.length}라운딩</Text>
                   </View>
                 ))}
               </View>
@@ -121,7 +121,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                       <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: C.charcoal, marginRight: 10 }} />
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>{monthLabel(m)}</Text>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginRight: 8 }}>{won(sumOf(rounds))}원</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight }}>{open ? '▴' : '▾'}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{open ? '▴' : '▾'}</Text>
                     </TouchableOpacity>
                     {open && rounds.map(d => (
                       <View key={d.id} style={{ marginTop: 6, marginLeft: 13, backgroundColor: C.bgSecondary,
@@ -139,7 +139,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                             </View>
                           ))}
                         </View>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 6 }}>{d.date}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 6 }}>{d.date}</Text>
                       </View>
                     ))}
                   </View>
