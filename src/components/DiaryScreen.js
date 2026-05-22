@@ -221,7 +221,7 @@ export function DiaryScreen({ route, navigation }) {
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
-  if (selected) return <DiaryDetail item={selected} onClose={() => setSelected(null)}
+  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} onClose={() => setSelected(null)}
     onUpdate={(updated) => {
       // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
       handleSave('diary-edit', updated);

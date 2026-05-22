@@ -34,14 +34,14 @@ export function ShareMomentModal({ moment, visible, onClose }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>
               공유 미리보기
             </Text>
 
             {/* 공유될 카드 — 명예의 전당 카드 + Dear Golf 워터마크 */}
             <HallOfFameCard item={moment} />
             <View style={{ alignItems: 'center', marginTop: 6, marginBottom: 6 }}>
-              <Text style={{ fontFamily: F.brand, fontSize: fs(17), color: C.charcoal }}>Dear Golf</Text>
+              <Text style={{ fontFamily: F.brand, fontSize: fs(20), color: C.charcoal }}>Dear Golf</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1, letterSpacing: 1 }}>deargolf.app</Text>
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>

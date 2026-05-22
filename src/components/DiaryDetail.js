@@ -10,11 +10,12 @@ import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
 import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
+import { hofBgColor } from './HallOfFameCard';
 import { PhotoEditModal } from './PhotoEditModal';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
-export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
+export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }) {
   const { userProfile } = React.useContext(UserContext);
   // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
   useAndroidBack(true, onClose);
@@ -104,7 +105,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
           </TouchableOpacity>
         </View>
       </View>
-      {isSpecial
+      {(isSpecial || isFirstSingle)
         ? <View style={{ flexDirection: 'row', height: 3 }}>
             <View style={{ flex: 1, backgroundColor: '#C9A84C' }} />
             <View style={{ flex: 1, backgroundColor: '#E8D9A0' }} />
@@ -113,18 +114,14 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
         : <TripleStripe />
       }
       <ScrollView showsVerticalScrollIndicator={false}>
-        {isSpecial && (
-          <View style={[dS.specialBanner,
-            item.special === 'HOLE IN ONE' && { backgroundColor: '#2A2622' },
-            item.special === 'EAGLE' && { backgroundColor: '#6B6660' },
-            item.special === 'ALBATROSS' && { backgroundColor: C.burgundy },
-          ]}>
+        {(isSpecial || isFirstSingle) && (
+          <View style={[dS.specialBanner, { backgroundColor: hofBgColor(isSpecial ? item.special : '퍼스트 싱글') }]}>
             <Text style={dS.specialBannerSub}>달성</Text>
-            <Text style={dS.specialBannerTitle}>{item.special}</Text>
-            <Text style={dS.specialBannerSub}>{item.specialHole}번홀 기록</Text>
+            <Text style={dS.specialBannerTitle}>{isSpecial ? item.special : 'FIRST SINGLE'}</Text>
+            <Text style={dS.specialBannerSub}>{isSpecial ? `${item.specialHole}번홀 기록` : `${item.score}타 기록`}</Text>
           </View>
         )}
-        <View style={[dS.detailInfoArea, isSpecial && { borderBottomColor: '#C9A84C33' }]}>
+        <View style={[dS.detailInfoArea, (isSpecial || isFirstSingle) && { borderBottomColor: '#C9A84C33' }]}>
           <View style={dS.detailScoreRow}>
             <Text style={[dS.detailScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
             <Text style={[dS.detailScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
@@ -159,7 +156,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
           </View>
           <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
           {item.tags && item.tags.length > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {item.tags.map(tag => {
                 const entry = Object.entries(COURSE_TAGS).find(([, tags]) => tags.includes(tag));
                 const color = entry ? COURSE_TAG_COLORS[entry[0]] : { bg: C.bgSecondary, text: C.warmGrayLight };
@@ -180,7 +177,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete }) {
           </View>
           {item.detailMemo ? (
             <View style={{
-              marginTop: 12, marginBottom: 14,
+              marginBottom: 16,
               backgroundColor: C.bgSecondary,
               borderRadius: 10, padding: 14,
               borderWidth: 0.5, borderColor: C.hairline,

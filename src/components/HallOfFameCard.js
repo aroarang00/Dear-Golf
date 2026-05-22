@@ -3,13 +3,20 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 
+// 명예의 전당 카드 배경색 — 성취 타입별 (공유 미리보기 헤더에서도 재사용)
+export function hofBgColor(type) {
+  return type === 'HOLE IN ONE' ? '#2A2622'
+    : type === 'ALBATROSS' ? '#4A1620'
+    : type === '퍼스트 싱글' ? '#1A3D52'
+    : type === '라이프 베스트' ? '#2A5A3A'
+    : '#3E3220';
+}
+
 export function HallOfFameCard({ item, onShare }) {
-  const isHIO = item.type === 'HOLE IN ONE';
-  const isAlba = item.type === 'ALBATROSS';
   const isFirstSingle = item.type === '퍼스트 싱글';
   const isLifeBest = item.type === '라이프 베스트';
   const isRound = isFirstSingle || isLifeBest; // 라운드 단위 성취 — 홀 정보 없음
-  const bgColor = isHIO ? '#2A2622' : isAlba ? C.burgundy : isFirstSingle ? '#1A3D52' : isLifeBest ? '#2A5A3A' : '#6B6660';
+  const bgColor = hofBgColor(item.type);
   const accentColor = isLifeBest ? '#A8D4B4' : '#C9A84C';
   // 카드 타입 표기 — 홀인원·이글·알바와 통일되게 영문으로
   const typeLabel = isFirstSingle ? 'FIRST SINGLE' : isLifeBest ? 'LIFE BEST' : item.type;
@@ -44,7 +51,7 @@ export function HallOfFameCard({ item, onShare }) {
               { label: 'HOLE', value: `${item.hole}번홀`, big: true },
               { label: 'PAR · DIST', value: `파${item.par} · ${item.distance}` },
               { label: 'BALL', value: item.ball },
-              { label: 'WITH', value: (item.companions || []).join(', ') },
+              { label: 'WITH', value: (item.companions || []).join(', ') || '나 홀로 라운딩' },
             ]
         ).map((cell, i) => (
           <View key={i} style={[dS.hofCell, { backgroundColor: 'rgba(255,255,255,0.07)', borderColor: accentColor + '22' }]}>

@@ -4,6 +4,7 @@ import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
 import { resolvePhotoUri } from '../utils/photoStorage';
+import { hofBgColor } from './HallOfFameCard';
 
 export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
   const [expanded, setExpanded] = useState(false);
@@ -125,13 +126,13 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
       activeOpacity={0.88} onPress={() => onPress(item)}>
       {highlight && <View style={dS.cardSpecialLine} />}
       {isSpecial && (
-        <View style={dS.specialNoPhoto}>
+        <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>
           <Text style={dS.specialNoPhotoTxt}>{item.special}</Text>
           {item.specialHole && <Text style={dS.specialNoPhotoSub}>{item.specialHole}번홀</Text>}
         </View>
       )}
       {isFirstSingle && !isSpecial && (
-        <View style={dS.specialNoPhoto}>
+        <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor('퍼스트 싱글') }]}>
           <Text style={dS.specialNoPhotoTxt}>FIRST SINGLE</Text>
           <Text style={dS.specialNoPhotoSub}>명예의 전당 등재</Text>
         </View>
