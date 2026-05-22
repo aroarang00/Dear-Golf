@@ -18,14 +18,18 @@ export async function searchGolfCourses(query) {
     return [];
   }
 
-  // 골프장만 남기는 필터 — category_name + place_name 기준
-  //  ex) "스포츠,레저 > 골프 > 골프장" / "... > 골프 > 컨트리클럽"
-  //  파크골프장·연습장·스크린골프·골프용품 등은 제외
+  // 골프장만 남기는 필터 — 카카오 분류의 마지막 항목이 '골프장/컨트리클럽'인 곳만 통과.
+  //  ex) "스포츠,레저 > 골프 > 골프장" → 통과
+  //  연습장·교습소·아카데미·스크린골프·골프용품·골프레슨 강사 등은 분류가 달라 자동 제외.
+  //  (블랙리스트 방식은 '교습소' 등 빠진 분류가 계속 새서 화이트리스트로 전환)
   const isGolfCourse = (d) => {
     const cat = d.category_name || '';
-    const text = cat + ' ' + (d.place_name || '');
-    if (/(파크골프|연습장|스크린|실내골프|용품|아카데미|레슨|클럽하우스)/.test(text)) return false;
-    return cat.includes('골프');
+    const name = d.place_name || '';
+    const last = cat.split('>').pop().trim();
+    if (!/(골프장|컨트리클럽)/.test(last)) return false;
+    // 분류가 골프장으로 잘못 등록된 레슨·교습 케이스 보조 차단
+    if (/(연습장|스크린|실내골프|아카데미|레슨|교습|교실|골프존)/.test(name)) return false;
+    return true;
   };
 
   // 키워드 검색 — pages 페이지까지(페이지당 15건) 모아 골프장만 반환.
