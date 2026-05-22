@@ -3,7 +3,7 @@ import {
   Modal, View, Text, TouchableOpacity, TextInput, ScrollView,
   Alert, Linking,
 } from 'react-native';
-import { showAppAlert } from './AppAlert';
+import { OverlayAlert } from './common/OverlayAlert';
 import { C, F } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -24,6 +24,7 @@ export function MyPageModal({ visible, onClose }) {
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
   const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
+  const [alertData, setAlertData] = useState(null);  // 오버레이 알럿 (모달 위 안전 표시)
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
   const [departure, setDeparture] = useState(userProfile.departure || '');
@@ -63,7 +64,7 @@ export function MyPageModal({ visible, onClose }) {
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
     setEditingStats(false);
-    showAppAlert('완료', '통계가 저장되었어요 ✓');
+    setAlertData({ title: '완료', message: '통계가 저장되었어요 ✓' });
   };
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export function MyPageModal({ visible, onClose }) {
       const extra = userProfile?.kakaoLinked
         ? ''
         : '\n\n💡 카카오 로그인 연동 시 더 빠르게(15일) 변경할 수 있어요';
-      showAppAlert('변경 가능 시점이 아니에요', baseMsg + extra, buttons);
+      setAlertData({ title: '변경 가능 시점이 아니에요', message: baseMsg + extra, buttons });
       setNickname(userProfile.nickname);
       setEditingNick(false);
       return;
@@ -162,15 +163,15 @@ export function MyPageModal({ visible, onClose }) {
     setUserProfile({ ...updated });
     setNickname(trimmed);
     setEditingNick(false);
-    showAppAlert('완료', '닉네임이 변경되었어요');
+    setAlertData({ title: '완료', message: '닉네임이 변경되었어요' });
   };
 
   // 계정 탈퇴 — 확인 후 Firebase 계정·Firestore 데이터·로컬 데이터를 모두 삭제하고 온보딩으로
   const handleDeleteAccount = () => {
-    showAppAlert(
-      '정말 탈퇴하시겠어요?',
-      '탈퇴하면 계정과 모든 기록(일정·다이어리·명예의 전당·골퍼 코멘트)이 삭제되며 복구할 수 없어요.',
-      [
+    setAlertData({
+      title: '정말 탈퇴하시겠어요?',
+      message: '탈퇴하면 계정과 모든 기록(일정·다이어리·명예의 전당·골퍼 코멘트)이 삭제되며 복구할 수 없어요.',
+      buttons: [
         { text: '취소', style: 'cancel' },
         {
           text: '탈퇴',
@@ -186,7 +187,7 @@ export function MyPageModal({ visible, onClose }) {
           },
         },
       ],
-    );
+    });
   };
 
   return (
@@ -463,11 +464,11 @@ export function MyPageModal({ visible, onClose }) {
                   ...(userProfile.kakaoLinked
                     ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
                     : [{ icon: '💛', label: '카카오 로그인 연동',
-                        onPress: () => showAppAlert(
-                          '카카오 로그인 연동',
-                          '카카오 로그인을 연동하면 닉네임 변경 주기가 30일 → 15일로 단축돼요.\n(연동 화면은 추후 추가될 예정)',
-                          [{ text: '확인' }],
-                        ) }]),
+                        onPress: () => setAlertData({
+                          title: '카카오 로그인 연동',
+                          message: '카카오 로그인을 연동하면 닉네임 변경 주기가 30일 → 15일로 단축돼요.\n(연동 화면은 추후 추가될 예정)',
+                          buttons: [{ text: '확인' }],
+                        }) }]),
                   { icon: '🔒', label: '개인정보 처리방침', onPress: () => Linking.openURL('https://dear-golf.web.app/privacy') },
                 ].map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
@@ -560,7 +561,7 @@ export function MyPageModal({ visible, onClose }) {
                       onPress={async () => {
                         await storage.save(STORAGE_KEYS.friendCoachDone, false);
                         await storage.save(STORAGE_KEYS.roundupTipDone, false);
-                        showAppAlert('리셋 완료', '친구 탭 / 모집글 작성 화면을 다시 진입하면 안내가 표시돼요.');
+                        setAlertData({ title: '리셋 완료', message: '친구 탭 / 모집글 작성 화면을 다시 진입하면 안내가 표시돼요.' });
                       }}>
                       <Text style={myS.menuIcon}>🧪</Text>
                       <Text style={myS.menuLabel}>안내 툴팁 리셋</Text>
@@ -569,7 +570,7 @@ export function MyPageModal({ visible, onClose }) {
                     <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
                       onPress={async () => {
                         await clearRecentCourses();
-                        showAppAlert('리셋 완료', '코스 탭 최근 검색이 비워졌어요.');
+                        setAlertData({ title: '리셋 완료', message: '코스 탭 최근 검색이 비워졌어요.' });
                       }}>
                       <Text style={myS.menuIcon}>🧪</Text>
                       <Text style={myS.menuLabel}>최근 검색 리셋</Text>
@@ -614,6 +615,8 @@ export function MyPageModal({ visible, onClose }) {
           setUserProfile(u);
           storage.save(STORAGE_KEYS.profile, u);
         }} />
+      {/* 모달 위에서도 안전하게 뜨는 오버레이 알럿 */}
+      <OverlayAlert data={alertData} onClose={() => setAlertData(null)} />
     </Modal>
   );
 }
