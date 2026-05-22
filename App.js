@@ -128,7 +128,7 @@ export default function App() {
   if (!profileLoaded || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paleSky }}>
-        <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
+        <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
         <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
       </View>
     );

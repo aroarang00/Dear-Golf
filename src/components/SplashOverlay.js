@@ -27,7 +27,7 @@ export function SplashOverlay({ appReady }) {
         alignItems: 'center', justifyContent: 'center',
         backgroundColor: C.paleSky, opacity,
       }}>
-      <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal }}>Dear Golf</Text>
+      <Text style={{ fontFamily: F.brand, fontSize: 44, color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
       <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
     </Animated.View>
   );
