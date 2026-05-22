@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Image } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -25,7 +25,7 @@ import { GuideScreen } from './src/components/GuideScreen';
 import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
-import { SplashOverlay } from './src/components/SplashOverlay';
+import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
 
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -124,8 +124,7 @@ export default function App() {
   if (!profileLoaded || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paleSky }}>
-        <Text style={{ fontFamily: F.brand, fontSize: fs(44), color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
-        <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
+        <SplashContent />
       </View>
     );
   }
