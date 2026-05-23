@@ -61,6 +61,14 @@
       ],
       "expo-web-browser",
       [
+        "expo-media-library",
+        {
+          "photosPermission": "특별한 순간 카드를 갤러리에 저장하기 위해 사진첩 권한이 필요해요",
+          "savePhotosPermission": "특별한 순간 카드를 갤러리에 저장하기 위해 사진첩 권한이 필요해요",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
         "@react-native-seoul/kakao-login",
         {
           "kakaoAppKey": "e8dc118cf11c666f292f86a17b71f853",
