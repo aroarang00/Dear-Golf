@@ -17,6 +17,7 @@ import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../
 import { applyMannerDelta, MANNER_DELTAS, cancelDeltaKindByHours, CANCEL_DELTA_LABEL } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
+import { applyDefaultAlarms } from '../utils/notifications';
 
 // 모집글 더미 데이터 — Firebase 연동 전 UI 표시용.
 // 개별 모집: teams=1 + joined/capacity / 단체 모집: teams>1 + teamJoined(팀별 인원, 한 팀 4명)
@@ -343,7 +344,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
     if (toAdd.length === 0) return;
     setSchedules(prev => [...prev, ...toAdd]);
-  }, [posts, joined, schedules, setSchedules]);
+    // 자동 등록된 일정에도 사용자 기본 알람(D-3·D-1·티오프 2h) 자동 예약 — HomeScreen·MyScheduleTab 신규 일정과 동일 패턴
+    for (const s of toAdd) {
+      applyDefaultAlarms(s, userProfile?.alarmDefaults);
+    }
+  }, [posts, joined, schedules, setSchedules, userProfile?.alarmDefaults]);
 
   // 차단 필터 — 내가 차단한 사람의 모집 + 나를 차단한 사람의 모집은 어디서도 안 보임
   // (단, 내가 직접 올린 모집은 mine 탭에서 항상 보임. joined/applied/waitlist도 본인 활동 보존)
