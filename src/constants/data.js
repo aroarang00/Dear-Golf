@@ -156,9 +156,13 @@ export const USER_PROFILE_INIT = {
   // 라운딩 모집 활동 — 활동 등급 산출 기준
   hostedCount: 0,            // 주최 완료 횟수
   attendedCount: 0,          // 참석 완료 횟수
-  cancelDayBeforeCount: 0,   // 전날 취소 횟수
-  cancelDayCount: 0,         // 당일 취소 횟수
-  noshowCount: 0,            // 노쇼 횟수
+  // 취소 카운트는 모집 정지 누적 트리거 — 임박 취소(티오프 48h 이내)와 노쇼만 카운트
+  // 12개월 롤링 누적은 Phase 2(Cloud Functions). 클라이언트는 단순 누적만 유지.
+  cancelImminentCount: 0,    // 임박 취소 횟수 (모집 정지 14일 트리거)
+  noshowCount: 0,            // 노쇼 횟수 (모집 정지 60일 트리거)
+  // (구버전) cancelDayBeforeCount, cancelDayCount — 기존 사용자 데이터 호환용. 신규 코드에선 사용 안 함.
+  cancelDayBeforeCount: 0,
+  cancelDayCount: 0,
   // 매너 — 평가 시스템
   mannerScore: 70,                   // 매너 점수 (0~100, 신규 70점 시작)
   mannerEvaluationPending: false,    // 평가 대기 — true면 다음 모집 신청 비활성화

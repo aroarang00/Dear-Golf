@@ -20,6 +20,9 @@ const COST_ITEMS = [
   ['etc', '기타'],
 ];
 
+// 다이어리 사진·영상 첨부 한도 (저장 공간·로딩 성능·UX 균형)
+const MAX_PHOTOS = 10;
+
 // '더 기록하기' 예시 칩 — 누르면 입력칸에 항목이 삽입돼 글쓰기 시작점이 된다
 const GUIDE_CHIPS = ['MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
 
@@ -72,9 +75,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [companionInput, setCompanionInput] = useState('');
 
   const pickPhoto = async () => {
+    const remaining = MAX_PHOTOS - addPhotos.length;
+    if (remaining <= 0) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
+      selectionLimit: remaining,
       quality: 0.8,
     });
     if (!result.canceled) {
@@ -83,7 +89,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       );
       // 선택 직후 영구 폴더로 복사 — 앱 업데이트 후에도 사진이 유지되도록
       const items = await persistPhotos(rawItems);
-      setAddPhotos(prev => [...prev, ...items]);
+      setAddPhotos(prev => [...prev, ...items].slice(0, MAX_PHOTOS));
     }
   };
 
@@ -625,19 +631,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               </View>
               <View style={{ marginTop: 16, marginBottom: 16 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 8 }}>
-                  사진 · 영상 (선택)
+                  사진 · 영상 (선택 · {addPhotos.length}/{MAX_PHOTOS})
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {addPhotos.map((item, i) => (
                     <AddPhotoThumb key={i} item={item}
                       onRemove={() => setAddPhotos(prev => prev.filter((_, idx) => idx !== i))} />
                   ))}
-                  <TouchableOpacity onPress={pickPhoto}
-                    style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
-                      borderWidth: 0.5, borderColor: C.hairline,
-                      alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: fs(24), color: C.warmGray }}>+</Text>
-                  </TouchableOpacity>
+                  {addPhotos.length < MAX_PHOTOS && (
+                    <TouchableOpacity onPress={pickPhoto}
+                      style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
+                        borderWidth: 0.5, borderColor: C.hairline,
+                        alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: fs(24), color: C.warmGray }}>+</Text>
+                    </TouchableOpacity>
+                  )}
                 </ScrollView>
               </View>
               {saveError ? (

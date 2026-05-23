@@ -85,7 +85,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
     const isTeam = groupMode === 'team';
     // 지역(region): 확정형은 골프장 주소에서 자동 추출, 오픈형은 사용자가 선택한 권역 사용
     const region = type === 'fixed' ? regionFromAddress(course?.loc) : openRegion;
-    // 친구공개·친구지정에서는 동반자 조건/태그/오픈채팅 URL이 의미 없으므로 저장도 안 함
+    // 친구공개·친구지정에서는 동반자 조건/태그가 의미 없으므로 저장도 안 함
     const isPublic = scope === 'all';
     onCreate({
       type,
@@ -98,8 +98,6 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       capacity: isTeam ? teams * 4 : members,
       scope,
       word: word.trim(),
-      // 오픈채팅 URL은 모집글 작성에서 입력 안 받음. 추후 별도 카카오 SDK 연동 시 채워질 수 있음.
-      kakaoOpenChatUrl: null,
       // 동반자 조건 — 전체공개일 때만 의미. 친구공개·친구지정은 'any'/[]로 저장
       companion: isPublic ? companion : 'any',
       skill: isPublic ? skill : 'any',
@@ -289,7 +287,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
               ))}
             </View>
 
-            {/* 동반자 조건·태그·오픈채팅 URL — 전체공개에서만 의미. 친구공개·친구지정은 어차피 친구라 숨김 */}
+            {/* 동반자 조건·태그 — 전체공개에서만 의미. 친구공개·친구지정은 어차피 친구라 숨김 */}
             {scope === 'all' && (
               <>
                 <Text style={bigLabel}>동반자 구성</Text>

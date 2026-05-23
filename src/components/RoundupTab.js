@@ -14,7 +14,7 @@ import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelS
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
-import { applyMannerDelta, MANNER_DELTAS } from '../constants/mannerGrade';
+import { applyMannerDelta, MANNER_DELTAS, cancelDeltaKindByHours, CANCEL_DELTA_LABEL } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 
 // 모집글 더미 데이터 — Firebase 연동 전 UI 표시용.
@@ -451,24 +451,26 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     setWaitlist(prev => ({ ...prev, [id]: (post?.waitlistCount || 0) + 1 }));
   };
 
-  // 참여 취소 — 취소 시점에 따라 매너 점수 자동 차감.
-  // 대기자 자동 승격·주최자 푸시·노쇼 자동 신고는 Phase 2 (Cloud Functions).
-  // 취소 시점 정보 — 매너 점수 차감 종류·라벨 산출 (오픈형은 날짜 미정이라 전날 취소로 간주)
+  // 참여 취소 — 취소 시점(티오프까지 남은 시간)에 따라 4구간 매너 점수 자동 차감.
+  // 대기자 자동 승격·주최자 푸시·노쇼 자동 신고·12개월 롤링 누적은 Phase 2 (Cloud Functions).
+  // 4구간: 7일+ (cancel7dPlus, 0) / 5~7일 (cancel7d, -1) / 48h~5일 (cancel5d, -2) / 48h 이내 임박 취소 (cancelImminent, -5)
+  // 오픈형(날짜 미정)은 임박 위험 없으므로 cancel7dPlus(0)로 간주.
+  // 임박 모집(48h 이내 작성)에 참여한 경우도 자연스럽게 cancelImminent로 분기됨.
   const getCancelInfo = (post) => {
-    let daysUntil = 1;
+    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — 사실상 cancel7dPlus(0)
     if (post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
-      const target = new Date(y, m - 1, d);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      daysUntil = Math.round((target - today) / 86400000);
+      const [hh, mm] = (post.time || '07:00').split(':').map(Number);
+      const target = new Date(y, m - 1, d, hh, mm);
+      const now = new Date();
+      hoursUntil = (target - now) / 3600000;
     }
-    const isSameDay = daysUntil <= 0;
-    const deltaKind = isSameDay ? 'cancelDay' : 'cancelDayBefore';
+    const deltaKind = cancelDeltaKindByHours(hoursUntil);
     return {
       deltaKind,
       deltaVal: MANNER_DELTAS[deltaKind],
-      countField: isSameDay ? 'cancelDayCount' : 'cancelDayBeforeCount',
-      label: isSameDay ? '당일 취소' : '전날(또는 그 이전) 취소',
+      countField: deltaKind === 'cancelImminent' ? 'cancelImminentCount' : null, // 모집 정지 누적은 임박 취소만
+      label: CANCEL_DELTA_LABEL[deltaKind] || '취소',
     };
   };
 
@@ -491,12 +493,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }));
     // 2) 내 joined 플래그 해제
     setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
-    // 3) 매너 점수 차감 + 취소 카운트 +1, 로컬 저장
+    // 3) 매너 점수 차감 + 임박 취소만 카운트 +1 (모집 정지 누적용), 로컬 저장
     const next = {
       ...userProfile,
       mannerScore: applyMannerDelta(userProfile.mannerScore, deltaKind),
-      [countField]: (userProfile[countField] || 0) + 1,
     };
+    if (countField) next[countField] = (userProfile[countField] || 0) + 1;
     setUserProfile(next);
     storage.save(STORAGE_KEYS.profile, next);
   };

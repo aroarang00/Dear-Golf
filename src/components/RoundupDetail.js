@@ -9,7 +9,7 @@ import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
-import { MANNER_DELTAS } from '../constants/mannerGrade';
+import { MANNER_DELTAS, cancelDeltaKindByHours, CANCEL_DELTA_LABEL } from '../constants/mannerGrade';
 
 // 참여자 아바타 색상
 const AV = [
@@ -131,17 +131,19 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
     });
   };
   // 참여 취소 — 상세 모달 위 오버레이로 확인창을 띄운다(모달 뒤에 가리지 않게)
+  // 취소 시점(티오프까지 남은 시간) 기준 4구간 — RoundupTab의 getCancelInfo와 일관
   const confirmCancel = () => {
-    let daysUntil = 1;
+    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — cancel7dPlus(0)
     if (post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
-      const target = new Date(y, m - 1, d);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      daysUntil = Math.round((target - today) / 86400000);
+      const [hh, mm] = (post.time || '07:00').split(':').map(Number);
+      const target = new Date(y, m - 1, d, hh, mm);
+      const now = new Date();
+      hoursUntil = (target - now) / 3600000;
     }
-    const isSameDay = daysUntil <= 0;
-    const deltaVal = MANNER_DELTAS[isSameDay ? 'cancelDay' : 'cancelDayBefore'];
-    const label = isSameDay ? '당일 취소' : '전날(또는 그 이전) 취소';
+    const deltaKind = cancelDeltaKindByHours(hoursUntil);
+    const deltaVal = MANNER_DELTAS[deltaKind];
+    const label = CANCEL_DELTA_LABEL[deltaKind] || '취소';
     setAlert({
       title: '참여를 취소할까요?',
       message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.\n취소하면 자리는 다시 열려요.`,
@@ -160,24 +162,22 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       { text: '대기 취소', style: 'destructive', onPress: onCancelWait },
     ],
   });
-  // 카카오 단체방 — 주최자가 등록한 오픈채팅 URL을 외부 카카오톡 앱으로 열기
+  // 카카오톡 단톡방 안내 — 친구공개·친구지정 모집에서만 주최자가 직접 단톡방 개설
+  // Phase 2: Dear Golf 앱 푸시로 참여자 전원에게 사전 안내 발송
+  // 현재는 주최자 안내 모달만 + 카카오톡 앱 열기 (실제 단톡방 개설은 카카오톡에서 수동)
   const handleKakao = () => {
-    const url = post.kakaoOpenChatUrl;
-    if (!url) {
-      setAlert({
-        title: isMine ? '오픈채팅방을 만들어주세요' : '단체방이 아직 준비되지 않았어요',
-        message: isMine
-          ? '카카오톡에서 오픈채팅방을 만든 뒤, 모집글에 URL을 등록해주세요. (모집글 수정 기능은 곧 추가될 예정이에요)'
-          : '주최자가 아직 단체방 링크를 등록하지 않았어요. 잠시 후 다시 확인해주세요.',
-        buttons: [{ text: '확인' }],
-      });
-      return;
-    }
-    Linking.openURL(url).catch(() => setAlert({
-      title: '링크를 열 수 없어요',
-      message: '카카오톡이 설치되어 있는지 확인해주세요.',
-      buttons: [{ text: '확인' }],
-    }));
+    setAlert({
+      title: '단톡방 안내',
+      message: '참여자분들에게 알림을 보냈어요!\n카카오톡에서 친구분들과 단톡방을 만들어주세요.',
+      buttons: [
+        { text: '닫기', style: 'cancel' },
+        { text: '카카오톡 열기', onPress: () => Linking.openURL('kakaotalk://').catch(() => setAlert({
+          title: '카카오톡이 설치되어 있지 않아요',
+          message: '카카오톡 앱을 먼저 설치해주세요.',
+          buttons: [{ text: '확인' }],
+        })) },
+      ],
+    });
   };
   const confirmDelete = () => setAlert({
     title: '모집글을 삭제할까요?',
@@ -418,14 +418,12 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
               </>
             )}
 
-            {/* 4. 카카오톡 단체방 — 주최자: 항상 활성 / 참여자: 마감 후에만 활성 / 그 외: 숨김 */}
-            {(isMine || joined) && (() => {
-              const kakaoEnabled = isMine || (joined && isClosed);
-              const hintText = isMine
-                ? '참여자 확정 후 단체방을 만들어 일정을 공유하세요'
-                : kakaoEnabled
-                  ? '주최자가 만든 단체방으로 입장해요'
-                  : '모집이 마감되면 단체방 입장이 열려요';
+            {/* 4. 카카오톡 단톡방 안내 — 친구공개·친구지정 모집에서만 주최자에게 노출 (전체공개는 댓글로만) */}
+            {isMine && post.scope !== 'all' && (() => {
+              const kakaoEnabled = isClosed;  // 마감 후에만 활성
+              const hintText = kakaoEnabled
+                ? '참여자분들에게 알림이 가요. 카카오톡에서 단톡방을 만들어주세요'
+                : '모집이 마감되면 단톡방 안내가 활성화돼요';
               return (
                 <>
                   <TouchableOpacity onPress={kakaoEnabled ? handleKakao : undefined}
@@ -438,7 +436,7 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                     <Text style={{ fontSize: fs(15) }}>💬</Text>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(14),
                       color: kakaoEnabled ? '#3C1E1E' : C.warmGrayLight }}>
-                      {isMine ? '카카오톡 단체방 만들기' : '카카오톡 단체방 입장'}
+                      카카오톡 단톡방 안내하기
                     </Text>
                   </TouchableOpacity>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray,
