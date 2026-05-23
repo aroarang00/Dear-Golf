@@ -346,7 +346,7 @@ export function HomeScreen({ navigation }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={homeS.hdrTitle}>Dear Golf</Text>
             <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: fs(24), marginTop: 4 }}>{wxEmoji}</Text>
+              <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
             </TouchableOpacity>
           </View>
           <Text style={homeS.hdrGreeting}>
@@ -442,8 +442,8 @@ export function HomeScreen({ navigation }) {
                     <TouchableOpacity
                       onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
                       activeOpacity={0.7}>
-                      <Text style={{ fontSize: fs(26), marginBottom: 6 }}>🌤  🚗</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.7)' }}>탭하여 확인하기 →</Text>
+                      <Text style={{ fontSize: fs(32), marginBottom: 6 }}>🌤  🚗</Text>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>탭하여 확인하기 →</Text>
                     </TouchableOpacity>
                   </View>
                 </>
