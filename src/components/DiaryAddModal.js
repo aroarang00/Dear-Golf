@@ -11,6 +11,7 @@ import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
 import { persistPhotos, resolvePhotoUri } from '../utils/photoStorage';
+import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 const COST_ITEMS = [
   ['green', '그린피'],
@@ -38,6 +39,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const detailMemoRef = useRef(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
+
+  // 안드로이드 뒤로가기 — 날짜 picker 열려있으면 그것부터 닫기
+  useOverlayBackHandler(showDatePicker, () => setShowDatePicker(false));
   const [score, setScore] = useState('');
   const [scoreCardOption, setScoreCardOption] = useState('later');
   const [showCost, setShowCost] = useState(false);

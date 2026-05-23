@@ -56,8 +56,15 @@ export default function App() {
     (async () => {
       const loaded = await storage.load(STORAGE_KEYS.profile, null);
       if (loaded) {
-        setUserProfile(loaded);
-        setShowOnboarding(!loaded.onboardingDone);
+        // 데이터 마이그레이션 — 옛 profile에 없는 새 필드(예: cancelImminentCount)를 default로 채움.
+        // USER_PROFILE_INIT에 새 필드를 추가하면 자동으로 옛 사용자에게도 적용됨.
+        const migrated = { ...USER_PROFILE_INIT, ...loaded };
+        setUserProfile(migrated);
+        // 새 필드가 추가됐으면 storage에 다시 저장해서 옛 데이터를 새 구조로 업그레이드
+        if (JSON.stringify(migrated) !== JSON.stringify(loaded)) {
+          await storage.save(STORAGE_KEYS.profile, migrated);
+        }
+        setShowOnboarding(!migrated.onboardingDone);
       } else {
         // 신규 설치 — 데모 데이터 폴백을 막고 빈 상태로 시작 (온보딩 노출)
         await storage.save(STORAGE_KEYS.schedules, []);

@@ -16,6 +16,7 @@ import { RoundupGuideModal } from './RoundupGuideModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { applyMannerDelta, MANNER_DELTAS, cancelDeltaKindByHours, CANCEL_DELTA_LABEL } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 // 모집글 더미 데이터 — Firebase 연동 전 UI 표시용.
 // 개별 모집: teams=1 + joined/capacity / 단체 모집: teams>1 + teamJoined(팀별 인원, 한 팀 4명)
@@ -267,6 +268,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
   const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
   const listScrollRef = useRef(null);
+
+  // 안드로이드 뒤로가기 — 자체 오버레이 우선 닫기 (가장 최근 열린 것부터)
+  useOverlayBackHandler(!!alert, () => setAlert(null));
+  useOverlayBackHandler(!!gradeModalKey, () => setGradeModalKey(null));
 
   // 라운지 탭 재방문 시 — 상세·모달 닫고 기본 탭·목록 맨 위로 초기화
   useEffect(() => {

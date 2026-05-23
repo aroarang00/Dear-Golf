@@ -10,6 +10,7 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
 import { MANNER_DELTAS, cancelDeltaKindByHours, CANCEL_DELTA_LABEL } from '../constants/mannerGrade';
+import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 // 참여자 아바타 색상
 const AV = [
@@ -99,6 +100,10 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
+
+  // 안드로이드 뒤로가기 — 오버레이 우선 닫기 (가장 최근 열린 것부터)
+  useOverlayBackHandler(!!actionTarget, () => setActionTarget(null));
+  useOverlayBackHandler(!!alert, () => setAlert(null));
 
   useEffect(() => { if (visible) setTeamTab(0); }, [visible]);
 
