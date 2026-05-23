@@ -98,7 +98,13 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
         jumpDate={jumpDate}
         onRequestAddDiary={(seed) => {
           if (asModal) { onClose?.(); }
-          navigation?.navigate?.('MY', { openAddModal: true, addDate: seed?.date });
+          // 지난 라운딩에 기록 추가 시 구장명·코스ID도 함께 전달해 DiaryAddModal에 자동 채워지게
+          navigation?.navigate?.('MY', {
+            openAddModal: true,
+            addDate: seed?.date,
+            addCourse: seed?.course,
+            addCourseId: seed?.courseId || seed?.courseLogId,
+          });
         }}
       />
 

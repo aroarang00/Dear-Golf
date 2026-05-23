@@ -387,10 +387,15 @@ export function HomeScreen({ navigation }) {
                   <Text style={homeS.cardCourse} numberOfLines={1}>{next.course}</Text>
                   <Text style={[homeS.cardDate, { marginBottom: 12 }]}>{next.date.slice(5)} {next.day} 라운딩</Text>
 
-                  {/* 기록 유도 박스 */}
+                  {/* 기록 유도 박스 — 당일/지난 라운딩이면 구장명 자동 채우기 */}
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => navigation.navigate('MY', { openAddModal: true })}
+                    onPress={() => navigation.navigate('MY', {
+                      openAddModal: true,
+                      addDate: next.date,
+                      addCourse: next.course,
+                      addCourseId: next.courseLogId || next.courseId,
+                    })}
                     style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
@@ -544,7 +549,12 @@ export function HomeScreen({ navigation }) {
                       <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
                       <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => navigation.navigate('MY', { openAddModal: true })}
+                        onPress={() => navigation.navigate('MY', {
+                          openAddModal: true,
+                          addDate: next?.date,
+                          addCourse: next?.course,
+                          addCourseId: next?.courseLogId || next?.courseId,
+                        })}
                         style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
                       </TouchableOpacity>
