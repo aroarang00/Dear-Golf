@@ -20,7 +20,7 @@ import { GolfLedgerModal } from './GolfLedgerModal';
 import { MyPageModal } from './MyPageModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
-import { calcHandicap } from '../utils/handicap';
+import { calcHandicap, calcAvgScore } from '../utils/handicap';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { TrustGradeModal } from './common/TrustBadge';
@@ -267,12 +267,11 @@ export function DiaryScreen({ route, navigation }) {
   const myGrade = getTrustGrade(userProfile.hostedCount || 0, userProfile.mannerScore || 0);
   const myManner = getMannerGrade(userProfile.mannerScore || 70);
   const myHandicap = calcHandicap(diaries, userProfile.avgScore);
-  // 통계 박스 — 기록 있으면 다이어리 자동 집계, 하나도 없으면 수동 입력값 폴백
+  // 통계 박스 — 라운드 5개 이상이면 자동 평균, 미만이면 입력값 우선 (핸디와 같은 정책)
+  // 한 라운드 입력만으로 평균타가 입력값에서 갑자기 튀던 문제 해결.
   const hasRecords = diaries.length > 0;
   const totalRounds = hasRecords ? diaries.length : (userProfile.totalRounds || null);
-  const avgScore = hasRecords
-    ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length)
-    : (userProfile.avgScore || null);
+  const avgScore = calcAvgScore(diaries, userProfile.avgScore);
   const bestScore = hasRecords
     ? Math.min(...diaries.map(d => d.score))
     : (userProfile.lifeBest || null);
@@ -409,9 +408,8 @@ export function DiaryScreen({ route, navigation }) {
           return list;
         })();
 
-        const avgScore = diaries.length > 0
-          ? Math.round(diaries.reduce((s, d) => s + d.score, 0) / diaries.length)
-          : null;
+        // DiaryCard 색상 비교용 평균타 — 통계와 같은 정책으로 (5개 미만 = 입력값 우선)
+        const avgScore = calcAvgScore(diaries, userProfile.avgScore);
 
         // 기록이 하나도 없을 때 — 빈 상태 (예시 카드 + CTA)
         if (diaries.length === 0) {
