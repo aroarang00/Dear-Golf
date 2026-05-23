@@ -5,7 +5,7 @@ export const homeS = StyleSheet.create({
   hdr:             { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 10 },
   hdrSub:          { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginTop: 6, marginBottom: 4 },
   hdrTitle:        { fontFamily: F.brand, fontSize: fs(48), color: '#fff', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
-  hdrGreeting:     { fontFamily: F.sys, fontSize: fs(16), color: 'rgba(255,255,255,0.75)' },
+  hdrGreeting:     { fontFamily: F.sysM, fontSize: fs(18), color: 'rgba(255,255,255,0.85)' },
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },
   secLabel:        { fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },

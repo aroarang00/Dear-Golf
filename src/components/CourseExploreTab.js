@@ -265,7 +265,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <Text style={{ fontFamily: F.en, fontSize: fs(14), fontWeight: '700', color: '#A88A2E', width: 34 }}>{c.rank}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>⛳ {c.name}</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {c.name}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{c.region}</Text>
                   </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
@@ -314,7 +314,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
               <TouchableOpacity key={`L_${m.kakaoId || m.rank || i}`} onPress={() => onLocalTap(m)}
                 activeOpacity={0.7} style={rowStyle}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>⛳ {m.name}</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {m.name}</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{m._loc || '위치 미상'}</Text>
                 </View>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginRight: 6 }}>
@@ -345,7 +345,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                   }}
                   activeOpacity={0.7} style={rowStyle}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>⛳ {r.name}</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {r.name}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{r.loc}</Text>
                   </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
@@ -386,7 +386,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>⛳ {c.name}</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {c.name}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>
                       {c.loc || '위치 미상'}
                     </Text>

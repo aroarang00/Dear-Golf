@@ -461,6 +461,14 @@ export function MyPageModal({ visible, onClose }) {
                   { icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
                   { icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
                     onPress: () => setBlockManageOpen(true) },
+                  // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화
+                  // (정책 report-block-policy §5-1). Phase 2에 6단계 흐름 + 백엔드 구현.
+                  { icon: '🚨', label: '신고하기',
+                    onPress: () => setAlertData({
+                      title: '신고하기 준비 중',
+                      message: '신고 기능은 곧 추가될 예정이에요.\n급한 경우 deargolf.official@gmail.com으로 연락주세요.',
+                      buttons: [{ text: '확인' }],
+                    }) },
                   ...(userProfile.kakaoLinked
                     ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
                     : [{ icon: '💛', label: '카카오 로그인 연동',

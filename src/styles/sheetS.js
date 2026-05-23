@@ -13,6 +13,6 @@ export const sheetS = StyleSheet.create({
   row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 22, gap: 14 },
   rowBorder:   { borderBottomWidth: 0.5, borderBottomColor: C.hairline },
   rowEmoji:    { fontSize: fs(18), width: 22, textAlign: 'center' },
-  rowText:     { fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal },
+  rowText:     { fontFamily: F.sysM, fontSize: fs(16), color: C.charcoal },
   rowDanger:   { color: '#D32F2F' },
 });
