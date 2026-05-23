@@ -11,27 +11,6 @@ export const trS = StyleSheet.create({
   recoLabel:    { fontFamily: F.sys, fontSize: fs(14), color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 4 },
   recoTime:     { fontFamily: F.en, fontSize: fs(44), color: '#F5E6A8', letterSpacing: -1, lineHeight: 48 },
   recoSub:      { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: 8 },
-  // 출발시간 테이블 (흰 카드)
-  tblCard:      { backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: '#E8E2D0', overflow: 'hidden', marginBottom: 16 },
-  tblHdr:       { flexDirection: 'row', backgroundColor: '#F5F3EE', paddingVertical: 9, paddingHorizontal: 14 },
-  tblHdrCell:   { fontFamily: F.sysSb, fontSize: fs(12), color: '#8B8680', letterSpacing: 0.5 },
-  tblRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 0.5, borderBottomColor: '#F0EAD8' },
-  tblTime:      { fontFamily: F.en, fontSize: fs(14), color: '#3D3935' },
-  tblDur:       { fontFamily: F.sys, fontSize: fs(12), color: '#3D3935' },
-  congBadge:    { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  congBadgeTxt: { fontFamily: F.sysM, fontSize: fs(11) },
-  recoTagBadge: { backgroundColor: '#3D3935', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  recoTagTxt:   { fontFamily: F.sysM, fontSize: fs(11), color: '#F5E6A8' },
-  // 골프장 이동경로 카드 (흰 카드)
-  routeCard:    { backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: '#E8E2D0', padding: 14 },
-  routeFlow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  routeOrigin:  { fontFamily: F.sys, fontSize: fs(13), color: '#8B8680' },
-  routeArrow:   { fontFamily: F.sys, fontSize: fs(14), color: '#B8B3AB', marginHorizontal: 8 },
-  routeDest:    { fontFamily: F.sysB, fontSize: fs(14), color: '#3D3935', flex: 1 },
-  routeMidTxt:  { fontFamily: F.sys, fontSize: fs(12), color: '#8B8680', marginBottom: 10 },
-  routeBtnRow:  { flexDirection: 'row', gap: 8 },
-  routeBtn:     { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  routeBtnTxt:  { fontFamily: F.sysM, fontSize: fs(14) },
   // ── 갈 때/올 때 2-섹션 레이아웃 ──────────────────────────
   // 섹션 간격은 컴팩트하게 — Android는 폰트 줄높이가 커서 콘텐츠가 길어지므로
   twoSection:   { paddingHorizontal: 20, marginBottom: 16 },

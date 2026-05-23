@@ -7,6 +7,8 @@ export const mS = StyleSheet.create({
   handle:      { width: 32, height: 3, backgroundColor: C.hairline, borderRadius: 2, alignSelf: 'center', margin: 12 },
   title:       { fontFamily: F.en, fontSize: fs(20), color: C.charcoal, marginBottom: 4 },
   label:       { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginTop: 14, marginBottom: 6 },
+  // 입력 모달 라벨을 키우고 진하게 — RoundupCreateModal·DiaryAddModal 공유. mS.label 위에 덮어쓰는 형태로 사용.
+  bigLabel:    { fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginTop: 14, marginBottom: 6 },
   input:       { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary },
   searchDrop:  { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, marginTop: 4, overflow: 'hidden' },
   searchItem:  { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline },

@@ -106,8 +106,6 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
     reset(); onClose();
   };
 
-  // 작성 모달 라벨 공통 — mS.label을 키우고 진하게 (SemiBold·warmGray)
-  const bigLabel = [mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }];
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
@@ -152,7 +150,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             )}
 
             {/* 확정형 / 오픈형 */}
-            <Text style={bigLabel}>모집 형태</Text>
+            <Text style={mS.bigLabel}>모집 형태</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[['fixed', '확정형'], ['open', '오픈형']].map(([k, l]) => (
                 <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setType(k)}
@@ -169,7 +167,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
 
             {type === 'fixed' && (
               <>
-                <Text style={bigLabel}>골프장</Text>
+                <Text style={mS.bigLabel}>골프장</Text>
                 <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="카카오 검색으로 골프장 찾기..."
                   placeholderTextColor={C.warmGrayLight} value={courseQuery}
                   autoCorrect={false} autoCapitalize="none"
@@ -189,7 +187,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                   </View>
                 )}
 
-                <Text style={bigLabel}>날짜</Text>
+                <Text style={mS.bigLabel}>날짜</Text>
                 <TouchableOpacity style={mS.input} onPress={() => setShowDate(true)}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>
                     {fmtDate(date)} ({DAYS[date.getDay()]})
@@ -203,7 +201,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                     }} />
                 )}
 
-                <Text style={bigLabel}>티오프 시간</Text>
+                <Text style={mS.bigLabel}>티오프 시간</Text>
                 <TouchableOpacity style={mS.input} onPress={() => setShowTime(true)}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>{fmtTime(date)}</Text>
                 </TouchableOpacity>
@@ -220,7 +218,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             {/* 오픈형 — 골프장 미정이라 사용자가 권역을 직접 선택 (라운지 지역 필터 매칭용) */}
             {type === 'open' && (
               <>
-                <Text style={bigLabel}>희망 지역</Text>
+                <Text style={mS.bigLabel}>희망 지역</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {REGION_OPTIONS.filter(([k]) => k !== 'all').map(([k, l]) => {
                     const on = openRegion === k;
@@ -235,7 +233,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
               </>
             )}
 
-            <Text style={bigLabel}>모집 인원</Text>
+            <Text style={mS.bigLabel}>모집 인원</Text>
             {/* 개별 / 단체 선택 */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => (
@@ -277,7 +275,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                 : '여러 팀이 함께하는 단체 모집이에요 (한 팀 4명)'}
             </Text>
 
-            <Text style={bigLabel}>공개 범위</Text>
+            <Text style={mS.bigLabel}>공개 범위</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {SCOPES.map(([k, l]) => (
                 <TouchableOpacity key={k} style={[mS.chip, scope === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}
@@ -290,7 +288,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             {/* 동반자 조건·태그 — 전체공개에서만 의미. 친구공개·친구지정은 어차피 친구라 숨김 */}
             {scope === 'all' && (
               <>
-                <Text style={bigLabel}>동반자 구성</Text>
+                <Text style={mS.bigLabel}>동반자 구성</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {COMPANION_OPTIONS.map(([k, l]) => {
                     const on = companion === k;
@@ -303,7 +301,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                   })}
                 </View>
 
-                <Text style={bigLabel}>실력 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(평균 타수)</Text></Text>
+                <Text style={mS.bigLabel}>실력 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(평균 타수)</Text></Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {SKILL_OPTIONS.map(([k, l]) => {
                     const on = skill === k;
@@ -316,7 +314,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                   })}
                 </View>
 
-                <Text style={bigLabel}>태그 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(중복 선택 가능)</Text></Text>
+                <Text style={mS.bigLabel}>태그 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(중복 선택 가능)</Text></Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {TAG_OPTIONS.map(t => {
                     const on = tags.includes(t);
@@ -332,7 +330,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
               </>
             )}
 
-            <Text style={bigLabel}>한마디 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(선택)</Text></Text>
+            <Text style={mS.bigLabel}>한마디 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(선택)</Text></Text>
             <TextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline
               placeholder="동반자에게 남길 한마디를 적어주세요" placeholderTextColor={C.warmGrayLight}
               value={word} onChangeText={setWord} maxLength={120} />
