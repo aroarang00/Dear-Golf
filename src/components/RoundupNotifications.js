@@ -44,6 +44,7 @@ function notiText(n) {
 export function RoundupNotifications({ visible, notifications = [], onClose, onOpenPost, onReadAll, onAccept, onReject, onGradePress, onDelete, onClearAll }) {
   const { userProfile, setUserProfile } = useContext(UserContext);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false); // 전체삭제 자체 confirm (모달 안에서 띄움)
   const prefs = userProfile?.roundupNotifyPrefs || DEFAULT_ROUNDUP_PREFS;
   const togglePref = (key) => {
     const next = { ...userProfile, roundupNotifyPrefs: { ...prefs, [key]: !prefs[key] } };
@@ -51,6 +52,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
     storage.save(STORAGE_KEYS.profile, next);
   };
   useOverlayBackHandler(settingsOpen, () => setSettingsOpen(false));
+  useOverlayBackHandler(confirmClear, () => setConfirmClear(false));
 
   const hasUnread = notifications.some(n => !n.read);
   const hasAny = notifications.length > 0;
@@ -73,7 +75,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
               </TouchableOpacity>
             )}
             {hasAny && onClearAll && (
-              <TouchableOpacity onPress={onClearAll} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={() => setConfirmClear(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>전체삭제</Text>
               </TouchableOpacity>
             )}
@@ -82,6 +84,36 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
               <Text style={{ fontSize: fs(18) }}>⚙️</Text>
             </TouchableOpacity>
           </View>
+
+          {/* 전체삭제 confirm — 알림 모달 안에서 띄워야 안 가려짐 (RoundupTab의 alert은 모달 뒤에 깔림) */}
+          {confirmClear && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
+              <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                activeOpacity={1} onPress={() => setConfirmClear(false)} />
+              <View style={{ backgroundColor: C.bgPrimary, borderRadius: 14, paddingTop: 22, paddingHorizontal: 22, paddingBottom: 14,
+                width: '85%', maxWidth: 340 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, textAlign: 'center', marginBottom: 8 }}>
+                  알림 전체 삭제
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19, marginBottom: 18 }}>
+                  모든 알림을 지울까요?{'\n'}되돌릴 수 없어요.
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity onPress={() => setConfirmClear(false)} activeOpacity={0.85}
+                    style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setConfirmClear(false); onClearAll?.(); }} activeOpacity={0.85}
+                    style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                      backgroundColor: '#8B2A2A' }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>전체삭제</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* 알림 설정 시트 — 6종 토글 (Phase 2 백엔드 연동 시 실제 푸시 발송 제어) */}
           {settingsOpen && (

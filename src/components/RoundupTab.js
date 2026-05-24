@@ -605,14 +605,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       ],
     });
   };
-  const clearAllNoti = () => setAlert({
-    title: '모든 알림을 삭제할까요?',
-    message: '복구할 수 없어요.',
-    buttons: [
-      { text: '취소', style: 'cancel' },
-      { text: '전체삭제', style: 'destructive', onPress: () => setNotifications([]) },
-    ],
-  });
+  // 전체삭제 — confirm은 RoundupNotifications 모달 안에서 자체 처리 (모달 위에 떠야 안 가려짐)
+  const clearAllNoti = () => setNotifications([]);
 
   // 라운지 탭(asScreen)으로 띄울 땐 Modal 래퍼 없이 일반 화면처럼 동작
   const body = (
