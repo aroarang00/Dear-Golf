@@ -166,8 +166,8 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         <Text style={{ fontSize: fs(13) }}>{allFull ? '✅' : '🔄'}</Text>
         <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal, fontWeight: '700' }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
-        {post.guests > 0 ? (
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 게스트 {post.guests}명 포함</Text>
+        {post.companions?.length > 0 ? (
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 동반자 {post.companions.length}명 포함</Text>
         ) : null}
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
           color: allFull ? '#3C7D4F' : C.warmGray, marginLeft: 'auto' }}>

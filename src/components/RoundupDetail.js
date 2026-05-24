@@ -384,9 +384,9 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginLeft: 8 }}>
                   {isTeam ? `${post.teams}팀 · ${post.teams * 4}명` : `${post.capacity}명`}
                 </Text>
-                {post.guests > 0 && !isTeam ? (
+                {post.companions?.length > 0 && !isTeam ? (
                   <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginLeft: 8 }}>
-                    (게스트 {post.guests}명 포함)
+                    (동반자 {post.companions.map(n => n).join(', ')} 포함)
                   </Text>
                 ) : null}
               </View>

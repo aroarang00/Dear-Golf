@@ -30,12 +30,27 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [groupMode, setGroupMode] = useState('single'); // single(개별) | team(단체)
   const [members, setMembers] = useState(4);            // 개별: 총 모집 인원 2~4
   const [teams, setTeams] = useState(2);                // 단체: 팀 수 2~4 (1팀=4명)
-  const [guests, setGuests] = useState(0);              // 게스트(앱 미사용자) 인원 — 이름 X, 숫자만. PIPA 부담 0.
+  // 동반자(앱 미사용자) — 성씨/별명 5자 이내 배열. 카카오VX 모델 참고.
+  // 풀네임 받지 않음 + 본인 동의 체크박스로 PIPA 부담 최소화.
+  const [companions, setCompanions] = useState([]);
+  const [companionInput, setCompanionInput] = useState('');
+  const [companionConsent, setCompanionConsent] = useState(false); // 본인 동의 체크
 
-  // 정원(members) 변경 시 게스트가 정원 이상이면 자동 초기화
+  // 정원(members) 변경 시 동반자가 정원 이상이면 자동 초기화 (주최자 제외)
   useEffect(() => {
-    if (guests >= members) setGuests(0);
+    if (companions.length >= members) setCompanions([]);
   }, [members]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddCompanion = () => {
+    const name = companionInput.trim().slice(0, 5);
+    if (!name) return;
+    if (companions.length >= members - 1) return; // 주최자 제외하면 members-1까지
+    setCompanions(prev => [...prev, name]);
+    setCompanionInput('');
+  };
+  const handleRemoveCompanion = (idx) => {
+    setCompanions(prev => prev.filter((_, i) => i !== idx));
+  };
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
   // 동반자 조건 필터 — 구성·실력 단일 선택, 태그 다중 선택. 전체공개에서만 노출.
@@ -79,7 +94,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
-    setGroupMode('single'); setMembers(4); setTeams(2); setGuests(0); setScope('all'); setWord('');
+    setGroupMode('single'); setMembers(4); setTeams(2); setCompanions([]); setCompanionInput(''); setCompanionConsent(false); setScope('all'); setWord('');
     setCompanion('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
   };
@@ -102,8 +117,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       time: type === 'fixed' ? fmtTime(date) : null,
       teams: isTeam ? teams : 1,
       capacity: isTeam ? teams * 4 : members,
-      // 게스트(앱 미사용자) — 정원에 포함됨. 매너평가·신고 대상 X. 이름은 받지 않음 (PIPA 부담 0).
-      guests: isTeam ? 0 : guests,
+      // 동반자(앱 미사용자) — 성씨/별명 5자 이내 배열. 매너평가·신고 대상 X.
+      // 본인 동의 책임은 주최자에게 (체크박스). 카카오VX 모델 참고.
+      companions: isTeam ? [] : companions,
       scope,
       word: word.trim(),
       // 동반자 조건 — 전체공개일 때만 의미. 친구공개·친구지정은 'any'/[]로 저장
@@ -277,24 +293,61 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                 })}
               </View>
             )}
-            {/* 게스트 — 개별 모집에만, 정원 - 1 (주최자 제외) 까지 */}
+            {/* 동반자(앱 미사용자) — 개별 모집에만. 성씨 또는 별명 5자 이내, 풀네임 금지 */}
             {groupMode === 'single' && (
               <View style={{ marginTop: 14 }}>
-                <Text style={mS.bigLabel}>게스트 (앱 미사용자, 선택)</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {Array.from({ length: members }, (_, i) => i).map(n => {
-                    const on = guests === n;
-                    return (
-                      <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setGuests(n)}
-                        style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
-                        <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{n}명</Text>
+                <Text style={mS.bigLabel}>동반자 (앱 미사용자, 선택)</Text>
+                {/* 추가된 동반자 chip 목록 */}
+                {companions.length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {companions.map((name, i) => (
+                      <TouchableOpacity key={i} onPress={() => handleRemoveCompanion(i)} activeOpacity={0.7}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4,
+                          backgroundColor: C.charcoal, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.butter }}>{name}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(245,230,168,0.7)' }}>✕</Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                    ))}
+                  </View>
+                )}
+                {/* 입력 + 추가 버튼 */}
+                {companions.length < members - 1 && (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput value={companionInput} onChangeText={setCompanionInput}
+                      placeholder="성씨 또는 별명 (예: 김, 박OO, 친구A)"
+                      placeholderTextColor={C.warmGrayLight}
+                      maxLength={5}
+                      onSubmitEditing={handleAddCompanion}
+                      returnKeyType="done"
+                      style={[mS.input, { flex: 1 }]} />
+                    <TouchableOpacity onPress={handleAddCompanion} activeOpacity={0.85}
+                      disabled={!companionInput.trim()}
+                      style={{ paddingHorizontal: 16, justifyContent: 'center',
+                        backgroundColor: companionInput.trim() ? C.charcoal : C.bgSecondary,
+                        borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13),
+                        color: companionInput.trim() ? C.butter : C.warmGrayLight }}>추가</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
-                  구장에 같이 가는 앱 미사용자가 있다면 숫자만 입력해주세요. 이름은 받지 않아요.
+                  같이 가는 앱 미사용자가 있다면 성씨(예: 김) 또는 별명(예: 친구A)으로만 입력해주세요. 풀네임은 받지 않아요.
                 </Text>
+                {/* 동반자 추가 시 본인 동의 체크 (PIPA 책임 입력자에게) */}
+                {companions.length > 0 && (
+                  <TouchableOpacity onPress={() => setCompanionConsent(!companionConsent)} activeOpacity={0.7}
+                    style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10,
+                      padding: 10, backgroundColor: C.bgSecondary, borderRadius: 8, borderWidth: 0.5, borderColor: C.hairline }}>
+                    <View style={{ width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: C.charcoal,
+                      backgroundColor: companionConsent ? C.charcoal : 'transparent',
+                      alignItems: 'center', justifyContent: 'center' }}>
+                      {companionConsent && <Text style={{ color: C.butter, fontSize: fs(11), fontFamily: F.sysB }}>✓</Text>}
+                    </View>
+                    <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 16 }}>
+                      동반자분들께 라운딩 모집에 이름이 노출됨을 알리고 동의를 받았습니다.
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>
