@@ -1,6 +1,6 @@
 // 매너 등급 — 매너 점수(0~100) 기반. 신규 가입 시 70점에서 시작(보통).
 // 4단계: 매너왕(95+) / 좋음(80~94) / 보통(40~79) / 주의(0~39).
-// 이용제한 등급은 폐지 — 모집 정지는 별도 상태(노쇼·임박취소 누적 기반)로 관리하고 매너 등급과 분리.
+// 이용제한 등급은 폐지 — 모집 정지는 별도 상태(노쇼·허위신고 기반)로 관리하고 매너 등급과 분리.
 // 낮은 등급부터 높은 등급 순.
 export const MANNER_GRADES = [
   { key: 'caution', emoji: '⚠️', label: '주의',   min: 0,  color: '#8B2A2A', cond: '0~39점 — 명확한 매너 문제' },
@@ -26,17 +26,14 @@ export function clampMannerScore(s) {
   return Math.max(0, Math.min(100, s));
 }
 
-// 매너 점수 변동 사유 → 점수 차이.
-// 취소 시간 구간은 티오프 시각 기준 — 골프 라운딩 대체자 구하는 시간 고려해 48h 기준.
-// 라운딩 종료 감지·평가 집계 등 자동 트리거는 Phase 2(Cloud Functions) 작업.
+// 매너 점수 변동 사유 (2026-05-25 단순화).
+// 취소(7일/5일/임박) 단계별 시스템 차감은 폐기 — 취소는 골프장 위약금(본인 부담)과 매너 평가에서 자연 반영.
+// 시스템 강제 패널티는 노쇼·허위신고만 ([[roundup-penalty-policy]], [[noshow-report-system]]).
 export const MANNER_DELTAS = {
   roundComplete:    +2,   // 라운딩 정상 완료
-  cancel7dPlus:      0,   // 7일 이전 취소 — 패널티 없음
-  cancel7d:         -1,   // 7일 이내 취소 (티오프 5~7일)
-  cancel5d:         -2,   // 5일 이내 취소 (티오프 48h~5일)
-  cancelImminent:   -5,   // 임박 취소 (티오프 48h 이내) — 모집 정지 14일도 별도 발동
-  noshow:          -10,   // 노쇼 — 모집 정지 60일도 별도 발동
-  reportConfirmed:  -5,   // 사용자 신고 정당 확정 (피신고자)
+  noshow:          -20,   // 노쇼 확정 — 90일 정지도 별도 발동
+  falseReport:     -20,   // 허위 노쇼 신고 확정 — 120일 정지도 별도 발동
+  reportConfirmed:  -5,   // 사용자 신고 정당 확정 (피신고자, [[report-block-policy]])
   evalGood:         +1,   // 매너 평가 👍
   evalNeutral:       0,   // 매너 평가 😐 또는 무평가(자동 보통 처리)
   evalBadMulti:     -3,   // 매너 평가 👎가 2명 이상일 때만
@@ -48,20 +45,11 @@ export function applyMannerDelta(score, kind) {
   return clampMannerScore((score || 0) + delta);
 }
 
-// 취소 시점(티오프까지 남은 시간, 단위: 시간)으로 차감 키 산출.
-// 임박 모집(48h 이내 작성)에 참여한 경우도 자연스럽게 cancelImminent로 분기됨.
-// 7일+ 이전: cancel7dPlus (0) / 5~7일: cancel7d (-1) / 48h~5일: cancel5d (-2) / 48h 이내: cancelImminent (-5)
-export function cancelDeltaKindByHours(hoursUntilTeeOff) {
-  if (hoursUntilTeeOff >= 168) return 'cancel7dPlus';   // 7일+ 이전
-  if (hoursUntilTeeOff >= 120) return 'cancel7d';       // 5~7일
-  if (hoursUntilTeeOff >= 48)  return 'cancel5d';       // 48h~5일
-  return 'cancelImminent';                              // 48h 이내
+// 취소 시점 안내 문구 — 시스템 차감 X, 안내만 ([[roundup-penalty-policy]] §2).
+// 7일+ 이전: null (위약금 없음, 안내 불필요) / 7일 이내·임박: 골프장 위약금 안내.
+export function getCancelWarningByHours(hoursUntilTeeOff) {
+  if (hoursUntilTeeOff >= 168) return null;                                                  // 7일+ 이전 — 위약금 없음
+  if (hoursUntilTeeOff >= 120) return '⚠️ 골프장 위약금이 발생할 수 있어요 (본인 부담).';      // 5~7일
+  if (hoursUntilTeeOff >= 48)  return '⚠️ 골프장 위약금이 큼 — 본인 부담이에요.';              // 48h~5일
+  return '⚠️ 임박 취소예요. 골프장 위약금이 매우 크고 동반자에게 큰 피해가 가요.';              // 48h 이내
 }
-
-// 취소 키 → 사용자 노출 라벨
-export const CANCEL_DELTA_LABEL = {
-  cancel7dPlus:   '7일 이전 취소',
-  cancel7d:       '7일 이내 취소',
-  cancel5d:       '5일 이내 취소',
-  cancelImminent: '임박 취소',
-};

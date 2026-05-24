@@ -9,7 +9,7 @@ import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
-import { MANNER_DELTAS, cancelDeltaKindByHours, CANCEL_DELTA_LABEL } from '../constants/mannerGrade';
+import { getCancelWarningByHours } from '../constants/mannerGrade';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 // 참여자 아바타 색상
@@ -135,10 +135,10 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       ],
     });
   };
-  // 참여 취소 — 상세 모달 위 오버레이로 확인창을 띄운다(모달 뒤에 가리지 않게)
-  // 취소 시점(티오프까지 남은 시간) 기준 4구간 — RoundupTab의 getCancelInfo와 일관
+  // 참여 취소 — 시스템 매너점수 차감 없음 (2026-05-25 단순화, [[roundup-penalty-policy]]).
+  // 시점별 골프장 위약금만 안내. 노쇼는 별도 신고 시스템 ([[noshow-report-system]]).
   const confirmCancel = () => {
-    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — cancel7dPlus(0)
+    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — 위약금 안내 없음
     if (post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
       const [hh, mm] = (post.time || '07:00').split(':').map(Number);
@@ -146,16 +146,11 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    const deltaKind = cancelDeltaKindByHours(hoursUntil);
-    const deltaVal = MANNER_DELTAS[deltaKind];
-    const label = CANCEL_DELTA_LABEL[deltaKind] || '취소';
-    // 임박 취소는 모집 자격 14일 정지도 추가 발동 (정책 [[roundup-penalty-policy]])
-    const suspendWarning = deltaKind === 'cancelImminent'
-      ? '\n\n⚠️ 임박 취소는 모집 자격 14일 정지도 적용돼요.'
-      : '';
+    const warning = getCancelWarningByHours(hoursUntil);
+    const warnLine = warning ? `${warning}\n\n` : '';
     setAlert({
       title: '참여를 취소할까요?',
-      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.${suspendWarning}\n취소하면 자리는 다시 열려요.`,
+      message: `${warnLine}취소하면 자리는 다시 열려요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.`,
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '참여 취소', style: 'destructive', onPress: onCancel },

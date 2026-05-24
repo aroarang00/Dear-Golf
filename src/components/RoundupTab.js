@@ -14,7 +14,7 @@ import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelS
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
-import { applyMannerDelta, MANNER_DELTAS, cancelDeltaKindByHours, CANCEL_DELTA_LABEL } from '../constants/mannerGrade';
+import { getCancelWarningByHours } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
@@ -464,34 +464,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     setWaitlist(prev => ({ ...prev, [id]: (post?.waitlistCount || 0) + 1 }));
   };
 
-  // 참여 취소 — 취소 시점(티오프까지 남은 시간)에 따라 4구간 매너 점수 자동 차감.
-  // 대기자 자동 승격·주최자 푸시·노쇼 자동 신고·12개월 롤링 누적은 Phase 2 (Cloud Functions).
-  // 4구간: 7일+ (cancel7dPlus, 0) / 5~7일 (cancel7d, -1) / 48h~5일 (cancel5d, -2) / 48h 이내 임박 취소 (cancelImminent, -5)
-  // 오픈형(날짜 미정)은 임박 위험 없으므로 cancel7dPlus(0)로 간주.
-  // 임박 모집(48h 이내 작성)에 참여한 경우도 자연스럽게 cancelImminent로 분기됨.
-  const getCancelInfo = (post) => {
-    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — 사실상 cancel7dPlus(0)
-    if (post.date) {
-      const [y, m, d] = post.date.split('.').map(Number);
-      const [hh, mm] = (post.time || '07:00').split(':').map(Number);
-      const target = new Date(y, m - 1, d, hh, mm);
-      const now = new Date();
-      hoursUntil = (target - now) / 3600000;
-    }
-    const deltaKind = cancelDeltaKindByHours(hoursUntil);
-    return {
-      deltaKind,
-      deltaVal: MANNER_DELTAS[deltaKind],
-      countField: deltaKind === 'cancelImminent' ? 'cancelImminentCount' : null, // 모집 정지 누적은 임박 취소만
-      label: CANCEL_DELTA_LABEL[deltaKind] || '취소',
-    };
-  };
+  // 참여 취소 — 시스템 매너점수 차감 없음 (2026-05-25 단순화, [[roundup-penalty-policy]]).
+  // 시점에 따른 골프장 위약금은 본인 부담. 노쇼만 별도 신고 시스템에서 처리 ([[noshow-report-system]]).
+  // 대기자 자동 승격은 Phase 2 (Cloud Functions).
 
-  // 참여 취소 실행 — 확인은 호출 측에서 (모집 상세는 자체 오버레이로 확인)
+  // 참여 취소 실행 — 확인은 호출 측에서
   const performCancel = (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    const { deltaKind, countField } = getCancelInfo(post);
     // 1) 모집글 인원 -1 (마지막 채워진 자리에서)
     setPosts(prev => prev.map(p => {
       if (p.id !== id) return p;
@@ -506,28 +486,25 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }));
     // 2) 내 joined 플래그 해제
     setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
-    // 3) 매너 점수 차감 + 임박 취소만 카운트 +1 (모집 정지 누적용), 로컬 저장
-    const next = {
-      ...userProfile,
-      mannerScore: applyMannerDelta(userProfile.mannerScore, deltaKind),
-    };
-    if (countField) next[countField] = (userProfile[countField] || 0) + 1;
-    setUserProfile(next);
-    storage.save(STORAGE_KEYS.profile, next);
   };
 
   // 참여 취소 — 확인창 + 실행 (목록 카드용)
   const cancelParticipation = (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    const { deltaKind, deltaVal, label } = getCancelInfo(post);
-    // 임박 취소(48h 이내)는 모집 자격 14일 정지도 추가 발동 ([[roundup-penalty-policy]])
-    const suspendWarning = deltaKind === 'cancelImminent'
-      ? '\n\n⚠️ 임박 취소는 모집 자격 14일 정지도 적용돼요.'
-      : '';
+    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — 위약금 안내 없음
+    if (post.date) {
+      const [y, m, d] = post.date.split('.').map(Number);
+      const [hh, mm] = (post.time || '07:00').split(':').map(Number);
+      const target = new Date(y, m - 1, d, hh, mm);
+      const now = new Date();
+      hoursUntil = (target - now) / 3600000;
+    }
+    const warning = getCancelWarningByHours(hoursUntil);
+    const warnLine = warning ? `${warning}\n\n` : '';
     setAlert({
       title: '참여를 취소할까요?',
-      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.${suspendWarning}\n(주최자 알림·대기자 자동 승격은 추후 추가될 예정)`,
+      message: `${warnLine}취소하면 자리는 다시 열려요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.`,
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
