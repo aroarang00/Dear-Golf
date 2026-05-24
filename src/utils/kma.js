@@ -43,24 +43,36 @@ function getMidTmFc(now = new Date()) {
 
 // =============================================================
 // 공통 fetch (실패 시 null 반환)
+// 모바일 네트워크에서 KMA 응답이 종종 느리거나 끊김 — timeout + 재시도로 보강
 // =============================================================
-async function fetchJson(url) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      console.warn('[kma] HTTP', res.status, url, '→', body.slice(0, 300));
+async function fetchJson(url, { timeoutMs = 8000, retries = 1 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    let timer;
+    try {
+      const controller = new AbortController();
+      timer = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        console.warn(`[kma] HTTP ${res.status} (attempt ${attempt + 1})`, url, '→', body.slice(0, 200));
+        if (attempt < retries) continue; // 일시적 5xx 재시도
+        return null;
+      }
+      const text = await res.text();
+      try { return JSON.parse(text); } catch {
+        console.warn('[kma] non-JSON response:', text.slice(0, 200));
+        return null;
+      }
+    } catch (e) {
+      if (timer) clearTimeout(timer);
+      const reason = e?.name === 'AbortError' ? `timeout(${timeoutMs}ms)` : e?.message;
+      console.warn(`[kma] fetch failed (attempt ${attempt + 1}):`, reason);
+      if (attempt < retries) continue; // 타임아웃·네트워크 오류 재시도
       return null;
     }
-    const text = await res.text();
-    try { return JSON.parse(text); } catch {
-      console.warn('[kma] non-JSON response:', text.slice(0, 200));
-      return null;
-    }
-  } catch (e) {
-    console.warn('[kma] fetch failed:', e?.message);
-    return null;
   }
+  return null;
 }
 
 const keyParam = () => `serviceKey=${encodeURIComponent(KMA_SERVICE_KEY)}`;
