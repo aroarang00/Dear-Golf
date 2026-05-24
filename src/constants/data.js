@@ -180,6 +180,8 @@ export const USER_PROFILE_INIT = {
   lastNicknameChange: null,  // 마지막 변경 시각 (ISO 문자열)
   // 라운지 — 모르는 사람 모집 숨김. true면 '전체' 탭이 사라지고 친구 모집만 보임.
   hideStrangerRoundups: false,
+  // 라운지 알림 종류별 ON/OFF — RoundupNotifications ⚙️에서 토글. Phase 2 FCM 연동 시 실제 푸시 발송 제어.
+  roundupNotifyPrefs: { apply: true, confirmed: true, cancel: true, waitlist: true, slotOpen: true, comment: true },
   // 라운지 맞춤 모집 조건 — 새 모집글이 이 조건에 맞으면 라운지에서 알려줌(인앱).
   // regions: 관심 지역 / days: 요일 다중(빈 배열=무관) / dateFrom~dateTo: 특정 기간
   // companion: 'female'(여성만)·'couple'(부부·커플)·null(상관없음)
