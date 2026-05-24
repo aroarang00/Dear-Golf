@@ -149,9 +149,13 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
     const deltaKind = cancelDeltaKindByHours(hoursUntil);
     const deltaVal = MANNER_DELTAS[deltaKind];
     const label = CANCEL_DELTA_LABEL[deltaKind] || '취소';
+    // 임박 취소는 모집 자격 14일 정지도 추가 발동 (정책 [[roundup-penalty-policy]])
+    const suspendWarning = deltaKind === 'cancelImminent'
+      ? '\n\n⚠️ 임박 취소는 모집 자격 14일 정지도 적용돼요.'
+      : '';
     setAlert({
       title: '참여를 취소할까요?',
-      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.\n취소하면 자리는 다시 열려요.`,
+      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.${suspendWarning}\n취소하면 자리는 다시 열려요.`,
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '참여 취소', style: 'destructive', onPress: onCancel },
@@ -380,6 +384,11 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginLeft: 8 }}>
                   {isTeam ? `${post.teams}팀 · ${post.teams * 4}명` : `${post.capacity}명`}
                 </Text>
+                {post.guests > 0 && !isTeam ? (
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginLeft: 8 }}>
+                    (게스트 {post.guests}명 포함)
+                  </Text>
+                ) : null}
               </View>
 
               <View style={{ marginTop: 14 }}>{actionBtn}</View>

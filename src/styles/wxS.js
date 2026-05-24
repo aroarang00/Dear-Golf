@@ -53,7 +53,7 @@ export const wxS = StyleSheet.create({
   condWrap:      { marginHorizontal: 20, marginTop: 28 },
   condRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, marginBottom: 6, backgroundColor: 'rgba(255,255,255,0.04)' },
   condRowTee:    { backgroundColor: 'rgba(245,230,168,0.09)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.25)' },
-  condTime:      { width: 70, fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.7)' },
+  condTime:      { width: 70, fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.85)' },
   condIcon:      { fontSize: fs(18), marginRight: 12 },
   condDots:      { flexDirection: 'row', gap: 4 },
   condDot:       { width: 8, height: 8, borderRadius: 4 },

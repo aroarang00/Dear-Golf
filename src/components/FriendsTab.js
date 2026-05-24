@@ -163,7 +163,7 @@ export function FriendsTab({ navigation }) {
     if (!target) return;
     showAppAlert(
       `${target.name}님을 친구에서 삭제할까요?`,
-      `함께 라운딩한 기록(${target.roundsTogether || 0}회)은 남지만, 친구 목록에서 사라져요. 다시 추가하려면 친구 신청이 필요해요.`,
+      `함께 라운딩한 기록(${target.roundsTogether || 0}회)은 남지만, 친구 목록에서 사라져요. 다시 추가하려면 친구 신청이 필요해요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
       [
         { text: '취소', style: 'cancel' },
         { text: '삭제', style: 'destructive', onPress: () => setFriends(p => p.filter(f => f.id !== id)) },

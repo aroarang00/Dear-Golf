@@ -30,6 +30,12 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [groupMode, setGroupMode] = useState('single'); // single(개별) | team(단체)
   const [members, setMembers] = useState(4);            // 개별: 총 모집 인원 2~4
   const [teams, setTeams] = useState(2);                // 단체: 팀 수 2~4 (1팀=4명)
+  const [guests, setGuests] = useState(0);              // 게스트(앱 미사용자) 인원 — 이름 X, 숫자만. PIPA 부담 0.
+
+  // 정원(members) 변경 시 게스트가 정원 이상이면 자동 초기화
+  useEffect(() => {
+    if (guests >= members) setGuests(0);
+  }, [members]); // eslint-disable-line react-hooks/exhaustive-deps
   const [scope, setScope] = useState('all');
   const [word, setWord] = useState('');
   // 동반자 조건 필터 — 구성·실력 단일 선택, 태그 다중 선택. 전체공개에서만 노출.
@@ -73,7 +79,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
-    setGroupMode('single'); setMembers(4); setTeams(2); setScope('all'); setWord('');
+    setGroupMode('single'); setMembers(4); setTeams(2); setGuests(0); setScope('all'); setWord('');
     setCompanion('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
   };
@@ -96,6 +102,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       time: type === 'fixed' ? fmtTime(date) : null,
       teams: isTeam ? teams : 1,
       capacity: isTeam ? teams * 4 : members,
+      // 게스트(앱 미사용자) — 정원에 포함됨. 매너평가·신고 대상 X. 이름은 받지 않음 (PIPA 부담 0).
+      guests: isTeam ? 0 : guests,
       scope,
       word: word.trim(),
       // 동반자 조건 — 전체공개일 때만 의미. 친구공개·친구지정은 'any'/[]로 저장
@@ -267,6 +275,26 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+            )}
+            {/* 게스트 — 개별 모집에만, 정원 - 1 (주최자 제외) 까지 */}
+            {groupMode === 'single' && (
+              <View style={{ marginTop: 14 }}>
+                <Text style={mS.bigLabel}>게스트 (앱 미사용자, 선택)</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {Array.from({ length: members }, (_, i) => i).map(n => {
+                    const on = guests === n;
+                    return (
+                      <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setGuests(n)}
+                        style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                        <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{n}명</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                  구장에 같이 가는 앱 미사용자가 있다면 숫자만 입력해주세요. 이름은 받지 않아요.
+                </Text>
               </View>
             )}
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>

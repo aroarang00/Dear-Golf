@@ -160,12 +160,15 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: 18 }}>"{post.word}"</Text>
       ) : null}
 
-      {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서 */}
+      {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서. 게스트(앱 미사용자)가 있으면 명시. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
         backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
         <Text style={{ fontSize: fs(13) }}>{allFull ? '✅' : '🔄'}</Text>
         <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal, fontWeight: '700' }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
+        {post.guests > 0 ? (
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 게스트 {post.guests}명 포함</Text>
+        ) : null}
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
           color: allFull ? '#3C7D4F' : C.warmGray, marginLeft: 'auto' }}>
           {allFull ? '모집 완료' : '모집중'}
@@ -517,10 +520,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const cancelParticipation = (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    const { deltaVal, label } = getCancelInfo(post);
+    const { deltaKind, deltaVal, label } = getCancelInfo(post);
+    // 임박 취소(48h 이내)는 모집 자격 14일 정지도 추가 발동 ([[roundup-penalty-policy]])
+    const suspendWarning = deltaKind === 'cancelImminent'
+      ? '\n\n⚠️ 임박 취소는 모집 자격 14일 정지도 적용돼요.'
+      : '';
     setAlert({
       title: '참여를 취소할까요?',
-      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.\n(주최자 알림·대기자 자동 승격은 추후 추가될 예정)`,
+      message: `${label} — 매너 점수 ${deltaVal}점이 적용돼요.${suspendWarning}\n(주최자 알림·대기자 자동 승격은 추후 추가될 예정)`,
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
@@ -571,7 +578,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
     setAlert({
       title: `${target.name}님을 차단할까요?`,
-      message: '차단하면 서로의 모집글이 보이지 않아요.\n오늘 남은 차단 횟수: ' + remaining + '회',
+      message: '차단하면 서로의 모집글이 보이지 않아요.\n💡 상대방에게는 알림이 가지 않아요.\n오늘 남은 차단 횟수: ' + remaining + '회',
       buttons: [
         { text: '취소', style: 'cancel' },
         {
