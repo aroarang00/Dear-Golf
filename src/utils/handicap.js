@@ -26,16 +26,6 @@ export function calcHandicap(diaries, manualAvg) {
   return avgOf(scores.slice(0, HANDICAP_BEST_COUNT));
 }
 
-// 평균타 — 라운딩 기록 5개 이상이면 전체 평균, 미만이면 입력값 우선.
-// 핸디(calcHandicap)와 같은 표본 기준(5개)을 써서 두 지표가 동시에 자동 전환되도록 함.
-// 라운드 1~4개일 때 평균타가 입력값에서 라운드 평균으로 갑자기 튀던 문제 해결.
-export function calcAvgScore(diaries, manualAvg) {
-  const scores = collectScores(diaries);
-  const hasManual = typeof manualAvg === 'number' && manualAvg > 0;
-
-  // 기록 5개 이상 — 전체 평균 (핸디는 베스트 5개 평균이라 별개)
-  if (scores.length >= HANDICAP_BEST_COUNT) return avgOf(scores);
-  // 기록 5개 미만 — 입력값 우선, 없으면 있는 기록 평균, 그것도 없으면 null
-  if (hasManual) return manualAvg;
-  return scores.length ? avgOf(scores) : null;
-}
+// (폐기) 평균타 = 전체 평균 함수 — 2026-05-26 통계 박스 라벨을 '핸디'로 통일하면서 미사용.
+// DiaryScreen 통계·DiaryCard 색상 비교 모두 calcHandicap 사용.
+// 향후 평균타 별도 지표가 필요해지면 다시 복원.

@@ -20,7 +20,7 @@ import { GolfLedgerModal } from './GolfLedgerModal';
 import { MyPageModal } from './MyPageModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
-import { calcHandicap, calcAvgScore } from '../utils/handicap';
+import { calcHandicap } from '../utils/handicap';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { TrustGradeModal } from './common/TrustBadge';
@@ -267,17 +267,16 @@ export function DiaryScreen({ route, navigation }) {
   const myGrade = getTrustGrade(userProfile.hostedCount || 0, userProfile.mannerScore || 0);
   const myManner = getMannerGrade(userProfile.mannerScore || 70);
   const myHandicap = calcHandicap(diaries, userProfile.avgScore);
-  // 통계 박스 — 라운드 5개 이상이면 자동 평균, 미만이면 입력값 우선 (핸디와 같은 정책)
-  // 한 라운드 입력만으로 평균타가 입력값에서 갑자기 튀던 문제 해결.
+  // 통계 박스 — 평균타 라벨 폐기, 핸디로 통일 (친구에게 공개되는 핸디 뱃지와 일관성).
+  // 라운딩 5개 미만이면 입력값 우선, 6개부터는 베스트 5개 평균 (잘 친 5개만, 못 친 건 버림).
   const hasRecords = diaries.length > 0;
   const totalRounds = hasRecords ? diaries.length : (userProfile.totalRounds || null);
-  const avgScore = calcAvgScore(diaries, userProfile.avgScore);
   const bestScore = hasRecords
     ? Math.min(...diaries.map(d => d.score))
     : (userProfile.lifeBest || null);
   const statBoxes = [
     { label: '총 라운딩', value: totalRounds },
-    { label: '평균타', value: avgScore, hi: true },
+    { label: '핸디', value: myHandicap, hi: true },
     { label: '베스트', value: bestScore },
   ];
 
@@ -408,8 +407,8 @@ export function DiaryScreen({ route, navigation }) {
           return list;
         })();
 
-        // DiaryCard 색상 비교용 평균타 — 통계와 같은 정책으로 (5개 미만 = 입력값 우선)
-        const avgScore = calcAvgScore(diaries, userProfile.avgScore);
+        // DiaryCard 색상 비교용 — 통계 박스 핸디로 통일 (5개 미만 입력값, 6개+ 베스트 5개 평균)
+        const avgScore = myHandicap;
 
         // 기록이 하나도 없을 때 — 빈 상태 (예시 카드 + CTA)
         if (diaries.length === 0) {
