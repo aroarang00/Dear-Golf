@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { showAppAlert } from './AppAlert';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
@@ -16,6 +15,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
   const { schedules } = useContext(SchedulesContext);
   const [upcoming, setUpcoming] = useState({ visible: false, y: 0 });
   const [jumpDate, setJumpDate] = useState(null);
+  const [infoModal, setInfoModal] = useState(false); // ! 버튼 안내 — AppAlert 대신 ScheduleScreen 내부 Modal (3중 중첩 z-index 충돌 회피)
   const plusRef = useRef(null);
 
   // 다이어리(라운딩 기록)는 캘린더 완료 표시에만 쓰임
@@ -71,11 +71,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
           </TouchableOpacity>
         </View>
         <TouchableOpacity
-          onPress={() => showAppAlert(
-            '일정 삭제 안내',
-            '지난 일정을 삭제하려면\n일정 카드를 길게 누르세요.\n\n다이어리 기록이 있는 일정은\n다이어리 탭에서 삭제할 수 있어요.',
-            [{ text: '확인' }],
-          )}
+          onPress={() => setInfoModal(true)}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={{
@@ -166,6 +162,27 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
               </ScrollView>
             )}
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ! 버튼 안내 — ScheduleScreen 내부 Modal로 표시. AppAlert는 ScheduleScreen이 asModal일 때 3중 중첩(MyPageModal > ScheduleScreen > AppAlert)에서 부모 뒤로 깔리는 RN 이슈. 자체 Modal은 부모와 같은 컨테이너에 있어 정상 노출. */}
+      <Modal visible={infoModal} transparent animationType="fade" onRequestClose={() => setInfoModal(false)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setInfoModal(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}
+            style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 360 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, textAlign: 'center', marginBottom: 12 }}>
+              일정 수정·삭제 안내
+            </Text>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, lineHeight: 21, marginBottom: 22 }}>
+              일정 카드를 탭하면 시트가 열려요.{'\n'}시트에서 일정 수정·삭제, 날씨·교통 확인을 모두 할 수 있어요.{'\n\n'}다이어리 기록이 있는 라운딩은 다이어리 탭에서 삭제해주세요.
+            </Text>
+            <TouchableOpacity activeOpacity={0.85}
+              onPress={() => setInfoModal(false)}
+              style={{ paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: C.charcoal }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>확인</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
