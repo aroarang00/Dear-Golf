@@ -103,7 +103,7 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
   );
 }
 
-export function FriendsTab({ navigation }) {
+export function FriendsTab({ navigation, onInvite }) {
   const { userProfile } = React.useContext(UserContext);
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState(DUMMY_FRIENDS);
@@ -286,6 +286,18 @@ export function FriendsTab({ navigation }) {
                   style={{ marginTop: 18, backgroundColor: C.navy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.bgPrimary }}>친구 찾기</Text>
                 </TouchableOpacity>
+                {/* 카카오톡으로 친구 초대 — 디어골프 미설치 친구 데려오기 */}
+                {onInvite && (
+                  <TouchableOpacity activeOpacity={0.85} onPress={onInvite}
+                    style={{ marginTop: 8, backgroundColor: '#FEE500', borderRadius: 12, paddingVertical: 13, alignItems: 'center',
+                      flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: fs(14) }}>💬</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#3C1E1E' }}>카카오톡으로 친구 초대하기</Text>
+                  </TouchableOpacity>
+                )}
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 10, textAlign: 'center', lineHeight: 16 }}>
+                  아직 디어골프를 안 쓰는 친구에게는{'\n'}카카오톡으로 초대 메시지를 보낼 수 있어요
+                </Text>
               </View>
             </View>
           )

@@ -54,7 +54,7 @@ export function FriendsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <FriendsTab navigation={navigation} />
+      <FriendsTab navigation={navigation} onInvite={handleInvite} />
 
       {/* 친구 탭 첫 진입 코치마크 — 1회만. 화면 중앙 안내 (레이아웃 변경에 안전) */}
       {showCoach && (

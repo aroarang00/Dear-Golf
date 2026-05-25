@@ -279,6 +279,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
   const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
   const [showIntro, setShowIntro] = useState(false); // 라운지 소개 (광고성)
+
+  // 첫 진입 시 라운지 소개 모달 자동 열림 (1회만) — 빈 라운지 상태에서 사용자에게 무엇을 할 수 있는지 안내
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.roundupIntroSeen, false).then(seen => {
+      if (!seen) {
+        setShowIntro(true);
+        storage.save(STORAGE_KEYS.roundupIntroSeen, true);
+      }
+    });
+  }, []);
   const listScrollRef = useRef(null);
 
   // 안드로이드 뒤로가기 — 자체 오버레이 우선 닫기 (가장 최근 열린 것부터)
@@ -802,19 +812,80 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
               </Text>
             </View>
           ) : (
-            /* 빈 화면 가이드 — 모집글 0개 */
-            <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: fs(42) }}>⛳</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginTop: 14 }}>
-                아직 모집글이 없어요
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-                첫 번째 라운딩을 모집해보세요!
-              </Text>
-              <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.85}
-                style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>+ 모집글 작성</Text>
-              </TouchableOpacity>
+            /* 빈 화면 가이드 — 친구·전체공개 탭에 실제 모집글처럼 보이는 예시 카드 + 말풍선
+               실제 모집글이 들어오면 자동으로 사라짐 (list.length === 0 조건) */
+            <View style={{ paddingTop: 12 }}>
+              {/* 말풍선 안내 */}
+              <View style={{ marginHorizontal: 4, marginBottom: 14, backgroundColor: '#F0E8D8',
+                borderWidth: 1, borderColor: '#E2D2A8', borderRadius: 12, padding: 14 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#6B5A2E', lineHeight: 19 }}>
+                  {view === 'friend'
+                    ? '💬 친구들이 올리는 모집은 여기에 모여요'
+                    : '🌐 모르는 사람들의 라운딩 모집이 여기에 모여요'}
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#6B5A2E', marginTop: 6, lineHeight: 17 }}>
+                  {view === 'friend'
+                    ? '내가 친구로 등록한 분들이 모집을 올리거나, 내가 친구공개로 올리면 여기서 보여요. 카카오톡으로 친구 초대하기부터 시작해보세요.'
+                    : '모르는 분과의 매칭이 부담스러우면 친구 탭만 쓰셔도 돼요. 마이페이지에서 [친구 모집만 보기] 켜두면 전체 탭이 숨겨져요.'}
+                </Text>
+              </View>
+
+              {/* 예시 모집글 카드 — 실제 PostCard와 유사한 디자인 */}
+              <View style={{ position: 'relative' }}>
+                {/* 워터마크 "예시" 라벨 */}
+                <View style={{ position: 'absolute', top: -8, right: 10, zIndex: 1,
+                  backgroundColor: C.charcoal, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>예시</Text>
+                </View>
+                <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+                  padding: 14, marginBottom: 10, opacity: 0.85 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <View style={{ backgroundColor: C.charcoal, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff' }}>확정형</Text>
+                    </View>
+                    <View style={{ backgroundColor: '#A8C5D6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: '#1A3D52' }}>
+                        {view === 'friend' ? '친구공개' : '전체공개'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
+                        {view === 'friend' ? '민지' : '주최자'}
+                      </Text>
+                      <Text style={{ fontSize: fs(13) }}>🥈</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>블루오션CC</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>
+                    2026.06.15 (토) · 07:00
+                  </Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: 18 }}>
+                    "{view === 'friend' ? '오랜만에 같이 라운딩 어때요?' : '편안한 분위기로 즐겁게 한 라운드 하실 분!'}"
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
+                    backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Text style={{ fontSize: fs(13) }}>🔄</Text>
+                    <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>1/4</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, marginLeft: 'auto' }}>모집중</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* CTA */}
+              <View style={{ marginTop: 6, paddingHorizontal: 4 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
+                  ⬆ 실제 모집글이 올라오면 이렇게 보여요
+                </Text>
+                <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.85}
+                  style={{ marginTop: 14, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>+ 첫 모집글 작성하기</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowIntro(true)} activeOpacity={0.85}
+                  style={{ marginTop: 8, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>📢 라운지 소개 다시 보기</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )
         ) : (
