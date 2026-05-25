@@ -370,7 +370,7 @@ export function HomeScreen({ navigation }) {
           </Text>
           {/* Dear Golf 이용 안내 진입 — 안녕하세요 아래 가로 띠. 미열람 시 빨간 점으로 호기심 유도. */}
           <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.85}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12,
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20,
               backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
               borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' }}>
             <View>
