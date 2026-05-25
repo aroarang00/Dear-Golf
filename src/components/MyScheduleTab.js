@@ -145,16 +145,26 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     }
     const dateStr = dateStrFor(0, d);
     const existing = schedOnStr(dateStr);
+    const recDiary = diaries.find(dd => dd.date === dateStr);
+
+    // 기록 있음 → 다이어리 상세 직접 진입 (일정 유무 무관, 카드 탭 흐름과 일관)
+    // ※ 하루 2번 라운딩(다이어리 2개) 케이스는 향후 선택 모달로 분기 — 현재는 첫 번째 다이어리 사용
+    if (recDiary && onRequestOpenDiary) {
+      onRequestOpenDiary(recDiary);
+      return;
+    }
+    // 일정 있음 + 기록 없음 → 시트 (수정·삭제·날씨·교통)
     if (existing) {
-      setSheet({ visible: true, schedule: existing });
+      setSheet({ visible: true, schedule: { ...existing, hasRec: false } });
       return;
     }
     const dt = new Date(year, month, d);
-    // 오늘 이전 날짜는 '예정 일정'이 아니라 '라운딩 기록' 입력으로 연결
+    // 과거 + 일정·기록 둘 다 없음 → 라운딩 기록 추가
     if (dt.getTime() < todayMid) {
       onRequestAddDiary && onRequestAddDiary({ date: dateStr, day: DAYS[dt.getDay()] });
       return;
     }
+    // 미래 + 일정 없음 → 새 일정 추가
     setModal({
       visible: true,
       initial: { date: dateStr, day: DAYS[dt.getDay()], time: '07:00', members: 4 },
