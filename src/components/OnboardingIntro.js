@@ -55,9 +55,13 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 1 — Dear Golf 인트로 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-          {/* italic Lora 'f' 디센더 잘림 방지 — lineHeight 명시 + allowFontScaling false + 가로 여유 */}
+          {/* italic Lora 'f' 디센더 잘림 방지 — lineHeight 명시 + allowFontScaling false + 가로 여유
+              SplashOverlay와 톤 일치 — #1A1A1A + 미세 textShadow로 또렷하게 */}
           <Text allowFontScaling={false}
-            style={{ fontFamily: F.brand, fontSize: fs(44), lineHeight: fs(56), color: C.charcoal, paddingHorizontal: 6 }}>
+            style={{
+              fontFamily: F.brand, fontSize: fs(44), lineHeight: fs(56), color: '#1A1A1A', paddingHorizontal: 6,
+              textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0,
+            }}>
             Dear Golf
           </Text>
           <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
