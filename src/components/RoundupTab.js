@@ -568,6 +568,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const deleteNoti = (n) => setNotifications(prev => prev.filter(x => x.id !== n.id));
 
   // 사용자 차단 — 일일 한도 5명, 양방향 모집글 숨김. 차단 사실은 상대에게 알리지 않음.
+  // 확인 모달은 호출자(RoundupDetail 등)에서 처리 → 여기는 즉시 차단 + 참여/신청/대기 자동 정리.
+  // 정책 [[block-participation]] — 차단으로 인한 참여 취소엔 추가 패널티 없음.
   const handleBlock = (target) => {
     if (!target?.id) return;
     const remaining = remainingBlocksToday(userProfile);
@@ -579,22 +581,40 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       });
       return;
     }
-    setAlert({
-      title: `${target.name}님을 차단할까요?`,
-      message: '차단하면 서로의 모집글이 보이지 않아요.\n💡 상대방에게는 알림이 가지 않아요.\n오늘 남은 차단 횟수: ' + remaining + '회',
-      buttons: [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '차단', style: 'destructive', onPress: () => {
-            const result = blockUser(userProfile, target.id);
-            if (!result.ok) return;
-            setUserProfile(result.profile);
-            storage.save(STORAGE_KEYS.profile, result.profile);
-            setDetailId(null); // 차단 후 상세 닫기 — 더 이상 보이지 않으므로
-          },
-        },
-      ],
-    });
+    const result = blockUser(userProfile, target.id);
+    if (!result.ok) return;
+    setUserProfile(result.profile);
+    storage.save(STORAGE_KEYS.profile, result.profile);
+    // 차단된 사용자가 actor·author인 알림도 모두 정리 (수락 알림 등으로 다시 진입 방지).
+    const targetKey = target.id;
+    setNotifications(prev => prev.filter(n => {
+      if (n.actor === target.name || n.actorId === targetKey) return false;
+      const p = posts.find(pp => pp.id === n.postId);
+      if (p && ((p.authorId || p.author) === targetKey)) return false;
+      return true;
+    }));
+    // 차단한 사람이 author인 모집에서 내 참여/신청/대기 자동 취소.
+    const isAuthored = (p) => (p.authorId || p.author) === targetKey;
+    const affectedIds = posts.filter(isAuthored).map(p => p.id);
+    if (affectedIds.length > 0) {
+      const drop = (m) => { const n = { ...m }; for (const id of affectedIds) delete n[id]; return n; };
+      setJoined(drop);
+      setApplied(drop);
+      setWaitlist(drop);
+      setPosts(prev => prev.map(p => {
+        if (!isAuthored(p)) return p;
+        // 내가 confirmed 참여자였다면 정원 카운트도 1 감소 (단체 모집은 단순화 — 첫 팀에서 차감)
+        if (!joined[p.id]) return p;
+        if (p.teams > 1 && Array.isArray(p.teamJoined)) {
+          const tj = [...p.teamJoined];
+          const idx = tj.findIndex(c => c > 0);
+          if (idx >= 0) tj[idx] = Math.max(0, tj[idx] - 1);
+          return { ...p, teamJoined: tj };
+        }
+        return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
+      }));
+    }
+    setDetailId(null); // 차단 후 상세 닫기 — 더 이상 보이지 않으므로
   };
   const handleReport = (target) => {
     setAlert({

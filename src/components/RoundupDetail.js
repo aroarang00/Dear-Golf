@@ -7,8 +7,8 @@ import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
-import { TrustBadge } from './common/TrustBadge';
-import { MannerBadge } from './common/MannerBadge';
+import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
+import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
@@ -105,8 +105,13 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
+  // z-index 이슈로 부모(RoundupTab)의 모달이 이 Modal 뒤로 가려져서, 등급/차단 확인 모달은 여기서 자체 렌더링.
+  const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
+  const [mannerKey, setMannerKey] = useState(null);        // 매너 등급 안내 모달
 
   // 안드로이드 뒤로가기 — 오버레이 우선 닫기 (가장 최근 열린 것부터)
+  useOverlayBackHandler(!!gradeKey, () => setGradeKey(null));
+  useOverlayBackHandler(!!mannerKey, () => setMannerKey(null));
   useOverlayBackHandler(!!actionTarget, () => setActionTarget(null));
   useOverlayBackHandler(!!alert, () => setAlert(null));
 
@@ -365,12 +370,17 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.author}</Text>
                 </TouchableOpacity>
-                <TrustBadge grade={authorGrade} onPress={() => onGradePress?.(authorGrade.key)} />
+                <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
                     주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{post.authorHostedCount || 0}</Text>회 ·
                   </Text>
-                  <MannerBadge score={post.authorMannerScore} size={14} />
+                  <MannerBadge score={post.authorMannerScore} size={14} onPress={() => {
+                    const g = (post.authorMannerScore >= 95) ? 'king'
+                      : (post.authorMannerScore >= 80) ? 'good'
+                      : (post.authorMannerScore >= 40) ? 'normal' : 'caution';
+                    setMannerKey(g);
+                  }} />
                 </View>
               </View>
 
@@ -502,16 +512,29 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
             </View>
           </ScrollView>
 
-          {/* 참여 확인 / 카카오 안내 — 모달 위 오버레이 */}
+          {/* 참여 확인 / 카카오 안내 / 차단 확인 — 모달 위 오버레이 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
-          {/* 프로필 액션 시트 — 주최자/참여자 신고·차단 */}
+          {/* 등급 안내 모달 — 부모 모달 뒤로 가려지지 않게 자체 렌더링 */}
+          <TrustGradeModal visible={!!gradeKey} highlightKey={gradeKey} onClose={() => setGradeKey(null)} />
+          <MannerGradeModal visible={!!mannerKey} highlightKey={mannerKey} onClose={() => setMannerKey(null)} />
+          {/* 프로필 액션 시트 — 주최자/참여자 차단 */}
           <ProfileActionSheet
             visible={!!actionTarget}
             target={actionTarget}
             isMe={actionTarget?.name === '나'}
             onClose={() => setActionTarget(null)}
-            onReport={(t) => onReport?.(t)}
-            onBlock={(t) => onBlock?.(t)} />
+            onBlock={(t) => {
+              // 시트 닫고 자체 확인 alert. 확인 시 RoundupDetail 닫고 부모로 차단 신호 (부모는 alert 없이 즉시 처리)
+              setActionTarget(null);
+              setAlert({
+                title: `${t.name}님을 차단할까요?`,
+                message: '차단하면 서로의 모집글이 보이지 않고, 진행 중인 참여·신청·대기도 자동 취소돼요.\n💡 상대방에게는 알림이 가지 않아요.',
+                buttons: [
+                  { text: '취소', style: 'cancel' },
+                  { text: '차단', style: 'destructive', onPress: () => { onClose(); onBlock?.(t); } },
+                ],
+              });
+            }} />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>
