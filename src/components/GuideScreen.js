@@ -693,7 +693,7 @@ export function GuideScreen({ route, navigation }) {
               <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 8, marginBottom: 24 }} />
 
               {/* 골퍼 코멘트 헤더 — 네이비 액센트 바 */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                   <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.navy }} />
                   <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트 · 좋아요 순</Text>
@@ -704,6 +704,11 @@ export function GuideScreen({ route, navigation }) {
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.burgundy }}>+ 코멘트</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* 골퍼 코멘트 설명 — 실시간 정보공유 취지 안내 */}
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 14, lineHeight: 17 }}>
+                이 코스를 다녀온 골퍼들의 솔직한 한 줄. 다녀오셨다면 + 코멘트로 공유해주세요.
+              </Text>
 
               {/* 코멘트 입력 */}
               {showCommentInput && (

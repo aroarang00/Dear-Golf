@@ -4,7 +4,7 @@ import { C, F, fs } from '../constants/colors';
 export const homeS = StyleSheet.create({
   hdr:             { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 10 },
   hdrSub:          { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginTop: 6, marginBottom: 4 },
-  hdrTitle:        { fontFamily: F.brand, fontSize: fs(48), color: '#fff', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
+  hdrTitle:        { fontFamily: F.brand, fontSize: fs(48), lineHeight: fs(52), color: '#fff', marginBottom: 0, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
   hdrGreeting:     { fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.75)' },
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },
