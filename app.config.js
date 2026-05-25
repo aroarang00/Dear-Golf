@@ -36,6 +36,12 @@ module.exports = {
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
       ],
+      // Android Auto Backup 비활성화 — 앱 삭제 시 데이터 완전 초기화.
+      // 활성화 상태(기본값)면 SharedPreferences·AsyncStorage가 Google 계정에 자동 백업되어
+      // 같은 Google 계정으로 재설치 시 옛 데이터 복원됨 → 카카오 로그인 흐름 우회·테스트 부정확.
+      // Phase 2 Firebase 연동 시 사용자 데이터는 Firestore + 카카오 sub 매핑으로 복원이 정석
+      // ([[data-migration]]·[[account-deletion]] 정책과 일관).
+      allowBackup: false,
     },
     web: {
       favicon: './assets/favicon.png',
