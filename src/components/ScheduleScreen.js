@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
+import { ROUTES } from '../constants/routes';
 import { DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -95,7 +96,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
         onRequestAddDiary={(seed) => {
           if (asModal) { onClose?.(); }
           // 지난 라운딩에 기록 추가 시 구장명·코스ID도 함께 전달해 DiaryAddModal에 자동 채워지게
-          navigation?.navigate?.('MY', {
+          navigation?.navigate?.(ROUTES.MY, {
             openAddModal: true,
             addDate: seed?.date,
             addCourse: seed?.course,
@@ -105,7 +106,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
         onRequestOpenDiary={(diary) => {
           // 기록 있는 일정 카드 탭 → 다이어리 상세 화면 직접 진입 (시트 우회)
           if (asModal) { onClose?.(); }
-          navigation?.navigate?.('MY', { openDiaryId: diary.id });
+          navigation?.navigate?.(ROUTES.MY, { openDiaryId: diary.id });
         }}
       />
 

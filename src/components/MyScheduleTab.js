@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, Share } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import { ROUTES } from '../constants/routes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { C, F, fs } from '../constants/colors';
@@ -242,7 +243,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     const id = s && (s.courseLogId || s.courseId);
     if (!id || !navigation) return;
     setSheet({ visible: false, schedule: null });
-    navigation.navigate('코스', { openCourseId: id });
+    navigation.navigate(ROUTES.COURSE, { openCourseId: id });
   };
 
   // 바텀시트 → 동반자에게 공유

@@ -26,6 +26,7 @@ import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
+import { ROUTES } from './src/constants/routes';
 
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -92,7 +93,7 @@ export default function App() {
   useEffect(() => {
     const goHome = () => {
       if (navigationRef.isReady()) {
-        try { navigationRef.navigate('홈'); } catch (e) { /* 네비게이션 미준비 */ }
+        try { navigationRef.navigate(ROUTES.HOME); } catch (e) { /* 네비게이션 미준비 */ }
       }
     };
     // 앱이 종료된 상태에서 알림 탭으로 실행된 경우
@@ -166,11 +167,11 @@ export default function App() {
     <DiariesProvider>
     <NavigationContainer ref={navigationRef}>
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }} backBehavior="history">
-        <Tab.Screen name="홈" component={HomeScreen} />
-        <Tab.Screen name="라운지" component={LoungeScreen} />
-        <Tab.Screen name="MY" component={DiaryScreen} />
-        <Tab.Screen name="친구" component={FriendsScreen} />
-        <Tab.Screen name="코스" component={GuideScreen} />
+        <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
+        <Tab.Screen name={ROUTES.LOUNGE} component={LoungeScreen} />
+        <Tab.Screen name={ROUTES.MY} component={DiaryScreen} />
+        <Tab.Screen name={ROUTES.FRIENDS} component={FriendsScreen} />
+        <Tab.Screen name={ROUTES.COURSE} component={GuideScreen} />
       </Tab.Navigator>
 
       <Modal visible={firstSingleAlert} transparent animationType="fade">

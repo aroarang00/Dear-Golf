@@ -6,6 +6,7 @@ import {
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { ROUTES } from '../constants/routes';
 import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
 import { getUserCourses } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -244,7 +245,7 @@ export function HomeScreen({ navigation }) {
 
   const handleCardCoursePress = (schedule) => {
     const id = resolveCourseLogId(schedule);
-    if (id) navigation.navigate('코스', { openCourseId: id });
+    if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id });
   };
 
   const openScheduleSheet = (schedule) => {
@@ -426,7 +427,7 @@ export function HomeScreen({ navigation }) {
                   {/* 기록 유도 박스 — 당일/지난 라운딩이면 구장명 자동 채우기 */}
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => navigation.navigate('MY', {
+                    onPress={() => navigation.navigate(ROUTES.MY, {
                       openAddModal: true,
                       addDate: next.date,
                       addCourse: next.course,
@@ -448,7 +449,7 @@ export function HomeScreen({ navigation }) {
                     <TouchableOpacity
                       onPress={() => {
                         const id = resolveCourseLogId(next);
-                        if (id) navigation.navigate('코스', { openCourseId: id, openCourseTab: 'food' });
+                        if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id, openCourseTab: 'food' });
                       }}
                       activeOpacity={0.8}
                       style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
@@ -557,7 +558,7 @@ export function HomeScreen({ navigation }) {
                           <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => {
-                              if (nextCourseId) navigation.navigate('코스', { openCourseId: nextCourseId, openComment: true });
+                              if (nextCourseId) navigation.navigate(ROUTES.COURSE, { openCourseId: nextCourseId, openComment: true });
                             }}
                             style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>첫 번째 코멘트의 주인공이 되어보세요 →</Text>
@@ -585,7 +586,7 @@ export function HomeScreen({ navigation }) {
                       <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
                       <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => navigation.navigate('MY', {
+                        onPress={() => navigation.navigate(ROUTES.MY, {
                           openAddModal: true,
                           addDate: next?.date,
                           addCourse: next?.course,
@@ -680,7 +681,7 @@ export function HomeScreen({ navigation }) {
         onCourseTap={() => {
           setShowScheduleModal(false);
           const id = resolveCourseLogId(selectedSchedule);
-          if (id) navigation.navigate('코스', { openCourseId: id });
+          if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id });
         }}
         onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}

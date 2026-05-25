@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { ROUTES } from '../constants/routes';
 import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses } from '../utils/userCourses';
@@ -69,7 +70,7 @@ function RecordedCard({ c, rs, navigation, isOpen, onToggle }) {
             <>
               <TouchableOpacity
                 activeOpacity={0.6}
-                onPress={() => navigation.navigate('코스', { openCourseId: c.courseId })}
+                onPress={() => navigation.navigate(ROUTES.COURSE, { openCourseId: c.courseId })}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
                 <Text style={{ fontSize: fs(18), color: C.warmGray }}>›</Text>
               </TouchableOpacity>
@@ -292,7 +293,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   // 기록 없는 카드 → 해당 골프장·날짜로 다이어리 기록 입력 화면 이동
   const handleAddRecord = (c) => {
     if (!navigation) return;
-    navigation.navigate('MY', {
+    navigation.navigate(ROUTES.MY, {
       openAddModal: true,
       addDate: c.latestDate || undefined,
       addCourse: c.name,
