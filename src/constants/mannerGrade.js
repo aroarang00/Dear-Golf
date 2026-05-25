@@ -3,10 +3,10 @@
 // 이용제한 등급은 폐지 — 모집 정지는 별도 상태(노쇼·허위신고 기반)로 관리하고 매너 등급과 분리.
 // 낮은 등급부터 높은 등급 순.
 export const MANNER_GRADES = [
-  { key: 'caution', emoji: '⚠️', label: '주의',   min: 0,  color: '#8B2A2A', cond: '0~39점 — 명확한 매너 문제' },
-  { key: 'normal',  emoji: '😐', label: '보통',   min: 40, color: '#6B6660', cond: '40~79점 (신규 70점 시작점)' },
-  { key: 'good',    emoji: '🙂', label: '좋음',   min: 80, color: '#3C7D4F', cond: '80~94점' },
-  { key: 'king',    emoji: '😊', label: '매너왕', min: 95, color: '#6B1E2A', cond: '95점 이상' },
+  { key: 'caution', emoji: '⚠️', label: '주의',   min: 0,  color: '#8B2A2A', cond: '동반자 평가가 누적되어 매너 문제가 보이는 단계' },
+  { key: 'normal',  emoji: '😐', label: '보통',   min: 40, color: '#6B6660', cond: '일반적인 매너 (신규는 여기에서 시작)' },
+  { key: 'good',    emoji: '🙂', label: '좋음',   min: 80, color: '#3C7D4F', cond: '동반자들의 좋은 평가가 쌓였어요' },
+  { key: 'king',    emoji: '😊', label: '매너왕', min: 95, color: '#6B1E2A', cond: '동반자들이 매우 좋은 매너로 인정해요' },
 ];
 
 const BY_KEY = MANNER_GRADES.reduce((m, g) => { m[g.key] = g; return m; }, {});

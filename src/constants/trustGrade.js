@@ -6,9 +6,9 @@ export const TRUST_GRADES = [
   { key: 'new',      emoji: '🏌️', label: '신규',   cond: '주최 0회 — 이제 시작이에요' },
   { key: 'bronze',   emoji: '🥉', label: '브론즈', cond: '주최 5회 이상' },
   { key: 'silver',   emoji: '🥈', label: '실버',   cond: '주최 20회 이상' },
-  { key: 'gold',     emoji: '🥇', label: '골드',   cond: '주최 50회 이상 · 매너 좋음(80점) 이상' },
-  { key: 'champion', emoji: '🏆', label: '챔피언', cond: '주최 100회 이상 · 매너 좋음(80점) 이상' },
-  { key: 'legend',   emoji: '👑', label: '레전드', cond: '주최 200회 이상 · 매너왕(95점) 이상' },
+  { key: 'gold',     emoji: '🥇', label: '골드',   cond: '주최 50회 이상 · 매너 좋음 이상' },
+  { key: 'champion', emoji: '🏆', label: '챔피언', cond: '주최 100회 이상 · 매너 좋음 이상' },
+  { key: 'legend',   emoji: '👑', label: '레전드', cond: '주최 200회 이상 · 매너왕' },
 ];
 
 const BY_KEY = TRUST_GRADES.reduce((m, g) => { m[g.key] = g; return m; }, {});

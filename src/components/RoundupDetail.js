@@ -47,19 +47,24 @@ function SlotRow({ slot, idx, onPress }) {
   }
   const pal = AV[idx % AV.length];
   return (
-    <TouchableOpacity activeOpacity={onPress ? 0.7 : 1} onPress={onPress}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: pal.bg, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: pal.fg }}>{slot.name.charAt(0)}</Text>
       </View>
-      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{slot.name}</Text>
+      {onPress ? (
+        <TouchableOpacity activeOpacity={0.7} onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{slot.name}</Text>
+        </TouchableOpacity>
+      ) : (
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{slot.name}</Text>
+      )}
       {slot.host && (
         <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>주최자</Text>
         </View>
       )}
       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F', marginLeft: 'auto' }}>참여 확정</Text>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -350,13 +355,16 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 {isClosed && <Badge bg="#E6C8C8" fg="#5C1E1E" text="마감" />}
               </View>
 
-              {/* 주최자 — 이름·신뢰도·매너 점수. 영역 탭 시 신고/차단 시트 */}
-              <TouchableOpacity activeOpacity={0.8}
-                onPress={() => setActionTarget({ id: post.authorId || post.author, name: post.author, role: 'host' })}
+              {/* 주최자 — 이름만 탭하면 신고/차단 시트. 매너·신뢰 배지는 각자 onPress (등급 안내). */}
+              <View
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12,
                   backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: 12 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.author}</Text>
+                <TouchableOpacity activeOpacity={0.7}
+                  onPress={() => setActionTarget({ id: post.authorId || post.author, name: post.author, role: 'host' })}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.author}</Text>
+                </TouchableOpacity>
                 <TrustBadge grade={authorGrade} onPress={() => onGradePress?.(authorGrade.key)} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
@@ -364,7 +372,7 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                   </Text>
                   <MannerBadge score={post.authorMannerScore} size={14} />
                 </View>
-              </TouchableOpacity>
+              </View>
 
               {post.type === 'fixed' ? (
                 <>

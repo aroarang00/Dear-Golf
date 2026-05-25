@@ -24,7 +24,7 @@ export function TrustGradeModal({ visible, onClose, highlightKey }) {
           <View style={{ backgroundColor: C.navy, paddingVertical: 16, paddingHorizontal: 18 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.bgPrimary }}>신뢰 등급 안내</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(250,246,236,0.7)', marginTop: 4 }}>
-              라운딩 모집을 완료할수록 등급이 올라가요
+              라운딩을 정상 완료할수록 등급이 올라가요
             </Text>
           </View>
           <View style={{ paddingVertical: 6 }}>

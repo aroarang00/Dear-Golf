@@ -29,7 +29,7 @@ export function MannerGradeModal({ visible, onClose, highlightKey }) {
           <View style={{ backgroundColor: C.navy, paddingVertical: 16, paddingHorizontal: 18 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.bgPrimary }}>매너 등급 안내</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(250,246,236,0.7)', marginTop: 4 }}>
-              라운딩 평가·노쇼 여부에 따라 점수가 변해요 (신규 70점)
+              동반자 평가에 따라 등급이 변해요 (신규는 보통에서 시작)
             </Text>
           </View>
           <View style={{ paddingVertical: 6 }}>
