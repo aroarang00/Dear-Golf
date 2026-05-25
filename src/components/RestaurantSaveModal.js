@@ -49,7 +49,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 28 }}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}}
             style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 20 }}>
-            <Text style={{ fontFamily: F.serifKR, fontSize: fs(19), color: C.charcoal }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal }}>
               {isEdit ? '메모 수정' : '맛집 저장'}
             </Text>
             <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.textSecondary, marginTop: 4, marginBottom: 16 }}>
@@ -62,7 +62,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
               onChangeText={setName}
               placeholder="맛집 이름"
               placeholderTextColor={C.warmGrayLight}
-              style={[inputBase, { fontSize: fs(14), marginBottom: fromKakao && seed?.loc ? 6 : 14 }]}
+              style={[inputBase, { fontSize: fs(16), fontFamily: F.sysSb, marginBottom: fromKakao && seed?.loc ? 6 : 14 }]}
             />
             {fromKakao && !!seed?.loc && (
               <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.textSecondary, marginBottom: 14 }}>
