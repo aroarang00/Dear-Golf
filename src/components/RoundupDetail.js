@@ -217,8 +217,9 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
     }
     const insideD7 = isD7Inside(hoursUntil);
     const isFriendsScope = post.scope !== 'all'; // 친구공개·친구지정
-    const joinedCount = post.joined || 0;        // 주최자 외 확정자 수
-    const hasOthers = joinedCount > 0;
+    // post.joined는 주최자 포함 총 확정자 수 (모집 시작 시 1, 신규 참여마다 +1)
+    // 주최자 외 확정자가 있는지 = joined > 1
+    const hasOthers = (post.joined || 0) > 1;
 
     let message;
     if (!insideD7) {
