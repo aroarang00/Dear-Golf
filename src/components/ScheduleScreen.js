@@ -102,6 +102,11 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
             addCourseId: seed?.courseId || seed?.courseLogId,
           });
         }}
+        onRequestOpenDiary={(diary) => {
+          // 기록 있는 일정 카드 탭 → 다이어리 상세 화면 직접 진입 (시트 우회)
+          if (asModal) { onClose?.(); }
+          navigation?.navigate?.('MY', { openDiaryId: diary.id });
+        }}
       />
 
       {/* 예정 라운딩 전체 목록 — '캘린더' 헤더 아래 드롭다운 (월별 그룹) */}

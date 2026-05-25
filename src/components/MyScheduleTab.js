@@ -40,7 +40,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
   );
 }
 
-export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jumpDate }) {
+export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries = [], navigation, jumpDate }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
@@ -508,7 +508,19 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
 
                 return (
                   <TouchableOpacity key={s.id}
-                    onPress={() => s.virtual ? null : setSheet({ visible: true, schedule: { ...s, hasRec: hasRecord(s.date) } })}
+                    onPress={() => {
+                      if (s.virtual) return;
+                      // 기록 있는 일정 카드 탭 → 다이어리 상세 직접 진입 (시트 우회)
+                      // 사용자 요청: "일정을 기록 완료한 건데 탭하면 상세 화면만 열려야 정상"
+                      if (rec) {
+                        const diary = diaries.find(d => d.date === s.date);
+                        if (diary && onRequestOpenDiary) {
+                          onRequestOpenDiary(diary);
+                          return;
+                        }
+                      }
+                      setSheet({ visible: true, schedule: { ...s, hasRec: hasRecord(s.date) } });
+                    }}
                     disabled={s.virtual}
                     activeOpacity={0.85}
                     style={{
