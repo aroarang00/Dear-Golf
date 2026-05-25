@@ -31,8 +31,8 @@ export function clampMannerScore(s) {
 // 시스템 강제 패널티는 노쇼·허위신고만 ([[roundup-penalty-policy]], [[noshow-report-system]]).
 export const MANNER_DELTAS = {
   roundComplete:    +2,   // 라운딩 정상 완료
-  noshow:          -20,   // 노쇼 확정 — 90일 정지도 별도 발동
-  falseReport:     -20,   // 허위 노쇼 신고 확정 — 120일 정지도 별도 발동
+  noshow:          -20,   // 노쇼 확정 — 60일 정지도 별도 발동
+  falseReport:     -20,   // 허위 노쇼 신고 확정 — 90일 정지도 별도 발동
   reportConfirmed:  -5,   // 사용자 신고 정당 확정 (피신고자, [[report-block-policy]])
   evalGood:         +1,   // 매너 평가 👍 (1명만이라도 가능)
   evalNeutral:       0,   // 매너 평가 😐 또는 무평가(자동 보통 처리)

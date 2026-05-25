@@ -156,10 +156,10 @@ export const USER_PROFILE_INIT = {
   // 라운딩 모집 활동 — 활동 등급 산출 기준
   hostedCount: 0,            // 주최 완료 횟수
   attendedCount: 0,          // 참석 완료 횟수
-  // 시스템 패널티 카운트 — 노쇼·허위신고만 (2026-05-25 단순화, [[roundup-penalty-policy]]).
-  // 단계별 취소 카운트(cancelImminentCount 등)는 폐기. 12개월 롤링 누적은 Phase 2(Cloud Functions).
-  noshowCount: 0,            // 노쇼 횟수 (90일 정지·2회 영구 트리거)
-  falseReportCount: 0,       // 허위 노쇼 신고 횟수 (120일 정지·2회 영구 트리거)
+  // 시스템 패널티 카운트 — 노쇼·허위신고만 (2026-05-26 D-7 단일선, [[roundup-penalty-policy]]).
+  // 단계별 취소 카운트(cancelImminentCount 등)는 폐기. 12개월 시점 자동 -1은 Phase 2(Cloud Functions).
+  noshowCount: 0,            // 노쇼 횟수 (60일 정지·2회 영구 트리거)
+  falseReportCount: 0,       // 허위 노쇼 신고 횟수 (90일 정지·2회 영구 트리거)
   // 매너 — 평가 시스템
   mannerScore: 70,                   // 매너 점수 (0~100, 신규 70점 시작)
   mannerEvaluationPending: false,    // 평가 대기 — true면 다음 모집 신청 비활성화
