@@ -11,14 +11,14 @@ import { TripleStripe } from './common/TripleStripe';
 // 헤더 배경 — 밝은 햇살·파란 하늘 골프장 (HomeBgSlider의 day 카테고리, 봄·여름 톤)
 const HEADER_BG_URI = 'https://images.unsplash.com/photo-1758190153146-a1507e2e000d?w=1080&q=80&auto=format';
 
-// 시각 위주로 압축 — 큰 이모지 + 한 줄 본문. 카카오VX 스타일 가로 카드.
+// 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
 const FEATURES = [
-  { icon: '🏌️', title: '예정 라운딩 한 번에',     body: '날짜만 넣어도 날씨·교통·일정·캘린더 자동' },
-  { icon: '☀️',  title: '지금 여기 날씨',        body: '현재 위치 자동, 라운딩 시간 날씨까지' },
-  { icon: '📓', title: '잠자던 골프 기록',       body: '사진·스코어·동반자·한 줄 메모 함께' },
-  { icon: '💰', title: '골프 가계부',           body: '비싼 취미, 비용 한눈에 정리' },
-  { icon: '📌', title: '골프장·맛집 저장',       body: '메모와 함께, 골퍼 코멘트도 한 곳에' },
-  { icon: '⛳', title: '동반자 모집',           body: '전화·카톡 없이 라운지에서', cta: '자세한 건 라운지의 📢' },
+  { icon: '🏌️', title: '예정 라운딩 한 번에', body: '날짜만 넣어도 날씨·교통·일정·캘린더 자동', tint: '#D6E4EF' }, // paleSky 톤
+  { icon: '☀️',  title: '지금 여기 날씨',     body: '현재 위치 자동, 라운딩 시간 날씨까지',     tint: '#FAEDB8' }, // butter 톤
+  { icon: '📓', title: '잠자던 골프 기록',    body: '사진·스코어·동반자·한 줄 메모 함께',       tint: '#F0D6D6' }, // 옅은 burgundy
+  { icon: '💰', title: '골프 가계부',         body: '비싼 취미, 비용 한눈에 정리',              tint: '#D6E3C8' }, // 옅은 그린
+  { icon: '📌', title: '골프장·맛집 저장',    body: '메모와 함께, 골퍼 코멘트도 한 곳에',       tint: '#C8D2DE' }, // 옅은 네이비
+  { icon: '⛳', title: '동반자 모집',         body: '전화·카톡 없이 라운지에서', tint: '#E0D8C8', cta: '자세한 건 라운지의 📢' }, // 옅은 차콜·베이지
 ];
 
 export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
@@ -88,22 +88,27 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
               </Text>
             </View>
 
-            {/* 3. 기능별 카드 — 큰 이모지 + 짧은 텍스트 (시각 위주) */}
+            {/* 3. 기능별 카드 — 흰 배경 + 그림자 + 카테고리 컬러 박스 (모던 톤, 브랜드 팔레트 내) */}
             <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
               {FEATURES.map((f, i) => (
-                <View key={i} style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
-                  flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 10, gap: 14 }}>
-                  {/* 좌측 큰 이모지 */}
-                  <View style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: C.bgPrimary,
+                <View key={i} style={{
+                  backgroundColor: '#fff', borderRadius: 16,
+                  flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 14, gap: 14,
+                  // 부드러운 그림자 (iOS + Android)
+                  shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
+                  elevation: 2,
+                }}>
+                  {/* 좌측 카테고리 컬러 박스 + 큰 이모지 */}
+                  <View style={{ width: 60, height: 60, borderRadius: 16, backgroundColor: f.tint,
                     alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: fs(28) }}>{f.icon}</Text>
+                    <Text style={{ fontSize: fs(30) }}>{f.icon}</Text>
                   </View>
-                  {/* 우측 텍스트 */}
+                  {/* 우측 텍스트 — 가독성 우선, 색 진하게 */}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, lineHeight: 21 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, lineHeight: 22 }}>
                       {f.title}
                     </Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, marginTop: 3, lineHeight: 19 }}>
                       {f.body}
                     </Text>
                     {f.cta && (
