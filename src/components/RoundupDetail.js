@@ -9,7 +9,7 @@ import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
-import { getCancelWarningByHours } from '../constants/mannerGrade';
+import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 // 참여자 아바타 색상
@@ -135,10 +135,10 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       ],
     });
   };
-  // 참여 취소 — 시스템 매너점수 차감 없음 (2026-05-25 단순화, [[roundup-penalty-policy]]).
-  // 시점별 골프장 위약금만 안내. 노쇼는 별도 신고 시스템 ([[noshow-report-system]]).
+  // 참여 취소 — D-7 이내 시스템 차단 ([[roundup-penalty-policy]] §1).
+  // D-7 이전은 자유 취소, 패널티 X. 노쇼는 별도 신고 시스템 ([[noshow-report-system]]).
   const confirmCancel = () => {
-    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — 위약금 안내 없음
+    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — D-7 이전 취급
     if (post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
       const [hh, mm] = (post.time || '07:00').split(':').map(Number);
@@ -146,11 +146,21 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    const warning = getCancelWarningByHours(hoursUntil);
-    const warnLine = warning ? `${warning}\n\n` : '';
+    // D-7 이내 — 취소 차단 안내
+    if (isD7Inside(hoursUntil)) {
+      setAlert({
+        title: '라운딩 7일 이내라 취소가 어려워요',
+        message: '함께하는 골프, 서로의 시간을 존중해요.\n\n부득이한 사정이 있으면 댓글로 양해를 구해주세요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.',
+        buttons: [
+          { text: '확인', style: 'cancel' },
+        ],
+      });
+      return;
+    }
+    // D-7 이전 — 자유 취소
     setAlert({
       title: '참여를 취소할까요?',
-      message: `${warnLine}취소하면 자리는 다시 열려요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.`,
+      message: '아직 D-7 이전이라 자유롭게 취소할 수 있어요.\n취소하면 자리는 다시 열려요.',
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '참여 취소', style: 'destructive', onPress: onCancel },
@@ -183,14 +193,27 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       ],
     });
   };
-  const confirmDelete = () => setAlert({
-    title: '모집글을 삭제할까요?',
-    message: '삭제하면 참여자·대기자에게 더 이상 보이지 않아요. 되돌릴 수 없어요.',
-    buttons: [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: onDelete },
-    ],
-  });
+  // 주최자 모집 취소 — D-7 이내는 강한 안내 (참여자 매너 평가 발동, [[manner-evaluation-policy]] §1-A)
+  const confirmDelete = () => {
+    let hoursUntil = 24 * 30; // 오픈형 기본: D-7 이전 취급
+    if (post.date) {
+      const [y, m, d] = post.date.split('.').map(Number);
+      const [hh, mm] = (post.time || '07:00').split(':').map(Number);
+      const target = new Date(y, m - 1, d, hh, mm);
+      hoursUntil = (target - new Date()) / 3600000;
+    }
+    const insideD7 = isD7Inside(hoursUntil);
+    setAlert({
+      title: '모집을 취소할까요?',
+      message: insideD7
+        ? '라운딩 7일 이내라 참여자에게 즉시 알림이 가고,\n48시간 안에 참여자들이 주최자 매너 평가를 할 수 있어요.\n\n우천·천재지변 같은 부득이한 사유면 진행하세요.\n취소된 라운딩은 신뢰등급 카운트에 반영되지 않아요.'
+        : '아직 D-7 이전이라 자유롭게 취소할 수 있어요.\n참여자·대기자에게 더 이상 보이지 않아요.',
+      buttons: [
+        { text: '닫기', style: 'cancel' },
+        { text: '모집 취소', style: 'destructive', onPress: onDelete },
+      ],
+    });
+  };
 
   // 참여 / 마감(대기) 버튼
   let actionBtn;
@@ -309,8 +332,17 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
+            {/* 긍정 문구 — 약속·시간 존중 문화 고정 안내 ([[roundup-penalty-policy]] §5) */}
+            <View style={{ marginHorizontal: 16, marginTop: 16,
+              backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#E2D2A8',
+              borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#6B5A2E', lineHeight: 17 }}>
+                함께하는 골프, 서로의 시간을 존중해요
+              </Text>
+            </View>
+
             {/* 1. 모집글 정보 */}
-            <View style={{ backgroundColor: C.bgSecondary, marginHorizontal: 16, marginTop: 16, marginBottom: 4, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
+            <View style={{ backgroundColor: C.bgSecondary, marginHorizontal: 16, marginTop: 10, marginBottom: 4, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
                 <Badge bg={post.type === 'fixed' ? C.charcoal : '#6B8B5E'} fg="#fff" text={post.type === 'fixed' ? '확정형' : '오픈형'} />
                 {isTeam && <Badge bg={C.navy} fg={C.butter} text={`단체 ${post.teams}팀`} />}

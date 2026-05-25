@@ -34,10 +34,17 @@ export const MANNER_DELTAS = {
   noshow:          -20,   // 노쇼 확정 — 90일 정지도 별도 발동
   falseReport:     -20,   // 허위 노쇼 신고 확정 — 120일 정지도 별도 발동
   reportConfirmed:  -5,   // 사용자 신고 정당 확정 (피신고자, [[report-block-policy]])
-  evalGood:         +1,   // 매너 평가 👍
+  evalGood:         +1,   // 매너 평가 👍 (1명만이라도 가능)
   evalNeutral:       0,   // 매너 평가 😐 또는 무평가(자동 보통 처리)
-  evalBadMulti:     -3,   // 매너 평가 👎가 2명 이상일 때만
 };
+
+// 매너 평가 👎 개수에 따른 차감 — 그라데이션 ([[manner-evaluation-policy]])
+// 1명만 👎는 무시(자동 보통 처리), 2명부터 사회적 합의로 인정.
+export function getBadVoteDelta(badCount) {
+  if (badCount < 2) return 0;      // 1명 이하 — 사적 감정 차단
+  if (badCount === 2) return -2;   // 2명 합의
+  return -3;                        // 3명 이상 (4인 라운드 최대치)
+}
 
 // 매너 점수에 변동분 적용 (클램프 포함)
 export function applyMannerDelta(score, kind) {
@@ -45,11 +52,17 @@ export function applyMannerDelta(score, kind) {
   return clampMannerScore((score || 0) + delta);
 }
 
-// 취소 시점 안내 문구 — 시스템 차감 X, 안내만 ([[roundup-penalty-policy]] §2).
-// 7일+ 이전: null (위약금 없음, 안내 불필요) / 7일 이내·임박: 골프장 위약금 안내.
+// 라운딩까지 168h(D-7) 이내면 참여자 시스템 취소 차단 ([[roundup-penalty-policy]] §1).
+// 주최자는 우천·천재지변 대응으로 [취소]만 가능, 매너 평가로 일임.
+export const D7_BLOCK_HOURS = 168;
+
+export function isD7Inside(hoursUntilTeeOff) {
+  return hoursUntilTeeOff < D7_BLOCK_HOURS;
+}
+
+// 취소 시점 안내 문구 — D-7 이전이면 자유 안내, D-7 이내면 차단 안내.
+// 시스템 매너점수 차감은 노쇼만 (단계별 취소 차감 폐기, [[roundup-penalty-policy]] §3).
 export function getCancelWarningByHours(hoursUntilTeeOff) {
-  if (hoursUntilTeeOff >= 168) return null;                                                  // 7일+ 이전 — 위약금 없음
-  if (hoursUntilTeeOff >= 120) return '⚠️ 골프장 위약금이 발생할 수 있어요 (본인 부담).';      // 5~7일
-  if (hoursUntilTeeOff >= 48)  return '⚠️ 골프장 위약금이 큼 — 본인 부담이에요.';              // 48h~5일
-  return '⚠️ 임박 취소예요. 골프장 위약금이 매우 크고 동반자에게 큰 피해가 가요.';              // 48h 이내
+  if (hoursUntilTeeOff >= D7_BLOCK_HOURS) return null;  // D-7 이전 — 자유 취소, 안내 불필요
+  return '⚠️ 라운딩 7일 이내에는 취소가 어려워요. 댓글로 양해를 구하거나 매너 평가에 자연 반영됩니다.';
 }

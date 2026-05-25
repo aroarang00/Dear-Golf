@@ -14,7 +14,7 @@ import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelS
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
-import { getCancelWarningByHours } from '../constants/mannerGrade';
+import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
@@ -353,9 +353,21 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
   }, [posts, joined, schedules, setSchedules, userProfile?.alarmDefaults]);
 
+  // 라운지 노출 윈도우 — 티오프 + 24h 이내만 노출, 이후 사용자 UI에서 감춤
+  // (시스템 데이터는 [[data-retention]]에 따라 별도 보관: 일반 1년 / 분쟁 이력 모집글 3년)
+  // 오픈형(date 미정)은 항상 노출. 마이페이지 "내 라운지 활동"은 별도 화면(이 필터 미적용).
+  const isInVisibleWindow = (p) => {
+    if (!p.date) return true; // 오픈형 — 날짜 미정이므로 노출
+    const [y, m, d] = p.date.split('.').map(Number);
+    const [hh, mm] = (p.time || '07:00').split(':').map(Number);
+    const teeOff = new Date(y, m - 1, d, hh, mm).getTime();
+    if (Number.isNaN(teeOff)) return true;
+    return Date.now() <= teeOff + 24 * 3600 * 1000;
+  };
+
   // 차단 필터 — 내가 차단한 사람의 모집 + 나를 차단한 사람의 모집은 어디서도 안 보임
   // (단, 내가 직접 올린 모집은 mine 탭에서 항상 보임. joined/applied/waitlist도 본인 활동 보존)
-  const visiblePosts = posts.filter(p => isPostVisible(p, userProfile));
+  const visiblePosts = posts.filter(p => isPostVisible(p, userProfile) && isInVisibleWindow(p));
 
   // 탭별 목록 — 전체: 전체공개만 (+ 지역 필터) / 친구: 친구공개 모집만 (친구가 올린 것 + 내가 올린 것) / 내 참여 중 / 관심
   const allTab = visiblePosts
@@ -367,8 +379,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     if (p.author === '나') return true;
     return p.isFriend;
   });
-  // mine 탭은 내가 직접 관여한 모집이므로 차단 필터 무시 (애초에 본인은 차단 못 함)
-  const mineTab = posts.filter(p => p.author === '나' || joined[p.id] || applied[p.id] || waitlist[p.id]);
+  // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+24h 윈도우는 동일 적용
+  // (지난 라운딩의 본인 활동 이력은 마이페이지 "내 라운지 활동"에서 별도 조회)
+  const mineTab = posts.filter(p =>
+    (p.author === '나' || joined[p.id] || applied[p.id] || waitlist[p.id]) && isInVisibleWindow(p)
+  );
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
   const matchTab = visiblePosts.filter(p => p.author !== '나' && matchesRoundup(p, userProfile.roundupMatch));
@@ -488,11 +503,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
   };
 
-  // 참여 취소 — 확인창 + 실행 (목록 카드용)
+  // 참여 취소 — D-7 이내는 시스템적으로 차단 ([[roundup-penalty-policy]] §1).
+  // D-7 이전엔 자유 취소, 패널티 X.
   const cancelParticipation = (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — 위약금 안내 없음
+    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — D-7 이전 취급
     if (post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
       const [hh, mm] = (post.time || '07:00').split(':').map(Number);
@@ -500,11 +516,21 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    const warning = getCancelWarningByHours(hoursUntil);
-    const warnLine = warning ? `${warning}\n\n` : '';
+    // D-7 이내 — 취소 차단 안내 모달
+    if (isD7Inside(hoursUntil)) {
+      setAlert({
+        title: '라운딩 7일 이내라 취소가 어려워요',
+        message: '함께하는 골프, 서로의 시간을 존중해요.\n\n부득이한 사정이 있으면 댓글로 양해를 구해주세요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.',
+        buttons: [
+          { text: '확인', style: 'cancel' },
+        ],
+      });
+      return;
+    }
+    // D-7 이전 — 자유 취소
     setAlert({
       title: '참여를 취소할까요?',
-      message: `${warnLine}취소하면 자리는 다시 열려요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.`,
+      message: '아직 D-7 이전이라 자유롭게 취소할 수 있어요.\n취소하면 자리는 다시 열려요.',
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
