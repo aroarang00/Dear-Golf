@@ -657,10 +657,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.bgPrimary }}>라운지</Text>
               <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontSize: fs(17) }}>ℹ️</Text>
+                <Text style={{ fontSize: fs(20) }}>ℹ️</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowIntro(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontSize: fs(17) }}>📢</Text>
+                <Text style={{ fontSize: fs(20) }}>📢</Text>
               </TouchableOpacity>
             </View>
           </View>

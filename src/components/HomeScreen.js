@@ -372,10 +372,10 @@ export function HomeScreen({ navigation }) {
             {/* Dear Golf 이용 안내 진입 — 미열람 시 빨간 점 뱃지 */}
             <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(20) }}>💡</Text>
+              <Text style={{ fontSize: fs(24) }}>💡</Text>
               {!homeIntroSeen && (
-                <View style={{ position: 'absolute', top: 0, right: -3, width: 8, height: 8, borderRadius: 4,
-                  backgroundColor: '#FF3B30', borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)' }} />
+                <View style={{ position: 'absolute', top: 0, right: -3, width: 10, height: 10, borderRadius: 5,
+                  backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' }} />
               )}
             </TouchableOpacity>
           </View>
