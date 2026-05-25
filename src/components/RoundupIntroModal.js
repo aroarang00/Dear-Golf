@@ -23,6 +23,7 @@ const SCOPES = [
   {
     icon: '🌐', title: '전체공개',
     desc: '신뢰등급·매너로 검증된 골퍼와 매칭. 관심 모집 알림도 받을 수 있어요.',
+    note: '💡 모르는 사람과 라운딩이 부담스러우면, 마이페이지에서 [친구 모집만 보기]를 켜두세요.',
   },
 ];
 
@@ -115,6 +116,12 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
                   <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>
                     {s.desc}
                   </Text>
+                  {s.note && (
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 16, marginTop: 8,
+                      paddingTop: 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                      {s.note}
+                    </Text>
+                  )}
                 </View>
               ))}
             </View>

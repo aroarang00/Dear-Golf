@@ -262,21 +262,25 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
-        {/* 6 — 라운지 (커뮤니티) */}
+        {/* 6 — 라운지 (광고성 톤, RoundupIntroModal과 일관) */}
         <View style={{ width: SW, backgroundColor: C.navy }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(38), marginBottom: 14 }}>⛳</Text>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: '#fff', marginBottom: 10 }}>라운지</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
-              함께 라운딩할 동반자를 만나는 곳{'\n'}모집글을 올리고, 참여하고, 모아 보세요
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 10 }}>
+              DEAR GOLF · 라운지
             </Text>
-            <View style={{ gap: 16 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', lineHeight: 32, marginBottom: 10 }}>
+              골프 약속,{'\n'}카톡으로 잡지 마세요
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
+              모집글 한 번에 친구가 알아서 와요.{'\n'}라운지가 도와드릴게요.
+            </Text>
+            <View style={{ gap: 14 }}>
               {[
-                ['📋', '라운딩 동반자 모집·참여하기'],
-                ['🎯', '내 조건에 맞는 모집 모아보기'],
-                ['🛡️', '신뢰·매너 등급으로 안심하고'],
-                ['⭐', '관심 있는 모집 저장해두기'],
+                ['👥', '친구공개·친구지정으로 가까운 사람부터'],
+                ['💬', '카톡 링크 공유 → 친구가 누르면 자동 확정'],
+                ['🛡️', '신뢰·매너 등급으로 안전한 매칭'],
+                ['🔔', '관심 모집 알림 — 주최 부담 없이 참여'],
               ].map(([icon, txt]) => (
                 <View key={txt} style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View style={{

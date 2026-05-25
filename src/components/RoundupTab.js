@@ -656,7 +656,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 <Text style={{ fontSize: fs(17) }}>ℹ️</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowIntro(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontSize: fs(17) }}>✨</Text>
+                <Text style={{ fontSize: fs(17) }}>📢</Text>
               </TouchableOpacity>
             </View>
           </View>
