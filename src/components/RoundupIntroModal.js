@@ -1,0 +1,190 @@
+// 라운지 모집 기능 소개 — 초기 사용자를 위한 광고성 안내 (풀스크린 스크롤 모달).
+// 라운지 헤더의 ✨ 버튼으로 진입. 친구공개·친구지정 모집의 가치를 부각해서 초기 활성화 유도.
+import React from 'react';
+import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { C, F, fs } from '../constants/colors';
+
+const COMPARE_ROWS = [
+  ['📞', '전화 돌리기·약속 잡기', '모집글 한 번에'],
+  ['💬', '카톡으로 일정 조율', '링크 공유 → 자동 확정'],
+  ['📅', '인원·코스 정하기까지 며칠', '오픈형 모집으로 함께 결정'],
+];
+
+const SCOPES = [
+  {
+    icon: '👥', title: '친구공개', tag: '추천',
+    desc: '내 친구 목록에만 보여요. 친구가 [참여하기] 누르면 바로 확정.',
+  },
+  {
+    icon: '🎯', title: '친구지정',
+    desc: '원하는 멤버만 골라서 초대. 다른 친구에겐 안 보여요.',
+  },
+  {
+    icon: '🌐', title: '전체공개',
+    desc: '신뢰등급·매너로 검증된 골퍼와 매칭. 관심 모집 알림도 받을 수 있어요.',
+  },
+];
+
+const FEATURES = [
+  ['☀️', '날씨', '라운딩 날 시간별 날씨'],
+  ['🚗', '교통', '출발 시각 자동 계산'],
+  ['📅', '일정', '확정되면 자동 등록'],
+  ['📸', '사진', '라운딩 사진·메모 보관'],
+  ['⛳', '기록', '스코어·핸디 자동 계산'],
+  ['🏌️', '코스', '골퍼 코멘트 + 맛집'],
+];
+
+export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaProvider>
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
+          {/* 헤더 — 닫기 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 13,
+            borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
+            </TouchableOpacity>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginLeft: 12 }}>라운지 소개</Text>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            {/* 1. 훅 헤더 — 짙은 네이비 배경 */}
+            <View style={{ backgroundColor: C.navy, paddingHorizontal: 24, paddingVertical: 36, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 12 }}>
+                DEAR GOLF · 라운지
+              </Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.butter, lineHeight: 32, textAlign: 'center' }}>
+                골프 약속,{'\n'}아직도 카톡으로 잡고 있어요?
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(250,246,236,0.78)', lineHeight: 20, textAlign: 'center', marginTop: 14 }}>
+                모집글 하나 올리면, 친구가 알아서 와요.{'\n'}디어골프 라운지가 도와드릴게요.
+              </Text>
+            </View>
+
+            {/* 2. 비교 카드 — 기존 vs Dear Golf */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginBottom: 14 }}>
+                이렇게 바뀌어요
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
+                <View style={{ flex: 1, paddingVertical: 6, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.hairline }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1 }}>기존</Text>
+                </View>
+                <View style={{ flex: 1, paddingVertical: 6, alignItems: 'center', borderBottomWidth: 1.5, borderBottomColor: C.burgundy }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.burgundy, letterSpacing: 1 }}>Dear Golf</Text>
+                </View>
+              </View>
+              {COMPARE_ROWS.map(([icon, before, after], i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12,
+                  borderBottomWidth: i === COMPARE_ROWS.length - 1 ? 0 : 0.5, borderBottomColor: C.hairline }}>
+                  <Text style={{ fontSize: fs(18), width: 28, textAlign: 'center' }}>{icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 17, textDecorationLine: 'line-through' }}>
+                      {before}
+                    </Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, lineHeight: 19, marginTop: 2 }}>
+                      {after}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* 3. 모집 유형 3가지 */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 32 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>
+                모집은 3가지 방식
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4, marginBottom: 14 }}>
+                상황에 맞춰 골라요
+              </Text>
+              {SCOPES.map((s, i) => (
+                <View key={i} style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+                  padding: 14, marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <Text style={{ fontSize: fs(18) }}>{s.icon}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{s.title}</Text>
+                    {s.tag && (
+                      <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>{s.tag}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>
+                    {s.desc}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* 4. 카톡 공유 하이라이트 */}
+            <View style={{ marginHorizontal: 20, marginTop: 32, backgroundColor: '#FEE500', borderRadius: 14, padding: 18 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#3C1E1E' }}>
+                💬 카톡 링크 하나면 끝
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#3C1E1E', marginTop: 8, lineHeight: 19 }}>
+                모집글 올리고 카카오톡으로 공유하면{'\n'}친구들이 링크 한 번 누르고 수락해요.{'\n'}일정 조율로 며칠 보낼 필요 없어요.
+              </Text>
+            </View>
+
+            {/* 5. 편의기능 그리드 — 2 x 3 */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 32 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>
+                라운딩 준비까지 한 번에
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4, marginBottom: 14 }}>
+                모집 확정 후 자동으로 챙겨드려요
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {FEATURES.map(([icon, title, desc], i) => (
+                  <View key={i} style={{ width: '47%', backgroundColor: C.bgSecondary, borderRadius: 12,
+                    borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
+                    <Text style={{ fontSize: fs(20), marginBottom: 6 }}>{icon}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{title}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 15 }}>
+                      {desc}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* 6. 관심 모집 알림 */}
+            <View style={{ marginHorizontal: 20, marginTop: 32, backgroundColor: C.bgSecondary,
+              borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Text style={{ fontSize: fs(18) }}>🔔</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
+                  주최가 부담스럽다면
+                </Text>
+              </View>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>
+                관심 지역·요일·동반자 조건을 저장해두면{'\n'}맞는 모집이 올라올 때 알려드려요.{'\n'}편하게 참여만 하셔도 돼요.
+              </Text>
+            </View>
+
+            {/* 7. 하단 CTA */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 36 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginBottom: 12, lineHeight: 17 }}>
+                함께하는 골프,{'\n'}서로의 시간을 존중해요
+              </Text>
+              <TouchableOpacity activeOpacity={0.85}
+                onPress={() => { onClose(); onCreatePress?.(); }}
+                style={{ backgroundColor: C.burgundy, borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>
+                  + 첫 모집글 작성하기
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.7} onPress={onClose}
+                style={{ paddingVertical: 14, alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>나중에</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </Modal>
+  );
+}

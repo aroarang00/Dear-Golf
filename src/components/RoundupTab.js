@@ -13,6 +13,7 @@ import { RoundupNotifications } from './RoundupNotifications';
 import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, waitlistRespondHours, matchesRoundup, hasRoundupMatch } from '../constants/roundup';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
+import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -273,6 +274,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [showNoti, setShowNoti] = useState(false);            // 알림함
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
   const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
+  const [showIntro, setShowIntro] = useState(false); // 라운지 소개 (광고성)
   const listScrollRef = useRef(null);
 
   // 안드로이드 뒤로가기 — 자체 오버레이 우선 닫기 (가장 최근 열린 것부터)
@@ -653,6 +655,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
               <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontSize: fs(17) }}>ℹ️</Text>
               </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowIntro(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontSize: fs(17) }}>✨</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -853,6 +858,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
       {/* 라운지 이용 안내 */}
       <RoundupGuideModal visible={showGuide} onClose={() => setShowGuide(false)} />
+      <RoundupIntroModal
+        visible={showIntro}
+        onClose={() => setShowIntro(false)}
+        onCreatePress={() => setShowCreate(true)} />
 
       {/* 신뢰 등급 설명 팝업 */}
       <TrustGradeModal visible={!!gradeModalKey} highlightKey={gradeModalKey}
