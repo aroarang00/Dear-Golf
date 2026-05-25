@@ -7,8 +7,8 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 
-// 헤더 배경 — 골든아워 골프장 사진 (HomeBgSlider의 lateAfternoon 큐레이션 활용)
-const HEADER_BG_URI = 'https://images.unsplash.com/photo-1709525617237-778500c895a8?w=1080&q=80&auto=format';
+// 헤더 배경 — 밝은 햇살·파란 하늘 골프장 (HomeBgSlider의 day 카테고리, 봄·여름 톤)
+const HEADER_BG_URI = 'https://images.unsplash.com/photo-1758190153146-a1507e2e000d?w=1080&q=80&auto=format';
 
 // 시각 위주로 압축 — 큰 이모지 + 한 줄 본문. 카카오VX 스타일 가로 카드.
 const FEATURES = [
@@ -43,9 +43,9 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                 resizeMode="cover"
               />
-              {/* 어두운 그라데이션 오버레이 — 위는 옅게, 아래는 burgundy 톤으로 짙게 (텍스트 가독성) */}
+              {/* 그라데이션 오버레이 — 밝은 사진 살리기 위해 옅게. 아래는 burgundy 톤으로 텍스트 가독성 확보 */}
               <LinearGradient
-                colors={['rgba(0,0,0,0.55)', 'rgba(8,24,14,0.75)', 'rgba(60,30,40,0.88)']}
+                colors={['rgba(0,0,0,0.30)', 'rgba(8,24,14,0.55)', 'rgba(60,30,40,0.82)']}
                 locations={[0, 0.55, 1]}
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
               />
