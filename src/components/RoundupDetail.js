@@ -205,7 +205,8 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       ],
     });
   };
-  // 주최자 모집 취소 — D-7 이내는 강한 안내 (참여자 매너 평가 발동, [[manner-evaluation-policy]] §1-A)
+  // 주최자 모집 취소 — 시점(D-7 이전/이내) × 모집 종류(전체공개/친구공개) × 확정자 유무로 안내 분기
+  // 정책 근거: [[roundup-penalty-policy]] D-7 / [[manner-evaluation-policy]] §1-0·§1-A / [[trust-grade-system]] §2-0
   const confirmDelete = () => {
     let hoursUntil = 24 * 30; // 오픈형 기본: D-7 이전 취급
     if (post.date) {
@@ -215,11 +216,31 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       hoursUntil = (target - new Date()) / 3600000;
     }
     const insideD7 = isD7Inside(hoursUntil);
+    const isFriendsScope = post.scope !== 'all'; // 친구공개·친구지정
+    const joinedCount = post.joined || 0;        // 주최자 외 확정자 수
+    const hasOthers = joinedCount > 0;
+
+    let message;
+    if (!insideD7) {
+      // D-7 이전 — 자유 취소
+      message = hasOthers
+        ? '아직 D-7 이전이라 자유롭게 취소할 수 있어요.\n참여자·대기자에게 더 이상 보이지 않아요.'
+        : '아직 D-7 이전이라 자유롭게 취소할 수 있어요.';
+    } else if (!hasOthers) {
+      // D-7 이내 + 나홀로 (확정 참여자 0) — 알림·매너평가 발동 X
+      message = '라운딩 7일 이내지만 아직 확정 참여자가 없어요.\n자유롭게 취소할 수 있어요.';
+    } else if (isFriendsScope) {
+      // D-7 이내 + 친구공개·친구지정 + 확정자 있음
+      // 매너평가 X ([[manner-evaluation-policy]] §1-0) · 신뢰등급 카운트 X ([[trust-grade-system]] §2-0)
+      message = '라운딩 7일 이내라 친구들에게 즉시 알림이 가요.\n부득이한 사유면 댓글이나 카톡으로 양해를 구해주세요.';
+    } else {
+      // D-7 이내 + 전체공개 + 확정자 있음 — 매너평가 48h 윈도우 발동 + 신뢰등급 카운트 X
+      message = '라운딩 7일 이내라 참여자에게 즉시 알림이 가고,\n48시간 안에 참여자들이 주최자 매너 평가를 할 수 있어요.\n\n우천·천재지변 같은 부득이한 사유면 진행하세요.\n취소된 라운딩은 신뢰등급 카운트에 반영되지 않아요.';
+    }
+
     setAlert({
       title: '모집을 취소할까요?',
-      message: insideD7
-        ? '라운딩 7일 이내라 참여자에게 즉시 알림이 가고,\n48시간 안에 참여자들이 주최자 매너 평가를 할 수 있어요.\n\n우천·천재지변 같은 부득이한 사유면 진행하세요.\n취소된 라운딩은 신뢰등급 카운트에 반영되지 않아요.'
-        : '아직 D-7 이전이라 자유롭게 취소할 수 있어요.\n참여자·대기자에게 더 이상 보이지 않아요.',
+      message,
       buttons: [
         { text: '닫기', style: 'cancel' },
         { text: '모집 취소', style: 'destructive', onPress: onDelete },
