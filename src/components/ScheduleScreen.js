@@ -4,36 +4,22 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
-import { DIARY_DATA } from '../constants/data';
-import { STORAGE_KEYS, storage } from '../utils/storage';
 import { SchedulesContext } from '../contexts/SchedulesContext';
+import { DiariesContext } from '../contexts/DiariesContext';
 import { MyScheduleTab } from './MyScheduleTab';
 
 // asModal={true} + visible/onClose 모드로도 사용 가능 (홈에서 풀스크린 모달로 띄울 때).
 // asModal=false면 기존 탭 화면처럼 동작 (navigation 필수).
 export function ScheduleScreen({ navigation, asModal = false, visible: modalVisible = false, onClose }) {
-  const [diaries, setDiaries] = useState(DIARY_DATA);
+  // ⚠️ DiariesContext 사용 — 이전엔 자체 useState + storage.load로 분리된 데이터였음.
+  // DiaryScreen은 DiariesContext 사용하므로 diary.id 매칭 실패 → 다이어리 상세 안 열림 버그.
+  // Context로 단일 소스화. (2026-05-26 데이터 불일치 fix)
+  const { diaries } = useContext(DiariesContext);
   const { schedules } = useContext(SchedulesContext);
   const [upcoming, setUpcoming] = useState({ visible: false, y: 0 });
   const [jumpDate, setJumpDate] = useState(null);
   const [infoModal, setInfoModal] = useState(false); // ! 버튼 안내 — AppAlert 대신 ScheduleScreen 내부 Modal (3중 중첩 z-index 충돌 회피)
   const plusRef = useRef(null);
-
-  // 다이어리(라운딩 기록)는 캘린더 완료 표시에만 쓰임
-  // asModal: 모달이 열릴 때마다 / 탭 모드: navigation focus 시점
-  useEffect(() => {
-    const load = async () => {
-      const d = await storage.load(STORAGE_KEYS.diaries, DIARY_DATA);
-      setDiaries(d);
-    };
-    if (asModal) {
-      if (modalVisible) load();
-      return;
-    }
-    load();
-    const unsubscribe = navigation?.addListener?.('focus', load);
-    return unsubscribe;
-  }, [navigation, asModal, modalVisible]);
 
   // 오늘 이후 예정 라운딩 — 월 무관 전체 (캘린더는 한 달만 보이므로 다음 달까지 한눈에)
   const now0 = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); })();
