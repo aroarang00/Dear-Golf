@@ -274,7 +274,7 @@ export function OnboardingIntro({ onDone }) {
               DEAR GOLF · 라운지
             </Text>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', lineHeight: 32, marginBottom: 10 }}>
-              골프 약속,{'\n'}카톡으로 잡지 마세요
+              4명 채우기,{'\n'}매번 일일이 연락하세요?
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
               모집글 한 번에 친구가 알아서 와요.{'\n'}라운지가 도와드릴게요.

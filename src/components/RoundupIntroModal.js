@@ -57,10 +57,10 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
                 DEAR GOLF · 라운지
               </Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.butter, lineHeight: 32, textAlign: 'center' }}>
-                골프 약속,{'\n'}아직도 카톡으로 잡고 있어요?
+                4명 채우기,{'\n'}매번 일일이 연락하세요?
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(250,246,236,0.78)', lineHeight: 20, textAlign: 'center', marginTop: 14 }}>
-                모집글 하나 올리면, 친구가 알아서 와요.{'\n'}디어골프 라운지가 도와드릴게요.
+                모집글 한 번 올리면 친구가 알아서 와요.{'\n'}디어골프 라운지가 도와드릴게요.
               </Text>
             </View>
 
