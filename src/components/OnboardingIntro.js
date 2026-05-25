@@ -54,8 +54,12 @@ export function OnboardingIntro({ onDone }) {
         onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / SW))}>
 
         {/* 1 — Dear Golf 인트로 (팔레스카이 배경) */}
-        <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontFamily: F.brand, fontSize: fs(44), color: C.charcoal }}>Dear Golf</Text>
+        <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          {/* italic Lora 'f' 디센더 잘림 방지 — lineHeight 명시 + allowFontScaling false + 가로 여유 */}
+          <Text allowFontScaling={false}
+            style={{ fontFamily: F.brand, fontSize: fs(44), lineHeight: fs(56), color: C.charcoal, paddingHorizontal: 6 }}>
+            Dear Golf
+          </Text>
           <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#1A3D52', letterSpacing: 1 }}>나만의 골프 캐디</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
