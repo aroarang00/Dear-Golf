@@ -278,8 +278,9 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
   const handleDelete = () => {
     const s = sheet.schedule;
     setSheet({ visible: false, schedule: null });
-    // 시트가 닫힌 뒤 확인창을 띄움 — iOS 모달 표시 충돌 방지
-    setTimeout(() => deleteSchedule(s), 280);
+    // 시트 slide dismiss 애니메이션이 iOS에서 ~350ms. 안전마진 +100ms로 450ms 대기.
+    // 너무 짧으면 alert가 시트 dismiss와 충돌해서 부모 modal 뒤로 깔리는 RN 이슈.
+    setTimeout(() => deleteSchedule(s), 450);
   };
 
   const monthSchedules = schedules.filter(s => s.date && s.date.startsWith(monthStr));

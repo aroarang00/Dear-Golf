@@ -40,7 +40,11 @@ export function AppAlertHost() {
   };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={close}>
+    // presentationStyle="overFullScreen" — iOS에서 부모 Modal(MyPageModal·ScheduleSheetModal 등) 위에 표시되게.
+    // 없으면 alert가 부모 modal 뒤로 깔리는 RN 알려진 이슈 발생.
+    // statusBarTranslucent — Android 상태바 영역까지 덮어서 alert가 상단까지 정상 노출.
+    <Modal visible transparent animationType="fade" onRequestClose={close}
+      presentationStyle="overFullScreen" statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 340 }}>
           {!!data.title && (
