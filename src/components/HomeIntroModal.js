@@ -2,9 +2,13 @@
 // 사용자가 한 영역만 쓰지 않고 올인원 골프 라이프 앱이라는 정체성을 발견하도록.
 // 라운지 RoundupIntroModal(네이비)과 시각적 차별 — 차콜 헤더 + 베이지 본문.
 import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
+
+// 헤더 배경 — 골든아워 골프장 사진 (HomeBgSlider의 lateAfternoon 큐레이션 활용)
+const HEADER_BG_URI = 'https://images.unsplash.com/photo-1709525617237-778500c895a8?w=1080&q=80&auto=format';
 
 // 시각 위주로 압축 — 큰 이모지 + 한 줄 본문. 카카오VX 스타일 가로 카드.
 const FEATURES = [
@@ -31,21 +35,39 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {/* 1. 훅 헤더 — 차콜 배경 */}
-            <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 24, paddingVertical: 36, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 12 }}>
-                ALL IN ONE GOLF
-              </Text>
-              <Text allowFontScaling={false}
-                style={{ fontFamily: F.brand, fontSize: fs(36), lineHeight: fs(48), color: C.butter, paddingHorizontal: 6 }}>
-                Dear Golf
-              </Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: '#fff', lineHeight: 26, textAlign: 'center', marginTop: 18 }}>
-                골프 라이프 전부를{'\n'}한 앱에서
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.7)', lineHeight: 20, textAlign: 'center', marginTop: 14 }}>
-                일정·날씨·기록·가계부·동반자 모집까지,{'\n'}따로 쓰던 앱을 하나로.
-              </Text>
+            {/* 1. 훅 헤더 — 골든아워 골프장 사진 + 다층 그라데이션 오버레이 */}
+            <View style={{ position: 'relative', minHeight: 280, backgroundColor: C.charcoal }}>
+              {/* 배경 사진 — 로딩 실패 시 차콜 배경이 폴백 */}
+              <Image
+                source={{ uri: HEADER_BG_URI }}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                resizeMode="cover"
+              />
+              {/* 어두운 그라데이션 오버레이 — 위는 옅게, 아래는 burgundy 톤으로 짙게 (텍스트 가독성) */}
+              <LinearGradient
+                colors={['rgba(0,0,0,0.55)', 'rgba(8,24,14,0.75)', 'rgba(60,30,40,0.88)']}
+                locations={[0, 0.55, 1]}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              />
+              {/* 텍스트 */}
+              <View style={{ paddingHorizontal: 24, paddingVertical: 42, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, letterSpacing: 3, marginBottom: 14 }}>
+                  ALL IN ONE GOLF
+                </Text>
+                <Text allowFontScaling={false}
+                  style={{ fontFamily: F.brand, fontSize: fs(40), lineHeight: fs(52), color: C.butter, paddingHorizontal: 6,
+                    textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }}>
+                  Dear Golf
+                </Text>
+                <View style={{ width: 48, height: 2, borderRadius: 1, backgroundColor: C.burgundy, marginVertical: 18, opacity: 0.85 }} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: '#fff', lineHeight: 28, textAlign: 'center',
+                  textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
+                  골프 라이프 전부를{'\n'}한 앱에서
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.85)', lineHeight: 20, textAlign: 'center', marginTop: 12 }}>
+                  일정·날씨·기록·가계부·동반자 모집까지,{'\n'}따로 쓰던 앱을 하나로.
+                </Text>
+              </View>
             </View>
 
             {/* 2. 비교 안내 — 짧게 */}
