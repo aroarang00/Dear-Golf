@@ -17,6 +17,7 @@ import { HomeBgSlider, getCurrentWxClass } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleModal } from './ScheduleModal';
+import { HomeIntroModal } from './HomeIntroModal';
 import { ScheduleScreen } from './ScheduleScreen';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
@@ -37,6 +38,8 @@ export function HomeScreen({ navigation }) {
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showHomeIntro, setShowHomeIntro] = useState(false);   // Dear Golf 이용 안내 모달
+  const [homeIntroSeen, setHomeIntroSeen] = useState(true);    // 초기 true(뱃지 X), AsyncStorage 로드 후 갱신
   const [showWeatherFull, setShowWeatherFull] = useState(false);
   const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
@@ -86,6 +89,19 @@ export function HomeScreen({ navigation }) {
       if (!done) setShowTooltip(true);
     });
   }, []);
+
+  // Dear Golf 이용 안내 모달 — 미열람 시 헤더에 빨간 점 뱃지로 호기심 유도
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.homeIntroSeen, false).then(seen => setHomeIntroSeen(!!seen));
+  }, []);
+
+  const openHomeIntro = () => {
+    setShowHomeIntro(true);
+    if (!homeIntroSeen) {
+      setHomeIntroSeen(true);
+      storage.save(STORAGE_KEYS.homeIntroSeen, true);
+    }
+  };
 
   const openDDayMenu = () => {
     dDayRef.current?.measureInWindow((x, y) => {
@@ -349,9 +365,20 @@ export function HomeScreen({ navigation }) {
               <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
             </TouchableOpacity>
           </View>
-          <Text style={homeS.hdrGreeting}>
-            안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={homeS.hdrGreeting}>
+              안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
+            </Text>
+            {/* Dear Golf 이용 안내 진입 — 미열람 시 빨간 점 뱃지 */}
+            <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontSize: fs(20) }}>💡</Text>
+              {!homeIntroSeen && (
+                <View style={{ position: 'absolute', top: 0, right: -3, width: 8, height: 8, borderRadius: 4,
+                  backgroundColor: '#FF3B30', borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)' }} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
         {next ? (
         <>
@@ -663,6 +690,10 @@ export function HomeScreen({ navigation }) {
       />
 
       <ScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleScheduleSave} />
+      <HomeIntroModal
+        visible={showHomeIntro}
+        onClose={() => setShowHomeIntro(false)}
+        onAddSchedulePress={() => setShowAddModal(true)} />
       <ScheduleModal
         visible={!!editSchedule}
         initial={editSchedule}

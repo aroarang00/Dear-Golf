@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   friendCoachDone:  '@dg_friend_coach_done',     // 친구 탭 첫 진입 툴팁 1회
   roundupTipDone:   '@dg_roundup_tip_done',      // 모집글 작성 화면 툴팁 1회
   roundupBookmarks: '@dg_roundup_bookmarks',     // 관심 모집 북마크 {postId: true}
+  homeIntroSeen:    '@dg_home_intro_seen',       // 홈 Dear Golf 이용 안내 1회 — 뱃지 표시 제어
 };
 
 export const storage = {
