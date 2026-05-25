@@ -128,7 +128,11 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
       ) : (
         <>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>장소 · 날짜 미정</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>동반자와 함께 정해요</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>
+            {post.openTime?.length === 1
+              ? (post.openTime[0] === 'weekday' ? '📅 주중 선호 · 동반자와 함께 정해요' : '📅 주말 선호 · 동반자와 함께 정해요')
+              : '동반자와 함께 정해요'}
+          </Text>
         </>
       )}
 

@@ -55,6 +55,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const toggleTag = (t) => setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
   // 오픈형 모집의 지역 — 골프장 미정이라 사용자가 직접 선택. 확정형은 골프장 주소에서 자동 추출.
   const [openRegion, setOpenRegion] = useState('capital');
+  // 오픈형 모집의 희망 시기 — 멀티 선택. [] 또는 둘 다 선택 = 상관없음(표시 X), 하나만 선택 = 표시.
+  const [openTime, setOpenTime] = useState([]);
+  const toggleOpenTime = (k) => setOpenTime(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]);
   const [showTip, setShowTip] = useState(false);     // 모집 형태 안내 툴팁 (1회)
   const debounceRef = useRef(null);
 
@@ -89,7 +92,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
-    setGroupMode('single'); setMembers(3); setTeams(2); setScope(hideStranger ? 'friends' : 'all'); setWord('');
+    setGroupMode('single'); setMembers(3); setTeams(2); setScope(hideStranger ? 'friends' : 'all'); setWord(''); setOpenTime([]);
     setCompanion('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
   };
@@ -115,6 +118,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       capacity: isTeam ? teams * 4 : (members + 1),
       // 동반자(앱 미사용자) 입력 폐기 — companions는 항상 빈 배열로 저장 (옛 데이터 호환용)
       companions: [],
+      // 오픈형 희망 시기 — 0개·2개 모두 선택 시 '상관없음'으로 간주 (배열로 저장, 표시는 length===1만)
+      openTime: type === 'open' ? openTime : [],
       scope,
       word: word.trim(),
       // 동반자 조건 — 전체공개일 때만 의미. 친구공개·친구지정은 'any'/[]로 저장
@@ -249,6 +254,22 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                     );
                   })}
                 </View>
+                {/* 희망 시기 — 멀티 선택, 미선택/둘다선택은 상관없음 */}
+                <Text style={mS.bigLabel}>희망 시기 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(선택)</Text></Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {[['weekday', '주중 선호'], ['weekend', '주말 선호']].map(([k, l]) => {
+                    const on = openTime.includes(k);
+                    return (
+                      <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => toggleOpenTime(k)}
+                        style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                        <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{l}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                  선택 안 하거나 둘 다 선택하면 '상관없음'으로 표시돼요
+                </Text>
               </>
             )}
 

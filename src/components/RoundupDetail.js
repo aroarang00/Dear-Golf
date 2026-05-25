@@ -396,7 +396,11 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
               ) : (
                 <>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }}>장소 · 날짜 미정</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, marginTop: 4 }}>동반자와 함께 정해요</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, marginTop: 4 }}>
+                    {post.openTime?.length === 1
+                      ? (post.openTime[0] === 'weekday' ? '📅 주중 선호 · 동반자와 함께 정해요' : '📅 주말 선호 · 동반자와 함께 정해요')
+                      : '동반자와 함께 정해요'}
+                  </Text>
                 </>
               )}
 
