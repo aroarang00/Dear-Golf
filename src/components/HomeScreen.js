@@ -365,20 +365,29 @@ export function HomeScreen({ navigation }) {
               <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={homeS.hdrGreeting}>
-              안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
-            </Text>
-            {/* Dear Golf 이용 안내 진입 — 미열람 시 빨간 점 뱃지 */}
-            <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(24) }}>💡</Text>
+          <Text style={homeS.hdrGreeting}>
+            안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
+          </Text>
+          {/* Dear Golf 이용 안내 진입 — 안녕하세요 아래 가로 띠. 미열람 시 빨간 점으로 호기심 유도. */}
+          <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.85}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12,
+              backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
+              borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' }}>
+            <View>
+              <Text style={{ fontSize: fs(28) }}>💡</Text>
               {!homeIntroSeen && (
-                <View style={{ position: 'absolute', top: 0, right: -3, width: 10, height: 10, borderRadius: 5,
-                  backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' }} />
+                <View style={{ position: 'absolute', top: -2, right: -4, width: 11, height: 11, borderRadius: 5.5,
+                  backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.95)' }} />
               )}
-            </TouchableOpacity>
-          </View>
+            </View>
+            <View>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>Dear Golf 이용 안내</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+                {homeIntroSeen ? '기능 한눈에 보기' : '처음이신가요? 한 번 열어보세요'}
+              </Text>
+            </View>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 4 }}>›</Text>
+          </TouchableOpacity>
         </View>
         {next ? (
         <>
