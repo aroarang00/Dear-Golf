@@ -6,6 +6,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Image } from 'react-na
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
+import { TripleStripe } from './common/TripleStripe';
 
 // 헤더 배경 — 밝은 햇살·파란 하늘 골프장 (HomeBgSlider의 day 카테고리, 봄·여름 톤)
 const HEADER_BG_URI = 'https://images.unsplash.com/photo-1758190153146-a1507e2e000d?w=1080&q=80&auto=format';
@@ -59,7 +60,12 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                     textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }}>
                   Dear Golf
                 </Text>
-                <View style={{ width: 48, height: 2, borderRadius: 1, backgroundColor: C.burgundy, marginVertical: 18, opacity: 0.85 }} />
+                {/* 워드마크 아래 짧은 시그니처 삼색 선 (헤더 안 미니 액센트) */}
+                <View style={{ flexDirection: 'row', width: 60, height: 2, borderRadius: 1, marginVertical: 18, opacity: 0.92, overflow: 'hidden' }}>
+                  <View style={{ flex: 1, backgroundColor: C.butter }} />
+                  <View style={{ flex: 1, backgroundColor: C.paleSky }} />
+                  <View style={{ flex: 1, backgroundColor: C.burgundy }} />
+                </View>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: '#fff', lineHeight: 28, textAlign: 'center',
                   textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
                   골프 라이프 전부를{'\n'}한 앱에서
@@ -68,6 +74,8 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                   일정·날씨·기록·가계부·동반자 모집까지,{'\n'}따로 쓰던 앱을 하나로.
                 </Text>
               </View>
+              {/* 시그니처 삼색 띠 — 헤더와 본문 경계 (butter·paleSky·burgundy) */}
+              <TripleStripe height={3} />
             </View>
 
             {/* 2. 비교 안내 — 짧게 */}
