@@ -13,12 +13,13 @@ const HEADER_BG_URI = 'https://images.unsplash.com/photo-1758190153146-a1507e2e0
 
 // 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
 const FEATURES = [
-  { icon: '🏌️', title: '예정 라운딩 한 번에', body: '날짜만 넣어도 날씨·교통·일정·캘린더 자동', tint: '#D6E4EF' }, // paleSky 톤
-  { icon: '☀️',  title: '지금 여기 날씨',     body: '현재 위치 자동, 라운딩 시간 날씨까지',     tint: '#FAEDB8' }, // butter 톤
-  { icon: '📓', title: '잠자던 골프 기록',    body: '사진·스코어·동반자·한 줄 메모 함께',       tint: '#F0D6D6' }, // 옅은 burgundy
-  { icon: '💰', title: '골프 가계부',         body: '비싼 취미, 비용 한눈에 정리',              tint: '#D6E3C8' }, // 옅은 그린
-  { icon: '📌', title: '골프장·맛집 저장',    body: '메모와 함께, 골퍼 코멘트도 한 곳에',       tint: '#C8D2DE' }, // 옅은 네이비
-  { icon: '⛳', title: '동반자 모집',         body: '전화·카톡 없이 라운지에서', tint: '#E0D8C8', cta: '자세한 건 라운지의 📢' }, // 옅은 차콜·베이지
+  { icon: '🏌️', title: '예정 라운딩 한 번에',        body: '날짜만 넣어도 날씨·교통·일정·캘린더 자동', tint: '#D6E4EF' }, // paleSky 톤
+  { icon: '🗺️', title: '다녀온 골프장 자동 정리',    body: '일정만 등록해도 다녀온 코스가 차곡차곡',   tint: '#FAEDB8' }, // butter 톤
+  { icon: '🏆', title: '걸어본 코스 한눈에',          body: '100대·해외 라운딩이 자동으로 정리',        tint: '#F0D6D6' }, // 옅은 burgundy
+  { icon: '📓', title: '친구 골퍼끼리 기록·사진 공유', body: '스코어·메모를 친구끼리 함께',              tint: '#D6E3C8' }, // 옅은 그린
+  { icon: '💰', title: '골프 가계부',                 body: '비싼 취미, 비용 한눈에 정리',              tint: '#E8D8B0' }, // 옅은 골드
+  { icon: '📌', title: '골프장·맛집 저장',            body: '메모·골퍼 코멘트 한 곳에',                 tint: '#C8D2DE' }, // 옅은 네이비
+  { icon: '⛳', title: '동반자 모집',                 body: '전화·카톡 없이 라운지에서', tint: '#E0D8C8', cta: '자세한 건 라운지의 📢' }, // 옅은 차콜·베이지
 ];
 
 export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
