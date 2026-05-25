@@ -509,8 +509,6 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
                 return (
                   <TouchableOpacity key={s.id}
                     onPress={() => s.virtual ? null : setSheet({ visible: true, schedule: { ...s, hasRec: hasRecord(s.date) } })}
-                    onLongPress={() => { if (!s.virtual) deleteSchedule(s); }}
-                    delayLongPress={400}
                     disabled={s.virtual}
                     activeOpacity={0.85}
                     style={{

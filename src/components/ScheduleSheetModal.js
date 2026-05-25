@@ -59,8 +59,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                 </TouchableOpacity>
               ) : (
                 <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {/* [취소]는 시트 자체 닫음 (메뉴 UI로 복귀하지 않음 — 사용자가 '또 떴다'고 부정적 인식했던 동작 제거) */}
                   <TouchableOpacity activeOpacity={0.85}
-                    onPress={() => setConfirmDelete(false)}
+                    onPress={() => { setConfirmDelete(false); onClose(); }}
                     style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 0.5, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>취소</Text>
                   </TouchableOpacity>
