@@ -275,12 +275,16 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
     );
   };
 
+  // 시트 안에서 이미 confirm 완료된 상태 — 바로 remove + 시트 닫음.
+  // (별도 AppAlert 띄우지 않음. RN의 3중 Modal 중첩 z-index 충돌 회피.)
   const handleDelete = () => {
     const s = sheet.schedule;
+    if (s) {
+      setSchedules(prev => prev.filter(x => x.id !== s.id));
+      cancelRoundAlarms(s.id);
+      removeRoundFromCalendar(s.id);
+    }
     setSheet({ visible: false, schedule: null });
-    // 시트 slide dismiss 애니메이션이 iOS에서 ~350ms. 안전마진 +100ms로 450ms 대기.
-    // 너무 짧으면 alert가 시트 dismiss와 충돌해서 부모 modal 뒤로 깔리는 RN 이슈.
-    setTimeout(() => deleteSchedule(s), 450);
   };
 
   const monthSchedules = schedules.filter(s => s.date && s.date.startsWith(monthStr));
@@ -504,7 +508,7 @@ export function MyScheduleTab({ onRequestAddDiary, diaries = [], navigation, jum
 
                 return (
                   <TouchableOpacity key={s.id}
-                    onPress={() => s.virtual ? null : setSheet({ visible: true, schedule: s })}
+                    onPress={() => s.virtual ? null : setSheet({ visible: true, schedule: { ...s, hasRec: hasRecord(s.date) } })}
                     onLongPress={() => { if (!s.virtual) deleteSchedule(s); }}
                     delayLongPress={400}
                     disabled={s.virtual}

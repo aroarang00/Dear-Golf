@@ -686,7 +686,16 @@ export function HomeScreen({ navigation }) {
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
         onShare={() => handleShareSchedule(selectedSchedule)}
         onEdit={() => handleEditSchedule(selectedSchedule)}
-        onDelete={() => { setShowScheduleModal(false); handleDeleteSchedule(selectedSchedule); }}
+        onDelete={() => {
+          // 시트 안에서 이미 confirm 완료 — 바로 remove + 시트 닫음 (별도 AppAlert 띄우지 않음, RN 3중 Modal 충돌 회피)
+          const s = selectedSchedule;
+          if (s) {
+            setSchedules(prev => prev.filter(x => x.id !== s.id));
+            cancelRoundAlarms(s.id);
+            removeRoundFromCalendar(s.id);
+          }
+          setShowScheduleModal(false);
+        }}
       />
 
       <WeatherTransportPopup
