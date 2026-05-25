@@ -67,10 +67,12 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
   const isTeam = post.teams > 1;
+  // 개별 모집의 동반자(앱 미사용자)는 정원에 자리 차지. 단체 모집은 동반자 미적용.
+  const companionsCount = isTeam ? 0 : (post.companions?.length || 0);
   // 개별 모집과 단체 모집을 동일한 행 구조로 통일
   const rows = isTeam
     ? post.teamJoined.map((c, i) => ({ label: `${i + 1}팀`, cur: c, cap: 4 }))
-    : [{ label: null, cur: post.joined || 0, cap: post.capacity || 4 }];
+    : [{ label: null, cur: (post.joined || 0) + companionsCount, cap: post.capacity || 4 }];
   const total = rows.reduce((s, r) => s + r.cur, 0);
   const capTotal = rows.reduce((s, r) => s + r.cap, 0);
   const allFull = rows.every(r => r.cur >= r.cap);
@@ -326,15 +328,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       const isMine = p.author === '나';
       const isJoined = !!joined[p.id];
       if (!isMine && !isJoined) continue;
+      const compCount = p.teams > 1 ? 0 : (p.companions?.length || 0);
       const allFull = p.teams > 1
         ? p.teamJoined?.every(c => c >= 4)
-        : (p.joined || 0) >= (p.capacity || 4);
+        : (p.joined || 0) + compCount >= (p.capacity || 4);
       const isClosed = p.closed || allFull;
       if (!isClosed) continue;
       if (schedules.some(s => s.roundupId === p.id)) continue;
       const members = p.teams > 1
         ? (p.teamJoined?.reduce((s, c) => s + c, 0) || 0)
-        : (p.joined || 0);
+        : (p.joined || 0) + compCount;
       toAdd.push({
         id: `rg-${p.id}`,
         roundupId: p.id,

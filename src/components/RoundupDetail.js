@@ -123,9 +123,11 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
   const isMine = post.author === '나';   // 내가 올린 모집글
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
+  // 옛 더미 데이터에 companions가 남아있을 수 있음(2026-05-26 폐기 전 데이터). 호환 위해 합산.
+  const companionsCount = isTeam ? 0 : (post.companions?.length || 0);
   const allFull = isTeam
     ? post.teamJoined.every(c => c >= 4)
-    : (post.joined || 0) >= (post.capacity || 4);
+    : (post.joined || 0) + companionsCount >= (post.capacity || 4);
   const isClosed = post.closed || allFull;
   const respondHours = waitlistRespondHours(post.date);
   const slots = buildSlots(post, isTeam ? teamTab : null);

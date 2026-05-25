@@ -700,8 +700,9 @@ export function GuideScreen({ route, navigation }) {
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowCommentInput(v => !v)}
-                  style={{ borderWidth: 0.5, borderColor: C.burgundy, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.burgundy }}>+ 코멘트</Text>
+                  activeOpacity={0.85}
+                  style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>+ 코멘트</Text>
                 </TouchableOpacity>
               </View>
 
