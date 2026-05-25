@@ -20,9 +20,11 @@ export async function loginWithKakao() {
     step = 'getProfile';
     console.log('[kakao] 3. getProfile() 호출');
     const profile = await getProfile();
+    // dev 콘솔에도 카카오 user id·닉네임은 노출 X (PII). boolean으로만 디버그.
+    // prod 빌드는 babel transform-remove-console로 어차피 제거됨.
     console.log('[kakao] 4. getProfile() 성공', {
-      id: profile?.id,
-      nickname: profile?.nickname,
+      hasId: !!profile?.id,
+      hasNickname: !!profile?.nickname,
       hasProfileImage: !!(profile?.profileImageUrl || profile?.thumbnailImageUrl),
     });
 
@@ -34,11 +36,12 @@ export async function loginWithKakao() {
       idToken: token?.idToken || null,   // Firebase OIDC 연동용
     };
   } catch (e) {
-    console.warn(`[kakao] FAIL @ ${step}`, e);
+    // 전체 에러 객체 노출 X — 카카오 SDK가 토큰을 에러에 포함시킬 가능성 차단.
+    console.warn(`[kakao] FAIL @ ${step}`, e?.code || e?.message);
     return {
       ok: false,
       step,
-      error: e?.message || e?.code || String(e),
+      error: e?.message || e?.code || 'unknown',
     };
   }
 }
