@@ -519,19 +519,19 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                 return (
                   <TouchableOpacity key={s.id}
                     onPress={() => {
-                      if (s.virtual) return;
-                      // 기록 있는 일정 카드 탭 → 다이어리 상세 직접 진입 (시트 우회)
-                      // 사용자 요청: "일정을 기록 완료한 건데 탭하면 상세 화면만 열려야 정상"
-                      if (rec) {
+                      // virtual 카드 = 일정 없고 다이어리만 있는 orphan 케이스. 다이어리 상세 직접 진입
+                      // 일반 카드 + rec(기록 있음): 동일하게 다이어리 상세 직접 진입
+                      if (s.virtual || rec) {
                         const diary = diaries.find(d => d.date === s.date);
                         if (diary && onRequestOpenDiary) {
                           onRequestOpenDiary(diary);
                           return;
                         }
+                        // diary 매칭 안 됐을 때 virtual 카드는 빠져나감 (시트 열어도 의미 X)
+                        if (s.virtual) return;
                       }
                       setSheet({ visible: true, schedule: { ...s, hasRec: hasRecord(s.date) } });
                     }}
-                    disabled={s.virtual}
                     activeOpacity={0.85}
                     style={{
                       flexDirection: 'row',
