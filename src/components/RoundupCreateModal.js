@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -8,9 +8,15 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { COMPANION_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, REGION_OPTIONS, regionFromAddress } from '../constants/roundup';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
+import { UserContext } from '../contexts/UserContext';
 
-const SCOPES = [
+const SCOPES_ALL = [
   ['all', '전체공개'],
+  ['friends', '친구공개'],
+  ['select', '친구지정'],
+];
+// hideStrangerRoundups가 true면 전체공개 옵션 자체를 숨김 — 본인 모집도 친구 한정으로 일관성 유지
+const SCOPES_FRIENDS_ONLY = [
   ['friends', '친구공개'],
   ['select', '친구지정'],
 ];
@@ -19,6 +25,10 @@ const DAYS = WEEKDAYS;
 // 라운딩 모집글 작성 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디
 export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const insets = useSafeAreaInsets();
+  const { userProfile } = useContext(UserContext);
+  // 본인이 마이페이지에서 "친구 모집만 보기" 켜두면 작성 시에도 전체공개 옵션 숨김 (일관성)
+  const hideStranger = !!userProfile?.hideStrangerRoundups;
+  const SCOPES = hideStranger ? SCOPES_FRIENDS_ONLY : SCOPES_ALL;
   const [type, setType] = useState('fixed');         // fixed | open
   const [courseQuery, setCourseQuery] = useState('');
   const [course, setCourse] = useState(null);
@@ -32,8 +42,12 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [teams, setTeams] = useState(2);                // 단체: 팀 수 2~4 (1팀=4명)
   // 동반자(앱 미사용자) 입력 기능은 2026-05-26 폐기 — 앱 사용자끼리 모집이 본질.
   // 지인 데려가는 경우는 주최자가 모집 진행 중 인원 변경으로 처리 (Phase 2 [[phase2-master-plan]] §7-7-3).
-  const [scope, setScope] = useState('all');
+  const [scope, setScope] = useState(hideStranger ? 'friends' : 'all');
   const [word, setWord] = useState('');
+  // hideStranger 토글 변경 시 scope이 'all'이면 자동 보정
+  useEffect(() => {
+    if (hideStranger && scope === 'all') setScope('friends');
+  }, [hideStranger]); // eslint-disable-line react-hooks/exhaustive-deps
   // 동반자 조건 필터 — 구성·실력 단일 선택, 태그 다중 선택. 전체공개에서만 노출.
   const [companion, setCompanion] = useState('any');
   const [skill, setSkill] = useState('any');
@@ -75,7 +89,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
-    setGroupMode('single'); setMembers(3); setTeams(2); setScope('all'); setWord('');
+    setGroupMode('single'); setMembers(3); setTeams(2); setScope(hideStranger ? 'friends' : 'all'); setWord('');
     setCompanion('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
   };
