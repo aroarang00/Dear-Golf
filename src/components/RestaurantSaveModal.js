@@ -52,11 +52,11 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
             <Text style={{ fontFamily: F.serifKR, fontSize: fs(19), color: C.charcoal }}>
               {isEdit ? '메모 수정' : '맛집 저장'}
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, marginBottom: 16 }}>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.textSecondary, marginTop: 4, marginBottom: 16 }}>
               {courseName ? `${courseName} · ` : ''}{isEdit ? '저장한 맛집' : (fromKakao ? '카카오 검색 결과' : '직접 추가')}
             </Text>
 
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6 }}>맛집 이름</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>맛집 이름</Text>
             <TextInput
               value={name}
               onChangeText={setName}
@@ -65,12 +65,12 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
               style={[inputBase, { fontSize: fs(14), marginBottom: fromKakao && seed?.loc ? 6 : 14 }]}
             />
             {fromKakao && !!seed?.loc && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 14 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.textSecondary, marginBottom: 14 }}>
                 📍 {seed.loc}
               </Text>
             )}
 
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6 }}>메모 (선택)</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>메모 (선택)</Text>
             <TextInput
               value={memo}
               onChangeText={(t) => { if (t.length <= 100) setMemo(t); }}
@@ -83,7 +83,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity onPress={onClose}
                 style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>취소</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSave} disabled={!canSave}
                 style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: canSave ? C.burgundy : C.hairline }}>
