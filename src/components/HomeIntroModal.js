@@ -74,8 +74,8 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                   일정·날씨·기록·가계부·동반자 모집까지,{'\n'}따로 쓰던 앱을 하나로.
                 </Text>
               </View>
-              {/* 시그니처 삼색 띠 — 헤더와 본문 경계 (butter·paleSky·burgundy) */}
-              <TripleStripe height={3} />
+              {/* 시그니처 삼색 띠 — 헤더와 본문 경계 (butter·paleSky·burgundy). 사진 어두운 톤·본문 베이지 톤과 섞이지 않게 두껍게 */}
+              <TripleStripe height={6} />
             </View>
 
             {/* 2. 비교 안내 — 짧게 */}
