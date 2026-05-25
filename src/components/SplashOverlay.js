@@ -7,7 +7,11 @@ import { C, F, fs } from '../constants/colors';
 export function SplashContent() {
   return (
     <>
-      <Text style={{ fontFamily: F.brand, fontSize: fs(44), color: C.charcoal, paddingHorizontal: 14 }}>Dear Golf</Text>
+      {/* italic Lora 워드마크 — lineHeight 명시 + allowFontScaling false로 'f' 디센더 잘림 방지 (iOS 시스템 텍스트 크기 최대 환경 대응) */}
+      <Text allowFontScaling={false}
+        style={{ fontFamily: F.brand, fontSize: fs(44), lineHeight: fs(56), color: C.charcoal, paddingHorizontal: 14 }}>
+        Dear Golf
+      </Text>
       <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
       <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#1A3D52', letterSpacing: 1 }}>나만의 골프 캐디</Text>
       <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
