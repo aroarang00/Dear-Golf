@@ -210,6 +210,13 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                     ))}
                   </View>
                 )}
+                {/* 직접 입력 폴백 안내 ([[course-name-input]] 옵션 B):
+                    사용자가 검색 결과 미선택 + 텍스트만 있을 때 매칭 한계 안내 */}
+                {!searching && results.length === 0 && !course && courseQuery.trim().length > 0 && (
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: 17 }}>
+                    💡 직접 입력한 코스는 일정 자동 연동·100대 코스 체크가 제한될 수 있어요.
+                  </Text>
+                )}
 
                 <Text style={mS.bigLabel}>날짜</Text>
                 <TouchableOpacity style={mS.input} onPress={() => setShowDate(true)}>
