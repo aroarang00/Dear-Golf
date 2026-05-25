@@ -4,7 +4,9 @@ import { C, F, fs } from '../constants/colors';
 export const homeS = StyleSheet.create({
   hdr:             { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 10 },
   hdrSub:          { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginTop: 6, marginBottom: 4 },
-  hdrTitle:        { fontFamily: F.brand, fontSize: fs(48), lineHeight: fs(52), color: '#fff', marginBottom: 0, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
+  // lineHeight fs(64) — 안드로이드에서 Lora Italic 'f' 디센더 잘림 fix (fs(48)에 fs(52)는 부족, 안드로이드 'Golf'의 f·G 잘림 발생)
+  // paddingHorizontal — 이탤릭 글자 좌우 여유 (안드로이드 컷 방지)
+  hdrTitle:        { fontFamily: F.brand, fontSize: fs(48), lineHeight: fs(64), color: '#fff', paddingHorizontal: 4, marginBottom: 0, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
   hdrGreeting:     { fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.75)' },
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },
