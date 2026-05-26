@@ -79,6 +79,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
         diaries={diaries}
         navigation={navigation}
         jumpDate={jumpDate}
+        onCloseSchedule={asModal ? onClose : undefined}
         onRequestAddDiary={(seed) => {
           if (asModal) { onClose?.(); }
           // 지난 라운딩에 기록 추가 시 구장명·코스ID도 함께 전달해 DiaryAddModal에 자동 채워지게

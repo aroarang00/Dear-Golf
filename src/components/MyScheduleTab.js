@@ -16,6 +16,7 @@ import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { syncRoundToCalendar, removeRoundFromCalendar, getCalendarChoice } from '../utils/deviceCalendar';
 import { CalendarPickerModal } from './CalendarPickerModal';
+import { CourseLogModal } from './CourseLogModal';
 
 const DAYS = WEEKDAYS;
 
@@ -41,7 +42,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
   );
 }
 
-export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries = [], navigation, jumpDate }) {
+export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries = [], navigation, jumpDate, onCloseSchedule }) {
   const { schedules, setSchedules } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
@@ -52,6 +53,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
+  const [showCourseLog, setShowCourseLog] = useState(false);
 
   const openPicker = () => setPicker({ visible: true, year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 });
   const confirmPicker = () => {
@@ -277,7 +279,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     showAppAlert(
       '일정 삭제',
       isPast
-        ? '이 일정을 삭제하면 일정과\n내 코스기록이 모두 삭제됩니다.'
+        ? '이 일정을 삭제하면 일정과\n라운딩 기록이 모두 삭제됩니다.'
         : '이 예정 라운딩을 삭제할까요?',
       [
         { text: '취소', style: 'cancel' },
@@ -440,6 +442,18 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           </View>
         </View>
 
+        {/* 내 코스기록 진입 — 코스 탭 헤더 버튼과 동일 모달. 다이어리 안 쓰는 사용자가 본인 라운딩 기록을 일정 동선에서 찾을 수 있게. */}
+        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginBottom: 4,
+            backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 1, borderColor: C.warmGray,
+            paddingHorizontal: 14, paddingVertical: 11 }}>
+          <Text style={{ fontSize: fs(14) }}>🏌️</Text>
+          <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>
+            내 코스 모아보기
+          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>›</Text>
+        </TouchableOpacity>
+
         {/* This month list */}
         <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14 }}>
@@ -594,6 +608,20 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       />
 
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
+
+      <CourseLogModal
+        visible={showCourseLog}
+        onClose={() => setShowCourseLog(false)}
+        navigation={navigation ? {
+          navigate: (name, params) => {
+            // ScheduleScreen이 모달로 떠 있는 케이스 — navigate 전에 부모 모달도 닫아야
+            // MY 탭의 다이어리 추가 모달이 사용자에게 보임 (안 그러면 일정 화면이 가려서 모름)
+            onCloseSchedule?.();
+            navigation.navigate(name, params);
+          },
+          addListener: navigation.addListener?.bind(navigation),
+        } : undefined}
+      />
 
       {/* 일정 바텀시트 — 코스정보 · 날씨 · 교통 · 공유 · 수정 · 삭제 (홈 화면과 동일) */}
       <ScheduleSheetModal

@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -16,6 +16,8 @@ export function CourseLogModal({ visible, onClose, navigation }) {
     addListener: (ev, cb) => navigation.addListener(ev, cb),
   } : undefined), [navigation]);
 
+  const [showInfo, setShowInfo] = useState(false);
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
@@ -25,12 +27,42 @@ export function CourseLogModal({ visible, onClose, navigation }) {
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(22), color: C.butter }}>←</Text>
             </TouchableOpacity>
-            <View>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter }}>내 코스기록</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter }}>내 코스 모아보기</Text>
             </View>
+            <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{
+                width: 24, height: 24, borderRadius: 12,
+                borderWidth: 1.5, borderColor: C.butter,
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.butter, fontWeight: '700', lineHeight: 17 }}>!</Text>
+            </TouchableOpacity>
           </View>
 
           <CourseLogTab navigation={wrappedNav} />
+
+          {/* 안내 팝업 — 다이어리 안 쓰는 사용자가 "왜 정보가 비어있지" 헷갈리지 않게. */}
+          <Modal visible={showInfo} transparent animationType="fade" onRequestClose={() => setShowInfo(false)}>
+            <TouchableOpacity activeOpacity={1} onPress={() => setShowInfo(false)}
+              style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 }}>
+              <TouchableOpacity activeOpacity={1} onPress={() => { /* 컨텐츠 영역 탭은 닫지 않음 */ }}
+                style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 22, width: '100%' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 12 }}>
+                  내 코스 모아보기 안내
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 20, marginBottom: 18 }}>
+                  국내와 해외, 다녀온 골프장의 발자취가 한눈에 모이는 공간이에요.{'\n'}
+                  일정만 등록해도 어디를 다녀왔는지 모두 확인할 수 있어요.{'\n\n'}
+                  다이어리에 기록을 남기면 스코어 통계·코스 평가·한줄 메모까지 함께 볼 수 있어요.
+                </Text>
+                <TouchableOpacity onPress={() => setShowInfo(false)} activeOpacity={0.85}
+                  style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>확인</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

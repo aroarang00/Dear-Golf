@@ -22,6 +22,7 @@ export const STORAGE_KEYS = {
   roundupBookmarks: '@dg_roundup_bookmarks',     // 관심 모집 북마크 {postId: true}
   homeIntroSeen:    '@dg_home_intro_seen',       // 홈 Dear Golf 이용 안내 1회 — 뱃지 표시 제어
   roundupIntroSeen: '@dg_roundup_intro_seen',    // 라운지 소개 모달 첫 진입 1회 자동 열림 제어
+  roundupIntroOpenedManually: '@dg_roundup_intro_opened_manual', // 라운지 소개 FAB 능동 클릭 1회 — 노란 알림 점 표시 제어 (자동 모달과 분리)
 };
 
 export const storage = {

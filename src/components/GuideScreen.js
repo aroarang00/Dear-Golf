@@ -684,7 +684,7 @@ export function GuideScreen({ route, navigation }) {
                   <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 8, marginBottom: 20 }} />
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 20 }}>
                     <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.charcoal }} />
-                    <Text style={[gS.secLabel, { marginBottom: 0 }]}>내 코스기록 · {myDiaries.length}회</Text>
+                    <Text style={[gS.secLabel, { marginBottom: 0 }]}>내 라운딩 기록 · {myDiaries.length}회</Text>
                   </View>
                 </>
               )}
@@ -1183,7 +1183,7 @@ export function GuideScreen({ route, navigation }) {
         </View>
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
           style={{ backgroundColor: C.charcoal, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 11 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>내 코스기록</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>내 코스 모아보기</Text>
         </TouchableOpacity>
       </View>
       <CourseExploreTab

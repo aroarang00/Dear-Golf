@@ -48,7 +48,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                 {hasRec
                   ? '이 라운딩은 다이어리 기록이 있어요.\n다이어리 탭에서 삭제해주세요.'
                   : isPast
-                    ? '이 일정을 삭제하면 일정과\n내 코스기록이 모두 삭제됩니다.'
+                    ? '이 일정을 삭제하면 일정과\n라운딩 기록이 모두 삭제됩니다.'
                     : '이 예정 라운딩을 삭제할까요?'}
               </Text>
               {hasRec ? (

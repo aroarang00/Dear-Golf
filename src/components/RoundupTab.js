@@ -279,6 +279,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
   const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
   const [showIntro, setShowIntro] = useState(false); // 라운지 소개 (광고성)
+  // 📢 FAB 노란 알림 점 — 사용자가 직접 FAB을 누른 적 없으면 표시. 자동 열림(roundupIntroSeen)과 분리해서,
+  // 첫 진입 시 자동 모달을 대충 봤더라도 "여기서 다시 볼 수 있어요" 신호를 유지.
+  const [roundupIntroOpenedManually, setRoundupIntroOpenedManually] = useState(true); // 로딩 전엔 점 숨김
 
   // 첫 진입 시 라운지 소개 모달 자동 열림 (1회만) — 빈 라운지 상태에서 사용자에게 무엇을 할 수 있는지 안내
   useEffect(() => {
@@ -288,7 +291,20 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         storage.save(STORAGE_KEYS.roundupIntroSeen, true);
       }
     });
+    storage.load(STORAGE_KEYS.roundupIntroOpenedManually, false).then(opened => {
+      setRoundupIntroOpenedManually(opened);
+    });
   }, []);
+
+  // 사용자가 직접 라운지 소개 진입점(FAB·빈 화면의 "다시 보기" 버튼 등)을 눌렀을 때 — 모달 열고 노란 알림 점 끄기
+  const handleOpenIntroManually = () => {
+    setShowIntro(true);
+    if (!roundupIntroOpenedManually) {
+      storage.save(STORAGE_KEYS.roundupIntroOpenedManually, true);
+      setRoundupIntroOpenedManually(true);
+    }
+  };
+
   const listScrollRef = useRef(null);
 
   // 안드로이드 뒤로가기 — 자체 오버레이 우선 닫기 (가장 최근 열린 것부터)
@@ -664,13 +680,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           )}
           <View>
             <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(250,246,236,0.72)', letterSpacing: 2, marginBottom: 4 }}>나의 라운딩 파트너 찾기</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.bgPrimary }}>라운지</Text>
-              <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontSize: fs(20) }}>ℹ️</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowIntro(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontSize: fs(20) }}>📢</Text>
+              <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{
+                  width: 24, height: 24, borderRadius: 12,
+                  borderWidth: 1.5, borderColor: C.bgPrimary,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.bgPrimary, fontWeight: '700', lineHeight: 17 }}>!</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -881,7 +899,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                   style={{ marginTop: 14, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>+ 첫 모집글 작성하기</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowIntro(true)} activeOpacity={0.85}
+                <TouchableOpacity onPress={handleOpenIntroManually} activeOpacity={0.85}
                   style={{ marginTop: 8, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>📢 라운지 소개 다시 보기</Text>
                 </TouchableOpacity>
@@ -976,6 +994,19 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
           {/* 참여 확인 팝업 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
+
+          {/* 라운지 소개 FAB — MY 탭의 라운딩 기록 추가 버튼과 동일 위치·스타일.
+              노란 점은 사용자가 아직 FAB을 직접 눌러본 적 없을 때 노출 — 버건디 배경과 대비. */}
+          <TouchableOpacity onPress={handleOpenIntroManually} activeOpacity={0.85}
+            style={{ position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28,
+              backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center',
+              shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
+            <Text style={{ fontSize: fs(30) }}>📢</Text>
+            {!roundupIntroOpenedManually && (
+              <View style={{ position: 'absolute', top: 10, right: 10, width: 9, height: 9, borderRadius: 4.5,
+                backgroundColor: '#FFD700', borderWidth: 1.5, borderColor: '#fff', zIndex: 10, elevation: 10 }} />
+            )}
+          </TouchableOpacity>
     </>
   );
 

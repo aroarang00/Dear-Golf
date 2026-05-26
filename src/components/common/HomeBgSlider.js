@@ -21,11 +21,11 @@ const TIME_IMAGES = {
   ],
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
     U('https://images.unsplash.com/photo-1758190153146-a1507e2e000d'),
-    U('https://images.unsplash.com/photo-1634140255781-e900c47ecf1f'),
   ],
   lateAfternoon: [ // 늦은 오후 (16~19시) — 골든아워
     U('https://images.unsplash.com/photo-1709525617237-778500c895a8'),
     U('https://images.unsplash.com/photo-1629293821758-a0400037edf1'),
+    U('https://images.unsplash.com/photo-1634140255781-e900c47ecf1f'),
   ],
   night: [ // 저녁·밤 (19~05시) — 노을·황혼
     U('https://images.unsplash.com/photo-1672871583040-42826d4e9ca4'),
