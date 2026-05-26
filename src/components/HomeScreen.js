@@ -14,6 +14,7 @@ import { normalizeSchedules } from '../utils/helpers';
 import { homeS } from '../styles/homeS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
+import { DiariesContext } from '../contexts/DiariesContext';
 import { HomeBgSlider, getCurrentWxClass } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
@@ -52,7 +53,8 @@ export function HomeScreen({ navigation }) {
   const [showDDayMenu, setShowDDayMenu] = useState(false);
   const [dDayPos, setDDayPos] = useState({ x: 0, y: 0 });
   const [now, setNow] = useState(Date.now());
-  const [diaries, setDiaries] = useState(DIARY_DATA);
+  // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
+  const { diaries } = React.useContext(DiariesContext);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [homeTopComment, setHomeTopComment] = useState(null);
@@ -61,18 +63,11 @@ export function HomeScreen({ navigation }) {
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
 
-  // 라운딩 기록 완료 여부 확인용 — 다이어리 로드
-  const loadDiaries = React.useCallback(() => {
-    storage.load(STORAGE_KEYS.diaries, DIARY_DATA)
-      .then(d => setDiaries(Array.isArray(d) ? d : DIARY_DATA));
-  }, []);
-
   // 1분마다 현재 시각 갱신 — 라운딩 종료(티오프+5h)/자정 전환 감지
   useEffect(() => {
-    loadDiaries();
     const id = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(id);
-  }, [loadDiaries]);
+  }, []);
 
   // 헤더 날씨 이모지 — 현재 날씨에 맞춰 표시 (홈 배경과 같은 캐시 공유)
   useEffect(() => {
@@ -144,8 +139,7 @@ export function HomeScreen({ navigation }) {
       cardsScrollRef.current?.scrollTo({ x: 0, animated: false });
       // userCourses 최신화 — 코스명→id 매칭(resolveCourseLogId)이 최신 목록을 쓰도록
       getUserCourses().then(list => setUserCoursesList(list || []));
-      // 다이어리 최신화 — 라운딩 기록 완료 시 종료 카드 → 다음 일정 전환
-      loadDiaries();
+      // 다이어리는 DiariesContext가 단일 소스 — 별도 로드 불필요 (Firestore 동기화는 Context가 담당)
     });
     return unsubscribe;
   }, [navigation]);
@@ -814,19 +808,19 @@ export function HomeScreen({ navigation }) {
                   setShowDDayMenu(false);
                 }}
                 style={{ paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#3D3935' }}>📩  일정 공유</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#3D3935' }}>📩  일정 공유</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={() => { setShowDDayMenu(false); handleEditSchedule(next); }}
                 style={{ paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#3D3935' }}>✏️  일정 수정</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#3D3935' }}>✏️  일정 수정</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={() => { setShowDDayMenu(false); handleDeleteSchedule(next); }}
                 style={{ paddingVertical: 13, paddingHorizontal: 16 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#D32F2F' }}>🗑️  일정 삭제</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#D32F2F' }}>🗑️  일정 삭제</Text>
               </TouchableOpacity>
               <View style={{
                 position: 'absolute',

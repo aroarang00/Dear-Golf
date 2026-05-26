@@ -25,7 +25,7 @@ function Feature({ icon, title, sub }) {
   );
 }
 
-// 9장 스와이프 인트로 — 기능 소개 + 명예의 전당 + 골프 친구 + 라운지 + 코스 + 위치 권한 안내. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
+// 8장 스와이프 인트로 — 인트로·라운딩 준비·기록·명예의 전당·라운지(메인 키)·코스·위치 권한·시작. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
 export function OnboardingIntro({ onDone }) {
   const insets = useSafeAreaInsets();
   const [idx, setIdx] = useState(0);
@@ -240,100 +240,124 @@ export function OnboardingIntro({ onDone }) {
           </View>
         </View>
 
-        {/* 5 — 골프 친구 (네이비 배경) */}
-        <View style={{ width: SW, backgroundColor: '#2C4A5E' }}>
+        {/* 5 — 라운지 (메인 키 기능): 워드마크 + 핵심 헤드라인 + 4가지 모집 방식 1열 카드 + 하단 한 줄 요약
+            위쪽(어두운 navy) ↔ 아래쪽(navy) 시각 분리 — 다른 페이지(2·3·4)와 동일 패턴 */}
+        <View style={{ width: SW, backgroundColor: '#0F2638' }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(38), marginBottom: 14 }}>👥</Text>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: '#fff', marginBottom: 10 }}>골프 친구</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
-              함께 칠 골프 친구를 찾아보세요{'\n'}라운딩 모집부터 친구 기록 공유까지
+            contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: 16, paddingHorizontal: 28 }}>
+            {/* 상단 — 라벨 + 라운지 워드마크 (다른 페이지 헤더와 발란스) */}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.75)', letterSpacing: 3, marginBottom: 8 }}>
+              DEAR GOLF
             </Text>
-            <View style={{ gap: 16 }}>
-              {[
-                ['👥', '카카오 친구 중 Dear Golf 유저 찾기'],
-                ['🏆', '친구 라운딩 기록 피드 보기'],
-                ['👍', '특별한 순간 공유하기'],
-              ].map(([icon, txt]) => (
-                <View key={txt} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)',
-                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
-                  }}>
-                    <Text style={{ fontSize: fs(17) }}>{icon}</Text>
-                  </View>
-                  <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: '#fff' }}>{txt}</Text>
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
+            <Text style={{ fontFamily: F.serifKR, fontSize: fs(34), color: C.bgPrimary, lineHeight: fs(42), marginBottom: 10 }}>
+              라운지
+            </Text>
+            <View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginBottom: 22 }} />
 
-        {/* 6 — 라운지 (광고성 톤, RoundupIntroModal과 일관) */}
-        <View style={{ width: SW, backgroundColor: C.navy }}>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 10 }}>
-              DEAR GOLF · 라운지
+            {/* 메인 헤드라인 — 핵심 메시지 */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', lineHeight: 31, marginBottom: 32 }}>
+              4명 채우기,{'\n'}이제 연락 돌리지 마세요
             </Text>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', lineHeight: 32, marginBottom: 10 }}>
-              4명 채우기,{'\n'}매번 일일이 연락하세요?
-            </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
-              모집글 한 번에 친구가 알아서 와요.{'\n'}라운지가 도와드릴게요.
-            </Text>
+
+            {/* 4가지 모집 방식 1열 카드 — 가로 레이아웃 (아이콘 + 큰 타이틀·설명) */}
             <View style={{ gap: 14 }}>
               {[
-                ['👥', '친구공개·친구지정으로 가까운 사람부터'],
-                ['💬', '카톡 링크 공유 → 친구가 누르면 자동 확정'],
-                ['🛡️', '신뢰·매너 등급으로 안전한 매칭'],
-                ['🔔', '관심 모집 알림 — 주최 부담 없이 참여'],
-              ].map(([icon, txt]) => (
-                <View key={txt} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                ['👥', '친구공개로 모집', '내 친구·친구의 친구까지'],
+                ['🎯', '친구지정으로 모집', '고른 친구에게만'],
+                ['📅', '일정 정해서 모집', '확정형 — 날짜·구장 정해서'],
+                ['💬', '친구랑 상의해서 모집', '오픈형 — 함께 정하기'],
+              ].map(([icon, title, sub]) => (
+                <View key={title} style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 14,
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
+                  borderRadius: 14, paddingVertical: 18, paddingHorizontal: 18,
+                }}>
                   <View style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)',
-                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                    width: 52, height: 52, borderRadius: 12,
+                    backgroundColor: 'rgba(245,230,168,0.12)',
+                    alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: fs(17) }}>{icon}</Text>
+                    <Text style={{ fontSize: fs(24) }}>{icon}</Text>
                   </View>
-                  <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: '#fff' }}>{txt}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff', marginBottom: 3 }}>
+                      {title}
+                    </Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.65)', lineHeight: 18 }}>
+                      {sub}
+                    </Text>
+                  </View>
                 </View>
               ))}
             </View>
           </ScrollView>
+          {/* 하단 한 줄 요약 — 다른 페이지(2·3·4)와 동일 패턴 */}
+          <View style={{ backgroundColor: C.navy, paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', textAlign: 'center', lineHeight: 30 }}>
+              함께하는 라운딩, 라운지에서
+            </Text>
+          </View>
         </View>
 
-        {/* 7 — 코스 */}
-        <View style={{ width: SW, backgroundColor: '#2E4A3A' }}>
+        {/* 6 — 코스 (메인 키 기능): 워드마크 + 핵심 헤드라인 + 4가지 1열 카드 + 하단 한 줄 요약
+            위쪽(어두운 그린) ↔ 아래쪽(그린) 시각 분리 */}
+        <View style={{ width: SW, backgroundColor: '#1E3528' }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(38), marginBottom: 14 }}>🗺️</Text>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: '#fff', marginBottom: 10 }}>코스</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', lineHeight: 21, marginBottom: 26 }}>
-              전국 골프장을 찾아보세요{'\n'}100대 코스와 골퍼들의 생생한 평가까지
+            contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: 16, paddingHorizontal: 28 }}>
+            {/* 상단 — 라벨 + 코스 워드마크 (라운지와 동일 발란스) */}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.75)', letterSpacing: 3, marginBottom: 8 }}>
+              DEAR GOLF
             </Text>
-            <View style={{ gap: 16 }}>
+            <Text style={{ fontFamily: F.serifKR, fontSize: fs(34), color: C.bgPrimary, lineHeight: fs(42), marginBottom: 10 }}>
+              코스
+            </Text>
+            <View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginBottom: 22 }} />
+
+            {/* 메인 헤드라인 — 사용자 페인 포인트 직격 */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', lineHeight: 31, marginBottom: 32 }}>
+              맛집·구장 정보,{'\n'}머릿속 대신 여기에
+            </Text>
+
+            {/* 4가지 핵심 기능 1열 카드 — 라운지와 동일 패턴 */}
+            <View style={{ gap: 14 }}>
               {[
-                ['🔍', '전국 골프장 검색'],
-                ['🏆', '100대 코스 한눈에 보기'],
-                ['💬', '골퍼들이 남긴 코스 코멘트'],
-                ['🍴', '골프장 근처 맛집 정보'],
-              ].map(([icon, txt]) => (
-                <View key={txt} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                ['🍴', '골프장 근처 맛집', '어디 저장했는지 잊지 않게 한 곳에'],
+                ['💬', '골퍼들의 생생한 구장 정보', '다녀온 사람만 아는 진짜 후기'],
+                ['🌤️', '날씨·교통 한눈에', '전국 골프장을 한 페이지에서'],
+                ['⛳', '방문 골프장 리마인드', '한줄 메모로 기억을 남겨두기'],
+              ].map(([icon, title, sub]) => (
+                <View key={title} style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 14,
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
+                  borderRadius: 14, paddingVertical: 18, paddingHorizontal: 18,
+                }}>
                   <View style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)',
-                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                    width: 52, height: 52, borderRadius: 12,
+                    backgroundColor: 'rgba(245,230,168,0.12)',
+                    alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: fs(17) }}>{icon}</Text>
+                    <Text style={{ fontSize: fs(24) }}>{icon}</Text>
                   </View>
-                  <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: '#fff' }}>{txt}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff', marginBottom: 3 }}>
+                      {title}
+                    </Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.65)', lineHeight: 18 }}>
+                      {sub}
+                    </Text>
+                  </View>
                 </View>
               ))}
             </View>
           </ScrollView>
+          {/* 하단 한 줄 요약 — 다른 페이지(2·3·4)와 동일 패턴 */}
+          <View style={{ backgroundColor: '#2E4A3A', paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', textAlign: 'center', lineHeight: 30 }}>
+              골프장 정보는 코스 한 곳에
+            </Text>
+          </View>
         </View>
 
         {/* 8 — 위치 권한 안내 */}
@@ -391,7 +415,7 @@ export function OnboardingIntro({ onDone }) {
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: fs(44), marginBottom: 14 }}>⛳</Text>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: C.charcoal }}>지금 시작해보세요</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.65)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: C.navy, marginTop: 12, textAlign: 'center', lineHeight: 22 }}>
             간단한 프로필만 입력하면{'\n'}바로 사용할 수 있어요
           </Text>
           <TouchableOpacity onPress={onDone} activeOpacity={0.85}
@@ -404,7 +428,7 @@ export function OnboardingIntro({ onDone }) {
 
       {/* 하단 스와이프 인디케이터 */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: insets.bottom + 14 }}>
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+        {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
           <View key={i} style={{
             width: idx === i ? 22 : 7, height: 7, borderRadius: 4,
             backgroundColor: idx === i ? C.burgundy : C.hairline,

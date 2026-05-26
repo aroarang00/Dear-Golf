@@ -255,6 +255,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseSearch(t); setSelected(null); }} />
               )}
+              {!overseas && !selected && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                  💡 검색 결과에서 선택하면 날씨·교통이 정확해져요
+                </Text>
+              )}
 
               {selected && !editingName && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>

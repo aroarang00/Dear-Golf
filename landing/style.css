@@ -1,0 +1,324 @@
+/* Dear Golf 정적 약관 페이지 — 앱 컬러 시스템 동일 적용
+ * 본문은 src/constants/legalTexts.js 마스터본과 동기화.
+ * 변호사 회신 후 본문 교체 시 양쪽 동시 갱신 필요.
+ * 삼색바: butter / paleSky / burgundy — 앱 TripleStripe와 동일 */
+
+:root {
+  --bg-primary: #FAF6EC;
+  --bg-secondary: #FFFFFF;
+  --charcoal: #3D3935;
+  --charcoal-deep: #2A2622;
+  --burgundy: #6B1E2A;
+  --burgundy-tint: #F5EAEC;
+  --butter: #F5E6A8;
+  --butter-deep: #C9A84C;
+  --pale-sky: #C8D9E6;
+  --navy: #1A3D52;
+  --warm-gray: #8B8680;
+  --warm-gray-light: #B8B3AB;
+  --hairline: #E8E2D0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--charcoal);
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  /* sticky footer 패턴 — 콘텐츠가 짧아도 하단 삼색바가 화면 끝에 위치 */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;       /* fallback (구형 브라우저) */
+  min-height: 100dvh;      /* 동적 viewport — 모바일 주소창·툴바 영향 처리 */
+}
+
+/* ─────────── 공통 삼색바 (앱 TripleStripe 동일) ─────────── */
+.triple-stripe {
+  display: flex;
+  height: 10px;
+}
+.triple-stripe > div {
+  flex: 1;
+}
+.triple-stripe > div:nth-child(1) { background: var(--butter); }
+.triple-stripe > div:nth-child(2) { background: var(--pale-sky); }
+.triple-stripe > div:nth-child(3) { background: var(--burgundy); }
+
+/* ─────────── 헤더 (terms·privacy 페이지) ─────────── */
+.header {
+  background-color: var(--charcoal);
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--charcoal-deep);
+}
+
+/* 페이지별 헤더 컬러 modifier */
+.header.header-navy {
+  background-color: var(--navy);
+  border-bottom-color: var(--navy);
+}
+.header.header-burgundy {
+  background-color: var(--burgundy);
+  border-bottom-color: var(--burgundy);
+}
+
+.header-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  font-style: italic !important;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--butter);
+  text-decoration: none;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.header-nav a {
+  font-size: 13px;
+  color: var(--butter);
+  opacity: 0.85;
+  text-decoration: none;
+  margin-left: 18px;
+  transition: opacity 0.15s;
+}
+
+.header-nav a:hover {
+  opacity: 1;
+}
+
+/* ─────────── 본문 (terms·privacy) ─────────── */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.title-area {
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+}
+
+h1 {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--charcoal-deep);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--warm-gray);
+  letter-spacing: 0.04em;
+}
+
+.body {
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--charcoal);
+}
+
+.body p {
+  margin-bottom: 18px;
+  white-space: pre-wrap;
+}
+
+.body h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--burgundy);
+  margin-top: 36px;
+  margin-bottom: 14px;
+  letter-spacing: -0.02em;
+}
+
+.body strong {
+  color: var(--charcoal-deep);
+  font-weight: 700;
+}
+
+/* ─────────── 푸터 (공통) ─────────── */
+.footer {
+  margin-top: 60px;
+  padding-top: 28px;
+  border-top: 1px solid var(--hairline);
+  text-align: center;
+  font-size: 13px;
+  color: var(--warm-gray);
+  line-height: 1.7;
+}
+
+.footer a {
+  color: var(--burgundy);
+  text-decoration: none;
+  margin: 0 8px;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* ─────────── 메인 페이지 전용 ─────────── */
+.hero {
+  text-align: center;
+  padding: 60px 24px 32px;
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero-brand {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 80px;
+  font-weight: 600;
+  color: var(--charcoal-deep);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin-bottom: 22px;
+}
+
+.hero-tag {
+  font-size: 22px;
+  color: var(--warm-gray);
+  margin-bottom: 36px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.accent-line {
+  width: 56px;
+  height: 3px;
+  background: var(--burgundy);
+  margin: 0 auto 38px;
+  border-radius: 2px;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.link-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  color: var(--charcoal);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  text-align: left;
+}
+
+.link-accent {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.link-burgundy .link-accent { background: var(--burgundy); }
+.link-navy .link-accent { background: var(--navy); }
+.link-butter .link-accent { background: var(--butter-deep); }
+
+.link-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.link-text .link-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--charcoal-deep);
+}
+
+.link-text .link-desc {
+  font-size: 12px;
+  color: var(--warm-gray);
+  line-height: 1.5;
+}
+
+.link-arrow {
+  color: var(--warm-gray);
+  font-size: 22px;
+  font-weight: 300;
+}
+
+.link-btn:hover {
+  border-color: var(--burgundy);
+  transform: translateX(3px);
+  box-shadow: 0 4px 14px rgba(107, 30, 42, 0.08);
+}
+
+.page-footer {
+  margin-top: auto;  /* sticky footer — 화면 끝으로 밀어냄 */
+  text-align: center;
+  padding: 24px 24px 32px;
+  font-size: 12px;
+  color: var(--warm-gray-light);
+  letter-spacing: 0.05em;
+}
+
+/* ─────────── 모바일 반응형 ─────────── */
+@media (max-width: 600px) {
+  .container {
+    padding: 28px 18px 60px;
+  }
+  h1 {
+    font-size: 26px;
+  }
+  .body {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .body h2 {
+    font-size: 18px;
+    margin-top: 28px;
+  }
+  .header {
+    padding: 14px 18px;
+  }
+  .brand {
+    font-size: 24px;
+  }
+  .header-nav a {
+    font-size: 12px;
+    margin-left: 12px;
+  }
+  .hero {
+    padding: 60px 18px 40px;
+  }
+  .hero-brand {
+    font-size: 60px;
+  }
+  .hero-tag {
+    font-size: 18px;
+  }
+}

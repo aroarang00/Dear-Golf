@@ -196,6 +196,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                   placeholderTextColor={C.warmGrayLight} value={courseQuery}
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseQuery(t); setCourse(null); }} />
+                {!course && (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                    💡 검색 결과에서 선택하면 라운지 지역 필터·100대 코스가 정확해져요
+                  </Text>
+                )}
                 {searching && (
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>검색 중...</Text>
                 )}

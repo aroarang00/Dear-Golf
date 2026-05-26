@@ -81,7 +81,13 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
 
   const handleOption = (fn) => () => { setOptionsOpen(false); fn && fn(); };
   const options = [
-    { text: muted ? '🔔  알림 켜기' : '🔕  알림 끄기', onPress: handleOption(onToggleMute) },
+    {
+      text: muted ? '🔔  알림 켜기' : '🔕  알림 끄기',
+      subtitle: muted
+        ? '친구의 🏆 특별한 순간 알림을 다시 받아요'
+        : '친구의 🏆 특별한 순간 알림이 안 와요',
+      onPress: handleOption(onToggleMute),
+    },
     { text: '🙈  친구 숨기기', onPress: handleOption(onHide) },
     { text: '❌  친구 삭제', danger: true, onPress: handleOption(onDelete) },
   ];
@@ -139,10 +145,7 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: manner.color }}>{manner.label}</Text>
                   </TouchableOpacity>
                 </View>
-                {/* 함께 N회 — 주최·참석은 신뢰/매너로 짐작 가능하므로 비공개 */}
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
-                  함께 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{friend.roundsTogether || 0}</Text>회
-                </Text>
+                {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}
               </View>
             </View>
 
@@ -187,6 +190,11 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
                     <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: opt.danger ? '#D32F2F' : C.charcoal, textAlign: 'center' }}>
                       {opt.text}
                     </Text>
+                    {opt.subtitle ? (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, textAlign: 'center', marginTop: 4 }}>
+                        {opt.subtitle}
+                      </Text>
+                    ) : null}
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity activeOpacity={0.6} onPress={() => setOptionsOpen(false)}

@@ -3,11 +3,12 @@ import { ScrollView, View, Text, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
-import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA } from '../constants/data';
+import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA, getCountryFlag } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUserCourses } from '../utils/userCourses';
 import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks } from '../utils/top100';
 import { SchedulesContext } from '../contexts/SchedulesContext';
+import { DiariesContext } from '../contexts/DiariesContext';
 import { dS } from '../styles/dS';
 
 const REGION_STYLE = {
@@ -139,10 +140,11 @@ function UnrecordedCard({ c, rs, onAdd }) {
 
 export function CourseLogTab({ avgRating, navigation }) {
   const { schedules } = React.useContext(SchedulesContext);
+  // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
+  const { diaries } = React.useContext(DiariesContext);
   const [region, setRegion] = useState('domestic');
   const [countryFilter, setCountryFilter] = useState('전체');
   const [expanded, setExpanded] = useState({});
-  const [diaries, setDiaries] = useState(DIARY_DATA);
   const [userCourses, setUserCourses] = useState([]);
   const [top100, setTop100] = useState([]);
   const [top100Open, setTop100Open] = useState(false);
@@ -151,16 +153,14 @@ export function CourseLogTab({ avgRating, navigation }) {
 
   const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
-  // 라운딩 기록 + 등록 코스 로드 — 탭 진입 시마다 갱신 (다이어리 기록 후 즉시 반영)
+  // 등록 코스·100대·체크 로드 — 다이어리는 DiariesContext가 단일 소스라 별도 로드 X
   useEffect(() => {
     const load = async () => {
-      const [d, uc, t100, checks] = await Promise.all([
-        storage.load(STORAGE_KEYS.diaries, DIARY_DATA),
+      const [uc, t100, checks] = await Promise.all([
         getUserCourses(),
         getTop100Courses(),
         getManualTop100Checks(),
       ]);
-      setDiaries(d || DIARY_DATA);
       setUserCourses(uc || []);
       if (t100 && t100.length) setTop100(t100);
       setManualChecks(checks || []);
@@ -199,8 +199,10 @@ export function CourseLogTab({ avgRating, navigation }) {
     };
     (diaries || []).filter(d => !d.overseas).forEach(d => { const e = entryOf(d.course); if (e) e.records.push(d); });
     // 예정(미래) 일정은 제외 — 지난 일정만 '완료된 라운딩'으로 집계
+    // 해외 일정은 해외 탭에서 별도로 집계되므로 국내에서는 제외
     (schedules || []).forEach(s => {
       if (!isPast(s.date)) return;
+      if (s.overseas) return;
       const e = entryOf(s.course);
       if (e) e.scheduleEntries.push(s);
     });
@@ -242,30 +244,56 @@ export function CourseLogTab({ avgRating, navigation }) {
       .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
   }, [diaries, schedules, userCourses]);
 
-  // 해외 라운딩 — 다이어리 기록 중 overseas만 골프장별 집계
+  // 해외 라운딩 — 다이어리 기록 + 지난 해외 일정 통합 집계
   const overseasCourses = React.useMemo(() => {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayMs = todayStart.getTime();
+    const isPast = (date) => {
+      if (!date) return false;
+      return new Date(date.replace(/\./g, '-')).getTime() < todayMs;
+    };
     const map = {};
+    const entryOf = (name) => {
+      const k = (name || '').trim();
+      if (!k) return null;
+      if (!map[k]) map[k] = { key: k, name: k, country: '', records: [], scheduleEntries: [] };
+      return map[k];
+    };
     (diaries || []).filter(d => d.overseas).forEach(d => {
-      const k = (d.course || '').trim();
-      if (!k) return;
-      if (!map[k]) map[k] = { key: k, name: k, country: d.country || '', records: [] };
-      map[k].records.push(d);
-      if (d.country && !map[k].country) map[k].country = d.country;
+      const e = entryOf(d.course);
+      if (!e) return;
+      e.records.push(d);
+      if (d.country && !e.country) e.country = d.country;
     });
-    return Object.values(map).map(e => {
-      const scores = e.records.map(r => r.score).filter(s => typeof s === 'number' && s > 0);
-      const dates = e.records.map(r => r.date).filter(Boolean).sort((a, b) => (b || '').localeCompare(a || ''));
-      const latestRec = [...e.records].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
-      return {
-        key: e.key, name: e.name, country: e.country,
-        visits: e.records.length,
-        best: scores.length ? Math.min(...scores) : 0,
-        avg: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
-        memo: latestRec?.memo || '',
-        latestDate: dates[0] || '',
-      };
-    }).sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
-  }, [diaries]);
+    (schedules || []).forEach(s => {
+      if (!isPast(s.date)) return;
+      if (!s.overseas) return;
+      const e = entryOf(s.course);
+      if (!e) return;
+      e.scheduleEntries.push(s);
+      const sCountry = s.cityCountry || s.city || '';
+      if (sCountry && !e.country) e.country = sCountry;
+    });
+    return Object.values(map)
+      .filter(e => e.records.length > 0 || e.scheduleEntries.length > 0)
+      .map(e => {
+        const recs = e.records;
+        const ratings = recs.map(r => r.starRating).filter(s => typeof s === 'number' && s > 0);
+        const recDates = recs.map(r => r.date).filter(Boolean);
+        const schedDates = e.scheduleEntries.map(s => s.date).filter(Boolean);
+        const allDates = [...new Set([...recDates, ...schedDates])].sort((a, b) => (b || '').localeCompare(a || ''));
+        const latestRec = [...recs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+        return {
+          key: e.key, name: e.name, country: e.country,
+          visits: allDates.length,
+          rating: ratings.length ? Math.round(ratings.reduce((s, v) => s + v, 0) / ratings.length * 10) / 10 : 0,
+          tags: [...new Set(recs.flatMap(r => r.tags || []))],
+          memo: latestRec?.memo || '',
+          latestDate: allDates[0] || '',
+        };
+      })
+      .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
+  }, [diaries, schedules]);
 
   // 100대 코스 체크 상태
   //  자동: 완료된 라운딩(다이어리 기록 + 지난 일정)이 있는 코스
@@ -373,11 +401,20 @@ export function CourseLogTab({ avgRating, navigation }) {
           })}
         </View>
       )}
-      {region === 'overseas' && (
+      {region === 'overseas' && (() => {
+        const hint = (
+          <View style={{ marginHorizontal: 16, marginBottom: 14, backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: C.hairline }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+              💡 해외 구장 데이터는 차차 보강해갈 예정이에요
+            </Text>
+          </View>
+        );
+        return (
         <View>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: overseasCourses.length === 0 ? 10 : 14, marginHorizontal: 16 }}>
             해외 골프장 · {overseasCourses.length}곳
           </Text>
+          {overseasCourses.length === 0 && hint}
           {overseasCourses.length === 0 ? (
             <View style={{ paddingVertical: 32, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>아직 해외 라운딩 기록이 없어요</Text>
@@ -385,23 +422,36 @@ export function CourseLogTab({ avgRating, navigation }) {
             </View>
           ) : overseasCourses.map(c => (
             <View key={c.key} style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: C.paleSky }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontSize: fs(15) }}>✈️</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={dS.courseName}>{c.name}</Text>
-                  <Text style={dS.courseLoc}>{c.country || '해외'} · {c.visits}회 방문</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={dS.courseName}>{c.name}</Text>
+                    {c.country ? (
+                      <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        {getCountryFlag(c.country) ? <Text style={{ fontSize: fs(14) }}>{getCountryFlag(c.country)}</Text> : null}
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.navy }}>{c.country}</Text>
+                      </View>
+                    ) : null}
+                    {c.rating > 0 && (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#C9A84C' }}>{'★'.repeat(Math.round(c.rating))}</Text>
+                    )}
+                  </View>
+                  <Text style={dS.courseLoc}>{c.visits}회 방문</Text>
                 </View>
               </View>
-              <View style={dS.recordRow}>
-                <View style={dS.recVisit}><Text style={dS.recValDark}>{c.visits}</Text><Text style={dS.recLblDark}>방문</Text></View>
-                <View style={dS.recBest}><Text style={dS.recValWhite}>{c.best || '-'}</Text><Text style={dS.recLblWhite}>베스트</Text></View>
-                <View style={dS.recAvg}><Text style={dS.recValButter}>{c.avg || '-'}</Text><Text style={dS.recLblButter}>평균</Text></View>
-              </View>
-              {c.memo ? <Text style={[dS.courseMemo, { marginTop: 8 }]}>"{c.memo}"</Text> : null}
+              {c.tags.length > 0 && (
+                <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginTop: 10, marginBottom: c.memo ? 10 : 0 }}>
+                  {c.tags.map((t, i) => <View key={`ot${i}`} style={dS.tag}><Text style={dS.tagTxt}>{t}</Text></View>)}
+                </View>
+              )}
+              {c.memo ? <Text style={[dS.courseMemo, { marginTop: c.tags.length > 0 ? 0 : 10 }]}>"{c.memo}"</Text> : null}
             </View>
           ))}
+          {overseasCourses.length > 0 && hint}
         </View>
-      )}
+        );
+      })()}
       <View style={{ height: 32 }} />
     </ScrollView>
 

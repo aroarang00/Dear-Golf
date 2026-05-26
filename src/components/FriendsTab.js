@@ -84,7 +84,7 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
           <View style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>핸디 {friend.stats?.avg ?? '—'}</Text>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 4 }}>함께 {friend.roundsTogether}회</Text>
+          {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}
         </View>
       </View>
 
@@ -163,7 +163,7 @@ export function FriendsTab({ navigation, onInvite }) {
     if (!target) return;
     showAppAlert(
       `${target.name}님을 친구에서 삭제할까요?`,
-      `함께 라운딩한 기록(${target.roundsTogether || 0}회)은 남지만, 친구 목록에서 사라져요. 다시 추가하려면 친구 신청이 필요해요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
+      `친구 목록에서 사라집니다.\n다시 추가하려면 친구 신청이 필요해요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
       [
         { text: '취소', style: 'cancel' },
         { text: '삭제', style: 'destructive', onPress: () => setFriends(p => p.filter(f => f.id !== id)) },

@@ -84,6 +84,15 @@ module.exports = {
         },
       ],
       [
+        'expo-image-picker',
+        {
+          photosPermission:
+            '라운딩 사진과 프로필 사진을 다이어리에 첨부하기 위해 사진첩 접근 권한이 필요해요',
+          cameraPermission:
+            '라운딩 순간을 즉시 촬영해 기록하기 위해 카메라 접근 권한이 필요해요',
+        },
+      ],
+      [
         '@react-native-seoul/kakao-login',
         {
           kakaoAppKey: process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY,

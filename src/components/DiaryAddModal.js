@@ -311,13 +311,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
                 autoCorrect={false} autoCapitalize="none"
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); setSelectedCourseObj(null); }} />
+              {!overseas && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                  💡 검색 결과에서 선택하면 지역 분류·100대 코스가 정확해져요
+                </Text>
+              )}
               {!overseas && kakaoSearching && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>검색 중...</Text>
               )}
               {overseas && (
                 <>
-                  <Text style={mS.bigLabel}>국가 · 지역</Text>
-                  <TextInput style={mS.input} placeholder="예: 일본 오키나와 / 베트남 다낭"
+                  <Text style={mS.bigLabel}>국가</Text>
+                  <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="예: 일본, 베트남, 중국"
                     placeholderTextColor={C.warmGrayLight} value={country} onChangeText={setCountry}
                     autoCorrect={false} />
                 </>
@@ -498,7 +503,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               </View>
 
               <Text style={mS.bigLabel}>코스 태그 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · 중복 가능)</Text></Text>
-              {Object.entries(COURSE_TAGS).map(([category, tags]) => {
+              {Object.entries(COURSE_TAGS)
+                .filter(([category]) => overseas || category !== '해외 특화')
+                .map(([category, tags]) => {
                 const catColor = COURSE_TAG_COLORS[category];
                 return (
                   <View key={category} style={{ marginBottom: 10 }}>

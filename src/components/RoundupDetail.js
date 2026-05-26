@@ -147,8 +147,9 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       ],
     });
   };
-  // 참여 취소 — D-7 이내 시스템 차단 ([[roundup-penalty-policy]] §1).
-  // D-7 이전은 자유 취소, 패널티 X. 노쇼는 별도 신고 시스템 ([[noshow-report-system]]).
+  // 참여 취소 — D-7 단일선 ([[roundup-penalty-policy]] §1).
+  // D-7 이전: 자유 취소, 패널티 X. D-7 이내: 취소 가능(법적 권리 보장), 매너 -5 자동 차감.
+  // 시스템 차단은 약관규제법 제9조 위험으로 폐기됨. 노쇼는 별도 신고 시스템 ([[noshow-report-system]]).
   const confirmCancel = () => {
     let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — D-7 이전 취급
     if (post.date) {
@@ -158,13 +159,14 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    // D-7 이내 — 취소 차단 안내
+    // D-7 이내 — 강한 경고 + 취소 진행 (매너 -5는 onCancel 후 처리, Phase 2)
     if (isD7Inside(hoursUntil)) {
       setAlert({
-        title: '라운딩 7일 이내라 취소가 어려워요',
-        message: '함께하는 골프, 서로의 시간을 존중해요.\n\n부득이한 사정이 있으면 댓글로 양해를 구해주세요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.',
+        title: '라운딩 7일 이내 취소',
+        message: '함께하는 골프, 서로의 시간을 존중해요.\n\n취소하면 매너 평가에 영향이 있을 수 있어요.\n부득이한 사정이라면 동반자들에게 댓글로 양해를 구해주세요.',
         buttons: [
-          { text: '확인', style: 'cancel' },
+          { text: '계속 참여', style: 'cancel' },
+          { text: '취소하기', style: 'destructive', onPress: onCancel },
         ],
       });
       return;

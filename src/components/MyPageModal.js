@@ -17,6 +17,15 @@ import { CalendarPickerModal } from './CalendarPickerModal';
 import { BlockManageScreen } from './BlockManageScreen';
 import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
 import { clearRecentCourses } from '../utils/recentCourses';
+import { TermsViewerModal } from './TermsViewerModal';
+import { getReportRemainingThisMonth, isReportLimitReached, REPORT_MONTH_LIMIT } from '../utils/reportLimit';
+import {
+  TERMS_OF_SERVICE,
+  PRIVACY_POLICY,
+  COMMUNITY_GUIDELINES,
+  PENALTY_CONSENT,
+  LOCATION_BASED_SERVICE_TERMS,
+} from '../constants/legalTexts';
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
@@ -24,6 +33,14 @@ export function MyPageModal({ visible, onClose }) {
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
   const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
+  const [termsViewer, setTermsViewer] = useState({ visible: false, title: '', body: '', externalUrl: null }); // 약관·정책 본문 뷰어
+  const [reportRemaining, setReportRemaining] = useState(REPORT_MONTH_LIMIT); // 이번 달 신고 가능 잔여 (월 1건 한도)
+
+  // 마이페이지 진입 시 신고 잔여 카운트 조회 (월 바뀌면 자동 초기화 — reportLimit.js)
+  useEffect(() => {
+    if (!visible) return;
+    getReportRemainingThisMonth().then(setReportRemaining);
+  }, [visible]);
   const [alertData, setAlertData] = useState(null);  // 오버레이 알럿 (모달 위 안전 표시)
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
@@ -463,12 +480,24 @@ export function MyPageModal({ visible, onClose }) {
                     onPress: () => setBlockManageOpen(true) },
                   // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화
                   // (정책 report-block-policy §5-1). Phase 2에 6단계 흐름 + 백엔드 구현.
+                  // 월 1건 한도(REPORT_MONTH_LIMIT) — utils/reportLimit.js로 체크
                   { icon: '🚨', label: '신고하기',
-                    onPress: () => setAlertData({
-                      title: '신고하기 준비 중',
-                      message: '신고 기능은 곧 추가될 예정이에요.\n급한 경우 deargolf.official@gmail.com으로 연락주세요.',
-                      buttons: [{ text: '확인' }],
-                    }) },
+                    value: `이번 달 ${reportRemaining}/${REPORT_MONTH_LIMIT}건`,
+                    onPress: () => {
+                      if (reportRemaining === 0) {
+                        setAlertData({
+                          title: '이번 달 신고 횟수를 초과했어요',
+                          message: `사용자 신고는 월 ${REPORT_MONTH_LIMIT}건으로 제한되어 있어요.\n다음 달 1일에 다시 가능해져요.\n\n급한 사안은 deargolf.official@gmail.com으로 연락주세요.`,
+                          buttons: [{ text: '확인' }],
+                        });
+                        return;
+                      }
+                      setAlertData({
+                        title: '신고하기 준비 중',
+                        message: `사용자 신고 기능은 곧 추가될 예정이에요.\n급한 경우 deargolf.official@gmail.com으로 연락주세요.`,
+                        buttons: [{ text: '확인' }],
+                      });
+                    } },
                   ...(userProfile.kakaoLinked
                     ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
                     : [{ icon: '💛', label: '카카오 로그인 연동',
@@ -477,7 +506,71 @@ export function MyPageModal({ visible, onClose }) {
                           message: '카카오 로그인을 연동하면 닉네임 변경 주기가 30일 → 15일로 단축돼요.\n(연동 화면은 추후 추가될 예정)',
                           buttons: [{ text: '확인' }],
                         }) }]),
-                  { icon: '🔒', label: '개인정보 처리방침', onPress: () => Linking.openURL('https://dear-golf.web.app/privacy') },
+                  // 약관 및 정책 — 앱 내 본문 뷰어 + 외부 웹 옵션 (deargolf.app)
+                  { icon: '📄', label: '이용약관',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '이용약관', body: TERMS_OF_SERVICE,
+                      externalUrl: 'https://deargolf.app/terms',
+                    }) },
+                  { icon: '🔒', label: '개인정보처리방침',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '개인정보처리방침', body: PRIVACY_POLICY,
+                      externalUrl: 'https://deargolf.app/privacy',
+                    }) },
+                  { icon: '📍', label: '위치기반서비스 약관',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '위치기반서비스 약관', body: LOCATION_BASED_SERVICE_TERMS,
+                      externalUrl: 'https://deargolf.app/location',
+                    }) },
+                  { icon: '🤝', label: '커뮤니티 가이드라인',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '커뮤니티 가이드라인', body: COMMUNITY_GUIDELINES,
+                      externalUrl: 'https://deargolf.app/community',
+                    }) },
+                  { icon: '⚖️', label: '자동 패널티 시스템 동의서',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '자동 패널티 시스템 동의서', body: PENALTY_CONSENT,
+                      externalUrl: 'https://deargolf.app/penalty',
+                    }) },
+                  // 개인정보 권리 행사 — PIPA 제35조. 마이페이지에서 직접 처리 가능한 권리·이메일 요청 권리 통합 안내
+                  { icon: '🔐', label: '개인정보 권리 행사',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '개인정보 권리 행사',
+                      body: `개인정보 보호법 제35조에 따라 회원은 다음 권리를 행사할 수 있습니다.
+
+1. 열람 권리
+본인의 개인정보 처리 현황을 마이페이지에서 직접 확인할 수 있어요.
+
+2. 정정·삭제 권리 (앱에서 직접 처리 가능)
+- 닉네임·프로필 사진·골프 정보: 마이페이지에서 수정
+- 라운딩 기록·다이어리: 다이어리 탭에서 직접 삭제
+- 친구·차단 목록: 친구 탭 / 차단 관리에서 직접 관리
+
+3. 처리 정지 권리 (이메일 요청)
+특정 데이터의 처리를 잠시 정지하길 원하는 경우 deargolf.official@gmail.com으로 다음 정보와 함께 요청해주세요.
+- 회원 닉네임
+- 정지 요청 데이터 종류 (예: 라운딩 기록·매너 평가)
+- 정지 사유 (선택)
+접수 후 10일 이내 처리됩니다. (개인정보 보호법 시행령 제43조)
+
+4. 데이터 다운로드 권리 (이메일 요청)
+본인의 모든 데이터를 한 번에 받고 싶은 경우 위 이메일로 요청해주세요. 접수 후 10일 이내 처리됩니다.
+
+5. 회원 탈퇴 (전체 삭제)
+마이페이지 하단 [계정 탈퇴]에서 모든 데이터를 한 번에 완전 삭제할 수 있어요.
+
+권리 행사를 거부당했다고 판단되는 경우 한국인터넷진흥원 개인정보침해센터(국번없이 118)에 신고하실 수 있습니다.`,
+                      externalUrl: null,
+                    }) },
+                  // 사업자 정보 — 전자상거래법 의무 명시. 출시 전 사업자 등록 후 정보 채움.
+                  { icon: '🏢', label: '사업자 정보',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '사업자 정보',
+                      body: `Dear Golf 사업자 정보\n\n상호: Dear Golf\n대표자: (출시 전 확정)\n사업자등록번호: (출시 전 등록 후 표시)\n통신판매업 신고번호: (출시 전 신고 후 표시)\n주소: (출시 전 확정)\n연락처: deargolf.official@gmail.com\n\n전자상거래등에서의 소비자보호에 관한 법률 제13조에 따라 사업자 정보를 명시합니다.\n\n분쟁 발생 시 안내:\n- 한국소비자원 (1372 소비자상담센터)\n- 전자거래분쟁조정위원회 (www.ecmc.or.kr)\n- 콘텐츠분쟁조정위원회 (www.kcdrc.kr)`,
+                      externalUrl: null,
+                    }) },
                 ].map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
                     <Text style={myS.menuIcon}>{item.icon}</Text>
@@ -604,6 +697,13 @@ export function MyPageModal({ visible, onClose }) {
         </View>
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
       <BlockManageScreen visible={blockManageOpen} onClose={() => setBlockManageOpen(false)} />
+      <TermsViewerModal
+        visible={termsViewer.visible}
+        onClose={() => setTermsViewer(v => ({ ...v, visible: false }))}
+        title={termsViewer.title}
+        body={termsViewer.body}
+        externalUrl={termsViewer.externalUrl}
+      />
       {/* 라운딩 평가 미리보기 (개발용) */}
       <RoundEvaluationModal
         visible={evalOpen}

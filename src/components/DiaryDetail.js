@@ -4,7 +4,7 @@ import { showAppAlert } from './AppAlert';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { COURSE_TAGS, COURSE_TAG_COLORS } from '../constants/data';
+import { COURSE_TAGS, COURSE_TAG_COLORS, getCountryFlag } from '../constants/data';
 import { dS } from '../styles/dS';
 import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
@@ -154,7 +154,15 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
               </View>
             )}
           </View>
-          <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
+            {item.overseas && item.country ? (
+              <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                {getCountryFlag(item.country) ? <Text style={{ fontSize: fs(12) }}>{getCountryFlag(item.country)}</Text> : null}
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.navy }}>{item.country}</Text>
+              </View>
+            ) : null}
+          </View>
           {item.tags && item.tags.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {item.tags.map(tag => {

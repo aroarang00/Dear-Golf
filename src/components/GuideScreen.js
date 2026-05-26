@@ -4,6 +4,7 @@ import { showAppAlert } from './AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
+import { DiariesContext } from '../contexts/DiariesContext';
 
 import { C, F, fs } from '../constants/colors';
 import {
@@ -33,7 +34,8 @@ export function GuideScreen({ route, navigation }) {
   const [favoritesHydrated, setFavoritesHydrated] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [userCoursesHydrated, setUserCoursesHydrated] = useState(false);
-  const [diaries, setDiaries] = useState(DIARY_DATA);
+  // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
+  const { diaries } = React.useContext(DiariesContext);
   const [comments, setComments] = useState([]);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
@@ -113,18 +115,7 @@ export function GuideScreen({ route, navigation }) {
     })();
   }, []);
 
-  // 라운딩 기록 로드 — 코스 상세의 '한줄 메모'·'내 코스기록'에 사용
-  // 다이어리 탭에서 새 기록을 저장하므로 코스 탭 진입 시마다 최신값 재로드
-  useEffect(() => {
-    const loadDiaries = async () => {
-      const d = await storage.load(STORAGE_KEYS.diaries, DIARY_DATA);
-      setDiaries(d || DIARY_DATA);
-    };
-    loadDiaries();
-    if (!navigation) return;
-    const unsub = navigation.addListener('focus', loadDiaries);
-    return unsub;
-  }, [navigation]);
+  // 다이어리는 DiariesContext가 단일 소스 — 별도 로드 X. Firestore 동기화는 Context가 담당.
 
   // userCourses (사용자가 카카오 검색으로 추가한 코스) 로드 — COURSE_LOG에 없는 코스 상세 표시용
   const refreshUserCourses = React.useCallback(async () => {

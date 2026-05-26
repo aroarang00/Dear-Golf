@@ -175,50 +175,94 @@ export function FriendFinder({
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}
             keyboardShouldPersistTaps="handled">
 
-            {/* 카카오 친구 */}
+            {/* 카카오 친구 — Dear Golf 가입자만 노출 (카카오 친구 전체 X, 개인정보 보호)
+                안내 멘트는 친구 N명 표시될 때만 목록 아래에 — 빈 상태에선 EmptyHint로 충분 */}
             {tab === 'kakao' && (
               <>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 10, lineHeight: 16 }}>
-                  카카오 친구 중 Dear Golf를 쓰는 사람이에요
-                </Text>
-                {KAKAO_CANDIDATES.length === 0
-                  ? <EmptyHint text="카카오 친구 중 Dear Golf 유저가 없어요" />
-                  : KAKAO_CANDIDATES.map(p => (
+                {KAKAO_CANDIDATES.length === 0 ? (
+                  <EmptyHint text="카카오톡 친구 중 Dear Golf에 가입한 사람이 아직 없어요" />
+                ) : (
+                  <>
+                    {KAKAO_CANDIDATES.map(p => (
                       <PersonRow key={p.id} person={p} right={candidateRight(p)} />
                     ))}
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                      paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                        💡 카카오톡 친구 중 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 가입한 사람만</Text> 보여요
+                      </Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
+                        다른 친구가 가입하면 자동으로 여기에 표시돼요.
+                      </Text>
+                    </View>
+                  </>
+                )}
               </>
             )}
 
-            {/* 닉네임 검색 */}
+            {/* 닉네임 검색 — Dear Golf에 설정한 닉네임으로만 검색 (카카오톡 이름 ≠ Dear Golf 닉네임 가능) */}
             {tab === 'search' && (
               q
                 ? (searchResults.length === 0
-                    ? <EmptyHint text="검색 결과가 없어요" />
+                    ? (
+                      <>
+                        <EmptyHint text="검색 결과가 없어요" />
+                        <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                          paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
+                          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                            💡 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 설정한 닉네임</Text>으로만 검색돼요
+                          </Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
+                            카카오톡 이름과 다를 수 있어요. 친구에게 Dear Golf 닉네임을 물어보세요.
+                          </Text>
+                        </View>
+                      </>
+                    )
                     : searchResults.map(p => (
                         <PersonRow key={p.id} person={p} right={candidateRight(p)} />
                       )))
-                : <EmptyHint text="닉네임을 입력해 친구를 찾아보세요" />
+                : (
+                  <>
+                    <EmptyHint text="닉네임을 입력해 친구를 찾아보세요" />
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 6, lineHeight: 16 }}>
+                      Dear Golf에 설정한 닉네임으로 검색돼요
+                    </Text>
+                  </>
+                )
             )}
 
-            {/* 받은 신청 */}
+            {/* 받은 신청 — 60일 만료·무시 시 상대방 통보 X 정책 [[friend-add-feature]] */}
             {tab === 'received' && (
               received.length === 0
                 ? <EmptyHint text="받은 친구 신청이 없어요" />
-                : received.map(p => (
-                    <PersonRow key={p.id} person={p} right={
-                      <View style={{ flexDirection: 'row', gap: 6 }}>
-                        <TouchableOpacity onPress={() => onAccept && onAccept(p)} activeOpacity={0.8}
-                          style={{ borderRadius: 14, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.burgundy }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>수락</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => onIgnore && onIgnore(p.id)} activeOpacity={0.8}
-                          style={{ borderRadius: 14, paddingHorizontal: 13, paddingVertical: 7,
+                : (
+                  <>
+                    {received.map(p => (
+                      <PersonRow key={p.id} person={p} right={
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity onPress={() => onAccept && onAccept(p)} activeOpacity={0.8}
+                            style={{ borderRadius: 14, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.burgundy }}>
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>수락</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => onIgnore && onIgnore(p.id)} activeOpacity={0.8}
+                            style={{ borderRadius: 14, paddingHorizontal: 13, paddingVertical: 7,
                             backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>무시</Text>
                         </TouchableOpacity>
                       </View>
                     } />
-                  ))
+                    ))}
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                      paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                        💡 친구 신청은 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>60일간 보관</Text>돼요
+                      </Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
+                        무시해도 상대방에게 알리지 않으니 부담 갖지 마세요.
+                      </Text>
+                    </View>
+                  </>
+                )
             )}
           </ScrollView>
         </SafeAreaView>

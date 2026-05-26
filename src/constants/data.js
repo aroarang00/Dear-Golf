@@ -101,6 +101,39 @@ export const RECOMMENDED_COURSES = [
   { id: 'r4', name: '해슬리나인브릿지', loc: '경기 여주', tags: ['★★★★★', '명문 코스'] },
 ];
 
+// 사용자가 입력한 country 텍스트 → 국기 이모지 매핑
+// 매핑에 없으면 빈 문자열 반환 → 카드는 국기 자리 비움
+export const COUNTRY_FLAGS = {
+  '한국': '🇰🇷', '대한민국': '🇰🇷',
+  '일본': '🇯🇵', 'Japan': '🇯🇵',
+  '중국': '🇨🇳', 'China': '🇨🇳',
+  '베트남': '🇻🇳', 'Vietnam': '🇻🇳',
+  '태국': '🇹🇭', 'Thailand': '🇹🇭',
+  '필리핀': '🇵🇭', 'Philippines': '🇵🇭',
+  '말레이시아': '🇲🇾', 'Malaysia': '🇲🇾',
+  '인도네시아': '🇮🇩', 'Indonesia': '🇮🇩',
+  '싱가포르': '🇸🇬', 'Singapore': '🇸🇬',
+  '대만': '🇹🇼', 'Taiwan': '🇹🇼',
+  '미국': '🇺🇸', 'USA': '🇺🇸', 'America': '🇺🇸',
+  '캐나다': '🇨🇦', 'Canada': '🇨🇦',
+  '호주': '🇦🇺', 'Australia': '🇦🇺',
+  '뉴질랜드': '🇳🇿', 'New Zealand': '🇳🇿',
+  '영국': '🇬🇧', 'UK': '🇬🇧',
+  '프랑스': '🇫🇷', 'France': '🇫🇷',
+  '독일': '🇩🇪', 'Germany': '🇩🇪',
+  '이탈리아': '🇮🇹', 'Italy': '🇮🇹',
+  '스페인': '🇪🇸', 'Spain': '🇪🇸',
+  '포르투갈': '🇵🇹', 'Portugal': '🇵🇹',
+  '아랍에미리트': '🇦🇪', 'UAE': '🇦🇪', '두바이': '🇦🇪',
+  '터키': '🇹🇷', '튀르키예': '🇹🇷',
+  '멕시코': '🇲🇽',
+};
+
+export function getCountryFlag(country) {
+  if (!country) return '';
+  return COUNTRY_FLAGS[country.trim()] || '';
+}
+
 export const OVERSEAS_COURSE_LOG = [
   { id: 'o1', name: '나루토 골프클럽', loc: '일본 오사카', country: '일본', flag: '🇯🇵', visits: 2, best: 88, avg: 94, memo: '코스 관리 최고, 뷰가 아름다움', tags: ['★★★★★', '오션뷰'] },
   { id: 'o2', name: '블랙마운틴 CC', loc: '태국 후아힌', country: '태국', flag: '🇹🇭', visits: 1, best: 92, avg: 92, memo: '열대 코스, 캐디 서비스 훌륭', tags: ['★★★★', '리조트형'] },

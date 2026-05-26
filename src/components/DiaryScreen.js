@@ -70,7 +70,7 @@ function buildSingleHofEntry(data, diaryId) {
 export function DiaryScreen({ route, navigation }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { setSchedules } = React.useContext(SchedulesContext);
-  const { diaries, setDiaries } = React.useContext(DiariesContext);
+  const { diaries, addDiary, editDiary, removeDiary } = React.useContext(DiariesContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
@@ -139,10 +139,10 @@ export function DiaryScreen({ route, navigation }) {
     }
   }, [route?.params?.openAddModal]);
 
-  const handleSave = (type, data) => {
+  const handleSave = async (type, data) => {
     if (type === 'diary') {
-      const newD = {
-        id: String(Date.now()),
+      // Firestore에서 ID 자동 생성. 신규 생성 후 명예의 전당도 같이 갱신.
+      const created = await addDiary({
         date: data.date, day: data.day, course: data.course,
         score: data.score, par: 72, memo: data.memo || '',
         badge: null, weather: data.weather,
@@ -159,20 +159,23 @@ export function DiaryScreen({ route, navigation }) {
         detailMemo: data.detailMemo || '',
         courseId: data.courseId || null,
         cost: data.cost || null,
-      };
-      setDiaries(prev => [newD, ...prev]);
+        visibility: data.visibility || 'friends',
+        overseas: !!data.overseas,
+        country: data.country || '',
+      });
       setHallOfFame(prev => {
         let next = prev;
         // 특별한 순간(홀인원·이글·알바트로스) 카드
-        if (data.special) next = [buildHofEntry(data, newD.id), ...next];
+        if (data.special) next = [buildHofEntry(data, created.id), ...next];
         // 퍼스트 싱글 — 80타 미만 첫 기록 시 1회 자동 등재
         if (data.score <= 79 && !prev.some(h => h.type === '퍼스트 싱글')) {
-          next = [buildSingleHofEntry(data, newD.id), ...next];
+          next = [buildSingleHofEntry(data, created.id), ...next];
         }
         return next;
       });
     } else if (type === 'diary-edit') {
-      setDiaries(prev => prev.map(d => d.id === data.id ? { ...d, ...data } : d));
+      // Firestore 업데이트 — data.id를 기준으로. id·ownerUid는 round.js가 자동으로 분리.
+      await editDiary(data.id, data);
       // 명예의 전당 동기화
       setHallOfFame(prev => {
         const holeId = 'hof_' + data.id;
@@ -196,8 +199,8 @@ export function DiaryScreen({ route, navigation }) {
   };
 
   // 다이어리 기록 삭제 — diaryOnly: 기록만 / all: 같은 날짜·골프장의 일정까지 삭제
-  const handleDeleteDiary = (target, mode) => {
-    setDiaries(prev => prev.filter(d => d.id !== target.id));
+  const handleDeleteDiary = async (target, mode) => {
+    await removeDiary(target.id);
     // 연결된 명예의 전당 카드도 함께 삭제
     setHallOfFame(prev => prev.filter(h => h.diaryId !== target.id));
     if (mode === 'all') {

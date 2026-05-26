@@ -17,6 +17,7 @@ import { DiariesProvider } from './src/contexts/DiariesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { OnboardingIntro } from './src/components/OnboardingIntro';
 import { OnboardingKakao } from './src/components/OnboardingKakao';
+import { OnboardingConsent } from './src/components/OnboardingConsent';
 import { HomeScreen } from './src/components/HomeScreen';
 import { ScheduleScreen } from './src/components/ScheduleScreen';
 import { LoungeScreen } from './src/components/LoungeScreen';
@@ -37,6 +38,8 @@ export default function App() {
   const [introDone, setIntroDone] = useState(false);
   const [kakaoDone, setKakaoDone] = useState(false);   // 온보딩 카카오 단계 완료/건너뜀
   const [kakaoSeed, setKakaoSeed] = useState({});      // 카카오에서 받은 닉네임·사진 — 프로필 입력 화면에 prefill
+  const [consentDone, setConsentDone] = useState(false); // 약관 동의 완료
+  const [consentData, setConsentData] = useState(null);  // 약관 동의 결과 (legalVersion·agreedAt·marketing 등)
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [minSplashDone, setMinSplashDone] = useState(false); // 로딩 화면 최소 표시 시간
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
@@ -116,6 +119,8 @@ export default function App() {
     setIntroDone(false);
     setKakaoDone(false);
     setKakaoSeed({});
+    setConsentDone(false);
+    setConsentData(null);
     setShowOnboarding(true);
   };
 
@@ -124,6 +129,8 @@ export default function App() {
     setIntroDone(false);
     setKakaoDone(false);
     setKakaoSeed({});
+    setConsentDone(false);
+    setConsentData(null);
     setShowOnboarding(true);
   };
 
@@ -148,8 +155,11 @@ export default function App() {
       screen = <OnboardingKakao
         onKakaoSuccess={(seed) => { setKakaoSeed(seed); setKakaoDone(true); }}
         onSkip={() => setKakaoDone(true)} />;
+    } else if (!consentDone) {
+      screen = <OnboardingConsent
+        onAgree={(consent) => { setConsentData(consent); setConsentDone(true); }} />;
     } else {
-      screen = <OnboardingScreen seed={kakaoSeed} onComplete={handleOnboardingComplete} />;
+      screen = <OnboardingScreen seed={kakaoSeed} consent={consentData} onComplete={handleOnboardingComplete} />;
     }
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>

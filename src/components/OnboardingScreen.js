@@ -5,9 +5,10 @@ import { C, F, fs } from '../constants/colors';
 import { obS } from '../styles/obS';
 import { TripleStripe } from './common/TripleStripe';
 
-// 프로필 입력 온보딩 — 인트로·카카오 단계 다음.
+// 프로필 입력 온보딩 — 인트로·카카오·약관 동의 단계 다음.
 // seed: 카카오 로그인으로 받은 prefill 값 ({ nickname, avatarUri, kakaoLinked, kakaoId })
-export function OnboardingScreen({ seed = {}, onComplete }) {
+// consent: 약관 동의 데이터 ({ agreedTos·agreedPrivacy·agreedPenalty·agreedAge·agreedMarketing·legalVersion·agreedAt })
+export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const [nickname, setNickname] = useState(seed.nickname || '');
   const [realName, setRealName] = useState('');
   const [avgScore, setAvgScore] = useState('');
@@ -32,6 +33,8 @@ export function OnboardingScreen({ seed = {}, onComplete }) {
       avatarUri: seed.avatarUri || null,
       kakaoLinked: !!seed.kakaoLinked,
       kakaoId: seed.kakaoId || null,
+      // 약관 동의 데이터 — 변경 시 재동의 트리거용 legalVersion 보존
+      consent: consent || null,
     });
   };
 
