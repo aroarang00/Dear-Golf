@@ -15,6 +15,8 @@ import { searchPlaces } from '../utils/kakao';
 import { deleteAccount } from '../utils/account';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { BlockManageScreen } from './BlockManageScreen';
+import { ReportModal } from './ReportModal';
+import { MyRoundupActivityScreen } from './MyRoundupActivityScreen';
 import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
 import { clearRecentCourses } from '../utils/recentCourses';
 import { TermsViewerModal } from './TermsViewerModal';
@@ -33,6 +35,8 @@ export function MyPageModal({ visible, onClose }) {
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
   const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
+  const [reportOpen, setReportOpen] = useState(false);             // 신고하기
+  const [roundupActivityOpen, setRoundupActivityOpen] = useState(false); // 내 라운지 활동
   const [termsViewer, setTermsViewer] = useState({ visible: false, title: '', body: '', externalUrl: null }); // 약관·정책 본문 뷰어
   const [reportRemaining, setReportRemaining] = useState(REPORT_MONTH_LIMIT); // 이번 달 신고 가능 잔여 (월 1건 한도)
 
@@ -476,28 +480,16 @@ export function MyPageModal({ visible, onClose }) {
                   { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
                   { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
                   { icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
+                  // 내 라운지 활동 — 매너·신뢰 등급, 패널티 이력, 진행 중 신고 통합 진입점 ([[my-roundup-activity]])
+                  { icon: '📋', label: '내 라운지 활동',
+                    onPress: () => setRoundupActivityOpen(true) },
                   { icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
                     onPress: () => setBlockManageOpen(true) },
-                  // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화
-                  // (정책 report-block-policy §5-1). Phase 2에 6단계 흐름 + 백엔드 구현.
-                  // 월 1건 한도(REPORT_MONTH_LIMIT) — utils/reportLimit.js로 체크
+                  // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화 ([[report-block-policy]] §5-1)
+                  // Firestore reports 컬렉션 등록·이메일 발송·검토 결과 통보는 Phase 2 Cloud Functions
                   { icon: '🚨', label: '신고하기',
                     value: `이번 달 ${reportRemaining}/${REPORT_MONTH_LIMIT}건`,
-                    onPress: () => {
-                      if (reportRemaining === 0) {
-                        setAlertData({
-                          title: '이번 달 신고 횟수를 초과했어요',
-                          message: `사용자 신고는 월 ${REPORT_MONTH_LIMIT}건으로 제한되어 있어요.\n다음 달 1일에 다시 가능해져요.\n\n급한 사안은 deargolf.official@gmail.com으로 연락주세요.`,
-                          buttons: [{ text: '확인' }],
-                        });
-                        return;
-                      }
-                      setAlertData({
-                        title: '신고하기 준비 중',
-                        message: `사용자 신고 기능은 곧 추가될 예정이에요.\n급한 경우 deargolf.official@gmail.com으로 연락주세요.`,
-                        buttons: [{ text: '확인' }],
-                      });
-                    } },
+                    onPress: () => setReportOpen(true) },
                   ...(userProfile.kakaoLinked
                     ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
                     : [{ icon: '💛', label: '카카오 로그인 연동',
@@ -697,6 +689,10 @@ export function MyPageModal({ visible, onClose }) {
         </View>
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
       <BlockManageScreen visible={blockManageOpen} onClose={() => setBlockManageOpen(false)} />
+      <ReportModal visible={reportOpen}
+        onClose={() => { setReportOpen(false); getReportRemainingThisMonth().then(setReportRemaining); }} />
+      <MyRoundupActivityScreen visible={roundupActivityOpen}
+        onClose={() => setRoundupActivityOpen(false)} />
       <TermsViewerModal
         visible={termsViewer.visible}
         onClose={() => setTermsViewer(v => ({ ...v, visible: false }))}

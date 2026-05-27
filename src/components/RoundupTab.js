@@ -3,6 +3,8 @@ import { Modal, View, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { RoundupCreateModal } from './RoundupCreateModal';
+import { DUMMY_FRIENDS } from './FriendsTab';
+import { MannerEvaluationModal } from './MannerEvaluationModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -10,11 +12,12 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, waitlistRespondHours, matchesRoundup, hasRoundupMatch } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, ageGroupLabelShort, waitlistRespondHours, matchesRoundup, hasRoundupMatch, pickNames } from '../constants/roundup';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
+import { isKickLimitReached, incrementKickCount, getKickRemainingThisMonth, KICK_MONTH_LIMIT } from '../utils/kickLimit';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
@@ -28,7 +31,7 @@ const DUMMY_POSTS = [
     authorHostedCount: 220, authorAttendedCount: 88, authorMannerScore: 96,
     course: '제이드팰리스 GC', date: '2026.05.31', day: '일', time: '07:12',
     teams: 3, teamJoined: [4, 2, 0], waitlistCount: 0, scope: 'all',
-    companion: 'mixed', skill: 'mid', region: 'capital', tags: ['편안한라운딩', '즐기는라운딩'],
+    companion: 'mixed', ageGroup: 'mixed', skill: 'mid', region: 'capital', tags: ['편안한라운딩', '즐기는라운딩'],
     word: '주말 모닝 단체 라운딩 — 팀 더 모아요!', closed: false, ts: 5 },
   { id: 'r2', type: 'open', author: '김민준', authorId: 'kmj', isFriend: true,
     authorHostedCount: 7, authorAttendedCount: 14, authorMannerScore: 82,
@@ -46,9 +49,24 @@ const DUMMY_POSTS = [
     authorHostedCount: 1, authorAttendedCount: 3, authorMannerScore: 75,
     course: null, date: null, day: null, time: null,
     teams: 1, joined: 1, capacity: 2, waitlistCount: 0, scope: 'all',
-    companion: 'couple', skill: 'pro', region: null, tags: ['시니어환영', '실력자환영'],
+    companion: 'couple', ageGroup: '4050', skill: 'pro', region: null, tags: ['시니어환영', '실력자환영'],
     word: '평일 휴무라 1명만 더 구해요 (둘이 라운딩)', closed: false, ts: 2 },
 ];
+
+// 댓글 더미 — r1(내가 참여 확정인 모집글)에만 깔아두기. 고정 댓글 + 일반 댓글 혼합.
+const DUMMY_COMMENTS = {
+  r1: [
+    { id: 'c_r1_1', postId: 'r1', authorUid: 'oseh', authorName: '오세훈',
+      body: '집합은 클럽하우스 1층 카운터 앞에서 6:50까지요. 늦지 않게 와주세요!',
+      createdAt: Date.now() - 3600000 * 6, pinned: true, pinnedAt: Date.now() - 3600000 * 6 },
+    { id: 'c_r1_2', postId: 'r1', authorUid: 'lsy', authorName: '이수연',
+      body: '저는 6시 30분쯤 도착할 것 같아요 :)',
+      createdAt: Date.now() - 3600000 * 3, pinned: false, pinnedAt: null },
+    { id: 'c_r1_3', postId: 'r1', authorUid: 'kmj', authorName: '김민준',
+      body: '주차장이 좀 혼잡할 수 있어서 여유있게 출발하시면 좋을 것 같습니다.',
+      createdAt: Date.now() - 3600000, pinned: false, pinnedAt: null },
+  ],
+};
 
 // 알림 더미 — 내 모집글 알림(apply/cancel) + 내 참여·대기 알림(slotOpen/confirmed)
 // apply: status pending이면 수락/거절 가능. actorHostedCount/actorMannerScore — 주최자 승인 판단용 신뢰도 데이터
@@ -61,6 +79,12 @@ const DUMMY_NOTIFICATIONS = [
   { id: 'n4', type: 'confirmed', actor: '',       postId: 'r1', postTitle: '제이드팰리스 GC', time: '3시간 전', read: true },
   { id: 'n5', type: 'cancel',    actor: '박지영', actorHostedCount: 1, actorMannerScore: 75,
     postId: 'r1', postTitle: '제이드팰리스 GC', time: '어제',     read: true },
+  // 더미 — 내가 참여한 r1 모집에 다른 동반자가 댓글을 남긴 시나리오
+  { id: 'n6', type: 'comment',   actor: '이수연', postId: 'r1', postTitle: '제이드팰리스 GC',
+    time: '3시간 전', read: false },
+  // 더미 — 라운딩 종료 후 매너 평가 권유 (티오프+5h 트리거, Phase 2 Cloud Functions)
+  { id: 'n7', type: 'mannerEval', actor: '',       postId: 'r1', postTitle: '제이드팰리스 GC',
+    time: '6시간 전', read: false },
 ];
 
 function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark }) {
@@ -136,17 +160,23 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         </>
       )}
 
-      {/* 동반자 조건 뱃지 — 구성·실력·태그 최대 2개. 'any'/빈배열은 숨김 (전체공개 모집에만 의미) */}
+      {/* 동반자 조건 뱃지 — 구성·연령대·실력·태그 최대 2개. 'any'/빈배열은 숨김 (전체공개 모집에만 의미) */}
       {(() => {
         const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
+        const ageTxt = ageGroupLabelShort(post.ageGroup);
         const skillTxt = skillLabelShort(post.skill);
         const tagList = Array.isArray(post.tags) ? post.tags.slice(0, 2) : [];
-        if (!compTxt && !skillTxt && tagList.length === 0) return null;
+        if (!compTxt && !ageTxt && !skillTxt && tagList.length === 0) return null;
         return (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
             {compTxt && (
               <View style={{ backgroundColor: FILTER_BADGE.companion.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.companion.fg }}>{compTxt}</Text>
+              </View>
+            )}
+            {ageTxt && (
+              <View style={{ backgroundColor: FILTER_BADGE.ageGroup.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.ageGroup.fg }}>{ageTxt}</Text>
               </View>
             )}
             {skillTxt && (
@@ -261,6 +291,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [applied, setApplied] = useState({});           // 참여 신청함 (주최자 수락 대기)
   const [waitlist, setWaitlist] = useState({ r3: 3 });  // 더미: r3 대기 3번
   const [bookmarks, setBookmarks] = useState({});       // 관심 모집 {postId: true}
+  // 댓글 — { [postId]: [comment...] }. Firebase 마이그레이션 시 서브컬렉션 roundups/{postId}/comments로 이관.
+  const [commentsByPost, setCommentsByPost] = useState(DUMMY_COMMENTS);
   // 친구 모집만 보기 토글 — true면 '전체' 탭 숨김 + 기본 view 'friend'
   const hideStranger = !!userProfile?.hideStrangerRoundups;
   const [view, setView] = useState(hideStranger ? 'friend' : 'all');  // all | friend | mine | watch
@@ -271,6 +303,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     if (hideStranger && view === 'all') setView('friend');
   }, [hideStranger, view]);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingPost, setEditingPost] = useState(null);  // 수정 모드 — 모집글 id 매칭용 원본
+  const [evaluatingPostId, setEvaluatingPostId] = useState(null); // 매너 평가 모달 — postId
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
@@ -438,6 +472,19 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   };
 
   const handleCreate = (post) => {
+    // 수정 모드 — editingPost가 있으면 기존 모집글에 변경분 머지 + schedules 동기화 ([[roundup-edit-policy]] §5)
+    if (editingPost) {
+      const eid = editingPost.id;
+      setPosts(prev => prev.map(p => p.id === eid ? { ...p, ...post } : p));
+      // schedules 동기화 — date·time·course 변경 시 본인 자동 일정도 함께 갱신
+      setSchedules(prev => prev.map(s => {
+        if (s.roundupId !== eid) return s;
+        return { ...s, course: post.course || s.course, date: post.date || s.date,
+          day: post.day || s.day, time: post.time || s.time };
+      }));
+      setEditingPost(null);
+      return;
+    }
     const teams = post.teams || 1;
     const base = {
       ...post, id: 'r' + Date.now(), author: '나', isFriend: false,
@@ -452,6 +499,65 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     if (teams > 1) base.teamJoined = Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0));
     else base.joined = 1;
     setPosts(prev => [base, ...prev]);
+  };
+
+  // 주최자 강퇴 ([[roundup-kick-policy]]) — 전체공개 모집의 수락된 참여자만, 월 2회 한도.
+  // 강퇴된 사람: 패널티 X, 통보는 "주최자 사정으로 참여 취소" 블라인드. 대기자 호출(Phase 2)·정지 누적(Phase 2)은 Cloud Functions.
+  const handleKick = async (postId, target, reason) => {
+    if (!postId || !target?.id) return;
+    const reached = await isKickLimitReached();
+    if (reached) {
+      setAlert({
+        title: '이번 달 강퇴 횟수를 초과했어요',
+        message: `주최자 강퇴는 월 ${KICK_MONTH_LIMIT}회로 제한되어 있어요.\n다음 달 1일에 다시 가능해져요.`,
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    // 참여자 제거 + 정원 -1 (단체는 첫 채워진 팀에서 차감)
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      if (p.teams > 1 && Array.isArray(p.teamJoined)) {
+        const tj = [...p.teamJoined];
+        for (let i = tj.length - 1; i >= 0; i--) {
+          if (tj[i] > 0) { tj[i] -= 1; break; }
+        }
+        return { ...p, teamJoined: tj };
+      }
+      return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
+    }));
+    await incrementKickCount();
+    const remaining = await getKickRemainingThisMonth();
+    setAlert({
+      title: '참여자가 내보내졌어요',
+      message: `${target.name}님의 참여가 취소됐어요.\n이번 달 남은 강퇴 ${remaining}/${KICK_MONTH_LIMIT}회.`,
+      buttons: [{ text: '확인' }],
+    });
+  };
+
+  // 모집글 수정 진입 — 시점 분기 후 RoundupCreateModal을 edit mode로 띄움 ([[roundup-edit-policy]] §1).
+  // 모달 중첩 패턴 — RoundupDetail 닫고 부모 모달 열기 ([[modal-navigation-pattern]]).
+  const handleEditRequest = (post) => {
+    if (!post) return;
+    // 참여자 1+ + D-7 이내는 차단 (참여자 0이면 시점 무관 자유 수정)
+    const otherCount = Math.max(0, (post.joined || 1) - 1);
+    if (otherCount > 0 && post.date) {
+      const [y, m, d] = post.date.split('.').map(Number);
+      const [hh, mm] = (post.time || '07:00').split(':').map(Number);
+      const target = new Date(y, m - 1, d, hh, mm);
+      const hoursUntil = (target - new Date()) / 3600000;
+      if (isD7Inside(hoursUntil)) {
+        setAlert({
+          title: '라운딩 7일 이내라 수정이 어려워요',
+          message: '약속된 라운딩을 보호하기 위해 D-7 이내엔 모집글을 수정할 수 없어요.\n부득이한 사유라면 [취소] 후 다시 등록해주세요.',
+          buttons: [{ text: '확인', style: 'cancel' }],
+        });
+        return;
+      }
+    }
+    setDetailId(null);
+    setEditingPost(post);
+    setShowCreate(true);
   };
 
   // 모집 인원 +1 — 단체는 빈 첫 팀에, 개별은 인원 (주최자가 신청을 수락할 때 호출)
@@ -581,7 +687,45 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // 내 모집글 삭제 — 상세 화면도 닫는다
   const handleDelete = (id) => {
     setPosts(prev => prev.filter(p => p.id !== id));
+    setCommentsByPost(prev => { const n = { ...prev }; delete n[id]; return n; });
     setDetailId(null);
+  };
+
+  // 댓글 작성 — 비속어 필터·권한 체크는 호출 측(RoundupDetail)에서. 성공 시 comment 객체 push.
+  // 알림 발송(주최자+참여 확정자에게 comment 타입)은 Phase 2 Cloud Function 이관 — 현재 단계 X.
+  const handleAddComment = (postId, comment) => {
+    setCommentsByPost(prev => ({
+      ...prev,
+      [postId]: [...(prev[postId] || []), comment],
+    }));
+  };
+
+  // 댓글 삭제 — 본인 댓글만 (RoundupDetail에서 권한 체크 후 호출).
+  const handleDeleteComment = (postId, commentId) => {
+    setCommentsByPost(prev => ({
+      ...prev,
+      [postId]: (prev[postId] || []).filter(c => c.id !== commentId),
+    }));
+  };
+
+  // 댓글 고정 토글 — 주최자만 (RoundupDetail에서 권한 체크 후 호출). 한 모집글당 1개 유지.
+  const handlePinComment = (postId, commentId) => {
+    setCommentsByPost(prev => {
+      const list = prev[postId] || [];
+      const target = list.find(c => c.id === commentId);
+      if (!target) return prev;
+      const nextList = list.map(c => {
+        if (c.id === commentId) {
+          return target.pinned
+            ? { ...c, pinned: false, pinnedAt: null }
+            : { ...c, pinned: true, pinnedAt: Date.now() };
+        }
+        // 새로 고정하는 경우 기존 고정 해제
+        if (!target.pinned && c.pinned) return { ...c, pinned: false, pinnedAt: null };
+        return c;
+      });
+      return { ...prev, [postId]: nextList };
+    });
   };
 
   // 주최자 — 참여 신청 수락 / 거절
@@ -593,10 +737,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, status: 'rejected', read: true } : x)));
   };
 
-  // 알림 탭 — 읽음 처리 후 해당 모집글 상세 열기
+  // 알림 탭 — 읽음 처리 후 진입 (mannerEval은 평가 모달, 그 외는 모집 상세)
   const openNotiPost = (n) => {
     setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
     setShowNoti(false);
+    if (n.type === 'mannerEval') {
+      const post = posts.find(p => p.id === n.postId);
+      if (post) setEvaluatingPostId(n.postId);
+      return;
+    }
     setDetailId(n.postId);
   };
   const readAllNoti = () => setNotifications(prev => prev.map(x => ({ ...x, read: true })));
@@ -940,7 +1089,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         )}
       </ScrollView>
 
-      <RoundupCreateModal visible={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
+      <RoundupCreateModal visible={showCreate}
+        onClose={() => { setShowCreate(false); setEditingPost(null); }}
+        onCreate={handleCreate}
+        initialPost={editingPost}
+        friends={DUMMY_FRIENDS} />
 
       {/* 맞춤 모집 조건 설정 */}
       <RoundupMatchModal
@@ -968,6 +1121,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         applied={!!(detailId && applied[detailId])}
         waitlistNum={detailId ? waitlist[detailId] : undefined}
         isBookmarked={!!(detailId && bookmarks[detailId])}
+        comments={detailId ? (commentsByPost[detailId] || []) : []}
         onClose={() => setDetailId(null)}
         onApply={() => detailId && performJoinOrApply(detailId)}
         onWaitlist={() => detailId && handleWaitlist(detailId)}
@@ -977,7 +1131,36 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onGradePress={(key) => setGradeModalKey(key)}
         onToggleBookmark={() => detailId && toggleBookmark(detailId)}
         onBlock={handleBlock}
-        onReport={handleReport} />
+        onReport={handleReport}
+        onKick={(target, reason) => detailId && handleKick(detailId, target, reason)}
+        onEdit={() => detailPost && handleEditRequest(detailPost)}
+        onAddComment={(c) => detailId && handleAddComment(detailId, c)}
+        onDeleteComment={(commentId) => detailId && handleDeleteComment(detailId, commentId)}
+        onPinComment={(commentId) => detailId && handlePinComment(detailId, commentId)} />
+
+          {/* 매너 평가 모달 — 라운지 알림에서 진입 ([[manner-evaluation-policy]]) */}
+          {(() => {
+            const evalPost = posts.find(p => p.id === evaluatingPostId);
+            if (!evalPost) return null;
+            // 평가 대상 — 본인 제외 참여자 3명(4인 라운드 기준 더미). Phase 2엔 실제 participantUids에서 본인 제외.
+            const names = pickNames(evalPost.id + ':eval', 3);
+            const participants = names.map((n, i) => ({ id: `${evalPost.id}:e${i}`, name: n }));
+            return (
+              <MannerEvaluationModal
+                visible={!!evaluatingPostId}
+                post={evalPost}
+                participants={participants}
+                onClose={() => setEvaluatingPostId(null)}
+                onSubmit={() => {
+                  // 평가 제출 — 실제 집계는 Phase 2 Cloud Functions. 여기선 mannerEvaluationPending만 해제.
+                  if (userProfile?.mannerEvaluationPending) {
+                    const next = { ...userProfile, mannerEvaluationPending: false };
+                    setUserProfile(next);
+                    storage.save(STORAGE_KEYS.profile, next);
+                  }
+                }} />
+            );
+          })()}
 
           {/* 알림함 */}
           <RoundupNotifications

@@ -25,8 +25,8 @@ const AVATARS = [
   { bg: '#6B8B5E', fg: '#fff' },
 ];
 
-// 친구 더미 데이터 — Firebase 연동 전 UI 표시용
-const DUMMY_FRIENDS = [
+// 친구 더미 데이터 — Firebase 연동 전 UI 표시용. 다른 화면(라운지 친구지정 등)에서도 import.
+export const DUMMY_FRIENDS = [
   {
     id: 'f1', name: '김민준', style: '장타형 드라이버', handicap: 12, roundsTogether: 8,
     hostedCount: 7, attendedCount: 14, mannerScore: 82,   // 활동: 브론즈 / 매너: 좋음

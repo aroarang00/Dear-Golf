@@ -5,10 +5,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { COMPANION_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, REGION_OPTIONS, regionFromAddress } from '../constants/roundup';
+import { COMPANION_OPTIONS, AGEGROUP_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, REGION_OPTIONS, regionFromAddress } from '../constants/roundup';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
 import { UserContext } from '../contexts/UserContext';
+import { OverlayAlert } from './common/OverlayAlert';
+import { FriendSelectModal } from './FriendSelectModal';
 
 const SCOPES_ALL = [
   ['all', '전체공개'],
@@ -22,8 +24,10 @@ const SCOPES_FRIENDS_ONLY = [
 ];
 const DAYS = WEEKDAYS;
 
-// 라운딩 모집글 작성 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디
-export function RoundupCreateModal({ visible, onClose, onCreate }) {
+// 라운딩 모집글 작성·수정 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디.
+// initialPost 있으면 수정 모드 (prefill + 타이틀·버튼 변경). 부모에서 id 매칭으로 분기.
+// friends — 친구지정 모달용 친구 목록 (현재 더미, Phase 3에 friendships 컬렉션으로 교체).
+export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = null, friends = [] }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = useContext(UserContext);
   // 본인이 마이페이지에서 "친구 모집만 보기" 켜두면 작성 시에도 전체공개 옵션 숨김 (일관성)
@@ -43,13 +47,18 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   // 동반자(앱 미사용자) 입력 기능은 2026-05-26 폐기 — 앱 사용자끼리 모집이 본질.
   // 지인 데려가는 경우는 주최자가 모집 진행 중 인원 변경으로 처리 (Phase 2 [[phase2-master-plan]] §7-7-3).
   const [scope, setScope] = useState(hideStranger ? 'friends' : 'all');
+  // 친구지정(scope='select') 상세 — selectMode + selectedUids ([[roundup-visibility-design]])
+  const [selectMode, setSelectMode] = useState('include');
+  const [selectedUids, setSelectedUids] = useState([]);
+  const [showFriendSelect, setShowFriendSelect] = useState(false);
   const [word, setWord] = useState('');
   // hideStranger 토글 변경 시 scope이 'all'이면 자동 보정
   useEffect(() => {
     if (hideStranger && scope === 'all') setScope('friends');
   }, [hideStranger]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 동반자 조건 필터 — 구성·실력 단일 선택, 태그 다중 선택. 전체공개에서만 노출.
+  // 동반자 조건 필터 — 구성·연령대·실력 단일 선택, 태그 다중 선택. 전체공개에서만 노출.
   const [companion, setCompanion] = useState('any');
+  const [ageGroup, setAgeGroup] = useState('any');
   const [skill, setSkill] = useState('any');
   const [tags, setTags] = useState([]);
   const toggleTag = (t) => setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
@@ -59,13 +68,47 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
   const [openTime, setOpenTime] = useState([]);
   const toggleOpenTime = (k) => setOpenTime(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]);
   const [showTip, setShowTip] = useState(false);     // 모집 형태 안내 툴팁 (1회)
+  const [alert, setAlert] = useState(null);          // 수정 모드 주요 변경 확인용
   const debounceRef = useRef(null);
 
-  // 처음 작성 화면을 열 때 1회 툴팁 표시
+  // 처음 작성 화면을 열 때 1회 툴팁 표시 (수정 모드에선 안 띄움)
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || initialPost) return;
     storage.load(STORAGE_KEYS.roundupTipDone, false).then(done => { if (!done) setShowTip(true); });
-  }, [visible]);
+  }, [visible, initialPost]);
+
+  // 신규 작성 모드로 열릴 때 — 이전 수정 데이터가 남아있을 수 있으니 reset
+  useEffect(() => {
+    if (visible && !initialPost) reset();
+  }, [visible, initialPost]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 수정 모드 — initialPost로 모든 state prefill
+  useEffect(() => {
+    if (!visible || !initialPost) return;
+    setType(initialPost.type || 'fixed');
+    setCourseQuery(initialPost.course || '');
+    setCourse(initialPost.course ? { name: initialPost.course, loc: null } : null);
+    if (initialPost.date && initialPost.time) {
+      const [y, m, d] = initialPost.date.split('.').map(Number);
+      const [hh, mm] = initialPost.time.split(':').map(Number);
+      const dd = new Date(y, m - 1, d, hh, mm, 0, 0);
+      if (!isNaN(dd)) setDate(dd);
+    }
+    const isTeam = (initialPost.teams || 1) > 1;
+    setGroupMode(isTeam ? 'team' : 'single');
+    setMembers(Math.max(1, Math.min(3, (initialPost.capacity || 4) - 1)));
+    setTeams(Math.max(2, Math.min(4, initialPost.teams || 2)));
+    setScope(initialPost.scope || 'all');
+    setWord(initialPost.word || '');
+    setCompanion(initialPost.companion || 'any');
+    setAgeGroup(initialPost.ageGroup || 'any');
+    setSkill(initialPost.skill || 'any');
+    setTags(Array.isArray(initialPost.tags) ? initialPost.tags : []);
+    setOpenRegion(initialPost.region || 'capital');
+    setOpenTime(Array.isArray(initialPost.openTime) ? initialPost.openTime : []);
+    setSelectMode(initialPost.selectMode || 'include');
+    setSelectedUids(Array.isArray(initialPost.selectedUids) ? initialPost.selectedUids : []);
+  }, [visible, initialPost]);
 
   const dismissTip = () => {
     setShowTip(false);
@@ -89,24 +132,24 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
     return () => debounceRef.current && clearTimeout(debounceRef.current);
   }, [courseQuery, course, type]);
 
+  // 신규 작성 모드일 때만 reset. 수정 모드는 닫을 때 자체 prefill로 유지(다음 visible에 useEffect로 재적용).
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
     const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
     setGroupMode('single'); setMembers(3); setTeams(2); setScope(hideStranger ? 'friends' : 'all'); setWord(''); setOpenTime([]);
-    setCompanion('any'); setSkill('any'); setTags([]);
+    setCompanion('any'); setAgeGroup('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
+    setSelectMode('include'); setSelectedUids([]); setShowFriendSelect(false);
   };
-  const close = () => { reset(); onClose(); };
+  const close = () => { if (!initialPost) reset(); onClose(); };
 
-  const handleSubmit = () => {
+  // 최종 데이터 빌드
+  const buildPayload = () => {
     const courseName = course?.name || courseQuery.trim();
-    if (type === 'fixed' && !courseName) return; // 확정형은 골프장 필수
     const isTeam = groupMode === 'team';
-    // 지역(region): 확정형은 골프장 주소에서 자동 추출, 오픈형은 사용자가 선택한 권역 사용
     const region = type === 'fixed' ? regionFromAddress(course?.loc) : openRegion;
-    // 친구공개·친구지정에서는 동반자 조건/태그가 의미 없으므로 저장도 안 함
     const isPublic = scope === 'all';
-    onCreate({
+    return {
       type,
       course: type === 'fixed' ? courseName : null,
       region,
@@ -114,20 +157,65 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
       day: type === 'fixed' ? DAYS[date.getDay()] : null,
       time: type === 'fixed' ? fmtTime(date) : null,
       teams: isTeam ? teams : 1,
-      // members(chip)는 주최자 외 모집 자리 수(1~3). 총 정원 = members + 1.
       capacity: isTeam ? teams * 4 : (members + 1),
-      // 동반자(앱 미사용자) 입력 폐기 — companions는 항상 빈 배열로 저장 (옛 데이터 호환용)
       companions: [],
-      // 오픈형 희망 시기 — 0개·2개 모두 선택 시 '상관없음'으로 간주 (배열로 저장, 표시는 length===1만)
       openTime: type === 'open' ? openTime : [],
       scope,
+      // 친구지정 — select일 때만 저장, 그 외 null/[]
+      selectMode: scope === 'select' ? selectMode : null,
+      selectedUids: scope === 'select' ? selectedUids : [],
       word: word.trim(),
-      // 동반자 조건 — 전체공개일 때만 의미. 친구공개·친구지정은 'any'/[]로 저장
       companion: isPublic ? companion : 'any',
+      ageGroup: isPublic ? ageGroup : 'any',
       skill: isPublic ? skill : 'any',
       tags: isPublic ? tags : [],
-    });
-    reset(); onClose();
+    };
+  };
+
+  const doSubmit = () => {
+    onCreate(buildPayload());
+    if (!initialPost) reset();
+    onClose();
+  };
+
+  const handleSubmit = () => {
+    const courseName = course?.name || courseQuery.trim();
+    if (type === 'fixed' && !courseName) return; // 확정형은 골프장 필수
+
+    // 친구지정 가드 — include + 0명 차단 (아무도 못 봄), exclude + 0명은 친구공개 동등이라 허용
+    if (scope === 'select' && selectMode === 'include' && selectedUids.length === 0) {
+      setAlert({
+        title: '친구를 선택해주세요',
+        message: '한 명도 선택하지 않으면 아무도 모집글을 볼 수 없어요.\n친구지정 화면에서 친구를 골라주세요.',
+        buttons: [
+          { text: '취소', style: 'cancel' },
+          { text: '친구 선택', onPress: () => setShowFriendSelect(true) },
+        ],
+      });
+      return;
+    }
+
+    // 수정 모드 — 주요 변경(date/course/time) + 참여자 1+ 시 재확인 모달 ([[roundup-edit-policy]] §4-1)
+    if (initialPost) {
+      const payload = buildPayload();
+      const majorChanged =
+        payload.date !== (initialPost.date || null) ||
+        payload.course !== (initialPost.course || null) ||
+        payload.time !== (initialPost.time || null);
+      const otherCount = Math.max(0, (initialPost.joined || 1) - 1);
+      if (majorChanged && otherCount > 0) {
+        setAlert({
+          title: '주요 변경 사항이 있어요',
+          message: `참여자 ${otherCount}명에게 변경 알림이 가요.\n계속 진행할까요?`,
+          buttons: [
+            { text: '취소', style: 'cancel' },
+            { text: '수정하기', onPress: () => doSubmit() },
+          ],
+        });
+        return;
+      }
+    }
+    doSubmit();
   };
 
 
@@ -148,7 +236,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             automaticallyAdjustKeyboardInsets>
             {/* 타이틀 줄 — 우측에 명시적 ✕ 닫기 버튼 */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={[mS.title, { flex: 1, marginBottom: 0, fontSize: fs(21) }]}>라운딩 모집글 작성</Text>
+              <Text style={[mS.title, { flex: 1, marginBottom: 0, fontSize: fs(21) }]}>
+                {initialPost ? '라운딩 모집글 수정' : '라운딩 모집글 작성'}
+              </Text>
               <TouchableOpacity onPress={close} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: C.bgSecondary }}>
@@ -333,11 +423,35 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {SCOPES.map(([k, l]) => (
                 <TouchableOpacity key={k} style={[mS.chip, scope === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}
-                  onPress={() => setScope(k)}>
+                  onPress={() => {
+                    setScope(k);
+                    // 친구지정 선택 시 친구 선택 모달 자동 노출
+                    if (k === 'select') setShowFriendSelect(true);
+                  }}>
                   <Text style={[mS.chipTxt, scope === k && mS.chipTxtOn]}>{l}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* 친구지정 상태 — 모드·인원 표시 + 다시 선택 진입 */}
+            {scope === 'select' && (
+              <View style={{ marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
+                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>
+                  {selectMode === 'include' ? '포함' : '제외'} · {selectedUids.length}명
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, flex: 1 }}>
+                  {selectMode === 'include' ? '선택한 친구에게만 보여요' : '선택한 친구만 안 보여요'}
+                </Text>
+                <TouchableOpacity onPress={() => setShowFriendSelect(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.burgundy }}>
+                    {selectedUids.length === 0 ? '친구 선택' : '다시 선택'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* 동반자 조건·태그 — 전체공개에서만 의미. 친구공개·친구지정은 어차피 친구라 숨김 */}
             {scope === 'all' && (
@@ -348,6 +462,19 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
                     const on = companion === k;
                     return (
                       <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setCompanion(k)}
+                        style={[mS.chip, on && mS.chipOn, { alignItems: 'center' }]}>
+                        <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{l}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={mS.bigLabel}>연령대</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {AGEGROUP_OPTIONS.map(([k, l]) => {
+                    const on = ageGroup === k;
+                    return (
+                      <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setAgeGroup(k)}
                         style={[mS.chip, on && mS.chipOn, { alignItems: 'center' }]}>
                         <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{l}</Text>
                       </TouchableOpacity>
@@ -390,12 +517,21 @@ export function RoundupCreateModal({ visible, onClose, onCreate }) {
               value={word} onChangeText={setWord} maxLength={120} />
 
             <TouchableOpacity style={mS.saveBtn} onPress={handleSubmit}>
-              <Text style={[mS.saveBtnTxt, { fontSize: fs(17) }]}>모집글 등록</Text>
+              <Text style={[mS.saveBtnTxt, { fontSize: fs(17) }]}>
+                {initialPost ? '수정 저장' : '모집글 등록'}
+              </Text>
             </TouchableOpacity>
             <View style={{ height: 24 }} />
           </ScrollView>
         </View>
       </View>
+      <OverlayAlert data={alert} onClose={() => setAlert(null)} />
+      <FriendSelectModal
+        visible={showFriendSelect}
+        friends={friends}
+        initial={{ selectMode, selectedUids }}
+        onClose={() => setShowFriendSelect(false)}
+        onConfirm={({ selectMode: m, selectedUids: u }) => { setSelectMode(m); setSelectedUids(u); }} />
     </Modal>
   );
 }

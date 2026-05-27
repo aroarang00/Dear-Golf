@@ -33,10 +33,14 @@ export function regionFromAddress(addr) {
 
 // 동반자 조건 — 전체공개 모집에서만 표시 (친구공개·친구지정은 의미 없으므로 숨김)
 // companion: 'any' | 'male' | 'female' | 'couple' | 'mixed'
+// ageGroup:  'any' | '2030' | '4050' | '6070' | 'mixed'
 // skill:     'any' | 'pro' | 'mid' | 'high' | 'beginner'  — pro=80↓, mid=80~90, high=90~100, beginner=100↑
 // tags:      해시태그 다중 선택 (분위기·연령·수준 자유 표현)
 export const COMPANION_OPTIONS = [
   ['any', '상관없음'], ['male', '남성만'], ['female', '여성만'], ['couple', '커플'], ['mixed', '혼성'],
+];
+export const AGEGROUP_OPTIONS = [
+  ['any', '상관없음'], ['2030', '20·30대'], ['4050', '40·50대'], ['6070', '60대 이상'], ['mixed', '다양한 연령'],
 ];
 export const SKILL_OPTIONS = [
   ['any', '상관없음'], ['beginner', '100타 이상'], ['high', '90-100타'], ['mid', '80-90타'], ['pro', '80타 이하'],
@@ -49,12 +53,14 @@ export const TAG_OPTIONS = [
 ];
 
 export const COMPANION_LABEL = Object.fromEntries(COMPANION_OPTIONS);
+export const AGEGROUP_LABEL = Object.fromEntries(AGEGROUP_OPTIONS);
 export const SKILL_LABEL = Object.fromEntries(SKILL_OPTIONS);
 
 // 동반자 조건 뱃지 색상 — 카드에 표시
 export const FILTER_BADGE = {
   tag:       { bg: '#E8DCC8', fg: '#5A4500' },
   companion: { bg: '#C8D9E6', fg: '#1A3D52' },
+  ageGroup:  { bg: '#D8E5C8', fg: '#3A5524' },
   skill:     { bg: '#D9C8E0', fg: '#4A2A5C' },
 };
 
@@ -63,6 +69,12 @@ export function skillLabelShort(skill) {
   if (!skill || skill === 'any') return null;
   const SHORT = { beginner: '100타+', high: '90타대', mid: '80타대', pro: '80타-' };
   return SHORT[skill] || SKILL_LABEL[skill] || null;
+}
+
+// 연령대 — 카드용 짧은 표기 ('any' → 표시 안 함)
+export function ageGroupLabelShort(ageGroup) {
+  if (!ageGroup || ageGroup === 'any') return null;
+  return AGEGROUP_LABEL[ageGroup] || null;
 }
 
 // 라운딩 날짜까지 남은 일수로 대기자 응답 제한 시간(시간)을 계산

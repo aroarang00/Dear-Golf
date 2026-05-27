@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
@@ -11,6 +11,7 @@ import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
+import { RoundupComments } from './RoundupComments';
 
 // 참여자 아바타 색상
 const AV = [
@@ -100,7 +101,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onEdit, onAddComment, onDeleteComment, onPinComment }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -261,11 +262,20 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
           backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>내가 올린 모집글</Text>
         </View>
-        <TouchableOpacity activeOpacity={0.85} onPress={confirmDelete}
-          style={{ marginTop: 8, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
-            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>모집글 삭제</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+          {onEdit && (
+            <TouchableOpacity activeOpacity={0.85} onPress={onEdit}
+              style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+                backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>모집글 수정</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity activeOpacity={0.85} onPress={confirmDelete}
+            style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>모집글 삭제</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   } else if (joined) {
@@ -429,17 +439,19 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 </>
               )}
 
-              {/* 동반자 조건 — 구성·실력·태그. 'any'/빈배열은 숨김 */}
+              {/* 동반자 조건 — 구성·연령대·실력·태그. 'any'/빈배열은 숨김 */}
               {(() => {
                 const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
+                const ageTxt = post.ageGroup && post.ageGroup !== 'any' ? AGEGROUP_LABEL[post.ageGroup] : null;
                 const skillTxt = post.skill && post.skill !== 'any' ? SKILL_LABEL[post.skill] : null;
                 const tagList = Array.isArray(post.tags) ? post.tags : [];
-                if (!compTxt && !skillTxt && tagList.length === 0) return null;
+                if (!compTxt && !ageTxt && !skillTxt && tagList.length === 0) return null;
                 return (
                   <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 6 }}>동반자 조건</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                       {compTxt && <Badge bg={FILTER_BADGE.companion.bg} fg={FILTER_BADGE.companion.fg} text={compTxt} />}
+                      {ageTxt && <Badge bg={FILTER_BADGE.ageGroup.bg} fg={FILTER_BADGE.ageGroup.fg} text={ageTxt} />}
                       {skillTxt && <Badge bg={FILTER_BADGE.skill.bg} fg={FILTER_BADGE.skill.fg} text={skillTxt} />}
                       {tagList.map(t => (
                         <Badge key={t} bg={FILTER_BADGE.tag.bg} fg={FILTER_BADGE.tag.fg} text={`#${t}`} />
@@ -535,12 +547,16 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
               );
             })()}
 
-            {/* 댓글 영역 — UI만 (기능은 추후 추가) */}
-            <Text style={sectionLabel}>댓글</Text>
-            <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
-              borderWidth: 0.5, borderColor: C.hairline, paddingVertical: 40, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>댓글 기능은 곧 추가될 예정이에요</Text>
-            </View>
+            {/* 댓글 — 참여 확정자만 작성·열람, 본인만 삭제, 주최자만 고정, 티오프 후 비활성 */}
+            <RoundupComments
+              post={post}
+              comments={comments}
+              joined={joined}
+              onAdd={onAddComment}
+              onDelete={onDeleteComment}
+              onPin={onPinComment} />
+
+            <View style={{ height: 20 }} />
           </ScrollView>
 
           {/* 참여 확인 / 카카오 안내 / 차단 확인 — 모달 위 오버레이 */}
@@ -548,11 +564,12 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
           {/* 등급 안내 모달 — 부모 모달 뒤로 가려지지 않게 자체 렌더링 */}
           <TrustGradeModal visible={!!gradeKey} highlightKey={gradeKey} onClose={() => setGradeKey(null)} />
           <MannerGradeModal visible={!!mannerKey} highlightKey={mannerKey} onClose={() => setMannerKey(null)} />
-          {/* 프로필 액션 시트 — 주최자/참여자 차단 */}
+          {/* 프로필 액션 시트 — 주최자/참여자 차단 + (조건부)강퇴 */}
           <ProfileActionSheet
             visible={!!actionTarget}
             target={actionTarget}
             isMe={actionTarget?.name === '나'}
+            canKick={isMine && post.scope === 'all' && actionTarget?.role === 'participant'}
             onClose={() => setActionTarget(null)}
             onBlock={(t) => {
               // 시트 닫고 자체 확인 alert. 확인 시 RoundupDetail 닫고 부모로 차단 신호 (부모는 alert 없이 즉시 처리)
@@ -563,6 +580,19 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                 buttons: [
                   { text: '취소', style: 'cancel' },
                   { text: '차단', style: 'destructive', onPress: () => { onClose(); onBlock?.(t); } },
+                ],
+              });
+            }}
+            onKick={(t) => {
+              // 사유 선택 alert ([[roundup-kick-policy]] §2 — 비매너/허위 2개)
+              setActionTarget(null);
+              setAlert({
+                title: `${t.name}님을 내보낼까요?`,
+                message: '사유를 선택하면 즉시 참여가 취소되고\n대기자에게 자리가 열려요.\n상대방에겐 사유는 전달되지 않아요.',
+                buttons: [
+                  { text: '취소', style: 'cancel' },
+                  { text: '비매너 행동', style: 'destructive', onPress: () => onKick?.(t, 'misbehavior') },
+                  { text: '허위 프로필', style: 'destructive', onPress: () => onKick?.(t, 'fake_profile') },
                 ],
               });
             }} />

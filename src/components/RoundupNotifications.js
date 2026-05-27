@@ -20,7 +20,7 @@ const ROUNDUP_NOTI_TYPES = [
 ];
 const DEFAULT_ROUNDUP_PREFS = { apply: true, confirmed: true, cancel: true, waitlist: true, slotOpen: true, comment: true };
 
-const NOTI_ICON = { apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳' };
+const NOTI_ICON = { apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊' };
 // 주최자(내 모집글)에 오는 알림 / 그 외는 내가 참여·대기한 모집의 알림
 const HOST_TYPES = ['apply', 'cancel', 'waitlist'];
 // 신청자 신뢰도가 표시되는 알림 타입 — 주최자가 승인·확인 판단 시 참고
@@ -36,6 +36,8 @@ function notiText(n) {
     case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
     case 'confirmed': return `'${n.postTitle}' 모집 참여가 확정됐어요`;
     case 'waitlist':  return `${n.actor}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
+    case 'comment':   return `${n.actor}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
+    case 'mannerEval':return `'${n.postTitle}' 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     default:          return n.postTitle;
   }
 }
