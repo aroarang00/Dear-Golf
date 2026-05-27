@@ -6,6 +6,8 @@ import {
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
+import { DiariesContext } from '../contexts/DiariesContext';
+import { calcHandicap } from '../utils/handicap';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
@@ -31,6 +33,9 @@ import {
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
+  const { diaries } = React.useContext(DiariesContext);
+  // 핸디 — 베스트 5개 평균(기록 5개 미만 시 입력 평균타 우선). DiaryScreen·DiaryCard와 동일 정책.
+  const handicap = calcHandicap(diaries, userProfile.avgScore);
   const scrollRef = useRef(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
@@ -330,7 +335,7 @@ export function MyPageModal({ visible, onClose }) {
                   <View style={myS.statsRow}>
                     {[
                       { label: '총 라운딩', value: userProfile.totalRounds || DIARY_DATA.length },
-                      { label: '평균타', value: userProfile.avgScore || Math.round(DIARY_DATA.reduce((s,d) => s+d.score, 0) / DIARY_DATA.length) },
+                      { label: '핸디', value: handicap ?? '-' },
                       { label: '베스트', value: userProfile.lifeBest || Math.min(...DIARY_DATA.map(d => d.score)) },
                     ].map((st, i) => (
                       <View key={i} style={myS.statBox}>
@@ -441,11 +446,13 @@ export function MyPageModal({ visible, onClose }) {
                   );
                 })()}
                 {/* 추가 알림 — 친구·모집·평가·기록. 푸시 발송은 서버(FCM) 연동 후 동작 */}
+                {/* 라운지(모집) 알림은 라운지 알림창 우상단 ⚙️에서 관리 ([[roundup-comments-policy]] §4 컨텍스트 분리 원칙).
+                    여기엔 라운지 외 카테고리만 둠 — 중복·혼란 방지.
+                    기록 리마인더는 폐기 — 라운딩 기록은 본인 자발적 추억이라 푸시 강요 부담.
+                    홈 라운딩 종료 카드의 "기록 남기기 →" 버튼이 자연스러운 유도 경로 ([[softer-tone-guideline]]). */}
                 {[
                   { key: 'friendRequest', icon: '🤝', label: '친구 신청', sub: '친구 신청을 받으면 알려드려요' },
-                  { key: 'roundup', icon: '📣', label: '모집 활동', sub: '내 모집 신청·참여, 대기 자리 알림' },
-                  { key: 'evaluation', icon: '✍️', label: '라운딩 평가 요청', sub: '라운딩 후 동반자 매너 평가 안내' },
-                  { key: 'diaryReminder', icon: '📔', label: '기록 리마인더', sub: '라운딩 후 기록을 안 남기면 알려드려요' },
+                  { key: 'evaluation', icon: '✍️', label: '라운딩 평가 요청', sub: '라운딩 후 동반자 매너 평가 안내 · 끄면 자동 보통 처리' },
                 ].map((item, i, arr) => {
                   const prefs = userProfile.notifyPrefs || {};
                   const on = prefs[item.key] !== false;
@@ -465,6 +472,11 @@ export function MyPageModal({ visible, onClose }) {
                     </View>
                   );
                 })}
+                {/* 중요 알림(신고·패널티 등)은 사용자 권리 보호를 위해 항상 발송 ([[notification-policy]] §72-74) */}
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight,
+                  marginTop: 8, lineHeight: 16 }}>
+                  신고 결과·패널티 적용 같은 중요 알림은 항상 발송돼요
+                </Text>
               </View>
               <View style={myS.divider} />
               <View style={myS.section}>

@@ -23,6 +23,7 @@ import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
+import { compressImage } from '../utils/imageCompress';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
@@ -243,7 +244,10 @@ export function DiaryScreen({ route, navigation }) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
       });
-      return result.canceled ? null : await persistPhoto(result.assets[0].uri);
+      if (result.canceled) return null;
+      // 프로필은 표시 영역이 작아 600px·80%로 압축 (다이어리 사진보다 더 작게)
+      const compressed = await compressImage(result.assets[0].uri, { maxWidth: 600 });
+      return await persistPhoto(compressed);
     } catch (e) {
       console.warn('[DiaryScreen] 이미지 선택 오류', e?.message);
       return null;
@@ -503,7 +507,7 @@ export function DiaryScreen({ route, navigation }) {
                     <Text style={{ fontSize: fs(26) }}>🔒</Text>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#C9A84C', marginTop: 8 }}>아직 특별한 순간이 없어요</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.55)', marginTop: 6, textAlign: 'center', lineHeight: 17 }}>
-                      홀인원 · 알바트로스 · 이글을 기록하면{'\n'}명예의 전당 카드가 만들어져요
+                      홀인원 · 알바트로스 · 이글 · 첫싱글을 기록하면{'\n'}명예의 전당 카드가 만들어져요
                     </Text>
                     <TouchableOpacity onPress={dismissHofTeaser} activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginTop: 14 }}>

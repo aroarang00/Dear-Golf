@@ -25,6 +25,8 @@ export const STORAGE_KEYS = {
   roundupIntroOpenedManually: '@dg_roundup_intro_opened_manual', // 라운지 소개 FAB 능동 클릭 1회 — 노란 알림 점 표시 제어 (자동 모달과 분리)
   userReportCount: '@dg_user_report_count',     // 사용자 신고 월 1건 한도 — { yearMonth: '2026-05', count: 0 }. 월 바뀌면 자동 0 초기화 (Phase 2 [[report-block-policy]] §3)
   kickCount: '@dg_kick_count',                  // 주최자 강퇴 월 2회 한도 — { yearMonth: '2026-05', count: 0 } ([[roundup-kick-policy]] §4)
+  friendRequestCount: '@dg_friend_request_count', // 친구 신청 일 10건 한도 — { date: '2026.05.27', count: 0 } ([[friend-add-feature]])
+  sentFriendRequests: '@dg_sent_friend_requests', // 보낸 친구 신청 id 배열 — ['userId', ...]
 };
 
 export const storage = {

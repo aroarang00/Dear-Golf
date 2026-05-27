@@ -7,15 +7,18 @@ import { C, F, fs } from '../constants/colors';
 export function SplashContent() {
   return (
     <>
-      {/* italic Lora 워드마크 — lineHeight 명시 + allowFontScaling false로 'f' 디센더 잘림 방지 (iOS 시스템 텍스트 크기 최대 환경 대응)
+      {/* italic Lora 워드마크 — 폰트 로드 전엔 시스템 폰트 fallback이라 폭 더 큼 → 부모 View width 명시 + adjustsFontSizeToFit로 자동 축소
+          lineHeight 명시는 adjustsFontSizeToFit과 충돌해 제거. allowFontScaling false로 'f' 디센더 잘림 방지.
           색은 charcoal(#3D3935)보다 더 진한 #1A1A1A + 미세한 textShadow로 무게감 강화. paleSky 배경 위에서 또렷하게. */}
-      <Text allowFontScaling={false} numberOfLines={1}
-        style={{
-          fontFamily: F.brand, fontSize: fs(44), lineHeight: fs(56), color: '#1A1A1A', paddingHorizontal: 14,
-          textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0,
-        }}>
-        Dear Golf
-      </Text>
+      <View style={{ width: '88%', maxWidth: 420, alignItems: 'center', paddingVertical: 8 }}>
+        <Text allowFontScaling={false} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}
+          style={{
+            fontFamily: F.brand, fontSize: fs(44), color: '#1A1A1A', textAlign: 'center',
+            textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0,
+          }}>
+          Dear Golf
+        </Text>
+      </View>
       <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
       <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#1A3D52', letterSpacing: 1 }}>나만의 골프 캐디</Text>
       <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>

@@ -24,7 +24,7 @@ function CommentRow({ comment, isMine, isHost, canModify, onDelete, onPin }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>📌 주최자 고정</Text>
           </View>
         )}
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
           {isMine ? '나' : comment.authorName}
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>· {dateLabel}</Text>
@@ -45,7 +45,7 @@ function CommentRow({ comment, isMine, isHost, canModify, onDelete, onPin }) {
           </View>
         )}
       </View>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: 19 }}>{comment.body}</Text>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>{comment.body}</Text>
     </View>
   );
 }

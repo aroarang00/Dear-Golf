@@ -73,6 +73,23 @@ body {
   background-color: var(--burgundy);
   border-bottom-color: var(--burgundy);
 }
+.header.header-pine {
+  background-color: #2A4D2A;
+  border-bottom-color: #1F3A1F;
+}
+/* community — pale-sky 배경 + 텍스트 명도 보정 (밝은 배경이라 charcoal-deep 텍스트로) */
+.header.header-mocha {
+  background-color: var(--pale-sky);
+  border-bottom-color: #8FAAC0;
+}
+.header.header-mocha .brand,
+.header.header-mocha .header-nav a {
+  color: var(--charcoal-deep);
+}
+.header.header-deep {
+  background-color: var(--warm-gray);
+  border-bottom-color: #6A655F;
+}
 
 .header-inner {
   max-width: 720px;
@@ -182,7 +199,7 @@ h1 {
 /* ─────────── 메인 페이지 전용 ─────────── */
 .hero {
   text-align: center;
-  padding: 60px 24px 32px;
+  padding: 48px 24px 28px;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
@@ -191,27 +208,27 @@ h1 {
 .hero-brand {
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
-  font-size: 80px;
+  font-size: 48px;
   font-weight: 600;
   color: var(--charcoal-deep);
   letter-spacing: -0.03em;
   line-height: 1.05;
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 
 .hero-tag {
-  font-size: 22px;
+  font-size: 14px;
   color: var(--warm-gray);
-  margin-bottom: 36px;
-  line-height: 1.6;
+  margin-bottom: 22px;
+  line-height: 1.55;
   font-weight: 500;
 }
 
 .accent-line {
-  width: 56px;
+  width: 48px;
   height: 3px;
   background: var(--burgundy);
-  margin: 0 auto 38px;
+  margin: 0 auto 30px;
   border-radius: 2px;
 }
 
@@ -245,6 +262,9 @@ h1 {
 .link-burgundy .link-accent { background: var(--burgundy); }
 .link-navy .link-accent { background: var(--navy); }
 .link-butter .link-accent { background: var(--butter-deep); }
+.link-pine .link-accent { background: #2A4D2A; }
+.link-mocha .link-accent { background: var(--pale-sky); }
+.link-deep .link-accent { background: var(--warm-gray); }
 
 .link-text {
   flex: 1;
@@ -313,12 +333,12 @@ h1 {
     margin-left: 12px;
   }
   .hero {
-    padding: 60px 18px 40px;
+    padding: 36px 18px 28px;
   }
   .hero-brand {
-    font-size: 60px;
+    font-size: 38px;
   }
   .hero-tag {
-    font-size: 18px;
+    font-size: 13px;
   }
 }

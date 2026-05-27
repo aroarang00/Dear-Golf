@@ -11,6 +11,7 @@ import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
 import { persistPhotos, resolvePhotoUri } from '../utils/photoStorage';
+import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 const COST_ITEMS = [
@@ -91,8 +92,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const rawItems = result.assets.map(a =>
         a.type === 'video' ? { uri: a.uri, type: 'video' } : a.uri
       );
-      // 선택 직후 영구 폴더로 복사 — 앱 업데이트 후에도 사진이 유지되도록
-      const items = await persistPhotos(rawItems);
+      // 1) 압축·리사이즈 (1200px·80% JPEG, EXIF GPS 자동 제거)
+      // 2) 영구 폴더로 복사 — 앱 업데이트 후에도 사진이 유지되도록
+      const compressed = await compressMedia(rawItems);
+      const items = await persistPhotos(compressed);
       setAddPhotos(prev => [...prev, ...items].slice(0, MAX_PHOTOS));
     }
   };

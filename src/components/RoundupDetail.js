@@ -101,7 +101,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onEdit, onAddComment, onDeleteComment, onPinComment }) {
+export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -378,7 +378,8 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
             )}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}
+            keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
             {/* 긍정 문구 — 약속·시간 존중 문화 고정 안내 ([[roundup-penalty-policy]] §5) */}
             <View style={{ marginHorizontal: 16, marginTop: 16,
               backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#E2D2A8',
@@ -564,19 +565,26 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
           {/* 등급 안내 모달 — 부모 모달 뒤로 가려지지 않게 자체 렌더링 */}
           <TrustGradeModal visible={!!gradeKey} highlightKey={gradeKey} onClose={() => setGradeKey(null)} />
           <MannerGradeModal visible={!!mannerKey} highlightKey={mannerKey} onClose={() => setMannerKey(null)} />
-          {/* 프로필 액션 시트 — 주최자/참여자 차단 + (조건부)강퇴 */}
+          {/* 프로필 액션 시트 — 친구 신청 + 주최자/참여자 차단 + (조건부)강퇴
+              친구 상태(friendStatus): Phase 3 friendships 컬렉션 의존. 현재는 sent 여부만 정확하고
+              friend(이미 친구) 판정은 더미 한계로 'none'으로 떨어짐 — 출시 후 Firebase 마이그레이션 시 정확 매칭 */}
           <ProfileActionSheet
             visible={!!actionTarget}
             target={actionTarget}
             isMe={actionTarget?.name === '나'}
             canKick={isMine && post.scope === 'all' && actionTarget?.role === 'participant'}
+            friendStatus={
+              actionTarget && sentFriendRequestIds.includes(actionTarget.id) ? 'sent' : 'none'
+            }
+            onRequestFriend={onRequestFriend}
+            onCancelFriendRequest={onCancelFriendRequest}
             onClose={() => setActionTarget(null)}
             onBlock={(t) => {
               // 시트 닫고 자체 확인 alert. 확인 시 RoundupDetail 닫고 부모로 차단 신호 (부모는 alert 없이 즉시 처리)
               setActionTarget(null);
               setAlert({
                 title: `${t.name}님을 차단할까요?`,
-                message: '차단하면 서로의 모집글이 보이지 않고, 진행 중인 참여·신청·대기도 자동 취소돼요.\n💡 상대방에게는 알림이 가지 않아요.',
+                message: '차단하면 서로의 모집글이 보이지 않고, 진행 중인 참여·신청·대기도 자동 취소돼요.\n친구라면 친구 관계도 자동 해지되고 차단 해제 후에도 복원되지 않아요.\n💡 상대방에게는 알림이 가지 않아요.',
                 buttons: [
                   { text: '취소', style: 'cancel' },
                   { text: '차단', style: 'destructive', onPress: () => { onClose(); onBlock?.(t); } },

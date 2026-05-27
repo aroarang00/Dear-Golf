@@ -7,6 +7,10 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { showAppAlert } from './AppAlert';
 import { UserContext } from '../contexts/UserContext';
+import {
+  isFriendRequestLimitReached, incrementFriendRequestCount,
+  getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
+} from '../utils/friendRequestLimit';
 
 // 친구 찾기에서 받은 후보(간단 필드) → 친구 목록 객체로 변환
 const personToFriend = (p) => ({
@@ -134,21 +138,44 @@ export function FriendsTab({ navigation, onInvite }) {
     { id: 'r2', name: '배수지', hostedCount: 3, attendedCount: 7, mannerScore: 79, avg: 99 },
   ]);
 
-  // 차단된 사용자는 친구 탭에서 자동 숨김 — 친구 숨김(hidden)과 차단(blockedUsers) 통합 필터
+  // 차단 시 친구 자동 일방 해지 ([[friend-relationship]] §2).
+  // 정책: 일반 차단 = 친구 관계 일방 해지(영구). 차단 해제해도 친구는 복원 X — 재신청 필요.
+  // 단순 필터(숨김)가 아니라 friends 배열에서 실제 제거. 블라인드 원칙으로 상대는 통보받지 않음.
   const blockedIds = userProfile?.blockedUsers || [];
-  const isBlocked = (f) => blockedIds.includes(f.id) || blockedIds.includes(f.name);
+  useEffect(() => {
+    if (blockedIds.length === 0) return;
+    setFriends(prev => {
+      const next = prev.filter(f => !blockedIds.includes(f.id) && !blockedIds.includes(f.name));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [blockedIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const q = search.trim();
-  const visible = friends.filter(f => !hidden[f.id] && !isBlocked(f) && (!q || f.name.includes(q)));
-  const hiddenFriends = friends.filter(f => hidden[f.id] && !isBlocked(f));
+  const visible = friends.filter(f => !hidden[f.id] && (!q || f.name.includes(q)));
+  const hiddenFriends = friends.filter(f => hidden[f.id]);
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
 
   const toggleMute = (id) => setMuted(p => ({ ...p, [id]: !p[id] }));
   const hideFriend = (id) => setHidden(p => ({ ...p, [id]: true }));
 
-  // 친구 신청 — 보낸 신청 목록에 추가 (양쪽 수락 흐름: 상대 수락 전까지 '신청함')
-  const sendRequest = (person) => {
-    setSentRequests(p => (p.includes(person.id) ? p : [...p, person.id]));
+  // 친구 신청 — 보낸 신청 목록에 추가 (양쪽 수락 흐름: 상대 수락 전까지 '신청함').
+  // 일 10건 한도 ([[friend-add-feature]] §22, 스팸 방지). 같은 사람 재신청은 카운트 X (멱등).
+  const sendRequest = async (person) => {
+    if (sentRequests.includes(person.id)) return; // 멱등
+    const reached = await isFriendRequestLimitReached();
+    if (reached) {
+      showAppAlert(
+        '오늘 친구 신청 한도를 초과했어요',
+        `친구 신청은 하루 ${FRIEND_REQUEST_DAILY_LIMIT}건으로 제한되어 있어요.\n내일 다시 시도해주세요.`,
+      );
+      return;
+    }
+    setSentRequests(p => [...p, person.id]);
+    await incrementFriendRequestCount();
+  };
+  // 친구 신청 취소 — 한도 카운트는 환불 X (스팸 우회 방지)
+  const cancelRequest = (person) => {
+    setSentRequests(p => p.filter(id => id !== person.id));
   };
   // 받은 신청 수락 — 친구 목록에 추가하고 신청 목록에서 제거
   const acceptRequest = (person) => {
@@ -158,15 +185,16 @@ export function FriendsTab({ navigation, onInvite }) {
   // 무시 — 신청 목록에서만 제거. 상대방에게 통보 없음 (거절 알림 X)
   const ignoreRequest = (id) => setReceivedRequests(p => p.filter(r => r.id !== id));
   const unhideFriend = (id) => setHidden(p => { const n = { ...p }; delete n[id]; return n; });
+  // 친구 끊기 — 일방·블라인드 ([[friend-relationship]] §1). 인스타 언팔로우 모델.
   const deleteFriend = (id) => {
     const target = friends.find(f => f.id === id);
     if (!target) return;
     showAppAlert(
-      `${target.name}님을 친구에서 삭제할까요?`,
-      `친구 목록에서 사라집니다.\n다시 추가하려면 친구 신청이 필요해요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
+      `${target.name}님과 친구를 끊을까요?`,
+      `친구 목록에서 사라져요.\n다시 친구가 되려면 친구 신청을 보내야 해요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
       [
         { text: '취소', style: 'cancel' },
-        { text: '삭제', style: 'destructive', onPress: () => setFriends(p => p.filter(f => f.id !== id)) },
+        { text: '끊기', style: 'destructive', onPress: () => setFriends(p => p.filter(f => f.id !== id)) },
       ],
     );
   };
@@ -356,6 +384,7 @@ export function FriendsTab({ navigation, onInvite }) {
         friendIds={friends.map(f => f.id)}
         received={receivedRequests}
         onSend={sendRequest}
+        onCancelSend={cancelRequest}
         onAccept={acceptRequest}
         onIgnore={ignoreRequest} />
     </View>

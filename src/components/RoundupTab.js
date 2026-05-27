@@ -12,12 +12,16 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, REGION_OPTIONS, skillLabelShort, ageGroupLabelShort, waitlistRespondHours, matchesRoundup, hasRoundupMatch, pickNames } from '../constants/roundup';
+import { SCOPE_BADGE, REGION_OPTIONS, waitlistRespondHours, matchesRoundup, hasRoundupMatch, pickNames } from '../constants/roundup';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { isKickLimitReached, incrementKickCount, getKickRemainingThisMonth, KICK_MONTH_LIMIT } from '../utils/kickLimit';
+import {
+  isFriendRequestLimitReached, incrementFriendRequestCount, FRIEND_REQUEST_DAILY_LIMIT,
+} from '../utils/friendRequestLimit';
+import { getSentFriendRequests, addSentFriendRequest, removeSentFriendRequest } from '../utils/friendsRegistry';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
@@ -107,7 +111,10 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpenDetail}
-      style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 12 }}>
+      style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+        padding: 14, marginBottom: 12,
+        // 그림자 — 크림 배경(#FAF6EC) 위에서 흰 카드 분리감 강화 (iOS·Android 양쪽)
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 }}>
       {/* 뱃지 줄 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         <View style={{ backgroundColor: post.type === 'fixed' ? C.charcoal : '#6B8B5E', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -160,38 +167,8 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         </>
       )}
 
-      {/* 동반자 조건 뱃지 — 구성·연령대·실력·태그 최대 2개. 'any'/빈배열은 숨김 (전체공개 모집에만 의미) */}
-      {(() => {
-        const compTxt = post.companion && post.companion !== 'any' ? COMPANION_LABEL[post.companion] : null;
-        const ageTxt = ageGroupLabelShort(post.ageGroup);
-        const skillTxt = skillLabelShort(post.skill);
-        const tagList = Array.isArray(post.tags) ? post.tags.slice(0, 2) : [];
-        if (!compTxt && !ageTxt && !skillTxt && tagList.length === 0) return null;
-        return (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-            {compTxt && (
-              <View style={{ backgroundColor: FILTER_BADGE.companion.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.companion.fg }}>{compTxt}</Text>
-              </View>
-            )}
-            {ageTxt && (
-              <View style={{ backgroundColor: FILTER_BADGE.ageGroup.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.ageGroup.fg }}>{ageTxt}</Text>
-              </View>
-            )}
-            {skillTxt && (
-              <View style={{ backgroundColor: FILTER_BADGE.skill.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.skill.fg }}>{skillTxt}</Text>
-              </View>
-            )}
-            {tagList.map(t => (
-              <View key={t} style={{ backgroundColor: FILTER_BADGE.tag.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: FILTER_BADGE.tag.fg }}>#{t}</Text>
-              </View>
-            ))}
-          </View>
-        );
-      })()}
+      {/* 동반자 조건 뱃지(구성·연령대·실력·태그)는 카드 정보 밀도 절감을 위해 상세에서만 표시.
+          카드는 핵심(공개범위·구장·시간·정원)에 집중. */}
 
       {post.word ? (
         <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: 18 }}>"{post.word}"</Text>
@@ -305,6 +282,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingPost, setEditingPost] = useState(null);  // 수정 모드 — 모집글 id 매칭용 원본
   const [evaluatingPostId, setEvaluatingPostId] = useState(null); // 매너 평가 모달 — postId
+  // 친구 신청 진입점 ([[friend-add-feature]] Phase 2) — 라운지 프로필에서 친구 신청 보낸 사용자 id 캐시
+  const [sentFriendRequestIds, setSentFriendRequestIds] = useState([]);
+  useEffect(() => {
+    getSentFriendRequests().then(setSentFriendRequestIds);
+  }, []);
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
@@ -499,6 +481,38 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     if (teams > 1) base.teamJoined = Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0));
     else base.joined = 1;
     setPosts(prev => [base, ...prev]);
+  };
+
+  // 친구 신청 ([[friend-add-feature]] Phase 2) — 라운지 프로필 진입점.
+  // 일 10건 한도 + sentFriendRequests AsyncStorage 저장. 멱등 처리.
+  const handleFriendRequest = async (target) => {
+    if (!target?.id) return;
+    if (sentFriendRequestIds.includes(target.id)) return; // 멱등
+    const reached = await isFriendRequestLimitReached();
+    if (reached) {
+      setAlert({
+        title: '오늘 친구 신청 한도를 초과했어요',
+        message: `친구 신청은 하루 ${FRIEND_REQUEST_DAILY_LIMIT}건으로 제한되어 있어요.\n내일 다시 시도해주세요.`,
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    await addSentFriendRequest(target.id);
+    await incrementFriendRequestCount();
+    setSentFriendRequestIds(prev => prev.includes(target.id) ? prev : [...prev, target.id]);
+    setAlert({
+      title: '친구 신청을 보냈어요',
+      message: `${target.name}님이 수락하면 친구가 돼요.\n수락 전까지 '신청함' 상태로 표시돼요.`,
+      buttons: [{ text: '확인' }],
+    });
+  };
+
+  // 친구 신청 취소 — 한도 카운트는 환불 X (스팸 우회 방지, block 정책과 같은 결).
+  const handleCancelFriendRequest = async (target) => {
+    if (!target?.id) return;
+    if (!sentFriendRequestIds.includes(target.id)) return;
+    await removeSentFriendRequest(target.id);
+    setSentFriendRequestIds(prev => prev.filter(id => id !== target.id));
   };
 
   // 주최자 강퇴 ([[roundup-kick-policy]]) — 전체공개 모집의 수락된 참여자만, 월 2회 한도.
@@ -1074,16 +1088,20 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             </Text>
           </View>
         )}
-        {/* 소도시 예외 — 표시 가능한 모집글이 3개 이하일 때 조건 완화 안내 */}
+        {/* 모집글이 3개 이하일 때 안내 — 탭별 톤 분기.
+            전체 탭: 동반자 조건 넓히기 (낯선 사람 풀 확장)
+            친구 탭: 친구 늘리기 (친구공개 모집 풀 자체가 친구 수에 비례) */}
         {showSparseHint && (
           <View style={{ marginTop: 8, backgroundColor: '#F0E8D8', borderRadius: 12,
             borderWidth: 0.5, borderColor: '#E2D2A8', paddingVertical: 12, paddingHorizontal: 16 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#8B6914', textAlign: 'center' }}>
-              주변 모집글이 적어요
+              {view === 'friend' ? '친구 모집이 적어요' : '주변 모집글이 적어요'}
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center',
               marginTop: 4, lineHeight: 16 }}>
-              연령대·실력 등 동반자 조건을 넓혀 모집해보세요
+              {view === 'friend'
+                ? '친구를 더 추가하면 친구공개 모집이 더 많이 모여요'
+                : '연령대·실력 등 동반자 조건을 넓혀 모집해보세요'}
             </Text>
           </View>
         )}
@@ -1133,6 +1151,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onBlock={handleBlock}
         onReport={handleReport}
         onKick={(target, reason) => detailId && handleKick(detailId, target, reason)}
+        onRequestFriend={handleFriendRequest}
+        onCancelFriendRequest={handleCancelFriendRequest}
+        sentFriendRequestIds={sentFriendRequestIds}
         onEdit={() => detailPost && handleEditRequest(detailPost)}
         onAddComment={(c) => detailId && handleAddComment(detailId, c)}
         onDeleteComment={(commentId) => detailId && handleDeleteComment(detailId, commentId)}

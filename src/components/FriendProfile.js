@@ -89,7 +89,7 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
       onPress: handleOption(onToggleMute),
     },
     { text: '🙈  친구 숨기기', onPress: handleOption(onHide) },
-    { text: '❌  친구 삭제', danger: true, onPress: handleOption(onDelete) },
+    { text: '✂️  친구 끊기', danger: true, onPress: handleOption(onDelete) },
   ];
   const palette = friend.palette || { bg: '#C8D9E6', fg: '#1A3D52' };
   const stats = friend.stats || {};

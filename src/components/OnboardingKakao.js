@@ -5,12 +5,26 @@ import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
 import { loginWithKakao, linkOrSignInWithKakao } from '../utils/kakaoAuth';
 import { ensureUserDoc } from '../utils/userDoc';
+import { isAdultByKakao } from '../utils/age';
 
 // 온보딩 — 인트로 다음 / 프로필 입력 전 단계.
 // 카카오 로그인 → Firebase Auth 연동(익명 계정 승격) → users 문서 보장 → 프로필 prefill.
 // '나중에 하기'로 건너뛰면 익명 계정 그대로 사용.
 export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
   const [loading, setLoading] = useState(false);
+
+  // "나중에 하기" — 정책 §2: 카카오 로그인 거부 시 가입 제한.
+  // dev에서만 통과 (개발 편의), prod에선 안내 모달 + 차단.
+  const handleSkip = () => {
+    if (!__DEV__) {
+      Alert.alert(
+        '카카오 로그인이 필요해요',
+        'Dear Golf는 만 19세 성인 인증을 위해 카카오 로그인이 필수예요.',
+      );
+      return;
+    }
+    onSkip();
+  };
 
   const handleKakao = async () => {
     if (loading) return;
@@ -20,6 +34,25 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
       const result = await loginWithKakao();
       if (!result || result.ok === false) {
         Alert.alert('카카오 로그인 실패', `단계: ${result?.step}\n에러: ${result?.error}`);
+        return;
+      }
+
+      // 1-A. 만 19세 검증 ([[age-policy]] §1) — 카카오 콘솔 birthyear/birthday 동의 항목 활성화 필요
+      if (result.birthyear && result.birthday) {
+        if (!isAdultByKakao(result.birthyear, result.birthday)) {
+          Alert.alert(
+            '가입할 수 없어요',
+            'Dear Golf는 만 19세 이상 성인만 이용할 수 있어요.\n양해 부탁드립니다.',
+          );
+          return;
+        }
+      } else if (!__DEV__) {
+        // 카카오 콘솔 동의 항목이 활성화됐고 사용자가 거부한 케이스 → 가입 차단 (정책 §2)
+        // 콘솔이 아직 비활성인 dev 단계에선 통과 (출시 직전 콘솔 작업 완료 가정)
+        Alert.alert(
+          '생년월일 동의가 필요해요',
+          'Dear Golf는 만 19세 이상 성인만 이용할 수 있어요.\n카카오 로그인 시 생년월일 동의가 필요해요.',
+        );
         return;
       }
 

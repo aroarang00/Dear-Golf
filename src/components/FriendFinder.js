@@ -55,14 +55,15 @@ function PersonRow({ person, right }) {
   );
 }
 
-// 친구 신청 버튼 — 신청 전/신청함 상태
-function RequestButton({ sent, onPress }) {
+// 친구 신청 버튼 — 신청 전/신청함(누르면 취소) 토글
+function RequestButton({ sent, onPress, onCancel }) {
   if (sent) {
     return (
-      <View style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
-        backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>신청함</Text>
-      </View>
+      <TouchableOpacity onPress={onCancel} activeOpacity={0.8}
+        style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
+          backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.warmGrayLight }}>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>신청함 · 취소</Text>
+      </TouchableOpacity>
     );
   }
   return (
@@ -85,7 +86,7 @@ function EmptyHint({ text }) {
 // 친구 찾기 — 카카오 친구 / 닉네임 검색 / 받은 신청
 export function FriendFinder({
   visible, onClose, initialTab = 'kakao',
-  sentIds = [], onSend,
+  sentIds = [], onSend, onCancelSend,
   friendIds = [], received = [], onAccept, onIgnore,
 }) {
   const [tab, setTab] = useState(initialTab);
@@ -120,7 +121,11 @@ export function FriendFinder({
         </View>
       );
     }
-    return <RequestButton sent={isSent(person.id)} onPress={() => onSend && onSend(person)} />;
+    return (
+      <RequestButton sent={isSent(person.id)}
+        onPress={() => onSend && onSend(person)}
+        onCancel={() => onCancelSend && onCancelSend(person)} />
+    );
   };
 
   return (

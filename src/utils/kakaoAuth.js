@@ -20,12 +20,14 @@ export async function loginWithKakao() {
     step = 'getProfile';
     console.log('[kakao] 3. getProfile() 호출');
     const profile = await getProfile();
-    // dev 콘솔에도 카카오 user id·닉네임은 노출 X (PII). boolean으로만 디버그.
+    // dev 콘솔에도 카카오 user id·닉네임·생년월일은 노출 X (PII). boolean으로만 디버그.
     // prod 빌드는 babel transform-remove-console로 어차피 제거됨.
     console.log('[kakao] 4. getProfile() 성공', {
       hasId: !!profile?.id,
       hasNickname: !!profile?.nickname,
       hasProfileImage: !!(profile?.profileImageUrl || profile?.thumbnailImageUrl),
+      hasBirthyear: !!profile?.birthyear,
+      hasBirthday: !!profile?.birthday,
     });
 
     return {
@@ -34,6 +36,10 @@ export async function loginWithKakao() {
       nickname: profile?.nickname || '',
       profileImageUrl: profile?.profileImageUrl || profile?.thumbnailImageUrl || null,
       idToken: token?.idToken || null,   // Firebase OIDC 연동용
+      // 만 19세 검증용 ([[age-policy]]) — 카카오 콘솔에서 birthyear/birthday 동의 항목 활성화 필요
+      // 사용자가 동의 거부 시 null. 콘솔 비활성 상태에서도 null.
+      birthyear: profile?.birthyear || null,  // 'YYYY' 문자열
+      birthday: profile?.birthday || null,    // 'MMDD' 문자열
     };
   } catch (e) {
     // 전체 에러 객체 노출 X — 카카오 SDK가 토큰을 에러에 포함시킬 가능성 차단.

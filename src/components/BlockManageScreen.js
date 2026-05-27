@@ -17,7 +17,7 @@ export function BlockManageScreen({ visible, onClose }) {
   const handleUnblock = (id) => {
     setAlert({
       title: `${id}님 차단을 해제할까요?`,
-      message: '차단을 풀면 서로의 모집글이 다시 보여요.',
+      message: '차단을 풀면 서로의 모집글이 다시 보여요.\n다만 이미 끊긴 친구 관계는 복원되지 않으며, 다시 친구가 되려면 친구 신청을 해야 해요.',
       buttons: [
         { text: '취소', style: 'cancel' },
         {

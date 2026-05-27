@@ -96,7 +96,7 @@ export function ReportModal({ visible, onClose }) {
           </View>
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}
-            keyboardShouldPersistTaps="handled">
+            keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
 
             {remaining === 0 ? (
               <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, padding: 18, alignItems: 'center' }}>
