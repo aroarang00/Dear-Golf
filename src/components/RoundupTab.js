@@ -12,7 +12,7 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, REGION_OPTIONS, waitlistRespondHours, matchesRoundup, hasRoundupMatch, pickNames } from '../constants/roundup';
+import { SCOPE_BADGE, REGION_OPTIONS, waitlistRespondHours, matchesRoundup, hasRoundupMatch, pickNames, isRoundupConfirmed } from '../constants/roundup';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
@@ -485,26 +485,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
   // 친구 신청 ([[friend-add-feature]] Phase 2) — 라운지 프로필 진입점.
   // 일 10건 한도 + sentFriendRequests AsyncStorage 저장. 멱등 처리.
+  // 결과 반환: RoundupDetail Modal 내부 OverlayAlert로 표시 (RoundupTab의 alert는 Modal 뒤로 가려짐).
   const handleFriendRequest = async (target) => {
-    if (!target?.id) return;
-    if (sentFriendRequestIds.includes(target.id)) return; // 멱등
+    if (!target?.id) return { ok: true, skipped: true };
+    if (sentFriendRequestIds.includes(target.id)) return { ok: true, skipped: true }; // 멱등
     const reached = await isFriendRequestLimitReached();
-    if (reached) {
-      setAlert({
-        title: '오늘 친구 신청 한도를 초과했어요',
-        message: `친구 신청은 하루 ${FRIEND_REQUEST_DAILY_LIMIT}건으로 제한되어 있어요.\n내일 다시 시도해주세요.`,
-        buttons: [{ text: '확인' }],
-      });
-      return;
-    }
+    if (reached) return { ok: false, reason: 'limit' };
     await addSentFriendRequest(target.id);
     await incrementFriendRequestCount();
     setSentFriendRequestIds(prev => prev.includes(target.id) ? prev : [...prev, target.id]);
-    setAlert({
-      title: '친구 신청을 보냈어요',
-      message: `${target.name}님이 수락하면 친구가 돼요.\n수락 전까지 '신청함' 상태로 표시돼요.`,
-      buttons: [{ text: '확인' }],
-    });
+    return { ok: true, sent: true, name: target.name };
   };
 
   // 친구 신청 취소 — 한도 카운트는 환불 X (스팸 우회 방지, block 정책과 같은 결).
@@ -671,21 +661,25 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    // D-7 이내 — 취소 차단 안내 모달
-    if (isD7Inside(hoursUntil)) {
+    // 친구공개·친구지정 모집은 시스템 제재 예외 — 친구끼리 직접 소통, 시스템 매개 불필요
+    // ([[manner-evaluation-policy]] §1-0 매너 평가 미발동과 같은 결, 2026-05-27 정책 확장)
+    // D-7 이내 + 모집 확정(만석·closed) + 전체공개 — 매너 영향 경고 + 취소 가능 (약관 일치)
+    // 그 외(D-7 이전/미확정/친구공개·친구지정) — 항상 자유 취소
+    if (post.scope === 'all' && isD7Inside(hoursUntil) && isRoundupConfirmed(post)) {
       setAlert({
-        title: '라운딩 7일 이내라 취소가 어려워요',
-        message: '함께하는 골프, 서로의 시간을 존중해요.\n\n부득이한 사정이 있으면 댓글로 양해를 구해주세요.\n사전 안내 없이 나타나지 않으면 노쇼로 신고받을 수 있어요.',
+        title: '라운딩 7일 이내 취소',
+        message: '함께하는 골프,\n서로의 시간을 존중해요.\n\n동반자들의 매너 평가에 영향을 줄 수 있고\n매너점수가 깎일 수 있어요.\n\n사전 안내 없이 나타나지 않으면\n노쇼로 신고받을 수 있으니\n부득이한 사정이라면 댓글로 양해를 구해주세요.',
         buttons: [
-          { text: '확인', style: 'cancel' },
+          { text: '계속 참여', style: 'cancel' },
+          { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
         ],
       });
       return;
     }
-    // D-7 이전 — 자유 취소
+    // D-7 이전 또는 미확정 — 자유 취소
     setAlert({
       title: '참여를 취소할까요?',
-      message: '아직 D-7 이전이라 자유롭게 취소할 수 있어요.\n취소하면 자리는 다시 열려요.',
+      message: '취소하면 자리는 다시 열려요.',
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },

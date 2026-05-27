@@ -8,6 +8,7 @@ import { MannerBadge } from './common/MannerBadge';
 import { UserContext } from '../contexts/UserContext';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
+import { OverlayAlert } from './common/OverlayAlert';
 
 // 라운지 알림 6종 — 토글로 ON/OFF. Phase 2 백엔드(FCM) 연동 시 실제 푸시 발송 제어.
 const ROUNDUP_NOTI_TYPES = [
@@ -47,6 +48,20 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
   const { userProfile, setUserProfile } = useContext(UserContext);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false); // 전체삭제 자체 confirm (모달 안에서 띄움)
+  const [alert, setAlert] = useState(null);   // 모달 내부 OverlayAlert — 수락 확인창 등
+
+  // 수락 확인 — 참여 확정 단순 안내. 수락 후엔 약속이 시작되니 신중히.
+  // 전체공개 모집에만 발동(친구공개·친구지정은 즉시 확정, 신청 단계 X).
+  const handleAcceptClick = (n) => {
+    setAlert({
+      title: '라운딩 모집이 확정되었어요',
+      message: `${n.actor}님의 참여가 확정되고\n정원이 1명 늘어요.\n\n확정 후엔 동반자 약속이 시작돼요.`,
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '수락하기', onPress: () => onAccept && onAccept(n) },
+      ],
+    });
+  };
   const prefs = userProfile?.roundupNotifyPrefs || DEFAULT_ROUNDUP_PREFS;
   const togglePref = (key) => {
     const next = { ...userProfile, roundupNotifyPrefs: { ...prefs, [key]: !prefs[key] } };
@@ -196,7 +211,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                       {/* 참여 신청 — 수락 / 거절 */}
                       {pending && (
                         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                          <TouchableOpacity activeOpacity={0.85} onPress={() => onAccept(n)}
+                          <TouchableOpacity activeOpacity={0.85} onPress={() => handleAcceptClick(n)}
                             style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8, backgroundColor: C.burgundy }}>
                             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>수락</Text>
                           </TouchableOpacity>
@@ -224,6 +239,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
               })
             )}
           </ScrollView>
+          <OverlayAlert data={alert} onClose={() => setAlert(null)} />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

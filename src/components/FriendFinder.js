@@ -4,6 +4,8 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
+import { OverlayAlert } from './common/OverlayAlert';
+import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
 
 // 아바타 색상 — 이름 글자 기준 순환
 const AVATARS = [
@@ -91,9 +93,10 @@ export function FriendFinder({
 }) {
   const [tab, setTab] = useState(initialTab);
   const [query, setQuery] = useState('');
+  const [alert, setAlert] = useState(null);   // Modal 내부 OverlayAlert — 글로벌 showAppAlert가 Modal 뒤로 가려지는 이슈 회피
 
   useEffect(() => {
-    if (visible) { setTab(initialTab); setQuery(''); }
+    if (visible) { setTab(initialTab); setQuery(''); setAlert(null); }
   }, [visible, initialTab]);
 
   // 이미 친구이거나 신청한 사람은 후보에서 제외하지 않고 상태로만 표시
@@ -123,7 +126,17 @@ export function FriendFinder({
     }
     return (
       <RequestButton sent={isSent(person.id)}
-        onPress={() => onSend && onSend(person)}
+        onPress={async () => {
+          if (!onSend) return;
+          const result = await onSend(person);
+          if (result && result.ok === false && result.reason === 'limit') {
+            setAlert({
+              title: '오늘 친구 신청 한도를 초과했어요',
+              message: `친구 신청은 하루 ${FRIEND_REQUEST_DAILY_LIMIT}건으로 제한되어 있어요.\n내일 다시 시도해주세요.`,
+              buttons: [{ text: '확인' }],
+            });
+          }
+        }}
         onCancel={() => onCancelSend && onCancelSend(person)} />
     );
   };
@@ -270,6 +283,7 @@ export function FriendFinder({
                 )
             )}
           </ScrollView>
+          <OverlayAlert data={alert} onClose={() => setAlert(null)} />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

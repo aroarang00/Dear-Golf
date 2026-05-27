@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
@@ -12,6 +12,7 @@ import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { RoundupComments } from './RoundupComments';
+import { DUMMY_FRIENDS } from './FriendsTab';
 
 // 참여자 아바타 색상
 const AV = [
@@ -160,11 +161,14 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    // D-7 이내 — 강한 경고 + 취소 진행 (매너 -5는 onCancel 후 처리, Phase 2)
-    if (isD7Inside(hoursUntil)) {
+    // 친구공개·친구지정 모집은 시스템 제재 예외 — 친구끼리 직접 소통, 시스템 매개 불필요
+    // ([[manner-evaluation-policy]] §1-0과 같은 결, 2026-05-27 정책 확장)
+    // 전체공개 + D-7 이내 + 확정 — 매너 영향 경고 (약관 일치)
+    // 그 외(D-7 이전/미확정/친구공개·친구지정) — 자유 취소
+    if (post.scope === 'all' && isD7Inside(hoursUntil) && isRoundupConfirmed(post)) {
       setAlert({
         title: '라운딩 7일 이내 취소',
-        message: '함께하는 골프, 서로의 시간을 존중해요.\n\n취소하면 매너 평가에 영향이 있을 수 있어요.\n부득이한 사정이라면 동반자들에게 댓글로 양해를 구해주세요.',
+        message: '함께하는 골프,\n서로의 시간을 존중해요.\n\n동반자들의 매너 평가에 영향을 줄 수 있고\n매너점수가 깎일 수 있어요.\n\n사전 안내 없이 나타나지 않으면\n노쇼로 신고받을 수 있으니\n부득이한 사정이라면 댓글로 양해를 구해주세요.',
         buttons: [
           { text: '계속 참여', style: 'cancel' },
           { text: '취소하기', style: 'destructive', onPress: onCancel },
@@ -573,10 +577,32 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
             target={actionTarget}
             isMe={actionTarget?.name === '나'}
             canKick={isMine && post.scope === 'all' && actionTarget?.role === 'participant'}
-            friendStatus={
-              actionTarget && sentFriendRequestIds.includes(actionTarget.id) ? 'sent' : 'none'
-            }
-            onRequestFriend={onRequestFriend}
+            friendStatus={(() => {
+              if (!actionTarget) return 'none';
+              // 친구 여부 — name 매칭 (더미 한계: id가 더미 사용자 id 'oseh' 등 vs DUMMY_FRIENDS 'f3'이라 name으로 비교)
+              // Phase 3 friendships 컬렉션 이관 시 uid 매칭으로 정밀화
+              if (DUMMY_FRIENDS.some(f => f.name === actionTarget.name)) return 'friend';
+              if (sentFriendRequestIds.includes(actionTarget.id)) return 'sent';
+              return 'none';
+            })()}
+            onRequestFriend={async (t) => {
+              // Modal 뒤로 alert 가림 회피 — 부모 결과 받아 자체 OverlayAlert 표시
+              const result = await onRequestFriend?.(t);
+              if (!result) return;
+              if (result.ok === false && result.reason === 'limit') {
+                setAlert({
+                  title: '오늘 친구 신청 한도를 초과했어요',
+                  message: '친구 신청은 하루 10건으로 제한되어 있어요.\n내일 다시 시도해주세요.',
+                  buttons: [{ text: '확인' }],
+                });
+              } else if (result.ok && result.sent) {
+                setAlert({
+                  title: '친구 신청을 보냈어요',
+                  message: `${result.name}님이 수락하면 친구가 돼요.\n수락 전까지 '신청함' 상태로 표시돼요.`,
+                  buttons: [{ text: '확인' }],
+                });
+              }
+            }}
             onCancelFriendRequest={onCancelFriendRequest}
             onClose={() => setActionTarget(null)}
             onBlock={(t) => {

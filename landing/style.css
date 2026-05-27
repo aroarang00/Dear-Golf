@@ -61,26 +61,22 @@ body {
 .header {
   background-color: var(--charcoal);
   padding: 18px 24px;
-  border-bottom: 1px solid var(--charcoal-deep);
+  /* border-bottom 제거 — 페이지별 헤더 컬러가 본문과 자연 분리되어 라인 불필요 */
 }
 
 /* 페이지별 헤더 컬러 modifier */
 .header.header-navy {
   background-color: var(--navy);
-  border-bottom-color: var(--navy);
 }
 .header.header-burgundy {
   background-color: var(--burgundy);
-  border-bottom-color: var(--burgundy);
 }
 .header.header-pine {
   background-color: #2A4D2A;
-  border-bottom-color: #1F3A1F;
 }
 /* community — pale-sky 배경 + 텍스트 명도 보정 (밝은 배경이라 charcoal-deep 텍스트로) */
 .header.header-mocha {
   background-color: var(--pale-sky);
-  border-bottom-color: #8FAAC0;
 }
 .header.header-mocha .brand,
 .header.header-mocha .header-nav a {
@@ -88,7 +84,6 @@ body {
 }
 .header.header-deep {
   background-color: var(--warm-gray);
-  border-bottom-color: #6A655F;
 }
 
 .header-inner {

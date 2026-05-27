@@ -77,6 +77,19 @@ export function ageGroupLabelShort(ageGroup) {
   return AGEGROUP_LABEL[ageGroup] || null;
 }
 
+// 모집이 "확정" 상태인지 판정 — D-7 이내 정책 분기 기준.
+// 확정 = 주최자 명시적 마감(closed=true) 또는 정원 만석.
+// 미확정 상태에선 D-7 이내라도 약속의 강도가 낮아 자유 취소 가능 (정책 결정 2026-05-27).
+export function isRoundupConfirmed(post) {
+  if (!post) return false;
+  if (post.closed) return true;
+  if (post.teams > 1 && Array.isArray(post.teamJoined)) {
+    return post.teamJoined.every(c => c >= 4);
+  }
+  const filled = (post.joined || 0) + (post.companions?.length || 0);
+  return filled >= (post.capacity || 4);
+}
+
 // 라운딩 날짜까지 남은 일수로 대기자 응답 제한 시간(시간)을 계산
 export function waitlistRespondHours(dateStr) {
   if (!dateStr) return 24;   // 오픈형(날짜 미정)은 기본 24시간
