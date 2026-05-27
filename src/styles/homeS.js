@@ -4,9 +4,10 @@ import { C, F, fs } from '../constants/colors';
 export const homeS = StyleSheet.create({
   hdr:             { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 10 },
   hdrSub:          { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginTop: 6, marginBottom: 4 },
-  // lineHeight fs(64) — 안드로이드에서 Lora Italic 'f' 디센더 잘림 fix (fs(48)에 fs(52)는 부족, 안드로이드 'Golf'의 f·G 잘림 발생)
-  // paddingHorizontal — 이탤릭 글자 좌우 여유 (안드로이드 컷 방지)
-  hdrTitle:        { fontFamily: F.brand, fontSize: fs(48), lineHeight: fs(64), color: '#fff', paddingHorizontal: 4, marginBottom: 0, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
+  // lineHeight fs(64) — 안드로이드에서 Lora Italic 'f' 디센더 잘림 fix
+  // paddingHorizontal — 이탤릭 글자 좌우 여유
+  // flexShrink:0 + numberOfLines={1}(컴포넌트에서) — 안드로이드에서 row 안 Lora 'Dear Golf'가 wrap돼 'Golf'가 두 번째 줄로 빠지던 버그 fix
+  hdrTitle:        { fontFamily: F.brand, fontSize: fs(48), lineHeight: fs(64), color: '#fff', paddingHorizontal: 4, marginBottom: 0, flexShrink: 0, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
   hdrGreeting:     { fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.75)' },
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },

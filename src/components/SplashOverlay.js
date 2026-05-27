@@ -9,7 +9,7 @@ export function SplashContent() {
     <>
       {/* italic Lora 워드마크 — lineHeight 명시 + allowFontScaling false로 'f' 디센더 잘림 방지 (iOS 시스템 텍스트 크기 최대 환경 대응)
           색은 charcoal(#3D3935)보다 더 진한 #1A1A1A + 미세한 textShadow로 무게감 강화. paleSky 배경 위에서 또렷하게. */}
-      <Text allowFontScaling={false}
+      <Text allowFontScaling={false} numberOfLines={1}
         style={{
           fontFamily: F.brand, fontSize: fs(44), lineHeight: fs(56), color: '#1A1A1A', paddingHorizontal: 14,
           textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0,

@@ -355,7 +355,7 @@ export function HomeScreen({ navigation }) {
         <View style={homeS.hdr}>
           <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Text style={homeS.hdrTitle}>Dear Golf</Text>
+            <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
             <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
             </TouchableOpacity>
