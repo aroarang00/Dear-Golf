@@ -598,29 +598,24 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   );
 
   // 골프 지수 — 라운딩 컨디션과 동일한 scoreWeather 공식 (풍속·강수·체감온도 + 미세먼지·자외선)
-  // 데이터 소스: weatherOnly→현재, 일정 D+0~D+3→티오프(또는 정오) 슬롯, D+4~D+10→중기 일별
-  // 일정 D+11 이후는 예보 범위 밖 → kind:'too-far' 반환해서 UI에서 안내 문구 표시
+  // 정밀 예보 시점 분기 (큰 기온 영역과 일관):
+  // · weatherOnly·해외 → 현재
+  // · 라운딩 D+0~D+3 (시간별 정밀) → 티오프 슬롯
+  // · 라운딩 D+4+ → 현재 날씨로 대체 (정밀도 낮은 중기예보 미사용, 사용자 결정 2026-05-27)
   const golfIdx = React.useMemo(() => {
-    if (!weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay) && schedule.dDay > 10) {
-      return { kind: 'too-far' };
-    }
+    const isScheduled = !weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay);
+    const usePrecise = isScheduled && schedule.dDay <= 3 && hourSlots.length > 0;
 
     let temp = null, wind = null, pop = null, humidity = null, windKnown = true;
-    if (weatherOnly || schedule?.overseas) {
+    if (usePrecise) {
+      const slot = hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)];
+      temp = slot?.temp; wind = slot?.wind; pop = slot?.rain; humidity = slot?.humidity;
+    } else {
+      // weatherOnly·해외·D+4+ 모두 현재 날씨로
       temp = cur?.temp;
       wind = cur?.windSpeed;
       pop = cur?.pop ?? todayDay?.pop ?? 0;
       humidity = cur?.humidity;
-    } else if (hourSlots.length > 0) {
-      const slot = hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)];
-      temp = slot?.temp; wind = slot?.wind; pop = slot?.rain; humidity = slot?.humidity;
-    } else {
-      const roundDay = days.find(d => d.date === schedule?.date);
-      if (roundDay && Number.isFinite(roundDay.tmin) && Number.isFinite(roundDay.tmax)) {
-        temp = (roundDay.tmin + roundDay.tmax) / 2;
-        pop = roundDay.pop || 0;
-        windKnown = false; // 중기예보엔 풍속 없음
-      }
     }
 
     const total = scoreWeather({
@@ -755,65 +750,103 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 )
               ) : (
               <>
-              {/* ② 기온 히어로 */}
-              <View style={wxS.tempHero}>
-                <Text style={wxS.tempEmoji}>{cur?.icon || '🌤️'}</Text>
-                <Text style={wxS.tempBig}>
-                  {Number.isFinite(cur?.temp) ? `${Math.round(cur.temp)}°` : '—'}
-                </Text>
-                <View style={wxS.tempRight}>
-                  <Text style={wxS.tempSky}>{cur?.sky || '—'}</Text>
-                  <Text style={wxS.tempSub}>
-                    강수확률 {Number.isFinite(cur?.pop) ? `${Math.round(cur.pop)}%` : '—'}
-                  </Text>
-                  <Text style={wxS.tempSub}>
-                    {todayDay && Number.isFinite(todayDay.tmin) && Number.isFinite(todayDay.tmax)
-                      ? `최저 ${Math.round(todayDay.tmin)}° / 최고 ${Math.round(todayDay.tmax)}°`
-                      : '최저 — / 최고 —'}
-                  </Text>
-                </View>
-              </View>
+              {/* ② 기온 히어로 — 정밀 예보 시점 분기 (사용자 명시 라벨)
+                  · weatherOnly·해외 일정 → 현재 (라벨 없음, 일정 정보 없음)
+                  · 라운딩 D+0~D+3 (시간별 정밀 예보) → 라운딩 시점 기준 + "라운딩 시점 날씨" 라벨
+                  · 라운딩 D+4+ (시간별 예보 밖) → 현재 날씨로 대체 + "현재 날씨 · 라운딩 3일 전부터 더 정확해져요" 라벨 */}
+              {(() => {
+                const isScheduled = !weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay);
+                const usePrecise = isScheduled && schedule.dDay <= 3 && hourSlots.length > 0;
+                let icon, sky, temp, pop, tmin, tmax, label;
+                if (usePrecise) {
+                  const slot = hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)];
+                  icon = slot?.icon; sky = slot?.sky;
+                  temp = slot?.temp; pop = slot?.rain;
+                  const roundDay = days.find(d => d.date === schedule?.date);
+                  tmin = roundDay?.tmin; tmax = roundDay?.tmax;
+                  label = '라운딩 시점 날씨';
+                } else {
+                  icon = cur?.icon; sky = cur?.sky; temp = cur?.temp; pop = cur?.pop;
+                  tmin = todayDay?.tmin; tmax = todayDay?.tmax;
+                  if (isScheduled) {
+                    label = `현재 날씨 · 라운딩 3일 전부터 더 정확해져요 (D-${schedule.dDay})`;
+                  }
+                }
+                return (
+                  <>
+                    {label && (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: usePrecise ? C.burgundy : C.warmGray,
+                        textAlign: 'center', marginBottom: 8, letterSpacing: 0.5 }}>
+                        {label}
+                      </Text>
+                    )}
+                    <View style={wxS.tempHero}>
+                      <Text style={wxS.tempEmoji}>{icon || '🌤️'}</Text>
+                      <Text style={wxS.tempBig}>
+                        {Number.isFinite(temp) ? `${Math.round(temp)}°` : '—'}
+                      </Text>
+                      <View style={wxS.tempRight}>
+                        <Text style={wxS.tempSky}>{sky || '—'}</Text>
+                        <Text style={wxS.tempSub}>
+                          강수확률 {Number.isFinite(pop) ? `${Math.round(pop)}%` : '—'}
+                        </Text>
+                        <Text style={wxS.tempSub}>
+                          {Number.isFinite(tmin) && Number.isFinite(tmax)
+                            ? `최저 ${Math.round(tmin)}° / 최고 ${Math.round(tmax)}°`
+                            : '최저 — / 최고 —'}
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                );
+              })()}
 
-              {/* ③ 4칸 카드 */}
-              <View style={wxS.gridCard}>
-                {[
-                  {
-                    label: '바람',
-                    val: Number.isFinite(cur?.windSpeed) ? `${cur.windSpeed.toFixed(1)}m/s` : '—',
-                    sub: Number.isFinite(cur?.windSpeed) ? windLabel(cur.windSpeed) : '',
-                  },
-                  {
-                    label: '습도',
-                    val: Number.isFinite(cur?.humidity) ? `${Math.round(cur.humidity)}%` : '—',
-                    sub: Number.isFinite(cur?.humidity) ? humidityLabel(cur.humidity) : '',
-                  },
-                  {
-                    label: '미세먼지',
-                    val: airQuality?.label || '—',
-                    sub: airQuality?.pm10 != null ? `PM10 ${airQuality.pm10}` : '',
-                  },
-                  {
-                    label: '자외선',
-                    val: uvIndex?.label || '—',
-                    sub: Number.isFinite(uvIndex?.uv) ? `UV ${Math.round(uvIndex.uv)}` : '',
-                  },
-                ].map((c, i, arr) => (
-                  <View key={i} style={[wxS.gridCell, i < arr.length - 1 && wxS.gridCellBorder]}>
-                    <Text style={wxS.gridLabel}>{c.label}</Text>
-                    <Text style={wxS.gridValue}>{c.val}</Text>
-                    <Text style={wxS.gridSub}>{c.sub}</Text>
+              {/* ③ 4칸 카드 — 바람·습도는 라운딩 시점(D+3 이내) 슬롯 사용, 그 외엔 현재.
+                  미세먼지·자외선은 일별만 제공되므로 그대로 (시간대별 X) */}
+              {(() => {
+                const isSched = !weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay);
+                const useSlot = isSched && schedule.dDay <= 3 && hourSlots.length > 0;
+                const slot = useSlot ? hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)] : null;
+                const wind = slot?.wind ?? cur?.windSpeed;
+                const humidity = slot?.humidity ?? cur?.humidity;
+                return (
+                  <View style={wxS.gridCard}>
+                    {[
+                      {
+                        label: '바람',
+                        val: Number.isFinite(wind) ? `${wind.toFixed(1)}m/s` : '—',
+                        sub: Number.isFinite(wind) ? windLabel(wind) : '',
+                      },
+                      {
+                        label: '습도',
+                        val: Number.isFinite(humidity) ? `${Math.round(humidity)}%` : '—',
+                        sub: Number.isFinite(humidity) ? humidityLabel(humidity) : '',
+                      },
+                      {
+                        label: '미세먼지',
+                        val: airQuality?.label || '—',
+                        sub: airQuality?.pm10 != null ? `PM10 ${airQuality.pm10}` : '',
+                      },
+                      {
+                        label: '자외선',
+                        val: uvIndex?.label || '—',
+                        sub: Number.isFinite(uvIndex?.uv) ? `UV ${Math.round(uvIndex.uv)}` : '',
+                      },
+                    ].map((c, i, arr) => (
+                      <View key={i} style={[wxS.gridCell, i < arr.length - 1 && wxS.gridCellBorder]}>
+                        <Text style={wxS.gridLabel}>{c.label}</Text>
+                        <Text style={wxS.gridValue}>{c.val}</Text>
+                        <Text style={wxS.gridSub}>{c.sub}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
+                );
+              })()}
 
               {/* ④ 골프 지수 카드 */}
               <Text style={[wxS.sectionLabel, { paddingHorizontal: 20, marginTop: 28 }]}>골프 지수</Text>
               <View style={[wxS.gIdxCard, { marginTop: 0 }]}>
-                {golfIdx?.kind === 'too-far' ? (
-                  <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: fs(13), paddingVertical: 10, textAlign: 'center' }}>
-                    10일 전부터 확인할 수 있어요
-                  </Text>
-                ) : golfIdx ? (
+                {golfIdx ? (
                   <>
                     <View style={wxS.gIdxHeadRow}>
                       <Text style={wxS.gIdxBig}>{golfIdx.label}</Text>
