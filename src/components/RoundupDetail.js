@@ -101,7 +101,7 @@ function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
         const name = host ? hostName
           : uid === myUid ? '나'
           : (nameMap[uid] || '동반자');
-        return { name, host };
+        return { name, host, uid };
       });
     }
     const names = pickNames(post.id, filled);
@@ -672,7 +672,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
           <ProfileActionSheet
             visible={!!actionTarget}
             target={actionTarget}
-            isMe={actionTarget?.name === '나'}
+            isMe={!!myUid && (actionTarget?.id === myUid || actionTarget?.name === '나')}
             canKick={isMine && post.scope === 'all' && actionTarget?.role === 'participant'}
             friendStatus={(() => {
               if (!actionTarget) return 'none';
