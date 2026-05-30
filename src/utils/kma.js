@@ -3,6 +3,7 @@ import {
   dfsXyConv, locToMidRegion, locToAreaNo,
 } from '../constants/api';
 import { WEEKDAYS } from '../constants/data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -78,6 +79,34 @@ async function fetchJson(url, { timeoutMs = 8000, retries = 1 } = {}) {
 const keyParam = () => `serviceKey=${encodeURIComponent(KMA_SERVICE_KEY)}`;
 
 // =============================================================
+// 마지막 성공 날씨 캐싱 — KMA(data.go.kr) API가 모바일에서 종종 끊겨(타임아웃·일시오류)
+// 날씨가 빈 채로 남던 문제 방지. 호출 실패 시 직전 성공값을 _stale 표시와 함께 반환.
+// 위치(소수 2자리)별로 캐시 — 다른 골프장 날씨가 섞이지 않도록.
+// =============================================================
+const WX_CACHE_PREFIX = '@dg_wx_';
+const wxKey = (tag, lat, lng) =>
+  `${WX_CACHE_PREFIX}${tag}_${Number(lat ?? 0).toFixed(2)}_${Number(lng ?? 0).toFixed(2)}`;
+const isGoodShort = (r) => !!(r && r.current && Number.isFinite(r.current.temp));
+
+const WX_CACHE_MAX_AGE = 12 * 3600 * 1000; // 12h — 더 오래되면 오해 방지 위해 폴백 안 함
+
+async function withWxCache(key, result, isGood) {
+  if (isGood(result)) {
+    try { await AsyncStorage.setItem(key, JSON.stringify({ t: Date.now(), v: result })); } catch {}
+    return result;
+  }
+  // 실패 — 12h 이내 직전 성공값으로 폴백 (그보다 오래되면 빈 값 유지)
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (raw) {
+      const { t, v } = JSON.parse(raw);
+      if (Date.now() - t <= WX_CACHE_MAX_AGE) return { ...v, _stale: true, _cachedAt: t };
+    }
+  } catch {}
+  return result;
+}
+
+// =============================================================
 // 단기예보 (D-0 ~ D-3) — 격자 nx,ny 필요
 // 반환: { current: {temp, sky, pop, wind, humidity, ...}, hourly: [...], daily: [...] }
 // =============================================================
@@ -93,7 +122,8 @@ export async function getShortForecast(lat, lng) {
   const url = `${KMA_SHORT_URL}/getVilageFcst?${keyParam()}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
   const data = await fetchJson(url);
   const items = data?.response?.body?.items?.item;
-  if (!items) return null;
+  const cacheKey = wxKey('short', lat, lng);
+  if (!items) return withWxCache(cacheKey, null, isGoodShort); // 실패 → 직전 성공값 폴백
 
   // category별 그룹핑: { fcstDate, fcstTime, category, fcstValue }
   // 일별·시간별 정리
@@ -146,7 +176,7 @@ export async function getShortForecast(lat, lng) {
     pop: d.pop,
   }));
 
-  return {
+  const result = {
     current: {
       temp: current ? parseFloat(current.TMP) : null,
       sky: current ? skyToText(current.SKY, current.PTY) : null,
@@ -159,6 +189,7 @@ export async function getShortForecast(lat, lng) {
     slotsByDate,
     raw: slots,
   };
+  return withWxCache(cacheKey, result, isGoodShort); // 성공 → 캐시 저장 후 반환
 }
 
 // 라운딩 컨디션 6시간대(6/9/12/15/18/21시) 추출.
