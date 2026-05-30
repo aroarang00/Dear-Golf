@@ -6,6 +6,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 
+// 헤더·버튼을 라운지(navy) 헤더 규격에 맞춰 안드 컴팩트 보정 (RoundupTab과 동일 패턴)
+const _and = Platform.OS === 'android';
+
 import { C, F, fs } from '../constants/colors';
 import {
   FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG, DIARY_DATA,
@@ -1225,17 +1228,17 @@ export function GuideScreen({ route, navigation }) {
   const hasCourses = chipCourses.length > 0;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 7, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(61,57,53,0.72)', letterSpacing: 2, marginBottom: 4 }}>골퍼들의 코스 이야기</Text>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(61,57,53,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>골퍼들의 코스 이야기</Text>
           <Text style={{
             fontFamily: F.sysSb,
-            fontSize: fs(28),
+            fontSize: fs(_and ? 24 : 28),
             color: C.charcoal,
           }}>코스</Text>
         </View>
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
-          style={{ backgroundColor: C.charcoal, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 11 }}>
+          style={{ backgroundColor: C.charcoal, borderRadius: 20, paddingHorizontal: 18, paddingVertical: _and ? 4 : 7 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>내 코스 모아보기</Text>
         </TouchableOpacity>
       </View>

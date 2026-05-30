@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
+
+const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed } from '../constants/roundup';
@@ -22,8 +24,8 @@ const AV = [
 ];
 
 const sectionLabel = { fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5,
-  marginHorizontal: 16, marginTop: 22, marginBottom: 8 };
-const hintStyle = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 };
+  marginHorizontal: 16, marginTop: _and ? 12 : 16, marginBottom: _and ? 4 : 6 };
+const hintStyle = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: _and ? 4 : 6, lineHeight: _and ? 14 : 15 };
 
 function Badge({ bg, fg, text }) {
   return (
@@ -37,27 +39,27 @@ function Badge({ bg, fg, text }) {
 function SlotRow({ slot, idx, onPress }) {
   if (slot.open) {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: C.warmGrayLight,
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: _and ? 4 : 6 }}>
+        <View style={{ width: _and ? 32 : 36, height: _and ? 32 : 36, borderRadius: _and ? 16 : 18, borderWidth: 1.5, borderColor: C.warmGrayLight,
           borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: fs(16), color: C.warmGray }}>+</Text>
+          <Text style={{ fontSize: fs(_and ? 13 : 14), color: C.warmGray }}>+</Text>
         </View>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>모집 중인 자리</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>모집 중인 자리</Text>
       </View>
     );
   }
   const pal = AV[idx % AV.length];
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
-      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: pal.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: pal.fg }}>{(slot.name || '?').charAt(0)}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: _and ? 4 : 6 }}>
+      <View style={{ width: _and ? 32 : 36, height: _and ? 32 : 36, borderRadius: _and ? 16 : 18, backgroundColor: pal.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 13 : 14), color: pal.fg }}>{(slot.name || '?').charAt(0)}</Text>
       </View>
       {onPress ? (
         <TouchableOpacity activeOpacity={0.7} onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{slot.name}</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
         </TouchableOpacity>
       ) : (
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{slot.name}</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
       )}
       {slot.host && (
         <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
@@ -72,7 +74,7 @@ function SlotRow({ slot, idx, onPress }) {
 // 대기자 한 줄
 function WaitRow({ num, name, me }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: _and ? 4 : 6 }}>
       <View style={{ minWidth: 44, alignItems: 'center', backgroundColor: '#F0E8D8', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914' }}>대기 {num}번</Text>
       </View>
@@ -262,20 +264,20 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
   if (isMine) {
     actionBtn = (
       <View>
-        <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+        <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
           backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>내가 올린 모집글</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: _and ? 6 : 8 }}>
           {onEdit && (
             <TouchableOpacity activeOpacity={0.85} onPress={onEdit}
-              style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+              style={{ flex: 1, borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
                 backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>모집글 수정</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity activeOpacity={0.85} onPress={confirmDelete}
-            style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+            style={{ flex: 1, borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
               backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>모집글 삭제</Text>
           </TouchableOpacity>
@@ -285,7 +287,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
   } else if (joined) {
     actionBtn = (
       <View>
-        <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+        <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
           backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>참여 확정 ✓</Text>
         </View>
@@ -299,7 +301,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
     );
   } else if (applied) {
     actionBtn = (
-      <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+      <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
         backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B6914' }}>신청 완료 · 수락 대기 중</Text>
       </View>
@@ -307,7 +309,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
   } else if (waitlistNum) {
     actionBtn = (
       <View>
-        <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+        <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
           backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B6914' }}>⏳ 대기 {waitlistNum}번</Text>
         </View>
@@ -324,14 +326,14 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
     );
   } else if (userProfile?.isRestricted) {
     actionBtn = (
-      <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+      <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
         backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B2A2A' }}>🚫 이용 제한 중</Text>
       </View>
     );
   } else if (userProfile?.mannerEvaluationPending) {
     actionBtn = (
-      <View style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+      <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
         backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B6914' }}>지난 라운딩 평가 후 신청 가능해요</Text>
       </View>
@@ -340,7 +342,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
     const instant = post.scope !== 'all';
     actionBtn = (
       <TouchableOpacity activeOpacity={0.85} onPress={confirmApply}
-        style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: C.burgundy }}>
+        style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', backgroundColor: C.burgundy }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>{instant ? '참여하기' : '참여 신청'}</Text>
       </TouchableOpacity>
     );
@@ -348,7 +350,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
     actionBtn = (
       <View>
         <TouchableOpacity activeOpacity={0.85} onPress={onWaitlist}
-          style={{ borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+          style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>
             대기 신청{post.waitlistCount > 0 ? ` (현재 ${post.waitlistCount}명 대기)` : ''}
@@ -366,12 +368,12 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}
-          <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
+          <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: _and ? 8 : 11,
             flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>모집 상세</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>모집 상세</Text>
             <View style={{ flex: 1 }} />
             {!isMine && onToggleBookmark && (
               <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -385,17 +387,17 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}
             keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
             {/* 긍정 문구 — 약속·시간 존중 문화 고정 안내 ([[roundup-penalty-policy]] §5) */}
-            <View style={{ marginHorizontal: 16, marginTop: 16,
+            <View style={{ marginHorizontal: 16, marginTop: _and ? 9 : 12,
               backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#E2D2A8',
-              borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#6B5A2E', lineHeight: 17 }}>
+              borderRadius: 10, paddingVertical: _and ? 5 : 7, paddingHorizontal: 14, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#6B5A2E', lineHeight: _and ? 15 : 16 }}>
                 함께하는 골프, 서로의 시간을 존중해요
               </Text>
             </View>
 
             {/* 1. 모집글 정보 */}
-            <View style={{ backgroundColor: C.bgSecondary, marginHorizontal: 16, marginTop: 10, marginBottom: 4, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            <View style={{ backgroundColor: C.bgSecondary, marginHorizontal: 16, marginTop: _and ? 6 : 8, marginBottom: 4, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: _and ? 8 : 10 }}>
                 <Badge bg={post.type === 'fixed' ? C.charcoal : '#6B8B5E'} fg="#fff" text={post.type === 'fixed' ? '확정형' : '오픈형'} />
                 {isTeam && <Badge bg={C.navy} fg={C.butter} text={`단체 ${post.teams}팀`} />}
                 <Badge bg={sb.bg} fg={sb.fg} text={sb.label} />
@@ -404,8 +406,8 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
 
               {/* 주최자 — 이름만 탭하면 신고/차단 시트. 매너·신뢰 배지는 각자 onPress (등급 안내). */}
               <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12,
-                  backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: 12 }}>
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: _and ? 6 : 8, paddingHorizontal: 12,
+                  backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: _and ? 8 : 10 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
                 <TouchableOpacity activeOpacity={0.7}
                   onPress={() => setActionTarget({ id: post.authorUid || post.authorId || post.author, name: post.authorName || post.author || '주최자', role: 'host' })}
@@ -429,15 +431,15 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
 
               {post.type === 'fixed' ? (
                 <>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }}>{post.course}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, marginTop: 4 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 16 : 17), color: C.charcoal, lineHeight: fs(_and ? 21 : 23) }}>{post.course}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 2 : 4, lineHeight: _and ? 17 : 18 }}>
                     {post.date} ({post.day}) · {post.time}
                   </Text>
                 </>
               ) : (
                 <>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }}>장소 · 날짜 미정</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, marginTop: 4 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 16 : 17), color: C.charcoal, lineHeight: fs(_and ? 21 : 23) }}>장소 · 날짜 미정</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 2 : 4, lineHeight: _and ? 17 : 18 }}>
                     {post.openTime?.length === 1
                       ? (post.openTime[0] === 'weekday' ? '📅 주중 선호 · 동반자와 함께 정해요' : '📅 주말 선호 · 동반자와 함께 정해요')
                       : '동반자와 함께 정해요'}
@@ -453,8 +455,8 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
                 const tagList = Array.isArray(post.tags) ? post.tags : [];
                 if (!compTxt && !ageTxt && !skillTxt && tagList.length === 0) return null;
                 return (
-                  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 6 }}>동반자 조건</Text>
+                  <View style={{ marginTop: _and ? 9 : 12, paddingTop: _and ? 9 : 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: _and ? 4 : 6 }}>동반자 조건</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                       {compTxt && <Badge bg={FILTER_BADGE.companion.bg} fg={FILTER_BADGE.companion.fg} text={compTxt} />}
                       {ageTxt && <Badge bg={FILTER_BADGE.ageGroup.bg} fg={FILTER_BADGE.ageGroup.fg} text={ageTxt} />}
@@ -468,12 +470,12 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
               })()}
 
               {post.word ? (
-                <View style={{ backgroundColor: C.bgPrimary, borderRadius: 10, padding: 12, marginTop: 12 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>"{post.word}"</Text>
+                <View style={{ backgroundColor: C.bgPrimary, borderRadius: 10, padding: _and ? 8 : 10, marginTop: _and ? 8 : 10 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: _and ? 17 : 18 }}>"{post.word}"</Text>
                 </View>
               ) : null}
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: _and ? 8 : 10 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>모집 인원</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginLeft: 8 }}>
                   {isTeam ? `${post.teams}팀 · ${post.teams * 4}명` : `${post.capacity}명`}
@@ -485,20 +487,20 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
                 ) : null}
               </View>
 
-              <View style={{ marginTop: 14 }}>{actionBtn}</View>
+              <View style={{ marginTop: _and ? 9 : 12 }}>{actionBtn}</View>
             </View>
 
             {/* 2·3. 참여자 현황 (단체면 팀 탭) */}
-            <Text style={[sectionLabel, { marginTop: 10 }]}>참여자 현황</Text>
+            <Text style={[sectionLabel, { marginTop: _and ? 6 : 8 }]}>참여자 현황</Text>
             <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
-              borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
+              borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14 }}>
               {isTeam && (
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: _and ? 6 : 8 }}>
                   {post.teamJoined.map((_, i) => {
                     const on = teamTab === i;
                     return (
                       <TouchableOpacity key={i} onPress={() => setTeamTab(i)} activeOpacity={0.8}
-                        style={{ flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 8,
+                        style={{ flex: 1, alignItems: 'center', paddingVertical: _and ? 5 : 7, borderRadius: 8,
                           backgroundColor: on ? C.charcoal : C.bgPrimary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
                         <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(12), color: on ? C.butter : C.warmGray }}>
                           {i + 1}팀

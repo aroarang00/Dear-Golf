@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform } from 'react-native';
+
+const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf } from '../utils/kakao';
 import { getCurrentLocation } from '../utils/location';
@@ -32,7 +34,7 @@ function Section({ title, right, headerBg, titleColor, children }) {
   return (
     <View style={{ backgroundColor: C.bgPrimary }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: headerBg || C.charcoal, paddingHorizontal: 14, paddingVertical: 11, gap: 8 }}>
+        backgroundColor: headerBg || C.charcoal, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11, gap: 8 }}>
         <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(15), color: tc, letterSpacing: 0.3 }}>{title}</Text>
         {right ? <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: fs(10), color: tc, opacity: 0.7 }}>{right}</Text> : null}
       </View>
@@ -46,7 +48,7 @@ function MoreButton({ moreCount, onPress }) {
   if (moreCount <= 0) return null;
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}
-      style={{ paddingVertical: 12, alignItems: 'center' }}>
+      style={{ paddingVertical: _and ? 9 : 12, alignItems: 'center' }}>
       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
         더보기 ({moreCount}개 더) →
       </Text>
@@ -215,7 +217,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
 
       {/* 코스 검색 안내 — 첫 사용(최근 검색 기록이 아직 없을 때)에만 */}
       {!search.trim() && recentCourses.length === 0 && (
-        <View style={{ marginHorizontal: 16, marginBottom: 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 12, borderWidth: 0.5, borderColor: C.hairline }}>
+        <View style={{ marginHorizontal: 16, marginBottom: _and ? 8 : 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: _and ? 10 : 12, borderWidth: 0.5, borderColor: C.hairline }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
             💡 골프장을 검색해 탭하면 — 코스 정보·맛집·골퍼들의 코멘트를 한눈에 볼 수 있어요. 다녀온 코스라면 직접 생생한 코멘트를 남겨 다른 골퍼와 정보를 나눌 수도 있어요.
           </Text>
@@ -225,13 +227,13 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       {/* 2. 지역 퀵탭 */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 2, gap: 8 }}
-        style={{ maxHeight: 40, marginBottom: 4 }}>
+        style={{ maxHeight: _and ? 36 : 40, marginBottom: _and ? 2 : 4 }}>
         {REGIONS.map(r => {
           const on = region === r;
           return (
             <TouchableOpacity key={r} onPress={() => setRegion(r)} activeOpacity={0.7}
               style={{
-                minWidth: 56, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+                minWidth: 56, paddingHorizontal: 12, paddingVertical: _and ? 4 : 6, borderRadius: 14,
                 alignItems: 'center', justifyContent: 'center',
                 backgroundColor: on ? C.charcoal : C.bgSecondary,
                 borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline,
@@ -261,7 +263,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
             <View style={{ paddingHorizontal: 14 }}>
               {regionCourses.map(c => (
                 <TouchableOpacity key={c.rank} onPress={() => openTop100Course(c)} activeOpacity={0.7}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <Text style={{ fontFamily: F.en, fontSize: fs(14), fontWeight: '700', color: '#A88A2E', width: 34 }}>{c.rank}</Text>
                   <View style={{ flex: 1 }}>
@@ -306,7 +308,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         };
 
         const noResult = !searching && shownLocal.length === 0 && searchResults.length === 0;
-        const rowStyle = { flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+        const rowStyle = { flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
           borderBottomWidth: 0.5, borderBottomColor: C.hairline };
         return (
           <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 }}>
@@ -383,7 +385,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                     else onOpenPreview?.(c);
                   }}
                   activeOpacity={0.7}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 10 : 13,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {c.name}</Text>
@@ -418,7 +420,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
           <View style={{ paddingHorizontal: 14 }}>
             {visibleNearby.map(n => (
               <View key={n.kakaoId}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{n.name}</Text>
@@ -456,7 +458,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
           <View style={{ paddingHorizontal: 14 }}>
             {visibleScreen.map(n => (
               <View key={n.kakaoId}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{n.name}</Text>

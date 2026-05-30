@@ -46,7 +46,7 @@ export function FriendsScreen({ navigation }) {
         flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <View>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 파트너</Text>
-          <Text style={{ fontFamily: F.en, fontStyle: 'italic', fontSize: fs(28), fontWeight: '500', color: C.navy }}>Friends</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.navy }}>Friends</Text>
         </View>
         <TouchableOpacity onPress={handleInvite} activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ paddingBottom: 3 }}>

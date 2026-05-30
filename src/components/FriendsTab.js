@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
+
+const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
 import { FriendFinder } from './FriendFinder';
@@ -38,14 +40,14 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
-      style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 12 }}>
+      style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
+        <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 17 : 19), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{friend.name || '친구'}</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 14 : 15), color: C.charcoal }}>{friend.name || '친구'}</Text>
             <TrustBadge grade={grade} onPress={onGradePress} />
             {muted && <Text style={{ fontSize: fs(11) }}>🔕</Text>}
           </View>
@@ -61,7 +63,7 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
 
       {/* 최근 라운딩 미리보기 */}
       {r && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 7 : 10, backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 7 : 9 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1 }}>최근</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, flex: 1 }} numberOfLines={1}>
             {r.course} · {r.date}
@@ -291,13 +293,13 @@ export function FriendsTab({ navigation, onInvite }) {
       </View>
 
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled">
         {/* 받은 친구 신청 배너 — 있을 때만 */}
         {receivedRequests.length > 0 && (
           <TouchableOpacity onPress={() => setFinder('received')} activeOpacity={0.8}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
-              backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: _and ? 9 : 12,
+              backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
             <Text style={{ fontSize: fs(15) }}>📬</Text>
             <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
               받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{receivedRequests.length}</Text>건
@@ -307,7 +309,7 @@ export function FriendsTab({ navigation, onInvite }) {
         )}
 
         {/* 친구 수 + 숨긴 친구 관리 (목록 위에 배치 — 스크롤 없이 접근) */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: _and ? 8 : 12 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
             친구 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{visible.length}</Text>명
           </Text>

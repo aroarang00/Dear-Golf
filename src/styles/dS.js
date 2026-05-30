@@ -1,7 +1,8 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 
 const { width: SW } = Dimensions.get('window');
+const _and = Platform.OS === 'android';
 
 export const dS = StyleSheet.create({
   statsRow:    { flexDirection: 'row', marginHorizontal: 16, marginVertical: 12, gap: 8 },
@@ -20,9 +21,9 @@ export const dS = StyleSheet.create({
   // 검색/필터
   filterRow:         { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' },
   filterTabRow:      { paddingLeft: 16 },
-  filterTab:         { paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  filterTab:         { paddingHorizontal: _and ? 10 : 12, paddingVertical: _and ? 4 : 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   filterTabOn:       { borderBottomColor: '#6B1E2A' },
-  filterTabTxt:      { fontFamily: F.sysM, fontSize: fs(13), color: C.textSecondary },
+  filterTabTxt:      { fontFamily: F.sysM, fontSize: fs(_and ? 11 : 13), color: C.textSecondary },
   filterTabTxtOn:    { fontFamily: F.sysB, color: '#3D3935' },
   searchToggleBtn:   { paddingHorizontal: 14, paddingVertical: 6, borderLeftWidth: 0.5, borderLeftColor: '#E8E2D0' },
   searchToggleTxt:   { fontSize: fs(16) },
@@ -43,13 +44,13 @@ export const dS = StyleSheet.create({
   specialBadge:    { position: 'absolute', top: 9, left: 10, backgroundColor: 'rgba(201,168,76,0.9)', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3 },
   specialBadgeTxt: { fontFamily: F.sys, fontSize: fs(9), color: '#2A2622', letterSpacing: 0.5 },
   specialNoPhoto:  { backgroundColor: '#EDE8DC', padding: 16, alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: '#C9A84C33' },
-  specialNoPhotoTxt: { fontFamily: F.en, fontSize: fs(16), color: C.butter, fontStyle: 'italic', letterSpacing: 2 },
+  specialNoPhotoTxt: { fontFamily: F.enItalic, fontSize: fs(16), color: C.butter, letterSpacing: 2 },
   specialNoPhotoSub: { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.75)', marginTop: 4 },
   hofSectionLabel: { fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914', letterSpacing: 3 },
   hofToggle:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingVertical: 4 },
   hofCard:     { backgroundColor: '#F5F0E4', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C', overflow: 'hidden', marginBottom: 12 },
   hofHeader:   { flexDirection: 'row', alignItems: 'center', padding: 14, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: '#C9A84C33' },
-  hofType:     { fontFamily: F.en, fontSize: fs(15), color: '#8B6914', fontStyle: 'italic', letterSpacing: 2 },
+  hofType:     { fontFamily: F.enItalic, fontSize: fs(15), color: '#8B6914', letterSpacing: 2 },
   hofDate:     { fontFamily: F.sys, fontSize: fs(10), color: '#B8A878', marginTop: 2 },
   hofGoldDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: '#C9A84C' },
   hofGrid:     { flexDirection: 'row', flexWrap: 'wrap', padding: 10, gap: 6 },
@@ -60,7 +61,7 @@ export const dS = StyleSheet.create({
   hofDivider:  { height: 0.5, backgroundColor: '#C9A84C33', marginHorizontal: 14 },
   hofMemo:     { fontFamily: F.en, fontSize: fs(11), color: '#6B6660', padding: 14, lineHeight: 18 },
   specialBanner:    { padding: 24, alignItems: 'center' },
-  specialBannerTitle: { fontFamily: F.en, fontSize: fs(34), color: C.butter, fontStyle: 'italic', letterSpacing: 5, marginVertical: 6 },
+  specialBannerTitle: { fontFamily: F.enItalic, fontSize: fs(34), color: C.butter, letterSpacing: 5, marginVertical: 6 },
   specialBannerSub:   { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(245,230,168,0.8)', letterSpacing: 4 },
   photoHero43:        { width: '100%', aspectRatio: 4/3, position: 'relative' },
   photoImg:           { width: '100%', height: '100%' },

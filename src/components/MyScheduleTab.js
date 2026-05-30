@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, Share } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Share, Platform } from 'react-native';
+
+const _and = Platform.OS === 'android';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { ROUTES } from '../constants/routes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +27,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
   return (
     <View style={{
       flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12,
-      padding: 14, marginBottom: 12, opacity: fade,
+      padding: _and ? 10 : 14, marginBottom: _and ? 7 : 12, opacity: fade,
       ...(dashed
         ? { borderWidth: 1, borderColor: C.warmGray, borderStyle: 'dashed' }
         : { borderWidth: 0.5, borderColor: C.hairline }),
@@ -369,7 +371,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     }
 
     const status = getStatus(0, d);
-    const base = { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' };
+    // borderRadius는 정확히 절반(16)보다 큰 값으로 — Android Fabric(New Arch)이 절반값에서
+    // 간헐적으로 네모로 그리는 버그 회피. width/height 고정이라 999여도 완전한 원.
+    const base = { width: 32, height: 32, borderRadius: 999, alignItems: 'center', justifyContent: 'center' };
     const baseText = { fontFamily: F.en, fontSize: fs(16) };
 
     switch (status) {
@@ -377,7 +381,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         // 오늘 — 크고 버건디색 숫자 + 버건디 언더바 (동그라미 X)
         return (
           <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.burgundy, fontWeight: '700' }}>{d}</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.burgundy }}>{d}</Text>
             <View style={{ position: 'absolute', bottom: 1, width: 20, height: 3.5, borderRadius: 2, backgroundColor: C.burgundy }} />
           </View>
         );
@@ -396,16 +400,18 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           </View>
         );
       case 'completed-record':
-        // 완료+기록있음: 버터색 fill 원
+        // 완료+기록있음: 버터색 fill 원. opacity는 둥근 View에서 Android Fabric이 네모로
+        // 클리핑하는 트리거라 제거 — 대신 색 자체를 살짝 연하게(rgba) 적용.
         return (
-          <View style={[base, { backgroundColor: C.butter, opacity: 0.85 }]}>
+          <View style={[base, { backgroundColor: 'rgba(245,230,168,0.85)' }]}>
             <Text style={[baseText, { color: C.charcoal, fontWeight: '600' }]}>{d}</Text>
           </View>
         );
       case 'completed-norecord':
-        // 완료+기록없음: 실선 테두리 원 (Android는 점선+borderRadius를 네모로 그려서 실선 사용)
+        // 완료+기록없음: 실선 테두리 원. overflow:'hidden'은 Android Fabric에서 오히려
+        // 네모 클리핑을 유발하므로 사용 X. base.borderRadius(999)로 원형 보장.
         return (
-          <View style={[base, { borderWidth: 1.5, borderColor: C.warmGray }]}>
+          <View style={[base, { borderWidth: 2, borderColor: C.warmGray }]}>
             <Text style={[baseText, { color: C.warmGray }]}>{d}</Text>
           </View>
         );
@@ -425,7 +431,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         <GestureDetector gesture={monthSwipe}>
         <View>
         {/* Month header */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 14 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: _and ? 7 : 14 }}>
           <TouchableOpacity onPress={goPrev} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>‹</Text>
           </TouchableOpacity>
@@ -442,7 +448,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         {/* Day labels */}
         <View style={{ flexDirection: 'row', paddingHorizontal: 12 }}>
           {DAYS.map((dl, i) => (
-            <View key={i} style={{ flex: 1, alignItems: 'center', paddingBottom: 6 }}>
+            <View key={i} style={{ flex: 1, alignItems: 'center', paddingBottom: _and ? 3 : 6 }}>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: i === 0 ? '#6B1E2A' : i === 6 ? C.navy : C.warmGrayLight }}>
                 {dl}
               </Text>
@@ -456,7 +462,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
             <TouchableOpacity key={i}
               onPress={() => handleDateTap(cell.monthOffset, cell.d)}
               activeOpacity={0.6}
-              style={{ width: `${100 / 7}%`, paddingVertical: 4, alignItems: 'center' }}>
+              style={{ width: `${100 / 7}%`, paddingVertical: _and ? 2 : 4, alignItems: 'center' }}>
               {renderDateCircle(cell)}
             </TouchableOpacity>
           ))}
@@ -465,26 +471,26 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         </GestureDetector>
 
         {/* Legend */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: 18 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, paddingVertical: _and ? 9 : 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.burgundy }} />
+            <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: C.burgundy }} />
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>예정</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.butter, opacity: 0.85 }} />
+            <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: 'rgba(245,230,168,0.85)' }} />
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>완료·기록</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: C.warmGray }} />
+            <View style={{ width: 10, height: 10, borderRadius: 999, borderWidth: 1, borderColor: C.warmGray }} />
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>완료·미기록</Text>
           </View>
         </View>
 
         {/* 내 코스기록 진입 — 코스 탭 헤더 버튼과 동일 모달. 다이어리 안 쓰는 사용자가 본인 라운딩 기록을 일정 동선에서 찾을 수 있게. */}
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginBottom: 4,
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginBottom: _and ? 2 : 4,
             backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 1, borderColor: C.warmGray,
-            paddingHorizontal: 14, paddingVertical: 11 }}>
+            paddingHorizontal: 14, paddingVertical: _and ? 4 : 11 }}>
           <Text style={{ fontSize: fs(14) }}>🏌️</Text>
           <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>
             내 코스 모아보기
@@ -495,8 +501,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         {/* This month list */}
         <View
           onLayout={(e) => { monthSectionYRef.current = e.nativeEvent.layout.y; }}
-          style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14 }}>
+          style={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 10, paddingBottom: 32 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, letterSpacing: 1.5, marginBottom: _and ? 6 : 14 }}>
             이번달 일정 · {monthItems.length}개
           </Text>
           {monthItems.length === 0 ? (
@@ -606,8 +612,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                       flexDirection: 'row',
                       backgroundColor: highlightedCardId === s.id ? '#FBF1D8' : C.bgSecondary,
                       borderRadius: 12,
-                      padding: 14,
-                      marginBottom: 12,
+                      padding: _and ? 10 : 14,
+                      marginBottom: _and ? 7 : 12,
                       opacity: highlightedCardId === s.id ? 1 : cardOpacity,
                       ...(highlightedCardId === s.id
                         ? { borderWidth: 1.5, borderColor: '#C9A84C' }

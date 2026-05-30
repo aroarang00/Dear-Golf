@@ -339,7 +339,7 @@ export function MyPageModal({ visible, onClose }) {
                       { label: '베스트', value: userProfile.lifeBest || Math.min(...DIARY_DATA.map(d => d.score)) },
                     ].map((st, i) => (
                       <View key={i} style={myS.statBox}>
-                        <Text style={myS.statVal}>{st.value}</Text>
+                        <Text style={myS.statVal}>{String(st.value)}</Text>
                         <Text style={myS.statLabel}>{st.label}</Text>
                       </View>
                     ))}

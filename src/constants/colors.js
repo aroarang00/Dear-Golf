@@ -23,6 +23,7 @@ export const C = {
 //   sys=Regular(400) / sysM=Medium(500) / sysSb=SemiBold(600) / sysB=Bold(700)
 export const F = {
   en: 'PlayfairDisplay_700Bold',  // 영문·숫자 표시 — OS 간 일관 (Georgia/serif 대신)
+  enItalic: 'PlayfairDisplay_700Bold_Italic',  // en의 이탤릭 변형 — fontStyle:'italic' 합성 대신 전용 폰트(안드 폴백 방지)
   brand: 'Lora_500Medium_Italic',
   serifKR: 'Pretendard-Regular',
   sys:   'Pretendard-Regular',

@@ -47,7 +47,23 @@ module.exports = {
       favicon: './assets/favicon.png',
     },
     plugins: [
-      'expo-font',
+      // 폰트를 네이티브 빌드에 직접 포함 — JS 런타임 로드(useFonts)만 쓰면
+      // 안드로이드 <Modal> 내부에서 커스텀 폰트가 시스템 글꼴로 폴백되는 버그가 있어
+      // (MY 통계박스·라운지 정원 숫자 등), expo-font 플러그인으로 빌드에 박아 해결.
+      [
+        'expo-font',
+        {
+          fonts: [
+            './assets/fonts/Pretendard-Regular.otf',
+            './assets/fonts/Pretendard-Medium.otf',
+            './assets/fonts/Pretendard-SemiBold.otf',
+            './assets/fonts/Pretendard-Bold.otf',
+            './assets/fonts/PlayfairDisplay_700Bold.ttf',
+            './assets/fonts/PlayfairDisplay_700Bold_Italic.ttf',
+            './assets/fonts/Lora_500Medium_Italic.ttf',
+          ],
+        },
+      ],
       '@react-native-community/datetimepicker',
       [
         'expo-location',

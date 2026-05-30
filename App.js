@@ -45,7 +45,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
-import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
+import { PlayfairDisplay_700Bold, PlayfairDisplay_700Bold_Italic } from '@expo-google-fonts/playfair-display';
 import { C, F, fs } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
@@ -98,6 +98,7 @@ function App() {
   const [fontsLoaded, fontError] = useFonts({
     Lora_500Medium_Italic,
     PlayfairDisplay_700Bold,
+    PlayfairDisplay_700Bold_Italic,
     'Pretendard-Regular':  require('./assets/fonts/Pretendard-Regular.otf'),
     'Pretendard-Medium':   require('./assets/fonts/Pretendard-Medium.otf'),
     'Pretendard-SemiBold': require('./assets/fonts/Pretendard-SemiBold.otf'),
