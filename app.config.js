@@ -125,9 +125,16 @@ module.exports = {
           },
         },
       ],
-      // Sentry — 에러 모니터링. plugin이 source map 자동 업로드 처리.
-      // PII는 App.js Sentry.init에서 sendDefaultPii:false로 비활성 ([[api-key-security]])
-      '@sentry/react-native/expo',
+      // Sentry — 에러 모니터링. PII는 App.js Sentry.init에서 sendDefaultPii:false로 비활성 ([[api-key-security]]).
+      //  소스맵 업로드 비활성(2026-05-30): org/project/auth-token 미설정 시 빌드의 Sentry 소스맵 단계가
+      //  실패해 안드·iOS 빌드가 모두 깨짐. 런타임 에러 수집은 DSN만으로 동작(소스맵 없으면 스택만 난독).
+      //  출시 전 Sentry org/project + SENTRY_AUTH_TOKEN 설정 후 url 업로드 재활성 검토 ([[api-key-security]]).
+      [
+        '@sentry/react-native/expo',
+        {
+          autoUploadSourceMaps: false,
+        },
+      ],
     ],
     extra: {
       eas: {
