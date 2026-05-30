@@ -1411,7 +1411,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
               onCancel={() => cancelParticipation(p.id)}
               onGradePress={(key) => setGradeModalKey(key)}
               onOpenDetail={() => setDetailId(p.id)}
-              onToggleBookmark={() => toggleBookmark(p.id)} />
+              onToggleBookmark={() => toggleBookmark(p.id)}
+              onHide={hideRoundup} />
           ))
         )}
         {view === 'all' && list.length > 0 && (
