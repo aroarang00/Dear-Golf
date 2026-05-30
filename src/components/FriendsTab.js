@@ -354,16 +354,16 @@ export function FriendsTab({ navigation, onInvite }) {
             </Text>
           ) : (
             /* 빈 화면 가이드 — 친구 0명 */
-            <View style={{ paddingTop: 18 }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
-                <Text style={{ fontSize: fs(30), marginBottom: 10 }}>👥</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
+            <View style={{ paddingTop: _and ? 10 : 18 }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 13 : 18 }}>
+                <Text style={{ fontSize: fs(_and ? 26 : 30), marginBottom: _and ? 6 : 10 }}>👥</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: _and ? 3 : 6 }}>
                   골프 친구를 추가해보세요
                 </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19, marginBottom: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: _and ? 16 : 19, marginBottom: _and ? 10 : 16 }}>
                   카카오 친구 중 Dear Golf를 쓰는 사람을 찾아 친구를 맺으면 — 함께 라운딩하고 서로의 골프 기록을 나눌 수 있어요.
                 </Text>
-                <View style={{ gap: 12 }}>
+                <View style={{ gap: _and ? 7 : 12 }}>
                   {[
                     ['📋', '라운지에서 친구와 라운딩 모집·참여하기'],
                     ['🏆', '친구의 라운딩 기록을 피드로 보기'],
@@ -371,25 +371,25 @@ export function FriendsTab({ navigation, onInvite }) {
                   ].map(([icon, txt]) => (
                     <View key={txt} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
                       <Text style={{ fontSize: fs(14) }}>{icon}</Text>
-                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
+                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: _and ? 16 : 18 }}>{txt}</Text>
                     </View>
                   ))}
                 </View>
                 <TouchableOpacity activeOpacity={0.85}
                   onPress={() => setFinder('kakao')}
-                  style={{ marginTop: 18, backgroundColor: C.navy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                  style={{ marginTop: _and ? 12 : 18, backgroundColor: C.navy, borderRadius: 12, paddingVertical: _and ? 9 : 13, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.bgPrimary }}>친구 찾기</Text>
                 </TouchableOpacity>
                 {/* 카카오톡으로 친구 초대 — 디어골프 미설치 친구 데려오기 */}
                 {onInvite && (
                   <TouchableOpacity activeOpacity={0.85} onPress={onInvite}
-                    style={{ marginTop: 8, backgroundColor: '#FEE500', borderRadius: 12, paddingVertical: 13, alignItems: 'center',
+                    style={{ marginTop: _and ? 6 : 8, backgroundColor: '#FEE500', borderRadius: 12, paddingVertical: _and ? 9 : 13, alignItems: 'center',
                       flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
                     <Text style={{ fontSize: fs(14) }}>💬</Text>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#3C1E1E' }}>카카오톡으로 친구 초대하기</Text>
                   </TouchableOpacity>
                 )}
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 10, textAlign: 'center', lineHeight: 16 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: _and ? 7 : 10, textAlign: 'center', lineHeight: _and ? 15 : 16 }}>
                   아직 디어골프를 안 쓰는 친구에게는{'\n'}카카오톡으로 초대 메시지를 보낼 수 있어요
                 </Text>
               </View>
