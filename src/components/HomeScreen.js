@@ -247,17 +247,26 @@ export function HomeScreen({ navigation, route }) {
     return null;
   };
 
-  // 다음 라운딩 코스 id — COURSE_LOG·userCourses 모두 해석. 코멘트 조회 키로 사용.
+  // 다음 라운딩 코스 id — COURSE_LOG·userCourses 모두 해석.
   const nextCourseId = resolveCourseLogId(next);
+
+  // 코멘트 조회 키 — 상세화면(GuideScreen.commentKeyFor)과 반드시 동일 체계여야 함.
+  // 카카오로 등록된 코스는 'kakao:{kakaoId}'로 키 통일(상세에서 그 키로 저장하므로).
+  // 이게 안 맞으면 코멘트가 있어도 홈에서 못 찾아 '골퍼 코멘트 없어요'로 표시됨.
+  const nextCommentKey = (() => {
+    if (!nextCourseId) return null;
+    const d = COURSE_LOG.find(c => c.id === nextCourseId) || userCoursesList.find(c => c.id === nextCourseId);
+    return d?.kakaoId ? `kakao:${d.kakaoId}` : nextCourseId;
+  })();
 
   // 홈 골퍼 코멘트 — 다음 라운딩 코스의 좋아요 1위 코멘트 (Firestore 공유)
   useEffect(() => {
-    if (!nextCourseId) { setHomeTopComment(null); return; }
+    if (!nextCommentKey) { setHomeTopComment(null); return; }
     let cancelled = false;
     setHomeTopComment(null); // 코스 바뀜 — 이전 코스 코멘트 잔상 방지
-    getTopComment(nextCourseId).then(c => { if (!cancelled) setHomeTopComment(c); });
+    getTopComment(nextCommentKey).then(c => { if (!cancelled) setHomeTopComment(c); });
     return () => { cancelled = true; };
-  }, [nextCourseId]);
+  }, [nextCommentKey]);
 
   const handleCardCoursePress = (schedule) => {
     const id = resolveCourseLogId(schedule);
@@ -664,7 +673,7 @@ export function HomeScreen({ navigation, route }) {
                         <View style={homeS.memoBadgeComment}>
                           <Text style={[homeS.memoBadgeTxt, { color: '#C8D9E6' }]}>골퍼 코멘트</Text>
                         </View>
-                        <Text style={[homeS.memoCardCourse, { color: 'rgba(255,255,255,0.6)' }]} numberOfLines={1}>{courseLabel}</Text>
+                        <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
                       </View>
                       <View style={homeS.memoCardBottom}>
                         <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
