@@ -345,34 +345,48 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   minimumDate={new Date()} locale="ko" />
               )}
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>티오프 시간</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TextInput
-                  style={[mS.input, { flex: 1, textAlign: 'center', fontSize: fs(15), fontFamily: F.sysSb }]}
-                  value={hourText}
-                  onChangeText={(v) => setHourText(v.replace(/[^0-9]/g, '').slice(0, 2))}
-                  onBlur={() => setHourText(pad2(clampNum(hourText, 23)))}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  placeholder="시"
-                  placeholderTextColor={C.warmGrayLight}
-                />
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.textPrimary }}>:</Text>
-                <TextInput
-                  style={[mS.input, { flex: 1, textAlign: 'center', fontSize: fs(15), fontFamily: F.sysSb }]}
-                  value={minText}
-                  onChangeText={(v) => setMinText(v.replace(/[^0-9]/g, '').slice(0, 2))}
-                  onBlur={() => setMinText(pad2(clampNum(minText, 59)))}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  placeholder="분"
-                  placeholderTextColor={C.warmGrayLight}
-                />
+              {/* 안드로이드는 숫자 키보드가 입력칸을 가려서 직접입력 제거 — 휠 선택기만.
+                  iOS는 키보드 회피가 정상이라 직접입력 + 휠 둘 다 유지. */}
+              {Platform.OS === 'android' ? (
                 <TouchableOpacity
                   onPress={() => setShowTimePicker(true)}
-                  style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+                    paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.textPrimary }}>
+                    {pad2(clampNum(hourText, 23))} : {pad2(clampNum(minText, 59))}
+                  </Text>
                   <Text style={{ fontSize: fs(18) }}>🕐</Text>
                 </TouchableOpacity>
-              </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TextInput
+                    style={[mS.input, { flex: 1, textAlign: 'center', fontSize: fs(15), fontFamily: F.sysSb }]}
+                    value={hourText}
+                    onChangeText={(v) => setHourText(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                    onBlur={() => setHourText(pad2(clampNum(hourText, 23)))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="시"
+                    placeholderTextColor={C.warmGrayLight}
+                  />
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.textPrimary }}>:</Text>
+                  <TextInput
+                    style={[mS.input, { flex: 1, textAlign: 'center', fontSize: fs(15), fontFamily: F.sysSb }]}
+                    value={minText}
+                    onChangeText={(v) => setMinText(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                    onBlur={() => setMinText(pad2(clampNum(minText, 59)))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="분"
+                    placeholderTextColor={C.warmGrayLight}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowTimePicker(true)}
+                    style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                    <Text style={{ fontSize: fs(18) }}>🕐</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               {showTimePicker && (
                 <DateTimePicker
                   value={(() => { const d = new Date(); d.setHours(clampNum(hourText, 23), clampNum(minText, 59), 0, 0); return d; })()}
