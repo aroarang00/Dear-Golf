@@ -25,14 +25,23 @@ try {
 }
 export { auth };
 
-// 앱 시작 시 익명 로그인 1회. authReady는 uid(또는 실패 시 null)로 resolve.
+// 앱 시작 시 인증 준비. authReady는 uid(또는 실패 시 null)로 resolve.
+// 첫 onAuthStateChanged로 복원된 세션을 확인 — persist된 유저(카카오/익명)가 있으면
+// 그대로 쓰고, 없을 때만 익명 로그인. (무조건 signInAnonymously 호출하면 복원된
+// 카카오 세션을 덮어써 uid가 유실되던 버그 수정 — docs/kakao-firebase-auth.md 설계 유지)
 export const authReady = new Promise((resolve) => {
   const unsub = fbAuth.onAuthStateChanged(auth, (user) => {
-    if (user) { unsub(); resolve(user.uid); }
-  });
-  fbAuth.signInAnonymously(auth).catch((e) => {
-    console.warn('[firebase] 익명 로그인 실패', e?.message);
-    resolve(null);
+    unsub();
+    if (user) {
+      resolve(user.uid);
+    } else {
+      fbAuth.signInAnonymously(auth)
+        .then((cred) => resolve(cred.user.uid))
+        .catch((e) => {
+          console.warn('[firebase] 익명 로그인 실패', e?.message);
+          resolve(null);
+        });
+    }
   });
 });
 
