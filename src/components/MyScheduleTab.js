@@ -149,7 +149,6 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   };
 
   // status: 'today' | 'today-round' | 'upcoming' | 'completed-record' | 'completed-norecord' | 'normal'
-  // B-3안 — 캘린더 셀 색은 schedules 기준만. 일정 없이 다이어리만 있는 날은 'normal' (다이어리는 MY 탭에서 확인).
   const getStatus = (m, d) => {
     const dateStr = dateStrFor(m, d);
     if (isToday(m, d)) {
@@ -158,7 +157,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       return 'today';
     }
     const sched = schedOnStr(dateStr);
-    if (!sched) return 'normal';
+    // 일정 없이 라운딩 기록만 있는 날 → 완료+기록으로 표시 (과거 기록 입력 케이스).
+    // 하단 orphan 카드와 캘린더 동그라미를 일치시켜 '다녀온 날'을 캘린더에서도 확인.
+    if (!sched) return hasRecord(dateStr) ? 'completed-record' : 'normal';
     const past = isPast(m, d);
     if (!past) return 'upcoming';
     return hasRecord(dateStr) ? 'completed-record' : 'completed-norecord';
@@ -356,10 +357,27 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   };
 
   const monthSchedules = schedules.filter(s => s.date && s.date.startsWith(monthStr));
-  // B-3안 (2026-05-29 적용) — 캘린더 = 일정 전용으로 완전 분리.
-  // 옛 orphan(일정 없는 다이어리만) 카드는 캘린더에 안 보임. 다이어리는 MY 탭에서만.
-  // 이유: virtual 분기가 일관성을 깨고 잘못된 다이어리 진입을 유발 — 완전 제거.
-  const monthItems = monthSchedules;
+  // 일정 없이 라운딩 기록(diary)만 있는 날짜 → 가상 카드로 추가.
+  // 신규 사용자가 과거 라운딩을 기록으로만 입력해도 캘린더에서 '어디 다녀왔는지' 보여야 함
+  // (통계·내코스모아보기와 일관). 카드 탭 시 onPress의 past+rec 분기가 다이어리 상세로 연결하므로
+  // B-3안(2026-05-29)이 우려했던 '잘못된 진입'은 해소된 상태.
+  const scheduleDateSet = new Set(monthSchedules.map(s => s.date));
+  const orphanItems = diaries
+    .filter(d => d.date && d.date.startsWith(monthStr) && !scheduleDateSet.has(d.date))
+    .map(d => {
+      const [y, mm, dd] = d.date.split('.').map(Number);
+      const dt = new Date(y, mm - 1, dd);
+      return {
+        id: `diary-${d.id}`,
+        virtual: true,
+        course: d.course,
+        date: d.date,
+        day: d.day || DAYS[dt.getDay()],
+        time: d.time || '',
+        members: d.members || 0,
+      };
+    });
+  const monthItems = [...monthSchedules, ...orphanItems];
 
   const renderDateCircle = (cell) => {
     const { d, monthOffset } = cell;
