@@ -32,9 +32,9 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-export function HomeScreen({ navigation }) {
+export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
-  const { schedules, setSchedules } = React.useContext(SchedulesContext);
+  const { schedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const insets = useSafeAreaInsets();
   const [showAddModal, setShowAddModal] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
@@ -48,7 +48,7 @@ export function HomeScreen({ navigation }) {
   const [showUpcomingList, setShowUpcomingList] = useState(false);
   const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
   const [upcomingPos, setUpcomingPos] = useState({ x: 0, y: 0 });
-  const [editSchedule, setEditSchedule] = useState(null);
+  const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [cardSlide, setCardSlide] = useState(0);
   const [showDDayMenu, setShowDDayMenu] = useState(false);
   const [dDayPos, setDDayPos] = useState({ x: 0, y: 0 });
@@ -63,7 +63,16 @@ export function HomeScreen({ navigation }) {
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
 
-  // 1분마다 현재 시각 갱신 — 라운딩 종료(티오프+5h)/자정 전환 감지
+  // 다이어리 추가 모달이 일정 모달에서 진입한 경우 → 닫을 때 일정 모달 자동 재오픈
+  // ([[modal-navigation-pattern]] navigation 복귀 패턴, [[home-multi-schedule-same-day]])
+  useEffect(() => {
+    if (route?.params?.openSchedule) {
+      setShowScheduleScreen(true);
+      navigation.setParams({ openSchedule: undefined });
+    }
+  }, [route?.params?.openSchedule]);
+
+  // 1분마다 현재 시각 갱신 — 라운딩 종료(티오프+4h)/자정 전환 감지
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(id);
@@ -123,7 +132,7 @@ export function HomeScreen({ navigation }) {
       setShowTrafficFull(false);
       setShowWeatherPopup(false);
       setShowDDayMenu(false);
-      setEditSchedule(null);
+      setEditScheduleTarget(null);
       setSelectedSchedule(null);
       setPendingAlarmSchedule(null);
       setShowScheduleScreen(false);
@@ -161,16 +170,29 @@ export function HomeScreen({ navigation }) {
     const [y, m, d] = (s?.date || '').split('.').map(Number);
     return new Date(y || 1970, (m || 1) - 1, d || 1).getTime();
   };
-  const isRecorded = (s) => !!s && diaries.some(d => d.course === s.course && d.date === s.date);
+  // 같은 날 일정 정렬 보조 키 — 시간 분 단위 (오전·오후 같은 날 2건 시간순 보장)
+  // 빈 time(자동 등록 등)은 정렬 끝으로 — 시간 정보 있는 일정 우선
+  const parseSchedTime = (s) => {
+    if (!s?.time) return 24 * 60;
+    const [hh, mm] = s.time.split(':').map(Number);
+    return (hh || 0) * 60 + (mm || 0);
+  };
+  // 일정-다이어리 매칭 — scheduleId 우선, course+date fallback ([[home-multi-schedule-same-day]] 룰3)
+  const isRecorded = (s) => {
+    if (!s) return false;
+    if (s.id && diaries.some(d => d.scheduleId === s.id)) return true;
+    return diaries.some(d => d.course === s.course && d.date === s.date);
+  };
   const upcomingSchedules = schedules
     .filter(s => parseSchedDate(s) >= now0 && !isRecorded(s))
-    .sort((a, b) => parseSchedDate(a) - parseSchedDate(b));
+    .sort((a, b) => parseSchedDate(a) - parseSchedDate(b) || parseSchedTime(a) - parseSchedTime(b));
   const next = upcomingSchedules.length > 0 ? upcomingSchedules[0] : null;
-  // 자정 기준 재계산 D-day / 라운딩 종료 판정(티오프 + 5시간)
+  // 자정 기준 재계산 D-day / 라운딩 종료 판정(티오프 + 4시간 — 후반 막바지, 식사·기록 동선)
+  // 매너평가 윈도우(티오프+5h)와 의도적으로 다름: 홈은 끝나갈 때 진입, 매너평가는 실제 종료 후
   const freshDDay = (s) => (s ? Math.max(0, Math.round((parseSchedDate(s) - now0) / 86400000)) : 0);
   const teeoffEndMs = (s) => {
     const [hh, mm] = (s?.time || '08:00').split(':').map(Number);
-    return parseSchedDate(s) + (hh || 8) * 3600000 + (mm || 0) * 60000 + 5 * 3600000;
+    return parseSchedDate(s) + (hh || 8) * 3600000 + (mm || 0) * 60000 + 4 * 3600000;
   };
   const roundEnded = !!next && freshDDay(next) === 0 && now >= teeoffEndMs(next);
 
@@ -275,7 +297,7 @@ export function HomeScreen({ navigation }) {
 
   const handleEditSchedule = (s) => {
     setShowScheduleModal(false);
-    setEditSchedule(s);
+    setEditScheduleTarget(s);
   };
 
   const handleDeleteSchedule = (s) => {
@@ -288,8 +310,9 @@ export function HomeScreen({ navigation }) {
         {
           text: '삭제',
           style: 'destructive',
-          onPress: () => {
-            setSchedules(prev => prev.filter(x => x.id !== s.id));
+          onPress: async () => {
+            try { await removeSchedule(s.id); }
+            catch (e) { console.warn('[home] schedule remove failed:', e?.message); return; }
             cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
             removeRoundFromCalendar(s.id); // 기기 캘린더 이벤트도 제거
             setShowScheduleModal(false);
@@ -300,19 +323,20 @@ export function HomeScreen({ navigation }) {
     );
   };
 
-  const handleScheduleSave = (type, data) => {
+  const handleScheduleSave = async (type, data) => {
     if (type === 'schedule') {
-      const newS = {
-        id: String(Date.now()),
-        course: data.course, date: data.date, day: data.day || '토',
-        time: data.time || '08:00', members: data.members || 4,
-        dDay: data.dDay || 30, weather: '맑음 20°', wind: '남 2m/s',
-        duration: '1시간 30분',
-        // 코스 상세 이동용 — ScheduleModal이 넘긴 코스 id 보존
-        courseLogId: data.courseLogId || null,
-        courseId: data.courseId || null,
-      };
-      setSchedules(prev => normalizeSchedules([...prev, newS]));
+      let newS;
+      try {
+        newS = await addSchedule({
+          course: data.course, date: data.date, day: data.day || '토',
+          time: data.time || '08:00', members: data.members || 4,
+          courseLogId: data.courseLogId || null,
+          courseId: data.courseId || null,
+        });
+      } catch (e) {
+        console.warn('[home] schedule add failed:', e?.message);
+        return;
+      }
       // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
       getUserCourses().then(list => setUserCoursesList(list || []));
       // 폰 기본 캘린더에 자동 추가
@@ -324,11 +348,16 @@ export function HomeScreen({ navigation }) {
         setPendingAlarmSchedule(newS);
       }
     } else if (type === 'schedule-edit') {
-      setSchedules(prev => normalizeSchedules(prev.map(s => s.id === data.id
-        ? { ...s, course: data.course, date: data.date, day: data.day,
-            time: data.time, members: data.members, dDay: data.dDay,
-            courseId: data.courseId || null }
-        : s)));
+      try {
+        await editSchedule(data.id, {
+          course: data.course, date: data.date, day: data.day,
+          time: data.time, members: data.members,
+          courseId: data.courseId || null,
+        });
+      } catch (e) {
+        console.warn('[home] schedule edit failed:', e?.message);
+        return;
+      }
       getUserCourses().then(list => setUserCoursesList(list || []));
       // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
       getAlarmTypes(data.id).then(types => {
@@ -351,7 +380,10 @@ export function HomeScreen({ navigation }) {
       <StatusBar barStyle="light-content" />
       <HomeBgSlider />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-        <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 10 : 0 }} />
+        {/* SafeArea top: iOS는 노치, Android는 status bar 자동 padding.
+            Android는 SafeArea만으로 iOS와 시각적으로 어긋나 약간 보정 ([[cross-platform-check]])
+            하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
+        <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
           <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -365,38 +397,47 @@ export function HomeScreen({ navigation }) {
           </Text>
           {/* Dear Golf 이용 안내 진입 — 안녕하세요 아래 가로 띠. 미열람 시 빨간 점으로 호기심 유도. */}
           <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.85}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20,
+            style={{ flexDirection: 'row', alignItems: 'center', gap: Platform.OS === 'android' ? 6 : 8, marginTop: Platform.OS === 'android' ? 10 : 12,
               backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
-              borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' }}>
+              borderRadius: 10,
+              paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
+              paddingVertical: Platform.OS === 'android' ? 5 : 7, alignSelf: 'flex-start' }}>
             <View>
-              <Text style={{ fontSize: fs(28) }}>💡</Text>
+              <Text style={{ fontSize: Platform.OS === 'android' ? fs(18) : fs(22) }}>💡</Text>
               {!homeIntroSeen && (
-                <View style={{ position: 'absolute', top: -2, right: -4, width: 11, height: 11, borderRadius: 5.5,
+                <View style={{ position: 'absolute', top: -2, right: -4, width: 10, height: 10, borderRadius: 5,
                   backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.95)' }} />
               )}
             </View>
             <View>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>Dear Golf 이용 안내</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff', includeFontPadding: false }}>Dear Golf 이용 안내</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.7)', marginTop: 1, includeFontPadding: false }}>
                 {homeIntroSeen ? '기능 한눈에 보기' : '처음이신가요? 한 번 열어보세요'}
               </Text>
             </View>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 4 }}>›</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
         </View>
         {next ? (
         <>
         <View style={{ flex: 1 }} />
-        <View style={homeS.bottomArea}>
+        <View style={[homeS.bottomArea, { paddingBottom: 0 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 8 }}>
             <TouchableOpacity
               ref={upcomingLabelRef}
               onPress={() => setShowScheduleScreen(true)}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[homeS.secLabel, { paddingHorizontal: 0, marginBottom: 0, fontSize: fs(17), color: 'rgba(255,255,255,0.9)' }]}>일정</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(17), color: 'rgba(255,255,255,0.9)', marginLeft: 5, marginTop: 1 }}>›</Text>
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 5,
+                backgroundColor: 'rgba(255,255,255,0.14)',
+                borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.24)',
+                paddingHorizontal: 12, paddingVertical: 6,
+                borderRadius: 20,
+              }}>
+              <Text style={{ fontSize: fs(14) }}>📅</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: 'rgba(255,255,255,0.95)' }}>캘린더</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.85)' }}>›</Text>
             </TouchableOpacity>
             {upcomingSchedules.length < 10 && (
               <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -409,7 +450,7 @@ export function HomeScreen({ navigation }) {
             <View style={homeS.mainCard}>
               {roundEnded ? (
                 <>
-                  {/* 라운딩 종료 카드 — 티오프 + 5시간 경과 */}
+                  {/* 라운딩 종료 카드 — 티오프 + 4시간 경과 */}
                   <View style={{ flexDirection: 'row', marginBottom: 6 }}>
                     <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>라운딩 종료</Text>
@@ -426,6 +467,7 @@ export function HomeScreen({ navigation }) {
                       addDate: next.date,
                       addCourse: next.course,
                       addCourseId: next.courseLogId || next.courseId,
+                      addScheduleId: next.id || null,
                     })}
                     style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
@@ -473,7 +515,7 @@ export function HomeScreen({ navigation }) {
                     <TouchableOpacity
                       onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
                       activeOpacity={0.7}>
-                      <Text style={{ fontSize: fs(32), marginBottom: 6 }}>🌤  🚗</Text>
+                      <Text style={{ fontSize: Platform.OS === 'android' ? fs(28) : fs(32), marginBottom: Platform.OS === 'android' ? 4 : 6 }}>🌤  🚗</Text>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>탭하여 확인하기 →</Text>
                     </TouchableOpacity>
                   </View>
@@ -585,6 +627,7 @@ export function HomeScreen({ navigation }) {
                           addDate: next?.date,
                           addCourse: next?.course,
                           addCourseId: next?.courseLogId || next?.courseId,
+                          addScheduleId: next?.id || null,
                         })}
                         style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
@@ -681,11 +724,11 @@ export function HomeScreen({ navigation }) {
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
         onShare={() => handleShareSchedule(selectedSchedule)}
         onEdit={() => handleEditSchedule(selectedSchedule)}
-        onDelete={() => {
+        onDelete={async () => {
           // 시트 안에서 이미 confirm 완료 — 바로 remove + 시트 닫음 (별도 AppAlert 띄우지 않음, RN 3중 Modal 충돌 회피)
           const s = selectedSchedule;
           if (s) {
-            setSchedules(prev => prev.filter(x => x.id !== s.id));
+            try { await removeSchedule(s.id); } catch (e) { console.warn('[home] schedule remove failed:', e?.message); }
             cancelRoundAlarms(s.id);
             removeRoundFromCalendar(s.id);
           }
@@ -708,9 +751,9 @@ export function HomeScreen({ navigation }) {
         onClose={() => setShowHomeIntro(false)}
         onAddSchedulePress={() => setShowAddModal(true)} />
       <ScheduleModal
-        visible={!!editSchedule}
-        initial={editSchedule}
-        onClose={() => setEditSchedule(null)}
+        visible={!!editScheduleTarget}
+        initial={editScheduleTarget}
+        onClose={() => setEditScheduleTarget(null)}
         onSave={handleScheduleSave}
       />
 

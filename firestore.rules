@@ -48,6 +48,18 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
     }
 
+    // ===== schedules — 라운딩 예정 일정 (본인만 read/write) =====
+    // 클라이언트 쿼리: where('ownerUid','==', 내uid).orderBy('date','asc')
+    // dDay·weather 등 파생값은 클라이언트 계산이라 저장 X.
+    match /schedules/{scheduleId} {
+      allow read: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid;   // ownerUid 변조 금지
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
     // ===== rounds — 라운딩 기록 (구 diaries + 친구 feed 통합) =====
     // 클라이언트 쿼리 규칙 (규칙은 필터가 아님):
     //   · 내 기록      : where('ownerUid','==', 내uid)
@@ -127,6 +139,57 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
     }
 
+    // ===== roundupApplications — 모집 참여 신청 (전체공개 모집 전용) =====
+    //  Doc ID = {roundupId}_{applicantUid} (deterministic, 중복 신청 차단)
+    //  status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+    //  - 친구공개·친구지정 모집은 즉시 확정이라 이 컬렉션 사용 X
+    //  - 분쟁·매너평가·노쇼 신고 참조 자료로 보존 ([[data-retention]] 보관 정책에 따름)
+    //  클라이언트 쿼리 규칙:
+    //   · 내 신청 목록 : where('applicantUid','==', 내uid).where('status','==', 'pending')
+    //   · 주최자 화면  : where('roundupId','==', postId).where('status','==', 'pending')
+    match /roundupApplications/{appId} {
+      allow read: if isSignedIn() && (
+        resource.data.applicantUid == request.auth.uid
+        || resource.data.authorUid == request.auth.uid
+      );
+
+      // 신청자가 본인 이름으로 doc ID 정합성 맞춰 생성. 본인 모집엔 신청 불가.
+      allow create: if isSignedIn()
+        && request.resource.data.applicantUid == request.auth.uid
+        && request.resource.data.authorUid != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && appId == request.resource.data.roundupId + '_' + request.resource.data.applicantUid;
+
+      // update 3분기: 주최자 결정 / 신청자 취소 / 신청자 재신청
+      // 불변 필드(roundupId·applicantUid·authorUid·createdAt) 변조 차단은 changedKeysWithin이 보장
+      allow update: if isSignedIn() && (
+        // (1) 주최자: pending → accepted/rejected
+        (
+          resource.data.authorUid == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.status in ['accepted', 'rejected']
+          && changedKeysWithin(['status', 'updatedAt'])
+        )
+        // (2) 신청자: pending → cancelled
+        || (
+          resource.data.applicantUid == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled'
+          && changedKeysWithin(['status', 'updatedAt'])
+        )
+        // (3) 신청자: rejected/cancelled → pending (재신청)
+        || (
+          resource.data.applicantUid == request.auth.uid
+          && resource.data.status in ['rejected', 'cancelled']
+          && request.resource.data.status == 'pending'
+          && changedKeysWithin(['status', 'updatedAt'])
+        )
+      );
+
+      // delete — 분쟁·이력 보존 정책상 클라이언트 삭제 불가.
+      // 보관기간 만료 시 Cloud Function 정리 (Phase 2 후속).
+    }
+
     // ===== roundupNotifications — 모집 알림 =====
     //   ※ create를 클라이언트에 열어두면 알림 스팸이 가능 —
     //     운영 단계에선 Cloud Function 생성으로 이관 권장
@@ -162,6 +225,134 @@ service cloud.firestore {
       );
       allow delete: if isSignedIn()
         && resource.data.authorUid == request.auth.uid;
+    }
+
+    // ===== mannerEvaluations — 매너 평가 ([[manner-evaluation-policy]]) =====
+    //  Doc ID = {roundupId}_{evaluatorUid}_{targetUid} (deterministic, 1인 1대상 1모집 1회)
+    //  rating: 'good' | 'bad' (neutral=무평가는 doc 자체가 없음)
+    //  익명 일괄 집계는 Cloud Functions가 처리 (48h 윈도우 후).
+    //
+    //  보안: 평가자 본인 read·create만. update/delete 불가 (수정 불가).
+    //  대상자(target)는 자기 평가를 직접 못 읽음 — Cloud Functions가 집계 후 mannerScore에만 적용.
+    match /mannerEvaluations/{evalId} {
+      allow read: if isSignedIn() && resource.data.evaluatorUid == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.evaluatorUid == request.auth.uid
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid
+        && request.resource.data.roundupId is string
+        && request.resource.data.rating in ['good', 'bad']
+        && evalId == request.resource.data.roundupId + '_' + request.resource.data.evaluatorUid + '_' + request.resource.data.targetUid;
+      allow update, delete: if false;  // 수정 불가, 보관 12개월은 Cloud Functions
+    }
+
+    // ===== noshowReports — 노쇼 신고 ([[noshow-report-system]]) =====
+    //  7일 유예 → 48h 소명 → 48h 검토 → 매너 -20 + 60일/90일 정지.
+    //  status: pending_grace_period | cancelled_by_reporter | explanation_required
+    //          | explained | confirmed_noshow | confirmed_false_report | inconclusive
+    //
+    //  보안:
+    //   - 신고자: 본인 신고 read·create + pending_grace_period → cancelled_by_reporter
+    //   - 피신고자: 본인 대상 신고 read + explanation_required → explained (소명 제출만)
+    //   - 그 외 상태 전환·정지 적용은 Cloud Functions만
+    match /noshowReports/{reportId} {
+      allow read: if isSignedIn() && (
+        resource.data.reporterUid == request.auth.uid
+        || resource.data.reportedUid == request.auth.uid
+      );
+
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.reportedUid is string
+        && request.resource.data.reportedUid != request.auth.uid
+        && request.resource.data.roundupId is string
+        && request.resource.data.reason is string
+        && request.resource.data.status == 'pending_grace_period';
+
+      // update 2분기: 신고자 자율 취소 / 피신고자 소명 제출
+      allow update: if isSignedIn() && (
+        // (1) 신고자: pending_grace_period → cancelled_by_reporter
+        (
+          resource.data.reporterUid == request.auth.uid
+          && resource.data.status == 'pending_grace_period'
+          && request.resource.data.status == 'cancelled_by_reporter'
+          && changedKeysWithin(['status', 'updatedAt'])
+        )
+        // (2) 피신고자: explanation_required → explained (소명 텍스트·자료 동봉)
+        || (
+          resource.data.reportedUid == request.auth.uid
+          && resource.data.status == 'explanation_required'
+          && request.resource.data.status == 'explained'
+          && changedKeysWithin(['status', 'explanation', 'updatedAt'])
+        )
+      );
+
+      allow delete: if false;  // 보관 기간 만료는 Cloud Functions ([[data-retention]])
+    }
+
+    // ===== content_reports — 게시물 신고 ([[content-report-policy]]) =====
+    //  Doc ID = {targetType}_{targetId}_{reporterUid} (deterministic, 1인 1회 제한)
+    //  targetType: 'courseComment' | 'roundup' | 'roundupComment'
+    //  status: 'pending' | 'confirmed' | 'rejected'
+    //  보안: 신고자 본인이 자기 신고 read·create. 변조·삭제는 Cloud Functions만.
+    //  사용자 신고(reports)와 분리 — 한도 X, 양방향 차단 X, 부담 없는 신고.
+    match /content_reports/{reportId} {
+      allow read: if isSignedIn() && resource.data.reporterUid == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.targetType in ['courseComment', 'roundup', 'roundupComment']
+        && request.resource.data.targetId is string
+        && request.resource.data.reason in ['ad_spam', 'inappropriate']
+        && request.resource.data.status == 'pending'
+        && reportId == request.resource.data.targetType + '_' + request.resource.data.targetId + '_' + request.resource.data.reporterUid;
+      allow update, delete: if false;
+    }
+
+    // ===== reports — 사용자 신고 ([[report-block-policy]] E안) =====
+    //  Doc 자동 ID. 검토 진행은 디어골프 팀(관리자) 수동·Cloud Functions 처리.
+    //  status: 'pending' | 'reviewing' | 'confirmed' | 'rejected'
+    //  보안: 신고자 본인만 자기 신고 조회 가능 (검토 결과 통보). 작성 후 변조·삭제 불가.
+    //  클라이언트 쿼리: where('reporterUid','==', 내uid).orderBy('createdAt','desc')
+    match /reports/{reportId} {
+      allow read: if isSignedIn() && resource.data.reporterUid == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid
+        && request.resource.data.reason is string
+        && request.resource.data.evidence is string
+        && request.resource.data.status == 'pending';
+      allow update, delete: if false;  // 검토·해결은 관리자/Cloud Functions만
+    }
+
+    // ===== locationAccessLogs — 위치정보 이용·제공사실 확인자료 =====
+    //  위치정보법 제16조 제2항 — 자동 기록·보존 의무. 보존기간 6개월 (업계 관행).
+    //  필드: ownerUid, providerName, purpose, accessedAt, method
+    //  보안: 본인만 read (열람권). 클라이언트 작성 허용(사용 시점 기록).
+    //        삭제는 Cloud Functions (6개월 만료 자동 정리) 또는 본인 철회 시.
+    match /locationAccessLogs/{logId} {
+      allow read: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.providerName is string
+        && request.resource.data.purpose is string;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // ===== banned_users — 정지 이력 보존 (재가입 차단용) =====
+    // 문서 ID = 카카오 OIDC sub (kakaoId). 콘텐츠는 탈퇴 시 전부 삭제되지만
+    // 정지 사실과 식별자만 별도 보존 ([[account-deletion]] A안).
+    //
+    // 보안: 카카오 로그인 콜백에서 본인 sub 매칭 차단용으로 read 필요.
+    // write는 정지된 본인의 탈퇴 시점에 한정 — Phase 5 Cloud Functions로 이관 권장.
+    //   (현재 임시 클라이언트 작성 — 위조 위험은 카카오 sub를 다른 사람의 것 알기 어려움으로 완화)
+    match /banned_users/{kakaoSub} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.kakaoSub == kakaoSub
+        && request.resource.data.reason is string;
+      allow update, delete: if false;  // 변조 금지. 만료/해제는 Cloud Functions가 처리 ([[age-policy]] §3)
     }
 
     // ===== top100Courses — 100대 코스 (시딩 완료, 읽기 전용) =====

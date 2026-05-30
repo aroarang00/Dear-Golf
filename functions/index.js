@@ -1,0 +1,166 @@
+// =============================================================
+// Dear Golf — Cloud Functions (2nd gen)
+//
+// 트리거 영역:
+//   §A 라운지 자동 처리   — 정원 트랜잭션, closeRoundup, slotOpen 알림
+//   §B 노쇼 SLA          — 7일 grace, 48h 소명, 48h 검토
+//   §C 매너 평가         — 48h 윈도우 후 익명 일괄 집계
+//   §D 콘텐츠 신고 SLA   — 3일 자동 거부, 골퍼코멘트 3건 누적 자동 가림
+//   §E 푸시 발송         — Expo Push API 통해 알림 발송
+//   §F 스케줄            — banned_users 만료, 12개월 카운트 -1
+//
+// 각 영역은 별도 파일로 분리 권장 (현재는 스켈레톤만).
+// =============================================================
+
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { logger } = require('firebase-functions');
+
+initializeApp();
+const db = getFirestore();
+
+// =============================================================
+// §E 푸시 발송 — Expo Push API
+// 알림 문서 생성 시 자동 발송. 사용자 settings.roundupNotifyPrefs로 일반 알림 토글 가능.
+// 중요 알림(priority='important')은 토글 무시하고 항상 발송.
+// =============================================================
+
+async function sendExpoPush(token, title, body, data = {}) {
+  if (!token) return;
+  try {
+    const fetch = (await import('node-fetch')).default;
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: token,
+        sound: 'default',
+        title,
+        body,
+        data,
+      }),
+    });
+    if (!res.ok) {
+      logger.warn('[push] expo api non-ok', res.status);
+    }
+  } catch (e) {
+    logger.warn('[push] send fail', e?.message);
+  }
+}
+
+// roundupNotifications 생성 시 푸시 발송 (인앱은 클라이언트가 직접 읽음)
+exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}', async (event) => {
+  const data = event.data?.data();
+  if (!data) return;
+  const { recipientUid, type, postTitle, actorName, priority } = data;
+  if (!recipientUid) return;
+
+  // 수신자 settings 조회 — 일반 알림이면 토글 체크, 중요 알림은 무시
+  const userSnap = await db.doc(`users/${recipientUid}`).get();
+  if (!userSnap.exists) return;
+  const user = userSnap.data();
+  const prefs = user.settings?.roundupNotifyPrefs || {};
+  const isImportant = priority === 'important';
+  // 일반 알림은 type별 토글 체크
+  if (!isImportant && prefs[type] === false) return;
+
+  const token = user.pushToken;
+  if (!token) return;
+
+  const title = titleFor(type);
+  const body = bodyFor(type, { postTitle, actorName });
+  await sendExpoPush(token, title, body, { type, postId: data.postId, notiId: event.params.notiId });
+});
+
+function titleFor(type) {
+  switch (type) {
+    case 'apply':       return '새 참여 신청';
+    case 'confirmed':   return '참여 확정';
+    case 'cancel':      return '참여 취소';
+    case 'kicked':      return '주최자 사정으로 참여 취소';
+    case 'slotOpen':    return '대기 자리 열림';
+    case 'comment':     return '새 댓글';
+    case 'mannerEval':  return '매너 평가 요청';
+    default:            return 'Dear Golf 알림';
+  }
+}
+
+function bodyFor(type, { postTitle = '', actorName = '' }) {
+  switch (type) {
+    case 'apply':       return `${actorName}님이 ${postTitle} 모집에 신청했어요`;
+    case 'confirmed':   return `${actorName}님과의 ${postTitle} 라운딩이 확정됐어요`;
+    case 'cancel':      return `${actorName}님이 ${postTitle} 모집 참여를 취소했어요`;
+    case 'kicked':      return `${postTitle} 모집 참여가 취소됐어요`;
+    case 'slotOpen':    return `${postTitle} 모집에 대기 자리가 열렸어요`;
+    case 'comment':     return `${actorName}님이 ${postTitle} 모집에 댓글을 남겼어요`;
+    case 'mannerEval':  return `${postTitle} 라운딩 동반자분들의 매너 평가를 남겨주세요`;
+    default:            return postTitle || '확인해주세요';
+  }
+}
+
+// =============================================================
+// §B 노쇼 SLA — ./noshow.js (CF3)
+//   onNoshowReportCreated   — 신고 접수 시 deadline 기록 + 피신고자 중대 알림
+//   noshowSlaTick           — 시간당 스케줄러 (7일/48h/48h 자동 전환)
+//   onNoshowReportUpdated   — 최종 상태 적용 (매너-20·정지·카운트+1, 양쪽 통보)
+// =============================================================
+const noshow = require('./noshow');
+exports.onNoshowReportCreated = noshow.onNoshowReportCreated;
+exports.noshowSlaTick = noshow.noshowSlaTick;
+exports.onNoshowReportUpdated = noshow.onNoshowReportUpdated;
+
+// =============================================================
+// §C 매너 평가 — ./manner.js (CF4)
+//   onRoundupCreatedForManner  — roundup 생성 시 mannerEvalDeadline 기록(scope='all'만)
+//   mannerAggregationTick      — 시간당 스케줄러 (deadline 경과 모집 일괄 집계 + delta 적용)
+// =============================================================
+const manner = require('./manner');
+exports.onRoundupCreatedForManner = manner.onRoundupCreatedForManner;
+exports.mannerAggregationTick = manner.mannerAggregationTick;
+
+// =============================================================
+// §F 스케줄러 — ./scheduled.js (CF7)
+//   restrictionExpiryTick      — 매일 04:00 KST. 정지 만료 해제 + 통보
+//   bannedExpiryTick           — 매일 04:30 KST. banned_users 만료 정리
+//   monthlyPenaltyCountTick    — 매월 1일 00:30 KST. noshow/false 카운트 -1
+// =============================================================
+const scheduled = require('./scheduled');
+exports.restrictionExpiryTick = scheduled.restrictionExpiryTick;
+exports.bannedExpiryTick = scheduled.bannedExpiryTick;
+exports.monthlyPenaltyCountTick = scheduled.monthlyPenaltyCountTick;
+exports.permanentBanFinalizeTick = scheduled.permanentBanFinalizeTick;
+exports.locationLogExpiryTick = scheduled.locationLogExpiryTick;
+
+// =============================================================
+// §D 콘텐츠 신고 — ./contentReports.js (CF5)
+//   onContentReportCreated     — reportedCount +1, 골퍼코멘트 3건 누적 자동 가림
+//   contentReportSlaTick       — 시간당 스케줄러 (3일 SLA 자동 거부)
+//   onContentReportUpdated     — confirmed 시 게시물 삭제+누적·제재, rejected 시 가림 해제
+// =============================================================
+const contentReports = require('./contentReports');
+exports.onContentReportCreated = contentReports.onContentReportCreated;
+exports.contentReportSlaTick = contentReports.contentReportSlaTick;
+exports.onContentReportUpdated = contentReports.onContentReportUpdated;
+
+// =============================================================
+// 운영 이메일 — ./email.js (SendGrid 신고 접수 알림)
+// =============================================================
+const email = require('./email');
+exports.onReportCreatedEmail = email.onReportCreatedEmail;
+exports.onContentReportCreatedEmail = email.onContentReportCreatedEmail;
+exports.onNoshowReportCreatedEmail = email.onNoshowReportCreatedEmail;
+
+// =============================================================
+// §A 라운지 자동 — ./roundup.js (CF2)
+//   onRoundupUpdated       — 정원 만석 자동 closed / 자리 열림 시 대기자 호출 / D-7 주최자 취소 매너 평가
+//   waitlistCallCutoffTick — 12h 응답 없으면 다음 대기자에게 인계
+// =============================================================
+const roundup = require('./roundup');
+exports.onRoundupUpdated = roundup.onRoundupUpdated;
+exports.waitlistCallCutoffTick = roundup.waitlistCallCutoffTick;

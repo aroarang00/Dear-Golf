@@ -376,10 +376,21 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             )}
 
             <Text style={mS.bigLabel}>모집 인원 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(주최자 외)</Text></Text>
-            {/* 개별 / 단체 선택 */}
+            {/* 개별 / 단체 선택 — 단체 모집은 친구공개·친구지정에서만 (전체공개 단체는 비현실적) */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => (
-                <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setGroupMode(k)}
+                <TouchableOpacity key={k} activeOpacity={0.7}
+                  onPress={() => {
+                    setGroupMode(k);
+                    if (k === 'team' && scope === 'all') {
+                      setScope('friends');
+                      setAlert({
+                        title: '단체 모집은 친구 대상으로만 가능해요',
+                        message: '단체 모집은\n친구공개·친구지정에서만 운영돼요.\n\n공개 범위를 친구공개로 바꿔뒀어요.',
+                        buttons: [{ text: '확인' }],
+                      });
+                    }
+                  }}
                   style={[mS.chip, groupMode === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
                   <Text style={[mS.chipTxt, groupMode === k && mS.chipTxtOn]}>{l}</Text>
                 </TouchableOpacity>
@@ -421,16 +432,29 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
             <Text style={mS.bigLabel}>공개 범위</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {SCOPES.map(([k, l]) => (
-                <TouchableOpacity key={k} style={[mS.chip, scope === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}
-                  onPress={() => {
-                    setScope(k);
-                    // 친구지정 선택 시 친구 선택 모달 자동 노출
-                    if (k === 'select') setShowFriendSelect(true);
-                  }}>
-                  <Text style={[mS.chipTxt, scope === k && mS.chipTxtOn]}>{l}</Text>
-                </TouchableOpacity>
-              ))}
+              {SCOPES.map(([k, l]) => {
+                // 단체 모집은 전체공개 불가 — 칩 비활성 + 안내
+                const blocked = k === 'all' && groupMode === 'team';
+                return (
+                  <TouchableOpacity key={k}
+                    style={[mS.chip, scope === k && mS.chipOn, blocked && { opacity: 0.4 }, { flex: 1, alignItems: 'center' }]}
+                    onPress={() => {
+                      if (blocked) {
+                        setAlert({
+                          title: '단체 모집은 전체공개로 못 해요',
+                          message: '단체 모집은\n친구공개·친구지정에서만 가능해요.\n\n개별 모집으로 바꾸면\n전체공개를 선택할 수 있어요.',
+                          buttons: [{ text: '확인' }],
+                        });
+                        return;
+                      }
+                      setScope(k);
+                      // 친구지정 선택 시 친구 선택 모달 자동 노출
+                      if (k === 'select') setShowFriendSelect(true);
+                    }}>
+                    <Text style={[mS.chipTxt, scope === k && mS.chipTxtOn]}>{l}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* 친구지정 상태 — 모드·인원 표시 + 다시 선택 진입 */}

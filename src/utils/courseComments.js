@@ -17,22 +17,27 @@ function toComment(d, uid) {
   return {
     id: d.id,
     courseId: v.courseId,
+    authorUid: v.authorUid || null,
     txt: v.text || '',
     who: v.authorName || '익***',
     date: v.date || '',
     likes: typeof v.likes === 'number' ? v.likes : likedBy.length,
     likedByMe: uid ? likedBy.includes(uid) : false,
     mine: uid ? v.authorUid === uid : false,
+    hiddenAt: v.hiddenAt || null,  // 자동 임시 가림(3건 누적, [[content-report-policy]])
   };
 }
 
 // 해당 골프장의 코멘트 전체 (정렬은 호출부에서 — 좋아요순)
+// 자동 임시 가림(hiddenAt) 코멘트는 작성자 본인에게만 노출, 다른 사용자에겐 숨김.
 export async function getCourseComments(courseId) {
   if (!courseId) return [];
   try {
     const uid = await getUid();
     const snap = await getDocs(query(collection(db, COL), where('courseId', '==', courseId)));
-    return snap.docs.map((d) => toComment(d, uid));
+    return snap.docs
+      .map((d) => toComment(d, uid))
+      .filter((c) => !c.hiddenAt || c.mine);
   } catch (e) {
     console.warn('[comments] load failed', e?.message);
     return [];

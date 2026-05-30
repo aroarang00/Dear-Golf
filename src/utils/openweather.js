@@ -75,6 +75,10 @@ function aggregateDays(list) {
 export async function getOverseasWeather(lat, lon) {
   if (typeof lat !== 'number' || typeof lon !== 'number' || !OPENWEATHER_API_KEY) return null;
   try {
+    const { recordLocationAccess } = require('./locationAccessLog');
+    recordLocationAccess({ providerName: 'openweather', purpose: '해외 날씨 조회', method: 'send' });
+  } catch {}
+  try {
     const [curRes, fcRes] = await Promise.all([
       fetch(`${OPENWEATHER_URL}/weather?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${OPENWEATHER_API_KEY}`),
       fetch(`${OPENWEATHER_URL}/forecast?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${OPENWEATHER_API_KEY}`),

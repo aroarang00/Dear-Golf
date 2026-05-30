@@ -77,17 +77,15 @@ export function ageGroupLabelShort(ageGroup) {
   return AGEGROUP_LABEL[ageGroup] || null;
 }
 
-// 모집이 "확정" 상태인지 판정 — D-7 이내 정책 분기 기준.
-// 확정 = 주최자 명시적 마감(closed=true) 또는 정원 만석.
-// 미확정 상태에선 D-7 이내라도 약속의 강도가 낮아 자유 취소 가능 (정책 결정 2026-05-27).
+// 모집이 "확정" 상태인지 판정 — D-7 이내 매너 -5 패널티 분기의 유일한 트리거.
+// 확정 = 주최자가 명시적으로 [확정] 버튼을 누른 시점(closed=true)만.
+// 만석 자동 마감은 "확정"으로 보지 않음 (2026-05-28 정책 변경):
+//   만석 상태에서도 댓글로 조율되며 참여자 이동이 생길 수 있어,
+//   자동 확정 → 매너 차감은 항의 빌미가 됨 (사용자 결정).
+// 미확정 상태에선 D-7 이내라도 자유 취소 가능 (패널티 X).
+// 카드 '마감' 뱃지·'모집 완료'·자동 일정 등록은 만석 기준 그대로 (별개 동선 — "신규 참여 X"의 의미).
 export function isRoundupConfirmed(post) {
-  if (!post) return false;
-  if (post.closed) return true;
-  if (post.teams > 1 && Array.isArray(post.teamJoined)) {
-    return post.teamJoined.every(c => c >= 4);
-  }
-  const filled = (post.joined || 0) + (post.companions?.length || 0);
-  return filled >= (post.capacity || 4);
+  return !!post?.closed;
 }
 
 // 라운딩 날짜까지 남은 일수로 대기자 응답 제한 시간(시간)을 계산

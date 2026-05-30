@@ -81,6 +81,9 @@ export async function createRound(data) {
     badge: data.badge || null,
     overseas: !!data.overseas,
     country: data.overseas ? (data.country || '') : '',
+    // 일정 진입 동선으로 작성된 다이어리는 schedule id를 보존해 1:1 매칭 보장.
+    // 같은 날 일정 N개 + 다이어리 매칭 시 course+date fallback의 비대칭 차단.
+    scheduleId: data.scheduleId || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };

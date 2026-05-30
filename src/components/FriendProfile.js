@@ -119,7 +119,7 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
               paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12, backgroundColor: C.bgPrimary }}>
               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
                 alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{friend.name.charAt(0)}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 {/* 이름 + 핸디 — 같은 줄 */}

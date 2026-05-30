@@ -63,7 +63,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
       </View>
       {item.memo ? (
         <View style={{ borderLeftWidth: 2, borderLeftColor: memoBorderColor, paddingLeft: 8, marginBottom: 8 }}>
-          <Text style={{ fontFamily: F.en, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, fontStyle: 'italic' }}>"{item.memo}"</Text>
         </View>
       ) : null}
       {item.tags && item.tags.length > 0 && (

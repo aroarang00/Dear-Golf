@@ -6,6 +6,7 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { OverlayAlert } from './common/OverlayAlert';
 import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
+import { searchUsersByNickname } from '../utils/friends';
 
 // 아바타 색상 — 이름 글자 기준 순환
 const AVATARS = [
@@ -16,20 +17,8 @@ const AVATARS = [
 ];
 const paletteFor = (id) => AVATARS[(id.charCodeAt(id.length - 1) || 0) % AVATARS.length];
 
-// 카카오 친구 중 Dear Golf 유저 — 더미 (Phase 3에서 카카오 API 연동)
-const KAKAO_CANDIDATES = [
-  { id: 'k1', name: '정해인', hostedCount: 5, attendedCount: 9, mannerScore: 88, avg: 92 },
-  { id: 'k2', name: '박서준', hostedCount: 31, attendedCount: 40, mannerScore: 91, avg: 85 },
-  { id: 'k3', name: '손예진', hostedCount: 2, attendedCount: 5, mannerScore: 76, avg: 101 },
-];
-
-// 닉네임 검색 더미 풀 — Phase 3에서 Firestore 쿼리로 대체
-const SEARCH_POOL = [
-  { id: 's1', name: '김도윤', hostedCount: 12, attendedCount: 20, mannerScore: 84, avg: 89 },
-  { id: 's2', name: '한지민', hostedCount: 8, attendedCount: 15, mannerScore: 90, avg: 95 },
-  { id: 's3', name: '윤서아', hostedCount: 44, attendedCount: 30, mannerScore: 93, avg: 80 },
-  { id: 's4', name: '강태오', hostedCount: 1, attendedCount: 3, mannerScore: 70, avg: 105 },
-];
+// 카카오 친구 매칭은 카카오 비즈니스 검수 후 활성화 ([[kakao-friend-api-design]]) — 현재 빈 배열.
+const KAKAO_CANDIDATES = [];
 
 // 사람 한 줄 — 아바타 + 이름·핸디·등급 + 우측 액션 슬롯
 function PersonRow({ person, right }) {
@@ -93,10 +82,12 @@ export function FriendFinder({
 }) {
   const [tab, setTab] = useState(initialTab);
   const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const [alert, setAlert] = useState(null);   // Modal 내부 OverlayAlert — 글로벌 showAppAlert가 Modal 뒤로 가려지는 이슈 회피
 
   useEffect(() => {
-    if (visible) { setTab(initialTab); setQuery(''); setAlert(null); }
+    if (visible) { setTab(initialTab); setQuery(''); setSearchResults([]); setAlert(null); }
   }, [visible, initialTab]);
 
   // 이미 친구이거나 신청한 사람은 후보에서 제외하지 않고 상태로만 표시
@@ -104,9 +95,25 @@ export function FriendFinder({
   const isSent = (id) => sentIds.includes(id);
 
   const q = query.trim();
-  const searchResults = q
-    ? SEARCH_POOL.filter(p => p.name.includes(q))
-    : [];
+
+  // 닉네임 검색 — TextInput에서 "검색" 키(returnKeyType) 누를 때만 Firestore 호출 (글자마다 X)
+  const runSearch = async () => {
+    if (!q) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const users = await searchUsersByNickname(q);
+      // FriendFinder UI는 옛 더미 객체 형태 기대 — uid/nickname을 매핑
+      setSearchResults(users.map(u => ({
+        id: u.uid, name: u.nickname,
+        hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: null,
+      })));
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendFinder] search failed', e?.message);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const TABS = [
     { key: 'kakao', label: '카카오 친구' },
@@ -180,10 +187,11 @@ export function FriendFinder({
                   placeholder="닉네임으로 검색"
                   placeholderTextColor={C.warmGrayLight}
                   value={query}
-                  onChangeText={setQuery}
+                  onChangeText={(t) => { setQuery(t); if (!t.trim()) setSearchResults([]); }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="search"
+                  onSubmitEditing={runSearch}
                 />
               </View>
             </View>

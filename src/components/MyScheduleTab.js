@@ -43,7 +43,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
 }
 
 export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries = [], navigation, jumpDate, onCloseSchedule }) {
-  const { schedules, setSchedules } = React.useContext(SchedulesContext);
+  const { schedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -54,6 +54,34 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
   const [showCourseLog, setShowCourseLog] = useState(false);
+
+  // B안 — 그리드 셀 탭 시 monthItems 카드로 스크롤 + 일시 하이라이트
+  // ([[home-multi-schedule-same-day]] 일정-다이어리 풀 진입 제거, 캘린더 안에서 정보 확인 완결)
+  const scrollViewRef = React.useRef(null);
+  const monthSectionYRef = React.useRef(0);    // '이번달 일정' 섹션의 ScrollView 안 y 좌표
+  const cardYsRef = React.useRef({});          // { [scheduleId]: 카드의 섹션 안 y }
+  const pendingScrollDateRef = React.useRef(null); // 셀 탭 시점에 카드 측정 안 됐으면 여기 저장, onLayout 시 자동 scroll
+  const [highlightedCardId, setHighlightedCardId] = React.useState(null);
+  const highlightTimerRef = React.useRef(null);
+  const scrollToCardForDate = React.useCallback((dateStr) => {
+    const target = monthItems
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+      .find(it => it.date === dateStr);
+    if (!target) return false;
+    const cardY = cardYsRef.current[target.id];
+    if (typeof cardY !== 'number') return false;
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(0, monthSectionYRef.current + cardY - 16),
+      animated: true,
+    });
+    // 일시 하이라이트 — 사용자 시선이 따라가도록 1.4초간 강조
+    setHighlightedCardId(target.id);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightedCardId(null), 1400);
+    return true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openPicker = () => setPicker({ visible: true, year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 });
   const confirmPicker = () => {
@@ -70,6 +98,25 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     () => diaries.map(x => x.date).filter(Boolean),
     [diaries],
   );
+
+  // 일정 카드 단위 매칭 — scheduleId 우선, fallback course+date.
+  // 같은 날 일정 N건 + 다이어리 매칭의 비대칭 차단([[home-multi-schedule-same-day]] 룰3).
+  const hasRecordForSched = React.useCallback((s) => {
+    if (!s) return false;
+    if (s.id && diaries.some(d => d.scheduleId === s.id)) return true;
+    // scheduleId 없는 구 다이어리·직접 작성 다이어리 호환
+    return diaries.some(d => d.course === s.course && d.date === s.date);
+  }, [diaries]);
+
+  // 일정 → 매칭되는 다이어리 객체 (탭 시 상세 열기에 사용)
+  const findDiaryForSched = React.useCallback((s) => {
+    if (!s) return null;
+    if (s.id) {
+      const byId = diaries.find(d => d.scheduleId === s.id);
+      if (byId) return byId;
+    }
+    return diaries.find(d => d.course === s.course && d.date === s.date) || null;
+  }, [diaries]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -98,20 +145,19 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   };
 
   // status: 'today' | 'today-round' | 'upcoming' | 'completed-record' | 'completed-norecord' | 'normal'
+  // B-3안 — 캘린더 셀 색은 schedules 기준만. 일정 없이 다이어리만 있는 날은 'normal' (다이어리는 MY 탭에서 확인).
   const getStatus = (m, d) => {
     const dateStr = dateStrFor(m, d);
     if (isToday(m, d)) {
       const sched = schedOnStr(dateStr);
-      if (sched || hasRecord(dateStr)) return 'today-round';
+      if (sched) return 'today-round';
       return 'today';
     }
     const sched = schedOnStr(dateStr);
+    if (!sched) return 'normal';
     const past = isPast(m, d);
-    if (sched && !past) return 'upcoming';
-    if (sched && past && hasRecord(dateStr)) return 'completed-record';
-    if (sched && past && !hasRecord(dateStr)) return 'completed-norecord';
-    if (past && hasRecord(dateStr)) return 'completed-record';
-    return 'normal';
+    if (!past) return 'upcoming';
+    return hasRecord(dateStr) ? 'completed-record' : 'completed-norecord';
   };
 
   // Build cells: [{ d, monthOffset, status }]
@@ -148,17 +194,20 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     }
     const dateStr = dateStrFor(0, d);
     const existing = schedOnStr(dateStr);
-    const recDiary = diaries.find(dd => dd.date === dateStr);
 
-    // 기록 있음 → 다이어리 상세 직접 진입 (일정 유무 무관, 카드 탭 흐름과 일관)
-    // ※ 하루 2번 라운딩(다이어리 2개) 케이스는 향후 선택 모달로 분기 — 현재는 첫 번째 다이어리 사용
-    if (recDiary && onRequestOpenDiary) {
-      onRequestOpenDiary(recDiary);
-      return;
-    }
-    // 일정 있음 + 기록 없음 → 시트 (수정·삭제·날씨·교통)
+    // 일정 있는 셀 → 카드로 스크롤만. 시트·다이어리 진입은 카드에서 사용자가 의식적으로.
+    // 달 전환 직후엔 onLayout 측정이 늦어 첫 시도 실패할 수 있음 → 카드 mount 대기 폴링
     if (existing) {
-      setSheet({ visible: true, schedule: { ...existing, hasRec: false } });
+      if (scrollToCardForDate(dateStr)) return;
+      // pendingScrollDate에 저장 → 카드 onLayout 측정 즉시 자동 scroll (폴링 X)
+      pendingScrollDateRef.current = dateStr;
+      // 안전망 — 500ms 후에도 측정 안 됐으면 한 번 더 시도, 그래도 실패면 포기
+      setTimeout(() => {
+        if (pendingScrollDateRef.current === dateStr) {
+          scrollToCardForDate(dateStr);
+          pendingScrollDateRef.current = null;
+        }
+      }, 500);
       return;
     }
     const dt = new Date(year, month, d);
@@ -174,14 +223,11 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     });
   };
 
-  const handleSave = (type, data) => {
+  const handleSave = async (type, data) => {
     if (type === 'schedule') {
-      const newS = {
-        id: String(Date.now()),
-        weather: '맑음 20°', wind: '남 2m/s', duration: '1시간 30분',
-        ...data,
-      };
-      setSchedules(prev => [...prev, newS]);
+      let newS;
+      try { newS = await addSchedule(data); }
+      catch (e) { console.warn('[mySchedule] add failed:', e?.message); return; }
       // 폰 기본 캘린더에 자동 추가
       syncRoundToCalendar(newS);
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
@@ -192,7 +238,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         setPendingAlarm(newS);
       }
     } else if (type === 'schedule-edit') {
-      setSchedules(prev => prev.map(s => (s.id === data.id ? { ...s, ...data } : s)));
+      try {
+        const { id, createdAt, ownerUid, ...patch } = data;
+        await editSchedule(data.id, patch);
+      } catch (e) { console.warn('[mySchedule] edit failed:', e?.message); return; }
       // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
       getAlarmTypes(data.id).then(types => {
         if (types && types.length) {
@@ -263,9 +312,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const deleteSchedule = (s) => {
     if (!s) return;
     const isPast = new Date((s.date || '').replace(/\./g, '-')).getTime() < todayMid;
-    const hasRec = hasRecord(s.date);
-    const remove = () => {
-      setSchedules(prev => prev.filter(x => x.id !== s.id));
+    const hasRec = hasRecordForSched(s);
+    const remove = async () => {
+      try { await removeSchedule(s.id); }
+      catch (e) { console.warn('[mySchedule] remove failed:', e?.message); return; }
       cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
       removeRoundFromCalendar(s.id); // 기기 캘린더 이벤트도 제거
     };
@@ -290,10 +340,11 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
   // 시트 안에서 이미 confirm 완료된 상태 — 바로 remove + 시트 닫음.
   // (별도 AppAlert 띄우지 않음. RN의 3중 Modal 중첩 z-index 충돌 회피.)
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const s = sheet.schedule;
     if (s) {
-      setSchedules(prev => prev.filter(x => x.id !== s.id));
+      try { await removeSchedule(s.id); }
+      catch (e) { console.warn('[mySchedule] remove failed:', e?.message); }
       cancelRoundAlarms(s.id);
       removeRoundFromCalendar(s.id);
     }
@@ -301,23 +352,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   };
 
   const monthSchedules = schedules.filter(s => s.date && s.date.startsWith(monthStr));
-  // 일정 없이 다이어리만 있는 날짜 → 가상 카드로 추가 (오늘 라운딩을 다이어리에만 입력한 케이스)
-  const scheduleDateSet = new Set(monthSchedules.map(s => s.date));
-  const orphanDiaries = diaries.filter(d => d.date && d.date.startsWith(monthStr) && !scheduleDateSet.has(d.date));
-  const orphanItems = orphanDiaries.map(d => {
-    const [y, mm, dd] = d.date.split('.').map(Number);
-    const dt = new Date(y, mm - 1, dd);
-    return {
-      id: `diary-${d.id}`,
-      virtual: true,
-      course: d.course,
-      date: d.date,
-      day: d.day || DAYS[dt.getDay()],
-      time: d.time || '',
-      members: d.members || 0,
-    };
-  });
-  const monthItems = [...monthSchedules, ...orphanItems];
+  // B-3안 (2026-05-29 적용) — 캘린더 = 일정 전용으로 완전 분리.
+  // 옛 orphan(일정 없는 다이어리만) 카드는 캘린더에 안 보임. 다이어리는 MY 탭에서만.
+  // 이유: virtual 분기가 일관성을 깨고 잘못된 다이어리 진입을 유발 — 완전 제거.
+  const monthItems = monthSchedules;
 
   const renderDateCircle = (cell) => {
     const { d, monthOffset } = cell;
@@ -382,7 +420,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false}>
         {/* 캘린더 영역 (좌우 스와이프 → 전달/다음달) */}
         <GestureDetector gesture={monthSwipe}>
         <View>
@@ -455,7 +493,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         </TouchableOpacity>
 
         {/* This month list */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 }}>
+        <View
+          onLayout={(e) => { monthSectionYRef.current = e.nativeEvent.layout.y; }}
+          style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14 }}>
             이번달 일정 · {monthItems.length}개
           </Text>
@@ -505,10 +545,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           ) : (
             monthItems
               .slice()
-              .sort((a, b) => a.date.localeCompare(b.date))
+              // 같은 날 일정은 시간순 정렬 (오전·오후 36홀 등)
+              // 빈 time(자동 등록 등)은 정렬 시 끝으로 — 시간 정보 있는 일정 우선
+              .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '~').localeCompare(b.time || '~'))
               .map(s => {
                 const past = new Date(s.date.replace(/\./g, '-')).getTime() < todayMid;
-                const rec = hasRecord(s.date);
+                const rec = hasRecordForSched(s);
                 let status, sideColor, badgeBg, badgeFg, badgeTxt;
                 if (rec) {
                   // 다이어리 기록 있으면 완료로 간주 (오늘 입력한 케이스 포함)
@@ -533,29 +575,43 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
                 return (
                   <TouchableOpacity key={s.id}
+                    onLayout={(e) => {
+                      cardYsRef.current[s.id] = e.nativeEvent.layout.y;
+                      // 셀 탭 시점에 측정 안 됐던 케이스 — 측정 즉시 자동 scroll (4월처럼 달 전환 후 마운트 늦은 케이스)
+                      if (pendingScrollDateRef.current === s.date) {
+                        const target = pendingScrollDateRef.current;
+                        pendingScrollDateRef.current = null;
+                        scrollToCardForDate(target);
+                      }
+                    }}
                     onPress={() => {
-                      // virtual 카드 = 일정 없고 다이어리만 있는 orphan 케이스. 다이어리 상세 직접 진입
-                      // 일반 카드 + rec(기록 있음): 동일하게 다이어리 상세 직접 진입
-                      if (s.virtual || rec) {
-                        const diary = diaries.find(d => d.date === s.date);
-                        if (diary && onRequestOpenDiary) {
-                          onRequestOpenDiary(diary);
+                      // 사용자 원칙 — 시트(수정·삭제·날씨·교통)는 미래 예정 라운딩에만 의미.
+                      // 과거는 끝난 라운딩이라 시트 액션 의미 X. 수정은 MY 다이어리에서.
+                      if (past) {
+                        if (rec) {
+                          // 과거 + 기록 있음 → 다이어리 진입 (MY에서 수정)
+                          const diary = findDiaryForSched(s);
+                          if (diary && onRequestOpenDiary) onRequestOpenDiary(diary);
                           return;
                         }
-                        // diary 매칭 안 됐을 때 virtual 카드는 빠져나감 (시트 열어도 의미 X)
-                        if (s.virtual) return;
+                        // 과거 + 미기록 → 카드 전체 = '기록 추가하기' 액션 (편의)
+                        onRequestAddDiary && onRequestAddDiary(s);
+                        return;
                       }
-                      setSheet({ visible: true, schedule: { ...s, hasRec: hasRecord(s.date) } });
+                      // 미래 예정 → 시트
+                      setSheet({ visible: true, schedule: { ...s, hasRec: rec } });
                     }}
                     activeOpacity={0.85}
                     style={{
                       flexDirection: 'row',
-                      backgroundColor: C.bgSecondary,
+                      backgroundColor: highlightedCardId === s.id ? '#FBF1D8' : C.bgSecondary,
                       borderRadius: 12,
                       padding: 14,
                       marginBottom: 12,
-                      opacity: cardOpacity,
-                      ...cardBorder,
+                      opacity: highlightedCardId === s.id ? 1 : cardOpacity,
+                      ...(highlightedCardId === s.id
+                        ? { borderWidth: 1.5, borderColor: '#C9A84C' }
+                        : cardBorder),
                     }}>
                     {/* Left side bar */}
                     <View style={{ width: 3, borderRadius: 2, backgroundColor: sideColor, marginRight: 12, alignSelf: 'stretch' }} />
@@ -581,11 +637,29 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#fff' }}>기록 추가하기</Text>
                         </TouchableOpacity>
                       )}
-                      {status === 'completed-record' && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A88A2E' }}>📔 다이어리</Text>
-                        </View>
-                      )}
+                      {status === 'completed-record' && (() => {
+                        // 다이어리에서 score 가져와 카드에 표시 (귀차니즘 골퍼에게 기록 동기 강화 + OCR 도입 시 자동 채움)
+                        // [[golfer-score-psychology]] — 잘 친 스코어(80타 미만)는 골드로 강조
+                        const diary = findDiaryForSched(s);
+                        const score = typeof diary?.score === 'number' ? diary.score : null;
+                        if (!score) {
+                          return (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A88A2E' }}>📔 다이어리</Text>
+                            </View>
+                          );
+                        }
+                        return (
+                          <Text style={{
+                            fontFamily: F.sysSb,
+                            fontSize: fs(18),
+                            color: score < 80 ? '#A88A2E' : C.charcoal,
+                            marginTop: 6,
+                          }}>
+                            {score}타
+                          </Text>
+                        );
+                      })()}
                     </View>
                   </TouchableOpacity>
                 );

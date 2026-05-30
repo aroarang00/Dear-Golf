@@ -8,9 +8,10 @@ export const myS = StyleSheet.create({
   profileArea:  { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingVertical: 16 },
   avatar:       { width: 56, height: 56, borderRadius: 28, backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.butter },
   avatarTxt:    { fontFamily: F.en, fontSize: fs(24), color: '#fff' },
-  nickname:     { fontFamily: F.en, fontSize: fs(20), color: C.charcoal },
+  // 닉네임은 한글이 들어가므로 영문 전용 F.en 대신 Pretendard Bold 사용
+  nickname:     { fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal },
   realName:     { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 },
-  nickInput:    { fontFamily: F.en, fontSize: fs(20), color: C.charcoal, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2 },
+  nickInput:    { fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2 },
   section:      { paddingHorizontal: 20, paddingVertical: 14 },
   sectionLabel: { fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal, letterSpacing: 2, marginBottom: 12 },
   statsRow:     { flexDirection: 'row', gap: 8 },

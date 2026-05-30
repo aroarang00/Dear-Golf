@@ -51,5 +51,15 @@ expo-qr.png
 expo-go-qr.png
 expo-start.log
 
+# Dev 로그·QR·후보 이미지
+.dev.log
+.dev-qr.png
+.bg-candidates/
+firebase-debug.log
+firebase-debug.*.log
+
+# Functions 빌드
+functions/node_modules/
+
 # Claude Code (로컬 설정)
 .claude/settings.local.json

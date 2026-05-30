@@ -22,6 +22,7 @@ import { buildFoodMapUrl, NAVER_MAP_HEADERS } from '../utils/naverMap';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
 import { getCourseComments, addCourseComment, toggleCommentLike } from '../utils/courseComments';
+import { createContentReport, hasReportedContent } from '../utils/contentReports';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
 import { CourseLogModal } from './CourseLogModal';
 
@@ -415,6 +416,35 @@ export function GuideScreen({ route, navigation }) {
     return name.charAt(0) + '***';
   };
 
+  // 코멘트 신고 — 사유 선택 시트 ([[content-report-policy]] §4).
+  // 1인 1회 제한은 createContentReport가 deterministic Doc ID로 차단.
+  const handleReportComment = async (cm) => {
+    const already = await hasReportedContent('courseComment', cm.id);
+    if (already) {
+      showAppAlert('이미 신고한 코멘트예요', '검토 결과는 자동으로 반영돼요.', [{ text: '확인' }]);
+      return;
+    }
+    const submit = async (reason) => {
+      try {
+        await createContentReport({
+          targetType: 'courseComment',
+          targetId: cm.id,
+          targetAuthorUid: cm.authorUid || null,
+          reason,
+        });
+        showAppAlert('신고가 접수됐어요', '디어골프 팀이 3일 이내에 확인할게요.', [{ text: '확인' }]);
+      } catch (e) {
+        if (__DEV__) console.warn('[GuideScreen] content report fail', e?.message);
+        showAppAlert('신고 접수 실패', '잠시 후 다시 시도해주세요.', [{ text: '확인' }]);
+      }
+    };
+    showAppAlert('코멘트 신고', '어떤 이유로 신고할까요?', [
+      { text: '광고/스팸', onPress: () => submit('ad_spam') },
+      { text: '부적절 콘텐츠', onPress: () => submit('inappropriate') },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
+
   // 코멘트 작성 — Firestore에 저장(전체 유저 공유)
   const submitComment = async () => {
     const txt = commentInput.trim();
@@ -748,12 +778,21 @@ export function GuideScreen({ route, navigation }) {
                         <Text style={gS.commentTxt}>"{cm.txt}"</Text>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
                           <Text style={gS.commentWho}>{cm.who} · {cm.date}</Text>
-                          <TouchableOpacity
-                            onPress={() => toggleLike(cm)}
-                            activeOpacity={0.6}
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 0.5, borderColor: cm.likedByMe ? C.burgundy : C.burgundy + '60', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.burgundy }}>{cm.likedByMe ? '♥' : '♡'} {cm.likes}</Text>
-                          </TouchableOpacity>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <TouchableOpacity
+                              onPress={() => toggleLike(cm)}
+                              activeOpacity={0.6}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 0.5, borderColor: cm.likedByMe ? C.burgundy : C.burgundy + '60', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.burgundy }}>{cm.likedByMe ? '♥' : '♡'} {cm.likes}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleReportComment(cm)}
+                              activeOpacity={0.6}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              style={{ paddingHorizontal: 4, paddingVertical: 2 }}>
+                              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray, letterSpacing: 1 }}>⋯</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     ))}
@@ -814,6 +853,29 @@ export function GuideScreen({ route, navigation }) {
             // 네이버 지도(스마트플레이스) 검색 열기
             const openNaverPlace = (q) => Linking.openURL(
               `https://map.naver.com/v5/search/${encodeURIComponent(q)}`);
+
+            // loc에서 식별력 있는 행정구역 토큰 추출 — 광역(특별시·광역시·도) 단위는 제외,
+            // 시/군/구 우선, 없으면 읍/면 fallback. 동 단위는 너무 협소해 미사용.
+            // 예: '경기 양주시 백석읍 ...' → '양주시',  '서울특별시 강남구 ...' → '강남구'
+            const cityTokenOf = (loc) => {
+              const tokens = String(loc || '').trim().split(/\s+/);
+              for (const t of tokens) {
+                if (/(특별시|광역시|특별자치시|특별자치도|도)$/.test(t)) continue;
+                if (/[시군구]$/.test(t)) return t;
+              }
+              for (const t of tokens) {
+                if (/[읍면]$/.test(t)) return t;
+              }
+              return '';
+            };
+
+            // 식당 객체 전용 — 식당명만으로 검색 시 동명 다른 지역 식당으로 빠지는 문제 방지.
+            // loc(주소)에서 시/군/구 토큰을 함께 쿼리에 실어 정확도 ↑
+            const openRestaurantPlace = (r) => {
+              if (!r?.name) return;
+              const city = cityTokenOf(r.loc);
+              openNaverPlace(city ? `${r.name} ${city}` : r.name);
+            };
 
             const fmtDist = (m) => (!m ? '' : m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)}km`);
 
@@ -958,7 +1020,7 @@ export function GuideScreen({ route, navigation }) {
                     </Text>
                     {savedFood.map(r => (
                       <TouchableOpacity key={r.id}
-                        onPress={() => openNaverPlace(r.name)}
+                        onPress={() => openRestaurantPlace(r)}
                         activeOpacity={0.85}
                         style={[styles.card, { borderWidth: 1, borderColor: '#C9A84C55', backgroundColor: '#FFFDF5', alignItems: 'flex-start' }]}>
                         <View style={[styles.circle, { backgroundColor: '#F5E6A8' }]}>
@@ -1051,7 +1113,7 @@ export function GuideScreen({ route, navigation }) {
                             </TouchableOpacity>
                           </View>
                         </View>
-                        <TouchableOpacity onPress={() => openNaverPlace(r.name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <TouchableOpacity onPress={() => openRestaurantPlace(r)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>→</Text>
                         </TouchableOpacity>
                       </View>
@@ -1110,7 +1172,7 @@ export function GuideScreen({ route, navigation }) {
                               {saved ? '저장됨' : '+ 저장'}
                             </Text>
                           </TouchableOpacity>
-                          <TouchableOpacity onPress={() => openNaverPlace(r.name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <TouchableOpacity onPress={() => openRestaurantPlace(r)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                             <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>→</Text>
                           </TouchableOpacity>
                         </View>

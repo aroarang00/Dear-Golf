@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
@@ -198,7 +198,12 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+    <Modal visible={visible} transparent animationType="slide"
+      statusBarTranslucent={Platform.OS === 'android'}
+      onRequestClose={() => { reset(); onClose(); }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
@@ -392,6 +397,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
             </ScrollView>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

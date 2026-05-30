@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -6,7 +6,8 @@ import { UserContext } from '../contexts/UserContext';
 import { OverlayAlert } from './common/OverlayAlert';
 import { getReportRemainingThisMonth, incrementReportCount, REPORT_MONTH_LIMIT } from '../utils/reportLimit';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
-import { DUMMY_FRIENDS } from './FriendsTab';
+import { searchUsersByNickname } from '../utils/friends';
+import { createReport } from '../utils/reports';
 
 // 사용자 신고 모달 ([[report-block-policy]] §1, §5, §6).
 // 7단계 흐름 단일 화면 — 닉네임 → 대상자 확인 → 사유 → 근거 → 경고 → 접수.
@@ -39,11 +40,23 @@ export function ReportModal({ visible, onClose }) {
     getReportRemainingThisMonth().then(setRemaining);
   }, [visible]);
 
-  // 자동완성 — 3글자 이상 시 더미 친구 매칭 (Phase 3에 상호작용한 사용자 풀 + 신고자 본인 제외)
-  const suggestions = useMemo(() => {
+  // 자동완성 — 2글자 이상 시 Firestore users 닉네임 prefix 매칭 (본인 제외는 util이 처리).
+  // 300ms debounce로 글자 입력 중 과도 호출 방지.
+  const [suggestions, setSuggestions] = useState([]);
+  useEffect(() => {
     const q = query.trim();
-    if (q.length < 3) return [];
-    return DUMMY_FRIENDS.filter(f => f.name?.includes(q)).slice(0, 5);
+    if (q.length < 2) { setSuggestions([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const users = await searchUsersByNickname(q, 5);
+        if (cancelled) return;
+        setSuggestions(users.map(u => ({ id: u.uid, name: u.nickname })));
+      } catch (e) {
+        if (!cancelled) setSuggestions([]);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [query]);
 
   const fraudHint = reason === 'fraud';
@@ -68,7 +81,25 @@ export function ReportModal({ visible, onClose }) {
   };
 
   const doSubmit = async () => {
-    // Phase 2 — Firestore reports 컬렉션 등록 + Cloud Function 이메일 발송. 현재는 로컬 카운트만.
+    // Firestore reports 컬렉션 등록 + 로컬 한도 카운트.
+    // 이메일/검토 자동 발송은 Phase 5 Cloud Functions onCreate 트리거로 처리.
+    try {
+      await createReport({
+        targetUid: target.id,
+        targetName: target.name,
+        reporterName: userProfile?.nickname || '',
+        reason,
+        evidence: evidence.trim(),
+      });
+    } catch (e) {
+      if (__DEV__) console.warn('[ReportModal] createReport failed', e?.message);
+      setAlert({
+        title: '신고 접수에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
     await incrementReportCount();
     const next = await getReportRemainingThisMonth();
     setRemaining(next);

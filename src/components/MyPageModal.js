@@ -514,27 +514,63 @@ export function MyPageModal({ visible, onClose }) {
                   { icon: '📄', label: '이용약관',
                     onPress: () => setTermsViewer({
                       visible: true, title: '이용약관', body: TERMS_OF_SERVICE,
-                      externalUrl: 'https://deargolf.app/terms',
+                      externalUrl: 'https://deargolf.app/legal.html#terms',
                     }) },
                   { icon: '🔒', label: '개인정보처리방침',
                     onPress: () => setTermsViewer({
                       visible: true, title: '개인정보처리방침', body: PRIVACY_POLICY,
-                      externalUrl: 'https://deargolf.app/privacy',
+                      externalUrl: 'https://deargolf.app/legal.html#privacy',
                     }) },
                   { icon: '📍', label: '위치기반서비스 약관',
                     onPress: () => setTermsViewer({
                       visible: true, title: '위치기반서비스 약관', body: LOCATION_BASED_SERVICE_TERMS,
-                      externalUrl: 'https://deargolf.app/location',
+                      externalUrl: 'https://deargolf.app/legal.html#location',
                     }) },
                   { icon: '🤝', label: '커뮤니티 가이드라인',
                     onPress: () => setTermsViewer({
                       visible: true, title: '커뮤니티 가이드라인', body: COMMUNITY_GUIDELINES,
-                      externalUrl: 'https://deargolf.app/community',
+                      externalUrl: 'https://deargolf.app/legal.html#community',
                     }) },
                   { icon: '⚖️', label: '자동 패널티 시스템 동의서',
                     onPress: () => setTermsViewer({
                       visible: true, title: '자동 패널티 시스템 동의서', body: PENALTY_CONSENT,
-                      externalUrl: 'https://deargolf.app/penalty',
+                      externalUrl: 'https://deargolf.app/legal.html#penalty',
+                    }) },
+                  // 자동 결정 이의·설명요구 — PIPA 제37조의2 (변호사 권고 B-9)
+                  { icon: '🧭', label: '자동 결정 이의 신청',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '자동 결정에 대한 이의·설명 요구',
+                      body: `Dear Golf는 매너 평가·신고 이력 누적 등 자동화된 시스템을 통해 신뢰등급 산정 및 서비스 이용 제한(자동 패널티)을 결정합니다.
+
+회원은 자신의 권리·의무에 중대한 영향을 미치는 자동화된 결정에 대하여 거부하거나 설명을 요구할 수 있습니다.
+
+▷ 이메일: deargolf.official@gmail.com
+▷ 요청 내용에 포함할 정보
+  · 본인 닉네임 / 카카오 ID
+  · 이의를 제기하는 결정 종류 (노쇼 확정 / 영구 정지 / 모집 박탈 등)
+  · 사유 및 증빙
+▷ 회사는 정당한 사유가 없는 한 인적 재검토 절차를 안내합니다.
+
+근거: 개인정보 보호법 제37조의2.`,
+                    }) },
+                  // 위치정보 권리 행사 — 위치정보법 제24조 (변호사 권고 C-3)
+                  { icon: '📡', label: '위치정보 권리 행사',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '위치정보 권리 행사',
+                      body: `이용자는 위치정보법 제24조에 따라 다음 권리를 행사할 수 있습니다.
+
+1. 동의 철회 — 앱 설정에서 위치 권한 해제로 즉시 처리됩니다.
+2. 일시 중지 — 이메일 요청 시 즉시 처리됩니다.
+3. 이용·제공사실 확인자료 열람 — 위치정보를 어떤 외부 서비스(기상청·카카오·OpenWeather 등)에 보낸 이력을 확인할 수 있습니다.
+4. 개인위치정보가 제3자에게 제공된 이유 및 내용 고지 요구.
+5. 정보 정정 요구.
+
+▷ 이메일: deargolf.official@gmail.com
+▷ 회사는 접수 후 10일 이내에 처리합니다.
+
+위치정보 이용·제공사실 확인자료는 6개월간 자동 기록·보존됩니다. (위치정보법 제16조 제2항)`,
                     }) },
                   // 개인정보 권리 행사 — PIPA 제35조. 마이페이지에서 직접 처리 가능한 권리·이메일 요청 권리 통합 안내
                   { icon: '🔐', label: '개인정보 권리 행사',

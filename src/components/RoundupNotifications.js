@@ -21,7 +21,20 @@ const ROUNDUP_NOTI_TYPES = [
 ];
 const DEFAULT_ROUNDUP_PREFS = { apply: true, confirmed: true, cancel: true, waitlist: true, slotOpen: true, comment: true };
 
-const NOTI_ICON = { apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊' };
+const NOTI_ICON = {
+  apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
+  // 시스템 알림 (Cloud Functions)
+  kicked: '🚪',
+  noshowReported: '⚠️', noshowReportSubmitted: '📩', noshowExplanationRequired: '⏰',
+  noshowConfirmed: '🚫', noshowReporterConfirmed: '✅', noshowFalseReport: '🚫',
+  noshowFalseReportConfirmed: '✅', noshowInconclusive: '⚖️', noshowCancelled: '✋',
+  permanentBanAppealNotice: '⚠️', permanentBanFinalized: '🚫',
+  recruitBanPermanentFinalized: '🚫',
+  restrictionLifted: '🎉',
+  mannerScoreUp: '💚', mannerScoreDown: '💢',
+  contentReportConfirmed: '🚫', contentRecruitBan30d: '🚫',
+  hostCancelledD7: '☔',
+};
 // 주최자(내 모집글)에 오는 알림 / 그 외는 내가 참여·대기한 모집의 알림
 const HOST_TYPES = ['apply', 'cancel', 'waitlist'];
 // 신청자 신뢰도가 표시되는 알림 타입 — 주최자가 승인·확인 판단 시 참고
@@ -39,6 +52,53 @@ function notiText(n) {
     case 'waitlist':  return `${n.actor}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
     case 'comment':   return `${n.actor}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
     case 'mannerEval':return `'${n.postTitle}' 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
+    case 'kicked':    return `'${n.postTitle}' 모집 참여가 주최자 사정으로 취소됐어요`;
+
+    // 노쇼 신고 (시스템)
+    case 'noshowReported':
+      return `'${n.postTitle}' 라운딩 노쇼 신고가 접수됐어요 — 7일 안에 신고자와 직접 해결할 수 있어요`;
+    case 'noshowReportSubmitted':
+      return `'${n.postTitle}' 라운딩 노쇼 신고가 정상 접수됐어요 — 7일 후 자동 확정`;
+    case 'noshowExplanationRequired':
+      return `'${n.postTitle}' 노쇼 신고 — 48시간 안에 소명을 제출해주세요`;
+    case 'noshowConfirmed':
+      return `'${n.postTitle}' 노쇼가 확정되어 매너 등급과 이용 정지가 적용됐어요`;
+    case 'noshowReporterConfirmed':
+      return `'${n.postTitle}' 노쇼 신고가 인정됐어요`;
+    case 'noshowFalseReport':
+      return `'${n.postTitle}' 신고가 허위로 판정되어 매너 등급과 이용 정지가 적용됐어요`;
+    case 'noshowFalseReportConfirmed':
+      return `'${n.postTitle}' 신고가 허위로 판정됐어요`;
+    case 'noshowInconclusive':
+      return `'${n.postTitle}' 노쇼 신고가 중립 종결됐어요 — 양쪽 모두 패널티 없음`;
+    case 'noshowCancelled':
+      return `'${n.postTitle}' 노쇼 신고가 신고자에 의해 취소됐어요`;
+
+    // 영구 정지 7일 소명
+    case 'permanentBanAppealNotice':
+      return `누적 위반으로 영구 정지가 예정됐어요 — 7일 안에 소명을 제출하지 않으면 자동 적용돼요`;
+    case 'permanentBanFinalized':
+      return `영구 정지가 확정됐어요 — 이의는 마이페이지의 '자동 결정 이의 신청'으로 문의해주세요`;
+    case 'recruitBanPermanentFinalized':
+      return `영구 모집 박탈이 확정됐어요 — 이의는 마이페이지의 '자동 결정 이의 신청'으로 문의해주세요`;
+
+    // 정지 해제 / 매너점수 변동
+    case 'restrictionLifted':
+      return `이용 정지가 해제됐어요 — 다시 모집과 참여를 이용할 수 있어요`;
+    case 'mannerScoreUp':
+      return `'${n.postTitle}' 라운딩 평가로 매너 등급이 올랐어요`;
+    case 'mannerScoreDown':
+      return `'${n.postTitle}' 라운딩 평가로 매너 등급이 내려갔어요`;
+
+    // 콘텐츠 신고 결과
+    case 'contentReportConfirmed':
+      return `작성하신 게시물에 대한 신고가 확정되어 매너 점수가 감소했어요`;
+    case 'contentRecruitBan30d':
+      return `콘텐츠 신고 누적으로 30일 모집 정지가 적용됐어요`;
+
+    case 'hostCancelledD7':
+      return `'${n.postTitle}' 모집이 주최자에 의해 취소됐어요 — 주최자에 대한 매너 평가를 남길 수 있어요`;
+
     default:          return n.postTitle;
   }
 }

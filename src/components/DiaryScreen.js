@@ -19,6 +19,7 @@ import { DiaryAddModal } from './DiaryAddModal';
 import { GolfLedgerModal } from './GolfLedgerModal';
 import { MyPageModal } from './MyPageModal';
 import { getTrustGrade } from '../constants/trustGrade';
+import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
@@ -70,7 +71,7 @@ function buildSingleHofEntry(data, diaryId) {
 
 export function DiaryScreen({ route, navigation }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
-  const { setSchedules } = React.useContext(SchedulesContext);
+  const { schedules, addSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { diaries, addDiary, editDiary, removeDiary } = React.useContext(DiariesContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -124,21 +125,41 @@ export function DiaryScreen({ route, navigation }) {
   useEffect(() => {
     if (route?.params?.openDiaryId) {
       const target = diaries.find(d => d.id === route.params.openDiaryId);
-      if (target) setSelected(target);
+      if (target) {
+        setSelected(target);
+        // params 초기화 — 안 하면 같은 id로 재진입 시 useEffect가 안 트리거되어
+        // MY 첫 화면(다이어리 목록)이 떠버림.
+        // diaries가 아직 로딩 안 돼 target이 없을 땐 setParams 안 함 → diaries 변경 후 재시도
+        navigation.setParams({ openDiaryId: undefined });
+      }
     }
-  }, [route?.params?.openDiaryId]);
+  }, [route?.params?.openDiaryId, diaries]);
+
+  // 일정 모달에서 진입한 경우 모달 닫을 때 일정 화면으로 자동 복귀 ([[modal-navigation-pattern]] navigation 복귀)
+  const returnToScheduleRef = React.useRef(false);
 
   useEffect(() => {
     if (route?.params?.openAddModal) {
-      // 일정 캘린더·내 코스기록에서 날짜·골프장을 미리 채워서 전달
-      const { addDate, addCourse, addCourseId } = route.params;
-      setAddSeed((addDate || addCourse)
-        ? { date: addDate, course: addCourse, courseId: addCourseId }
+      // 일정 캘린더·내 코스기록에서 날짜·골프장·일정ID를 미리 채워서 전달
+      // scheduleId가 있으면 다이어리에 보존되어 같은 날 일정 N건 매칭 시 1:1 보장
+      const { addDate, addCourse, addCourseId, addScheduleId, returnToSchedule } = route.params;
+      setAddSeed((addDate || addCourse || addScheduleId)
+        ? { date: addDate, course: addCourse, courseId: addCourseId, scheduleId: addScheduleId || null }
         : null);
+      returnToScheduleRef.current = !!returnToSchedule;
       setShowModal(true);
-      navigation.setParams({ openAddModal: undefined, addDate: undefined, addCourse: undefined, addCourseId: undefined });
+      navigation.setParams({ openAddModal: undefined, addDate: undefined, addCourse: undefined, addCourseId: undefined, addScheduleId: undefined, returnToSchedule: undefined });
     }
   }, [route?.params?.openAddModal]);
+
+  // DiaryAddModal 닫힘(저장·취소 무관) — 일정 모달에서 진입한 경우 홈으로 가서 일정 모달 재오픈
+  const handleAddModalClose = React.useCallback(() => {
+    setShowModal(false);
+    if (returnToScheduleRef.current) {
+      returnToScheduleRef.current = false;
+      navigation.navigate(ROUTES.HOME, { openSchedule: true });
+    }
+  }, [navigation]);
 
   const handleSave = async (type, data) => {
     if (type === 'diary') {
@@ -174,6 +195,25 @@ export function DiaryScreen({ route, navigation }) {
         }
         return next;
       });
+      // 직접 작성 다이어리(scheduleId 없음) → schedules 자동 등록
+      // 사용자 원칙: 홈·일정·MY·코스모아보기는 유기적으로 연동, 정보 차이만 허용
+      // 과거 라운딩이라 시간 정보는 빈 값 (사용자가 일정 화면에서 수정 가능)
+      if (!data.scheduleId) {
+        try {
+          const created2 = await addSchedule({
+            course: data.course,
+            date: data.date,
+            day: data.day,
+            time: '',
+            members: (data.companions?.length || 0) + 1,
+          });
+          // 1:1 매칭 보장 — 다이어리에 신규 scheduleId 다시 연결 ([[home-multi-schedule-same-day]] 룰3)
+          try { await editDiary(created.id, { scheduleId: created2.id }); }
+          catch (e) { console.warn('[diary] scheduleId link failed:', e?.message); }
+        } catch (e) {
+          console.warn('[diary] auto schedule add failed:', e?.message);
+        }
+      }
     } else if (type === 'diary-edit') {
       // Firestore 업데이트 — data.id를 기준으로. id·ownerUid는 round.js가 자동으로 분리.
       await editDiary(data.id, data);
@@ -205,7 +245,12 @@ export function DiaryScreen({ route, navigation }) {
     // 연결된 명예의 전당 카드도 함께 삭제
     setHallOfFame(prev => prev.filter(h => h.diaryId !== target.id));
     if (mode === 'all') {
-      setSchedules(prev => prev.filter(s => !(s.date === target.date && s.course === target.course)));
+      // course+date 매칭 일정 모두 삭제 (스케줄 1:1 매칭 미연결 다이어리 호환)
+      const matches = schedules.filter(s => s.date === target.date && s.course === target.course);
+      for (const s of matches) {
+        try { await removeSchedule(s.id); }
+        catch (e) { console.warn('[diary] schedule remove failed:', e?.message); }
+      }
     }
     setSelected(null);
   };
@@ -550,7 +595,7 @@ export function DiaryScreen({ route, navigation }) {
         <View style={{ position: 'absolute', width: 2.5, height: 18, borderRadius: 1, backgroundColor: '#fff' }} />
       </TouchableOpacity>
 
-      <DiaryAddModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} initial={addSeed} />
+      <DiaryAddModal visible={showModal} onClose={handleAddModalClose} onSave={handleSave} initial={addSeed} />
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />

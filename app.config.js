@@ -109,6 +109,9 @@ module.exports = {
           },
         },
       ],
+      // Sentry — 에러 모니터링. plugin이 source map 자동 업로드 처리.
+      // PII는 App.js Sentry.init에서 sendDefaultPii:false로 비활성 ([[api-key-security]])
+      '@sentry/react-native/expo',
     ],
     extra: {
       eas: {

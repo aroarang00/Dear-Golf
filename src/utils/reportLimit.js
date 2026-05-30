@@ -1,12 +1,14 @@
 import { STORAGE_KEYS, storage } from './storage';
+import { db, getUid } from './firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // 사용자 신고 월 1건 한도 시스템 — [[report-block-policy]] §3.
 // 콘텐츠 신고와 별개. 콘텐츠 신고는 한도 X (단 같은 게시물 1인 1회).
 //
-// 동작:
-// - 매월 1일 자동 초기화 (load 시점에 yearMonth 비교)
-// - 신고 1건 등록 시 카운트 +1, 1회 도달 시 추가 신고 차단
-// - Phase 2: 실제 신고 컬렉션과 동기화 + Cloud Functions 검증
+// 저장 위치:
+//  - AsyncStorage(@dg_user_report_count): 빠른 로컬 캐시
+//  - users/{uid}.limits.report: Firestore (멀티기기 우회 차단)
+//  - Phase 4: 실제 신고 컬렉션과 동기화 + Cloud Functions 검증
 
 const MONTH_LIMIT = 1;
 
@@ -43,10 +45,37 @@ export async function incrementReportCount() {
   const ym = currentYearMonth();
   const raw = await storage.load(STORAGE_KEYS.userReportCount, null);
   const baseCount = (!raw || raw.yearMonth !== ym) ? 0 : (raw.count || 0);
-  await storage.save(STORAGE_KEYS.userReportCount, {
-    yearMonth: ym,
-    count: baseCount + 1,
-  });
+  const next = { yearMonth: ym, count: baseCount + 1 };
+  await storage.save(STORAGE_KEYS.userReportCount, next);
+  try {
+    const uid = await getUid();
+    if (uid) {
+      await setDoc(doc(db, 'users', uid),
+        { limits: { report: next }, updatedAt: serverTimestamp() },
+        { merge: true });
+    }
+  } catch (e) {
+    if (__DEV__) console.warn('[reportLimit] firestore sync failed', e?.message);
+  }
+}
+
+export async function syncReportLimitFromFirestore() {
+  try {
+    const uid = await getUid();
+    if (!uid) return;
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) return;
+    const remote = snap.data().limits?.report;
+    if (!remote) return;
+    const ym = currentYearMonth();
+    const localRaw = await storage.load(STORAGE_KEYS.userReportCount, null);
+    const localCount = (localRaw && localRaw.yearMonth === ym) ? (localRaw.count || 0) : 0;
+    const remoteCount = (remote.yearMonth === ym) ? (remote.count || 0) : 0;
+    const maxCount = Math.max(localCount, remoteCount);
+    await storage.save(STORAGE_KEYS.userReportCount, { yearMonth: ym, count: maxCount });
+  } catch (e) {
+    if (__DEV__) console.warn('[reportLimit] sync from firestore failed', e?.message);
+  }
 }
 
 // 개발용·테스트용 — 카운트 강제 초기화 (출시 후엔 호출 X)

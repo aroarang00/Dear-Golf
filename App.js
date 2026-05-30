@@ -1,15 +1,61 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image } from 'react-native';
+
+// 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
+// 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
+// allowFontScaling 은 patch-package(Text/TextInput) 가 이미 false 로 설정.
+const _withDefaultFont = (Comp) => {
+  Comp.defaultProps = Comp.defaultProps || {};
+  Comp.defaultProps.style = [{ fontFamily: 'Pretendard-Regular' }, Comp.defaultProps.style].filter(Boolean);
+};
+_withDefaultFont(Text);
+_withDefaultFont(TextInput);
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import * as Sentry from '@sentry/react-native';
+
+// Sentry — 에러 모니터링. PII 비활성, react-navigation 화면 추적 통합.
+// 정책: 개인을 식별할 수 있는 정보 미수집(IP·사용자 ID·이메일). 약관 [[legal-implementation-status]] 제1조 4호.
+// Expo Go에선 native 모듈 부재로 init 실패 가능 → try-catch로 보호 ([[dev-build-workflow]])
+let sentryNavigationIntegration = null;
+try {
+  sentryNavigationIntegration = Sentry.reactNavigationIntegration({
+    enableTimeToInitialDisplay: true,
+  });
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN, // DSN 없으면 비활성 (dev·미설정 환경 안전)
+    sendDefaultPii: false,                          // IP·기기 식별자 등 PII 미전송
+    integrations: [sentryNavigationIntegration],
+    tracesSampleRate: 1.0,                          // 출시 후 트래픽 보고 조정 (예: 0.1)
+    beforeSend(event) {
+      // 이중 안전망 — 혹시 모를 PII 필드 제거
+      if (event.user) {
+        delete event.user.ip_address;
+        delete event.user.email;
+      }
+      return event;
+    },
+  });
+} catch (e) {
+  console.warn('[Sentry] init skipped:', e?.message);
+}
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
+import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 import { C, F, fs } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
+import { loadMyBlockedUids } from './src/utils/friends';
+import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLimit';
+import { syncKickLimitFromFirestore } from './src/utils/kickLimit';
+import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
+import { setupPushNotifications } from './src/utils/pushTokens';
+import { db, getUid } from './src/utils/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
@@ -32,7 +78,7 @@ import { ROUTES } from './src/constants/routes';
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
 
-export default function App() {
+function App() {
   const [userProfile, setUserProfile] = useState(USER_PROFILE_INIT);
   const [showOnboarding, setShowOnboarding] = useState(!USER_PROFILE_INIT.onboardingDone);
   const [introDone, setIntroDone] = useState(false);
@@ -46,10 +92,12 @@ export default function App() {
   const [bestAlert, setBestAlert] = useState(false);
 
   // 번들 폰트 — Pretendard 정적 굵기 4종(한글 본문) + Lora Italic("Dear Golf" 워드마크)
+  //   + Playfair Display Bold (영문·숫자 표시용 — Georgia 대체, OS 간 일관)
   // RN은 가변 폰트의 fontWeight를 못 살리므로 굵기별 파일을 각각 패밀리로 로드한다
-  // (사용은 constants/colors.js의 F.sys / F.sysM / F.sysSb / F.sysB 참고)
+  // (사용은 constants/colors.js의 F.sys / F.sysM / F.sysSb / F.sysB / F.en 참고)
   const [fontsLoaded, fontError] = useFonts({
     Lora_500Medium_Italic,
+    PlayfairDisplay_700Bold,
     'Pretendard-Regular':  require('./assets/fonts/Pretendard-Regular.otf'),
     'Pretendard-Medium':   require('./assets/fonts/Pretendard-Medium.otf'),
     'Pretendard-SemiBold': require('./assets/fonts/Pretendard-SemiBold.otf'),
@@ -85,6 +133,107 @@ export default function App() {
     if (!profileLoaded) return;
     storage.save(STORAGE_KEYS.profile, userProfile);
   }, [userProfile, profileLoaded]);
+
+  // 차단 목록 + 한도 카운터 + 사용자 설정 Firestore ↔ 로컬 동기화 — profile 로드 후 1회.
+  // Firestore가 source of truth (멀티기기). 액션은 write-through로 양쪽 동시 반영.
+  // 한도 카운터(친구 신청/강퇴/신고)는 max 머지로 우회 차단.
+  useEffect(() => {
+    if (!profileLoaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const remoteBlocked = await loadMyBlockedUids();
+        if (cancelled) return;
+        setUserProfile(prev => {
+          const cur = Array.isArray(prev.blockedUsers) ? prev.blockedUsers : [];
+          if (cur.length === remoteBlocked.length
+            && cur.every(u => remoteBlocked.includes(u))) return prev;
+          return { ...prev, blockedUsers: remoteBlocked };
+        });
+      } catch (e) {
+        if (__DEV__) console.warn('[App] block sync failed', e?.message);
+      }
+      // 한도 카운터 3종 — 병렬 sync (개별 실패는 각 util이 자체 처리)
+      await Promise.all([
+        syncFriendRequestLimitFromFirestore(),
+        syncKickLimitFromFirestore(),
+        syncReportLimitFromFirestore(),
+      ]);
+      // 푸시 토큰 등록 — 권한 요청 + Expo Push 토큰 발급 + users/{uid}.pushToken 저장.
+      // 거부 시 null 반환, 인앱 알림으로 자동 보완 ([[notification-policy]] §2).
+      setupPushNotifications().catch(e => __DEV__ && console.warn('[App] push setup fail', e?.message));
+      // 사용자 설정 + 닉네임/변경이력 — Firestore가 source of truth.
+      // lastNicknameChange는 더 최근 시각이 권위 (멀티기기 우회 차단).
+      try {
+        const uid = await getUid();
+        if (!uid || cancelled) return;
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (cancelled) return;
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const settings = data.settings;
+        setUserProfile(prev => {
+          const next = { ...prev };
+          if (settings) Object.assign(next, settings);
+          if (data.nickname) next.nickname = data.nickname;
+          // 카카오 연동 상태 — Firestore가 권위 (재설치 후 자동 복원)
+          if (typeof data.kakaoLinked === 'boolean') next.kakaoLinked = data.kakaoLinked;
+          if (data.kakaoId) next.kakaoId = data.kakaoId;
+          // 더 최근 변경 시각이 권위
+          const remoteLast = data.lastNicknameChange;
+          const localLast = prev.lastNicknameChange;
+          if (remoteLast && (!localLast || new Date(remoteLast) > new Date(localLast))) {
+            next.lastNicknameChange = remoteLast;
+          }
+          return next;
+        });
+      } catch (e) {
+        if (__DEV__) console.warn('[App] settings/nickname sync failed', e?.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profileLoaded]);
+
+  // 사용자 설정 + 닉네임/변경이력 — Firestore write-through (500ms debounce).
+  // 멀티기기 동기화. 그 외 필드(blockedUsers·hostedCount 등)는 별도 처리.
+  useEffect(() => {
+    if (!profileLoaded) return;
+    const t = setTimeout(async () => {
+      try {
+        const uid = await getUid();
+        if (!uid) return;
+        const payload = {
+          settings: {
+            alarmDefaults: userProfile.alarmDefaults || null,
+            alarmPromptDisabled: !!userProfile.alarmPromptDisabled,
+            roundupMatch: userProfile.roundupMatch || null,
+            hideStrangerRoundups: !!userProfile.hideStrangerRoundups,
+            roundupNotifyPrefs: userProfile.roundupNotifyPrefs || null,
+          },
+          updatedAt: serverTimestamp(),
+        };
+        if (userProfile.nickname) payload.nickname = userProfile.nickname;
+        if (userProfile.lastNicknameChange) payload.lastNicknameChange = userProfile.lastNicknameChange;
+        if (typeof userProfile.kakaoLinked === 'boolean') payload.kakaoLinked = userProfile.kakaoLinked;
+        if (userProfile.kakaoId) payload.kakaoId = userProfile.kakaoId;
+        await setDoc(doc(db, 'users', uid), payload, { merge: true });
+      } catch (e) {
+        if (__DEV__) console.warn('[App] settings write-through failed', e?.message);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [
+    profileLoaded,
+    userProfile.alarmDefaults,
+    userProfile.alarmPromptDisabled,
+    userProfile.roundupMatch,
+    userProfile.hideStrangerRoundups,
+    userProfile.roundupNotifyPrefs,
+    userProfile.nickname,
+    userProfile.lastNicknameChange,
+    userProfile.kakaoLinked,
+    userProfile.kakaoId,
+  ]);
 
   // 로딩 화면이 너무 빨리 사라지지 않게 — 최소 1.6초는 브랜드 화면을 보여준다
   useEffect(() => {
@@ -175,7 +324,10 @@ export default function App() {
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
     <DiariesProvider>
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => sentryNavigationIntegration?.registerNavigationContainer?.(navigationRef)}
+    >
       <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }} backBehavior="history">
         <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
         <Tab.Screen name={ROUTES.LOUNGE} component={LoungeScreen} />
@@ -222,3 +374,6 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap — 루트 컴포넌트 감싸 자동 에러 캐치 + 성능 모니터링 활성화
+export default Sentry.wrap(App);

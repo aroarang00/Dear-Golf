@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dear Golf 규정집 — 이용약관·개인정보·위치기반·커뮤니티·패널티</title>
+<meta name="description" content="Dear Golf 공식 규정집 (이용약관, 개인정보처리방침, 위치기반서비스약관, 커뮤니티 가이드라인, 자동 패널티 시스템 동의서). 시행일 2026-05-29." />
+<meta property="og:title" content="Dear Golf 규정집" />
+<meta property="og:url" content="https://deargolf.app/legal" />
+<style>
+  :root { --navy:#1A3D52; --butter:#F5E6A8; --ink:#2A2622; --gray:#6B6660; --bg:#FAF6EC; --hairline:#E0DAC8; --burgundy:#6B1E2A; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; }
+  body { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; -webkit-text-size-adjust:100%; }
+  header { background:var(--navy); color:#fff; padding:36px 20px; text-align:center; }
+  header h1 { margin:0; font-size:20px; font-weight:700; letter-spacing:-0.3px; }
+  header p { margin:6px 0 0; font-size:12px; color:rgba(255,255,255,0.7); }
+  nav.toc { max-width:760px; margin:0 auto; padding:16px 20px; background:#fff; border-bottom:1px solid var(--hairline); }
+  nav.toc ol { margin:0; padding:0 0 0 18px; font-size:13px; color:var(--gray); }
+  nav.toc a { color:var(--burgundy); text-decoration:none; }
+  nav.toc a:hover { text-decoration:underline; }
+  main { max-width:760px; margin:0 auto; padding:24px 20px 56px; }
+  section { background:#fff; border-radius:10px; padding:24px 22px; margin-bottom:20px; border:1px solid var(--hairline); }
+  section h2 { font-size:18px; color:var(--navy); margin:0 0 4px; padding-bottom:8px; border-bottom:1px solid var(--hairline); }
+  section .date { font-size:11px; color:var(--gray); margin:0 0 16px; }
+  section h3 { font-size:13.5px; margin:18px 0 6px; color:var(--navy); }
+  section pre { font-family:inherit; font-size:13.5px; line-height:1.8; white-space:pre-wrap; word-break:keep-all; margin:0; }
+  footer { text-align:center; font-size:11px; color:var(--gray); padding:24px 16px 40px; }
+  .placeholder { color:#999; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dear Golf 공식 규정집</h1>
+  <p>이용약관 · 개인정보처리방침 · 위치기반서비스약관 · 커뮤니티 가이드라인 · 자동 패널티 시스템 동의서</p>
+  <p>시행일 · 2026-__-__   |   변호사 검토 반영판 (2026-05-29)</p>
+</header>
+<nav class="toc">
+  <ol>
+    <li><a href="#terms">이용약관</a></li>
+    <li><a href="#privacy">개인정보처리방침</a></li>
+    <li><a href="#location">위치기반서비스 약관</a></li>
+    <li><a href="#community">커뮤니티 가이드라인</a></li>
+    <li><a href="#penalty">자동 패널티 시스템 동의서</a></li>
+  </ol>
+</nav>
+<main>
+
+<section id="terms">
+<h2>Dear Golf 이용약관</h2>
+<p class="date">시행일 · 2026-__-__</p>
+<pre id="terms-body"></pre>
+</section>
+
+<section id="privacy">
+<h2>Dear Golf 개인정보처리방침</h2>
+<p class="date">시행일 · 2026-__-__</p>
+<pre id="privacy-body"></pre>
+</section>
+
+<section id="location">
+<h2>위치기반서비스 약관</h2>
+<p class="date">시행일 · 2026-__-__</p>
+<pre id="location-body"></pre>
+</section>
+
+<section id="community">
+<h2>Dear Golf 커뮤니티 가이드라인</h2>
+<p class="date">시행일 · 2026-__-__</p>
+<pre id="community-body"></pre>
+</section>
+
+<section id="penalty">
+<h2>자동 패널티 시스템 동의서</h2>
+<p class="date">시행일 · 2026-__-__</p>
+<pre id="penalty-body"></pre>
+</section>
+
+</main>
+<footer>
+  © Dear Golf  ·  문의: deargolf.official@gmail.com<br />
+  본 규정집은 <span class="placeholder">○○○</span>에서 ○○○ 변경 시 갱신됩니다. 사업자 정보·신고번호·책임자 성명은 사업자 등록 및 방송미디어통신위원회 신고 완료 후 기재됩니다.
+</footer>
+<script src="/legal-texts.js"></script>
+<script>
+  (function () {
+    var map = {
+      'terms-body': window.DG_LEGAL && window.DG_LEGAL.TERMS_OF_SERVICE,
+      'privacy-body': window.DG_LEGAL && window.DG_LEGAL.PRIVACY_POLICY,
+      'location-body': window.DG_LEGAL && window.DG_LEGAL.LOCATION_BASED_SERVICE_TERMS,
+      'community-body': window.DG_LEGAL && window.DG_LEGAL.COMMUNITY_GUIDELINES,
+      'penalty-body': window.DG_LEGAL && window.DG_LEGAL.PENALTY_CONSENT,
+    };
+    Object.keys(map).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && map[id]) el.textContent = map[id];
+    });
+  })();
+</script>
+</body>
+</html>

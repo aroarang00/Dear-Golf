@@ -3,7 +3,6 @@ import { Modal, View, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { RoundupCreateModal } from './RoundupCreateModal';
-import { DUMMY_FRIENDS } from './FriendsTab';
 import { MannerEvaluationModal } from './MannerEvaluationModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
@@ -17,6 +16,10 @@ import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
+import { blockUid as fsBlockUid, loadMyFriends } from '../utils/friends';
+import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification } from '../utils/roundupNotifications';
+import { db } from '../utils/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { isKickLimitReached, incrementKickCount, getKickRemainingThisMonth, KICK_MONTH_LIMIT } from '../utils/kickLimit';
 import {
   isFriendRequestLimitReached, incrementFriendRequestCount, FRIEND_REQUEST_DAILY_LIMIT,
@@ -26,72 +29,13 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, createRoundup, updateRoundupAsAuthor, deleteRoundup, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant } from '../utils/roundup';
+import { getUid } from '../utils/firebase';
 
-// 모집글 더미 데이터 — Firebase 연동 전 UI 표시용.
-// 개별 모집: teams=1 + joined/capacity / 단체 모집: teams>1 + teamJoined(팀별 인원, 한 팀 4명)
-// waitlistCount: 현재 대기 인원
-const DUMMY_POSTS = [
-  { id: 'r1', type: 'fixed', author: '오세훈', authorId: 'oseh', isFriend: true,
-    authorHostedCount: 220, authorAttendedCount: 88, authorMannerScore: 96,
-    course: '제이드팰리스 GC', date: '2026.05.31', day: '일', time: '07:12',
-    teams: 3, teamJoined: [4, 2, 0], waitlistCount: 0, scope: 'all',
-    companion: 'mixed', ageGroup: 'mixed', skill: 'mid', region: 'capital', tags: ['편안한라운딩', '즐기는라운딩'],
-    word: '주말 모닝 단체 라운딩 — 팀 더 모아요!', closed: false, ts: 5 },
-  { id: 'r2', type: 'open', author: '김민준', authorId: 'kmj', isFriend: true,
-    authorHostedCount: 7, authorAttendedCount: 14, authorMannerScore: 82,
-    course: null, date: null, day: null, time: null,
-    teams: 1, joined: 1, capacity: 4, waitlistCount: 0, scope: 'friends',
-    companion: 'any', skill: 'any', region: null, tags: [],
-    word: '5월 안에 한 번 치고 싶어요. 장소는 같이 정해요', closed: false, ts: 4 },
-  { id: 'r3', type: 'fixed', author: '이수연', authorId: 'lsy', isFriend: true,
-    authorHostedCount: 22, authorAttendedCount: 18, authorMannerScore: 95,
-    course: '블랙스톤 CC', date: '2026.05.23', day: '토', time: '12:30',
-    teams: 1, joined: 3, capacity: 3, waitlistCount: 2, scope: 'select',
-    companion: 'female', skill: 'high', region: 'chungcheong', tags: ['젊은분위기', '여성환영'],
-    word: '인원 다 찼습니다. 대기 신청 받아요 🙏', closed: true, ts: 3 },
-  { id: 'r4', type: 'open', author: '박지영', authorId: 'pjy', isFriend: false,
-    authorHostedCount: 1, authorAttendedCount: 3, authorMannerScore: 75,
-    course: null, date: null, day: null, time: null,
-    teams: 1, joined: 1, capacity: 2, waitlistCount: 0, scope: 'all',
-    companion: 'couple', ageGroup: '4050', skill: 'pro', region: null, tags: ['시니어환영', '실력자환영'],
-    word: '평일 휴무라 1명만 더 구해요 (둘이 라운딩)', closed: false, ts: 2 },
-];
+// posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
+// joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
 
-// 댓글 더미 — r1(내가 참여 확정인 모집글)에만 깔아두기. 고정 댓글 + 일반 댓글 혼합.
-const DUMMY_COMMENTS = {
-  r1: [
-    { id: 'c_r1_1', postId: 'r1', authorUid: 'oseh', authorName: '오세훈',
-      body: '집합은 클럽하우스 1층 카운터 앞에서 6:50까지요. 늦지 않게 와주세요!',
-      createdAt: Date.now() - 3600000 * 6, pinned: true, pinnedAt: Date.now() - 3600000 * 6 },
-    { id: 'c_r1_2', postId: 'r1', authorUid: 'lsy', authorName: '이수연',
-      body: '저는 6시 30분쯤 도착할 것 같아요 :)',
-      createdAt: Date.now() - 3600000 * 3, pinned: false, pinnedAt: null },
-    { id: 'c_r1_3', postId: 'r1', authorUid: 'kmj', authorName: '김민준',
-      body: '주차장이 좀 혼잡할 수 있어서 여유있게 출발하시면 좋을 것 같습니다.',
-      createdAt: Date.now() - 3600000, pinned: false, pinnedAt: null },
-  ],
-};
-
-// 알림 더미 — 내 모집글 알림(apply/cancel) + 내 참여·대기 알림(slotOpen/confirmed)
-// apply: status pending이면 수락/거절 가능. actorHostedCount/actorMannerScore — 주최자 승인 판단용 신뢰도 데이터
-const DUMMY_NOTIFICATIONS = [
-  { id: 'n1', type: 'apply',     actor: '이수연', actorHostedCount: 22, actorMannerScore: 95,
-    postId: 'r1', postTitle: '제이드팰리스 GC', time: '10분 전', read: false, status: 'pending' },
-  { id: 'n2', type: 'slotOpen',  actor: '',       postId: 'r3', postTitle: '블랙스톤 CC',     time: '40분 전', read: false },
-  { id: 'n3', type: 'apply',     actor: '김민준', actorHostedCount: 7, actorMannerScore: 82,
-    postId: 'r1', postTitle: '제이드팰리스 GC', time: '1시간 전', read: false, status: 'pending' },
-  { id: 'n4', type: 'confirmed', actor: '',       postId: 'r1', postTitle: '제이드팰리스 GC', time: '3시간 전', read: true },
-  { id: 'n5', type: 'cancel',    actor: '박지영', actorHostedCount: 1, actorMannerScore: 75,
-    postId: 'r1', postTitle: '제이드팰리스 GC', time: '어제',     read: true },
-  // 더미 — 내가 참여한 r1 모집에 다른 동반자가 댓글을 남긴 시나리오
-  { id: 'n6', type: 'comment',   actor: '이수연', postId: 'r1', postTitle: '제이드팰리스 GC',
-    time: '3시간 전', read: false },
-  // 더미 — 라운딩 종료 후 매너 평가 권유 (티오프+5h 트리거, Phase 2 Cloud Functions)
-  { id: 'n7', type: 'mannerEval', actor: '',       postId: 'r1', postTitle: '제이드팰리스 GC',
-    time: '6시간 전', read: false },
-];
-
-function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark }) {
+function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -106,7 +50,7 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
   const capTotal = rows.reduce((s, r) => s + r.cap, 0);
   const allFull = rows.every(r => r.cur >= r.cap);
   const isClosed = post.closed || allFull;
-  const isMine = post.author === '나';   // 내가 올린 모집글
+  const isMine = !!myUid && post.authorUid === myUid;
   const respondHours = waitlistRespondHours(post.date);
 
   return (
@@ -136,7 +80,7 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{post.author}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{post.authorName || post.author}</Text>
           <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />
           {!isMine && (
             <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -148,18 +92,18 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         </View>
       </View>
 
-      {/* 라운딩 정보 */}
+      {/* 라운딩 정보 — 확정형은 구장·일시가 카드의 1순위 정보라 시각 무게 강화 */}
       {post.type === 'fixed' ? (
         <>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{post.course}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, lineHeight: fs(24) }}>{post.course}</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20), marginTop: 5 }}>
             {post.date} ({post.day}) · {post.time}
           </Text>
         </>
       ) : (
         <>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>장소 · 날짜 미정</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 3 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, lineHeight: fs(24) }}>장소 · 날짜 미정</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20), marginTop: 5 }}>
             {post.openTime?.length === 1
               ? (post.openTime[0] === 'weekday' ? '📅 주중 선호 · 동반자와 함께 정해요' : '📅 주말 선호 · 동반자와 함께 정해요')
               : '동반자와 함께 정해요'}
@@ -189,87 +133,65 @@ function PostCard({ post, joined, applied, waitlistNum, isBookmarked, onApply, o
         </Text>
       </View>
 
-      {/* 참여 / 대기 */}
-      <View style={{ marginTop: 12 }}>
-        {isMine ? (
-          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.warmGray }}>내가 올린 모집글</Text>
-          </View>
-        ) : joined ? (
-          <View>
+      {/* 상태 표시 — 액션(참여 신청·참여하기·대기 신청·참여 취소)은 카드에서 빼고 상세로 위임.
+          카드는 훑어보기 용도, 결정은 상세에서. 빠른 참여 흐름을 의도적으로 한 단계 늦춰 신중함 확보. */}
+      {(isMine || joined || applied || waitlistNum || userProfile?.isRestricted || userProfile?.mannerEvaluationPending) && (
+        <View style={{ marginTop: 12 }}>
+          {isMine ? (
+            <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.warmGray }}>내가 올린 모집글</Text>
+            </View>
+          ) : joined ? (
             <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
               backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>참여 확정 ✓</Text>
             </View>
-            <TouchableOpacity onPress={onCancel} activeOpacity={0.7}
-              style={{ marginTop: 4, alignItems: 'center', paddingVertical: 6 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>
-                참여 취소
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : applied ? (
-          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-            backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>신청 완료 · 수락 대기 중</Text>
-          </View>
-        ) : waitlistNum ? (
-          <View>
+          ) : applied ? (
             <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
               backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>⏳ 대기 {waitlistNum}번</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>신청 완료 · 수락 대기 중</Text>
             </View>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
-              취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
-            </Text>
-          </View>
-        ) : userProfile?.isRestricted ? (
-          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B2A2A' }}>🚫 이용 제한 중</Text>
-          </View>
-        ) : userProfile?.mannerEvaluationPending ? (
-          <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-            backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>지난 라운딩 평가 후 신청 가능해요</Text>
-          </View>
-        ) : !isClosed ? (
-          <TouchableOpacity activeOpacity={0.85} onPress={onApply}
-            style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
-              {post.scope === 'all' ? '참여 신청' : '참여하기'}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <View>
-            <TouchableOpacity activeOpacity={0.85} onPress={onWaitlist}
-              style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-                backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
-                대기 신청{post.waitlistCount > 0 ? ` (현재 ${post.waitlistCount}명 대기)` : ''}
+          ) : waitlistNum ? (
+            <View>
+              <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+                backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>⏳ 대기 {waitlistNum}번</Text>
+              </View>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
               </Text>
-            </TouchableOpacity>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
-              마감된 모집이에요. 대기 신청하면 취소자 발생 시 알림을 받고 {respondHours}시간 내 응답하면 합류돼요.
-            </Text>
-          </View>
-        )}
-      </View>
+            </View>
+          ) : userProfile?.isRestricted ? (
+            <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B2A2A' }}>🚫 이용 제한 중</Text>
+            </View>
+          ) : (
+            <View style={{ borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+              backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>지난 라운딩 평가 후 신청 가능해요</Text>
+            </View>
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
 
 export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
-  const { schedules, setSchedules } = useContext(SchedulesContext);
-  const [posts, setPosts] = useState(DUMMY_POSTS);
-  const [joined, setJoined] = useState({ r1: true });   // 더미: r1 참여 확정
-  const [applied, setApplied] = useState({});           // 참여 신청함 (주최자 수락 대기)
-  const [waitlist, setWaitlist] = useState({ r3: 3 });  // 더미: r3 대기 3번
-  const [bookmarks, setBookmarks] = useState({});       // 관심 모집 {postId: true}
+  const { schedules, addSchedule, editSchedule } = useContext(SchedulesContext);
+  const [myUid, setMyUid] = useState(null);
+  const [friendUids, setFriendUids] = useState([]); // Phase 3-F5: 친구 uid 목록 (친구공개 모집 필터·로드)
+  const [friends, setFriends] = useState([]);        // Phase 3-F6: { id, name } — 친구지정 모달 등 표시용
+  const [posts, setPosts] = useState([]);
+  const [joined, setJoined] = useState({});            // Phase 3-C: loadMyApplications 등에서 채움
+  const [applied, setApplied] = useState({});          // Phase 3-C: 전체공개 신청 대기
+  const [waitlist, setWaitlist] = useState({});        // Phase 3-D: waitlistUids에서 복원
+  const [bookmarks, setBookmarks] = useState({});      // 관심 모집 {postId: true}
   // 댓글 — { [postId]: [comment...] }. Firebase 마이그레이션 시 서브컬렉션 roundups/{postId}/comments로 이관.
-  const [commentsByPost, setCommentsByPost] = useState(DUMMY_COMMENTS);
+  const [commentsByPost, setCommentsByPost] = useState({});
   // 친구 모집만 보기 토글 — true면 '전체' 탭 숨김 + 기본 view 'friend'
   const hideStranger = !!userProfile?.hideStrangerRoundups;
   const [view, setView] = useState(hideStranger ? 'friend' : 'all');  // all | friend | mine | watch
@@ -287,10 +209,81 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   useEffect(() => {
     getSentFriendRequests().then(setSentFriendRequestIds);
   }, []);
+
+  // Phase 3-A/C/F5 — 마운트 시 내 uid + 친구 + Firestore 모집글(전체·내·친구공개) + 참여·신청 상태 로드.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const uid = await getUid();
+        if (cancelled) return;
+        setMyUid(uid);
+        // 1차: 내 친구 + 내 신청 + 전체공개·내 모집 병렬
+        const [friendsList, myApps, allPosts, minePosts] = await Promise.all([
+          loadMyFriends(),
+          loadMyApplications(),
+          loadAllRoundups(),
+          loadMyRoundups(),
+        ]);
+        if (cancelled) return;
+        const fUids = friendsList.map(f => f.otherUid).filter(Boolean);
+        setFriendUids(fUids);
+        // 2차: 친구 닉네임 + 친구공개 모집 병렬 로드
+        const [friendUserSnaps, friendPostsArrays] = await Promise.all([
+          Promise.all(fUids.map(u => getDoc(doc(db, 'users', u)).catch(() => null))),
+          Promise.all(fUids.map(u => loadFriendRoundups(u).catch(() => []))),
+        ]);
+        if (cancelled) return;
+        setFriends(fUids.map((u, i) => ({
+          id: u,
+          name: friendUserSnaps[i]?.exists() ? (friendUserSnaps[i].data().nickname || '친구') : '친구',
+        })));
+        const friendPosts = friendPostsArrays.flat();
+        // 같은 모집글이 양쪽에 중복으로 잡힐 수 있으니 id 기준 dedupe
+        const map = new Map();
+        for (const p of [...allPosts, ...minePosts, ...friendPosts]) map.set(p.id, p);
+        const merged = Array.from(map.values());
+        setPosts(merged);
+        // 참여 확정 복원 — participantUids에 내 uid가 있고 내가 작성자가 아닌 모집
+        const joinedMap = {};
+        for (const p of merged) {
+          if (p.authorUid === uid) continue;
+          if (Array.isArray(p.participantUids) && p.participantUids.includes(uid)) {
+            joinedMap[p.id] = true;
+          }
+        }
+        setJoined(joinedMap);
+        // 신청 대기 복원 — applications status='pending'
+        const appliedMap = {};
+        for (const a of myApps) {
+          if (a.status === 'pending') appliedMap[a.roundupId] = true;
+        }
+        setApplied(appliedMap);
+        // 대기 복원 — waitlistUids에서 내 자리 번호(1-based)
+        const waitlistMap = {};
+        for (const p of merged) {
+          if (!Array.isArray(p.waitlistUids)) continue;
+          const idx = p.waitlistUids.indexOf(uid);
+          if (idx >= 0) waitlistMap[p.id] = idx + 1;
+        }
+        setWaitlist(waitlistMap);
+        // 인앱 알림 로드 — Phase 3-N2
+        try {
+          const notis = await loadMyNotifications(50);
+          if (!cancelled) setNotifications(notis);
+        } catch (e) {
+          if (__DEV__) console.warn('[RoundupTab] notifications load failed', e?.message);
+        }
+      } catch (e) {
+        if (__DEV__) console.warn('[RoundupTab] initial load failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
-  const [notifications, setNotifications] = useState(DUMMY_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
   const [showNoti, setShowNoti] = useState(false);            // 알림함
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
   const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
@@ -373,7 +366,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     const toAdd = [];
     for (const p of posts) {
       if (p.type !== 'fixed' || !p.date || !p.course) continue;
-      const isMine = p.author === '나';
+      const isMine = !!myUid && p.authorUid === myUid;
       const isJoined = !!joined[p.id];
       if (!isMine && !isJoined) continue;
       const compCount = p.teams > 1 ? 0 : (p.companions?.length || 0);
@@ -387,7 +380,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         ? (p.teamJoined?.reduce((s, c) => s + c, 0) || 0)
         : (p.joined || 0) + compCount;
       toAdd.push({
-        id: `rg-${p.id}`,
         roundupId: p.id,
         course: p.course,
         date: p.date,
@@ -397,12 +389,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       });
     }
     if (toAdd.length === 0) return;
-    setSchedules(prev => [...prev, ...toAdd]);
-    // 자동 등록된 일정에도 사용자 기본 알람(D-3·D-1·티오프 2h) 자동 예약 — HomeScreen·MyScheduleTab 신규 일정과 동일 패턴
-    for (const s of toAdd) {
-      applyDefaultAlarms(s, userProfile?.alarmDefaults);
-    }
-  }, [posts, joined, schedules, setSchedules, userProfile?.alarmDefaults]);
+    (async () => {
+      for (const data of toAdd) {
+        try {
+          const created = await addSchedule(data);
+          applyDefaultAlarms(created, userProfile?.alarmDefaults);
+        } catch (e) {
+          console.warn('[roundup] auto-schedule add failed:', e?.message);
+        }
+      }
+    })();
+  }, [posts, joined, schedules, addSchedule, userProfile?.alarmDefaults, myUid]);
 
   // 라운지 노출 윈도우 — 티오프 + 24h 이내만 노출, 이후 사용자 UI에서 감춤
   // (시스템 데이터는 [[data-retention]]에 따라 별도 보관: 일반 1년 / 분쟁 이력 모집글 3년)
@@ -427,22 +424,24 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // 친구 탭은 친구공개(friends) 모집만 — 전체공개는 '전체' 탭, 친구지정은 당사자에게만 따로 노출
   const friendTab = visiblePosts.filter(p => {
     if (p.scope !== 'friends') return false;
-    if (p.author === '나') return true;
-    return p.isFriend;
+    if (!!myUid && p.authorUid === myUid) return true;
+    return friendUids.includes(p.authorUid);
   });
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+24h 윈도우는 동일 적용
   // (지난 라운딩의 본인 활동 이력은 마이페이지 "내 라운지 활동"에서 별도 조회)
   const mineTab = posts.filter(p =>
-    (p.author === '나' || joined[p.id] || applied[p.id] || waitlist[p.id]) && isInVisibleWindow(p)
+    ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id]) && isInVisibleWindow(p)
   );
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
-  const matchTab = visiblePosts.filter(p => p.author !== '나' && matchesRoundup(p, userProfile.roundupMatch));
+  const matchTab = visiblePosts.filter(p => !(!!myUid && p.authorUid === myUid) && matchesRoundup(p, userProfile.roundupMatch));
   const matchCount = matchTab.length;
   const hasMatch = hasRoundupMatch(userProfile.roundupMatch);
   const tabList = view === 'friend' ? friendTab : view === 'mine' ? mineTab
     : view === 'watch' ? watchTab : view === 'match' ? matchTab : allTab;
-  const list = [...tabList].sort((a, b) => b.ts - a.ts);
+  // Firestore createdAt(Timestamp) 우선, 더미 호환 위해 ts fallback
+  const tsOf = (p) => (p.createdAt?.toMillis?.() ?? p.ts ?? 0);
+  const list = [...tabList].sort((a, b) => tsOf(b) - tsOf(a));
   // 소도시 예외 — 전체/친구 탭에서 보이는 모집글이 3개 이하면 조건 완화 안내
   const showSparseHint = (view === 'all' || view === 'friend') && list.length > 0 && list.length <= 3;
 
@@ -453,34 +452,50 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     storage.save(STORAGE_KEYS.profile, next);
   };
 
-  const handleCreate = (post) => {
-    // 수정 모드 — editingPost가 있으면 기존 모집글에 변경분 머지 + schedules 동기화 ([[roundup-edit-policy]] §5)
-    if (editingPost) {
-      const eid = editingPost.id;
-      setPosts(prev => prev.map(p => p.id === eid ? { ...p, ...post } : p));
-      // schedules 동기화 — date·time·course 변경 시 본인 자동 일정도 함께 갱신
-      setSchedules(prev => prev.map(s => {
-        if (s.roundupId !== eid) return s;
-        return { ...s, course: post.course || s.course, date: post.date || s.date,
-          day: post.day || s.day, time: post.time || s.time };
-      }));
-      setEditingPost(null);
-      return;
+  const handleCreate = async (post) => {
+    try {
+      // 수정 모드 — editingPost가 있으면 Firestore 업데이트 + 로컬 머지 + schedules 동기화
+      if (editingPost) {
+        const eid = editingPost.id;
+        await updateRoundupAsAuthor(eid, post);
+        setPosts(prev => prev.map(p => p.id === eid ? { ...p, ...post } : p));
+        // schedules 동기화 — date·time·course 변경 시 본인 자동 일정도 함께 갱신
+        const linked = schedules.filter(s => s.roundupId === eid);
+        for (const s of linked) {
+          try {
+            await editSchedule(s.id, {
+              course: post.course || s.course,
+              date: post.date || s.date,
+              day: post.day || s.day,
+              time: post.time || s.time,
+            });
+          } catch (e) { console.warn('[roundup] linked schedule edit failed:', e?.message); }
+        }
+        setEditingPost(null);
+        return;
+      }
+      const teams = post.teams || 1;
+      const payload = {
+        ...post,
+        authorName: userProfile?.nickname || '',
+        teams,
+        teamJoined: teams > 1 ? Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0)) : [1],
+        // 동반자 조건 기본값 — post에 없으면 '상관없음'/빈 배열
+        companion: post.companion || 'any',
+        skill: post.skill || 'any',
+        region: post.region || null,
+        tags: post.tags || [],
+      };
+      const created = await createRoundup(payload);
+      setPosts(prev => [created, ...prev]);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] handleCreate failed', e);
+      setAlert({
+        title: '모집글 저장에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
     }
-    const teams = post.teams || 1;
-    const base = {
-      ...post, id: 'r' + Date.now(), author: '나', isFriend: false,
-      authorHostedCount: 0, authorAttendedCount: 0, authorMannerScore: 70, waitlistCount: 0,
-      // 동반자 조건 기본값 — post에 없으면 '상관없음'/빈 배열
-      companion: post.companion || 'any',
-      skill: post.skill || 'any',
-      region: post.region || null,
-      tags: post.tags || [],
-      teams, closed: false, ts: Date.now(),
-    };
-    if (teams > 1) base.teamJoined = Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0));
-    else base.joined = 1;
-    setPosts(prev => [base, ...prev]);
   };
 
   // 친구 신청 ([[friend-add-feature]] Phase 2) — 라운지 프로필 진입점.
@@ -507,6 +522,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
   // 주최자 강퇴 ([[roundup-kick-policy]]) — 전체공개 모집의 수락된 참여자만, 월 2회 한도.
   // 강퇴된 사람: 패널티 X, 통보는 "주최자 사정으로 참여 취소" 블라인드. 대기자 호출(Phase 2)·정지 누적(Phase 2)은 Cloud Functions.
+  // target.id를 uid로 가정 — Phase 3 uid 통일 의존 ([[block-participation]]).
   const handleKick = async (postId, target, reason) => {
     if (!postId || !target?.id) return;
     const reached = await isKickLimitReached();
@@ -518,17 +534,38 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       });
       return;
     }
-    // 참여자 제거 + 정원 -1 (단체는 첫 채워진 팀에서 차감)
+    try {
+      await kickParticipant(postId, target.id);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] kickParticipant failed', e);
+      setAlert({
+        title: '강퇴 처리에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    // 강퇴된 자에게 알림 — 블라인드 정책 ([[roundup-kick-policy]] §3): actorName 비공개
+    const post = posts.find(p => p.id === postId);
+    createNotification({
+      type: 'kicked',
+      recipientUid: target.id,
+      actorName: '',  // 블라인드 — "주최자 사정으로 참여 취소" 표현
+      postId,
+      postTitle: post?.course || '',
+    }).catch(e => __DEV__ && console.warn('[RoundupTab] kicked noti fail', e?.message));
+    // 로컬 정원·참여자 동기화 (단체는 첫 채워진 팀에서 차감 — Firestore에선 단순 joined -1)
     setPosts(prev => prev.map(p => {
       if (p.id !== postId) return p;
+      const nextParts = (p.participantUids || []).filter(u => u !== target.id);
       if (p.teams > 1 && Array.isArray(p.teamJoined)) {
         const tj = [...p.teamJoined];
         for (let i = tj.length - 1; i >= 0; i--) {
           if (tj[i] > 0) { tj[i] -= 1; break; }
         }
-        return { ...p, teamJoined: tj };
+        return { ...p, participantUids: nextParts, teamJoined: tj };
       }
-      return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
+      return { ...p, participantUids: nextParts, joined: Math.max(0, (p.joined || 0) - 1) };
     }));
     await incrementKickCount();
     const remaining = await getKickRemainingThisMonth();
@@ -564,6 +601,44 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     setShowCreate(true);
   };
 
+  // 모집글 작성 진입 — 정지 상태 차단 (패널티 동의서 §5 / 콘텐츠 정책 §7)
+  const tryOpenCreate = () => {
+    // 영구 모집 박탈
+    if (userProfile?.isRecruitRestrictedPermanent) {
+      setAlert({
+        title: '모집글을 작성할 수 없어요',
+        message: '누적 위반으로 영구 모집 박탈이 적용되어 있어요.\n\n이의는 마이페이지의\n"자동 결정 이의 신청"으로 문의해주세요.',
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    const fmtDate = (iso) => {
+      const d = new Date(iso);
+      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    };
+    // 일반 정지 (노쇼/허위신고) — restrictUntil 미래
+    if (userProfile?.isRestricted && userProfile?.restrictUntil
+        && new Date(userProfile.restrictUntil).getTime() > Date.now()) {
+      setAlert({
+        title: '모집글을 작성할 수 없어요',
+        message: `이용 정지가 적용 중이에요.\n해제 예정일: ${fmtDate(userProfile.restrictUntil)}`,
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    // 콘텐츠 신고 누적 30일 모집 정지
+    if (userProfile?.recruitRestrictUntil
+        && new Date(userProfile.recruitRestrictUntil).getTime() > Date.now()) {
+      setAlert({
+        title: '모집글을 작성할 수 없어요',
+        message: `콘텐츠 신고 누적으로 모집 정지 중이에요.\n해제 예정일: ${fmtDate(userProfile.recruitRestrictUntil)}`,
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
+    setShowCreate(true);
+  };
+
   // 모집 인원 +1 — 단체는 빈 첫 팀에, 개별은 인원 (주최자가 신청을 수락할 때 호출)
   const bumpPostCount = (id) => {
     setPosts(prev => prev.map(p => {
@@ -579,27 +654,55 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   };
 
   // 참여 신청 — 확인 후 신청 (주최자 수락 대기)
-  // 참여 처리 — 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여 확정
-  const performJoinOrApply = (id) => {
+  // 참여 처리 — 전체공개는 applications에 pending 저장(수락 대기), 친구공개·친구지정은 joinRoundup 즉시 확정
+  const performJoinOrApply = async (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    if (post.scope === 'all') {
-      setApplied(prev => ({ ...prev, [id]: true }));
-      return;
-    }
-    // 친구공개·친구지정 — 바로 참여 확정 + 모집글 인원 +1
-    setJoined(prev => ({ ...prev, [id]: true }));
-    setPosts(prev => prev.map(p => {
-      if (p.id !== id) return p;
-      if (p.teams > 1) {
-        const tj = [...p.teamJoined];
-        for (let i = 0; i < tj.length; i++) {
-          if (tj[i] < 4) { tj[i] += 1; break; }
-        }
-        return { ...p, teamJoined: tj };
+    try {
+      if (post.scope === 'all') {
+        await applyToRoundup(id, post.authorUid, userProfile?.nickname || '');
+        setApplied(prev => ({ ...prev, [id]: true }));
+        // 주최자에게 신청 알림
+        createNotification({
+          type: 'apply',
+          recipientUid: post.authorUid,
+          actorName: userProfile?.nickname || '',
+          postId: id,
+          postTitle: post.course || '',
+          status: 'pending',
+        }).catch(e => __DEV__ && console.warn('[RoundupTab] apply noti fail', e?.message));
+        return;
       }
-      return { ...p, joined: (p.joined || 0) + 1 };
-    }));
+      // 친구공개·친구지정 — 바로 참여 확정 + 모집글 인원 +1
+      await joinRoundup(id);
+      setJoined(prev => ({ ...prev, [id]: true }));
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        if (p.teams > 1) {
+          const tj = [...p.teamJoined];
+          for (let i = 0; i < tj.length; i++) {
+            if (tj[i] < 4) { tj[i] += 1; break; }
+          }
+          return { ...p, teamJoined: tj };
+        }
+        return { ...p, joined: (p.joined || 0) + 1 };
+      }));
+      // 친구공개·친구지정 — 주최자에게 참여 확정 알림
+      createNotification({
+        type: 'confirmed',
+        recipientUid: post.authorUid,
+        actorName: userProfile?.nickname || '',
+        postId: id,
+        postTitle: post.course || '',
+      }).catch(e => __DEV__ && console.warn('[RoundupTab] confirmed noti fail', e?.message));
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] join/apply failed', e);
+      setAlert({
+        title: '참여 처리에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+    }
   };
 
   const confirmApply = (id) => {
@@ -618,34 +721,84 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     });
   };
 
-  // 대기 신청 — 현재 대기 인원 다음 순번 부여
-  const handleWaitlist = (id) => {
-    const post = posts.find(p => p.id === id);
-    setWaitlist(prev => ({ ...prev, [id]: (post?.waitlistCount || 0) + 1 }));
+  // 대기 신청 — waitlistUids에 내 uid 추가, 번호는 새 길이 (1-based)
+  const handleWaitlist = async (id) => {
+    if (!myUid) return;
+    try {
+      await joinWaitlist(id);
+      let myIdx = 1;
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        const cur = Array.isArray(p.waitlistUids) ? p.waitlistUids : [];
+        const next = cur.includes(myUid) ? cur : [...cur, myUid];
+        myIdx = next.indexOf(myUid) + 1;
+        return { ...p, waitlistUids: next };
+      }));
+      setWaitlist(prev => ({ ...prev, [id]: myIdx }));
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] joinWaitlist failed', e);
+      setAlert({
+        title: '대기 신청에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+    }
   };
 
   // 참여 취소 — 시스템 매너점수 차감 없음 (2026-05-25 단순화, [[roundup-penalty-policy]]).
   // 시점에 따른 골프장 위약금은 본인 부담. 노쇼만 별도 신고 시스템에서 처리 ([[noshow-report-system]]).
   // 대기자 자동 승격은 Phase 2 (Cloud Functions).
 
-  // 참여 취소 실행 — 확인은 호출 측에서
-  const performCancel = (id) => {
+  // 참여 취소 실행 — 확인은 호출 측에서.
+  // applied(전체공개 신청 대기) → cancelApplication / joined(확정 참여) → leaveRoundup + 정원 -1
+  const performCancel = async (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
-    // 1) 모집글 인원 -1 (마지막 채워진 자리에서)
-    setPosts(prev => prev.map(p => {
-      if (p.id !== id) return p;
-      if (p.teams > 1) {
-        const tj = [...p.teamJoined];
-        for (let i = tj.length - 1; i >= 0; i--) {
-          if (tj[i] > 0) { tj[i] -= 1; break; }
-        }
-        return { ...p, teamJoined: tj };
+    try {
+      if (applied[id]) {
+        await cancelApplication(id);
+        setApplied(prev => { const n = { ...prev }; delete n[id]; return n; });
+        // 주최자에게 신청 취소 알림
+        createNotification({
+          type: 'cancel',
+          recipientUid: post.authorUid,
+          actorName: userProfile?.nickname || '',
+          postId: id,
+          postTitle: post.course || '',
+        }).catch(e => __DEV__ && console.warn('[RoundupTab] cancel-apply noti fail', e?.message));
+        return;
       }
-      return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
-    }));
-    // 2) 내 joined 플래그 해제
-    setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
+      await leaveRoundup(id);
+      // 1) 모집글 인원 -1 (마지막 채워진 자리에서)
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        if (p.teams > 1) {
+          const tj = [...p.teamJoined];
+          for (let i = tj.length - 1; i >= 0; i--) {
+            if (tj[i] > 0) { tj[i] -= 1; break; }
+          }
+          return { ...p, teamJoined: tj };
+        }
+        return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
+      }));
+      // 2) 내 joined 플래그 해제
+      setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
+      // 주최자에게 확정 참여자 이탈 알림
+      createNotification({
+        type: 'cancel',
+        recipientUid: post.authorUid,
+        actorName: userProfile?.nickname || '',
+        postId: id,
+        postTitle: post.course || '',
+      }).catch(e => __DEV__ && console.warn('[RoundupTab] cancel-confirmed noti fail', e?.message));
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] cancel failed', e);
+      setAlert({
+        title: '취소 처리에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+    }
   };
 
   // 참여 취소 — D-7 이내는 시스템적으로 차단 ([[roundup-penalty-policy]] §1).
@@ -688,12 +841,37 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   };
 
   // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
-  const cancelWaitlist = (id) => {
-    setWaitlist(prev => { const n = { ...prev }; delete n[id]; return n; });
+  const cancelWaitlist = async (id) => {
+    if (!myUid) return;
+    try {
+      await leaveWaitlist(id);
+      setPosts(prev => prev.map(p => p.id === id
+        ? { ...p, waitlistUids: (p.waitlistUids || []).filter(u => u !== myUid) }
+        : p));
+      setWaitlist(prev => { const n = { ...prev }; delete n[id]; return n; });
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] leaveWaitlist failed', e);
+      setAlert({
+        title: '대기 취소에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+    }
   };
 
-  // 내 모집글 삭제 — 상세 화면도 닫는다
-  const handleDelete = (id) => {
+  // 내 모집글 삭제 — Firestore 삭제 후 로컬 정리, 상세 화면도 닫는다
+  const handleDelete = async (id) => {
+    try {
+      await deleteRoundup(id);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] handleDelete failed', e);
+      setAlert({
+        title: '삭제에 실패했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+      return;
+    }
     setPosts(prev => prev.filter(p => p.id !== id));
     setCommentsByPost(prev => { const n = { ...prev }; delete n[id]; return n; });
     setDetailId(null);
@@ -748,6 +926,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // 알림 탭 — 읽음 처리 후 진입 (mannerEval은 평가 모달, 그 외는 모집 상세)
   const openNotiPost = (n) => {
     setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
+    if (!n.read) {
+      markNotificationRead(n.id).catch(e => __DEV__ && console.warn('[RoundupTab] markRead fail', e?.message));
+    }
     setShowNoti(false);
     if (n.type === 'mannerEval') {
       const post = posts.find(p => p.id === n.postId);
@@ -756,8 +937,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
     setDetailId(n.postId);
   };
-  const readAllNoti = () => setNotifications(prev => prev.map(x => ({ ...x, read: true })));
-  const deleteNoti = (n) => setNotifications(prev => prev.filter(x => x.id !== n.id));
+  const readAllNoti = () => {
+    const snapshot = notifications;
+    setNotifications(prev => prev.map(x => ({ ...x, read: true })));
+    markAllNotificationsRead(snapshot).catch(e => __DEV__ && console.warn('[RoundupTab] markAll fail', e?.message));
+  };
+  const deleteNoti = (n) => {
+    setNotifications(prev => prev.filter(x => x.id !== n.id));
+    deleteNotification(n.id).catch(e => __DEV__ && console.warn('[RoundupTab] deleteNoti fail', e?.message));
+  };
 
   // 사용자 차단 — 일일 한도 5명, 양방향 모집글 숨김. 차단 사실은 상대에게 알리지 않음.
   // 확인 모달은 호출자(RoundupDetail 등)에서 처리 → 여기는 즉시 차단 + 참여/신청/대기 자동 정리.
@@ -777,16 +965,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     if (!result.ok) return;
     setUserProfile(result.profile);
     storage.save(STORAGE_KEYS.profile, result.profile);
+    // Firestore write-through — users/{myUid}.blockedUids 동기화 (멀티기기 일관성)
+    fsBlockUid(target.id).catch(e => __DEV__ && console.warn('[RoundupTab] fsBlockUid failed', e?.message));
     // 차단된 사용자가 actor·author인 알림도 모두 정리 (수락 알림 등으로 다시 진입 방지).
     const targetKey = target.id;
     setNotifications(prev => prev.filter(n => {
       if (n.actor === target.name || n.actorId === targetKey) return false;
       const p = posts.find(pp => pp.id === n.postId);
-      if (p && ((p.authorId || p.author) === targetKey)) return false;
+      if (p && ((p.authorUid || p.authorId || p.author) === targetKey)) return false;
       return true;
     }));
     // 차단한 사람이 author인 모집에서 내 참여/신청/대기 자동 취소.
-    const isAuthored = (p) => (p.authorId || p.author) === targetKey;
+    const isAuthored = (p) => (p.authorUid || p.authorId || p.author) === targetKey;
     const affectedIds = posts.filter(isAuthored).map(p => p.id);
     if (affectedIds.length > 0) {
       const drop = (m) => { const n = { ...m }; for (const id of affectedIds) delete n[id]; return n; };
@@ -821,7 +1011,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     });
   };
   // 전체삭제 — confirm은 RoundupNotifications 모달 안에서 자체 처리 (모달 위에 떠야 안 가려짐)
-  const clearAllNoti = () => setNotifications([]);
+  const clearAllNoti = () => {
+    const snapshot = notifications;
+    setNotifications([]);
+    // 일괄 삭제 — best-effort 병렬
+    Promise.all(snapshot.map(n => deleteNotification(n.id).catch(e => {
+      if (__DEV__) console.warn('[RoundupTab] clearAll fail', e?.message);
+    })));
+  };
 
   // 라운지 탭(asScreen)으로 띄울 땐 Modal 래퍼 없이 일반 화면처럼 동작
   const body = (
@@ -852,7 +1049,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           {/* 모집글 작성 */}
-          <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.8}
+          <TouchableOpacity onPress={tryOpenCreate} activeOpacity={0.8}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ backgroundColor: C.burgundy, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7,
               flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -1052,7 +1249,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
                   ⬆ 실제 모집글이 올라오면 이렇게 보여요
                 </Text>
-                <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.85}
+                <TouchableOpacity onPress={tryOpenCreate} activeOpacity={0.85}
                   style={{ marginTop: 14, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>+ 첫 모집글 작성하기</Text>
                 </TouchableOpacity>
@@ -1065,7 +1262,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           )
         ) : (
           list.map(p => (
-            <PostCard key={p.id} post={p} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
+            <PostCard key={p.id} post={p} myUid={myUid} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
               isBookmarked={!!bookmarks[p.id]}
               onApply={() => confirmApply(p.id)}
               onWaitlist={() => handleWaitlist(p.id)}
@@ -1105,7 +1302,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onClose={() => { setShowCreate(false); setEditingPost(null); }}
         onCreate={handleCreate}
         initialPost={editingPost}
-        friends={DUMMY_FRIENDS} />
+        friends={friends} />
 
       {/* 맞춤 모집 조건 설정 */}
       <RoundupMatchModal
@@ -1119,7 +1316,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       <RoundupIntroModal
         visible={showIntro}
         onClose={() => setShowIntro(false)}
-        onCreatePress={() => setShowCreate(true)} />
+        onCreatePress={tryOpenCreate} />
 
       {/* 신뢰 등급 설명 팝업 */}
       <TrustGradeModal visible={!!gradeModalKey} highlightKey={gradeModalKey}
@@ -1128,6 +1325,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       {/* 모집 상세 화면 */}
       <RoundupDetail
         post={detailPost}
+        myUid={myUid}
+        friendUids={friendUids}
         visible={!!detailPost}
         joined={!!(detailId && joined[detailId])}
         applied={!!(detailId && applied[detailId])}

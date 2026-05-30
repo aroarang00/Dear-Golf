@@ -1,6 +1,6 @@
 import {
   collection, query, where, orderBy, getDocs, getDoc,
-  addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+  addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
   arrayUnion, arrayRemove, increment,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
@@ -97,6 +97,9 @@ export async function createRoundup(data) {
     ageGroup: data.ageGroup || null,
     companion: data.companion || null,
     skill: data.skill || null,
+    region: data.region || null,
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    openTime: Array.isArray(data.openTime) ? data.openTime : null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -190,4 +193,116 @@ export async function closeRoundup(postId) {
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
   await updateDoc(ref, { closed: true, updatedAt: serverTimestamp() });
+}
+
+// =============================================================
+// roundupApplications/{appId} — 전체공개 모집 참여 신청
+//
+// Doc ID = `{roundupId}_{applicantUid}` (deterministic, 중복 신청 차단)
+// status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+// 친구공개·친구지정 모집은 즉시 확정이라 이 컬렉션 사용 X (joinRoundup 직접 호출).
+//
+// 보안 규칙 (firestore.rules) update 3분기:
+//  (1) 주최자: pending → accepted/rejected
+//  (2) 신청자: pending → cancelled
+//  (3) 신청자: rejected/cancelled → pending (재신청)
+// =============================================================
+
+const APP_COLLECTION = 'roundupApplications';
+const appDocId = (roundupId, applicantUid) => `${roundupId}_${applicantUid}`;
+
+// 참여 신청 — 신규 create 또는 거절/취소 후 재신청(update)
+// authorUid·applicantName은 알림·이력 보존용 denorm 필드
+export async function applyToRoundup(postId, authorUid, applicantName = '') {
+  const uid = await getUid();
+  if (!uid) throw new Error('Not authenticated');
+  if (!postId || !authorUid) throw new Error('postId and authorUid required');
+  if (authorUid === uid) throw new Error('Cannot apply to own roundup');
+
+  const id = appDocId(postId, uid);
+  const ref = doc(db, APP_COLLECTION, id);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    const cur = snap.data().status;
+    if (cur === 'pending' || cur === 'accepted') {
+      throw new Error('Already applied');
+    }
+    // rejected/cancelled → pending (재신청)
+    await updateDoc(ref, { status: 'pending', updatedAt: serverTimestamp() });
+  } else {
+    await setDoc(ref, {
+      roundupId: postId,
+      applicantUid: uid,
+      applicantName,
+      authorUid,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+  return id;
+}
+
+// 신청자 본인 취소 (pending → cancelled)
+export async function cancelApplication(postId) {
+  const uid = await getUid();
+  if (!uid) throw new Error('Not authenticated');
+  if (!postId) throw new Error('postId required');
+  const id = appDocId(postId, uid);
+  await updateDoc(doc(db, APP_COLLECTION, id), {
+    status: 'cancelled',
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// 주최자 수락 — applications status='accepted' + roundup.participantUids 추가
+// ※ 두 단계 분리 호출 — 사이에 실패 시 정합성 깨질 수 있음.
+//   정확한 트랜잭션은 Cloud Function 권장(기존 정원 처리 주석과 일관).
+export async function acceptApplication(postId, applicantUid) {
+  if (!postId || !applicantUid) throw new Error('postId and applicantUid required');
+  await updateDoc(doc(db, APP_COLLECTION, appDocId(postId, applicantUid)), {
+    status: 'accepted',
+    updatedAt: serverTimestamp(),
+  });
+  await updateDoc(doc(db, COLLECTION, postId), {
+    participantUids: arrayUnion(applicantUid),
+    joined: increment(1),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// 주최자 거절 (pending → rejected)
+export async function rejectApplication(postId, applicantUid) {
+  if (!postId || !applicantUid) throw new Error('postId and applicantUid required');
+  await updateDoc(doc(db, APP_COLLECTION, appDocId(postId, applicantUid)), {
+    status: 'rejected',
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// 내가 신청한 모집 목록 — applied[postId] state 대체용
+// pending(수락 대기) + accepted(이미 확정)를 같이 받아 라운지 카드 상태 표시에 활용
+export async function loadMyApplications() {
+  const uid = await getUid();
+  if (!uid) return [];
+  const q = query(
+    collection(db, APP_COLLECTION),
+    where('applicantUid', '==', uid),
+    where('status', 'in', ['pending', 'accepted']),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// 주최자: 특정 모집글의 pending 신청 목록 — 상세 화면에서 수락/거절
+export async function loadApplicationsForRoundup(postId) {
+  if (!postId) return [];
+  const q = query(
+    collection(db, APP_COLLECTION),
+    where('roundupId', '==', postId),
+    where('status', '==', 'pending'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }

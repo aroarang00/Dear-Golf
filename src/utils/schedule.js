@@ -1,0 +1,73 @@
+import {
+  collection, query, where, orderBy, getDocs,
+  addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+} from 'firebase/firestore';
+import { db, getUid } from './firebase';
+
+// =============================================================
+// schedules/{scheduleId} — 라운딩 예정 일정 (본인만 read/write)
+//
+// 보안 규칙 (firestore.rules):
+//  - read   : ownerUid == me
+//  - create : ownerUid == me
+//  - update : ownerUid == me  AND  ownerUid 변조 금지
+//  - delete : ownerUid == me
+//
+// 데이터 마이그레이션 정책 ([[data-migration]]):
+//  옛 AsyncStorage(@dg_schedules) 데이터는 이관 X. Firestore부터 새로 시작.
+//
+// dDay·weather·wind·duration 등 파생/외부 값은 클라이언트 계산이라 저장 X.
+// =============================================================
+
+const COLLECTION = 'schedules';
+
+// 내 일정 목록 — date 오름차순. 인덱스 (ownerUid, date asc) 사용.
+export async function loadMySchedules() {
+  const uid = await getUid();
+  if (!uid) return [];
+  const q = query(
+    collection(db, COLLECTION),
+    where('ownerUid', '==', uid),
+    orderBy('date', 'asc'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// 신규 일정 생성. dDay/weather 등 파생값은 호출 측에서 normalizeSchedules로 채움.
+export async function createSchedule(data) {
+  const uid = await getUid();
+  if (!uid) throw new Error('Not authenticated');
+  const sched = {
+    ownerUid: uid,
+    course: data.course || '',
+    courseLogId: data.courseLogId || null,
+    courseKakaoId: data.courseKakaoId || null,
+    date: data.date || '',
+    day: data.day || '',
+    time: data.time || '',
+    members: typeof data.members === 'number' ? data.members : 4,
+    roundupId: data.roundupId || null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  const ref = await addDoc(collection(db, COLLECTION), sched);
+  return { id: ref.id, ...sched };
+}
+
+// 기존 일정 수정. ownerUid는 변경 금지(보안 규칙 강제).
+export async function updateSchedule(scheduleId, data) {
+  if (!scheduleId) throw new Error('scheduleId required');
+  const ref = doc(db, COLLECTION, scheduleId);
+  const { ownerUid, id, createdAt, ...updatable } = data;
+  await updateDoc(ref, {
+    ...updatable,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// 일정 삭제 — 본인만 가능 (보안 규칙).
+export async function deleteSchedule(scheduleId) {
+  if (!scheduleId) throw new Error('scheduleId required');
+  await deleteDoc(doc(db, COLLECTION, scheduleId));
+}

@@ -55,15 +55,17 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 1 — Dear Golf 인트로 (팔레스카이 배경) */}
         <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-          {/* italic Lora 'f' 디센더 잘림 방지 — lineHeight 명시 + allowFontScaling false + 가로 여유
-              SplashOverlay와 톤 일치 — #1A1A1A + 미세 textShadow로 또렷하게 */}
-          <Text allowFontScaling={false}
-            style={{
-              fontFamily: F.brand, fontSize: fs(44), lineHeight: fs(56), color: '#1A1A1A', paddingHorizontal: 6,
-              textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0,
-            }}>
-            Dear Golf
-          </Text>
+          {/* SplashOverlay와 동일 패턴 — adjustsFontSizeToFit + numberOfLines 1 + lineHeight 미명시
+              안드로이드 italic Lora 'f'·'G' 디센더 잘림 방지(메모리: feedback_cross_platform_check) */}
+          <View style={{ width: '88%', maxWidth: 420, alignItems: 'center', paddingVertical: 8 }}>
+            <Text allowFontScaling={false} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}
+              style={{
+                fontFamily: F.brand, fontSize: fs(44), color: '#1A1A1A', textAlign: 'center',
+                textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0,
+              }}>
+              Dear Golf
+            </Text>
+          </View>
           <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#1A3D52', letterSpacing: 1 }}>나만의 골프 캐디</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
@@ -123,7 +125,7 @@ export function OnboardingIntro({ onDone }) {
             </View>
           </View>
           {/* 아래쪽 — 한 줄 설명 패널 */}
-          <View style={{ backgroundColor: C.navy, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
+          <View style={{ backgroundColor: C.navy, paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', textAlign: 'center', lineHeight: 30 }}>
               일정·날씨·교통을 한눈에
             </Text>
@@ -138,50 +140,50 @@ export function OnboardingIntro({ onDone }) {
               <View style={{ flex: 1, backgroundColor: C.paleSky }} />
               <View style={{ flex: 1, backgroundColor: C.burgundy }} />
             </View>
-            <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 2, marginBottom: 3 }}>나의 라운딩 기록</Text>
-              <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.charcoal }}>MY</Text>
+            <View style={{ paddingHorizontal: 24, paddingTop: 14 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 2, marginBottom: 2 }}>나의 라운딩 기록</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(26), color: C.charcoal }}>MY</Text>
             </View>
-            <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginTop: 18 }}>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginTop: 12 }}>
               {[['라운딩', '24'], ['평균타', '92'], ['베스트', '78']].map(([l, v]) => (
-                <View key={l} style={{ flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>{v}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{l}</Text>
+                <View key={l} style={{ flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.charcoal, fontWeight: '700' }}>{v}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{l}</Text>
                 </View>
               ))}
             </View>
-            <View style={{ marginHorizontal: 24, marginTop: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+            <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 11 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.05.24 토 · 제이드팰리스 GC</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.burgundy, fontWeight: '700' }}>88</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.burgundy, fontWeight: '700' }}>88</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +16</Text>
               </View>
-              <View style={{ borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 8, marginTop: 6 }}>
+              <View style={{ borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 8, marginTop: 4 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>드라이버가 잘 맞은 날 ⛳</Text>
               </View>
             </View>
-            <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+            <View style={{ marginHorizontal: 24, marginTop: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 11 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.04.18 토 · 안성베네스트 CC</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.charcoal, fontWeight: '700' }}>91</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>91</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +19</Text>
               </View>
-              <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 6 }}>
+              <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 4 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>퍼팅 감이 좋았던 하루 ⛳</Text>
               </View>
             </View>
-            <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+            <View style={{ marginHorizontal: 24, marginTop: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 11 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.03.22 일 · 남서울 CC</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(30), color: C.charcoal, fontWeight: '700' }}>85</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>85</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +13</Text>
               </View>
-              <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 6 }}>
+              <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 4 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>아이언이 살아난 라운드 ⛳</Text>
               </View>
             </View>
           </View>
-          <View style={{ backgroundColor: C.burgundy, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
+          <View style={{ backgroundColor: C.burgundy, paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', textAlign: 'center', lineHeight: 30 }}>
               나만의 골프 기록을 모아서
             </Text>
@@ -233,7 +235,7 @@ export function OnboardingIntro({ onDone }) {
               <Text style={{ fontFamily: F.en, fontSize: fs(36), color: '#A8C589', fontWeight: '700' }}>−2</Text>
             </View>
           </View>
-          <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 32, paddingTop: 32, paddingBottom: 30 }}>
+          <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', textAlign: 'center', lineHeight: 30 }}>
               특별한 순간은 명예의 전당에
             </Text>
@@ -244,23 +246,23 @@ export function OnboardingIntro({ onDone }) {
             위쪽(어두운 navy) ↔ 아래쪽(navy) 시각 분리 — 다른 페이지(2·3·4)와 동일 패턴 */}
         <View style={{ width: SW, backgroundColor: '#0F2638' }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: 16, paddingHorizontal: 28 }}>
+            contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 18, paddingBottom: 12, paddingHorizontal: 24 }}>
             {/* 상단 — 라벨 + 라운지 워드마크 (다른 페이지 헤더와 발란스) */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.75)', letterSpacing: 3, marginBottom: 8 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.75)', letterSpacing: 3, marginBottom: 6 }}>
               DEAR GOLF
             </Text>
-            <Text style={{ fontFamily: F.serifKR, fontSize: fs(34), color: C.bgPrimary, lineHeight: fs(42), marginBottom: 10 }}>
+            <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.bgPrimary, lineHeight: fs(34), marginBottom: 6 }}>
               라운지
             </Text>
-            <View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginBottom: 22 }} />
+            <View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginBottom: 14 }} />
 
             {/* 메인 헤드라인 — 핵심 메시지 */}
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', lineHeight: 31, marginBottom: 32 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#fff', lineHeight: 28, marginBottom: 18 }}>
               4명 채우기,{'\n'}이제 연락 돌리지 마세요
             </Text>
 
-            {/* 4가지 모집 방식 1열 카드 — 가로 레이아웃 (아이콘 + 큰 타이틀·설명) */}
-            <View style={{ gap: 14 }}>
+            {/* 4가지 모집 방식 1열 카드 — 가로 레이아웃 (아이콘 + 타이틀·설명) */}
+            <View style={{ gap: 10 }}>
               {[
                 ['👥', '친구공개로 모집', '내 친구·친구의 친구까지'],
                 ['🎯', '친구지정으로 모집', '고른 친구에게만'],
@@ -268,23 +270,23 @@ export function OnboardingIntro({ onDone }) {
                 ['💬', '친구랑 상의해서 모집', '오픈형 — 함께 정하기'],
               ].map(([icon, title, sub]) => (
                 <View key={title} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 14,
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
                   backgroundColor: 'rgba(255,255,255,0.08)',
                   borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
-                  borderRadius: 14, paddingVertical: 18, paddingHorizontal: 18,
+                  borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
                 }}>
                   <View style={{
-                    width: 52, height: 52, borderRadius: 12,
+                    width: 44, height: 44, borderRadius: 10,
                     backgroundColor: 'rgba(245,230,168,0.12)',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: fs(24) }}>{icon}</Text>
+                    <Text style={{ fontSize: fs(20) }}>{icon}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff', marginBottom: 3 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 2 }}>
                       {title}
                     </Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.65)', lineHeight: 18 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.65)', lineHeight: 16 }}>
                       {sub}
                     </Text>
                   </View>
@@ -304,23 +306,23 @@ export function OnboardingIntro({ onDone }) {
             위쪽(어두운 그린) ↔ 아래쪽(그린) 시각 분리 */}
         <View style={{ width: SW, backgroundColor: '#1E3528' }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: 16, paddingHorizontal: 28 }}>
+            contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 18, paddingBottom: 12, paddingHorizontal: 24 }}>
             {/* 상단 — 라벨 + 코스 워드마크 (라운지와 동일 발란스) */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.75)', letterSpacing: 3, marginBottom: 8 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.75)', letterSpacing: 3, marginBottom: 6 }}>
               DEAR GOLF
             </Text>
-            <Text style={{ fontFamily: F.serifKR, fontSize: fs(34), color: C.bgPrimary, lineHeight: fs(42), marginBottom: 10 }}>
+            <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.bgPrimary, lineHeight: fs(34), marginBottom: 6 }}>
               코스
             </Text>
-            <View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginBottom: 22 }} />
+            <View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginBottom: 14 }} />
 
             {/* 메인 헤드라인 — 사용자 페인 포인트 직격 */}
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', lineHeight: 31, marginBottom: 32 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#fff', lineHeight: 28, marginBottom: 18 }}>
               맛집·구장 정보,{'\n'}머릿속 대신 여기에
             </Text>
 
             {/* 4가지 핵심 기능 1열 카드 — 라운지와 동일 패턴 */}
-            <View style={{ gap: 14 }}>
+            <View style={{ gap: 10 }}>
               {[
                 ['🍴', '골프장 근처 맛집', '어디 저장했는지 잊지 않게 한 곳에'],
                 ['💬', '골퍼들의 생생한 구장 정보', '다녀온 사람만 아는 진짜 후기'],
@@ -328,23 +330,23 @@ export function OnboardingIntro({ onDone }) {
                 ['⛳', '방문 골프장 리마인드', '한줄 메모로 기억을 남겨두기'],
               ].map(([icon, title, sub]) => (
                 <View key={title} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 14,
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
                   backgroundColor: 'rgba(255,255,255,0.08)',
                   borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
-                  borderRadius: 14, paddingVertical: 18, paddingHorizontal: 18,
+                  borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
                 }}>
                   <View style={{
-                    width: 52, height: 52, borderRadius: 12,
+                    width: 44, height: 44, borderRadius: 10,
                     backgroundColor: 'rgba(245,230,168,0.12)',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: fs(24) }}>{icon}</Text>
+                    <Text style={{ fontSize: fs(20) }}>{icon}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff', marginBottom: 3 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 2 }}>
                       {title}
                     </Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.65)', lineHeight: 18 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.65)', lineHeight: 16 }}>
                       {sub}
                     </Text>
                   </View>

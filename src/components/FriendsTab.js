@@ -11,6 +11,9 @@ import {
   isFriendRequestLimitReached, incrementFriendRequestCount,
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
+import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
+import { db, getUid } from '../utils/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // 친구 찾기에서 받은 후보(간단 필드) → 친구 목록 객체로 변환
 const personToFriend = (p) => ({
@@ -29,42 +32,6 @@ const AVATARS = [
   { bg: '#6B8B5E', fg: '#fff' },
 ];
 
-// 친구 더미 데이터 — Firebase 연동 전 UI 표시용. 다른 화면(라운지 친구지정 등)에서도 import.
-export const DUMMY_FRIENDS = [
-  {
-    id: 'f1', name: '김민준', style: '장타형 드라이버', handicap: 12, roundsTogether: 8,
-    hostedCount: 7, attendedCount: 14, mannerScore: 82,   // 활동: 브론즈 / 매너: 좋음
-    recent: { course: '남촌 골프클럽', date: '5.01', score: 84, par: 72 },
-    stats: { rounds: 28, avg: 89, best: 82 },
-    feed: [
-      { id: 'm1', course: '남촌 골프클럽', date: '2025.05.01', score: 84, par: 72, rating: 4, memo: '드라이버가 잘 맞은 날', special: 'EAGLE', likedBy: ['이수연', '오세훈', '박지영'] },
-      { id: 'm2', course: '제이드팰리스 GC', date: '2025.04.18', score: 88, par: 72, rating: 3, memo: '' },
-      { id: 'm3', course: '베어크리크 GC', date: '2025.03.30', score: 91, par: 72, rating: 3, memo: '바람이 강해 고전했다', likedBy: ['김도윤'] },
-    ],
-  },
-  {
-    id: 'f2', name: '이수연', style: '정교한 아이언샷', handicap: 18, roundsTogether: 3,
-    hostedCount: 22, attendedCount: 18, mannerScore: 95,   // 활동: 실버 / 매너: 매너왕
-    recent: { course: '블랙스톤 CC', date: '4.28', score: 92, par: 72 },
-    stats: { rounds: 15, avg: 95, best: 91 },
-    feed: [
-      { id: 's1', course: '블랙스톤 CC', date: '2025.04.28', score: 92, par: 72, rating: 4, memo: '퍼팅 감이 좋았어요', likedBy: ['오세훈', '문하린'] },
-      { id: 's2', course: '레이크사이드 CC', date: '2025.04.05', score: 97, par: 72, rating: 3, memo: '' },
-    ],
-  },
-  {
-    id: 'f3', name: '오세훈', style: '안정적인 코스매니지먼트', handicap: 6, roundsTogether: 15,
-    hostedCount: 220, attendedCount: 88, mannerScore: 96,   // 활동: 레전드 / 매너: 매너왕
-    recent: { course: '제이드팰리스 GC', date: '4.20', score: 78, par: 72 },
-    stats: { rounds: 42, avg: 81, best: 75 },
-    feed: [
-      { id: 'o1', course: '제이드팰리스 GC', date: '2025.04.20', score: 78, par: 72, rating: 5, memo: '인생 라운딩 ⛳', special: 'HOLE IN ONE', likedBy: ['김민준', '이수연', '한도현', '서주아'] },
-      { id: 'o2', course: '사우스스프링스 CC', date: '2025.04.02', score: 80, par: 72, rating: 4, memo: '' },
-      { id: 'o3', course: '남촌 골프클럽', date: '2025.03.15', score: 79, par: 72, rating: 4, memo: '아이언이 핀에 잘 붙었다' },
-    ],
-  },
-];
-
 function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGradePress }) {
   const r = friend.recent;
   const diff = r ? r.score - r.par : 0;
@@ -74,11 +41,11 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
       style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 14, marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: palette.fg }}>{friend.name.charAt(0)}</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{friend.name}</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{friend.name || '친구'}</Text>
             <TrustBadge grade={grade} onPress={onGradePress} />
             {muted && <Text style={{ fontSize: fs(11) }}>🔕</Text>}
           </View>
@@ -110,7 +77,7 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
 export function FriendsTab({ navigation, onInvite }) {
   const { userProfile } = React.useContext(UserContext);
   const [search, setSearch] = useState('');
-  const [friends, setFriends] = useState(DUMMY_FRIENDS);
+  const [friends, setFriends] = useState([]);
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [profileFriend, setProfileFriend] = useState(null);
@@ -118,6 +85,72 @@ export function FriendsTab({ navigation, onInvite }) {
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
   const listScrollRef = useRef(null);
+
+  // Phase 3-F2 — 마운트 시 내 users/{uid} 문서 ensure + 친구·신청 목록 Firestore 로드.
+  // users/{uid}.nickname은 다른 사용자가 내 이름을 조회하는 단일 소스. F4에서 MyPage 편집 시 동기화.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const uid = await getUid();
+        if (!uid || cancelled) return;
+        // 1) 내 users 문서 ensure (없으면 nickname으로 생성)
+        const meRef = doc(db, 'users', uid);
+        const meSnap = await getDoc(meRef);
+        if (!meSnap.exists()) {
+          await setDoc(meRef, {
+            uid,
+            nickname: userProfile?.nickname || '',
+            blockedUids: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } else if (userProfile?.nickname && meSnap.data().nickname !== userProfile.nickname) {
+          // 닉네임 변경 시 동기화 (간단 케이스만, 30일 제한은 F4 MyPage에서)
+          await setDoc(meRef, { nickname: userProfile.nickname, updatedAt: serverTimestamp() }, { merge: true });
+        }
+        // 2) 친구·받은 신청·보낸 신청 병렬 로드
+        const [friendsList, received, sent] = await Promise.all([
+          loadMyFriends(), loadReceivedRequests(), loadSentRequests(),
+        ]);
+        if (cancelled) return;
+        // 3) 상대 uid 모음 → users 문서 한 번에 fetch (Promise.all)
+        const otherUids = Array.from(new Set([
+          ...friendsList.map(f => f.otherUid),
+          ...received.map(r => r.requesterUid),
+          ...sent.map(s => s.recipientUid),
+        ].filter(Boolean)));
+        const userDocs = await Promise.all(
+          otherUids.map(u => getDoc(doc(db, 'users', u)).catch(() => null))
+        );
+        if (cancelled) return;
+        const nameByUid = {};
+        userDocs.forEach((snap, i) => {
+          if (snap?.exists()) nameByUid[otherUids[i]] = snap.data().nickname || '';
+        });
+        // 4) UI 객체로 매핑 — 옛 더미 형태에 맞추되 부재 필드는 fallback
+        const toMinimal = (uid) => ({
+          id: uid,
+          name: nameByUid[uid] || '친구',
+          style: '',
+          hostedCount: 0, attendedCount: 0, mannerScore: 0,
+          recent: null,
+          stats: { rounds: 0, avg: null, best: null },
+          feed: [],
+        });
+        setFriends(friendsList.map(f => toMinimal(f.otherUid)));
+        setReceivedRequests(received.map(r => ({
+          id: r.requesterUid,
+          name: nameByUid[r.requesterUid] || '친구',
+          hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: null,
+        })));
+        setSentRequests(sent.map(s => s.recipientUid));
+      } catch (e) {
+        if (__DEV__) console.warn('[FriendsTab] initial load failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userProfile?.nickname]);
 
   // 친구 탭 재방문 시 — 검색·프로필·찾기 닫고 목록 맨 위로 초기화
   useEffect(() => {
@@ -132,11 +165,8 @@ export function FriendsTab({ navigation, onInvite }) {
     });
     return unsub;
   }, [navigation]);
-  const [sentRequests, setSentRequests] = useState([]);   // 보낸 신청 — 후보 id 배열
-  const [receivedRequests, setReceivedRequests] = useState([   // 받은 신청 (더미)
-    { id: 'r1', name: '문하린', hostedCount: 9, attendedCount: 12, mannerScore: 87, avg: 94 },
-    { id: 'r2', name: '배수지', hostedCount: 3, attendedCount: 7, mannerScore: 79, avg: 99 },
-  ]);
+  const [sentRequests, setSentRequests] = useState([]);   // 보낸 신청 — recipientUid 배열
+  const [receivedRequests, setReceivedRequests] = useState([]);   // 받은 신청 — 마운트 useEffect가 채움
 
   // 차단 시 친구 자동 일방 해지 ([[friend-relationship]] §2).
   // 정책: 일반 차단 = 친구 관계 일방 해지(영구). 차단 해제해도 친구는 복원 X — 재신청 필요.
@@ -162,30 +192,56 @@ export function FriendsTab({ navigation, onInvite }) {
   const toggleMute = (id) => setMuted(p => ({ ...p, [id]: !p[id] }));
   const hideFriend = (id) => setHidden(p => ({ ...p, [id]: true }));
 
-  // 친구 신청 — 보낸 신청 목록에 추가 (양쪽 수락 흐름: 상대 수락 전까지 '신청함').
-  // 일 10건 한도 ([[friend-add-feature]] §22, 스팸 방지). 같은 사람 재신청은 카운트 X (멱등).
-  // 결과 반환: FriendFinder Modal 안에서 자체 alert 띄우도록 (글로벌 showAppAlert는 Modal 뒤로 가려짐).
+  // 친구 신청 — Firestore friendships pending doc 생성 + 보낸 신청 state 추가.
+  // 일 10건 한도 ([[friend-add-feature]] §22). 같은 사람 재신청은 카운트 X (멱등).
+  // 결과 반환: FriendFinder Modal 안에서 자체 alert 띄우도록.
   const sendRequest = async (person) => {
     if (sentRequests.includes(person.id)) return { ok: true }; // 멱등
     const reached = await isFriendRequestLimitReached();
     if (reached) return { ok: false, reason: 'limit' };
+    try {
+      await sendFriendRequest(person.id);
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] sendFriendRequest failed', e?.message);
+      return { ok: false, reason: 'failed' };
+    }
     setSentRequests(p => [...p, person.id]);
     await incrementFriendRequestCount();
     return { ok: true };
   };
-  // 친구 신청 취소 — 한도 카운트는 환불 X (스팸 우회 방지)
-  const cancelRequest = (person) => {
+  // 친구 신청 취소 — Firestore doc 삭제. 한도 카운트는 환불 X (스팸 우회 방지)
+  const cancelRequest = async (person) => {
+    try {
+      await cancelSentRequest(person.id);
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] cancelSentRequest failed', e?.message);
+      return;
+    }
     setSentRequests(p => p.filter(id => id !== person.id));
   };
-  // 받은 신청 수락 — 친구 목록에 추가하고 신청 목록에서 제거
-  const acceptRequest = (person) => {
+  // 받은 신청 수락 — Firestore pending → accepted + 로컬 친구 목록 추가 + 신청 목록 제거
+  const acceptRequest = async (person) => {
+    try {
+      await acceptFriendRequest(person.id);
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] acceptFriendRequest failed', e?.message);
+      return;
+    }
     setFriends(p => (p.some(f => f.id === person.id) ? p : [...p, personToFriend(person)]));
     setReceivedRequests(p => p.filter(r => r.id !== person.id));
   };
-  // 무시 — 신청 목록에서만 제거. 상대방에게 통보 없음 (거절 알림 X)
-  const ignoreRequest = (id) => setReceivedRequests(p => p.filter(r => r.id !== id));
+  // 무시 — Firestore doc 삭제. 상대방에게 통보 없음 (거절 알림 X)
+  const ignoreRequest = async (id) => {
+    try {
+      await rejectFriendRequest(id);
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] rejectFriendRequest failed', e?.message);
+      return;
+    }
+    setReceivedRequests(p => p.filter(r => r.id !== id));
+  };
   const unhideFriend = (id) => setHidden(p => { const n = { ...p }; delete n[id]; return n; });
-  // 친구 끊기 — 일방·블라인드 ([[friend-relationship]] §1). 인스타 언팔로우 모델.
+  // 친구 끊기 — 일방·블라인드 ([[friend-relationship]] §1). Firestore friendships doc 삭제.
   const deleteFriend = (id) => {
     const target = friends.find(f => f.id === id);
     if (!target) return;
@@ -194,7 +250,15 @@ export function FriendsTab({ navigation, onInvite }) {
       `친구 목록에서 사라져요.\n다시 친구가 되려면 친구 신청을 보내야 해요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
       [
         { text: '취소', style: 'cancel' },
-        { text: '끊기', style: 'destructive', onPress: () => setFriends(p => p.filter(f => f.id !== id)) },
+        { text: '끊기', style: 'destructive', onPress: async () => {
+          try {
+            await unfriend(id);
+          } catch (e) {
+            if (__DEV__) console.warn('[FriendsTab] unfriend failed', e?.message);
+            return;
+          }
+          setFriends(p => p.filter(f => f.id !== id));
+        } },
       ],
     );
   };

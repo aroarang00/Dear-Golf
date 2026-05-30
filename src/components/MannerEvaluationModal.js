@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { OverlayAlert } from './common/OverlayAlert';
+import { submitEvaluation } from '../utils/mannerEvaluations';
 
 // 라운지 모집 매너 평가 ([[manner-evaluation-policy]]).
 // 라운딩 종료 추정 시각(티오프+5h) 기준 48h 윈도우. 강제성 없음 — 무평가 = 보통 자동 처리.
@@ -29,6 +30,19 @@ export function MannerEvaluationModal({ visible, post, participants = [], onClos
   const evaluatedCount = Object.keys(picks).length;
   const totalCount = participants.length;
 
+  const doSubmit = async () => {
+    // 'good'/'bad'만 Firestore 작성 ('normal' 또는 무평가는 doc 안 만듦 = 자동 보통, 정책 §3).
+    const entries = Object.entries(picks).filter(([, r]) => r === 'good' || r === 'bad');
+    if (post?.id && entries.length > 0) {
+      await Promise.all(entries.map(([pid, rating]) =>
+        submitEvaluation({ roundupId: post.id, targetUid: pid, rating })
+          .catch(e => __DEV__ && console.warn('[MannerEval] submit fail', e?.message))
+      ));
+    }
+    onSubmit?.(picks);
+    onClose?.();
+  };
+
   const submit = () => {
     setAlert({
       title: evaluatedCount === 0 ? '평가하지 않고 닫을까요?' : '평가를 제출할까요?',
@@ -37,7 +51,7 @@ export function MannerEvaluationModal({ visible, post, participants = [], onClos
         : `${evaluatedCount}명 평가 · ${totalCount - evaluatedCount}명 무평가(자동 보통)로 제출돼요.\n제출 후 수정할 수 없어요.`,
       buttons: [
         { text: '취소', style: 'cancel' },
-        { text: '제출', style: 'destructive', onPress: () => { onSubmit?.(picks); onClose?.(); } },
+        { text: '제출', style: 'destructive', onPress: doSubmit },
       ],
     });
   };

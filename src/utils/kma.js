@@ -83,6 +83,11 @@ const keyParam = () => `serviceKey=${encodeURIComponent(KMA_SERVICE_KEY)}`;
 // =============================================================
 export async function getShortForecast(lat, lng) {
   if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+  // 위치정보법 제16조 제2항 — 이용·제공사실 자동 기록
+  try {
+    const { recordLocationAccess } = require('./locationAccessLog');
+    recordLocationAccess({ providerName: 'kma', purpose: '단기예보 조회', method: 'send' });
+  } catch {}
   const { nx, ny } = dfsXyConv(lat, lng);
   const { base_date, base_time } = getShortBaseDateTime();
   const url = `${KMA_SHORT_URL}/getVilageFcst?${keyParam()}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;

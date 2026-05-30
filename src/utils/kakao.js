@@ -105,6 +105,10 @@ async function searchNearbyByKeyword(query, lat, lng, radius, filterRe) {
   if (typeof lat !== 'number' || typeof lng !== 'number') return [];
   if (!isKeyConfigured()) return [];
   try {
+    const { recordLocationAccess } = require('./locationAccessLog');
+    recordLocationAccess({ providerName: 'kakao_local', purpose: `주변 ${query} 검색`, method: 'send' });
+  } catch {}
+  try {
     const url = `${KEYWORD_URL}?query=${encodeURIComponent(query)}&x=${lng}&y=${lat}&radius=${radius}&sort=distance&size=15`;
     const res = await fetch(url, {
       headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
@@ -301,6 +305,10 @@ export async function getDrivingDirections(origin, destination) {
     console.warn('[kakao] KAKAO_REST_API_KEY not configured.');
     return null;
   }
+  try {
+    const { recordLocationAccess } = require('./locationAccessLog');
+    recordLocationAccess({ providerName: 'kakao_mobility', purpose: '교통 소요시간 조회', method: 'send' });
+  } catch {}
   try {
     const url = `${DIRECTIONS_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}`;
     const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });

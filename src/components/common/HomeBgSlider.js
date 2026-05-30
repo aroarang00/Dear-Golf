@@ -21,15 +21,18 @@ const TIME_IMAGES = {
   ],
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
     U('https://images.unsplash.com/photo-1758190153146-a1507e2e000d'),
+    U('https://images.unsplash.com/photo-1684856111070-0433891d6af5'), // 자연 풍경 + 코스·페어웨이·호수
   ],
-  lateAfternoon: [ // 늦은 오후 (16~19시) — 골든아워
+  lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을
     U('https://images.unsplash.com/photo-1709525617237-778500c895a8'),
     U('https://images.unsplash.com/photo-1629293821758-a0400037edf1'),
     U('https://images.unsplash.com/photo-1634140255781-e900c47ecf1f'),
+    U('https://images.unsplash.com/photo-1672871583040-42826d4e9ca4'), // 기존 night 노을 톤 — 황혼 풀로 이동
+    U('https://images.unsplash.com/photo-1638961500056-155a2c53e328'), // 기존 night 노을 톤 — 황혼 풀로 이동
   ],
-  night: [ // 저녁·밤 (19~05시) — 노을·황혼
-    U('https://images.unsplash.com/photo-1672871583040-42826d4e9ca4'),
-    U('https://images.unsplash.com/photo-1638961500056-155a2c53e328'),
+  night: [ // 진짜 밤 (21~05시) — 별·달·자연 야경 (도시 야경 X)
+    U('https://images.unsplash.com/photo-1631382881713-5c2c53b02e82'), // 별 + 호수 야경
+    U('https://images.unsplash.com/photo-1658479894756-99e4b7dd9f97'), // 별 + 나무 실루엣
   ],
 };
 
@@ -45,8 +48,8 @@ function timeBucket(d = new Date()) {
   const h = d.getHours();
   if (h >= 5 && h < 9)  return 'morning';
   if (h >= 9 && h < 16) return 'day';
-  if (h >= 16 && h < 19) return 'lateAfternoon';
-  return 'night';
+  if (h >= 16 && h < 21) return 'lateAfternoon'; // 황혼·노을 21시까지
+  return 'night';                                 // 21~05 진짜 밤
 }
 
 function pickImage() {

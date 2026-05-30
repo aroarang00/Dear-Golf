@@ -5,6 +5,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
 import { unblockUser, remainingBlocksToday, DAILY_BLOCK_LIMIT } from '../utils/block';
+import { unblockUid as fsUnblockUid } from '../utils/friends';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { OverlayAlert } from './common/OverlayAlert';
 
@@ -25,6 +26,8 @@ export function BlockManageScreen({ visible, onClose }) {
             const result = unblockUser(userProfile, id);
             setUserProfile(result.profile);
             storage.save(STORAGE_KEYS.profile, result.profile);
+            // Firestore write-through — users/{myUid}.blockedUids 동기화
+            fsUnblockUid(id).catch(e => __DEV__ && console.warn('[BlockManage] fsUnblockUid failed', e?.message));
           },
         },
       ],

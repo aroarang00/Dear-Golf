@@ -12,7 +12,6 @@ import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { RoundupComments } from './RoundupComments';
-import { DUMMY_FRIENDS } from './FriendsTab';
 
 // 참여자 아바타 색상
 const AV = [
@@ -51,7 +50,7 @@ function SlotRow({ slot, idx, onPress }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 }}>
       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: pal.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: pal.fg }}>{slot.name.charAt(0)}</Text>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: pal.fg }}>{(slot.name || '?').charAt(0)}</Text>
       </View>
       {onPress ? (
         <TouchableOpacity activeOpacity={0.7} onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
@@ -85,24 +84,25 @@ function WaitRow({ num, name, me }) {
 
 // 슬롯 배열 생성 — teamIdx가 null이면 개별 모집
 function buildSlots(post, teamIdx) {
+  const hostName = post.authorName || post.author || '주최자';
   if (teamIdx == null) {
     const cap = post.capacity || 4;
     const filled = post.joined || 0;
     const names = pickNames(post.id, filled);
     return Array.from({ length: cap }, (_, i) =>
-      i < filled ? { name: i === 0 ? post.author : names[i], host: i === 0 } : { open: true });
+      i < filled ? { name: i === 0 ? hostName : names[i], host: i === 0 } : { open: true });
   }
   const filled = post.teamJoined[teamIdx] || 0;
   const names = pickNames(post.id + ':' + teamIdx, filled);
   return Array.from({ length: 4 }, (_, i) => {
     if (i >= filled) return { open: true };
     const host = teamIdx === 0 && i === 0;
-    return { name: host ? post.author : names[i], host };
+    return { name: host ? hostName : names[i], host };
   });
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
+export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -122,7 +122,7 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
   if (!post) return null;
 
   const isTeam = post.teams > 1;
-  const isMine = post.author === '나';   // 내가 올린 모집글
+  const isMine = !!myUid && post.authorUid === myUid;
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
   // 옛 더미 데이터에 companions가 남아있을 수 있음(2026-05-26 폐기 전 데이터). 호환 위해 합산.
@@ -408,19 +408,20 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
                   backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: 12 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
                 <TouchableOpacity activeOpacity={0.7}
-                  onPress={() => setActionTarget({ id: post.authorId || post.author, name: post.author, role: 'host' })}
+                  onPress={() => setActionTarget({ id: post.authorUid || post.authorId || post.author, name: post.authorName || post.author || '주최자', role: 'host' })}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.author}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.authorName || post.author || '주최자'}</Text>
                 </TouchableOpacity>
                 <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
                     주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{post.authorHostedCount || 0}</Text>회 ·
                   </Text>
-                  <MannerBadge score={post.authorMannerScore} size={14} onPress={() => {
-                    const g = (post.authorMannerScore >= 95) ? 'king'
-                      : (post.authorMannerScore >= 80) ? 'good'
-                      : (post.authorMannerScore >= 40) ? 'normal' : 'caution';
+                  <MannerBadge score={post.authorMannerScore || 0} size={14} onPress={() => {
+                    const score = post.authorMannerScore || 0;
+                    const g = (score >= 95) ? 'king'
+                      : (score >= 80) ? 'good'
+                      : (score >= 40) ? 'normal' : 'caution';
                     setMannerKey(g);
                   }} />
                 </View>
@@ -579,9 +580,8 @@ export function RoundupDetail({ post, visible, joined, applied, waitlistNum, isB
             canKick={isMine && post.scope === 'all' && actionTarget?.role === 'participant'}
             friendStatus={(() => {
               if (!actionTarget) return 'none';
-              // 친구 여부 — name 매칭 (더미 한계: id가 더미 사용자 id 'oseh' 등 vs DUMMY_FRIENDS 'f3'이라 name으로 비교)
-              // Phase 3 friendships 컬렉션 이관 시 uid 매칭으로 정밀화
-              if (DUMMY_FRIENDS.some(f => f.name === actionTarget.name)) return 'friend';
+              // 친구 여부 — Phase 3-F5: friendships 컬렉션의 uid 매칭으로 전환
+              if (friendUids.includes(actionTarget.id)) return 'friend';
               if (sentFriendRequestIds.includes(actionTarget.id)) return 'sent';
               return 'none';
             })()}

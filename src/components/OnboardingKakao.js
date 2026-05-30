@@ -5,6 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
 import { loginWithKakao, linkOrSignInWithKakao } from '../utils/kakaoAuth';
 import { ensureUserDoc } from '../utils/userDoc';
+import { checkBannedByKakaoSub } from '../utils/account';
 import { isAdultByKakao } from '../utils/age';
 
 // 온보딩 — 인트로 다음 / 프로필 입력 전 단계.
@@ -54,6 +55,21 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
           'Dear Golf는 만 19세 이상 성인만 이용할 수 있어요.\n카카오 로그인 시 생년월일 동의가 필요해요.',
         );
         return;
+      }
+
+      // 1-B. 정지 기록 매칭 차단 ([[account-deletion]] §3) — 재가입 차단
+      if (result.kakaoId) {
+        const ban = await checkBannedByKakaoSub(result.kakaoId);
+        if (ban.banned) {
+          const tail = ban.permanent
+            ? '영구 정지된 계정이에요.'
+            : `정지 종료일: ${String(ban.unblockAt).slice(0, 10)}`;
+          Alert.alert(
+            '이용이 제한된 계정이에요',
+            `이 카카오 계정은 Dear Golf 이용이 제한되었어요.\n${tail}`,
+          );
+          return;
+        }
       }
 
       // 2. Firebase Auth 연동 — 익명 계정을 카카오 신원으로 승격(또는 기존 계정 로그인)

@@ -2,8 +2,13 @@ import * as Location from 'expo-location';
 
 // 위치 권한 + 현재 좌표 반환 (실패 시 null)
 // 1) 마지막 알려진 위치 우선 (즉시 응답) — 10분 이내면 그대로 사용
-// 2) 캐시 없으면 Lowest 정확도로 빠르게 fetch (시군구 단위면 충분)
-export async function getCurrentLocation() {
+// 2) 캐시 없으면 Lowest 정확도로 새 fix 시도 — timeoutMs 안에 응답 못 받으면 fail
+// 3) 새 fix 실패 시 maxAge 무관 last-known으로 fallback (몇 시간 전이라도 시군구 단위면 날씨용 충분)
+// 4) 그것도 없으면 null
+//
+// timeoutMs 추가 이유: expo-location의 getCurrentPositionAsync는 명시적 타임아웃 없으면
+// 실내·GPS 약한 환경에서 무한 대기 가능 — 사용자가 "안 뜬다"고 인식하는 원인.
+export async function getCurrentLocation(timeoutMs = 8000) {
   try {
     let { status } = await Location.getForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -18,11 +23,24 @@ export async function getCurrentLocation() {
     if (last) {
       return { lat: last.coords.latitude, lng: last.coords.longitude };
     }
-    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest });
-    return {
-      lat: pos.coords.latitude,
-      lng: pos.coords.longitude,
-    };
+    // 새 fix — 타임아웃 보호
+    const pos = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('location-timeout')), timeoutMs)),
+    ]).catch(e => {
+      console.warn('[location] fix failed:', e?.message);
+      return null;
+    });
+    if (pos) {
+      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    }
+    // 타임아웃·실패 시 stale last-known으로 fallback (maxAge 제한 없음)
+    const stale = await Location.getLastKnownPositionAsync();
+    if (stale) {
+      console.warn('[location] using stale last-known');
+      return { lat: stale.coords.latitude, lng: stale.coords.longitude };
+    }
+    return null;
   } catch (e) {
     console.warn('[location] failed:', e?.message);
     return null;

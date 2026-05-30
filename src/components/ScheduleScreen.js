@@ -82,12 +82,16 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
         onCloseSchedule={asModal ? onClose : undefined}
         onRequestAddDiary={(seed) => {
           if (asModal) { onClose?.(); }
-          // 지난 라운딩에 기록 추가 시 구장명·코스ID도 함께 전달해 DiaryAddModal에 자동 채워지게
+          // 지난 라운딩에 기록 추가 시 구장명·코스ID·일정ID 함께 전달
+          // scheduleId는 같은 날 일정 N건 매칭 시 1:1 보장의 핵심 ([[home-multi-schedule-same-day]])
+          // returnToSchedule=true → DiaryAddModal 닫을 때 일정 화면 자동 재오픈
           navigation?.navigate?.(ROUTES.MY, {
             openAddModal: true,
             addDate: seed?.date,
             addCourse: seed?.course,
             addCourseId: seed?.courseId || seed?.courseLogId,
+            addScheduleId: seed?.id || null,
+            returnToSchedule: asModal === true ? true : undefined,
           });
         }}
         onRequestOpenDiary={(diary) => {

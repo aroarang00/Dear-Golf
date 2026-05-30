@@ -1,0 +1,86 @@
+import {
+  collection, query, where, orderBy, limit as fsLimit, getDocs,
+  addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+} from 'firebase/firestore';
+import { db, getUid } from './firebase';
+
+// =============================================================
+// roundupNotifications/{notiId} — 라운지 인앱 알림
+//
+// 보안 규칙 (firestore.rules):
+//  - read   : recipientUid == me
+//  - create : actorUid == me  AND  recipientUid != me  (본인이 본인에게 X)
+//  - update : recipientUid == me  AND  read 필드만 변경
+//  - delete : recipientUid == me
+//
+// 푸시 발송(FCM)은 Phase 5 Cloud Functions에서 onCreate 트리거로 처리.
+// 현재는 인앱 알림만 (사용자가 라운지 탭/알림함 진입 시 표시).
+//
+// type 종류:
+//  - apply       : 다른 사용자가 내 모집에 참여 신청 → 주최자에게
+//  - confirmed   : 내 신청이 수락됨 → 신청자에게
+//  - cancel      : 다른 참여자가 취소 → 주최자에게
+//  - kicked      : 주최자가 강퇴 → 강퇴된 자에게 (블라인드, actorName 비공개)
+//  - slotOpen    : 대기자 자리 열림 → 대기자에게 (Cloud Functions 트리거)
+//  - comment     : 내 모집/참여 모집에 댓글 (Cloud Functions 트리거)
+//  - mannerEval  : 매너 평가 권유 (티오프+5h, Cloud Functions 트리거)
+// =============================================================
+
+const COLLECTION = 'roundupNotifications';
+
+// 알림 생성 — 본인이 actor, 대상이 recipient.
+// type/postId/postTitle은 필수, 그 외 옵션 (actorName, status 등).
+// payload는 보안 규칙이 허용하는 필드만 포함.
+export async function createNotification(data) {
+  const uid = await getUid();
+  if (!uid) throw new Error('Not authenticated');
+  if (!data.recipientUid || data.recipientUid === uid) return null;
+  if (!data.type) throw new Error('type required');
+  const noti = {
+    type: data.type,
+    actorUid: uid,
+    actorName: data.actorName || '',
+    recipientUid: data.recipientUid,
+    postId: data.postId || null,
+    postTitle: data.postTitle || '',
+    status: data.status || null,
+    read: false,
+    createdAt: serverTimestamp(),
+  };
+  const ref = await addDoc(collection(db, COLLECTION), noti);
+  return { id: ref.id, ...noti };
+}
+
+// 내가 받은 알림 — 최신순. 인덱스 (recipientUid, createdAt desc) 사용.
+export async function loadMyNotifications(maxResults = 50) {
+  const uid = await getUid();
+  if (!uid) return [];
+  const q = query(
+    collection(db, COLLECTION),
+    where('recipientUid', '==', uid),
+    orderBy('createdAt', 'desc'),
+    fsLimit(maxResults),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// 읽음 처리 — 단건
+export async function markNotificationRead(notiId) {
+  if (!notiId) return;
+  await updateDoc(doc(db, COLLECTION, notiId), { read: true });
+}
+
+// 전체 읽음 — 메모리 필터 후 일괄 업데이트 (보조 인덱스 회피)
+export async function markAllNotificationsRead(loaded) {
+  const list = Array.isArray(loaded) ? loaded : await loadMyNotifications(100);
+  const unread = list.filter(n => !n.read);
+  await Promise.all(unread.map(n => markNotificationRead(n.id)
+    .catch(e => __DEV__ && console.warn('[roundupNotifications] markRead fail', e?.message))));
+}
+
+// 알림 삭제 — 본인 알림만 (수신자 본인)
+export async function deleteNotification(notiId) {
+  if (!notiId) return;
+  await deleteDoc(doc(db, COLLECTION, notiId));
+}
