@@ -675,7 +675,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           postTitle: post.course || '',
           status: 'pending',
         }).catch(e => __DEV__ && console.warn('[RoundupTab] apply noti fail', e?.message));
-        return;
+        return { ok: true };
       }
       // 친구공개·친구지정 — 바로 참여 확정 + 모집글 인원 +1
       await joinRoundup(id);
@@ -699,13 +699,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         postId: id,
         postTitle: post.course || '',
       }).catch(e => __DEV__ && console.warn('[RoundupTab] confirmed noti fail', e?.message));
+      return { ok: true };
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] join/apply failed', e);
+      // 카드(비모달) 경로 fallback alert. 모달(RoundupDetail) 경로는 ok:false를 받아 자체 alert 표시
+      // (RoundupTab의 alert는 Detail Modal 뒤로 가려져 '상세 닫아야 보임' 문제가 있었음).
       setAlert({
         title: '참여 처리에 실패했어요',
         message: '잠시 후 다시 시도해 주세요.',
         buttons: [{ text: '확인' }],
       });
+      return { ok: false };
     }
   };
 
@@ -1338,7 +1342,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         isBookmarked={!!(detailId && bookmarks[detailId])}
         comments={detailId ? (commentsByPost[detailId] || []) : []}
         onClose={() => setDetailId(null)}
-        onApply={() => detailId && performJoinOrApply(detailId)}
+        onApply={() => detailId ? performJoinOrApply(detailId) : undefined}
         onWaitlist={() => detailId && handleWaitlist(detailId)}
         onCancel={() => detailId && performCancel(detailId)}
         onCancelWait={() => detailId && cancelWaitlist(detailId)}

@@ -147,7 +147,18 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
         : '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
       buttons: [
         { text: '취소', style: 'cancel' },
-        { text: instant ? '참여하기' : '참여 신청', onPress: onApply },
+        { text: instant ? '참여하기' : '참여 신청', onPress: async () => {
+          // 결과를 받아 실패 시 자체 OverlayAlert로 표시 — 부모(RoundupTab) alert는
+          // 이 Detail Modal 뒤로 가려져 '상세를 닫아야 보이는' 문제가 있었음.
+          const r = await onApply?.();
+          if (r && r.ok === false) {
+            setAlert({
+              title: '참여 처리에 실패했어요',
+              message: '잠시 후 다시 시도해 주세요.',
+              buttons: [{ text: '확인' }],
+            });
+          }
+        } },
       ],
     });
   };
