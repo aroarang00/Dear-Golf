@@ -506,15 +506,15 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         </View>
 
         {/* 내 코스기록 진입 — 코스 탭 헤더 버튼과 동일 모달. 다이어리 안 쓰는 사용자가 본인 라운딩 기록을 일정 동선에서 찾을 수 있게. */}
-        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
+        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginBottom: _and ? 2 : 4,
-            backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 1, borderColor: C.warmGray,
+            backgroundColor: C.butter, borderRadius: 12,
             paddingHorizontal: 14, paddingVertical: _and ? 4 : 11 }}>
           <Text style={{ fontSize: fs(14) }}>🏌️</Text>
-          <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>
+          <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
             내 코스 모아보기
           </Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>›</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }}>›</Text>
         </TouchableOpacity>
 
         {/* This month list */}
