@@ -34,6 +34,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
 import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, createRoundup, updateRoundupAsAuthor, deleteRoundup, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
+import { loadComments, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
@@ -367,6 +368,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
   const detailPost = posts.find(p => p.id === detailId) || null;
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // 상세 진입 시 댓글 로드 — Firestore 서브컬렉션 (roundups/{id}/comments). 닫히면 정리 X(캐시 유지).
+  useEffect(() => {
+    if (!detailId) return;
+    let cancelled = false;
+    loadComments(detailId)
+      .then(list => { if (!cancelled) setCommentsByPost(prev => ({ ...prev, [detailId]: list })); })
+      .catch(e => __DEV__ && console.warn('[RoundupTab] loadComments failed', e?.message));
+    return () => { cancelled = true; };
+  }, [detailId]);
 
   // 관심 모집 — 마운트 시 로드, 변경 시 저장
   const [bookmarksHydrated, setBookmarksHydrated] = useState(false);
@@ -975,41 +986,43 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     setDetailId(null);
   };
 
-  // 댓글 작성 — 비속어 필터·권한 체크는 호출 측(RoundupDetail)에서. 성공 시 comment 객체 push.
-  // 알림 발송(주최자+참여 확정자에게 comment 타입)은 Phase 2 Cloud Function 이관 — 현재 단계 X.
-  const handleAddComment = (postId, comment) => {
-    setCommentsByPost(prev => ({
-      ...prev,
-      [postId]: [...(prev[postId] || []), comment],
-    }));
+  // 댓글 — Firestore 서브컬렉션(roundups/{postId}/comments) 연동 (2026-05-30, [[roundup-comments-policy]]).
+  //  비속어/권한 사전검증은 RoundupComments·utils, 최종 저장은 Firestore. 쓰기 후 재로드로 정합성 보장.
+  //  알림(comment 타입 주최자+참여자 발송)은 Phase 2 Cloud Function — 현재 단계 X.
+  const handleAddComment = async (postId, comment) => {
+    try {
+      const r = await addCommentToFirestore(postId, userProfile?.nickname || '', comment?.body || '');
+      if (!r.ok) return; // 비속어·빈값은 RoundupComments가 이미 인라인 차단 (이중 안전망)
+      const list = await loadComments(postId);
+      setCommentsByPost(prev => ({ ...prev, [postId]: list }));
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] addComment failed', e);
+      setAlert({ title: '댓글 작성에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+    }
   };
 
-  // 댓글 삭제 — 본인 댓글만 (RoundupDetail에서 권한 체크 후 호출).
-  const handleDeleteComment = (postId, commentId) => {
-    setCommentsByPost(prev => ({
-      ...prev,
-      [postId]: (prev[postId] || []).filter(c => c.id !== commentId),
-    }));
+  // 댓글 삭제 — 본인 댓글만 (규칙 authorUid==me 강제 + RoundupComments 사전 차단). 낙관적 제거.
+  const handleDeleteComment = async (postId, commentId) => {
+    setCommentsByPost(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== commentId) }));
+    try {
+      await deleteCommentFromFirestore(postId, commentId);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] deleteComment failed', e);
+      const list = await loadComments(postId).catch(() => null);
+      if (list) setCommentsByPost(prev => ({ ...prev, [postId]: list })); // 실패 시 서버 상태로 롤백
+    }
   };
 
-  // 댓글 고정 토글 — 주최자만 (RoundupDetail에서 권한 체크 후 호출). 한 모집글당 1개 유지.
-  const handlePinComment = (postId, commentId) => {
-    setCommentsByPost(prev => {
-      const list = prev[postId] || [];
-      const target = list.find(c => c.id === commentId);
-      if (!target) return prev;
-      const nextList = list.map(c => {
-        if (c.id === commentId) {
-          return target.pinned
-            ? { ...c, pinned: false, pinnedAt: null }
-            : { ...c, pinned: true, pinnedAt: Date.now() };
-        }
-        // 새로 고정하는 경우 기존 고정 해제
-        if (!target.pinned && c.pinned) return { ...c, pinned: false, pinnedAt: null };
-        return c;
-      });
-      return { ...prev, [postId]: nextList };
-    });
+  // 댓글 고정 토글 — 주최자만(RoundupDetail에서 권한 체크). 한 모집글당 1개 유지(기존 고정 자동 해제).
+  const handlePinComment = async (postId, commentId) => {
+    try {
+      await pinCommentInFirestore(postId, commentId, commentsByPost[postId] || []);
+      const list = await loadComments(postId);
+      setCommentsByPost(prev => ({ ...prev, [postId]: list }));
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] pinComment failed', e);
+      setAlert({ title: '고정 처리에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+    }
   };
 
   // 주최자 — 참여 신청 수락. Firestore: applications accepted + roundup participantUids/joined +1.

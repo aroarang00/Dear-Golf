@@ -143,6 +143,24 @@ service cloud.firestore {
         )
       );
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+
+      // ===== 댓글 서브컬렉션 — roundups/{postId}/comments/{commentId} ([[roundup-comments-policy]]) =====
+      //  기본 검증(2026-05-30): create=작성자 본인 / delete=본인만 / 고정=pinned·pinnedAt만 변경.
+      //  "참여 확정자만 작성·열람"은 클라이언트 UI에서 차단(부모 roundup get 비용 회피).
+      //  read는 로그인한 누구나 — 모집글 read 권한이 이미 scope로 통제되므로 댓글 본문 유출 위험 낮음.
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 300;
+        // 본인 삭제만 (주최자도 타인 댓글 삭제 불가 — 정책 §1)
+        allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+        // 고정 토글 — pinned·pinnedAt만 변경 (주최자 제한은 클라 UI. 본문 변조는 차단)
+        allow update: if isSignedIn()
+          && changedKeysWithin(['pinned', 'pinnedAt']);
+      }
     }
 
     // ===== roundupApplications — 모집 참여 신청 (전체공개 모집 전용) =====
