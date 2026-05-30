@@ -65,7 +65,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const pendingScrollDateRef = React.useRef(null); // 셀 탭 시점에 카드 측정 안 됐으면 여기 저장, onLayout 시 자동 scroll
   const [highlightedCardId, setHighlightedCardId] = React.useState(null);
   const highlightTimerRef = React.useRef(null);
-  const scrollToCardForDate = React.useCallback((dateStr) => {
+  // 일반 함수 — 매 렌더마다 현재 monthItems를 보는 클로저로 새로 생성.
+  // useCallback([])이면 첫 렌더의 monthItems(처음 본 달)를 영구 capture해, 다른 달로 넘기면
+  // 그 달 카드를 .find()로 못 찾아 스크롤 실패(과거달 탭 무반응의 원인). 호출은 이벤트/onLayout뿐이라 매번 새로 만들어도 비용 무시 가능.
+  const scrollToCardForDate = (dateStr) => {
     const target = monthItems
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
@@ -82,8 +85,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
     highlightTimerRef.current = setTimeout(() => setHighlightedCardId(null), 1400);
     return true;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
 
   const openPicker = () => setPicker({ visible: true, year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 });
   const confirmPicker = () => {
@@ -371,10 +373,11 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     }
 
     const status = getStatus(0, d);
-    // borderRadius는 정확히 절반(16)보다 큰 값으로 — Android Fabric(New Arch)이 절반값에서
-    // 간헐적으로 네모로 그리는 버그 회피. width/height 고정이라 999여도 완전한 원.
-    const base = { width: 32, height: 32, borderRadius: 999, alignItems: 'center', justifyContent: 'center' };
+    const base = { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' };
     const baseText = { fontFamily: F.en, fontSize: fs(16) };
+    // Android Fabric(New Arch)은 둥근 View를 렌더 최적화로 병합하며 borderRadius를 간헐적으로
+    // 누락시켜 네모로 그림(달 이동 시 됐다 안 됐다). collapsable={false}로 병합을 막아 원형 고정.
+    const noCollapse = _and ? { collapsable: false } : {};
 
     switch (status) {
       case 'today':
@@ -388,36 +391,34 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       case 'today-round':
         // 오늘 라운딩 있음: 차콜 fill + 골드 테두리 (기존 유지)
         return (
-          <View style={[base, { backgroundColor: C.charcoal, borderWidth: 2, borderColor: '#C9A84C' }]}>
+          <View {...noCollapse} style={[base, { backgroundColor: C.charcoal, borderWidth: 2, borderColor: '#C9A84C' }]}>
             <Text style={[baseText, { color: C.butter, fontWeight: '600' }]}>{d}</Text>
           </View>
         );
       case 'upcoming':
         // 예정: 버건디 fill 원
         return (
-          <View style={[base, { backgroundColor: C.burgundy }]}>
+          <View {...noCollapse} style={[base, { backgroundColor: C.burgundy }]}>
             <Text style={[baseText, { color: '#fff', fontWeight: '600' }]}>{d}</Text>
           </View>
         );
       case 'completed-record':
-        // 완료+기록있음: 버터색 fill 원. opacity는 둥근 View에서 Android Fabric이 네모로
-        // 클리핑하는 트리거라 제거 — 대신 색 자체를 살짝 연하게(rgba) 적용.
+        // 완료+기록있음: 버터색 fill 원
         return (
-          <View style={[base, { backgroundColor: 'rgba(245,230,168,0.85)' }]}>
+          <View {...noCollapse} style={[base, { backgroundColor: 'rgba(245,230,168,0.85)' }]}>
             <Text style={[baseText, { color: C.charcoal, fontWeight: '600' }]}>{d}</Text>
           </View>
         );
       case 'completed-norecord':
-        // 완료+기록없음: 실선 테두리 원. overflow:'hidden'은 Android Fabric에서 오히려
-        // 네모 클리핑을 유발하므로 사용 X. base.borderRadius(999)로 원형 보장.
+        // 완료+기록없음: 실선 테두리 원 (테두리만 있어 Fabric 네모 버그가 가장 잘 드러나는 케이스)
         return (
-          <View style={[base, { borderWidth: 2, borderColor: C.warmGray }]}>
+          <View {...noCollapse} style={[base, { borderWidth: 2, borderColor: C.warmGray }]}>
             <Text style={[baseText, { color: C.warmGray }]}>{d}</Text>
           </View>
         );
       default:
         return (
-          <View style={base}>
+          <View {...noCollapse} style={base}>
             <Text style={[baseText, { color: C.charcoal }]}>{d}</Text>
           </View>
         );
