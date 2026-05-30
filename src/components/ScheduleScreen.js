@@ -169,10 +169,10 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
           <TouchableOpacity activeOpacity={1} onPress={() => {}}
             style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 360 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, textAlign: 'center', marginBottom: 12 }}>
-              일정 수정·삭제 안내
+              라운딩 카드 안내
             </Text>
             <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, lineHeight: 21, marginBottom: 22 }}>
-              일정 카드를 탭하면 시트가 열려요.{'\n'}시트에서 일정 수정·삭제, 날씨·교통 확인을 모두 할 수 있어요.{'\n\n'}다이어리 기록이 있는 라운딩은 다이어리 탭에서 삭제해주세요.
+              예정 라운딩 카드를 탭하면 시트가 열려요.{'\n'}일정 수정·삭제, 날씨·교통 확인을 할 수 있어요.{'\n\n'}지난 라운딩은 기록이 있으면 탭할 때 기록 상세로, 기록이 없으면 기록 추가로 이어져요.{'\n\n'}지난 라운딩의 수정·삭제는 다이어리에서 해주세요.
             </Text>
             <TouchableOpacity activeOpacity={0.85}
               onPress={() => setInfoModal(false)}
