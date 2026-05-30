@@ -604,10 +604,17 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
                   })}
                 </View>
               )}
-              {slots.map((s, i) => (
-                <SlotRow key={i} slot={s} idx={i}
-                  onPress={s.name ? () => setActionTarget({ id: s.name, name: s.name, role: s.host ? 'host' : 'participant' }) : null} />
-              ))}
+              {slots.map((s, i) => {
+                // 본인 슬롯(uid===myUid 또는 라벨 '나')은 액션시트 X — 자기 차단·신고·친구신청 방지.
+                // id는 uid 우선(친구상태 매칭·isMe 판정용), 없으면 이름 fallback(옛 더미).
+                const isSelfSlot = (s.uid && s.uid === myUid) || s.name === '나';
+                return (
+                  <SlotRow key={i} slot={s} idx={i}
+                    onPress={(s.name && !isSelfSlot)
+                      ? () => setActionTarget({ id: s.uid || s.name, name: s.name, role: s.host ? 'host' : 'participant' })
+                      : null} />
+                );
+              })}
             </View>
 
             {/* 대기자 */}
