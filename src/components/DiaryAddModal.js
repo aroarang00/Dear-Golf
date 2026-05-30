@@ -271,7 +271,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       } : null,
       companions: [
         { name: userProfile.nickname, isMe: true },
-        ...companions.map(name => ({ name, isMe: false })),
+        // 저장 시 입력칸에 남은 이름도 자동 반영 — '추가' 미클릭으로 유실되던 문제 방지 (최대 3명)
+        ...[...companions, ...companionInput.trim().split(/[\s,]+/).filter(Boolean)]
+          .slice(0, 3)
+          .map(name => ({ name, isMe: false })),
       ],
       courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
       // 일정 진입 동선이면 initial.scheduleId가 prefill됨. 수정 시도 기존 값 유지.
@@ -419,7 +422,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               </View>
               {companions.length === 0 && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 8 }}>
-                  이름을 공백으로 띄우면 여러 명을 한 번에 추가할 수 있어요 (최대 3명)
+                  이름을 입력하면 저장할 때 자동으로 반영돼요. 공백으로 띄우면 여러 명도 한 번에 (최대 3명)
                 </Text>
               )}
               {companions.length > 0 && (
