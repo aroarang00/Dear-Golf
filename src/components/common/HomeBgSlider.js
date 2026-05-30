@@ -12,27 +12,27 @@ import { classifyWeather } from '../../utils/unsplash';
 //  · 날씨: 비/흐림이면 화면을 어둡고 회색톤으로 덮음 (Unsplash에 비 오는
 //          골프장 사진이 거의 없어, 사진 교체 대신 톤으로 날씨 분위기를 냄)
 // =============================================================
-const U = (base) => `${base}?w=1080&q=80&auto=format`;
-
+// 로컬 번들 에셋 — 네트워크 다운로드 없이 즉시·선명하게 표시 (Unsplash에서 받아 앱에 포함).
+// require는 정적 경로만 허용돼 개별 나열. 시간대별 풀에서 랜덤 1장.
 const TIME_IMAGES = {
   morning: [ // 아침 (05~09시) — 안개·서리·여명
-    U('https://images.unsplash.com/photo-1725835567442-7f39d9199f8c'),
-    U('https://images.unsplash.com/photo-1672871583025-701bdb84b370'),
+    require('../../../assets/home-bg/morning1.jpg'),
+    require('../../../assets/home-bg/morning2.jpg'),
   ],
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
-    U('https://images.unsplash.com/photo-1758190153146-a1507e2e000d'),
-    U('https://images.unsplash.com/photo-1684856111070-0433891d6af5'), // 자연 풍경 + 코스·페어웨이·호수
+    require('../../../assets/home-bg/day1.jpg'),
+    require('../../../assets/home-bg/day2.jpg'), // 자연 풍경 + 코스·페어웨이·호수
   ],
   lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을
-    U('https://images.unsplash.com/photo-1709525617237-778500c895a8'),
-    U('https://images.unsplash.com/photo-1629293821758-a0400037edf1'),
-    U('https://images.unsplash.com/photo-1634140255781-e900c47ecf1f'),
-    U('https://images.unsplash.com/photo-1672871583040-42826d4e9ca4'), // 기존 night 노을 톤 — 황혼 풀로 이동
-    U('https://images.unsplash.com/photo-1638961500056-155a2c53e328'), // 기존 night 노을 톤 — 황혼 풀로 이동
+    require('../../../assets/home-bg/lateAfternoon1.jpg'),
+    require('../../../assets/home-bg/lateAfternoon2.jpg'),
+    require('../../../assets/home-bg/lateAfternoon3.jpg'),
+    require('../../../assets/home-bg/lateAfternoon4.jpg'),
+    require('../../../assets/home-bg/lateAfternoon5.jpg'),
   ],
   night: [ // 진짜 밤 (21~05시) — 별·달·자연 야경 (도시 야경 X)
-    U('https://images.unsplash.com/photo-1631382881713-5c2c53b02e82'), // 별 + 호수 야경
-    U('https://images.unsplash.com/photo-1658479894756-99e4b7dd9f97'), // 별 + 나무 실루엣
+    require('../../../assets/home-bg/night1.jpg'), // 별 + 호수 야경
+    require('../../../assets/home-bg/night2.jpg'), // 별 + 나무 실루엣
   ],
 };
 
@@ -100,7 +100,7 @@ export function HomeBgSlider() {
 
   return (
     <View style={StyleSheet.absoluteFillObject}>
-      <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      <Image source={imageUri} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       <LinearGradient
         style={StyleSheet.absoluteFillObject}
         colors={OVERLAYS[weather] || OVERLAYS.clear}
