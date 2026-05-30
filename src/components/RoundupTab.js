@@ -39,7 +39,7 @@ import { getUid } from '../utils/firebase';
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
 
-function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark }) {
+function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onHide }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -57,9 +57,17 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
   const isMine = !!myUid && post.authorUid === myUid;
   const respondHours = waitlistRespondHours(post.date);
 
+  // 마감(확정·만석) 모집은 회색 처리로 시각 구분 — 숨기진 않음(대기신청 동선 유지). 마감 풀리면 자동 복귀.
+  //  내 모집·내 참여/신청/대기 건은 회색 처리 제외(본인 활동은 또렷하게).
+  const isMyActivity = isMine || joined || applied || waitlistNum;
+  const dimmed = isClosed && !isMyActivity;
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpenDetail}
-      style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+      // 길게 눌러 가리기 — 내 화면에서만 숨김([[roundup-hide-policy]]). 내가 올린 모집은 가리기 불가.
+      onLongPress={(!isMine && onHide) ? () => onHide(post.id) : undefined}
+      delayLongPress={400}
+      style={{ backgroundColor: dimmed ? C.bgPrimary : C.bgSecondary, borderRadius: 14, borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.07)', opacity: dimmed ? 0.65 : 1,
         padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12,
         // 그림자 — 크림 배경(#FAF6EC) 위에서 흰 카드 분리감 강화 (iOS·Android 양쪽)
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 }}>
@@ -195,6 +203,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [waitlist, setWaitlist] = useState({});        // Phase 3-D: waitlistUids에서 복원
   const [participantNames, setParticipantNames] = useState({}); // {uid: nickname} — 참여자 현황 실제 이름
   const [bookmarks, setBookmarks] = useState({});      // 관심 모집 {postId: true}
+  const [hidden, setHidden] = useState({});            // 가리기 — 길게 눌러 숨긴 모집 {postId: true}
   // 댓글 — { [postId]: [comment...] }. Firebase 마이그레이션 시 서브컬렉션 roundups/{postId}/comments로 이관.
   const [commentsByPost, setCommentsByPost] = useState({});
   // 친구 모집만 보기 토글 — true면 '전체' 탭 숨김 + 기본 view 'friend'
@@ -380,6 +389,34 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     });
   };
 
+  // 가리기 — 마운트 시 로드, 변경 시 저장 (북마크와 같은 패턴)
+  const [hiddenHydrated, setHiddenHydrated] = useState(false);
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.roundupHidden, {}).then(h => {
+      setHidden(h || {});
+      setHiddenHydrated(true);
+    });
+  }, []);
+  useEffect(() => {
+    if (!hiddenHydrated) return;
+    storage.save(STORAGE_KEYS.roundupHidden, hidden);
+  }, [hidden, hiddenHydrated]);
+
+  // 모집 가리기 — 길게 눌러 내 화면에서만 숨김. 확인창 후 처리(실수 방지), 해제 UI 없음([[roundup-hide-policy]]).
+  const hideRoundup = (id) => {
+    setAlert({
+      title: '이 모집을 가릴까요?',
+      message: '내 라운지 목록에서만 안 보이게 돼요.\n상대방은 알 수 없어요.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '가리기', onPress: () => {
+          setHidden(prev => ({ ...prev, [id]: true }));
+          if (detailId === id) setDetailId(null);
+        } },
+      ],
+    });
+  };
+
   // 모집 마감 → 예정 라운딩 자동 등록
   // 조건: 확정형 + 정원 만석(또는 closed=true) + (내가 주최자 || 참여 확정자)
   // 중복 방지: schedules[].roundupId === post.id 로 식별
@@ -436,7 +473,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
   // 차단 필터 — 내가 차단한 사람의 모집 + 나를 차단한 사람의 모집은 어디서도 안 보임
   // (단, 내가 직접 올린 모집은 mine 탭에서 항상 보임. joined/applied/waitlist도 본인 활동 보존)
-  const visiblePosts = posts.filter(p => isPostVisible(p, userProfile) && isInVisibleWindow(p));
+  //  가리기(hidden) 필터 — 내가 길게 눌러 숨긴 모집은 탐색 탭에서 제외.
+  //   내가 올린 모집·참여/신청/대기 중인 모집은 숨겨도 mine 탭엔 보존(본인 활동 우선) — mineTab은 이 필터 미적용.
+  const visiblePosts = posts.filter(p => isPostVisible(p, userProfile) && isInVisibleWindow(p) && !hidden[p.id]);
 
   // 탭별 목록 — 전체: 전체공개만 (+ 지역 필터) / 친구: 친구공개 모집만 (친구가 올린 것 + 내가 올린 것) / 내 참여 중 / 관심
   const allTab = visiblePosts

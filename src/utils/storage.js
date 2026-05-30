@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   friendCoachDone:  '@dg_friend_coach_done',     // 친구 탭 첫 진입 툴팁 1회
   roundupTipDone:   '@dg_roundup_tip_done',      // 모집글 작성 화면 툴팁 1회
   roundupBookmarks: '@dg_roundup_bookmarks',     // 관심 모집 북마크 {postId: true}
+  roundupHidden: '@dg_roundup_hidden',           // 가리기 — 길게 눌러 숨긴 모집 {postId: true} (내 화면 한정, 해제 없음)
   homeIntroSeen:    '@dg_home_intro_seen',       // 홈 Dear Golf 이용 안내 1회 — 뱃지 표시 제어
   roundupIntroSeen: '@dg_roundup_intro_seen',    // 라운지 소개 모달 첫 진입 1회 자동 열림 제어
   roundupIntroOpenedManually: '@dg_roundup_intro_opened_manual', // 라운지 소개 FAB 능동 클릭 1회 — 노란 알림 점 표시 제어 (자동 모달과 분리)
