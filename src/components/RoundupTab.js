@@ -33,7 +33,7 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
-import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, createRoundup, updateRoundupAsAuthor, deleteRoundup, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant } from '../utils/roundup';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, createRoundup, updateRoundupAsAuthor, deleteRoundup, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
 import { getUid } from '../utils/firebase';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
@@ -193,6 +193,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [joined, setJoined] = useState({});            // Phase 3-C: loadMyApplications 등에서 채움
   const [applied, setApplied] = useState({});          // Phase 3-C: 전체공개 신청 대기
   const [waitlist, setWaitlist] = useState({});        // Phase 3-D: waitlistUids에서 복원
+  const [participantNames, setParticipantNames] = useState({}); // {uid: nickname} — 참여자 현황 실제 이름
   const [bookmarks, setBookmarks] = useState({});      // 관심 모집 {postId: true}
   // 댓글 — { [postId]: [comment...] }. Firebase 마이그레이션 시 서브컬렉션 roundups/{postId}/comments로 이관.
   const [commentsByPost, setCommentsByPost] = useState({});
@@ -271,6 +272,22 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           if (idx >= 0) waitlistMap[p.id] = idx + 1;
         }
         setWaitlist(waitlistMap);
+        // 참여자 이름 — 모든 모집의 participantUids 닉네임 로드 (참여자 현황에 실제 이름 표시, 더미 이름 제거)
+        const partUidSet = new Set();
+        for (const p of merged) {
+          if (Array.isArray(p.participantUids)) {
+            p.participantUids.forEach(u => { if (u && u !== uid) partUidSet.add(u); });
+          }
+        }
+        const partUids = Array.from(partUidSet);
+        if (partUids.length > 0) {
+          const partSnaps = await Promise.all(
+            partUids.map(u => getDoc(doc(db, 'users', u)).catch(() => null)));
+          if (cancelled) return;
+          const nameMap = {};
+          partSnaps.forEach((s, i) => { if (s?.exists()) nameMap[partUids[i]] = s.data().nickname || '동반자'; });
+          setParticipantNames(nameMap);
+        }
         // 인앱 알림 로드 — Phase 3-N2
         try {
           const notis = await loadMyNotifications(50);
@@ -584,17 +601,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // 모달 중첩 패턴 — RoundupDetail 닫고 부모 모달 열기 ([[modal-navigation-pattern]]).
   const handleEditRequest = (post) => {
     if (!post) return;
-    // 참여자 1+ + D-7 이내는 차단 (참여자 0이면 시점 무관 자유 수정)
-    const otherCount = Math.max(0, (post.joined || 1) - 1);
-    if (otherCount > 0 && post.date) {
+    // 수정 차단 기준을 "확정(closed)"으로 통일 (2026-05-30, [[roundup-edit-policy]] §1 개정).
+    //   확정 모집만 D-7 이내 수정 차단(약속 보호). 결원으로 확정 해제(closed:false)되면 수정 자유 + 재모집.
+    //   매너 -5·모집확정 표시와 동일하게 closed 기준 — 모든 분기 일관.
+    if (post.closed && post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
       const [hh, mm] = (post.time || '07:00').split(':').map(Number);
       const target = new Date(y, m - 1, d, hh, mm);
       const hoursUntil = (target - new Date()) / 3600000;
       if (isD7Inside(hoursUntil)) {
         setAlert({
-          title: '라운딩 7일 이내라 수정이 어려워요',
-          message: '약속된 라운딩을 보호하기 위해 D-7 이내엔 모집글을 수정할 수 없어요.\n부득이한 사유라면 [취소] 후 다시 등록해주세요.',
+          title: '확정된 라운딩이라 수정이 어려워요',
+          message: '확정된 라운딩을 보호하기 위해 모집글을 수정할 수 없어요.\n부득이한 사유라면 [모집 취소] 후 다시 등록해주세요.',
           buttons: [{ text: '확인', style: 'cancel' }],
         });
         return;
@@ -702,14 +720,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       return { ok: true };
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] join/apply failed', e);
-      // 카드(비모달) 경로 fallback alert. 모달(RoundupDetail) 경로는 ok:false를 받아 자체 alert 표시
-      // (RoundupTab의 alert는 Detail Modal 뒤로 가려져 '상세 닫아야 보임' 문제가 있었음).
-      setAlert({
-        title: '참여 처리에 실패했어요',
-        message: '잠시 후 다시 시도해 주세요.',
-        buttons: [{ text: '확인' }],
-      });
-      return { ok: false };
+      // 실패 알림은 호출 측에서 표시 — 모달(RoundupDetail)·카드(confirmApply) 양쪽 모두
+      // ok:false 반환을 받아 자체 OverlayAlert를 띄운다. 여기서 setAlert하면 모달 경로에서
+      // 부모(모달 뒤 가려짐)·자식 alert가 이중으로 떠서 제거함.
+      return { ok: false, message: e?.message };
     }
   };
 
@@ -724,7 +738,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         : '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
       buttons: [
         { text: '취소', style: 'cancel' },
-        { text: instant ? '참여하기' : '참여 신청', onPress: () => performJoinOrApply(id) },
+        { text: instant ? '참여하기' : '참여 신청', onPress: async () => {
+          // 카드(비모달) 경로 — 실패 시 여기서 직접 alert (모달 경로는 RoundupDetail이 자체 표시)
+          const r = await performJoinOrApply(id);
+          if (r && r.ok === false) {
+            setAlert({
+              title: '참여 처리에 실패했어요',
+              message: __DEV__ && r.message ? r.message : '잠시 후 다시 시도해 주세요.',
+              buttons: [{ text: '확인' }],
+            });
+          }
+        } },
       ],
     });
   };
@@ -776,8 +800,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         }).catch(e => __DEV__ && console.warn('[RoundupTab] cancel-apply noti fail', e?.message));
         return;
       }
+      // leaveRoundup이 closed:false도 함께 처리 → 확정 해제 + 자리 다시 열기 ([[roundup-penalty-policy]] §4, 2026-05-30)
+      //  ※ 취소자 매너 -5는 별개 분기(취소 시점 상태로 이미 판정) — 확정 해제와 양립.
       await leaveRoundup(id);
-      // 1) 모집글 인원 -1 (마지막 채워진 자리에서)
+      // 1) 모집글 인원 -1 (마지막 채워진 자리에서) + 확정 해제
       setPosts(prev => prev.map(p => {
         if (p.id !== id) return p;
         if (p.teams > 1) {
@@ -785,9 +811,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           for (let i = tj.length - 1; i >= 0; i--) {
             if (tj[i] > 0) { tj[i] -= 1; break; }
           }
-          return { ...p, teamJoined: tj };
+          return { ...p, teamJoined: tj, closed: false };
         }
-        return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
+        return { ...p, joined: Math.max(0, (p.joined || 0) - 1), closed: false };
       }));
       // 2) 내 joined 플래그 해제
       setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
@@ -822,14 +848,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    // 친구공개·친구지정 모집은 시스템 제재 예외 — 친구끼리 직접 소통, 시스템 매개 불필요
-    // ([[manner-evaluation-policy]] §1-0 매너 평가 미발동과 같은 결, 2026-05-27 정책 확장)
-    // D-7 이내 + 모집 확정(만석·closed) + 전체공개 — 매너 영향 경고 + 취소 가능 (약관 일치)
-    // 그 외(D-7 이전/미확정/친구공개·친구지정) — 항상 자유 취소
-    if (post.scope === 'all' && isD7Inside(hoursUntil) && isRoundupConfirmed(post)) {
+    // 안내 3분기 (2026-05-30) — RoundupDetail.confirmCancel과 동일 문구.
+    // 매너 차감은 전체공개+D-7이내+확정만 (친구모집은 시스템 제재 예외).
+    const insideD7 = isD7Inside(hoursUntil);
+    // (1) 전체공개 + D-7 이내 + 모집확정 — 매너 점수 차감 분기
+    if (post.scope === 'all' && insideD7 && isRoundupConfirmed(post)) {
       setAlert({
-        title: '라운딩 7일 이내 취소',
-        message: '함께하는 골프,\n서로의 시간을 존중해요.\n\n동반자들의 매너 평가에 영향을 줄 수 있고\n매너점수가 깎일 수 있어요.\n\n사전 안내 없이 나타나지 않으면\n노쇼로 신고받을 수 있으니\n부득이한 사정이라면 댓글로 양해를 구해주세요.',
+        title: '확정된 라운딩 취소',
+        message: '확정된 라운딩이라 지금 취소하면\n매너 점수가 차감될 수 있어요.\n\n사전 안내 없이 나타나지 않으면\n노쇼로 신고받을 수 있으니\n부득이한 사정이라면 댓글로 양해를 구해주세요.',
         buttons: [
           { text: '계속 참여', style: 'cancel' },
           { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
@@ -837,10 +863,22 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       });
       return;
     }
-    // D-7 이전 또는 미확정 — 자유 취소
+    // (2) D-7 이내 + 미확정(또는 친구모집) — 패널티 없음, 임박 안내만
+    if (insideD7) {
+      setAlert({
+        title: '라운딩이 며칠 안 남았어요',
+        message: '라운딩 날짜가 가까워요.\n정말 취소하시겠어요?\n취소하면 자리는 다시 열려요.',
+        buttons: [
+          { text: '계속 참여', style: 'cancel' },
+          { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
+        ],
+      });
+      return;
+    }
+    // (3) D-7 이전 — 자유 취소, 약속 존중 톤
     setAlert({
       title: '참여를 취소할까요?',
-      message: '취소하면 자리는 다시 열려요.',
+      message: '참여 확정된 라운딩이에요.\n신중하게 생각하고 취소해 주세요.\n취소하면 자리는 다시 열려요.',
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
@@ -865,6 +903,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         buttons: [{ text: '확인' }],
       });
     }
+  };
+
+  // 주최자 모집 확정 — 만석 상태에서만 호출(UI에서 보장). closed:true → 매너 -5 분기 활성 ([[roundup-penalty-policy]] §1)
+  const handleConfirmRoundup = async (id) => {
+    try {
+      await closeRoundup(id);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] closeRoundup failed', e);
+      setAlert({ title: '모집 확정에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+      return;
+    }
+    setPosts(prev => prev.map(p => (p.id === id ? { ...p, closed: true } : p)));
   };
 
   // 내 모집글 삭제 — Firestore 삭제 후 로컬 정리, 상세 화면도 닫는다
@@ -922,12 +972,56 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     });
   };
 
-  // 주최자 — 참여 신청 수락 / 거절
-  const acceptApply = (n) => {
+  // 주최자 — 참여 신청 수락. Firestore: applications accepted + roundup participantUids/joined +1.
+  //  ※ 알림 status는 보안규칙상 read만 수정 가능 → 로컬만 갱신. 리로드 시 pending으로 복귀하나,
+  //    participantUids 포함 여부로 중복 수락(정원 중복 +1)을 막는다. 정확한 트랜잭션은 Phase 2 Cloud Function.
+  const acceptApply = async (n) => {
+    const applicantUid = n.actorUid;
+    if (!n.postId || !applicantUid) return;
+    // 이미 수락된 신청 — 중복 처리 방지 (로컬 알림만 정리)
+    const post = posts.find(p => p.id === n.postId);
+    if (post && Array.isArray(post.participantUids) && post.participantUids.includes(applicantUid)) {
+      setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, status: 'accepted', read: true } : x)));
+      return;
+    }
+    try {
+      await acceptApplication(n.postId, applicantUid);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] acceptApplication failed', e);
+      setAlert({ title: '수락 처리에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+      return;
+    }
+    // 신청자에게 확정 알림
+    createNotification({
+      type: 'confirmed',
+      recipientUid: applicantUid,
+      actorName: userProfile?.nickname || '',
+      postId: n.postId,
+      postTitle: n.postTitle || '',
+    }).catch(e => __DEV__ && console.warn('[RoundupTab] confirmed noti fail', e?.message));
+    // 알림 읽음 영속 + 로컬 상태 갱신 (정원·참여자·이름)
+    markNotificationRead(n.id).catch(e => __DEV__ && console.warn('[RoundupTab] markRead fail', e?.message));
     setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, status: 'accepted', read: true } : x)));
-    bumpPostCount(n.postId);
+    setPosts(prev => prev.map(p => {
+      if (p.id !== n.postId) return p;
+      const parts = Array.isArray(p.participantUids) ? p.participantUids : [];
+      const nextParts = parts.includes(applicantUid) ? parts : [...parts, applicantUid];
+      return { ...p, participantUids: nextParts, joined: (p.joined || 0) + 1 };
+    }));
+    if (n.actorName) setParticipantNames(prev => ({ ...prev, [applicantUid]: n.actorName }));
   };
-  const rejectApply = (n) => {
+  // 주최자 — 참여 신청 거절. Firestore: applications rejected. 신청자는 리로드 시 신청 목록에서 빠짐.
+  const rejectApply = async (n) => {
+    const applicantUid = n.actorUid;
+    if (!n.postId || !applicantUid) return;
+    try {
+      await rejectApplication(n.postId, applicantUid);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] rejectApplication failed', e);
+      setAlert({ title: '거절 처리에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+      return;
+    }
+    markNotificationRead(n.id).catch(e => __DEV__ && console.warn('[RoundupTab] markRead fail', e?.message));
     setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, status: 'rejected', read: true } : x)));
   };
 
@@ -1335,6 +1429,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         post={detailPost}
         myUid={myUid}
         friendUids={friendUids}
+        participantNames={participantNames}
         visible={!!detailPost}
         joined={!!(detailId && joined[detailId])}
         applied={!!(detailId && applied[detailId])}
@@ -1347,6 +1442,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onCancel={() => detailId && performCancel(detailId)}
         onCancelWait={() => detailId && cancelWaitlist(detailId)}
         onDelete={() => detailId && handleDelete(detailId)}
+        onConfirm={() => detailId && handleConfirmRoundup(detailId)}
         onGradePress={(key) => setGradeModalKey(key)}
         onToggleBookmark={() => detailId && toggleBookmark(detailId)}
         onBlock={handleBlock}

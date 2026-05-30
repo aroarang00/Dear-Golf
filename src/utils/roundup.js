@@ -143,9 +143,11 @@ export async function leaveRoundup(postId) {
   if (!uid) throw new Error('Not authenticated');
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
+  // closed:false — 결원 발생 시 확정 해제 (이미 false면 diff에 안 잡혀 무해). [[roundup-penalty-policy]] §4
   await updateDoc(ref, {
     participantUids: arrayRemove(uid),
     joined: increment(-1),
+    closed: false,
     updatedAt: serverTimestamp(),
   });
 }
@@ -181,9 +183,11 @@ export async function leaveWaitlist(postId) {
 export async function kickParticipant(postId, targetUid) {
   if (!postId || !targetUid) throw new Error('postId and targetUid required');
   const ref = doc(db, COLLECTION, postId);
+  // closed:false — 강퇴로도 결원 발생 → 확정 해제 (참여 취소와 일관). [[roundup-penalty-policy]] §4
   await updateDoc(ref, {
     participantUids: arrayRemove(targetUid),
     joined: increment(-1),
+    closed: false,
     updatedAt: serverTimestamp(),
   });
 }
@@ -194,6 +198,7 @@ export async function closeRoundup(postId) {
   const ref = doc(db, COLLECTION, postId);
   await updateDoc(ref, { closed: true, updatedAt: serverTimestamp() });
 }
+
 
 // =============================================================
 // roundupApplications/{appId} — 전체공개 모집 참여 신청

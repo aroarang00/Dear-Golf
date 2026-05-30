@@ -85,11 +85,25 @@ function WaitRow({ num, name, me }) {
 }
 
 // 슬롯 배열 생성 — teamIdx가 null이면 개별 모집
-function buildSlots(post, teamIdx) {
+// nameMap: { uid: nickname } — 실제 참여자 이름. participantUids 우선, 옛 더미 호환 위해 pickNames fallback.
+function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
   const hostName = post.authorName || post.author || '주최자';
   if (teamIdx == null) {
     const cap = post.capacity || 4;
     const filled = post.joined || 0;
+    const uids = Array.isArray(post.participantUids) ? post.participantUids : [];
+    // participantUids가 있으면 실제 참여자 기준, 없으면(옛 더미) pickNames fallback
+    if (uids.length > 0) {
+      return Array.from({ length: cap }, (_, i) => {
+        if (i >= filled) return { open: true };
+        const uid = uids[i];
+        const host = uid ? uid === post.authorUid : i === 0;
+        const name = host ? hostName
+          : uid === myUid ? '나'
+          : (nameMap[uid] || '동반자');
+        return { name, host };
+      });
+    }
     const names = pickNames(post.id, filled);
     return Array.from({ length: cap }, (_, i) =>
       i < filled ? { name: i === 0 ? hostName : names[i], host: i === 0 } : { open: true });
@@ -104,7 +118,7 @@ function buildSlots(post, teamIdx) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
+export function RoundupDetail({ post, myUid, friendUids = [], participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -134,7 +148,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
     : (post.joined || 0) + companionsCount >= (post.capacity || 4);
   const isClosed = post.closed || allFull;
   const respondHours = waitlistRespondHours(post.date);
-  const slots = buildSlots(post, isTeam ? teamTab : null);
+  const slots = buildSlots(post, isTeam ? teamTab : null, participantNames, myUid);
   const waiters = pickNames(post.id + ':wait', post.waitlistCount || 0);
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
@@ -154,7 +168,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
           if (r && r.ok === false) {
             setAlert({
               title: '참여 처리에 실패했어요',
-              message: '잠시 후 다시 시도해 주세요.',
+              message: __DEV__ && r.message ? r.message : '잠시 후 다시 시도해 주세요.',
               buttons: [{ text: '확인' }],
             });
           }
@@ -174,14 +188,14 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
       const now = new Date();
       hoursUntil = (target - now) / 3600000;
     }
-    // 친구공개·친구지정 모집은 시스템 제재 예외 — 친구끼리 직접 소통, 시스템 매개 불필요
-    // ([[manner-evaluation-policy]] §1-0과 같은 결, 2026-05-27 정책 확장)
-    // 전체공개 + D-7 이내 + 확정 — 매너 영향 경고 (약관 일치)
-    // 그 외(D-7 이전/미확정/친구공개·친구지정) — 자유 취소
-    if (post.scope === 'all' && isD7Inside(hoursUntil) && isRoundupConfirmed(post)) {
+    // 안내 3분기 (2026-05-30) — D-7은 매너 -5 분기일 뿐이라 사용자에겐 강하게 느껴짐.
+    // 상황별로 톤을 나눔. 매너 차감은 전체공개+D-7이내+확정만 (친구모집은 시스템 제재 예외).
+    const insideD7 = isD7Inside(hoursUntil);
+    // (1) 전체공개 + D-7 이내 + 모집확정 — 매너 점수 차감 분기 (패널티 있는 유일 케이스)
+    if (post.scope === 'all' && insideD7 && isRoundupConfirmed(post)) {
       setAlert({
-        title: '라운딩 7일 이내 취소',
-        message: '함께하는 골프,\n서로의 시간을 존중해요.\n\n동반자들의 매너 평가에 영향을 줄 수 있고\n매너점수가 깎일 수 있어요.\n\n사전 안내 없이 나타나지 않으면\n노쇼로 신고받을 수 있으니\n부득이한 사정이라면 댓글로 양해를 구해주세요.',
+        title: '확정된 라운딩 취소',
+        message: '확정된 라운딩이라 지금 취소하면\n매너 점수가 차감될 수 있어요.\n\n사전 안내 없이 나타나지 않으면\n노쇼로 신고받을 수 있으니\n부득이한 사정이라면 댓글로 양해를 구해주세요.',
         buttons: [
           { text: '계속 참여', style: 'cancel' },
           { text: '취소하기', style: 'destructive', onPress: onCancel },
@@ -189,16 +203,46 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
       });
       return;
     }
-    // D-7 이전 — 자유 취소
+    // (2) D-7 이내 + 미확정(또는 친구모집) — 패널티 없음, 임박 안내만
+    if (insideD7) {
+      setAlert({
+        title: '라운딩이 며칠 안 남았어요',
+        message: '라운딩 날짜가 가까워요.\n정말 취소하시겠어요?\n취소하면 자리는 다시 열려요.',
+        buttons: [
+          { text: '계속 참여', style: 'cancel' },
+          { text: '취소하기', style: 'destructive', onPress: onCancel },
+        ],
+      });
+      return;
+    }
+    // (3) D-7 이전 — 자유 취소, 약속 존중 톤
     setAlert({
       title: '참여를 취소할까요?',
-      message: '아직 D-7 이전이라 자유롭게 취소할 수 있어요.\n취소하면 자리는 다시 열려요.',
+      message: '참여 확정된 라운딩이에요.\n신중하게 생각하고 취소해 주세요.\n취소하면 자리는 다시 열려요.',
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '참여 취소', style: 'destructive', onPress: onCancel },
       ],
     });
   };
+  // 모집 확정 — 만석 상태에서 주최자가 명시적으로 closed:true. 매너 -5 분기점 ([[roundup-penalty-policy]] §1)
+  const confirmFinalize = () => setAlert({
+    title: '모집을 확정할까요?',
+    message: '정원이 다 찬 모집을 확정해요.\n확정 후엔 동반자 약속이 시작되고,\n참여자가 7일 이내 취소하면 매너 평가에 영향을 받을 수 있어요.',
+    buttons: [
+      { text: '취소', style: 'cancel' },
+      { text: '모집 확정', onPress: onConfirm },
+    ],
+  });
+  // 신청 취소 — 아직 미확정(수락 대기)이라 자유 취소, 매너/패널티 영향 없음
+  const confirmCancelApplication = () => setAlert({
+    title: '신청을 취소할까요?',
+    message: '주최자에게 보낸 참여 신청이 취소돼요.\n필요하면 다시 신청할 수 있어요.',
+    buttons: [
+      { text: '닫기', style: 'cancel' },
+      { text: '신청 취소', style: 'destructive', onPress: onCancel },
+    ],
+  });
   // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
   const confirmCancelWait = () => setAlert({
     title: '대기를 취소할까요?',
@@ -275,12 +319,31 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
   if (isMine) {
     actionBtn = (
       <View>
-        <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
-          backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>내가 올린 모집글</Text>
-        </View>
+        {post.closed ? (
+          // 이미 확정됨 — closed:true. D-7 이내 참여자 취소 시 매너 -5 분기 활성 ([[roundup-penalty-policy]] §1)
+          <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#3C7D4F' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C7D4F' }}>모집 확정됨 ✓</Text>
+          </View>
+        ) : allFull ? (
+          // 만석 + 미확정 — 주최자 명시 확정 버튼. 만석 자체는 자동 확정 X (2026-05-28 정책)
+          <>
+            <TouchableOpacity activeOpacity={0.85} onPress={confirmFinalize}
+              style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: '#3C7D4F' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>모집 확정하기</Text>
+            </TouchableOpacity>
+            <Text style={hintStyle}>
+              정원이 다 찼어요. 확정하면 동반자 약속이 시작되고, 이후 참여 취소엔 매너 평가가 따를 수 있어요.
+            </Text>
+          </>
+        ) : (
+          <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>내가 올린 모집글</Text>
+          </View>
+        )}
         <View style={{ flexDirection: 'row', gap: 8, marginTop: _and ? 6 : 8 }}>
-          {onEdit && (
+          {onEdit && !post.closed && (
             <TouchableOpacity activeOpacity={0.85} onPress={onEdit}
               style={{ flex: 1, borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
                 backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
@@ -298,10 +361,18 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
   } else if (joined) {
     actionBtn = (
       <View>
-        <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
-          backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>참여 확정 ✓</Text>
-        </View>
+        {post.closed ? (
+          // 모집 확정됨 — 주최자가 확정(closed:true). 참여자에게도 "모집 확정" 표시 ([[roundup-penalty-policy]] §1)
+          <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+            backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#3C7D4F' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C7D4F' }}>모집 확정 · 참여 확정 ✓</Text>
+          </View>
+        ) : (
+          <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>참여 확정 ✓</Text>
+          </View>
+        )}
         <TouchableOpacity onPress={confirmCancel} activeOpacity={0.7}
           style={{ marginTop: 6, alignItems: 'center', paddingVertical: 6 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textDecorationLine: 'underline' }}>
@@ -312,9 +383,17 @@ export function RoundupDetail({ post, myUid, friendUids = [], visible, joined, a
     );
   } else if (applied) {
     actionBtn = (
-      <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
-        backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B6914' }}>신청 완료 · 수락 대기 중</Text>
+      <View>
+        <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+          backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B6914' }}>신청 완료 · 수락 대기 중</Text>
+        </View>
+        <TouchableOpacity onPress={confirmCancelApplication} activeOpacity={0.7}
+          style={{ marginTop: 6, alignItems: 'center', paddingVertical: 6 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textDecorationLine: 'underline' }}>
+            신청 취소
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   } else if (waitlistNum) {

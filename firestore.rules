@@ -84,7 +84,10 @@ service cloud.firestore {
     // ===== friendships — 친구 관계. 문서 ID = pairId(uidA, uidB) =====
     // { users:[uidA,uidB], requesterUid, recipientUid, status:'pending'|'accepted' }
     match /friendships/{fid} {
-      allow read: if isSignedIn() && request.auth.uid in resource.data.users;
+      //  resource == null: 아직 없는 친구문서(결정적 pairId)의 존재 확인 get 허용 —
+      //  첫 친구 신청·areFriends 조회 전 getDoc이 막히던 버그 수정. 실재 문서는 당사자만 read.
+      allow read: if isSignedIn()
+        && (resource == null || request.auth.uid in resource.data.users);
 
       // 신청: 본인이 requester, status는 pending, users는 정확히 두 당사자,
       //       문서 ID는 정규 pairId 여야 함 (areFriends가 ID를 계산해 조회하므로)
@@ -128,12 +131,15 @@ service cloud.firestore {
       // 주최자: 전체 수정 / 참여자: 참여·대기 배열만, 본인 포함 여부만 토글
       //   ※ "남의 uid를 건드리지 않음"까지의 완전한 보장은 규칙만으론 불가 —
       //     정확한 정원 처리는 Cloud Function(트랜잭션)으로 이관 권장
+      //  참여자는 closed를 false로만 바꿀 수 있음(결원 발생 시 확정 해제). true로 확정은 주최자만.
+      //  ([[roundup-penalty-policy]] §4, 2026-05-30) — 대기신청 등 closed 유지 동작은 그대로 통과.
       allow update: if isSignedIn() && (
         resource.data.authorUid == request.auth.uid
         || (
           resource.data.authorUid != request.auth.uid
-          && changedKeysWithin(['participantUids', 'waitlistUids', 'joined', 'teamJoined', 'updatedAt'])
+          && changedKeysWithin(['participantUids', 'waitlistUids', 'joined', 'teamJoined', 'closed', 'updatedAt'])
           && (selfMembershipToggled('participantUids') || selfMembershipToggled('waitlistUids'))
+          && (resource.data.closed == request.resource.data.closed || request.resource.data.closed == false)
         )
       );
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
@@ -148,8 +154,11 @@ service cloud.firestore {
     //   · 내 신청 목록 : where('applicantUid','==', 내uid).where('status','==', 'pending')
     //   · 주최자 화면  : where('roundupId','==', postId).where('status','==', 'pending')
     match /roundupApplications/{appId} {
+      //  resource == null: 아직 없는 신청서(결정적 ID)의 존재 확인 get 허용 —
+      //  신청 전 getDoc이 막히던 버그 수정. 실재하는 문서는 본인(신청자/주최자)만 read.
       allow read: if isSignedIn() && (
-        resource.data.applicantUid == request.auth.uid
+        resource == null
+        || resource.data.applicantUid == request.auth.uid
         || resource.data.authorUid == request.auth.uid
       );
 
@@ -235,7 +244,9 @@ service cloud.firestore {
     //  보안: 평가자 본인 read·create만. update/delete 불가 (수정 불가).
     //  대상자(target)는 자기 평가를 직접 못 읽음 — Cloud Functions가 집계 후 mannerScore에만 적용.
     match /mannerEvaluations/{evalId} {
-      allow read: if isSignedIn() && resource.data.evaluatorUid == request.auth.uid;
+      //  resource == null: 아직 없는 평가(결정적 ID)의 중복 확인 get 허용. 실재 문서는 평가자 본인만.
+      allow read: if isSignedIn()
+        && (resource == null || resource.data.evaluatorUid == request.auth.uid);
       allow create: if isSignedIn()
         && request.resource.data.evaluatorUid == request.auth.uid
         && request.resource.data.targetUid is string
@@ -297,7 +308,9 @@ service cloud.firestore {
     //  보안: 신고자 본인이 자기 신고 read·create. 변조·삭제는 Cloud Functions만.
     //  사용자 신고(reports)와 분리 — 한도 X, 양방향 차단 X, 부담 없는 신고.
     match /content_reports/{reportId} {
-      allow read: if isSignedIn() && resource.data.reporterUid == request.auth.uid;
+      //  resource == null: 아직 없는 신고(결정적 ID)의 중복 확인 get 허용. 실재 문서는 신고자 본인만.
+      allow read: if isSignedIn()
+        && (resource == null || resource.data.reporterUid == request.auth.uid);
       allow create: if isSignedIn()
         && request.resource.data.reporterUid == request.auth.uid
         && request.resource.data.targetType in ['courseComment', 'roundup', 'roundupComment']
