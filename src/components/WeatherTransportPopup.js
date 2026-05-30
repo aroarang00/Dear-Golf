@@ -774,12 +774,21 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 }
                 return (
                   <>
-                    {label && (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: usePrecise ? C.burgundy : C.warmGray,
+                    {label && (usePrecise ? (
+                      // 어두운 배경에 버건디 글씨가 묻혀서 → 버터색 배지로 강조 (팝업 강조색과 일관)
+                      <View style={{ alignSelf: 'center', marginBottom: 10, paddingHorizontal: 12, paddingVertical: 4,
+                        borderRadius: 999, backgroundColor: 'rgba(245,230,168,0.16)',
+                        borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.45)' }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, textAlign: 'center', letterSpacing: 0.5 }}>
+                          {label}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray,
                         textAlign: 'center', marginBottom: 8, letterSpacing: 0.5 }}>
                         {label}
                       </Text>
-                    )}
+                    ))}
                     <View style={wxS.tempHero}>
                       <Text style={wxS.tempEmoji}>{icon || '🌤️'}</Text>
                       <Text style={wxS.tempBig}>
