@@ -108,12 +108,14 @@ function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
     return Array.from({ length: cap }, (_, i) =>
       i < filled ? { name: i === 0 ? hostName : names[i], host: i === 0 } : { open: true });
   }
+  // 단체(팀) 모집 — 데이터 모델상 uid가 어느 팀에 속하는지 매핑이 없음(participantUids 평면 + teamJoined 카운트만).
+  //  특정 팀 슬롯에 실명을 박으면 거짓 배치가 되므로, 주최자만 표시하고 나머지는 중립 '동반자' 라벨.
+  //  (옛 pickNames 더미 인명 제거 — 가짜 신원 노출 방지. 정확한 팀별 실명은 Phase 2 팀 배정 데이터 필요.)
   const filled = post.teamJoined[teamIdx] || 0;
-  const names = pickNames(post.id + ':' + teamIdx, filled);
   return Array.from({ length: 4 }, (_, i) => {
     if (i >= filled) return { open: true };
     const host = teamIdx === 0 && i === 0;
-    return { name: host ? hostName : names[i], host };
+    return { name: host ? hostName : '동반자', host };
   });
 }
 
@@ -146,6 +148,8 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
   const allFull = isTeam
     ? post.teamJoined.every(c => c >= 4)
     : (post.joined || 0) + companionsCount >= (post.capacity || 4);
+  // 만석(allFull) 또는 주최자 확정(closed)이면 마감 — 비참여자에겐 대기신청 동선.
+  //  취소 시엔 leaveRoundup이 closed:false + joined-1로 둘 다 풀어주므로 참여 버튼이 정상 복귀.
   const isClosed = post.closed || allFull;
   const respondHours = waitlistRespondHours(post.date);
   const slots = buildSlots(post, isTeam ? teamTab : null, participantNames, myUid);

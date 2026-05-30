@@ -584,9 +584,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         for (let i = tj.length - 1; i >= 0; i--) {
           if (tj[i] > 0) { tj[i] -= 1; break; }
         }
-        return { ...p, participantUids: nextParts, teamJoined: tj };
+        // 강퇴로도 결원 → 확정 해제 (kickParticipant가 Firestore closed:false 처리, 로컬도 일치)
+        return { ...p, participantUids: nextParts, teamJoined: tj, closed: false };
       }
-      return { ...p, participantUids: nextParts, joined: Math.max(0, (p.joined || 0) - 1) };
+      return { ...p, participantUids: nextParts, joined: Math.max(0, (p.joined || 0) - 1), closed: false };
     }));
     await incrementKickCount();
     const remaining = await getKickRemainingThisMonth();
