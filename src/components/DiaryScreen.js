@@ -237,21 +237,26 @@ export function DiaryScreen({ route, navigation }) {
       // 없을 때만 새 일정 자동 등록. ([[home-multi-schedule-same-day]] 룰3)
       if (!data.scheduleId) {
         try {
-          // 미리 잡아둔 일정(기록 미연결, 같은 구장·날) 찾기 — 있으면 거기에 연결
+          // 미리 잡아둔 일정(기록 미연결, 같은 구장·날) 찾기 — 있으면 거기에 연결.
+          // 국내/해외 도메인이 같은 일정만 매칭 (해외 기록이 국내 일정에 붙어 미기록 카드로 새는 것 방지)
           const existingSched = schedules.find(s =>
             s.course === data.course && s.date === data.date
+            && !!s.overseas === !!data.overseas
             && !diaries.some(d => d.scheduleId === s.id));
           let linkId;
           if (existingSched) {
             linkId = existingSched.id;
           } else {
             // 과거 라운딩이라 시간 정보는 빈 값 (사용자가 일정 화면에서 수정 가능)
+            // 해외 기록이면 overseas·국가를 일정에도 넘겨 해외 탭에서 집계되게 함
             const created2 = await addSchedule({
               course: data.course,
               date: data.date,
               day: data.day,
               time: '',
               members: (data.companions?.length || 0) + 1,
+              overseas: !!data.overseas,
+              cityCountry: data.overseas ? (data.country || '') : '',
             });
             linkId = created2.id;
           }
@@ -369,7 +374,16 @@ export function DiaryScreen({ route, navigation }) {
   // 통계 박스 — 평균타 라벨 폐기, 핸디로 통일 (친구에게 공개되는 핸디 뱃지와 일관성).
   // 라운딩 5개 이하면 입력값 우선, 6개부터는 베스트 5개 평균 (잘 친 5개만, 못 친 건 버림).
   const hasRecords = diaries.length > 0;
-  const totalRounds = hasRecords ? diaries.length : (userProfile.totalRounds || null);
+  // 총 라운딩 = 다이어리 기록 + 기록 없는 지난 일정(완료된 라운딩). 내코스모아보기 '방문' 계산과 동일 정책.
+  // 같은 날 36홀은 scheduleId/course+date 매칭으로 각각 셈, 예정(미래) 일정은 제외.
+  const _todayMs = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t.getTime(); })();
+  const _isPastSched = (date) => !!date && new Date(date.replace(/\./g, '-')).getTime() < _todayMs;
+  const unrecordedRoundCount = (schedules || []).filter(s =>
+    _isPastSched(s.date) &&
+    !diaries.some(d => (s.id && d.scheduleId === s.id) || (!d.scheduleId && d.course === s.course && d.date === s.date))
+  ).length;
+  const completedRounds = diaries.length + unrecordedRoundCount;
+  const totalRounds = completedRounds > 0 ? completedRounds : (userProfile.totalRounds || null);
   const bestScore = hasRecords
     ? Math.min(...diaries.map(d => d.score))
     : (userProfile.lifeBest || null);

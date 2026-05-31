@@ -199,11 +199,14 @@ export function CourseLogTab({ avgRating, navigation }) {
       return map[k];
     };
     (diaries || []).filter(d => !d.overseas).forEach(d => { const e = entryOf(d.course); if (e) e.records.push(d); });
+    // 해외 다이어리가 연결한 일정 id — overseas 플래그가 누락된 옛 데이터라도 국내로 새지 않게 방어
+    const overseasLinkedSchedIds = new Set(
+      (diaries || []).filter(d => d.overseas && d.scheduleId).map(d => d.scheduleId));
     // 예정(미래) 일정은 제외 — 지난 일정만 '완료된 라운딩'으로 집계
     // 해외 일정은 해외 탭에서 별도로 집계되므로 국내에서는 제외
     (schedules || []).forEach(s => {
       if (!isPast(s.date)) return;
-      if (s.overseas) return;
+      if (s.overseas || overseasLinkedSchedIds.has(s.id)) return;
       const e = entryOf(s.course);
       if (e) e.scheduleEntries.push(s);
     });
