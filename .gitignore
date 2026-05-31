@@ -58,6 +58,12 @@ expo-start.log
 firebase-debug.log
 firebase-debug.*.log
 
+# Firebase 배포 캐시
+.firebase/
+
+# 테스트 시드 산출물
+scripts/.seed-output.json
+
 # Functions 빌드
 functions/node_modules/
 
