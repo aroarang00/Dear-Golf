@@ -94,6 +94,18 @@ export async function deleteCourseComment(commentId) {
   }
 }
 
+// 내가 쓴 코멘트 수정 — 본문(text)만. 보안 규칙: 작성자 본인만 update 가능.
+export async function updateCourseComment(commentId, text) {
+  if (!commentId || !text || !text.trim()) return false;
+  try {
+    await updateDoc(doc(db, COL, commentId), { text: text.trim() });
+    return true;
+  } catch (e) {
+    console.warn('[comments] update failed', e?.message);
+    return false;
+  }
+}
+
 // 홈 화면용 — 해당 코스 좋아요 1위 코멘트 (없으면 null)
 export async function getTopComment(courseId) {
   const list = await getCourseComments(courseId);

@@ -24,7 +24,7 @@ import { fetchCoursePlaceInfo, searchGolfCourses, searchNearbyRestaurants, searc
 import { buildFoodMapUrl, NAVER_MAP_HEADERS } from '../utils/naverMap';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
-import { getCourseComments, addCourseComment, toggleCommentLike } from '../utils/courseComments';
+import { getCourseComments, addCourseComment, toggleCommentLike, deleteCourseComment, updateCourseComment } from '../utils/courseComments';
 import { createContentReport, hasReportedContent } from '../utils/contentReports';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
 import { CourseLogModal } from './CourseLogModal';
@@ -43,6 +43,7 @@ export function GuideScreen({ route, navigation }) {
   const [comments, setComments] = useState([]);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState(null); // 내 코멘트 수정 중 id
   const [showAllComments, setShowAllComments] = useState(false); // 골퍼 코멘트 — 상위 5개 + 더보기
   const [search, setSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('전체');
@@ -448,10 +449,49 @@ export function GuideScreen({ route, navigation }) {
     ]);
   };
 
+  // 내 코멘트 — 수정/삭제 (남의 코멘트는 신고). ⋯ 버튼이 cm.mine으로 분기.
+  const openMyCommentMenu = (cm) => {
+    showAppAlert('내 코멘트', '', [
+      { text: '수정', onPress: () => startEditComment(cm) },
+      { text: '삭제', style: 'destructive', onPress: () => confirmDeleteComment(cm) },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
+  const startEditComment = (cm) => {
+    setEditingCommentId(cm.id);
+    setCommentInput(cm.txt || '');
+    setShowCommentInput(true);
+  };
+  const confirmDeleteComment = (cm) => {
+    showAppAlert('코멘트 삭제', '이 코멘트를 삭제할까요?\n되돌릴 수 없어요.', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: async () => {
+        const ok = await deleteCourseComment(cm.id);
+        if (ok) {
+          setComments(prev => prev.filter(c => c.id !== cm.id));
+          if (editingCommentId === cm.id) { setEditingCommentId(null); setCommentInput(''); }
+        } else {
+          showAppAlert('삭제 실패', '잠시 후 다시 시도해주세요.', [{ text: '확인' }]);
+        }
+      } },
+    ]);
+  };
+
   // 코멘트 작성 — Firestore에 저장(전체 유저 공유)
   const submitComment = async () => {
     const txt = commentInput.trim();
     if (!txt || !selected) return;
+    // 수정 모드 — 기존 코멘트 본문만 업데이트
+    if (editingCommentId) {
+      const id = editingCommentId;
+      setCommentInput('');
+      setShowCommentInput(false);
+      setEditingCommentId(null);
+      const ok = await updateCourseComment(id, txt);
+      if (ok) setComments(prev => prev.map(c => (c.id === id ? { ...c, txt } : c)));
+      else showAppAlert('코멘트 수정 실패', '네트워크 상태를 확인하고 다시 시도해주세요.');
+      return;
+    }
     // 카카오 코스는 kakaoId로 키 통일 — 미리보기/저장 코스가 같은 코멘트 공유
     const courseKey = commentKeyFor(selected);
     if (!courseKey) { showAppAlert('코멘트', '이 골프장에는 코멘트를 남길 수 없어요.'); return; }
@@ -723,7 +763,7 @@ export function GuideScreen({ route, navigation }) {
                   <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트 · 좋아요 순</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => setShowCommentInput(v => !v)}
+                  onPress={() => { if (editingCommentId) { setEditingCommentId(null); setCommentInput(''); } setShowCommentInput(v => !v); }}
                   activeOpacity={0.85}
                   style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>+ 코멘트</Text>
@@ -741,7 +781,7 @@ export function GuideScreen({ route, navigation }) {
                   <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 12, marginBottom: 14 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
-                        {anonymize(userProfile?.nickname)} · 전체공개
+                        {anonymize(userProfile?.nickname)} · {editingCommentId ? '코멘트 수정' : '전체공개'}
                       </Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{commentInput.length}/200</Text>
                     </View>
@@ -754,7 +794,7 @@ export function GuideScreen({ route, navigation }) {
                       style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, minHeight: 60, textAlignVertical: 'top' }}
                     />
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, gap: 8 }}>
-                      <TouchableOpacity onPress={() => { setShowCommentInput(false); setCommentInput(''); }}>
+                      <TouchableOpacity onPress={() => { setShowCommentInput(false); setCommentInput(''); setEditingCommentId(null); }}>
                         <View style={{ paddingHorizontal: 14, paddingVertical: 7 }}>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>취소</Text>
                         </View>
@@ -763,7 +803,7 @@ export function GuideScreen({ route, navigation }) {
                         onPress={submitComment}
                         disabled={!commentInput.trim()}
                         style={{ backgroundColor: commentInput.trim() ? C.burgundy : C.hairline, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: commentInput.trim() ? C.butter : C.warmGrayLight }}>등록</Text>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: commentInput.trim() ? C.butter : C.warmGrayLight }}>{editingCommentId ? '수정' : '등록'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -789,7 +829,7 @@ export function GuideScreen({ route, navigation }) {
                               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.burgundy }}>{cm.likedByMe ? '♥' : '♡'} {cm.likes}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                              onPress={() => handleReportComment(cm)}
+                              onPress={() => cm.mine ? openMyCommentMenu(cm) : handleReportComment(cm)}
                               activeOpacity={0.6}
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                               style={{ paddingHorizontal: 4, paddingVertical: 2 }}>
