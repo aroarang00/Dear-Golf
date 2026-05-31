@@ -167,6 +167,10 @@ export function DiaryScreen({ route, navigation }) {
       const created = await addDiary({
         date: data.date, day: data.day, course: data.course,
         score: data.score, par: 72, memo: data.memo || '',
+        holeScores: data.holeScores || null,        // 스코어카드 18홀
+        holePars: data.holePars || null,            // 스코어카드 par 행 (버디 자동집계)
+        holeScoresShared: !!data.holeScoresShared,  // 홀별 상세 공개여부 (기본 나만보기)
+        birdieCount: data.birdieCount || 0,         // 버디 수 (자동/수동)
         badge: null, weather: data.weather,
         special: data.special || null,
         specialHole: data.specialHole || null,
@@ -189,8 +193,11 @@ export function DiaryScreen({ route, navigation }) {
         let next = prev;
         // 특별한 순간(홀인원·이글·알바트로스) 카드
         if (data.special) next = [buildHofEntry(data, created.id), ...next];
-        // 퍼스트 싱글 — 80타 미만 첫 기록 시 1회 자동 등재
-        if (data.score <= 79 && !prev.some(h => h.type === '퍼스트 싱글')) {
+        // 퍼스트 싱글 — 80타 미만 첫 기록 시 1회 자동 등재.
+        // 온보딩/프로필 라이프베스트가 이미 싱글(≤79)이면 제외 — 이미 싱글이라 '첫' 싱글 아님.
+        // lifeBest 직접 사용: MyPage에서 lifeBest 수정 시 hasFirstSingle 플래그는 stale → lifeBest가 정확.
+        const onboardBest = userProfile.lifeBest || 99;
+        if (data.score <= 79 && onboardBest > 79 && !prev.some(h => h.type === '퍼스트 싱글')) {
           next = [buildSingleHofEntry(data, created.id), ...next];
         }
         return next;

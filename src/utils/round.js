@@ -67,6 +67,7 @@ export async function createRound(data) {
     holeScoresShared: !!data.holeScoresShared, // 홀별 상세 친구 공개 여부. 기본 false=나만보기 (친구 뷰 구현 시 가림 제어)
     holePars: Array.isArray(data.holePars) ? data.holePars : null, // 홀별 par (스코어카드 par 행). 버디 자동집계용, 없으면 null
     par: typeof data.par === 'number' ? data.par : 72,
+    birdieCount: typeof data.birdieCount === 'number' ? data.birdieCount : 0, // 버디 수 (스코어카드 자동/수동)
     memo: data.memo || '',
     detailMemo: data.detailMemo || '',
     weather: data.weather || null,

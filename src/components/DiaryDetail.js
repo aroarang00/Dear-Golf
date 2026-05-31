@@ -223,23 +223,29 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
             const hs = item.holeScores;
             const sum = (a) => a.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
             const front = sum(hs.slice(0, 9)), back = sum(hs.slice(9, 18));
-            const cellBox = { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRightWidth: 0.5, borderColor: C.hairline };
-            const sideBox = { width: 40, alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderColor: C.hairline };
+            const cellBox = { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 5, borderRightWidth: 0.5, borderColor: C.hairline };
+            const sideBox = { width: 34, alignItems: 'center', justifyContent: 'center', paddingVertical: 5, borderColor: C.hairline };
             const numTxt = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray };
             const scoreTxt = { fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary };
             const labelTxt = { fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 0.5 };
             const nums = (s) => Array.from({ length: 9 }, (_, k) => s + k + 1);
             const scores = (s) => Array.from({ length: 9 }, (_, k) => { const v = hs[s + k]; return Number.isFinite(v) ? v : '-'; });
+            const hp = item.holePars;
+            const hasPar = Array.isArray(hp) && hp.some(n => Number.isFinite(n));
+            const pars = (s) => Array.from({ length: 9 }, (_, k) => { const v = hp?.[s + k]; return Number.isFinite(v) ? v : '-'; });
+            const parFront = hasPar ? sum(hp.slice(0, 9)) : null;
+            const parBack = hasPar ? sum(hp.slice(9, 18)) : null;
+            const mutedTxt = { fontFamily: F.sys, fontSize: fs(12), color: C.warmGray };
             const row = (label, cells, totalText, opt = {}) => (
               <View style={{ flexDirection: 'row',
                 borderBottomWidth: opt.header ? 0.5 : 0, borderTopWidth: opt.topBorder ? 0.5 : 0, borderColor: C.hairline,
-                backgroundColor: opt.header ? C.bgSecondary : 'transparent' }}>
+                backgroundColor: opt.header ? C.bgSecondary : opt.tint ? 'rgba(107,30,42,0.06)' : 'transparent' }}>
                 <View style={[sideBox, { borderRightWidth: 0.5 }]}><Text style={labelTxt}>{label}</Text></View>
                 {cells.map((c, i) => (
-                  <View key={i} style={cellBox}><Text style={opt.header ? numTxt : scoreTxt}>{c}</Text></View>
+                  <View key={i} style={cellBox}><Text style={opt.header ? numTxt : opt.muted ? mutedTxt : scoreTxt}>{c}</Text></View>
                 ))}
                 <View style={sideBox}>
-                  <Text style={opt.header ? labelTxt : { ...scoreTxt, color: C.burgundy }}>{totalText}</Text>
+                  <Text style={opt.header ? labelTxt : opt.muted ? mutedTxt : { ...scoreTxt, color: C.burgundy }}>{totalText}</Text>
                 </View>
               </View>
             );
@@ -247,10 +253,12 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
               <View style={{ marginTop: 16 }}>
                 <Text style={[dS.companionLabel, { marginTop: 0, marginBottom: 10 }]}>홀별 스코어</Text>
                 <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8, overflow: 'hidden' }}>
-                  {row('홀', nums(0), '계', { header: true })}
-                  {row('타수', scores(0), front)}
-                  {row('홀', nums(9), '계', { header: true, topBorder: true })}
-                  {row('타수', scores(9), back)}
+                  {row('홀', nums(0), 'T', { header: true })}
+                  {hasPar && row('par', pars(0), parFront, { muted: true })}
+                  {row('타수', scores(0), front, { tint: true })}
+                  {row('홀', nums(9), 'T', { header: true, topBorder: true })}
+                  {hasPar && row('par', pars(9), parBack, { muted: true })}
+                  {row('타수', scores(9), back, { tint: true })}
                 </View>
               </View>
             );
