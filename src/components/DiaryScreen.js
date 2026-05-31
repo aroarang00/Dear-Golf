@@ -115,6 +115,7 @@ export function DiaryScreen({ route, navigation }) {
   const startBlankRecord = () => { setAddSeed(null); setShowPickSheet(false); setShowModal(true); };
   const [hofExpanded, setHofExpanded] = useState(false);
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
+  const [hofHintSeen, setHofHintSeen] = useState(false); // 첫 특별한 순간 생긴 후 '펼치기' 안내 말풍선 본 여부
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
   const [hofHydrated, setHofHydrated] = useState(false);
   const [shareMoment, setShareMoment] = useState(null);   // 특별한 순간 공유 대상
@@ -136,13 +137,15 @@ export function DiaryScreen({ route, navigation }) {
 
   useEffect(() => {
     (async () => {
-      const [h, teaserDismissed] = await Promise.all([
+      const [h, teaserDismissed, hintSeen] = await Promise.all([
         storage.load(STORAGE_KEYS.hof, HALL_OF_FAME),
         storage.load(STORAGE_KEYS.hofTeaserDismissed, false),
+        storage.load(STORAGE_KEYS.hofHintSeen, false),
       ]);
       setHallOfFame(h);
       setHofHydrated(true);
       setHofTeaserDismissed(teaserDismissed);
+      setHofHintSeen(hintSeen);
     })();
   }, []);
 
@@ -312,6 +315,12 @@ export function DiaryScreen({ route, navigation }) {
   const dismissHofTeaser = () => {
     setHofTeaserDismissed(true);
     storage.save(STORAGE_KEYS.hofTeaserDismissed, true);
+  };
+
+  // '펼치기' 안내 말풍선 닫기(또는 펼치면) — 다시 안 뜸
+  const dismissHofHint = () => {
+    setHofHintSeen(true);
+    storage.save(STORAGE_KEYS.hofHintSeen, true);
   };
 
   const sortedDiaries = [...diaries].sort((a, b) => {
@@ -591,10 +600,22 @@ export function DiaryScreen({ route, navigation }) {
             <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
               {hallOfFame.length > 0 ? (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-                  <TouchableOpacity style={dS.hofToggle} onPress={() => setHofExpanded(!hofExpanded)}>
+                  <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
                     <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C' }}>{hofExpanded ? '접기' : '펼치기'}</Text>
                   </TouchableOpacity>
+                  {/* 첫 특별한 순간 안내 말풍선 — 카드가 접혀 있어 존재를 모르는 문제(테스터 피드백). 펼치거나 닫으면 다시 안 뜸 */}
+                  {!hofExpanded && !hofHintSeen && (
+                    <View style={{ marginTop: 8, backgroundColor: '#2A2622', borderRadius: 12, borderWidth: 1, borderColor: '#C9A84C55', paddingVertical: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Text style={{ fontSize: fs(18) }}>🏆</Text>
+                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', lineHeight: 18 }}>
+                        '펼치기'를 누르면 특별한 순간 카드를 볼 수 있어요.{'\n'}갤러리에 저장해 친구들에게 공유할 수도 있어요.
+                      </Text>
+                      <TouchableOpacity onPress={dismissHofHint} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.45)' }}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                   {hofExpanded && hallOfFame.map(item => (
                     <HallOfFameCard key={item.id} item={item} onShare={() => setShareMoment(item)} />
                   ))}

@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   foodRecs:         '@dg_food_recs',
   homeTooltipDone:  '@dg_home_tooltip_done',
   hofTeaserDismissed: '@dg_hof_teaser_dismissed',
+  hofHintSeen:      '@dg_hof_hint_seen',   // 첫 특별한 순간 생긴 후 '펼치기' 안내 말풍선 본 여부
   alarms:           '@dg_alarms',
   calendarEvents:   '@dg_calendar_events',
   top100Checks:     '@dg_top100_checks',
