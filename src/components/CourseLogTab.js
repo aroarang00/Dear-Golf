@@ -28,13 +28,14 @@ const ETC_STYLE = { bg: '#B8B3AB', fg: '#fff', label: '기타' };
 
 function getRegionStyle(loc) {
   if (!loc) return REGION_STYLE.other;
+  // 카카오 도로명 주소는 풀 행정명(경기도·서울특별시·강원특별자치도…)을 쓰므로 짧은/긴 형태 모두 매칭
   const first = loc.split(' ')[0];
-  if (['서울', '인천', '경기'].includes(first)) return REGION_STYLE.capital;
-  if (['충북', '충남', '대전', '세종'].includes(first)) return REGION_STYLE.chungcheong;
-  if (first === '강원') return REGION_STYLE.gangwon;
-  if (['경북', '경남', '대구', '부산', '울산'].includes(first)) return REGION_STYLE.gyeongsang;
-  if (['전북', '전남', '광주'].includes(first)) return REGION_STYLE.jeolla;
-  if (first === '제주') return REGION_STYLE.jeju;
+  if (['서울', '서울특별시', '인천', '인천광역시', '경기', '경기도'].includes(first)) return REGION_STYLE.capital;
+  if (['충북', '충청북도', '충남', '충청남도', '대전', '대전광역시', '세종', '세종특별자치시'].includes(first)) return REGION_STYLE.chungcheong;
+  if (['강원', '강원도', '강원특별자치도'].includes(first)) return REGION_STYLE.gangwon;
+  if (['경북', '경상북도', '경남', '경상남도', '대구', '대구광역시', '부산', '부산광역시', '울산', '울산광역시'].includes(first)) return REGION_STYLE.gyeongsang;
+  if (['전북', '전북특별자치도', '전라북도', '전남', '전라남도', '광주', '광주광역시'].includes(first)) return REGION_STYLE.jeolla;
+  if (['제주', '제주특별자치도', '제주도'].includes(first)) return REGION_STYLE.jeju;
   return REGION_STYLE.other;
 }
 

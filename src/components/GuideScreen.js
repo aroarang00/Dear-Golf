@@ -81,13 +81,14 @@ export function GuideScreen({ route, navigation }) {
   const REGIONS = ['전체', '수도권', '충청', '강원', '전라', '경상', '제주'];
   const getRegion = (loc) => {
     if (!loc) return null;
+    // 카카오 도로명 주소는 풀 행정명(경기도·서울특별시·강원특별자치도…)을 쓰므로 짧은/긴 형태 모두 매칭
     const first = loc.split(' ')[0];
-    if (['서울', '인천', '경기'].includes(first)) return '수도권';
-    if (['충북', '충남', '대전', '세종'].includes(first)) return '충청';
-    if (first === '강원') return '강원';
-    if (['경북', '경남', '대구', '부산', '울산'].includes(first)) return '경상';
-    if (['전북', '전남', '광주'].includes(first)) return '전라';
-    if (first === '제주') return '제주';
+    if (['서울', '서울특별시', '인천', '인천광역시', '경기', '경기도'].includes(first)) return '수도권';
+    if (['충북', '충청북도', '충남', '충청남도', '대전', '대전광역시', '세종', '세종특별자치시'].includes(first)) return '충청';
+    if (['강원', '강원도', '강원특별자치도'].includes(first)) return '강원';
+    if (['경북', '경상북도', '경남', '경상남도', '대구', '대구광역시', '부산', '부산광역시', '울산', '울산광역시'].includes(first)) return '경상';
+    if (['전북', '전북특별자치도', '전라북도', '전남', '전라남도', '광주', '광주광역시'].includes(first)) return '전라';
+    if (['제주', '제주특별자치도', '제주도'].includes(first)) return '제주';
     return null;
   };
 
