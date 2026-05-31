@@ -45,6 +45,13 @@ export const gS = StyleSheet.create({
   // 골퍼 코멘트 섹션 전체를 감싸는 패널(섬형) — 따뜻한 톤 위에 흰 카드가 떠 보이게
   commentPanel:    { backgroundColor: '#F6EFD9', borderRadius: 16, borderWidth: 1, borderColor: '#EBE1C4', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, marginTop: 16, marginBottom: 18 },
   commentCard:     { backgroundColor: C.bgSecondary, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 0.5, borderColor: C.hairline },
+  // 내 코멘트 — 버건디 좌측 액센트로 한눈에 구분
+  commentCardMine: { borderLeftWidth: 3, borderLeftColor: C.burgundy },
+  mineBadge:       { backgroundColor: C.burgundy, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
+  mineBadgeTxt:    { fontFamily: F.sysB, fontSize: fs(11), color: C.butter },
+  // 한줄 메모 헤더 우측 '내 기록 N회' 칩
+  mineCountPill:   { backgroundColor: 'rgba(107,30,42,0.07)', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
+  mineCountTxt:    { fontFamily: F.sysSb, fontSize: fs(11), color: C.burgundy },
   commentTxt:      { fontFamily: F.sys, fontSize: fs(13), color: '#3D3935', lineHeight: 20 },
   commentWho:      { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray },
   commentAddBtn:   { borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 4 },

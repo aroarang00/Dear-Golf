@@ -694,10 +694,17 @@ export function GuideScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
 
-              {/* 한줄 메모 — 버건디 액센트 바 헤더 */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4, marginBottom: 10 }}>
-                <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
-                <Text style={[gS.secLabel, { marginBottom: 0 }]}>한줄 메모</Text>
+              {/* 한줄 메모 — 버건디 액센트 바 헤더 + 내 기록 횟수 칩(옛 '내 라운딩 기록 · N회' 헤더를 여기로 흡수) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                  <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
+                  <Text style={[gS.secLabel, { marginBottom: 0 }]}>한줄 메모</Text>
+                </View>
+                {myDiaries.length > 0 && (
+                  <View style={gS.mineCountPill}>
+                    <Text style={gS.mineCountTxt}>내 기록 {myDiaries.length}회</Text>
+                  </View>
+                )}
               </View>
               {(() => {
                 // 최근 라운딩 (날짜 내림차순) 첫 번째의 memo
@@ -741,17 +748,6 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                 );
               })()}
-
-              {/* 내 코스기록 — 차콜 액센트 바 헤더 (상세 회차는 MY 탭에서) */}
-              {myDiaries.length > 0 && (
-                <>
-                  <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 8, marginBottom: 20 }} />
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 20 }}>
-                    <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.charcoal }} />
-                    <Text style={[gS.secLabel, { marginBottom: 0 }]}>내 라운딩 기록 · {myDiaries.length}회</Text>
-                  </View>
-                </>
-              )}
 
               {/* 골퍼 코멘트 — 커뮤니티 패널(섬형)으로 묶어 다른 섹션(코스 정보·주변 골프장)과 구분.
                   따뜻한 톤 배경 위에 안쪽 흰 카드가 떠 보이게. (네이비는 라운지 전용이라 💬로 교체) */}
@@ -816,10 +812,15 @@ export function GuideScreen({ route, navigation }) {
                 return (
                   <>
                     {visible.map((cm) => (
-                      <View key={cm.id} style={gS.commentCard}>
+                      <View key={cm.id} style={[gS.commentCard, cm.mine && gS.commentCardMine]}>
                         <Text style={gS.commentTxt}>"{cm.txt}"</Text>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                          <Text style={gS.commentWho}>{cm.who} · {cm.date}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                            {cm.mine && (
+                              <View style={gS.mineBadge}><Text style={gS.mineBadgeTxt}>나</Text></View>
+                            )}
+                            <Text style={gS.commentWho}>{cm.mine ? cm.date : `${cm.who} · ${cm.date}`}</Text>
+                          </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <TouchableOpacity
                               onPress={() => toggleLike(cm)}
