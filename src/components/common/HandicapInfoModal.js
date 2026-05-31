@@ -23,7 +23,7 @@ export function HandicapInfoModal({ visible, onClose }) {
               전체 평균이 아니라 가장 잘 친 5개 라운드로 계산해요. 그래서 안 좋은 날을 기록해도 핸디가 잘 오르지 않아요.
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: 19 }}>
-              기복이 있어도 부담 없이 모든 라운딩을 남겨보세요. 라운딩 기록이 5개 미만이면 입력한 평균타를 쓰고, 5개부터 베스트 5개 평균으로 자동 계산돼요.
+              기복이 있어도 부담 없이 모든 라운딩을 남겨보세요. 라운딩 기록이 5개 이하면 입력한 평균타를 써요.
             </Text>
           </View>
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}

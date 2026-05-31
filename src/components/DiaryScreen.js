@@ -327,7 +327,7 @@ export function DiaryScreen({ route, navigation }) {
   const myManner = getMannerGrade(userProfile.mannerScore || 70);
   const myHandicap = calcHandicap(diaries, userProfile.avgScore);
   // 통계 박스 — 평균타 라벨 폐기, 핸디로 통일 (친구에게 공개되는 핸디 뱃지와 일관성).
-  // 라운딩 5개 미만이면 입력값 우선, 6개부터는 베스트 5개 평균 (잘 친 5개만, 못 친 건 버림).
+  // 라운딩 5개 이하면 입력값 우선, 6개부터는 베스트 5개 평균 (잘 친 5개만, 못 친 건 버림).
   const hasRecords = diaries.length > 0;
   const totalRounds = hasRecords ? diaries.length : (userProfile.totalRounds || null);
   const bestScore = hasRecords
