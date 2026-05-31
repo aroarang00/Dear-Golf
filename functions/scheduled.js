@@ -190,4 +190,19 @@ exports.monthlyPenaltyCountTick = onSchedule({ schedule: '30 0 1 * *', timeZone:
   } catch (e) {
     logger.warn('[sched] falseReport count -1 fail', e?.message);
   }
+  // 콘텐츠 신고 확정 카운트도 동일하게 매월 -1 (정책 §7 12개월 롤링 근사, [[content-report-policy]])
+  try {
+    const contentSnap = await db.collection('users')
+      .where('contentReportConfirmedCount', '>', 0)
+      .limit(500)
+      .get();
+    for (const doc of contentSnap.docs) {
+      await doc.ref.set({
+        contentReportConfirmedCount: FieldValue.increment(-1),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+  } catch (e) {
+    logger.warn('[sched] content count -1 fail', e?.message);
+  }
 });

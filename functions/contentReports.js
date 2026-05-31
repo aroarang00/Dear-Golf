@@ -178,6 +178,8 @@ exports.onContentReportUpdated = onDocumentUpdated('content_reports/{reportId}',
 async function applyAuthorPenaltyOnConfirm(uid) {
   if (!uid) return;
   const ref = db.doc(`users/${uid}`);
+  // 이번 확정으로 "새로 도달한" 단계만 기록 — 재적용·중복 알림 방지.
+  let stage = null;  // 'permanent' | 'ban30d' | null
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) return;
@@ -187,41 +189,29 @@ async function applyAuthorPenaltyOnConfirm(uid) {
       contentReportConfirmedCount: count,
       updatedAt: FieldValue.serverTimestamp(),
     };
-    // 10회 누적 — 영구 모집 박탈은 7일 소명 절차 (이용약관 제11조 ④)
-    // 즉시 박탈 X. recruitPermanentPendingAppealUntil = now + 7일. 스케줄러가 자동 적용.
+    // 임계는 "도달 시 1회만" 적용 (정책 §7 단계표). 6~9회째는 카운트만 증가, 제재 재적용 X.
+    // 12개월 롤링 감소(monthlyPenaltyCountTick)로 카운트가 내려갔다 다시 도달하면 그때 재적용됨.
     if (count >= PERMANENT_THRESHOLD && !data.isRecruitRestrictedPermanent && !data.recruitPermanentPendingAppealUntil) {
+      // 10회 — 영구 모집 박탈은 7일 소명 절차 (이용약관 제11조 ④). 즉시 박탈 X.
       update.recruitPermanentPendingAppealUntil = new Date(Date.now() + 7 * DAY_MS).toISOString();
       update.recruitPermanentPendingReason = 'content_10x';
-    } else if (count >= PENALTY_30DAY_THRESHOLD) {
-      // 매너 -5, 30일 모집 정지 (recruitRestrictUntil)
+      stage = 'permanent';
+    } else if (count === PENALTY_30DAY_THRESHOLD) {
+      // 정확히 5회 도달 — 매너 -5, 30일 모집 정지 (1회만)
       const cur = typeof data.mannerScore === 'number' ? data.mannerScore : 70;
       update.mannerScore = Math.max(0, cur - 5);
       update.recruitRestrictUntil = new Date(Date.now() + 30 * DAY_MS).toISOString();
       update.recruitRestrictReason = 'content_5x';
+      stage = 'ban30d';
     }
     tx.set(ref, update, { merge: true });
   });
-  // 작성자에게 단계별 안내 알림
-  const fresh = await ref.get();
-  if (!fresh.exists) return;
-  const data = fresh.data();
-  const count = data.contentReportConfirmedCount || 0;
-  if (data.recruitPermanentPendingAppealUntil) {
-    await createSystemNotification({
-      recipientUid: uid,
-      type: 'permanentBanAppealNotice',
-      priority: 'important',
-    });
-  } else if (count >= PENALTY_30DAY_THRESHOLD) {
-    await createSystemNotification({
-      recipientUid: uid,
-      type: 'contentRecruitBan30d',
-      priority: 'important',
-    });
+  // 이번에 새로 도달한 단계에 맞춰 알림 (단계 미도달이면 일반 확정 알림)
+  if (stage === 'permanent') {
+    await createSystemNotification({ recipientUid: uid, type: 'permanentBanAppealNotice', priority: 'important' });
+  } else if (stage === 'ban30d') {
+    await createSystemNotification({ recipientUid: uid, type: 'contentRecruitBan30d', priority: 'important' });
   } else {
-    await createSystemNotification({
-      recipientUid: uid,
-      type: 'contentReportConfirmed',
-    });
+    await createSystemNotification({ recipientUid: uid, type: 'contentReportConfirmed' });
   }
 }
