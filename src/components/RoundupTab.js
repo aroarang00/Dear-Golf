@@ -22,6 +22,7 @@ import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { blockUid as fsBlockUid, loadMyFriends } from '../utils/friends';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification } from '../utils/roundupNotifications';
+import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { isKickLimitReached, incrementKickCount, getKickRemainingThisMonth, KICK_MONTH_LIMIT } from '../utils/kickLimit';
@@ -220,6 +221,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [editingPost, setEditingPost] = useState(null);  // 수정 모드 — 모집글 id 매칭용 원본
   const [evaluatingPostId, setEvaluatingPostId] = useState(null); // 매너 평가 모달 — postId
   const [evalPostData, setEvalPostData] = useState(null); // 평가 대상 모집 — 취소·만료로 posts에 없을 때 개별 로드분
+  const [evalVersion, setEvalVersion] = useState(0); // 평가 제출 시 pending 동적 재계산 트리거
   // 친구 신청 진입점 ([[friend-add-feature]] Phase 2) — 라운지 프로필에서 친구 신청 보낸 사용자 id 캐시
   const [sentFriendRequestIds, setSentFriendRequestIds] = useState([]);
   useEffect(() => {
@@ -369,6 +371,29 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
   const detailPost = posts.find(p => p.id === detailId) || null;
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // 매너평가 pending 동적 계산 — 미평가 매너 알림(mannerEval/hostCancelledD7)이 있으면 true.
+  // 평가를 제출하면 loadMyEvaluationsForRoundup에 기록이 생겨 자동 해제(다건 추적, 단일 boolean 한계 없음).
+  // data.js: pending=true면 신규 모집 신청 제한. functions·동기화 불필요(알림 기반 클라 계산).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const postIds = [...new Set(
+        notifications.filter(n => n.type === 'mannerEval' || n.type === 'hostCancelledD7')
+          .map(n => n.postId).filter(Boolean)
+      )];
+      let pending = false;
+      for (const pid of postIds) {
+        try {
+          const mine = await loadMyEvaluationsForRoundup(pid);
+          if (!mine || mine.length === 0) { pending = true; break; }  // 한 건도 평가 안 한 라운딩 있음
+        } catch { /* 조회 실패는 pending 판정에서 무시 */ }
+      }
+      if (cancelled) return;
+      setUserProfile(prev => (prev.mannerEvaluationPending === pending ? prev : { ...prev, mannerEvaluationPending: pending }));
+    })();
+    return () => { cancelled = true; };
+  }, [notifications, evalVersion]);
 
   // 상세 진입 시 댓글 로드 — Firestore 서브컬렉션 (roundups/{id}/comments). 닫히면 정리 X(캐시 유지).
   useEffect(() => {
@@ -1534,12 +1559,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 onClose={() => { setEvaluatingPostId(null); setEvalPostData(null); }}
                 onSubmit={() => {
                   // 실제 평가 작성은 모달 내부 submitEvaluation이 Firestore(mannerEvaluations)에 기록.
-                  // 집계는 functions/manner.js. 이 콜백은 평가 권유 상태(mannerEvaluationPending) 해제만.
-                  if (userProfile?.mannerEvaluationPending) {
-                    const next = { ...userProfile, mannerEvaluationPending: false };
-                    setUserProfile(next);
-                    storage.save(STORAGE_KEYS.profile, next);
-                  }
+                  // 집계는 functions/manner.js. 여기선 pending 동적 재계산만 트리거 —
+                  // 다른 미평가 라운딩이 남아 있으면 pending 유지(무조건 false로 끄지 않음).
+                  setEvalVersion(v => v + 1);
                 }} />
             );
           })()}
