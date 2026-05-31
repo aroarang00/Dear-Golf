@@ -753,21 +753,21 @@ export function GuideScreen({ route, navigation }) {
                   따뜻한 톤 배경 위에 안쪽 흰 카드가 떠 보이게. (네이비는 라운지 전용이라 💬로 교체) */}
               <View style={gS.commentPanel}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
                   <Text style={{ fontSize: fs(15) }}>💬</Text>
                   <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => { if (editingCommentId) { setEditingCommentId(null); setCommentInput(''); } setShowCommentInput(v => !v); }}
                   activeOpacity={0.85}
-                  style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>+ 코멘트</Text>
+                  style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, marginLeft: 8 }}>
+                  <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>+ 코멘트</Text>
                 </TouchableOpacity>
               </View>
 
               {/* 골퍼 코멘트 설명 — 실시간 정보공유 취지 안내 */}
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 14, lineHeight: 17 }}>
-                이 코스를 다녀온 골퍼들의 솔직한 한 줄. 다녀오셨다면 + 코멘트로 공유해주세요.
+                이 코스를 다녀온 골퍼들의 솔직한 한 줄.{'\n'}다녀오셨다면 + 코멘트로 공유해주세요.
               </Text>
 
               {/* 코멘트 입력 */}
