@@ -51,6 +51,11 @@ export function MyPageModal({ visible, onClose }) {
     getReportRemainingThisMonth().then(setReportRemaining);
   }, [visible]);
   const [alertData, setAlertData] = useState(null);  // 오버레이 알럿 (모달 위 안전 표시)
+  // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
+  const handleRequestClose = () => {
+    if (alertData) { setAlertData(null); return; }
+    onClose();
+  };
   const [nickname, setNickname] = useState(userProfile.nickname);
   const [editingNick, setEditingNick] = useState(false);
   const [departure, setDeparture] = useState(userProfile.departure || '');
@@ -217,7 +222,7 @@ export function MyPageModal({ visible, onClose }) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleRequestClose}>
         <View style={myS.mask}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
           <View style={myS.sheet}>

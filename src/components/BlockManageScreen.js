@@ -12,6 +12,11 @@ import { OverlayAlert } from './common/OverlayAlert';
 export function BlockManageScreen({ visible, onClose }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const [alert, setAlert] = React.useState(null);
+  // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
+  const handleRequestClose = () => {
+    if (alert) { setAlert(null); return; }
+    onClose();
+  };
   const blocked = userProfile?.blockedUsers || [];
   const remaining = remainingBlocksToday(userProfile);
 
@@ -35,7 +40,7 @@ export function BlockManageScreen({ visible, onClose }) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}

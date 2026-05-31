@@ -5,7 +5,6 @@ import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
 import { OverlayAlert } from './common/OverlayAlert';
 import { getReportRemainingThisMonth, incrementReportCount, REPORT_MONTH_LIMIT } from '../utils/reportLimit';
-import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { searchUsersByNickname } from '../utils/friends';
 import { createReport } from '../utils/reports';
 
@@ -32,7 +31,12 @@ export function ReportModal({ visible, onClose }) {
   const [evidence, setEvidence] = useState('');
   const [alert, setAlert] = useState(null);
 
-  useOverlayBackHandler(visible, onClose);
+  // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
+  // (RN Modal에선 onRequestClose가 신뢰되는 back 핸들러 — BackHandler 훅 제거)
+  const handleRequestClose = () => {
+    if (alert) { setAlert(null); return; }
+    onClose();
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -111,7 +115,7 @@ export function ReportModal({ visible, onClose }) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}

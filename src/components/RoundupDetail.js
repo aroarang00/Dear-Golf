@@ -12,7 +12,6 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
-import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { RoundupComments } from './RoundupComments';
 
 // 참여자 아바타 색상
@@ -129,11 +128,14 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
   const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
   const [mannerKey, setMannerKey] = useState(null);        // 매너 등급 안내 모달
 
-  // 안드로이드 뒤로가기 — 오버레이 우선 닫기 (가장 최근 열린 것부터)
-  useOverlayBackHandler(!!gradeKey, () => setGradeKey(null));
-  useOverlayBackHandler(!!mannerKey, () => setMannerKey(null));
-  useOverlayBackHandler(!!actionTarget, () => setActionTarget(null));
-  useOverlayBackHandler(!!alert, () => setAlert(null));
+  // 안드로이드 뒤로가기 — RN Modal에선 onRequestClose가 유일하게 신뢰되는 back 핸들러다.
+  // (Modal 안에서 BackHandler 리스너는 onRequestClose보다 안 먹는 RN 고질 이슈 → 훅 제거)
+  // 내부 RN Modal(등급·매너·액션시트)은 각자 onRequestClose로 닫히고,
+  // 자체 오버레이(OverlayAlert)만 부모 Modal의 onRequestClose에서 우선 닫는다.
+  const handleRequestClose = () => {
+    if (alert) { setAlert(null); return; }      // 확인창 떠 있으면 그것만 취소로 닫기 (상세는 유지)
+    onClose();
+  };
 
   useEffect(() => { if (visible) setTeamTab(0); }, [visible]);
 
@@ -458,7 +460,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}

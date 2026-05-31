@@ -218,6 +218,43 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
               </View>
             </View>
           </View>
+          {/* 홀별 스코어 — 스코어카드로 입력한 경우만 노출. 총타만 입력 시 미표시(현재처럼 깔끔) */}
+          {Array.isArray(item.holeScores) && item.holeScores.some(n => Number.isFinite(n)) && (() => {
+            const hs = item.holeScores;
+            const sum = (a) => a.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
+            const front = sum(hs.slice(0, 9)), back = sum(hs.slice(9, 18));
+            const cellBox = { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRightWidth: 0.5, borderColor: C.hairline };
+            const sideBox = { width: 40, alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderColor: C.hairline };
+            const numTxt = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray };
+            const scoreTxt = { fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary };
+            const labelTxt = { fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 0.5 };
+            const nums = (s) => Array.from({ length: 9 }, (_, k) => s + k + 1);
+            const scores = (s) => Array.from({ length: 9 }, (_, k) => { const v = hs[s + k]; return Number.isFinite(v) ? v : '-'; });
+            const row = (label, cells, totalText, opt = {}) => (
+              <View style={{ flexDirection: 'row',
+                borderBottomWidth: opt.header ? 0.5 : 0, borderTopWidth: opt.topBorder ? 0.5 : 0, borderColor: C.hairline,
+                backgroundColor: opt.header ? C.bgSecondary : 'transparent' }}>
+                <View style={[sideBox, { borderRightWidth: 0.5 }]}><Text style={labelTxt}>{label}</Text></View>
+                {cells.map((c, i) => (
+                  <View key={i} style={cellBox}><Text style={opt.header ? numTxt : scoreTxt}>{c}</Text></View>
+                ))}
+                <View style={sideBox}>
+                  <Text style={opt.header ? labelTxt : { ...scoreTxt, color: C.burgundy }}>{totalText}</Text>
+                </View>
+              </View>
+            );
+            return (
+              <View style={{ marginTop: 16 }}>
+                <Text style={[dS.companionLabel, { marginTop: 0, marginBottom: 10 }]}>홀별 스코어</Text>
+                <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8, overflow: 'hidden' }}>
+                  {row('홀', nums(0), '계', { header: true })}
+                  {row('타수', scores(0), front)}
+                  {row('홀', nums(9), '계', { header: true, topBorder: true })}
+                  {row('타수', scores(9), back)}
+                </View>
+              </View>
+            );
+          })()}
         </View>
         <View style={dS.photosArea}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -237,12 +274,25 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>완료</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
+            ) : photosToShow.length > 0 ? (
               <TouchableOpacity onPress={() => setIsEditing(true)}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.burgundy }}>편집</Text>
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
+          {(!isEditing && photosToShow.length === 0) ? (
+            // 사진 미등록 — 권장 안내 + 추가 경로(수정) 명시. 탭하면 수정(DiaryAddModal) 진입.
+            <TouchableOpacity activeOpacity={0.85} onPress={() => setShowEditModal(true)}
+              style={{ paddingVertical: 18, paddingHorizontal: 16, borderRadius: 12,
+                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
+                📷 사진을 등록하면 미리보기에{'\n'}대표 사진이 표시돼요.{'\n'}그날 라운딩의 순간을{'\n'}언제든 다시 볼 수 있어요.
+              </Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy, textAlign: 'center', marginTop: 10 }}>
+                [수정]에서 사진 추가하기
+              </Text>
+            </TouchableOpacity>
+          ) : (
           <View style={dS.photosGrid}>
             {(isEditing ? editPhotos : photosToShow).map((uri, i) => {
               const src = resolvePhotoUri(typeof uri === 'object' ? uri.uri : uri);
@@ -271,6 +321,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
               );
             })}
           </View>
+          )}
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>

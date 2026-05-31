@@ -13,6 +13,8 @@ import { UserContext } from '../contexts/UserContext';
 import { persistPhotos, resolvePhotoUri } from '../utils/photoStorage';
 import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
+import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils/scorecardOcr';
+import { ScorecardReviewModal } from './ScorecardReviewModal';
 
 const COST_ITEMS = [
   ['green', '그린피'],
@@ -45,6 +47,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   useOverlayBackHandler(showDatePicker, () => setShowDatePicker(false));
   const [score, setScore] = useState('');
   const [scoreCardOption, setScoreCardOption] = useState('later');
+  // 스코어카드 OCR — holeScores(확정된 18홀), 검토 모달 상태. recognizeScorecard는 현재 스텁.
+  const [holeScores, setHoleScores] = useState(null);
+  const [holePars, setHolePars] = useState(null); // 스코어카드 par 행(스텁 mock) — 버디 자동집계용
+  const [scRows, setScRows] = useState([]);
+  const [scStub, setScStub] = useState(false);
+  const [scReview, setScReview] = useState(false);
+  const [scBusy, setScBusy] = useState(false);
   const [showCost, setShowCost] = useState(false);
   const [costs, setCosts] = useState({ green: '', caddie: '', cart: '', meal: '', etc: '' });
   const [weather, setWeather] = useState('맑음');
@@ -98,6 +107,35 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const items = await persistPhotos(compressed);
       setAddPhotos(prev => [...prev, ...items].slice(0, MAX_PHOTOS));
     }
+  };
+
+  // 스코어카드 사진 → 인식(현재 스텁) → 검토 모달 열기. source: 'gallery' | 'camera'
+  const handleScorecardPick = async (source) => {
+    if (scBusy) return;
+    setScBusy(true);
+    try {
+      const img = await pickScorecardImage(source);
+      if (!img) return; // 취소·권한거부
+      const res = await recognizeScorecard(img.uri);
+      setScRows(res.rows || []);
+      setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
+      setScStub(!!res.stub);
+      setScReview(true);
+    } catch (e) {
+      if (__DEV__) console.warn('[DiaryAdd] scorecard pick fail', e?.message);
+    } finally {
+      setScBusy(false);
+    }
+  };
+
+  // 검토 모달 확정 — 18홀 저장 + 총타를 스코어 입력란에 자동 채움
+  const handleScorecardConfirm = ({ holeScores: hs, total }) => {
+    setHoleScores(hs);
+    if (Number.isFinite(total) && total > 0) setScore(String(total));
+    // par(스텁 mock)가 있으면 버디 자동 집계 → 버디 카운터 자동 입력 (이후 수동 수정 가능)
+    const bd = scoreBreakdown(hs, holePars);
+    if (bd) setBirdieCount(bd.birdie);
+    setScReview(false);
   };
 
   // 동반자 추가 — 공백·쉼표로 여러 명 한 번에 입력 가능 (최대 3명)
@@ -154,6 +192,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setScoreCardOption('later');
+    setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScStub(false);
     setShowCost(false); setCosts({ green: '', caddie: '', cart: '', meal: '', etc: '' });
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
@@ -176,6 +215,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
       }
       setScore(String(initial.score || ''));
+      setHoleScores(Array.isArray(initial.holeScores) ? initial.holeScores : null);
+      setHolePars(Array.isArray(initial.holePars) ? initial.holePars : null);
       setWeather(initial.weather || '맑음');
       setMemo(initial.memo || '');
       setDetailMemo(initial.detailMemo || '');
@@ -253,7 +294,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSaveError('');
     const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
-      score: parseInt(score) || 0, weather, memo, birdieCount, privacy,
+      score: parseInt(score) || 0, holeScores, holePars, weather, memo, birdieCount, privacy,
       special, specialHole: parseInt(specialHole),
       specialPar: parseInt(specialPar) || null,
       specialDist, specialBall, specialMemo,
@@ -368,8 +409,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 placeholderTextColor={C.warmGrayLight} value={score}
                 onChangeText={setScore} keyboardType="numeric" />
 
-              {score !== '' && (
-                <View style={{ marginTop: 14 }}>
+              {/* 스코어카드 등록 — 점수 입력 없이도 노출 (OCR이 점수를 채우므로 선행 입력 불필요) */}
+              <View style={{ marginBottom: 10 }}>
                   <Text style={mS.bigLabel}>스코어카드 등록할까요?</Text>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     {[
@@ -383,15 +424,51 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       </TouchableOpacity>
                     ))}
                   </View>
-                  {scoreCardOption === 'photo' && (
-                    <View style={{ marginTop: 8, padding: 12, backgroundColor: C.paleSky + '22', borderRadius: 10, borderWidth: 0.5, borderColor: C.paleSky + '60' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 18 }}>
-                        📷 스코어카드를 사진으로 찍으면 홀별 타수를 자동으로 인식하는 기능이에요.{'\n'}아직 준비 중이며 곧 추가될 예정이에요.
+                  {/* 사진으로 등록 — 갤러리(권장)/촬영. 인식 결과는 검토 모달에서 확인·수정 후 확정 */}
+                  {scoreCardOption === 'photo' && !holeScores && (
+                    <View style={{ marginTop: 10 }}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('gallery')}
+                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                            backgroundColor: C.burgundy, opacity: scBusy ? 0.6 : 1 }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
+                            {scBusy ? '인식 중…' : '갤러리에서 선택'}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('camera')}
+                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                            backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: scBusy ? 0.6 : 1 }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>촬영</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19, marginTop: 8 }}>
+                        📷 스코어 앱에서 저장·캡처한 이미지가 가장 정확해요.{'\n'}직접 촬영할 땐 표를 정면에서,{'\n'}그림자·빛 반사 없이 숫자가 또렷하게 담아주세요.
                       </Text>
                     </View>
                   )}
+
+                  {/* 입력 완료 요약 — 총타·수정·지우기 */}
+                  {holeScores && (
+                    <View style={{ marginTop: 10, padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center',
+                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, flex: 1 }}>
+                        ⛳ 홀별 스코어 입력됨 · 총 {holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0)}타
+                      </Text>
+                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => {
+                          const t = holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
+                          setScRows([{ label: '입력값', holes: holeScores, total: t }]);
+                          setScStub(false); setScReview(true);
+                        }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
+                      </TouchableOpacity>
+                      <Text style={{ color: C.warmGray, marginHorizontal: 8 }}>·</Text>
+                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => { setHoleScores(null); setHolePars(null); }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-              )}
               <Text style={mS.bigLabel}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
@@ -679,6 +756,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             </ScrollView>
           </View>
         </View>
+        <ScorecardReviewModal
+          visible={scReview}
+          rows={scRows}
+          stub={scStub}
+          onConfirm={handleScorecardConfirm}
+          onClose={() => setScReview(false)} />
     </Modal>
   );
 }

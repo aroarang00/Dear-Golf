@@ -142,6 +142,12 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setSelectMode('include'); setSelectedUids([]); setShowFriendSelect(false);
   };
   const close = () => { if (!initialPost) reset(); onClose(); };
+  // 안드로이드 뒤로가기 — 확인창(OverlayAlert)이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
+  // (RN Modal 안에서 BackHandler는 onRequestClose보다 불안정 → 여기 한 곳에서 우선순위로 처리)
+  const handleRequestClose = () => {
+    if (alert) { setAlert(null); return; }
+    close();
+  };
 
   // 최종 데이터 빌드
   const buildPayload = () => {
@@ -220,7 +226,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleRequestClose}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>

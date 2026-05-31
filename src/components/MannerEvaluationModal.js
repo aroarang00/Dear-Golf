@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { OverlayAlert } from './common/OverlayAlert';
 import { submitEvaluation } from '../utils/mannerEvaluations';
 
@@ -22,7 +21,12 @@ export function MannerEvaluationModal({ visible, post, participants = [], onClos
   const [picks, setPicks] = useState({}); // { [participantId]: 'good'|'normal'|'bad' }
   const [alert, setAlert] = useState(null);
 
-  useOverlayBackHandler(visible, onClose);
+  // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
+  // (RN Modal에선 onRequestClose가 신뢰되는 back 핸들러 — BackHandler 훅 제거)
+  const handleRequestClose = () => {
+    if (alert) { setAlert(null); return; }
+    onClose();
+  };
 
   useEffect(() => { if (visible) { setPicks({}); setAlert(null); } }, [visible]);
 
@@ -59,7 +63,7 @@ export function MannerEvaluationModal({ visible, post, participants = [], onClos
   if (!visible || !post) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}

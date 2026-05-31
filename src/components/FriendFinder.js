@@ -86,6 +86,12 @@ export function FriendFinder({
   const [searching, setSearching] = useState(false);
   const [alert, setAlert] = useState(null);   // Modal 내부 OverlayAlert — 글로벌 showAppAlert가 Modal 뒤로 가려지는 이슈 회피
 
+  // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
+  const handleRequestClose = () => {
+    if (alert) { setAlert(null); return; }
+    onClose();
+  };
+
   useEffect(() => {
     if (visible) { setTab(initialTab); setQuery(''); setSearchResults([]); setAlert(null); }
   }, [visible, initialTab]);
@@ -149,7 +155,7 @@ export function FriendFinder({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}

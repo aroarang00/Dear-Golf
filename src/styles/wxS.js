@@ -28,7 +28,7 @@ export const wxS = StyleSheet.create({
   tempBig:       { fontFamily: F.en, fontSize: fs(68), color: '#fff', lineHeight: 72, letterSpacing: -3 },
   tempRight:     { marginLeft: 'auto', alignItems: 'flex-end' },
   tempSky:       { fontFamily: F.sys, fontSize: fs(15), color: '#F5E6A8', marginBottom: 4 },
-  tempSub:       { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.4)', lineHeight: 16 },
+  tempSub:       { fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.82)', lineHeight: 18 },
 
   // ③ 4칸 카드
   gridCard:      { marginHorizontal: 20, flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 14, overflow: 'hidden' },

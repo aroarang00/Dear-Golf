@@ -123,6 +123,8 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
     });
   };
   const prefs = userProfile?.roundupNotifyPrefs || DEFAULT_ROUNDUP_PREFS;
+  // 토글 변경 → userProfile.roundupNotifyPrefs 갱신. Firestore 동기화는 App.js settings
+  // write-through(userProfile.roundupNotifyPrefs 의존)가 자동 처리 → 서버가 발송 분기에서 읽음.
   const togglePref = (key) => {
     const next = { ...userProfile, roundupNotifyPrefs: { ...prefs, [key]: !prefs[key] } };
     setUserProfile(next);

@@ -6,7 +6,6 @@ import * as MediaLibrary from 'expo-media-library';
 import { C, F, fs } from '../constants/colors';
 import { HallOfFameCard } from './HallOfFameCard';
 import { OverlayAlert } from './common/OverlayAlert';
-import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 // 공유 옵션 — 갤러리 저장(범용). 저장한 이미지를 사용자가 원하는 앱으로 공유.
 // 카카오 직접 공유는 출시 후 추가 예정, 인스타는 제외.
@@ -20,7 +19,12 @@ export function ShareMomentModal({ moment, visible, onClose }) {
   const [saving, setSaving] = useState(false);
   const cardRef = useRef(null);
 
-  useOverlayBackHandler(!!alert, () => setAlert(null));
+  // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
+  // (RN Modal에선 onRequestClose가 신뢰되는 back 핸들러 — BackHandler 훅 제거)
+  const handleRequestClose = () => {
+    if (alert) { setAlert(null); return; }
+    onClose();
+  };
 
   if (!moment) return null;
 
@@ -62,7 +66,7 @@ export function ShareMomentModal({ moment, visible, onClose }) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}

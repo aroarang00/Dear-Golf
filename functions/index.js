@@ -78,28 +78,77 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
   await sendExpoPush(token, title, body, { type, postId: data.postId, notiId: event.params.notiId });
 });
 
+// 푸시 제목·본문 — 인앱 알림함(RoundupNotifications.js notiText)과 타입·톤 일치.
+// 누락 타입은 default로 빠지므로, 새 알림 타입 추가 시 양쪽 모두 갱신할 것.
 function titleFor(type) {
   switch (type) {
+    // 라운지 일반
     case 'apply':       return '새 참여 신청';
     case 'confirmed':   return '참여 확정';
     case 'cancel':      return '참여 취소';
-    case 'kicked':      return '주최자 사정으로 참여 취소';
+    case 'waitlist':    return '새 대기 신청';
+    case 'kicked':      return '참여 취소 안내';
     case 'slotOpen':    return '대기 자리 열림';
     case 'comment':     return '새 댓글';
     case 'mannerEval':  return '매너 평가 요청';
+    case 'hostCancelledD7': return '모집 취소 안내';
+    // 노쇼 신고
+    case 'noshowReported':            return '노쇼 신고 접수';
+    case 'noshowReportSubmitted':     return '노쇼 신고 접수됨';
+    case 'noshowExplanationRequired': return '소명 요청';
+    case 'noshowConfirmed':           return '노쇼 확정';
+    case 'noshowReporterConfirmed':   return '노쇼 신고 처리';
+    case 'noshowFalseReport':         return '신고 결과 안내';
+    case 'noshowFalseReportConfirmed':return '신고 결과 안내';
+    case 'noshowInconclusive':        return '노쇼 신고 종결';
+    case 'noshowCancelled':           return '노쇼 신고 취소';
+    // 정지·등급
+    case 'permanentBanAppealNotice':  return '영구 정지 예정 안내';
+    case 'permanentBanFinalized':     return '영구 정지 확정';
+    case 'recruitBanPermanentFinalized': return '모집 자격 박탈 확정';
+    case 'restrictionLifted':         return '이용 정지 해제';
+    case 'mannerScoreUp':             return '매너 등급 상승';
+    case 'mannerScoreDown':           return '매너 등급 변동';
+    // 콘텐츠 신고
+    case 'contentReportConfirmed':    return '게시물 신고 결과';
+    case 'contentRecruitBan30d':      return '모집 정지 안내';
     default:            return 'Dear Golf 알림';
   }
 }
 
 function bodyFor(type, { postTitle = '', actorName = '' }) {
+  const t = postTitle ? `'${postTitle}'` : '라운딩';
   switch (type) {
-    case 'apply':       return `${actorName}님이 ${postTitle} 모집에 신청했어요`;
-    case 'confirmed':   return `${actorName}님과의 ${postTitle} 라운딩이 확정됐어요`;
-    case 'cancel':      return `${actorName}님이 ${postTitle} 모집 참여를 취소했어요`;
-    case 'kicked':      return `${postTitle} 모집 참여가 취소됐어요`;
-    case 'slotOpen':    return `${postTitle} 모집에 대기 자리가 열렸어요`;
-    case 'comment':     return `${actorName}님이 ${postTitle} 모집에 댓글을 남겼어요`;
-    case 'mannerEval':  return `${postTitle} 라운딩 동반자분들의 매너 평가를 남겨주세요`;
+    // 라운지 일반
+    case 'apply':       return `${actorName}님이 ${t} 모집에 참여 신청했어요`;
+    case 'confirmed':   return `${t} 모집 참여가 확정됐어요`;
+    case 'cancel':      return `${actorName}님이 ${t} 모집 참여를 취소했어요`;
+    case 'waitlist':    return `${actorName}님이 ${t} 모집에 대기 신청했어요`;
+    case 'kicked':      return `${t} 모집 참여가 주최자 사정으로 취소됐어요`;
+    case 'slotOpen':    return `대기 중이던 ${t} 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
+    case 'comment':     return `${actorName}님이 ${t} 모집에 댓글을 남겼어요`;
+    case 'mannerEval':  return `${t} 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
+    case 'hostCancelledD7': return `${t} 모집이 주최자에 의해 취소됐어요 — 매너 평가를 남길 수 있어요`;
+    // 노쇼 신고
+    case 'noshowReported':            return `${t} 라운딩 노쇼 신고가 접수됐어요 — 7일 안에 신고자와 직접 해결할 수 있어요`;
+    case 'noshowReportSubmitted':     return `${t} 라운딩 노쇼 신고가 정상 접수됐어요`;
+    case 'noshowExplanationRequired': return `${t} 노쇼 신고 — 48시간 안에 소명을 제출해주세요`;
+    case 'noshowConfirmed':           return `${t} 노쇼가 확정되어 매너 등급과 이용 정지가 적용됐어요`;
+    case 'noshowReporterConfirmed':   return `${t} 노쇼 신고가 인정됐어요`;
+    case 'noshowFalseReport':         return `${t} 신고가 허위로 판정되어 매너 등급과 이용 정지가 적용됐어요`;
+    case 'noshowFalseReportConfirmed':return `${t} 신고가 허위로 판정됐어요`;
+    case 'noshowInconclusive':        return `${t} 노쇼 신고가 중립 종결됐어요 — 양쪽 모두 패널티 없음`;
+    case 'noshowCancelled':           return `${t} 노쇼 신고가 신고자에 의해 취소됐어요`;
+    // 정지·등급
+    case 'permanentBanAppealNotice':  return `누적 위반으로 영구 정지가 예정됐어요 — 7일 안에 소명하지 않으면 자동 적용돼요`;
+    case 'permanentBanFinalized':     return `영구 정지가 확정됐어요 — 이의는 마이페이지에서 신청할 수 있어요`;
+    case 'recruitBanPermanentFinalized': return `영구 모집 자격 박탈이 확정됐어요 — 이의는 마이페이지에서 신청할 수 있어요`;
+    case 'restrictionLifted':         return `이용 정지가 해제됐어요 — 다시 모집과 참여를 이용할 수 있어요`;
+    case 'mannerScoreUp':             return `${t} 라운딩 평가로 매너 등급이 올랐어요`;
+    case 'mannerScoreDown':           return `${t} 라운딩 평가로 매너 등급이 내려갔어요`;
+    // 콘텐츠 신고
+    case 'contentReportConfirmed':    return `작성하신 게시물 신고가 확정되어 매너 점수가 감소했어요`;
+    case 'contentRecruitBan30d':      return `콘텐츠 신고 누적으로 30일 모집 정지가 적용됐어요`;
     default:            return postTitle || '확인해주세요';
   }
 }

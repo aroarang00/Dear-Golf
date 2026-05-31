@@ -63,6 +63,9 @@ export async function createRound(data) {
     course: data.course || '',
     courseId: data.courseId || null,
     score: typeof data.score === 'number' ? data.score : null,
+    holeScores: Array.isArray(data.holeScores) ? data.holeScores : null, // 스코어카드 OCR 18홀(숫자), 없으면 null
+    holeScoresShared: !!data.holeScoresShared, // 홀별 상세 친구 공개 여부. 기본 false=나만보기 (친구 뷰 구현 시 가림 제어)
+    holePars: Array.isArray(data.holePars) ? data.holePars : null, // 홀별 par (스코어카드 par 행). 버디 자동집계용, 없으면 null
     par: typeof data.par === 'number' ? data.par : 72,
     memo: data.memo || '',
     detailMemo: data.detailMemo || '',

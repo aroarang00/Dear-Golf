@@ -769,7 +769,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   icon = cur?.icon; sky = cur?.sky; temp = cur?.temp; pop = cur?.pop;
                   tmin = todayDay?.tmin; tmax = todayDay?.tmax;
                   if (isScheduled) {
-                    label = `현재 날씨 · 라운딩 3일 전부터 더 정확해져요 (D-${schedule.dDay})`;
+                    label = '현재 날씨 · 라운딩 3일 전부터 더 정확해져요';
                   }
                 }
                 return (
@@ -784,10 +784,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                         </Text>
                       </View>
                     ) : (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray,
-                        textAlign: 'center', marginBottom: 8, letterSpacing: 0.5 }}>
-                        {label}
-                      </Text>
+                      // D+4+ 현재 날씨 — warmGray가 어두운 배경에 묻혀 안 보이던 문제 → 흰색 배지로 가독성↑.
+                      // 버터 배지는 정밀 예보(D+3 이내) 전용이라, 현재 날씨는 흰 배지로 톤 구분.
+                      <View style={{ alignSelf: 'center', marginBottom: 10, paddingHorizontal: 12, paddingVertical: 4,
+                        borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)',
+                        borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.42)' }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#FFFFFF', textAlign: 'center', letterSpacing: 0.5 }}>
+                          {label}
+                        </Text>
+                      </View>
                     ))}
                     <View style={wxS.tempHero}>
                       <Text style={wxS.tempEmoji}>{icon || '🌤️'}</Text>
