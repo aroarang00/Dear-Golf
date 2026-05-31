@@ -72,14 +72,14 @@
   .eyebrow::after  { background:linear-gradient(90deg, rgba(201,168,76,0.7), transparent); }
   /* 메인 워드마크 — 흰색 + 골드 후광. 뒤에 모노그램(A), 아래 캡스 서브라인(C) */
   .brand { position:relative; display:flex; flex-direction:column; align-items:center; z-index:0; }
-  .brand::before { content:'DG'; position:absolute; top:50%; left:50%; transform:translate(-50%,-53%);
-    font-family:'Lora', serif; font-style:italic; font-weight:600; line-height:1; white-space:nowrap;
-    font-size:clamp(160px, 46vw, 270px); letter-spacing:-0.03em;
-    color:rgba(244,239,227,0.06); z-index:-1; pointer-events:none; }
-  .wordmark { font-family:'Lora', serif; font-style:italic; font-weight:600;
+  .wordmark { position:relative; font-family:'Lora', serif; font-style:italic; font-weight:600;
     font-size:clamp(60px, 16.5vw, 96px); line-height:1.12; padding:.04em .22em; overflow:visible;
     color:#ffffff;
     filter:drop-shadow(0 0 46px rgba(245,230,168,0.22)) drop-shadow(0 3px 16px rgba(0,0,0,0.5)) drop-shadow(0 1px 2px rgba(0,0,0,0.42)); }
+  /* 뒤 그림자 워터마크 — 같은 'Dear Golf'를 살짝 아래·옆으로 흐릿하게 깔아 입체 에코 */
+  .wordmark::before { content:'Dear Golf'; position:absolute; left:51%; top:56%;
+    transform:translate(-50%,-50%); font:inherit; white-space:nowrap;
+    color:rgba(244,239,227,0.18); filter:blur(3px); z-index:-1; pointer-events:none; }
   .brand-sub { margin-top:9px; font-family:'Pretendard','Pretendard Variable',sans-serif; font-weight:500;
     font-size:clamp(10px, 2.8vw, 12px); letter-spacing:5px; color:var(--gold-soft); opacity:0.82; padding-left:5px; }
   .mini-stripe { display:flex; width:clamp(150px, 58vw, 240px); height:3px; margin:22px 0; border-radius:2px; overflow:hidden; }
@@ -91,13 +91,13 @@
 
   .stores { margin-top:50px; display:flex; flex-direction:column; gap:12px; width:100%; max-width:280px; }
   .store-btn { display:flex; align-items:center; justify-content:center; gap:11px;
-    padding:17px 22px; border-radius:14px; text-decoration:none; border:1px solid var(--line);
-    background:rgba(255,255,255,0.045); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
-    color:var(--cream); cursor:default; transition:border-color .25s, background .25s, transform .1s; }
-  .store-btn:hover { border-color:rgba(201,168,76,0.7); background:rgba(255,255,255,0.07); }
+    padding:17px 22px; border-radius:14px; text-decoration:none; border:1px solid rgba(245,230,168,0.22);
+    background:var(--burgundy); box-shadow:0 6px 18px rgba(0,0,0,0.32);
+    color:var(--butter); cursor:default; transition:border-color .25s, background .25s, transform .1s; }
+  .store-btn:hover { border-color:rgba(245,230,168,0.5); background:#7e2634; }
   .store-btn:active { transform:scale(0.985); }
-  .store-btn .ico { width:23px; height:23px; flex:none; fill:var(--gold-soft); }
-  .store-btn .txt { font-size:15px; color:var(--cream); font-weight:400; letter-spacing:.3px; white-space:nowrap; }
+  .store-btn .ico { width:23px; height:23px; flex:none; fill:var(--butter); }
+  .store-btn .txt { font-size:15px; color:var(--butter); font-weight:500; letter-spacing:.3px; white-space:nowrap; }
   .soon { margin-top:18px; font-size:12px; font-weight:300; letter-spacing:3px; color:var(--gold-soft); }
 
   .footer { position:relative; z-index:2; padding:0 24px 30px; text-align:center;
@@ -123,7 +123,7 @@
     <div class="eyebrow">골프, 더 가깝게 편리하게</div>
     <div class="brand">
       <div class="wordmark">Dear&nbsp;Golf</div>
-      <div class="brand-sub">GOLF · COMPANION</div>
+      <div class="brand-sub">GOLF · FRIENDS · LIFE</div>
     </div>
     <div class="mini-stripe"><span class="s1" style="background:var(--butter)"></span><span class="s2" style="background:var(--paleSky)"></span><span class="s3" style="background:var(--burgundy)"></span></div>
     <div class="tagline">
