@@ -310,12 +310,16 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
       message = '참여자에게 즉시 알림이 가고\n48시간 안에 매너 평가를 받을 수 있어요.\n\n부득이한 사유면 진행하세요.\n취소된 라운딩은 신뢰등급에 반영되지 않아요.';
     }
 
+    // 소프트 취소(보상 매너평가 발동) vs 하드 삭제 구분.
+    // D-7 이내 + 전체공개 + 주최자 외 확정자 있음 → 소프트 취소(문서 보존, functions (C)가 윈도우 발동).
+    // 그 외(D-7 이전·나홀로·친구공개)는 기존 하드 삭제.
+    const useSoftCancel = insideD7 && !isFriendsScope && hasOthers;
     setAlert({
       title: '모집을 취소할까요?',
       message,
       buttons: [
         { text: '닫기', style: 'cancel' },
-        { text: '모집 취소', style: 'destructive', onPress: onDelete },
+        { text: '모집 취소', style: 'destructive', onPress: () => onDelete(useSoftCancel) },
       ],
     });
   };

@@ -33,7 +33,7 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
-import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, createRoundup, updateRoundupAsAuthor, deleteRoundup, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
 import { loadComments, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
@@ -968,10 +968,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     setPosts(prev => prev.map(p => (p.id === id ? { ...p, closed: true } : p)));
   };
 
-  // 내 모집글 삭제 — Firestore 삭제 후 로컬 정리, 상세 화면도 닫는다
-  const handleDelete = async (id) => {
+  // 내 모집글 삭제/취소 — 로컬 정리 후 상세 닫기.
+  // softCancel=true(D-7 이내+전체공개+확정자): 하드 삭제 대신 소프트 취소(문서 보존)로 보상 매너평가 윈도우 발동.
+  const handleDelete = async (id, softCancel = false) => {
     try {
-      await deleteRoundup(id);
+      if (softCancel) await cancelRoundupByHost(id);
+      else await deleteRoundup(id);
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] handleDelete failed', e);
       setAlert({
@@ -1495,7 +1497,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onWaitlist={() => detailId && handleWaitlist(detailId)}
         onCancel={() => detailId && performCancel(detailId)}
         onCancelWait={() => detailId && cancelWaitlist(detailId)}
-        onDelete={() => detailId && handleDelete(detailId)}
+        onDelete={(soft) => detailId && handleDelete(detailId, soft)}
         onConfirm={() => detailId && handleConfirmRoundup(detailId)}
         onGradePress={(key) => setGradeModalKey(key)}
         onToggleBookmark={() => detailId && toggleBookmark(detailId)}

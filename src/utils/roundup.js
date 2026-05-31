@@ -33,7 +33,8 @@ export async function loadAllRoundups() {
     orderBy('createdAt', 'desc'),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // 주최자 소프트 취소(cancelledByHost) 모집은 라운지 목록에서 숨김 (문서는 보존 — 매너평가·보관용)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.cancelledByHost);
 }
 
 // 내가 작성한 모집글 (전체공개 + 친구공개 모두)
@@ -46,7 +47,8 @@ export async function loadMyRoundups() {
     orderBy('createdAt', 'desc'),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // 주최자 소프트 취소(cancelledByHost) 모집은 라운지 목록에서 숨김 (문서는 보존 — 매너평가·보관용)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.cancelledByHost);
 }
 
 // 특정 친구가 작성한 친구공개 모집 — friends 탭에서 친구별로 호출
@@ -59,7 +61,8 @@ export async function loadFriendRoundups(friendUid) {
     orderBy('createdAt', 'desc'),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // 주최자 소프트 취소(cancelledByHost) 모집은 라운지 목록에서 숨김 (문서는 보존 — 매너평가·보관용)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.cancelledByHost);
 }
 
 // 단일 모집글 조회 (상세 화면)
