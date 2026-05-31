@@ -327,7 +327,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
     // 과거 라운딩 + 다이어리 기록 있음 → 다이어리에서 삭제하도록 안내
     if (isPast && hasRec) {
-      showAppAlert('삭제 안내', '이 라운딩은 다이어리 기록이 있어요.\n다이어리 탭에서 삭제해주세요.', [{ text: '확인' }]);
+      showAppAlert('삭제 안내', '이 라운딩은 기록이 있어요.\nMY 탭에서 삭제해주세요.', [{ text: '확인' }]);
       return;
     }
     // 과거 + 기록 없음 → 일정·코스기록 모두 삭제 / 예정 → 단순 확인
