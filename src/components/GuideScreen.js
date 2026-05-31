@@ -25,6 +25,7 @@ import { buildFoodMapUrl, NAVER_MAP_HEADERS } from '../utils/naverMap';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
 import { getCourseComments, addCourseComment, toggleCommentLike, deleteCourseComment, updateCourseComment } from '../utils/courseComments';
+import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { createContentReport, hasReportedContent } from '../utils/contentReports';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
 import { CourseLogModal } from './CourseLogModal';
@@ -482,6 +483,8 @@ export function GuideScreen({ route, navigation }) {
   const submitComment = async () => {
     const txt = commentInput.trim();
     if (!txt || !selected) return;
+    // 비속어 필터 — 라운지 댓글과 동일 정책([[roundup-comments-policy]] §5). 신규·수정 모두 적용.
+    if (containsProfanity(txt)) { showAppAlert('코멘트', PROFANITY_BLOCK_MESSAGE); return; }
     // 수정 모드 — 기존 코멘트 본문만 업데이트
     if (editingCommentId) {
       const id = editingCommentId;
