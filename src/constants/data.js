@@ -195,7 +195,7 @@ export const USER_PROFILE_INIT = {
   falseReportCount: 0,       // 허위 노쇼 신고 횟수 (90일 정지·2회 영구 트리거)
   // 매너 — 평가 시스템
   mannerScore: 70,                   // 매너 점수 (0~100, 신규 70점 시작)
-  mannerEvaluationPending: false,    // 평가 대기 — true면 다음 모집 신청 비활성화
+  mannerEvaluationPending: false,    // 평가 대기 — true면 '내 라운지 활동' 평가 권유 카드 노출 (신청 제한 X, 매너평가 강제성 없음). RoundupTab이 미평가 매너 알림 기반으로 동적 계산
   // 이용 제한
   isRestricted: false,       // 이용 제한 여부
   restrictUntil: null,       // 이용 제한 해제 날짜 (ISO 문자열)
