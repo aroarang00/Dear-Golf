@@ -172,6 +172,7 @@ exports.onNoshowReportUpdated = noshow.onNoshowReportUpdated;
 const manner = require('./manner');
 exports.onRoundupCreatedForManner = manner.onRoundupCreatedForManner;
 exports.mannerAggregationTick = manner.mannerAggregationTick;
+exports.mannerEvalNotifyTick = manner.mannerEvalNotifyTick;
 
 // =============================================================
 // §F 스케줄러 — ./scheduled.js (CF7)

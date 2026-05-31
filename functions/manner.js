@@ -78,6 +78,7 @@ exports.onRoundupCreatedForManner = onDocumentCreated('roundups/{postId}', async
       mannerEvalWindowStart: Timestamp.fromDate(windowStart),
       mannerEvalDeadline: Timestamp.fromDate(windowEnd),
       mannerAggregated: false,
+      mannerEvalNotified: false,  // 윈도우 시작 시 참여자 알림 발송 여부 (mannerEvalNotifyTick)
     });
   } catch (e) {
     logger.warn('[manner] window write fail', e?.message);
@@ -102,6 +103,41 @@ exports.mannerAggregationTick = onSchedule({ schedule: 'every 60 minutes', timeZ
     }
   } catch (e) {
     logger.warn('[manner] tick query fail', e?.message);
+  }
+});
+
+// 윈도우 시작(티오프+5h) 도래 시 참여자에게 매너 평가 요청 알림을 1회 발송.
+// 클라(openNotiPost)가 mannerEval 알림 탭 → 평가 모달 진입. 취소 보상 윈도우는 (C)가
+// hostCancelledD7 알림을 이미 보내므로 여기선 정상 종료만 처리.
+exports.mannerEvalNotifyTick = onSchedule({ schedule: 'every 60 minutes', timeZone: 'Asia/Seoul' }, async () => {
+  const now = Timestamp.fromDate(new Date());
+  try {
+    const snap = await db.collection('roundups')
+      .where('mannerEvalNotified', '==', false)
+      .where('mannerEvalWindowStart', '<=', now)
+      .limit(200)
+      .get();
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      try {
+        if (!d.mannerEvalForHost) {
+          const parts = (Array.isArray(d.participantUids) ? d.participantUids : []).filter((u) => u);
+          for (const uid of parts) {
+            await createSystemNotification({
+              recipientUid: uid,
+              type: 'mannerEval',
+              postId: doc.id,
+              postTitle: d.course || '',
+            });
+          }
+        }
+        await doc.ref.update({ mannerEvalNotified: true });  // 멱등 — 다음 tick에 재발송 방지
+      } catch (e) {
+        logger.warn('[manner] notify fail', doc.id, e?.message);
+      }
+    }
+  } catch (e) {
+    logger.warn('[manner] notify tick query fail', e?.message);
   }
 });
 

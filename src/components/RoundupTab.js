@@ -33,7 +33,7 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
-import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
 import { loadComments, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
@@ -219,6 +219,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingPost, setEditingPost] = useState(null);  // 수정 모드 — 모집글 id 매칭용 원본
   const [evaluatingPostId, setEvaluatingPostId] = useState(null); // 매너 평가 모달 — postId
+  const [evalPostData, setEvalPostData] = useState(null); // 평가 대상 모집 — 취소·만료로 posts에 없을 때 개별 로드분
   // 친구 신청 진입점 ([[friend-add-feature]] Phase 2) — 라운지 프로필에서 친구 신청 보낸 사용자 id 캐시
   const [sentFriendRequestIds, setSentFriendRequestIds] = useState([]);
   useEffect(() => {
@@ -1081,15 +1082,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   };
 
   // 알림 탭 — 읽음 처리 후 진입 (mannerEval은 평가 모달, 그 외는 모집 상세)
-  const openNotiPost = (n) => {
+  const openNotiPost = async (n) => {
     setNotifications(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
     if (!n.read) {
       markNotificationRead(n.id).catch(e => __DEV__ && console.warn('[RoundupTab] markRead fail', e?.message));
     }
     setShowNoti(false);
-    if (n.type === 'mannerEval') {
-      const post = posts.find(p => p.id === n.postId);
-      if (post) setEvaluatingPostId(n.postId);
+    // 매너 평가 진입 — 정상 종료(mannerEval) + 주최자 취소 보상(hostCancelledD7) 둘 다 평가 모달로.
+    if (n.type === 'mannerEval' || n.type === 'hostCancelledD7') {
+      let post = posts.find(p => p.id === n.postId);
+      // 취소·만료로 라운지 목록에서 빠진 모집은 개별 로드
+      if (!post) { try { post = await loadRoundup(n.postId); } catch { post = null; } }
+      if (post) { setEvalPostData(post); setEvaluatingPostId(n.postId); }
       return;
     }
     setDetailId(n.postId);
@@ -1514,7 +1518,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
           {/* 매너 평가 모달 — 라운지 알림에서 진입 ([[manner-evaluation-policy]]) */}
           {(() => {
-            const evalPost = posts.find(p => p.id === evaluatingPostId);
+            const evalPost = evalPostData || posts.find(p => p.id === evaluatingPostId);
             if (!evalPost) return null;
             // 평가 대상 — 실제 참여 확정자(participantUids)에서 본인 제외. 이름은 participantNames(닉네임 로드).
             // 주최자 취소 보상 윈도우(mannerEvalForHost)면 주최자 1명만 평가 대상 (정상은 동반자 전원).
@@ -1527,7 +1531,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 visible={!!evaluatingPostId}
                 post={evalPost}
                 participants={participants}
-                onClose={() => setEvaluatingPostId(null)}
+                onClose={() => { setEvaluatingPostId(null); setEvalPostData(null); }}
                 onSubmit={() => {
                   // 실제 평가 작성은 모달 내부 submitEvaluation이 Firestore(mannerEvaluations)에 기록.
                   // 집계는 functions/manner.js. 이 콜백은 평가 권유 상태(mannerEvaluationPending) 해제만.
