@@ -63,22 +63,23 @@
   }
   @keyframes rise { to { opacity:1; transform:none; } }
 
-  /* 앱 알약(pill) 스타일 배지 — 골드 톤 글래스 */
-  .eyebrow { display:inline-block; font-family:'Pretendard','Pretendard Variable',sans-serif; font-weight:600;
-    font-size:clamp(13px, 3.6vw, 15px); letter-spacing:1px; color:var(--cream);
-    background:rgba(201,168,76,0.10); border:1px solid rgba(201,168,76,0.42); border-radius:999px;
-    padding:7px 17px; margin-bottom:8px;
-    -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px); }
+  /* 상단 멘트 — 양옆 골드 헤어라인 (옵션1) */
+  .eyebrow { display:flex; align-items:center; justify-content:center; gap:13px;
+    font-family:'Pretendard','Pretendard Variable',sans-serif; font-weight:500;
+    font-size:clamp(13px, 3.6vw, 15px); letter-spacing:2px; color:var(--cream); opacity:0.92; margin-bottom:13px; }
+  .eyebrow::before, .eyebrow::after { content:''; display:block; height:1px; width:clamp(24px, 8vw, 46px); }
+  .eyebrow::before { background:linear-gradient(90deg, transparent, rgba(201,168,76,0.7)); }
+  .eyebrow::after  { background:linear-gradient(90deg, rgba(201,168,76,0.7), transparent); }
   /* 워드마크 — 골드 샤인이 글자를 천천히 쓸고 지나가는 럭셔리 모션 */
   .wordmark { font-family:'Lora', serif; font-style:italic; font-weight:600;
     font-size:clamp(60px, 16.5vw, 96px); line-height:1.12; padding:.04em .22em; overflow:visible;
     color:#ffffff;
-    filter:drop-shadow(0 2px 18px rgba(0,0,0,0.5)) drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+    filter:drop-shadow(0 0 46px rgba(245,230,168,0.22)) drop-shadow(0 3px 16px rgba(0,0,0,0.5)) drop-shadow(0 1px 2px rgba(0,0,0,0.42)); }
   .mini-stripe { display:flex; width:clamp(150px, 58vw, 240px); height:3px; margin:22px 0; border-radius:2px; overflow:hidden; }
   .mini-stripe span { flex:1; }
   .tagline { font-size:clamp(16px, 4.6vw, 20px); font-weight:300; line-height:1.95;
     color:var(--mist); max-width:340px; letter-spacing:.4px; }
-  .tagline b { color:var(--cream); font-weight:400; }
+  .tagline b { color:var(--gold-soft); font-weight:600; }
 
   .stores { margin-top:36px; display:flex; flex-direction:column; gap:12px; width:100%; max-width:280px; }
   .store-btn { display:flex; align-items:center; justify-content:center; gap:11px;
@@ -109,7 +110,7 @@
   <div class="stripe top shimmer"><span class="s1"></span><span class="s2"></span><span class="s3"></span></div>
 
   <div class="wrap">
-    <div class="eyebrow">나만의 골프 캐디</div>
+    <div class="eyebrow">골프, 더 가깝게 편리하게</div>
     <div class="wordmark">Dear&nbsp;Golf</div>
     <div class="mini-stripe"><span class="s1" style="background:var(--butter)"></span><span class="s2" style="background:var(--paleSky)"></span><span class="s3" style="background:var(--burgundy)"></span></div>
     <div class="tagline">
