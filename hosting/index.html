@@ -3,109 +3,137 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Dear Golf — 골프 동반자와 라운딩, 한 번에</title>
-<meta name="description" content="골프 동반자 매칭·라운딩 일정·기록을 한 앱에서. Dear Golf 다운로드." />
+<title>Dear Golf — 라운딩의 모든 순간을 더 특별하게</title>
+<meta name="description" content="좋은 동반자와의 라운딩, 그날의 기록까지. Dear Golf." />
 <meta property="og:title" content="Dear Golf" />
-<meta property="og:description" content="골프 동반자와 라운딩, 한 번에" />
+<meta property="og:description" content="라운딩의 모든 순간을 더 특별하게" />
 <meta property="og:url" content="https://deargolf.app" />
+<meta name="theme-color" content="#0A1820" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@1,400;1,500;1,600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <style>
   :root {
-    --navy:#1A3D52; --butter:#F5E6A8; --ink:#2A2622;
-    --gray:#6B6660; --bg:#FAF6EC; --hairline:#E0DAC8;
+    --butter:#F5E6A8; --paleSky:#C8D9E6; --burgundy:#6B1E2A;
+    --gold:#C9A84C; --gold-soft:#E2CE8E;
+    --ink:#0A1820; --cream:#F4EFE3; --mist:rgba(244,239,227,0.74);
+    --line:rgba(201,168,76,0.35);
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   html, body { height:100%; }
   body {
-    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
-    color:var(--ink); background:var(--bg); line-height:1.6;
-    min-height:100vh; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; padding:32px 24px; text-align:center;
+    font-family:'Pretendard','Pretendard Variable',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    color:var(--cream); background:var(--ink);
+    min-height:100vh; min-height:100dvh; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
-  .logo {
-    font-family:'Georgia', 'Times New Roman', serif;
-    font-size:52px; color:var(--navy); letter-spacing:-1px;
-    margin-bottom:6px; font-weight:600;
+  /* ── 배경: 골프장 사진(hero.jpg) 켄번스 슬로우 줌 + 다크 오버레이. 사진 없으면 그라데이션 폴백 ── */
+  .bg { position:fixed; inset:0; z-index:0; overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 0%, #16323f 0%, #0c1d27 45%, #060f15 100%); }
+  .bg-img { position:absolute; inset:0; z-index:0;
+    background:url('hero.jpg') center/cover no-repeat; }
+  /* 맑은 하늘 보이게 위는 옅게, 글씨·버튼 가독성 위해 아래는 진하게 */
+  .overlay { position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:
+      radial-gradient(85% 55% at 50% 44%, rgba(6,14,20,0.55) 0%, rgba(6,14,20,0) 72%),
+      linear-gradient(180deg, rgba(10,24,32,0.3) 0%, rgba(10,24,32,0.46) 46%, rgba(7,16,22,0.95) 100%);
+    box-shadow:inset 0 0 200px 50px rgba(0,0,0,0.46); }
+
+  /* ── 삼색바 (앱 TripleStripe: butter · paleSky · burgundy) ── */
+  .stripe { position:fixed; left:0; right:0; height:3px; z-index:3; display:flex; }
+  .stripe.top { top:0; }
+  .stripe span { flex:1; }
+  .stripe .s1 { background:var(--butter); }
+  .stripe .s2 { background:var(--paleSky); }
+  .stripe .s3 { background:var(--burgundy); }
+  .stripe.shimmer::after { content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+    transform:translateX(-100%); animation:sweep 6s ease-in-out 1.2s infinite; }
+  @keyframes sweep { 0%{transform:translateX(-100%);} 35%,100%{transform:translateX(100%);} }
+
+  .wrap {
+    position:relative; z-index:2; min-height:100vh; min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:60px 26px 40px;
+    opacity:0; transform:translateY(16px);
+    animation:rise 1.2s cubic-bezier(.2,.7,.2,1) .2s forwards;
   }
-  .tagline {
-    font-size:13px; color:var(--gray); margin-bottom:40px;
-    letter-spacing:1.5px; text-transform:lowercase;
-  }
-  .hero {
-    font-size:17px; color:var(--ink); margin-bottom:36px;
-    line-height:1.8; max-width:320px;
-  }
-  .auto-redirect-msg {
-    font-size:13px; color:var(--gray); margin-bottom:24px;
-    min-height:20px;
-  }
-  .stores { display:flex; flex-direction:column; gap:12px; width:100%; max-width:280px; }
-  .store-btn {
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    padding:14px 24px; border-radius:12px; text-decoration:none;
-    font-size:15px; font-weight:600;
-    transition:transform 0.1s ease, opacity 0.1s ease;
-  }
-  .store-btn:active { transform:scale(0.98); opacity:0.85; }
-  .store-ios { background:#000; color:#fff; }
-  .store-android { background:var(--navy); color:#fff; }
-  .footer {
-    margin-top:48px; font-size:12px; color:var(--gray);
-    display:flex; flex-direction:column; gap:6px;
-  }
-  .footer a { color:var(--gray); text-decoration:underline; }
-  @media (max-height: 600px) {
-    .hero { margin-bottom:24px; }
-    .footer { margin-top:32px; }
-  }
+  @keyframes rise { to { opacity:1; transform:none; } }
+
+  .eyebrow { font-family:'Lora', serif; font-style:italic; font-weight:500;
+    font-size:clamp(18px, 5vw, 22px); letter-spacing:2px; color:var(--cream); opacity:0.95; margin-bottom:12px; }
+  /* 워드마크 — 골드 샤인이 글자를 천천히 쓸고 지나가는 럭셔리 모션 */
+  .wordmark { font-family:'Lora', serif; font-style:italic; font-weight:500;
+    font-size:clamp(54px, 15vw, 86px); line-height:1.22; padding:.06em .22em; overflow:visible;
+    background:linear-gradient(100deg, #ffffff 0%, #ffffff 38%, var(--butter) 49%, var(--gold-soft) 55%, #ffffff 66%, #ffffff 100%);
+    background-size:230% auto; -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+    filter:drop-shadow(0 2px 26px rgba(0,0,0,0.45));
+    animation:shine 9s ease-in-out 1.2s infinite; }
+  @keyframes shine { 0%{background-position:200% center;} 42%{background-position:-100% center;} 100%{background-position:-100% center;} }
+  .mini-stripe { display:flex; width:clamp(150px, 58vw, 240px); height:3px; margin:26px 0; border-radius:2px; overflow:hidden; }
+  .mini-stripe span { flex:1; }
+  .tagline { font-size:clamp(16px, 4.6vw, 20px); font-weight:300; line-height:1.95;
+    color:var(--mist); max-width:340px; letter-spacing:.4px; }
+  .tagline b { color:var(--cream); font-weight:400; }
+
+  .stores { margin-top:46px; display:flex; flex-direction:column; gap:13px; width:100%; max-width:320px; }
+  .store-btn { display:flex; align-items:center; justify-content:center; gap:11px;
+    padding:17px 22px; border-radius:14px; text-decoration:none; border:1px solid var(--line);
+    background:rgba(255,255,255,0.045); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    color:var(--cream); cursor:default; transition:border-color .25s, background .25s, transform .1s; }
+  .store-btn:hover { border-color:rgba(201,168,76,0.7); background:rgba(255,255,255,0.07); }
+  .store-btn:active { transform:scale(0.985); }
+  .store-btn .ico { width:23px; height:23px; flex:none; fill:var(--gold-soft); }
+  .store-btn .txt { font-size:15px; color:var(--cream); font-weight:400; letter-spacing:.3px; white-space:nowrap; }
+  .soon { margin-top:18px; font-size:12px; font-weight:300; letter-spacing:3px; color:var(--gold-soft); }
+
+  .footer { position:relative; z-index:2; padding:0 24px 30px; text-align:center;
+    font-size:12px; color:rgba(244,239,227,0.45); display:flex; flex-direction:column; gap:8px; align-items:center; }
+  .footer .links a { color:rgba(244,239,227,0.6); text-decoration:none; margin:0 8px; }
+  .footer .links a:hover { color:var(--gold-soft); }
+  @media (max-height:640px) { .stores { margin-top:30px; } .wrap { padding-top:44px; } }
 </style>
 </head>
 <body>
-  <div class="logo">Dear Golf</div>
-  <div class="tagline">deargolf.app</div>
-  <div class="hero">
-    골프 동반자 매칭부터<br />
-    라운딩 기록까지 — 한 앱에서
+  <div class="bg"><div class="bg-img"></div></div>
+  <div class="overlay"></div>
+  <div class="stripe top shimmer"><span class="s1"></span><span class="s2"></span><span class="s3"></span></div>
+
+  <div class="wrap">
+    <div class="eyebrow">Golf, Together</div>
+    <div class="wordmark">Dear&nbsp;Golf</div>
+    <div class="mini-stripe"><span class="s1" style="background:var(--butter)"></span><span class="s2" style="background:var(--paleSky)"></span><span class="s3" style="background:var(--burgundy)"></span></div>
+    <div class="tagline">
+      라운딩의 모든 순간을<br /><b>더 특별하게</b>
+    </div>
+
+    <div class="stores">
+      <!-- 출시 시: href를 실제 스토어 URL로, cursor:pointer·자동이동 주석 해제 -->
+      <a class="store-btn" id="ios" aria-disabled="true">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M16.4 12.9c0-2 1.6-3 1.7-3.1-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2.1 2.4 2 .9 0 1.3-.6 2.4-.6s1.4.6 2.4.6c1 0 1.7-1 2.3-2 .7-1.1 1-2.2 1-2.2-.1 0-2-.8-1.9-3.1zM14.6 6.7c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>
+        <span class="txt">App Store · iOS 다운로드</span>
+      </a>
+      <a class="store-btn" id="and" aria-disabled="true">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M5 4.5l8.6 8.6L5 21.7c-.3-.2-.5-.6-.5-1V5.5c0-.4.2-.8.5-1zM15 14.5l2.6 2.6-9.4 5.3 6.8-7.9zm0-3l-6.8-7.9 9.4 5.3L15 11.5zm1.4 1.4l2.6-1.5c.6-.4.6-1.4 0-1.8l-2.6-1.5-2.1 2.4 2.1 2.4z"/></svg>
+        <span class="txt">Google Play · Android 다운로드</span>
+      </a>
+    </div>
+    <div class="soon">곧 만나요 · Coming Soon</div>
   </div>
-  <div class="auto-redirect-msg" id="msg"></div>
-  <div class="stores">
-    <a id="ios-link" class="store-btn store-ios" href="#" rel="noopener">
-      iOS에서 받기 (App Store)
-    </a>
-    <a id="android-link" class="store-btn store-android" href="#" rel="noopener">
-      Android에서 받기 (Play Store)
-    </a>
-  </div>
+
   <div class="footer">
-    <a href="/privacy.html">개인정보 처리방침</a>
-    <span>© Dear Golf</span>
+    <div class="links"><a href="/legal.html">이용약관</a>·<a href="/privacy.html">개인정보 처리방침</a></div>
+    <span>© 2026 Dear Golf</span>
   </div>
 
 <script>
-  // 스토어 URL — 출시 시 실제 App ID로 교체
-  // App Store: https://apps.apple.com/kr/app/id{APP_ID}
-  // Play Store: package name 기반 (app.deargolf)
-  var APP_STORE_URL  = 'https://apps.apple.com/kr/app/dear-golf';
-  var PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=app.deargolf';
-
-  // 버튼 링크 채우기
-  document.getElementById('ios-link').href = APP_STORE_URL;
-  document.getElementById('android-link').href = PLAY_STORE_URL;
-
-  // User-Agent 감지 — 모바일이면 해당 스토어로 자동 리다이렉트
-  var ua = navigator.userAgent.toLowerCase();
-  var isIOS = /iphone|ipad|ipod/.test(ua) && !/windows/.test(ua);
-  var isAndroid = /android/.test(ua);
-  var msgEl = document.getElementById('msg');
-
-  if (isIOS || isAndroid) {
-    var targetUrl = isIOS ? APP_STORE_URL : PLAY_STORE_URL;
-    msgEl.textContent = '잠시 후 스토어로 이동해요...';
-    // 1.5초 후 자동 리다이렉트 (사용자가 메시지 잠깐 볼 수 있게)
-    setTimeout(function() { window.location.href = targetUrl; }, 1500);
-  } else {
-    // PC/기타 — 양쪽 버튼만 노출
-    msgEl.textContent = '아래에서 사용하시는 기기를 선택해주세요';
-  }
+  // 출시 전 — 버튼은 '곧 만나요' 안내만. 출시 시 아래 주석 해제 + .store-btn{cursor:pointer} 처리.
+  // var APP_STORE_URL='https://apps.apple.com/kr/app/id{APP_ID}', PLAY_STORE_URL='https://play.google.com/store/apps/details?id=app.deargolf';
+  // var ua=navigator.userAgent.toLowerCase(), isIOS=/iphone|ipad|ipod/.test(ua)&&!/windows/.test(ua), isAndroid=/android/.test(ua);
+  // document.getElementById('ios').href=APP_STORE_URL; document.getElementById('and').href=PLAY_STORE_URL;
+  // if(isIOS) location.href=APP_STORE_URL; else if(isAndroid) location.href=PLAY_STORE_URL;
 </script>
 </body>
 </html>
