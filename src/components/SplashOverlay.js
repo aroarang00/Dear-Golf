@@ -20,9 +20,11 @@ export function SplashContent() {
         </Text>
       </View>
       <View style={{ width: 52, height: 3, borderRadius: 2, backgroundColor: C.burgundy, marginVertical: 20 }} />
-      <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#1A3D52', letterSpacing: 1 }}>나만의 골프 캐디</Text>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.6)', marginTop: 10, textAlign: 'center', lineHeight: 20 }}>
-        라운드의 모든 순간을{'\n'}더 특별하게
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#1A3D52', letterSpacing: 0.5, textAlign: 'center', lineHeight: 24 }}>
+        라운딩의 모든 순간을{'\n'}더 특별하게
+      </Text>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.6)', marginTop: 12, textAlign: 'center', lineHeight: 20 }}>
+        좋은 동반자, 그날의 기록까지
       </Text>
       <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
     </>
