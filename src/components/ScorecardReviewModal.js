@@ -9,7 +9,7 @@ import { sumHoles } from '../utils/scorecardOcr';
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], stub = false, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], failed = false, onConfirm, onClose }) {
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
@@ -93,12 +93,12 @@ export function ScorecardReviewModal({ visible, rows = [], stub = false, onConfi
               </TouchableOpacity>
             </View>
 
-            {/* 개발용 스텁 안내 — 실제 OCR 연결 후 제거 */}
-            {stub && (
+            {/* 인식 실패/숫자 부족 안내 — 빈 표에 직접 입력 유도 (부드러운 톤) */}
+            {failed && (
               <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
-                backgroundColor: C.paleSky + '22', borderWidth: 0.5, borderColor: C.paleSky + '60' }}>
+                backgroundColor: C.butter + '33', borderWidth: 0.5, borderColor: C.butter + '80' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
-                  ⚠️ 개발용 샘플 인식 결과예요.{'\n'}실제 사진 인식(ML Kit)은 출시 빌드에서 연결됩니다.
+                  사진에서 숫자를 충분히 읽지 못했어요.{'\n'}아래에 직접 입력하거나, 카톡으로 받은 스코어카드 사진으로 다시 시도해보세요.
                 </Text>
               </View>
             )}

@@ -51,7 +51,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [holeScores, setHoleScores] = useState(null);
   const [holePars, setHolePars] = useState(null); // 스코어카드 par 행(스텁 mock) — 버디 자동집계용
   const [scRows, setScRows] = useState([]);
-  const [scStub, setScStub] = useState(false);
+  const [scFailed, setScFailed] = useState(false); // OCR 인식 실패/숫자 부족 → 직접 입력 안내
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
   const [showCost, setShowCost] = useState(false);
@@ -117,9 +117,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const img = await pickScorecardImage(source);
       if (!img) return; // 취소·권한거부
       const res = await recognizeScorecard(img.uri);
+      if (__DEV__ && res.rawText) console.log('[scorecardOcr] raw text:\n' + res.rawText);
       setScRows(res.rows || []);
       setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
-      setScStub(!!res.stub);
+      setScFailed(!!res.error || !(res.rows || []).length);   // 인식 실패/숫자 부족 → 빈 표 직접 입력 안내
       setScReview(true);
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAdd] scorecard pick fail', e?.message);
@@ -192,7 +193,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setScoreCardOption('later');
-    setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScStub(false);
+    setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScFailed(false);
     setShowCost(false); setCosts({ green: '', caddie: '', cart: '', meal: '', etc: '' });
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
@@ -458,7 +459,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         onPress={() => {
                           const t = holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
                           setScRows([{ label: '입력값', holes: holeScores, total: t }]);
-                          setScStub(false); setScReview(true);
+                          setScFailed(false); setScReview(true);
                         }}>
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
                       </TouchableOpacity>
@@ -759,7 +760,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         <ScorecardReviewModal
           visible={scReview}
           rows={scRows}
-          stub={scStub}
+          failed={scFailed}
           onConfirm={handleScorecardConfirm}
           onClose={() => setScReview(false)} />
     </Modal>

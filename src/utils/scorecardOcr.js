@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { compressImage } from './imageCompress';
 
 // =============================================================
@@ -57,32 +58,104 @@ export async function pickScorecardImage(source = 'gallery') {
   return { uri };
 }
 
-// 스코어카드 인식 → 행(플레이어)별 18홀 숫자.
-// 반환: { stub?: true, rows: [{ label, holes: number[18], total }] }
-//   - label: 화면에서 행 구분용으로만 표시 (읽힌 이름 등). 저장하지 않음.
-//   - 1행이면 자동 사용, 여러 행이면 사용자가 본인 행 선택.
-//
-// ⚠️ STUB: 지금은 고정 mock 반환. 출시 시 아래 ML Kit 흐름으로 교체.
+// 스코어카드 인식 → 행(플레이어)별 18홀 숫자. ML Kit 온디바이스 OCR(숫자/LATIN).
+// 반환: { rows: [{ label, holes:number[18], total }], pars: number[18]|null, error?, rawText?(dev) }
+//   - label: 화면 행 구분용으로만 표시(저장 X). 1행이면 자동 사용, 여러 행이면 사용자가 본인 행 선택.
+//   - 인식 실패/숫자 부족이면 rows:[] → 검토 모달이 빈 표(직접 입력)로 폴백.
 export async function recognizeScorecard(uri) {
-  // TODO(출시): 실제 OCR 연결 + EAS 재빌드
-  //   import TextRecognition from '@react-native-ml-kit/text-recognition';
-  //   const { blocks } = await TextRecognition.recognize(uri);
-  //   const rows = parseScorecardText(blocks);
-  //   return { rows };
-  const mock = [
-    { label: '1번째 줄', holes: [4, 5, 4, 3, 5, 4, 4, 3, 5, 4, 4, 5, 3, 4, 5, 4, 4, 4] },
-    { label: '2번째 줄', holes: [5, 4, 5, 4, 4, 4, 5, 4, 4, 5, 4, 4, 4, 5, 4, 5, 4, 5] },
-  ];
-  // par 행 mock (스텁) — 실제는 parseScorecardText가 스코어카드 par 행에서 추출. 버디 자동집계용.
-  const pars = [4, 5, 4, 3, 4, 4, 5, 3, 4, 4, 4, 5, 3, 4, 4, 5, 3, 4];
-  return { stub: true, rows: mock.map(r => ({ ...r, total: sumHoles(r.holes) })), pars };
+  try {
+    const result = await TextRecognition.recognize(uri);  // 기본 LATIN — 숫자 인식엔 충분
+    const { rows, pars } = parseScorecardText(result.blocks);
+    return { rows, pars, rawText: __DEV__ ? result.text : undefined };
+  } catch (e) {
+    if (__DEV__) console.warn('[scorecardOcr] recognize fail:', e?.message);
+    return { rows: [], pars: null, error: e?.message || '사진을 인식하지 못했어요' };
+  }
 }
 
-// OCR 텍스트 블록 → 행별 18홀 파싱 (스마트스코어 포맷 기준).
-// TODO(출시): 좌표/줄 기반 표 매핑 구현. 현재는 스켈레톤.
-//  1) 숫자만으로 이뤄진 줄 후보 추출
-//  2) 18개(또는 전반 9 + 후반 9) 시퀀스로 그룹핑
-//  3) 각 행을 { label(읽힌 이름, 표시용), holes:number[18], total } 로 구성
+const median = (arr) => {
+  const a = arr.filter(Number.isFinite).sort((x, y) => x - y);
+  if (!a.length) return 0;
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+};
+
+// ML Kit blocks → 숫자 토큰(중심좌표 포함). element(단어) 단위 우선,
+// 한 element에 숫자 여러 개면 폭을 균등 분할해 각 숫자에 x좌표 근사 부여.
+function numberTokens(blocks) {
+  const toks = [];
+  for (const b of blocks || []) {
+    for (const ln of b.lines || []) {
+      const els = (ln.elements && ln.elements.length) ? ln.elements : [ln];  // elements 없으면 line 자체
+      for (const el of els) {
+        const f = el.frame;
+        const digits = (el.text || '').match(/\d{1,2}/g);
+        if (!f || !digits) continue;
+        const cy = f.top + f.height / 2;
+        if (digits.length === 1) {
+          toks.push({ n: +digits[0], cx: f.left + f.width / 2, cy, h: f.height });
+        } else {
+          const per = f.width / digits.length;
+          digits.forEach((d, k) => toks.push({ n: +d, cx: f.left + per * (k + 0.5), cy, h: f.height }));
+        }
+      }
+    }
+  }
+  return toks;
+}
+
+// Y 근접으로 행(가로줄) 묶기 — 표의 한 줄 = 같은 높이대의 토큰들.
+function clusterRows(toks) {
+  const tol = (median(toks.map(t => t.h)) || 16) * 0.6;
+  const rows = [];
+  for (const t of [...toks].sort((a, b) => a.cy - b.cy)) {
+    const last = rows[rows.length - 1];
+    if (last && Math.abs(t.cy - last.cy) <= tol) {
+      const before = last.items.length;
+      last.items.push(t);
+      last.cy = (last.cy * before + t.cy) / (before + 1);
+    } else {
+      rows.push({ cy: t.cy, items: [t] });
+    }
+  }
+  return rows;
+}
+
+// OCR 텍스트 블록 → 행별 18홀 파싱 (좌표 기반 — 스마트스코어 등 표 포맷).
+//  1) 숫자 토큰 추출(중심좌표) → 2) Y로 행 클러스터 → 3) 점수범위(1~19) 정수만 x정렬
+//  4) 긴 행(≥14개)을 플레이어/파 행 후보로, par 행(전부 3~6)은 분리해 버디 자동집계에 사용.
+// ⚠️ 첫 파서(기하 기반). OUT/IN/TOTAL 합계열이 끼는 포맷은 실제 스코어카드로 임계값·열제거 튜닝 필요.
+//    검토 모달에서 사용자가 최종 수정하므로 시작점으로 충분.
 export function parseScorecardText(blocks) {
-  return [];
+  const toks = numberTokens(blocks);
+  if (!toks.length) return { rows: [], pars: null };
+
+  const longRows = clusterRows(toks)
+    .map(r => ({
+      cy: r.cy,
+      vals: r.items.filter(t => t.n >= 1 && t.n <= 19).sort((a, b) => a.cx - b.cx).map(t => t.n),
+    }))
+    .filter(r => r.vals.length >= 14);
+  if (!longRows.length) return { rows: [], pars: null };
+
+  const to18 = (vals) => {
+    const v = vals.slice(0, 18);
+    while (v.length < 18) v.push(null);
+    return v;
+  };
+
+  // par 행 = 값이 거의 전부 3~6인 긴 행(보통 표 상단). 있으면 분리.
+  const parIdx = longRows.findIndex(r => r.vals.length >= 16 && r.vals.every(n => n >= 3 && n <= 6));
+  let pars = null;
+  const players = [];
+  longRows.forEach((r, i) => {
+    if (i === parIdx) pars = to18(r.vals);
+    else players.push(r);
+  });
+
+  const rows = (players.length ? players : longRows).map((r, i) => {
+    const holes = to18(r.vals);
+    return { label: `${i + 1}번째 줄`, holes, total: sumHoles(holes) };
+  });
+  return { rows, pars };
 }
