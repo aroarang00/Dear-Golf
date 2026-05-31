@@ -1,11 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import { C, F, fs } from '../constants/colors';
 import { HallOfFameCard } from './HallOfFameCard';
 import { OverlayAlert } from './common/OverlayAlert';
+
+// 캡처 영역 너비 고정 — ViewShot이 화면 너비를 못 잡으면 셀(47%) 비율이 깨져 박스에 공간이 생기고
+// 텍스트가 잘림. ScrollView 좌우 padding 20씩이라 화면폭 - 40으로 고정.
+const CARD_WIDTH = Dimensions.get('window').width - 40;
 
 // 공유 옵션 — 갤러리 저장(범용). 저장한 이미지를 사용자가 원하는 앱으로 공유.
 // 카카오 직접 공유는 출시 후 추가 예정, 인스타는 제외.
@@ -84,17 +88,16 @@ export function ShareMomentModal({ moment, visible, onClose }) {
             </Text>
 
             {/* 공유될 카드 — 명예의 전당 카드 + Dear Golf 워터마크. ViewShot으로 감싸 캡처 영역 지정 */}
-            <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }}>
-              <View style={{ backgroundColor: C.bgPrimary }}>
+            <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
+              {/* 배경 투명 — 카드만 깔끔하게 저장. Dear Golf 마크는 카드 헤더 안(HallOfFameCard, onShare 없을 때)에 들어가
+                  투명 배경·SNS 미리보기에 영향받지 않고 항상 또렷하게 보인다.
+                  width 고정(CARD_WIDTH)으로 캡처 시 셀 비율 깨짐·이름 잘림 방지. */}
+              <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
                 <HallOfFameCard item={moment} />
-                <View style={{ alignItems: 'center', marginTop: 6, marginBottom: 6 }}>
-                  <Text style={{ fontFamily: F.brand, fontSize: fs(20), color: C.charcoal }}>Dear Golf</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1, letterSpacing: 1 }}>deargolf.app</Text>
-                </View>
               </View>
             </ViewShot>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
-              공유하면 카드 하단에 Dear Golf 워터마크가 자동으로 들어가요.
+              투명 배경 PNG로 저장돼요. 카드에 Dear Golf 마크가 들어가요.
             </Text>
 
             {/* 공유 옵션 */}
