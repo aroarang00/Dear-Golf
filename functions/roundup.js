@@ -112,10 +112,16 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
     }
   }
 
-  // (C) 주최자 D-7 이내 모집 삭제·취소 시 → 주최자 대상 매너 평가 윈도우 발동
+  // (C) 주최자 D-7 이내 모집 "취소" 시 → 참여자 통보 + 주최자 대상 매너 평가 윈도우 발동
   // ([[manner-evaluation-policy]] §1-A)
-  // closed 또는 deleted 전환은 별도. 여기선 closed=true + scope='all' + D-7 이내 만 처리.
-  if (!before.closed && after.closed && after.scope === 'all' && after.authorUid) {
+  //
+  // ⚠️ 반드시 cancelledByHost 표식으로만 게이트할 것. 과거엔 `!before.closed && after.closed`로
+  //    판정했는데, 이러면 정상 "모집 확정"(closeRoundup)·"자동 만석"도 closed=true라 오발동 →
+  //    멀쩡한 모집 참여자에게 "주최자가 취소했어요" 푸시가 잘못 나갔다.
+  // ⚠️ 현재 클라는 주최자 취소를 문서 삭제(deleteRoundup)로 처리하므로 이 경로는 아직 트리거되지
+  //    않는다(= 오발동만 멈춘 상태). D-7 보상 윈도우를 실제로 켜려면 취소를 소프트 취소
+  //    (closed:true + cancelledByHost:true)로 전환해야 한다 — 데이터 보관 정책과 함께 후속 결정.
+  if (after.cancelledByHost === true && !before.cancelledByHost && after.scope === 'all' && after.authorUid) {
     const teeOff = parseTeeOffKst(after.date, after.time);
     if (teeOff) {
       const hoursUntil = (teeOff.getTime() - Date.now()) / HOUR_MS;
