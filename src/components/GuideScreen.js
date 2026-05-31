@@ -753,14 +753,13 @@ export function GuideScreen({ route, navigation }) {
                 </>
               )}
 
-              {/* 내 기록 ↔ 골퍼 코멘트 구분선 */}
-              <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 8, marginBottom: 24 }} />
-
-              {/* 골퍼 코멘트 헤더 — 네이비 액센트 바 */}
+              {/* 골퍼 코멘트 — 커뮤니티 패널(섬형)으로 묶어 다른 섹션(코스 정보·주변 골프장)과 구분.
+                  따뜻한 톤 배경 위에 안쪽 흰 카드가 떠 보이게. (네이비는 라운지 전용이라 💬로 교체) */}
+              <View style={gS.commentPanel}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                  <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.navy }} />
-                  <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트 · 좋아요 순</Text>
+                  <Text style={{ fontSize: fs(15) }}>💬</Text>
+                  <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => { if (editingCommentId) { setEditingCommentId(null); setCommentInput(''); } setShowCommentInput(v => !v); }}
@@ -850,6 +849,7 @@ export function GuideScreen({ route, navigation }) {
                   </>
                 );
               })()}
+              </View>
 
               {/* 주변 골프장 — 카카오 로컬 반경 10km */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 8 }}>

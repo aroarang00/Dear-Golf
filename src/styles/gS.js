@@ -42,6 +42,8 @@ export const gS = StyleSheet.create({
   restMemo:        { fontFamily: F.en, fontSize: fs(10), color: C.textSecondary, marginTop: 3 },
   ratingBox:       { backgroundColor: C.butter, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'center' },
   ratingTxt:       { fontFamily: F.sys, fontSize: fs(11), color: C.charcoal },
+  // 골퍼 코멘트 섹션 전체를 감싸는 패널(섬형) — 따뜻한 톤 위에 흰 카드가 떠 보이게
+  commentPanel:    { backgroundColor: '#F6EFD9', borderRadius: 16, borderWidth: 1, borderColor: '#EBE1C4', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, marginTop: 16, marginBottom: 18 },
   commentCard:     { backgroundColor: C.bgSecondary, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 0.5, borderColor: C.hairline },
   commentTxt:      { fontFamily: F.sys, fontSize: fs(13), color: '#3D3935', lineHeight: 20 },
   commentWho:      { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray },
