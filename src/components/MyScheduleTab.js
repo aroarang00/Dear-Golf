@@ -108,8 +108,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const hasRecordForSched = React.useCallback((s) => {
     if (!s) return false;
     if (s.id && diaries.some(d => d.scheduleId === s.id)) return true;
-    // scheduleId 없는 구 다이어리·직접 작성 다이어리 호환
-    return diaries.some(d => d.course === s.course && d.date === s.date);
+    // fallback은 일정에 연결 안 된(scheduleId 없는) 구·직접작성 다이어리만 — 같은 구장·날 36홀 비대칭 차단
+    return diaries.some(d => d.course === s.course && d.date === s.date && !d.scheduleId);
   }, [diaries]);
 
   // 일정 → 매칭되는 다이어리 객체 (탭 시 상세 열기에 사용)
@@ -119,7 +119,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       const byId = diaries.find(d => d.scheduleId === s.id);
       if (byId) return byId;
     }
-    return diaries.find(d => d.course === s.course && d.date === s.date) || null;
+    return diaries.find(d => d.course === s.course && d.date === s.date && !d.scheduleId) || null;
   }, [diaries]);
 
   const year = currentDate.getFullYear();
@@ -610,20 +610,19 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                       }
                     }}
                     onPress={() => {
-                      // 사용자 원칙 — 시트(수정·삭제·날씨·교통)는 미래 예정 라운딩에만 의미.
-                      // 과거는 끝난 라운딩이라 시트 액션 의미 X. 수정은 MY 다이어리에서.
+                      // 사용자 원칙 — 시트(수정·삭제·날씨·교통)는 '미기록 예정' 라운딩에만 의미.
+                      // 기록 완료된 라운딩은 당일이라도 끝난 라운딩 → 다이어리 상세로. 수정은 MY 다이어리에서.
+                      if (rec) {
+                        const diary = findDiaryForSched(s);
+                        if (diary && onRequestOpenDiary) onRequestOpenDiary(diary);
+                        return;
+                      }
                       if (past) {
-                        if (rec) {
-                          // 과거 + 기록 있음 → 다이어리 진입 (MY에서 수정)
-                          const diary = findDiaryForSched(s);
-                          if (diary && onRequestOpenDiary) onRequestOpenDiary(diary);
-                          return;
-                        }
                         // 과거 + 미기록 → 카드 전체 = '기록 추가하기' 액션 (편의)
                         onRequestAddDiary && onRequestAddDiary(s);
                         return;
                       }
-                      // 미래 예정 → 시트
+                      // 미래 예정(미기록) → 시트
                       setSheet({ visible: true, schedule: { ...s, hasRec: rec } });
                     }}
                     activeOpacity={0.85}

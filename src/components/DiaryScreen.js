@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { C, F, fs } from '../constants/colors';
@@ -84,6 +84,34 @@ export function DiaryScreen({ route, navigation }) {
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
   const [addSeed, setAddSeed] = useState(null);
+  const [showPickSheet, setShowPickSheet] = useState(false);
+  // 미기록 라운딩 — 오늘 포함 지난 일정 중 다이어리 미연결. 기록 추가 시 골라 정확히 연결(중복·오연결 방지).
+  const unrecordedRounds = React.useMemo(() => {
+    const t = new Date(); t.setHours(0, 0, 0, 0); const todayMid = t.getTime();
+    const recorded = (s) => (s.id && diaries.some(d => d.scheduleId === s.id))
+      || diaries.some(d => d.course === s.course && d.date === s.date && !d.scheduleId);
+    return (schedules || [])
+      .filter(s => {
+        if (s.overseas) return false; // 해외는 해외 흐름에서 별도
+        if (!s.date) return false;
+        const [y, m, d] = s.date.split('.').map(Number);
+        if (!y || !m || !d) return false;
+        const sd = new Date(y, m - 1, d).getTime(); // 로컬 자정 — todayMid와 같은 기준(타임존 일치)
+        return sd <= todayMid && !recorded(s); // 오늘 포함(≤) — 당일 완료 라운딩도 리스트에
+      })
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [schedules, diaries]);
+  // 기록 추가 진입 — 미기록 라운딩 있으면 선택 시트, 없으면 바로 직접 입력
+  const openAddFlow = () => {
+    if (unrecordedRounds.length > 0) setShowPickSheet(true);
+    else { setAddSeed(null); setShowModal(true); }
+  };
+  const pickRoundToRecord = (s) => {
+    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, scheduleId: s.id || null });
+    setShowPickSheet(false);
+    setShowModal(true);
+  };
+  const startBlankRecord = () => { setAddSeed(null); setShowPickSheet(false); setShowModal(true); };
   const [hofExpanded, setHofExpanded] = useState(false);
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
   const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
@@ -166,6 +194,7 @@ export function DiaryScreen({ route, navigation }) {
       // Firestore에서 ID 자동 생성. 신규 생성 후 명예의 전당도 같이 갱신.
       const created = await addDiary({
         date: data.date, day: data.day, course: data.course,
+        scheduleId: data.scheduleId || null,        // 일정 연결 — 미기록 리스트 선택/일정 진입 시 1:1 매칭(같은 구장·날 비대칭 차단)
         score: data.score, par: 72, memo: data.memo || '',
         holeScores: data.holeScores || null,        // 스코어카드 18홀
         holePars: data.holePars || null,            // 스코어카드 par 행 (버디 자동집계)
@@ -202,23 +231,34 @@ export function DiaryScreen({ route, navigation }) {
         }
         return next;
       });
-      // 직접 작성 다이어리(scheduleId 없음) → schedules 자동 등록
-      // 사용자 원칙: 홈·일정·MY·코스모아보기는 유기적으로 연동, 정보 차이만 허용
-      // 과거 라운딩이라 시간 정보는 빈 값 (사용자가 일정 화면에서 수정 가능)
+      // 직접 작성 다이어리(scheduleId 없음) → 일정 연동.
+      // 사용자 원칙: 홈·일정·MY·코스모아보기는 유기적으로 연동, 정보 차이만 허용.
+      // 같은 구장·같은 날 '기록 안 된' 일정이 이미 있으면 거기에 연결(중복 일정 카드 방지),
+      // 없을 때만 새 일정 자동 등록. ([[home-multi-schedule-same-day]] 룰3)
       if (!data.scheduleId) {
         try {
-          const created2 = await addSchedule({
-            course: data.course,
-            date: data.date,
-            day: data.day,
-            time: '',
-            members: (data.companions?.length || 0) + 1,
-          });
-          // 1:1 매칭 보장 — 다이어리에 신규 scheduleId 다시 연결 ([[home-multi-schedule-same-day]] 룰3)
-          try { await editDiary(created.id, { scheduleId: created2.id }); }
+          // 미리 잡아둔 일정(기록 미연결, 같은 구장·날) 찾기 — 있으면 거기에 연결
+          const existingSched = schedules.find(s =>
+            s.course === data.course && s.date === data.date
+            && !diaries.some(d => d.scheduleId === s.id));
+          let linkId;
+          if (existingSched) {
+            linkId = existingSched.id;
+          } else {
+            // 과거 라운딩이라 시간 정보는 빈 값 (사용자가 일정 화면에서 수정 가능)
+            const created2 = await addSchedule({
+              course: data.course,
+              date: data.date,
+              day: data.day,
+              time: '',
+              members: (data.companions?.length || 0) + 1,
+            });
+            linkId = created2.id;
+          }
+          try { await editDiary(created.id, { scheduleId: linkId }); }
           catch (e) { console.warn('[diary] scheduleId link failed:', e?.message); }
         } catch (e) {
-          console.warn('[diary] auto schedule add failed:', e?.message);
+          console.warn('[diary] auto schedule link/add failed:', e?.message);
         }
       }
     } else if (type === 'diary-edit') {
@@ -487,7 +527,7 @@ export function DiaryScreen({ route, navigation }) {
                   <DiaryCard item={SAMPLE_DIARY} avgScore={null} onPress={() => {}} />
                 </View>
               </View>
-              <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.85}
+              <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
                 style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 32 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>✏️ 첫 기록 남기기</Text>
               </TouchableOpacity>
@@ -594,7 +634,7 @@ export function DiaryScreen({ route, navigation }) {
       })()}
 
       {/* + 다이어리 추가 — 우하단 FAB */}
-      <TouchableOpacity onPress={() => { setAddSeed(null); setShowModal(true); }} activeOpacity={0.85}
+      <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
         style={{ position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28,
           backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center',
           shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
@@ -603,6 +643,40 @@ export function DiaryScreen({ route, navigation }) {
       </TouchableOpacity>
 
       <DiaryAddModal visible={showModal} onClose={handleAddModalClose} onSave={handleSave} initial={addSeed} />
+
+      {/* 미기록 라운딩 선택 시트 — 기록 추가 시 골라서 일정에 정확히 연결(중복·오연결 방지) */}
+      <Modal visible={showPickSheet} transparent animationType="fade" onRequestClose={() => setShowPickSheet(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowPickSheet(false)} />
+          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 10, paddingBottom: 24 }}>
+            <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 12 }} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, marginBottom: 4 }}>기록할 라운딩을 선택하세요</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 20, marginBottom: 12 }}>
+              아직 기록하지 않은 라운딩이에요.{'\n'}골라서 기록하면 일정과 자동으로 연결돼요.
+            </Text>
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              {unrecordedRounds.map((s, i) => (
+                <TouchableOpacity key={s.id || i} activeOpacity={0.8} onPress={() => pickRoundToRecord(s)}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 20,
+                    borderTopWidth: i === 0 ? 0.5 : 0, borderBottomWidth: 0.5, borderColor: C.hairline }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{s.course}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
+                      {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: C.warmGrayLight }}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity activeOpacity={0.85} onPress={startBlankRecord}
+              style={{ marginTop: 14, marginHorizontal: 20, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
+                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>직접 입력하기 →</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />

@@ -217,6 +217,11 @@ export function CourseLogTab({ avgRating, navigation }) {
         const recDates = recs.map(r => r.date).filter(Boolean);
         const schedDates = e.scheduleEntries.map(s => s.date).filter(Boolean);
         const allDates = [...new Set([...recDates, ...schedDates])].sort((a, b) => (b || '').localeCompare(a || ''));
+        // 방문 = 라운딩 횟수 (1라운딩 1방문). 기록(다이어리) 전부 + 기록 없는 지난 일정. 같은 날 2라운딩(36홀)도 각각 셈.
+        // (allDates 고유 날짜로 세면 같은 날 2개가 1로 합쳐져 코스코멘트·일정 횟수와 불일치 → 그 버그 수정)
+        const unrecordedSched = e.scheduleEntries.filter(s =>
+          !recs.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
+        const visitCount = recs.length + unrecordedSched.length;
         const courseId = recs.find(r => r.courseId)?.courseId
           || e.scheduleEntries.find(s => s.courseId)?.courseId || null;
         let loc = '';
@@ -232,7 +237,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           courseId,
           loc,
           hasRecord,
-          visits: allDates.length,
+          visits: visitCount,
           latestDate: allDates[0] || '',
           best: scores.length ? Math.min(...scores) : 0,
           avg: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
@@ -282,10 +287,14 @@ export function CourseLogTab({ avgRating, navigation }) {
         const recDates = recs.map(r => r.date).filter(Boolean);
         const schedDates = e.scheduleEntries.map(s => s.date).filter(Boolean);
         const allDates = [...new Set([...recDates, ...schedDates])].sort((a, b) => (b || '').localeCompare(a || ''));
+        // 방문 = 라운딩 횟수 (국내와 동일 정책). 기록 + 기록 없는 지난 일정, 같은 날도 각각 셈.
+        const unrecordedSched = e.scheduleEntries.filter(s =>
+          !recs.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
+        const visitCount = recs.length + unrecordedSched.length;
         const latestRec = [...recs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
         return {
           key: e.key, name: e.name, country: e.country,
-          visits: allDates.length,
+          visits: visitCount,
           rating: ratings.length ? Math.round(ratings.reduce((s, v) => s + v, 0) / ratings.length * 10) / 10 : 0,
           tags: [...new Set(recs.flatMap(r => r.tags || []))],
           memo: latestRec?.memo || '',

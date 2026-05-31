@@ -57,6 +57,17 @@ export function HomeScreen({ navigation, route }) {
   const { diaries } = React.useContext(DiariesContext);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
+  const [dismissedCards, setDismissedCards] = useState({}); // 홈 종료 카드 나가기 — {scheduleId: true} (홈에서만 숨김)
+  useEffect(() => { storage.load(STORAGE_KEYS.dismissedRoundCards, {}).then(setDismissedCards); }, []);
+  // 종료 카드 나가기 — 홈에서만 숨김(기록 여부 무관). 일정·내코스모아보기는 그대로.
+  const handleDismissCard = (s) => {
+    if (!s?.id) return;
+    setDismissedCards(prev => {
+      const next = { ...prev, [s.id]: true };
+      storage.save(STORAGE_KEYS.dismissedRoundCards, next);
+      return next;
+    });
+  };
   const [homeTopComment, setHomeTopComment] = useState(null);
   const [wxEmoji, setWxEmoji] = useState('☀️'); // 헤더 현재 날씨 이모지
   const dDayRef = useRef(null);
@@ -181,12 +192,9 @@ export function HomeScreen({ navigation, route }) {
   const isRecorded = (s) => {
     if (!s) return false;
     if (s.id && diaries.some(d => d.scheduleId === s.id)) return true;
-    return diaries.some(d => d.course === s.course && d.date === s.date);
+    // fallback은 '일정에 연결 안 된' 다이어리만 — 같은 구장·같은 날 36홀에서 한 일정 기록이 다른 일정까지 잡는 비대칭 차단
+    return diaries.some(d => d.course === s.course && d.date === s.date && !d.scheduleId);
   };
-  const upcomingSchedules = schedules
-    .filter(s => parseSchedDate(s) >= now0 && !isRecorded(s))
-    .sort((a, b) => parseSchedDate(a) - parseSchedDate(b) || parseSchedTime(a) - parseSchedTime(b));
-  const next = upcomingSchedules.length > 0 ? upcomingSchedules[0] : null;
   // 자정 기준 재계산 D-day / 라운딩 종료 판정(티오프 + 4시간 — 후반 막바지, 식사·기록 동선)
   // 매너평가 윈도우(티오프+5h)와 의도적으로 다름: 홈은 끝나갈 때 진입, 매너평가는 실제 종료 후
   const freshDDay = (s) => (s ? Math.max(0, Math.round((parseSchedDate(s) - now0) / 86400000)) : 0);
@@ -194,7 +202,14 @@ export function HomeScreen({ navigation, route }) {
     const [hh, mm] = (s?.time || '08:00').split(':').map(Number);
     return parseSchedDate(s) + (hh || 8) * 3600000 + (mm || 0) * 60000 + 4 * 3600000;
   };
-  const roundEnded = !!next && freshDDay(next) === 0 && now >= teeoffEndMs(next);
+  // 오늘 라운딩 종료(티오프+4h) 카드 — 기록해도 사라지지 않고 "기록 완료"로 유지(교통·맛집 동선), 나가기/자정까지.
+  const isEndedToday = (s) => freshDDay(s) === 0 && now >= teeoffEndMs(s);
+  const isDismissed = (s) => !!(s && s.id && dismissedCards[s.id]);
+  const upcomingSchedules = schedules
+    .filter(s => parseSchedDate(s) >= now0 && !isDismissed(s) && (!isRecorded(s) || isEndedToday(s)))
+    .sort((a, b) => parseSchedDate(a) - parseSchedDate(b) || parseSchedTime(a) - parseSchedTime(b));
+  const next = upcomingSchedules.length > 0 ? upcomingSchedules[0] : null;
+  const roundEnded = !!next && isEndedToday(next);
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
@@ -460,28 +475,45 @@ export function HomeScreen({ navigation, route }) {
               {roundEnded ? (
                 <>
                   {/* 라운딩 종료 카드 — 티오프 + 4시간 경과 */}
-                  <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>라운딩 종료</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>
+                        {isRecorded(next) ? '기록 완료' : '라운딩 종료'}
+                      </Text>
                     </View>
+                    <View style={{ flex: 1 }} />
+                    {/* 나가기 — 홈에서만 카드 숨김(기록 여부 무관). 서브카드 메인 전환용. 일정·내코스모아보기는 그대로 */}
+                    <TouchableOpacity onPress={() => handleDismissCard(next)} activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.55)' }}>나가기 ✕</Text>
+                    </TouchableOpacity>
                   </View>
                   <Text style={homeS.cardCourse} numberOfLines={1}>{next.course}</Text>
                   <Text style={[homeS.cardDate, { marginBottom: 12 }]}>{next.date.slice(5)} {next.day} 라운딩</Text>
 
-                  {/* 기록 유도 박스 — 당일/지난 라운딩이면 구장명 자동 채우기 */}
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate(ROUTES.MY, {
-                      openAddModal: true,
-                      addDate: next.date,
-                      addCourse: next.course,
-                      addCourseId: next.courseLogId || next.courseId,
-                      addScheduleId: next.id || null,
-                    })}
-                    style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
-                  </TouchableOpacity>
+                  {/* 기록 완료 / 기록 유도 박스 */}
+                  {isRecorded(next) ? (
+                    <TouchableOpacity activeOpacity={0.85}
+                      onPress={() => navigation.navigate(ROUTES.MY)}
+                      style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 기록 완료 ✓</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 보기 →</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => navigation.navigate(ROUTES.MY, {
+                        openAddModal: true,
+                        addDate: next.date,
+                        addCourse: next.course,
+                        addCourseId: next.courseLogId || next.courseId,
+                        addScheduleId: next.id || null,
+                      })}
+                      style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
+                    </TouchableOpacity>
+                  )}
 
                   {/* 귀가 교통 / 주변 맛집 */}
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 'auto' }}>
