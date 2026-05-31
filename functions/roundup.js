@@ -17,7 +17,6 @@ const db = getFirestore();
 
 const HOUR_MS = 3600 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-const POST_ROUND_HOURS = 5;
 const WINDOW_HOURS = 48;
 const D7_HOURS = 7 * 24;
 const WAITLIST_CUTOFF_HOURS = 12;
@@ -121,36 +120,37 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
   // ⚠️ 현재 클라는 주최자 취소를 문서 삭제(deleteRoundup)로 처리하므로 이 경로는 아직 트리거되지
   //    않는다(= 오발동만 멈춘 상태). D-7 보상 윈도우를 실제로 켜려면 취소를 소프트 취소
   //    (closed:true + cancelledByHost:true)로 전환해야 한다 — 데이터 보관 정책과 함께 후속 결정.
-  if (after.cancelledByHost === true && !before.cancelledByHost && after.scope === 'all' && after.authorUid) {
+  if (after.cancelledByHost === true && !before.cancelledByHost && after.scope === 'all' && after.authorUid && !after.mannerEvalForHostStartedAt) {
     const teeOff = parseTeeOffKst(after.date, after.time);
-    if (teeOff) {
-      const hoursUntil = (teeOff.getTime() - Date.now()) / HOUR_MS;
-      if (hoursUntil >= 0 && hoursUntil <= D7_HOURS && !after.mannerEvalForHostStartedAt) {
-        const windowStart = new Date(teeOff.getTime() + POST_ROUND_HOURS * HOUR_MS);
-        const windowEnd = new Date(windowStart.getTime() + WINDOW_HOURS * HOUR_MS);
-        try {
-          await ref.update({
-            mannerEvalForHost: true,        // 주최자 대상만 평가
-            mannerEvalWindowStart: Timestamp.fromDate(windowStart),
-            mannerEvalDeadline: Timestamp.fromDate(windowEnd),
-            mannerAggregated: false,
-            mannerEvalForHostStartedAt: FieldValue.serverTimestamp(),
+    const hoursUntil = teeOff ? (teeOff.getTime() - Date.now()) / HOUR_MS : null;
+    const insideD7 = hoursUntil !== null && hoursUntil >= 0 && hoursUntil <= D7_HOURS;
+    // 주최자 외 확정 참여자가 실제로 있을 때만 (나홀로 취소는 보상 평가 X)
+    const others = (Array.isArray(after.participantUids) ? after.participantUids : [])
+      .filter((uid) => uid && uid !== after.authorUid);
+    if (insideD7 && others.length >= 1) {
+      // 라운딩이 안 열렸으므로 '취소 통보 시점'부터 즉시 48h 평가 윈도우 (티오프+5h 기준 X).
+      const now = new Date();
+      const windowEnd = new Date(now.getTime() + WINDOW_HOURS * HOUR_MS);
+      try {
+        await ref.update({
+          mannerEvalForHost: true,        // 주최자 대상만 평가
+          mannerEvalWindowStart: Timestamp.fromDate(now),
+          mannerEvalDeadline: Timestamp.fromDate(windowEnd),
+          mannerAggregated: false,
+          mannerEvalForHostStartedAt: FieldValue.serverTimestamp(),
+        });
+        // 확정 참여자에게 취소 통보 + 매너 평가 진입 (주최자 제외)
+        for (const uid of others) {
+          await createSystemNotification({
+            recipientUid: uid,
+            type: 'hostCancelledD7',
+            postId,
+            postTitle: after.course || '',
+            priority: 'important',
           });
-          // 참여자에게 안내 알림 (D-7 취소 동반자 통보)
-          const parts = Array.isArray(after.participantUids) ? after.participantUids : [];
-          for (const uid of parts) {
-            if (uid === after.authorUid) continue;
-            await createSystemNotification({
-              recipientUid: uid,
-              type: 'hostCancelledD7',
-              postId,
-              postTitle: after.course || '',
-              priority: 'important',
-            });
-          }
-        } catch (e) {
-          logger.warn('[roundup] D-7 cancel manner window fail', e?.message);
         }
+      } catch (e) {
+        logger.warn('[roundup] D-7 cancel manner window fail', e?.message);
       }
     }
   }

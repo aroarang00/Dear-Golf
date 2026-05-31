@@ -128,10 +128,14 @@ async function aggregateForRoundup(roundupId, roundup) {
     .get();
 
   // 2) target별 카운트 ({ good, bad })
+  // 주최자 취소 보상 윈도우(mannerEvalForHost)는 '주최자만' 평가 대상 — 정상 종료는 동반자 전원 상호평가.
+  // 그라데이션(deltaFor: 👎1명 미반영/2명+ 반영)은 동일 적용 → 협의취소 vs 비매너취소 자동 판별.
+  const hostOnly = roundup.mannerEvalForHost === true ? roundup.authorUid : null;
   const counts = {};
   evals.forEach(doc => {
     const d = doc.data();
     if (!d.targetUid || !d.rating) return;
+    if (hostOnly && d.targetUid !== hostOnly) return;  // 취소 윈도우: 주최자 외 평가는 무시
     if (!counts[d.targetUid]) counts[d.targetUid] = { good: 0, bad: 0 };
     if (d.rating === 'good') counts[d.targetUid].good += 1;
     else if (d.rating === 'bad') counts[d.targetUid].bad += 1;

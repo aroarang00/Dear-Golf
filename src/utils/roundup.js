@@ -199,6 +199,22 @@ export async function closeRoundup(postId) {
   await updateDoc(ref, { closed: true, updatedAt: serverTimestamp() });
 }
 
+// 주최자 모집 취소 — 소프트 취소 (하드 삭제 deleteRoundup 대신 표식만 남김).
+// D-7 이내 + 전체공개 + 주최자 외 확정자 있는 모집에서만 호출(클라 onDelete 분기).
+// 문서를 보존해야 ① functions (C)가 cancelledByHost 전환을 감지하고 ② 매너 평가를 집계할 수 있다.
+// → 주최자 대상 매너 평가 윈도우가 '취소 시점부터' 48h 열림(라운딩이 안 열렸으므로 티오프 기준 X).
+// 데이터 보관 정책(분쟁이력)에도 부합. 라운지 노출은 cancelledByHost로 필터.
+export async function cancelRoundupByHost(postId) {
+  if (!postId) throw new Error('postId required');
+  const ref = doc(db, COLLECTION, postId);
+  await updateDoc(ref, {
+    closed: true,
+    cancelledByHost: true,
+    cancelledAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 
 // =============================================================
 // roundupApplications/{appId} — 전체공개 모집 참여 신청
