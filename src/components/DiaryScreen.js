@@ -12,6 +12,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { showAppAlert } from './AppAlert';
 import { HallOfFameCard } from './HallOfFameCard';
+import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry } from './MilestoneCard';
 import { ShareMomentModal } from './ShareMomentModal';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
@@ -22,7 +23,7 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
-import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
+import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '../utils/roundStats';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { compressImage } from '../utils/imageCompress';
@@ -153,6 +154,23 @@ export function DiaryScreen({ route, navigation }) {
     if (!hofHydrated) return;
     storage.save(STORAGE_KEYS.hof, hallOfFame);
   }, [hallOfFame, hofHydrated]);
+
+  // 활동 마일스톤 도달 감지 → 명예의 전당에 멱등 등재(이미 넘긴 단계는 백필).
+  // 데이터(라운딩=총 라운딩, 방문 구장=CourseLog 집계)는 이미 있는 것 재사용 — 화면 간 숫자 일치.
+  // 한 번 오른 카드는 라운딩 삭제로 카운트가 줄어도 회수하지 않는다(성취 영속).
+  useEffect(() => {
+    if (!hofHydrated) return;
+    const rounds = displayTotalRounds(userProfile, countCompletedRounds(diaries, schedules));
+    const courses = countVisitedCourses(diaries, schedules);
+    const reached = reachedMilestones({ rounds, courses });
+    if (reached.length === 0) return;
+    setHallOfFame(prev => {
+      const have = new Set(prev.map(h => h.id));
+      const missing = reached.filter(m => !have.has(milestoneId(m.category, m.value)));
+      if (missing.length === 0) return prev;  // 변화 없으면 같은 참조 반환 → 재렌더·루프 방지
+      return [...missing.map(buildMilestoneEntry), ...prev];
+    });
+  }, [hofHydrated, diaries, schedules, userProfile]);
 
   useEffect(() => {
     if (route?.params?.openDiaryId) {
@@ -598,6 +616,22 @@ export function DiaryScreen({ route, navigation }) {
             )}
 
             <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
+              {/* ⚠️ TEMP_MILESTONE_PREVIEW — 디자인 확인용 임시 블록. 출시 전 이 블록만 통째로 삭제. __DEV__라 프로덕션엔 안 뜸. */}
+              {__DEV__ && (
+                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+                  <Text style={[dS.hofSectionLabel, { marginBottom: 6 }]}>🔧 마일스톤 미리보기 (임시)</Text>
+                  {[
+                    { id: 'pv_r1', kind: 'milestone', category: 'rounds',  value: 50,  tier: 0 },
+                    { id: 'pv_r2', kind: 'milestone', category: 'rounds',  value: 100, tier: 1 },
+                    { id: 'pv_r3', kind: 'milestone', category: 'rounds',  value: 200, tier: 2 },
+                    { id: 'pv_c1', kind: 'milestone', category: 'courses', value: 30,  tier: 0 },
+                    { id: 'pv_c2', kind: 'milestone', category: 'courses', value: 50,  tier: 1 },
+                    { id: 'pv_c3', kind: 'milestone', category: 'courses', value: 100, tier: 2 },
+                  ].map(it => (
+                    <MilestoneCard key={it.id} item={it} onShare={() => setShareMoment(it)} />
+                  ))}
+                </View>
+              )}
               {hallOfFame.length > 0 ? (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
@@ -617,7 +651,9 @@ export function DiaryScreen({ route, navigation }) {
                     </View>
                   )}
                   {hofExpanded && hallOfFame.map(item => (
-                    <HallOfFameCard key={item.id} item={item} onShare={() => setShareMoment(item)} />
+                    item.kind === 'milestone'
+                      ? <MilestoneCard key={item.id} item={item} onShare={() => setShareMoment(item)} />
+                      : <HallOfFameCard key={item.id} item={item} onShare={() => setShareMoment(item)} />
                   ))}
                   <View style={{ height: 8 }} />
                 </View>

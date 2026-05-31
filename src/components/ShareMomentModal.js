@@ -5,6 +5,7 @@ import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import { C, F, fs } from '../constants/colors';
 import { HallOfFameCard } from './HallOfFameCard';
+import { MilestoneCard } from './MilestoneCard';
 import { OverlayAlert } from './common/OverlayAlert';
 
 // 캡처 영역 너비 고정 — ViewShot이 화면 너비를 못 잡으면 셀(47%) 비율이 깨져 박스에 공간이 생기고
@@ -93,7 +94,9 @@ export function ShareMomentModal({ moment, visible, onClose }) {
                   투명 배경·SNS 미리보기에 영향받지 않고 항상 또렷하게 보인다.
                   width 고정(CARD_WIDTH)으로 캡처 시 셀 비율 깨짐·이름 잘림 방지. */}
               <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
-                <HallOfFameCard item={moment} />
+                {moment.kind === 'milestone'
+                  ? <MilestoneCard item={moment} />
+                  : <HallOfFameCard item={moment} />}
               </View>
             </ViewShot>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>

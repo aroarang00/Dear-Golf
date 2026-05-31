@@ -1,0 +1,190 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { F, fs } from '../constants/colors';
+
+// 활동 마일스톤(누적량) 카드 — 다크 럭셔리. 미드나잇 네이비 단일 배경 + 골드 메달 + 양옆 가로 골드 바(DEAR / GOLF).
+// 단계 구분은 '메달 장식'으로: 50 기본 / 100 얇은 두 줄 / 200 왕관. 배경/프레임은 통일, 숫자·멘트만 함께 바뀜.
+// 네이비는 라운지 전용색([[navy-lounge-color]])이라, 여기선 라운지 navy(#1A3D52)와 구분되는 훨씬 어두운 미드나잇 톤 사용.
+
+export const MILESTONE_DEFS = {
+  rounds:  { label: '라운딩',    unit: 'ROUNDS',  thresholds: [50, 100, 200] },
+  courses: { label: '방문 구장', unit: 'COURSES', thresholds: [30, 50, 100] },
+};
+
+// 멱등 등재용 안정 id — 같은 마일스톤은 항상 같은 id (중복 등재 방지)
+export const milestoneId = (category, value) => `hof_ms_${category}_${value}`;
+
+// 누적 카운트 → 도달한 마일스톤 목록. 백필(이미 넘긴 단계도 모두 포함)에 그대로 쓴다.
+export function reachedMilestones(counts) {
+  const out = [];
+  Object.entries(MILESTONE_DEFS).forEach(([category, def]) => {
+    const n = counts[category] || 0;
+    def.thresholds.forEach((value, tier) => {
+      if (n >= value) out.push({ category, value, tier });
+    });
+  });
+  return out;
+}
+
+// 마일스톤 → hallOfFame 엔트리. kind:'milestone'로 카드 분기.
+export function buildMilestoneEntry({ category, value, tier, date }) {
+  return {
+    id: milestoneId(category, value),
+    kind: 'milestone',
+    type: `${MILESTONE_DEFS[category]?.label || ''} ${value}`,  // 공유 미리보기 등에서 식별용
+    category,
+    value,
+    tier,
+    date: date || '',
+  };
+}
+
+// 의미 있는 헤드라인 — 단계·종류별. 부드럽되 '쌓아온 것'의 무게가 느껴지게.
+function headlineFor(category, value, tier) {
+  if (category === 'courses') {
+    return ['발길이 그려온 지도', '넓어진 라운드의 반경', '백 개의 코스를 품다'][tier] || '발길이 그려온 지도';
+  }
+  return ['꾸준함이 만든 발자취', '흔치 않은 기록에 닿다', '이 길 위에서 보낸 시간'][tier] || '꾸준함이 만든 발자취';
+}
+
+// ── 럭셔리 팔레트(통일) ─────────────────────────────────────────
+const GOLD = '#E6C677';        // 밝은 금 — 멘트/ACHIEVED
+const GOLD_DIM = '#C9A85E';    // 중간 금 — 단위 라벨·얇은 링
+const GOLD_DK = '#A9854A';     // 어두운 금 — 테두리·헤어라인
+const GOLD_BRIGHT = '#F2D585'; // 밝은 금 — 메달 숫자(전 단계 또렷하게)
+const RIM_GOLD = ['#F8E7B2', '#D2AC63', '#7C5C28'];  // 골드 베벨(위 밝게→아래 어둡게, 강하게) — 메달 림·왕관 공용
+const FACE_DARK = ['#1C2A3B', '#0C141E'];            // 메달 중앙(미드나잇) — 골드 숫자 새김
+// 미드나잇 네이비 — 단계 오를수록 더 깊게(무게감으로 위계). 같은 계열 내 명도만 단계적으로.
+const CARD_BG_TIERS = [
+  ['#1C3149', '#102032', '#0A121C'],  // 50 / 30  — 가장 옅은 미드나잇
+  ['#15243A', '#0C1827', '#070E16'],  // 100 / 50 — 더 깊게
+  ['#0F1C2C', '#08111B', '#04080E'],  // 200 / 100 — 거의 블랙 네이비
+];
+const CARD_BORDER = '#33425A';                       // 카드 외곽 가는 테
+
+const M_RIM = 168;    // 골드 림 지름(키움 — 3자리 숫자 여유)
+const M_FACE = 152;   // 미드나잇 면 지름(림 얇게·면 넓게)
+
+// 왕관(최고 단계) — SVG/이모지 없이 골드 삼각 3개 + 보석 점 + 받침 바. OS 무관.
+function Crown() {
+  const tri = (hw, h) => (
+    <View style={{ width: 0, height: 0, borderLeftWidth: hw, borderRightWidth: hw, borderBottomWidth: h,
+      borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: GOLD }} />
+  );
+  const point = (h, key) => (
+    <View key={key} style={{ alignItems: 'center' }}>
+      <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD, marginBottom: -1 }} />
+      {tri(9, h)}
+    </View>
+  );
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: -16, left: 0, right: 0, alignItems: 'center',
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 3 },
+        android: {},
+      }),
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3 }}>
+        {point(13, 'l')}{point(20, 'c')}{point(13, 'r')}
+      </View>
+      <LinearGradient colors={RIM_GOLD} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} locations={[0, 0.5, 1]}
+        style={{ width: 46, height: 8, borderRadius: 2, marginTop: -1, borderWidth: 0.5, borderColor: GOLD_DK }} />
+    </View>
+  );
+}
+
+export function MilestoneCard({ item, onShare }) {
+  const def = MILESTONE_DEFS[item.category] || MILESTONE_DEFS.rounds;
+  const tier = typeof item.tier === 'number' ? item.tier : 0;
+  // 자릿수 기반 폰트 — 3자리(100·200)는 작게. adjustsFontSizeToFit 과축소(거의 안 보이게 줄던 문제) 방지.
+  const numFs = String(item.value).length >= 3 ? 46 : 58;
+  const cardBg = CARD_BG_TIERS[tier] || CARD_BG_TIERS[0];  // 단계 오를수록 깊은 배경
+
+  return (
+    <View style={{
+      borderRadius: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: CARD_BORDER,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 },
+        android: { elevation: 6 },
+      }),
+    }}>
+      <LinearGradient colors={cardBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} locations={[0, 0.55, 1]} style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 18 }}>
+        {/* 헤더 — Dear Golf 워드마크(브랜드 글씨체) + 공유 버튼 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={{ fontFamily: F.brand, fontSize: fs(15), color: GOLD }}>Dear Golf</Text>
+          {onShare && (
+            <TouchableOpacity onPress={onShare} activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4,
+                borderWidth: 1, borderColor: GOLD_DK, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Text style={{ fontSize: fs(11), color: GOLD }}>↗</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: GOLD }}>공유</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 메달 (중앙) — 단계: 0 기본 / 1 얇은 두 줄 / 2 왕관. 아래 ACHIEVED 리본 겹침 */}
+        <View style={{ alignItems: 'center', marginTop: 16 }}>
+          <View style={{ width: M_RIM, height: M_RIM, alignItems: 'center', justifyContent: 'center' }}>
+            {tier >= 2 && <Crown />}
+            <LinearGradient colors={RIM_GOLD} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} locations={[0, 0.5, 1]}
+              style={{ width: M_RIM, height: M_RIM, borderRadius: M_RIM / 2, alignItems: 'center', justifyContent: 'center',
+                borderWidth: 1, borderColor: GOLD_DK,
+                ...Platform.select({
+                  ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.6, shadowRadius: 16 },
+                  android: { elevation: 14 },
+                }),
+              }}>
+              {/* 미드나잇 면 — 깊은 음각 테로 가라앉은 입체 */}
+              <LinearGradient colors={FACE_DARK} start={{ x: 0.25, y: 0 }} end={{ x: 0.75, y: 1 }}
+                style={{ width: M_FACE, height: M_FACE, borderRadius: M_FACE / 2, alignItems: 'center', justifyContent: 'center',
+                  overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.55)' }}>
+                {/* 새틴 — 위 빛 → 아래 그림자(곡면 입체, 강화) */}
+                <LinearGradient pointerEvents="none" colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0.34)']}
+                  start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }} locations={[0, 0.5, 1]}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: M_FACE / 2 }} />
+                {/* 단계 1+ : 얇은 두 줄(안쪽 골드 링, 가장자리 가깝게) */}
+                {tier >= 1 && (
+                  <View pointerEvents="none" style={{ position: 'absolute', top: 7, left: 7, right: 7, bottom: 7,
+                    borderRadius: (M_FACE - 14) / 2, borderWidth: 1, borderColor: GOLD_DIM }} />
+                )}
+                {/* 숫자+단위 — 면 정중앙 정렬(폰트 패딩 제거로 OS 간 센터 일치) */}
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}
+                    style={{ width: M_FACE - 20, textAlign: 'center', includeFontPadding: false, textAlignVertical: 'center',
+                      fontFamily: F.en, fontSize: fs(numFs), lineHeight: fs(numFs) * 1.06,
+                      color: GOLD_BRIGHT, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
+                    {item.value}
+                  </Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: GOLD_DIM, letterSpacing: 3, marginTop: 3, includeFontPadding: false }}>
+                    {def.unit}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </LinearGradient>
+          </View>
+          {/* ACHIEVED 리본 — 메달 하단에 겹침(다크 + 골드 테두리 + 골드 텍스트) */}
+          <View style={{ marginTop: -12, zIndex: 3, backgroundColor: '#0C141E', paddingHorizontal: 16, paddingVertical: 5,
+            borderRadius: 6, borderWidth: 1, borderColor: GOLD_DK,
+            ...Platform.select({
+              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 4 },
+              android: { elevation: 6 },
+            }),
+          }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: GOLD, letterSpacing: 3 }}>ACHIEVED</Text>
+          </View>
+        </View>
+
+        {/* 멘트 — 메달 아래, 금색 + 가는 금선 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, paddingHorizontal: 8 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(169,133,74,0.45)' }} />
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD, letterSpacing: 0.4, textAlign: 'center' }}>
+            {headlineFor(item.category, item.value, tier)}
+          </Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(169,133,74,0.45)' }} />
+        </View>
+      </LinearGradient>
+    </View>
+  );
+}
