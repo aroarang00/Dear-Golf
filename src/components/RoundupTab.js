@@ -15,7 +15,7 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, REGION_OPTIONS, waitlistRespondHours, matchesRoundup, hasRoundupMatch, pickNames, isRoundupConfirmed } from '../constants/roundup';
+import { SCOPE_BADGE, REGION_OPTIONS, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
@@ -1516,9 +1516,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           {(() => {
             const evalPost = posts.find(p => p.id === evaluatingPostId);
             if (!evalPost) return null;
-            // 평가 대상 — 본인 제외 참여자 3명(4인 라운드 기준 더미). Phase 2엔 실제 participantUids에서 본인 제외.
-            const names = pickNames(evalPost.id + ':eval', 3);
-            const participants = names.map((n, i) => ({ id: `${evalPost.id}:e${i}`, name: n }));
+            // 평가 대상 — 실제 참여 확정자(participantUids)에서 본인 제외. 이름은 participantNames(닉네임 로드).
+            // 주최자 취소 보상 윈도우(mannerEvalForHost)면 주최자 1명만 평가 대상 (정상은 동반자 전원).
+            const targetUids = evalPost.mannerEvalForHost
+              ? [evalPost.authorUid].filter(u => u && u !== myUid)
+              : (evalPost.participantUids || []).filter(u => u && u !== myUid);
+            const participants = targetUids.map(uid => ({ id: uid, name: participantNames[uid] || '동반자' }));
             return (
               <MannerEvaluationModal
                 visible={!!evaluatingPostId}
@@ -1526,7 +1529,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 participants={participants}
                 onClose={() => setEvaluatingPostId(null)}
                 onSubmit={() => {
-                  // 평가 제출 — 실제 집계는 Phase 2 Cloud Functions. 여기선 mannerEvaluationPending만 해제.
+                  // 실제 평가 작성은 모달 내부 submitEvaluation이 Firestore(mannerEvaluations)에 기록.
+                  // 집계는 functions/manner.js. 이 콜백은 평가 권유 상태(mannerEvaluationPending) 해제만.
                   if (userProfile?.mannerEvaluationPending) {
                     const next = { ...userProfile, mannerEvaluationPending: false };
                     setUserProfile(next);
