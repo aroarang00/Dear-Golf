@@ -417,7 +417,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const hideRoundup = (id) => {
     setAlert({
       title: '이 모집을 가릴까요?',
-      message: '내 라운지 목록에서만 안 보이게 돼요.\n상대방은 알 수 없어요.',
+      message: '내 라운지 목록에서만 안 보이게 돼요.\n상대방은 알 수 없어요.\n한 번 가리면 되살릴 수 없어요.',
       buttons: [
         { text: '취소', style: 'cancel' },
         { text: '가리기', onPress: () => {
