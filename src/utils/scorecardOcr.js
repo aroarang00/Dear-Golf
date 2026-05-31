@@ -1,6 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
-import { compressImage } from './imageCompress';
 
 // =============================================================
 // 스코어카드 OCR — 본인 스코어(숫자 18홀)만 추출. ([[project_scorecard_ocr]])
@@ -41,7 +40,9 @@ export function scoreBreakdown(holeScores, holePars) {
 
 // 사진 선택 — source: 'gallery' | 'camera'.
 // 갤러리(카톡 공유 사진) 권장 — 디지털 스크린샷이라 인식률 높음. 촬영도 허용.
-// 인식 정확도 위해 긴 변 1600px로 리사이즈. 반환: { uri } 또는 null(취소·권한거부).
+// ⚠️ OCR은 원본 해상도가 정확도에 결정적 — 리사이즈/압축 안 함(작은 홀 숫자 뭉갬 방지).
+//    (압축은 업로드·저장용이고, 스코어카드는 숫자만 추출하고 이미지는 저장 안 하므로 불필요)
+// 반환: { uri } 또는 null(취소·권한거부).
 export async function pickScorecardImage(source = 'gallery') {
   let result;
   if (source === 'camera') {
@@ -54,8 +55,7 @@ export async function pickScorecardImage(source = 'gallery') {
     });
   }
   if (result.canceled || !result.assets?.length) return null;
-  const uri = await compressImage(result.assets[0].uri, { maxWidth: 1600, quality: 0.92 });
-  return { uri };
+  return { uri: result.assets[0].uri };  // 원본 그대로 — 리사이즈 X
 }
 
 // 스코어카드 인식 → 행(플레이어)별 18홀 숫자. ML Kit 온디바이스 OCR(숫자/LATIN).
