@@ -33,13 +33,14 @@
   .bg { position:fixed; inset:0; z-index:0; overflow:hidden;
     background:radial-gradient(120% 90% at 50% 0%, #16323f 0%, #0c1d27 45%, #060f15 100%); }
   .bg-img { position:absolute; inset:0; z-index:0;
-    background:url('hero.jpg') center/cover no-repeat; }
+    background:url('hero.jpg') center/cover no-repeat;
+    filter:contrast(1.08) saturate(1.08) brightness(1.03); }
   /* 맑은 하늘 보이게 위는 옅게, 글씨·버튼 가독성 위해 아래는 진하게 */
   .overlay { position:fixed; inset:0; z-index:1; pointer-events:none;
     background:
-      radial-gradient(85% 55% at 50% 44%, rgba(6,14,20,0.55) 0%, rgba(6,14,20,0) 72%),
-      linear-gradient(180deg, rgba(10,24,32,0.3) 0%, rgba(10,24,32,0.46) 46%, rgba(7,16,22,0.95) 100%);
-    box-shadow:inset 0 0 200px 50px rgba(0,0,0,0.46); }
+      radial-gradient(85% 55% at 50% 42%, rgba(6,14,20,0.40) 0%, rgba(6,14,20,0) 70%),
+      linear-gradient(180deg, rgba(10,24,32,0.20) 0%, rgba(10,24,32,0.30) 48%, rgba(7,16,22,0.82) 100%);
+    box-shadow:inset 0 0 160px 40px rgba(0,0,0,0.34); }
 
   /* ── 삼색바 (앱 TripleStripe: butter · paleSky · burgundy) ── */
   .stripe { position:fixed; left:0; right:0; height:3px; z-index:3; display:flex; }
@@ -65,14 +66,10 @@
   .eyebrow { font-family:'Pretendard','Pretendard Variable',sans-serif; font-weight:500;
     font-size:clamp(15px, 4.2vw, 18px); letter-spacing:3px; color:var(--cream); opacity:0.9; margin-bottom:14px; }
   /* 워드마크 — 골드 샤인이 글자를 천천히 쓸고 지나가는 럭셔리 모션 */
-  .wordmark { font-family:'Lora', serif; font-style:italic; font-weight:500;
-    font-size:clamp(54px, 15vw, 86px); line-height:1.22; padding:.06em .22em; overflow:visible;
-    background:linear-gradient(100deg, #ffffff 0%, #ffffff 38%, var(--butter) 49%, var(--gold-soft) 55%, #ffffff 66%, #ffffff 100%);
-    background-size:230% auto; -webkit-background-clip:text; background-clip:text;
-    -webkit-text-fill-color:transparent; color:transparent;
-    filter:drop-shadow(0 2px 26px rgba(0,0,0,0.45));
-    animation:shine 9s ease-in-out 1.2s infinite; }
-  @keyframes shine { 0%{background-position:200% center;} 42%{background-position:-100% center;} 100%{background-position:-100% center;} }
+  .wordmark { font-family:'Lora', serif; font-style:italic; font-weight:600;
+    font-size:clamp(60px, 16.5vw, 96px); line-height:1.18; padding:.04em .22em; overflow:visible;
+    color:#ffffff;
+    filter:drop-shadow(0 2px 18px rgba(0,0,0,0.5)) drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
   .mini-stripe { display:flex; width:clamp(150px, 58vw, 240px); height:3px; margin:22px 0; border-radius:2px; overflow:hidden; }
   .mini-stripe span { flex:1; }
   .tagline { font-size:clamp(16px, 4.6vw, 20px); font-weight:300; line-height:1.95;
