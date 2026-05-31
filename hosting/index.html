@@ -91,13 +91,13 @@
 
   .stores { margin-top:50px; display:flex; flex-direction:column; gap:12px; width:100%; max-width:280px; }
   .store-btn { display:flex; align-items:center; justify-content:center; gap:11px;
-    padding:17px 22px; border-radius:14px; text-decoration:none; border:1px solid rgba(245,230,168,0.22);
-    background:var(--burgundy); box-shadow:0 6px 18px rgba(0,0,0,0.32);
-    color:var(--butter); cursor:default; transition:border-color .25s, background .25s, transform .1s; }
-  .store-btn:hover { border-color:rgba(245,230,168,0.5); background:#7e2634; }
+    padding:17px 22px; border-radius:14px; text-decoration:none; border:1px solid var(--line);
+    background:rgba(255,255,255,0.045); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    color:var(--cream); cursor:default; transition:border-color .25s, background .25s, transform .1s; }
+  .store-btn:hover { border-color:rgba(201,168,76,0.7); background:rgba(255,255,255,0.07); }
   .store-btn:active { transform:scale(0.985); }
-  .store-btn .ico { width:23px; height:23px; flex:none; fill:var(--butter); }
-  .store-btn .txt { font-size:15px; color:var(--butter); font-weight:500; letter-spacing:.3px; white-space:nowrap; }
+  .store-btn .ico { width:23px; height:23px; flex:none; fill:var(--gold-soft); }
+  .store-btn .txt { font-size:15px; color:var(--cream); font-weight:400; letter-spacing:.3px; white-space:nowrap; }
   .soon { margin-top:18px; font-size:12px; font-weight:300; letter-spacing:3px; color:var(--gold-soft); }
 
   .footer { position:relative; z-index:2; padding:0 24px 30px; text-align:center;
