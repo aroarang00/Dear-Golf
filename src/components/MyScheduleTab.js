@@ -63,7 +63,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const monthSectionYRef = React.useRef(0);    // '이번달 일정' 섹션의 ScrollView 안 y 좌표
   const cardYsRef = React.useRef({});          // { [scheduleId]: 카드의 섹션 안 y }
   const pendingScrollDateRef = React.useRef(null); // 셀 탭 시점에 카드 측정 안 됐으면 여기 저장, onLayout 시 자동 scroll
-  const [highlightedCardId, setHighlightedCardId] = React.useState(null);
+  const [highlightedDate, setHighlightedDate] = React.useState(null); // 날짜 단위 강조 — 같은 날 카드 N개 모두 강조
   const highlightTimerRef = React.useRef(null);
   // 일반 함수 — 매 렌더마다 현재 monthItems를 보는 클로저로 새로 생성.
   // useCallback([])이면 첫 렌더의 monthItems(처음 본 달)를 영구 capture해, 다른 달로 넘기면
@@ -81,9 +81,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       animated: true,
     });
     // 일시 하이라이트 — 사용자 시선이 따라가도록 1.4초간 강조
-    setHighlightedCardId(target.id);
+    setHighlightedDate(dateStr);
     if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-    highlightTimerRef.current = setTimeout(() => setHighlightedCardId(null), 1400);
+    highlightTimerRef.current = setTimeout(() => setHighlightedDate(null), 1400);
     return true;
   };
 
@@ -628,12 +628,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                     activeOpacity={0.85}
                     style={{
                       flexDirection: 'row',
-                      backgroundColor: highlightedCardId === s.id ? '#FBF1D8' : C.bgSecondary,
+                      backgroundColor: highlightedDate === s.date ? '#FBF1D8' : C.bgSecondary,
                       borderRadius: 12,
                       padding: _and ? 10 : 14,
                       marginBottom: _and ? 7 : 12,
-                      opacity: highlightedCardId === s.id ? 1 : cardOpacity,
-                      ...(highlightedCardId === s.id
+                      opacity: highlightedDate === s.date ? 1 : cardOpacity,
+                      ...(highlightedDate === s.date
                         ? { borderWidth: 1.5, borderColor: '#C9A84C' }
                         : cardBorder),
                     }}>
