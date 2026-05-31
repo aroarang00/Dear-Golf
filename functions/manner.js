@@ -106,6 +106,22 @@ exports.mannerAggregationTick = onSchedule({ schedule: 'every 60 minutes', timeZ
 });
 
 async function aggregateForRoundup(roundupId, roundup) {
+  // 멱등 가드 — 집계 시작 전 mannerAggregated를 트랜잭션으로 선점. 이미 집계됐으면 중단.
+  // 기존엔 delta 적용 후 마킹해서, 적용~마킹 사이 실패 시 다음 tick에 재집계되어 중복 감점이 났다.
+  // 선점-후-적용으로 바꿔 동시 tick·재시도에도 "한 번만 집계"를 보장한다.
+  const roundupRef = db.doc(`roundups/${roundupId}`);
+  const claimed = await db.runTransaction(async (tx) => {
+    const s = await tx.get(roundupRef);
+    if (!s.exists) return false;
+    if (s.data().mannerAggregated === true) return false;
+    tx.update(roundupRef, {
+      mannerAggregated: true,
+      mannerAggregatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+  if (!claimed) return;
+
   // 1) 모든 평가 모음
   const evals = await db.collection('mannerEvaluations')
     .where('roundupId', '==', roundupId)
@@ -139,12 +155,7 @@ async function aggregateForRoundup(roundupId, roundup) {
       logger.warn('[manner] apply delta fail', targetUid, e?.message);
     }
   }
-
-  // 4) 집계 완료 마크 (재실행 방지)
-  await db.doc(`roundups/${roundupId}`).update({
-    mannerAggregated: true,
-    mannerAggregatedAt: FieldValue.serverTimestamp(),
-  });
+  // 집계 완료 마크는 함수 진입 시 claim에서 이미 처리됨 (멱등 가드)
 }
 
 // 평가 그라데이션 (정책 §2):

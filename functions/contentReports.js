@@ -108,12 +108,29 @@ exports.contentReportSlaTick = onSchedule({ schedule: 'every 60 minutes', timeZo
 });
 
 // onUpdate: confirmed → 게시물 삭제 + 작성자 누적·제재 / rejected → 가림 해제
+// 멱등 가드 — onUpdate 재시도 시 게시물 중복 삭제·작성자 중복 제재(누적+1, 매너-5) 차단.
+async function claimOnce(ref, field) {
+  try {
+    return await db.runTransaction(async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists) return false;
+      if (s.data()[field]) return false;
+      tx.update(ref, { [field]: true });
+      return true;
+    });
+  } catch (e) {
+    logger.warn('[content] claimOnce fail', e?.message);
+    return false;
+  }
+}
+
 exports.onContentReportUpdated = onDocumentUpdated('content_reports/{reportId}', async (event) => {
   const before = event.data?.before?.data();
   const after = event.data?.after?.data();
   if (!before || !after) return;
   if (before.status === after.status) return;
 
+  const reportRef = event.data.after.ref;
   const { targetType, targetId, targetAuthorUid } = after;
   const collectionByType = {
     courseComment: 'courseComments',
@@ -124,6 +141,8 @@ exports.onContentReportUpdated = onDocumentUpdated('content_reports/{reportId}',
   const targetRef = db.doc(`${coll}/${targetId}`);
 
   if (after.status === 'confirmed') {
+    // 멱등 가드 — 재시도 시 중복 삭제·중복 제재 차단
+    if (!(await claimOnce(reportRef, 'penaltyApplied'))) return;
     // 게시물 영구 삭제 (정책 §6)
     try {
       await targetRef.delete();

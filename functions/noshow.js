@@ -46,6 +46,24 @@ async function createSystemNotification({ recipientUid, type, postId, postTitle,
   }
 }
 
+// 멱등 가드 — onUpdate는 at-least-once 전달이라 같은 status 전환이 재시도될 수 있다.
+// 패널티 적용 전 report 문서에 once 플래그를 트랜잭션으로 선점. 이미 처리됐으면 false 반환 → skip.
+// (중복 감점·중복 정지가 미적용보다 법적으로 위험하므로 "한 번만" 보장을 우선한다.)
+async function claimOnce(ref, field) {
+  try {
+    return await db.runTransaction(async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists) return false;
+      if (s.data()[field]) return false;
+      tx.update(ref, { [field]: true });
+      return true;
+    });
+  } catch (e) {
+    logger.warn('[noshow] claimOnce fail', e?.message);
+    return false;
+  }
+}
+
 // onCreate: 신고 접수 즉시 피신고자에게 중대 알림 + graceEndsAt/explanationDeadline/reviewDeadline 기록
 exports.onNoshowReportCreated = onDocumentCreated('noshowReports/{reportId}', async (event) => {
   const snap = event.data;
@@ -164,10 +182,13 @@ exports.onNoshowReportUpdated = onDocumentUpdated('noshowReports/{reportId}', as
   if (!before || !after) return;
   if (before.status === after.status) return;
 
+  const ref = event.data.after.ref;
   const { reporterUid, reportedUid, roundupId, roundupCourse } = after;
   const postTitle = roundupCourse || '';
 
   if (after.status === 'confirmed_noshow') {
+    // 멱등 가드 — 재시도 시 중복 패널티·중복 알림 차단
+    if (!(await claimOnce(ref, 'penaltyApplied'))) return;
     // 피신고자 패널티: 매너 -20, 60일 정지, noshowCount +1
     try {
       await applyNoshowPenalty(reportedUid, 60);
@@ -191,6 +212,8 @@ exports.onNoshowReportUpdated = onDocumentUpdated('noshowReports/{reportId}', as
   }
 
   if (after.status === 'confirmed_false_report') {
+    // 멱등 가드 — 재시도 시 중복 패널티·중복 알림 차단
+    if (!(await claimOnce(ref, 'penaltyApplied'))) return;
     // 신고자 패널티: 매너 -20, 90일 정지, falseReportCount +1
     try {
       await applyFalseReportPenalty(reporterUid, 90);
