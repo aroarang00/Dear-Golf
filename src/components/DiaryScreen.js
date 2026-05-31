@@ -22,6 +22,7 @@ import { getTrustGrade } from '../constants/trustGrade';
 import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
+import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { compressImage } from '../utils/imageCompress';
@@ -374,16 +375,10 @@ export function DiaryScreen({ route, navigation }) {
   // 통계 박스 — 평균타 라벨 폐기, 핸디로 통일 (친구에게 공개되는 핸디 뱃지와 일관성).
   // 라운딩 5개 이하면 입력값 우선, 6개부터는 베스트 5개 평균 (잘 친 5개만, 못 친 건 버림).
   const hasRecords = diaries.length > 0;
-  // 총 라운딩 = 다이어리 기록 + 기록 없는 지난 일정(완료된 라운딩). 내코스모아보기 '방문' 계산과 동일 정책.
-  // 같은 날 36홀은 scheduleId/course+date 매칭으로 각각 셈, 예정(미래) 일정은 제외.
-  const _todayMs = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t.getTime(); })();
-  const _isPastSched = (date) => !!date && new Date(date.replace(/\./g, '-')).getTime() < _todayMs;
-  const unrecordedRoundCount = (schedules || []).filter(s =>
-    _isPastSched(s.date) &&
-    !diaries.some(d => (s.id && d.scheduleId === s.id) || (!d.scheduleId && d.course === s.course && d.date === s.date))
-  ).length;
-  const completedRounds = diaries.length + unrecordedRoundCount;
-  const totalRounds = completedRounds > 0 ? completedRounds : (userProfile.totalRounds || null);
+  // 총 라운딩 = 자동 완료 라운딩(다이어리+미기록 지난 일정)에, 마이페이지 입력 기준값 반영([[project_total_rounds]])
+  const completedRounds = countCompletedRounds(diaries, schedules);
+  const _dispTotal = displayTotalRounds(userProfile, completedRounds);
+  const totalRounds = _dispTotal > 0 ? _dispTotal : null;
   const bestScore = hasRecords
     ? Math.min(...diaries.map(d => d.score))
     : (userProfile.lifeBest || null);

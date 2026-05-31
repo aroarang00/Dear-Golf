@@ -7,7 +7,9 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
 import { DiariesContext } from '../contexts/DiariesContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
 import { calcHandicap } from '../utils/handicap';
+import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
@@ -34,8 +36,12 @@ import {
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
   const { diaries } = React.useContext(DiariesContext);
+  const { schedules } = React.useContext(SchedulesContext);
   // 핸디 — 베스트 5개 평균(기록 5개 미만 시 입력 평균타 우선). DiaryScreen·DiaryCard와 동일 정책.
   const handicap = calcHandicap(diaries, userProfile.avgScore);
+  // 총 라운딩 — 자동 완료 라운딩 + 마이페이지 입력 기준값(입력 이후 증가분만 가산). DiaryScreen과 동일 헬퍼.
+  const completedRounds = countCompletedRounds(diaries, schedules);
+  const effectiveTotalRounds = displayTotalRounds(userProfile, completedRounds);
   const scrollRef = useRef(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
@@ -91,6 +97,7 @@ export function MyPageModal({ visible, onClose }) {
       avgScore: Number(avgScore) || 0,
       lifeBest: Number(lifeBest) || 0,
       totalRounds: Number(totalRounds) || 0,
+      totalRoundsBaseCount: completedRounds, // 입력 순간의 자동 완료 라운딩 스냅샷 — 이후 증가분만 가산
     };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
@@ -289,7 +296,7 @@ export function MyPageModal({ visible, onClose }) {
                       <TouchableOpacity onPress={() => {
                         setAvgScore(String(userProfile.avgScore || ''));
                         setLifeBest(String(userProfile.lifeBest || ''));
-                        setTotalRounds(String(userProfile.totalRounds || ''));
+                        setTotalRounds(String(effectiveTotalRounds || ''));
                         setEditingStats(false);
                       }}>
                         <Text style={{ color: '#8B8680', marginRight: 12, fontSize: fs(13) }}>취소</Text>
@@ -300,7 +307,13 @@ export function MyPageModal({ visible, onClose }) {
                       </TouchableOpacity>
                     </>
                   ) : (
-                    <TouchableOpacity onPress={() => setEditingStats(true)}>
+                    <TouchableOpacity onPress={() => {
+                      // 수정 진입 시 입력칸을 '현재 표시 총 라운딩'으로 채움 → 저장 시 그 시점이 기준점
+                      setAvgScore(String(userProfile.avgScore || ''));
+                      setLifeBest(String(userProfile.lifeBest || ''));
+                      setTotalRounds(String(effectiveTotalRounds || ''));
+                      setEditingStats(true);
+                    }}>
                       <Text style={{ color: '#6B1E2A', fontSize: fs(13) }}>수정</Text>
                     </TouchableOpacity>
                   )}
@@ -339,7 +352,7 @@ export function MyPageModal({ visible, onClose }) {
                 ) : (
                   <View style={myS.statsRow}>
                     {[
-                      { label: '총 라운딩', value: userProfile.totalRounds || DIARY_DATA.length },
+                      { label: '총 라운딩', value: effectiveTotalRounds },
                       { label: '핸디', value: handicap ?? '-' },
                       { label: '베스트', value: userProfile.lifeBest || Math.min(...DIARY_DATA.map(d => d.score)) },
                     ].map((st, i) => (
