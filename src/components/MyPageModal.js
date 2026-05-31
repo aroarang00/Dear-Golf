@@ -519,27 +519,27 @@ export function MyPageModal({ visible, onClose }) {
                   { icon: '📄', label: '이용약관',
                     onPress: () => setTermsViewer({
                       visible: true, title: '이용약관', body: TERMS_OF_SERVICE,
-                      externalUrl: 'https://deargolf.app/legal.html#terms',
+                      externalUrl: 'https://deargolf.app/legal#terms',
                     }) },
                   { icon: '🔒', label: '개인정보처리방침',
                     onPress: () => setTermsViewer({
                       visible: true, title: '개인정보처리방침', body: PRIVACY_POLICY,
-                      externalUrl: 'https://deargolf.app/legal.html#privacy',
+                      externalUrl: 'https://deargolf.app/legal#privacy',
                     }) },
                   { icon: '📍', label: '위치기반서비스 약관',
                     onPress: () => setTermsViewer({
                       visible: true, title: '위치기반서비스 약관', body: LOCATION_BASED_SERVICE_TERMS,
-                      externalUrl: 'https://deargolf.app/legal.html#location',
+                      externalUrl: 'https://deargolf.app/legal#location',
                     }) },
                   { icon: '🤝', label: '커뮤니티 가이드라인',
                     onPress: () => setTermsViewer({
                       visible: true, title: '커뮤니티 가이드라인', body: COMMUNITY_GUIDELINES,
-                      externalUrl: 'https://deargolf.app/legal.html#community',
+                      externalUrl: 'https://deargolf.app/legal#community',
                     }) },
                   { icon: '⚖️', label: '자동 패널티 시스템 동의서',
                     onPress: () => setTermsViewer({
                       visible: true, title: '자동 패널티 시스템 동의서', body: PENALTY_CONSENT,
-                      externalUrl: 'https://deargolf.app/legal.html#penalty',
+                      externalUrl: 'https://deargolf.app/legal#penalty',
                     }) },
                   // 자동 결정 이의·설명요구 — PIPA 제37조의2 (변호사 권고 B-9)
                   { icon: '🧭', label: '자동 결정 이의 신청',
