@@ -118,6 +118,11 @@ module.exports = {
       [
         'expo-build-properties',
         {
+          // iOS 최소 버전 15.5 — ML Kit(@react-native-ml-kit/text-recognition, GoogleMLKit 8.0.0)
+          // pod이 요구. 미설정 시 EAS_BUILD_HIGHER_MINIMUM_DEPLOYMENT_TARGET_ERROR로 빌드 실패.
+          ios: {
+            deploymentTarget: '15.5',
+          },
           android: {
             extraMavenRepos: [
               'https://devrepo.kakao.com/nexus/content/groups/public/',
