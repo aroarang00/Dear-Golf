@@ -3,6 +3,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
+import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
 import { UserContext } from '../contexts/UserContext';
@@ -258,8 +259,8 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                       <Text style={{ fontFamily: n.read ? F.sys : F.sysSb, fontSize: fs(13), color: C.charcoal, lineHeight: 18 }}>
                         {notiText(n)}
                       </Text>
-                      {/* 신청자 신뢰도 — 주최자가 승인 판단 시 참고 */}
-                      {showActorGrade && (
+                      {/* 신청자 신뢰도 — 주최자 승인 판단 참고용. 친구모집(전체공개 OFF)에선 무의미해 숨김 */}
+                      {ROUNDUP_PUBLIC_ENABLED && showActorGrade && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6,
                           paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: C.bgPrimary,
                           borderWidth: 0.5, borderColor: C.hairline, alignSelf: 'flex-start' }}>

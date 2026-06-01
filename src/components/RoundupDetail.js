@@ -4,7 +4,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Linking, Platform } fr
 const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { SCOPE_BADGE, FILTER_BADGE, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
@@ -504,7 +504,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
                 {isClosed && <Badge bg="#E6C8C8" fg="#5C1E1E" text="마감" />}
               </View>
 
-              {/* 주최자 — 이름만 탭하면 신고/차단 시트. 매너·신뢰 배지는 각자 onPress (등급 안내). */}
+              {/* 주최자 — 이름 표시. 매너·주최횟수·신뢰배지는 친구모집(전체공개 OFF)에선 무의미해 숨김([[roundup-friend-redesign]]) */}
               <View
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: _and ? 6 : 8, paddingHorizontal: 12,
                   backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: _and ? 8 : 10 }}>
@@ -514,19 +514,21 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.authorName || post.author || '주최자'}</Text>
                 </TouchableOpacity>
-                <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
-                    주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{post.authorHostedCount || 0}</Text>회 ·
-                  </Text>
-                  <MannerBadge score={post.authorMannerScore || 0} size={14} onPress={() => {
-                    const score = post.authorMannerScore || 0;
-                    const g = (score >= 95) ? 'king'
-                      : (score >= 80) ? 'good'
-                      : (score >= 40) ? 'normal' : 'caution';
-                    setMannerKey(g);
-                  }} />
-                </View>
+                {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />}
+                {ROUNDUP_PUBLIC_ENABLED && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
+                      주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{post.authorHostedCount || 0}</Text>회 ·
+                    </Text>
+                    <MannerBadge score={post.authorMannerScore || 0} size={14} onPress={() => {
+                      const score = post.authorMannerScore || 0;
+                      const g = (score >= 95) ? 'king'
+                        : (score >= 80) ? 'good'
+                        : (score >= 40) ? 'normal' : 'caution';
+                      setMannerKey(g);
+                    }} />
+                  </View>
+                )}
               </View>
 
               {post.type === 'fixed' ? (
@@ -554,16 +556,19 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
                 const skillTxt = post.skill && post.skill !== 'any' ? SKILL_LABEL[post.skill] : null;
                 const tagList = Array.isArray(post.tags) ? post.tags : [];
                 if (!compTxt && !ageTxt && !skillTxt && tagList.length === 0) return null;
+                // 데모그래픽(구성·연령·실력) 없이 태그만 있으면(친구모집 기본) 헤더를 '라운딩 성격'으로
+                const onlyTags = !compTxt && !ageTxt && !skillTxt;
                 return (
                   <View style={{ marginTop: _and ? 9 : 12, paddingTop: _and ? 9 : 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: _and ? 4 : 6 }}>동반자 조건</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: _and ? 4 : 6 }}>{onlyTags ? '라운딩 성격' : '동반자 조건'}</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                       {compTxt && <Badge bg={FILTER_BADGE.companion.bg} fg={FILTER_BADGE.companion.fg} text={compTxt} />}
                       {ageTxt && <Badge bg={FILTER_BADGE.ageGroup.bg} fg={FILTER_BADGE.ageGroup.fg} text={ageTxt} />}
                       {skillTxt && <Badge bg={FILTER_BADGE.skill.bg} fg={FILTER_BADGE.skill.fg} text={skillTxt} />}
-                      {tagList.map(t => (
-                        <Badge key={t} bg={FILTER_BADGE.tag.bg} fg={FILTER_BADGE.tag.fg} text={`#${t}`} />
-                      ))}
+                      {tagList.map(t => {
+                        const ts = tagStyle(t);
+                        return <Badge key={t} bg={ts.soft} fg={ts.deep} text={`#${t}`} />;
+                      })}
                     </View>
                   </View>
                 );

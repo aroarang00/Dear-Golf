@@ -5,7 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { COMPANION_OPTIONS, AGEGROUP_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, regionFromAddress } from '../constants/roundup';
+import { COMPANION_OPTIONS, AGEGROUP_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, tagStyle, INVITE_SAMPLES, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, regionFromAddress } from '../constants/roundup';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
 import { UserContext } from '../contexts/UserContext';
@@ -187,7 +187,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       companion: isPublic ? companion : 'any',
       ageGroup: isPublic ? ageGroup : 'any',
       skill: isPublic ? skill : 'any',
-      tags: isPublic ? tags : [],
+      tags, // 성격 태그는 모든 공개범위에서 저장(친구모집/지정 포함)
     };
   };
 
@@ -553,26 +553,47 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                   })}
                 </View>
 
-                <Text style={mS.bigLabel}>태그 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(중복 선택 가능)</Text></Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {TAG_OPTIONS.map(t => {
-                    const on = tags.includes(t);
-                    return (
-                      <TouchableOpacity key={t} activeOpacity={0.7} onPress={() => toggleTag(t)}
-                        style={[mS.chip, on && mS.chipOn, { alignItems: 'center' }]}>
-                        <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>#{t}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
               </>
             )}
 
-            <Text style={mS.bigLabel}>한마디 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(선택)</Text></Text>
+            {/* 라운딩 성격 태그 — 모든 공개범위 노출(친구모집/지정 포함). 카드를 풍성하게 + 친구가 분위기 보고 합류 판단 */}
+            <Text style={mS.bigLabel}>라운딩 성격 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(중복 선택 · 선택)</Text></Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {TAG_OPTIONS.map(t => {
+                const on = tags.includes(t);
+                const ts = tagStyle(t);
+                return (
+                  <TouchableOpacity key={t} activeOpacity={0.7} onPress={() => toggleTag(t)}
+                    style={{ borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7, alignItems: 'center',
+                      backgroundColor: on ? ts.deep : ts.soft,
+                      borderWidth: 0.5, borderColor: on ? ts.deep : 'transparent' }}>
+                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? '#fff' : ts.deep }}>#{t}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={mS.bigLabel}>한마디 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(선택 · 40자)</Text></Text>
+            {/* 친구지정 — 초대장 톤(격식/편안)별 예시 멘트. 탭하면 자동입력, 직접 입력도 가능 */}
+            {scope === 'select' && (
+              <View style={{ marginBottom: 8 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6 }}>예시 — 탭하면 자동 입력</Text>
+                {(INVITE_SAMPLES[inviteStyle] || INVITE_SAMPLES.casual).map((s, i) => {
+                  const on = word === s;
+                  return (
+                    <TouchableOpacity key={i} activeOpacity={0.7} onPress={() => setWord(s)}
+                      style={{ backgroundColor: on ? C.burgundy : C.bgSecondary, borderRadius: 10,
+                        borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline,
+                        paddingHorizontal: 12, paddingVertical: 9, marginBottom: 6 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: on ? C.butter : C.charcoal }}>{s}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
             <TextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline
               placeholder="동반자에게 남길 한마디를 적어주세요" placeholderTextColor={C.warmGrayLight}
-              value={word} onChangeText={setWord} maxLength={120} />
+              value={word} onChangeText={setWord} maxLength={40} />
 
             <TouchableOpacity style={mS.saveBtn} onPress={handleSubmit}>
               <Text style={[mS.saveBtnTxt, { fontSize: fs(17) }]}>

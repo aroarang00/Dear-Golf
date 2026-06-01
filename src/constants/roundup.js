@@ -50,12 +50,46 @@ export const AGEGROUP_OPTIONS = [
 export const SKILL_OPTIONS = [
   ['any', '상관없음'], ['beginner', '100타 이상'], ['high', '90-100타'], ['mid', '80-90타'], ['pro', '80타 이하'],
 ];
+// 라운딩 성격 태그 — 모든 공개범위에서 노출(친구모집·친구지정 포함, [[roundup-friend-redesign]]).
+// 친구 세계에선 "누구를 거를까"(데모그래픽)가 아니라 "어떤 라운딩이냐"가 차별점.
+// 낯선사람용 '○○환영'은 폐기, 분위기·목적 중심으로 교체. 여성전용은 태그 대신 친구지정으로.
 export const TAG_OPTIONS = [
-  '젊은분위기', '시니어환영', '연령무관',
-  '편안한라운딩', '즐기는라운딩',
-  '초보환영', '실력자환영',
-  '여성환영',
+  '편하게즐겨요', '즐기는분위기', '스코어도전', '부담없이',
+  '여유롭게', '부부·가족동반', '번개모임', '새코스탐방',
 ];
+
+// 태그별 색상 — 전체공개 때처럼 태그마다 다른 색(soft=연한 배경/미선택, deep=진한 색/선택·텍스트).
+// 생성폼·카드·상세에서 공통 사용. tagStyle()로 미정의 태그는 폴백.
+// 라운지 시그니처 파스텔(FILTER_BADGE/SCOPE_BADGE) 한 가족으로 통일 — 연한 배경 + 어두운 muted 텍스트.
+// 채도 높은 색은 라운지 톤과 따로 놀아서 배제(2026-06-01 사용자 피드백).
+export const TAG_STYLE = {
+  '편하게즐겨요':  { soft: '#D8E5C8', deep: '#3A5524' }, // green (ageGroup 계열)
+  '즐기는분위기':  { soft: '#F3E8C0', deep: '#6B5310' }, // butter/gold
+  '스코어도전':    { soft: '#C8D9E6', deep: '#1A3D52' }, // sky (companion 계열)
+  '부담없이':      { soft: '#CFE6DA', deep: '#2A5A48' }, // mint
+  '여유롭게':      { soft: '#D9C8E0', deep: '#4A2A5C' }, // lavender (skill 계열)
+  '부부·가족동반': { soft: '#EBD3D9', deep: '#7A3550' }, // rose
+  '번개모임':      { soft: '#ECD9C5', deep: '#7A4A24' }, // clay (beige 계열)
+  '새코스탐방':    { soft: '#CCE0E2', deep: '#235A60' }, // teal
+};
+export function tagStyle(t) {
+  return TAG_STYLE[t] || { soft: '#E8DCC8', deep: '#5A4500' };
+}
+
+// 초대장 예시 멘트 — 탭하면 '한마디'에 자동입력 ([[roundup-friend-redesign]]).
+// 격식/편안 톤 분리. 카드가 흐트러지지 않게 각 40자 이내로 유지(입력칸 maxLength=40).
+export const INVITE_SAMPLES = {
+  formal: [
+    '귀한 시간 내어 함께해 주시면 감사하겠습니다.',
+    '좋은 분들과 뜻깊은 라운딩 나누고 싶습니다.',
+    '오랜만에 함께 라운딩 한 번 하시죠.',
+  ],
+  casual: [
+    '라베 갱신하러 가자!',
+    '오늘 버디 한번 잡아보자~',
+    '지는 사람이 그늘집 쏘기!',
+  ],
+};
 
 export const COMPANION_LABEL = Object.fromEntries(COMPANION_OPTIONS);
 export const AGEGROUP_LABEL = Object.fromEntries(AGEGROUP_OPTIONS);

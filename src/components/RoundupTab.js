@@ -17,7 +17,7 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
+import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
@@ -97,7 +97,8 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{post.authorName || post.author}</Text>
-          <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />
+          {/* 신뢰등급 배지 — 친구모집(전체공개 OFF)에선 검증 의미 없어 숨김. 전체공개 부활 시 복귀 */}
+          {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />}
           {!isMine && (
             <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ fontSize: fs(16), color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
@@ -127,11 +128,26 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
         </>
       )}
 
-      {/* 동반자 조건 뱃지(구성·연령대·실력·태그)는 카드 정보 밀도 절감을 위해 상세에서만 표시.
-          카드는 핵심(공개범위·구장·시간·정원)에 집중. */}
+      {/* 라운딩 성격 태그 — 카드에 노출해 친구모집을 풍성하게([[roundup-friend-redesign]]).
+          구성·연령대·실력(데모그래픽) 뱃지는 정보 밀도 절감 위해 상세에서만. */}
+      {Array.isArray(post.tags) && post.tags.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: _and ? 6 : 8 }}>
+          {post.tags.slice(0, 4).map(t => {
+            const ts = tagStyle(t);
+            return (
+              <View key={t} style={{ backgroundColor: ts.soft, borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: ts.deep }}>#{t}</Text>
+              </View>
+            );
+          })}
+          {post.tags.length > 4 && (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, alignSelf: 'center' }}>+{post.tags.length - 4}</Text>
+          )}
+        </View>
+      )}
 
       {post.word ? (
-        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 6 : 8, lineHeight: 18 }}>"{post.word}"</Text>
+        <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 6 : 8, lineHeight: 18 }}>"{post.word}"</Text>
       ) : null}
 
       {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서. 게스트(앱 미사용자)가 있으면 명시. */}
@@ -385,6 +401,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // 친구모집 전용(전체공개 OFF) 동안은 매너평가 비활성 — 친구끼린 서로 평가하지 않음(A안, [[roundup-friend-redesign]])
+      if (!ROUNDUP_PUBLIC_ENABLED) {
+        if (!cancelled) setUserProfile(prev => (prev.mannerEvaluationPending ? { ...prev, mannerEvaluationPending: false } : prev));
+        return;
+      }
       const postIds = [...new Set(
         notifications.filter(n => n.type === 'mannerEval' || n.type === 'hostCancelledD7')
           .map(n => n.postId).filter(Boolean)
@@ -1135,7 +1156,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
     setShowNoti(false);
     // 매너 평가 진입 — 정상 종료(mannerEval) + 주최자 취소 보상(hostCancelledD7) 둘 다 평가 모달로.
-    if (n.type === 'mannerEval' || n.type === 'hostCancelledD7') {
+    if (ROUNDUP_PUBLIC_ENABLED && (n.type === 'mannerEval' || n.type === 'hostCancelledD7')) {
       let post = posts.find(p => p.id === n.postId);
       // 취소·만료로 라운지 목록에서 빠진 모집은 개별 로드
       if (!post) { try { post = await loadRoundup(n.postId); } catch { post = null; } }
@@ -1489,7 +1510,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
               };
               return p.inviteStyle === 'formal'
                 ? <InvitationCard key={p.id} variant="formal" {...inviteProps} />
-                : <InvitationTicket key={p.id} accent="tab" {...inviteProps} />;
+                : <InvitationTicket key={p.id} accent="tab" tags={p.tags} {...inviteProps} />;
             }
             return (
               <PostCard key={p.id} post={p} myUid={myUid} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}

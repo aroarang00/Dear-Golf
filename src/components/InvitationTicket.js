@@ -57,7 +57,7 @@ function Field({ label, value, align = 'left', tone = 'ink', size = 'md' }) {
 
 export function InvitationTicket({
   accent = 'tab', type = 'fixed',
-  hostName, course, date, time, message,
+  hostName, course, date, time, message, tags,
   onAccept, onDecline,
 }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -99,7 +99,18 @@ export function InvitationTicket({
         {!!message && (
           <View style={styles.noteWrap}>
             <Text style={styles.fieldLabel}>NOTE</Text>
-            <Text style={styles.note}>{message}</Text>
+            <Text style={styles.note} numberOfLines={2}>{message}</Text>
+          </View>
+        )}
+
+        {/* 라운딩 성격 태그 — 편안(보딩패스)에만 노출. 격식(클래식)은 제외(사용자 결정) */}
+        {Array.isArray(tags) && tags.length > 0 && (
+          <View style={styles.tagRow}>
+            {tags.slice(0, 4).map(t => (
+              <View key={t} style={styles.tagPill}>
+                <Text style={styles.tagText}>#{t}</Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -153,6 +164,10 @@ const styles = StyleSheet.create({
 
   noteWrap: { marginTop: 16 },
   note: { fontFamily: F.sys, fontSize: fs(14), color: INK, lineHeight: fs(14) * 1.5 },
+
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14 },
+  tagPill: { backgroundColor: '#F7F1E1', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
+  tagText: { fontFamily: F.sysM, fontSize: fs(11), color: BURGUNDY },
 
   cta: { marginTop: 20, backgroundColor: INK, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   ctaText: { fontFamily: F.sysB, fontSize: fs(16), color: '#FFFFFF' },

@@ -173,7 +173,7 @@ export function InvitationCard({
 
         {/* 메시지(따옴표) — 격식형 + 멘트 있을 때만 (편안형은 위에서 히어로로 노출) */}
         {variant === 'formal' && !!message && (
-          <Text style={{ textAlign: 'center', marginTop: 14, fontFamily: F.sys, fontSize: fs(14), lineHeight: fs(14) * 1.5, color: p.body }}>
+          <Text numberOfLines={2} style={{ textAlign: 'center', marginTop: 14, fontFamily: F.sys, fontSize: fs(14), lineHeight: fs(14) * 1.5, color: p.body }}>
             <Text style={{ color: p.accentDim }}>“ </Text>{message}<Text style={{ color: p.accentDim }}> ”</Text>
           </Text>
         )}
