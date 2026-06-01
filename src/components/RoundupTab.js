@@ -7,6 +7,8 @@ const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { RoundupCreateModal } from './RoundupCreateModal';
+import { InvitationCard } from './InvitationCard';
+import { InvitationTicket } from './InvitationTicket';
 import { MannerEvaluationModal } from './MannerEvaluationModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
@@ -1354,6 +1356,28 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5, paddingBottom: 32 }}>
+        {/* ⚠️ TEMP_INVITATION_PREVIEW — 초대장 디자인 확인용 임시 블록. 출시 전 이 블록만 통째로 삭제. __DEV__라 프로덕션엔 안 뜸. ([[roundup-invitation]]) */}
+        {__DEV__ && view === 'friend' && (
+          <View style={{ marginBottom: 8 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.warmGray, marginBottom: 8 }}>🔧 초대장 미리보기 (임시)</Text>
+
+            {/* 격식형 = 다크 럭셔리 (확정 디자인) */}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal, marginBottom: 6 }}>격식형 · 확정 (다크 럭셔리 — 확정)</Text>
+            <InvitationCard variant="formal" type="fixed" hostName="민준" course="남부CC" date="6월 14일 (토)" time="오전 7:12"
+              message="오랜만에 한 라운드 모시고 싶습니다" onAccept={() => {}} onDecline={() => {}} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal, marginBottom: 6, marginTop: 6 }}>격식형 · 오픈</Text>
+            <InvitationCard variant="formal" type="open" hostName="민준" course="남부CC" openInfo="주말 오전 희망"
+              onAccept={() => {}} onDecline={() => {}} />
+
+            {/* 편안형 = 보딩패스 (좌측 세로 탭 확정) */}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.burgundy, marginBottom: 6, marginTop: 12 }}>편안형 보딩패스 · 확정 (좌측 세로 탭)</Text>
+            <InvitationTicket accent="tab" type="fixed" hostName="서연" course="레이크우드 골프클럽 서코스" date="6월 21일 (토)" time="오전 6:48"
+              message="오랜만에 같이 한 라운드 어때요" onAccept={() => {}} onDecline={() => {}} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.burgundy, marginBottom: 6, marginTop: 8 }}>편안형 보딩패스 · 오픈/구장미정</Text>
+            <InvitationTicket accent="tab" type="open" hostName="서연"
+              onAccept={() => {}} onDecline={() => {}} />
+          </View>
+        )}
         {list.length === 0 ? (
           view === 'mine' ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 48 }}>
