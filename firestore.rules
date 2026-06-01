@@ -129,9 +129,12 @@ service cloud.firestore {
         || (resource.data.scope == 'friends'
             && areFriends(request.auth.uid, resource.data.authorUid))
       );
+      // 전체공개(all) 생성 비활성화 — 2026-06-01 ([[roundup-public-disabled]]). UI 게이팅에 더해 방어적 차단.
+      //   친구지정(select)은 read 규칙 미구현이라 아직 제외. 전체공개 부활 또는 친구지정 구현 시 목록 확장.
+      //   (기존 all 문서 read는 아래 read 규칙에 그대로 두되, 출시 전 테스트 시딩 삭제로 잔존 없음)
       allow create: if isSignedIn()
         && request.resource.data.authorUid == request.auth.uid
-        && request.resource.data.scope in ['all', 'friends']
+        && request.resource.data.scope in ['friends']
         && request.resource.data.participantUids is list
         && request.resource.data.waitlistUids is list;
 

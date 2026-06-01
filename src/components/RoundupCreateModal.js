@@ -5,7 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/kakao';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { COMPANION_OPTIONS, AGEGROUP_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, REGION_OPTIONS, regionFromAddress } from '../constants/roundup';
+import { COMPANION_OPTIONS, AGEGROUP_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, regionFromAddress } from '../constants/roundup';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
 import { UserContext } from '../contexts/UserContext';
@@ -31,7 +31,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const insets = useSafeAreaInsets();
   const { userProfile } = useContext(UserContext);
   // 본인이 마이페이지에서 "친구 모집만 보기" 켜두면 작성 시에도 전체공개 옵션 숨김 (일관성)
-  const hideStranger = !!userProfile?.hideStrangerRoundups;
+  // ROUNDUP_PUBLIC_ENABLED=false면 앱 전역으로 전체공개 비활성화 ([[roundup-public-disabled]])
+  const hideStranger = !ROUNDUP_PUBLIC_ENABLED || !!userProfile?.hideStrangerRoundups;
   const SCOPES = hideStranger ? SCOPES_FRIENDS_ONLY : SCOPES_ALL;
   const [type, setType] = useState('fixed');         // fixed | open
   const [courseQuery, setCourseQuery] = useState('');

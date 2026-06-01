@@ -6,6 +6,7 @@ import {
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
+import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { calcHandicap } from '../utils/handicap';
@@ -640,7 +641,8 @@ export function MyPageModal({ visible, onClose }) {
                   </TouchableOpacity>
                 ))}
                 {/* 라운지 — 모르는 사람 모집 숨기기 토글 (켜면 '전체' 탭 사라짐, 친구 모집만 보임) */}
-                {(() => {
+                {/* 전체공개 전역 비활성화 시엔 항상 친구 모집만이라 토글 숨김 ([[roundup-public-disabled]]) */}
+                {ROUNDUP_PUBLIC_ENABLED && (() => {
                   const on = !!userProfile.hideStrangerRoundups;
                   const toggle = () => {
                     const next = { ...userProfile, hideStrangerRoundups: !on };

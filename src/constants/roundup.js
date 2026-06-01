@@ -1,5 +1,10 @@
 // 라운딩 모집 공통 상수·헬퍼
 
+// 전체공개(낯선 사람) 모집 활성화 여부 — 2026-06-01 출시 시 비활성화 ([[roundup-public-disabled]])
+// false면 앱 전역에서 '전체공개' 옵션·'전체' 탭이 사라지고 친구공개·친구지정만 노출.
+// 향후 유저 증가 + 안전망(매너/신고/강퇴/신뢰등급) 검증 후 true로 부활. 관련 코드·정책은 전부 보존.
+export const ROUNDUP_PUBLIC_ENABLED = false;
+
 // 공개범위 뱃지
 export const SCOPE_BADGE = {
   all:     { label: '전체공개', bg: '#C8D9E6', fg: '#1A3D52' },
