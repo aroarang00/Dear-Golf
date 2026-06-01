@@ -47,7 +47,7 @@ export function GuideScreen({ route, navigation }) {
   const [editingCommentId, setEditingCommentId] = useState(null); // 내 코멘트 수정 중 id
   const [showAllComments, setShowAllComments] = useState(false); // 골퍼 코멘트 — 상위 10개 + 더보기
   const [commentSort, setCommentSort] = useState('recent'); // 'recent'(최신순 기본) | 'likes'(좋아요순)
-  const [commentQuery, setCommentQuery] = useState(''); // 코멘트 검색(코스 내)
+  const [myCommentsOnly, setMyCommentsOnly] = useState(false); // 내 코멘트만 보기 필터 (글 많아질 때 내 글 찾기)
   const [search, setSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('전체');
   // 코스 상세에서 날씨/교통 팝업
@@ -739,8 +739,8 @@ export function GuideScreen({ route, navigation }) {
               <View style={gS.commentPanel}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
-                  <Text style={{ fontSize: fs(17) }}>💬</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.3 }}>골퍼 코멘트</Text>
+                  <Text style={{ fontSize: fs(19) }}>💬</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, letterSpacing: 0.3 }}>골퍼 코멘트</Text>
                   {comments.length > 0 && (
                     <View style={{ backgroundColor: C.burgundy, borderRadius: 9, paddingHorizontal: 7, paddingVertical: 1, minWidth: 18, alignItems: 'center' }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>{comments.length}</Text>
@@ -795,7 +795,7 @@ export function GuideScreen({ route, navigation }) {
                 </KeyboardAvoidingView>
               )}
 
-              {/* 정렬·검색 — 게시판형. 최신순(기본)/좋아요순 토글 + 코스 내 코멘트 검색 */}
+              {/* 정렬 + 내 코멘트 필터 — 게시판형. 최신순(기본)/좋아요순 + 내 글만 보기(많아질 때 내 글 찾기) */}
               {comments.length > 0 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 8, padding: 2, borderWidth: 0.5, borderColor: C.hairline }}>
@@ -806,19 +806,18 @@ export function GuideScreen({ route, navigation }) {
                       </TouchableOpacity>
                     ))}
                   </View>
-                  <TextInput
-                    value={commentQuery}
-                    onChangeText={setCommentQuery}
-                    placeholder="코멘트 검색"
-                    placeholderTextColor={C.warmGrayLight}
-                    style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, backgroundColor: C.bgSecondary, borderRadius: 8, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 10, paddingVertical: 6 }}
-                  />
+                  {comments.some(c => c.mine) && (
+                    <TouchableOpacity onPress={() => setMyCommentsOnly(v => !v)} activeOpacity={0.8}
+                      style={{ marginLeft: 'auto', borderRadius: 8, borderWidth: 0.5, paddingHorizontal: 12, paddingVertical: 6,
+                        backgroundColor: myCommentsOnly ? C.burgundy : C.bgSecondary, borderColor: myCommentsOnly ? C.burgundy : C.hairline }}>
+                      <Text style={{ fontFamily: myCommentsOnly ? F.sysB : F.sysM, fontSize: fs(11), color: myCommentsOnly ? C.butter : C.warmGray }}>내 코멘트</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
-              {/* 코멘트 리스트 — 정렬·검색 적용, 상위 10개 + 더보기 */}
+              {/* 코멘트 리스트 — 정렬·내코멘트필터 적용, 상위 10개 + 더보기 */}
               {(() => {
-                const q = commentQuery.trim();
-                const filtered = q ? comments.filter(c => (c.txt || '').includes(q)) : comments;
+                const filtered = myCommentsOnly ? comments.filter(c => c.mine) : comments;
                 const tsOf = (c) => (c.createdAt?.toMillis?.() ?? c.ts ?? 0);
                 const sorted = [...filtered].sort((a, b) =>
                   commentSort === 'likes' ? (b.likes - a.likes) : (tsOf(b) - tsOf(a)));
@@ -826,7 +825,7 @@ export function GuideScreen({ route, navigation }) {
                 if (sorted.length === 0) {
                   return (
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 18 }}>
-                      {q ? '검색 결과가 없어요' : '아직 코멘트가 없어요 — 첫 코멘트를 남겨보세요'}
+                      {myCommentsOnly ? '아직 내가 쓴 코멘트가 없어요' : '아직 코멘트가 없어요 — 첫 코멘트를 남겨보세요'}
                     </Text>
                   );
                 }
