@@ -34,7 +34,7 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
-import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
 import { loadComments, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
@@ -237,12 +237,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         const uid = await getUid();
         if (cancelled) return;
         setMyUid(uid);
-        // 1차: 내 친구 + 내 신청 + 전체공개·내 모집 병렬
-        const [friendsList, myApps, allPosts, minePosts] = await Promise.all([
+        // 1차: 내 친구 + 내 신청 + 전체공개·내 모집 + 나에게 보이는 친구지정 모집 병렬
+        const [friendsList, myApps, allPosts, minePosts, selectForMe] = await Promise.all([
           loadMyFriends(),
           loadMyApplications(),
           loadAllRoundups(),
           loadMyRoundups(),
+          // 인덱스 미배포·오류 시에도 라운지 전체 로드는 살아있게 개별 catch (친구지정 부분만 빈 배열)
+          loadSelectRoundupsForMe(uid).catch(() => []),
         ]);
         if (cancelled) return;
         const fUids = friendsList.map(f => f.otherUid).filter(Boolean);
@@ -260,7 +262,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         const friendPosts = friendPostsArrays.flat();
         // 같은 모집글이 양쪽에 중복으로 잡힐 수 있으니 id 기준 dedupe
         const map = new Map();
-        for (const p of [...allPosts, ...minePosts, ...friendPosts]) map.set(p.id, p);
+        for (const p of [...allPosts, ...minePosts, ...friendPosts, ...selectForMe]) map.set(p.id, p);
         const merged = Array.from(map.values());
         setPosts(merged);
         // 참여 확정 복원 — participantUids에 내 uid가 있고 내가 작성자가 아닌 모집
@@ -519,11 +521,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const allTab = visiblePosts
     .filter(p => p.scope === 'all')
     .filter(p => regionFilter === 'all' || p.region === regionFilter);
-  // 친구 탭은 친구공개(friends) 모집만 — 전체공개는 '전체' 탭, 친구지정은 당사자에게만 따로 노출
+  // 친구 탭 — 친구공개(friends) + 나에게 보이는 친구지정(select)을 함께 노출 (친구 대상 모집의 단일 진입)
+  //   친구지정 수신자 노출은 audienceUids 기준(loadSelectRoundupsForMe가 이미 필터, 여기선 방어적 재확인)
   const friendTab = visiblePosts.filter(p => {
-    if (p.scope !== 'friends') return false;
-    if (!!myUid && p.authorUid === myUid) return true;
-    return friendUids.includes(p.authorUid);
+    if (p.scope === 'friends') {
+      if (!!myUid && p.authorUid === myUid) return true;
+      return friendUids.includes(p.authorUid);
+    }
+    if (p.scope === 'select') {
+      if (!!myUid && p.authorUid === myUid) return true; // 내가 올린 친구지정
+      return !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
+    }
+    return false;
   });
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+24h 윈도우는 동일 적용
   // (지난 라운딩의 본인 활동 이력은 마이페이지 "내 라운지 활동"에서 별도 조회)

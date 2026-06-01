@@ -65,6 +65,22 @@ export async function loadFriendRoundups(friendUid) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.cancelledByHost);
 }
 
+// 나를 대상으로 한 친구지정(scope='select') 모집 — 작성 시점 해석된 audienceUids 기준.
+//   include·exclude 모두 audienceUids로 통일돼 array-contains 하나로 안전 조회 ([[roundup-visibility-design]] 2026-06-01 정정).
+//   orderBy 없이 받아 호출부(RoundupTab)에서 client 정렬. 인덱스 (scope, audienceUids CONTAINS).
+//   내가 올린 select 모집은 loadMyRoundups가 따로 가져오므로 여기선 수신자 기준만.
+export async function loadSelectRoundupsForMe(myUid) {
+  if (!myUid) return [];
+  const q = query(
+    collection(db, COLLECTION),
+    where('scope', '==', 'select'),
+    where('audienceUids', 'array-contains', myUid),
+  );
+  const snap = await getDocs(q);
+  // 주최자 소프트 취소(cancelledByHost) 모집은 라운지 목록에서 숨김 (문서는 보존 — 매너평가·보관용)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.cancelledByHost);
+}
+
 // 단일 모집글 조회 (상세 화면)
 export async function loadRoundup(postId) {
   if (!postId) return null;
@@ -94,6 +110,11 @@ export async function createRoundup(data) {
     participantUids: [uid], // 주최자도 참여자에 포함
     waitlistUids: [],
     scope: data.scope || 'all',
+    // 친구지정(select) — selectMode·selectedUids는 원래 선택(수정 복원용), audienceUids는 해석된 실제 수신자
+    //   ([[roundup-visibility-design]] 2026-06-01). select 아닐 땐 null/빈배열.
+    selectMode: data.scope === 'select' ? (data.selectMode || 'include') : null,
+    selectedUids: Array.isArray(data.selectedUids) ? data.selectedUids : [],
+    audienceUids: Array.isArray(data.audienceUids) ? data.audienceUids : [],
     closed: false,
     word: data.word || '',
     kakaoOpenChatUrl: data.kakaoOpenChatUrl || null,

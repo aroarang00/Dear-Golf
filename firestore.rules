@@ -128,15 +128,29 @@ service cloud.firestore {
         || resource.data.authorUid == request.auth.uid
         || (resource.data.scope == 'friends'
             && areFriends(request.auth.uid, resource.data.authorUid))
+        // 친구지정(select): 작성 시점에 해석된 audienceUids 멤버십만 검사 ([[roundup-visibility-design]] 2026-06-01 정정).
+        //   include·exclude 둘 다 audienceUids로 통일 → array-contains 쿼리와 정확히 일치(규칙=쿼리, 거부 방지).
+        //   areFriends는 다중 author array-contains 쿼리에서 또 쿼리거부를 유발해 제외. audienceUids가 작성자 친구로 한정돼 안전.
+        || (resource.data.scope == 'select'
+            && request.auth.uid in resource.data.audienceUids)
       );
       // 전체공개(all) 생성 비활성화 — 2026-06-01 ([[roundup-public-disabled]]). UI 게이팅에 더해 방어적 차단.
-      //   친구지정(select)은 read 규칙 미구현이라 아직 제외. 전체공개 부활 또는 친구지정 구현 시 목록 확장.
-      //   (기존 all 문서 read는 아래 read 규칙에 그대로 두되, 출시 전 테스트 시딩 삭제로 잔존 없음)
+      //   친구공개(friends)·친구지정(select)만 허용. 전체공개 부활 시 'all' 추가.
+      //   (기존 all 문서 read는 위 read 규칙에 그대로 두되, 출시 전 테스트 시딩 삭제로 잔존 없음)
+      //   select는 audienceUids·selectMode·selectedUids 배열/값 형식만 검증 ([[roundup-visibility-design]]).
       allow create: if isSignedIn()
         && request.resource.data.authorUid == request.auth.uid
-        && request.resource.data.scope in ['friends']
+        && request.resource.data.scope in ['friends', 'select']
         && request.resource.data.participantUids is list
-        && request.resource.data.waitlistUids is list;
+        && request.resource.data.waitlistUids is list
+        && (
+          request.resource.data.scope != 'select'
+          || (
+            request.resource.data.selectMode in ['include', 'exclude']
+            && request.resource.data.selectedUids is list
+            && request.resource.data.audienceUids is list
+          )
+        );
 
       // 주최자: 전체 수정 / 참여자: 참여·대기 배열만, 본인 포함 여부만 토글
       //   ※ "남의 uid를 건드리지 않음"까지의 완전한 보장은 규칙만으론 불가 —

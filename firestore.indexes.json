@@ -34,6 +34,14 @@
       ]
     },
     {
+      "collectionGroup": "roundups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "scope", "order": "ASCENDING" },
+        { "fieldPath": "audienceUids", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
       "collectionGroup": "roundupNotifications",
       "queryScope": "COLLECTION",
       "fields": [

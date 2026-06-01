@@ -169,8 +169,16 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       openTime: type === 'open' ? openTime : [],
       scope,
       // 친구지정 — select일 때만 저장, 그 외 null/[]
+      //   selectMode·selectedUids = 원래 선택(수정 복원용)
+      //   audienceUids = 작성 시점 해석된 실제 수신자 — include면 선택친구, exclude면 (내친구 전체 − 선택친구)
+      //   ([[roundup-visibility-design]] 2026-06-01: Firestore "규칙은 필터 아님" 제약 회피용 해석 필드)
       selectMode: scope === 'select' ? selectMode : null,
       selectedUids: scope === 'select' ? selectedUids : [],
+      audienceUids: scope === 'select'
+        ? (selectMode === 'exclude'
+            ? friends.map(f => f.id).filter(Boolean).filter(id => !selectedUids.includes(id))
+            : selectedUids)
+        : [],
       word: word.trim(),
       companion: isPublic ? companion : 'any',
       ageGroup: isPublic ? ageGroup : 'any',
