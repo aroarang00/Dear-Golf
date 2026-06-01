@@ -7,6 +7,7 @@ import { FriendProfile } from './FriendProfile';
 import { FriendFinder } from './FriendFinder';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
+import { topMilestone, milestoneBadge } from './MilestoneCard';
 import { showAppAlert } from './AppAlert';
 import { UserContext } from '../contexts/UserContext';
 import {
@@ -22,8 +23,9 @@ const personToFriend = (p) => ({
   id: p.id, name: p.name, style: '', roundsTogether: 0,
   hostedCount: p.hostedCount || 0, attendedCount: p.attendedCount || 0,
   mannerScore: p.mannerScore || 70,
+  statusMessage: p.statusMessage || '',
   recent: null,
-  stats: { rounds: 0, avg: p.avg ?? null, best: null },
+  stats: { rounds: 0, courses: 0, avg: p.avg ?? null, best: null },
   feed: [],
 });
 
@@ -38,6 +40,9 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
   const r = friend.recent;
   const diff = r ? r.score - r.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
+  // 명함과 동일 — 마일스톤 배지·라베·멘트 ([[roundup-friend-redesign]])
+  const fMs = milestoneBadge(topMilestone({ rounds: friend.stats?.rounds ?? 0, courses: friend.stats?.courses ?? 0 }));
+  const fStatus = (friend.statusMessage || '').trim();
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
       style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12 }}>
@@ -48,14 +53,22 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 14 : 15), color: C.charcoal }}>{friend.name || '친구'}</Text>
-            <TrustBadge grade={grade} onPress={onGradePress} />
+            {fMs && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
+                backgroundColor: '#2A2D3A', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <Text style={{ fontSize: fs(10) }}>{fMs.icon}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#E6C677' }}>{fMs.label}</Text>
+              </View>
+            )}
             {muted && <Text style={{ fontSize: fs(11) }}>🔕</Text>}
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>{friend.style}</Text>
+          {fStatus ? (
+            <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2 }}>{fStatus}</Text>
+          ) : null}
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <View style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter }}>핸디 {friend.stats?.avg ?? '—'}</Text>
+          <View style={{ backgroundColor: C.butter, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>라베 {friend.stats?.best ?? '—'}</Text>
           </View>
           {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}
         </View>

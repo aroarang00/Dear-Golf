@@ -7,6 +7,7 @@ import { getMannerGrade } from '../constants/mannerGrade';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
+import { topMilestone, milestoneBadge } from './MilestoneCard';
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
@@ -95,6 +96,9 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
   const stats = friend.stats || {};
   const grade = getTrustGrade(friend.hostedCount, friend.mannerScore);
   const manner = getMannerGrade(friend.mannerScore || 70);
+  // 명함 재구성(MY와 동일) — 마일스톤 배지·라이프베스트·멘트 ([[roundup-friend-redesign]])
+  const fMs = milestoneBadge(topMilestone({ rounds: stats.rounds ?? 0, courses: stats.courses ?? 0 }));
+  const fStatus = (friend.statusMessage || '').trim();
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -122,29 +126,28 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                {/* 이름 + 핸디 — 같은 줄 */}
+                {/* 이름 + 마일스톤 배지 */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal }}>{friend.name}</Text>
-                  <TouchableOpacity onPress={() => setHandicapInfoOpen(true)} activeOpacity={0.7}
-                    style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>핸디 {stats.avg ?? '—'}</Text>
-                  </TouchableOpacity>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{friend.name}</Text>
+                  {fMs && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
+                      backgroundColor: '#2A2D3A', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 }}>
+                      <Text style={{ fontSize: fs(11) }}>{fMs.icon}</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#E6C677' }}>{fMs.label}</Text>
+                    </View>
+                  )}
                 </View>
-                {/* 신뢰 + 매너 — 이름 아래 줄 */}
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <TouchableOpacity onPress={() => setGradeOpen(true)} activeOpacity={0.7}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
-                      borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ fontSize: fs(12) }}>{grade.emoji}</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{grade.label}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setMannerOpen(true)} activeOpacity={0.7}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
-                      borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ fontSize: fs(12) }}>{manner.emoji}</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: manner.color }}>{manner.label}</Text>
-                  </TouchableOpacity>
+                {/* 라이프베스트 알약 */}
+                <View style={{ alignSelf: 'flex-start', backgroundColor: C.butter, borderRadius: 999,
+                  paddingHorizontal: 12, paddingVertical: 4, marginTop: 7 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라이프베스트 {stats.best ?? '—'}</Text>
                 </View>
+                {/* 멘트 — 친구가 작성한 경우만 표시 */}
+                {fStatus ? (
+                  <Text numberOfLines={2} style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, marginTop: 7, marginLeft: 12, lineHeight: 22 }}>
+                    {fStatus}
+                  </Text>
+                ) : null}
                 {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}
               </View>
             </View>
