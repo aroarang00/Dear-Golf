@@ -206,8 +206,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
             style={{
               flex: 1,
               paddingVertical: 12,
-              fontFamily: F.sys,
-              fontSize: fs(15),
+              fontFamily: F.sysSb,
+              fontSize: fs(17),
               color: C.charcoal,
             }}
             returnKeyType="search"
