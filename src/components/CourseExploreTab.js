@@ -7,7 +7,7 @@ import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf } 
 import { getCurrentLocation } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
-import { getTop100Courses } from '../utils/top100';
+import { getTop100Courses, normalizeCourseName } from '../utils/top100';
 
 const REGIONS = ['전체', '수도권', '강원', '충청', '경상', '전라', '제주'];
 const getRegion = (loc) => {
@@ -284,6 +284,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         const q = search.trim();
         const norm = (s) => (s || '').replace(/\s/g, '').toLowerCase();
         const inKakao = new Set(searchResults.map(r => norm(r.name)));
+        // 100대 목록 행은 base 이름(CC/GC/컨트리클럽/코스어 제거)으로도 카카오와 비교 — 표기만 다른 같은 구장 흡수
+        const inKakaoBase = new Set(searchResults.map(r => normalizeCourseName(r.name)));
         const seen = new Set();
         const localMatches = [];
         const addLocal = (c, kind, loc) => {
@@ -295,7 +297,10 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         };
         recentCourses.forEach(c => addLocal(c, 'recent', c.loc));
         savedCourses.forEach(c => addLocal(c, 'saved', c.loc));
-        top100.forEach(c => addLocal(c, 'top100', c.region));
+        top100.forEach(c => {
+          if (inKakaoBase.has(normalizeCourseName(c.name))) return; // 카카오에 이미 잡힌 100대 구장이면 목록 행 흡수(같은 곳)
+          addLocal(c, 'top100', c.region);
+        });
         const shownLocal = localMatches.slice(0, 10);
 
         const onLocalTap = async (m) => {
