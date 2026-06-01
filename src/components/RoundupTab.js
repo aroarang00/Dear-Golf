@@ -23,7 +23,7 @@ import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { blockUid as fsBlockUid, loadMyFriends } from '../utils/friends';
-import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification } from '../utils/roundupNotifications';
+import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -257,10 +257,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           Promise.all(fUids.map(u => loadFriendRoundups(u).catch(() => []))),
         ]);
         if (cancelled) return;
-        setFriends(fUids.map((u, i) => ({
+        const realFriends = fUids.map((u, i) => ({
           id: u,
           name: friendUserSnaps[i]?.exists() ? (friendUserSnaps[i].data().nickname || '친구') : '친구',
-        })));
+        }));
+        // TEMP_DEV_INVITE — 친구 없어도 친구지정/초대장 흐름 혼자 테스트용 더미 친구 주입 ([[roundup-invitation]]). 출시 전 제거.
+        setFriends(__DEV__ ? [...realFriends, { id: 'dev_friend_1', name: '테스트친구A' }, { id: 'dev_friend_2', name: '테스트친구B' }] : realFriends);
         const friendPosts = friendPostsArrays.flat();
         // 같은 모집글이 양쪽에 중복으로 잡힐 수 있으니 id 기준 dedupe
         const map = new Map();
@@ -532,6 +534,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
     if (p.scope === 'select') {
       if (!!myUid && p.authorUid === myUid) return true; // 내가 올린 친구지정
+      if (__DEV__) return true; // TEMP_DEV_INVITE — uid 이슈 무관하게 select 노출(혼자 테스트). 출시 전 제거
       return !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
     }
     return false;
@@ -596,7 +599,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         tags: post.tags || [],
       };
       const created = await createRoundup(payload);
-      setPosts(prev => [created, ...prev]);
+      // serverTimestamp는 클라에서 즉시 안 풀려 정렬 0이 됨 → 방금 만든 글이 맨 위에 오도록 ts 부여
+      setPosts(prev => [{ ...created, ts: Date.now() }, ...prev]);
+      // 친구지정·포함 = 개인 초대장 → 선택 친구에게 초대 알림 1회(멱등) ([[roundup-invitation]])
+      if (created.scope === 'select' && created.selectMode === 'include' && Array.isArray(created.selectedUids) && created.selectedUids.length) {
+        createInviteNotifications(created.id, created.course || '라운딩 초대', created.selectedUids, userProfile?.nickname || '')
+          .catch(e => __DEV__ && console.warn('[RoundupTab] invite noti failed', e?.message));
+      }
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] handleCreate failed', e);
       setAlert({
@@ -1356,28 +1365,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5, paddingBottom: 32 }}>
-        {/* ⚠️ TEMP_INVITATION_PREVIEW — 초대장 디자인 확인용 임시 블록. 출시 전 이 블록만 통째로 삭제. __DEV__라 프로덕션엔 안 뜸. ([[roundup-invitation]]) */}
-        {__DEV__ && view === 'friend' && (
-          <View style={{ marginBottom: 8 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.warmGray, marginBottom: 8 }}>🔧 초대장 미리보기 (임시)</Text>
-
-            {/* 격식형 = 다크 럭셔리 (확정 디자인) */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal, marginBottom: 6 }}>격식형 · 확정 (다크 럭셔리 — 확정)</Text>
-            <InvitationCard variant="formal" type="fixed" hostName="민준" course="남부CC" date="6월 14일 (토)" time="오전 7:12"
-              message="오랜만에 한 라운드 모시고 싶습니다" onAccept={() => {}} onDecline={() => {}} />
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal, marginBottom: 6, marginTop: 6 }}>격식형 · 오픈</Text>
-            <InvitationCard variant="formal" type="open" hostName="민준" course="남부CC" openInfo="주말 오전 희망"
-              onAccept={() => {}} onDecline={() => {}} />
-
-            {/* 편안형 = 보딩패스 (좌측 세로 탭 확정) */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.burgundy, marginBottom: 6, marginTop: 12 }}>편안형 보딩패스 · 확정 (좌측 세로 탭)</Text>
-            <InvitationTicket accent="tab" type="fixed" hostName="서연" course="레이크우드 골프클럽 서코스" date="6월 21일 (토)" time="오전 6:48"
-              message="오랜만에 같이 한 라운드 어때요" onAccept={() => {}} onDecline={() => {}} />
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.burgundy, marginBottom: 6, marginTop: 8 }}>편안형 보딩패스 · 오픈/구장미정</Text>
-            <InvitationTicket accent="tab" type="open" hostName="서연"
-              onAccept={() => {}} onDecline={() => {}} />
-          </View>
-        )}
+        {/* 초대장(친구지정·포함)은 아래 list.map에서 실제 카드로 렌더 — dev에선 내가 만든 글도 자기 미리보기로 보임 ([[roundup-invitation]]) */}
         {list.length === 0 ? (
           view === 'mine' ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 48 }}>
@@ -1481,17 +1469,40 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             </View>
           )
         ) : (
-          list.map(p => (
-            <PostCard key={p.id} post={p} myUid={myUid} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
-              isBookmarked={!!bookmarks[p.id]}
-              onApply={() => confirmApply(p.id)}
-              onWaitlist={() => handleWaitlist(p.id)}
-              onCancel={() => cancelParticipation(p.id)}
-              onGradePress={(key) => setGradeModalKey(key)}
-              onOpenDetail={() => setDetailId(p.id)}
-              onToggleBookmark={() => toggleBookmark(p.id)}
-              onHide={hideRoundup} />
-          ))
+          list.map(p => {
+            // 친구지정·포함 초대장 — 수신자(또는 dev에서 작성 본인)에겐 일반 카드 대신 초대장 카드 ([[roundup-invitation]])
+            const mine = !!myUid && p.authorUid === myUid;
+            const amRecipient = !mine && !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
+            const showInvite = view === 'friend' && p.scope === 'select' && p.selectMode === 'include'
+              && !joined[p.id] && !applied[p.id]
+              && (amRecipient || __DEV__); // TEMP_DEV_INVITE — dev에선 본인 글도 초대장 카드로(테스트). 출시 전 amRecipient만
+            if (showInvite) {
+              const inviteProps = {
+                type: p.type === 'open' ? 'open' : 'fixed',
+                hostName: p.authorName || '친구',
+                course: p.course || '',
+                date: p.date || '',
+                time: p.time || '',
+                message: p.word || '',
+                onAccept: amRecipient ? () => confirmApply(p.id) : () => setDetailId(p.id),
+                onDecline: () => hideRoundup(p.id),
+              };
+              return p.inviteStyle === 'formal'
+                ? <InvitationCard key={p.id} variant="formal" {...inviteProps} />
+                : <InvitationTicket key={p.id} accent="tab" {...inviteProps} />;
+            }
+            return (
+              <PostCard key={p.id} post={p} myUid={myUid} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
+                isBookmarked={!!bookmarks[p.id]}
+                onApply={() => confirmApply(p.id)}
+                onWaitlist={() => handleWaitlist(p.id)}
+                onCancel={() => cancelParticipation(p.id)}
+                onGradePress={(key) => setGradeModalKey(key)}
+                onOpenDetail={() => setDetailId(p.id)}
+                onToggleBookmark={() => toggleBookmark(p.id)}
+                onHide={hideRoundup} />
+            );
+          })
         )}
         {view === 'all' && list.length > 0 && (
           <View style={{ marginTop: 4, backgroundColor: C.paleSky + '33', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>

@@ -115,6 +115,7 @@ export async function createRoundup(data) {
     selectMode: data.scope === 'select' ? (data.selectMode || 'include') : null,
     selectedUids: Array.isArray(data.selectedUids) ? data.selectedUids : [],
     audienceUids: Array.isArray(data.audienceUids) ? data.audienceUids : [],
+    inviteStyle: data.scope === 'select' ? (data.inviteStyle || 'casual') : null,
     closed: false,
     word: data.word || '',
     kakaoOpenChatUrl: data.kakaoOpenChatUrl || null,

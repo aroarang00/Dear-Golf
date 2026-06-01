@@ -1,6 +1,6 @@
 import {
   collection, query, where, orderBy, limit as fsLimit, getDocs,
-  addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+  addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -49,6 +49,29 @@ export async function createNotification(data) {
   };
   const ref = await addDoc(collection(db, COLLECTION), noti);
   return { id: ref.id, ...noti };
+}
+
+// 친구지정·포함 초대 알림 — 선택한 친구들에게 1회씩 ([[roundup-invitation]]).
+//   멱등: 문서 ID = `invite_{postId}_{recipientUid}` (결정적). 같은 모집 재발송해도 중복 X.
+//   신규 모집 생성 시에만 호출(수정 시 재알림 X). 본인·빈 값은 건너뜀.
+export async function createInviteNotifications(postId, postTitle, recipientUids, actorName = '') {
+  const uid = await getUid();
+  if (!uid || !postId || !Array.isArray(recipientUids)) return;
+  await Promise.all(
+    recipientUids
+      .filter(rid => rid && rid !== uid)
+      .map(rid => setDoc(doc(db, COLLECTION, `invite_${postId}_${rid}`), {
+        type: 'invite',
+        actorUid: uid,
+        actorName: actorName || '',
+        recipientUid: rid,
+        postId,
+        postTitle: postTitle || '',
+        status: null,
+        read: false,
+        createdAt: serverTimestamp(),
+      }).catch(e => __DEV__ && console.warn('[invite noti] fail', rid, e?.message)))
+  );
 }
 
 // 내가 받은 알림 — 최신순. 인덱스 (recipientUid, createdAt desc) 사용.

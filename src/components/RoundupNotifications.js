@@ -23,6 +23,7 @@ const DEFAULT_ROUNDUP_PREFS = { apply: true, confirmed: true, cancel: true, wait
 
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
+  invite: '💌',
   // 시스템 알림 (Cloud Functions)
   kicked: '🚪',
   noshowReported: '⚠️', noshowReportSubmitted: '📩', noshowExplanationRequired: '⏰',
@@ -49,6 +50,7 @@ function notiText(n) {
     case 'cancel':    return `${n.actor}님이 '${n.postTitle}' 모집 참여를 취소했어요`;
     case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
     case 'confirmed': return `'${n.postTitle}' 모집 참여가 확정됐어요`;
+    case 'invite':    return `${n.actorName || n.actor || '친구'}님이 '${n.postTitle}' 라운딩에 초대했어요`;
     case 'waitlist':  return `${n.actor}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
     case 'comment':   return `${n.actor}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
     case 'mannerEval':return `'${n.postTitle}' 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;

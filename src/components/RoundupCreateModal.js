@@ -51,6 +51,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   // 친구지정(scope='select') 상세 — selectMode + selectedUids ([[roundup-visibility-design]])
   const [selectMode, setSelectMode] = useState('include');
   const [selectedUids, setSelectedUids] = useState([]);
+  const [inviteStyle, setInviteStyle] = useState('casual'); // 친구지정 초대장 톤: 'casual'(보딩패스) | 'formal'(격식) ([[roundup-invitation]])
   const [showFriendSelect, setShowFriendSelect] = useState(false);
   const [word, setWord] = useState('');
   // hideStranger 토글 변경 시 scope이 'all'이면 자동 보정
@@ -109,6 +110,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setOpenTime(Array.isArray(initialPost.openTime) ? initialPost.openTime : []);
     setSelectMode(initialPost.selectMode || 'include');
     setSelectedUids(Array.isArray(initialPost.selectedUids) ? initialPost.selectedUids : []);
+    setInviteStyle(initialPost.inviteStyle || 'casual');
   }, [visible, initialPost]);
 
   const dismissTip = () => {
@@ -179,6 +181,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             ? friends.map(f => f.id).filter(Boolean).filter(id => !selectedUids.includes(id))
             : selectedUids)
         : [],
+      // 초대장 톤(격식/편안) — select일 때만 ([[roundup-invitation]])
+      inviteStyle: scope === 'select' ? inviteStyle : null,
       word: word.trim(),
       companion: isPublic ? companion : 'any',
       ageGroup: isPublic ? ageGroup : 'any',
@@ -489,6 +493,21 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                     {selectedUids.length === 0 ? '친구 선택' : '다시 선택'}
                   </Text>
                 </TouchableOpacity>
+              </View>
+            )}
+
+            {/* 초대장 스타일 — 친구지정만. 격식(클래식)/편안(보딩패스) ([[roundup-invitation]]) */}
+            {scope === 'select' && (
+              <View style={{ marginTop: 12 }}>
+                <Text style={mS.bigLabel}>초대장 스타일</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {[['casual', '편안 · 보딩패스'], ['formal', '격식 · 클래식']].map(([k, l]) => (
+                    <TouchableOpacity key={k} activeOpacity={0.8} onPress={() => setInviteStyle(k)}
+                      style={[mS.chip, inviteStyle === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                      <Text style={[mS.chipTxt, inviteStyle === k && mS.chipTxtOn]}>{l}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             )}
 

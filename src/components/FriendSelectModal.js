@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
@@ -50,6 +50,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom, maxHeight: '88%' }]}>
@@ -154,6 +155,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
 
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
