@@ -139,35 +139,54 @@ export function waitlistRespondHours(dateStr) {
   return 1;
 }
 
+// 시간대 슬롯 — 주중/주말 × 1·2·3부 (맞춤모집 매칭축, [[roundup-friend-redesign]]).
+// 1부=이른 아침, 2부=낮, 3부=오후·야간 (대략 — 골프장·계절마다 경계가 달라 엄격 시각 X). 슬롯키: 'weekday-1'·'weekend-3' 등.
+export const TEE_DAYTYPES = [['weekday', '주중'], ['weekend', '주말']];
+export const TEE_PARTS = [['1', '1부'], ['2', '2부'], ['3', '3부']];
+export const TEE_PART_HINT = { '1': '이른 아침', '2': '낮', '3': '오후·야간' };
+// 확정형 티오프 시간('HH:MM') → 부(部) 분류. 대략 경계.
+export function teePartOf(time) {
+  const h = parseInt(String(time || '').split(':')[0], 10);
+  if (isNaN(h)) return null;
+  if (h < 11) return '1';   // ~10:59 이른 아침
+  if (h < 14) return '2';   // 11:00~13:59 낮
+  return '3';               // 14:00~ 오후·야간
+}
+
 // 맞춤 모집 — 사용자가 설정한 조건(roundupMatch)이 의미 있게 채워졌는지
 export function hasRoundupMatch(cfg) {
   if (!cfg) return false;
-  return (cfg.regions?.length > 0) || (cfg.days?.length > 0) || !!cfg.dateFrom || !!cfg.companion;
+  return (cfg.slots?.length > 0) || !!cfg.dateFrom;
 }
 
 // 맞춤 모집 — 모집글이 사용자의 조건(roundupMatch)에 맞는지.
-// 지역·동반자 조건 AND (요일 일치 OR 특정 기간 내). 오픈형(날짜 미정)은 요일/기간을 보지 않는다.
+// 시간대 슬롯(주중/주말×부) 일치 OR 특정 기간 내. 지역·동반자 조건은 친구모집 전환으로 폐기([[roundup-friend-redesign]]).
 export function matchesRoundup(post, cfg) {
   if (!post || !hasRoundupMatch(cfg)) return false;
-  const regions = cfg.regions || [];
-  const days = cfg.days || [];
+  const slots = cfg.slots || [];
   const dateFrom = cfg.dateFrom || null;
   const dateTo = cfg.dateTo || dateFrom; // 끝 날짜 미지정 시 시작 날짜 하루
-  const companion = cfg.companion || null;
-  // 지역 — 지정했으면 post.region이 포함돼야 함
-  if (regions.length > 0 && (!post.region || !regions.includes(post.region))) return false;
-  // 동반자 — 'female'(여성만)·'couple'(부부·커플) 지정 시 일치하는 모집만
-  if (companion && post.companion !== companion) return false;
-  // 오픈형(날짜 미정) — 지역·동반자 조건만 통과하면 포함
-  if (post.type === 'open' || !post.date) return true;
-  // 확정형 — 요일 일치 또는 특정 기간 내 (요일 미선택 시 요일 무관)
-  const isWeekend = post.day === '토' || post.day === '일';
-  const dayMatch = days.length === 0
-    || (days.includes('weekend') && isWeekend)
-    || (days.includes('weekday') && !isWeekend);
-  // 날짜 문자열 'YYYY.MM.DD'는 자릿수 고정이라 사전순 비교 = 날짜순 비교
-  const dateMatch = !!dateFrom && post.date >= dateFrom && post.date <= dateTo;
-  return dayMatch || dateMatch;
+  const hasSlots = slots.length > 0;
+  const hasPeriod = !!dateFrom;
+
+  // 오픈형(날짜·시간 미정) — 부(部)가 없어 기간으론 못 거름. 슬롯의 주중/주말 선호로만 느슨 매칭.
+  if (post.type === 'open' || !post.date) {
+    if (!hasSlots) return true;             // 기간만 설정 → 날짜 미정 오픈형은 일단 노출
+    const pref = post.openTime || [];       // ['weekday'|'weekend']
+    if (pref.length === 0) return true;     // 모집이 '상관없음'이면 통과
+    const wantWeekday = slots.some(s => s.startsWith('weekday'));
+    const wantWeekend = slots.some(s => s.startsWith('weekend'));
+    return (wantWeekday && pref.includes('weekday')) || (wantWeekend && pref.includes('weekend'));
+  }
+
+  // 확정형 — 요일×부 슬롯 일치 / 기간 내. 둘 다 설정 시 OR, 하나만 설정 시 그것만.
+  // 날짜 문자열 'YYYY.MM.DD'는 자릿수 고정이라 사전순 비교 = 날짜순 비교.
+  const dayType = (post.day === '토' || post.day === '일') ? 'weekend' : 'weekday';
+  const part = teePartOf(post.time);
+  const slotHit = hasSlots && !!part && slots.includes(`${dayType}-${part}`);
+  const dateHit = hasPeriod && post.date >= dateFrom && post.date <= dateTo;
+  if (hasSlots && hasPeriod) return slotHit || dateHit;
+  return hasSlots ? slotHit : dateHit;
 }
 
 // 더미 참여자 이름 — seed 기반 결정적 선택 (렌더마다 동일)

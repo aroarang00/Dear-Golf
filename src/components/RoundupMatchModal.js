@@ -4,10 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
-import { REGION_OPTIONS } from '../constants/roundup';
-
-const DAY_OPTIONS = [['weekend', '주말'], ['weekday', '평일']];
-const REGION_CHIPS = REGION_OPTIONS.filter(([k]) => k !== 'all'); // 구체 지역만
+import { TEE_DAYTYPES, TEE_PARTS, TEE_PART_HINT } from '../constants/roundup';
 
 const fmtDate = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 const parseDate = (s) => {
@@ -16,31 +13,28 @@ const parseDate = (s) => {
   return new Date(y, (m || 1) - 1, d || 1);
 };
 
-// 라운지 맞춤 모집 알림 — 관심 지역·요일·특정 기간 설정 시트
+// 라운지 맞춤 모집 알림 — 시간대(주중/주말×1·2·3부)·특정 기간 설정 시트 ([[roundup-friend-redesign]]).
+// 친구모집 전환으로 지역·동반자 조건은 폐기. 차별 축은 "언제 라운딩이냐"(시간대).
 export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
   const insets = useSafeAreaInsets();
-  const [regions, setRegions] = useState([]);
-  const [days, setDays] = useState([]);
+  const [slots, setSlots] = useState([]);   // ['weekday-1','weekend-3' ...]
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
-  const [companion, setCompanion] = useState(null); // null | 'female' | 'couple'
   const [showPicker, setShowPicker] = useState(null); // null | 'from' | 'to'
 
   useEffect(() => {
     if (visible) {
-      setRegions(initial?.regions || []);
-      setDays(initial?.days || []);
+      // 처음 열 때 아무것도 안 골라져 있으면 '선택해야 하는지' 모를 수 있어 기본 1개(주말 1부) 선택해 보여줌.
+      // 저장 전엔 영향 없고, 원하면 해제 가능.
+      setSlots(initial?.slots?.length ? initial.slots : ['weekend-1']);
       setDateFrom(initial?.dateFrom || null);
       setDateTo(initial?.dateTo || null);
-      setCompanion(initial?.companion || null);
       setShowPicker(null);
     }
   }, [visible]);
 
-  const toggleRegion = (k) =>
-    setRegions(prev => (prev.includes(k) ? prev.filter(r => r !== k) : [...prev, k]));
-  const toggleDay = (k) =>
-    setDays(prev => (prev.includes(k) ? prev.filter(d => d !== k) : [...prev, k]));
+  const toggleSlot = (key) =>
+    setSlots(prev => (prev.includes(key) ? prev.filter(s => s !== key) : [...prev, key]));
 
   const sectionLabel = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginTop: 20, marginBottom: 10 };
 
@@ -56,39 +50,29 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               조건에 맞는 새 모집을 라운지에서 모아 보여드려요.
             </Text>
 
-            {/* 관심 지역 — 다중 선택 */}
-            <Text style={sectionLabel}>관심 지역 (여러 곳 선택 가능)</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {REGION_CHIPS.map(([k, l]) => {
-                const on = regions.includes(k);
-                return (
-                  <TouchableOpacity key={k} onPress={() => toggleRegion(k)} activeOpacity={0.7}
-                    style={{ borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8,
-                      backgroundColor: on ? C.burgundy : C.bgSecondary,
-                      borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
-                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
-                      color: on ? C.butter : C.warmGray }}>{l}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* 요일 — 다중 선택 (선택 안 하면 요일 무관) */}
-            <Text style={sectionLabel}>요일 (선택 안 하면 요일 무관)</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {DAY_OPTIONS.map(([k, l]) => {
-                const on = days.includes(k);
-                return (
-                  <TouchableOpacity key={k} onPress={() => toggleDay(k)} activeOpacity={0.7}
-                    style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
-                      backgroundColor: on ? C.burgundy : C.bgSecondary,
-                      borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
-                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
-                      color: on ? C.butter : C.warmGray }}>{l}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {/* 시간대 — 주중/주말 × 1·2·3부 (선택 안 하면 시간대 무관) */}
+            <Text style={sectionLabel}>시간대 (여러 개 선택 가능)</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 10, lineHeight: 16 }}>
+              1부 {TEE_PART_HINT['1']} · 2부 {TEE_PART_HINT['2']} · 3부 {TEE_PART_HINT['3']}
+            </Text>
+            {TEE_DAYTYPES.map(([dk, dl]) => (
+              <View key={dk} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Text style={{ width: 40, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{dl}</Text>
+                {TEE_PARTS.map(([pk, pl]) => {
+                  const key = `${dk}-${pk}`;
+                  const on = slots.includes(key);
+                  return (
+                    <TouchableOpacity key={pk} onPress={() => toggleSlot(key)} activeOpacity={0.7}
+                      style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
+                        backgroundColor: on ? C.burgundy : C.bgSecondary,
+                        borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
+                      <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
+                        color: on ? C.butter : C.warmGray }}>{pl}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
 
             {/* 특정 기간 — 선택 사항 (시작~끝) */}
             <Text style={sectionLabel}>특정 기간 (선택 — 시간 나는 날이 있다면)</Text>
@@ -138,25 +122,8 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               />
             )}
 
-            {/* 동반자 구성 — 여성만 / 부부·커플 택1 */}
-            <Text style={sectionLabel}>동반자 (선택 안 하면 상관없음)</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[['female', '레이디만'], ['couple', '부부·커플']].map(([k, l]) => {
-                const on = companion === k;
-                return (
-                  <TouchableOpacity key={k} onPress={() => setCompanion(on ? null : k)} activeOpacity={0.7}
-                    style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
-                      backgroundColor: on ? C.burgundy : C.bgSecondary,
-                      borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
-                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
-                      color: on ? C.butter : C.warmGray }}>{l}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
             {/* 저장 */}
-            <TouchableOpacity onPress={() => { onSave({ regions, days, dateFrom, dateTo, companion }); onClose(); }} activeOpacity={0.85}
+            <TouchableOpacity onPress={() => { onSave({ slots, dateFrom, dateTo }); onClose(); }} activeOpacity={0.85}
               style={{ marginTop: 24, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>저장</Text>
             </TouchableOpacity>
