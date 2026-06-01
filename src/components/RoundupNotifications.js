@@ -209,7 +209,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                 <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 10 }} />
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, marginBottom: 4 }}>알림 설정</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 20, marginBottom: 12 }}>
-                  종류별로 알림을 받을지 끌지 정해요. 중요 알림(신고·패널티)은 끌 수 없어요.
+                  종류별로 알림을 받을지 끌지 정해요.{'\n'}중요 알림(신고·패널티)은 끌 수 없어요.
                 </Text>
                 <ScrollView style={{ maxHeight: 360 }}>
                   {ROUNDUP_NOTI_TYPES.map((t, i) => {
