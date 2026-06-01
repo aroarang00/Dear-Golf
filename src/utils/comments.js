@@ -41,13 +41,16 @@ export function canAccessComments(post, myId, myName) {
 }
 
 // 티오프 시각 지났는지 — 댓글 쓰기 자동 비활성 판정
-export function isAfterTeeOff(post) {
+// 댓글 쓰기가 닫혔는지 — 티오프 직후 바로가 아니라 라운딩 진행 중엔 계속 열어둔다.
+// 티오프 + 5시간(라운딩 끝날 무렵, 라운지 카드 노출 윈도우와 동일)까지 작성 가능, 이후 읽기만.
+export const COMMENT_OPEN_HOURS = 5;
+export function isCommentClosed(post) {
   if (!post?.date) return false; // 오픈형(날짜 미정)은 항상 쓰기 가능
   const [y, m, d] = post.date.split('.').map(Number);
   const [hh, mm] = (post.time || '07:00').split(':').map(Number);
   const teeOff = new Date(y, m - 1, d, hh, mm).getTime();
   if (Number.isNaN(teeOff)) return false;
-  return Date.now() > teeOff;
+  return Date.now() > teeOff + COMMENT_OPEN_HOURS * 3600000;
 }
 
 // 댓글 작성 — 비속어 필터 통과 + 본문 trim. 차단 시 {ok:false, reason:'profanity'} 반환.

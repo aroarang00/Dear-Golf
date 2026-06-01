@@ -553,7 +553,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     })();
   }, [posts, joined, schedules, addSchedule, userProfile?.alarmDefaults, myUid]);
 
-  // 라운지 노출 윈도우 — 티오프 + 24h 이내만 노출, 이후 사용자 UI에서 감춤
+  // 라운지 노출 윈도우 — 티오프 + 5h(라운딩 끝날 무렵) 이내만 노출, 이후 사용자 UI에서 감춤
+  //   끝난 라운딩이 계속 떠 있지 않게. 댓글 닫힘(COMMENT_OPEN_HOURS=5)과 동일 시점 (2026-06-02 24h→5h).
   // (시스템 데이터는 [[data-retention]]에 따라 별도 보관: 일반 1년 / 분쟁 이력 모집글 3년)
   // 오픈형(date 미정)은 항상 노출. 마이페이지 "내 라운지 활동"은 별도 화면(이 필터 미적용).
   const isInVisibleWindow = (p) => {
@@ -562,7 +563,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     const [hh, mm] = (p.time || '07:00').split(':').map(Number);
     const teeOff = new Date(y, m - 1, d, hh, mm).getTime();
     if (Number.isNaN(teeOff)) return true;
-    return Date.now() <= teeOff + 24 * 3600 * 1000;
+    return Date.now() <= teeOff + 5 * 3600 * 1000;
   };
 
   // 차단 필터 — 내가 차단한 사람의 모집 + 나를 차단한 사람의 모집은 어디서도 안 보임
@@ -589,7 +590,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
     return false;
   });
-  // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+24h 윈도우는 동일 적용
+  // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+5h 윈도우는 동일 적용
   // (지난 라운딩의 본인 활동 이력은 마이페이지 "내 라운지 활동"에서 별도 조회)
   const mineTab = posts.filter(p =>
     ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id]) && isInVisibleWindow(p)

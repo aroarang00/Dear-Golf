@@ -2,13 +2,13 @@ import React, { useState, useContext, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
-import { canAccessComments, isAfterTeeOff, sortComments, createComment, canDeleteComment } from '../utils/comments';
+import { canAccessComments, isCommentClosed, sortComments, createComment, canDeleteComment } from '../utils/comments';
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
 // 라운지 모집 댓글 영역 ([[roundup-comments-policy]]).
 // - 참여 확정자만 작성·열람
 // - 본인만 삭제, 주최자만 고정(1개)
-// - 티오프 후 쓰기 비활성, 읽기는 유지
+// - 티오프+5h(라운딩 끝날 무렵·카드 노출 윈도우와 동일) 후 쓰기 비활성, 읽기는 유지
 // - 비속어 자동 필터 (false positive 최소화)
 // - 신고는 마이페이지 일원화 (이곳에 신고 버튼 X)
 
@@ -62,7 +62,7 @@ export function RoundupComments({ post, comments, joined, onAdd, onDelete, onPin
   // 친구공개라도 "주최자의 친구"엔 나에겐 낯선 사람이 섞일 수 있어, 참여 안 한 사람(특히 낯선이)에게
   // 댓글을 열면 노출이 커짐 → 참여 확정자로 제한 유지 (주최자=신뢰 기준점 모델, [[roundup-friend-redesign]]).
   const access = isMine || !!joined || canAccessComments(post, myId, myName);
-  const closed = isAfterTeeOff(post);
+  const closed = isCommentClosed(post);
   const sorted = useMemo(() => sortComments(comments || []), [comments]);
 
   const submit = () => {
@@ -112,11 +112,11 @@ export function RoundupComments({ post, comments, joined, onAdd, onDelete, onPin
               })
             )}
 
-            {/* 입력 영역 — 티오프 후 비활성 */}
+            {/* 입력 영역 — 티오프+5h 후 비활성 */}
             <View style={{ borderTopWidth: 0.5, borderTopColor: C.hairline, paddingVertical: 12 }}>
               {closed ? (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 8 }}>
-                  라운딩이 시작되어 댓글이 닫혔어요
+                  라운딩이 끝나 댓글이 닫혔어요
                 </Text>
               ) : (
                 <>
