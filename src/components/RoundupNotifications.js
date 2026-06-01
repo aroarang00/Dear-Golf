@@ -13,18 +13,19 @@ import { OverlayAlert } from './common/OverlayAlert';
 
 // 라운지 알림 6종 — 토글로 ON/OFF. Phase 2 백엔드(FCM) 연동 시 실제 푸시 발송 제어.
 const ROUNDUP_NOTI_TYPES = [
-  { key: 'apply',     icon: '🙋', label: '참여 신청 도착',  sub: '내 모집글에 신청이 들어오면' },
-  { key: 'confirmed', icon: '✅', label: '참여 확정',      sub: '내 신청이 수락되면' },
-  { key: 'cancel',    icon: '❌', label: '참여 취소',      sub: '동반자가 취소하면' },
-  { key: 'waitlist',  icon: '⏳', label: '대기 신청',      sub: '내 모집글에 대기 신청이 들어오면' },
-  { key: 'slotOpen',  icon: '🎉', label: '대기 자리 열림', sub: '대기 중인 모집에 자리가 나면' },
-  { key: 'comment',   icon: '💬', label: '댓글',          sub: '참여한 모집에 새 댓글이 달리면' },
+  { key: 'invite',           icon: '💌', label: '라운딩 초대',     sub: '친구가 나를 지정해 모집하면' },
+  { key: 'confirmed',        icon: '✅', label: '동반자 참여',     sub: '내 모집에 친구가 참여하면' },
+  { key: 'cancel',           icon: '❌', label: '동반자 참여 취소', sub: '동반자가 참여를 취소하면' },
+  { key: 'roundupCancelled', icon: '🚫', label: '모집 취소',       sub: '참여한 모집이 취소되면' },
+  { key: 'waitlist',         icon: '⏳', label: '대기 신청',       sub: '내 모집글에 대기 신청이 들어오면' },
+  { key: 'slotOpen',         icon: '🎉', label: '대기 자리 열림',  sub: '대기 중인 모집에 자리가 나면' },
+  { key: 'comment',          icon: '💬', label: '댓글',           sub: '참여한 모집에 새 댓글이 달리면' },
 ];
-const DEFAULT_ROUNDUP_PREFS = { apply: true, confirmed: true, cancel: true, waitlist: true, slotOpen: true, comment: true };
+const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, cancel: true, roundupCancelled: true, waitlist: true, slotOpen: true, comment: true };
 
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
-  invite: '💌',
+  invite: '💌', roundupCancelled: '🚫',
   // 시스템 알림 (Cloud Functions)
   kicked: '🚪',
   noshowReported: '⚠️', noshowReportSubmitted: '📩', noshowExplanationRequired: '⏰',
@@ -49,8 +50,9 @@ function notiText(n) {
       if (n.status === 'rejected') return `${n.actor}님의 참여 신청을 거절했어요`;
       return `${n.actor}님이 '${n.postTitle}' 모집에 참여 신청했어요`;
     case 'cancel':    return `${n.actor}님이 '${n.postTitle}' 모집 참여를 취소했어요`;
+    case 'roundupCancelled': return `'${n.postTitle}' 모집이 취소됐어요 — 일정에서 확인해주세요`;
     case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
-    case 'confirmed': return `'${n.postTitle}' 모집 참여가 확정됐어요`;
+    case 'confirmed': return `${n.actorName || n.actor || '동반자'}님이 '${n.postTitle}' 모집에 참여했어요`;
     case 'invite':    return `${n.actorName || n.actor || '친구'}님이 '${n.postTitle}' 라운딩에 초대했어요`;
     case 'waitlist':  return `${n.actor}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
     case 'comment':   return `${n.actor}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;

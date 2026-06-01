@@ -1000,6 +1000,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // 내 모집글 삭제/취소 — 로컬 정리 후 상세 닫기.
   // softCancel=true(D-7 이내+전체공개+확정자): 하드 삭제 대신 소프트 취소(문서 보존)로 보상 매너평가 윈도우 발동.
   const handleDelete = async (id, softCancel = false) => {
+    const cancelledPost = posts.find(p => p.id === id);
     try {
       if (softCancel) await cancelRoundupByHost(id);
       else await deleteRoundup(id);
@@ -1011,6 +1012,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         buttons: [{ text: '확인' }],
       });
       return;
+    }
+    // 주최자 모집 취소 → 참여자 전원에게 알림(주최자 제외). 일정에서 빠지는 거라 필수 ([[roundup-friend-redesign]])
+    const cancelledFor = (cancelledPost?.participantUids || []).filter(u => u && u !== myUid);
+    for (const uid of cancelledFor) {
+      createNotification({
+        type: 'roundupCancelled',
+        recipientUid: uid,
+        actorName: userProfile?.nickname || '',
+        postId: id,
+        postTitle: cancelledPost?.course || '',
+      }).catch(e => __DEV__ && console.warn('[RoundupTab] roundupCancelled noti fail', e?.message));
     }
     setPosts(prev => prev.filter(p => p.id !== id));
     setCommentsByPost(prev => { const n = { ...prev }; delete n[id]; return n; });
