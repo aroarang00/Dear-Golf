@@ -1,4 +1,27 @@
 import { KAKAO_REST_API_KEY } from '../constants/api';
+import { normalizeCourseName } from './top100';
+
+// 검색에서 숨길 '대표(엄브렐러)' 골프장 — 건별로 등록한 구장만 (정규화 base 기준).
+// 카카오가 올드/듄스 코스를 따로 주면서 리조트 대표명까지 같이 줘 헷갈리는 경우에만 사용.
+// 새 케이스 발견 시 base 한 줄씩 추가. (일괄 규칙은 구장별 편차로 오류 위험 → 큐레이션 방식)
+//   라비에벨: '라비에벨 골프앤리조트' 숨김, '올드코스'·'듄스코스'는 그대로 노출
+const HIDDEN_UMBRELLA_BASES = ['라비에벨'];
+
+// 등록된 구장에 한해, 같은 base의 실제 코스(○○코스)가 함께 잡혔을 때만 대표명을 결과에서 뺀다.
+//  - 코스 형제가 없으면(예: 힐마루는 '힐마루 골프앤리조트' 단일 entry) 건드리지 않음
+//  - 대표명만 단독으로 잡힌 경우도 안전하게 유지(빈 결과 방지)
+function hideCuratedUmbrellas(arr) {
+  if (!HIDDEN_UMBRELLA_BASES.length) return arr;
+  const baseHasCourse = {};
+  arr.forEach(r => {
+    if (/코스/.test(r.name || '')) baseHasCourse[normalizeCourseName(r.name)] = true;
+  });
+  return arr.filter(r => {
+    const base = normalizeCourseName(r.name);
+    const isUmbrella = !/코스/.test(r.name || '') && baseHasCourse[base];
+    return !(isUmbrella && HIDDEN_UMBRELLA_BASES.includes(base));
+  });
+}
 
 const KEYWORD_URL  = 'https://dapi.kakao.com/v2/local/search/keyword.json';
 const ADDRESS_URL  = 'https://dapi.kakao.com/v2/local/search/address.json';
@@ -93,7 +116,7 @@ export async function searchGolfCourses(query) {
       const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
       if (bare && bare !== q) results = dedupe(await runQuery(bare, 3));
     }
-    return results;
+    return hideCuratedUmbrellas(results);
   } catch (e) {
     console.warn('[kakao] search failed:', e?.message);
     return [];
