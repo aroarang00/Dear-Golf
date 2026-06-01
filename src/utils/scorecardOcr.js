@@ -1,19 +1,23 @@
 import * as ImagePicker from 'expo-image-picker';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // =============================================================
 // 스코어카드 OCR — 본인 스코어(숫자 18홀)만 추출. ([[project_scorecard_ocr]])
 //
-// ⚠️ recognizeScorecard는 현재 STUB(mock 데이터). 실제 인식은 출시 시점에 연결:
-//    @react-native-ml-kit/text-recognition (온디바이스·무료) → parseScorecardText로 표 파싱.
-//    ML Kit는 네이티브 모듈 → 설치 시 EAS 재빌드 필요(JS-only 아님).
+// 2026-06-01: ML Kit(온디바이스) → Naver CLOVA OCR(클라우드 REST) 전환.
+//   ML Kit가 스마트스코어 작은 홀별 숫자를 못 읽어 폐기. CLOVA는 REST라 재빌드 불필요.
+//   ⚠️ 시크릿 키 클라 노출 → 출시 전 Cloud Functions 프록시 필수 ([[api-key-security]]).
+//   ⚠️ 이미지가 NAVER로 업로드 → 개인정보처리방침에 처리위탁 고지 필요 ([[project_scorecard_ocr]]).
 //
 // 정책:
 //  - 본인 스코어만, 숫자만. 본명·동반자 매핑/저장 X (PIPA).
-//  - 동반자가 같이 나온 표는 OCR이 행(플레이어)별로 파싱 → 사용자가 본인 행 직접 선택.
-//    (닉네임 변경하는 사용자가 있어 자동 이름매칭은 부정확)
+//  - 동반자가 같이 나온 표는 행(플레이어)별로 파싱 → 사용자가 본인 행 직접 선택.
 //  - 추출 결과는 자동 확정 X → 사용자 확인·수정 필수 (다이어리 오염 방지).
 // =============================================================
+
+// CLOVA OCR 인증 (NCP → CLOVA OCR → General Domain → APIGW). 미설정이면 recognize가 안내 에러 반환.
+const CLOVA_INVOKE_URL = process.env.EXPO_PUBLIC_CLOVA_OCR_INVOKE_URL;
+const CLOVA_SECRET = process.env.EXPO_PUBLIC_CLOVA_OCR_SECRET;
 
 export const HOLE_COUNT = 18;
 export const emptyHoles = () => Array(HOLE_COUNT).fill(null);
@@ -41,7 +45,6 @@ export function scoreBreakdown(holeScores, holePars) {
 // 사진 선택 — source: 'gallery' | 'camera'.
 // 갤러리(카톡 공유 사진) 권장 — 디지털 스크린샷이라 인식률 높음. 촬영도 허용.
 // ⚠️ OCR은 원본 해상도가 정확도에 결정적 — 리사이즈/압축 안 함(작은 홀 숫자 뭉갬 방지).
-//    (압축은 업로드·저장용이고, 스코어카드는 숫자만 추출하고 이미지는 저장 안 하므로 불필요)
 // 반환: { uri } 또는 null(취소·권한거부).
 export async function pickScorecardImage(source = 'gallery') {
   let result;
@@ -58,17 +61,40 @@ export async function pickScorecardImage(source = 'gallery') {
   return { uri: result.assets[0].uri };  // 원본 그대로 — 리사이즈 X
 }
 
-// 스코어카드 인식 → 행(플레이어)별 18홀 숫자. ML Kit 온디바이스 OCR(숫자/LATIN).
+// 스코어카드 인식 → 행(플레이어)별 18홀 숫자. Naver CLOVA OCR(General, REST).
 // 반환: { rows: [{ label, holes:number[18], total }], pars: number[18]|null, error?, rawText?(dev) }
 //   - label: 화면 행 구분용으로만 표시(저장 X). 1행이면 자동 사용, 여러 행이면 사용자가 본인 행 선택.
-//   - 인식 실패/숫자 부족이면 rows:[] → 검토 모달이 빈 표(직접 입력)로 폴백.
+//   - 인식 실패/숫자 부족/키 미설정이면 rows:[] → 검토 모달이 빈 표(직접 입력)로 폴백.
 export async function recognizeScorecard(uri) {
+  if (!CLOVA_INVOKE_URL || !CLOVA_SECRET) {
+    if (__DEV__) console.warn('[scorecardOcr] CLOVA 키 미설정 (.env EXPO_PUBLIC_CLOVA_OCR_*)');
+    return { rows: [], pars: null, error: 'OCR 설정이 아직 준비 중이에요 — 직접 입력해 주세요' };
+  }
   try {
-    const result = await TextRecognition.recognize(uri);  // 기본 LATIN — 숫자 인식엔 충분
-    const { rows, pars } = parseScorecardText(result.blocks);
-    return { rows, pars, rawText: __DEV__ ? result.text : undefined };
+    // HEIC 대응 + 원본 해상도 유지 jpg base64 (리사이즈 X — 작은 홀 숫자 보존)
+    const img = await ImageManipulator.manipulateAsync(uri, [], {
+      compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true,
+    });
+    const body = {
+      version: 'V2',
+      requestId: `dg_${Date.now()}`,
+      timestamp: Date.now(),
+      lang: 'ko',
+      images: [{ format: 'jpg', name: 'scorecard', data: img.base64 }],
+    };
+    const res = await fetch(CLOVA_INVOKE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-OCR-SECRET': CLOVA_SECRET },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`CLOVA ${res.status}`);
+    const json = await res.json();
+    const fields = json?.images?.[0]?.fields || [];
+    const toks = clovaFieldsToTokens(fields);
+    const { rows, pars } = parseTokens(toks);
+    return { rows, pars, rawText: __DEV__ ? fields.map(f => f.inferText).join(' ') : undefined };
   } catch (e) {
-    if (__DEV__) console.warn('[scorecardOcr] recognize fail:', e?.message);
+    if (__DEV__) console.warn('[scorecardOcr] CLOVA fail:', e?.message);
     return { rows: [], pars: null, error: e?.message || '사진을 인식하지 못했어요' };
   }
 }
@@ -80,25 +106,26 @@ const median = (arr) => {
   return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
 };
 
-// ML Kit blocks → 숫자 토큰(중심좌표 포함). element(단어) 단위 우선,
-// 한 element에 숫자 여러 개면 폭을 균등 분할해 각 숫자에 x좌표 근사 부여.
-function numberTokens(blocks) {
+// CLOVA fields → 숫자 토큰(중심좌표 포함). boundingPoly.vertices(4점)로 좌표·높이 산출.
+// 한 field에 숫자 여러 개면 폭을 균등 분할해 각 숫자에 x좌표 근사 부여(ML Kit 파서와 동일 로직).
+function clovaFieldsToTokens(fields) {
   const toks = [];
-  for (const b of blocks || []) {
-    for (const ln of b.lines || []) {
-      const els = (ln.elements && ln.elements.length) ? ln.elements : [ln];  // elements 없으면 line 자체
-      for (const el of els) {
-        const f = el.frame;
-        const digits = (el.text || '').match(/\d{1,2}/g);
-        if (!f || !digits) continue;
-        const cy = f.top + f.height / 2;
-        if (digits.length === 1) {
-          toks.push({ n: +digits[0], cx: f.left + f.width / 2, cy, h: f.height });
-        } else {
-          const per = f.width / digits.length;
-          digits.forEach((d, k) => toks.push({ n: +d, cx: f.left + per * (k + 0.5), cy, h: f.height }));
-        }
-      }
+  for (const f of fields || []) {
+    const verts = f.boundingPoly?.vertices || [];
+    if (verts.length < 2) continue;
+    const xs = verts.map(v => v.x ?? 0);
+    const ys = verts.map(v => v.y ?? 0);
+    const left = Math.min(...xs), right = Math.max(...xs);
+    const top = Math.min(...ys), bottom = Math.max(...ys);
+    const h = bottom - top;
+    const digits = (f.inferText || '').match(/\d{1,2}/g);
+    if (!digits) continue;
+    const cy = top + h / 2;
+    if (digits.length === 1) {
+      toks.push({ n: +digits[0], cx: (left + right) / 2, cy, h });
+    } else {
+      const per = (right - left) / digits.length;
+      digits.forEach((d, k) => toks.push({ n: +d, cx: left + per * (k + 0.5), cy, h }));
     }
   }
   return toks;
@@ -121,13 +148,12 @@ function clusterRows(toks) {
   return rows;
 }
 
-// OCR 텍스트 블록 → 행별 18홀 파싱 (좌표 기반 — 스마트스코어 등 표 포맷).
-//  1) 숫자 토큰 추출(중심좌표) → 2) Y로 행 클러스터 → 3) 점수범위(1~19) 정수만 x정렬
-//  4) 긴 행(≥14개)을 플레이어/파 행 후보로, par 행(전부 3~6)은 분리해 버디 자동집계에 사용.
-// ⚠️ 첫 파서(기하 기반). OUT/IN/TOTAL 합계열이 끼는 포맷은 실제 스코어카드로 임계값·열제거 튜닝 필요.
+// 숫자 토큰 → 행별 18홀 파싱 (좌표 기반 — 스마트스코어 등 표 포맷).
+//  1) Y로 행 클러스터 → 2) 점수범위(1~19) 정수만 x정렬 → 3) 긴 행(≥14개)을 플레이어/파 행 후보로
+//  4) par 행(전부 3~6)은 분리해 버디 자동집계에 사용.
+// ⚠️ OUT/IN/TOTAL 합계열이 끼는 포맷은 실제 CLOVA 응답으로 임계값·열제거 튜닝 필요.
 //    검토 모달에서 사용자가 최종 수정하므로 시작점으로 충분.
-export function parseScorecardText(blocks) {
-  const toks = numberTokens(blocks);
+function parseTokens(toks) {
   if (!toks.length) return { rows: [], pars: null };
 
   const longRows = clusterRows(toks)
