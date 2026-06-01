@@ -119,7 +119,7 @@ function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, friendUids = [], participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
+export function RoundupDetail({ post, myUid, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -234,7 +234,7 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
   // 모집 확정 — 만석 상태에서 주최자가 명시적으로 closed:true. 매너 -5 분기점 ([[roundup-penalty-policy]] §1)
   const confirmFinalize = () => setAlert({
     title: '모집을 확정할까요?',
-    message: '정원이 다 찬 모집을 확정해요.\n확정 후엔 동반자 약속이 시작되고,\n참여자가 7일 이내 취소하면 매너 평가에 영향을 받을 수 있어요.',
+    message: '확정하면 참여자 모두의 일정에\n이 라운딩이 등록돼요.\n(확정 전까지는 등록되지 않아요)',
     buttons: [
       { text: '취소', style: 'cancel' },
       { text: '모집 확정', onPress: onConfirm },
@@ -703,40 +703,11 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
           {/* 등급 안내 모달 — 부모 모달 뒤로 가려지지 않게 자체 렌더링 */}
           <TrustGradeModal visible={!!gradeKey} highlightKey={gradeKey} onClose={() => setGradeKey(null)} />
           <MannerGradeModal visible={!!mannerKey} highlightKey={mannerKey} onClose={() => setMannerKey(null)} />
-          {/* 프로필 액션 시트 — 친구 신청 + 주최자/참여자 차단 + (조건부)강퇴
-              친구 상태(friendStatus): Phase 3 friendships 컬렉션 의존. 현재는 sent 여부만 정확하고
-              friend(이미 친구) 판정은 더미 한계로 'none'으로 떨어짐 — 출시 후 Firebase 마이그레이션 시 정확 매칭 */}
+          {/* 프로필 액션 시트 — 차단만 (친구신청·강퇴 폐기, [[roundup-friend-redesign]]) */}
           <ProfileActionSheet
             visible={!!actionTarget}
             target={actionTarget}
             isMe={!!myUid && (actionTarget?.id === myUid || actionTarget?.name === '나')}
-            canKick={isMine && post.scope === 'all' && actionTarget?.role === 'participant'}
-            friendStatus={(() => {
-              if (!actionTarget) return 'none';
-              // 친구 여부 — Phase 3-F5: friendships 컬렉션의 uid 매칭으로 전환
-              if (friendUids.includes(actionTarget.id)) return 'friend';
-              if (sentFriendRequestIds.includes(actionTarget.id)) return 'sent';
-              return 'none';
-            })()}
-            onRequestFriend={async (t) => {
-              // Modal 뒤로 alert 가림 회피 — 부모 결과 받아 자체 OverlayAlert 표시
-              const result = await onRequestFriend?.(t);
-              if (!result) return;
-              if (result.ok === false && result.reason === 'limit') {
-                setAlert({
-                  title: '오늘 친구 신청 한도를 초과했어요',
-                  message: '친구 신청은 하루 10건으로 제한되어 있어요.\n내일 다시 시도해주세요.',
-                  buttons: [{ text: '확인' }],
-                });
-              } else if (result.ok && result.sent) {
-                setAlert({
-                  title: '친구 신청을 보냈어요',
-                  message: `${result.name}님이 수락하면 친구가 돼요.\n수락 전까지 '신청함' 상태로 표시돼요.`,
-                  buttons: [{ text: '확인' }],
-                });
-              }
-            }}
-            onCancelFriendRequest={onCancelFriendRequest}
             onClose={() => setActionTarget(null)}
             onBlock={(t) => {
               // 시트 닫고 자체 확인 alert. 확인 시 RoundupDetail 닫고 부모로 차단 신호 (부모는 alert 없이 즉시 처리)
@@ -747,19 +718,6 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
                 buttons: [
                   { text: '취소', style: 'cancel' },
                   { text: '차단', style: 'destructive', onPress: () => { onClose(); onBlock?.(t); } },
-                ],
-              });
-            }}
-            onKick={(t) => {
-              // 사유 선택 alert ([[roundup-kick-policy]] §2 — 비매너/허위 2개)
-              setActionTarget(null);
-              setAlert({
-                title: `${t.name}님을 내보낼까요?`,
-                message: '사유를 선택하면 즉시 참여가 취소되고\n대기자에게 자리가 열려요.\n상대방에겐 사유는 전달되지 않아요.',
-                buttons: [
-                  { text: '취소', style: 'cancel' },
-                  { text: '비매너 행동', style: 'destructive', onPress: () => onKick?.(t, 'misbehavior') },
-                  { text: '허위 프로필', style: 'destructive', onPress: () => onKick?.(t, 'fake_profile') },
                 ],
               });
             }} />

@@ -216,20 +216,6 @@ export async function toggleRoundupLike(postId, currentlyLiked) {
 
 // ── 주최자 액션 — 강퇴·마감 등 ───────────────────────────────
 
-// 주최자가 참여자를 강퇴 (uid 제거 + joined -1)
-// 강퇴 정책: 월 2회 한도·누적 10회→2개월 정지는 별도 카운트 시스템에서 ([[roundup-kick-policy]])
-export async function kickParticipant(postId, targetUid) {
-  if (!postId || !targetUid) throw new Error('postId and targetUid required');
-  const ref = doc(db, COLLECTION, postId);
-  // closed:false — 강퇴로도 결원 발생 → 확정 해제 (참여 취소와 일관). [[roundup-penalty-policy]] §4
-  await updateDoc(ref, {
-    participantUids: arrayRemove(targetUid),
-    joined: increment(-1),
-    closed: false,
-    updatedAt: serverTimestamp(),
-  });
-}
-
 // 모집 마감 (정원 도달 또는 주최자 수동)
 export async function closeRoundup(postId) {
   if (!postId) throw new Error('postId required');

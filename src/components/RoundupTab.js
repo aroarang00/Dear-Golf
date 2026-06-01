@@ -27,16 +27,11 @@ import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, de
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { isKickLimitReached, incrementKickCount, getKickRemainingThisMonth, KICK_MONTH_LIMIT } from '../utils/kickLimit';
-import {
-  isFriendRequestLimitReached, incrementFriendRequestCount, FRIEND_REQUEST_DAILY_LIMIT,
-} from '../utils/friendRequestLimit';
-import { getSentFriendRequests, addSentFriendRequest, removeSentFriendRequest } from '../utils/friendsRegistry';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
-import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup, toggleRoundupLike } from '../utils/roundup';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, closeRoundup, toggleRoundupLike } from '../utils/roundup';
 import { loadComments, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
@@ -259,11 +254,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [evaluatingPostId, setEvaluatingPostId] = useState(null); // 매너 평가 모달 — postId
   const [evalPostData, setEvalPostData] = useState(null); // 평가 대상 모집 — 취소·만료로 posts에 없을 때 개별 로드분
   const [evalVersion, setEvalVersion] = useState(0); // 평가 제출 시 pending 동적 재계산 트리거
-  // 친구 신청 진입점 ([[friend-add-feature]] Phase 2) — 라운지 프로필에서 친구 신청 보낸 사용자 id 캐시
-  const [sentFriendRequestIds, setSentFriendRequestIds] = useState([]);
-  useEffect(() => {
-    getSentFriendRequests().then(setSentFriendRequestIds);
-  }, []);
 
   // Phase 3-A/C/F5 — 마운트 시 내 uid + 친구 + Firestore 모집글(전체·내·친구공개) + 참여·신청 상태 로드.
   useEffect(() => {
@@ -524,8 +514,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     });
   };
 
-  // 모집 마감 → 예정 라운딩 자동 등록
-  // 조건: 확정형 + 정원 만석(또는 closed=true) + (내가 주최자 || 참여 확정자)
+  // 모집 확정 → 예정 라운딩 자동 등록
+  // 조건: 확정형 + 주최자가 '확정'(closed=true) + (내가 주최자 || 참여 확정자)
+  // ★확정이 유일한 등록 분기점 — 만석만으론 등록 X(주최자가 확정 눌러야). [[roundup-friend-redesign]]
   // 중복 방지: schedules[].roundupId === post.id 로 식별
   useEffect(() => {
     const toAdd = [];
@@ -534,12 +525,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       const isMine = !!myUid && p.authorUid === myUid;
       const isJoined = !!joined[p.id];
       if (!isMine && !isJoined) continue;
+      if (!p.closed) continue; // 확정 전까지는 등록 안 함
       const compCount = p.teams > 1 ? 0 : (p.companions?.length || 0);
-      const allFull = p.teams > 1
-        ? p.teamJoined?.every(c => c >= 4)
-        : (p.joined || 0) + compCount >= (p.capacity || 4);
-      const isClosed = p.closed || allFull;
-      if (!isClosed) continue;
       if (schedules.some(s => s.roundupId === p.id)) continue;
       const members = p.teams > 1
         ? (p.teamJoined?.reduce((s, c) => s + c, 0) || 0)
@@ -677,85 +664,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         buttons: [{ text: '확인' }],
       });
     }
-  };
-
-  // 친구 신청 ([[friend-add-feature]] Phase 2) — 라운지 프로필 진입점.
-  // 일 10건 한도 + sentFriendRequests AsyncStorage 저장. 멱등 처리.
-  // 결과 반환: RoundupDetail Modal 내부 OverlayAlert로 표시 (RoundupTab의 alert는 Modal 뒤로 가려짐).
-  const handleFriendRequest = async (target) => {
-    if (!target?.id) return { ok: true, skipped: true };
-    if (sentFriendRequestIds.includes(target.id)) return { ok: true, skipped: true }; // 멱등
-    const reached = await isFriendRequestLimitReached();
-    if (reached) return { ok: false, reason: 'limit' };
-    await addSentFriendRequest(target.id);
-    await incrementFriendRequestCount();
-    setSentFriendRequestIds(prev => prev.includes(target.id) ? prev : [...prev, target.id]);
-    return { ok: true, sent: true, name: target.name };
-  };
-
-  // 친구 신청 취소 — 한도 카운트는 환불 X (스팸 우회 방지, block 정책과 같은 결).
-  const handleCancelFriendRequest = async (target) => {
-    if (!target?.id) return;
-    if (!sentFriendRequestIds.includes(target.id)) return;
-    await removeSentFriendRequest(target.id);
-    setSentFriendRequestIds(prev => prev.filter(id => id !== target.id));
-  };
-
-  // 주최자 강퇴 ([[roundup-kick-policy]]) — 전체공개 모집의 수락된 참여자만, 월 2회 한도.
-  // 강퇴된 사람: 패널티 X, 통보는 "주최자 사정으로 참여 취소" 블라인드. 대기자 호출(Phase 2)·정지 누적(Phase 2)은 Cloud Functions.
-  // target.id를 uid로 가정 — Phase 3 uid 통일 의존 ([[block-participation]]).
-  const handleKick = async (postId, target, reason) => {
-    if (!postId || !target?.id) return;
-    const reached = await isKickLimitReached();
-    if (reached) {
-      setAlert({
-        title: '이번 달 강퇴 횟수를 초과했어요',
-        message: `주최자 강퇴는 월 ${KICK_MONTH_LIMIT}회로 제한되어 있어요.\n다음 달 1일에 다시 가능해져요.`,
-        buttons: [{ text: '확인' }],
-      });
-      return;
-    }
-    try {
-      await kickParticipant(postId, target.id);
-    } catch (e) {
-      if (__DEV__) console.warn('[RoundupTab] kickParticipant failed', e);
-      setAlert({
-        title: '강퇴 처리에 실패했어요',
-        message: '잠시 후 다시 시도해 주세요.',
-        buttons: [{ text: '확인' }],
-      });
-      return;
-    }
-    // 강퇴된 자에게 알림 — 블라인드 정책 ([[roundup-kick-policy]] §3): actorName 비공개
-    const post = posts.find(p => p.id === postId);
-    createNotification({
-      type: 'kicked',
-      recipientUid: target.id,
-      actorName: '',  // 블라인드 — "주최자 사정으로 참여 취소" 표현
-      postId,
-      postTitle: post?.course || '',
-    }).catch(e => __DEV__ && console.warn('[RoundupTab] kicked noti fail', e?.message));
-    // 로컬 정원·참여자 동기화 (단체는 첫 채워진 팀에서 차감 — Firestore에선 단순 joined -1)
-    setPosts(prev => prev.map(p => {
-      if (p.id !== postId) return p;
-      const nextParts = (p.participantUids || []).filter(u => u !== target.id);
-      if (p.teams > 1 && Array.isArray(p.teamJoined)) {
-        const tj = [...p.teamJoined];
-        for (let i = tj.length - 1; i >= 0; i--) {
-          if (tj[i] > 0) { tj[i] -= 1; break; }
-        }
-        // 강퇴로도 결원 → 확정 해제 (kickParticipant가 Firestore closed:false 처리, 로컬도 일치)
-        return { ...p, participantUids: nextParts, teamJoined: tj, closed: false };
-      }
-      return { ...p, participantUids: nextParts, joined: Math.max(0, (p.joined || 0) - 1), closed: false };
-    }));
-    await incrementKickCount();
-    const remaining = await getKickRemainingThisMonth();
-    setAlert({
-      title: '참여자가 내보내졌어요',
-      message: `${target.name}님의 참여가 취소됐어요.\n이번 달 남은 강퇴 ${remaining}/${KICK_MONTH_LIMIT}회.`,
-      buttons: [{ text: '확인' }],
-    });
   };
 
   // 모집글 수정 진입 — 시점 분기 후 RoundupCreateModal을 edit mode로 띄움 ([[roundup-edit-policy]] §1).
@@ -1643,10 +1551,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onToggleLike={toggleLike}
         onBlock={handleBlock}
         onReport={handleReport}
-        onKick={(target, reason) => detailId && handleKick(detailId, target, reason)}
-        onRequestFriend={handleFriendRequest}
-        onCancelFriendRequest={handleCancelFriendRequest}
-        sentFriendRequestIds={sentFriendRequestIds}
         onEdit={() => detailPost && handleEditRequest(detailPost)}
         onAddComment={(c) => detailId && handleAddComment(detailId, c)}
         onDeleteComment={(commentId) => detailId && handleDeleteComment(detailId, commentId)}

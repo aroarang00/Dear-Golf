@@ -58,7 +58,9 @@ export function RoundupComments({ post, comments, joined, onAdd, onDelete, onPin
   const myId = userProfile?.uid || userProfile?.kakaoId || null;
   const myName = userProfile?.nickname || '나';
   const isMine = post?.author === '나';   // 본인이 주최자
-  // 접근 권한: 주최자 + 참여 확정자. 더미는 joined prop으로 우회, Firebase 시 participantUids 검증.
+  // 접근 권한: 주최자 + 참여 확정자만.
+  // 친구공개라도 "주최자의 친구"엔 나에겐 낯선 사람이 섞일 수 있어, 참여 안 한 사람(특히 낯선이)에게
+  // 댓글을 열면 노출이 커짐 → 참여 확정자로 제한 유지 (주최자=신뢰 기준점 모델, [[roundup-friend-redesign]]).
   const access = isMine || !!joined || canAccessComments(post, myId, myName);
   const closed = isAfterTeeOff(post);
   const sorted = useMemo(() => sortComments(comments || []), [comments]);

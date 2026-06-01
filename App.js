@@ -51,7 +51,6 @@ import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
 import { loadMyBlockedUids } from './src/utils/friends';
 import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLimit';
-import { syncKickLimitFromFirestore } from './src/utils/kickLimit';
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid } from './src/utils/firebase';
@@ -154,10 +153,9 @@ function App() {
       } catch (e) {
         if (__DEV__) console.warn('[App] block sync failed', e?.message);
       }
-      // 한도 카운터 3종 — 병렬 sync (개별 실패는 각 util이 자체 처리)
+      // 한도 카운터 2종 — 병렬 sync (개별 실패는 각 util이 자체 처리). 강퇴 폐기로 kick sync 제거.
       await Promise.all([
         syncFriendRequestLimitFromFirestore(),
-        syncKickLimitFromFirestore(),
         syncReportLimitFromFirestore(),
       ]);
       // 푸시 토큰 등록 — 권한 요청 + Expo Push 토큰 발급 + users/{uid}.pushToken 저장.

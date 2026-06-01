@@ -1,17 +1,15 @@
-// 모집글 주최자/참여자 프로필 클릭 시 뜨는 액션 시트 — 친구 신청 / 차단 / (조건부)강퇴.
+// 모집글 주최자/참여자 프로필 클릭 시 뜨는 액션 시트 — 차단만.
 // 신고는 마이페이지 → [신고하기]로 일원화 (정책 [[report-block-policy]] §5-1).
 // 라운지 메인에서 직접 신고 진입 X — 마찰을 입력 단계로 옮겨 충동 신고 방지.
 // 차단 사실은 상대에게 알리지 않음(UI에 그런 노출 없음).
-// 강퇴는 전체공개 모집의 주최자에게만 노출 ([[roundup-kick-policy]]).
-// 친구 신청은 모집 참여자·주최자 프로필에서 진입 ([[friend-add-feature]] Phase 2 — 라운지에서 신청 경로).
+// 강퇴 기능은 폐기 — 친구모집에선 분란 소지라 제거(2026-06-02, [[roundup-friend-redesign]]).
+// 친구 신청은 라운지에서 제거(학연·지연·사업 교차 연결 민감성) — 친구 추가는 카카오·검색 경로로만 ([[roundup-friend-redesign]]).
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../../constants/colors';
 
-// friendStatus: 'friend' | 'sent' | 'none' — 친구 신청 버튼 상태 분기
-// onCancelFriendRequest: 'sent' 상태에서 누르면 신청 취소 (한도 카운트는 환불 X — 스팸 우회 방지)
-export function ProfileActionSheet({ visible, target, onClose, onBlock, onKick, onRequestFriend, onCancelFriendRequest, canKick = false, friendStatus = 'none', isMe }) {
+export function ProfileActionSheet({ visible, target, onClose, onBlock, isMe }) {
   const insets = useSafeAreaInsets();
   if (!target) return null;
   return (
@@ -34,34 +32,8 @@ export function ProfileActionSheet({ visible, target, onClose, onBlock, onKick, 
               </Text>
             ) : (
               <>
-                {/* 친구 신청 — 친구·신청 상태별 분기. onRequestFriend 미주입 시 표시 X */}
-                {onRequestFriend && friendStatus === 'friend' && (
-                  <View style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center',
-                    backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.hairline, marginBottom: 8 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>이미 친구예요</Text>
-                  </View>
-                )}
-                {onRequestFriend && friendStatus === 'sent' && (
-                  <TouchableOpacity onPress={() => { onClose(); onCancelFriendRequest?.(target); }} activeOpacity={0.85}
-                    style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center',
-                      backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.warmGrayLight, marginBottom: 8 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>친구 신청함 · 누르면 취소</Text>
-                  </TouchableOpacity>
-                )}
-                {onRequestFriend && friendStatus === 'none' && (
-                  <TouchableOpacity onPress={() => { onClose(); onRequestFriend?.(target); }} activeOpacity={0.85}
-                    style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center',
-                      backgroundColor: C.burgundy, marginBottom: 8 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>🤝 친구 신청</Text>
-                  </TouchableOpacity>
-                )}
-                {canKick && onKick && (
-                  <TouchableOpacity onPress={() => { onClose(); onKick?.(target); }} activeOpacity={0.85}
-                    style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center',
-                      backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A', marginBottom: 8 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B2A2A' }}>참여자 내보내기</Text>
-                  </TouchableOpacity>
-                )}
+                {/* 친구 신청은 라운지에서 제거 — 학연·지연·사업 등 교차 연결 민감성([[roundup-friend-redesign]]).
+                    친구 추가는 카카오·검색 경로로만. 라운지 프로필 시트는 차단만 둠. */}
                 <TouchableOpacity onPress={() => { onClose(); onBlock?.(target); }} activeOpacity={0.85}
                   style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center',
                     backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
