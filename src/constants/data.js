@@ -173,6 +173,7 @@ export const FRIENDS_DATA = [
 export const USER_PROFILE_INIT = {
   realName: '',
   nickname: '',
+  statusMessage: '', // 프로필 멘트(한마디) — 명함에 한 줄 표시. 최대 15자
   avgScore: 0,
   lifeBest: 0,
   totalRounds: 0,

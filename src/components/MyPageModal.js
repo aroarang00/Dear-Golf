@@ -71,6 +71,7 @@ export function MyPageModal({ visible, onClose }) {
   const [depSearching, setDepSearching] = useState(false);
   const depTimerRef = useRef(null);
   const [phone, setPhone] = useState(userProfile.phone || '');
+  const [statusMessage, setStatusMessage] = useState(userProfile.statusMessage || ''); // 프로필 멘트(명함 표시)
   const [editingInfo, setEditingInfo] = useState(false);
   const [editingStats, setEditingStats] = useState(false);
   const [avgScore, setAvgScore] = useState(String(userProfile.avgScore || ''));
@@ -114,6 +115,7 @@ export function MyPageModal({ visible, onClose }) {
       setDepResults([]);
       setDepSearching(false);
       setPhone(userProfile.phone || '');
+      setStatusMessage(userProfile.statusMessage || '');
       setEditingInfo(false);
     }
   }, [visible]);
@@ -122,7 +124,7 @@ export function MyPageModal({ visible, onClose }) {
   useEffect(() => () => { if (depTimerRef.current) clearTimeout(depTimerRef.current); }, []);
 
   const handleSaveInfo = () => {
-    const updated = { ...userProfile, departure, departureCoord, phone };
+    const updated = { ...userProfile, departure, departureCoord, phone, statusMessage: statusMessage.trim() };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
     setDepResults([]);
@@ -136,6 +138,7 @@ export function MyPageModal({ visible, onClose }) {
     setDepResults([]);
     setDepSearching(false);
     setPhone(userProfile.phone || '');
+    setStatusMessage(userProfile.statusMessage || '');
     setEditingInfo(false);
   };
 
@@ -435,6 +438,21 @@ export function MyPageModal({ visible, onClose }) {
                     ) : (
                       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: phone ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
                         {phone || '입력하기 →'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={myS.menuRow}>
+                  <Text style={myS.menuIcon}>💬</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={myS.menuLabel}>한마디 (명함에 표시)</Text>
+                    {editingInfo ? (
+                      <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
+                        value={statusMessage} onChangeText={setStatusMessage} maxLength={15}
+                        placeholder="프로필에 보일 한마디 (최대 15자)" placeholderTextColor={C.warmGrayLight} />
+                    ) : (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: statusMessage ? C.burgundy : C.warmGrayLight, marginTop: 2 }} numberOfLines={2}>
+                        {statusMessage || '입력하기 →'}
                       </Text>
                     )}
                   </View>

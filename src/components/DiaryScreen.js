@@ -12,7 +12,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { showAppAlert } from './AppAlert';
 import { HallOfFameCard } from './HallOfFameCard';
-import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry } from './MilestoneCard';
+import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, topMilestone, milestoneBadge } from './MilestoneCard';
 import { ShareMomentModal } from './ShareMomentModal';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
@@ -409,6 +409,10 @@ export function DiaryScreen({ route, navigation }) {
   const bestScore = hasRecords
     ? Math.min(...diaries.map(d => d.score))
     : (userProfile.lifeBest || null);
+  // 명함 — 마일스톤 배지(최고 1개) · 멘트
+  const visitedCourses = countVisitedCourses(diaries, schedules);
+  const topMs = milestoneBadge(topMilestone({ rounds: _dispTotal, courses: visitedCourses }));
+  const myStatus = (userProfile.statusMessage || '').trim();
   const statBoxes = [
     { label: '총 라운딩', value: totalRounds },
     { label: '핸디', value: myHandicap, hi: true },
@@ -431,7 +435,7 @@ export function DiaryScreen({ route, navigation }) {
             <Text style={{ fontSize: fs(24) }}>⚙️</Text>
           </TouchableOpacity>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingRight: 80 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, paddingRight: 80 }}>
           {/* 아바타 — 탭하면 사진 변경 액션시트 */}
           <View>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
@@ -449,34 +453,30 @@ export function DiaryScreen({ route, navigation }) {
               <Text style={{ fontSize: fs(12) }}>📷</Text>
             </View>
           </View>
-          {/* 닉네임·핸디 / 신뢰·매너 등급 / 주최·참석 — 3단 */}
+          {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal }}>{myName}</Text>
-              {/* 핸디 — 베스트 5개 평균. 탭하면 계산 방식 설명 */}
-              <TouchableOpacity onPress={() => setHandicapInfoOpen(true)} activeOpacity={0.7}
-                style={{ backgroundColor: C.charcoal, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>핸디 {myHandicap ?? '—'}</Text>
-              </TouchableOpacity>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{myName}</Text>
+              {/* 마일스톤 배지 — 가장 높은 달성 1개(미달성이면 숨김) */}
+              {topMs && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
+                  backgroundColor: '#2A2D3A', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 }}>
+                  <Text style={{ fontSize: fs(11) }}>{topMs.icon}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#E6C677' }}>{topMs.label}</Text>
+                </View>
+              )}
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              <TouchableOpacity onPress={() => setGradeModalOpen(true)} activeOpacity={0.7}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
-                  borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontSize: fs(12) }}>{myGrade.emoji}</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{myGrade.label}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setMannerModalOpen(true)} activeOpacity={0.7}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgPrimary,
-                  borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontSize: fs(12) }}>{myManner.emoji}</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: myManner.color }}>{myManner.label}</Text>
-              </TouchableOpacity>
+            {/* 라이프베스트 — 버터색 알약 배지(이모지 과다 방지, 크림 배경 위 대비) */}
+            <View style={{ alignSelf: 'flex-start', backgroundColor: C.butter, borderRadius: 999,
+              paddingHorizontal: 12, paddingVertical: 4, marginTop: 7 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라이프베스트 {bestScore ?? '—'}</Text>
             </View>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
-              주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{userProfile.hostedCount || 0}</Text>회
-              {'  ·  '}
-              참석 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{userProfile.attendedCount || 0}</Text>회
+            {/* 멘트(상태 메시지) — 표시 전용. 편집은 마이페이지 내 정보에서.
+                lineHeight 넉넉히(이모지 윗부분 잘림 방지) */}
+            {/* 멘트 — 한 줄 고정. 버튼(💰·⚙️)보다 아래라 우측 여백을 되찾아(marginRight 음수) 폭 확보 */}
+            <Text numberOfLines={1} style={{ fontFamily: myStatus ? F.sysM : F.sys, fontSize: fs(13),
+              color: myStatus ? C.charcoal : C.warmGray, marginTop: 7, marginLeft: 12, marginRight: -64, lineHeight: 22 }}>
+              {myStatus || '마이페이지에서 한마디를 남겨보세요'}
             </Text>
           </View>
         </View>

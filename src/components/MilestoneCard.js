@@ -27,6 +27,22 @@ export function reachedMilestones(counts) {
   return out;
 }
 
+// 명함 배지용 — 도달한 마일스톤 중 가장 큰 1개(value 내림차순, 동률이면 라운딩 우선). 없으면 null.
+export function topMilestone(counts) {
+  const reached = reachedMilestones(counts);
+  if (!reached.length) return null;
+  return reached.sort((a, b) => (b.value - a.value) || (a.category === 'rounds' ? -1 : 1))[0];
+}
+
+// 명함 배지 라벨·아이콘 — tier 0/1/2 → 메달/금메달/왕관 (MilestoneCard 단계 장식과 결 맞춤)
+export function milestoneBadge(ms) {
+  if (!ms) return null;
+  return {
+    icon: ['🏅', '🥇', '👑'][ms.tier] || '🏅',
+    label: `${MILESTONE_DEFS[ms.category]?.label || ''} ${ms.value}`,
+  };
+}
+
 // 마일스톤 → hallOfFame 엔트리. kind:'milestone'로 카드 분기.
 export function buildMilestoneEntry({ category, value, tier, date }) {
   return {
