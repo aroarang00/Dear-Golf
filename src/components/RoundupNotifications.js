@@ -43,19 +43,35 @@ const HOST_TYPES = ['apply', 'cancel', 'waitlist'];
 // 신청자 신뢰도가 표시되는 알림 타입 — 주최자가 승인·확인 판단 시 참고
 const ACTOR_GRADE_TYPES = ['apply', 'cancel', 'waitlist'];
 
+// 알림 시각 — Firestore createdAt(Timestamp) → 상대시간. 미해결(서버 반영 전)이면 빈 문자열.
+function notiTime(n) {
+  const ts = n.createdAt;
+  const ms = typeof ts === 'number' ? ts : (ts?.toMillis ? ts.toMillis() : (ts?.seconds ? ts.seconds * 1000 : null));
+  if (!ms) return '';
+  const diff = Date.now() - ms;
+  if (diff < 60000) return '방금';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}시간 전`;
+  if (diff < 86400000 * 7) return `${Math.floor(diff / 86400000)}일 전`;
+  const d = new Date(ms);
+  return `${d.getMonth() + 1}.${d.getDate()}`;
+}
+
 function notiText(n) {
+  // actor 표시 이름 — Firestore 저장 키는 actorName(과거 더미는 actor). 폴백 통일.
+  const who = n.actorName || n.actor || '동반자';
   switch (n.type) {
     case 'apply':
-      if (n.status === 'accepted') return `${n.actor}님의 참여 신청을 수락했어요`;
-      if (n.status === 'rejected') return `${n.actor}님의 참여 신청을 거절했어요`;
-      return `${n.actor}님이 '${n.postTitle}' 모집에 참여 신청했어요`;
-    case 'cancel':    return `${n.actor}님이 '${n.postTitle}' 모집 참여를 취소했어요`;
+      if (n.status === 'accepted') return `${who}님의 참여 신청을 수락했어요`;
+      if (n.status === 'rejected') return `${who}님의 참여 신청을 거절했어요`;
+      return `${who}님이 '${n.postTitle}' 모집에 참여 신청했어요`;
+    case 'cancel':    return `${who}님이 '${n.postTitle}' 모집 참여를 취소했어요`;
     case 'roundupCancelled': return `'${n.postTitle}' 모집이 취소됐어요 — 일정에서 확인해주세요`;
     case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
-    case 'confirmed': return `${n.actorName || n.actor || '동반자'}님이 '${n.postTitle}' 모집에 참여했어요`;
+    case 'confirmed': return `${who}님이 '${n.postTitle}' 모집에 참여했어요`;
     case 'invite':    return `${n.actorName || n.actor || '친구'}님이 '${n.postTitle}' 라운딩에 초대했어요`;
-    case 'waitlist':  return `${n.actor}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
-    case 'comment':   return `${n.actor}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
+    case 'waitlist':  return `${who}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
+    case 'comment':   return `${who}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
     case 'mannerEval':return `'${n.postTitle}' 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     case 'kicked':    return `'${n.postTitle}' 모집 참여가 주최자 사정으로 취소됐어요`;
 
@@ -245,7 +261,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
               notifications.map(n => {
                 const isHost = HOST_TYPES.includes(n.type);
                 const pending = n.type === 'apply' && n.status === 'pending';
-                const showActorGrade = ACTOR_GRADE_TYPES.includes(n.type) && n.actor && n.actorMannerScore != null;
+                const showActorGrade = ACTOR_GRADE_TYPES.includes(n.type) && n.actorName && n.actorMannerScore != null;
                 const actorGrade = showActorGrade ? getTrustGrade(n.actorHostedCount || 0, n.actorMannerScore) : null;
                 return (
                   <TouchableOpacity key={n.id} activeOpacity={0.8} onPress={() => onOpenPost(n)}
@@ -266,7 +282,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6,
                           paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: C.bgPrimary,
                           borderWidth: 0.5, borderColor: C.hairline, alignSelf: 'flex-start' }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{n.actor}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{n.actorName}</Text>
                           <TrustBadge grade={actorGrade} onPress={() => onGradePress?.(actorGrade.key)} />
                           <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>
                             주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{n.actorHostedCount || 0}</Text>회 ·
@@ -274,7 +290,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                           <MannerBadge score={n.actorMannerScore} size={13} />
                         </View>
                       )}
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>{n.time}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>{notiTime(n)}</Text>
                       {/* 참여 신청 — 수락 / 거절 */}
                       {pending && (
                         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>

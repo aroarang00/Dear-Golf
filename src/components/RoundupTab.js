@@ -1171,7 +1171,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     // 차단된 사용자가 actor·author인 알림도 모두 정리 (수락 알림 등으로 다시 진입 방지).
     const targetKey = target.id;
     setNotifications(prev => prev.filter(n => {
-      if (n.actor === target.name || n.actorId === targetKey) return false;
+      if (n.actorUid === targetKey) return false;
       const p = posts.find(pp => pp.id === n.postId);
       if (p && ((p.authorUid || p.authorId || p.author) === targetKey)) return false;
       return true;
