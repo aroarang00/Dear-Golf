@@ -5,7 +5,10 @@ import { normalizeCourseName } from './top100';
 // 카카오가 올드/듄스 코스를 따로 주면서 리조트 대표명까지 같이 줘 헷갈리는 경우에만 사용.
 // 새 케이스 발견 시 base 한 줄씩 추가. (일괄 규칙은 구장별 편차로 오류 위험 → 큐레이션 방식)
 //   라비에벨: '라비에벨 골프앤리조트' 숨김, '올드코스'·'듄스코스'는 그대로 노출
-const HIDDEN_UMBRELLA_BASES = ['라비에벨'];
+export const HIDDEN_UMBRELLA_BASES = ['라비에벨'];
+
+// 골프장 이름에 섞여 들어오는 비(非)코스 잡항목 — 클럽하우스·연습장 등. 카카오 결과·로컬 기록 공용 필터.
+export const NON_COURSE_NAME_RE = /(연습장|스크린|실내골프|아카데미|레슨|교습|교실|골프존|클럽하우스)/;
 
 // 등록된 구장에 한해, 같은 base의 실제 코스(○○코스)가 함께 잡혔을 때만 대표명을 결과에서 뺀다.
 //  - 코스 형제가 없으면(예: 힐마루는 '힐마루 골프앤리조트' 단일 entry) 건드리지 않음
@@ -51,7 +54,7 @@ export async function searchGolfCourses(query) {
     const last = cat.split('>').pop().trim();
     if (!/(골프장|컨트리클럽)/.test(last)) return false;
     // 분류가 골프장으로 잘못 등록된 레슨·교습 + 같은 구장 '클럽하우스' 중복 항목 보조 차단
-    if (/(연습장|스크린|실내골프|아카데미|레슨|교습|교실|골프존|클럽하우스)/.test(name)) return false;
+    if (NON_COURSE_NAME_RE.test(name)) return false;
     return true;
   };
 

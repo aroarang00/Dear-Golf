@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityI
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
-import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf } from '../utils/kakao';
+import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
 import { getCurrentLocation } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
@@ -163,9 +163,18 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
     setSearch(c.name); // 검색 실패 시 검색창에라도 채워줌
   };
 
-  const filteredRecent = region === '전체'
+  // 로컬 목록(최근·저장)에서 숨길 항목 — 비코스 잡항목(클럽하우스·연습장 등 과거 기록 잔재)
+  // + 큐레이션 대표명(라비에벨 골프앤리조트, 단독이어도 숨김 — 2026-06-02 정책)
+  const isHiddenLocal = (name) => {
+    if (!name) return true;
+    if (NON_COURSE_NAME_RE.test(name)) return true;
+    if (!/코스/.test(name) && HIDDEN_UMBRELLA_BASES.includes(normalizeCourseName(name))) return true;
+    return false;
+  };
+  const filteredRecent = (region === '전체'
     ? recentCourses
-    : recentCourses.filter(c => getRegion(c.loc) === region);
+    : recentCourses.filter(c => getRegion(c.loc) === region)
+  ).filter(c => !isHiddenLocal(c.name));
   // 선택한 지역의 100대 코스 (순위순)
   const regionCourses = region === '전체'
     ? []
@@ -284,23 +293,26 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
         const q = search.trim();
         const norm = (s) => (s || '').replace(/\s/g, '').toLowerCase();
         const inKakao = new Set(searchResults.map(r => norm(r.name)));
-        // 100대 목록 행은 base 이름(CC/GC/컨트리클럽/코스어 제거)으로도 카카오와 비교 — 표기만 다른 같은 구장 흡수
-        const inKakaoBase = new Set(searchResults.map(r => normalizeCourseName(r.name)));
+        // 이미 표시 중인 구장 base(카카오 + 로컬 누적) — 표기만 다른 같은 구장/대표명 흡수용.
+        // '코스'(올드/듄스 등 멀티코스)는 개별 destination이라 흡수에서 제외.
+        const shownBases = new Set(searchResults.map(r => normalizeCourseName(r.name)));
         const seen = new Set();
         const localMatches = [];
         const addLocal = (c, kind, loc) => {
-          if (!c?.name || !c.name.includes(q)) return; // 이름 포함검색
-          const k = norm(c.name);
-          if (seen.has(k) || inKakao.has(k)) return;
+          const name = c?.name || '';
+          if (!name || !name.includes(q)) return;       // 이름 포함검색
+          if (isHiddenLocal(name)) return;              // 클럽하우스·연습장 잡항목 + 큐레이션 대표명 숨김
+          const k = norm(name);
+          if (seen.has(k) || inKakao.has(k)) return;    // 동일 이름 중복 제거
+          const base = normalizeCourseName(name);
+          if (!/코스/.test(name) && shownBases.has(base)) return; // 이미 표시된 구장 흡수(라데나GC↔라데나 골프클럽). 코스는 개별 유지
           seen.add(k);
+          shownBases.add(base);
           localMatches.push({ ...c, _kind: kind, _loc: loc });
         };
         recentCourses.forEach(c => addLocal(c, 'recent', c.loc));
         savedCourses.forEach(c => addLocal(c, 'saved', c.loc));
-        top100.forEach(c => {
-          if (inKakaoBase.has(normalizeCourseName(c.name))) return; // 카카오에 이미 잡힌 100대 구장이면 목록 행 흡수(같은 곳)
-          addLocal(c, 'top100', c.region);
-        });
+        top100.forEach(c => addLocal(c, 'top100', c.region));
         const shownLocal = localMatches.slice(0, 10);
 
         const onLocalTap = async (m) => {
