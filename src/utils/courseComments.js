@@ -25,6 +25,7 @@ function toComment(d, uid) {
     likedByMe: uid ? likedBy.includes(uid) : false,
     mine: uid ? v.authorUid === uid : false,
     hiddenAt: v.hiddenAt || null,  // 자동 임시 가림(3건 누적, [[content-report-policy]])
+    createdAt: v.createdAt || null,  // 최신순 정렬용 (Firestore Timestamp)
   };
 }
 
@@ -59,7 +60,7 @@ export async function addCourseComment(courseId, text, authorName, date) {
       likedBy: [],
       createdAt: serverTimestamp(),
     });
-    return { id: ref.id, courseId, txt: text, who: authorName || '익***', date: date || '', likes: 0, likedByMe: false, mine: true };
+    return { id: ref.id, courseId, txt: text, who: authorName || '익***', date: date || '', likes: 0, likedByMe: false, mine: true, ts: Date.now() };
   } catch (e) {
     console.warn('[comments] add failed', e?.message);
     return null;

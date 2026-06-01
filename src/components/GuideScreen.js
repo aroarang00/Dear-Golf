@@ -45,7 +45,9 @@ export function GuideScreen({ route, navigation }) {
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [editingCommentId, setEditingCommentId] = useState(null); // 내 코멘트 수정 중 id
-  const [showAllComments, setShowAllComments] = useState(false); // 골퍼 코멘트 — 상위 5개 + 더보기
+  const [showAllComments, setShowAllComments] = useState(false); // 골퍼 코멘트 — 상위 10개 + 더보기
+  const [commentSort, setCommentSort] = useState('recent'); // 'recent'(최신순 기본) | 'likes'(좋아요순)
+  const [commentQuery, setCommentQuery] = useState(''); // 코멘트 검색(코스 내)
   const [search, setSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('전체');
   // 코스 상세에서 날씨/교통 팝업
@@ -650,53 +652,7 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                 );
               })()}
-              {/* 연락처 — 카카오 place 전화번호 (탭 → 전화). 홀수·파 등 골프장 정보는 미보유 */}
-              {(coursePhone || coursePlaceLoading) && (
-                <>
-                  <Text style={[gS.secLabel, { marginBottom: 6 }]}>연락처</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 22 }}>
-                    {coursePhone ? (
-                      <TouchableOpacity onPress={() => Linking.openURL(`tel:${coursePhone.replace(/[^0-9]/g, '')}`)}
-                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>
-                          📞 {coursePhone}
-                        </Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <ActivityIndicator size="small" color={C.warmGrayLight} />
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 5 }}>전화번호 불러오는 중…</Text>
-                      </View>
-                    )}
-                  </View>
-                </>
-              )}
-
-              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 */}
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 26 }}>
-                <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
-                  style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: C.charcoal,
-                  }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>날씨</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
-                  style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: C.burgundy,
-                  }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`)}
-                  activeOpacity={0.8}
-                  style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: '#03C75A',
-                  }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>네이버정보</Text>
-                </TouchableOpacity>
-              </View>
+              {/* 연락처 제거 (2026-06-01) — 네이버정보 버튼으로 대체, 코스페이지 정리(골퍼코멘트 메인화) */}
 
               {/* 한줄 메모 — 버건디 액센트 바 헤더 + 내 기록 횟수 칩(옛 '내 라운딩 기록 · N회' 헤더를 여기로 흡수) */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 10 }}>
@@ -753,13 +709,43 @@ export function GuideScreen({ route, navigation }) {
                 );
               })()}
 
-              {/* 골퍼 코멘트 — 커뮤니티 패널(섬형)으로 묶어 다른 섹션(코스 정보·주변 골프장)과 구분.
-                  따뜻한 톤 배경 위에 안쪽 흰 카드가 떠 보이게. (네이비는 라운지 전용이라 💬로 교체) */}
+              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 (한줄메모 아래로 이동, 2026-06-01) */}
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 26 }}>
+                <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
+                  style={{
+                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: C.charcoal,
+                  }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>날씨</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
+                  style={{
+                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: C.burgundy,
+                  }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: '#03C75A',
+                  }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>네이버정보</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* 골퍼 코멘트 — 위 섹션과 따뜻한 톤 배경으로 구분(테두리 박스 X — 답답함 회피). */}
               <View style={gS.commentPanel}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
-                  <Text style={{ fontSize: fs(15) }}>💬</Text>
-                  <Text style={[gS.secLabel, { marginBottom: 0 }]}>골퍼 코멘트</Text>
+                  <Text style={{ fontSize: fs(17) }}>💬</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.3 }}>골퍼 코멘트</Text>
+                  {comments.length > 0 && (
+                    <View style={{ backgroundColor: C.burgundy, borderRadius: 9, paddingHorizontal: 7, paddingVertical: 1, minWidth: 18, alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>{comments.length}</Text>
+                    </View>
+                  )}
                 </View>
                 <TouchableOpacity
                   onPress={() => { if (editingCommentId) { setEditingCommentId(null); setCommentInput(''); } setShowCommentInput(v => !v); }}
@@ -769,9 +755,9 @@ export function GuideScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
 
-              {/* 골퍼 코멘트 설명 — 실시간 정보공유 취지 안내 */}
+              {/* 골퍼 코멘트 설명 — 게시판 목적 안내(첫 방문자도 바로 이해) */}
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 14, lineHeight: 17 }}>
-                이 코스를 다녀온 골퍼들의 솔직한 한 줄.{'\n'}다녀오셨다면 + 코멘트로 공유해주세요.
+                이 골프장을 다녀온 골퍼들의 코스 팁·후기 게시판이에요.{'\n'}다녀오셨다면 한마디 남겨 정보를 나눠주세요.
               </Text>
 
               {/* 코멘트 입력 */}
@@ -809,10 +795,41 @@ export function GuideScreen({ route, navigation }) {
                 </KeyboardAvoidingView>
               )}
 
-              {/* 코멘트 리스트 (좋아요순) — 상위 5개 + 더보기 */}
+              {/* 정렬·검색 — 게시판형. 최신순(기본)/좋아요순 토글 + 코스 내 코멘트 검색 */}
+              {comments.length > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 8, padding: 2, borderWidth: 0.5, borderColor: C.hairline }}>
+                    {[['recent', '최신순'], ['likes', '좋아요순']].map(([k, l]) => (
+                      <TouchableOpacity key={k} onPress={() => setCommentSort(k)} activeOpacity={0.8}
+                        style={[{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 6 }, commentSort === k && { backgroundColor: C.burgundy }]}>
+                        <Text style={{ fontFamily: commentSort === k ? F.sysB : F.sysM, fontSize: fs(11), color: commentSort === k ? C.butter : C.warmGray }}>{l}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    value={commentQuery}
+                    onChangeText={setCommentQuery}
+                    placeholder="코멘트 검색"
+                    placeholderTextColor={C.warmGrayLight}
+                    style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, backgroundColor: C.bgSecondary, borderRadius: 8, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 10, paddingVertical: 6 }}
+                  />
+                </View>
+              )}
+              {/* 코멘트 리스트 — 정렬·검색 적용, 상위 10개 + 더보기 */}
               {(() => {
-                const sorted = [...comments].sort((a, b) => b.likes - a.likes);
-                const visible = showAllComments ? sorted : sorted.slice(0, 5);
+                const q = commentQuery.trim();
+                const filtered = q ? comments.filter(c => (c.txt || '').includes(q)) : comments;
+                const tsOf = (c) => (c.createdAt?.toMillis?.() ?? c.ts ?? 0);
+                const sorted = [...filtered].sort((a, b) =>
+                  commentSort === 'likes' ? (b.likes - a.likes) : (tsOf(b) - tsOf(a)));
+                const visible = showAllComments ? sorted : sorted.slice(0, 10);
+                if (sorted.length === 0) {
+                  return (
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 18 }}>
+                      {q ? '검색 결과가 없어요' : '아직 코멘트가 없어요 — 첫 코멘트를 남겨보세요'}
+                    </Text>
+                  );
+                }
                 return (
                   <>
                     {visible.map((cm) => (
@@ -843,11 +860,11 @@ export function GuideScreen({ route, navigation }) {
                         </View>
                       </View>
                     ))}
-                    {sorted.length > 5 && (
+                    {sorted.length > 10 && (
                       <TouchableOpacity onPress={() => setShowAllComments(v => !v)} activeOpacity={0.7}
                         style={{ paddingVertical: 10, alignItems: 'center' }}>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy }}>
-                          {showAllComments ? '접기' : `코멘트 ${sorted.length - 5}개 더보기`}
+                          {showAllComments ? '접기' : `코멘트 ${sorted.length - 10}개 더보기`}
                         </Text>
                       </TouchableOpacity>
                     )}

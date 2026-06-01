@@ -42,8 +42,9 @@ export const gS = StyleSheet.create({
   restMemo:        { fontFamily: F.en, fontSize: fs(10), color: C.textSecondary, marginTop: 3 },
   ratingBox:       { backgroundColor: C.butter, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'center' },
   ratingTxt:       { fontFamily: F.sys, fontSize: fs(11), color: C.charcoal },
-  // 골퍼 코멘트 섹션 전체를 감싸는 패널(섬형) — 따뜻한 톤 위에 흰 카드가 떠 보이게
-  commentPanel:    { backgroundColor: '#F6EFD9', borderRadius: 16, borderWidth: 1, borderColor: '#EBE1C4', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, marginTop: 16, marginBottom: 18 },
+  // 골퍼 코멘트 섹션 — 박스 X. 전체폭 색띠(색구분만)로 게시판 영역 표시 (2026-06-01)
+  //   marginHorizontal:-16 으로 부모 padding(16) 상쇄 → 화면 끝까지, paddingHorizontal:16 으로 내용 인셋 복원, borderRadius 없음
+  commentPanel:    { backgroundColor: '#F6EFD9', marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, marginTop: 18, marginBottom: 18 },
   commentCard:     { backgroundColor: C.bgSecondary, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 0.5, borderColor: C.hairline },
   // 내 코멘트 — 버건디 좌측 액센트로 한눈에 구분
   commentCardMine: { borderLeftWidth: 3, borderLeftColor: C.burgundy },
