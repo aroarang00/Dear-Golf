@@ -165,6 +165,13 @@ service cloud.firestore {
           && (selfMembershipToggled('participantUids') || selfMembershipToggled('waitlistUids'))
           && (resource.data.closed == request.resource.data.closed || request.resource.data.closed == false)
         )
+        || (
+          // 좋아요(응원) — 작성자 외 읽기권한자가 likedBy에 본인 uid만 토글 (모두 공개, [[roundup-friend-redesign]]).
+          //   골퍼코멘트 좋아요와 동일 패턴. likedBy 외 필드 불변. 카운트=likedBy.length(별도 likes 필드 없음).
+          resource.data.authorUid != request.auth.uid
+          && changedKeysWithin(['likedBy'])
+          && selfMembershipToggled('likedBy')
+        )
       );
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
 

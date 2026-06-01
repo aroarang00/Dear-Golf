@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { Modal, View, ScrollView, Text, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, ScrollView, RefreshControl, Text, TouchableOpacity, Platform } from 'react-native';
 
 // Android는 같은 px 패딩에도 카드 박스가 시각적으로 더 커 보임(폰트 metrics 차이 누적).
 // 라운지 카드 한정 안드 컴팩트 보정 — 다른 화면은 검증 후 단계 확장.
@@ -36,14 +36,14 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
-import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup } from '../utils/roundup';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, kickParticipant, acceptApplication, rejectApplication, closeRoundup, toggleRoundupLike } from '../utils/roundup';
 import { loadComments, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
 
-function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onHide }) {
+function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -96,7 +96,23 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{post.authorName || post.author}</Text>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{post.authorName || post.author}</Text>
+          {/* 좋아요(응원) — 이름 옆, 모두 공개([[roundup-friend-redesign]]). 주최자 본인은 카운트만 */}
+          {(() => {
+            const likeCount = Array.isArray(post.likedBy) ? post.likedBy.length : 0;
+            const liked = !!myUid && Array.isArray(post.likedBy) && post.likedBy.includes(myUid);
+            const inner = (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                <Text style={{ fontSize: fs(13), color: liked ? '#E0506A' : C.warmGrayLight }}>{liked ? '♥' : '♡'}</Text>
+                {likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: liked ? '#E0506A' : C.warmGray }}>{likeCount}</Text>}
+              </View>
+            );
+            return isMine ? inner : (
+              <TouchableOpacity onPress={onToggleLike ? () => onToggleLike(post.id) : undefined} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                {inner}
+              </TouchableOpacity>
+            );
+          })()}
           {/* 신뢰등급 배지 — 친구모집(전체공개 OFF)에선 검증 의미 없어 숨김. 전체공개 부활 시 복귀 */}
           {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />}
           {!isMine && (
@@ -218,6 +234,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [friendUids, setFriendUids] = useState([]); // Phase 3-F5: 친구 uid 목록 (친구공개 모집 필터·로드)
   const [friends, setFriends] = useState([]);        // Phase 3-F6: { id, name } — 친구지정 모달 등 표시용
   const [posts, setPosts] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);   // 당겨서 새로고침 ([[roundup-refresh]])
+  const [refreshTick, setRefreshTick] = useState(0);     // 증가 시 아래 로드 effect 재실행
   const [joined, setJoined] = useState({});            // Phase 3-C: loadMyApplications 등에서 채움
   const [applied, setApplied] = useState({});          // Phase 3-C: 전체공개 신청 대기
   const [waitlist, setWaitlist] = useState({});        // Phase 3-D: waitlistUids에서 복원
@@ -333,10 +351,34 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         }
       } catch (e) {
         if (__DEV__) console.warn('[RoundupTab] initial load failed', e);
+      } finally {
+        if (!cancelled) setRefreshing(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshTick]);
+  // 당겨서 새로고침 — refreshTick 증가로 위 로드 effect 재실행 ([[roundup-refresh]])
+  const onRefresh = () => { setRefreshing(true); setRefreshTick(t => t + 1); };
+
+  // 좋아요(응원) 토글 — 낙관적 갱신 후 Firestore, 실패 시 롤백. 주최자 본인 글은 무시.
+  const toggleLike = async (postId) => {
+    if (!myUid) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post || post.authorUid === myUid) return;
+    const liked = Array.isArray(post.likedBy) && post.likedBy.includes(myUid);
+    const setLiked = (add) => setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const cur = Array.isArray(p.likedBy) ? p.likedBy.filter(u => u !== myUid) : [];
+      return { ...p, likedBy: add ? [...cur, myUid] : cur };
+    }));
+    setLiked(!liked);
+    try {
+      await toggleRoundupLike(postId, liked);
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] like toggle failed', e?.message);
+      setLiked(liked); // 롤백
+    }
+  };
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
@@ -1385,6 +1427,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       )}
 
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5, paddingBottom: 32 }}>
         {/* 초대장(친구지정·포함)은 아래 list.map에서 실제 카드로 렌더 — dev에선 내가 만든 글도 자기 미리보기로 보임 ([[roundup-invitation]]) */}
         {list.length === 0 ? (
@@ -1521,6 +1564,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 onGradePress={(key) => setGradeModalKey(key)}
                 onOpenDetail={() => setDetailId(p.id)}
                 onToggleBookmark={() => toggleBookmark(p.id)}
+                onToggleLike={toggleLike}
                 onHide={hideRoundup} />
             );
           })
@@ -1596,6 +1640,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onConfirm={() => detailId && handleConfirmRoundup(detailId)}
         onGradePress={(key) => setGradeModalKey(key)}
         onToggleBookmark={() => detailId && toggleBookmark(detailId)}
+        onToggleLike={toggleLike}
         onBlock={handleBlock}
         onReport={handleReport}
         onKick={(target, reason) => detailId && handleKick(detailId, target, reason)}

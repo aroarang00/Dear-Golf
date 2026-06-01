@@ -119,7 +119,7 @@ function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, friendUids = [], participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
+export function RoundupDetail({ post, myUid, friendUids = [], participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], sentFriendRequestIds = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onKick, onRequestFriend, onCancelFriendRequest, onEdit, onAddComment, onDeleteComment, onPinComment }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -515,20 +515,39 @@ export function RoundupDetail({ post, myUid, friendUids = [], participantNames =
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.authorName || post.author || '주최자'}</Text>
                 </TouchableOpacity>
                 {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />}
-                {ROUNDUP_PUBLIC_ENABLED && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
-                      주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{post.authorHostedCount || 0}</Text>회 ·
-                    </Text>
-                    <MannerBadge score={post.authorMannerScore || 0} size={14} onPress={() => {
-                      const score = post.authorMannerScore || 0;
-                      const g = (score >= 95) ? 'king'
-                        : (score >= 80) ? 'good'
-                        : (score >= 40) ? 'normal' : 'caution';
-                      setMannerKey(g);
-                    }} />
-                  </View>
-                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                  {ROUNDUP_PUBLIC_ENABLED && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
+                        주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{post.authorHostedCount || 0}</Text>회 ·
+                      </Text>
+                      <MannerBadge score={post.authorMannerScore || 0} size={14} onPress={() => {
+                        const score = post.authorMannerScore || 0;
+                        const g = (score >= 95) ? 'king'
+                          : (score >= 80) ? 'good'
+                          : (score >= 40) ? 'normal' : 'caution';
+                        setMannerKey(g);
+                      }} />
+                    </View>
+                  )}
+                  {/* 좋아요(응원) — 모두 공개([[roundup-friend-redesign]]). 매너 빠진 자리. 주최자 본인은 카운트만(응원 불가) */}
+                  {(() => {
+                    const likeCount = Array.isArray(post.likedBy) ? post.likedBy.length : 0;
+                    const liked = !!myUid && Array.isArray(post.likedBy) && post.likedBy.includes(myUid);
+                    const isHost = post.authorUid === myUid;
+                    const inner = (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <Text style={{ fontSize: fs(15), color: liked ? '#E0506A' : C.warmGrayLight }}>{liked ? '♥' : '♡'}</Text>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: liked ? '#E0506A' : C.warmGray }}>{likeCount}</Text>
+                      </View>
+                    );
+                    return isHost ? inner : (
+                      <TouchableOpacity onPress={() => onToggleLike?.(post.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        {inner}
+                      </TouchableOpacity>
+                    );
+                  })()}
+                </View>
               </View>
 
               {post.type === 'fixed' ? (

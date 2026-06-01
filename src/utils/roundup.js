@@ -124,6 +124,7 @@ export async function createRoundup(data) {
     skill: data.skill || null,
     region: data.region || null,
     tags: Array.isArray(data.tags) ? data.tags : [],
+    likedBy: [], // 좋아요(응원) 누른 uid — 규칙상 토글 전 필드가 존재해야 함 ([[roundup-friend-redesign]])
     openTime: Array.isArray(data.openTime) ? data.openTime : null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -199,6 +200,18 @@ export async function leaveWaitlist(postId) {
     waitlistUids: arrayRemove(uid),
     updatedAt: serverTimestamp(),
   });
+}
+
+// ── 좋아요(응원) — 모두 공개, 멱등 토글 ───────────────────────
+// likedBy 배열에 본인 uid만 add/remove. 카운트=likedBy.length. updatedAt은 건드리지 않음
+// (보안규칙 changedKeysWithin(['likedBy'])과 일치 — 골퍼코멘트 좋아요와 동일 패턴).
+// 주최자 본인은 자기 글 응원 불가(클라에서 버튼 비노출).
+export async function toggleRoundupLike(postId, currentlyLiked) {
+  const uid = await getUid();
+  if (!uid) throw new Error('Not authenticated');
+  if (!postId) throw new Error('postId required');
+  const ref = doc(db, COLLECTION, postId);
+  await updateDoc(ref, { likedBy: currentlyLiked ? arrayRemove(uid) : arrayUnion(uid) });
 }
 
 // ── 주최자 액션 — 강퇴·마감 등 ───────────────────────────────
