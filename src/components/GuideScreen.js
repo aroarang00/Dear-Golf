@@ -737,6 +737,8 @@ export function GuideScreen({ route, navigation }) {
 
               {/* 골퍼 코멘트 — 위 섹션과 따뜻한 톤 배경으로 구분(테두리 박스 X — 답답함 회피). */}
               <View style={gS.commentPanel}>
+              {/* 게시판 시작 — 버터색 단색 바(전폭). 패널 패딩 상쇄해 화면 끝까지 ([[project_golfer_comments_board]]) */}
+              <View style={{ height: 3, backgroundColor: C.butter, marginHorizontal: -16, marginTop: -16, marginBottom: 14 }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
                   <Text style={{ fontSize: fs(19) }}>💬</Text>
