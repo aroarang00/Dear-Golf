@@ -50,8 +50,8 @@ export async function searchGolfCourses(query) {
     const name = d.place_name || '';
     const last = cat.split('>').pop().trim();
     if (!/(골프장|컨트리클럽)/.test(last)) return false;
-    // 분류가 골프장으로 잘못 등록된 레슨·교습 케이스 보조 차단
-    if (/(연습장|스크린|실내골프|아카데미|레슨|교습|교실|골프존)/.test(name)) return false;
+    // 분류가 골프장으로 잘못 등록된 레슨·교습 + 같은 구장 '클럽하우스' 중복 항목 보조 차단
+    if (/(연습장|스크린|실내골프|아카데미|레슨|교습|교실|골프존|클럽하우스)/.test(name)) return false;
     return true;
   };
 
