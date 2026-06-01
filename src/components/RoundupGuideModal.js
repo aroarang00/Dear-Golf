@@ -64,7 +64,7 @@ export function RoundupGuideModal({ visible, onClose }) {
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
 
-          {/* 헤더 — 네이비 미니 히어로 */}
+          {/* 헤더 — 네이비 미니 히어로 (고정) */}
           <View style={{ marginHorizontal: 16, marginBottom: 12, backgroundColor: C.navy, borderRadius: 16,
             paddingHorizontal: 18, paddingVertical: 16 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 7 }}>
@@ -77,7 +77,7 @@ export function RoundupGuideModal({ visible, onClose }) {
           </View>
 
           <ScrollView style={{ flexShrink: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 12 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}>
             {SECTIONS.map(s => (
               <View key={s.title} style={{ backgroundColor: C.bgSecondary, borderRadius: 16,
@@ -89,7 +89,12 @@ export function RoundupGuideModal({ visible, onClose }) {
                   </View>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, flex: 1 }}>{s.title}</Text>
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 21 }}>{s.body}</Text>
+                {/* 줄 단위 Text — 긴 멀티라인에서 iOS가 마지막 줄을 못 그리는 문제 회피 */}
+                {s.body.split('\n').map((line, i) => (
+                  <Text key={i} style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 21 }}>
+                    {line || ' '}
+                  </Text>
+                ))}
               </View>
             ))}
           </ScrollView>
