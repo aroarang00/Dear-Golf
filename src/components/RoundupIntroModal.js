@@ -18,12 +18,7 @@ const SCOPES = [
   },
   {
     icon: '🎯', title: '친구지정',
-    desc: '원하는 멤버만 골라서 초대. 다른 친구에겐 안 보여요.',
-  },
-  {
-    icon: '🌐', title: '전체공개',
-    desc: '신뢰등급·매너로 검증된 골퍼와 매칭. 관심 모집 알림도 받을 수 있어요.',
-    note: '💡 모르는 사람과 라운딩이 부담스러우면, 마이페이지에서 [친구 모집만 보기]를 켜두세요.',
+    desc: '원하는 멤버만 골라 초대(또는 제외). 지정한 친구에게만 보여요.',
   },
 ];
 
@@ -96,7 +91,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
             {/* 3. 모집 유형 3가지 */}
             <View style={{ paddingHorizontal: 20, paddingTop: 32 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>
-                모집은 3가지 방식
+                모집은 2가지 방식
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4, marginBottom: 14 }}>
                 상황에 맞춰 골라요
@@ -168,7 +163,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
                 </Text>
               </View>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>
-                관심 지역·요일·동반자 조건을 저장해두면{'\n'}맞는 모집이 올라올 때 알려드려요.{'\n'}편하게 참여만 하셔도 돼요.
+                시간대(주중·주말 1·2·3부)와 기간을 저장해두면{'\n'}맞는 모집이 올라올 때 알려드려요.{'\n'}편하게 참여만 하셔도 돼요.
               </Text>
             </View>
 
