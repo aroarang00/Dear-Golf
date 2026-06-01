@@ -620,8 +620,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       // 수정 모드 — editingPost가 있으면 Firestore 업데이트 + 로컬 머지 + schedules 동기화
       if (editingPost) {
         const eid = editingPost.id;
-        await updateRoundupAsAuthor(eid, post);
-        setPosts(prev => prev.map(p => p.id === eid ? { ...p, ...post } : p));
+        // 팀 수 변경 반영 — buildPayload엔 teamJoined가 없어, 새 팀 수에 맞춰 재구성한다.
+        //   (기존 팀 인원 보존 + 새로 생긴 팀은 0, 단체→개별 전환 시 [1]).
+        //   이게 빠져서 2→4 팀 수정이 화면·정원에 안 먹던 버그.
+        const prevTJ = Array.isArray(editingPost.teamJoined) ? editingPost.teamJoined : [];
+        const nextPost = {
+          ...post,
+          teamJoined: (post.teams || 1) > 1
+            ? Array.from({ length: post.teams }, (_, i) => prevTJ[i] ?? 0)
+            : [1],
+        };
+        await updateRoundupAsAuthor(eid, nextPost);
+        setPosts(prev => prev.map(p => p.id === eid ? { ...p, ...nextPost } : p));
         // schedules 동기화 — date·time·course 변경 시 본인 자동 일정도 함께 갱신
         const linked = schedules.filter(s => s.roundupId === eid);
         for (const s of linked) {
