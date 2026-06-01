@@ -374,7 +374,7 @@ export function FriendsTab({ navigation, onInvite }) {
                   골프 친구를 추가해보세요
                 </Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: _and ? 16 : 19, marginBottom: _and ? 10 : 16 }}>
-                  카카오 친구 중 Dear Golf를 쓰는 사람을 찾아 친구를 맺으면 — 함께 라운딩하고 서로의 골프 기록을 나눌 수 있어요.
+                  카카오 친구 중 Dear Golf를 쓰는 분을 찾아{'\n'}친구를 맺으면, 함께 라운딩하고{'\n'}서로의 골프 기록을 나눌 수 있어요.
                 </Text>
                 <View style={{ gap: _and ? 7 : 12 }}>
                   {[
