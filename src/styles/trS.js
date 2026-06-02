@@ -33,7 +33,7 @@ export const trS = StyleSheet.create({
   // 예상 종료시간 ± 30분 row
   endTimeRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 },
   endLabel:     { fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.65)' },
-  endValue:     { fontFamily: F.en, fontSize: fs(20), color: '#F5E6A8', fontWeight: '700', marginHorizontal: 14, minWidth: 70, textAlign: 'center' },
+  endValue:     { fontFamily: F.en, fontSize: fs(20), color: '#F5E6A8', marginHorizontal: 14, minWidth: 70, textAlign: 'center' },
   endBtn:       { width: 32, height: 32, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)', alignItems: 'center', justifyContent: 'center' },
   endBtnTxt:    { fontFamily: F.sys, fontSize: fs(18), color: '#F5E6A8', lineHeight: 20 },
   // 딥링크 버튼

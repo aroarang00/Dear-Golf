@@ -512,7 +512,7 @@ export function DiaryScreen({ route, navigation }) {
                 backgroundColor: st.hi ? '#F5F0E4' : C.bgSecondary,
                 borderWidth: st.hi ? 1 : 0.5, borderColor: st.hi ? C.burgundy : C.hairline,
               }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(20), color: st.hi ? C.burgundy : C.charcoal, fontWeight: '700' }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(20), color: st.hi ? C.burgundy : C.charcoal }}>
                   {st.value != null ? st.value : '—'}
                 </Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{st.label}</Text>

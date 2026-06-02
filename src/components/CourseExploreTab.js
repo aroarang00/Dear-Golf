@@ -274,7 +274,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
                 <TouchableOpacity key={c.rank} onPress={() => openTop100Course(c)} activeOpacity={0.7}
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(14), fontWeight: '700', color: '#A88A2E', width: 34 }}>{c.rank}</Text>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(14), color: '#A88A2E', width: 34 }}>{c.rank}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {c.name}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{c.region}</Text>

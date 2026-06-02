@@ -455,7 +455,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
             <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>‹</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={openPicker} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} activeOpacity={0.6}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(19), color: C.charcoal, fontWeight: '600' }}>
+            <Text style={{ fontFamily: F.en, fontSize: fs(19), color: C.charcoal }}>
               {year}. {String(month + 1).padStart(2, '0')} ▾
             </Text>
           </TouchableOpacity>
@@ -509,7 +509,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginBottom: _and ? 2 : 4,
             backgroundColor: C.butter, borderRadius: 12,
-            paddingHorizontal: 14, paddingVertical: _and ? 4 : 11 }}>
+            paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
           <Text style={{ fontSize: fs(14) }}>🏌️</Text>
           <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
             내 코스 모아보기
@@ -756,7 +756,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, year: p.year - 1 }))} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
                 <Text style={{ fontSize: fs(26), color: C.warmGray }}>‹</Text>
               </TouchableOpacity>
-              <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.charcoal, fontWeight: '600', minWidth: 100, textAlign: 'center' }}>{picker.year}</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.charcoal, minWidth: 100, textAlign: 'center' }}>{picker.year}</Text>
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, year: p.year + 1 }))} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
                 <Text style={{ fontSize: fs(26), color: C.warmGray }}>›</Text>
               </TouchableOpacity>

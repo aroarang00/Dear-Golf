@@ -66,7 +66,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
             borderWidth: 1.5, borderColor: C.navy,
             alignItems: 'center', justifyContent: 'center',
           }}>
-          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.navy, fontWeight: '700', lineHeight: 17 }}>!</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.navy, lineHeight: 17 }}>!</Text>
         </TouchableOpacity>
         {asModal && (
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

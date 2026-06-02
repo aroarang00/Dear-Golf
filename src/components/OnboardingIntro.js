@@ -149,7 +149,7 @@ export function OnboardingIntro({ onDone }) {
             <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginTop: 12 }}>
               {[['라운딩', '24'], ['평균타', '92'], ['베스트', '78']].map(([l, v]) => (
                 <View key={l} style={{ flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.charcoal, fontWeight: '700' }}>{v}</Text>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.charcoal }}>{v}</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{l}</Text>
                 </View>
               ))}
@@ -157,7 +157,7 @@ export function OnboardingIntro({ onDone }) {
             <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 11 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.05.24 토 · 제이드팰리스 GC</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.burgundy, fontWeight: '700' }}>88</Text>
+                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.burgundy }}>88</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +16</Text>
               </View>
               <View style={{ borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 8, marginTop: 4 }}>
@@ -167,7 +167,7 @@ export function OnboardingIntro({ onDone }) {
             <View style={{ marginHorizontal: 24, marginTop: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 11 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.04.18 토 · 안성베네스트 CC</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>91</Text>
+                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal }}>91</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +19</Text>
               </View>
               <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 4 }}>
@@ -177,7 +177,7 @@ export function OnboardingIntro({ onDone }) {
             <View style={{ marginHorizontal: 24, marginTop: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 11 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.03.22 일 · 남서울 CC</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>85</Text>
+                <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal }}>85</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>타 · +13</Text>
               </View>
               <View style={{ borderLeftWidth: 2, borderLeftColor: C.hairline, paddingLeft: 8, marginTop: 4 }}>
@@ -225,7 +225,7 @@ export function OnboardingIntro({ onDone }) {
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 4 }}>퍼스트 싱글 달성</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>2025.06.20 · 우정힐스 CC</Text>
               </View>
-              <Text style={{ fontFamily: F.en, fontSize: fs(38), color: '#C8D9E6', fontWeight: '700' }}>79</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(38), color: '#C8D9E6' }}>79</Text>
             </View>
             {/* 이글 카드 */}
             <View style={{ marginHorizontal: 24, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(168,197,137,0.5)', padding: 18, flexDirection: 'row', alignItems: 'center' }}>
@@ -234,7 +234,7 @@ export function OnboardingIntro({ onDone }) {
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 4 }}>14번홀 파5 · 이글</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>2025.09.07 · 블랙스톤 제주</Text>
               </View>
-              <Text style={{ fontFamily: F.en, fontSize: fs(36), color: '#A8C589', fontWeight: '700' }}>−2</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(36), color: '#A8C589' }}>−2</Text>
             </View>
           </View>
           <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>

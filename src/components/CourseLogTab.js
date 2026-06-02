@@ -362,7 +362,7 @@ export function CourseLogTab({ avgRating, navigation }) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(18), color: '#C9A84C', fontWeight: '700' }}>{checkedCount}</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(18), color: '#C9A84C' }}>{checkedCount}</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}> / 100</Text>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#A88A2E', marginLeft: 6 }}>›</Text>
           </View>
@@ -487,7 +487,7 @@ export function CourseLogTab({ avgRating, navigation }) {
             <View style={{ flex: 1, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.13)', overflow: 'hidden' }}>
               <View style={{ height: 7, borderRadius: 4, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
             </View>
-            <Text style={{ fontFamily: F.en, fontSize: fs(15), color: C.butter, fontWeight: '700' }}>
+            <Text style={{ fontFamily: F.en, fontSize: fs(15), color: C.butter }}>
               {checkedCount}<Text style={{ fontSize: fs(11), color: 'rgba(255,255,255,0.5)' }}> / 100</Text>
             </Text>
           </View>
@@ -509,7 +509,7 @@ export function CourseLogTab({ avgRating, navigation }) {
                 paddingHorizontal: 18, paddingVertical: 9,
                 backgroundColor: checked ? '#FBF7EE' : 'transparent',
               }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(14), fontWeight: '700', width: 30, color: checked ? '#A88A2E' : C.warmGrayLight }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(14), width: 30, color: checked ? '#A88A2E' : C.warmGrayLight }}>
                   {c.rank}
                 </Text>
                 <View style={{ flex: 1 }}>

@@ -36,7 +36,7 @@ export function CourseLogModal({ visible, onClose, navigation }) {
                 borderWidth: 1.5, borderColor: C.butter,
                 alignItems: 'center', justifyContent: 'center',
               }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.butter, fontWeight: '700', lineHeight: 17 }}>!</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.butter, lineHeight: 17 }}>!</Text>
             </TouchableOpacity>
           </View>
 

@@ -46,7 +46,9 @@ function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPr
   const fStatus = (friend.statusMessage || '').trim();
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
-      style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12 },
+      style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12,
+        // 라운지 모집카드와 동일 입체감 — 크림 배경 위 흰 카드 분리감 (iOS·Android)
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
         favorite && { borderLeftWidth: 3, borderLeftColor: C.burgundy }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -87,7 +89,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPr
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, flex: 1 }} numberOfLines={1}>
             {r.course} · {r.date}
           </Text>
-          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.charcoal, fontWeight: '700' }}>{r.score}</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.charcoal }}>{r.score}</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{diffLabel}</Text>
         </View>
       )}

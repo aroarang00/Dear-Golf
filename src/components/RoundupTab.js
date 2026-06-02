@@ -165,7 +165,7 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 9 : 12,
         backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 6 : 8 }}>
         <Text style={{ fontSize: fs(13) }}>{allFull ? '✅' : '🔄'}</Text>
-        <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal, fontWeight: '700' }}>{total}/{capTotal}</Text>
+        <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
         {post.companions?.length > 0 ? (
           <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 동반자 {post.companions.length}명 포함</Text>
@@ -1243,7 +1243,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                   borderWidth: 1.5, borderColor: C.bgPrimary,
                   alignItems: 'center', justifyContent: 'center',
                 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.bgPrimary, fontWeight: '700', lineHeight: 17 }}>!</Text>
+                <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.bgPrimary, lineHeight: 17 }}>!</Text>
               </TouchableOpacity>
             </View>
           </View>
