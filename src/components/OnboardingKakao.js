@@ -38,7 +38,10 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
         return;
       }
 
-      // 1-A. 만 19세 검증 ([[age-policy]] §1) — 카카오 콘솔 birthyear/birthday 동의 항목 활성화 필요
+      // 1-A. 만 19세 확인 ([[age-policy]]) — 1차는 약관 동의의 '[필수] 만 19세 이상' 자가 확인.
+      // 카카오 출생연도는 동의항목이 아니라 받지 못하는 경우가 많음([[kakao-birthdate-blocker]]).
+      // → 출생연도를 '받을 수 있을 때만' 미성년 차단 안전망으로 사용하고, 없으면 막지 않고 진행한다.
+      //   (출생연도 동의항목은 필수 아님 — 없어도 로그인 가능하도록 prod 차단 제거)
       if (result.birthyear && result.birthday) {
         if (!isAdultByKakao(result.birthyear, result.birthday)) {
           Alert.alert(
@@ -47,14 +50,6 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
           );
           return;
         }
-      } else if (!__DEV__) {
-        // 카카오 콘솔 동의 항목이 활성화됐고 사용자가 거부한 케이스 → 가입 차단 (정책 §2)
-        // 콘솔이 아직 비활성인 dev 단계에선 통과 (출시 직전 콘솔 작업 완료 가정)
-        Alert.alert(
-          '생년월일 동의가 필요해요',
-          'Dear Golf는 만 19세 이상 성인만 이용할 수 있어요.\n카카오 로그인 시 생년월일 동의가 필요해요.',
-        );
-        return;
       }
 
       // 1-B. 정지 기록 매칭 차단 ([[account-deletion]] §3) — 재가입 차단

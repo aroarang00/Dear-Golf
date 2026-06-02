@@ -98,9 +98,22 @@ export function OnboardingConsent({ onAgree }) {
         <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal, marginBottom: 8 }}>
           약관 동의
         </Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 20, marginBottom: 24 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 20, marginBottom: 18 }}>
           Dear Golf를 시작하기 전에{'\n'}아래 약관을 확인해주세요.
         </Text>
+
+        {/* 연령 확인 안내 — 만 19세 자가 확인 ([[age-policy]]) */}
+        <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+          borderRadius: 12, padding: 16, marginBottom: 22 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
+            연령 확인 안내
+          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: 20 }}>
+            Dear Golf는 만 19세 이상 성인만{'\n'}이용할 수 있는 서비스예요.{'\n'}
+            아래 [필수] 만 19세 이상 동의로{'\n'}연령을 확인하며,{'\n'}
+            사실과 다를 경우 이용이 제한될 수 있어요.
+          </Text>
+        </View>
 
         {/* 전체 동의 */}
         <TouchableOpacity onPress={toggleAll}
@@ -195,7 +208,7 @@ export function OnboardingConsent({ onAgree }) {
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 14, lineHeight: 17 }}>
           • 필수 항목은 서비스 이용을 위해 반드시 동의가 필요합니다.{'\n'}
           • 마케팅 푸시는 동의하지 않아도 서비스 이용에 영향이 없으며, 동의 후 앱 설정에서 언제든 철회할 수 있어요.{'\n'}
-          • 만 19세 미만이거나 카카오 생년월일 동의를 거부한 경우 가입할 수 없습니다.
+          • 만 19세 미만은 가입할 수 없으며, 연령은 위 [필수] 동의로 확인합니다.
         </Text>
 
         {/* 다음 버튼 — 필수 4개 모두 동의해야 활성 */}
