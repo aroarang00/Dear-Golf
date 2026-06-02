@@ -1,22 +1,40 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
-import { resolvePhotoUri } from '../utils/photoStorage';
 import { hofBgColor } from './HallOfFameCard';
+import { MediaCarousel } from './common/MediaCarousel';
+import { toggleRoundLike } from '../utils/round';
 
-export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
+// 라운딩 기록 카드.
+//  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
+//  - variant 'friend'    : 친구 피드 — 같은 골격에 정보만 줄임(구장·스코어·한줄메모·★) + 좋아요/댓글 줄.
+//                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
+export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto }) {
   const [expanded, setExpanded] = useState(false);
-  const diff = item.score - item.par;
+  const isFriend = variant === 'friend';
+
+  // 좋아요 상태 — 친구 변형에서만 의미. (훅은 항상 호출)
+  const likedInit = !!(myUid && (item.likes || []).includes(myUid));
+  const [liked, setLiked] = useState(likedInit);
+  const likeOthers = (item.likes || []).filter(u => u !== myUid).length;
+  const likeCount = likeOthers + (liked ? 1 : 0);
+  const onToggleLike = () => {
+    const next = !liked;
+    setLiked(next);
+    toggleRoundLike(item.id, next).catch(() => setLiked(!next)); // 실패 시 롤백
+  };
+
+  const hasScore = typeof item.score === 'number';
+  const diff = hasScore ? item.score - item.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   const hasBest = item.badge === '베스트';
   const hasPhoto = item.photos && item.photos.length > 0;
-  const firstPhoto = hasPhoto ? item.photos[0] : null;
-  const heroUri = resolvePhotoUri(typeof firstPhoto === 'object' ? firstPhoto?.uri : firstPhoto);
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
-  const highlight = isSpecial || isFirstSingle; // 골드 프레임 강조 (특별한 순간·첫 싱글)
+  const highlight = isSpecial || (!isFriend && isFirstSingle); // 골드 프레임 (친구 피드의 첫싱글 처리는 HoF 논의 후)
+  const rating = item.starRating || 0;
 
   let lineColor;
   if (hasBest) lineColor = '#6B1E2A';
@@ -25,47 +43,53 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
   else lineColor = '#8B8680';
   const memoBorderColor = isSpecial ? '#C9A84C' : lineColor;
 
+  // 스코어 줄 — 타수·차이·par + 싱글/특별/버디 배지
+  const scoreLine = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+      {hasScore ? (
+        <>
+          <Text style={[dS.cardScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+          <Text style={[dS.cardScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+          <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+        </>
+      ) : (
+        <Text style={dS.cardPar}>스코어 미기록</Text>
+      )}
+      {isSingle && (
+        <View style={{ backgroundColor: '#C9A84C', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3, minWidth: 52, alignItems: 'center', alignSelf: 'center' }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
+        </View>
+      )}
+      {item.special && (
+        <View style={{ backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'center' }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8' }}>{item.special}</Text>
+        </View>
+      )}
+      {!isFriend && item.birdieCount > 0 && (
+        <View style={{ backgroundColor: '#3D3935', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'center' }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const memoBlock = item.memo ? (
+    <View style={{ borderLeftWidth: 2, borderLeftColor: memoBorderColor, paddingLeft: 8, marginBottom: 8 }}>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, fontStyle: 'italic' }}>"{item.memo}"</Text>
+    </View>
+  ) : null;
+
+  const ratingStars = rating > 0 ? (
+    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C', marginBottom: 6 }}>{'★'.repeat(rating)}<Text style={{ color: C.hairline }}>{'★'.repeat(5 - rating)}</Text></Text>
+  ) : null;
+
+  // ── MY 상세 본문 (태그 포함, 풍부) ──
   const body = (
     <View style={dS.cardBody}>
       <Text style={dS.cardDate}>{item.date} {item.day}</Text>
       <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <Text style={[dS.cardScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-        <Text style={[dS.cardScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-        <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
-        {isSingle && (
-          <View style={{
-            backgroundColor: '#C9A84C',
-            borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
-            minWidth: 52, alignItems: 'center', alignSelf: 'center',
-          }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
-          </View>
-        )}
-        {item.special && (
-          <View style={{
-            backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
-            borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-            alignSelf: 'center',
-          }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8' }}>{item.special}</Text>
-          </View>
-        )}
-        {item.birdieCount > 0 && (
-          <View style={{
-            backgroundColor: '#3D3935',
-            borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-            alignSelf: 'center',
-          }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
-          </View>
-        )}
-      </View>
-      {item.memo ? (
-        <View style={{ borderLeftWidth: 2, borderLeftColor: memoBorderColor, paddingLeft: 8, marginBottom: 8 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, fontStyle: 'italic' }}>"{item.memo}"</Text>
-        </View>
-      ) : null}
+      {scoreLine}
+      {memoBlock}
       {item.tags && item.tags.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', gap: 4 }}>
@@ -86,32 +110,136 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
     </View>
   );
 
-  if (hasPhoto) {
-    return (
-      <TouchableOpacity
-        style={[dS.card, highlight && dS.cardSpecial]}
-        activeOpacity={0.88} onPress={() => onPress(item)}>
-        {highlight && <View style={dS.cardSpecialLine} />}
-        <View style={dS.photoHero43}>
-          <Image source={{ uri: heroUri }} style={dS.photoImg} resizeMode="cover" />
-          <View style={dS.photoBottomOverlay}>
-            <Text style={dS.overlayCourse} numberOfLines={1}>{item.course}</Text>
-            <Text style={dS.overlayDate}>{item.date} {item.day}</Text>
-          </View>
-          {isSpecial && (
-            <View style={dS.specialBadge}>
-              <Text style={dS.specialBadgeTxt}>{item.special}</Text>
-            </View>
-          )}
-          {isFirstSingle && !isSpecial && (
-            <View style={dS.specialBadge}>
-              <Text style={dS.specialBadgeTxt}>FIRST SINGLE</Text>
-            </View>
-          )}
-          <View style={dS.photoCount}>
-            <Text style={dS.photoCountTxt}>{item.photos.length}장</Text>
+  // 친구 좋아요 버튼 (컴팩트) — 사진 카드 하단 우측, 사진없는 카드 우측 하단 공용
+  const likeButton = (
+    <TouchableOpacity onPress={onToggleLike} activeOpacity={0.7}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 12,
+        backgroundColor: liked ? '#F0E0E2' : 'transparent', borderWidth: 0.5, borderColor: liked ? C.burgundy : C.hairline }}>
+      <Text style={{ fontSize: fs(12) }}>👍</Text>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: liked ? C.burgundy : C.warmGray }}>{likeCount}</Text>
+    </TouchableOpacity>
+  );
+
+  // 사진 위 우측 타수 오버레이 (친구 카드) — 흰 글씨 + 그림자로 사진 위 가독성 확보
+  const photoScoreOverlay = hasScore ? (
+    <View style={{ alignItems: 'flex-end' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+        <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>{item.score}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>타</Text>
+      </View>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>{diffLabel} · par {item.par}</Text>
+    </View>
+  ) : null;
+
+  const photoHero = (onTap, scoreNode) => (
+    <View style={dS.photoHero43}>
+      <MediaCarousel photos={item.photos} onTap={onTap} />
+      <View pointerEvents="none" style={[dS.photoBottomOverlay, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={dS.overlayCourse} numberOfLines={1}>{item.course}</Text>
+          <Text style={dS.overlayDate}>{item.date} {item.day}</Text>
+        </View>
+        {scoreNode}
+      </View>
+      {isSpecial && (
+        <View pointerEvents="none" style={dS.specialBadge}>
+          <Text style={dS.specialBadgeTxt}>{item.special}</Text>
+        </View>
+      )}
+      {!isFriend && isFirstSingle && !isSpecial && (
+        <View pointerEvents="none" style={dS.specialBadge}>
+          <Text style={dS.specialBadgeTxt}>FIRST SINGLE</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  // ===== 친구 피드 변형 (정보만 선별, MY와 다른 컴팩트 포맷) =====
+  if (isFriend) {
+    // 사진 카드 — 접기 없음. 사진 하단 오버레이: 좌 구장·일시 / 우 타수. 사진 아래: 작은 메모 + 우측끝 좋아요
+    if (hasPhoto) {
+      return (
+        <View style={[dS.card, isSpecial && dS.cardSpecial]}>
+          {isSpecial && <View style={dS.cardSpecialLine} />}
+          {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i), photoScoreOverlay)}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
+              {item.memo ? `"${item.memo}"` : ''}
+            </Text>
+            {likeButton}
           </View>
         </View>
+      );
+    }
+    // 사진 없는 카드 — 좌(구장·별점·메모) / 우(타수·좋아요) 2열. 친구 카드는 버디·태그가 없어
+    // 우측이 휑하므로 타수를 우측으로 옮겨 균형 + 좌우 묶음으로 높이 축소.
+    // 왼쪽 바: 의미 없는 버터(통일), 특별 카드만 골드(cardSpecial). 타임라인 점은 FriendProfile에서.
+    return (
+      <View style={[dS.card, isSpecial ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: C.butter }]}>
+        {isSpecial && <View style={dS.cardSpecialLine} />}
+        {/* 특별 카드 — 홀수 빼고 라벨만 크게(특별함만). 명예의전당 카드는 공유용 별도 ([[friend-feed-design]]) */}
+        {isSpecial && (
+          <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>
+            <Text style={[dS.specialNoPhotoTxt, { fontSize: fs(28), letterSpacing: 3 }]}>{item.special}</Text>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 0 }}>
+          {/* 좌 — 구장 · 별점 · 한줄메모 */}
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+            <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { marginBottom: 6 }]} numberOfLines={1}>{item.course}</Text>
+            {ratingStars}
+            {item.memo ? (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, fontStyle: 'italic' }}>"{item.memo}"</Text>
+            ) : null}
+          </View>
+          {/* 우 — 타수(크게) · 싱글 배지(타수 밑) */}
+          <View style={{ alignItems: 'flex-end', minWidth: 60 }}>
+            {hasScore ? (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                  <Text style={[dS.cardScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
+                  <Text style={[dS.cardScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
+                </View>
+                <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+              </>
+            ) : (
+              <Text style={dS.cardPar}>스코어 미기록</Text>
+            )}
+            {isSingle && (
+              <View style={{ backgroundColor: '#C9A84C', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 6 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: '#2A2622' }}>싱글</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        {/* 하단 줄 — 좌: 구장상태 태그(넘치면 ···, 좋아요 침범 X) / 우: 좋아요(항상 우측 하단 고정) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', overflow: 'hidden', marginRight: 10 }}>
+            {(item.tags || []).slice(0, 3).map((tag, i) => {
+              const c = getTagColor(tag);
+              return (
+                <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginRight: 4 }}>
+                  <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(10), color: c.text }}>{tag}</Text>
+                </View>
+              );
+            })}
+            {(item.tags || []).length > 3 && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>···</Text>
+            )}
+          </View>
+          {likeButton}
+        </View>
+      </View>
+    );
+  }
+
+  // ===== MY 다이어리 (기본) =====
+  if (hasPhoto) {
+    return (
+      <TouchableOpacity style={[dS.card, highlight && dS.cardSpecial]} activeOpacity={0.88} onPress={() => onPress(item)}>
+        {highlight && <View style={dS.cardSpecialLine} />}
+        {photoHero(() => onPress(item))}
         <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
           <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
         </TouchableOpacity>
@@ -121,9 +249,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle }) {
   }
 
   return (
-    <TouchableOpacity
-      style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]}
-      activeOpacity={0.88} onPress={() => onPress(item)}>
+    <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]} activeOpacity={0.88} onPress={() => onPress(item)}>
       {highlight && <View style={dS.cardSpecialLine} />}
       {isSpecial && (
         <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>

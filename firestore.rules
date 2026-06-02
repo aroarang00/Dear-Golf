@@ -74,9 +74,16 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.visibility in ['friends', 'private'];
-      allow update: if isSignedIn()
-        && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.ownerUid == request.auth.uid;   // ownerUid 변조 금지
+      allow update: if isSignedIn() && (
+        // 본인 — 전체 수정 (ownerUid 변조 금지)
+        (resource.data.ownerUid == request.auth.uid
+         && request.resource.data.ownerUid == request.auth.uid)
+        // 친구 — 친구공개 라운드의 좋아요(likes)에서 자기 uid만 토글 ([[friend-feed-design]])
+        || (resource.data.visibility == 'friends'
+            && areFriends(request.auth.uid, resource.data.ownerUid)
+            && changedKeysWithin(['likes', 'updatedAt'])
+            && selfMembershipToggled('likes'))
+      );
       allow delete: if isSignedIn()
         && resource.data.ownerUid == request.auth.uid;
     }

@@ -1,83 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { dS } from '../styles/dS';
 import { getTrustGrade } from '../constants/trustGrade';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { topMilestone, milestoneBadge } from './MilestoneCard';
-import { WhoLikedModal } from './common/WhoLikedModal';
+import { DiaryCard } from './DiaryCard';
+import { PhotoViewer } from './common/PhotoViewer';
+import { getUid } from '../utils/firebase';
 import { useAndroidBack } from '../hooks/useAndroidBack';
-
-// 특별한 순간 타입 → 한글 라벨
-const SPECIAL_LABEL = { 'HOLE IN ONE': '홀인원', 'EAGLE': '이글', 'ALBATROSS': '알바트로스' };
-
-// 친구 라운딩 피드 1건 — 특별한 순간이면 강조 카드 + 좋아요
-function FeedCard({ item, onShowLikers }) {
-  const [liked, setLiked] = useState(false);
-  const diff = item.score - item.par;
-  const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  const isSpecial = !!item.special;
-  const likers = liked ? [...(item.likedBy || []), '나'] : (item.likedBy || []);
-
-  return (
-    <View style={{
-      backgroundColor: isSpecial ? '#FBF6E8' : C.bgSecondary, borderRadius: 12,
-      borderWidth: isSpecial ? 1 : 0.5, borderColor: isSpecial ? '#C9A84C' : C.hairline,
-      padding: 14, marginBottom: 10,
-    }}>
-      {isSpecial && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-          <Text style={{ fontSize: fs(13) }}>🏆</Text>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914', letterSpacing: 1 }}>
-            {SPECIAL_LABEL[item.special] || item.special}
-          </Text>
-        </View>
-      )}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{item.course}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{item.date}</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-        <Text style={{ fontFamily: F.en, fontSize: fs(24), color: C.charcoal, fontWeight: '700' }}>{item.score}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>타 · {diffLabel}</Text>
-        {item.rating > 0 && (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C', marginLeft: 4 }}>{'★'.repeat(item.rating)}</Text>
-        )}
-      </View>
-      {item.memo ? (
-        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 6, lineHeight: 18 }}>"{item.memo}"</Text>
-      ) : null}
-      {/* 좋아요 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingTop: 10,
-        borderTopWidth: 0.5, borderTopColor: isSpecial ? '#E8D9A8' : C.hairline }}>
-        <TouchableOpacity onPress={() => setLiked(v => !v)} activeOpacity={0.7}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 12,
-            backgroundColor: liked ? '#F0E0E2' : 'transparent', borderWidth: 0.5, borderColor: liked ? C.burgundy : C.hairline }}>
-          <Text style={{ fontSize: fs(12) }}>👍</Text>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: liked ? C.burgundy : C.warmGray }}>{likers.length}</Text>
-        </TouchableOpacity>
-        {likers.length > 0 && (
-          <TouchableOpacity onPress={() => onShowLikers(likers)} activeOpacity={0.7}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>좋아요 누른 사람 보기</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-}
 
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
-export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, onHide, onDelete }) {
+// 피드 카드는 MY와 동일한 DiaryCard(variant='friend') 재사용 — 정보만 선별 ([[friend-feed-design]])
+export function FriendProfile({ friend, visible, feedLoading, onClose, muted, onToggleMute, onHide, onDelete }) {
   const [gradeOpen, setGradeOpen] = useState(false);
   const [mannerOpen, setMannerOpen] = useState(false);
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
-  const [likers, setLikers] = useState(null);   // 좋아요 누른 사람 목록 팝업
   const [optionsOpen, setOptionsOpen] = useState(false);   // 헤더 ⋯ 옵션
+  const [myUid, setMyUid] = useState(null);                // 좋아요 내 상태 판정용
+  const [viewer, setViewer] = useState(null);              // { photos, index } — 사진/영상 전체화면
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
+  useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
+  useEffect(() => { getUid().then(setMyUid).catch(() => {}); }, []);
   if (!friend) return null;
 
   const handleOption = (fn) => () => { setOptionsOpen(false); fn && fn(); };
@@ -117,10 +66,10 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-            {/* 프로필 — 인스타그램 스타일: 아바타(좌) + 이름·핸디·등급(우) */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
-              paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12, backgroundColor: C.bgPrimary }}>
+          {/* 명함 — 상단 고정 (스크롤해도 유지, 피드만 스크롤) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
+            paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, backgroundColor: C.bgPrimary,
+            borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
                 alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
@@ -131,14 +80,21 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                {/* 이름 + 마일스톤 배지 */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{friend.name}</Text>
+                {/* 이름 + 마일스톤 배지(좌) / "나와 함께 N회"(같은 줄 우측 끝) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 12, marginRight: 4 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, flexShrink: 1 }} numberOfLines={1}>{friend.name}</Text>
                   {fMs && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
                       backgroundColor: '#2A2D3A', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 }}>
                       <Text style={{ fontSize: fs(11) }}>{fMs.icon}</Text>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#E6C677' }}>{fMs.label}</Text>
+                    </View>
+                  )}
+                  {/* 자리만 — 동반자 매칭(라운딩 등록 시 친구 선택 uid) 구현 후 togetherCount 채움.
+                      구현 전 가짜 카운트 노출 차단 ([[diary-companion-matching]]) — togetherCount>0일 때만 표시. 같은 줄 우측 끝(marginLeft auto) */}
+                  {typeof friend.togetherCount === 'number' && friend.togetherCount > 0 && (
+                    <View style={{ marginLeft: 'auto', backgroundColor: '#F0E0E2', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy }}>나와 함께 {friend.togetherCount}회</Text>
                     </View>
                   )}
                 </View>
@@ -153,21 +109,30 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
                     {fStatus}
                   </Text>
                 ) : null}
-                {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}
               </View>
             </View>
 
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             {/* 라운딩 피드 — 평균타(핸디)는 명함의 핸디 뱃지로 노출 */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 12, marginBottom: 10 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
               라운딩 피드
             </Text>
             <View style={{ paddingHorizontal: 16 }}>
               {(friend.feed || []).length === 0 ? (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 24 }}>
-                  아직 공개된 라운딩 기록이 없어요
+                  {feedLoading ? '라운딩 기록을 불러오는 중…' : '아직 공개된 라운딩 기록이 없어요'}
                 </Text>
               ) : (
-                friend.feed.map(item => <FeedCard key={item.id} item={item} onShowLikers={setLikers} />)
+                // MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터(노랑), 특별 카드만 골드 ([[friend-feed-design]])
+                friend.feed.map((item, idx) => (
+                  <View key={item.id} style={dS.tlNode}>
+                    {idx < friend.feed.length - 1 && <View style={dS.tlLine} />}
+                    <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: C.butter, borderWidth: 0 }]} />
+                    <DiaryCard
+                      item={item} variant="friend" myUid={myUid}
+                      onOpenPhoto={(photos, index) => setViewer({ photos, index })} />
+                  </View>
+                ))
               )}
             </View>
           </ScrollView>
@@ -213,8 +178,10 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
             </TouchableOpacity>
           )}
 
-          {/* 좋아요 누른 사람 */}
-          <WhoLikedModal names={likers} onClose={() => setLikers(null)} />
+          {/* 사진·영상 전체화면 뷰어 — 카드 캐러셀에서 탭 시 */}
+          {viewer && (
+            <PhotoViewer photos={viewer.photos} startIndex={viewer.index} onClose={() => setViewer(null)} />
+          )}
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

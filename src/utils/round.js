@@ -1,8 +1,10 @@
 import {
   collection, query, where, orderBy, getDocs,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+  arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
+import { uploadRoundMedia } from './roundMedia';
 
 // =============================================================
 // rounds/{roundId} — 라운딩 1회 기록 (구 diaries + 친구 feed 통합)
@@ -85,12 +87,17 @@ export async function createRound(data) {
     badge: data.badge || null,
     overseas: !!data.overseas,
     country: data.overseas ? (data.country || '') : '',
+    likes: [], // 친구 좋아요 — uid 배열. 친구가 selfMembershipToggled로 자기 uid만 토글 (firestore.rules)
     // 일정 진입 동선으로 작성된 다이어리는 schedule id를 보존해 1:1 매칭 보장.
     // 같은 날 일정 N개 + 다이어리 매칭 시 course+date fallback의 비대칭 차단.
     scheduleId: data.scheduleId || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
+  // 친구공개면 사진/영상을 Storage 업로드(https) — 친구가 볼 수 있게. 나만보기는 로컬 유지 ([[friend-feed-design]]).
+  if (round.visibility === 'friends') {
+    round.photos = await uploadRoundMedia(uid, round.photos);
+  }
   const ref = await addDoc(collection(db, COLLECTION), round);
   return { id: ref.id, ...round };
 }
@@ -99,7 +106,12 @@ export async function createRound(data) {
 export async function updateRound(roundId, data) {
   if (!roundId) throw new Error('roundId required');
   const ref = doc(db, COLLECTION, roundId);
-  const { ownerUid, id, createdAt, ...updatable } = data; // 변경 금지 필드 제거
+  const { ownerUid, id, createdAt, likes, ...updatable } = data; // 변경 금지·별도관리(likes) 필드 제거
+  // 친구공개면 새로 추가된 로컬 사진/영상만 Storage 업로드(https는 멱등 스킵) ([[friend-feed-design]]).
+  if (updatable.visibility === 'friends' && Array.isArray(updatable.photos)) {
+    const uid = await getUid();
+    if (uid) updatable.photos = await uploadRoundMedia(uid, updatable.photos);
+  }
   await updateDoc(ref, {
     ...updatable,
     updatedAt: serverTimestamp(),
@@ -111,4 +123,16 @@ export async function deleteRound(roundId) {
   if (!roundId) throw new Error('roundId required');
   const ref = doc(db, COLLECTION, roundId);
   await deleteDoc(ref);
+}
+
+// 친구 좋아요 토글 — likes 배열에서 내 uid만 add/remove ([[friend-feed-design]]).
+// firestore.rules: 친구공개 라운드에 한해 changedKeysWithin(['likes','updatedAt']) + selfMembershipToggled('likes')만 허용.
+export async function toggleRoundLike(roundId, like) {
+  const uid = await getUid();
+  if (!uid || !roundId) return;
+  const ref = doc(db, COLLECTION, roundId);
+  await updateDoc(ref, {
+    likes: like ? arrayUnion(uid) : arrayRemove(uid),
+    updatedAt: serverTimestamp(),
+  });
 }

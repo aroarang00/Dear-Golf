@@ -15,8 +15,9 @@ import {
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
+import { loadFriendRounds } from '../utils/round';
 import { db, getUid } from '../utils/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 // 친구 찾기에서 받은 후보(간단 필드) → 친구 목록 객체로 변환
 const personToFriend = (p) => ({
@@ -36,7 +37,7 @@ const AVATARS = [
   { bg: '#6B8B5E', fg: '#fff' },
 ];
 
-function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGradePress }) {
+function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPress, onGradePress }) {
   const r = friend.recent;
   const diff = r ? r.score - r.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -45,7 +46,8 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
   const fStatus = (friend.statusMessage || '').trim();
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
-      style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12 }}>
+      style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12 },
+        favorite && { borderLeftWidth: 3, borderLeftColor: C.burgundy }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
@@ -99,7 +101,9 @@ export function FriendsTab({ navigation, onInvite }) {
   const [friends, setFriends] = useState([]);
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
+  const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
   const [profileFriend, setProfileFriend] = useState(null);
+  const [feedLoading, setFeedLoading] = useState(false);   // 친구 프로필 피드 로드 중
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
@@ -122,12 +126,20 @@ export function FriendsTab({ navigation, onInvite }) {
             uid,
             nickname: userProfile?.nickname || '',
             blockedUids: [],
+            favoriteUids: [],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
         } else if (userProfile?.nickname && meSnap.data().nickname !== userProfile.nickname) {
           // 닉네임 변경 시 동기화 (간단 케이스만, 30일 제한은 F4 MyPage에서)
           await setDoc(meRef, { nickname: userProfile.nickname, updatedAt: serverTimestamp() }, { merge: true });
+        }
+        // 즐겨찾기 로드 — users.favoriteUids → 맵
+        if (!cancelled) {
+          const favArr = meSnap.exists() ? (meSnap.data().favoriteUids || []) : [];
+          const fm = {};
+          favArr.forEach(u => { fm[u] = true; });
+          setFavorites(fm);
         }
         // 2) 친구·받은 신청·보낸 신청 병렬 로드
         const [friendsList, received, sent] = await Promise.all([
@@ -173,6 +185,7 @@ export function FriendsTab({ navigation, onInvite }) {
             recent: null,
             stats: { rounds: p.totalRounds || 0, avg: p.avgScore || null, best: p.lifeBest || null },
             feed: [],
+            togetherCount: 0, // 자리만 — 동반자 매칭(닉네임/본명) 구현 후 채움. 0이면 명함에 미표시 ([[diary-companion-matching]])
           };
         };
         setFriends(friendsList.map(f => toMinimal(f.otherUid)));
@@ -224,12 +237,48 @@ export function FriendsTab({ navigation, onInvite }) {
   }, [blockedIds]);
 
   const q = search.trim();
-  const visible = friends.filter(f => !hidden[f.id] && (!q || f.name.includes(q)));
+  const visible = friends
+    .filter(f => !hidden[f.id] && (!q || f.name.includes(q)))
+    .sort((a, b) => (favorites[b.id] ? 1 : 0) - (favorites[a.id] ? 1 : 0)); // 즐겨찾기 상단 (안정 정렬)
   const hiddenFriends = friends.filter(f => hidden[f.id]);
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
 
   const toggleMute = (id) => setMuted(p => ({ ...p, [id]: !p[id] }));
   const hideFriend = (id) => setHidden(p => ({ ...p, [id]: true }));
+
+  // 즐겨찾기 토글 — 로컬 즉시 반영 + Firestore users.favoriteUids 영속. 실패 시 롤백.
+  const toggleFavorite = async (id) => {
+    const next = !favorites[id];
+    setFavorites(p => ({ ...p, [id]: next }));
+    try {
+      const uid = await getUid();
+      if (!uid) return;
+      await setDoc(doc(db, 'users', uid), {
+        favoriteUids: next ? arrayUnion(id) : arrayRemove(id),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] toggleFavorite failed', e?.message);
+      setFavorites(p => ({ ...p, [id]: !next }));
+    }
+  };
+
+  // 친구 카드 탭 → 프로필 즉시 열고(명함 먼저 보임), 친구공개 라운딩 피드는 비동기 로드해 병합.
+  // 친구공개(visibility=='friends') 기록만 조회 — 나만보기는 보안 규칙·쿼리에서 제외 ([[profile-diary-split]]).
+  const openFriendProfile = async (f) => {
+    setProfileFriend(f);
+    setFeedLoading(true);
+    try {
+      // 친구공개 라운드를 그대로 피드로 — DiaryCard(variant='friend')가 photos·likes·starRating 등 전체 필드를 읽음
+      const feed = await loadFriendRounds(f.id);
+      // 로드 중 다른 친구로 바뀌었으면 무시 (경쟁 상태 가드)
+      setProfileFriend(prev => (prev && prev.id === f.id ? { ...prev, feed } : prev));
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] loadFriendRounds failed', e?.message);
+    } finally {
+      setFeedLoading(false);
+    }
+  };
 
   // 친구 신청 — Firestore friendships pending doc 생성 + 보낸 신청 state 추가.
   // 일 10건 한도 ([[friend-add-feature]] §22). 같은 사람 재신청은 카운트 X (멱등).
@@ -441,8 +490,10 @@ export function FriendsTab({ navigation, onInvite }) {
                 friend={f}
                 palette={paletteOf(f.id)}
                 muted={!!muted[f.id]}
+                favorite={!!favorites[f.id]}
                 grade={grade}
-                onPress={() => setProfileFriend(f)}
+                onPress={() => openFriendProfile(f)}
+                onLongPress={() => toggleFavorite(f.id)}
                 onGradePress={() => setGradeModalKey(grade.key)}
               />
             );
@@ -450,7 +501,7 @@ export function FriendsTab({ navigation, onInvite }) {
         )}
 
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 6 }}>
-          친구 카드를 탭하면 프로필이 열려요
+          탭하면 프로필 · 길게 누르면 즐겨찾기 ⭐
         </Text>
       </ScrollView>
 
@@ -458,6 +509,7 @@ export function FriendsTab({ navigation, onInvite }) {
       <FriendProfile
         friend={profileFriend}
         visible={!!profileFriend}
+        feedLoading={feedLoading}
         onClose={() => setProfileFriend(null)}
         muted={profileFriend ? !!muted[profileFriend.id] : false}
         onToggleMute={() => profileFriend && toggleMute(profileFriend.id)}
