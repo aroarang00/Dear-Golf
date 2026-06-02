@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { C, F, fs } from '../constants/colors';
 import { HALL_OF_FAME } from '../constants/data';
@@ -74,6 +74,7 @@ function buildSingleHofEntry(data, diaryId) {
 }
 
 export function DiaryScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();   // 안드 내비게이션 바 인셋 — 하단 바텀시트 잘림 방지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { diaries, addDiary, editDiary, removeDiary } = React.useContext(DiariesContext);
@@ -733,7 +734,7 @@ export function DiaryScreen({ route, navigation }) {
       <Modal visible={showPickSheet} transparent animationType="fade" onRequestClose={() => setShowPickSheet(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowPickSheet(false)} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 10, paddingBottom: 24 }}>
+          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 10, paddingBottom: 24 + insets.bottom }}>
             <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 12 }} />
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, marginBottom: 4 }}>기록할 라운딩을 선택하세요</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 20, marginBottom: 12 }}>

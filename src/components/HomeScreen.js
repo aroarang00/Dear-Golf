@@ -409,7 +409,7 @@ export function HomeScreen({ navigation, route }) {
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
-          <Text style={homeS.hdrSub}>나만의 골프 캐디</Text>
+          <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
             <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -421,7 +421,7 @@ export function HomeScreen({ navigation, route }) {
           </Text>
           {/* Dear Golf 이용 안내 진입 — 안녕하세요 아래 가로 띠. 미열람 시 빨간 점으로 호기심 유도. */}
           <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.85}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: Platform.OS === 'android' ? 6 : 8, marginTop: Platform.OS === 'android' ? 10 : 12,
+            style={{ flexDirection: 'row', alignItems: 'center', gap: Platform.OS === 'android' ? 6 : 8, marginTop: Platform.OS === 'android' ? 13 : 15,
               backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
               borderRadius: 10,
               paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
