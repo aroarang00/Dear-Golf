@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
+import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Image } from 'react-native';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -47,8 +47,12 @@ function FriendCard({ friend, palette, muted, grade, onPress, onLongPress, onGra
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
       style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 17 : 19), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
+        <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
+            <Image source={{ uri: friend.avatarUri }} style={{ width: '100%', height: '100%' }} />
+          ) : (
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 17 : 19), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -100,6 +104,7 @@ export function FriendsTab({ navigation, onInvite }) {
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
   const listScrollRef = useRef(null);
+  const [reloadKey, setReloadKey] = useState(0);   // 탭 재진입 시 친구·신청 목록 재조회 트리거 (수락·신청 반영)
 
   // Phase 3-F2 — 마운트 시 내 users/{uid} 문서 ensure + 친구·신청 목록 Firestore 로드.
   // users/{uid}.nickname은 다른 사용자가 내 이름을 조회하는 단일 소스. F4에서 MyPage 편집 시 동기화.
@@ -139,24 +144,42 @@ export function FriendsTab({ navigation, onInvite }) {
           otherUids.map(u => getDoc(doc(db, 'users', u)).catch(() => null))
         );
         if (cancelled) return;
-        const nameByUid = {};
+        const profileByUid = {};
         userDocs.forEach((snap, i) => {
-          if (snap?.exists()) nameByUid[otherUids[i]] = snap.data().nickname || '';
+          if (snap?.exists()) {
+            const d = snap.data();
+            profileByUid[otherUids[i]] = {
+              nickname: d.nickname || '',
+              realName: d.realName || '',
+              statusMessage: d.statusMessage || '',
+              lifeBest: d.lifeBest || 0,
+              avgScore: d.avgScore || 0,
+              totalRounds: d.totalRounds || 0,
+              avatarUrl: d.avatarUrl || null,
+            };
+          }
         });
-        // 4) UI 객체로 매핑 — 옛 더미 형태에 맞추되 부재 필드는 fallback
-        const toMinimal = (uid) => ({
-          id: uid,
-          name: nameByUid[uid] || '친구',
-          style: '',
-          hostedCount: 0, attendedCount: 0, mannerScore: 0,
-          recent: null,
-          stats: { rounds: 0, avg: null, best: null },
-          feed: [],
-        });
+        // 4) UI 객체로 매핑 — 명함 공개필드(멘트·라이프베스트·평균타·총라운딩·사진) 반영 (친구 공개 뷰 2단계)
+        const toMinimal = (uid) => {
+          const p = profileByUid[uid] || {};
+          return {
+            id: uid,
+            name: p.nickname || '친구',
+            realName: p.realName || '',
+            statusMessage: p.statusMessage || '',
+            avatarUri: p.avatarUrl || null,
+            style: '',
+            hostedCount: 0, attendedCount: 0, mannerScore: 0,
+            recent: null,
+            stats: { rounds: p.totalRounds || 0, avg: p.avgScore || null, best: p.lifeBest || null },
+            feed: [],
+          };
+        };
         setFriends(friendsList.map(f => toMinimal(f.otherUid)));
         setReceivedRequests(received.map(r => ({
           id: r.requesterUid,
-          name: nameByUid[r.requesterUid] || '친구',
+          name: profileByUid[r.requesterUid]?.nickname || '친구',
+          realName: profileByUid[r.requesterUid]?.realName || '',
           hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: null,
         })));
         setSentRequests(sent.map(s => s.recipientUid));
@@ -165,9 +188,9 @@ export function FriendsTab({ navigation, onInvite }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [userProfile?.nickname]);
+  }, [userProfile?.nickname, reloadKey]);
 
-  // 친구 탭 재방문 시 — 검색·프로필·찾기 닫고 목록 맨 위로 초기화
+  // 친구 탭 재방문 시 — 검색·프로필·찾기 닫고 목록 맨 위로 + 친구·신청 재조회
   useEffect(() => {
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('tabPress', () => {
@@ -176,6 +199,7 @@ export function FriendsTab({ navigation, onInvite }) {
       setFinder(null);
       setShowHidden(false);
       setGradeModalKey(null);
+      setReloadKey(k => k + 1);   // 상대의 수락·신청이 반영되도록 재조회
       listScrollRef.current?.scrollTo({ y: 0, animated: true });
     });
     return unsub;

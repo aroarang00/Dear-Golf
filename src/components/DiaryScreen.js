@@ -26,6 +26,8 @@ import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '../utils/roundStats';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
+import { uploadAvatar } from '../utils/avatarStorage';
+import { getUid } from '../utils/firebase';
 import { compressImage } from '../utils/imageCompress';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
@@ -361,8 +363,23 @@ export function DiaryScreen({ route, navigation }) {
   // 프로필 사진 변경 — 갤러리·카카오·기본
   const persistProfile = (patch) => {
     const updated = { ...userProfile, ...patch };
-    setUserProfile({ ...updated });
+    setUserProfile({ ...updated });            // 즉시 반영(본인은 로컬 사진 바로 표시)
     storage.save(STORAGE_KEYS.profile, updated);
+    // 아바타 변경 시 친구 공개용 https URL 생성(Storage 업로드, 백그라운드).
+    // 본인 표시는 avatarUri(로컬), 친구 공개는 avatarUrl(https) — App.js write-through가 users에 동기화.
+    if ('avatarUri' in patch) {
+      (async () => {
+        try {
+          const uid = await getUid();
+          const url = patch.avatarUri ? await uploadAvatar(uid, patch.avatarUri) : null;
+          const withUrl = { ...updated, avatarUrl: url };
+          setUserProfile({ ...withUrl });
+          storage.save(STORAGE_KEYS.profile, withUrl);
+        } catch (e) {
+          if (__DEV__) console.warn('[DiaryScreen] avatar upload sync fail', e?.message);
+        }
+      })();
+    }
   };
   const pickAvatarImage = async () => {
     try {
@@ -406,9 +423,11 @@ export function DiaryScreen({ route, navigation }) {
   const completedRounds = countCompletedRounds(diaries, schedules);
   const _dispTotal = displayTotalRounds(userProfile, completedRounds);
   const totalRounds = _dispTotal > 0 ? _dispTotal : null;
-  const bestScore = hasRecords
-    ? Math.min(...diaries.map(d => d.score))
-    : (userProfile.lifeBest || null);
+  // 라이프베스트 = 설정값(수동 입력한 과거 베스트)과 다이어리 최저 중 더 좋은(낮은) 값.
+  // (다이어리만 쓰면 설정 89가 무시돼, 100짜리 라운딩 추가 시 100으로 잘못 표시되던 버그 수정)
+  const diaryBest = hasRecords ? Math.min(...diaries.map(d => d.score)) : null;
+  const bestCandidates = [diaryBest, userProfile.lifeBest].filter(v => Number.isFinite(v) && v > 0);
+  const bestScore = bestCandidates.length ? Math.min(...bestCandidates) : null;
   // 명함 — 마일스톤 배지(최고 1개) · 멘트
   const visitedCourses = countVisitedCourses(diaries, schedules);
   const topMs = milestoneBadge(topMilestone({ rounds: _dispTotal, courses: visitedCourses }));

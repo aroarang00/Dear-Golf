@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
@@ -122,8 +122,13 @@ export function FriendProfile({ friend, visible, onClose, muted, onToggleMute, o
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
               paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12, backgroundColor: C.bgPrimary }}>
               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
-                alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
+                alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
+                  // 원격 URL(카카오 등)만 표시. dgphoto: 등 로컬 키는 친구가 못 읽으므로 이니셜 fallback (사진 친구공개는 Storage 업로드 후)
+                  <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} />
+                ) : (
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 {/* 이름 + 마일스톤 배지 */}

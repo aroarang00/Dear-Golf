@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { getTrustGrade } from '../constants/trustGrade';
-import { getMannerGrade } from '../constants/mannerGrade';
 import { OverlayAlert } from './common/OverlayAlert';
 import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
 import { searchUsersByNickname } from '../utils/friends';
@@ -23,8 +21,7 @@ const KAKAO_CANDIDATES = [];
 // 사람 한 줄 — 아바타 + 이름·핸디·등급 + 우측 액션 슬롯
 function PersonRow({ person, right }) {
   const palette = paletteFor(person.id);
-  const grade = getTrustGrade(person.hostedCount, person.mannerScore);
-  const manner = getMannerGrade(person.mannerScore || 70);
+  // 친구 찾기 단계에선 핸디·신뢰등급·매너등급 비노출 (처음 보는 사람 평가 부담 방지 [[friend-card-avatar-design]])
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12,
       backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
@@ -35,11 +32,6 @@ function PersonRow({ person, right }) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{person.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>핸디 {person.avg ?? '—'}</Text>
-          <Text style={{ fontSize: fs(12) }}>{grade.emoji}</Text>
-          <Text style={{ fontSize: fs(12) }}>{manner.emoji}</Text>
-        </View>
       </View>
       {right}
     </View>

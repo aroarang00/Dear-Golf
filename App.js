@@ -215,6 +215,13 @@ function App() {
         if (userProfile.lastNicknameChange) payload.lastNicknameChange = userProfile.lastNicknameChange;
         if (typeof userProfile.kakaoLinked === 'boolean') payload.kakaoLinked = userProfile.kakaoLinked;
         if (userProfile.kakaoId) payload.kakaoId = userProfile.kakaoId;
+        // 명함 공개필드 — 친구에게 노출(친구 공개 뷰 1단계). 주소·전화 등 비공개는 동기화 X.
+        if (userProfile.realName) payload.realName = userProfile.realName;
+        if (userProfile.statusMessage) payload.statusMessage = userProfile.statusMessage;
+        if (userProfile.avatarUrl && /^https?:\/\//.test(userProfile.avatarUrl)) payload.avatarUrl = userProfile.avatarUrl;  // Storage 업로드 결과 https URL(친구 공개용). avatarUri(로컬 dgphoto)는 본인 표시 전용
+        if (userProfile.lifeBest > 0) payload.lifeBest = userProfile.lifeBest;
+        if (userProfile.avgScore > 0) payload.avgScore = userProfile.avgScore;
+        if (userProfile.totalRounds > 0) payload.totalRounds = userProfile.totalRounds;
         await setDoc(doc(db, 'users', uid), payload, { merge: true });
       } catch (e) {
         if (__DEV__) console.warn('[App] settings write-through failed', e?.message);
@@ -232,6 +239,12 @@ function App() {
     userProfile.lastNicknameChange,
     userProfile.kakaoLinked,
     userProfile.kakaoId,
+    userProfile.realName,
+    userProfile.statusMessage,
+    userProfile.avatarUrl,
+    userProfile.lifeBest,
+    userProfile.avgScore,
+    userProfile.totalRounds,
   ]);
 
   // 로딩 화면이 너무 빨리 사라지지 않게 — 최소 1.6초는 브랜드 화면을 보여준다
