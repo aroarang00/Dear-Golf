@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Alert, Modal, LayoutAnimation, Platform, UIManager,
+  Share, Alert, Modal, LayoutAnimation, Platform, UIManager, Linking,
 } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -526,7 +526,10 @@ export function HomeScreen({ navigation, route }) {
                     <TouchableOpacity
                       onPress={() => {
                         const id = resolveCourseLogId(next);
-                        if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id, openCourseTab: 'food' });
+                        if (id) { navigation.navigate(ROUTES.COURSE, { openCourseId: id, openCourseTab: 'food' }); return; }
+                        // id 없는 코스(카카오 검색·직접입력 등) — 코스명으로 네이버 지도 주변 맛집 검색 폴백
+                        const q = encodeURIComponent(`${(next.course || '').trim()} 맛집`);
+                        if (q) Linking.openURL(`https://map.naver.com/p/search/${q}`).catch(() => {});
                       }}
                       activeOpacity={0.8}
                       style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>

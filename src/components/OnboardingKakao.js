@@ -6,7 +6,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { loginWithKakao, linkOrSignInWithKakao } from '../utils/kakaoAuth';
 import { ensureUserDoc } from '../utils/userDoc';
 import { checkBannedByKakaoSub } from '../utils/account';
-import { isAdultByKakao } from '../utils/age';
+import { calculateAgeFromKakao, ADULT_AGE } from '../utils/age';
 
 // 온보딩 — 인트로 다음 / 프로필 입력 전 단계.
 // 카카오 로그인 → Firebase Auth 연동(익명 계정 승격) → users 문서 보장 → 프로필 prefill.
@@ -43,7 +43,10 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
       // → 출생연도를 '받을 수 있을 때만' 미성년 차단 안전망으로 사용하고, 없으면 막지 않고 진행한다.
       //   (출생연도 동의항목은 필수 아님 — 없어도 로그인 가능하도록 prod 차단 제거)
       if (result.birthyear && result.birthday) {
-        if (!isAdultByKakao(result.birthyear, result.birthday)) {
+        // 명확히 만 19세 미만일 때만 차단. 형식 불일치 등으로 나이 계산이 안 되면(null)
+        // 차단하지 않고 약관 '[필수] 만 19세 이상' 자가확인에 위임 — 성인 오차단 방지.
+        const age = calculateAgeFromKakao(result.birthyear, result.birthday);
+        if (age !== null && age < ADULT_AGE) {
           Alert.alert(
             '가입할 수 없어요',
             'Dear Golf는 만 19세 이상 성인만 이용할 수 있어요.\n양해 부탁드립니다.',
