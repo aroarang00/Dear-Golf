@@ -200,11 +200,13 @@ exports.onContentReportUpdated = contentReports.onContentReportUpdated;
 
 // =============================================================
 // 운영 이메일 — ./email.js (SendGrid 신고 접수 알림)
-// =============================================================
-const email = require('./email');
-exports.onReportCreatedEmail = email.onReportCreatedEmail;
-exports.onContentReportCreatedEmail = email.onContentReportCreatedEmail;
-exports.onNoshowReportCreatedEmail = email.onNoshowReportCreatedEmail;
+// ⚠️ 비활성화 (2026-06-02): SendGrid 키 미발급이라 SENDGRID_API_KEY secret이 없어
+//    배포가 막힘. 운영자 알림 전용이라 앱 기능엔 무관(신고는 Firestore에 기록되고
+//    SLA·제재는 noshow.js/contentReports.js가 처리). SendGrid 설정 후 아래 4줄 주석 해제로 복구.
+// const email = require('./email');
+// exports.onReportCreatedEmail = email.onReportCreatedEmail;
+// exports.onContentReportCreatedEmail = email.onContentReportCreatedEmail;
+// exports.onNoshowReportCreatedEmail = email.onNoshowReportCreatedEmail;
 
 // =============================================================
 // §A 라운지 자동 — ./roundup.js (CF2)
@@ -214,3 +216,11 @@ exports.onNoshowReportCreatedEmail = email.onNoshowReportCreatedEmail;
 const roundup = require('./roundup');
 exports.onRoundupUpdated = roundup.onRoundupUpdated;
 exports.waitlistCallCutoffTick = roundup.waitlistCallCutoffTick;
+
+// =============================================================
+// 스코어카드 OCR — ./ocr.js (네이버 CLOVA OCR 프록시)
+//   recognizeScorecard — onCall. 앱 이미지(base64) → CLOVA → 텍스트+좌표 반환
+//   Secret: CLOVA_OCR_SECRET, CLOVA_OCR_URL (functions:secrets:set 으로 등록)
+// =============================================================
+const ocr = require('./ocr');
+exports.recognizeScorecard = ocr.recognizeScorecard;

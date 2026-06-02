@@ -117,7 +117,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const img = await pickScorecardImage(source);
       if (!img) return; // 취소·권한거부
       const res = await recognizeScorecard(img.uri);
-      if (__DEV__ && res.rawText) console.log('[scorecardOcr] raw text:\n' + res.rawText);
       setScRows(res.rows || []);
       setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
       setScFailed(!!res.error || !(res.rows || []).length);   // 인식 실패/숫자 부족 → 빈 표 직접 입력 안내
@@ -442,9 +441,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>촬영</Text>
                         </TouchableOpacity>
                       </View>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19, marginTop: 8 }}>
-                        📷 스코어 앱에서 저장·캡처한 이미지가 가장 정확해요.{'\n'}직접 촬영할 땐 표를 정면에서,{'\n'}그림자·빛 반사 없이 숫자가 또렷하게 담아주세요.
-                      </Text>
+                      <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 12,
+                        borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 7 }}>
+                          📷 어떤 스코어카드를 올리나요?
+                        </Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: 20 }}>
+                          PAR(파)와 전·후반 홀이 표로 정렬된{'\n'}스코어카드가 정확히 인식돼요.{'\n'}(스마트스코어 표 · 골프장 스코어카드)
+                        </Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 8 }}>
+                          · 풍경 배경의 요약 카드는 PAR가 없어 인식되지 않아요.{'\n'}· 촬영할 땐 표를 정면에서 또렷하게 담아주세요.
+                        </Text>
+                      </View>
                     </View>
                   )}
 

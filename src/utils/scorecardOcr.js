@@ -1,23 +1,21 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase';
 
 // =============================================================
 // 스코어카드 OCR — 본인 스코어(숫자 18홀)만 추출. ([[project_scorecard_ocr]])
 //
-// 2026-06-01: ML Kit(온디바이스) → Naver CLOVA OCR(클라우드 REST) 전환.
-//   ML Kit가 스마트스코어 작은 홀별 숫자를 못 읽어 폐기. CLOVA는 REST라 재빌드 불필요.
-//   ⚠️ 시크릿 키 클라 노출 → 출시 전 Cloud Functions 프록시 필수 ([[api-key-security]]).
-//   ⚠️ 이미지가 NAVER로 업로드 → 개인정보처리방침에 처리위탁 고지 필요 ([[project_scorecard_ocr]]).
+// 2026-06-01: ML Kit(온디바이스) → Naver CLOVA OCR(클라우드) 전환. ML Kit가 작은 홀 숫자 못 읽어 폐기.
+// 2026-06-02: CLOVA 직접호출(키 클라 노출) → Cloud Functions 프록시(recognizeScorecard)로 전환.
+//   키는 CF Secret에만 보관 → 앱 노출 0 ([[api-key-security]]). JS만이라 재빌드 불필요.
+//   ⚠️ 이미지가 NAVER로 업로드 → 개인정보처리방침에 처리위탁(네이버클라우드) 고지 필요 ([[project_scorecard_ocr]]).
 //
 // 정책:
 //  - 본인 스코어만, 숫자만. 본명·동반자 매핑/저장 X (PIPA).
 //  - 동반자가 같이 나온 표는 행(플레이어)별로 파싱 → 사용자가 본인 행 직접 선택.
 //  - 추출 결과는 자동 확정 X → 사용자 확인·수정 필수 (다이어리 오염 방지).
 // =============================================================
-
-// CLOVA OCR 인증 (NCP → CLOVA OCR → General Domain → APIGW). 미설정이면 recognize가 안내 에러 반환.
-const CLOVA_INVOKE_URL = process.env.EXPO_PUBLIC_CLOVA_OCR_INVOKE_URL;
-const CLOVA_SECRET = process.env.EXPO_PUBLIC_CLOVA_OCR_SECRET;
 
 export const HOLE_COUNT = 18;
 export const emptyHoles = () => Array(HOLE_COUNT).fill(null);
@@ -66,36 +64,28 @@ export async function pickScorecardImage(source = 'gallery') {
 //   - label: 화면 행 구분용으로만 표시(저장 X). 1행이면 자동 사용, 여러 행이면 사용자가 본인 행 선택.
 //   - 인식 실패/숫자 부족/키 미설정이면 rows:[] → 검토 모달이 빈 표(직접 입력)로 폴백.
 export async function recognizeScorecard(uri) {
-  if (!CLOVA_INVOKE_URL || !CLOVA_SECRET) {
-    if (__DEV__) console.warn('[scorecardOcr] CLOVA 키 미설정 (.env EXPO_PUBLIC_CLOVA_OCR_*)');
-    return { rows: [], pars: null, error: 'OCR 설정이 아직 준비 중이에요 — 직접 입력해 주세요' };
-  }
   try {
     // HEIC 대응 + 원본 해상도 유지 jpg base64 (리사이즈 X — 작은 홀 숫자 보존)
     const img = await ImageManipulator.manipulateAsync(uri, [], {
       compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true,
     });
-    const body = {
-      version: 'V2',
-      requestId: `dg_${Date.now()}`,
-      timestamp: Date.now(),
-      lang: 'ko',
-      images: [{ format: 'jpg', name: 'scorecard', data: img.base64 }],
-    };
-    const res = await fetch(CLOVA_INVOKE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-OCR-SECRET': CLOVA_SECRET },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`CLOVA ${res.status}`);
-    const json = await res.json();
-    const fields = json?.images?.[0]?.fields || [];
-    const toks = clovaFieldsToTokens(fields);
+    // Cloud Functions 프록시 호출 — CLOVA Secret/URL은 CF Secret에만(앱 노출 0). 서울 리전.
+    const callable = httpsCallable(functions, 'recognizeScorecard');
+    const res = await callable({ imageBase64: img.base64, format: 'jpg' });
+    const fields = res?.data?.fields || [];   // [{ text, confidence, vertices }]
+    const toks = tokenize(fields);
     const { rows, pars } = parseTokens(toks);
-    return { rows, pars, rawText: __DEV__ ? fields.map(f => f.inferText).join(' ') : undefined };
+    // PAR 행을 못 찾으면(요약 카드 등) 홀별 타수를 만들 수 없음 → 부드러운 안내
+    if (!rows.length) {
+      return {
+        rows: [], pars: null,
+        error: 'PAR(파)가 보이는 표 형태 스코어카드를 올려주세요.\n풍경 배경의 요약 카드는 PAR가 없어 홀별 인식이 어려워요.',
+      };
+    }
+    return { rows, pars };
   } catch (e) {
-    if (__DEV__) console.warn('[scorecardOcr] CLOVA fail:', e?.message);
-    return { rows: [], pars: null, error: e?.message || '사진을 인식하지 못했어요' };
+    if (__DEV__) console.warn('[scorecardOcr] OCR fail:', e?.code || '', e?.message);
+    return { rows: [], pars: null, error: e?.message || '사진을 인식하지 못했어요 — 직접 입력해 주세요' };
   }
 }
 
@@ -106,26 +96,40 @@ const median = (arr) => {
   return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
 };
 
-// CLOVA fields → 숫자 토큰(중심좌표 포함). boundingPoly.vertices(4점)로 좌표·높이 산출.
-// 한 field에 숫자 여러 개면 폭을 균등 분할해 각 숫자에 x좌표 근사 부여(ML Kit 파서와 동일 로직).
-function clovaFieldsToTokens(fields) {
+// CF 반환 fields → 토큰(좌표 포함). 숫자(음수=언더 포함)와 텍스트 라벨(이름·PAR·HOLE) 모두 보존.
+// vertices(4점)로 좌표·높이 산출. 한 field에 숫자 여러 개면 폭을 균등 분할해 x좌표 근사 부여.
+//   { kind:'num', n } | { kind:'text', text } + { cx, cy, h }
+function tokenize(fields) {
   const toks = [];
   for (const f of fields || []) {
-    const verts = f.boundingPoly?.vertices || [];
+    const verts = f.vertices || [];
     if (verts.length < 2) continue;
     const xs = verts.map(v => v.x ?? 0);
     const ys = verts.map(v => v.y ?? 0);
     const left = Math.min(...xs), right = Math.max(...xs);
     const top = Math.min(...ys), bottom = Math.max(...ys);
-    const h = bottom - top;
-    const digits = (f.inferText || '').match(/\d{1,2}/g);
-    if (!digits) continue;
-    const cy = top + h / 2;
-    if (digits.length === 1) {
-      toks.push({ n: +digits[0], cx: (left + right) / 2, cy, h });
+    const h = bottom - top, cy = top + h / 2;
+    const text = (f.text || '').trim();
+    if (!text) continue;
+    // par/hdcp 합쳐진 셀 "4/10" → par(앞 숫자)만 (스마트스코어 태블릿)
+    const slashPar = text.match(/^(\d{1,2})\s*\/\s*\d{1,2}$/);
+    if (slashPar) {
+      toks.push({ kind: 'num', n: parseInt(slashPar[1], 10), cx: (left + right) / 2, cy, h });
+      continue;
+    }
+    const nums = text.match(/-?\d{1,2}/g);
+    const nonNumeric = text.replace(/[\d\s.\-+]/g, '');   // 숫자·공백·부호 제외 남는 글자
+    if (nums && !nonNumeric) {
+      // 숫자(들)로만 구성 — 개별 숫자 토큰으로 분할 (음수 = 언더)
+      if (nums.length === 1) {
+        toks.push({ kind: 'num', n: parseInt(nums[0], 10), cx: (left + right) / 2, cy, h });
+      } else {
+        const per = (right - left) / nums.length;
+        nums.forEach((d, k) => toks.push({ kind: 'num', n: parseInt(d, 10), cx: left + per * (k + 0.5), cy, h }));
+      }
     } else {
-      const per = (right - left) / digits.length;
-      digits.forEach((d, k) => toks.push({ n: +d, cx: left + per * (k + 0.5), cy, h }));
+      // 텍스트 라벨 (이름·PAR·HOLE·T·코스명 등)
+      toks.push({ kind: 'text', text, cx: (left + right) / 2, cy, h });
     }
   }
   return toks;
@@ -148,40 +152,113 @@ function clusterRows(toks) {
   return rows;
 }
 
-// 숫자 토큰 → 행별 18홀 파싱 (좌표 기반 — 스마트스코어 등 표 포맷).
-//  1) Y로 행 클러스터 → 2) 점수범위(1~19) 정수만 x정렬 → 3) 긴 행(≥14개)을 플레이어/파 행 후보로
-//  4) par 행(전부 3~6)은 분리해 버디 자동집계에 사용.
-// ⚠️ OUT/IN/TOTAL 합계열이 끼는 포맷은 실제 CLOVA 응답으로 임계값·열제거 튜닝 필요.
-//    검토 모달에서 사용자가 최종 수정하므로 시작점으로 충분.
+// 토큰 → 스마트스코어 카드 파싱.
+//  스마트스코어는 홀별 칸이 "파 대비(+/-)" 표시 → 실제 타수 = PAR + 파대비.
+//  표는 전반/후반 9홀씩 2블록, 각 블록에 HOLE·PAR·플레이어(여럿) 행.
+//  1) Y로 행 클러스터 → 2) 라벨로 행 종류 분류(hole/par/player)
+//  3) PAR 행에서 홀별 par, 플레이어 행에서 홀별 파대비
+//  4) 실제타수 = par + 파대비, 전·후반 같은 순서끼리 18홀로 병합
+//  5) 플레이어별 행 반환(동반자 카드는 여러 명) → 사용자가 본인 행 선택. 이름은 표시용(저장 X).
+// 반환: { rows:[{ label, holes:number[18], total }], pars:number[18]|null }
 function parseTokens(toks) {
   if (!toks.length) return { rows: [], pars: null };
 
-  const longRows = clusterRows(toks)
-    .map(r => ({
-      cy: r.cy,
-      vals: r.items.filter(t => t.n >= 1 && t.n <= 19).sort((a, b) => a.cx - b.cx).map(t => t.n),
-    }))
-    .filter(r => r.vals.length >= 14);
-  if (!longRows.length) return { rows: [], pars: null };
+  const classified = clusterRows(toks).map(r => {
+    const items = r.items.slice().sort((a, b) => a.cx - b.cx);
+    const labelText = items.filter(t => t.kind === 'text').map(t => t.text).join(' ');
+    const nums = items.filter(t => t.kind === 'num').map(t => t.n);
+    // 1..9 순차면 헤더(HOLE) 행
+    const isSeq = nums.length >= 8 && nums.slice(0, 8).every((n, k) => n === k + 1);
+    let type = 'other';
+    if (/HOLE/i.test(labelText) || isSeq) type = 'hole';
+    else if (/PAR/i.test(labelText)) type = 'par';
+    else if (/[가-힣]/.test(labelText) && nums.length >= 7) type = 'player';
+    else if (!labelText && nums.length >= 9 && !isSeq) type = 'player';   // 이름 인식 실패 폴백
+    const name = labelText.replace(/SMART|SCORE/gi, '').trim();
+    return { cy: r.cy, name, nums, type };
+  });
 
-  const to18 = (vals) => {
-    const v = vals.slice(0, 18);
-    while (v.length < 18) v.push(null);
-    return v;
+  const parRows = classified.filter(r => r.type === 'par').sort((a, b) => a.cy - b.cy);
+  if (!parRows.length) return { rows: [], pars: null };
+
+  // PAR 홀값(3~6)만 추출 — 소계(36/72)·HDCP 제외. 원본 인덱스도(플레이어 같은 컬럼 매칭용).
+  const parHoleVals = (pr) => pr.nums.filter(n => n >= 3 && n <= 6);
+  const parHoleIdx = (pr) => { const idx = []; pr.nums.forEach((v, i) => { if (v >= 3 && v <= 6) idx.push(i); }); return idx; };
+
+  const players = classified.filter(r => r.type === 'player');
+  const ph0 = parHoleVals(parRows[0]);
+  let parFront = [], parBack = [];
+  const normalized = [];   // { name, relF[9], relB[9], subF, subB }
+
+  if (parRows.length >= 2) {
+    // 2블록 — PAR 행 2개(전·후반), 플레이어도 블록별 행 (동반자·서원힐스)
+    parFront = ph0.slice(0, 9);
+    parBack = parHoleVals(parRows[1]).slice(0, 9);
+    const frontCy = parRows[0].cy, backCy = parRows[1].cy;
+    const fps = players.filter(p => p.cy > frontCy && p.cy < backCy).sort((a, b) => a.cy - b.cy);
+    const bps = players.filter(p => p.cy > backCy).sort((a, b) => a.cy - b.cy);
+    const cnt = Math.max(fps.length, bps.length);
+    for (let i = 0; i < cnt; i++) {
+      normalized.push({
+        name: (fps[i] && fps[i].name) || (bps[i] && bps[i].name) || `${i + 1}번째 줄`,
+        relF: fps[i] ? fps[i].nums.slice(0, 9) : [],
+        relB: bps[i] ? bps[i].nums.slice(0, 9) : [],
+        subF: fps[i] ? fps[i].nums[9] : undefined,
+        subB: bps[i] ? bps[i].nums[9] : undefined,
+      });
+    }
+  } else if (ph0.length >= 16) {
+    // 1줄 18홀 — PAR 행 1개에 18홀(+OUT/IN/TOTAL), 플레이어도 한 행. par 컬럼 인덱스로 홀만 추출 (Bear Creek)
+    const idx = parHoleIdx(parRows[0]);
+    parFront = idx.slice(0, 9).map(i => parRows[0].nums[i]);
+    parBack = idx.slice(9, 18).map(i => parRows[0].nums[i]);
+    const outIdx = idx[8] + 1;     // 전반 마지막 홀 다음 = OUT 소계
+    const inIdx = idx[17] + 1;     // 후반 마지막 홀 다음 = IN 소계
+    players.forEach((p, k) => {
+      normalized.push({
+        name: p.name || `${k + 1}번째 줄`,
+        relF: idx.slice(0, 9).map(i => p.nums[i]),
+        relB: idx.slice(9, 18).map(i => p.nums[i]),
+        subF: p.nums[outIdx], subB: p.nums[inIdx],
+      });
+    });
+  } else {
+    // 전반만(후반 PAR 없음) — 9홀만 (태블릿 전반 화면 등)
+    parFront = ph0.slice(0, 9);
+    const frontCy = parRows[0].cy;
+    players.filter(p => p.cy > frontCy).sort((a, b) => a.cy - b.cy).forEach((p, k) => {
+      normalized.push({ name: p.name || `${k + 1}번째 줄`, relF: p.nums.slice(0, 9), relB: [], subF: p.nums[9], subB: undefined });
+    });
+  }
+
+  const pars18 = [...parFront, ...parBack];
+
+  // 카드마다 홀 칸이 '파대비'(스마트스코어) 또는 '실제 타수'(서원힐스 등)로 다름.
+  // 소계로 자동 판별: 홀합==소계 → 실제 타수 / 홀합+par합==소계 → 파대비.
+  const decideMode = (vals, parArr, sub) => {
+    const holeSum = vals.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    const parSum = parArr.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    if (Number.isFinite(sub) && parSum) {
+      if (Math.abs(holeSum - sub) <= 2) return 'actual';
+      if (Math.abs(holeSum + parSum - sub) <= 2) return 'relative';
+    }
+    return (parSum && holeSum >= parSum * 0.7) ? 'actual' : 'relative';  // 폴백: 값 크기
   };
 
-  // par 행 = 값이 거의 전부 3~6인 긴 행(보통 표 상단). 있으면 분리.
-  const parIdx = longRows.findIndex(r => r.vals.length >= 16 && r.vals.every(n => n >= 3 && n <= 6));
-  let pars = null;
-  const players = [];
-  longRows.forEach((r, i) => {
-    if (i === parIdx) pars = to18(r.vals);
-    else players.push(r);
+  const out = normalized.map(pl => {
+    const modeF = decideMode(pl.relF, parFront, pl.subF);
+    const modeB = pl.relB.length ? decideMode(pl.relB, parBack, pl.subB) : modeF;
+    const holes = [];
+    for (let h = 0; h < 18; h++) {
+      const par = pars18[h];
+      const front = h < 9;
+      const val = front ? pl.relF[h] : pl.relB[h - 9];
+      const mode = front ? modeF : modeB;
+      if (!Number.isFinite(val)) { holes.push(null); continue; }
+      holes.push(mode === 'actual' ? val : (Number.isFinite(par) ? par + val : null));
+    }
+    return { label: pl.name, holes, total: sumHoles(holes) };
   });
 
-  const rows = (players.length ? players : longRows).map((r, i) => {
-    const holes = to18(r.vals);
-    return { label: `${i + 1}번째 줄`, holes, total: sumHoles(holes) };
-  });
-  return { rows, pars };
+  return { rows: out, pars: pars18.length === 18 ? pars18 : null };
 }

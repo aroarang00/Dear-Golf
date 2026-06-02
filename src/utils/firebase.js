@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 import * as fbAuth from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_CONFIG } from '../constants/api';
@@ -7,6 +8,9 @@ import { FIREBASE_CONFIG } from '../constants/api';
 const app = initializeApp(FIREBASE_CONFIG);
 
 export const db = getFirestore(app);
+
+// Cloud Functions — onCall(스코어카드 OCR 등). 배포 리전(asia-northeast3/서울)과 일치해야 호출됨.
+export const functions = getFunctions(app, 'asia-northeast3');
 
 // 익명 로그인 — 영구 persistence로 uid를 기기별로 유지해야 '내 코멘트'·좋아요 식별이 가능.
 // Metro는 firebase/auth의 react-native 빌드를 골라 getReactNativePersistence를 제공.
