@@ -314,7 +314,7 @@ export function HomeScreen({ navigation, route }) {
 
   const handleShareSchedule = async (s) => {
     if (!s) return;
-    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳`;
+    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n\n라운딩의 모든 순간을 더 특별하게\nDear Golf ⛳`;
     try { await Share.share({ message: msg }); }
     catch (e) { console.warn('[share schedule]', e?.message); }
   };
