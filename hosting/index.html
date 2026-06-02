@@ -8,303 +8,233 @@
 <meta property="og:title" content="Dear Golf" />
 <meta property="og:description" content="좋은 동반자, 그날의 기록까지 — 라운딩의 모든 순간을 더 특별하게" />
 <meta property="og:url" content="https://deargolf.app" />
-<meta name="theme-color" content="#0a1e10" />
+<meta name="theme-color" content="#FAF6EC" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@1,400;1,500;1,600&family=Playfair+Display:ital,wght@0,600;0,700;1,700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <style>
   :root {
-    --butter:#F5E6A8; --paleSky:#C8D9E6; --burgundy:#6B1E2A;
-    --gold:#C9A84C; --gold-soft:#E2CE8E; --navy:#1A3D52;
-    --pine:#0a1e10; --ink:#061009; --cream:#F4EFE3; --mist:rgba(244,239,227,0.74);
-    --line:rgba(201,168,76,0.35); --line-soft:rgba(201,168,76,0.18);
-    --glass:rgba(255,255,255,0.09); --glass-line:rgba(255,255,255,0.18);
+    /* ── Dear Golf 시그니처 6색 ── */
+    --cream:#FAF6EC;
+    --butter:#F5E6A8;
+    --paleSky:#C8D9E6;
+    --burgundy:#6B1E2A;
+    --charcoal:#3D3935;
+    --navy:#1A3D52;
+    /* 파생 톤 */
+    --cream-soft:#FBF4D9;
+    --butter-tint:#FCF4D2;
+    --sky-tint:#DCE9F2;
+    --charcoal-soft:rgba(61,57,53,0.62);
+    --charcoal-faint:rgba(61,57,53,0.40);
+    --hairline:rgba(61,57,53,0.12);
+    --navy-glass:rgba(26,61,82,0.85);
+    --navy-line:rgba(255,255,255,0.16);
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   html { scroll-behavior:smooth; overflow-x:hidden; }
   body {
     font-family:'Pretendard','Pretendard Variable',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
-    color:var(--cream); background:var(--ink);
+    color:var(--charcoal);
+    background:
+      radial-gradient(95% 70% at 12% 0%, var(--butter-tint) 0%, rgba(252,244,210,0) 52%),
+      radial-gradient(90% 70% at 100% 6%, var(--sky-tint) 0%, rgba(220,233,242,0) 56%),
+      radial-gradient(120% 80% at 50% 100%, var(--cream-soft) 0%, rgba(251,244,217,0) 60%),
+      var(--cream);
+    background-attachment:fixed;
     min-height:100vh; overflow-x:hidden; width:100%; position:relative;
     -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
     word-break:keep-all; overflow-wrap:break-word;
   }
-  /* ── 배경(유지): 골프장 사진 + 짙은 그린~노을빛 그라데이션 ── */
-  .bg { position:fixed; inset:0; z-index:0; overflow:hidden;
-    background:radial-gradient(120% 90% at 50% 0%, #1c3a2a 0%, #0d2417 46%, #050d07 100%); }
-  .bg-img { position:absolute; inset:0; z-index:0;
-    background:url('hero.jpg') center/cover no-repeat;
-    filter:contrast(1.05) saturate(1.06) brightness(1.04); opacity:1; }
-  .overlay { position:fixed; inset:0; z-index:1; pointer-events:none;
-    background:
-      radial-gradient(100% 58% at 50% 82%, rgba(201,168,76,0.12) 0%, rgba(201,168,76,0) 60%),
-      radial-gradient(85% 55% at 50% 26%, rgba(8,24,14,0.28) 0%, rgba(8,24,14,0) 70%),
-      linear-gradient(180deg, rgba(8,24,14,0.56) 0%, rgba(8,24,14,0.20) 34%, rgba(8,24,14,0.32) 62%, rgba(5,13,7,0.78) 100%);
-    box-shadow:inset 0 0 150px 40px rgba(0,0,0,0.24); }
 
-  /* ── 삼색바 ── */
-  .stripe { position:fixed; left:0; right:0; height:6px; z-index:30; display:flex; }
-  .stripe.top { top:0; }
+  /* ── 삼색바 (브랜드 시그니처 — 아주 얇게만) ── */
+  .stripe { position:fixed; left:0; right:0; top:0; height:4px; z-index:30; display:flex; }
   .stripe span { flex:1; }
   .stripe .s1 { background:var(--butter); } .stripe .s2 { background:var(--paleSky); } .stripe .s3 { background:var(--burgundy); }
-  .stripe.shimmer::after { content:''; position:absolute; inset:0;
-    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
-    transform:translateX(-100%); animation:sweep 6s ease-in-out 1.2s infinite; }
-  @keyframes sweep { 0%{transform:translateX(-100%);} 35%,100%{transform:translateX(100%);} }
 
   main { position:relative; z-index:2; }
-  .container { width:100%; max-width:820px; margin:0 auto; padding:0 24px; }
+  .container { width:100%; max-width:680px; margin:0 auto; padding:0 26px; }
 
-  /* ── HERO (로고 영역, 컴팩트) ── */
-  .hero { padding:94px 24px 8px; text-align:center;
-    opacity:0; transform:translateY(16px); animation:rise 1.1s cubic-bezier(.2,.7,.2,1) .15s forwards; }
+  /* ── HERO ── */
+  .hero { padding:120px 26px 18px; text-align:center;
+    opacity:0; transform:translateY(16px); animation:rise 1.05s cubic-bezier(.2,.7,.2,1) .1s forwards; }
   @keyframes rise { to { opacity:1; transform:none; } }
-  .subtitle { font-weight:500; font-size:clamp(15px, 4.2vw, 17px); letter-spacing:1.2px; color:rgba(244,239,227,0.78); margin-bottom:10px; }
-  .brand { position:relative; display:inline-flex; align-items:flex-start; gap:5px; }
-  .wordmark { position:relative; font-family:'Lora', serif; font-style:italic; font-weight:600;
-    font-size:clamp(60px, 16vw, 100px); line-height:1.1; padding:.04em .08em .04em .12em; color:#fff;
-    filter:drop-shadow(0 0 46px rgba(245,230,168,0.22)) drop-shadow(0 3px 16px rgba(0,0,0,0.5)); }
-  .wordmark::before { content:'Dear Golf'; position:absolute; left:51%; top:56%;
-    transform:translate(-50%,-50%); font:inherit; white-space:nowrap; color:rgba(244,239,227,0.16); filter:blur(3px); z-index:-1; }
-  .sun-emoji { font-size:clamp(28px, 7vw, 40px); margin-top:clamp(16px,4.4vw,32px); filter:drop-shadow(0 0 13px rgba(245,230,168,0.55)); }
-  .brand-sub { margin-top:7px; font-weight:500; font-size:clamp(10px, 2.8vw, 12px); letter-spacing:5px; color:var(--gold-soft); opacity:0.82; padding-left:5px; }
-  .mini-stripe { display:flex; width:clamp(140px, 52vw, 220px); height:3px; margin:18px auto; border-radius:2px; overflow:hidden; }
+  .subtitle { font-weight:400; font-size:clamp(14px, 4vw, 16px); letter-spacing:2px; color:rgba(61,57,53,0.78); margin-bottom:18px; }
+  .wordmark { font-family:'Lora', serif; font-style:italic; font-weight:400;
+    font-size:clamp(58px, 15vw, 96px); line-height:1.05; color:var(--charcoal); letter-spacing:-.5px; }
+  .brand-sub { margin-top:14px; font-weight:500; font-size:clamp(10px, 2.6vw, 11px); letter-spacing:6px; color:var(--burgundy); opacity:0.78; }
+  .mini-stripe { display:flex; width:108px; height:3px; margin:26px auto; border-radius:2px; overflow:hidden; }
   .mini-stripe span { flex:1; }
-  .tagline { font-size:clamp(20px, 5.4vw, 26px); font-weight:300; line-height:1.65; color:var(--cream); letter-spacing:.4px; margin-top:4px; }
-  .tagline b { color:var(--gold-soft); font-weight:600; }
+  .mini-stripe .s1 { background:#ECD884; } .mini-stripe .s2 { background:#B2CADD; } .mini-stripe .s3 { background:var(--burgundy); }
+  .tagline { font-size:clamp(21px, 5.6vw, 28px); font-weight:300; line-height:1.6; color:var(--charcoal); letter-spacing:.2px; margin-top:6px; }
+  .tagline b { color:var(--burgundy); font-weight:500; }
 
-  /* ══ 폰 부채꼴 스택 (핵심) ══ */
-  .stack-section { padding:44px 0 20px; overflow-x:clip; }
-  .stack-eyebrow { text-align:center; font-weight:600; font-size:12px; letter-spacing:4px; color:var(--gold); margin-bottom:14px; }
-  .phone-stack { position:relative; height:582px; max-width:840px; margin:0 auto; }
+  /* ══ 플로팅 네이비 글래스 카드 스택 ══ */
+  .previews { position:relative; max-width:400px; margin:58px auto 0; padding:6px 0; }
+  .gcard { position:relative;
+    -webkit-backdrop-filter:blur(18px) saturate(1.1); backdrop-filter:blur(18px) saturate(1.1);
+    border:1px solid rgba(255,255,255,0.16); border-radius:22px; padding:24px 24px;
+    box-shadow:0 26px 60px rgba(38,34,40,0.24), 0 6px 18px rgba(38,34,40,0.14), inset 0 1px 0 rgba(255,255,255,0.12);
+    color:#fff; transition:transform .4s cubic-bezier(.2,.7,.2,1); }
+  /* 카드별 영역색 — 차콜·네이비 다크 + 버터 밝은 카드 */
+  .gcard.c-home    { background:linear-gradient(155deg, rgba(74,69,63,0.86) 0%, rgba(61,57,53,0.88) 52%, rgba(42,38,34,0.92) 100%);
+    border-color:rgba(245,230,168,0.24); box-shadow:0 24px 54px rgba(38,34,40,0.24), 0 6px 16px rgba(38,34,40,0.14), inset 0 1px 0 rgba(255,255,255,0.12); }
+  .gcard.c-lounge  { background:linear-gradient(155deg, rgba(43,90,118,0.88) 0%, rgba(26,61,82,0.9) 50%, rgba(18,46,60,0.93) 100%);
+    border-color:rgba(72,112,135,0.7); box-shadow:0 24px 54px rgba(20,49,64,0.26), 0 6px 16px rgba(20,49,64,0.16), inset 0 1px 0 rgba(255,255,255,0.12); }
+  .gcard.c-comment { background:linear-gradient(155deg, rgba(252,245,212,0.92) 0%, rgba(245,230,168,0.94) 52%, rgba(233,214,144,0.95) 100%);
+    border-color:rgba(107,30,42,0.18); box-shadow:0 22px 50px rgba(107,30,42,0.1), 0 5px 14px rgba(107,30,42,0.07), inset 0 1px 0 rgba(255,255,255,0.55); }
 
-  .phone { position:absolute; left:50%; top:14px; width:264px; height:560px; border-radius:40px; padding:9px;
-    background:rgba(8,20,13,0.82); border:1px solid rgba(255,255,255,0.16);
-    -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-    box-shadow:0 30px 70px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
-    transform-origin:bottom center; transition:transform .45s cubic-bezier(.2,.7,.2,1); }
-  .phone.center { z-index:3; transform:translateX(-50%); }
-  /* 좌우 폰: 하단을 자연스럽게 페이드아웃(mask) */
-  .phone.left   { z-index:2; transform:translateX(-50%) translateX(-138px) translateY(34px) rotate(-12deg) scale(0.95);
-    -webkit-mask-image:linear-gradient(180deg,#000 50%,transparent 85%); mask-image:linear-gradient(180deg,#000 50%,transparent 85%); }
-  .phone.right  { z-index:2; transform:translateX(-50%) translateX(138px)  translateY(34px) rotate(12deg)  scale(0.95);
-    -webkit-mask-image:linear-gradient(180deg,#000 50%,transparent 85%); mask-image:linear-gradient(180deg,#000 50%,transparent 85%); }
+  /* 버터 카드는 글자색을 진하게 반전 */
+  .c-comment .gc-eyebrow { color:var(--burgundy); }
+  .c-comment .c-badge { background:rgba(26,61,82,0.12); color:var(--navy); border-color:rgba(26,61,82,0.22); }
+  .c-comment .c-text { color:var(--charcoal); border-left-color:var(--burgundy); }
+  .c-comment .c-author { color:rgba(61,57,53,0.6); }
+  .gcard + .gcard { margin-top:-16px; }
+  .gcard:nth-child(1) { z-index:1; transform:rotate(-1.6deg) translateX(-10px); }
+  .gcard:nth-child(2) { z-index:2; transform:rotate(1deg) translateX(12px); }
+  .gcard:nth-child(3) { z-index:3; transform:rotate(-0.5deg); }
   @media (hover:hover) {
-    .phone-stack:hover .phone.left  { transform:translateX(-50%) translateX(-160px) translateY(26px) rotate(-13deg) scale(0.95); }
-    .phone-stack:hover .phone.right { transform:translateX(-50%) translateX(160px)  translateY(26px) rotate(13deg)  scale(0.95); }
+    .previews:hover .gcard:nth-child(1) { transform:rotate(-2.4deg) translateX(-26px) translateY(-6px); }
+    .previews:hover .gcard:nth-child(2) { transform:rotate(1.4deg) translateX(26px); }
+    .previews:hover .gcard:nth-child(3) { transform:rotate(-0.5deg) translateY(6px); }
   }
-  /* 노치 */
-  .phone .notch { position:absolute; top:9px; left:50%; transform:translateX(-50%); width:96px; height:22px;
-    background:rgba(8,20,13,0.95); border-radius:0 0 13px 13px; z-index:5; }
+  .gc-eyebrow { font-size:11px; font-weight:600; letter-spacing:2.5px; color:var(--butter); margin-bottom:12px; text-transform:uppercase; }
 
-  /* 폰 스크린 = 앱 홈 화면 풀 UI */
-  .screen { position:relative; width:100%; height:100%; border-radius:32px; overflow:hidden;
-    background:linear-gradient(180deg, #16332210 0%, #0c2014 30%, #0a1c11 70%, #07150c 100%); }
-  .screen::before { content:''; position:absolute; inset:0;
-    background:radial-gradient(120% 50% at 50% 0%, rgba(38,74,52,0.55), transparent 70%); }
-  .scr-stripe { display:flex; height:4px; position:relative; z-index:2; }
-  .scr-stripe i { flex:1; }
-  .scr-body { position:relative; z-index:2; padding:34px 19px 18px; }
-  .scr-sub { font-weight:500; font-size:11px; letter-spacing:.6px; color:rgba(255,255,255,0.64); }
-  .scr-brand { font-family:'Lora', serif; font-style:italic; font-weight:600; font-size:35px; color:#fff; line-height:1.1; margin-top:3px; display:flex; align-items:flex-start; gap:4px; }
-  .scr-brand .s { font-size:16px; margin-top:3px; }
-  .scr-greet { font-size:13px; color:rgba(255,255,255,0.8); margin-top:6px; }
-  .scr-greet b { color:var(--butter); font-weight:600; }
+  /* 카드1 — 예정 라운딩 D-day */
+  .dday-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+  .dday-course { font-weight:600; font-size:21px; color:#fff; line-height:1.25; }
+  .dday-meta { font-weight:400; font-size:13px; color:rgba(255,255,255,0.74); margin-top:7px; }
+  .dday-num { font-family:'Playfair Display', serif; font-weight:600; font-size:52px; line-height:.9; color:var(--butter); white-space:nowrap; }
 
-  .scr-guide { display:flex; align-items:center; gap:8px; margin-top:16px; padding:10px 12px; border-radius:11px;
-    background:rgba(255,255,255,0.12); border:0.5px solid rgba(255,255,255,0.2); }
-  .scr-guide .ic { font-size:16px; } .scr-guide .tx { font-size:12px; color:rgba(255,255,255,0.86); font-weight:600; }
+  /* 카드2 — 라운지 모집 */
+  .lounge-row { display:flex; align-items:center; gap:7px; margin-bottom:11px; }
+  .rb { font-size:10px; font-weight:700; padding:3px 9px; border-radius:7px; letter-spacing:.3px; }
+  .rb.fixed { background:rgba(255,255,255,0.9); color:var(--navy); }
+  .rb.friend { background:var(--butter); color:#5A4500; }
+  .l-course { font-weight:600; font-size:18px; color:#fff; }
+  .l-date { font-weight:400; font-size:13px; color:rgba(255,255,255,0.74); margin-top:6px; }
+  .l-tags { display:flex; gap:6px; margin-top:11px; }
+  .l-tags span { font-size:11px; font-weight:400; color:var(--paleSky); background:rgba(200,217,230,0.14); border:0.5px solid rgba(200,217,230,0.2); border-radius:7px; padding:3px 9px; }
+  .l-status { margin-top:13px; font-size:12.5px; font-weight:500; color:rgba(255,255,255,0.78); }
+  .l-status b { color:var(--butter); font-family:'Playfair Display',serif; font-weight:600; }
 
-  .scr-cardlabel { font-size:12px; font-weight:600; letter-spacing:1px; color:rgba(255,255,255,0.6); margin:19px 0 10px; }
-  .scr-dday { padding:16px 15px; border-radius:16px; background:rgba(255,255,255,0.09);
-    border:0.5px solid rgba(255,255,255,0.18); position:relative; }
-  .scr-dday .course { font-weight:700; font-size:18px; color:#fff; }
-  .scr-dday .meta { font-weight:500; font-size:12.5px; color:rgba(255,255,255,0.85); margin-top:5px; }
-  .scr-dday .num { font-family:'Playfair Display', serif; font-weight:700; font-size:58px; line-height:1; color:var(--butter); text-align:right; margin-top:8px; }
+  /* 카드3 — 골퍼 코멘트 */
+  .c-badge { display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.5px; padding:3px 10px; border-radius:7px; background:rgba(200,217,230,0.16); color:var(--paleSky); border:0.5px solid rgba(200,217,230,0.24); }
+  .c-text { font-size:14.5px; color:#fff; line-height:1.6; margin-top:14px; padding-left:13px; border-left:2px solid var(--butter); font-style:italic; }
+  .c-author { font-size:12px; color:rgba(255,255,255,0.56); margin-top:11px; }
 
-  .scr-comment { margin-top:14px; padding:14px 15px; border-radius:16px; background:rgba(255,255,255,0.08); border:0.5px solid rgba(255,255,255,0.14); }
-  .scr-badge { display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:6px; background:var(--navy); color:var(--paleSky); }
-  .scr-ctext { font-size:13.5px; color:#fff; line-height:1.55; margin-top:10px; padding-left:10px; border-left:2px solid rgba(200,217,230,0.45); }
-  .scr-author { font-size:11.5px; color:rgba(255,255,255,0.5); margin-top:8px; }
+  /* ── 다운로드 (네이비 글래스 톤 통일) ── */
+  section.block { padding:62px 0 0; }
+  .sec-eyebrow { text-align:center; font-weight:600; font-size:11px; letter-spacing:4px; color:var(--burgundy); margin-bottom:14px; text-transform:uppercase; }
+  .sec-title { text-align:center; font-size:clamp(23px, 5.6vw, 29px); font-weight:300; color:var(--charcoal); line-height:1.5; letter-spacing:.2px; }
+  .sec-title b { color:var(--burgundy); font-weight:500; }
+  .stores { margin:34px auto 0; display:flex; flex-direction:column; gap:13px; width:100%; max-width:340px; }
+  .store-btn { display:flex; align-items:center; justify-content:center; gap:12px; padding:18px 24px; border-radius:15px;
+    text-decoration:none; border:1px solid rgba(58,97,120,0.66);
+    background:linear-gradient(158deg, rgba(36,81,108,0.88) 0%, rgba(26,61,82,0.9) 60%, rgba(20,49,64,0.92) 100%);
+    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); color:#fff; cursor:pointer;
+    box-shadow:0 16px 36px rgba(26,61,82,0.20), inset 0 1px 0 rgba(255,255,255,0.12);
+    transition:transform .15s, box-shadow .2s, filter .2s; }
+  .store-btn:hover { transform:translateY(-2px); filter:brightness(1.1);
+    box-shadow:0 20px 44px rgba(26,61,82,0.28), 0 0 0 1px rgba(245,230,168,0.3), inset 0 1px 0 rgba(255,255,255,0.14); }
+  .store-btn:active { transform:translateY(0) scale(0.99); }
+  .store-btn .ico { width:23px; height:23px; flex:none; fill:var(--butter); }
+  .store-btn .txt { font-size:16.5px; color:#fff; font-weight:500; letter-spacing:.2px; white-space:nowrap; }
+  .soon { text-align:center; margin-top:22px; font-size:13px; font-weight:400; letter-spacing:2px; color:var(--charcoal-soft); }
 
-  /* 라운지·코스 화면 — 다크 톤 통일 (디자인상 짙게, 실제 앱은 라이트) */
-  .light-body { position:relative; z-index:2; padding:34px 16px 16px; }
-  .lounge-head { font-weight:700; font-size:16px; color:#fff; margin:0 2px 13px; }
-  .r-card { background:rgba(255,255,255,0.08); border:0.5px solid rgba(255,255,255,0.15); border-radius:13px; padding:13px 14px; margin-bottom:11px; }
-  .r-badges { display:flex; gap:5px; margin-bottom:9px; }
-  .rb { font-size:9.5px; font-weight:700; padding:3px 8px; border-radius:7px; }
-  .rb.fixed { background:rgba(255,255,255,0.88); color:#1d2a20; }
-  .rb.friend { background:#F5E6A8; color:#5A4500; }
-  .rb.select { background:#6B1E2A; color:#F5E6A8; }
-  .r-course { font-weight:700; font-size:16px; color:#fff; }
-  .r-date { font-weight:600; font-size:12px; color:rgba(255,255,255,0.82); margin-top:5px; }
-  .r-tags { display:flex; gap:5px; margin-top:9px; }
-  .r-tags span { font-size:10px; font-weight:500; color:#d4e6c2; background:rgba(216,229,200,0.16); border-radius:6px; padding:2px 7px; }
-  .r-status { margin-top:10px; padding:7px 10px; border-radius:9px; background:rgba(255,255,255,0.08); font-size:11px; font-weight:600; color:rgba(255,255,255,0.72); }
-  .r-status b { color:var(--butter); font-family:'Playfair Display',serif; }
-
-  .c-course { font-weight:700; font-size:19px; color:#fff; margin:0 2px 2px; }
-  .c-addr { font-size:11px; color:rgba(255,255,255,0.6); margin:0 2px 13px; }
-  .c-board { background:rgba(255,255,255,0.06); border-radius:13px; padding:13px 13px; }
-  .c-board-head { font-weight:700; font-size:15px; color:#fff; margin-bottom:11px; display:flex; align-items:center; gap:6px; }
-  .c-cnt { font-size:10px; font-weight:700; background:#6B1E2A; color:#F5E6A8; border-radius:8px; padding:1px 7px; }
-  .c-comment { background:rgba(255,255,255,0.08); border:0.5px solid rgba(255,255,255,0.14); border-radius:11px; padding:12px 13px; margin-bottom:9px; }
-  .c-txt { font-size:12.5px; color:#fff; line-height:1.55; }
-  .c-meta { display:flex; align-items:center; font-size:10px; color:rgba(255,255,255,0.5); margin-top:8px; }
-  .c-like { margin-left:auto; color:var(--butter); font-weight:600; border:0.5px solid rgba(245,230,168,0.4); border-radius:10px; padding:2px 8px; }
-
-  /* ── 다운로드 ── */
-  section.block { padding:34px 0; }
-  /* 다운로드 박스를 폰 스택 빈 하단에 겹침 */
-  .download-overlap { margin-top:-150px; padding-top:0; padding-bottom:26px; position:relative; z-index:20; }
-  .sec-eyebrow { text-align:center; font-weight:600; font-size:12px; letter-spacing:4px; color:var(--gold); margin-bottom:12px; }
-  .sec-title { text-align:center; font-size:clamp(25px, 6.2vw, 32px); font-weight:700; color:var(--cream); line-height:1.45; }
-  .stores { margin:30px auto 0; display:flex; flex-direction:column; gap:13px; width:100%; max-width:340px; }
-  .store-btn { display:flex; align-items:center; justify-content:center; gap:12px; padding:19px 24px; border-radius:15px;
-    text-decoration:none; border:1px solid rgba(201,168,76,0.32); background:rgba(255,255,255,0.12);
-    -webkit-backdrop-filter:blur(9px); backdrop-filter:blur(9px); color:var(--cream); cursor:pointer;
-    box-shadow:0 12px 30px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.14);
-    transition:border-color .2s, background .2s, box-shadow .2s, transform .15s; }
-  .store-btn:hover { border-color:rgba(201,168,76,0.75); background:rgba(255,255,255,0.17);
-    transform:translateY(-2px); box-shadow:0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.22), inset 0 1px 0 rgba(255,255,255,0.18); }
-  .store-btn:active { transform:translateY(0) scale(0.99); border-color:var(--gold); background:rgba(255,255,255,0.22);
-    box-shadow:0 6px 18px rgba(0,0,0,0.45), 0 0 24px rgba(201,168,76,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
-  .store-btn .ico { width:24px; height:24px; flex:none; fill:var(--gold-soft); }
-  .store-btn .txt { font-size:18px; color:var(--cream); font-weight:500; letter-spacing:.3px; white-space:nowrap; }
-  .soon { text-align:center; margin-top:20px; font-size:15px; font-weight:400; letter-spacing:2px; color:var(--butter); }
-
-  /* ── 기능 리스트 ── */
-  .features { margin-top:34px; display:flex; flex-direction:column; gap:13px; max-width:440px; margin-left:auto; margin-right:auto; }
-  .feat { display:flex; align-items:center; gap:15px; padding:17px 20px; border-radius:14px;
-    border:0.5px solid var(--glass-line); background:var(--glass); -webkit-backdrop-filter:blur(7px); backdrop-filter:blur(7px); }
+  /* ── 기능 리스트 (네이비 글래스 단일 카드) ── */
+  .features { margin:34px auto 0; max-width:400px;
+    background:linear-gradient(155deg, rgba(232,241,247,0.9) 0%, rgba(200,217,230,0.92) 52%, rgba(178,201,219,0.94) 100%);
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    border:none; border-radius:22px; padding:10px 24px;
+    box-shadow:0 24px 48px rgba(26,61,82,0.18), 0 8px 18px rgba(26,61,82,0.1), inset 0 1px 0 rgba(255,255,255,0.78), inset 0 -1px 0 rgba(26,61,82,0.05); }
+  .feat { display:flex; align-items:center; gap:15px; padding:17px 0; }
+  .feat + .feat { border-top:1px solid rgba(26,61,82,0.12); }
   .feat .mk { flex:none; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(135deg, var(--gold-soft), var(--gold)); }
-  .feat .mk svg { width:16px; height:16px; stroke:var(--ink); fill:none; stroke-width:2; }
-  .feat .ft { font-weight:600; font-size:clamp(17px, 4.6vw, 19px); color:var(--cream); }
+    background:rgba(255,255,255,0.55); border:1px solid rgba(26,61,82,0.25); }
+  .feat .mk svg { width:16px; height:16px; stroke:var(--navy); fill:none; stroke-width:1.6; }
+  .feat .ft { font-weight:500; font-size:clamp(15px, 4vw, 16.5px); color:var(--navy); line-height:1.4; }
 
-  /* ── FOOTER : 사업자 정보 ── */
-  .footer { position:relative; z-index:2; margin-top:24px; border-top:1px solid var(--line-soft); background:rgba(5,13,7,0.6); }
-  .footer .container { padding-top:38px; padding-bottom:42px; }
-  .footer .links { text-align:center; margin-bottom:24px; }
-  .footer .links a { color:rgba(244,239,227,0.72); text-decoration:none; font-size:14px; margin:0 10px; white-space:nowrap; line-height:2.2; }
-  .footer .links a:hover { color:var(--gold-soft); }
-  .biz { max-width:520px; margin:0 auto; padding:22px 22px; border-radius:14px; border:1px solid var(--line-soft); background:rgba(255,255,255,0.03); }
-  .biz-run { font-size:14px; color:var(--cream); line-height:1.6; margin-bottom:16px; opacity:0.95; }
-  .biz-run b { color:var(--gold-soft); font-weight:600; }
+  /* ── FOOTER ── */
+  .footer { position:relative; z-index:2; margin-top:70px; border-top:1px solid var(--hairline); }
+  .footer .container { padding-top:40px; padding-bottom:48px; }
+  .footer .links { text-align:center; margin-bottom:26px; }
+  .footer .links a { color:var(--charcoal-soft); text-decoration:none; font-size:13.5px; margin:0 10px; white-space:nowrap; line-height:2.3; }
+  .footer .links a:hover { color:var(--burgundy); }
+  .biz { max-width:520px; margin:0 auto; padding:24px; border-radius:16px; border:1px solid var(--hairline); background:rgba(255,255,255,0.45); }
+  .biz-run { font-size:13.5px; color:var(--charcoal); line-height:1.65; margin-bottom:16px; }
+  .biz-run b { color:var(--burgundy); font-weight:600; }
   .biz dl { display:grid; grid-template-columns:auto 1fr; gap:8px 16px; }
-  .biz dt { font-size:13.5px; color:var(--gold-soft); font-weight:600; white-space:nowrap; }
-  .biz dd { font-size:13.5px; color:rgba(244,239,227,0.82); line-height:1.55; }
-  .biz dd a { color:rgba(244,239,227,0.82); text-decoration:none; }
-  .copyright { text-align:center; margin-top:24px; font-size:12px; color:rgba(244,239,227,0.42); letter-spacing:.3px; }
+  .biz dt { font-size:13px; color:var(--charcoal-soft); font-weight:600; white-space:nowrap; }
+  .biz dd { font-size:13px; color:var(--charcoal-soft); line-height:1.55; }
+  .biz dd a { color:var(--charcoal-soft); text-decoration:none; }
+  .copyright { text-align:center; margin-top:26px; font-size:12px; color:var(--charcoal-faint); letter-spacing:.3px; }
 
-  /* ── 반응형: 폰 스택 스케일 다운 (origin top으로 아래 빈 공간 제거) ── */
-  @media (max-width:860px) { .phone-stack { transform:scale(0.88); transform-origin:top center; height:510px; } .download-overlap { margin-top:-130px; } }
-  @media (max-width:600px) { .phone-stack { transform:scale(0.7); transform-origin:top center; height:410px; } .download-overlap { margin-top:-110px; } }
-  @media (max-width:400px) { .phone-stack { transform:scale(0.6); transform-origin:top center; height:350px; } .download-overlap { margin-top:-90px; } }
+  /* ── 반응형 ── */
+  @media (max-width:440px) {
+    .previews { max-width:none; }
+    .gcard:nth-child(1) { transform:rotate(-1.2deg) translateX(-5px); }
+    .gcard:nth-child(2) { transform:rotate(0.8deg) translateX(6px); }
+    .dday-num { font-size:46px; }
+  }
 </style>
 </head>
 <body>
-  <div class="bg"><div class="bg-img"></div></div>
-  <div class="overlay"></div>
-  <div class="stripe top shimmer"><span class="s1"></span><span class="s2"></span><span class="s3"></span></div>
+  <div class="stripe"><span class="s1"></span><span class="s2"></span><span class="s3"></span></div>
 
   <main>
     <!-- ══ HERO ══ -->
     <header class="hero">
       <div class="subtitle">좋은 동반자, 그날의 기록까지</div>
-      <div class="brand">
-        <div class="wordmark">Dear&nbsp;Golf</div>
-        <span class="sun-emoji">☀️</span>
-      </div>
+      <div class="wordmark">Dear&nbsp;Golf</div>
       <div class="brand-sub">GOLF · FRIENDS · LIFE</div>
-      <div class="mini-stripe"><span style="background:var(--butter)"></span><span style="background:var(--paleSky)"></span><span style="background:var(--burgundy)"></span></div>
+      <div class="mini-stripe"><span class="s1"></span><span class="s2"></span><span class="s3"></span></div>
       <div class="tagline">라운딩의 모든 순간을 <b>더 특별하게</b></div>
     </header>
 
-    <!-- ══ 폰 부채꼴 스택 ══ -->
-    <section class="stack-section">
-      <div class="stack-eyebrow">INSIDE THE APP</div>
-      <div class="phone-stack">
+    <!-- ══ 플로팅 네이비 글래스 카드 스택 ══ -->
+    <section class="container">
+      <div class="previews">
 
-        <!-- 좌측 폰: 라운지 (동반자 모집) -->
-        <div class="phone left">
-          <div class="notch"></div>
-          <div class="screen light">
-            <div class="scr-stripe"><i style="background:var(--butter)"></i><i style="background:var(--paleSky)"></i><i style="background:var(--burgundy)"></i></div>
-            <div class="light-body">
-              <div class="lounge-head">라운지</div>
-              <div class="r-card">
-                <div class="r-badges"><span class="rb fixed">확정형</span><span class="rb friend">친구공개</span></div>
-                <div class="r-course">레이크사이드CC</div>
-                <div class="r-date">2026.06.22 (일) · 06:40</div>
-                <div class="r-tags"><span>#편하게즐겨요</span><span>#초보환영</span></div>
-                <div class="r-status">🔄 <b>2</b>/4명 · 모집중</div>
-              </div>
-              <div class="r-card">
-                <div class="r-badges"><span class="rb fixed">확정형</span><span class="rb select">친구지정</span></div>
-                <div class="r-course">남서울CC</div>
-                <div class="r-date">2026.06.15 (토) · 08:00</div>
-                <div class="r-status">✅ <b>4</b>/4명 · 모집완료</div>
-              </div>
+        <!-- 카드1: 예정 라운딩 D-day -->
+        <div class="gcard c-home">
+          <div class="gc-eyebrow">예정 라운딩</div>
+          <div class="dday-top">
+            <div>
+              <div class="dday-course">남서울CC</div>
+              <div class="dday-meta">2026.06.15 토 · 08:00 · 4명</div>
             </div>
+            <div class="dday-num">D-5</div>
           </div>
         </div>
 
-        <!-- 우측 폰: 코스 코멘트 -->
-        <div class="phone right">
-          <div class="notch"></div>
-          <div class="screen light">
-            <div class="scr-stripe"><i style="background:var(--butter)"></i><i style="background:var(--paleSky)"></i><i style="background:var(--burgundy)"></i></div>
-            <div class="light-body">
-              <div class="c-course">사우스스프링스CC</div>
-              <div class="c-addr">경기 광주시 · 100대 코스</div>
-              <div class="c-board">
-                <div class="c-board-head">💬 골퍼 코멘트 <span class="c-cnt">12</span></div>
-                <div class="c-comment">
-                  <div class="c-txt">"그린이 빠른 편이라 어프로치는 한 클럽 짧게 잡으세요."</div>
-                  <div class="c-meta">김프로 · 2026.05 <span class="c-like">♥ 8</span></div>
-                </div>
-                <div class="c-comment">
-                  <div class="c-txt">"동코스 1번 페어웨이가 좁아요. 우드 추천."</div>
-                  <div class="c-meta">박프로 · 2026.04 <span class="c-like">♥ 5</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <!-- 카드2: 라운지 모집 -->
+        <div class="gcard c-lounge">
+          <div class="gc-eyebrow">라운지</div>
+          <div class="lounge-row"><span class="rb fixed">확정형</span><span class="rb friend">친구공개</span></div>
+          <div class="l-course">레이크사이드CC</div>
+          <div class="l-date">2026.06.22 (일) · 06:40</div>
+          <div class="l-tags"><span>#편하게즐겨요</span><span>#초보환영</span></div>
+          <div class="l-status">🔄 <b>2</b> / 4명 · 모집중</div>
         </div>
 
-        <!-- 중앙 폰 (메인) -->
-        <div class="phone center">
-          <div class="notch"></div>
-          <div class="screen">
-            <div class="scr-stripe"><i style="background:var(--butter)"></i><i style="background:var(--paleSky)"></i><i style="background:var(--burgundy)"></i></div>
-            <div class="scr-body">
-              <div class="scr-sub">좋은 동반자, 그날의 기록까지</div>
-              <div class="scr-brand">Dear Golf <span class="s">☀️</span></div>
-              <div class="scr-greet">안녕하세요, <b>지현</b>님</div>
-              <div class="scr-guide"><span class="ic">💡</span><span class="tx">Dear Golf 이용 안내</span></div>
-              <div class="scr-cardlabel">예정 라운딩</div>
-              <div class="scr-dday">
-                <div class="course">남서울CC</div>
-                <div class="meta">2026.06.15 토 · 08:00 · 4명</div>
-                <div class="num">D-5</div>
-              </div>
-              <div class="scr-comment">
-                <span class="scr-badge">골퍼 코멘트</span>
-                <div class="scr-ctext">그린이 빠른 편이라 어프로치는 한 클럽 짧게 잡으세요.</div>
-                <div class="scr-author">— 레이크사이드CC · 김프로</div>
-              </div>
-            </div>
-          </div>
+        <!-- 카드3: 골퍼 코멘트 -->
+        <div class="gcard c-comment">
+          <div class="gc-eyebrow">골퍼 코멘트</div>
+          <span class="c-badge">사우스스프링스CC · 100대 코스</span>
+          <div class="c-text">그린이 빠른 편이라 어프로치는 한 클럽 짧게 잡으세요.</div>
+          <div class="c-author">— 김프로 · 2026.05</div>
         </div>
 
       </div>
     </section>
 
-    <!-- ══ 다운로드 (폰 스택 빈 하단에 겹침) ══ -->
-    <section class="block download-overlap">
+    <!-- ══ 다운로드 ══ -->
+    <section class="block">
       <div class="container">
+        <div class="sec-eyebrow">Download</div>
+        <h2 class="sec-title">지금, <b>Dear Golf</b>와 함께</h2>
         <div class="stores">
           <a class="store-btn" id="ios" aria-disabled="true">
             <svg class="ico" viewBox="0 0 24 24"><path d="M16.4 12.9c0-2 1.6-3 1.7-3.1-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2.1 2.4 2 .9 0 1.3-.6 2.4-.6s1.4.6 2.4.6c1 0 1.7-1 2.3-2 .7-1.1 1-2.2 1-2.2-.1 0-2-.8-1.9-3.1zM14.6 6.7c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>
@@ -322,8 +252,8 @@
     <!-- ══ 기능 리스트 ══ -->
     <section class="block">
       <div class="container">
-        <div class="sec-eyebrow">FEATURES</div>
-        <h2 class="sec-title">Dear Golf가 챙겨드려요</h2>
+        <div class="sec-eyebrow">Features</div>
+        <h2 class="sec-title">Dear Golf가 <b>챙겨드려요</b></h2>
         <div class="features">
           <div class="feat">
             <span class="mk"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.5 12h-2M21.5 12h-2M6 6l1.4 1.4M16.6 16.6 18 18M6 18l1.4-1.4M16.6 7.4 18 6"/></svg></span>
