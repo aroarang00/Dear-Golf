@@ -645,7 +645,7 @@ export function MyPageModal({ visible, onClose }) {
                     onPress: () => setTermsViewer({
                       visible: true,
                       title: '사업자 정보',
-                      body: `Dear Golf 사업자 정보\n\n상호: Dear Golf\n대표자: (출시 전 확정)\n사업자등록번호: (출시 전 등록 후 표시)\n통신판매업 신고번호: (출시 전 신고 후 표시)\n주소: (출시 전 확정)\n연락처: deargolf.official@gmail.com\n\n전자상거래등에서의 소비자보호에 관한 법률 제13조에 따라 사업자 정보를 명시합니다.\n\n분쟁 발생 시 안내:\n- 한국소비자원 (1372 소비자상담센터)\n- 전자거래분쟁조정위원회 (www.ecmc.or.kr)\n- 콘텐츠분쟁조정위원회 (www.kcdrc.kr)`,
+                      body: `Dear Golf 사업자 정보\n\nDear Golf는 노닐는나무가 운영하는 서비스입니다.\n\n상호: 노닐는나무\n대표자: 황지현\n사업자등록번호: 102-36-64293\n주소: 경기도 고양시 일산동구 강송로41 윈스턴파크 704호\n고객센터: deargolf.official@gmail.com\n\n전자상거래등에서의 소비자보호에 관한 법률에 따라 사업자 정보를 명시합니다.\n\n분쟁 발생 시 안내:\n- 한국소비자원 (1372 소비자상담센터)\n- 전자거래분쟁조정위원회 (www.ecmc.or.kr)\n- 콘텐츠분쟁조정위원회 (www.kcdrc.kr)`,
                       externalUrl: null,
                     }) },
                 ].map((item, i) => (
