@@ -22,21 +22,21 @@ export function CourseLogModal({ visible, onClose, navigation }) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
-          {/* 헤더 — 웜그레이 + 버터 글씨 (네이비는 라운지 전용) */}
-          <View style={{ backgroundColor: C.warmGray, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {/* 헤더 — 골프 그린(#6B8B5E, 지역색 강원과 동일) + 흰 글씨. 네이비는 라운지 전용 ([[navy-lounge-color]]) */}
+          <View style={{ backgroundColor: '#6B8B5E', paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(22), color: C.butter }}>←</Text>
+              <Text style={{ fontSize: fs(22), color: '#fff' }}>←</Text>
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter }}>내 코스 모아보기</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>내 코스 모아보기</Text>
             </View>
             <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{
                 width: 24, height: 24, borderRadius: 12,
-                borderWidth: 1.5, borderColor: C.butter,
+                borderWidth: 1.5, borderColor: '#fff',
                 alignItems: 'center', justifyContent: 'center',
               }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.butter, lineHeight: 17 }}>!</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: '#fff', lineHeight: 17 }}>!</Text>
             </TouchableOpacity>
           </View>
 

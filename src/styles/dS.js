@@ -105,7 +105,7 @@ export const dS = StyleSheet.create({
   banner:      { marginHorizontal: 16, marginVertical: 14, backgroundColor: C.butter + '22', borderWidth: 0.5, borderColor: C.butter, borderRadius: 10, padding: 12 },
   bannerTitle: { fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, marginBottom: 2 },
   bannerSub:   { fontFamily: F.sys, fontSize: fs(11), color: C.burgundy },
-  courseCard:  { marginHorizontal: 16, marginBottom: 14, backgroundColor: C.bgSecondary, borderRadius: 12, padding: 14, borderWidth: 0.5, borderColor: C.hairline },
+  courseCard:  { marginHorizontal: 16, marginBottom: _and ? 10 : 14, backgroundColor: C.bgSecondary, borderRadius: 12, padding: _and ? 11 : 14, borderWidth: 0.5, borderColor: C.hairline },
   courseName:  { fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary, flex: 1 },
   courseLoc:   { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 8 },
   tag:         { backgroundColor: C.butter + '44', borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
