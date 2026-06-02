@@ -825,10 +825,18 @@ export function GuideScreen({ route, navigation }) {
                   commentSort === 'likes' ? (b.likes - a.likes) : (tsOf(b) - tsOf(a)));
                 const visible = showAllComments ? sorted : sorted.slice(0, 10);
                 if (sorted.length === 0) {
+                  // 빈 상태 — 코멘트 카드와 같은 흰 카드 톤으로 안착(따뜻한 패널 위 떠 보이지 않게)
                   return (
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 18 }}>
-                      {myCommentsOnly ? '아직 내가 쓴 코멘트가 없어요' : '아직 코멘트가 없어요 — 첫 코멘트를 남겨보세요'}
-                    </Text>
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                      paddingVertical: 22, paddingHorizontal: 16, alignItems: 'center' }}>
+                      <Text style={{ fontSize: fs(24), marginBottom: 8 }}>💬</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: myCommentsOnly ? 0 : 3 }}>
+                        {myCommentsOnly ? '아직 내가 쓴 코멘트가 없어요' : '아직 코멘트가 없어요'}
+                      </Text>
+                      {!myCommentsOnly && (
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>첫 코멘트를 남겨 정보를 나눠보세요</Text>
+                      )}
+                    </View>
                   );
                 }
                 return (
@@ -1259,7 +1267,7 @@ export function GuideScreen({ route, navigation }) {
                 <TouchableOpacity onPress={openNaverPlaces} activeOpacity={0.85}
                   style={{
                     marginTop: 14, borderRadius: 10, backgroundColor: '#03C75A',
-                    paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+                    paddingVertical: Platform.OS === 'android' ? 11 : 15, alignItems: 'center', justifyContent: 'center',
                   }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#fff' }}>네이버 지도에서 맛집 더보기 →</Text>
                 </TouchableOpacity>

@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
@@ -127,6 +127,7 @@ function notiText(n) {
 // 알림함 — 내 모집글 알림 + 내가 참여·대기한 모집 알림. 참여 신청은 수락/거절 가능.
 export function RoundupNotifications({ visible, notifications = [], onClose, onOpenPost, onReadAll, onAccept, onReject, onGradePress, onDelete, onClearAll }) {
   const { userProfile, setUserProfile } = useContext(UserContext);
+  const insets = useSafeAreaInsets();   // 안드 내비바 인셋 — 알림 설정 시트 하단 잘림 방지
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false); // 전체삭제 자체 confirm (모달 안에서 띄움)
   const [alert, setAlert] = useState(null);   // 모달 내부 OverlayAlert — 수락 확인창 등
@@ -221,7 +222,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
               backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 10 }}>
               <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setSettingsOpen(false)} />
               <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18,
-                paddingTop: 8, paddingBottom: 28 }}>
+                paddingTop: 8, paddingBottom: 20 + insets.bottom }}>
                 <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 10 }} />
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, marginBottom: 4 }}>알림 설정</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 20, marginBottom: 12 }}>
