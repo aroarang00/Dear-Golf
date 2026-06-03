@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image, AppState } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -49,7 +49,7 @@ import { PlayfairDisplay_700Bold, PlayfairDisplay_700Bold_Italic } from '@expo-g
 import { C, F, fs } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
-import { loadMyBlockedUids } from './src/utils/friends';
+import { loadMyBlockedUids, loadReceivedRequests } from './src/utils/friends';
 import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLimit';
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { setupPushNotifications } from './src/utils/pushTokens';
@@ -57,6 +57,7 @@ import { db, getUid } from './src/utils/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
+import { FriendBadgeContext } from './src/contexts/FriendBadgeContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { DiariesProvider } from './src/contexts/DiariesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
@@ -89,6 +90,24 @@ function App() {
   const [minSplashDone, setMinSplashDone] = useState(false); // 로딩 화면 최소 표시 시간
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
+
+  // 친구 탭 탭바 뱃지 — 받은 친구신청 수. 친구신청 알림은 라운지 알림함에서 분리, 친구 탭에서만 표시.
+  const [friendReqCount, setFriendReqCount] = useState(0);
+  const refreshFriendBadge = useCallback(async () => {
+    try {
+      const reqs = await loadReceivedRequests();
+      setFriendReqCount(Array.isArray(reqs) ? reqs.length : 0);
+    } catch (e) {
+      if (__DEV__) console.warn('[App] friend badge refresh failed', e?.message);
+    }
+  }, []);
+  // 온보딩 끝나고 앱 진입 시 1회 + 포그라운드 복귀 시마다 갱신 (코드베이스 비실시간 조회 패턴에 맞춤)
+  useEffect(() => {
+    if (showOnboarding || !profileLoaded) return;
+    refreshFriendBadge();
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') refreshFriendBadge(); });
+    return () => sub.remove();
+  }, [showOnboarding, profileLoaded, refreshFriendBadge]);
 
   // 번들 폰트 — Pretendard 정적 굵기 4종(한글 본문) + Lora Italic("Dear Golf" 워드마크)
   //   + Playfair Display Bold (영문·숫자 표시용 — Georgia 대체, OS 간 일관)
@@ -338,6 +357,7 @@ function App() {
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
     <DiariesProvider>
+    <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge }}>
     <NavigationContainer
       ref={navigationRef}
       onReady={() => sentryNavigationIntegration?.registerNavigationContainer?.(navigationRef)}
@@ -380,6 +400,7 @@ function App() {
 
       <AppAlertHost />
     </NavigationContainer>
+    </FriendBadgeContext.Provider>
     </DiariesProvider>
     </SchedulesProvider>
     </UserContext.Provider>

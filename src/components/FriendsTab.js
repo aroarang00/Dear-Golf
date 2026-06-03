@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Image } from 'react-native';
 
 const _and = Platform.OS === 'android';
@@ -10,6 +10,7 @@ import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { topMilestone, milestoneBadge } from './MilestoneCard';
 import { showAppAlert } from './AppAlert';
 import { UserContext } from '../contexts/UserContext';
+import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import {
   isFriendRequestLimitReached, incrementFriendRequestCount,
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
@@ -99,6 +100,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPr
 
 export function FriendsTab({ navigation, onInvite }) {
   const { userProfile } = React.useContext(UserContext);
+  const { setFriendReqCount } = useContext(FriendBadgeContext);
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState([]);
   const [muted, setMuted] = useState({});           // { [id]: true }
@@ -221,6 +223,8 @@ export function FriendsTab({ navigation, onInvite }) {
   }, [navigation]);
   const [sentRequests, setSentRequests] = useState([]);   // 보낸 신청 — recipientUid 배열
   const [receivedRequests, setReceivedRequests] = useState([]);   // 받은 신청 — 마운트 useEffect가 채움
+  // 받은 신청 수를 탭바 뱃지에 반영 — 친구 탭에서 수락/거절하면 즉시 점이 사라지도록 (추가 쿼리 없음)
+  useEffect(() => { setFriendReqCount(receivedRequests.length); }, [receivedRequests.length, setFriendReqCount]);
 
   // 차단 시 친구 자동 일방 해지 ([[friend-relationship]] §2).
   // 정책: 일반 차단 = 친구 관계 일방 해지(영구). 차단 해제해도 친구는 복원 X — 재신청 필요.

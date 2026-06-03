@@ -284,12 +284,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           Promise.all(fUids.map(u => loadFriendRoundups(u).catch(() => []))),
         ]);
         if (cancelled) return;
-        const realFriends = fUids.map((u, i) => ({
-          id: u,
-          name: friendUserSnaps[i]?.exists() ? (friendUserSnaps[i].data().nickname || '친구') : '친구',
-        }));
+        // realName도 함께 — 친구지정 선택 행에 마스킹 본명(닉네임 · 홍*동) 표시·본명 검색용 ([[realname-policy]] B안)
+        const realFriends = fUids.map((u, i) => {
+          const data = friendUserSnaps[i]?.exists() ? friendUserSnaps[i].data() : null;
+          return { id: u, name: data?.nickname || '친구', realName: data?.realName || '' };
+        });
         // TEMP_DEV_INVITE — 친구 없어도 친구지정/초대장 흐름 혼자 테스트용 더미 친구 주입 ([[roundup-invitation]]). 출시 전 제거.
-        setFriends(__DEV__ ? [...realFriends, { id: 'dev_friend_1', name: '테스트친구A' }, { id: 'dev_friend_2', name: '테스트친구B' }] : realFriends);
+        setFriends(__DEV__ ? [...realFriends, { id: 'dev_friend_1', name: '테스트친구A', realName: '김철수' }, { id: 'dev_friend_2', name: '테스트친구B', realName: '이영희' }] : realFriends);
         const friendPosts = friendPostsArrays.flat();
         // 같은 모집글이 양쪽에 중복으로 잡힐 수 있으니 id 기준 dedupe
         const map = new Map();
@@ -336,9 +337,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           setParticipantNames(nameMap);
         }
         // 인앱 알림 로드 — Phase 3-N2
+        //   친구신청(friendRequest)은 라운지 알림함에서 제외 — 친구 관계 알림은 친구 탭 소관(탭바 뱃지).
+        //   문서 자체는 보존(향후 푸시용), 라운지(모집 전용) 표시에서만 숨김.
         try {
           const notis = await loadMyNotifications(50);
-          if (!cancelled) setNotifications(notis);
+          if (!cancelled) setNotifications(notis.filter(n => n.type !== 'friendRequest'));
         } catch (e) {
           if (__DEV__) console.warn('[RoundupTab] notifications load failed', e?.message);
         }
@@ -423,6 +426,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       setShowNoti(false);
       setShowMatchModal(false);
       listScrollRef.current?.scrollTo({ y: 0, animated: true });
+      // 탭 재진입 시 친구·모집·알림 조용히 재로드 — 다른 탭에서 친구 수락/모집 변동이 즉시 반영되도록
+      //   (스피너 없는 백그라운드 갱신. 당겨서 새로고침과 동일 경로). RN 탭은 마운트 유지라 이 신호 없으면 stale.
+      setRefreshTick(t => t + 1);
     });
     return unsub;
   }, [navigation, asScreen, hideStranger]);

@@ -26,7 +26,7 @@ const DAYS = WEEKDAYS;
 
 // 라운딩 모집글 작성·수정 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디.
 // initialPost 있으면 수정 모드 (prefill + 타이틀·버튼 변경). 부모에서 id 매칭으로 분기.
-// friends — 친구지정 모달용 친구 목록 (현재 더미, Phase 3에 friendships 컬렉션으로 교체).
+// friends — 친구지정 모달용 친구 목록 [{ id, name(닉네임), realName }]. RoundupTab이 friendships 컬렉션에서 실제 로드해 주입.
 export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = null, friends = [] }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = useContext(UserContext);

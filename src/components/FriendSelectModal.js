@@ -3,10 +3,12 @@ import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvo
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
+import { nameWithMaskedReal } from '../utils/maskName';
 
 // 친구지정 모집글 — 친구 선택 모달 ([[roundup-visibility-design]] UI 흐름).
 // 포함/제외 토글 + 친구 체크박스 + 검색. 확인 시 onConfirm({ selectMode, selectedUids }).
-// 친구 데이터(friends)는 부모에서 props로 주입 — 현재 더미, Phase 3에 friendships 컬렉션 연동.
+// 친구 데이터(friends: [{ uid|id, name(닉네임), realName }])는 부모에서 props로 주입
+//   — RoundupTab이 friendships 컬렉션에서 실제 친구를 로드해 전달. 표시는 닉네임+마스킹 본명 ([[realname-policy]]).
 
 const MODE_OPTIONS = [
   ['include', '이 친구에게만'],
@@ -29,7 +31,8 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
   const filtered = useMemo(() => {
     const q = query.trim();
     if (!q) return friends;
-    return friends.filter(f => f.name?.includes(q));
+    // 검색은 닉네임 + 본명(내부 풀네임)으로 매칭, 표시는 마스킹 ([[realname-policy]] B안)
+    return friends.filter(f => f.name?.includes(q) || f.realName?.includes(q));
   }, [friends, query]);
 
   const toggle = (uid) => {
@@ -115,7 +118,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
                       </Text>
                     </View>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, flex: 1 }}>
-                      {f.name}
+                      {nameWithMaskedReal(f.name, f.realName)}
                     </Text>
                     <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5,
                       borderColor: on ? C.burgundy : C.hairline,
