@@ -25,7 +25,7 @@ function CommentRow({ comment, isMine, isHost, canModify, onDelete, onPin }) {
           </View>
         )}
         <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
-          {isMine ? '나' : comment.authorName}
+          {comment.authorName || '동반자'}
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>· {dateLabel}</Text>
         {canModify && (
@@ -50,14 +50,15 @@ function CommentRow({ comment, isMine, isHost, canModify, onDelete, onPin }) {
   );
 }
 
-export function RoundupComments({ post, comments, joined, onAdd, onDelete, onPin }) {
+export function RoundupComments({ post, comments, joined, myUid, inputRef, onInputFocus, onAdd, onDelete, onPin }) {
   const { userProfile } = useContext(UserContext);
   const [body, setBody] = useState('');
   const [error, setError] = useState(null);
 
   const myId = userProfile?.uid || userProfile?.kakaoId || null;
   const myName = userProfile?.nickname || '나';
-  const isMine = post?.author === '나';   // 본인이 주최자
+  // 본인이 주최자 — RoundupDetail과 동일하게 authorUid===myUid로 판정 (옛 로컬 데이터는 author==='나' 폴백)
+  const isMine = (!!myUid && post?.authorUid === myUid) || post?.author === '나';
   // 접근 권한: 주최자 + 참여 확정자만.
   // 친구공개라도 "주최자의 친구"엔 나에겐 낯선 사람이 섞일 수 있어, 참여 안 한 사람(특히 낯선이)에게
   // 댓글을 열면 노출이 커짐 → 참여 확정자로 제한 유지 (주최자=신뢰 기준점 모델, [[roundup-friend-redesign]]).
@@ -67,7 +68,7 @@ export function RoundupComments({ post, comments, joined, onAdd, onDelete, onPin
 
   const submit = () => {
     setError(null);
-    const r = createComment(post.id, { uid: myId, name: '나' }, body);
+    const r = createComment(post.id, { uid: myId, name: myName }, body);
     if (!r.ok) {
       if (r.reason === 'profanity') setError(PROFANITY_BLOCK_MESSAGE);
       else if (r.reason === 'empty') setError('댓글을 입력해주세요');
@@ -121,6 +122,8 @@ export function RoundupComments({ post, comments, joined, onAdd, onDelete, onPin
               ) : (
                 <>
                   <TextInput
+                    ref={inputRef}
+                    onFocus={onInputFocus}
                     style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal,
                       backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
                       borderWidth: 0.5, borderColor: C.hairline, minHeight: 40, textAlignVertical: 'top' }}

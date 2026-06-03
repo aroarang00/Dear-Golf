@@ -29,7 +29,8 @@ export const trS = StyleSheet.create({
   pickerPillOn: { backgroundColor: '#F5E6A8', borderColor: '#F5E6A8' },
   pickerPillTxtOff: { fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.75)' },
   pickerPillTxtOn:  { fontFamily: F.sysSb, fontSize: fs(12), color: '#3A2000' },
-  customInput:  { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(13), color: '#fff' },
+  customHint:   { fontFamily: F.sysSb, fontSize: fs(12), color: '#F5E6A8', marginBottom: 6, marginLeft: 2 },
+  customInput:  { backgroundColor: 'rgba(245,230,168,0.08)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.55)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(15), color: '#fff' },
   // 예상 종료시간 ± 30분 row
   endTimeRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 },
   endLabel:     { fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.65)' },

@@ -74,6 +74,31 @@ export async function createInviteNotifications(postId, postTitle, recipientUids
   );
 }
 
+// 동반자에게 일정 알리기 — 주최자가 확정 동반자 전원에게 리마인드 1회 발송 ([[project_roundup_kakao_chat]]).
+//   멱등 X — 주최자가 다시 눌러 재발송 가능(횟수 제한 없음). 매번 새 문서(addDoc).
+//   본인·빈 값은 건너뜀. 푸시는 onNotificationCreated가 자동 처리(배포 후).
+export async function createScheduleNotices(post, recipientUids, actorName = '') {
+  const uid = await getUid();
+  if (!uid || !post?.id || !Array.isArray(recipientUids)) return 0;
+  const targets = recipientUids.filter(rid => rid && rid !== uid);
+  await Promise.all(
+    targets.map(rid => addDoc(collection(db, COLLECTION), {
+      type: 'scheduleNotice',
+      actorUid: uid,
+      actorName: actorName || '',
+      recipientUid: rid,
+      postId: post.id,
+      postTitle: post.course || '',
+      scheduleDate: post.date || '',
+      scheduleTime: post.time || '',
+      priority: 'normal',
+      read: false,
+      createdAt: serverTimestamp(),
+    }).catch(e => __DEV__ && console.warn('[scheduleNotice] fail', rid, e?.message)))
+  );
+  return targets.length;
+}
+
 // 내가 받은 알림 — 최신순. 인덱스 (recipientUid, createdAt desc) 사용.
 export async function loadMyNotifications(maxResults = 50) {
   const uid = await getUid();

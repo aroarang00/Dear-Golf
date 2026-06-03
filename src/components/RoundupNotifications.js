@@ -25,7 +25,7 @@ const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, cancel: true, rou
 
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
-  invite: '💌', roundupCancelled: '🚫',
+  invite: '💌', roundupCancelled: '🚫', scheduleNotice: '📣', friendRequest: '🤝',
   // 시스템 알림 (Cloud Functions)
   kicked: '🚪',
   noshowReported: '⚠️', noshowReportSubmitted: '📩', noshowExplanationRequired: '⏰',
@@ -72,6 +72,11 @@ function notiText(n) {
     case 'invite':    return `${n.actorName || n.actor || '친구'}님이 '${n.postTitle}' 라운딩에 초대했어요`;
     case 'waitlist':  return `${who}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
     case 'comment':   return `${who}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
+    case 'scheduleNotice': {
+      const when = [n.scheduleDate, n.scheduleTime].filter(Boolean).join(' ');
+      return `${who}님이 '${n.postTitle}' 일정을 알렸어요${when ? ` · ${when}` : ''}`;
+    }
+    case 'friendRequest': return `${who}님이 친구 신청을 보냈어요`;
     case 'mannerEval':return `'${n.postTitle}' 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     case 'kicked':    return `'${n.postTitle}' 모집 참여가 주최자 사정으로 취소됐어요`;
 
@@ -273,7 +278,7 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(10), marginBottom: 2,
                         color: isHost ? C.burgundy : '#3C7D4F' }}>
-                        {isHost ? '내 모집글' : '내 참여·대기'}
+                        {n.type === 'friendRequest' ? '친구' : (isHost ? '내 모집글' : '내 참여·대기')}
                       </Text>
                       <Text style={{ fontFamily: n.read ? F.sys : F.sysSb, fontSize: fs(13), color: C.charcoal, lineHeight: 18 }}>
                         {notiText(n)}

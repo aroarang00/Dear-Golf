@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Platform, Keyboard, useWindowDimensions } from 'react-native';
 
 const _and = Platform.OS === 'android';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
@@ -85,7 +85,7 @@ function WaitRow({ num, name, me }) {
 
 // 슬롯 배열 생성 — teamIdx가 null이면 개별 모집
 // nameMap: { uid: nickname } — 실제 참여자 이름. participantUids 우선, 옛 더미 호환 위해 pickNames fallback.
-function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
+function buildSlots(post, teamIdx, nameMap = {}, myUid = null, myName = null) {
   const hostName = post.authorName || post.author || '주최자';
   if (teamIdx == null) {
     const cap = post.capacity || 4;
@@ -97,9 +97,10 @@ function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
         if (i >= filled) return { open: true };
         const uid = uids[i];
         const host = uid ? uid === post.authorUid : i === 0;
-        const name = host ? hostName
-          : uid === myUid ? '나'
-          : (nameMap[uid] || '동반자');
+        const isSelf = !!uid && uid === myUid;
+        const base = host ? hostName
+          : (nameMap[uid] || (isSelf ? (myName || '동반자') : '동반자'));
+        const name = isSelf ? `${base}(나)` : base;   // 참여자 현황에서만 본인 표시
         return { name, host, uid };
       });
     }
@@ -119,7 +120,7 @@ function buildSlots(post, teamIdx, nameMap = {}, myUid = null) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment }) {
+export function RoundupDetail({ post, myUid, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -127,6 +128,40 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
   // z-index 이슈로 부모(RoundupTab)의 모달이 이 Modal 뒤로 가려져서, 등급/차단 확인 모달은 여기서 자체 렌더링.
   const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
   const [mannerKey, setMannerKey] = useState(null);        // 매너 등급 안내 모달
+
+  const insets = useSafeAreaInsets();
+  const { height: winH } = useWindowDimensions();
+  const scrollRef = useRef(null);
+  const scrollY = useRef(0);
+  const commentInputNode = useRef(null);
+  const kbHeightRef = useRef(0);
+  const [kbHeight, setKbHeight] = useState(0);
+  // 안드(엣지투엣지): 키보드가 창을 리사이즈하지 않고 콘텐츠 위로 떠서 댓글 입력칸이 가려짐.
+  // 포커스된 입력칸을 키보드 위로 직접 스크롤. (iOS는 automaticallyAdjustKeyboardInsets가 처리)
+  const scrollCommentIntoView = () => {
+    if (Platform.OS !== 'android') return;
+    setTimeout(() => {
+      const node = commentInputNode.current;
+      const scroll = scrollRef.current;
+      const kb = kbHeightRef.current;
+      if (!node?.measureInWindow || !scroll || !kb) return;
+      node.measureInWindow((x, y, w, h) => {
+        const kbTop = winH - kb - insets.bottom;     // 키보드 상단 Y (내비바 보정)
+        const overlap = (y + h + 48) - kbTop;        // 입력칸 하단이 키보드를 침범한 양 (+여유 48)
+        if (overlap > 0) scroll.scrollTo({ y: scrollY.current + overlap, animated: true });
+      });
+    }, 160);
+  };
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', e => {
+      kbHeightRef.current = e.endCoordinates?.height || 0;
+      setKbHeight(kbHeightRef.current);
+      scrollCommentIntoView();
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setKbHeight(0); });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   // 안드로이드 뒤로가기 — RN Modal에선 onRequestClose가 유일하게 신뢰되는 back 핸들러다.
   // (Modal 안에서 BackHandler 리스너는 onRequestClose보다 안 먹는 RN 고질 이슈 → 훅 제거)
@@ -154,7 +189,7 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
   //  취소 시엔 leaveRoundup이 closed:false + joined-1로 둘 다 풀어주므로 참여 버튼이 정상 복귀.
   const isClosed = post.closed || allFull;
   const respondHours = waitlistRespondHours(post.date);
-  const slots = buildSlots(post, isTeam ? teamTab : null, participantNames, myUid);
+  const slots = buildSlots(post, isTeam ? teamTab : null, participantNames, myUid, userProfile?.nickname);
   const waiters = pickNames(post.id + ':wait', post.waitlistCount || 0);
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
@@ -258,22 +293,23 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
       { text: '대기 취소', style: 'destructive', onPress: onCancelWait },
     ],
   });
-  // 카카오톡 단톡방 안내 — 친구공개·친구지정 모집에서만 주최자가 직접 단톡방 개설
-  // Phase 2: Dear Golf 앱 푸시로 참여자 전원에게 사전 안내 발송
-  // 현재는 주최자 안내 모달만 + 카카오톡 앱 열기 (실제 단톡방 개설은 카카오톡에서 수동)
-  const handleKakao = () => {
-    setAlert({
-      title: '단톡방 안내',
-      message: '참여자분들에게 알림을 보냈어요!\n카카오톡에서 친구분들과 단톡방을 만들어주세요.',
-      buttons: [
-        { text: '닫기', style: 'cancel' },
-        { text: '카카오톡 열기', onPress: () => Linking.openURL('kakaotalk://').catch(() => setAlert({
-          title: '카카오톡이 설치되어 있지 않아요',
-          message: '카카오톡 앱을 먼저 설치해주세요.',
-          buttons: [{ text: '확인' }],
-        })) },
-      ],
-    });
+  // 동반자에게 일정 알리기 — 주최자 전용. 확정 동반자 전원에게 인앱 알림(+배포 시 푸시) 발송.
+  // 카카오 단톡방은 자동 생성/초대 API가 없어 폐기, 소통은 댓글로 일원화 ([[project_roundup_kakao_chat]]).
+  const handleNotifySchedule = async () => {
+    const sent = await onNotifySchedule?.(post);  // 부모(RoundupTab)가 Firestore에 fan-out, 보낸 인원 수 반환
+    if (sent > 0) {
+      setAlert({
+        title: '일정을 알렸어요',
+        message: `동반자 ${sent}명에게\n라운딩 일정을 알림으로 보냈어요.`,
+        buttons: [{ text: '확인' }],
+      });
+    } else {
+      setAlert({
+        title: '알림을 보내지 못했어요',
+        message: '잠시 후 다시 시도해 주세요.',
+        buttons: [{ text: '확인' }],
+      });
+    }
   };
   // 주최자 모집 취소 — 시점(D-7 이전/이내) × 모집 종류(전체공개/친구공개) × 확정자 유무로 안내 분기
   // 정책 근거: [[roundup-penalty-policy]] D-7 / [[manner-evaluation-policy]] §1-0·§1-A / [[trust-grade-system]] §2-0
@@ -484,7 +520,10 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
             )}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}
+          <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 36 + (kbHeight ? kbHeight + 80 : 0) }}
+            scrollEventThrottle={16}
+            onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
             keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
             {/* 긍정 문구 — 약속·시간 존중 문화 고정 안내 ([[roundup-penalty-policy]] §5) */}
             <View style={{ marginHorizontal: 16, marginTop: _and ? 9 : 12,
@@ -654,34 +693,35 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
                 <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
                   borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
                   {waiters.map((nm, i) => <WaitRow key={i} num={i + 1} name={nm} />)}
-                  {waitlistNum ? <WaitRow num={waitlistNum} name="나" me /> : null}
+                  {waitlistNum ? <WaitRow num={waitlistNum} name={userProfile?.nickname || '나'} me /> : null}
                 </View>
               </>
             )}
 
-            {/* 4. 카카오톡 단톡방 안내 — 친구공개·친구지정 모집에서만 주최자에게 노출 (전체공개는 댓글로만) */}
-            {isMine && post.scope !== 'all' && (() => {
-              const kakaoEnabled = isClosed;  // 마감 후에만 활성
-              const hintText = kakaoEnabled
-                ? '참여자분들에게 알림이 가요. 카카오톡에서 단톡방을 만들어주세요'
-                : '모집이 마감되면 단톡방 안내가 활성화돼요';
+            {/* 4. 동반자에게 일정 알리기 — 주최자 전용, 확정 동반자 있을 때. 인앱 알림(+푸시) 발송.
+                남용 방지: 모집 확정(isClosed) 후에만 활성 — 확정 전엔 비활성+안내 */}
+            {isMine && (() => {
+              const others = (Array.isArray(post.participantUids) ? post.participantUids : []).filter(u => u && u !== myUid);
+              if (others.length === 0) return null;
+              const enabled = isClosed;  // 주최자가 모집을 확정해야 일정 알림 가능
               return (
                 <>
-                  <TouchableOpacity onPress={kakaoEnabled ? handleKakao : undefined}
-                    disabled={!kakaoEnabled} activeOpacity={0.85}
-                    style={{ marginHorizontal: 16, marginTop: 22, borderRadius: 12,
-                      paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      backgroundColor: kakaoEnabled ? '#FEE500' : C.bgSecondary,
-                      borderWidth: kakaoEnabled ? 0 : 0.5, borderColor: C.hairline,
-                      opacity: kakaoEnabled ? 1 : 0.7 }}>
-                    <Text style={{ fontSize: fs(15) }}>💬</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14),
-                      color: kakaoEnabled ? '#3C1E1E' : C.warmGrayLight }}>
-                      카카오톡 단톡방 안내하기
+                  <TouchableOpacity onPress={enabled ? handleNotifySchedule : undefined} disabled={!enabled} activeOpacity={0.85}
+                    style={{ marginHorizontal: 16, marginTop: 22, borderRadius: 12, paddingVertical: 13,
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      backgroundColor: enabled ? C.navy : C.bgSecondary,
+                      borderWidth: enabled ? 0 : 0.5, borderColor: C.hairline, opacity: enabled ? 1 : 0.7 }}>
+                    <Text style={{ fontSize: fs(15) }}>📣</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: enabled ? C.butter : C.warmGrayLight }}>
+                      동반자에게 일정 알리기
                     </Text>
                   </TouchableOpacity>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray,
-                    marginHorizontal: 16, marginTop: 6, textAlign: 'center' }}>{hintText}</Text>
+                    marginHorizontal: 16, marginTop: 6, textAlign: 'center' }}>
+                    {enabled
+                      ? `동반자 ${others.length}명에게\n라운딩 일정을 알림으로 보내요`
+                      : '모집을 확정하면\n동반자에게 일정을 알릴 수 있어요'}
+                  </Text>
                 </>
               );
             })()}
@@ -691,6 +731,9 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
               post={post}
               comments={comments}
               joined={joined}
+              myUid={myUid}
+              inputRef={commentInputNode}
+              onInputFocus={scrollCommentIntoView}
               onAdd={onAddComment}
               onDelete={onDeleteComment}
               onPin={onPinComment} />

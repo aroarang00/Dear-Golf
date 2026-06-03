@@ -290,7 +290,7 @@ export function FriendsTab({ navigation, onInvite }) {
     const reached = await isFriendRequestLimitReached();
     if (reached) return { ok: false, reason: 'limit' };
     try {
-      await sendFriendRequest(person.id);
+      await sendFriendRequest(person.id, userProfile?.nickname || '');
     } catch (e) {
       if (__DEV__) console.warn('[FriendsTab] sendFriendRequest failed', e?.message);
       return { ok: false, reason: 'failed' };

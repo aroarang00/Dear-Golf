@@ -58,14 +58,15 @@ async function sendExpoPush(token, title, body, data = {}) {
 exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}', async (event) => {
   const data = event.data?.data();
   if (!data) return;
-  const { recipientUid, type, postTitle, actorName, priority } = data;
+  const { recipientUid, type, postTitle, actorName, priority, scheduleDate, scheduleTime } = data;
   if (!recipientUid) return;
 
   // 수신자 settings 조회 — 일반 알림이면 토글 체크, 중요 알림은 무시
   const userSnap = await db.doc(`users/${recipientUid}`).get();
   if (!userSnap.exists) return;
   const user = userSnap.data();
-  const prefs = user.settings?.roundupNotifyPrefs || {};
+  // 라운지 알림(roundupNotifyPrefs) + 마이페이지 알림(notifyPrefs: friendRequest 등) 양쪽 토글 병합
+  const prefs = { ...(user.settings?.roundupNotifyPrefs || {}), ...(user.settings?.notifyPrefs || {}) };
   const isImportant = priority === 'important';
   // 일반 알림은 type별 토글 체크
   if (!isImportant && prefs[type] === false) return;
@@ -74,7 +75,7 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
   if (!token) return;
 
   const title = titleFor(type);
-  const body = bodyFor(type, { postTitle, actorName });
+  const body = bodyFor(type, { postTitle, actorName, scheduleDate, scheduleTime });
   await sendExpoPush(token, title, body, { type, postId: data.postId, notiId: event.params.notiId });
 });
 
@@ -92,6 +93,8 @@ function titleFor(type) {
     case 'comment':     return '새 댓글';
     case 'mannerEval':  return '매너 평가 요청';
     case 'hostCancelledD7': return '모집 취소 안내';
+    case 'scheduleNotice':  return '라운딩 일정 알림';
+    case 'friendRequest':   return '새 친구 신청';
     // 노쇼 신고
     case 'noshowReported':            return '노쇼 신고 접수';
     case 'noshowReportSubmitted':     return '노쇼 신고 접수됨';
@@ -116,9 +119,14 @@ function titleFor(type) {
   }
 }
 
-function bodyFor(type, { postTitle = '', actorName = '' }) {
+function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', scheduleTime = '' }) {
   const t = postTitle ? `'${postTitle}'` : '라운딩';
   switch (type) {
+    case 'scheduleNotice': {
+      const when = [scheduleDate, scheduleTime].filter(Boolean).join(' ');
+      return `${actorName ? actorName + '님이 ' : ''}${t} 일정을 알렸어요${when ? ` — ${when}` : ''}`;
+    }
+    case 'friendRequest': return `${actorName || '누군가'}님이 친구 신청을 보냈어요`;
     // 라운지 일반
     case 'apply':       return `${actorName}님이 ${t} 모집에 참여 신청했어요`;
     case 'confirmed':   return `${t} 모집 참여가 확정됐어요`;

@@ -17,13 +17,15 @@ import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { RoundupNotifications } from './RoundupNotifications';
+import { ScheduleReminderPopup } from './ScheduleReminderPopup';
 import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
+import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { blockUid as fsBlockUid, loadMyFriends } from '../utils/friends';
-import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications } from '../utils/roundupNotifications';
+import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -1044,6 +1046,27 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
   };
 
+  // 동반자에게 일정 알리기 — 주최자가 확정 동반자 전원에게 리마인드 발송 ([[project_roundup_kakao_chat]]).
+  //  RoundupDetail이 즉시 안내 alert을 띄우고, 실제 fan-out은 여기서. 횟수 제한 없음.
+  const handleNotifySchedule = async (post) => {
+    const recipients = (post?.participantUids || []).filter(u => u && u !== myUid);
+    if (recipients.length === 0) return 0;
+    try {
+      return await createScheduleNotices(post, recipients, userProfile?.nickname || '');
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] notifySchedule failed', e?.message);
+      return 0;
+    }
+  };
+
+  // 일정 리마인드 팝업 확인 — 안 읽은 scheduleNotice 전부 읽음 처리 (재노출 방지)
+  const handleConfirmReminder = () => {
+    const ids = notifications.filter(n => n.type === 'scheduleNotice' && !n.read).map(n => n.id);
+    if (ids.length === 0) return;
+    setNotifications(prev => prev.map(n => (ids.includes(n.id) ? { ...n, read: true } : n)));
+    ids.forEach(id => markNotificationRead(id).catch(() => {}));
+  };
+
   // 댓글 삭제 — 본인 댓글만 (규칙 authorUid==me 강제 + RoundupComments 사전 차단). 낙관적 제거.
   const handleDeleteComment = async (postId, commentId) => {
     setCommentsByPost(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== commentId) }));
@@ -1128,6 +1151,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       markNotificationRead(n.id).catch(e => __DEV__ && console.warn('[RoundupTab] markRead fail', e?.message));
     }
     setShowNoti(false);
+    // 친구 신청 알림 — 모집글이 아니라 친구 탭으로 이동
+    if (n.type === 'friendRequest') {
+      navigation?.navigate?.(ROUTES.FRIENDS);
+      return;
+    }
     // 매너 평가 진입 — 정상 종료(mannerEval) + 주최자 취소 보상(hostCancelledD7) 둘 다 평가 모달로.
     if (ROUNDUP_PUBLIC_ENABLED && (n.type === 'mannerEval' || n.type === 'hostCancelledD7')) {
       let post = posts.find(p => p.id === n.postId);
@@ -1577,7 +1605,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         onEdit={() => detailPost && handleEditRequest(detailPost)}
         onAddComment={(c) => detailId && handleAddComment(detailId, c)}
         onDeleteComment={(commentId) => detailId && handleDeleteComment(detailId, commentId)}
-        onPinComment={(commentId) => detailId && handlePinComment(detailId, commentId)} />
+        onPinComment={(commentId) => detailId && handlePinComment(detailId, commentId)}
+        onNotifySchedule={handleNotifySchedule} />
 
           {/* 매너 평가 모달 — 라운지 알림에서 진입 ([[manner-evaluation-policy]]) */}
           {(() => {
@@ -1619,6 +1648,19 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
 
           {/* 참여 확인 팝업 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
+
+          {/* 라운딩 일정 리마인드 — 주최자가 보낸 일정 알림을 수신자가 앱에서 확인 (안 읽은 게 있으면 표시) */}
+          {(() => {
+            const unread = notifications.filter(n => n.type === 'scheduleNotice' && !n.read);
+            if (unread.length === 0) return null;
+            return (
+              <ScheduleReminderPopup
+                visible
+                notice={unread[0]}
+                extraCount={unread.length - 1}
+                onConfirm={handleConfirmReminder} />
+            );
+          })()}
 
           {/* 라운지 소개 FAB — MY 탭의 라운딩 기록 추가 버튼과 동일 위치·스타일.
               노란 점은 사용자가 아직 FAB을 직접 눌러본 적 없을 때 노출 — 버건디 배경과 대비. */}

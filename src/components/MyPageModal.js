@@ -482,14 +482,14 @@ export function MyPageModal({ visible, onClose }) {
                     </View>
                   );
                 })()}
-                {/* 추가 알림 — 친구·모집·평가·기록. 푸시 발송은 서버(FCM) 연동 후 동작 */}
+                {/* 추가 알림 — 친구 신청. 푸시 발송은 서버(onNotificationCreated) 연동 후 동작 */}
                 {/* 라운지(모집) 알림은 라운지 알림창 우상단 ⚙️에서 관리 ([[roundup-comments-policy]] §4 컨텍스트 분리 원칙).
                     여기엔 라운지 외 카테고리만 둠 — 중복·혼란 방지.
                     기록 리마인더는 폐기 — 라운딩 기록은 본인 자발적 추억이라 푸시 강요 부담.
                     홈 라운딩 종료 카드의 "기록 남기기 →" 버튼이 자연스러운 유도 경로 ([[softer-tone-guideline]]). */}
                 {[
                   { key: 'friendRequest', icon: '🤝', label: '친구 신청', sub: '친구 신청을 받으면 알려드려요' },
-                  { key: 'evaluation', icon: '✍️', label: '라운딩 평가 요청', sub: '라운딩 후 동반자 매너 평가 안내 · 끄면 자동 보통 처리' },
+                  // 라운딩 평가 요청 토글 제거 — 전체공개 비활성으로 매너 평가 시스템 휴면 ([[project_roundup_public_disabled]])
                 ].map((item, i, arr) => {
                   const prefs = userProfile.notifyPrefs || {};
                   const on = prefs[item.key] !== false;

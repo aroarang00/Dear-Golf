@@ -3,6 +3,7 @@ import {
   serverTimestamp, arrayUnion, arrayRemove, limit as fsLimit,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
+import { createNotification } from './roundupNotifications';
 
 // =============================================================
 // friendships/{pairId} — 친구 관계
@@ -72,7 +73,8 @@ export async function loadSentRequests() {
 // ── 신청·수락·거절·취소·해지 ────────────────────────────────
 
 // 친구 신청 — pending doc 생성 (deterministic pairId로 중복 차단)
-export async function sendFriendRequest(toUid) {
+//   actorName(신청자 닉네임)은 수신자 알림 표시용 — 호출처에서 본인 닉네임 전달.
+export async function sendFriendRequest(toUid, actorName = '') {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!toUid) throw new Error('toUid required');
@@ -93,6 +95,9 @@ export async function sendFriendRequest(toUid) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  // 수신자에게 친구 신청 알림 (인앱 + 배포 시 푸시). 실패해도 신청 자체엔 영향 X.
+  createNotification({ type: 'friendRequest', recipientUid: toUid, actorName: actorName || '' })
+    .catch(e => __DEV__ && console.warn('[sendFriendRequest] noti fail', e?.message));
   return id;
 }
 

@@ -208,6 +208,7 @@ function App() {
             roundupMatch: userProfile.roundupMatch || null,
             hideStrangerRoundups: !!userProfile.hideStrangerRoundups,
             roundupNotifyPrefs: userProfile.roundupNotifyPrefs || null,
+            notifyPrefs: userProfile.notifyPrefs || null,   // 마이페이지 알림(친구 신청 등) — CF onNotificationCreated가 토글 체크에 사용
           },
           updatedAt: serverTimestamp(),
         };
@@ -235,6 +236,7 @@ function App() {
     userProfile.roundupMatch,
     userProfile.hideStrangerRoundups,
     userProfile.roundupNotifyPrefs,
+    userProfile.notifyPrefs,
     userProfile.nickname,
     userProfile.lastNicknameChange,
     userProfile.kakaoLinked,

@@ -154,6 +154,14 @@
       ]
     },
     {
+      "collectionGroup": "roundups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mannerEvalNotified", "order": "ASCENDING" },
+        { "fieldPath": "mannerEvalWindowStart", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [

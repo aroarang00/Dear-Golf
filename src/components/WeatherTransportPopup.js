@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator, Platform, Keyboard } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
@@ -239,7 +239,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [resolvedLoc, setResolvedLoc] = useState('');
   const [wxFailed, setWxFailed] = useState(false); // 날씨 데이터 로드 실패 (좌표 미해석 등)
   const [retryTick, setRetryTick] = useState(0);   // 다시 시도 트리거
-  const { width: SW } = useWindowDimensions();
+  const { width: SW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets(); // 하단 시스템바 — 스크롤 끝 버튼이 안 잘리도록
 
   const { userProfile } = React.useContext(UserContext);
@@ -258,6 +258,41 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   });
   const [expandedSlot, setExpandedSlot] = useState(null);
   const [endOffsetMin, setEndOffsetMin] = useState(0);
+  // 안드(엣지투엣지): 키보드가 창을 리사이즈하지 않고 콘텐츠 위로 떠서, 하단 입력칸이 가려짐.
+  // 키보드 높이만큼 스크롤 여백을 주고, 포커스 시 입력칸을 키보드 위로 직접 올린다. (iOS는 automaticallyAdjustKeyboardInsets가 처리)
+  const [kbHeight, setKbHeight] = useState(0);
+  const kbHeightRef = useRef(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', e => {
+      const h = e.endCoordinates?.height || 0;
+      kbHeightRef.current = h;
+      setKbHeight(h);
+      scrollCustomIntoView(); // 키보드가 실제로 뜬 시점에 한 번 더 보정
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setKbHeight(0); });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  const trScrollRef = useRef(null);       // 교통 탭 ScrollView
+  const trScrollY = useRef(0);            // 현재 스크롤 오프셋
+  const customInputNode = useRef(null);   // 현재 포커스된 직접입력 TextInput
+  // 안드: 포커스된 직접입력 칸이 키보드에 가리면 그만큼 위로 스크롤 (iOS는 automaticallyAdjustKeyboardInsets가 처리)
+  const scrollCustomIntoView = () => {
+    if (Platform.OS !== 'android') return;
+    setTimeout(() => {
+      const node = customInputNode.current;
+      const scroll = trScrollRef.current;
+      const kb = kbHeightRef.current;
+      if (!node?.measureInWindow || !scroll || !kb) return;
+      node.measureInWindow((x, y, w, h) => {
+        // 키보드 상단 Y. 엣지투엣지에선 endCoordinates.height에 내비바가 빠질 수 있어 insets.bottom 보정
+        const kbTop = winH - kb - insets.bottom;
+        const overlap = (y + h + 48) - kbTop;    // 입력칸 하단이 키보드를 침범한 양 (+여유 48)
+        if (overlap > 0) scroll.scrollTo({ y: trScrollY.current + overlap, animated: true });
+      });
+    }, 160);
+  };
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const slideBase = useRef(0);
@@ -553,14 +588,20 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               })}
             </View>
             {slot.mode === 'custom' && (
-              <TextInput style={trS.customInput}
-                value={slot.custom}
-                onChangeText={(t) => setCustomText(slotKey, t)}
-                onBlur={() => resolveCustomCoord(slotKey)}
-                onSubmitEditing={() => resolveCustomCoord(slotKey)}
-                placeholder="주소 또는 장소명 입력"
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                returnKeyType="done" />
+              <View>
+                <Text style={trS.customHint}>아래 칸에 {kind}지를 입력해 주세요</Text>
+                <TextInput style={trS.customInput}
+                  ref={(r) => { customInputNode.current = r; }}
+                  value={slot.custom}
+                  onChangeText={(t) => setCustomText(slotKey, t)}
+                  onFocus={scrollCustomIntoView}
+                  onBlur={() => resolveCustomCoord(slotKey)}
+                  onSubmitEditing={() => resolveCustomCoord(slotKey)}
+                  placeholder="예) 강남역, 서울시 ○○구 ○○로"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  returnKeyType="done"
+                  autoFocus />
+              </View>
             )}
           </View>
         )}
@@ -989,9 +1030,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
             <View style={{ width: SW }}>
             <ScrollView
+              ref={trScrollRef}
               style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
-              showsVerticalScrollIndicator={false}>
+              contentContainerStyle={{ paddingBottom: 40 + insets.bottom + (kbHeight ? kbHeight + 80 : 0) }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              scrollEventThrottle={16}
+              onScroll={(e) => { trScrollY.current = e.nativeEvent.contentOffset.y; }}
+              automaticallyAdjustKeyboardInsets>
 
               {/* 교통 탭 헤더 (다크 톤 통일) */}
               <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
