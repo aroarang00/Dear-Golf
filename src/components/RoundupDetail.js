@@ -720,7 +720,7 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
               return (
                 <>
                   <TouchableOpacity onPress={enabled ? handleNotifySchedule : undefined} disabled={!enabled} activeOpacity={0.85}
-                    style={{ marginHorizontal: 16, marginTop: 22, borderRadius: 12, paddingVertical: 13,
+                    style={{ marginHorizontal: 16, marginTop: _and ? 12 : 16, borderRadius: 12, paddingVertical: 13,
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
                       backgroundColor: enabled ? C.navy : C.bgSecondary,
                       borderWidth: enabled ? 0 : 0.5, borderColor: C.hairline, opacity: enabled ? 1 : 0.7 }}>

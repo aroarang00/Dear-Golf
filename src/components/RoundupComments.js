@@ -151,7 +151,7 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, inpu
   };
 
   return (
-    <View style={{ marginTop: 22 }}>
+    <View style={{ marginTop: 16 }}>
       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5,
         marginHorizontal: 16, marginBottom: 8 }}>
         댓글{sorted.length > 0 ? ` ${sorted.length}` : ''}
@@ -170,9 +170,13 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, inpu
           <>
             {sorted.length === 0 ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
+                <Text style={{ fontSize: fs(24), marginBottom: 8 }}>💬</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: closed ? 0 : 3 }}>
                   아직 댓글이 없어요
                 </Text>
+                {!closed && (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>동반자에게 첫 댓글을 남겨보세요</Text>
+                )}
               </View>
             ) : (
               sorted.map(c => (
