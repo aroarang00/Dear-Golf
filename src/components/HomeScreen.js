@@ -8,7 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
 import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
-import { getUserCourses } from '../utils/userCourses';
+import { getUserCourses, syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { normalizeSchedules } from '../utils/helpers';
 import { homeS } from '../styles/homeS';
@@ -164,10 +164,11 @@ export function HomeScreen({ navigation, route }) {
     return unsubscribe;
   }, [navigation]);
 
-  // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함
+  // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함.
+  //   Firestore에서 복원·머지(프레시 설치 시 코스 비어 코스이동·">"가 사라지던 문제 회복, [[data-migration]]).
   useEffect(() => {
     (async () => {
-      const list = await getUserCourses();
+      const list = await syncUserCoursesFromFirestore();
       setUserCoursesList(list || []);
     })();
   }, []);

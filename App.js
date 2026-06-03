@@ -52,6 +52,7 @@ import { STORAGE_KEYS, storage } from './src/utils/storage';
 import { loadMyBlockedUids, loadReceivedRequests } from './src/utils/friends';
 import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLimit';
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
+import { syncUserCoursesFromFirestore } from './src/utils/userCourses';
 import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid } from './src/utils/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -186,10 +187,12 @@ function App() {
       } catch (e) {
         if (__DEV__) console.warn('[App] block sync failed', e?.message);
       }
-      // 한도 카운터 2종 — 병렬 sync (개별 실패는 각 util이 자체 처리). 강퇴 폐기로 kick sync 제거.
+      // 한도 카운터 2종 + 등록 코스 — 병렬 sync (개별 실패는 각 util이 자체 처리). 강퇴 폐기로 kick sync 제거.
+      //   userCourses는 로컬 캐시를 Firestore로 복원 — 프레시 설치 시 홈 카드 코스이동·GuideScreen 매칭 회복.
       await Promise.all([
         syncFriendRequestLimitFromFirestore(),
         syncReportLimitFromFirestore(),
+        syncUserCoursesFromFirestore(),
       ]);
       // 푸시 토큰 등록 — 권한 요청 + Expo Push 토큰 발급 + users/{uid}.pushToken 저장.
       // 거부 시 null 반환, 인앱 알림으로 자동 보완 ([[notification-policy]] §2).

@@ -5,7 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
 import { TripleStripe } from './common/TripleStripe';
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete, courseNavigable }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -30,6 +30,11 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
 
   // hasRec: 과거 라운딩 + 다이어리 기록이 있는 경우. 시트 안에서 다이어리 안내만 표시 (삭제 X)
   const hasRec = !!schedule.hasRec;
+  // 코스 이동 가능 여부 — 부모(HomeScreen)가 이름 매칭까지 해석해 넘기면 그걸 우선,
+  //   없으면 일정 필드(courseLogId/courseId)로 폴백 (MyScheduleTab 등 기존 호출처 무회귀).
+  const canOpenCourse = courseNavigable != null
+    ? courseNavigable
+    : !!(schedule.courseLogId || schedule.courseId);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -77,9 +82,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
             // 시트 기본 메뉴
             <>
               <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 14 }}>
-                <TouchableOpacity onPress={onCourseTap} activeOpacity={(schedule.courseLogId || schedule.courseId) ? 0.6 : 1}>
+                <TouchableOpacity onPress={onCourseTap} activeOpacity={canOpenCourse ? 0.6 : 1}>
                   <Text style={sheetS.course}>{schedule.course}
-                    {(schedule.courseLogId || schedule.courseId) ? <Text style={sheetS.courseArrow}> ›</Text> : null}
+                    {canOpenCourse ? <Text style={sheetS.courseArrow}> ›</Text> : null}
                   </Text>
                 </TouchableOpacity>
                 <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
