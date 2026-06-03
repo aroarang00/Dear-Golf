@@ -1,5 +1,6 @@
 import React, { useState, useContext, useMemo } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
 import { canAccessComments, isCommentClosed, sortComments, createComment, canDeleteComment } from '../utils/comments';
@@ -38,6 +39,7 @@ function CommentRow({ comment, onPress }) {
 
 // 댓글 액션 바텀시트 — 댓글 탭 시 하단에서 올라옴. 역할별 메뉴 → (신고는) 사유 선택 → 접수 안내.
 function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete, onReport }) {
+  const insets = useSafeAreaInsets();   // 안드 내비바 인셋 — 시트 하단 잘림 방지
   const [step, setStep] = useState('menu');   // 'menu' | 'report' | 'done'
   const [doneMsg, setDoneMsg] = useState('');
 
@@ -59,11 +61,20 @@ function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete,
       <TouchableOpacity activeOpacity={1} onPress={onClose}
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
         <TouchableOpacity activeOpacity={1} onPress={() => {}}
-          style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 8 }}>
+          style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 8 + insets.bottom }}>
           <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginTop: 10, marginBottom: 2 }} />
 
           {step === 'menu' && (
             <>
+              {/* 댓글 미리보기 헤더 — 무엇에 대한 액션인지 + 신고하기가 시트 맨 위로 오지 않게 */}
+              <View style={{ paddingTop: 6, paddingBottom: 12, paddingHorizontal: 20 }}>
+                <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>
+                  {comment.authorName || '동반자'}
+                </Text>
+                <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>
+                  {comment.body}
+                </Text>
+              </View>
               {isHost && (
                 <Row label={comment.pinned ? '고정 해제' : '고정'} onPress={() => { onPin?.(comment.id); onClose(); }} />
               )}
