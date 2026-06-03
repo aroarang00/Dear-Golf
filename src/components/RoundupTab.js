@@ -226,7 +226,7 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
 
 export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
-  const { schedules, addSchedule, editSchedule } = useContext(SchedulesContext);
+  const { schedules, addSchedule, editSchedule, removeSchedule } = useContext(SchedulesContext);
   const [myUid, setMyUid] = useState(null);
   const [friendUids, setFriendUids] = useState([]); // Phase 3-F5: 친구 uid 목록 (친구공개 모집 필터·로드)
   const [friends, setFriends] = useState([]);        // Phase 3-F6: { id, name } — 친구지정 모달 등 표시용
@@ -902,6 +902,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       }));
       // 2) 내 joined 플래그 해제
       setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
+      // 3) 확정 때 생성됐던 본인 일정 제거 (취소했으니 일정에서도 빠짐). 오픈형 등 일정 없으면 no-op.
+      const linkedSched = schedules.find(s => s.roundupId === id);
+      if (linkedSched) {
+        removeSchedule(linkedSched.id).catch(e => __DEV__ && console.warn('[RoundupTab] cancel schedule remove fail', e?.message));
+      }
+      // 4) 친구지정 초대를 수락→취소한 수신자는 초대 카드가 다시 뜨지 않게 가림 (사적 초대 — 재초대는 주최자가)
+      if (post.scope === 'select' && post.authorUid !== myUid) hideRoundup(id);
       // 주최자에게 확정 참여자 이탈 알림
       createNotification({
         type: 'cancel',
