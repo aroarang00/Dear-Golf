@@ -1533,7 +1533,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             const amRecipient = !mine && !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
             const showInvite = view === 'friend' && p.scope === 'select' && p.selectMode === 'include'
               && !joined[p.id] && !applied[p.id]
-              && (amRecipient || __DEV__); // TEMP_DEV_INVITE — dev에선 본인 글도 초대장 카드로(테스트). 출시 전 amRecipient만
+              && (amRecipient || (__DEV__ && !mine)); // TEMP_DEV_INVITE — dev 미리보기는 비수신자만(주최자 본인 글 제외). 출시 전 amRecipient만
             if (showInvite) {
               const inviteProps = {
                 type: p.type === 'open' ? 'open' : 'fixed',
