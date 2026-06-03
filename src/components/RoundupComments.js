@@ -1,23 +1,25 @@
 import React, { useState, useContext, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
 import { canAccessComments, isCommentClosed, sortComments, createComment, canDeleteComment } from '../utils/comments';
+import { createContentReport } from '../utils/contentReports';
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
 // 라운지 모집 댓글 영역 ([[roundup-comments-policy]]).
 // - 참여 확정자만 작성·열람
-// - 본인만 삭제, 주최자만 고정(1개)
-// - 티오프+5h(라운딩 끝날 무렵·카드 노출 윈도우와 동일) 후 쓰기 비활성, 읽기는 유지
-// - 비속어 자동 필터 (false positive 최소화)
-// - 신고는 마이페이지 일원화 (이곳에 신고 버튼 X)
+// - 댓글 탭 → 바텀시트(카카오 오픈챗 스타일): 주최자 고정/고정해제 · 본인 삭제 · 타인 신고 · 취소
+//   (인라인 버튼 상시노출 제거로 목록 정돈 — [[feedback_design_integrity_paramount]])
+// - 티오프+5h 후 쓰기 비활성, 읽기 유지 / 비속어 자동 필터
+// - 신고: content_reports(roundupComment) 기록. 친구 범위라 자동 takedown은 후속, 현재 운영 검토용.
 
 const COMMENT_MAX = 300;
 
-function CommentRow({ comment, isMine, isHost, canModify, onDelete, onPin }) {
+function CommentRow({ comment, onPress }) {
   const dateLabel = useMemo(() => formatRelative(comment.createdAt), [comment.createdAt]);
   return (
-    <View style={{ paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+    <TouchableOpacity activeOpacity={0.6} onPress={() => onPress(comment)}
+      style={{ paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         {comment.pinned && (
           <View style={{ backgroundColor: C.navy, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -28,25 +30,76 @@ function CommentRow({ comment, isMine, isHost, canModify, onDelete, onPin }) {
           {comment.authorName || '동반자'}
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>· {dateLabel}</Text>
-        {canModify && (
-          <View style={{ flexDirection: 'row', gap: 10, marginLeft: 'auto' }}>
-            {isHost && onPin && (
-              <TouchableOpacity onPress={() => onPin(comment.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
-                  {comment.pinned ? '고정 해제' : '고정'}
-                </Text>
-              </TouchableOpacity>
-            )}
-            {isMine && onDelete && (
-              <TouchableOpacity onPress={() => onDelete(comment.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#8B2A2A' }}>삭제</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
       </View>
       <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>{comment.body}</Text>
-    </View>
+    </TouchableOpacity>
+  );
+}
+
+// 댓글 액션 바텀시트 — 댓글 탭 시 하단에서 올라옴. 역할별 메뉴 → (신고는) 사유 선택 → 접수 안내.
+function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete, onReport }) {
+  const [step, setStep] = useState('menu');   // 'menu' | 'report' | 'done'
+  const [doneMsg, setDoneMsg] = useState('');
+
+  const Row = ({ label, color, onPress }) => (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}
+      style={{ paddingVertical: 15, alignItems: 'center', borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: color || C.charcoal }}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  const doReport = async (reason) => {
+    const msg = await onReport(comment, reason);
+    setDoneMsg(msg);
+    setStep('done');
+  };
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity activeOpacity={1} onPress={onClose}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+        <TouchableOpacity activeOpacity={1} onPress={() => {}}
+          style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 8 }}>
+          <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginTop: 10, marginBottom: 2 }} />
+
+          {step === 'menu' && (
+            <>
+              {isHost && (
+                <Row label={comment.pinned ? '고정 해제' : '고정'} onPress={() => { onPin?.(comment.id); onClose(); }} />
+              )}
+              {isMine && (
+                <Row label="삭제" color="#8B2A2A" onPress={() => { onDelete?.(comment.id); onClose(); }} />
+              )}
+              {!isMine && (
+                <Row label="신고하기" color="#8B2A2A" onPress={() => setStep('report')} />
+              )}
+              <Row label="취소" color={C.warmGray} onPress={onClose} />
+            </>
+          )}
+
+          {step === 'report' && (
+            <>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, textAlign: 'center', paddingTop: 10, paddingBottom: 2 }}>
+                신고 사유를 선택해주세요
+              </Text>
+              <Row label="광고 · 스팸" onPress={() => doReport('ad_spam')} />
+              <Row label="부적절한 내용" onPress={() => doReport('inappropriate')} />
+              <Row label="뒤로" color={C.warmGray} onPress={() => setStep('menu')} />
+            </>
+          )}
+
+          {step === 'done' && (
+            <>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, textAlign: 'center',
+                paddingTop: 18, paddingHorizontal: 20, lineHeight: 20 }}>
+                {doneMsg}
+              </Text>
+              <Row label="확인" onPress={onClose} />
+            </>
+          )}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 }
 
@@ -54,14 +107,13 @@ export function RoundupComments({ post, comments, joined, myUid, inputRef, onInp
   const { userProfile } = useContext(UserContext);
   const [body, setBody] = useState('');
   const [error, setError] = useState(null);
+  const [actionComment, setActionComment] = useState(null);  // 액션 시트 대상 댓글
 
   const myId = userProfile?.uid || userProfile?.kakaoId || null;
   const myName = userProfile?.nickname || '나';
   // 본인이 주최자 — RoundupDetail과 동일하게 authorUid===myUid로 판정 (옛 로컬 데이터는 author==='나' 폴백)
   const isMine = (!!myUid && post?.authorUid === myUid) || post?.author === '나';
   // 접근 권한: 주최자 + 참여 확정자만.
-  // 친구공개라도 "주최자의 친구"엔 나에겐 낯선 사람이 섞일 수 있어, 참여 안 한 사람(특히 낯선이)에게
-  // 댓글을 열면 노출이 커짐 → 참여 확정자로 제한 유지 (주최자=신뢰 기준점 모델, [[roundup-friend-redesign]]).
   const access = isMine || !!joined || canAccessComments(post, myId, myName);
   const closed = isCommentClosed(post);
   const sorted = useMemo(() => sortComments(comments || []), [comments]);
@@ -76,6 +128,22 @@ export function RoundupComments({ post, comments, joined, myUid, inputRef, onInp
     }
     onAdd?.(r.comment);
     setBody('');
+  };
+
+  // 댓글 신고 — content_reports(roundupComment) 기록. 1인 1회(멱등). 반환: 안내 문구.
+  const reportComment = async (comment, reason) => {
+    try {
+      const r = await createContentReport({
+        targetType: 'roundupComment',
+        targetId: comment.id,
+        targetAuthorUid: comment.authorUid || null,
+        reason,
+      });
+      if (r?.alreadyReported) return '이미 신고한 댓글이에요.';
+      return '신고가 접수됐어요.\n검토 후 조치할게요.';
+    } catch (e) {
+      return '신고에 실패했어요.\n잠시 후 다시 시도해주세요.';
+    }
   };
 
   return (
@@ -103,14 +171,9 @@ export function RoundupComments({ post, comments, joined, myUid, inputRef, onInp
                 </Text>
               </View>
             ) : (
-              sorted.map(c => {
-                const mine = canDeleteComment(c, myId, myName);
-                return (
-                  <CommentRow key={c.id} comment={c} isMine={mine} isHost={isMine}
-                    canModify={mine || isMine}
-                    onDelete={onDelete} onPin={onPin} />
-                );
-              })
+              sorted.map(c => (
+                <CommentRow key={c.id} comment={c} onPress={setActionComment} />
+              ))
             )}
 
             {/* 입력 영역 — 티오프+5h 후 비활성 */}
@@ -157,10 +220,23 @@ export function RoundupComments({ post, comments, joined, myUid, inputRef, onInp
 
       </View>
 
-      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight,
-        marginHorizontal: 20, marginTop: 6, lineHeight: 14 }}>
-        비매너 댓글은 마이페이지 → 신고하기로 신고해주세요
-      </Text>
+      {access && sorted.length > 0 && (
+        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight,
+          marginHorizontal: 20, marginTop: 6, lineHeight: 14 }}>
+          댓글을 누르면 신고하거나 삭제할 수 있어요
+        </Text>
+      )}
+
+      {actionComment && (
+        <CommentActionSheet
+          comment={actionComment}
+          isHost={isMine}
+          isMine={canDeleteComment(actionComment, myId, myName)}
+          onClose={() => setActionComment(null)}
+          onPin={onPin}
+          onDelete={onDelete}
+          onReport={reportComment} />
+      )}
     </View>
   );
 }
