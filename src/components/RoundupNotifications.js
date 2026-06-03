@@ -11,7 +11,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { OverlayAlert } from './common/OverlayAlert';
 
-// 라운지 알림 6종 — 토글로 ON/OFF. Phase 2 백엔드(FCM) 연동 시 실제 푸시 발송 제어.
+// 라운지 알림 토글 — ON/OFF. 댓글 알림은 미발송(생성 안 함)이라 토글에서 제외 (켜도 안 와 혼란 방지).
 const ROUNDUP_NOTI_TYPES = [
   { key: 'invite',           icon: '💌', label: '라운딩 초대',     sub: '친구가 나를 지정해 모집하면' },
   { key: 'confirmed',        icon: '✅', label: '동반자 참여',     sub: '내 모집에 친구가 참여하면' },
@@ -19,9 +19,8 @@ const ROUNDUP_NOTI_TYPES = [
   { key: 'roundupCancelled', icon: '🚫', label: '모집 취소',       sub: '참여한 모집이 취소되면' },
   { key: 'waitlist',         icon: '⏳', label: '대기 신청',       sub: '내 모집글에 대기 신청이 들어오면' },
   { key: 'slotOpen',         icon: '🎉', label: '대기 자리 열림',  sub: '대기 중인 모집에 자리가 나면' },
-  { key: 'comment',          icon: '💬', label: '댓글',           sub: '참여한 모집에 새 댓글이 달리면' },
 ];
-const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, cancel: true, roundupCancelled: true, waitlist: true, slotOpen: true, comment: true };
+const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, cancel: true, roundupCancelled: true, waitlist: true, slotOpen: true };
 
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', slotOpen: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',

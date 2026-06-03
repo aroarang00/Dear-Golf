@@ -103,6 +103,7 @@ export function FriendsTab({ navigation, onInvite }) {
   const { setFriendReqCount } = useContext(FriendBadgeContext);
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState([]);
+  const [friendsLoaded, setFriendsLoaded] = useState(false); // 첫 로드 완료 전 빈 가이드 숨김(깜빡임 방지)
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
@@ -202,6 +203,8 @@ export function FriendsTab({ navigation, onInvite }) {
         setSentRequests(sent.map(s => s.recipientUid));
       } catch (e) {
         if (__DEV__) console.warn('[FriendsTab] initial load failed', e);
+      } finally {
+        if (!cancelled) setFriendsLoaded(true); // 첫 로드 완료 — 빈 가이드 깜빡임 방지 ([[home-empty-state-flash]])
       }
     })();
     return () => { cancelled = true; };
@@ -439,7 +442,7 @@ export function FriendsTab({ navigation, onInvite }) {
           </View>
         )}
 
-        {visible.length === 0 ? (
+        {!friendsLoaded ? null : visible.length === 0 ? (
           q ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36 }}>
               검색 결과가 없어요
