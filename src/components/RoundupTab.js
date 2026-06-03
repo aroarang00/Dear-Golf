@@ -231,6 +231,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [friendUids, setFriendUids] = useState([]); // Phase 3-F5: 친구 uid 목록 (친구공개 모집 필터·로드)
   const [friends, setFriends] = useState([]);        // Phase 3-F6: { id, name } — 친구지정 모달 등 표시용
   const [posts, setPosts] = useState([]);
+  const [hydrated, setHydrated] = useState(false);       // 첫 로드 완료 전엔 빈 가이드 숨김 — 안드 마운트 깜빡임 방지 ([[home-empty-state-flash]])
   const [refreshing, setRefreshing] = useState(false);   // 당겨서 새로고침 ([[roundup-refresh]])
   const [refreshTick, setRefreshTick] = useState(0);     // 증가 시 아래 로드 effect 재실행
   const [joined, setJoined] = useState({});            // Phase 3-C: loadMyApplications 등에서 채움
@@ -350,7 +351,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       } catch (e) {
         if (__DEV__) console.warn('[RoundupTab] initial load failed', e);
       } finally {
-        if (!cancelled) setRefreshing(false);
+        if (!cancelled) { setRefreshing(false); setHydrated(true); }
       }
     })();
     return () => { cancelled = true; };
@@ -1505,7 +1506,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5, paddingBottom: 32 }}>
         {/* 초대장(친구지정·포함)은 아래 list.map에서 실제 카드로 렌더 — dev에선 내가 만든 글도 자기 미리보기로 보임 ([[roundup-invitation]]) */}
-        {list.length === 0 ? (
+        {!hydrated ? null : list.length === 0 ? (
           view === 'mine' ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 48 }}>
               아직 참여 중인 모집이 없어요
