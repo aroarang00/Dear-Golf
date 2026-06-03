@@ -71,6 +71,7 @@ export function MyPageModal({ visible, onClose }) {
   const [depSearching, setDepSearching] = useState(false);
   const depTimerRef = useRef(null);
   const [phone, setPhone] = useState(userProfile.phone || '');
+  const [realName, setRealName] = useState(userProfile.realName || ''); // 본명(선택) — 친구·동반자 매칭용, 검색 표시는 마스킹 ([[realname-policy]])
   const [statusMessage, setStatusMessage] = useState(userProfile.statusMessage || ''); // 프로필 멘트(명함 표시)
   const [editingInfo, setEditingInfo] = useState(false);
   const [editingStats, setEditingStats] = useState(false);
@@ -115,6 +116,7 @@ export function MyPageModal({ visible, onClose }) {
       setDepResults([]);
       setDepSearching(false);
       setPhone(userProfile.phone || '');
+      setRealName(userProfile.realName || '');
       setStatusMessage(userProfile.statusMessage || '');
       setEditingInfo(false);
     }
@@ -124,7 +126,7 @@ export function MyPageModal({ visible, onClose }) {
   useEffect(() => () => { if (depTimerRef.current) clearTimeout(depTimerRef.current); }, []);
 
   const handleSaveInfo = () => {
-    const updated = { ...userProfile, departure, departureCoord, phone, statusMessage: statusMessage.trim() };
+    const updated = { ...userProfile, departure, departureCoord, phone, realName: realName.trim(), statusMessage: statusMessage.trim() };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
     setDepResults([]);
@@ -138,6 +140,7 @@ export function MyPageModal({ visible, onClose }) {
     setDepResults([]);
     setDepSearching(false);
     setPhone(userProfile.phone || '');
+    setRealName(userProfile.realName || '');
     setStatusMessage(userProfile.statusMessage || '');
     setEditingInfo(false);
   };
@@ -423,6 +426,26 @@ export function MyPageModal({ visible, onClose }) {
                     ) : (
                       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: departure ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
                         {departure || '입력하기 →'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={myS.menuRow}>
+                  <Text style={myS.menuIcon}>🪪</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={myS.menuLabel}>본명 (선택)</Text>
+                    {editingInfo ? (
+                      <>
+                        <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
+                          value={realName} onChangeText={setRealName} maxLength={20}
+                          placeholder="황지현" placeholderTextColor={C.warmGrayLight} />
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
+                          친구·동반자 찾기가 정확해져요. 검색엔 이름 일부만 가려 보여요 (예: 황*현)
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: realName ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
+                        {realName || '입력하기 →'}
                       </Text>
                     )}
                   </View>
