@@ -119,14 +119,22 @@ export async function searchGolfCourses(query) {
       const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
       if (bare && bare !== q) results = dedupe(await runQuery(bare, 3));
     }
-    // 이름 관련성 필터 — '일동' 검색에 안산 '제일CC'처럼 전혀 무관한 게 뜨는 문제.
-    //   원인: 변형 쿼리('일동cc','일동 골프장')를 카카오가 느슨히 해석해 'cc/골프장' 맞는 인기 구장을 끌어옴.
-    //   골프 접미어 뗀 핵심어가 '이름에 포함된 것만' 남기고, 시작 일치를 위로. 단 이름매칭이 0이면
-    //   폴백으로 전체 유지(엉뚱한 연결보다 빈 결과가 낫지만, 아예 못 찾는 것보단 보여주기 — [[course-matching-accuracy]]).
+    // 관련성 필터 — 변형 쿼리('일동cc','일동 골프장')를 카카오가 느슨히 해석해 'cc/골프장' 맞는 인기
+    //   구장을 끌어와 이름·주소 모두 무관한 게 섞이는 문제(예: '일동'에 안산 '제일CC').
+    //   골프 접미어 뗀 핵심어가 '이름 OR 주소(loc)에 포함된 것만' 남긴다. 이로써:
+    //   - '포천'(지역) → 포천힐스(이름)·포레스트힐(주소 포천) 둘 다 유지
+    //   - '포천힐'(구체) → 포천힐스만(포레스트힐은 주소 '포천시'에도 '포천힐' 없음 → 제외)
+    //   - '일동' → 일동레이크만(제일CC는 이름·주소 둘 다 무관 → 제외)
+    //   순위: 이름 시작일치 > 이름 포함 > 주소만 매칭. 매칭 0이면 폴백 전체 유지([[course-matching-accuracy]]).
     const core = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim() || q;
-    const named = results.filter(r => (r.name || '').includes(core));
-    const ordered = (named.length ? named : results)
-      .sort((a, b) => ((b.name || '').startsWith(core) ? 1 : 0) - ((a.name || '').startsWith(core) ? 1 : 0));
+    const rel = results.filter(r => (r.name || '').includes(core) || (r.loc || '').includes(core));
+    const rank = (r) => {
+      const n = r.name || '';
+      if (n.startsWith(core)) return 0;
+      if (n.includes(core)) return 1;
+      return 2; // 주소만 매칭
+    };
+    const ordered = (rel.length ? rel : results).sort((a, b) => rank(a) - rank(b));
     return hideCuratedUmbrellas(ordered);
   } catch (e) {
     console.warn('[kakao] search failed:', e?.message);
