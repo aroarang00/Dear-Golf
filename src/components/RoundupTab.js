@@ -611,8 +611,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const mineTab = posts.filter(p => {
     // 친구지정(select) 수신자 — 아직 미참여여도 내 참여 탭에 초대로 노출 (친구 탭엔 안 보이므로 여기서 받음)
     const amSelectRecipient = p.scope === 'select' && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
-    const devSelect = __DEV__ && p.scope === 'select'; // TEMP_DEV_INVITE — 혼자 테스트 노출. 출시 전 제거
-    return ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id] || amSelectRecipient || devSelect) && isInVisibleWindow(p);
+    return ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id] || amSelectRecipient) && isInVisibleWindow(p);
   });
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
