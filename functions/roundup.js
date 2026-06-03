@@ -77,14 +77,10 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
   const ref = event.data.after.ref;
   const postId = event.params.postId;
 
-  // (A) 정원 만석 자동 closed
-  if (!before.closed && !after.closed && isFull(after)) {
-    try {
-      await ref.update({ closed: true, closedAt: FieldValue.serverTimestamp() });
-    } catch (e) {
-      logger.warn('[roundup] auto close fail', e?.message);
-    }
-  }
+  // (A) 만석 자동 closed — 제거됨 (2026-06-03).
+  //  정책: "만석 자체는 자동 확정 X" (2026-05-28) — 만석이어도 주최자가 명시적으로 "모집 확정하기"를 눌러야 closed.
+  //  특히 오픈형(날짜 미정)은 자동 확정되면 안 됨(일정 미정인데 확정·수정잠김 발생). 클라가 allFull→확정버튼으로 처리.
+  //  isFull은 (B)/기타에서 미사용이면 추후 정리 가능.
 
   // (B) 자리 열림 — 참여자 줄어들고 대기자 있으면 1번에게 호출
   const totalBefore = totalCount(before);
