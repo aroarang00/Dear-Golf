@@ -203,9 +203,12 @@ export function RoundupComments({ post, comments, joined, myUid, inputRef, onInp
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#8B2A2A', marginTop: 6 }}>{error}</Text>
                   )}
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>
-                      {body.length}/{COMMENT_MAX}
-                    </Text>
+                    {/* 글자 수 카운터 — 한도(300자)에 가까울 때만 노출 (평소엔 노이즈) */}
+                    {body.length >= 250 && (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: body.length >= 290 ? '#8B2A2A' : C.warmGrayLight }}>
+                        {body.length}/{COMMENT_MAX}
+                      </Text>
+                    )}
                     <TouchableOpacity onPress={submit} disabled={!body.trim()}
                       activeOpacity={0.85}
                       style={{ marginLeft: 'auto', backgroundColor: body.trim() ? C.burgundy : C.hairline,
