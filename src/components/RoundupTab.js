@@ -59,9 +59,10 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
   const respondHours = waitlistRespondHours(post.date);
 
   // 마감(확정·만석) 모집은 회색 처리로 시각 구분 — 숨기진 않음(대기신청 동선 유지). 마감 풀리면 자동 복귀.
-  //  내 모집·내 참여/신청/대기 건은 회색 처리 제외(본인 활동은 또렷하게).
-  const isMyActivity = isMine || joined || applied || waitlistNum;
-  const dimmed = isClosed && !isMyActivity;
+  //  2026-06-04: 본인 모집·내 참여 포함 마감·확정이면 모두 회색으로 통일 (둘 다 '내 확정 라운드'라 따로 놀면 어색,
+  //  내 참여 탭에 함께 모이는 항목이라 상태 표시를 일관되게). '확정 완료=회색, 진행/대기=또렷'으로 읽힘.
+  const isMyActivity = isMine || joined || applied || waitlistNum; // 가리기(롱탭) 가드용 — 회색 판정엔 미사용
+  const dimmed = isClosed;
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpenDetail}
       // 길게 눌러 가리기 — 내 화면에서만 숨김([[roundup-hide-policy]]). 내 모집·내가 참여/신청/대기 중인 글은
