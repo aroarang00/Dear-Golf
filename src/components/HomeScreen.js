@@ -369,6 +369,8 @@ export function HomeScreen({ navigation, route }) {
           time: data.time || '08:00', members: data.members || 4,
           courseLogId: data.courseLogId || null,
           courseId: data.courseId || null,
+          courseKakaoId: data.courseKakaoId || null, // 코스 가기(프레시설치) 매칭용
+          companions: Array.isArray(data.companions) ? data.companions : [], // 동반자
         });
       } catch (e) {
         console.warn('[home] schedule add failed:', e?.message);
@@ -390,6 +392,8 @@ export function HomeScreen({ navigation, route }) {
           course: data.course, date: data.date, day: data.day,
           time: data.time, members: data.members,
           courseId: data.courseId || null,
+          courseKakaoId: data.courseKakaoId || null,
+          companions: Array.isArray(data.companions) ? data.companions : [],
         });
       } catch (e) {
         console.warn('[home] schedule edit failed:', e?.message);

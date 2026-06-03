@@ -187,11 +187,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   };
   const removeCompanion = (i) => setCompanions(prev => prev.filter((_, idx) => idx !== i));
   const onPickFriends = ({ selectedUids }) => {
-    const freeText = companions.filter(c => !c.friendUid); // 자유 입력은 유지
     const fromFriends = (selectedUids || []).map(uid => {
       const fr = friends.find(f => f.id === uid);
       return { name: fr?.name || '친구', friendUid: uid };
     });
+    // 자유 입력 중 친구로 고른 사람과 이름이 겹치면 제외(같은 사람 중복 방지)
+    const pickedNames = new Set(fromFriends.map(c => c.name));
+    const freeText = companions.filter(c => !c.friendUid && !pickedNames.has(c.name));
     setCompanions([...fromFriends, ...freeText]);
   };
 
