@@ -95,14 +95,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const pickPhoto = async () => {
     const remaining = MAX_PHOTOS - addPhotos.length;
     if (remaining <= 0) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: true,
-      selectionLimit: remaining,
-      quality: 0.8,
-      videoMaxDuration: MAX_VIDEO_SEC, // iOS는 선택 단계에서 제한 (안드는 아래 duration 재검증)
-    });
-    if (!result.canceled) {
+    try {
+      // 사진첩 접근 권한 — 안드 일부/구버전·릴리즈 빌드에서 권한 없으면 갤러리가 조용히 안 열림.
+      //   안드13+ 포토피커는 권한 없이도 동작하므로, 거부여도 일단 시도하고 열기 실패 시에만 안내(작동하는 피커 차단 방지).
+      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) {
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsMultipleSelection: true,
+        selectionLimit: remaining,
+        quality: 0.8,
+        videoMaxDuration: MAX_VIDEO_SEC, // iOS는 선택 단계에서 제한 (안드는 아래 duration 재검증)
+      });
+      if (!result.canceled) {
       // 길이 초과 영상 제외 — duration은 ms. 안드는 videoMaxDuration이 안 먹을 수 있어 여기서 한 번 더 거른다.
       const overLimit = result.assets.filter(a => a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500);
       const assets = result.assets.filter(a => !(a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500));
@@ -131,6 +138,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const compressed = await compressMedia(posterItems);
       const items = await persistPhotos(compressed);
       setAddPhotos(prev => [...prev, ...items].slice(0, MAX_PHOTOS));
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('[DiaryAddModal] pickPhoto failed', e?.message);
+      showAppAlert('사진을 불러오지 못했어요', '사진 접근 권한을 허용했는지 확인하거나\n잠시 후 다시 시도해주세요.');
     }
   };
 
