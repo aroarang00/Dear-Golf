@@ -34,7 +34,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
-  const { schedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
+  const { schedules, hydrated, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const insets = useSafeAreaInsets();
   const [showAddModal, setShowAddModal] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
@@ -734,7 +734,8 @@ export function HomeScreen({ navigation, route }) {
           <View style={{ height: 22 }} />
         </View>
         </>
-        ) : (
+        ) : hydrated ? (
+        // 일정 로드 완료 후에만 '첫 라운딩' 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
           <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
@@ -752,6 +753,9 @@ export function HomeScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </View>
+        ) : (
+        // 일정 로드 중 — 빈 CTA 대신 중립 여백(잘못된 빈 상태 깜빡임 차단)
+        <View style={{ flex: 1 }} />
         )}
       </SafeAreaView>
 
