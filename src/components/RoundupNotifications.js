@@ -69,7 +69,12 @@ function notiText(n) {
     case 'roundupCancelled': return `'${n.postTitle}' 모집이 취소됐어요 — 일정에서 확인해주세요`;
     case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
     case 'confirmed': return `${who}님이 '${n.postTitle}' 모집에 참여했어요`;
-    case 'invite':    return `${n.actorName || n.actor || '친구'}님이 '${n.postTitle}' 라운딩에 초대했어요`;
+    case 'invite': {
+      // 오픈형은 코스 미정이라 postTitle 비거나 '라운딩 초대' 폴백 → 코스명 있을 때만 표기
+      const inviter = n.actorName || n.actor || '친구';
+      const place = n.postTitle && n.postTitle !== '라운딩 초대' ? `'${n.postTitle}' ` : '';
+      return `${inviter}님이 ${place}라운딩에 초대했어요`;
+    }
     case 'waitlist':  return `${who}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
     case 'comment':   return `${who}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
     case 'scheduleNotice': {

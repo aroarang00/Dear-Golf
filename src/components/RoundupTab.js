@@ -682,7 +682,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       setPosts(prev => [{ ...created, ts: Date.now() }, ...prev]);
       // 친구지정·포함 = 개인 초대장 → 선택 친구에게 초대 알림 1회(멱등) ([[roundup-invitation]])
       if (created.scope === 'select' && created.selectMode === 'include' && Array.isArray(created.selectedUids) && created.selectedUids.length) {
-        createInviteNotifications(created.id, created.course || '라운딩 초대', created.selectedUids, userProfile?.nickname || '')
+        createInviteNotifications(created.id, created.course || '', created.selectedUids, userProfile?.nickname || '')
           .catch(e => __DEV__ && console.warn('[RoundupTab] invite noti failed', e?.message));
       }
     } catch (e) {

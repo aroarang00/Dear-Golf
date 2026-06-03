@@ -95,6 +95,7 @@ function titleFor(type) {
     case 'hostCancelledD7': return '모집 취소 안내';
     case 'scheduleNotice':  return '라운딩 일정 알림';
     case 'friendRequest':   return '새 친구 신청';
+    case 'invite':          return '라운딩 초대';
     // 노쇼 신고
     case 'noshowReported':            return '노쇼 신고 접수';
     case 'noshowReportSubmitted':     return '노쇼 신고 접수됨';
@@ -127,6 +128,8 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
       return `${actorName ? actorName + '님이 ' : ''}${t} 일정을 알렸어요${when ? ` — ${when}` : ''}`;
     }
     case 'friendRequest': return `${actorName || '누군가'}님이 친구 신청을 보냈어요`;
+    // 오픈형은 코스 미정 → postTitle 빈값이라 코스명 있을 때만 표기 (notiText와 동일)
+    case 'invite':      return `${actorName || '친구'}님이 ${postTitle ? `'${postTitle}' ` : ''}라운딩에 초대했어요`;
     // 라운지 일반
     case 'apply':       return `${actorName}님이 ${t} 모집에 참여 신청했어요`;
     case 'confirmed':   return `${t} 모집 참여가 확정됐어요`;
