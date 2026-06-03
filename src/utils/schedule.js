@@ -47,6 +47,7 @@ export async function createSchedule(data) {
     day: data.day || '',
     time: data.time || '',
     members: typeof data.members === 'number' ? data.members : 4,
+    companions: Array.isArray(data.companions) ? data.companions : [], // 동반자 [{name, friendUid?}]
     roundupId: data.roundupId || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

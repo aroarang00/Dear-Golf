@@ -6,6 +6,8 @@ import { searchGolfCourses } from '../utils/kakao';
 import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
+import { loadMyFriendsEnriched } from '../utils/friends';
+import { FriendSelectModal } from './FriendSelectModal';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +37,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [citySearching, setCitySearching] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null); // { name, enName, country, lat, lon }
   const cityDebounce = useRef(null);
+  // 동반자 — [{ name, friendUid? }]. 친구 목록에서 선택(친구) + 자유 입력(이름). 친구 선택 시 본명 마스킹은 선택 모달에서 표시.
+  const [companions, setCompanions] = useState([]);
+  const [companionInput, setCompanionInput] = useState('');
+  const [friends, setFriends] = useState([]);
+  const [showCompanionPicker, setShowCompanionPicker] = useState(false);
 
   const DAYS = WEEKDAYS;
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
@@ -68,6 +75,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         setMinText(pad2(tParts[1]));
       }
       setMembers(String(initial.members || '4'));
+      setCompanions(Array.isArray(initial.companions) ? initial.companions : []);
+      setCompanionInput('');
       setOverseas(!!initial.overseas);
       if (initial.overseas && initial.city) {
         setCityQuery(initial.city);
@@ -84,9 +93,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     }
   }, [visible, initial]);
 
-  // 일정 등록 화면 열릴 때 — 최근 검색한 골프장 로드
+  // 일정 등록 화면 열릴 때 — 최근 검색한 골프장 + 친구 목록(동반자 선택용) 로드
   useEffect(() => {
-    if (visible) getRecentCourses().then(r => setRecentCourses(r || []));
+    if (!visible) return;
+    getRecentCourses().then(r => setRecentCourses(r || []));
+    loadMyFriendsEnriched().then(f => setFriends(f || [])).catch(() => {});
   }, [visible]);
 
   // 검색어 debounce (300ms) → 카카오 API 호출
@@ -163,7 +174,25 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setCourseSearch(''); setSelected(null); setSearchResults([]);
     setDate(new Date()); setHourText('07'); setMinText('00'); setMembers('4');
     setEditingName(false); setEditName('');
+    setCompanions([]); setCompanionInput('');
     setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
+  };
+
+  // 동반자 — 자유 입력 추가(공백·쉼표 여러 명) / 삭제 / 친구 선택 반영
+  const addCompanionText = () => {
+    const names = companionInput.trim().split(/[\s,]+/).filter(Boolean);
+    if (!names.length) return;
+    setCompanions(prev => [...prev, ...names.map(name => ({ name }))]);
+    setCompanionInput('');
+  };
+  const removeCompanion = (i) => setCompanions(prev => prev.filter((_, idx) => idx !== i));
+  const onPickFriends = ({ selectedUids }) => {
+    const freeText = companions.filter(c => !c.friendUid); // 자유 입력은 유지
+    const fromFriends = (selectedUids || []).map(uid => {
+      const fr = friends.find(f => f.id === uid);
+      return { name: fr?.name || '친구', friendUid: uid };
+    });
+    setCompanions([...fromFriends, ...freeText]);
   };
 
   const handleSave = () => {
@@ -190,6 +219,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       day: formatDay(date),
       time: resolvedTime(),
       members: parseInt(members) || 4,
+      // 동반자 — 기존 선택 + 입력칸에 남은 이름(추가 미클릭 유실 방지, 공백·쉼표 분리)
+      companions: [
+        ...companions,
+        ...companionInput.trim().split(/[\s,]+/).filter(Boolean).map(name => ({ name })),
+      ],
       dDay: Math.max(0, dDay),
     };
     if (isEdit) {
@@ -407,6 +441,37 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* 동반자 (선택) — 친구에서 선택 + 자유 입력. 친구 선택 화면은 본명 마스킹 표시 ([[realname-policy]]) */}
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>동반자 (선택)</Text>
+              {companions.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {companions.map((c, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary,
+                      borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, paddingLeft: 10, paddingRight: 6, paddingVertical: 5 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{c.friendUid ? '👤 ' : ''}{c.name}</Text>
+                      <TouchableOpacity onPress={() => removeCompanion(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <Text style={{ fontSize: fs(12), color: C.warmGray }}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <TextInput style={[mS.input, { flex: 1, marginBottom: 0 }]} value={companionInput} onChangeText={setCompanionInput}
+                  placeholder="이름 직접 입력" placeholderTextColor={C.warmGrayLight} onSubmitEditing={addCompanionText} returnKeyType="done" blurOnSubmit={false} />
+                <TouchableOpacity onPress={addCompanionText} style={{ paddingHorizontal: 14, paddingVertical: 11, backgroundColor: C.charcoal, borderRadius: 10 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>추가</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.7}
+                style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>👥 친구에서 선택</Text>
+                {friends.length === 0 && (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>(친구를 추가하면 골라서 넣을 수 있어요)</Text>
+                )}
+              </TouchableOpacity>
+
               <TouchableOpacity style={mS.saveBtn} onPress={handleSave}>
                 <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
               </TouchableOpacity>
@@ -415,6 +480,15 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         </View>
       </View>
       </KeyboardAvoidingView>
+      {/* 동반자 친구 선택 — 본명 마스킹 표시, 다중선택 */}
+      <FriendSelectModal
+        visible={showCompanionPicker}
+        mode="companion"
+        friends={friends}
+        initial={{ selectedUids: companions.filter(c => c.friendUid).map(c => c.friendUid) }}
+        onClose={() => setShowCompanionPicker(false)}
+        onConfirm={onPickFriends}
+      />
     </Modal>
   );
 }

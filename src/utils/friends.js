@@ -44,6 +44,19 @@ export async function loadMyFriends() {
   });
 }
 
+// 내 친구 목록 + 프로필(닉네임·본명) 한 번에 — 동반자/친구지정 선택 화면 표시용.
+//   각 친구의 users 문서를 병렬 fetch해 [{ id, name(닉네임), realName }] 반환. 본명은 마스킹 표시에 사용 ([[realname-policy]]).
+export async function loadMyFriendsEnriched() {
+  const friends = await loadMyFriends();
+  const uids = friends.map(f => f.otherUid).filter(Boolean);
+  if (uids.length === 0) return [];
+  const snaps = await Promise.all(uids.map(u => getDoc(doc(db, USERS, u)).catch(() => null)));
+  return uids.map((u, i) => {
+    const d = snaps[i]?.exists() ? snaps[i].data() : null;
+    return { id: u, name: d?.nickname || '친구', realName: d?.realName || '' };
+  });
+}
+
 // 받은 친구 신청 — recipientUid 본인 + pending
 export async function loadReceivedRequests() {
   const uid = await getUid();

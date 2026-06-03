@@ -15,8 +15,10 @@ const MODE_OPTIONS = [
   ['exclude', '이 친구 빼고'],
 ];
 
-export function FriendSelectModal({ visible, friends = [], initial, onClose, onConfirm }) {
+// mode: 'select'(기본, 친구지정 — 포함/제외 토글) | 'companion'(동반자 선택 — 토글 없이 다중선택)
+export function FriendSelectModal({ visible, friends = [], initial, onClose, onConfirm, mode = 'select' }) {
   const insets = useSafeAreaInsets();
+  const isCompanion = mode === 'companion';
   const [selectMode, setSelectMode] = useState(initial?.selectMode || 'include');
   const [selected, setSelected] = useState(initial?.selectedUids || []);
   const [query, setQuery] = useState('');
@@ -44,12 +46,13 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
     onClose?.();
   };
 
-  // 가드 — include + 0명은 의미 없음 (작성자만 봄), exclude + 0명은 친구공개와 동일
-  const guardHint = selectMode === 'include' && selected.length === 0
-    ? '한 명도 선택하지 않으면 아무도 모집글을 볼 수 없어요'
-    : selectMode === 'exclude' && selected.length === 0
-      ? '한 명도 선택하지 않으면 친구공개와 같아요'
-      : null;
+  // 가드 — include + 0명은 의미 없음 (작성자만 봄), exclude + 0명은 친구공개와 동일. 동반자 모드는 가드 없음.
+  const guardHint = isCompanion ? null
+    : selectMode === 'include' && selected.length === 0
+      ? '한 명도 선택하지 않으면 아무도 모집글을 볼 수 없어요'
+      : selectMode === 'exclude' && selected.length === 0
+        ? '한 명도 선택하지 않으면 친구공개와 같아요'
+        : null;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -61,7 +64,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
 
           <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={[mS.title, { flex: 1, marginBottom: 0, fontSize: fs(19) }]}>친구지정</Text>
+              <Text style={[mS.title, { flex: 1, marginBottom: 0, fontSize: fs(19) }]}>{isCompanion ? '동반자 선택' : '친구지정'}</Text>
               <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: C.bgSecondary }}>
@@ -69,7 +72,8 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
               </TouchableOpacity>
             </View>
 
-            {/* 포함/제외 토글 */}
+            {/* 포함/제외 토글 — 친구지정 모드만. 동반자 모드는 단순 다중선택이라 숨김 */}
+            {!isCompanion && (<>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
               {MODE_OPTIONS.map(([k, l]) => (
                 <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setSelectMode(k)}
@@ -84,6 +88,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
                 ? '선택한 친구에게만 모집글이 보여요'
                 : '선택한 친구를 제외한 모든 친구에게 보여요'}
             </Text>
+            </>)}
 
             {/* 검색 */}
             <TextInput
