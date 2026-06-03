@@ -1059,9 +1059,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
   };
 
-  // 일정 리마인드 팝업 확인 — 안 읽은 scheduleNotice 전부 읽음 처리 (재노출 방지)
-  const handleConfirmReminder = () => {
-    const ids = notifications.filter(n => n.type === 'scheduleNotice' && !n.read).map(n => n.id);
+  // 일정 리마인드 팝업 확인 — 같은 모집(postId)의 알림만 읽음 처리.
+  //  여러 확정 모집의 알림이 쌓이면 모집 단위 큐로 하나씩 표시(다른 모집은 다음 팝업으로 이어짐).
+  //  같은 모집 중복 발송(주최자 여러 번 누름)은 함께 정리.
+  const handleConfirmReminder = (postId) => {
+    const ids = notifications.filter(n => n.type === 'scheduleNotice' && !n.read && n.postId === postId).map(n => n.id);
     if (ids.length === 0) return;
     setNotifications(prev => prev.map(n => (ids.includes(n.id) ? { ...n, read: true } : n)));
     ids.forEach(id => markNotificationRead(id).catch(() => {}));
@@ -1653,12 +1655,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           {(() => {
             const unread = notifications.filter(n => n.type === 'scheduleNotice' && !n.read);
             if (unread.length === 0) return null;
+            const current = unread[0];  // 최신순 — 모집 하나씩 큐로 표시
+            // 남은 '다른 모집' 건수만 카운트 (같은 모집 중복은 제외)
+            const otherPostIds = new Set(unread.filter(n => n.postId !== current.postId).map(n => n.postId));
             return (
               <ScheduleReminderPopup
                 visible
-                notice={unread[0]}
-                extraCount={unread.length - 1}
-                onConfirm={handleConfirmReminder} />
+                notice={current}
+                extraCount={otherPostIds.size}
+                onConfirm={() => handleConfirmReminder(current.postId)} />
             );
           })()}
 
