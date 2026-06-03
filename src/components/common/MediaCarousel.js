@@ -1,7 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity } from 'react-native';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
+import { FocalImage } from './FocalImage';
+
+// 영상 슬라이드 — 첫 프레임 정지화면을 깔고 그 위에 ▶ 오버레이 (인라인 재생 X, 탭하면 PhotoViewer).
+//   썸네일 로딩 전·실패 시에만 어두운 폴백. 상세/추가화면(GridThumb·AddPhotoThumb)과 동일 패턴.
+function VideoSlide({ uri, poster }) {
+  const [thumb, setThumb] = useState(poster || null);
+  useEffect(() => {
+    if (poster) { setThumb(poster); return; } // 업로드된 포스터 있으면 기기 생성 불필요(안드 안정)
+    let cancelled = false;
+    (async () => {
+      try {
+        const { uri: t } = await VideoThumbnails.getThumbnailAsync(uri, { time: 0, quality: 0.6 });
+        if (!cancelled) setThumb(t);
+      } catch (e) {
+        if (!cancelled) console.warn('thumbnail failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [uri, poster]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' }}>
+      {thumb && <Image source={{ uri: thumb }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} resizeMode="cover" />}
+      <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.45)',
+        alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: '#fff', fontSize: fs(20), marginLeft: 3 }}>▶</Text>
+      </View>
+      <Text style={{ position: 'absolute', bottom: 10, left: 10, fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.85)' }}>영상</Text>
+    </View>
+  );
+}
 
 // 카드 안 인라인 미디어 캐러셀 — 상세 진입 없이 미리보기에서 가로로 넘겨보기 ([[friend-feed-design]]).
 // 부모(dS.photoHero43 등)의 크기를 그대로 채우고, onLayout으로 슬라이드 폭/높이를 잰다.
@@ -33,21 +65,17 @@ export function MediaCarousel({ photos, onTap }) {
             const isVideo = p && typeof p === 'object' && p.type === 'video';
             const raw = isVideo ? p.uri : (typeof p === 'object' ? p?.uri : p);
             const uri = resolvePhotoUri(raw);
+            const poster = isVideo && p?.poster ? resolvePhotoUri(p.poster) : null;
+            const focus = !isVideo && typeof p === 'object' ? p?.focus : null;
             return (
               <TouchableOpacity
                 key={i} activeOpacity={0.95}
                 onPress={() => onTap && onTap(i)}
                 style={{ width: w, height: h }}>
                 {isVideo ? (
-                  <View style={{ flex: 1, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' }}>
-                    <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.45)',
-                      alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: '#fff', fontSize: fs(20), marginLeft: 3 }}>▶</Text>
-                    </View>
-                    <Text style={{ position: 'absolute', bottom: 10, left: 10, fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.85)' }}>영상</Text>
-                  </View>
+                  <VideoSlide uri={uri} poster={poster} />
                 ) : (
-                  <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  <FocalImage uri={uri} focus={focus} width={w} height={h} />
                 )}
               </TouchableOpacity>
             );

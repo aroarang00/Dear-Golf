@@ -12,6 +12,7 @@ import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
 import { hofBgColor } from './HallOfFameCard';
 import { PhotoEditModal } from './PhotoEditModal';
+import { FocalAdjustModal } from './common/FocalAdjustModal';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
@@ -25,6 +26,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
   const [isEditing, setIsEditing] = useState(false);
   const [editPhotos, setEditPhotos] = useState(item.photos || []);
   const [editorIndex, setEditorIndex] = useState(null);
+  const [focusIndex, setFocusIndex] = useState(null); // 보여줄 부분(초점) 조정 대상
 
   useEffect(() => {
     setEditPhotos(item.photos || []);
@@ -59,6 +61,8 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
 
   const handlePhotoLongPress = (index) => {
     if (!isEditing) return;
+    const it = editPhotos[index];
+    const isVideo = typeof it === 'object' && it?.type === 'video';
     showAppAlert(
       '사진 옵션',
       null,
@@ -76,6 +80,8 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
             });
           },
         },
+        // 영상은 자동 첫프레임 포스터라 초점 조정 제외 ([[cover-focal-point]])
+        ...(isVideo ? [] : [{ text: '보여줄 부분 조정', onPress: () => setFocusIndex(index) }]),
         {
           text: '삭제',
           style: 'destructive',
@@ -350,6 +356,22 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
           setEditorIndex(null);
         }}
       />
+      <FocalAdjustModal
+        visible={focusIndex !== null}
+        uri={focusIndex !== null ? resolvePhotoUri(typeof editPhotos[focusIndex] === 'object' ? editPhotos[focusIndex].uri : editPhotos[focusIndex]) : null}
+        focus={focusIndex !== null && typeof editPhotos[focusIndex] === 'object' ? editPhotos[focusIndex].focus : null}
+        onClose={() => setFocusIndex(null)}
+        onSave={(focus) => {
+          // 문자열 사진이면 객체로 승격해 focus 보존. uri는 원본 그대로 유지(원본 안 자름).
+          setEditPhotos(prev => {
+            const next = [...prev];
+            const orig = next[focusIndex];
+            next[focusIndex] = typeof orig === 'object' ? { ...orig, focus } : { uri: orig, focus };
+            return next;
+          });
+          setFocusIndex(null);
+        }}
+      />
       <DiaryAddModal
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -368,11 +390,13 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
 
 function GridThumb({ item, src }) {
   const isVideo = typeof item === 'object' && item?.type === 'video';
-  const [thumb, setThumb] = useState(null);
+  const poster = isVideo && item?.poster ? resolvePhotoUri(item.poster) : null;
+  const [thumb, setThumb] = useState(poster || null);
 
   useEffect(() => {
-    let cancelled = false;
     if (!isVideo) return;
+    if (poster) { setThumb(poster); return; } // 업로드된 포스터 우선(안드 원격 생성 회피)
+    let cancelled = false;
     (async () => {
       try {
         const { uri } = await VideoThumbnails.getThumbnailAsync(src, { time: 0, quality: 0.6 });
@@ -382,7 +406,7 @@ function GridThumb({ item, src }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [isVideo, src]);
+  }, [isVideo, src, poster]);
 
   if (isVideo) {
     return (

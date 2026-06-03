@@ -1,4 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
 import { compressImage } from './imageCompress';
@@ -35,9 +36,31 @@ async function uploadOne(uid, item, i) {
     const storageRef = ref(storage, `rounds/${uid}/${name}`);
     await uploadBytes(storageRef, blob, { contentType }); // contentType 명시 — Storage 규칙 image/*·video/* 매칭 보장
     const url = await getDownloadURL(storageRef);
-    return isVideo ? { ...item, uri: url } : url;
+    // 사진 객체({uri, focus})는 focus 등 메타 보존, 단순 문자열 사진은 그대로 https 문자열 ([[cover-focal-point]])
+    if (!isVideo) return isObj ? { ...item, uri: url } : url;
+    // 영상은 첫 프레임 포스터(jpg)도 같이 업로드 → 안드 원격 썸네일 안정화 (실패해도 영상은 유지) ([[friend-feed-design]]).
+    const poster = await uploadVideoPoster(uid, localUri, i);
+    return poster ? { ...item, uri: url, poster } : { ...item, uri: url };
   } catch (e) {
     if (__DEV__) console.warn('[roundMedia] 업로드 실패, 원본 유지', e?.message);
     return item;
+  }
+}
+
+// 영상 첫 프레임을 뽑아 image/jpeg로 업로드. 실패 시 null → 클라가 기기에서 직접 생성하는 폴백으로 동작.
+//   로컬 영상 URI에서 생성하므로 안드에서도 안정적(원격 getThumbnailAsync 불안정 회피).
+async function uploadVideoPoster(uid, localVideoUri, i) {
+  try {
+    const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(localVideoUri, { time: 0, quality: 0.7 });
+    const compressed = await compressImage(thumbUri);
+    const res = await fetch(compressed);
+    const blob = await res.blob();
+    const name = `p_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const storageRef = ref(storage, `rounds/${uid}/${name}`);
+    await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+    return await getDownloadURL(storageRef);
+  } catch (e) {
+    if (__DEV__) console.warn('[roundMedia] 포스터 생성 실패, 기기 생성 폴백', e?.message);
+    return null;
   }
 }
