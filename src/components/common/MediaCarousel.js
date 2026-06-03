@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
@@ -26,10 +26,15 @@ function VideoSlide({ uri, poster }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' }}>
       {thumb && <Image source={{ uri: thumb }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} resizeMode="cover" />}
-      <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.45)',
-        alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: '#fff', fontSize: fs(20), marginLeft: 3 }}>▶</Text>
-      </View>
+      {/* 썸네일 로딩 전(포스터 없는 원격 영상은 첫 프레임 추출에 수 초) — 검정 대신 스피너로 '불러오는 중' 인지 */}
+      {thumb ? (
+        <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.45)',
+          alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: fs(20), marginLeft: 3 }}>▶</Text>
+        </View>
+      ) : (
+        <ActivityIndicator color="rgba(255,255,255,0.85)" />
+      )}
       <Text style={{ position: 'absolute', bottom: 10, left: 10, fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.85)' }}>영상</Text>
     </View>
   );
