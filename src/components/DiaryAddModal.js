@@ -242,7 +242,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setStarRating(initial.starRating || 0);
       setSelectedTags(initial.tags || []);
       setAddPhotos(initial.photos || []);
-      setPrivacy(initial.privacy || 'friends');
+      // 저장 필드는 visibility — 옛 코드가 privacy로 내보내 visibility가 안 바뀌던 버그 수정.
+      // 혹시 남아있는 옛 privacy 값도 폴백으로 인정.
+      setPrivacy(initial.visibility || initial.privacy || 'friends');
       setCompanions(
         (initial.companions || [])
           .filter(c => !c.isMe)
@@ -306,7 +308,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSaveError('');
     const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
-      score: parseInt(score) || 0, holeScores, holePars, weather, memo, birdieCount, privacy,
+      score: parseInt(score) || 0, holeScores, holePars, weather, memo, birdieCount, visibility: privacy,
       special, specialHole: parseInt(specialHole),
       specialPar: parseInt(specialPar) || null,
       specialDist, specialBall, specialMemo,
