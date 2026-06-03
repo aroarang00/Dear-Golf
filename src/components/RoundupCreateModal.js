@@ -84,10 +84,17 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     if (visible && !initialPost) reset();
   }, [visible, initialPost]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 오픈형 친구지정 모집이 만석이면, 수정은 '확정형으로 전환'만 허용 (오픈형 잠금) — 일정 확정 동선
+  const isEdit = !!initialPost;
+  const editFull = isEdit && ((initialPost.teams || 1) > 1
+    ? (Array.isArray(initialPost.teamJoined) && initialPost.teamJoined.every(c => c >= 4))
+    : (initialPost.joined || 0) >= (initialPost.capacity || 4));
+  const lockToFixed = isEdit && initialPost.scope === 'select' && initialPost.type === 'open' && editFull;
+
   // 수정 모드 — initialPost로 모든 state prefill
   useEffect(() => {
     if (!visible || !initialPost) return;
-    setType(initialPost.type || 'fixed');
+    setType(lockToFixed ? 'fixed' : (initialPost.type || 'fixed'));
     setCourseQuery(initialPost.course || '');
     setCourse(initialPost.course ? { name: initialPost.course, loc: null } : null);
     if (initialPost.date && initialPost.time) {
@@ -285,15 +292,20 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             {/* 확정형 / 오픈형 */}
             <Text style={mS.bigLabel}>모집 형태</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[['fixed', '확정형'], ['open', '오픈형']].map(([k, l]) => (
-                <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setType(k)}
-                  style={[mS.chip, type === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
-                  <Text style={[mS.chipTxt, type === k && mS.chipTxtOn]}>{l}</Text>
-                </TouchableOpacity>
-              ))}
+              {[['fixed', '확정형'], ['open', '오픈형']].map(([k, l]) => {
+                const disabled = lockToFixed && k === 'open';   // 만석 오픈형 친구지정 수정 — 오픈형 잠금
+                return (
+                  <TouchableOpacity key={k} activeOpacity={0.7} disabled={disabled} onPress={() => setType(k)}
+                    style={[mS.chip, type === k && mS.chipOn, { flex: 1, alignItems: 'center' }, disabled && { opacity: 0.4 }]}>
+                    <Text style={[mS.chipTxt, type === k && mS.chipTxtOn]}>{l}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>
-              {type === 'fixed'
+              {lockToFixed
+                ? '인원이 다 찼어요. 일정을 정해 확정형으로 전환해주세요.'
+                : type === 'fixed'
                 ? '골프장·날짜·시간을 정해서 모집해요'
                 : '날짜·장소는 미정 — 함께 정할 동반자를 먼저 모아요'}
             </Text>

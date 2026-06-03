@@ -269,7 +269,7 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
   // 모집 확정 — 만석 상태에서 주최자가 명시적으로 closed:true. 매너 -5 분기점 ([[roundup-penalty-policy]] §1)
   const confirmFinalize = () => setAlert({
     title: '모집을 확정할까요?',
-    message: '확정하면 참여자 모두의 일정에\n이 라운딩이 등록돼요.\n(확정 전까지는 등록되지 않아요)',
+    message: '확정하면 동반자와 본인 일정에\n이 라운딩이 자동 등록돼요.\n\n확정 후엔 수정할 수 없어요.\n바꾸려면 삭제 후 다시 모집해주세요.',
     buttons: [
       { text: '취소', style: 'cancel' },
       { text: '모집 확정', onPress: onConfirm },
@@ -379,7 +379,7 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>모집 확정하기</Text>
             </TouchableOpacity>
             <Text style={hintStyle}>
-              정원이 다 찼어요. 확정하면 동반자 약속이 시작되고, 이후 참여 취소엔 매너 평가가 따를 수 있어요.
+              확정하면 동반자와 본인 일정에 자동 추가돼요.{'\n'}확정 후엔 수정할 수 없어요 — 바꾸려면 삭제 후 다시 모집해주세요.
             </Text>
           </>
         ) : (

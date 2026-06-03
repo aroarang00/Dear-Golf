@@ -589,18 +589,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       if (!!myUid && p.authorUid === myUid) return true;
       return friendUids.includes(p.authorUid);
     }
-    if (p.scope === 'select') {
-      if (!!myUid && p.authorUid === myUid) return true; // 내가 올린 친구지정
-      if (__DEV__) return true; // TEMP_DEV_INVITE — uid 이슈 무관하게 select 노출(혼자 테스트). 출시 전 제거
-      return !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
-    }
+    // 친구지정(select)은 사적 초대 → 친구 브라우즈에 노출 X. 내 참여 탭(mineTab)에만 (2026-06-03)
     return false;
   });
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+5h 윈도우는 동일 적용
   // (지난 라운딩의 본인 활동 이력은 마이페이지 "내 라운지 활동"에서 별도 조회)
-  const mineTab = posts.filter(p =>
-    ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id]) && isInVisibleWindow(p)
-  );
+  const mineTab = posts.filter(p => {
+    // 친구지정(select) 수신자 — 아직 미참여여도 내 참여 탭에 초대로 노출 (친구 탭엔 안 보이므로 여기서 받음)
+    const amSelectRecipient = p.scope === 'select' && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
+    const devSelect = __DEV__ && p.scope === 'select'; // TEMP_DEV_INVITE — 혼자 테스트 노출. 출시 전 제거
+    return ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id] || amSelectRecipient || devSelect) && isInVisibleWindow(p);
+  });
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
   const matchTab = visiblePosts.filter(p => !(!!myUid && p.authorUid === myUid) && matchesRoundup(p, userProfile.roundupMatch));
@@ -1531,7 +1530,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             // 친구지정·포함 초대장 — 수신자(또는 dev에서 작성 본인)에겐 일반 카드 대신 초대장 카드 ([[roundup-invitation]])
             const mine = !!myUid && p.authorUid === myUid;
             const amRecipient = !mine && !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
-            const showInvite = view === 'friend' && p.scope === 'select' && p.selectMode === 'include'
+            const showInvite = view === 'mine' && p.scope === 'select' && p.selectMode === 'include'
               && !joined[p.id] && !applied[p.id]
               && (amRecipient || (__DEV__ && !mine)); // TEMP_DEV_INVITE — dev 미리보기는 비수신자만(주최자 본인 글 제외). 출시 전 amRecipient만
             if (showInvite) {
