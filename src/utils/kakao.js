@@ -119,17 +119,15 @@ export async function searchGolfCourses(query) {
       const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
       if (bare && bare !== q) results = dedupe(await runQuery(bare, 3));
     }
-    // 이름 일치 우선 정렬 — 카카오가 주소(예: '일동면')로 끌어온 엉뚱한 이름('제일CC')이 위로 오는 문제.
-    //   골프 접미어를 뗀 핵심어 기준: 이름 시작 일치 > 이름 포함 > 그 외(주소 매칭 등)는 뒤로. 버리진 않음([[course-matching-accuracy]]).
+    // 이름 관련성 필터 — '일동' 검색에 안산 '제일CC'처럼 전혀 무관한 게 뜨는 문제.
+    //   원인: 변형 쿼리('일동cc','일동 골프장')를 카카오가 느슨히 해석해 'cc/골프장' 맞는 인기 구장을 끌어옴.
+    //   골프 접미어 뗀 핵심어가 '이름에 포함된 것만' 남기고, 시작 일치를 위로. 단 이름매칭이 0이면
+    //   폴백으로 전체 유지(엉뚱한 연결보다 빈 결과가 낫지만, 아예 못 찾는 것보단 보여주기 — [[course-matching-accuracy]]).
     const core = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim() || q;
-    const rank = (r) => {
-      const n = r.name || '';
-      if (n.startsWith(core)) return 0;
-      if (n.includes(core)) return 1;
-      return 2;
-    };
-    results = [...results].sort((a, b) => rank(a) - rank(b));
-    return hideCuratedUmbrellas(results);
+    const named = results.filter(r => (r.name || '').includes(core));
+    const ordered = (named.length ? named : results)
+      .sort((a, b) => ((b.name || '').startsWith(core) ? 1 : 0) - ((a.name || '').startsWith(core) ? 1 : 0));
+    return hideCuratedUmbrellas(ordered);
   } catch (e) {
     console.warn('[kakao] search failed:', e?.message);
     return [];
