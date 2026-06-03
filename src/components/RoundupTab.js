@@ -34,7 +34,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
 import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, closeRoundup, toggleRoundupLike } from '../utils/roundup';
-import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
+import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore, subscribeLatestComments, mergeLiveComments } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
@@ -64,8 +64,9 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
   const dimmed = isClosed && !isMyActivity;
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpenDetail}
-      // 길게 눌러 가리기 — 내 화면에서만 숨김([[roundup-hide-policy]]). 내가 올린 모집은 가리기 불가.
-      onLongPress={(!isMine && onHide) ? () => onHide(post.id) : undefined}
+      // 길게 눌러 가리기 — 내 화면에서만 숨김([[roundup-hide-policy]]). 내 모집·내가 참여/신청/대기 중인 글은
+      //   가리기 불가(해제 없는 숨김이라 내 관여 건을 실수로 잃지 않게 — isMyActivity로 차단).
+      onLongPress={(!isMyActivity && onHide) ? () => onHide(post.id) : undefined}
       delayLongPress={400}
       style={{ backgroundColor: dimmed ? C.bgPrimary : C.bgSecondary, borderRadius: 14, borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.07)', opacity: dimmed ? 0.65 : 1,
@@ -516,7 +517,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     return () => { cancelled = true; };
   }, [notifications, evalVersion]);
 
-  // 상세 진입 시 댓글 로드 — Firestore 서브컬렉션 (roundups/{id}/comments). 닫히면 정리 X(캐시 유지).
+  // 상세 진입 시 댓글 로드 + 실시간 구독 — Firestore 서브컬렉션 (roundups/{id}/comments).
+  //   초기 1회 로드(고정·이전페이지 포함) 후, 최근 댓글 head를 onSnapshot 구독해 새 댓글·삭제 즉시 반영.
+  //   상세 닫히면 구독 해제(비용·생명주기), 캐시(commentsByPost)는 유지 ([[lounge-realtime]] 댓글).
   useEffect(() => {
     if (!detailId) return;
     let cancelled = false;
@@ -526,7 +529,19 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     countComments(detailId)
       .then(n => { if (!cancelled) setCommentsTotal(prev => ({ ...prev, [detailId]: n })); })
       .catch(() => {});
-    return () => { cancelled = true; };
+    const unsub = subscribeLatestComments(detailId, head => {
+      if (cancelled) return;
+      setCommentsByPost(prev => {
+        const merged = mergeLiveComments(prev[detailId] || [], head);
+        return { ...prev, [detailId]: merged };
+      });
+      // 총 개수 보정 — 새 댓글 도착 시 최소 보이는 수만큼은 반영(정확값은 재진입 시 countComments)
+      setCommentsTotal(prev => {
+        const seen = (head || []).length;
+        return seen > (prev[detailId] || 0) ? { ...prev, [detailId]: seen } : prev;
+      });
+    });
+    return () => { cancelled = true; unsub(); };
   }, [detailId]);
 
   // 관심 모집 — 마운트 시 로드, 변경 시 저장

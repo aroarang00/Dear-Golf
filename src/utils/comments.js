@@ -11,7 +11,7 @@
 
 import {
   collection, query, orderBy, where, limit as fsLimit, getDocs, getCountFromServer,
-  addDoc, deleteDoc, updateDoc, doc, serverTimestamp, Timestamp,
+  addDoc, deleteDoc, updateDoc, doc, serverTimestamp, Timestamp, onSnapshot,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -134,6 +134,31 @@ export async function loadComments(postId, max = COMMENT_PAGE_SIZE) {
   const byId = new Map();
   latestSnap.docs.forEach(d => byId.set(d.id, mapCommentDoc(d, postId)));
   pinnedSnap.docs.forEach(d => { if (!byId.has(d.id)) byId.set(d.id, mapCommentDoc(d, postId)); });
+  return Array.from(byId.values());
+}
+
+// 최근 댓글 head 실시간 구독 — 상세 열린 동안만. 새 댓글·삭제가 즉시 반영 ([[lounge-realtime]] 댓글).
+//   head(최근 max)만 구독: 새 댓글은 항상 head 최상단에 들어옴. 오래된 페이지·고정은 mergeLiveComments가 보존.
+export function subscribeLatestComments(postId, onChange, max = COMMENT_PAGE_SIZE) {
+  if (!postId) return () => {};
+  const q = query(commentsCol(postId), orderBy('createdAt', 'desc'), fsLimit(max));
+  return onSnapshot(q,
+    snap => onChange(snap.docs.map(d => mapCommentDoc(d, postId))),
+    err => { if (__DEV__) console.warn('[comments] subscribe', err?.message); });
+}
+
+// 실시간 head를 기존 리스트에 병합 — head 시간창 안은 head로 교체(추가·삭제 반영),
+//   그보다 오래된 댓글(페이지네이션으로 불러온 것)과 고정 댓글은 보존.
+export function mergeLiveComments(existing = [], head = []) {
+  if (!head.length) return existing; // head 비면 전체 삭제 전환 위험 — 기존 유지(상세 재진입 시 정확화)
+  const headIds = new Set(head.map(c => c.id));
+  const oldestHead = head[head.length - 1].createdAt; // desc라 마지막이 head 중 가장 오래됨
+  const byId = new Map();
+  for (const c of existing) {
+    // head 시간창 밖(더 오래됨) 또는 고정 댓글만 보존. 창 안인데 head에 없으면 삭제된 것 → 버림.
+    if ((c.createdAt < oldestHead || c.pinned) && !headIds.has(c.id)) byId.set(c.id, c);
+  }
+  for (const c of head) byId.set(c.id, c);
   return Array.from(byId.values());
 }
 
