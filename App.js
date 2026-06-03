@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image, AppState } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -54,7 +54,7 @@ import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLi
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid } from './src/utils/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
 import { FriendBadgeContext } from './src/contexts/FriendBadgeContext';
@@ -93,6 +93,7 @@ function App() {
 
   // 친구 탭 탭바 뱃지 — 받은 친구신청 수. 친구신청 알림은 라운지 알림함에서 분리, 친구 탭에서만 표시.
   const [friendReqCount, setFriendReqCount] = useState(0);
+  // 수동 갱신 폴백(컨텍스트 제공) — 리스너 붙기 전/오류 시 1회 조회용.
   const refreshFriendBadge = useCallback(async () => {
     try {
       const reqs = await loadReceivedRequests();
@@ -101,13 +102,26 @@ function App() {
       if (__DEV__) console.warn('[App] friend badge refresh failed', e?.message);
     }
   }, []);
-  // 온보딩 끝나고 앱 진입 시 1회 + 포그라운드 복귀 시마다 갱신 (코드베이스 비실시간 조회 패턴에 맞춤)
+  // 받은 친구신청 실시간 구독 ([[lounge-realtime]] ② 친구신청) — 앱 켜둔 중에도 신청 도착·수락 시 뱃지 즉시 갱신.
+  //   friendships: recipientUid==me && status=='pending'. 수락하면 pending에서 빠져 size 감소 → 자동 해제.
+  //   kakaoLinked 변동(익명↔카카오) 시 재구독 — getUid가 안정 uid를 반환하도록 ([[auth-relink-and-seed-cleanup]]).
   useEffect(() => {
     if (showOnboarding || !profileLoaded) return;
-    refreshFriendBadge();
-    const sub = AppState.addEventListener('change', s => { if (s === 'active') refreshFriendBadge(); });
-    return () => sub.remove();
-  }, [showOnboarding, profileLoaded, refreshFriendBadge]);
+    let unsub = null, cancelled = false;
+    (async () => {
+      const uid = await getUid();
+      if (!uid || cancelled) return;
+      const q = query(
+        collection(db, 'friendships'),
+        where('recipientUid', '==', uid),
+        where('status', '==', 'pending'),
+      );
+      unsub = onSnapshot(q,
+        snap => setFriendReqCount(snap.size),
+        err => { if (__DEV__) console.warn('[App] friend req listener', err?.message); });
+    })();
+    return () => { cancelled = true; if (unsub) unsub(); };
+  }, [showOnboarding, profileLoaded, userProfile.kakaoLinked]);
 
   // 번들 폰트 — Pretendard 정적 굵기 4종(한글 본문) + Lora Italic("Dear Golf" 워드마크)
   //   + Playfair Display Bold (영문·숫자 표시용 — Georgia 대체, OS 간 일관)
