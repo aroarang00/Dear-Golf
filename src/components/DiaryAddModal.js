@@ -15,6 +15,8 @@ import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils/scorecardOcr';
 import { ScorecardReviewModal } from './ScorecardReviewModal';
+import { FocalAdjustModal } from './common/FocalAdjustModal';
+import { showAppAlert } from './AppAlert';
 
 const COST_ITEMS = [
   ['green', '그린피'],
@@ -26,6 +28,7 @@ const COST_ITEMS = [
 
 // 다이어리 사진·영상 첨부 한도 (저장 공간·로딩 성능·UX 균형)
 const MAX_PHOTOS = 10;
+const MAX_VIDEO_SEC = 30; // 동영상 최대 길이(초) — 과도한 업로드 용량 방지. Storage 규칙(영상 100MB)보다 앞단 차단.
 
 // '더 기록하기' 예시 칩 — 누르면 입력칸에 항목이 삽입돼 글쓰기 시작점이 된다
 const GUIDE_CHIPS = ['MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
@@ -85,6 +88,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [specialBall, setSpecialBall] = useState('');
   const [specialMemo, setSpecialMemo] = useState('');
   const [addPhotos, setAddPhotos] = useState([]);
+  const [focusIdx, setFocusIdx] = useState(null); // 보여줄 부분(초점) 조정 대상
   const [companions, setCompanions] = useState([]);
   const [companionInput, setCompanionInput] = useState('');
 
@@ -96,9 +100,17 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       allowsMultipleSelection: true,
       selectionLimit: remaining,
       quality: 0.8,
+      videoMaxDuration: MAX_VIDEO_SEC, // iOS는 선택 단계에서 제한 (안드는 아래 duration 재검증)
     });
     if (!result.canceled) {
-      const rawItems = result.assets.map(a =>
+      // 길이 초과 영상 제외 — duration은 ms. 안드는 videoMaxDuration이 안 먹을 수 있어 여기서 한 번 더 거른다.
+      const overLimit = result.assets.filter(a => a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500);
+      const assets = result.assets.filter(a => !(a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500));
+      if (overLimit.length) {
+        showAppAlert('동영상이 너무 길어요', `동영상은 최대 ${MAX_VIDEO_SEC}초까지 올릴 수 있어요.\n길이를 넘는 ${overLimit.length}개는 제외했어요.`);
+      }
+      if (assets.length === 0) return;
+      const rawItems = assets.map(a =>
         a.type === 'video' ? { uri: a.uri, type: 'video' } : a.uri
       );
       // 1) 압축·리사이즈 (1200px·80% JPEG, EXIF GPS 자동 제거)
@@ -740,7 +752,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {addPhotos.map((item, i) => (
                     <AddPhotoThumb key={i} item={item}
-                      onRemove={() => setAddPhotos(prev => prev.filter((_, idx) => idx !== i))} />
+                      onRemove={() => setAddPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                      onAdjust={() => setFocusIdx(i)} />
                   ))}
                   {addPhotos.length < MAX_PHOTOS && (
                     <TouchableOpacity onPress={pickPhoto}
@@ -771,11 +784,25 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           failed={scFailed}
           onConfirm={handleScorecardConfirm}
           onClose={() => setScReview(false)} />
+        <FocalAdjustModal
+          visible={focusIdx !== null}
+          uri={focusIdx !== null ? resolvePhotoUri(typeof addPhotos[focusIdx] === 'object' ? addPhotos[focusIdx].uri : addPhotos[focusIdx]) : null}
+          focus={focusIdx !== null && typeof addPhotos[focusIdx] === 'object' ? addPhotos[focusIdx].focus : null}
+          onClose={() => setFocusIdx(null)}
+          onSave={(focus) => {
+            setAddPhotos(prev => {
+              const next = [...prev];
+              const orig = next[focusIdx];
+              next[focusIdx] = typeof orig === 'object' ? { ...orig, focus } : { uri: orig, focus };
+              return next;
+            });
+            setFocusIdx(null);
+          }} />
     </Modal>
   );
 }
 
-function AddPhotoThumb({ item, onRemove }) {
+function AddPhotoThumb({ item, onRemove, onAdjust }) {
   const isVideo = typeof item === 'object' && item?.type === 'video';
   const src = resolvePhotoUri(typeof item === 'object' ? item.uri : item);
   const [thumb, setThumb] = useState(null);
@@ -818,6 +845,15 @@ function AddPhotoThumb({ item, onRemove }) {
             </View>
           </View>
         </View>
+      ) : onAdjust ? (
+        // 사진 탭 = 보여줄 부분(초점) 조정. 하단에 작은 안내 칩으로 가능함을 인지 ([[cover-focal-point]])
+        <TouchableOpacity activeOpacity={0.85} onPress={onAdjust} style={imgStyle}>
+          <Image source={{ uri: src }} style={imgStyle} />
+          <View style={{ position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ color: '#fff', fontSize: fs(9) }}>✛ 보여줄 부분</Text>
+          </View>
+        </TouchableOpacity>
       ) : (
         <Image source={{ uri: src }} style={imgStyle} />
       )}
