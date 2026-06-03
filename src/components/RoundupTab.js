@@ -69,11 +69,13 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
       //   가리기 불가(해제 없는 숨김이라 내 관여 건을 실수로 잃지 않게 — isMyActivity로 차단).
       onLongPress={(!isMyActivity && onHide) ? () => onHide(post.id) : undefined}
       delayLongPress={400}
-      style={{ backgroundColor: dimmed ? C.bgPrimary : C.bgSecondary, borderRadius: 14, borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.07)', opacity: dimmed ? 0.65 : 1,
+      // 마감(확정·만석) 카드 = 또렷한 회색 + 그림자 제거(가라앉은 느낌). opacity는 TouchableOpacity가
+      //   자체 관리해 무시되므로(누를 때 애니메이션) 쓰지 않고 배경색·그림자로만 구분.
+      style={{ backgroundColor: dimmed ? '#E7E4DE' : C.bgSecondary, borderRadius: 14, borderWidth: 1,
+        borderColor: dimmed ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.07)',
         padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12,
-        // 그림자 — 크림 배경(#FAF6EC) 위에서 흰 카드 분리감 강화 (iOS·Android 양쪽)
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 }}>
+        // 그림자 — 크림 배경(#FAF6EC) 위에서 흰 카드 분리감 강화 (iOS·Android 양쪽). 마감은 평평하게(비활성 인상).
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: dimmed ? 0 : 0.05, shadowRadius: 6, elevation: dimmed ? 0 : 2 }}>
       {/* 뱃지 줄 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: _and ? 7 : 10, flexWrap: 'wrap' }}>
         <View style={{ backgroundColor: post.type === 'fixed' ? C.charcoal : '#6B8B5E', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
