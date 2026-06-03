@@ -892,6 +892,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       return { ok: true };
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] join/apply failed', e);
+      // 선착순 정원 초과(트랜잭션 차단) — 막판 동시 수락에서 발생. 해당 글을 최신화해 마감 반영.
+      if (e?.message === 'full') {
+        loadRoundup(id).then(fresh => {
+          if (fresh) setPosts(prev => prev.map(p => (p.id === id ? { ...p, ...fresh } : p)));
+        }).catch(() => {});
+        return { ok: false, reason: 'full' };
+      }
       // 실패 알림은 호출 측에서 표시 — 모달(RoundupDetail)·카드(confirmApply) 양쪽 모두
       // ok:false 반환을 받아 자체 OverlayAlert를 띄운다. 여기서 setAlert하면 모달 경로에서
       // 부모(모달 뒤 가려짐)·자식 alert가 이중으로 떠서 제거함.
@@ -914,7 +921,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           // 카드(비모달) 경로 — 실패 시 여기서 직접 alert (모달 경로는 RoundupDetail이 자체 표시)
           const r = await performJoinOrApply(id);
           if (r && r.ok === false) {
-            setAlert({
+            setAlert(r.reason === 'full' ? {
+              title: '아쉽지만 정원이 찼어요',
+              message: '방금 모집이 마감됐어요. 다음 기회를 노려주세요.',
+              buttons: [{ text: '확인' }],
+            } : {
               title: '참여 처리에 실패했어요',
               message: __DEV__ && r.message ? r.message : '잠시 후 다시 시도해 주세요.',
               buttons: [{ text: '확인' }],

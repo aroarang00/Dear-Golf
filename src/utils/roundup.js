@@ -1,7 +1,7 @@
 import {
   collection, query, where, orderBy, getDocs, getDoc,
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
-  arrayUnion, arrayRemove, increment,
+  arrayUnion, arrayRemove, increment, runTransaction,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -149,17 +149,29 @@ export async function deleteRoundup(postId) {
 
 // ── 참여 신청·취소 (참여자 액션) ───────────────────────────────
 
-// 참여 신청 — participantUids에 me 추가, joined +1
-// 보안 규칙: 참여자는 participantUids/waitlistUids/joined/teamJoined만 변경 + 본인 토글
+// 참여 신청 — participantUids에 me 추가, joined +1.
+// 보안 규칙: 참여자는 participantUids/waitlistUids/joined/teamJoined만 변경 + 본인 토글.
+// 트랜잭션으로 정원을 서버에서 강제 — 선착순. 정원 1자리에 동시 수락이 몰려도 capacity 초과 차단
+//   ([[data-integrity-principles]]). joined는 개별·팀 모두 증가하므로 capacity(개별=members+1, 팀=teams*4)와 직접 비교.
+//   throw 'full'(정원 참/마감) / 'not-found'. 이미 참여자면 멱등(아무 변경 없이 성공).
 export async function joinRoundup(postId) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
-  await updateDoc(ref, {
-    participantUids: arrayUnion(uid),
-    joined: increment(1),
-    updatedAt: serverTimestamp(),
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('not-found');
+    const d = snap.data();
+    const participants = Array.isArray(d.participantUids) ? d.participantUids : [];
+    if (participants.includes(uid)) return; // 멱등 — 이미 확정된 참여자
+    if (d.closed) throw new Error('full');   // 주최자 확정/마감
+    if ((d.joined || 0) >= (d.capacity || 4)) throw new Error('full'); // 선착순 정원 초과 차단
+    tx.update(ref, {
+      participantUids: arrayUnion(uid),
+      joined: increment(1),
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 
