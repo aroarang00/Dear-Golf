@@ -5,17 +5,23 @@ import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 import { FocalImage } from './FocalImage';
 
+// 기기 생성 썸네일 세션 캐시 — uri→thumbUri. 피드 스크롤로 카드가 재마운트돼도 재생성 안 하도록.
+//   poster(업로드된 jpg) 없는 영상(특히 MY/나만보기 로컬 영상)이 매 마운트마다 느리게 추출되던 문제 완화.
+const _thumbCache = new Map();
+
 // 영상 슬라이드 — 첫 프레임 정지화면을 깔고 그 위에 ▶ 오버레이 (인라인 재생 X, 탭하면 PhotoViewer).
 //   썸네일 로딩 전·실패 시에만 어두운 폴백. 상세/추가화면(GridThumb·AddPhotoThumb)과 동일 패턴.
 function VideoSlide({ uri, poster }) {
-  const [thumb, setThumb] = useState(poster || null);
+  const [thumb, setThumb] = useState(poster || _thumbCache.get(uri) || null);
   useEffect(() => {
     if (poster) { setThumb(poster); return; } // 업로드된 포스터 있으면 기기 생성 불필요(안드 안정)
+    const cached = _thumbCache.get(uri);
+    if (cached) { setThumb(cached); return; } // 세션 내 이미 생성 — 재생성 생략
     let cancelled = false;
     (async () => {
       try {
         const { uri: t } = await VideoThumbnails.getThumbnailAsync(uri, { time: 0, quality: 0.6 });
-        if (!cancelled) setThumb(t);
+        if (!cancelled) { _thumbCache.set(uri, t); setThumb(t); }
       } catch (e) {
         if (!cancelled) console.warn('thumbnail failed:', e);
       }
