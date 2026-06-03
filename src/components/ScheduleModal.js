@@ -178,6 +178,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     const payload = {
       course: finalCourse,
       courseId: overseas ? null : (selected ? selected.id : null),
+      // 카카오 식별자도 저장 — 코스 식별이 로컬 userCourses에만 의존하지 않게(타기기·프레시설치에서도 코스 열림).
+      //   홈 카드 '코스 가기'가 id 없을 때 이 kakaoId/이름으로 GuideScreen을 연다 ([[course-name-input]]).
+      courseKakaoId: overseas ? null : (selected?.kakaoId || null),
       overseas,
       city: overseas ? (selectedCity?.name || cityQuery.trim()) : '',
       cityCountry: overseas ? (selectedCity?.country || '') : '',

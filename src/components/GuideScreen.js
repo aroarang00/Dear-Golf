@@ -238,6 +238,35 @@ export function GuideScreen({ route, navigation }) {
     }
   }, [route?.params?.openCourseId, refreshUserCourses]);
 
+  // 이름/kakaoId로 코스 열기 — 홈 카드에서 courseId 해석이 안 될 때(로컬 userCourses 없음 등) 넘어옴.
+  //   저장된 코스면 그걸 열고, 아니면 카카오 검색해 미리보기(previewCourse)로 연다 → ">"가 항상 동작 ([[course-name-input]]).
+  useEffect(() => {
+    const name = route?.params?.openCourseName;
+    if (!name) return;
+    const kakaoId = route?.params?.openCourseKakaoId;
+    navigation.setParams({ openCourseName: undefined, openCourseKakaoId: undefined });
+    let cancelled = false;
+    (async () => {
+      await refreshUserCourses();
+      const list = await getUserCourses();
+      if (cancelled) return;
+      const existing = list.find(c => (kakaoId && c.kakaoId === kakaoId) || c.name === name);
+      if (existing) { setSelected(existing.id); setInnerTab('course'); return; }
+      const results = await searchGolfCourses(name).catch(() => []);
+      if (cancelled) return;
+      const match = (kakaoId && results.find(r => r.kakaoId === kakaoId)) || results[0];
+      if (match) {
+        handleOpenPreview(match);
+      } else {
+        // 검색 무결과 — 이름만으로 미리보기 (코멘트 키는 kakaoId 있을 때만 매칭)
+        setPreviewCourse({ id: PREVIEW_ID, name, loc: '', x: null, y: null, kakaoId: kakaoId || null, _source: 'preview', tags: [] });
+        setSelected(PREVIEW_ID);
+        setInnerTab('course');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [route?.params?.openCourseName, refreshUserCourses]);
+
   useEffect(() => {
     if (route?.params?.openComment) {
       setShowCommentInput(true);

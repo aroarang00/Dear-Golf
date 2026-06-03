@@ -285,10 +285,21 @@ export function HomeScreen({ navigation, route }) {
     return () => { cancelled = true; };
   }, [nextCommentKey]);
 
+  // 코스 탭으로 이동 — id로 해석되면 그 코스, 아니면 이름/kakaoId로 (GuideScreen이 카카오 검색해 연다).
+  //   일정엔 코스 이름이 항상 있으므로 '코스 가기'는 항상 동작 (로컬 userCourses·courseId 유무와 무관, [[course-name-input]]).
   const handleCardCoursePress = (schedule) => {
+    if (!schedule) return;
     const id = resolveCourseLogId(schedule);
-    if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id });
+    if (id) { navigation.navigate(ROUTES.COURSE, { openCourseId: id }); return; }
+    if (schedule.course) {
+      navigation.navigate(ROUTES.COURSE, {
+        openCourseName: schedule.course,
+        openCourseKakaoId: schedule.courseKakaoId || null,
+      });
+    }
   };
+  // '코스 가기' 어포던스(›) 표시 여부 — 코스 이름만 있어도 열 수 있으므로 이름 유무로 판단.
+  const canOpenCourse = (s) => !!(s && (resolveCourseLogId(s) || s.course));
 
   const openScheduleSheet = (schedule) => {
     // 일정 시트(ScheduleSheetModal)가 D-day를 표시하므로 항상 최신 D-day를 주입
@@ -548,10 +559,10 @@ export function HomeScreen({ navigation, route }) {
                 <>
                   <TouchableOpacity
                     onPress={() => handleCardCoursePress(next)}
-                    activeOpacity={resolveCourseLogId(next) ? 0.7 : 1}
+                    activeOpacity={canOpenCourse(next) ? 0.7 : 1}
                     style={{ marginBottom: 4 }}>
                     <Text style={homeS.cardCourse}>{next.course}
-                      {resolveCourseLogId(next) ? <Text style={{ fontSize: fs(11), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
+                      {canOpenCourse(next) ? <Text style={{ fontSize: fs(11), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                     </Text>
                     <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
                   </TouchableOpacity>
@@ -582,9 +593,9 @@ export function HomeScreen({ navigation, route }) {
                   onPress={() => handleCardCoursePress(s)}
                   onLongPress={() => openScheduleSheet(s)}
                   delayLongPress={350}
-                  activeOpacity={resolveCourseLogId(s) ? 0.7 : 1}>
+                  activeOpacity={canOpenCourse(s) ? 0.7 : 1}>
                   <Text style={homeS.subCourse} numberOfLines={2}>{s.course}
-                    {resolveCourseLogId(s) ? <Text style={{ fontSize: fs(8), color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
+                    {canOpenCourse(s) ? <Text style={{ fontSize: fs(8), color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
                 </TouchableOpacity>
@@ -770,10 +781,10 @@ export function HomeScreen({ navigation, route }) {
         visible={showScheduleModal}
         schedule={selectedSchedule}
         onClose={() => setShowScheduleModal(false)}
+        courseNavigable={canOpenCourse(selectedSchedule)}
         onCourseTap={() => {
           setShowScheduleModal(false);
-          const id = resolveCourseLogId(selectedSchedule);
-          if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id });
+          handleCardCoursePress(selectedSchedule);
         }}
         onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
