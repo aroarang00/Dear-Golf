@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
@@ -30,6 +30,15 @@ const DAYS = WEEKDAYS;
 export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = null, friends = [] }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = useContext(UserContext);
+  // 안드: 투명 Modal 안에선 키보드로 윈도우 리사이즈가 안 먹어 하단 입력창(한마디)이 가려짐.
+  // 키보드 높이만큼 시트를 띄운다. iOS는 automaticallyAdjustKeyboardInsets로 처리되므로 미적용.
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', e => setKbHeight(e.endCoordinates?.height || 0));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   // 본인이 마이페이지에서 "친구 모집만 보기" 켜두면 작성 시에도 전체공개 옵션 숨김 (일관성)
   // ROUNDUP_PUBLIC_ENABLED=false면 앱 전역으로 전체공개 비활성화 ([[roundup-public-disabled]])
   const hideStranger = !ROUNDUP_PUBLIC_ENABLED || !!userProfile?.hideStrangerRoundups;
@@ -247,7 +256,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleRequestClose}>
-      <View style={mS.mask}>
+      <View style={[mS.mask, kbHeight ? { paddingBottom: kbHeight } : null]}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           {/* handle 영역 자체를 탭 가능한 닫기로 — 마스크 영역이 좁아 안 닫히는 문제 해결 */}
