@@ -379,7 +379,7 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>모집 확정하기</Text>
             </TouchableOpacity>
             <Text style={hintStyle}>
-              확정하면 동반자와 본인 일정에 자동 추가돼요.{'\n'}확정 후엔 수정할 수 없어요 — 바꾸려면 삭제 후 다시 모집해주세요.
+              확정하면 동반자와 본인 일정에{'\n'}자동으로 추가돼요.{'\n'}확정 후엔 수정할 수 없으니,{'\n'}바꾸려면 삭제 후 다시 모집해주세요.
             </Text>
           </>
         ) : (
