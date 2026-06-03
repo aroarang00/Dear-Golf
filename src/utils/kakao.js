@@ -119,6 +119,16 @@ export async function searchGolfCourses(query) {
       const bare = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim();
       if (bare && bare !== q) results = dedupe(await runQuery(bare, 3));
     }
+    // 이름 일치 우선 정렬 — 카카오가 주소(예: '일동면')로 끌어온 엉뚱한 이름('제일CC')이 위로 오는 문제.
+    //   골프 접미어를 뗀 핵심어 기준: 이름 시작 일치 > 이름 포함 > 그 외(주소 매칭 등)는 뒤로. 버리진 않음([[course-matching-accuracy]]).
+    const core = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim() || q;
+    const rank = (r) => {
+      const n = r.name || '';
+      if (n.startsWith(core)) return 0;
+      if (n.includes(core)) return 1;
+      return 2;
+    };
+    results = [...results].sort((a, b) => rank(a) - rank(b));
     return hideCuratedUmbrellas(results);
   } catch (e) {
     console.warn('[kakao] search failed:', e?.message);
