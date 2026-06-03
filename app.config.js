@@ -12,15 +12,6 @@ module.exports = {
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
     newArchEnabled: true,
-    // EAS Update (OTA) — JS만 바뀐 수정은 스토어 재제출 없이 무선 반영 ([[eas-update-ota]]).
-    //   runtimeVersion=fingerprint: 네이티브 지문이 같으면(=JS만 변경) OTA 적용, 네이티브 바뀌면 새 빌드 필요.
-    //   url의 projectId는 아래 extra.eas.projectId와 동일해야 함.
-    updates: {
-      url: 'https://u.expo.dev/17a8133b-1b3e-4832-a435-4489015e3493',
-    },
-    runtimeVersion: {
-      policy: 'fingerprint',
-    },
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
