@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions, Linking, AppState } from 'react-native';
+import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getCurrentLocation, hasLocationPermission } from '../utils/location';
@@ -48,13 +49,14 @@ export function OnboardingIntro({ onDone }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      <ScrollView
-        horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+      {/* 네이티브 페이저 — 안드 ScrollView paging이 슬라이드 내부 세로 스크롤과 겹쳐 뚝뚝 끊기던 것 해소 ([[onboarding-pager-rebuild]]) */}
+      <PagerView
         style={{ flex: 1 }}
-        onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / SW))}>
+        initialPage={0}
+        onPageSelected={e => setIdx(e.nativeEvent.position)}>
 
         {/* 1 — Dear Golf 인트로 (팔레스카이 배경) */}
-        <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+        <View key="ob1" style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
           {/* SplashOverlay와 동일 패턴 — adjustsFontSizeToFit + numberOfLines 1 + lineHeight 미명시
               안드로이드 italic Lora 'f'·'G' 디센더 잘림 방지(메모리: feedback_cross_platform_check) */}
           <View style={{ width: '88%', maxWidth: 420, alignItems: 'center', paddingVertical: 8 }}>
@@ -77,7 +79,7 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 2 — 라운딩 준비 (새 스타일: 데모 앱 화면 + 한 줄 설명) */}
         {/* ⚠️ 데모 — 닉네임·구장·일정 전부 가짜 샘플 데이터 (실제 사용자 정보 아님) */}
-        <View style={{ width: SW, backgroundColor: C.navy }}>
+        <View key="ob2" style={{ width: SW, backgroundColor: C.navy }}>
           {/* 위쪽 — 실제 홈 화면 모양의 데모 화면 */}
           <View style={{ flex: 1, backgroundColor: '#0a1e10', paddingTop: insets.top + 12 }}>
             {/* 삼색 스트라이프 */}
@@ -135,7 +137,7 @@ export function OnboardingIntro({ onDone }) {
         </View>
 
         {/* 3 — 기록·통계 (새 스타일: 데모 화면 + 한 줄 설명 / 전부 가짜 샘플) */}
-        <View style={{ width: SW, backgroundColor: C.burgundy }}>
+        <View key="ob3" style={{ width: SW, backgroundColor: C.burgundy }}>
           <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top + 12 }}>
             <View style={{ flexDirection: 'row', height: 3 }}>
               <View style={{ flex: 1, backgroundColor: C.butter }} />
@@ -193,7 +195,7 @@ export function OnboardingIntro({ onDone }) {
         </View>
 
         {/* 4 — 명예의 전당 (새 스타일: 데모 화면 + 한 줄 설명 / 전부 가짜 샘플) */}
-        <View style={{ width: SW, backgroundColor: C.charcoal }}>
+        <View key="ob4" style={{ width: SW, backgroundColor: C.charcoal }}>
           <View style={{ flex: 1, backgroundColor: '#2A2622', paddingTop: insets.top + 12 }}>
             <View style={{ flexDirection: 'row', height: 3 }}>
               <View style={{ flex: 1, backgroundColor: C.butter }} />
@@ -246,7 +248,7 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 5 — 라운지 (메인 키 기능): 워드마크 + 핵심 헤드라인 + 4가지 모집 방식 1열 카드 + 하단 한 줄 요약
             위쪽(어두운 navy) ↔ 아래쪽(navy) 시각 분리 — 다른 페이지(2·3·4)와 동일 패턴 */}
-        <View style={{ width: SW, backgroundColor: '#0F2638' }}>
+        <View key="ob5" style={{ width: SW, backgroundColor: '#0F2638' }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 18, paddingBottom: 12, paddingHorizontal: 24 }}>
             {/* 상단 — 라벨 + 라운지 워드마크 (다른 페이지 헤더와 발란스) */}
@@ -306,7 +308,7 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 6 — 코스 (메인 키 기능): 워드마크 + 핵심 헤드라인 + 4가지 1열 카드 + 하단 한 줄 요약
             위쪽(어두운 그린) ↔ 아래쪽(그린) 시각 분리 */}
-        <View style={{ width: SW, backgroundColor: '#1E3528' }}>
+        <View key="ob6" style={{ width: SW, backgroundColor: '#1E3528' }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 18, paddingBottom: 12, paddingHorizontal: 24 }}>
             {/* 상단 — 라벨 + 코스 워드마크 (라운지와 동일 발란스) */}
@@ -365,7 +367,7 @@ export function OnboardingIntro({ onDone }) {
         </View>
 
         {/* 8 — 위치 권한 안내 */}
-        <View style={{ width: SW, backgroundColor: C.bgPrimary }}>
+        <View key="ob7" style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
             <Text style={{ fontSize: fs(38), marginBottom: 14 }}>📍</Text>
@@ -416,7 +418,7 @@ export function OnboardingIntro({ onDone }) {
         </View>
 
         {/* 9 — 시작 (팔레스카이 배경) */}
-        <View style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+        <View key="ob8" style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: fs(44), marginBottom: 14 }}>⛳</Text>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: C.charcoal }}>지금 시작해보세요</Text>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: C.navy, marginTop: 12, textAlign: 'center', lineHeight: 22 }}>
@@ -428,7 +430,7 @@ export function OnboardingIntro({ onDone }) {
           </TouchableOpacity>
         </View>
 
-      </ScrollView>
+      </PagerView>
 
       {/* 하단 스와이프 인디케이터 */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: insets.bottom + 14 }}>
