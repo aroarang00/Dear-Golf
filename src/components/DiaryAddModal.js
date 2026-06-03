@@ -10,7 +10,7 @@ import { searchGolfCourses } from '../utils/kakao';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
-import { persistPhotos, resolvePhotoUri } from '../utils/photoStorage';
+import { persistPhotos, persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils/scorecardOcr';
@@ -113,9 +113,22 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const rawItems = assets.map(a =>
         a.type === 'video' ? { uri: a.uri, type: 'video' } : a.uri
       );
+      // 영상은 첫 프레임 poster를 로컬에 미리 만들어 붙인다 — MY/나만보기 피드가 매번 기기 추출하지 않도록
+      //   ([[video-poster-thumbnail]]). 친구공개 업로드 시엔 roundMedia가 Storage poster URL로 덮어씀.
+      const posterItems = await Promise.all(rawItems.map(async (it) => {
+        if (!(it && typeof it === 'object' && it.type === 'video')) return it;
+        try {
+          const { uri: thumb } = await VideoThumbnails.getThumbnailAsync(it.uri, { time: 0, quality: 0.6 });
+          const poster = await persistPhoto(thumb); // dgphoto: 로 영속
+          return { ...it, poster };
+        } catch (e) {
+          if (__DEV__) console.warn('[DiaryAddModal] poster gen failed', e?.message);
+          return it; // 실패해도 영상은 유지 — 기존 기기 생성 폴백
+        }
+      }));
       // 1) 압축·리사이즈 (1200px·80% JPEG, EXIF GPS 자동 제거)
       // 2) 영구 폴더로 복사 — 앱 업데이트 후에도 사진이 유지되도록
-      const compressed = await compressMedia(rawItems);
+      const compressed = await compressMedia(posterItems);
       const items = await persistPhotos(compressed);
       setAddPhotos(prev => [...prev, ...items].slice(0, MAX_PHOTOS));
     }
