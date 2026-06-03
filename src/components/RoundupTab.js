@@ -559,6 +559,20 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     })();
   }, [posts, joined, schedules, addSchedule, userProfile?.alarmDefaults, myUid]);
 
+  // 모집 취소 정리 — roundupCancelled 알림이 온 모집으로 만들어졌던 본인 일정 자동 제거 (주최자 삭제 대응).
+  //  주석 [[roundup-friend-redesign]]: 주최자 취소 시 참여자도 일정에서 빠져야 함. removeSchedule은 멱등(없으면 no-op).
+  useEffect(() => {
+    const cancelledIds = new Set(
+      notifications.filter(n => n.type === 'roundupCancelled' && n.postId).map(n => n.postId)
+    );
+    if (cancelledIds.size === 0) return;
+    for (const s of schedules) {
+      if (s.roundupId && cancelledIds.has(s.roundupId)) {
+        removeSchedule(s.id).catch(e => __DEV__ && console.warn('[RoundupTab] cancelled-roundup schedule cleanup fail', e?.message));
+      }
+    }
+  }, [notifications, schedules, removeSchedule]);
+
   // 라운지 노출 윈도우 — 티오프 + 5h(라운딩 끝날 무렵) 이내만 노출, 이후 사용자 UI에서 감춤
   //   끝난 라운딩이 계속 떠 있지 않게. 댓글 닫힘(COMMENT_OPEN_HOURS=5)과 동일 시점 (2026-06-02 24h→5h).
   // (시스템 데이터는 [[data-retention]]에 따라 별도 보관: 일반 1년 / 분쟁 이력 모집글 3년)
@@ -1035,6 +1049,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         postId: id,
         postTitle: cancelledPost?.course || '',
       }).catch(e => __DEV__ && console.warn('[RoundupTab] roundupCancelled noti fail', e?.message));
+    }
+    // 주최자 본인 일정에서도 제거 (확정 때 생성됐던 것). 참여자 일정은 roundupCancelled 알림 수신 시 각 클라가 정리.
+    const myLinkedSched = schedules.find(s => s.roundupId === id);
+    if (myLinkedSched) {
+      removeSchedule(myLinkedSched.id).catch(e => __DEV__ && console.warn('[RoundupTab] host-delete schedule remove fail', e?.message));
     }
     setPosts(prev => prev.filter(p => p.id !== id));
     setCommentsByPost(prev => { const n = { ...prev }; delete n[id]; return n; });
