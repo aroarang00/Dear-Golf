@@ -3,7 +3,7 @@ import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
-import { canAccessComments, isCommentClosed, sortComments, createComment, canDeleteComment } from '../utils/comments';
+import { canAccessComments, isCommentClosed, sortComments, createComment, canDeleteComment, COMMENT_MAX_TOTAL } from '../utils/comments';
 import { createContentReport } from '../utils/contentReports';
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
@@ -105,7 +105,7 @@ function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete,
   );
 }
 
-export function RoundupComments({ post, comments, joined, myUid, inputRef, onInputFocus, onAdd, onDelete, onPin }) {
+export function RoundupComments({ post, comments, total = 0, joined, myUid, inputRef, onInputFocus, onAdd, onDelete, onPin, onLoadOlder }) {
   const { userProfile } = useContext(UserContext);
   const [body, setBody] = useState('');
   const [error, setError] = useState(null);
@@ -119,6 +119,8 @@ export function RoundupComments({ post, comments, joined, myUid, inputRef, onInp
   const access = isMine || !!joined || canAccessComments(post, myId, myName);
   const closed = isCommentClosed(post);
   const sorted = useMemo(() => sortComments(comments || []), [comments]);
+  const hasMore = sorted.length < total;          // 로드 안 된 더 오래된 댓글 존재 → "이전 댓글 보기"
+  const atLimit = total >= COMMENT_MAX_TOTAL;      // 총 300개 도달 → 작성 차단
 
   const submit = () => {
     setError(null);
@@ -178,11 +180,23 @@ export function RoundupComments({ post, comments, joined, myUid, inputRef, onInp
               ))
             )}
 
-            {/* 입력 영역 — 티오프+5h 후 비활성 */}
+            {/* 이전 댓글 보기 — 최신 100개 밖의 더 오래된 댓글 (newest-first라 목록 맨 아래) */}
+            {hasMore && (
+              <TouchableOpacity onPress={onLoadOlder} activeOpacity={0.7}
+                style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>이전 댓글 보기</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* 입력 영역 — 티오프+5h 후 비활성 / 총 300개 도달 시 작성 차단 */}
             <View style={{ borderTopWidth: 0.5, borderTopColor: C.hairline, paddingVertical: 12 }}>
               {closed ? (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 8 }}>
                   라운딩이 끝나 댓글이 닫혔어요
+                </Text>
+              ) : atLimit ? (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 8 }}>
+                  댓글이 가득 찼어요 (최대 {COMMENT_MAX_TOTAL}개)
                 </Text>
               ) : (
                 <>

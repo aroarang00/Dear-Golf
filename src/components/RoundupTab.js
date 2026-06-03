@@ -34,7 +34,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
 import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, closeRoundup, toggleRoundupLike } from '../utils/roundup';
-import { loadComments, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
+import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore } from '../utils/comments';
 import { getUid } from '../utils/firebase';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
@@ -241,6 +241,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [hidden, setHidden] = useState({});            // 가리기 — 길게 눌러 숨긴 모집 {postId: true}
   // 댓글 — { [postId]: [comment...] }. Firebase 마이그레이션 시 서브컬렉션 roundups/{postId}/comments로 이관.
   const [commentsByPost, setCommentsByPost] = useState({});
+  const [commentsTotal, setCommentsTotal] = useState({});   // {postId: 총 댓글 수} — 작성 한도·이전댓글 보기 판단
   // 친구 모집만 보기 토글 — true면 '전체' 탭 숨김 + 기본 view 'friend'
   // ROUNDUP_PUBLIC_ENABLED=false면 앱 전역으로 전체공개 비활성화 ([[roundup-public-disabled]])
   const hideStranger = !ROUNDUP_PUBLIC_ENABLED || !!userProfile?.hideStrangerRoundups;
@@ -464,6 +465,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     loadComments(detailId)
       .then(list => { if (!cancelled) setCommentsByPost(prev => ({ ...prev, [detailId]: list })); })
       .catch(e => __DEV__ && console.warn('[RoundupTab] loadComments failed', e?.message));
+    countComments(detailId)
+      .then(n => { if (!cancelled) setCommentsTotal(prev => ({ ...prev, [detailId]: n })); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [detailId]);
 
@@ -1035,14 +1039,41 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   //  비속어/권한 사전검증은 RoundupComments·utils, 최종 저장은 Firestore. 쓰기 후 재로드로 정합성 보장.
   //  알림(comment 타입 주최자+참여자 발송)은 Phase 2 Cloud Function — 현재 단계 X.
   const handleAddComment = async (postId, comment) => {
+    // 총 300개 작성 한도 — 도달 시 작성 차단 (클라 측, 친구 범위라 충분)
+    if ((commentsTotal[postId] || 0) >= COMMENT_MAX_TOTAL) {
+      setAlert({ title: '댓글이 가득 찼어요', message: `댓글은 최대 ${COMMENT_MAX_TOTAL}개까지 작성할 수 있어요.`, buttons: [{ text: '확인' }] });
+      return;
+    }
     try {
       const r = await addCommentToFirestore(postId, userProfile?.nickname || '', comment?.body || '');
       if (!r.ok) return; // 비속어·빈값은 RoundupComments가 이미 인라인 차단 (이중 안전망)
       const list = await loadComments(postId);
       setCommentsByPost(prev => ({ ...prev, [postId]: list }));
+      setCommentsTotal(prev => ({ ...prev, [postId]: (prev[postId] || 0) + 1 }));
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] addComment failed', e);
       setAlert({ title: '댓글 작성에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+    }
+  };
+
+  // 이전 댓글 보기 — 현재 로드된 것 중 가장 오래된 것보다 더 이전 100개를 추가 로드·병합 (중복 제거)
+  const handleLoadOlderComments = async (postId) => {
+    const cur = commentsByPost[postId] || [];
+    if (cur.length === 0) return;
+    // 커서는 '연속 페이지'의 가장 오래된 댓글 기준 — 별도 병합된 고정 댓글(범위 밖 outlier) 제외
+    const nonPinned = cur.filter(c => !c.pinned);
+    const base = nonPinned.length ? nonPinned : cur;
+    const oldestMs = Math.min(...base.map(c => c.createdAt || Infinity));
+    try {
+      const older = await loadOlderComments(postId, oldestMs);
+      if (older.length === 0) return;
+      setCommentsByPost(prev => {
+        const byId = new Map((prev[postId] || []).map(c => [c.id, c]));
+        older.forEach(c => { if (!byId.has(c.id)) byId.set(c.id, c); });
+        return { ...prev, [postId]: Array.from(byId.values()) };
+      });
+    } catch (e) {
+      if (__DEV__) console.warn('[RoundupTab] loadOlderComments failed', e?.message);
     }
   };
 
@@ -1072,12 +1103,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // 댓글 삭제 — 본인 댓글만 (규칙 authorUid==me 강제 + RoundupComments 사전 차단). 낙관적 제거.
   const handleDeleteComment = async (postId, commentId) => {
     setCommentsByPost(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== commentId) }));
+    setCommentsTotal(prev => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 1) - 1) }));
     try {
       await deleteCommentFromFirestore(postId, commentId);
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] deleteComment failed', e);
       const list = await loadComments(postId).catch(() => null);
       if (list) setCommentsByPost(prev => ({ ...prev, [postId]: list })); // 실패 시 서버 상태로 롤백
+      countComments(postId).then(n => setCommentsTotal(prev => ({ ...prev, [postId]: n }))).catch(() => {});
     }
   };
 
@@ -1592,6 +1625,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         waitlistNum={detailId ? waitlist[detailId] : undefined}
         isBookmarked={!!(detailId && bookmarks[detailId])}
         comments={detailId ? (commentsByPost[detailId] || []) : []}
+        commentTotal={detailId ? (commentsTotal[detailId] || 0) : 0}
+        onLoadOlderComments={() => detailId && handleLoadOlderComments(detailId)}
         onClose={() => setDetailId(null)}
         onApply={() => detailId ? performJoinOrApply(detailId) : undefined}
         onWaitlist={() => detailId && handleWaitlist(detailId)}

@@ -120,7 +120,7 @@ function buildSlots(post, teamIdx, nameMap = {}, myUid = null, myName = null) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule }) {
+export function RoundupDetail({ post, myUid, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
@@ -730,13 +730,15 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
             <RoundupComments
               post={post}
               comments={comments}
+              total={commentTotal}
               joined={joined}
               myUid={myUid}
               inputRef={commentInputNode}
               onInputFocus={scrollCommentIntoView}
               onAdd={onAddComment}
               onDelete={onDeleteComment}
-              onPin={onPinComment} />
+              onPin={onPinComment}
+              onLoadOlder={onLoadOlderComments} />
 
             <View style={{ height: 20 }} />
           </ScrollView>

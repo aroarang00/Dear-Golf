@@ -10,9 +10,14 @@
 //  - 티오프 후 쓰기 자동 비활성, 읽기는 유지
 
 import {
-  collection, query, orderBy, getDocs, addDoc, deleteDoc, updateDoc, doc, serverTimestamp,
+  collection, query, orderBy, where, limit as fsLimit, getDocs, getCountFromServer,
+  addDoc, deleteDoc, updateDoc, doc, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
+
+// 표시·작성 한도 — 최신 100개 단위 페이지(이전 댓글 보기), 모집당 총 300개까지 작성.
+export const COMMENT_PAGE_SIZE = 100;
+export const COMMENT_MAX_TOTAL = 300;
 import { containsProfanity } from './profanityFilter';
 
 // 댓글 객체 스키마:
@@ -104,23 +109,56 @@ export function togglePinComment(comments, commentId) {
 
 const commentsCol = (postId) => collection(db, 'roundups', postId, 'comments');
 
-// 모집글 댓글 로드 — createdAt 오름차순으로 받아 ms 변환 (정렬·고정은 sortComments가 처리)
-export async function loadComments(postId) {
+function mapCommentDoc(d, postId) {
+  const data = d.data();
+  return {
+    id: d.id,
+    postId,
+    authorUid: data.authorUid || null,
+    authorName: data.authorName || '',
+    body: data.body || '',
+    createdAt: data.createdAt?.toMillis?.() ?? Date.now(),
+    pinned: !!data.pinned,
+    pinnedAt: data.pinnedAt?.toMillis?.() ?? null,
+  };
+}
+
+// 모집글 댓글 로드 — 최신 max개 + 고정 댓글(범위 밖이어도 항상 노출) 병합. 정렬·고정 우선은 sortComments가 처리.
+export async function loadComments(postId, max = COMMENT_PAGE_SIZE) {
   if (!postId) return [];
-  const snap = await getDocs(query(commentsCol(postId), orderBy('createdAt', 'asc')));
-  return snap.docs.map(d => {
-    const data = d.data();
-    return {
-      id: d.id,
-      postId,
-      authorUid: data.authorUid || null,
-      authorName: data.authorName || '',
-      body: data.body || '',
-      createdAt: data.createdAt?.toMillis?.() ?? Date.now(),
-      pinned: !!data.pinned,
-      pinnedAt: data.pinnedAt?.toMillis?.() ?? null,
-    };
-  });
+  const col = commentsCol(postId);
+  const [latestSnap, pinnedSnap] = await Promise.all([
+    getDocs(query(col, orderBy('createdAt', 'desc'), fsLimit(max))),
+    getDocs(query(col, where('pinned', '==', true), fsLimit(5))),
+  ]);
+  const byId = new Map();
+  latestSnap.docs.forEach(d => byId.set(d.id, mapCommentDoc(d, postId)));
+  pinnedSnap.docs.forEach(d => { if (!byId.has(d.id)) byId.set(d.id, mapCommentDoc(d, postId)); });
+  return Array.from(byId.values());
+}
+
+// 이전(더 오래된) 댓글 — beforeMs 이전 createdAt에서 최신순 max개. "이전 댓글 보기" 페이지네이션용.
+export async function loadOlderComments(postId, beforeMs, max = COMMENT_PAGE_SIZE) {
+  if (!postId || !beforeMs) return [];
+  const snap = await getDocs(query(
+    commentsCol(postId),
+    where('createdAt', '<', Timestamp.fromMillis(beforeMs)),
+    orderBy('createdAt', 'desc'),
+    fsLimit(max),
+  ));
+  return snap.docs.map(d => mapCommentDoc(d, postId));
+}
+
+// 모집글 총 댓글 수 — 작성 한도(300) 체크·"이전 댓글 보기" 노출 판단용. 집계 쿼리(문서 미열람).
+export async function countComments(postId) {
+  if (!postId) return 0;
+  try {
+    const snap = await getCountFromServer(commentsCol(postId));
+    return snap.data().count || 0;
+  } catch (e) {
+    if (__DEV__) console.warn('[comments] count failed', e?.message);
+    return 0;
+  }
 }
 
 // 댓글 작성 — 비속어·빈값 검증(createComment 재사용) 후 Firestore 저장.
