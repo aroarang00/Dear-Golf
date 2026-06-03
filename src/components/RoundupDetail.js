@@ -372,16 +372,29 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C7D4F' }}>모집 확정됨 ✓</Text>
           </View>
         ) : allFull ? (
-          // 만석 + 미확정 — 주최자 명시 확정 버튼. 만석 자체는 자동 확정 X (2026-05-28 정책)
-          <>
-            <TouchableOpacity activeOpacity={0.85} onPress={confirmFinalize}
-              style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: '#3C7D4F' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>모집 확정하기</Text>
-            </TouchableOpacity>
-            <Text style={hintStyle}>
-              확정하면 동반자와 본인 일정에 자동 추가돼요.{'\n'}확정 후엔 수정 불가 — 변경은 삭제 후 다시 모집해요.
-            </Text>
-          </>
+          post.type === 'open' ? (
+            // 오픈형 만석 — 일정 미정이라 확정 불가. 먼저 '모집글 수정'에서 확정형(날짜·골프장)으로 전환해야 함.
+            <>
+              <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: 0.7 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGrayLight }}>모집 확정하기</Text>
+              </View>
+              <Text style={hintStyle}>
+                일정이 아직 정해지지 않았어요.{'\n'}'모집글 수정'에서 날짜·골프장을 정하면 확정할 수 있어요.
+              </Text>
+            </>
+          ) : (
+            // 만석 + 미확정(확정형) — 주최자 명시 확정 버튼. 만석 자체는 자동 확정 X (2026-05-28 정책)
+            <>
+              <TouchableOpacity activeOpacity={0.85} onPress={confirmFinalize}
+                style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: '#3C7D4F' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>모집 확정하기</Text>
+              </TouchableOpacity>
+              <Text style={hintStyle}>
+                확정하면 동반자와 본인 일정에 자동 추가돼요.{'\n'}확정 후엔 수정 불가 — 변경은 삭제 후 다시 모집해요.
+              </Text>
+            </>
+          )
         ) : (
           <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
