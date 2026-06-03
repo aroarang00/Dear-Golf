@@ -32,6 +32,8 @@ module.exports = {
       },
       edgeToEdgeEnabled: true,
       package: 'app.deargolf',
+      // FCM 푸시 — 안드 네이티브 빌드에 Firebase 설정 포함(없으면 푸시 토큰 미발급). [[android-fcm-push]]
+      googleServicesFile: './google-services.json',
       permissions: [
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',

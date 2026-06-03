@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "16566595645",
+    "project_id": "dear-golf",
+    "storage_bucket": "dear-golf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:16566595645:android:0cbddfeb61a2bbee123a54",
+        "android_client_info": {
+          "package_name": "app.deargolf"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "16566595645-ucr2ich9qiebpdgjjnkqkli7jugku559.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0OqdveI0Za3bsO_FHlt5BPrWCikWnTKA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "16566595645-ucr2ich9qiebpdgjjnkqkli7jugku559.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
