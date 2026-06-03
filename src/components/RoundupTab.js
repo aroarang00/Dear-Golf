@@ -28,7 +28,7 @@ import { blockUid as fsBlockUid, loadMyFriends } from '../utils/friends';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
@@ -237,6 +237,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [applied, setApplied] = useState({});          // Phase 3-C: 전체공개 신청 대기
   const [waitlist, setWaitlist] = useState({});        // Phase 3-D: waitlistUids에서 복원
   const [participantNames, setParticipantNames] = useState({}); // {uid: nickname} — 참여자 현황 실제 이름
+  const participantNamesRef = useRef(participantNames); // 최신 이름 맵 미러 — 상세 실시간 구독이 deps 없이 읽기 위함
+  useEffect(() => { participantNamesRef.current = participantNames; }, [participantNames]);
   const [bookmarks, setBookmarks] = useState({});      // 관심 모집 {postId: true}
   const [hidden, setHidden] = useState({});            // 가리기 — 길게 눌러 숨긴 모집 {postId: true}
   // 댓글 — { [postId]: [comment...] }. Firebase 마이그레이션 시 서브컬렉션 roundups/{postId}/comments로 이관.
@@ -377,6 +379,55 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   };
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
+  // 모집 상세 실시간 — 상세가 열려 있는 동안 그 모집글 1건만 onSnapshot 구독.
+  //   동반자 참여·취소·정원 충족·확정이 보고 있는 중 즉시 반영. 닫으면 해제(비용·생명주기 통제).
+  //   리스트 전체는 비실시간 유지(탭 재진입/새로고침). 상세만 점진 실시간화 ([[lounge-realtime]]).
+  //   participantNames는 deps에서 제외 — 넣으면 이름 로드마다 재구독되어 비용·깜빡임. 신규 참여자 이름만 보강.
+  useEffect(() => {
+    if (!detailId) return;
+    const unsub = onSnapshot(doc(db, 'roundups', detailId), (snap) => {
+      if (!snap.exists()) return; // 삭제·주최자취소는 기존 알림/동선에 위임 (여기선 화면 강제 종료 X)
+      const fresh = { id: snap.id, ...snap.data() };
+      setPosts(prev => {
+        const idx = prev.findIndex(p => p.id === fresh.id);
+        if (idx === -1) return [...prev, fresh];
+        const next = prev.slice();
+        next[idx] = fresh;
+        return next;
+      });
+      if (!myUid) return;
+      // 참여 여부 재계산 (내가 확정/제외됐는지)
+      setJoined(prev => {
+        const isJoined = fresh.authorUid !== myUid
+          && Array.isArray(fresh.participantUids) && fresh.participantUids.includes(myUid);
+        if (!!prev[fresh.id] === isJoined) return prev;
+        const next = { ...prev };
+        if (isJoined) next[fresh.id] = true; else delete next[fresh.id];
+        return next;
+      });
+      // 대기 번호 재계산
+      setWaitlist(prev => {
+        const i = Array.isArray(fresh.waitlistUids) ? fresh.waitlistUids.indexOf(myUid) : -1;
+        const num = i >= 0 ? i + 1 : undefined;
+        if (prev[fresh.id] === num) return prev;
+        const next = { ...prev };
+        if (num) next[fresh.id] = num; else delete next[fresh.id];
+        return next;
+      });
+      // 새로 들어온 참여자 닉네임 보강 — 최신 맵(ref)에 없는 uid만 fetch (중복 조회 방지)
+      const missing = (fresh.participantUids || [])
+        .filter(u => u && u !== myUid && !participantNamesRef.current[u]);
+      if (missing.length) {
+        Promise.all(missing.map(u => getDoc(doc(db, 'users', u)).catch(() => null)))
+          .then(snaps => {
+            const add = {};
+            snaps.forEach((s, k) => { if (s?.exists()) add[missing[k]] = s.data().nickname || '동반자'; });
+            if (Object.keys(add).length) setParticipantNames(p2 => ({ ...p2, ...add }));
+          });
+      }
+    }, (err) => { if (__DEV__) console.warn('[RoundupTab] detail snapshot', err?.message); });
+    return () => unsub();
+  }, [detailId, myUid]);
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
   const [notifications, setNotifications] = useState([]);
   const [showNoti, setShowNoti] = useState(false);            // 알림함
