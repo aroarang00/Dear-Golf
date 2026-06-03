@@ -65,16 +65,7 @@ function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete,
           <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginTop: 10, marginBottom: 2 }} />
 
           {step === 'menu' && (
-            <>
-              {/* 댓글 미리보기 헤더 — 무엇에 대한 액션인지 + 신고하기가 시트 맨 위로 오지 않게 */}
-              <View style={{ paddingTop: 6, paddingBottom: 12, paddingHorizontal: 20 }}>
-                <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>
-                  {comment.authorName || '동반자'}
-                </Text>
-                <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>
-                  {comment.body}
-                </Text>
-              </View>
+            <View style={{ marginTop: 6 }}>
               {isHost && (
                 <Row label={comment.pinned ? '고정 해제' : '고정'} onPress={() => { onPin?.(comment.id); onClose(); }} />
               )}
@@ -85,7 +76,7 @@ function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete,
                 <Row label="신고하기" color="#8B2A2A" onPress={() => setStep('report')} />
               )}
               <Row label="취소" color={C.warmGray} onPress={onClose} />
-            </>
+            </View>
           )}
 
           {step === 'report' && (
