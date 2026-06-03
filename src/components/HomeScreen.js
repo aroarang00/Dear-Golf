@@ -189,12 +189,13 @@ export function HomeScreen({ navigation, route }) {
     return (hh || 0) * 60 + (mm || 0);
   };
   // 일정-다이어리 매칭 — scheduleId 우선, course+date fallback ([[home-multi-schedule-same-day]] 룰3)
-  const isRecorded = (s) => {
-    if (!s) return false;
-    if (s.id && diaries.some(d => d.scheduleId === s.id)) return true;
-    // fallback은 '일정에 연결 안 된' 다이어리만 — 같은 구장·같은 날 36홀에서 한 일정 기록이 다른 일정까지 잡는 비대칭 차단
-    return diaries.some(d => d.course === s.course && d.date === s.date && !d.scheduleId);
+  // 일정에 매칭된 다이어리 반환(isRecorded와 동일 규칙) — '기록 보기'에서 해당 상세로 직행하기 위함
+  const recordedDiary = (s) => {
+    if (!s) return null;
+    if (s.id) { const m = diaries.find(d => d.scheduleId === s.id); if (m) return m; }
+    return diaries.find(d => d.course === s.course && d.date === s.date && !d.scheduleId) || null;
   };
+  const isRecorded = (s) => !!recordedDiary(s);
   // 자정 기준 재계산 D-day / 라운딩 종료 판정(티오프 + 4시간 — 후반 막바지, 식사·기록 동선)
   // 매너평가 윈도우(티오프+5h)와 의도적으로 다름: 홈은 끝나갈 때 진입, 매너평가는 실제 종료 후
   const freshDDay = (s) => (s ? Math.max(0, Math.round((parseSchedDate(s) - now0) / 86400000)) : 0);
@@ -494,7 +495,12 @@ export function HomeScreen({ navigation, route }) {
                   {/* 기록 완료 / 기록 유도 박스 */}
                   {isRecorded(next) ? (
                     <TouchableOpacity activeOpacity={0.85}
-                      onPress={() => navigation.navigate(ROUTES.MY)}
+                      onPress={() => {
+                        // 매칭 다이어리 상세로 직행 — 없으면(이론상 X) MY 첫 화면 폴백
+                        // returnToHome: 상세 닫기(안드 뒤로가기)에서 MY 목록 대신 홈으로 복귀
+                        const d = recordedDiary(next);
+                        navigation.navigate(ROUTES.MY, d ? { openDiaryId: d.id, returnToHome: true } : {});
+                      }}
                       style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 기록 완료 ✓</Text>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 보기 →</Text>

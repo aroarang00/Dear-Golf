@@ -175,18 +175,30 @@ export function DiaryScreen({ route, navigation }) {
     });
   }, [hofHydrated, diaries, schedules, userProfile]);
 
+  // 홈 'D-0 기록 보기'로 상세 진입한 경우, 닫을 때(안드 뒤로가기 포함) MY 목록이 아니라 홈으로 복귀
+  const detailFromHomeRef = React.useRef(false);
   useEffect(() => {
     if (route?.params?.openDiaryId) {
       const target = diaries.find(d => d.id === route.params.openDiaryId);
       if (target) {
+        detailFromHomeRef.current = !!route.params.returnToHome;
         setSelected(target);
         // params 초기화 — 안 하면 같은 id로 재진입 시 useEffect가 안 트리거되어
         // MY 첫 화면(다이어리 목록)이 떠버림.
         // diaries가 아직 로딩 안 돼 target이 없을 땐 setParams 안 함 → diaries 변경 후 재시도
-        navigation.setParams({ openDiaryId: undefined });
+        navigation.setParams({ openDiaryId: undefined, returnToHome: undefined });
       }
     }
   }, [route?.params?.openDiaryId, diaries]);
+
+  // 상세 닫기 — 홈에서 진입했으면 홈으로, 아니면 MY 목록으로 복귀
+  const handleCloseDetail = React.useCallback(() => {
+    setSelected(null);
+    if (detailFromHomeRef.current) {
+      detailFromHomeRef.current = false;
+      navigation.navigate(ROUTES.HOME);
+    }
+  }, [navigation]);
 
   // 일정 모달에서 진입한 경우 모달 닫을 때 일정 화면으로 자동 복귀 ([[modal-navigation-pattern]] navigation 복귀)
   const returnToScheduleRef = React.useRef(false);
@@ -353,7 +365,7 @@ export function DiaryScreen({ route, navigation }) {
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
-  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} onClose={() => setSelected(null)}
+  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} onClose={handleCloseDetail}
     onUpdate={(updated) => {
       // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
       handleSave('diary-edit', updated);
