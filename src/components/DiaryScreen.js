@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { C, F, fs } from '../constants/colors';
@@ -385,7 +385,12 @@ export function DiaryScreen({ route, navigation }) {
   const pickAvatarImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+        mediaTypes: ['images'],
+        // 안드 allowsEditing=시스템 크롭 인텐트 → 크롭 후 '선택(확정)'이 먹지 않는 기기 버그.
+        // 안드는 크롭 생략(원형 아바타가 cover로 가운데 정렬되어 무방), iOS만 1:1 크롭 유지.
+        allowsEditing: Platform.OS === 'ios',
+        aspect: [1, 1],
+        quality: 0.8,
       });
       if (result.canceled) return null;
       // 프로필은 표시 영역이 작아 600px·80%로 압축 (다이어리 사진보다 더 작게)
