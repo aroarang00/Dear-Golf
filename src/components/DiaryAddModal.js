@@ -361,6 +361,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           .map(name => ({ name, isMe: false })),
       ],
       courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
+      courseLoc: selectedCourseObj?.loc || (initial && initial.courseLoc) || null, // 코스 주소 동봉 — 지역탭 분류용([[region-classification]])
       // 일정 진입 동선이면 initial.scheduleId가 prefill됨. 수정 시도 기존 값 유지.
       // 같은 날 일정 N건 + 다이어리 매칭의 비대칭 차단([[home-multi-schedule-same-day]] 룰3).
       scheduleId: initial?.scheduleId || null,

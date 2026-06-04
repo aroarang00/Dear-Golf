@@ -5,7 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
 import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA, getCountryFlag } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { getUserCourses } from '../utils/userCourses';
+import { syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks } from '../utils/top100';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -157,8 +157,10 @@ export function CourseLogTab({ avgRating, navigation }) {
   // 등록 코스·100대·체크 로드 — 다이어리는 DiariesContext가 단일 소스라 별도 로드 X
   useEffect(() => {
     const load = async () => {
+      // 프레시설치 시 로컬 userCourses가 비어 코스 주소(loc)가 전부 누락 → 지역탭이 모두 '기타'로 떨어짐.
+      // Firestore 동기화본을 써서 등록코스 주소를 확실히 확보 (실패 시 내부적으로 로컬 폴백)
       const [uc, t100, checks] = await Promise.all([
-        getUserCourses(),
+        syncUserCoursesFromFirestore(),
         getTop100Courses(),
         getManualTop100Checks(),
       ]);
@@ -228,11 +230,16 @@ export function CourseLogTab({ avgRating, navigation }) {
         const visitCount = recs.length + unrecordedSched.length;
         const courseId = recs.find(r => r.courseId)?.courseId
           || e.scheduleEntries.find(s => s.courseId)?.courseId || null;
-        let loc = '';
-        if (courseId) {
-          loc = userCourses.find(u => u.id === courseId)?.loc
-            || COURSE_LOG.find(c => c.id === courseId)?.loc || '';
-        }
+        const courseKakaoId = recs.find(r => r.courseKakaoId)?.courseKakaoId
+          || e.scheduleEntries.find(s => s.courseKakaoId)?.courseKakaoId || null;
+        // loc 해석 순서: ①기록에 직접 박힌 주소(courseLoc) → ②courseId → ③kakaoId → ④등록코스 이름 → ⑤정적 COURSE_LOG.
+        // ①이 핵심 — 일정·기록 저장 시 주소를 동봉해, userCourses 동기화·미러 상태와 무관하게 지역탭이 항상 맞음 ([[region-classification]]).
+        let loc = recs.find(r => r.courseLoc)?.courseLoc
+          || e.scheduleEntries.find(s => s.courseLoc)?.courseLoc || '';
+        if (!loc && courseId) loc = userCourses.find(u => u.id === courseId)?.loc
+          || COURSE_LOG.find(c => c.id === courseId)?.loc || '';
+        if (!loc && courseKakaoId) loc = userCourses.find(u => u.kakaoId === courseKakaoId)?.loc || '';
+        if (!loc) loc = userCourses.find(u => u.name === e.name)?.loc || '';
         if (!loc) loc = COURSE_LOG.find(c => c.name === e.name)?.loc || '';
         const latestRec = [...recs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
         return {

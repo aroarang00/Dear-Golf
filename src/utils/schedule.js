@@ -41,6 +41,8 @@ export async function createSchedule(data) {
   const sched = {
     ownerUid: uid,
     course: data.course || '',
+    courseId: data.courseId || null,        // 등록코스(userCourses) id — 이게 빠져 지역탭이 '기타'로 떨어지던 버그 ([[region-classification]])
+    courseLoc: data.courseLoc || null,      // 코스 주소 — 지역탭 분류가 userCourses 동기화에 의존하지 않게 기록에 직접 저장
     courseLogId: data.courseLogId || null,
     courseKakaoId: data.courseKakaoId || null,
     date: data.date || '',
