@@ -610,6 +610,25 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     });
   };
 
+  // 초대 억제(조용히) — 수락→취소 등 시스템 동선에서 confirm 없이 목록에서 제거 (hidden set 재사용으로 영속)
+  const suppressInvite = (id) => {
+    setHidden(prev => ({ ...prev, [id]: true }));
+    if (detailId === id) setDetailId(null);
+  };
+
+  // 지정모집 초대 거절 — '가리기'와 다른 개념(거절은 초대에 대한 응답). 거절하면 내 목록에서 사라지고 호스트엔 미통지.
+  //   재초대는 주최자만 가능 ([[roundup-invitation]]).
+  const declineInvite = (id) => {
+    setAlert({
+      title: '이 초대를 거절할까요?',
+      message: '내 라운지 목록에서 사라져요.\n상대방은 알 수 없어요.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '거절', style: 'destructive', onPress: () => suppressInvite(id) },
+      ],
+    });
+  };
+
   // 자동등록 착수한 roundupId 기록 — addSchedule 비동기 완료 전 effect 재실행 시 중복 생성 방지
   const autoSchedRef = useRef(new Set());
 
@@ -711,9 +730,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+5h 윈도우는 동일 적용
   // (지난 라운딩의 본인 활동 이력은 마이페이지 "내 라운지 활동"에서 별도 조회)
   const mineTab = posts.filter(p => {
-    // 친구지정(select) 수신자 — 아직 미참여여도 내 참여 탭에 초대로 노출 (친구 탭엔 안 보이므로 여기서 받음)
+    if (!isInVisibleWindow(p)) return false;
+    // 내 활동(주최·참여·신청·대기)은 가리기 무시하고 보존 (본인 활동 우선)
+    if ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id]) return true;
+    // 친구지정(select) 초대 수신자 — 아직 미참여여도 노출. 단, 거절/수락후취소로 가린 초대는 다시 안 띄움
     const amSelectRecipient = p.scope === 'select' && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
-    return ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id] || amSelectRecipient) && isInVisibleWindow(p);
+    return amSelectRecipient && !hidden[p.id];
   });
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
@@ -1033,8 +1055,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       if (linkedSched) {
         removeSchedule(linkedSched.id).catch(e => __DEV__ && console.warn('[RoundupTab] cancel schedule remove fail', e?.message));
       }
-      // 4) 친구지정 초대를 수락→취소한 수신자는 초대 카드가 다시 뜨지 않게 가림 (사적 초대 — 재초대는 주최자가)
-      if (post.scope === 'select' && post.authorUid !== myUid) hideRoundup(id);
+      // 4) 친구지정 초대를 수락→취소한 수신자는 초대 카드가 다시 뜨지 않게 조용히 억제 (confirm 없이 — 사적 초대, 재초대는 주최자가)
+      if (post.scope === 'select' && post.authorUid !== myUid) suppressInvite(id);
       // 주최자에게 확정 참여자 이탈 알림
       createNotification({
         type: 'cancel',
@@ -1672,7 +1694,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 time: p.time || '',
                 message: p.word || '',
                 onAccept: amRecipient ? () => confirmApply(p.id) : () => setDetailId(p.id),
-                onDecline: () => hideRoundup(p.id),
+                onDecline: () => declineInvite(p.id),
               };
               return p.inviteStyle === 'formal'
                 ? <InvitationCard key={p.id} variant="formal" {...inviteProps} />
