@@ -513,6 +513,12 @@ export function DiaryScreen({ route, navigation }) {
               borderWidth: 2, borderColor: C.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: fs(12) }}>📷</Text>
             </View>
+            {/* 메시지(DM) — 아바타 우상단. 본체는 출시 직후([[dm-design]]), 지금은 준비 중 안내(창 비활성) */}
+            <TouchableOpacity onPress={() => showAppAlert('준비 중이에요', '메시지 기능은\n곧 찾아올게요')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ position: 'absolute', top: -18, right: -12 }}>
+              <Text style={{ fontSize: fs(36), textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>💬</Text>
+            </TouchableOpacity>
           </View>
           {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}
           <View style={{ flex: 1 }}>
