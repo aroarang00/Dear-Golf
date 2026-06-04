@@ -10,6 +10,7 @@ import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { topMilestone, milestoneBadge } from './MilestoneCard';
 import { DiaryCard } from './DiaryCard';
+import { LoadingState } from './common/LoadingState';
 import { PhotoViewer } from './common/PhotoViewer';
 import { getUid } from '../utils/firebase';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -119,9 +120,13 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
             </Text>
             <View style={{ paddingHorizontal: 16 }}>
               {(friend.feed || []).length === 0 ? (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 24 }}>
-                  {feedLoading ? '라운딩 기록을 불러오는 중…' : '아직 공개된 라운딩 기록이 없어요'}
-                </Text>
+                feedLoading ? (
+                  <LoadingState label="라운딩 기록 불러오는 중" />
+                ) : (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 24 }}>
+                    아직 공개된 라운딩 기록이 없어요
+                  </Text>
+                )
               ) : (
                 // MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터(노랑), 특별 카드만 골드 ([[friend-feed-design]])
                 friend.feed.map((item, idx) => (

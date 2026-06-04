@@ -90,7 +90,7 @@ export function OnboardingIntro({ onDone }) {
             </View>
             {/* 헤더 */}
             <View style={{ paddingHorizontal: 22, paddingTop: 18 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.55)', letterSpacing: 2, marginBottom: 4 }}>나만의 골프 캐디</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.55)', letterSpacing: 0.3, marginBottom: 4 }}>라운딩의 모든 순간을 더 특별하게</Text>
               <Text style={{ fontFamily: F.brand, fontSize: fs(32), color: '#fff' }}>Dear Golf</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.7)', marginTop: 5 }}>
                 안녕하세요, <Text style={{ fontFamily: F.sysSb, color: C.butter }}>민지</Text>님

@@ -10,6 +10,7 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
+import { LoadingState } from './common/LoadingState';
 import { showAppAlert } from './AppAlert';
 import { HallOfFameCard } from './HallOfFameCard';
 import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, topMilestone, milestoneBadge } from './MilestoneCard';
@@ -77,7 +78,7 @@ export function DiaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();   // 안드 내비게이션 바 인셋 — 하단 바텀시트 잘림 방지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, removeSchedule } = React.useContext(SchedulesContext);
-  const { diaries, addDiary, editDiary, removeDiary } = React.useContext(DiariesContext);
+  const { diaries, hydrated: diariesHydrated, addDiary, editDiary, removeDiary } = React.useContext(DiariesContext);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
@@ -582,6 +583,10 @@ export function DiaryScreen({ route, navigation }) {
         // DiaryCard 색상 비교용 — 통계 박스 핸디로 통일 (5개 미만 입력값, 6개+ 베스트 5개 평균)
         const avgScore = myHandicap;
 
+        // 첫 로드 전 — 빈 상태 대신 로딩 스피너 (다이어리 로컬+Firestore 로드 동안 깜빡임 방지)
+        if (!diariesHydrated) {
+          return <LoadingState style={{ backgroundColor: C.bgPrimary }} />;
+        }
         // 기록이 하나도 없을 때 — 빈 상태 (예시 카드 + CTA)
         if (diaries.length === 0) {
           return (

@@ -4,6 +4,7 @@ import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Image } 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
+import { LoadingState } from './common/LoadingState';
 import { FriendFinder } from './FriendFinder';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
@@ -368,7 +369,7 @@ export function FriendsTab({ navigation, onInvite }) {
           <Text style={{ fontSize: fs(13) }}>🔍</Text>
           <TextInput
             style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
-            placeholder="이름으로 친구 검색"
+            placeholder="내 친구 중에서 검색"
             placeholderTextColor={C.warmGrayLight}
             value={search}
             onChangeText={setSearch}
@@ -442,10 +443,10 @@ export function FriendsTab({ navigation, onInvite }) {
           </View>
         )}
 
-        {!friendsLoaded ? null : visible.length === 0 ? (
+        {!friendsLoaded ? <LoadingState /> : visible.length === 0 ? (
           q ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36 }}>
-              검색 결과가 없어요
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36, lineHeight: 19 }}>
+              내 친구 중엔 없어요.{'\n'}새 친구는 위 <Text style={{ fontFamily: F.sysB, color: C.navy }}>+</Text> 버튼으로 찾아 추가하세요.
             </Text>
           ) : (
             /* 빈 화면 가이드 — 친구 0명 */

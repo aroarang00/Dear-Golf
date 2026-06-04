@@ -16,6 +16,7 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
+import { LoadingState } from './common/LoadingState';
 import { RoundupNotifications } from './RoundupNotifications';
 import { ScheduleReminderPopup } from './ScheduleReminderPopup';
 import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
@@ -76,6 +77,9 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
         padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12,
         // 그림자 — 크림 배경(#FAF6EC) 위에서 흰 카드 분리감 강화 (iOS·Android 양쪽). 마감은 평평하게(비활성 인상).
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: dimmed ? 0 : 0.05, shadowRadius: 6, elevation: dimmed ? 0 : 2 }}>
+      {/* 마감(확정·만석) 카드는 바탕(회색)은 또렷이 두고 내용 전체를 한 단계 흐리게 — 비활성 인상 강화.
+          opacity는 TouchableOpacity 본체엔 무시되므로(누름 애니메이션) 내부 래퍼 View에 적용. 터치는 부모가 처리. */}
+      <View style={dimmed ? { opacity: 0.5 } : undefined}>
       {/* 뱃지 줄 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: _and ? 7 : 10, flexWrap: 'wrap' }}>
         <View style={{ backgroundColor: post.type === 'fixed' ? C.charcoal : '#6B8B5E', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -224,6 +228,7 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
           )}
         </View>
       )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -1535,7 +1540,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5, paddingBottom: 32 }}>
         {/* 초대장(친구지정·포함)은 아래 list.map에서 실제 카드로 렌더 — dev에선 내가 만든 글도 자기 미리보기로 보임 ([[roundup-invitation]]) */}
-        {!hydrated ? null : list.length === 0 ? (
+        {!hydrated ? <LoadingState /> : list.length === 0 ? (
           view === 'mine' ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 48 }}>
               아직 참여 중인 모집이 없어요
@@ -1797,21 +1802,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           {/* 참여 확인 팝업 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
 
-          {/* 라운딩 일정 리마인드 — 주최자가 보낸 일정 알림을 수신자가 앱에서 확인 (안 읽은 게 있으면 표시) */}
-          {(() => {
-            const unread = notifications.filter(n => n.type === 'scheduleNotice' && !n.read);
-            if (unread.length === 0) return null;
-            const current = unread[0];  // 최신순 — 모집 하나씩 큐로 표시
-            // 남은 '다른 모집' 건수만 카운트 (같은 모집 중복은 제외)
-            const otherPostIds = new Set(unread.filter(n => n.postId !== current.postId).map(n => n.postId));
-            return (
-              <ScheduleReminderPopup
-                visible
-                notice={current}
-                extraCount={otherPostIds.size}
-                onConfirm={() => handleConfirmReminder(current.postId)} />
-            );
-          })()}
+          {/* 라운딩 일정 리마인드 팝업은 App.js 전역으로 이동(2026-06-04) — 라운지 탭 마운트·로딩에 묶이지 않고
+              앱 켤 때·포그라운드 복귀 시 어느 화면에서나 뜨도록. 읽음 처리도 App.js에서 일원화. */}
 
           {/* 라운지 소개 FAB — MY 탭의 라운딩 기록 추가 버튼과 동일 위치·스타일.
               노란 점은 사용자가 아직 FAB을 직접 눌러본 적 없을 때 노출 — 버건디 배경과 대비. */}
