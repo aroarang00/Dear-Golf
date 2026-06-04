@@ -659,14 +659,7 @@ export function HomeScreen({ navigation, route }) {
                       ) : (
                         <>
                           <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 골퍼 코멘트가 없어요</Text>
-                          <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() => {
-                              if (nextCourseId) navigation.navigate(ROUTES.COURSE, { openCourseId: nextCourseId, openComment: true });
-                            }}
-                            style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>첫 번째 코멘트의 주인공이 되어보세요 →</Text>
-                          </TouchableOpacity>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8', marginTop: 8, alignSelf: 'flex-start' }}>첫 번째 코멘트의 주인공이 되어보세요</Text>
                         </>
                       )}
                     </View>
