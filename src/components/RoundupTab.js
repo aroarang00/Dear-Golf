@@ -18,7 +18,6 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { LoadingState } from './common/LoadingState';
 import { RoundupNotifications } from './RoundupNotifications';
-import { ScheduleReminderPopup } from './ScheduleReminderPopup';
 import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
@@ -1214,15 +1213,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }
   };
 
-  // 일정 리마인드 팝업 확인 — 같은 모집(postId)의 알림만 읽음 처리.
-  //  여러 확정 모집의 알림이 쌓이면 모집 단위 큐로 하나씩 표시(다른 모집은 다음 팝업으로 이어짐).
-  //  같은 모집 중복 발송(주최자 여러 번 누름)은 함께 정리.
-  const handleConfirmReminder = (postId) => {
-    const ids = notifications.filter(n => n.type === 'scheduleNotice' && !n.read && n.postId === postId).map(n => n.id);
-    if (ids.length === 0) return;
-    setNotifications(prev => prev.map(n => (ids.includes(n.id) ? { ...n, read: true } : n)));
-    ids.forEach(id => markNotificationRead(id).catch(() => {}));
-  };
+  // (일정 리마인드 팝업 확인 핸들러는 App.js 전역 팝업으로 이전되며 제거 — 2026-06-04)
 
   // 댓글 삭제 — 본인 댓글만 (규칙 authorUid==me 강제 + RoundupComments 사전 차단). 낙관적 제거.
   const handleDeleteComment = async (postId, commentId) => {
