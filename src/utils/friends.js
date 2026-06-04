@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { createNotification } from './roundupNotifications';
+import { getKakaoFriends } from './kakaoAuth';
 
 // =============================================================
 // friendships/{pairId} — 친구 관계
@@ -214,6 +215,35 @@ export async function searchUsersByNickname(qstr, maxResults = 20) {
   return snap.docs
     .map(d => ({ uid: d.data().uid || d.id, nickname: d.data().nickname || '' }))
     .filter(p => p.uid && p.uid !== me);
+}
+
+// 카카오 친구 id 배열 → Dear Golf 가입자(users) 매칭. kakaoId 'in' 쿼리는 10개 제한이라 배치 처리.
+export async function findUsersByKakaoIds(kakaoIds) {
+  const ids = [...new Set((kakaoIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return [];
+  const out = [];
+  for (let i = 0; i < ids.length; i += 10) {
+    const batch = ids.slice(i, i + 10);
+    try {
+      const snap = await getDocs(query(collection(db, USERS), where('kakaoId', 'in', batch)));
+      snap.forEach(d => out.push({ uid: d.data().uid || d.id, nickname: d.data().nickname || '', kakaoId: d.data().kakaoId || '' }));
+    } catch (e) {
+      if (__DEV__) console.warn('[friends] findUsersByKakaoIds batch 실패', e?.message);
+    }
+  }
+  return out;
+}
+
+// 카카오 친구 중 Dear Golf 가입자 — friends scope 동의 시 매칭. 본인 제외.
+//   반환: { status: 'ok'|'no-consent'|'error', users:[{uid, nickname}] }
+export async function findKakaoFriendUsers() {
+  const res = await getKakaoFriends();
+  if (!res.ok) {
+    return { status: res.error === 'no-consent' ? 'no-consent' : 'error', users: [] };
+  }
+  const me = await getUid();
+  const matched = await findUsersByKakaoIds(res.friends.map(f => f.kakaoId));
+  return { status: 'ok', users: matched.filter(u => u.uid && u.uid !== me) };
 }
 
 // 차단 해제

@@ -1,4 +1,4 @@
-import { login, getProfile } from '@react-native-seoul/kakao-login';
+import { login, getProfile, getAccessToken } from '@react-native-seoul/kakao-login';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
 
@@ -95,6 +95,42 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
     // docs/kakao-firebase-auth.md '주의할 난점 4가지' 참고
     console.warn('[kakao-firebase] link 실패', e?.code || e?.message);
     return { ok: false, error: e?.code || e?.message || 'link-failed' };
+  }
+}
+
+// 카카오 친구 목록 — '앱 사용 친구(=Dear Golf 가입자)'만 반환(카카오 친구 제공 4조건).
+//   SDK엔 친구 API가 없어 accessToken으로 REST(/v1/api/talk/friends) 직접 호출. friends scope 동의 필요.
+//   반환: { ok:true, friends:[{kakaoId, nickname, profileImageUrl, favorite}], total } | { ok:false, error }
+//   error: 'no-consent'(403, friends 미동의) | 'no-token'(401·토큰없음, 재로그인) | 'http-NNN' | 'fetch-failed'
+export async function getKakaoFriends() {
+  let accessToken;
+  try {
+    const info = await getAccessToken();
+    accessToken = info?.accessToken;
+  } catch (e) {
+    return { ok: false, error: 'no-token' };
+  }
+  if (!accessToken) return { ok: false, error: 'no-token' };
+  try {
+    const res = await fetch('https://kapi.kakao.com/v1/api/talk/friends', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (res.status === 403) return { ok: false, error: 'no-consent' };
+    if (res.status === 401) return { ok: false, error: 'no-token' };
+    if (!res.ok) return { ok: false, error: `http-${res.status}` };
+    const data = await res.json();
+    const friends = (data.elements || [])
+      .map(f => ({
+        kakaoId: f.id != null ? String(f.id) : null,
+        nickname: f.profile_nickname || '',
+        profileImageUrl: f.profile_thumbnail_image || null,
+        favorite: !!f.favorite,
+      }))
+      .filter(f => f.kakaoId);
+    return { ok: true, friends, total: data.total_count ?? friends.length };
+  } catch (e) {
+    if (__DEV__) console.warn('[kakao] getKakaoFriends 실패', e?.message);
+    return { ok: false, error: 'fetch-failed' };
   }
 }
 

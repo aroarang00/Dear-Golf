@@ -4,7 +4,8 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
 import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
-import { searchUsersByNickname } from '../utils/friends';
+import { searchUsersByNickname, findKakaoFriendUsers } from '../utils/friends';
+import { loginWithKakao } from '../utils/kakaoAuth';
 
 // 아바타 색상 — 이름 글자 기준 순환
 const AVATARS = [
@@ -14,9 +15,6 @@ const AVATARS = [
   { bg: '#6B8B5E', fg: '#fff' },
 ];
 const paletteFor = (id) => AVATARS[(id.charCodeAt(id.length - 1) || 0) % AVATARS.length];
-
-// 카카오 친구 매칭은 카카오 비즈니스 검수 후 활성화 ([[kakao-friend-api-design]]) — 현재 빈 배열.
-const KAKAO_CANDIDATES = [];
 
 // 사람 한 줄 — 아바타 + 이름·핸디·등급 + 우측 액션 슬롯
 function PersonRow({ person, right }) {
@@ -76,6 +74,9 @@ export function FriendFinder({
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  // 카카오 친구 — 'idle'|'loading'|'ok'|'empty'|'no-consent'|'error'
+  const [kakaoState, setKakaoState] = useState('idle');
+  const [kakaoUsers, setKakaoUsers] = useState([]);  // [{ id: uid, name: nickname }]
   const [alert, setAlert] = useState(null);   // Modal 내부 OverlayAlert — 글로벌 showAppAlert가 Modal 뒤로 가려지는 이슈 회피
 
   // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
@@ -85,8 +86,28 @@ export function FriendFinder({
   };
 
   useEffect(() => {
-    if (visible) { setTab(initialTab); setQuery(''); setSearchResults([]); setAlert(null); }
+    if (visible) { setTab(initialTab); setQuery(''); setSearchResults([]); setAlert(null); setKakaoState('idle'); setKakaoUsers([]); }
   }, [visible, initialTab]);
+
+  // 카카오 친구 중 Dear Golf 가입자 로드 — 카카오 탭 진입 시 1회. (friends scope 선택동의 + 팀멤버 조건)
+  const loadKakao = async () => {
+    setKakaoState('loading');
+    try {
+      const res = await findKakaoFriendUsers();
+      if (res.status === 'ok') {
+        setKakaoUsers(res.users.map(u => ({ id: u.uid, name: u.nickname || '디어골프 친구' })));
+        setKakaoState(res.users.length ? 'ok' : 'empty');
+      } else {
+        setKakaoState(res.status); // 'no-consent' | 'error'
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendFinder] loadKakao 실패', e?.message);
+      setKakaoState('error');
+    }
+  };
+  useEffect(() => {
+    if (visible && tab === 'kakao' && kakaoState === 'idle') loadKakao();
+  }, [visible, tab, kakaoState]);
 
   // 이미 친구이거나 신청한 사람은 후보에서 제외하지 않고 상태로만 표시
   const isFriend = (id) => friendIds.includes(id);
@@ -203,11 +224,37 @@ export function FriendFinder({
                 안내 멘트는 친구 N명 표시될 때만 목록 아래에 — 빈 상태에선 EmptyHint로 충분 */}
             {tab === 'kakao' && (
               <>
-                {KAKAO_CANDIDATES.length === 0 ? (
+                {kakaoState === 'loading' && <EmptyHint text="카카오 친구를 불러오는 중…" />}
+
+                {kakaoState === 'no-consent' && (
+                  <View style={{ paddingTop: 24, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19, marginBottom: 16 }}>
+                      카카오 친구 중 Dear Golf 가입자를 찾으려면{'\n'}'카카오 친구 목록' 제공 동의가 필요해요.
+                    </Text>
+                    <TouchableOpacity onPress={async () => { try { await loginWithKakao(); } catch (e) {} setKakaoState('idle'); }}
+                      activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.burgundy }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>동의하고 친구 찾기</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {kakaoState === 'error' && (
+                  <View style={{ paddingTop: 24, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginBottom: 16 }}>카카오 친구를 불러오지 못했어요</Text>
+                    <TouchableOpacity onPress={() => setKakaoState('idle')}
+                      activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>다시 시도</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {kakaoState === 'empty' && (
                   <EmptyHint text="카카오톡 친구 중 Dear Golf에 가입한 사람이 아직 없어요" />
-                ) : (
+                )}
+
+                {kakaoState === 'ok' && (
                   <>
-                    {KAKAO_CANDIDATES.map(p => (
+                    {kakaoUsers.map(p => (
                       <PersonRow key={p.id} person={p} right={candidateRight(p)} />
                     ))}
                     <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
