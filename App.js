@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image, AppState } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -76,7 +76,7 @@ import { AppAlertHost } from './src/components/AppAlert';
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
 import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
-import { loadMyNotifications, markNotificationRead } from './src/utils/roundupNotifications';
+import { subscribeMyNotifications, markNotificationRead } from './src/utils/roundupNotifications';
 import { ROUTES } from './src/constants/routes';
 
 const Tab = createBottomTabNavigator();
@@ -128,20 +128,15 @@ function App() {
   }, [showOnboarding, profileLoaded, userProfile.kakaoLinked]);
 
   // 라운딩 일정 알림(scheduleNotice) — 주최자의 '동반자에게 일정 알리기'를 수신자가 앱 어디서나 확인.
-  //   라운지 탭 마운트/로딩에 묶여 있던 팝업을 앱 전역으로 분리 → 앱 켤 때·포그라운드 복귀 시 안 읽은 게 있으면 표시.
+  //   실시간 구독([[lounge-realtime]]) — 앱 켜둔 중에도 주최자가 알리면 즉시 팝업. 본인 수신분만·최신 50건 좁게.
+  //   kakaoLinked 변동(익명↔카카오) 시 재구독 — getUid가 안정 uid를 반환하도록 ([[auth-relink-and-seed-cleanup]]).
   const [scheduleNotices, setScheduleNotices] = useState([]);
-  const refreshScheduleNotices = useCallback(async () => {
-    try {
-      const list = await loadMyNotifications(50);
-      setScheduleNotices(list.filter(n => n.type === 'scheduleNotice' && !n.read));
-    } catch (e) { if (__DEV__) console.warn('[App] scheduleNotices load failed', e?.message); }
-  }, []);
   useEffect(() => {
     if (showOnboarding || !profileLoaded) return;
-    refreshScheduleNotices();
-    const sub = AppState.addEventListener('change', s => { if (s === 'active') refreshScheduleNotices(); });
-    return () => sub.remove();
-  }, [showOnboarding, profileLoaded, refreshScheduleNotices]);
+    return subscribeMyNotifications(list => {
+      setScheduleNotices(list.filter(n => n.type === 'scheduleNotice' && !n.read));
+    });
+  }, [showOnboarding, profileLoaded, userProfile.kakaoLinked]);
 
   // 번들 폰트 — Pretendard 정적 굵기 4종(한글 본문) + Lora Italic("Dear Golf" 워드마크)
   //   + Playfair Display Bold (영문·숫자 표시용 — Georgia 대체, OS 간 일관)
@@ -446,7 +441,6 @@ function App() {
         const otherPostIds = new Set(scheduleNotices.filter(n => n.postId !== current.postId).map(n => n.postId));
         return (
           <ScheduleReminderPopup
-            visible
             notice={current}
             extraCount={otherPostIds.size}
             onConfirm={() => {

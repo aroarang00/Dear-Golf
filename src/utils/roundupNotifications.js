@@ -1,5 +1,5 @@
 import {
-  collection, query, where, orderBy, limit as fsLimit, getDocs,
+  collection, query, where, orderBy, limit as fsLimit, getDocs, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
@@ -111,6 +111,27 @@ export async function loadMyNotifications(maxResults = 50) {
   );
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// 내가 받은 알림 실시간 구독 — loadMyNotifications와 동일 쿼리라 인덱스(recipientUid, createdAt desc) 재사용.
+//   onChange(list)에 최신순 배열 전달. 본인 수신분만, maxResults 한도 → 비용 좁게 ([[lounge-realtime]] ③).
+//   read 여부·type 필터는 호출부에서 (구독은 단순 유지, 인덱스 추가 회피). 반환값 호출로 구독 해제.
+export function subscribeMyNotifications(onChange, maxResults = 50) {
+  let unsub = null, cancelled = false;
+  (async () => {
+    const uid = await getUid();
+    if (!uid || cancelled) return;
+    const q = query(
+      collection(db, COLLECTION),
+      where('recipientUid', '==', uid),
+      orderBy('createdAt', 'desc'),
+      fsLimit(maxResults),
+    );
+    unsub = onSnapshot(q,
+      snap => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      err => { if (__DEV__) console.warn('[subscribeMyNotifications]', err?.message); });
+  })();
+  return () => { cancelled = true; if (unsub) unsub(); };
 }
 
 // 읽음 처리 — 단건

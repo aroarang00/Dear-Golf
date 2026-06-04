@@ -1,12 +1,21 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, BackHandler } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 
 // 라운딩 일정 리마인드 팝업 — 주최자가 보낸 '동반자에게 일정 알리기'를 수신자가 앱에서 확인.
 // 일반 알림창(OverlayAlert)과 의도적으로 다른 디자인(일정 카드형) + 탭 바깥 닫기 없음 +
 // "확인했어요" 단일 버튼으로, 무의식적으로 넘기지 않고 일정을 한 번 읽게 한다.
 // ([[project_roundup_kakao_chat]] 후속 — 확정 일정 리마인드)
-export function ScheduleReminderPopup({ visible, notice, extraCount = 0, onConfirm }) {
+// 네이티브 Modal 대신 절대위치 오버레이 View — 전역 알림창(AppAlertHost, 네이티브 Modal)과
+//   같은 순간에 떠도 안드 'Modal 두 개 동시 표시' freeze가 나지 않게. AppAlertHost는 그 위에 정상 표시.
+export function ScheduleReminderPopup({ notice, extraCount = 0, onConfirm }) {
+  // 안드 뒤로가기로 닫히지 않게 — '확인했어요' 버튼으로만 닫기(기존 onRequestClose={()=>{}} 의도 유지).
+  useEffect(() => {
+    if (!notice) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, [notice]);
+
   if (!notice) return null;
   const who = notice.actorName || '주최자';
   const course = notice.postTitle || '라운딩';
@@ -24,8 +33,9 @@ export function ScheduleReminderPopup({ visible, notice, extraCount = 0, onConfi
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {}}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(20,28,46,0.55)', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(20,28,46,0.55)', alignItems: 'center', justifyContent: 'center',
+      padding: 28, zIndex: 1000, elevation: 1000 }}>
         <View style={{ width: '100%', maxWidth: 360, backgroundColor: C.navy, borderRadius: 20, overflow: 'hidden' }}>
           {/* 헤더 */}
           <View style={{ alignItems: 'center', paddingTop: 24, paddingHorizontal: 24 }}>
@@ -70,6 +80,5 @@ export function ScheduleReminderPopup({ visible, notice, extraCount = 0, onConfi
           </TouchableOpacity>
         </View>
       </View>
-    </Modal>
   );
 }
