@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { authReady } from '../utils/firebase';
+import { auth } from '../utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { loadMyRounds, createRound, updateRound, deleteRound } from '../utils/round';
 
 // 라운딩 다이어리 — 다이어리 화면과 내 프로필 피드가 같은 데이터를 공유한다.
@@ -18,11 +19,15 @@ export function DiariesProvider({ children }) {
   const [diaries, setDiaries] = useState([]);
   const [hydrated, setHydrated] = useState(false);
 
-  // 초기 로드 — 익명 인증 후 Firestore에서 내 다이어리 가져옴
+  // 초기 로드 + uid 변경 시 재로드 — 익명→카카오 settle 등 uid가 바뀌면 올바른 계정 데이터로 자동 갱신.
+  //   기존엔 시작 시 1회만 로드라, uid 확정 전 익명으로 로드되면 카카오 데이터가 안 떴음([[auth-relink-and-seed-cleanup]]).
   useEffect(() => {
-    (async () => {
+    let prevUid; // 같은 uid 중복 로드 방지
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      const uid = user?.uid || null;
+      if (uid === prevUid) return;
+      prevUid = uid;
       try {
-        await authReady;
         const loaded = await loadMyRounds();
         setDiaries(loaded);
       } catch (e) {
@@ -31,7 +36,8 @@ export function DiariesProvider({ children }) {
       } finally {
         setHydrated(true);
       }
-    })();
+    });
+    return unsub;
   }, []);
 
   // ── Firestore 동기화 헬퍼 (신규 패턴) ─────────────────────

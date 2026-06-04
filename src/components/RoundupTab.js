@@ -36,7 +36,8 @@ import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
 import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, closeRoundup, toggleRoundupLike } from '../utils/roundup';
 import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore, subscribeLatestComments, mergeLiveComments } from '../utils/comments';
-import { getUid } from '../utils/firebase';
+import { getUid, auth } from '../utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
@@ -269,6 +270,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [evaluatingPostId, setEvaluatingPostId] = useState(null); // 매너 평가 모달 — postId
   const [evalPostData, setEvalPostData] = useState(null); // 평가 대상 모집 — 취소·만료로 posts에 없을 때 개별 로드분
   const [evalVersion, setEvalVersion] = useState(0); // 평가 제출 시 pending 동적 재계산 트리거
+
+  // uid 변경 추적 — 익명→카카오 settle 시 myUid를 즉시 갱신해, 참여자 현황의 본인 인식((나) 표시)이
+  //   잠깐 "동반자"로 떴다가 교정되던 깜빡임을 줄인다([[auth-relink-and-seed-cleanup]]).
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => setMyUid(user?.uid || null));
+    return unsub;
+  }, []);
 
   // Phase 3-A/C/F5 — 마운트 시 내 uid + 친구 + Firestore 모집글(전체·내·친구공개) + 참여·신청 상태 로드.
   useEffect(() => {

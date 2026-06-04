@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { authReady } from '../utils/firebase';
+import { auth } from '../utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { loadMySchedules, createSchedule, updateSchedule, deleteSchedule } from '../utils/schedule';
 import { normalizeSchedules } from '../utils/helpers';
 
@@ -22,10 +23,15 @@ export function SchedulesProvider({ children }) {
   const [schedules, setSchedulesRaw] = useState([]);
   const [hydrated, setHydrated] = useState(false);
 
+  // 초기 로드 + uid 변경 시 재로드 — 익명→카카오 settle 등 uid가 바뀌면 올바른 계정 일정으로 자동 갱신.
+  //   기존엔 1회만 로드라 uid 확정 전 익명으로 로드되면 카카오 일정이 안 떴음([[auth-relink-and-seed-cleanup]]).
   useEffect(() => {
-    (async () => {
+    let prevUid;
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      const uid = user?.uid || null;
+      if (uid === prevUid) return;
+      prevUid = uid;
       try {
-        await authReady;
         const loaded = await loadMySchedules();
         setSchedulesRaw(normalizeSchedules(loaded));
       } catch (e) {
@@ -34,7 +40,8 @@ export function SchedulesProvider({ children }) {
       } finally {
         setHydrated(true);
       }
-    })();
+    });
+    return unsub;
   }, []);
 
   const addSchedule = useCallback(async (data) => {
