@@ -33,6 +33,7 @@ import { CourseLogModal } from './CourseLogModal';
 export function GuideScreen({ route, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
+  const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
   const [innerTab, setInnerTab] = useState('course');
   const [showCourseLog, setShowCourseLog] = useState(false); // 내 코스기록 페이지
   const [favorites, setFavorites] = useState(FAVORITES_INIT);
@@ -100,6 +101,7 @@ export function GuideScreen({ route, navigation }) {
     const unsubscribe = navigation.addListener('tabPress', () => {
       setSelected(null);
       setPreviewCourse(null);
+      setOpeningCourse(false);
       setInnerTab('course');
       setShowCommentInput(false);
       setCommentInput('');
@@ -230,10 +232,15 @@ export function GuideScreen({ route, navigation }) {
       const tab = route.params.openCourseTab; // 'food' 면 맛집 탭으로
       navigation.setParams({ openCourseId: undefined, openCourseTab: undefined });
       // userCourses 목록을 최신화한 뒤 선택 — 새로 추가된 코스도 상세를 찾도록
+      setOpeningCourse(true);
       (async () => {
-        await refreshUserCourses();
-        setSelected(id);
-        setInnerTab(tab === 'food' ? 'food' : 'course');
+        try {
+          await refreshUserCourses();
+          setSelected(id);
+          setInnerTab(tab === 'food' ? 'food' : 'course');
+        } finally {
+          setOpeningCourse(false);
+        }
       })();
     }
   }, [route?.params?.openCourseId, refreshUserCourses]);
@@ -244,27 +251,31 @@ export function GuideScreen({ route, navigation }) {
     const name = route?.params?.openCourseName;
     if (!name) return;
     const kakaoId = route?.params?.openCourseKakaoId;
+    // 파라미터를 즉시 비우면 의존성(openCourseName)이 바뀌어 effect가 재실행된다. 그때 이전 실행의
+    //   cleanup이 먼저 돌므로 cancelled 플래그를 두면 async가 setSelected 전에 중단된다(상세 안 열림).
+    //   → openCourseId effect와 동일하게 플래그 없이 진행. 재실행은 이름이 비어 즉시 return해 무해.
     navigation.setParams({ openCourseName: undefined, openCourseKakaoId: undefined });
-    let cancelled = false;
+    setOpeningCourse(true); // 코스 새로고침·카카오 검색 동안 스피너 — 목록이 잠깐 보이는 인상 제거
     (async () => {
-      await refreshUserCourses();
-      const list = await getUserCourses();
-      if (cancelled) return;
-      const existing = list.find(c => (kakaoId && c.kakaoId === kakaoId) || c.name === name);
-      if (existing) { setSelected(existing.id); setInnerTab('course'); return; }
-      const results = await searchGolfCourses(name).catch(() => []);
-      if (cancelled) return;
-      const match = (kakaoId && results.find(r => r.kakaoId === kakaoId)) || results[0];
-      if (match) {
-        handleOpenPreview(match);
-      } else {
-        // 검색 무결과 — 이름만으로 미리보기 (코멘트 키는 kakaoId 있을 때만 매칭)
-        setPreviewCourse({ id: PREVIEW_ID, name, loc: '', x: null, y: null, kakaoId: kakaoId || null, _source: 'preview', tags: [] });
-        setSelected(PREVIEW_ID);
-        setInnerTab('course');
+      try {
+        await refreshUserCourses();
+        const list = await getUserCourses();
+        const existing = list.find(c => (kakaoId && c.kakaoId === kakaoId) || c.name === name);
+        if (existing) { setSelected(existing.id); setInnerTab('course'); return; }
+        const results = await searchGolfCourses(name).catch(() => []);
+        const match = (kakaoId && results.find(r => r.kakaoId === kakaoId)) || results[0];
+        if (match) {
+          handleOpenPreview(match);
+        } else {
+          // 검색 무결과 — 이름만으로 미리보기 (코멘트 키는 kakaoId 있을 때만 매칭)
+          setPreviewCourse({ id: PREVIEW_ID, name, loc: '', x: null, y: null, kakaoId: kakaoId || null, _source: 'preview', tags: [] });
+          setSelected(PREVIEW_ID);
+          setInnerTab('course');
+        }
+      } finally {
+        setOpeningCourse(false);
       }
     })();
-    return () => { cancelled = true; };
   }, [route?.params?.openCourseName, refreshUserCourses]);
 
   useEffect(() => {
@@ -552,6 +563,24 @@ export function GuideScreen({ route, navigation }) {
     ...favoriteCourses.map(c => ({ ...c, isFavorite: true })),
     ...otherCourses,
   ].filter(Boolean);
+
+  // 홈 '구장 ›' → 상세 여는 중(코스 새로고침·카카오 검색) — 목록 대신 스피너로 즉시 반응감 부여.
+  //   selected가 잡히면 바로 아래 상세 렌더로 넘어가므로 selected 없을 때만.
+  if (openingCourse && !selected) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+        <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
+          <TouchableOpacity onPress={() => { setOpeningCourse(false); setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={C.burgundy} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (selected) {
     const c = getCourseData(selected);
