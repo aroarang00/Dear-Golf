@@ -232,6 +232,21 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       return;
     }
 
+    // 지정 인원 < 모집 좌석 — 지정모집은 지정한 친구만 선착순 참여. 풀이 좌석보다 작으면 만석이 안 돼
+    //   확정이 막힐 수 있음. 막지 않고 저장 시점에 확인(놓치기 쉬운 inline 안내 보완). 신규 작성에만.
+    if (!initialPost && scope === 'select' && selectMode === 'include'
+        && selectedUids.length > 0 && selectedUids.length < members) {
+      setAlert({
+        title: '지정 인원이 모집 인원보다 적어요',
+        message: `지정한 친구 ${selectedUids.length}명이 모집 인원 ${members}명보다 적어요.\n지정한 친구만 참여할 수 있어,\n자리가 다 안 차면 확정이 안 될 수 있어요.\n(결원 시 '모집글 수정'에서 인원을 줄여 확정할 수 있어요)\n\n그래도 이대로 등록할까요?`,
+        buttons: [
+          { text: '취소', style: 'cancel' },
+          { text: '이대로 등록', onPress: () => doSubmit() },
+        ],
+      });
+      return;
+    }
+
     // 수정 모드 — 주요 변경(date/course/time) + 참여자 1+ 시 재확인 모달 ([[roundup-edit-policy]] §4-1)
     if (initialPost) {
       const payload = buildPayload();
