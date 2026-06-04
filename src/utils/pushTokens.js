@@ -43,6 +43,7 @@ export async function saveMyPushToken(token) {
   if (!uid) return;
   try {
     await setDoc(doc(db, 'users', uid), {
+      uid, // users 규칙(request.resource.data.uid == uid) 충족 — 문서 미존재 시 생성도 통과
       pushToken: token,
       pushPlatform: Platform.OS,
       pushUpdatedAt: serverTimestamp(),

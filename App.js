@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image, AppState } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -74,6 +74,9 @@ import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
+import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
+import { ErrorBoundary } from './src/components/common/ErrorBoundary';
+import { loadMyNotifications, markNotificationRead } from './src/utils/roundupNotifications';
 import { ROUTES } from './src/constants/routes';
 
 const Tab = createBottomTabNavigator();
@@ -123,6 +126,22 @@ function App() {
     })();
     return () => { cancelled = true; if (unsub) unsub(); };
   }, [showOnboarding, profileLoaded, userProfile.kakaoLinked]);
+
+  // 라운딩 일정 알림(scheduleNotice) — 주최자의 '동반자에게 일정 알리기'를 수신자가 앱 어디서나 확인.
+  //   라운지 탭 마운트/로딩에 묶여 있던 팝업을 앱 전역으로 분리 → 앱 켤 때·포그라운드 복귀 시 안 읽은 게 있으면 표시.
+  const [scheduleNotices, setScheduleNotices] = useState([]);
+  const refreshScheduleNotices = useCallback(async () => {
+    try {
+      const list = await loadMyNotifications(50);
+      setScheduleNotices(list.filter(n => n.type === 'scheduleNotice' && !n.read));
+    } catch (e) { if (__DEV__) console.warn('[App] scheduleNotices load failed', e?.message); }
+  }, []);
+  useEffect(() => {
+    if (showOnboarding || !profileLoaded) return;
+    refreshScheduleNotices();
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') refreshScheduleNotices(); });
+    return () => sub.remove();
+  }, [showOnboarding, profileLoaded, refreshScheduleNotices]);
 
   // 번들 폰트 — Pretendard 정적 굵기 4종(한글 본문) + Lora Italic("Dear Golf" 워드마크)
   //   + Playfair Display Bold (영문·숫자 표시용 — Georgia 대체, OS 간 일관)
@@ -238,6 +257,7 @@ function App() {
         const uid = await getUid();
         if (!uid) return;
         const payload = {
+          uid, // users 규칙(request.resource.data.uid == uid) 충족 — 없으면 문서 생성/수정이 권한 거부됨
           settings: {
             alarmDefaults: userProfile.alarmDefaults || null,
             alarmPromptDisabled: !!userProfile.alarmPromptDisabled,
@@ -308,7 +328,9 @@ function App() {
   }, []);
 
   const handleOnboardingComplete = (data) => {
-    setUserProfile({ ...data });
+    // 기존 프로필과 병합 — 온보딩 data엔 statusMessage·departure·phone 등이 없어서, 통째 교체하면
+    //   재온보딩(미리보기 포함) 시 그 필드들이 날아간다. 신규 사용자는 prev=USER_PROFILE_INIT라 결과 동일.
+    setUserProfile(prev => ({ ...prev, ...data }));
     setShowOnboarding(false);
   };
 
@@ -416,6 +438,25 @@ function App() {
       </Modal>
 
       <AppAlertHost />
+
+      {/* 라운딩 일정 알림 팝업 — 앱 전역(어느 탭에서나). 안 읽은 scheduleNotice가 있으면 모집 단위로 하나씩 표시. */}
+      {(() => {
+        if (scheduleNotices.length === 0) return null;
+        const current = scheduleNotices[0];
+        const otherPostIds = new Set(scheduleNotices.filter(n => n.postId !== current.postId).map(n => n.postId));
+        return (
+          <ScheduleReminderPopup
+            visible
+            notice={current}
+            extraCount={otherPostIds.size}
+            onConfirm={() => {
+              // 같은 모집(postId)의 알림 모두 읽음 처리 → 화면에서 제거, 다음 모집 건이 있으면 이어서 표시
+              const ids = scheduleNotices.filter(n => n.postId === current.postId).map(n => n.id);
+              setScheduleNotices(prev => prev.filter(n => n.postId !== current.postId));
+              ids.forEach(id => markNotificationRead(id).catch(() => {}));
+            }} />
+        );
+      })()}
     </NavigationContainer>
     </FriendBadgeContext.Provider>
     </DiariesProvider>
@@ -427,5 +468,15 @@ function App() {
   );
 }
 
+// 앱 전역 에러 경계 — 렌더 에러로 앱이 죽지 않고 "잠시 후 다시 시도해주세요" 안내를 띄운다.
+//   ErrorBoundary가 App 트리 전체(로딩·온보딩·메인)를 감싼다. Sentry.wrap은 그 위에서 보고·성능 모니터링.
+function Root() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}
+
 // Sentry.wrap — 루트 컴포넌트 감싸 자동 에러 캐치 + 성능 모니터링 활성화
-export default Sentry.wrap(App);
+export default Sentry.wrap(Root);
