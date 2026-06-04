@@ -30,6 +30,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
 
   // hasRec: 과거 라운딩 + 다이어리 기록이 있는 경우. 시트 안에서 다이어리 안내만 표시 (삭제 X)
   const hasRec = !!schedule.hasRec;
+  // 모집으로 생긴 예정 일정 — 캘린더에서 직접 삭제 막고 라운지로 안내 ([[roundup-schedule-delete-policy]]).
+  //   취소는 라운지 정식 동선(모집 취소·나가기)이 일정까지 정리. 과거(isPast)는 이미 끝나 일반 삭제 허용.
+  const isRoundupLinked = !!schedule.roundupId && !isPast;
   // 코스 이동 가능 여부 — 부모(HomeScreen)가 이름 매칭까지 해석해 넘기면 그걸 우선,
   //   없으면 일정 필드(courseLogId/courseId)로 폴백 (MyScheduleTab 등 기존 호출처 무회귀).
   const canOpenCourse = courseNavigable != null
@@ -52,16 +55,18 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
             // 시트 안 삭제 confirm — 별도 Modal(AppAlert) 우회. RN의 3중 Modal 중첩 z-index 충돌 회피.
             <View style={{ paddingHorizontal: 22, paddingTop: 14, paddingBottom: 6 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, marginBottom: 8 }}>
-                {hasRec ? '삭제 안내' : '일정 삭제'}
+                {hasRec ? '삭제 안내' : isRoundupLinked ? '라운지 일정' : '일정 삭제'}
               </Text>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal, lineHeight: 22, marginBottom: 22 }}>
                 {hasRec
                   ? '이 라운딩은 기록이 있어요.\nMY 탭에서 삭제해주세요.'
-                  : isPast
-                    ? '이 일정을 삭제하면 일정과\n라운딩 기록이 모두 삭제됩니다.'
-                    : '이 예정 라운딩을 삭제할까요?'}
+                  : isRoundupLinked
+                    ? '이 라운딩은 라운지 모집으로\n만들어졌어요.\n취소하려면 라운지에서 모집을\n취소하거나 나가주세요.'
+                    : isPast
+                      ? '이 일정을 삭제하면 일정과\n라운딩 기록이 모두 삭제됩니다.'
+                      : '이 예정 라운딩을 삭제할까요?'}
               </Text>
-              {hasRec ? (
+              {(hasRec || isRoundupLinked) ? (
                 <TouchableOpacity activeOpacity={0.85}
                   onPress={() => { setConfirmDelete(false); onClose(); }}
                   style={{ paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: C.charcoal }}>
