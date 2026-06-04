@@ -310,8 +310,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           const data = friendUserSnaps[i]?.exists() ? friendUserSnaps[i].data() : null;
           return { id: u, name: data?.nickname || '친구', realName: data?.realName || '' };
         });
-        // TEMP_DEV_INVITE — 친구 없어도 친구지정/초대장 흐름 혼자 테스트용 더미 친구 주입 ([[roundup-invitation]]). 출시 전 제거.
-        setFriends(__DEV__ ? [...realFriends, { id: 'dev_friend_1', name: '테스트친구A', realName: '김철수' }, { id: 'dev_friend_2', name: '테스트친구B', realName: '이영희' }] : realFriends);
+        setFriends(realFriends);
         const friendPosts = friendPostsArrays.flat();
         // 같은 모집글이 양쪽에 중복으로 잡힐 수 있으니 id 기준 dedupe
         const map = new Map();
@@ -1700,7 +1699,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             const amRecipient = !mine && !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
             const showInvite = view === 'mine' && p.scope === 'select' && p.selectMode === 'include'
               && !joined[p.id] && !applied[p.id]
-              && (amRecipient || (__DEV__ && !mine)); // TEMP_DEV_INVITE — dev 미리보기는 비수신자만(주최자 본인 글 제외). 출시 전 amRecipient만
+              && amRecipient; // 친구지정·포함 초대 수신자에게만 초대장 카드 ([[roundup-invitation]])
             if (showInvite) {
               const inviteProps = {
                 type: p.type === 'open' ? 'open' : 'fixed',

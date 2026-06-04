@@ -3,7 +3,7 @@ import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvo
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
-import { nameWithMaskedReal } from '../utils/maskName';
+import { maskKoreanName } from '../utils/maskName';
 
 // 친구지정 모집글 — 친구 선택 모달 ([[roundup-visibility-design]] UI 흐름).
 // 포함/제외 토글 + 친구 체크박스 + 검색. 확인 시 onConfirm({ selectMode, selectedUids }).
@@ -122,8 +122,11 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
                         {f.name?.charAt(0) || '?'}
                       </Text>
                     </View>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, flex: 1 }}>
-                      {nameWithMaskedReal(f.name, f.realName)}
+                    <Text style={{ flex: 1 }} numberOfLines={1}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{f.name}</Text>
+                      {maskKoreanName(f.realName) ? (
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>{`   ${maskKoreanName(f.realName)}`}</Text>
+                      ) : null}
                     </Text>
                     <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5,
                       borderColor: on ? C.burgundy : C.hairline,

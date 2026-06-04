@@ -687,22 +687,6 @@ export function DiaryScreen({ route, navigation }) {
             )}
 
             <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
-              {/* ⚠️ TEMP_MILESTONE_PREVIEW — 디자인 확인용 임시 블록. 출시 전 이 블록만 통째로 삭제. __DEV__라 프로덕션엔 안 뜸. */}
-              {__DEV__ && (
-                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-                  <Text style={[dS.hofSectionLabel, { marginBottom: 6 }]}>🔧 마일스톤 미리보기 (임시)</Text>
-                  {[
-                    { id: 'pv_r1', kind: 'milestone', category: 'rounds',  value: 50,  tier: 0 },
-                    { id: 'pv_r2', kind: 'milestone', category: 'rounds',  value: 100, tier: 1 },
-                    { id: 'pv_r3', kind: 'milestone', category: 'rounds',  value: 200, tier: 2 },
-                    { id: 'pv_c1', kind: 'milestone', category: 'courses', value: 30,  tier: 0 },
-                    { id: 'pv_c2', kind: 'milestone', category: 'courses', value: 50,  tier: 1 },
-                    { id: 'pv_c3', kind: 'milestone', category: 'courses', value: 100, tier: 2 },
-                  ].map(it => (
-                    <MilestoneCard key={it.id} item={it} onShare={() => setShareMoment(it)} />
-                  ))}
-                </View>
-              )}
               {hallOfFame.length > 0 ? (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
