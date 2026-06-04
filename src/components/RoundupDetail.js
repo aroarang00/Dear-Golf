@@ -4,7 +4,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Platform, Keyboard, us
 const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
+import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
@@ -582,8 +582,8 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
                       }} />
                     </View>
                   )}
-                  {/* 좋아요(응원) — 모두 공개([[roundup-friend-redesign]]). 매너 빠진 자리. 주최자 본인은 카운트만(응원 불가) */}
-                  {(() => {
+                  {/* 좋아요(응원) — 소프트 비활성([[roundup-likes-disabled]]). 관심(별표)과 경쟁 제거. 데이터·함수 보존 */}
+                  {ROUNDUP_LIKES_ENABLED && (() => {
                     const likeCount = Array.isArray(post.likedBy) ? post.likedBy.length : 0;
                     const liked = !!myUid && Array.isArray(post.likedBy) && post.likedBy.includes(myUid);
                     const isHost = post.authorUid === myUid;

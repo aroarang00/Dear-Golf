@@ -19,7 +19,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { LoadingState } from './common/LoadingState';
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
+import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
@@ -103,8 +103,8 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{post.authorName || post.author}</Text>
-          {/* 좋아요(응원) — 이름 옆, 모두 공개([[roundup-friend-redesign]]). 주최자 본인은 카운트만 */}
-          {(() => {
+          {/* 좋아요(응원) — 소프트 비활성([[roundup-likes-disabled]]). 관심(별표)과 경쟁 제거. 데이터·함수 보존 */}
+          {ROUNDUP_LIKES_ENABLED && (() => {
             const likeCount = Array.isArray(post.likedBy) ? post.likedBy.length : 0;
             const liked = !!myUid && Array.isArray(post.likedBy) && post.likedBy.includes(myUid);
             const inner = (
@@ -123,7 +123,7 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
           {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />}
           {!isMine && (
             <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: fs(16), color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
+              <Text style={{ fontSize: fs(22), color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
                 {isBookmarked ? '★' : '☆'}
               </Text>
             </TouchableOpacity>

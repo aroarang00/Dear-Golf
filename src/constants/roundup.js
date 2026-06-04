@@ -5,6 +5,10 @@
 // 향후 유저 증가 + 안전망(매너/신고/강퇴/신뢰등급) 검증 후 true로 부활. 관련 코드·정책은 전부 보존.
 export const ROUNDUP_PUBLIC_ENABLED = false;
 
+// 좋아요(응원) 소프트 비활성 — 관심(별표)과 시각 경쟁·친구모집선 의미 약해 숨김.
+//   데이터(likedBy)·함수(toggleRoundupLike)는 보존, 부활 쉽게 ([[roundup-likes-disabled]])
+export const ROUNDUP_LIKES_ENABLED = false;
+
 // 공개범위 뱃지
 export const SCOPE_BADGE = {
   all:     { label: '전체공개', bg: '#C8D9E6', fg: '#1A3D52' },
