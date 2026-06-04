@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, ActivityIndicator } from 'react-native';
+import { View, Image } from 'react-native';
 import { C } from '../../constants/colors';
+import { Spinner } from './Spinner';
 
 // 초점(focus) 지정 커버 이미지 — resizeMode="cover"는 항상 가운데를 자르지만,
 // 이건 focus{x,y}(0..1) 지점이 보이도록 채운 이미지를 평행이동해서 잘라낸다 ([[cover-focal-point]]).
@@ -35,7 +36,7 @@ export function FocalImage({ uri, focus, width, height, style }) {
   // 로딩 오버레이 — 이미지 뜨기 전까지 어두운 칸 위 스피너 (onLoadEnd는 성공·실패 모두 발화해 항상 해제됨)
   const overlay = loading ? (
     <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator size="large" color={C.paleSky} />
+      <Spinner size={30} color={C.paleSky} />
     </View>
   ) : null;
 

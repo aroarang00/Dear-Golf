@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { Spinner } from './common/Spinner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -791,7 +792,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         borderWidth: 0.5, borderColor: C.hairline,
                         alignItems: 'center', justifyContent: 'center' }}>
                       {photoBusy
-                        ? <ActivityIndicator size="small" color={C.warmGray} />
+                        ? <Spinner size={22} color={C.warmGray} />
                         : <Text style={{ fontSize: fs(24), color: C.warmGray }}>+</Text>}
                     </TouchableOpacity>
                   )}
