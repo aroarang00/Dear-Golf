@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
-import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { F, fs } from '../../constants/colors';
@@ -75,6 +75,9 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라 핀치 줌이 안 먹는다.
+          ScheduleScreen·WeatherTransportPopup과 동일하게 Modal 안에서 한 번 더 감싼다(2026-06-04 핀치 줌 버그 수정). */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: 'center' }}>
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
@@ -98,6 +101,7 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
           ))}
         </ScrollView>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

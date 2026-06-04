@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, View, Text, ActivityIndicator } from 'react-native';
+import { Animated, View, Text } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 
 // 로딩 화면 내용 — 온보딩 첫 화면(OnboardingIntro 1장)과 동일한 브랜드 화면.
@@ -26,7 +26,7 @@ export function SplashContent() {
       <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(26,61,82,0.6)', marginTop: 12, textAlign: 'center', lineHeight: 20 }}>
         좋은 동반자, 그날의 기록까지
       </Text>
-      <ActivityIndicator size="small" color={C.burgundy} style={{ marginTop: 24 }} />
+      {/* 로딩 스피너 제거(2026-06-04) — 브랜드 첫인상 화면이라 정적으로. 준비되면 SplashOverlay가 페이드아웃. */}
     </>
   );
 }
