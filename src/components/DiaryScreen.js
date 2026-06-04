@@ -91,21 +91,42 @@ export function DiaryScreen({ route, navigation }) {
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
   const [addSeed, setAddSeed] = useState(null);
   const [showPickSheet, setShowPickSheet] = useState(false);
-  // 미기록 라운딩 — 오늘 포함 지난 일정 중 다이어리 미연결. 기록 추가 시 골라 정확히 연결(중복·오연결 방지).
+  // 미기록 라운딩 — 지난 일정(오늘 포함) 중 라운딩 기록이 1:1로 배정되지 않은 것.
+  //  · 같은 날 같은 구장 2건(36홀·더블)도 각각 일정-기록 1:1로 매칭(정책: 2건 따로 지원)
+  //  · 기록의 scheduleId가 가리키던 일정이 삭제(dangling)됐어도 course+date로 다시 이어 '이미 기록인데 미기록으로 떠 중복 기록'을 방지
   const unrecordedRounds = React.useMemo(() => {
     const t = new Date(); t.setHours(0, 0, 0, 0); const todayMid = t.getTime();
-    const recorded = (s) => (s.id && diaries.some(d => d.scheduleId === s.id))
-      || diaries.some(d => d.course === s.course && d.date === s.date && !d.scheduleId);
-    return (schedules || [])
-      .filter(s => {
-        if (s.overseas) return false; // 해외는 해외 흐름에서 별도
-        if (!s.date) return false;
-        const [y, m, d] = s.date.split('.').map(Number);
-        if (!y || !m || !d) return false;
-        const sd = new Date(y, m - 1, d).getTime(); // 로컬 자정 — todayMid와 같은 기준(타임존 일치)
-        return sd <= todayMid && !recorded(s); // 오늘 포함(≤) — 당일 완료 라운딩도 리스트에
-      })
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const existingIds = new Set((schedules || []).map(s => s.id));
+    const usedRounds = new Set();        // 이미 어떤 일정에 배정된 기록 id (1:1 보장)
+    const recordedSchedIds = new Set();  // 기록이 직접 연결된 일정 id
+
+    // 1차: scheduleId 직접 연결 (가장 강한 1:1) — 모든 일정에 우선 배정
+    for (const d of (diaries || [])) {
+      if (d.scheduleId && existingIds.has(d.scheduleId) && !usedRounds.has(d.id)) {
+        recordedSchedIds.add(d.scheduleId);
+        usedRounds.add(d.id);
+      }
+    }
+
+    // 후보: 국내·지난(오늘 포함)·유효 날짜·아직 직접 연결 안 된 일정
+    const candidates = (schedules || []).filter(s => {
+      if (s.overseas || !s.date) return false; // 해외는 해외 흐름에서 별도
+      const [y, m, d] = s.date.split('.').map(Number);
+      if (!y || !m || !d) return false;
+      const sd = new Date(y, m - 1, d).getTime(); // 로컬 자정 — todayMid와 같은 기준(타임존 일치)
+      return sd <= todayMid && !recordedSchedIds.has(s.id);
+    }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    // 2차: 후보를 무연결/끊긴(dangling) 기록과 course+date로 1:1 매칭 — 매칭되면 기록된 것으로 간주
+    const result = [];
+    for (const s of candidates) {
+      const loose = (diaries || []).find(d => !usedRounds.has(d.id)
+        && d.course === s.course && d.date === s.date
+        && (!d.scheduleId || !existingIds.has(d.scheduleId)));
+      if (loose) { usedRounds.add(loose.id); continue; } // 이 일정은 이미 기록됨
+      result.push(s);
+    }
+    return result;
   }, [schedules, diaries]);
   // 기록 추가 진입 — 미기록 라운딩 있으면 선택 시트, 없으면 바로 직접 입력
   const openAddFlow = () => {
@@ -113,7 +134,7 @@ export function DiaryScreen({ route, navigation }) {
     else { setAddSeed(null); setShowModal(true); }
   };
   const pickRoundToRecord = (s) => {
-    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, scheduleId: s.id || null });
+    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, courseLoc: s.courseLoc || null, scheduleId: s.id || null });
     setShowPickSheet(false);
     setShowModal(true);
   };
@@ -289,6 +310,8 @@ export function DiaryScreen({ route, navigation }) {
             // 해외 기록이면 overseas·국가를 일정에도 넘겨 해외 탭에서 집계되게 함
             const created2 = await addSchedule({
               course: data.course,
+              courseId: data.courseId || null,
+              courseLoc: data.courseLoc || null, // 코스 주소 — 지역탭 분류용([[region-classification]])
               date: data.date,
               day: data.day,
               time: '',

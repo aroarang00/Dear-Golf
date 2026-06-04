@@ -16,7 +16,7 @@ import { AlarmSetupModal } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
-import { syncRoundToCalendar, removeRoundFromCalendar, getCalendarChoice } from '../utils/deviceCalendar';
+import { getCalendarChoice } from '../utils/deviceCalendar';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { CourseLogModal } from './CourseLogModal';
 
@@ -233,8 +233,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       let newS;
       try { newS = await addSchedule(data); }
       catch (e) { console.warn('[mySchedule] add failed:', e?.message); return; }
-      // 폰 기본 캘린더에 자동 추가
-      syncRoundToCalendar(newS);
+      // (캘린더 추가는 addSchedule이 일괄 처리)
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
         applyDefaultAlarms(newS, userProfile.alarmDefaults);
@@ -256,10 +255,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           );
         }
       });
-      // 캘린더 이벤트도 변경된 내용으로 갱신
-      syncRoundToCalendar({
-        id: data.id, course: data.course, date: data.date, time: data.time, members: data.members,
-      });
+      // (캘린더 갱신은 editSchedule이 일괄 처리)
     }
     setModal({ visible: false, initial: null });
   };
@@ -321,8 +317,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     const remove = async () => {
       try { await removeSchedule(s.id); }
       catch (e) { console.warn('[mySchedule] remove failed:', e?.message); return; }
-      cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
-      removeRoundFromCalendar(s.id); // 기기 캘린더 이벤트도 제거
+      cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소 (캘린더 제거는 removeSchedule이 일괄 처리)
     };
 
     // 과거 라운딩 + 다이어리 기록 있음 → 다이어리에서 삭제하도록 안내
@@ -350,8 +345,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (s) {
       try { await removeSchedule(s.id); }
       catch (e) { console.warn('[mySchedule] remove failed:', e?.message); }
-      cancelRoundAlarms(s.id);
-      removeRoundFromCalendar(s.id);
+      cancelRoundAlarms(s.id); // 캘린더 제거는 removeSchedule이 일괄 처리
     }
     setSheet({ visible: false, schedule: null });
   };

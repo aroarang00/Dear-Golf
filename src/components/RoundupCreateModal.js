@@ -177,6 +177,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     return {
       type,
       course: type === 'fixed' ? courseName : null,
+      courseLoc: type === 'fixed' ? (course?.loc || null) : null,         // 주소 — 확정 시 일정/지역탭으로 전달([[region-classification]])
+      courseKakaoId: type === 'fixed' ? (course?.kakaoId || null) : null, // 코스 가기 매칭용
       region,
       date: type === 'fixed' ? fmtDate(date) : null,
       day: type === 'fixed' ? DAYS[date.getDay()] : null,

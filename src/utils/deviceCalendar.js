@@ -104,6 +104,10 @@ export async function syncRoundToCalendar(schedule) {
   if (!schedule?.id) return;
   const dates = eventDates(schedule);
   if (!dates) return;
+  // 기기 캘린더는 '다가오는 라운딩'만 — 지난(완료) 라운딩은 넣지 않음(과거 기록은 MY 라운딩 기록이 담당).
+  // 단일화로 과거 백킹 일정까지 동기화되며 캘린더가 과거 이벤트로 밀리는 것 방지.
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  if (dates.start.getTime() < todayStart.getTime()) return;
   const granted = await ensurePermission();
   if (!granted) return;
   try {

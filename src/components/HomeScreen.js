@@ -26,7 +26,6 @@ import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal } from './AlarmSetupModal';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
-import { syncRoundToCalendar, removeRoundFromCalendar } from '../utils/deviceCalendar';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -350,8 +349,7 @@ export function HomeScreen({ navigation, route }) {
           onPress: async () => {
             try { await removeSchedule(s.id); }
             catch (e) { console.warn('[home] schedule remove failed:', e?.message); return; }
-            cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소
-            removeRoundFromCalendar(s.id); // 기기 캘린더 이벤트도 제거
+            cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소 (캘린더 제거는 removeSchedule이 일괄 처리)
             setShowScheduleModal(false);
             setSelectedSchedule(null);
           },
@@ -369,6 +367,7 @@ export function HomeScreen({ navigation, route }) {
           time: data.time || '08:00', members: data.members || 4,
           courseLogId: data.courseLogId || null,
           courseId: data.courseId || null,
+          courseLoc: data.courseLoc || null, // 코스 주소 — 지역탭 분류용([[region-classification]])
           courseKakaoId: data.courseKakaoId || null, // 코스 가기(프레시설치) 매칭용
           companions: Array.isArray(data.companions) ? data.companions : [], // 동반자
         });
@@ -378,8 +377,7 @@ export function HomeScreen({ navigation, route }) {
       }
       // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
       getUserCourses().then(list => setUserCoursesList(list || []));
-      // 폰 기본 캘린더에 자동 추가
-      syncRoundToCalendar(newS);
+      // (캘린더 추가는 addSchedule이 일괄 처리)
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
         applyDefaultAlarms(newS, userProfile.alarmDefaults);
@@ -392,6 +390,7 @@ export function HomeScreen({ navigation, route }) {
           course: data.course, date: data.date, day: data.day,
           time: data.time, members: data.members,
           courseId: data.courseId || null,
+          courseLoc: data.courseLoc || null, // 코스 주소 — 지역탭 분류용([[region-classification]])
           courseKakaoId: data.courseKakaoId || null,
           companions: Array.isArray(data.companions) ? data.companions : [],
         });
@@ -409,10 +408,7 @@ export function HomeScreen({ navigation, route }) {
           );
         }
       });
-      // 캘린더 이벤트도 변경된 내용으로 갱신
-      syncRoundToCalendar({
-        id: data.id, course: data.course, date: data.date, time: data.time, members: data.members,
-      });
+      // (캘린더 갱신은 editSchedule이 일괄 처리)
     }
   };
 
@@ -805,8 +801,7 @@ export function HomeScreen({ navigation, route }) {
           const s = selectedSchedule;
           if (s) {
             try { await removeSchedule(s.id); } catch (e) { console.warn('[home] schedule remove failed:', e?.message); }
-            cancelRoundAlarms(s.id);
-            removeRoundFromCalendar(s.id);
+            cancelRoundAlarms(s.id); // 캘린더 제거는 removeSchedule이 일괄 처리
           }
           setShowScheduleModal(false);
         }}

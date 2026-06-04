@@ -15,6 +15,7 @@ import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { OverlayAlert } from './common/OverlayAlert';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
+import { DiariesContext } from '../contexts/DiariesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { LoadingState } from './common/LoadingState';
 import { RoundupNotifications } from './RoundupNotifications';
@@ -236,6 +237,7 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
 export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, editSchedule, removeSchedule } = useContext(SchedulesContext);
+  const { diaries } = useContext(DiariesContext); // 취소 정리 시 '기록 연결된 일정' 보호용
   const [myUid, setMyUid] = useState(null);
   const [friendUids, setFriendUids] = useState([]); // Phase 3-F5: 친구 uid 목록 (친구공개 모집 필터·로드)
   const [friends, setFriends] = useState([]);        // Phase 3-F6: { id, name } — 친구지정 모달 등 표시용
@@ -608,6 +610,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     });
   };
 
+  // 자동등록 착수한 roundupId 기록 — addSchedule 비동기 완료 전 effect 재실행 시 중복 생성 방지
+  const autoSchedRef = useRef(new Set());
+
   // 모집 확정 → 예정 라운딩 자동 등록
   // 조건: 확정형 + 주최자가 '확정'(closed=true) + (내가 주최자 || 참여 확정자)
   // ★확정이 유일한 등록 분기점 — 만석만으론 등록 X(주최자가 확정 눌러야). [[roundup-friend-redesign]]
@@ -622,12 +627,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       if (!p.closed) continue; // 확정 전까지는 등록 안 함
       const compCount = p.teams > 1 ? 0 : (p.companions?.length || 0);
       if (schedules.some(s => s.roundupId === p.id)) continue;
+      if (autoSchedRef.current.has(p.id)) continue; // 경합 가드 — schedules 상태 갱신 전 재실행돼도 중복 생성 차단
+      autoSchedRef.current.add(p.id);
       const members = p.teams > 1
         ? (p.teamJoined?.reduce((s, c) => s + c, 0) || 0)
         : (p.joined || 0) + compCount;
       toAdd.push({
         roundupId: p.id,
         course: p.course,
+        courseLoc: p.courseLoc || null,         // 코스 주소 — 지역탭 분류용([[region-classification]])
+        courseKakaoId: p.courseKakaoId || null, // 코스 가기 매칭용
         date: p.date,
         day: p.day,
         time: p.time,
@@ -641,6 +650,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
           const created = await addSchedule(data);
           applyDefaultAlarms(created, userProfile?.alarmDefaults);
         } catch (e) {
+          autoSchedRef.current.delete(data.roundupId); // 실패 시 재시도 허용
           console.warn('[roundup] auto-schedule add failed:', e?.message);
         }
       }
@@ -654,12 +664,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       notifications.filter(n => n.type === 'roundupCancelled' && n.postId).map(n => n.postId)
     );
     if (cancelledIds.size === 0) return;
+    // 기록 보존 — 이미 라운딩 기록이 연결된 일정은 자동 삭제하지 않음(고아 기록 방지, 정책 결정).
+    const hasRound = (s) => (diaries || []).some(d =>
+      d.scheduleId === s.id || (d.course === s.course && d.date === s.date));
     for (const s of schedules) {
       if (s.roundupId && cancelledIds.has(s.roundupId)) {
+        if (hasRound(s)) continue; // 플레이·기록한 라운딩의 일정은 유지
         removeSchedule(s.id).catch(e => __DEV__ && console.warn('[RoundupTab] cancelled-roundup schedule cleanup fail', e?.message));
       }
     }
-  }, [notifications, schedules, removeSchedule]);
+  }, [notifications, schedules, removeSchedule, diaries]);
 
   // 라운지 노출 윈도우 — 티오프 + 5h(라운딩 끝날 무렵) 이내만 노출, 이후 사용자 UI에서 감춤
   //   끝난 라운딩이 계속 떠 있지 않게. 댓글 닫힘(COMMENT_OPEN_HOURS=5)과 동일 시점 (2026-06-02 24h→5h).
