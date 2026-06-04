@@ -94,7 +94,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                 </TouchableOpacity>
                 <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
                 {companionNames.length > 0 && (
-                  <Text style={[sheetS.meta, { marginTop: 4 }]}>👥 동반자 · {companionNames.join(', ')}</Text>
+                  <Text style={[sheetS.meta, { marginTop: 4 }]}>👥 {companionNames.join(', ')}</Text>
                 )}
                 {dd != null && (
                   isPast ? (

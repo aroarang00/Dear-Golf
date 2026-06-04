@@ -640,6 +640,11 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>
                         {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
                       </Text>
+                      {Array.isArray(s.companions) && s.companions.length > 0 && (
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
+                          👥 {s.companions.map(c => (typeof c === 'string' ? c : c?.name)).filter(Boolean).join(', ')}
+                        </Text>
+                      )}
                     </View>
 
                     {/* Right: badge + record link */}
