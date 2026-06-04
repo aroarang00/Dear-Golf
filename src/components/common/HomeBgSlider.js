@@ -22,11 +22,11 @@ const TIME_IMAGES = {
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
     require('../../../assets/home-bg/day1.jpg'),
     require('../../../assets/home-bg/day2.jpg'), // 자연 풍경 + 코스·페어웨이·호수
+    require('../../../assets/home-bg/lateAfternoon3.jpg'), // 대낮 파란하늘 — 노을 아님(늦은오후 풀에서 이동)
   ],
   lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을
     require('../../../assets/home-bg/lateAfternoon1.jpg'),
     require('../../../assets/home-bg/lateAfternoon2.jpg'),
-    require('../../../assets/home-bg/lateAfternoon3.jpg'),
     require('../../../assets/home-bg/lateAfternoon4.jpg'),
     require('../../../assets/home-bg/lateAfternoon5.jpg'),
   ],

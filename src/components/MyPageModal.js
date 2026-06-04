@@ -75,6 +75,7 @@ export function MyPageModal({ visible, onClose }) {
   const [statusMessage, setStatusMessage] = useState(userProfile.statusMessage || ''); // 프로필 멘트(명함 표시)
   const [editingInfo, setEditingInfo] = useState(false);
   const [editingStats, setEditingStats] = useState(false);
+  const [editingStatus, setEditingStatus] = useState(false); // 한마디 — 프로필(닉네임 아래)에서 인라인 편집
   const [avgScore, setAvgScore] = useState(String(userProfile.avgScore || ''));
   const [lifeBest, setLifeBest] = useState(String(userProfile.lifeBest || ''));
   const [totalRounds, setTotalRounds] = useState(String(userProfile.totalRounds || ''));
@@ -119,6 +120,7 @@ export function MyPageModal({ visible, onClose }) {
       setRealName(userProfile.realName || '');
       setStatusMessage(userProfile.statusMessage || '');
       setEditingInfo(false);
+      setEditingStatus(false);
     }
   }, [visible]);
 
@@ -132,6 +134,14 @@ export function MyPageModal({ visible, onClose }) {
     setDepResults([]);
     setDepSearching(false);
     setEditingInfo(false);
+  };
+
+  // 한마디 — 프로필에서 인라인으로 바로 저장 (내 정보 그룹 저장과 분리)
+  const handleSaveStatus = () => {
+    const updated = { ...userProfile, statusMessage: statusMessage.trim() };
+    setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
+    setEditingStatus(false);
   };
 
   const handleCancelInfo = () => {
@@ -270,27 +280,60 @@ export function MyPageModal({ visible, onClose }) {
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <>
-                      <Text style={myS.nickname}>{nickname}</Text>
-                      {/* 닉네임 변경 가능 여부 — 다음 변경일 또는 가능 안내 */}
-                      {(() => {
-                        const st = nicknameChangeStatus(userProfile);
-                        if (st.canChange) {
-                          return (
+                    (() => {
+                      // 닉네임 변경은 상단에서 바로 — 쿨다운 중엔 버튼 숨기고 다음 변경일만 안내
+                      const st = nicknameChangeStatus(userProfile);
+                      return (
+                        <>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={myS.nickname}>{nickname}</Text>
+                            {st.canChange && (
+                              <TouchableOpacity onPress={() => setEditingNick(true)} activeOpacity={0.7}
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 3 }}>
+                                <Text style={{ fontSize: fs(11) }}>✏️</Text>
+                                <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(12) }}>수정</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                          {st.canChange ? (
                             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
                               닉네임 변경 가능 · {st.cooldownDays}일에 1번
                             </Text>
-                          );
-                        }
-                        return (
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginTop: 2 }}>
-                            다음 변경일 {formatNextDate(st.nextDate)} ({st.daysLeft}일 후)
-                          </Text>
-                        );
-                      })()}
-                    </>
+                          ) : (
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginTop: 2 }}>
+                              다음 변경일 {formatNextDate(st.nextDate)} ({st.daysLeft}일 후)
+                            </Text>
+                          )}
+                        </>
+                      );
+                    })()
                   )}
                   <Text style={myS.realName}>{userProfile.realName}</Text>
+                  {/* 한마디(명함 멘트) — 닉네임 아래에서 바로 인라인 편집 */}
+                  {editingStatus ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                      <TextInput
+                        style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2 }}
+                        value={statusMessage} onChangeText={setStatusMessage} maxLength={15} autoFocus
+                        onSubmitEditing={handleSaveStatus} returnKeyType="done"
+                        placeholder="프로필에 보일 한마디 (최대 15자)" placeholderTextColor={C.warmGrayLight} />
+                      <TouchableOpacity onPress={handleSaveStatus} activeOpacity={0.7}
+                        style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
+                        <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: fs(13) }}>저장</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setStatusMessage(userProfile.statusMessage || ''); setEditingStatus(false); }} activeOpacity={0.6}>
+                        <Text style={{ fontFamily: F.sys, color: C.warmGray, fontSize: fs(13) }}>취소</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity onPress={() => setEditingStatus(true)} activeOpacity={0.6}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: statusMessage ? C.charcoal : C.warmGrayLight, flexShrink: 1 }} numberOfLines={2}>
+                        {statusMessage || '한마디 입력하기'}
+                      </Text>
+                      <Text style={{ fontSize: fs(11) }}>✏️</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
               <TripleStripe height={1.5} />
@@ -298,7 +341,20 @@ export function MyPageModal({ visible, onClose }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Text style={myS.sectionLabel}>나의 통계</Text>
                   <View style={{ flex: 1 }} />
-                  {editingStats ? (
+                  {!editingStats && (
+                    <TouchableOpacity onPress={() => {
+                      // 수정 진입 시 입력칸을 '현재 표시 총 라운딩'으로 채움 → 저장 시 그 시점이 기준점
+                      setAvgScore(String(userProfile.avgScore || ''));
+                      setLifeBest(String(userProfile.lifeBest || ''));
+                      setTotalRounds(String(effectiveTotalRounds || ''));
+                      setEditingStats(true);
+                    }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4 }}>
+                      <Text style={{ fontSize: fs(12) }}>✏️</Text>
+                      <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(13) }}>수정</Text>
+                    </TouchableOpacity>
+                  )}
+                  {editingStats && (
                     <>
                       <TouchableOpacity onPress={() => {
                         setAvgScore(String(userProfile.avgScore || ''));
@@ -313,16 +369,6 @@ export function MyPageModal({ visible, onClose }) {
                         <Text style={{ color: '#F5E6A8', fontSize: fs(13) }}>저장</Text>
                       </TouchableOpacity>
                     </>
-                  ) : (
-                    <TouchableOpacity onPress={() => {
-                      // 수정 진입 시 입력칸을 '현재 표시 총 라운딩'으로 채움 → 저장 시 그 시점이 기준점
-                      setAvgScore(String(userProfile.avgScore || ''));
-                      setLifeBest(String(userProfile.lifeBest || ''));
-                      setTotalRounds(String(effectiveTotalRounds || ''));
-                      setEditingStats(true);
-                    }}>
-                      <Text style={{ color: '#6B1E2A', fontSize: fs(13) }}>수정</Text>
-                    </TouchableOpacity>
                   )}
                 </View>
                 {editingStats ? (
@@ -376,7 +422,14 @@ export function MyPageModal({ visible, onClose }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                   <Text style={myS.sectionLabel}>내 정보</Text>
                   <View style={{ flex: 1 }} />
-                  {editingInfo ? (
+                  {!editingInfo && (
+                    <TouchableOpacity onPress={() => setEditingInfo(true)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4 }}>
+                      <Text style={{ fontSize: fs(12) }}>✏️</Text>
+                      <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(13) }}>수정</Text>
+                    </TouchableOpacity>
+                  )}
+                  {editingInfo && (
                     <>
                       <TouchableOpacity onPress={handleCancelInfo}>
                         <Text style={{ fontFamily: F.sys, color: C.warmGray, marginRight: 12, fontSize: fs(13) }}>취소</Text>
@@ -386,12 +439,10 @@ export function MyPageModal({ visible, onClose }) {
                         <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: fs(13) }}>저장</Text>
                       </TouchableOpacity>
                     </>
-                  ) : (
-                    <TouchableOpacity onPress={() => setEditingInfo(true)}>
-                      <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(13) }}>수정</Text>
-                    </TouchableOpacity>
                   )}
                 </View>
+                {/* 각 행을 탭해도 편집 진입 — 작은 '수정'을 못 찾는 사용자 대응(B안) */}
+                <TouchableOpacity activeOpacity={editingInfo ? 1 : 0.7} onPress={() => { if (!editingInfo) setEditingInfo(true); }}>
                 <View style={myS.menuRow}>
                   <Text style={myS.menuIcon}>📍</Text>
                   <View style={{ flex: 1 }}>
@@ -465,21 +516,7 @@ export function MyPageModal({ visible, onClose }) {
                     )}
                   </View>
                 </View>
-                <View style={myS.menuRow}>
-                  <Text style={myS.menuIcon}>💬</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={myS.menuLabel}>한마디 (명함에 표시)</Text>
-                    {editingInfo ? (
-                      <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
-                        value={statusMessage} onChangeText={setStatusMessage} maxLength={15}
-                        placeholder="프로필에 보일 한마디 (최대 15자)" placeholderTextColor={C.warmGrayLight} />
-                    ) : (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: statusMessage ? C.burgundy : C.warmGrayLight, marginTop: 2 }} numberOfLines={2}>
-                        {statusMessage || '입력하기 →'}
-                      </Text>
-                    )}
-                  </View>
-                </View>
+                </TouchableOpacity>
               </View>
               <View style={myS.divider} />
               <View style={myS.section}>
@@ -542,13 +579,7 @@ export function MyPageModal({ visible, onClose }) {
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>설정</Text>
                 {[
-                  {
-                    icon: '✏️', label: '닉네임 변경',
-                    onPress: () => {
-                      scrollRef.current?.scrollTo({ y: 0, animated: true });
-                      setEditingNick(true);
-                    },
-                  },
+                  // 닉네임 변경은 상단 프로필의 닉네임 옆 ✏️수정으로 이동(설정 중복 제거)
                   { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
                   { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
                   { icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },

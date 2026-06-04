@@ -903,7 +903,8 @@ export function HomeScreen({ navigation, route }) {
           style={{ flex: 1 }}
           activeOpacity={1}
           onPress={() => setShowDDayMenu(false)}>
-          <View style={{ position: 'absolute', left: dDayPos.x, top: dDayPos.y, width: 0, height: 0 }}>
+          {/* 안드: measureInWindow와 Modal 좌표계가 상태바 높이만큼 어긋나 말풍선이 위로 뜸 → insets.top 만큼 내림(iOS 영향 없음) */}
+          <View style={{ position: 'absolute', left: dDayPos.x, top: dDayPos.y + (Platform.OS === 'android' ? insets.top : 0), width: 0, height: 0 }}>
             <View style={{
               position: 'absolute',
               bottom: 10,
