@@ -519,6 +519,17 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               </View>
             )}
 
+            {/* 지정 인원 < 모집 좌석 안내 — 지정모집은 지정한 친구만 참여 가능(선착순). 풀이 좌석보다 작으면
+                만석이 안 돼 확정이 막힐 수 있음. 막지 않고 안내 + escape(인원 수정) 제시 ([[roundup-visibility-design]]) */}
+            {scope === 'select' && selectMode === 'include' && selectedUids.length > 0 && selectedUids.length < members && (
+              <View style={{ marginTop: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
+                backgroundColor: '#FBF3D3', borderWidth: 0.5, borderColor: C.hairline }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
+                  💡 지정한 친구 {selectedUids.length}명이 모집 인원 {members}명보다 적어요.{'\n'}지정한 친구만 참여할 수 있어, 자리가 다 안 차면 '모집글 수정'에서 인원을 줄여 확정할 수 있어요.
+                </Text>
+              </View>
+            )}
+
             {/* 초대장 스타일 — 친구지정만. 격식(클래식)/편안(보딩패스) ([[roundup-invitation]]) */}
             {scope === 'select' && (
               <View style={{ marginTop: 12 }}>
