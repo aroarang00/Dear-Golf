@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Image } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { C } from '../../constants/colors';
 import { Spinner } from './Spinner';
 
@@ -8,6 +9,8 @@ import { Spinner } from './Spinner';
 //  - focus 없거나 정중앙(0.5/0.5)이면 기존과 동일한 cover (싼 경로, getSize 안 함).
 //  - 그 외엔 원본 비율이 필요해 Image.getSize 1회 → 모듈 캐시. 비율 알기 전엔 cover 폴백.
 //  - 로딩 중(특히 원격 친구 사진 다운로드)엔 검은 칸→팝업 대신 스피너로 '불러오는 중' 표시(2026-06-04).
+//  - 렌더는 expo-image — fade-in(transition) + 디스크 캐시(memory-disk)로 두 번째부턴 즉시 표시 ([[image-load-speed]]).
+//    ⚠️ 네이티브 모듈이라 새 빌드부터 동작(현 빌드엔 없음). 원본 비율 측정(getSize)은 RN Image 정적 메서드 유지(expo-image엔 없음).
 const _sizeCache = new Map(); // uri → { w, h }
 
 function isCenter(focus) {
@@ -44,7 +47,7 @@ export function FocalImage({ uri, focus, width, height, style }) {
   if (center || !src || !width || !height) {
     return (
       <View style={[{ width, height, backgroundColor: '#15171A' }, style]}>
-        <Image source={{ uri }} style={{ width, height }} resizeMode="cover" onLoadEnd={() => setLoading(false)} />
+        <ExpoImage source={{ uri }} style={{ width, height }} contentFit="cover" transition={250} cachePolicy="memory-disk" onLoadEnd={() => setLoading(false)} />
         {overlay}
       </View>
     );
@@ -59,7 +62,7 @@ export function FocalImage({ uri, focus, width, height, style }) {
 
   return (
     <View style={[{ width, height, overflow: 'hidden', backgroundColor: '#15171A' }, style]}>
-      <Image source={{ uri }} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} onLoadEnd={() => setLoading(false)} />
+      <ExpoImage source={{ uri }} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} contentFit="cover" transition={250} cachePolicy="memory-disk" onLoadEnd={() => setLoading(false)} />
       {overlay}
     </View>
   );
