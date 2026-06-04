@@ -134,7 +134,7 @@ export function DiaryScreen({ route, navigation }) {
     else { setAddSeed(null); setShowModal(true); }
   };
   const pickRoundToRecord = (s) => {
-    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, courseLoc: s.courseLoc || null, scheduleId: s.id || null });
+    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, courseLoc: s.courseLoc || null, companions: Array.isArray(s.companions) ? s.companions : [], scheduleId: s.id || null });
     setShowPickSheet(false);
     setShowModal(true);
   };

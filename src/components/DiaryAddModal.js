@@ -308,6 +308,16 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (initial?.courseId) {
         findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
       }
+      // 일정(모집확정 포함)에 담긴 동반자를 기록 작성 시 미리 채움 — 이름만(라운드는 name 기준), 본인 제외·최대 3명
+      if (Array.isArray(initial?.companions) && initial.companions.length) {
+        setCompanions(
+          initial.companions
+            .filter(c => !(typeof c === 'object' && c.isMe))
+            .map(c => (typeof c === 'string' ? c : c?.name))
+            .filter(Boolean)
+            .slice(0, 3)
+        );
+      }
       if (initial?.overseas) { setOverseas(true); setCountry(initial.country || ''); }
     }
   }, [visible, isEdit, initial]);

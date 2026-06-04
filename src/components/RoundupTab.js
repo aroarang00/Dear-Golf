@@ -651,6 +651,21 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       const members = p.teams > 1
         ? (p.teamJoined?.reduce((s, c) => s + c, 0) || 0)
         : (p.joined || 0) + compCount;
+      // 동반자 — 같은 모집의 다른 사람들(호스트 + 다른 확정 참여자 + 호스트가 적은 비앱 동반자).
+      //   공유 모집글(participantUids)을 읽어 '내 일정'에만 채움(전파 X) → 각자 실행돼 모두가 서로를 동반자로 봄. ([[companion-design]] Phase A)
+      //   이름은 best-effort(participantNames→친구목록→폴백), friendUid로 안정 연결.
+      const nameOf = (u) => participantNames[u] || friends.find(f => f.id === u)?.name || '동반자';
+      const companions = [];
+      if (p.authorUid && p.authorUid !== myUid) companions.push({ name: p.authorName || nameOf(p.authorUid), friendUid: p.authorUid });
+      (p.participantUids || []).forEach(u => {
+        if (u && u !== myUid && u !== p.authorUid) companions.push({ name: nameOf(u), friendUid: u });
+      });
+      if (p.teams <= 1 && Array.isArray(p.companions)) {
+        p.companions.forEach(c => {
+          const nm = typeof c === 'string' ? c : c?.name;
+          if (nm) companions.push({ name: nm, friendUid: (typeof c === 'object' ? c.friendUid : null) || null });
+        });
+      }
       toAdd.push({
         roundupId: p.id,
         course: p.course,
@@ -660,6 +675,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         day: p.day,
         time: p.time,
         members,
+        companions,
       });
     }
     if (toAdd.length === 0) return;

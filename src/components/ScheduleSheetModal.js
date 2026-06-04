@@ -36,6 +36,11 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     ? courseNavigable
     : !!(schedule.courseLogId || schedule.courseId);
 
+  // 동반자 닉네임 한 줄 (모집확정·수동입력 일정 공통, 본명 아님)
+  const companionNames = (schedule.companions || [])
+    .map(c => (typeof c === 'string' ? c : c?.name))
+    .filter(Boolean);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheetS.mask}>
@@ -88,6 +93,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   </Text>
                 </TouchableOpacity>
                 <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
+                {companionNames.length > 0 && (
+                  <Text style={[sheetS.meta, { marginTop: 4 }]}>👥 동반자 · {companionNames.join(', ')}</Text>
+                )}
                 {dd != null && (
                   isPast ? (
                     <Text style={[sheetS.ddayLabel, { marginTop: 12 }]}>지난 라운딩이에요</Text>
