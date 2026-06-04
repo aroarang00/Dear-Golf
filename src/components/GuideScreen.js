@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,7 +22,7 @@ import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchGolfCourses, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword } from '../utils/kakao';
-import { buildFoodMapUrl, NAVER_MAP_HEADERS } from '../utils/naverMap';
+import { buildFoodMapUrl, NAVER_MAP_HEADERS, cityTokenOf, regionOf, naverSearchUrl } from '../utils/naverMap';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
 import { getCourseComments, addCourseComment, toggleCommentLike, deleteCourseComment, updateCourseComment } from '../utils/courseComments';
@@ -578,7 +579,7 @@ export function GuideScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={C.burgundy} />
+          <Spinner size={32} color={C.burgundy} />
         </View>
       </SafeAreaView>
     );
@@ -597,7 +598,7 @@ export function GuideScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator size="large" color={C.burgundy} />
+            <Spinner size={32} color={C.burgundy} />
           </View>
         </SafeAreaView>
       );
@@ -785,7 +786,7 @@ export function GuideScreen({ route, navigation }) {
                   }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`)}
+                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(c.name, c.loc))}
                   activeOpacity={0.8}
                   style={{
                     flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
@@ -988,21 +989,6 @@ export function GuideScreen({ route, navigation }) {
             const openNaverPlace = (q) => Linking.openURL(
               `https://map.naver.com/v5/search/${encodeURIComponent(q)}`);
 
-            // loc에서 식별력 있는 행정구역 토큰 추출 — 광역(특별시·광역시·도) 단위는 제외,
-            // 시/군/구 우선, 없으면 읍/면 fallback. 동 단위는 너무 협소해 미사용.
-            // 예: '경기 양주시 백석읍 ...' → '양주시',  '서울특별시 강남구 ...' → '강남구'
-            const cityTokenOf = (loc) => {
-              const tokens = String(loc || '').trim().split(/\s+/);
-              for (const t of tokens) {
-                if (/(특별시|광역시|특별자치시|특별자치도|도)$/.test(t)) continue;
-                if (/[시군구]$/.test(t)) return t;
-              }
-              for (const t of tokens) {
-                if (/[읍면]$/.test(t)) return t;
-              }
-              return '';
-            };
-
             // 식당 객체 전용 — 식당명만으로 검색 시 동명 다른 지역 식당으로 빠지는 문제 방지.
             // loc(주소)에서 시/군/구 토큰을 함께 쿼리에 실어 정확도 ↑
             const openRestaurantPlace = (r) => {
@@ -1040,7 +1026,7 @@ export function GuideScreen({ route, navigation }) {
             const mapNearby = nearbyFood.filter(r => !savedKeySet.has(r.kakaoId || r.name));
             const mapUrl = buildFoodMapUrl(courseCoord, mapNearby, savedFood, { w: mapW, h: 210 });
             // 네이버 지도(스마트플레이스)에서 골프장 주변 맛집 검색
-            const openNaverPlaces = () => openNaverPlace(c.name + ' 맛집');
+            const openNaverPlaces = () => Linking.openURL(naverSearchUrl(c.name, c.loc, '맛집'));
 
             return (
               <View>
@@ -1074,8 +1060,12 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                   {/* 우하단 네이버 지도 앱 열기 — 해당 골프장 위치 기준 */}
                   <TouchableOpacity
-                    onPress={() => Linking.openURL(`nmap://search?query=${encodeURIComponent(c.name)}`)
-                      .catch(() => Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(c.name)}`))}
+                    onPress={() => {
+                      // 골프장명만으로 검색하면 동명 다른 지역으로 빠짐 → 지역 토큰 함께 실어 고정.
+                      const q = [c.name, regionOf(c.loc)].filter(Boolean).join(' ');
+                      Linking.openURL(`nmap://search?query=${encodeURIComponent(q)}`)
+                        .catch(() => Linking.openURL(naverSearchUrl(c.name, c.loc)));
+                    }}
                     style={{
                       position: 'absolute', bottom: 8, right: 8,
                       backgroundColor: '#03C75A', borderRadius: 10,

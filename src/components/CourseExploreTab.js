@@ -8,6 +8,7 @@ import { getCurrentLocation } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 import { getTop100Courses, normalizeCourseName } from '../utils/top100';
+import { naverSearchUrl } from '../utils/naverMap';
 
 const REGIONS = ['전체', '수도권', '강원', '충청', '경상', '전라', '제주'];
 const getRegion = (loc) => {
@@ -141,8 +142,9 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
 
   // 네이버 지도(스마트플레이스)에서 이름으로 검색 — 데이터는 카카오, 지도는 네이버로 통일
   const openMap = (item) => {
-    const q = (item.name || '').trim();
-    Linking.openURL(`https://map.naver.com/v5/search/${encodeURIComponent(q)}`)
+    if (!item?.name) return;
+    // 이름만 검색하면 동명 다른 지역(예: 양주 연습장 → 포항)으로 빠짐 → loc 지역 토큰 함께 실어 고정.
+    Linking.openURL(naverSearchUrl(item.name, item.loc))
       .catch(() => Linking.openURL('https://map.naver.com/'));
   };
 
