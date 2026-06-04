@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -88,6 +88,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [specialBall, setSpecialBall] = useState('');
   const [specialMemo, setSpecialMemo] = useState('');
   const [addPhotos, setAddPhotos] = useState([]);
+  const [photoBusy, setPhotoBusy] = useState(false); // 사진 추가(압축·영속) 처리 중 — 끝나기 전 저장 시 사진 누락되던 경합 방지
   const [focusIdx, setFocusIdx] = useState(null); // 보여줄 부분(초점) 조정 대상
   const [companions, setCompanions] = useState([]);
   const [companionInput, setCompanionInput] = useState('');
@@ -95,6 +96,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const pickPhoto = async () => {
     const remaining = MAX_PHOTOS - addPhotos.length;
     if (remaining <= 0) return;
+    setPhotoBusy(true); // 처리 끝날 때까지 저장 비활성 — 경합으로 사진 누락 방지
     try {
       // 사진첩 접근 권한 — 안드 일부/구버전·릴리즈 빌드에서 권한 없으면 갤러리가 조용히 안 열림.
       //   안드13+ 포토피커는 권한 없이도 동작하므로, 거부여도 일단 시도하고 열기 실패 시에만 안내(작동하는 피커 차단 방지).
@@ -142,6 +144,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAddModal] pickPhoto failed', e?.message);
       showAppAlert('사진을 불러오지 못했어요', '사진 접근 권한을 허용했는지 확인하거나\n잠시 후 다시 시도해주세요.');
+    } finally {
+      setPhotoBusy(false);
     }
   };
 
@@ -310,7 +314,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [saveError, setSaveError] = useState('');
 
   const finalCourseLive = selectedCourse || courseSearch.trim();
-  const canSave = !!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim();
+  const canSave = !!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim() && !photoBusy;
 
   const costTotal = COST_ITEMS.reduce((sum, [k]) => sum + (parseInt(costs[k]) || 0), 0);
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -782,11 +786,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       onAdjust={() => setFocusIdx(i)} />
                   ))}
                   {addPhotos.length < MAX_PHOTOS && (
-                    <TouchableOpacity onPress={pickPhoto}
+                    <TouchableOpacity onPress={pickPhoto} disabled={photoBusy}
                       style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: C.bgSecondary,
                         borderWidth: 0.5, borderColor: C.hairline,
                         alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: fs(24), color: C.warmGray }}>+</Text>
+                      {photoBusy
+                        ? <ActivityIndicator size="small" color={C.warmGray} />
+                        : <Text style={{ fontSize: fs(24), color: C.warmGray }}>+</Text>}
                     </TouchableOpacity>
                   )}
                 </ScrollView>
