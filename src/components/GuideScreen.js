@@ -251,26 +251,28 @@ export function GuideScreen({ route, navigation }) {
     const name = route?.params?.openCourseName;
     if (!name) return;
     const kakaoId = route?.params?.openCourseKakaoId;
+    const wantTab = route?.params?.openCourseTab === 'food' ? 'food' : 'course'; // 홈 '주변 맛집'은 맛집 탭으로
     // 파라미터를 즉시 비우면 의존성(openCourseName)이 바뀌어 effect가 재실행된다. 그때 이전 실행의
     //   cleanup이 먼저 돌므로 cancelled 플래그를 두면 async가 setSelected 전에 중단된다(상세 안 열림).
     //   → openCourseId effect와 동일하게 플래그 없이 진행. 재실행은 이름이 비어 즉시 return해 무해.
-    navigation.setParams({ openCourseName: undefined, openCourseKakaoId: undefined });
+    navigation.setParams({ openCourseName: undefined, openCourseKakaoId: undefined, openCourseTab: undefined });
     setOpeningCourse(true); // 코스 새로고침·카카오 검색 동안 스피너 — 목록이 잠깐 보이는 인상 제거
     (async () => {
       try {
         await refreshUserCourses();
         const list = await getUserCourses();
         const existing = list.find(c => (kakaoId && c.kakaoId === kakaoId) || c.name === name);
-        if (existing) { setSelected(existing.id); setInnerTab('course'); return; }
+        if (existing) { setSelected(existing.id); setInnerTab(wantTab); return; }
         const results = await searchGolfCourses(name).catch(() => []);
         const match = (kakaoId && results.find(r => r.kakaoId === kakaoId)) || results[0];
         if (match) {
           handleOpenPreview(match);
+          if (wantTab === 'food') setInnerTab('food'); // handleOpenPreview는 'course'로 두므로 맛집 요청 시 덮어씀
         } else {
           // 검색 무결과 — 이름만으로 미리보기 (코멘트 키는 kakaoId 있을 때만 매칭)
           setPreviewCourse({ id: PREVIEW_ID, name, loc: '', x: null, y: null, kakaoId: kakaoId || null, _source: 'preview', tags: [] });
           setSelected(PREVIEW_ID);
-          setInnerTab('course');
+          setInnerTab(wantTab);
         }
       } finally {
         setOpeningCourse(false);

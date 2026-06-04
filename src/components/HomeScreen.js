@@ -549,9 +549,15 @@ export function HomeScreen({ navigation, route }) {
                       onPress={() => {
                         const id = resolveCourseLogId(next);
                         if (id) { navigation.navigate(ROUTES.COURSE, { openCourseId: id, openCourseTab: 'food' }); return; }
-                        // id 없는 코스(카카오 검색·직접입력 등) — 코스명으로 네이버 지도 주변 맛집 검색 폴백
-                        const q = encodeURIComponent(`${(next.course || '').trim()} 맛집`);
-                        if (q) Linking.openURL(`https://map.naver.com/p/search/${q}`).catch(() => {});
+                        // id 없는 코스(카카오 검색·직접입력 등) — 구장 ›와 동일하게 이름으로 코스탭 열되 '맛집' 탭으로.
+                        //   GuideScreen이 카카오 검색→상세를 열고 openCourseTab='food'면 맛집 탭을 띄운다(앱 내 통일).
+                        if (next.course) {
+                          navigation.navigate(ROUTES.COURSE, {
+                            openCourseName: next.course,
+                            openCourseKakaoId: next.courseKakaoId || null,
+                            openCourseTab: 'food',
+                          });
+                        }
                       }}
                       activeOpacity={0.8}
                       style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
