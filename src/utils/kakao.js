@@ -52,7 +52,10 @@ export async function searchGolfCourses(query) {
     const cat = d.category_name || '';
     const name = d.place_name || '';
     const last = cat.split('>').pop().trim();
-    if (!/(골프장|컨트리클럽)/.test(last)) return false;
+    // '스포츠,레저 > 골프'로만 끝난 본체(last==='골프')도 인정 — 세부 '골프장' 분류 없이 등록돼
+    //   누락되던 CC 구제(예: 경남스카이뷰컨트리클럽). '골프'는 정확 단독일 때만 —
+    //   '골프연습장·스크린골프·골프용품'은 last가 그 단어라 그대로 제외. 골프텔(숙박)·주차장·충전소도 분류가 달라 제외.
+    if (!/(골프장|컨트리클럽)/.test(last) && last !== '골프') return false;
     // 분류가 골프장으로 잘못 등록된 레슨·교습 + 같은 구장 '클럽하우스' 중복 항목 보조 차단
     if (NON_COURSE_NAME_RE.test(name)) return false;
     return true;
