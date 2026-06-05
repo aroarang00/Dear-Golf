@@ -50,8 +50,10 @@ function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPr
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
       style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12,
         // 라운지 모집카드와 동일 입체감 — 크림 배경 위 흰 카드 분리감 (iOS·Android)
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
-        favorite && { borderLeftWidth: 3, borderLeftColor: C.burgundy }]}>
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+        // 즐겨찾기 = 왼쪽 보더 강조. ★ borderLeftWidth/Color를 '항상 명시'하고 값만 토글(1↔3)해야 함.
+        //   조건부로 속성을 추가/제거하면 안드에서 부분 보더 재계산이 깨져 해제 후에도 굵은 선이 잔존(iOS는 정상).
+        borderLeftWidth: favorite ? 3 : 1, borderLeftColor: favorite ? C.burgundy : 'rgba(0,0,0,0.07)' }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
