@@ -28,6 +28,7 @@ import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '.
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { uploadAvatar } from '../utils/avatarStorage';
+import { loadMyFriendsEnriched } from '../utils/friends';
 import { getUid } from '../utils/firebase';
 import { compressImage } from '../utils/imageCompress';
 import { TrustGradeModal } from './common/TrustBadge';
@@ -78,7 +79,9 @@ export function DiaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();   // 안드 내비게이션 바 인셋 — 하단 바텀시트 잘림 방지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, removeSchedule } = React.useContext(SchedulesContext);
-  const { diaries, hydrated: diariesHydrated, addDiary, editDiary, removeDiary } = React.useContext(DiariesContext);
+  const { diaries, hydrated: diariesHydrated, addDiary, editDiary, removeDiary, reloadDiaries } = React.useContext(DiariesContext);
+  // 친구 좋아요 표시용 — 내 다이어리 likes(uid)를 닉네임으로 해석 (좋아요는 친구만 가능)
+  const [friendNameByUid, setFriendNameByUid] = useState({});
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
@@ -91,6 +94,15 @@ export function DiaryScreen({ route, navigation }) {
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
   const [addSeed, setAddSeed] = useState(null);
   const [showPickSheet, setShowPickSheet] = useState(false);
+  // 친구 좋아요 — 친구 닉네임 맵 로드(마운트 1회) + 화면 포커스 시 내 다이어리 재로드(타인발 좋아요 반영).
+  //  DiariesContext는 마운트 1회 로드라 친구가 누른 좋아요가 재진입 전까진 안 들어옴 → 포커스 갱신.
+  useEffect(() => {
+    loadMyFriendsEnriched()
+      .then(list => { const m = {}; list.forEach(f => { m[f.id] = f.name; }); setFriendNameByUid(m); })
+      .catch(() => {});
+    const unsub = navigation?.addListener?.('focus', () => { reloadDiaries(); });
+    return unsub;
+  }, [navigation, reloadDiaries]);
   // 미기록 라운딩 — 지난 일정(오늘 포함) 중 라운딩 기록이 1:1로 배정되지 않은 것.
   //  · 같은 날 같은 구장 2건(36홀·더블)도 각각 일정-기록 1:1로 매칭(정책: 2건 따로 지원)
   //  · 기록의 scheduleId가 가리키던 일정이 삭제(dangling)됐어도 course+date로 다시 이어 '이미 기록인데 미기록으로 떠 중복 기록'을 방지
@@ -746,7 +758,7 @@ export function DiaryScreen({ route, navigation }) {
                     <View key={item.id} style={dS.tlNode}>
                       {idx < filtered.length - 1 && <View style={dS.tlLine} />}
                       <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial]} />
-                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} onPress={(it) => setSelected(it)} />
+                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} onPress={(it) => setSelected(it)} />
                     </View>
                     );
                   })}

@@ -12,6 +12,7 @@ export const DiariesContext = React.createContext({
   addDiary: async () => {},
   editDiary: async () => {},
   removeDiary: async () => {},
+  reloadDiaries: async () => {},
   setDiaries: () => {},
 });
 
@@ -59,6 +60,17 @@ export function DiariesProvider({ children }) {
     setDiaries(prev => prev.filter(d => d.id !== id));
   }, []);
 
+  // 내 다이어리 재로드 — 타인발 변경(친구 좋아요 등)은 마운트 1회 로드로는 안 들어옴.
+  //   화면 포커스 시 호출해 likes 등 최신 상태 반영([[friend-feed-design]] 좋아요).
+  const reloadDiaries = useCallback(async () => {
+    try {
+      const loaded = await loadMyRounds();
+      setDiaries(loaded);
+    } catch (e) {
+      if (__DEV__) console.warn('[DiariesContext] reload 실패', e?.message);
+    }
+  }, []);
+
   // setDiaries는 호환용. 직접 호출 시 Firestore 동기화 X — 로컬 캐시만 변경됨.
   // 새 코드는 addDiary/editDiary/removeDiary 사용. 옛 호출처는 점진적 마이그레이션 중.
   const setDiariesCompat = useCallback((next) => {
@@ -75,6 +87,7 @@ export function DiariesProvider({ children }) {
       addDiary,
       editDiary,
       removeDiary,
+      reloadDiaries,
       setDiaries: setDiariesCompat,
     }}>
       {children}

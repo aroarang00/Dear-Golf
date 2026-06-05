@@ -5,14 +5,16 @@ import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
 import { hofBgColor } from './HallOfFameCard';
 import { MediaCarousel } from './common/MediaCarousel';
+import { WhoLikedModal } from './common/WhoLikedModal';
 import { toggleRoundLike } from '../utils/round';
 
 // 라운딩 기록 카드.
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
 //  - variant 'friend'    : 친구 피드 — 같은 골격에 정보만 줄임(구장·스코어·한줄메모·★) + 좋아요/댓글 줄.
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
-export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto }) {
+export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid }) {
   const [expanded, setExpanded] = useState(false);
+  const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
 
   // 좋아요 상태 — 친구 변형에서만 의미. (훅은 항상 호출)
@@ -83,11 +85,28 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C', marginBottom: 6 }}>{'★'.repeat(rating)}<Text style={{ color: C.hairline }}>{'★'.repeat(5 - rating)}</Text></Text>
   ) : null;
 
+  // 내 글 좋아요 — 읽기전용(내 글엔 내가 좋아요 안 누름). likes(uid)를 친구 닉네임으로 해석, 탭→누가 팝업.
+  // 친구 무사진 카드와 동일하게 태그 줄 우측 끝에 배치(아래 body 태그 줄의 오른쪽 자식).
+  const likerUids = item.likes || [];
+  const likerNames = likerUids.map(uid => (friendNameByUid && friendNameByUid[uid]) || '골프 친구');
+  const mineLikeRow = (!isFriend && likerUids.length > 0) ? (
+    <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setShowLikers(true); }} activeOpacity={0.7}
+      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <Text style={{ fontSize: fs(13) }}>👍</Text>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.burgundy }}>{likerUids.length}</Text>
+    </TouchableOpacity>
+  ) : null;
+
   // ── MY 상세 본문 (태그 포함, 풍부) ──
   const body = (
     <View style={dS.cardBody}>
       <Text style={dS.cardDate}>{item.date} {item.day}</Text>
-      <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]}>{item.course}</Text>
+      {/* 구장명 줄 — 스코어가 아래 별도 줄이라 비는 우측 끝에 좋아요 배치 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { flex: 1 }]} numberOfLines={1}>{item.course}</Text>
+        {mineLikeRow}
+      </View>
       {scoreLine}
       {memoBlock}
       {item.tags && item.tags.length > 0 && (
@@ -237,6 +256,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   // ===== MY 다이어리 (기본) =====
   if (hasPhoto) {
     return (
+      <>
       <TouchableOpacity style={[dS.card, highlight && dS.cardSpecial]} activeOpacity={0.88} onPress={() => onPress(item)}>
         {highlight && <View style={dS.cardSpecialLine} />}
         {photoHero(() => onPress(item))}
@@ -245,10 +265,13 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         </TouchableOpacity>
         {expanded && body}
       </TouchableOpacity>
+      {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
+      </>
     );
   }
 
   return (
+    <>
     <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]} activeOpacity={0.88} onPress={() => onPress(item)}>
       {highlight && <View style={dS.cardSpecialLine} />}
       {isSpecial && (
@@ -265,5 +288,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       )}
       {body}
     </TouchableOpacity>
+    {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
+    </>
   );
 }
