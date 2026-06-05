@@ -46,9 +46,10 @@ const DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'; // �
 const isKeyConfigured = () =>
   KAKAO_REST_API_KEY && KAKAO_REST_API_KEY !== 'YOUR_KAKAO_REST_API_KEY';
 
-// 카카오 로컬 키워드 검색 — 골프장 한정
+// 카카오 로컬 키워드 검색 — 골프장 한정 (로컬 마스터 검색의 폴백 프리미티브)
+// 진입점은 utils/golfCourses.js의 searchGolfCourses(로컬 우선). 여기는 마스터에 없을 때만 호출됨.
 // 반환: [{ kakaoId, name, loc, x, y, url }]
-export async function searchGolfCourses(query) {
+export async function searchGolfCoursesKakao(query) {
   const q = (query || '').trim();
   if (!q) return [];
   if (!isKeyConfigured()) {

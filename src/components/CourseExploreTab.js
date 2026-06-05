@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityI
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
-import { searchGolfCourses, searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
+import { searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
+import { searchGolfCourses } from '../utils/golfCourses';
 import { getCurrentLocation } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';

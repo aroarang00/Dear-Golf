@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
-import { searchGolfCourses } from '../utils/kakao';
+import { searchGolfCourses } from '../utils/golfCourses';
 import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';

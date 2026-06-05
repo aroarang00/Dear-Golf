@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS, WEEKDAYS } from '../constants/data';
-import { searchGolfCourses } from '../utils/kakao';
+import { searchGolfCourses } from '../utils/golfCourses';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
