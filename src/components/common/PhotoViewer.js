@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
@@ -30,37 +30,74 @@ function VideoItem({ uri, active }) {
   );
 }
 
-function PinchableImage({ uri, width, height, active }) {
+function PinchableImage({ uri, width, height, active, onZoomChange }) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const savedTx = useSharedValue(0);
+  const savedTy = useSharedValue(0);
+  const [isZoomed, setIsZoomed] = useState(false); // pan 활성/페이저 잠금 토글
 
-  // 다른 사진으로 스와이프하면 확대 상태 초기화
+  const notify = (z) => { setIsZoomed(z); onZoomChange && onZoomChange(z); };
+
+  const hardReset = () => {
+    scale.value = 1; savedScale.value = 1;
+    tx.value = 0; ty.value = 0; savedTx.value = 0; savedTy.value = 0;
+  };
+
+  // 다른 사진으로 스와이프해 비활성화되면 확대·이동 초기화
   useEffect(() => {
-    if (!active) {
-      scale.value = withSpring(1);
-      savedScale.value = 1;
-    }
+    if (!active) { hardReset(); if (isZoomed) notify(false); }
   }, [active]);
 
+  // 확대 배율에 따라 이동 범위 제한 (스케일된 박스 안에서만)
+  const clampPan = () => {
+    'worklet';
+    const maxX = (width * (scale.value - 1)) / 2;
+    const maxY = (height * (scale.value - 1)) / 2;
+    tx.value = Math.min(maxX, Math.max(-maxX, tx.value));
+    ty.value = Math.min(maxY, Math.max(-maxY, ty.value));
+  };
+
   const pinch = Gesture.Pinch()
-    .onUpdate(e => {
-      scale.value = Math.max(1, savedScale.value * e.scale);
-    })
+    .onUpdate(e => { scale.value = Math.min(4, Math.max(1, savedScale.value * e.scale)); clampPan(); })
     .onEnd(() => {
       if (scale.value < 1.05) {
-        scale.value = withSpring(1);
-        savedScale.value = 1;
+        scale.value = withSpring(1); savedScale.value = 1;
+        tx.value = withSpring(0); ty.value = withSpring(0); savedTx.value = 0; savedTy.value = 0;
+        runOnJS(notify)(false);
       } else {
-        savedScale.value = scale.value;
+        savedScale.value = scale.value; runOnJS(notify)(true);
       }
     });
 
+  // pan은 확대된 상태에서만 활성 (평상시 가로 페이저 스와이프 보존)
+  const pan = Gesture.Pan()
+    .enabled(isZoomed)
+    .onUpdate(e => { tx.value = savedTx.value + e.translationX; ty.value = savedTy.value + e.translationY; clampPan(); })
+    .onEnd(() => { savedTx.value = tx.value; savedTy.value = ty.value; });
+
+  // 더블탭으로 확대/원위치 토글
+  const doubleTap = Gesture.Tap().numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1.05) {
+        scale.value = withSpring(1); savedScale.value = 1;
+        tx.value = withSpring(0); ty.value = withSpring(0); savedTx.value = 0; savedTy.value = 0;
+        runOnJS(notify)(false);
+      } else {
+        scale.value = withSpring(2.5); savedScale.value = 2.5; runOnJS(notify)(true);
+      }
+    });
+
+  const composed = Gesture.Simultaneous(Gesture.Race(doubleTap, pan), pinch);
+
   const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
   }));
 
   return (
-    <GestureDetector gesture={pinch}>
+    <GestureDetector gesture={composed}>
       <Animated.View style={[{ width, height }, animStyle]}>
         <Image source={{ uri }} style={{ width, height }} resizeMode="contain" />
       </Animated.View>
@@ -70,6 +107,7 @@ function PinchableImage({ uri, width, height, active }) {
 
 export function PhotoViewer({ photos, startIndex, onClose }) {
   const [idx, setIdx] = useState(startIndex);
+  const [zoomed, setZoomed] = useState(false); // 현재 사진 확대 여부 — 확대 중 가로 페이저 잠금
   const current = photos[idx];
   const isVideo = current?.type === 'video';
 
@@ -88,14 +126,15 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
           </Text>
         </View>
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+          scrollEnabled={!zoomed}
           contentOffset={{ x: idx * SW, y: 0 }}
-          onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / SW))}>
+          onMomentumScrollEnd={e => { setIdx(Math.round(e.nativeEvent.contentOffset.x / SW)); setZoomed(false); }}>
           {photos.map((item, i) => (
             <View key={i} style={{ width: SW, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
                 <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} />
               ) : (
-                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={SW * 1.2} active={i === idx} />
+                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={SW * 1.2} active={i === idx} onZoomChange={setZoomed} />
               )}
             </View>
           ))}
