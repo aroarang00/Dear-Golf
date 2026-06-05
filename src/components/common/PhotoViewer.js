@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -99,7 +100,7 @@ function PinchableImage({ uri, width, height, active, onZoomChange }) {
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={[{ width, height }, animStyle]}>
-        <Image source={{ uri }} style={{ width, height }} resizeMode="contain" />
+        <Image source={{ uri }} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk" />
       </Animated.View>
     </GestureDetector>
   );
