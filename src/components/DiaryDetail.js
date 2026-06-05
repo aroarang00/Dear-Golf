@@ -48,13 +48,14 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
   const photosToShow = item.photos || [];
 
   const handleDelete = () => {
+    // 삭제는 단일 동작으로 통일 — 기록 + 연결된 개인 일정 함께 삭제(라운지 일정은 보호).
+    // '기록만/전체' 두 갈래는 자동일정 폐지 후 구분 실익이 없어 단순화. ([[diary-schedule-orphan-fix]])
     showAppAlert(
       '라운딩 삭제',
-      '어떻게 삭제할까요?',
+      '이 라운딩 기록을 삭제할까요?',
       [
-        { text: '다이어리 기록만 삭제', onPress: () => onDelete && onDelete(item, 'diaryOnly') },
-        { text: '전체 삭제 (일정까지)', style: 'destructive', onPress: () => onDelete && onDelete(item, 'all') },
         { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: () => onDelete && onDelete(item, 'all') },
       ],
     );
   };

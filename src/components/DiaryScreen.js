@@ -78,7 +78,7 @@ function buildSingleHofEntry(data, diaryId) {
 export function DiaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();   // 안드 내비게이션 바 인셋 — 하단 바텀시트 잘림 방지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
-  const { schedules, addSchedule, removeSchedule } = React.useContext(SchedulesContext);
+  const { schedules, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { diaries, hydrated: diariesHydrated, addDiary, editDiary, removeDiary, reloadDiaries } = React.useContext(DiariesContext);
   // 친구 좋아요 표시용 — 내 다이어리 likes(uid)를 닉네임으로 해석 (좋아요는 친구만 가능)
   const [friendNameByUid, setFriendNameByUid] = useState({});
@@ -306,46 +306,39 @@ export function DiaryScreen({ route, navigation }) {
         }
         return next;
       });
-      // 직접 작성 다이어리(scheduleId 없음) → 일정 연동.
-      // 사용자 원칙: 홈·일정·MY·코스모아보기는 유기적으로 연동, 정보 차이만 허용.
-      // 같은 구장·같은 날 '기록 안 된' 일정이 이미 있으면 거기에 연결(중복 일정 카드 방지),
-      // 없을 때만 새 일정 자동 등록. ([[home-multi-schedule-same-day]] 룰3)
+      // 직접 작성 다이어리(scheduleId 없음) → 미리 잡아둔 일정이 있으면 거기에만 연결.
+      // ★ 과거 기록의 '일정 자동 생성'은 폐지 — 통계·방문수에 0 기여(roundStats가 diary와
+      //   중복제거·매칭제외)하면서 날짜수정·삭제 시 고아 카드만 양산. 캘린더 표시는 diary
+      //   가상카드(orphanItems)로 커버됨. ([[diary-schedule-orphan-fix]])
+      // 국내/해외 도메인이 같은 일정만 매칭 (해외 기록이 국내 일정에 붙어 미기록 카드로 새는 것 방지)
       if (!data.scheduleId) {
         try {
-          // 미리 잡아둔 일정(기록 미연결, 같은 구장·날) 찾기 — 있으면 거기에 연결.
-          // 국내/해외 도메인이 같은 일정만 매칭 (해외 기록이 국내 일정에 붙어 미기록 카드로 새는 것 방지)
           const existingSched = schedules.find(s =>
             s.course === data.course && s.date === data.date
             && !!s.overseas === !!data.overseas
             && !diaries.some(d => d.scheduleId === s.id));
-          let linkId;
+          // 미리 잡아둔 예정 일정이 있을 때만 연결. 없으면 새 일정 만들지 않음(고아 차단).
           if (existingSched) {
-            linkId = existingSched.id;
-          } else {
-            // 과거 라운딩이라 시간 정보는 빈 값 (사용자가 일정 화면에서 수정 가능)
-            // 해외 기록이면 overseas·국가를 일정에도 넘겨 해외 탭에서 집계되게 함
-            const created2 = await addSchedule({
-              course: data.course,
-              courseId: data.courseId || null,
-              courseLoc: data.courseLoc || null, // 코스 주소 — 지역탭 분류용([[region-classification]])
-              date: data.date,
-              day: data.day,
-              time: '',
-              members: (data.companions?.length || 0) + 1,
-              overseas: !!data.overseas,
-              cityCountry: data.overseas ? (data.country || '') : '',
-            });
-            linkId = created2.id;
+            try { await editDiary(created.id, { scheduleId: existingSched.id }); }
+            catch (e) { console.warn('[diary] scheduleId link failed:', e?.message); }
           }
-          try { await editDiary(created.id, { scheduleId: linkId }); }
-          catch (e) { console.warn('[diary] scheduleId link failed:', e?.message); }
         } catch (e) {
-          console.warn('[diary] auto schedule link/add failed:', e?.message);
+          console.warn('[diary] schedule link failed:', e?.message);
         }
       }
     } else if (type === 'diary-edit') {
+      const before = diaries.find(d => d.id === data.id);
       // Firestore 업데이트 — data.id를 기준으로. id·ownerUid는 round.js가 자동으로 분리.
       await editDiary(data.id, data);
+      // ① 날짜·구장이 바뀌었고 연결된 '개인' 일정이 있으면 일정도 같이 이동 — 캘린더 어긋남/고아 차단.
+      //   라운지 확정 일정(roundupId)은 공유 데이터라 안 건드림(날짜는 DiaryAddModal에서 잠금). ([[diary-schedule-orphan-fix]])
+      if (before && data.scheduleId && (before.date !== data.date || before.course !== data.course)) {
+        const sched = schedules.find(s => s.id === data.scheduleId);
+        if (sched && !sched.roundupId) {
+          try { await editSchedule(data.scheduleId, { date: data.date, day: data.day, course: data.course }); }
+          catch (e) { console.warn('[diary] schedule sync failed:', e?.message); }
+        }
+      }
       // 명예의 전당 동기화
       setHallOfFame(prev => {
         const holeId = 'hof_' + data.id;
@@ -368,15 +361,21 @@ export function DiaryScreen({ route, navigation }) {
     }
   };
 
-  // 다이어리 기록 삭제 — diaryOnly: 기록만 / all: 같은 날짜·골프장의 일정까지 삭제
+  // 라운딩 삭제 — 기록 + 연결된 개인 일정 함께 삭제(scheduleId 우선, 라운지 보호). mode는 'all' 단일로 통일.
   const handleDeleteDiary = async (target, mode) => {
     await removeDiary(target.id);
     // 연결된 명예의 전당 카드도 함께 삭제
     setHallOfFame(prev => prev.filter(h => h.diaryId !== target.id));
     if (mode === 'all') {
-      // course+date 매칭 일정 모두 삭제 (스케줄 1:1 매칭 미연결 다이어리 호환)
-      const matches = schedules.filter(s => s.date === target.date && s.course === target.course);
+      // ② 연결 일정 삭제는 scheduleId 우선 — 날짜·구장이 수정돼 어긋나도 정확히 그 일정을 지움(고아 차단).
+      //   scheduleId가 없거나 끊긴 옛 데이터만 course+date 폴백. 라운지 일정(roundupId)은 공유 데이터라 보호.
+      //   ([[diary-schedule-orphan-fix]] · [[roundup-schedule-delete-policy]])
+      const linked = (target.scheduleId ? schedules.filter(s => s.id === target.scheduleId) : []);
+      const matches = linked.length
+        ? linked
+        : schedules.filter(s => s.date === target.date && s.course === target.course);
       for (const s of matches) {
+        if (s.roundupId) continue; // 라운지 확정 일정은 다이어리 삭제로 지우지 않음
         try { await removeSchedule(s.id); }
         catch (e) { console.warn('[diary] schedule remove failed:', e?.message); }
       }

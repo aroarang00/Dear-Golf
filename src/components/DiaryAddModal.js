@@ -11,6 +11,7 @@ import { searchGolfCourses } from '../utils/kakao';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
 import { persistPhotos, persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
@@ -37,6 +38,11 @@ const GUIDE_CHIPS = ['MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '�
 export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = React.useContext(UserContext);
+  const { schedules } = React.useContext(SchedulesContext);
+  // 라운지에서 확정된 라운딩에 연결된 기록은 날짜 변경 잠금 — 모집 확정 날짜는 동반자와 공유된
+  // 데이터라 개인이 못 바꿈. 다른 필드(스코어·메모 등)는 자유 수정. ([[diary-schedule-orphan-fix]])
+  const dateLocked = !!(isEdit && initial?.scheduleId
+    && (schedules || []).find(s => s.id === initial.scheduleId)?.roundupId);
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedCourseObj, setSelectedCourseObj] = useState(null); // USER_COURSES 항목
@@ -448,12 +454,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </View>
               )}
               <Text style={mS.bigLabel}>날짜</Text>
-              <TouchableOpacity style={mS.input} onPress={() => setShowDatePicker(true)}>
+              <TouchableOpacity style={[mS.input, dateLocked && { opacity: 0.55 }]}
+                activeOpacity={dateLocked ? 1 : 0.7}
+                onPress={() => { if (!dateLocked) setShowDatePicker(true); }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>
                   {formatDate(date)} ({formatDay(date)})
                 </Text>
               </TouchableOpacity>
-              {showDatePicker && (
+              {dateLocked && (
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.navy, marginTop: 7, lineHeight: 19 }}>
+                  라운지에서 확정된 라운딩이라{'\n'}날짜는 변경할 수 없어요.
+                </Text>
+              )}
+              {showDatePicker && !dateLocked && (
                 <DateTimePicker value={date} mode="date" display="spinner"
                   onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
                   maximumDate={new Date()} locale="ko" />

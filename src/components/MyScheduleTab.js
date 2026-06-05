@@ -152,8 +152,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const getStatus = (m, d) => {
     const dateStr = dateStrFor(m, d);
     if (isToday(m, d)) {
-      const sched = schedOnStr(dateStr);
-      if (sched) return 'today-round';
+      // 오늘 일정 또는 기록(일정 없이 당일 입력 — 자동일정 폐지)이 있으면 라운딩 표시. ([[diary-schedule-orphan-fix]])
+      if (schedOnStr(dateStr) || hasRecord(dateStr)) return 'today-round';
       return 'today';
     }
     const sched = schedOnStr(dateStr);
@@ -198,9 +198,11 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       return;
     }
     const dateStr = dateStrFor(0, d);
-    const existing = schedOnStr(dateStr);
+    // 일정뿐 아니라 '기록만 있는 날'(과거 직접입력 — 일정 자동생성 폐지로 schedule 없음)도
+    // 가상 카드(orphanItems)가 있으므로 스크롤 대상. 기록된 날 탭 시 기록추가창 오진입 차단. ([[diary-schedule-orphan-fix]])
+    const existing = schedOnStr(dateStr) || hasRecord(dateStr);
 
-    // 일정 있는 셀 → 카드로 스크롤만. 시트·다이어리 진입은 카드에서 사용자가 의식적으로.
+    // 일정/기록 있는 셀 → 카드로 스크롤만. 시트·다이어리 진입은 카드에서 사용자가 의식적으로.
     // 달 전환 직후엔 onLayout 측정이 늦어 첫 시도 실패할 수 있음 → 카드 mount 대기 폴링
     if (existing) {
       if (scrollToCardForDate(dateStr)) return;
@@ -603,7 +605,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                         scrollToCardForDate(target);
                       }
                     }}
+                    onLongPress={() => deleteSchedule(s)}
+                    delayLongPress={400}
                     onPress={() => {
+                      // 길게 누르면 일정 삭제(상황별 분기) — 과거 고아(미기록) 일정 정리 동선. ([[diary-schedule-orphan-fix]])
                       // 사용자 원칙 — 시트(수정·삭제·날씨·교통)는 '미기록 예정' 라운딩에만 의미.
                       // 기록 완료된 라운딩은 당일이라도 끝난 라운딩 → 다이어리 상세로. 수정은 MY 다이어리에서.
                       if (rec) {
