@@ -110,11 +110,11 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     </View>
   );
 
-  // 친구 좋아요 버튼 (컴팩트) — 사진 카드 하단 우측, 사진없는 카드 우측 하단 공용
+  // 친구 좋아요 — 박스(배경·테두리) 없이 엄지 이모지 + 숫자만. 누른 상태는 숫자 색(버건디)으로 표시.
+  // 패딩은 그대로 유지 — 내용물 위치·탭 영역을 기존 박스와 동일하게(우측 끝 앵커라 패딩 제거 시 숫자가 밀림).
   const likeButton = (
     <TouchableOpacity onPress={onToggleLike} activeOpacity={0.7}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 12,
-        backgroundColor: liked ? '#F0E0E2' : 'transparent', borderWidth: 0.5, borderColor: liked ? C.burgundy : C.hairline }}>
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 9 }}>
       <Text style={{ fontSize: fs(12) }}>👍</Text>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: liked ? C.burgundy : C.warmGray }}>{likeCount}</Text>
     </TouchableOpacity>
