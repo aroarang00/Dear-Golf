@@ -7,16 +7,6 @@ import { normalizeCourseName } from './top100';
 //   라비에벨: '라비에벨 골프앤리조트' 숨김, '올드코스'·'듄스코스'는 그대로 노출
 export const HIDDEN_UMBRELLA_BASES = ['라비에벨'];
 
-// 카카오가 흔한 단어('골프클럽' 등) 검색 시 인기순 상위 45개(카카오 keyword API 상한)에 넣어주지 않아,
-// 이름이 정확히 일치해도 누락되는 실제 골프장 보강 목록. 카카오 place 정보를 그대로 담아(kakaoId·좌표 유지)
-// 검색 결과에 병합 — 기존 매칭·길찾기와 호환. 자체 골프장 DB 구축 전까지의 임시 보강. 새 누락 발견 시 한 줄씩 추가.
-// ([[course-matching-unification]])
-export const SUPPLEMENT_COURSES = [
-  { kakaoId: '737864917', name: '골프클럽Q', loc: '경기 안성시 죽산면 장계길 20-229', x: 127.38962558747431, y: 37.046870010310634, url: 'http://place.map.kakao.com/737864917' },
-  // 리베라CC: 36홀 정규 구장인데 카카오가 '파3골프장'으로 오분류 → isGolfCourse 화이트리스트에서 누락되어 보강.
-  { kakaoId: '7855617', name: '리베라CC', loc: '경기 화성시 동탄구 중리길 183', x: 127.11276460047024, y: 37.19028201340368, url: 'http://place.map.kakao.com/7855617' },
-];
-
 // 골프장 이름에 섞여 들어오는 비(非)코스 잡항목 — 클럽하우스·연습장·스크린골프(골프존) 등. 카카오 결과·로컬 기록 공용 필터.
 // ★ '골프존'은 스크린골프 브랜드라 거르되, 실제 골프장 체인 '골프존카운티'(전국 20여 구장)는
 //   (?!카운티) lookahead로 살린다 — 이걸 빼면 골프존카운티 전 구장이 검색에서 통째로 누락됨.
@@ -143,17 +133,14 @@ export async function searchGolfCoursesKakao(query) {
     //   - '일동' → 일동레이크만(제일CC는 이름·주소 둘 다 무관 → 제외)
     //   순위: 이름 시작일치 > 이름 포함 > 주소만 매칭. 매칭 0이면 폴백 전체 유지([[course-matching-accuracy]]).
     const core = q.replace(/\s*(g\.?\s*c|c\.?\s*c|골프클럽|컨트리클럽|골프장|골프)\s*$/i, '').trim() || q;
-    // 카카오가 누락한 골프장 보강 — core가 보강 구장명에 포함되면 결과에 합침(kakaoId 기준 중복 제거). ([[course-matching-unification]])
-    const suppl = SUPPLEMENT_COURSES.filter(c => (c.name || '').includes(core));
-    const merged = suppl.length ? dedupe([...results, ...suppl]) : results;
-    const rel = merged.filter(r => (r.name || '').includes(core) || (r.loc || '').includes(core));
+    const rel = results.filter(r => (r.name || '').includes(core) || (r.loc || '').includes(core));
     const rank = (r) => {
       const n = r.name || '';
       if (n.startsWith(core)) return 0;
       if (n.includes(core)) return 1;
       return 2; // 주소만 매칭
     };
-    const ordered = (rel.length ? rel : merged).sort((a, b) => rank(a) - rank(b));
+    const ordered = (rel.length ? rel : results).sort((a, b) => rank(a) - rank(b));
     return hideCuratedUmbrellas(ordered);
   } catch (e) {
     console.warn('[kakao] search failed:', e?.message);
