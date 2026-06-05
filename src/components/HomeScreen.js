@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Alert, Modal, LayoutAnimation, Platform, UIManager, Linking,
+  Share, Alert, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState,
 } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ import { homeS } from '../styles/homeS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
-import { HomeBgSlider, getCurrentWxClass } from './common/HomeBgSlider';
+import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleModal } from './ScheduleModal';
@@ -88,14 +88,16 @@ export function HomeScreen({ navigation, route }) {
     return () => clearInterval(id);
   }, []);
 
-  // 헤더 날씨 이모지 — 현재 날씨에 맞춰 표시 (홈 배경과 같은 캐시 공유)
+  // 헤더 날씨 이모지 — 날씨 상세탭과 동일한 소스(forecast.current.icon)를 공유 캐시로 받아 표시.
+  // 앱 복귀(배경 톤과 동일 시점)·날씨 팝업 닫힘 때 갱신해 둘이 어긋나지 않게 한다.
+  const refreshWxEmojiRef = useRef(() => {});
   useEffect(() => {
     let cancelled = false;
-    getCurrentWxClass().then(w => {
-      if (cancelled) return;
-      setWxEmoji({ clear: '☀️', cloudy: '⛅', rain: '🌧️', wind: '💨' }[w] || '☀️');
-    });
-    return () => { cancelled = true; };
+    const run = () => getCurrentWx().then(({ icon }) => { if (!cancelled) setWxEmoji(icon || '☀️'); });
+    refreshWxEmojiRef.current = run;
+    run();
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') run(); });
+    return () => { cancelled = true; sub.remove(); };
   }, []);
 
   // 홈 첫 진입 안내 툴팁 — 최초 1회만
@@ -806,7 +808,7 @@ export function HomeScreen({ navigation, route }) {
         schedule={selectedSchedule || next}
         schedules={schedules}
         weatherOnly={showWeatherPopup}
-        onClose={() => { setShowWeatherFull(false); setShowTrafficFull(false); setShowWeatherPopup(false); }}
+        onClose={() => { setShowWeatherFull(false); setShowTrafficFull(false); setShowWeatherPopup(false); refreshWxEmojiRef.current(); }}
       />
 
       <ScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleScheduleSave} />

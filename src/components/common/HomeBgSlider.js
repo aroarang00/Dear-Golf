@@ -57,25 +57,46 @@ function pickImage() {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// 현재 날씨 분류 (1시간 캐시) — 위치 권한 없으면 'clear'. 반환: clear|cloudy|rain|wind
-// 홈 배경 + 홈 헤더의 날씨 이모지 버튼이 같은 캐시를 공유한다.
-const WX_KEY = '@dg_bg_currentwx_v2';
-const WX_TTL = 60 * 60 * 1000;
-export async function getCurrentWxClass() {
+// 현재 날씨 (30분 캐시) — 위치 권한 없으면 맑음.
+// 반환: { weather: clear|cloudy|rain|wind, icon: 이모지 }
+// 홈 배경 톤(weather) + 홈 헤더 이모지(icon)가 같은 캐시를 공유하고,
+// 날씨 상세 팝업이 새로 받은 값(cacheCurrentWx)으로 갱신해 둘이 항상 일치한다.
+const WX_KEY = '@dg_bg_currentwx_v3';
+const WX_TTL = 30 * 60 * 1000;
+const WX_FALLBACK = { weather: 'clear', icon: '☀️' };
+
+export async function getCurrentWx() {
   try {
     const raw = await AsyncStorage.getItem(WX_KEY);
-    if (raw) { const c = JSON.parse(raw); if (c && Date.now() - c.ts < WX_TTL) return c.weather; }
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c && Date.now() - c.ts < WX_TTL) return { weather: c.weather, icon: c.icon || '☀️' };
+    }
   } catch {}
   try {
     const loc = await getCurrentLocation();
-    if (!loc) return 'clear';
+    if (!loc) return WX_FALLBACK;
     const f = await getShortForecast(loc.lat, loc.lng);
     const weather = classifyWeather(f?.current); // clear | cloudy | rain | wind
-    AsyncStorage.setItem(WX_KEY, JSON.stringify({ weather, ts: Date.now() })).catch(() => {});
-    return weather;
+    const icon = f?.current?.icon || '☀️';        // 상세탭과 동일한 skyToIcon 결과
+    AsyncStorage.setItem(WX_KEY, JSON.stringify({ weather, icon, ts: Date.now() })).catch(() => {});
+    return { weather, icon };
   } catch (e) {
-    return 'clear';
+    return WX_FALLBACK;
   }
+}
+
+// 배경 톤 등 분류 문자열만 필요할 때 (하위호환)
+export async function getCurrentWxClass() {
+  return (await getCurrentWx()).weather;
+}
+
+// 날씨 상세 팝업이 '현재 위치'로 새로 받은 forecast.current를 홈 공유 캐시에 반영 —
+// 팝업을 닫고 홈으로 돌아오면 헤더 이모지·배경 톤이 방금 본 값과 일치한다.
+export function cacheCurrentWx(current) {
+  if (!current) return;
+  const payload = { weather: classifyWeather(current), icon: current.icon || '☀️', ts: Date.now() };
+  AsyncStorage.setItem(WX_KEY, JSON.stringify(payload)).catch(() => {});
 }
 
 export function HomeBgSlider() {

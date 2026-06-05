@@ -11,6 +11,7 @@ import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { addressToCoord, getDrivingDirections, searchGolfCourses } from '../utils/kakao';
 import { getOverseasWeather } from '../utils/openweather';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
+import { cacheCurrentWx } from './common/HomeBgSlider';
 import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -375,6 +376,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
           ]);
           if (cancelled) return;
           setForecast(f); setAirQuality(aq); setUvIndex(uv);
+          cacheCurrentWx(f?.current); // 홈 헤더 이모지·배경 톤을 방금 받은 현재 위치 날씨와 일치시킴
         } else if ((schedule?.courseX != null && schedule?.courseY != null) || schedule?.courseId || schedule?.course) {
           // 디스크 캐시 복원 대기 후 cache 체크 (보통 즉시 resolve)
           await wxRestorePromise;
