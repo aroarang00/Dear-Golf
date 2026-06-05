@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
 import { DiariesContext } from '../contexts/DiariesContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
 
 // 헤더·버튼을 라운지(navy) 헤더 규격에 맞춰 안드 컴팩트 보정 (RoundupTab과 동일 패턴)
 const _and = Platform.OS === 'android';
@@ -43,6 +44,7 @@ export function GuideScreen({ route, navigation }) {
   const [userCoursesHydrated, setUserCoursesHydrated] = useState(false);
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   const { diaries } = React.useContext(DiariesContext);
+  const { schedules } = React.useContext(SchedulesContext);
   const [comments, setComments] = useState([]);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
@@ -621,6 +623,17 @@ export function GuideScreen({ route, navigation }) {
       (d.courseId && c.id && d.courseId === c.id) ||
       nameMatch(d.course, c.name)
     );
+    // 방문 횟수 = 다이어리 기록 + 기록 없는 지난 일정 (CourseLogTab '방문' 기준과 통일).
+    // 방문이 본질, 기록은 옵션 — 라운딩만 하고 기록 안 남긴 경우도 방문에 포함.
+    const todayMs = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t.getTime(); })();
+    const isPast = (date) => !!date && new Date(String(date).replace(/\./g, '-')).getTime() < todayMs;
+    const mySchedules = (schedules || []).filter(s =>
+      isPast(s.date) &&
+      ((s.courseId && c.id && s.courseId === c.id) || nameMatch(s.course, c.name))
+    );
+    const unrecordedSched = mySchedules.filter(s =>
+      !myDiaries.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
+    const visitCount = myDiaries.length + unrecordedSched.length;
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
@@ -715,15 +728,15 @@ export function GuideScreen({ route, navigation }) {
               })()}
               {/* 연락처 제거 (2026-06-01) — 네이버정보 버튼으로 대체, 코스페이지 정리(골퍼코멘트 메인화) */}
 
-              {/* 한줄 메모 — 버건디 액센트 바 헤더 + 내 기록 횟수 칩(옛 '내 라운딩 기록 · N회' 헤더를 여기로 흡수) */}
+              {/* 한줄 메모 — 버건디 액센트 바 헤더 + 방문 횟수 칩(기록 아닌 방문 기준, 기록 없는 지난 일정 포함) */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                   <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
                   <Text style={[gS.secLabel, { marginBottom: 0 }]}>한줄 메모</Text>
                 </View>
-                {myDiaries.length > 0 && (
+                {visitCount > 0 && (
                   <View style={gS.mineCountPill}>
-                    <Text style={gS.mineCountTxt}>내 기록 {myDiaries.length}회</Text>
+                    <Text style={gS.mineCountTxt}>방문 {visitCount}회</Text>
                   </View>
                 )}
               </View>
