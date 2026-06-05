@@ -39,8 +39,6 @@ function getRegionStyle(loc) {
   return REGION_STYLE.other;
 }
 
-const isStarTag = (t) => typeof t === 'string' && t.startsWith('★');
-
 function RegionTag({ rs }) {
   return (
     <View style={{ backgroundColor: rs.bg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
@@ -49,68 +47,36 @@ function RegionTag({ rs }) {
   );
 }
 
-// 기록 있는 카드 — 접으면 콤팩트, 펼치면 베스트/평균·태그·메모 (정신없지 않게)
-function RecordedCard({ c, rs, navigation, isOpen, onToggle }) {
+// 기록 있는 카드 — 구장명 + 통계박스 + (지역·별점 최근). 펼침 고정, 태그·메모·중복 방문 제거
+function RecordedCard({ c, rs, navigation }) {
   return (
-    <TouchableOpacity
-      style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: rs.bg }]}
-      activeOpacity={0.85}
-      onPress={onToggle}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+    <View style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: rs.bg }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <Text style={{ fontSize: fs(14), color: C.burgundy }}>✓</Text>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={dS.courseName}>{c.name}</Text>
-            {c.rating > 0 && isOpen && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#C9A84C' }}>★ {c.rating}</Text>
-            )}
-          </View>
-          <Text style={dS.courseLoc}>{c.visits}회 방문</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {c.courseId && navigation ? (
-            <>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => navigation.navigate(ROUTES.COURSE, { openCourseId: c.courseId })}
-                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-                <Text style={{ fontSize: fs(18), color: C.warmGray }}>›</Text>
-              </TouchableOpacity>
-              <View style={{ width: 1, height: 14, backgroundColor: C.hairline }} />
-            </>
-          ) : null}
-          <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{isOpen ? '▴' : '▾'}</Text>
-          </View>
-        </View>
+        <Text style={[dS.courseName, { flex: 1 }]}>{c.name}</Text>
+        {c.courseId && navigation ? (
+          <TouchableOpacity
+            activeOpacity={0.6}
+            onPress={() => navigation.navigate(ROUTES.COURSE, { openCourseId: c.courseId })}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+            <Text style={{ fontSize: fs(18), color: C.warmGray }}>›</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      {/* 접힌 상태 — 지역 뱃지 + 별점(해외 카드처럼 ★ 기호 태그로) */}
-      {!isOpen && (
-        <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-          {c.rating > 0 && (
-            <View style={dS.tag}><Text style={dS.tagTxt}>{'★'.repeat(Math.round(c.rating))}</Text></View>
-          )}
-          <RegionTag rs={rs} />
-        </View>
-      )}
+      <View style={dS.recordRow}>
+        <View style={dS.recVisit}><Text style={dS.recValDark}>{c.visits}</Text><Text style={dS.recLblDark}>방문</Text></View>
+        <View style={dS.recBest}><Text style={dS.recValWhite}>{c.best || '-'}</Text><Text style={dS.recLblWhite}>베스트</Text></View>
+        <View style={dS.recAvg}><Text style={dS.recValButter}>{c.avg || '-'}</Text><Text style={dS.recLblButter}>평균</Text></View>
+      </View>
 
-      {/* 펼친 상태 — 스코어카드 + 태그 + 메모 */}
-      {isOpen && (
-        <>
-          <View style={dS.recordRow}>
-            <View style={dS.recVisit}><Text style={dS.recValDark}>{c.visits}</Text><Text style={dS.recLblDark}>방문</Text></View>
-            <View style={dS.recBest}><Text style={dS.recValWhite}>{c.best || '-'}</Text><Text style={dS.recLblWhite}>베스트</Text></View>
-            <View style={dS.recAvg}><Text style={dS.recValButter}>{c.avg || '-'}</Text><Text style={dS.recLblButter}>평균</Text></View>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginBottom: c.memo ? 10 : 0 }}>
-            {c.tags.map((t, i) => <View key={`f${i}`} style={dS.tag}><Text style={dS.tagTxt}>{t}</Text></View>)}
-            <RegionTag rs={rs} />
-          </View>
-          {c.memo ? <Text style={dS.courseMemo}>"{c.memo}"</Text> : null}
-        </>
-      )}
-    </TouchableOpacity>
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+        <RegionTag rs={rs} />
+        {c.rating > 0 && (
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#C9A84C' }}>{'★'.repeat(Math.round(c.rating))}</Text>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -145,14 +111,11 @@ export function CourseLogTab({ avgRating, navigation }) {
   const { diaries } = React.useContext(DiariesContext);
   const [region, setRegion] = useState('domestic');
   const [countryFilter, setCountryFilter] = useState('전체');
-  const [expanded, setExpanded] = useState({});
   const [userCourses, setUserCourses] = useState([]);
   const [top100, setTop100] = useState([]);
   const [top100Open, setTop100Open] = useState(false);
   const [manualChecks, setManualChecks] = useState([]); // 사용자가 직접 체크한 100대 코스 rank
   const scrollRef = useRef(null);
-
-  const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
   // 등록 코스·100대·체크 로드 — 다이어리는 DiariesContext가 단일 소스라 별도 로드 X
   useEffect(() => {
@@ -174,13 +137,12 @@ export function CourseLogTab({ avgRating, navigation }) {
     return unsub;
   }, [navigation]);
 
-  // MY 탭 재탭 시 — 목록 맨 위로 + 기본 상태(국내·100대 접힘·카드 접힘)로
+  // MY 탭 재탭 시 — 목록 맨 위로 + 기본 상태(국내·100대 접힘)로
   useEffect(() => {
     if (!navigation) return;
     const unsub = navigation.addListener('tabPress', () => {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       setRegion('domestic');
-      setExpanded({});
     });
     return unsub;
   }, [navigation]);
@@ -219,7 +181,6 @@ export function CourseLogTab({ avgRating, navigation }) {
         const recs = e.records;
         const hasRecord = recs.length > 0;
         const scores = recs.map(r => r.score).filter(s => typeof s === 'number' && s > 0);
-        const ratings = recs.map(r => r.starRating).filter(s => typeof s === 'number' && s > 0);
         const recDates = recs.map(r => r.date).filter(Boolean);
         const schedDates = e.scheduleEntries.map(s => s.date).filter(Boolean);
         const allDates = [...new Set([...recDates, ...schedDates])].sort((a, b) => (b || '').localeCompare(a || ''));
@@ -241,7 +202,10 @@ export function CourseLogTab({ avgRating, navigation }) {
         if (!loc && courseKakaoId) loc = userCourses.find(u => u.kakaoId === courseKakaoId)?.loc || '';
         if (!loc) loc = userCourses.find(u => u.name === e.name)?.loc || '';
         if (!loc) loc = COURSE_LOG.find(c => c.name === e.name)?.loc || '';
-        const latestRec = [...recs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+        // 별점은 가장 최근에 매긴 평점 하나만 반영 (평균 아님)
+        const latestRatedRec = [...recs]
+          .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+          .find(r => typeof r.starRating === 'number' && r.starRating > 0);
         return {
           key: e.name,
           name: e.name,
@@ -252,9 +216,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           latestDate: allDates[0] || '',
           best: scores.length ? Math.min(...scores) : 0,
           avg: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
-          rating: ratings.length ? Math.round(ratings.reduce((s, v) => s + v, 0) / ratings.length * 10) / 10 : 0,
-          memo: latestRec?.memo || '',
-          tags: [...new Set(recs.flatMap(r => r.tags || []))],
+          rating: latestRatedRec?.starRating || 0,
         };
       })
       .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
@@ -294,7 +256,6 @@ export function CourseLogTab({ avgRating, navigation }) {
       .filter(e => e.records.length > 0 || e.scheduleEntries.length > 0)
       .map(e => {
         const recs = e.records;
-        const ratings = recs.map(r => r.starRating).filter(s => typeof s === 'number' && s > 0);
         const recDates = recs.map(r => r.date).filter(Boolean);
         const schedDates = e.scheduleEntries.map(s => s.date).filter(Boolean);
         const allDates = [...new Set([...recDates, ...schedDates])].sort((a, b) => (b || '').localeCompare(a || ''));
@@ -302,13 +263,13 @@ export function CourseLogTab({ avgRating, navigation }) {
         const unrecordedSched = e.scheduleEntries.filter(s =>
           !recs.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
         const visitCount = recs.length + unrecordedSched.length;
-        const latestRec = [...recs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+        const latestRatedRec = [...recs]
+          .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+          .find(r => typeof r.starRating === 'number' && r.starRating > 0);
         return {
           key: e.key, name: e.name, country: e.country,
           visits: visitCount,
-          rating: ratings.length ? Math.round(ratings.reduce((s, v) => s + v, 0) / ratings.length * 10) / 10 : 0,
-          tags: [...new Set(recs.flatMap(r => r.tags || []))],
-          memo: latestRec?.memo || '',
+          rating: latestRatedRec?.starRating || 0,
           latestDate: allDates[0] || '',
         };
       })
@@ -415,8 +376,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           ) : myCourses.map(c => {
             const rs = c.loc ? getRegionStyle(c.loc) : ETC_STYLE;
             return c.hasRecord
-              ? <RecordedCard key={c.key} c={c} rs={rs} navigation={navigation}
-                  isOpen={!!expanded[c.key]} onToggle={() => toggle(c.key)} />
+              ? <RecordedCard key={c.key} c={c} rs={rs} navigation={navigation} />
               : <UnrecordedCard key={c.key} c={c} rs={rs} onAdd={() => handleAddRecord(c)} />;
           })}
         </View>
@@ -460,12 +420,6 @@ export function CourseLogTab({ avgRating, navigation }) {
                   <Text style={dS.courseLoc}>{c.visits}회 방문</Text>
                 </View>
               </View>
-              {c.tags.length > 0 && (
-                <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginTop: 10, marginBottom: c.memo ? 10 : 0 }}>
-                  {c.tags.map((t, i) => <View key={`ot${i}`} style={dS.tag}><Text style={dS.tagTxt}>{t}</Text></View>)}
-                </View>
-              )}
-              {c.memo ? <Text style={[dS.courseMemo, { marginTop: c.tags.length > 0 ? 0 : 10 }]}>"{c.memo}"</Text> : null}
             </View>
           ))}
           {overseasCourses.length > 0 && hint}
