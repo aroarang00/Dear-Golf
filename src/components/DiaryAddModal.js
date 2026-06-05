@@ -417,7 +417,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               </View>
               <Text style={mS.bigLabel}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
               <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]}
-                placeholder={overseas ? '골프장 이름 입력' : '카카오로 골프장 검색 또는 직접 입력...'}
+                placeholder={overseas ? '골프장 이름 입력' : '골프장 검색 또는 직접 입력...'}
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
                 autoCorrect={false} autoCapitalize="none"
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); setSelectedCourseObj(null); }} />

@@ -339,7 +339,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             {type === 'fixed' && (
               <>
                 <Text style={mS.bigLabel}>골프장</Text>
-                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="카카오 검색으로 골프장 찾기..."
+                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="골프장 이름으로 검색..."
                   placeholderTextColor={C.warmGrayLight} value={courseQuery}
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseQuery(t); setCourse(null); }} />

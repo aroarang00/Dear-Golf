@@ -295,7 +295,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder={overseas ? '골프장 이름 입력' : '카카오 검색으로 골프장 찾기...'}
+                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder={overseas ? '골프장 이름 입력' : '골프장 이름으로 검색...'}
                   placeholderTextColor={C.warmGrayLight} value={courseSearch}
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseSearch(t); setSelected(null); }} />

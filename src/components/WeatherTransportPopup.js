@@ -777,7 +777,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                     <Text style={{ marginTop: 8, color: 'rgba(255,255,255,0.45)', fontSize: fs(12), textAlign: 'center', lineHeight: 18 }}>
                       {weatherOnly
                         ? '위치 권한을 확인하거나\n잠시 후 다시 시도해주세요'
-                        : '골프장 위치를 찾지 못했어요.\n일정 수정에서 카카오 검색으로\n골프장을 선택하면 정확해져요'}
+                        : '골프장 위치를 찾지 못했어요.\n일정 수정에서 골프장을 검색해\n선택하면 정확해져요'}
                     </Text>
                     <TouchableOpacity
                       onPress={() => setRetryTick(t => t + 1)}
