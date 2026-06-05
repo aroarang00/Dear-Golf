@@ -405,19 +405,19 @@ export function CourseLogTab({ avgRating, navigation }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontSize: fs(15) }}>✈️</Text>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Text style={dS.courseName}>{c.name}</Text>
+                  <Text style={dS.courseName}>{c.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                     {c.country ? (
                       <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         {getCountryFlag(c.country) ? <Text style={{ fontSize: fs(14) }}>{getCountryFlag(c.country)}</Text> : null}
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.navy }}>{c.country}</Text>
                       </View>
                     ) : null}
+                    <Text style={[dS.courseLoc, { marginBottom: 0 }]}>{c.visits}회 방문</Text>
                     {c.rating > 0 && (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#C9A84C' }}>{'★'.repeat(Math.round(c.rating))}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#C9A84C' }}>{'★'.repeat(Math.round(c.rating))}</Text>
                     )}
                   </View>
-                  <Text style={dS.courseLoc}>{c.visits}회 방문</Text>
                 </View>
               </View>
             </View>
