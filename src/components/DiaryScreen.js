@@ -230,8 +230,12 @@ export function DiaryScreen({ route, navigation }) {
       // 일정 캘린더·내 코스기록에서 날짜·골프장·일정ID를 미리 채워서 전달
       // scheduleId가 있으면 다이어리에 보존되어 같은 날 일정 N건 매칭 시 1:1 보장
       const { addDate, addCourse, addCourseId, addScheduleId, returnToSchedule } = route.params;
+      // 일정에서 진입 시 동반자도 함께 끌어옴 — route params로 객체배열을 직접 넘기지 않고
+      // scheduleId로 해당 일정을 찾아 companions를 채움(미기록 라운딩 선택 경로 pickRoundToRecord와 동일).
+      const seedSchedule = addScheduleId ? (schedules || []).find(s => s.id === addScheduleId) : null;
       setAddSeed((addDate || addCourse || addScheduleId)
-        ? { date: addDate, course: addCourse, courseId: addCourseId, scheduleId: addScheduleId || null }
+        ? { date: addDate, course: addCourse, courseId: addCourseId, scheduleId: addScheduleId || null,
+            companions: Array.isArray(seedSchedule?.companions) ? seedSchedule.companions : [] }
         : null);
       returnToScheduleRef.current = !!returnToSchedule;
       setShowModal(true);
