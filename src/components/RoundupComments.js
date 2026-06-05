@@ -168,6 +168,15 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, inpu
           </View>
         ) : (
           <>
+            {/* 이전 댓글 보기 — 최신 100개 밖의 더 오래된 댓글 (최신이 아래라 목록 맨 위, 더 오래된 건 위로 쌓임).
+                아래 첫 댓글 행의 상단 구분선이 경계 역할을 하므로 버튼 자체 보더는 두지 않음(이중선 방지). */}
+            {hasMore && (
+              <TouchableOpacity onPress={onLoadOlder} activeOpacity={0.7}
+                style={{ paddingVertical: 12, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>이전 댓글 보기</Text>
+              </TouchableOpacity>
+            )}
+
             {sorted.length === 0 ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                 <Text style={{ fontSize: fs(24), marginBottom: 8 }}>💬</Text>
@@ -182,14 +191,6 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, inpu
               sorted.map(c => (
                 <CommentRow key={c.id} comment={c} onPress={setActionComment} />
               ))
-            )}
-
-            {/* 이전 댓글 보기 — 최신 100개 밖의 더 오래된 댓글 (newest-first라 목록 맨 아래) */}
-            {hasMore && (
-              <TouchableOpacity onPress={onLoadOlder} activeOpacity={0.7}
-                style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>이전 댓글 보기</Text>
-              </TouchableOpacity>
             )}
 
             {/* 입력 영역 — 티오프+5h 후 비활성 / 총 300개 도달 시 작성 차단 */}

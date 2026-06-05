@@ -27,12 +27,12 @@ import { containsProfanity } from './profanityFilter';
 //  - pinned      : boolean. 한 모집글당 1개만 true.
 //  - pinnedAt    : ms epoch (정렬용, pinned=false면 null).
 
-// 댓글 정렬 — 고정 댓글 최상단 + 시간 역순 (최신 위로)
+// 댓글 정렬 — 고정 댓글 최상단 + 시간 정순 (최신 아래로, 입력창 바로 위에 가장 최근 댓글)
 export function sortComments(comments) {
   return [...comments].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    return b.createdAt - a.createdAt;
+    return a.createdAt - b.createdAt;
   });
 }
 
