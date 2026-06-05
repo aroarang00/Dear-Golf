@@ -430,6 +430,13 @@ service cloud.firestore {
       allow write: if false;     // 콘솔/관리자 스크립트로만 수정
     }
 
+    // ===== golfCourses — 전국 골프장 마스터 (공공데이터+카카오 매칭, 읽기 전용) =====
+    // 시딩: scripts/seedGolfCourses.mjs. 시딩 중에만 write 를 임시 true 로 열고, 끝나면 false 로 되돌려 배포.
+    match /golfCourses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if false;     // 콘솔/관리자 스크립트로만 수정
+    }
+
     // 위에 없는 모든 컬렉션은 기본 거부됨 (schedules·userCourses 등은 현재 로컬 보관)
   }
 }
