@@ -13,6 +13,8 @@ export const HIDDEN_UMBRELLA_BASES = ['라비에벨'];
 // ([[course-matching-unification]])
 export const SUPPLEMENT_COURSES = [
   { kakaoId: '737864917', name: '골프클럽Q', loc: '경기 안성시 죽산면 장계길 20-229', x: 127.38962558747431, y: 37.046870010310634, url: 'http://place.map.kakao.com/737864917' },
+  // 리베라CC: 36홀 정규 구장인데 카카오가 '파3골프장'으로 오분류 → isGolfCourse 화이트리스트에서 누락되어 보강.
+  { kakaoId: '7855617', name: '리베라CC', loc: '경기 화성시 동탄구 중리길 183', x: 127.11276460047024, y: 37.19028201340368, url: 'http://place.map.kakao.com/7855617' },
 ];
 
 // 골프장 이름에 섞여 들어오는 비(非)코스 잡항목 — 클럽하우스·연습장·스크린골프(골프존) 등. 카카오 결과·로컬 기록 공용 필터.
