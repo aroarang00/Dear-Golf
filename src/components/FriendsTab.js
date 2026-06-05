@@ -101,7 +101,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPr
   );
 }
 
-export function FriendsTab({ navigation, onInvite }) {
+export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const { userProfile } = React.useContext(UserContext);
   const { setFriendReqCount } = useContext(FriendBadgeContext);
   const [search, setSearch] = useState('');
@@ -115,6 +115,8 @@ export function FriendsTab({ navigation, onInvite }) {
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
+  // 친구 화면 파란 헤더의 '친구 찾기' 버튼이 이 finder를 열도록 핸들 노출 (진입점을 헤더로 드러냄)
+  useEffect(() => { if (openFinderRef) openFinderRef.current = setFinder; }, [openFinderRef]);
   const listScrollRef = useRef(null);
   const [reloadKey, setReloadKey] = useState(0);   // 탭 재진입 시 친구·신청 목록 재조회 트리거 (수락·신청 반영)
 
@@ -378,16 +380,6 @@ export function FriendsTab({ navigation, onInvite }) {
             returnKeyType="search"
           />
         </View>
-        {/* 친구 추가 — 받은 신청 있으면 빨간 점 */}
-        <TouchableOpacity onPress={() => setFinder('kakao')} activeOpacity={0.8}
-          style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: C.navy,
-            alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.bgPrimary, lineHeight: 22 }}>+</Text>
-          {receivedRequests.length > 0 && (
-            <View style={{ position: 'absolute', top: 4, right: 4, width: 9, height: 9, borderRadius: 5,
-              backgroundColor: '#E5484D', borderWidth: 1, borderColor: C.bgPrimary }} />
-          )}
-        </TouchableOpacity>
       </View>
 
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
@@ -448,7 +440,7 @@ export function FriendsTab({ navigation, onInvite }) {
         {!friendsLoaded ? <LoadingState /> : visible.length === 0 ? (
           q ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36, lineHeight: 19 }}>
-              내 친구 중엔 없어요.{'\n'}새 친구는 위 <Text style={{ fontFamily: F.sysB, color: C.navy }}>+</Text> 버튼으로 찾아 추가하세요.
+              내 친구 중엔 없어요.{'\n'}새 친구는 헤더 <Text style={{ fontFamily: F.sysB, color: C.navy }}>🔍 친구 찾기</Text>로 추가하세요.
             </Text>
           ) : (
             /* 빈 화면 가이드 — 친구 0명 */

@@ -38,6 +38,7 @@ import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundups
 import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore, subscribeLatestComments, mergeLiveComments } from '../utils/comments';
 import { getUid, auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { shareInvite } from '../utils/invite';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
@@ -1681,14 +1682,23 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', lineHeight: 17 }}>
                   ⬆ 실제 모집글이 올라오면 이렇게 보여요
                 </Text>
+                {/* 모임 초대 — 빈 라운지의 1순위 레버: 내 골프 모임 단톡방에 통째로 ([[lounge-positioning]]) */}
+                <TouchableOpacity onPress={shareInvite} activeOpacity={0.85}
+                  style={{ marginTop: 14, backgroundColor: C.butter, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>📩 골프 모임 초대하기</Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={tryOpenCreate} activeOpacity={0.85}
-                  style={{ marginTop: 14, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                  style={{ marginTop: 8, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>+ 첫 모집글 작성하기</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleOpenIntroManually} activeOpacity={0.85}
                   style={{ marginTop: 8, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>📢 라운지 소개 다시 보기</Text>
                 </TouchableOpacity>
+                {/* 솔로 가치 안심 — 친구 없어도 죽은 앱 아님 ([[lounge-positioning]] cold-start 쿠션) */}
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', lineHeight: 16, marginTop: 12 }}>
+                  친구가 아직 없어도{'\n'}기록·코스·통계는 지금 바로 쓸 수 있어요
+                </Text>
               </View>
             </View>
           )
