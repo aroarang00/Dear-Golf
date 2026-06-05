@@ -12,7 +12,7 @@ import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
 import { hofBgColor } from './HallOfFameCard';
 import { PhotoEditModal } from './PhotoEditModal';
-import { FocalAdjustModal } from './common/FocalAdjustModal';
+import { CropEditorModal } from './common/CropEditorModal';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
@@ -26,7 +26,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
   const [isEditing, setIsEditing] = useState(false);
   const [editPhotos, setEditPhotos] = useState(item.photos || []);
   const [editorIndex, setEditorIndex] = useState(null);
-  const [focusIndex, setFocusIndex] = useState(null); // 보여줄 부분(초점) 조정 대상
+  const [cropIndex, setCropIndex] = useState(null); // 자르기(크롭) 대상 사진 인덱스
 
   useEffect(() => {
     setEditPhotos(item.photos || []);
@@ -81,8 +81,8 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
             });
           },
         },
-        // 영상은 자동 첫프레임 포스터라 초점 조정 제외 ([[cover-focal-point]])
-        ...(isVideo ? [] : [{ text: '보여줄 부분 조정', onPress: () => setFocusIndex(index) }]),
+        // 영상은 자동 첫프레임 포스터라 자르기 제외 ([[cover-focal-point]])
+        ...(isVideo ? [] : [{ text: '자르기', onPress: () => setCropIndex(index) }]),
         {
           text: '삭제',
           style: 'destructive',
@@ -357,20 +357,21 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
           setEditorIndex(null);
         }}
       />
-      <FocalAdjustModal
-        visible={focusIndex !== null}
-        uri={focusIndex !== null ? resolvePhotoUri(typeof editPhotos[focusIndex] === 'object' ? editPhotos[focusIndex].uri : editPhotos[focusIndex]) : null}
-        focus={focusIndex !== null && typeof editPhotos[focusIndex] === 'object' ? editPhotos[focusIndex].focus : null}
-        onClose={() => setFocusIndex(null)}
-        onSave={(focus) => {
-          // 문자열 사진이면 객체로 승격해 focus 보존. uri는 원본 그대로 유지(원본 안 자름).
+      <CropEditorModal
+        visible={cropIndex !== null}
+        aspect="cover"
+        uri={cropIndex !== null ? resolvePhotoUri(typeof editPhotos[cropIndex] === 'object' ? (editPhotos[cropIndex].orig || editPhotos[cropIndex].uri) : editPhotos[cropIndex]) : null}
+        onClose={() => setCropIndex(null)}
+        onSave={async (croppedUri) => {
+          const persisted = await persistPhoto(croppedUri);
           setEditPhotos(prev => {
             const next = [...prev];
-            const orig = next[focusIndex];
-            next[focusIndex] = typeof orig === 'object' ? { ...orig, focus } : { uri: orig, focus };
+            const cur = next[cropIndex];
+            const origStored = typeof cur === 'object' ? (cur.orig || cur.uri) : cur; // 재편집용 원본 보관
+            next[cropIndex] = { uri: persisted, orig: origStored };
             return next;
           });
-          setFocusIndex(null);
+          setCropIndex(null);
         }}
       />
       <DiaryAddModal

@@ -36,8 +36,13 @@ async function uploadOne(uid, item, i) {
     const storageRef = ref(storage, `rounds/${uid}/${name}`);
     await uploadBytes(storageRef, blob, { contentType }); // contentType 명시 — Storage 규칙 image/*·video/* 매칭 보장
     const url = await getDownloadURL(storageRef);
-    // 사진 객체({uri, focus})는 focus 등 메타 보존, 단순 문자열 사진은 그대로 https 문자열 ([[cover-focal-point]])
-    if (!isVideo) return isObj ? { ...item, uri: url } : url;
+    // 사진 객체({uri, focus})는 메타 보존, 단순 문자열 사진은 그대로 https 문자열 ([[cover-focal-point]])
+    //   단 orig(로컬 재편집용 원본 dgphoto:)는 친구가 못 읽는 로컬 식별자라 업로드 데이터에선 제거.
+    if (!isVideo) {
+      if (!isObj) return url;
+      const { orig, ...rest } = item;
+      return { ...rest, uri: url };
+    }
     // 영상은 첫 프레임 포스터(jpg)도 같이 업로드 → 안드 원격 썸네일 안정화 (실패해도 영상은 유지) ([[friend-feed-design]]).
     const poster = await uploadVideoPoster(uid, localUri, i);
     return poster ? { ...item, uri: url, poster } : { ...item, uri: url };

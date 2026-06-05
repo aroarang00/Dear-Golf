@@ -17,7 +17,7 @@ import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils/scorecardOcr';
 import { ScorecardReviewModal } from './ScorecardReviewModal';
-import { FocalAdjustModal } from './common/FocalAdjustModal';
+import { CropEditorModal } from './common/CropEditorModal';
 import { showAppAlert } from './AppAlert';
 
 const COST_ITEMS = [
@@ -96,7 +96,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [specialMemo, setSpecialMemo] = useState('');
   const [addPhotos, setAddPhotos] = useState([]);
   const [photoBusy, setPhotoBusy] = useState(false); // 사진 추가(압축·영속) 처리 중 — 끝나기 전 저장 시 사진 누락되던 경합 방지
-  const [focusIdx, setFocusIdx] = useState(null); // 보여줄 부분(초점) 조정 대상
+  const [cropIdx, setCropIdx] = useState(null); // 자르기(크롭) 대상 사진 인덱스
   const [companions, setCompanions] = useState([]);
   const [companionInput, setCompanionInput] = useState('');
 
@@ -808,7 +808,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   {addPhotos.map((item, i) => (
                     <AddPhotoThumb key={i} item={item}
                       onRemove={() => setAddPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                      onAdjust={() => setFocusIdx(i)} />
+                      onAdjust={() => setCropIdx(i)} />
                   ))}
                   {addPhotos.length < MAX_PHOTOS && (
                     <TouchableOpacity onPress={pickPhoto} disabled={photoBusy}
@@ -841,19 +841,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           failed={scFailed}
           onConfirm={handleScorecardConfirm}
           onClose={() => setScReview(false)} />
-        <FocalAdjustModal
-          visible={focusIdx !== null}
-          uri={focusIdx !== null ? resolvePhotoUri(typeof addPhotos[focusIdx] === 'object' ? addPhotos[focusIdx].uri : addPhotos[focusIdx]) : null}
-          focus={focusIdx !== null && typeof addPhotos[focusIdx] === 'object' ? addPhotos[focusIdx].focus : null}
-          onClose={() => setFocusIdx(null)}
-          onSave={(focus) => {
+        <CropEditorModal
+          visible={cropIdx !== null}
+          aspect="cover"
+          uri={cropIdx !== null ? resolvePhotoUri(typeof addPhotos[cropIdx] === 'object' ? (addPhotos[cropIdx].orig || addPhotos[cropIdx].uri) : addPhotos[cropIdx]) : null}
+          onClose={() => setCropIdx(null)}
+          onSave={async (croppedUri) => {
+            const persisted = await persistPhoto(croppedUri);
             setAddPhotos(prev => {
               const next = [...prev];
-              const orig = next[focusIdx];
-              next[focusIdx] = typeof orig === 'object' ? { ...orig, focus } : { uri: orig, focus };
+              const cur = next[cropIdx];
+              const origStored = typeof cur === 'object' ? (cur.orig || cur.uri) : cur; // 재편집용 원본 보관
+              next[cropIdx] = { uri: persisted, orig: origStored };
               return next;
             });
-            setFocusIdx(null);
+            setCropIdx(null);
           }} />
     </Modal>
   );
@@ -903,12 +905,12 @@ function AddPhotoThumb({ item, onRemove, onAdjust }) {
           </View>
         </View>
       ) : onAdjust ? (
-        // 사진 탭 = 보여줄 부분(초점) 조정. 하단에 작은 안내 칩으로 가능함을 인지 ([[cover-focal-point]])
+        // 사진 탭 = 자르기(크롭) 편집. 하단에 작은 안내 칩으로 가능함을 인지 ([[cover-focal-point]])
         <TouchableOpacity activeOpacity={0.85} onPress={onAdjust} style={imgStyle}>
           <Image source={{ uri: src }} style={imgStyle} />
           <View style={{ position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', alignItems: 'center',
             backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={{ color: '#fff', fontSize: fs(9) }}>✛ 보여줄 부분</Text>
+            <Text style={{ color: '#fff', fontSize: fs(9) }}>✂ 자르기</Text>
           </View>
         </TouchableOpacity>
       ) : (
