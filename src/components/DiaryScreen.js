@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { C, F, fs } from '../constants/colors';
@@ -28,9 +28,9 @@ import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '.
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { uploadAvatar } from '../utils/avatarStorage';
+import { CropEditorModal } from './common/CropEditorModal';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { getUid } from '../utils/firebase';
-import { compressImage } from '../utils/imageCompress';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
@@ -92,6 +92,7 @@ export function DiaryScreen({ route, navigation }) {
   const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
+  const [avatarCropUri, setAvatarCropUri] = useState(null); // 아바타 1:1 크롭 대상(갤러리 선택 후, 크롭 전 raw uri)
   const [addSeed, setAddSeed] = useState(null);
   const [showPickSheet, setShowPickSheet] = useState(false);
   // 친구 좋아요 — 친구 닉네임 맵 로드(마운트 1회) + 화면 포커스 시 내 다이어리 재로드(타인발 좋아요 반영).
@@ -433,20 +434,15 @@ export function DiaryScreen({ route, navigation }) {
       })();
     }
   };
-  const pickAvatarImage = async () => {
+  // 갤러리에서 원본만 고르고(네이티브 크롭 미사용), 인앱 CropEditorModal(1:1)로 크롭 → 안드·iOS 동일.
+  const pickAvatarImageRaw = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        // 안드 allowsEditing=시스템 크롭 인텐트 → 크롭 후 '선택(확정)'이 먹지 않는 기기 버그.
-        // 안드는 크롭 생략(원형 아바타가 cover로 가운데 정렬되어 무방), iOS만 1:1 크롭 유지.
-        allowsEditing: Platform.OS === 'ios',
-        aspect: [1, 1],
-        quality: 0.8,
+        quality: 1, // 크롭 전이라 원본 화질 유지 (크롭 시 600px·압축됨)
       });
       if (result.canceled) return null;
-      // 프로필은 표시 영역이 작아 600px·80%로 압축 (다이어리 사진보다 더 작게)
-      const compressed = await compressImage(result.assets[0].uri, { maxWidth: 600 });
-      return await persistPhoto(compressed);
+      return result.assets[0].uri;
     } catch (e) {
       console.warn('[DiaryScreen] 이미지 선택 오류', e?.message);
       return null;
@@ -454,7 +450,7 @@ export function DiaryScreen({ route, navigation }) {
   };
   // 자체 오버레이 시트로 처리 — Modal 위에서 갤러리 피커 호출 시 전환 충돌 회피
   const avatarOptions = [
-    { text: '갤러리에서 선택', onPress: async () => { const uri = await pickAvatarImage(); if (uri) persistProfile({ avatarUri: uri }); } },
+    { text: '갤러리에서 선택', onPress: async () => { const uri = await pickAvatarImageRaw(); if (uri) setAvatarCropUri(uri); } },
     ...(userProfile.kakaoLinked
       ? [{ text: '카카오 프로필 사진 가져오기', onPress: async () => {
           const uri = await fetchKakaoProfileImage();
@@ -847,6 +843,18 @@ export function DiaryScreen({ route, navigation }) {
           </View>
         </TouchableOpacity>
       )}
+
+      {/* 프로필 사진 1:1 크롭 — 갤러리 선택 후 (안드·iOS 동일 인앱 크롭) */}
+      <CropEditorModal
+        visible={!!avatarCropUri}
+        aspect="avatar"
+        uri={avatarCropUri}
+        onClose={() => setAvatarCropUri(null)}
+        onSave={async (croppedUri) => {
+          setAvatarCropUri(null);
+          const persisted = await persistPhoto(croppedUri); // 크롭에디터가 이미 600px·압축 출력
+          if (persisted) persistProfile({ avatarUri: persisted });
+        }} />
     </SafeAreaView>
   );
 }
