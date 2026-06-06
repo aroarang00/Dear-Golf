@@ -1,5 +1,6 @@
-import { initializeKakaoSDK, getAccessToken } from '@react-native-kakao/core';
+import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { login, loginWithNewScopes, me } from '@react-native-kakao/user';
+import { getFriends } from '@react-native-kakao/social';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
 import { storage, STORAGE_KEYS } from './storage';
@@ -106,40 +107,28 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
   }
 }
 
-// 카카오 친구 목록 — '앱 사용 친구(=Dear Golf 가입자)'만 반환(카카오 친구 제공 4조건).
-//   SDK엔 친구 API가 없어 accessToken으로 REST(/v1/api/talk/friends) 직접 호출. friends scope 동의 필요.
+// 카카오 친구 목록 — '앱 사용 친구(=Dear Golf 가입자)'만 반환.
+//   @react-native-kakao/social getFriends() 사용(네이티브가 토큰 처리 — getAccessToken은 토큰 문자열을 안 줘 REST 불가).
+//   KakaoTalkFriend.id(회원번호)는 앱과 연결된 친구에게만 존재 → id 있는 친구 = 가입자.
+//   friends scope 미동의면 getFriends가 throw → no-consent로 매핑해 '동의하고 친구 찾기' 유도.
 //   반환: { ok:true, friends:[{kakaoId, nickname, profileImageUrl, favorite}], total } | { ok:false, error }
-//   error: 'no-consent'(403, friends 미동의) | 'no-token'(401·토큰없음, 재로그인) | 'http-NNN' | 'fetch-failed'
 export async function getKakaoFriends() {
-  let accessToken;
   try {
-    const info = await getAccessToken();
-    // @react-native-kakao getAccessToken 반환이 객체({accessToken})거나 문자열일 수 있어 모두 대응
-    accessToken = info?.accessToken || (typeof info === 'string' ? info : null);
-  } catch (e) {
-    return { ok: false, error: 'no-token' };
-  }
-  if (!accessToken) return { ok: false, error: 'no-token' };
-  try {
-    const res = await fetch('https://kapi.kakao.com/v1/api/talk/friends', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (res.status === 403) return { ok: false, error: 'no-consent' };
-    if (res.status === 401) return { ok: false, error: 'no-token' };
-    if (!res.ok) return { ok: false, error: `http-${res.status}` };
-    const data = await res.json();
-    const friends = (data.elements || [])
+    const res = await getFriends({});
+    const friends = (res?.friends || [])
+      .filter(f => f.id != null)   // id 있는 친구 = 앱 연결(가입) 친구
       .map(f => ({
-        kakaoId: f.id != null ? String(f.id) : null,
-        nickname: f.profile_nickname || '',
-        profileImageUrl: f.profile_thumbnail_image || null,
+        kakaoId: String(f.id),
+        nickname: f.profileNickname || '',
+        profileImageUrl: f.profileThumbnailImage || null,
         favorite: !!f.favorite,
-      }))
-      .filter(f => f.kakaoId);
-    return { ok: true, friends, total: data.total_count ?? friends.length };
+      }));
+    return { ok: true, friends, total: res?.totalCount ?? friends.length };
   } catch (e) {
-    if (__DEV__) console.warn('[kakao] getKakaoFriends 실패', e?.message);
-    return { ok: false, error: 'fetch-failed' };
+    // friends 미동의면 getFriends가 throw. 네이티브 에러 코드가 플랫폼마다 달라
+    // 첫 사용 시 가장 흔한 '미동의'로 우선 처리 → '동의하고 친구 찾기'(loginWithNewScopes) 유도.
+    if (__DEV__) console.warn('[kakao] getFriends 실패', e?.code || e?.message);
+    return { ok: false, error: 'no-consent' };
   }
 }
 
