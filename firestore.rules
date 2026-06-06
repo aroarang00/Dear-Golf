@@ -140,6 +140,10 @@ service cloud.firestore {
         //   areFriends는 다중 author array-contains 쿼리에서 또 쿼리거부를 유발해 제외. audienceUids가 작성자 친구로 한정돼 안전.
         || (resource.data.scope == 'select'
             && request.auth.uid in resource.data.audienceUids)
+        // 참여자는 자기가 든 모집을 항상 read 가능 — 친구관계가 끊겨도(탈퇴 cascade의 친구삭제 등)
+        //   participantUids array-contains 쿼리가 통째 거부되어 참여자 제거가 실패하던 문제 방지.
+        //   본인이 이미 참여 중인 모집이라 정보 노출 위험 없음.
+        || request.auth.uid in resource.data.participantUids
       );
       // 전체공개(all) 생성 비활성화 — 2026-06-01 ([[roundup-public-disabled]]). UI 게이팅에 더해 방어적 차단.
       //   친구공개(friends)·친구지정(select)만 허용. 전체공개 부활 시 'all' 추가.
