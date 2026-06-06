@@ -30,6 +30,7 @@ export const STORAGE_KEYS = {
   kickCount: '@dg_kick_count',                  // 주최자 강퇴 월 2회 한도 — { yearMonth: '2026-05', count: 0 } ([[roundup-kick-policy]] §4)
   friendRequestCount: '@dg_friend_request_count', // 친구 신청 일 10건 한도 — { date: '2026.05.27', count: 0 } ([[friend-add-feature]])
   sentFriendRequests: '@dg_sent_friend_requests', // 보낸 친구 신청 id 배열 — ['userId', ...]
+  kakaoTrace: '@dg_kakao_trace',  // 카카오 연동 흔적(true) — 익명 세션으로 떨어졌을 때 '카카오로 다시 연결' 배너 판단용 ([[anonymous-user-policy]] 복귀 경로)
 };
 
 export const storage = {

@@ -14,13 +14,15 @@ import { calculateAgeFromKakao, ADULT_AGE } from '../utils/age';
 export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
   const [loading, setLoading] = useState(false);
 
-  // "나중에 하기" — 정책 §2: 카카오 로그인 거부 시 가입 제한.
-  // dev에서만 통과 (개발 편의), prod에선 안내 모달 + 차단.
+  // "나중에 하기" 정책 ([[anonymous-user-policy]] 2026-06-06 확정):
+  //  - prod: 익명 진입 허용(혼자 기능 OK). ★출시 전 여기에 '면책 동의 모달'(①)을 붙여
+  //    "기록은 이 기기에만 저장·복구 불가 / 소셜은 연동 후" 고지 후 진행하도록 교체할 것.
+  //  - dev: uid 안정화 테스트 중 익명 드리프트를 막기 위해 카카오 강제(건너뛰기 차단).
   const handleSkip = () => {
-    if (!__DEV__) {
+    if (__DEV__) {
       Alert.alert(
-        '카카오 로그인이 필요해요',
-        'Dear Golf는 만 19세 성인 인증을 위해 카카오 로그인이 필수예요.',
+        '개발 빌드 안내',
+        'uid 안정화 테스트 중이라\n개발 빌드에서는 카카오 로그인이 필요해요.\n(출시 빌드는 익명 진입을 허용해요)',
       );
       return;
     }
@@ -144,8 +146,8 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
           </Text>
         </TouchableOpacity>
 
-        {/* 건너뛰기 */}
-        <TouchableOpacity onPress={onSkip} activeOpacity={0.7} disabled={loading}
+        {/* 건너뛰기 — dev는 차단(handleSkip), prod는 익명 허용 (출시 전 면책 동의 모달로 교체 예정) */}
+        <TouchableOpacity onPress={handleSkip} activeOpacity={0.7} disabled={loading}
           style={{ marginTop: 14, alignItems: 'center', paddingVertical: 12 }}>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>
             나중에 하기

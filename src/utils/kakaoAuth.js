@@ -1,6 +1,7 @@
 import { login, getProfile, getAccessToken } from '@react-native-seoul/kakao-login';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
+import { storage, STORAGE_KEYS } from './storage';
 
 // 카카오 네이티브 SDK 로그인.
 // 카카오톡 앱이 있으면 앱으로, 없으면 카카오계정 웹으로 로그인.
@@ -75,12 +76,14 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
   try {
     // ① 익명 계정을 카카오 신원으로 승격 — uid가 유지돼 rounds·friendships 데이터 보존
     const result = await linkWithCredential(current, credential);
+    await storage.save(STORAGE_KEYS.kakaoTrace, true);  // 복귀 배너 판단용 흔적
     return { ok: true, mode: 'linked', uid: result.user.uid };
   } catch (e) {
     // ② 이 카카오에 이미 Firebase 계정이 있음 → 기존 계정으로 로그인 (uid 변경됨)
     if (e?.code === 'auth/credential-already-in-use') {
       try {
         const result = await signInWithCredential(auth, credential);
+        await storage.save(STORAGE_KEYS.kakaoTrace, true);  // 복귀 배너 판단용 흔적
         return { ok: true, mode: 'existing', uid: result.user.uid };
       } catch (e2) {
         console.warn('[kakao-firebase] signIn 실패', e2?.code || e2?.message);
@@ -89,6 +92,7 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
     }
     // ③ 현재 계정에 이미 카카오가 연결돼 있음
     if (e?.code === 'auth/provider-already-linked') {
+      await storage.save(STORAGE_KEYS.kakaoTrace, true);  // 복귀 배너 판단용 흔적
       return { ok: true, mode: 'already', uid: current.uid };
     }
     // 그 외 — auth/invalid-credential(aud 불일치), nonce 오류 등은
