@@ -1,7 +1,11 @@
-import { login, getProfile, getAccessToken } from '@react-native-seoul/kakao-login';
+import { initializeKakaoSDK, getAccessToken } from '@react-native-kakao/core';
+import { login, loginWithNewScopes, me } from '@react-native-kakao/user';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
 import { storage, STORAGE_KEYS } from './storage';
+
+// 카카오 네이티브 SDK 초기화 — 모듈 로드 시 1회. nativeAppKey는 .env/EAS env에서 주입(app.config.js 플러그인과 동일 키).
+initializeKakaoSDK(process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY);
 
 // 카카오 네이티브 SDK 로그인.
 // 카카오톡 앱이 있으면 앱으로, 없으면 카카오계정 웹으로 로그인.
@@ -20,7 +24,7 @@ export async function loginWithKakao() {
 
     step = 'getProfile';
     console.log('[kakao] 3. getProfile() 호출');
-    const profile = await getProfile();
+    const profile = await me();
     // dev 콘솔에도 카카오 user id·닉네임·생년월일은 노출 X (PII). boolean으로만 디버그.
     // prod 빌드는 babel transform-remove-console로 어차피 제거됨.
     console.log('[kakao] 4. getProfile() 성공', {
@@ -110,7 +114,8 @@ export async function getKakaoFriends() {
   let accessToken;
   try {
     const info = await getAccessToken();
-    accessToken = info?.accessToken;
+    // @react-native-kakao getAccessToken 반환이 객체({accessToken})거나 문자열일 수 있어 모두 대응
+    accessToken = info?.accessToken || (typeof info === 'string' ? info : null);
   } catch (e) {
     return { ok: false, error: 'no-token' };
   }
@@ -143,14 +148,26 @@ export async function getKakaoFriends() {
 export async function fetchKakaoProfileImage() {
   const pick = (p) => p?.profileImageUrl || p?.thumbnailImageUrl || null;
   try {
-    return pick(await getProfile());
+    return pick(await me());
   } catch (e) {
     try {
       await login();
-      return pick(await getProfile());
+      return pick(await me());
     } catch (e2) {
       console.warn('[kakao] 프로필 이미지 가져오기 실패', e2?.message || e2);
       return null;
     }
+  }
+}
+
+// 카카오 친구목록 추가 동의 요청 ([[kakao-friend-api-design]]) — FriendFinder '동의하고 친구 찾기'에서 호출.
+// loginWithNewScopes로 friends 스코프 추가동의를 받아야 getKakaoFriends(talk/friends)가 403을 면한다.
+export async function requestKakaoFriendsConsent() {
+  try {
+    await loginWithNewScopes({ scopes: ['friends'] });
+    return { ok: true };
+  } catch (e) {
+    console.warn('[kakao] friends 추가동의 실패', e?.code || e?.message);
+    return { ok: false, error: e?.code || e?.message || 'consent-failed' };
   }
 }

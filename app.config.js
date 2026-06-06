@@ -111,10 +111,9 @@ module.exports = {
         },
       ],
       [
-        '@react-native-seoul/kakao-login',
+        '@react-native-kakao/core',
         {
-          kakaoAppKey: process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY,
-          kotlinVersion: '2.0.21',
+          nativeAppKey: process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY,
         },
       ],
       [

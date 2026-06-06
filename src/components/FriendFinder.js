@@ -5,7 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
 import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
 import { searchUsersByNickname, findKakaoFriendUsers } from '../utils/friends';
-import { loginWithKakao } from '../utils/kakaoAuth';
+import { requestKakaoFriendsConsent } from '../utils/kakaoAuth';
 
 // 아바타 색상 — 이름 글자 기준 순환
 const AVATARS = [
@@ -231,7 +231,7 @@ export function FriendFinder({
                     <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19, marginBottom: 16 }}>
                       카카오 친구 중 Dear Golf 가입자를 찾으려면{'\n'}'카카오 친구 목록' 제공 동의가 필요해요.
                     </Text>
-                    <TouchableOpacity onPress={async () => { try { await loginWithKakao(); } catch (e) {} setKakaoState('idle'); }}
+                    <TouchableOpacity onPress={async () => { try { await requestKakaoFriendsConsent(); } catch (e) {} setKakaoState('idle'); }}
                       activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.burgundy }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>동의하고 친구 찾기</Text>
                     </TouchableOpacity>
