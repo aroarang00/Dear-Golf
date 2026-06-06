@@ -1,6 +1,9 @@
 // app.config.js — app.json을 대체하는 동적 설정. .env / EAS env vars에서 키 주입.
 // EXPO_PUBLIC_* 변수는 빌드 번들에 인라인되므로 진짜 비밀 키는 서버 프록시(Cloud Functions)로 보호. [[project_api_key_security]]
 // 로컬 dev: .env 파일 자동 로드 / EAS build: 콘솔 등록된 env vars 주입.
+// ⚠️ eas CLI는 app.config 평가 시 .env를 자동 로드하지 않아 plugin 키(kakao nativeAppKey)가 비어 throw됨 →
+//    여기서 명시 로드. 클라우드 빌드엔 .env가 없으므로 EAS env vars(EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY)도 등록돼 있어야 함.
+try { require('dotenv').config(); } catch (e) {}
 
 module.exports = {
   expo: {
