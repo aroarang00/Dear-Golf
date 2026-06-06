@@ -56,8 +56,8 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, letterSpacing: 3, marginBottom: 14 }}>
                   ALL IN ONE GOLF
                 </Text>
-                <Text allowFontScaling={false}
-                  style={{ fontFamily: F.brand, fontSize: fs(40), lineHeight: fs(52), color: C.butter, paddingHorizontal: 6,
+                <Text allowFontScaling={false} numberOfLines={1}
+                  style={{ fontFamily: F.brand, fontSize: fs(40), lineHeight: fs(52), color: C.butter, paddingHorizontal: 18, includeFontPadding: false,
                     textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }}>
                   Dear Golf
                 </Text>
