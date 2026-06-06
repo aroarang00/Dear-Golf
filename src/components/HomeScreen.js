@@ -3,7 +3,6 @@ import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
   Share, Alert, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState,
 } from 'react-native';
-import { showAppAlert } from './AppAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
@@ -49,8 +48,6 @@ export function HomeScreen({ navigation, route }) {
   const [upcomingPos, setUpcomingPos] = useState({ x: 0, y: 0 });
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [cardSlide, setCardSlide] = useState(0);
-  const [showDDayMenu, setShowDDayMenu] = useState(false);
-  const [dDayPos, setDDayPos] = useState({ x: 0, y: 0 });
   const [now, setNow] = useState(Date.now());
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   const { diaries } = React.useContext(DiariesContext);
@@ -69,7 +66,6 @@ export function HomeScreen({ navigation, route }) {
   };
   const [homeTopComment, setHomeTopComment] = useState(null);
   const [wxEmoji, setWxEmoji] = useState('☀️'); // 헤더 현재 날씨 이모지
-  const dDayRef = useRef(null);
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
 
@@ -120,13 +116,6 @@ export function HomeScreen({ navigation, route }) {
     }
   };
 
-  const openDDayMenu = () => {
-    dDayRef.current?.measureInWindow((x, y) => {
-      setDDayPos({ x, y });
-      setShowDDayMenu(true);
-    });
-  };
-
   // '예정 라운딩' 라벨 탭 → 라벨 위쪽에 예정 라운딩 목록 팝업
   const openUpcomingList = () => {
     upcomingLabelRef.current?.measureInWindow((x, y) => {
@@ -143,7 +132,6 @@ export function HomeScreen({ navigation, route }) {
       setShowWeatherFull(false);
       setShowTrafficFull(false);
       setShowWeatherPopup(false);
-      setShowDDayMenu(false);
       setEditScheduleTarget(null);
       setSelectedSchedule(null);
       setPendingAlarmSchedule(null);
@@ -336,28 +324,6 @@ export function HomeScreen({ navigation, route }) {
   const handleEditSchedule = (s) => {
     setShowScheduleModal(false);
     setEditScheduleTarget(s);
-  };
-
-  const handleDeleteSchedule = (s) => {
-    if (!s) return;
-    showAppAlert(
-      '일정 삭제',
-      `${s.course}\n${s.date} ${s.day} · ${s.time}\n\n이 일정을 삭제할까요?`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: async () => {
-            try { await removeSchedule(s.id); }
-            catch (e) { console.warn('[home] schedule remove failed:', e?.message); return; }
-            cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소 (캘린더 제거는 removeSchedule이 일괄 처리)
-            setShowScheduleModal(false);
-            setSelectedSchedule(null);
-          },
-        },
-      ],
-    );
   };
 
   const handleScheduleSave = async (type, data) => {
@@ -576,8 +542,7 @@ export function HomeScreen({ navigation, route }) {
                   </TouchableOpacity>
                   <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                     <TouchableOpacity
-                      ref={dDayRef}
-                      onPress={openDDayMenu}
+                      onPress={() => openScheduleSheet(next)}
                       activeOpacity={0.7}
                       style={{ alignSelf: 'flex-start' }}>
                       <Text style={homeS.cardDDay}>D-{freshDDay(next)}</Text>
@@ -879,72 +844,6 @@ export function HomeScreen({ navigation, route }) {
                   );
                 })}
               </ScrollView>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={showDDayMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDDayMenu(false)}>
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          activeOpacity={1}
-          onPress={() => setShowDDayMenu(false)}>
-          {/* 안드: measureInWindow와 Modal 좌표계가 상태바 높이만큼 어긋나 말풍선이 위로 뜸 → insets.top 만큼 내림(iOS 영향 없음) */}
-          <View style={{ position: 'absolute', left: dDayPos.x, top: dDayPos.y + (Platform.OS === 'android' ? insets.top : 0), width: 0, height: 0 }}>
-            <View style={{
-              position: 'absolute',
-              bottom: 10,
-              left: 0,
-              backgroundColor: '#FAF6EC',
-              borderRadius: 14,
-              minWidth: 180,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.3,
-              shadowRadius: 32,
-              elevation: 20,
-            }}>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={async () => {
-                  if (!next) { setShowDDayMenu(false); return; }
-                  try {
-                    await handleShareSchedule(next);
-                  } catch (e) { console.warn('[share schedule]', e?.message); }
-                  setShowDDayMenu(false);
-                }}
-                style={{ paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#3D3935' }}>📩  일정 공유</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => { setShowDDayMenu(false); handleEditSchedule(next); }}
-                style={{ paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#E8E2D0' }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#3D3935' }}>✏️  일정 수정</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => { setShowDDayMenu(false); handleDeleteSchedule(next); }}
-                style={{ paddingVertical: 13, paddingHorizontal: 16 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#D32F2F' }}>🗑️  일정 삭제</Text>
-              </TouchableOpacity>
-              <View style={{
-                position: 'absolute',
-                top: '100%',
-                left: 20,
-                width: 0,
-                height: 0,
-                borderLeftWidth: 8,
-                borderRightWidth: 8,
-                borderTopWidth: 10,
-                borderLeftColor: 'transparent',
-                borderRightColor: 'transparent',
-                borderTopColor: '#FAF6EC',
-              }} />
             </View>
           </View>
         </TouchableOpacity>
