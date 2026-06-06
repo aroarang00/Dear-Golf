@@ -625,6 +625,10 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const airForScore = isTodayWx ? airQuality : null;
   const uvForScore = isTodayWx ? uvIndex : null;
 
+  // 코스 둘러보기(isPreview)는 실제 예정 라운딩이 아님 — GuideScreen이 '오늘 07:00 가상 일정'으로 열기 때문에
+  // dDay가 0으로 들어온다. '라운딩 시점' 정밀 라벨·티오프 배지·10일예보 라운딩 배지에서 제외하고 현재 날씨로 안내.
+  const isRealRound = !weatherOnly && !schedule?.overseas && !schedule?.isPreview && Number.isFinite(schedule?.dDay);
+
   // 티오프와 가장 가까운 슬롯 — 90분(슬롯 간격의 절반) 초과면 표시 안 함
   // (이른 슬롯이 base_time 이전이라 빠진 경우 멀리 떨어진 오후 슬롯에 잘못 붙는 것 방지)
   const teeoffSlotIdx = (() => {
@@ -637,8 +641,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   })();
 
   // 일정 날짜 매칭용 (full 'YYYY.MM.DD'로 비교)
+  // isPreview(코스 둘러보기 가상 일정)는 제외 — 10일 예보에 '라운딩' 배지가 잘못 붙지 않게
   const scheduleDateSet = new Set(
-    (schedules || [schedule]).filter(Boolean).map(s => s.date || '')
+    (schedules || [schedule]).filter(s => s && !s.isPreview).map(s => s.date || '')
   );
 
   // 골프 지수 — 라운딩 컨디션과 동일한 scoreWeather 공식 (풍속·강수·체감온도 + 미세먼지·자외선)
@@ -647,7 +652,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   // · 라운딩 D+0~D+3 (시간별 정밀) → 티오프 슬롯
   // · 라운딩 D+4+ → 현재 날씨로 대체 (정밀도 낮은 중기예보 미사용, 사용자 결정 2026-05-27)
   const golfIdx = React.useMemo(() => {
-    const isScheduled = !weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay);
+    const isScheduled = isRealRound;
     const usePrecise = isScheduled && schedule.dDay <= 3 && hourSlots.length > 0;
 
     let temp = null, wind = null, pop = null, humidity = null, windKnown = true;
@@ -799,7 +804,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   · 라운딩 D+0~D+3 (시간별 정밀 예보) → 라운딩 시점 기준 + "라운딩 시점 날씨" 라벨
                   · 라운딩 D+4+ (시간별 예보 밖) → 현재 날씨로 대체 + "현재 날씨 · 라운딩 3일 전부터 더 정확해져요" 라벨 */}
               {(() => {
-                const isScheduled = !weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay);
+                const isScheduled = isRealRound;
                 const usePrecise = isScheduled && schedule.dDay <= 3 && hourSlots.length > 0;
                 let icon, sky, temp, pop, tmin, tmax, label;
                 if (usePrecise) {
@@ -862,7 +867,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {/* ③ 4칸 카드 — 바람·습도는 라운딩 시점(D+3 이내) 슬롯 사용, 그 외엔 현재.
                   미세먼지·자외선은 일별만 제공되므로 그대로 (시간대별 X) */}
               {(() => {
-                const isSched = !weatherOnly && !schedule?.overseas && Number.isFinite(schedule?.dDay);
+                const isSched = isRealRound;
                 const useSlot = isSched && schedule.dDay <= 3 && hourSlots.length > 0;
                 const slot = useSlot ? hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)] : null;
                 const wind = slot?.wind ?? cur?.windSpeed;
@@ -936,7 +941,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                     시간대 예보 정보가 없습니다 (D+3 이후)
                   </Text>
                 ) : hourSlots.map((slot, i) => {
-                  const isTee = i === teeoffSlotIdx;
+                  const isTee = isRealRound && i === teeoffSlotIdx;
                   const { dots, label } = calcDots(slot, airForScore, uvForScore);
                   return (
                     <View key={i} style={[wxS.condRow, isTee && wxS.condRowTee]}>
