@@ -344,9 +344,10 @@ export async function searchPlaces(query) {
 }
 
 // 자동차 길찾기 — 출발/도착 좌표로 실제 소요시간 조회 (카카오모빌리티, 실시간 교통 반영)
+// 현재는 폴백 제공자 — 진입점은 utils/directions.js (TMap 우선 → 이 함수 폴백).
 // origin/destination: { x: 경도, y: 위도 }
 // 반환: { durationMin, distanceM } | null
-export async function getDrivingDirections(origin, destination) {
+export async function getDrivingDirectionsKakao(origin, destination) {
   if (!origin || !destination) return null;
   if (!(origin.x > 0) || !(origin.y > 0) || !(destination.x > 0) || !(destination.y > 0)) return null;
   if (!isKeyConfigured()) {

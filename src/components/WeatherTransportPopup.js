@@ -8,7 +8,8 @@ import { trS } from '../styles/trS';
 import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
-import { addressToCoord, getDrivingDirections } from '../utils/kakao';
+import { addressToCoord } from '../utils/kakao';
+import { getDrivingDirections } from '../utils/directions';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { getOverseasWeather } from '../utils/openweather';
 import { getCurrentLocation, reverseGeocode } from '../utils/location';
@@ -251,7 +252,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [courseCoord, setCourseCoord] = useState(null);   // { x, y, loc }
   const [currentCoord, setCurrentCoord] = useState(null); // { x, y }
   const [homeCoord, setHomeCoord] = useState(null);       // { x, y }
-  const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 카카오 길찾기
+  const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 실시간 교통 길찾기(TMap 우선·카카오 폴백)
   const [trSlots, setTrSlots] = useState({
     goOrigin:   { mode: 'home',   custom: '', customCoord: null },
     goDest:     { mode: 'course', custom: '', customCoord: null },
@@ -499,7 +500,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     return { label: slot.custom || '주소 입력', coord: slot.customCoord, placeholder: !slot.custom };
   };
 
-  // 갈 때 출발→도착 실제 소요시간 (카카오모빌리티 길찾기) — 좌표 변경 시 1회 조회
+  // 갈 때 출발→도착 실제 소요시간 (실시간 교통 길찾기 — TMap 우선·카카오 폴백) — 좌표 변경 시 1회 조회
   // schedule 없는 렌더(가드 이전)에서도 안전하도록 schedule 있을 때만 해석
   const goOriginCoord = schedule ? resolveSlot('goOrigin').coord : null;
   const goDestCoord = schedule ? resolveSlot('goDest').coord : null;
@@ -1085,7 +1086,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                     </View>
                     <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
                       {driveMin != null
-                        ? 'ⓘ 카카오 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요'
+                        ? 'ⓘ 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요'
                         : 'ⓘ 출발지 좌표가 있어야 실제 소요시간으로 계산해요 (지금은 기본 추정치)'}
                     </Text>
                   </>

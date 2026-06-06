@@ -13,6 +13,10 @@ export const KAKAO_REST_API_KEY   = process.env.EXPO_PUBLIC_KAKAO_REST_API_KEY; 
 export const KAKAO_NATIVE_APP_KEY = process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY; // 네이티브 앱 키
 export const KAKAO_JS_KEY         = process.env.EXPO_PUBLIC_KAKAO_JS_KEY;         // JS 키 — Kakao Maps SDK
 
+// 티맵모빌리티 (https://openapi.sk.com) — 자동차 경로안내(실시간 교통). 교통탭 추천 출발시간 계산(TMap 우선·카카오 폴백)
+export const TMAP_APP_KEY    = process.env.EXPO_PUBLIC_TMAP_APP_KEY;
+export const TMAP_ROUTES_URL = 'https://apis.openapi.sk.com/tmap/routes';
+
 // Firebase — 골퍼 코멘트 공유 백엔드 (Firestore + 익명 인증)
 //  - apiKey는 클라이언트 노출되어도 무방 (보안은 Firestore 규칙으로 처리)
 export const FIREBASE_CONFIG = {

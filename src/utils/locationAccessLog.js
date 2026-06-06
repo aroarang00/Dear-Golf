@@ -6,7 +6,7 @@ import { db, getUid } from './firebase';
 // 위치정보법 제16조 제2항: "위치정보 이용·제공사실 확인자료를 자동으로 기록·보존"
 // 보존기간 6개월 (업계 관행). 자동 삭제는 Cloud Functions 스케줄러.
 //
-// providerName: 'kakao_local' | 'kakao_mobility' | 'kma' | 'openweather' | 'firestore'
+// providerName: 'kakao_local' | 'kakao_mobility' | 'tmap' | 'kma' | 'openweather' | 'firestore'
 // purpose: 짧은 한글 설명
 // method: 'send' (좌표 전송) | 'use' (앱 내 사용)
 // =============================================================
