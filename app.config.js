@@ -117,6 +117,11 @@ module.exports = {
         '@react-native-kakao/core',
         {
           nativeAppKey: process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY,
+          // 친구목록 등 추가동의(웹뷰 OAuth)의 redirect(kakao{key}://oauth) 콜백을 받는
+          // AuthCodeHandlerActivity 등록. 없으면 동의 후 '계속하기'에서 콜백 유실 → 멈춤. ([[kakao-friend-api-design]])
+          android: {
+            authCodeHandlerActivity: true,
+          },
         },
       ],
       [

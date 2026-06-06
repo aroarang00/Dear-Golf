@@ -10,10 +10,24 @@ export async function ensureUserDoc(uid, seed = {}) {
   const snap = await getDoc(ref);
 
   if (snap.exists()) {
-    // 기존 사용자 — 카카오 ID가 비었거나 바뀐 경우만 최신화. 프로필 본문은 건드리지 않음.
+    // 기존 문서 — 프로필 본문은 보존하되, '비어 있는 필드만' backfill.
+    //  탈퇴→재가입 시 푸시토큰만 먼저 생성된 빈 문서가 남아 avatarUrl·명함 기본값이 안 채워지던 버그
+    //  ([[avatar-resignup-bug]]) 보완. 값이 이미 있으면 절대 덮어쓰지 않음.
     const existing = snap.data();
-    if (seed.kakaoId && existing.kakaoId !== seed.kakaoId) {
-      await setDoc(ref, { kakaoId: seed.kakaoId, updatedAt: serverTimestamp() }, { merge: true });
+    const patch = {};
+    if (seed.kakaoId && existing.kakaoId !== seed.kakaoId) patch.kakaoId = seed.kakaoId;
+    if (!existing.avatarUrl && seed.profileImageUrl) patch.avatarUrl = seed.profileImageUrl;
+    if (!existing.displayName && seed.nickname) patch.displayName = seed.nickname;
+    if (!existing.uid) patch.uid = uid;
+    if (existing.kakaoLinked !== true) patch.kakaoLinked = true;
+    if (existing.mannerScore == null) patch.mannerScore = 70;
+    if (existing.hostedCount == null) patch.hostedCount = 0;
+    if (existing.attendedCount == null) patch.attendedCount = 0;
+    if (existing.isRestricted == null) patch.isRestricted = false;
+    if (Object.keys(patch).length > 0) {
+      patch.updatedAt = serverTimestamp();
+      await setDoc(ref, patch, { merge: true });
+      return { created: false, data: { ...existing, ...patch } };
     }
     return { created: false, data: existing };
   }

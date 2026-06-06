@@ -1,6 +1,7 @@
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { login, me } from '@react-native-kakao/user';
 import { getFriends } from '@react-native-kakao/social';
+import { Alert } from 'react-native';  // [임시 디버그] 친구 동의 결과 화면 표시 — 검증 후 제거
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
 import { storage, STORAGE_KEYS } from './storage';
@@ -115,6 +116,7 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
 export async function getKakaoFriends() {
   try {
     const res = await getFriends({});
+    Alert.alert('[디버그] getFriends 성공', `friends ${res?.friends?.length ?? 0} / total ${res?.totalCount}`);
     const friends = (res?.friends || [])
       .filter(f => f.id != null)   // id 있는 친구 = 앱 연결(가입) 친구
       .map(f => ({
@@ -127,7 +129,7 @@ export async function getKakaoFriends() {
   } catch (e) {
     // friends 미동의면 getFriends가 throw. 네이티브 에러 코드가 플랫폼마다 달라
     // 첫 사용 시 가장 흔한 '미동의'로 우선 처리 → '동의하고 친구 찾기'(loginWithNewScopes) 유도.
-    if (__DEV__) console.warn('[kakao] getFriends 실패', e?.code || e?.message);
+    Alert.alert('[디버그] getFriends 실패', `code: ${e?.code}\nmsg: ${e?.message}`);
     return { ok: false, error: 'no-consent' };
   }
 }
@@ -153,12 +155,14 @@ export async function fetchKakaoProfileImage() {
 // loginWithNewScopes는 JS로 노출 안 됨(네이티브에만 존재) → login({scopes})로 추가동의 받음.
 // login에 scopes를 주면 카카오계정 로그인이 실행돼 미동의 scope(friends)만 추가 동의받음.
 export async function requestKakaoFriendsConsent() {
+  console.log('[kakao] friends 동의 요청 시작 (login scopes)');
   try {
     // scopes를 주려면 useKakaoAccountLogin:true 필수(login 내부 assert) — 추가 동의는 카카오계정 로그인으로 받음.
-    await login({ scopes: ['friends'], useKakaoAccountLogin: true });
+    const r = await login({ scopes: ['friends'], useKakaoAccountLogin: true });
+    console.log('[kakao] friends 동의 성공', { hasAccessToken: !!r?.accessToken });
     return { ok: true };
   } catch (e) {
-    console.warn('[kakao] friends 추가동의 실패', e?.code || e?.message);
+    console.log('[kakao] friends 동의 실패', e?.code, e?.message);
     return { ok: false, error: e?.code || e?.message || 'consent-failed' };
   }
 }
