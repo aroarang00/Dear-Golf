@@ -489,9 +489,9 @@ export function MyPageModal({ visible, onClose }) {
                       <>
                         <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
                           value={realName} onChangeText={setRealName} maxLength={20}
-                          placeholder="황지현" placeholderTextColor={C.warmGrayLight} />
+                          placeholder="김골프" placeholderTextColor={C.warmGrayLight} />
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
-                          친구·동반자 찾기가 정확해져요. 검색엔 이름 일부만 가려 보여요 (예: 황*현)
+                          친구·동반자 찾기가 정확해져요. 검색엔 이름 일부만 가려 보여요 (예: 김*프)
                         </Text>
                       </>
                     ) : (

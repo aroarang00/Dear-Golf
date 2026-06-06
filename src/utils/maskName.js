@@ -9,7 +9,7 @@ export function maskKoreanName(name) {
   return n[0] + '*'.repeat(n.length - 2) + n[n.length - 1];
 }
 
-// 닉네임 + (본명 있으면) 마스킹 본명 — 검색/선택 행 표시용. 예: "버디왕 · 황*현"
+// 닉네임 + (본명 있으면) 마스킹 본명 — 검색/선택 행 표시용. 예: "버디왕 · 김*프"
 export function nameWithMaskedReal(nickname, realName) {
   const nick = (nickname || '').trim();
   const masked = maskKoreanName(realName);
