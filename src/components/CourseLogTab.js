@@ -6,7 +6,8 @@ import { ROUTES } from '../constants/routes';
 import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA, getCountryFlag } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { syncUserCoursesFromFirestore } from '../utils/userCourses';
-import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks } from '../utils/top100';
+import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks, normalizeCourseName } from '../utils/top100';
+import { getGolfCourses } from '../utils/golfCourses';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { dS } from '../styles/dS';
@@ -112,6 +113,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   const [region, setRegion] = useState('domestic');
   const [countryFilter, setCountryFilter] = useState('전체');
   const [userCourses, setUserCourses] = useState([]);
+  const [masterCourses, setMasterCourses] = useState([]); // 전국 골프장 마스터 — 옛 기록 지역 복구용
   const [top100, setTop100] = useState([]);
   const [top100Open, setTop100Open] = useState(false);
   const [manualChecks, setManualChecks] = useState([]); // 사용자가 직접 체크한 100대 코스 rank
@@ -122,14 +124,16 @@ export function CourseLogTab({ avgRating, navigation }) {
     const load = async () => {
       // 프레시설치 시 로컬 userCourses가 비어 코스 주소(loc)가 전부 누락 → 지역탭이 모두 '기타'로 떨어짐.
       // Firestore 동기화본을 써서 등록코스 주소를 확실히 확보 (실패 시 내부적으로 로컬 폴백)
-      const [uc, t100, checks] = await Promise.all([
+      const [uc, t100, checks, master] = await Promise.all([
         syncUserCoursesFromFirestore(),
         getTop100Courses(),
         getManualTop100Checks(),
+        getGolfCourses().catch(() => []),
       ]);
       setUserCourses(uc || []);
       if (t100 && t100.length) setTop100(t100);
       setManualChecks(checks || []);
+      if (master && master.length) setMasterCourses(master);
     };
     load();
     if (!navigation) return;
@@ -146,6 +150,22 @@ export function CourseLogTab({ avgRating, navigation }) {
     });
     return unsub;
   }, [navigation]);
+
+  // 전국 마스터 → 정규화 이름별 주소 맵. 옛 기록(주소·id 누락)의 지역 복구용.
+  // 안전장치: 같은 정규화 이름이 서로 다른 지역(도)로 갈리면 모호 처리(null) — 오매칭 방지([[course-matching-accuracy]]).
+  const masterLocByName = React.useMemo(() => {
+    const m = new Map();
+    for (const c of masterCourses) {
+      const loc = c.loc || '';
+      if (!loc) continue;
+      const nm = normalizeCourseName(c.name);
+      if (!nm) continue;
+      if (!m.has(nm)) { m.set(nm, loc); continue; }
+      const prev = m.get(nm);
+      if (prev && getRegionStyle(prev).label !== getRegionStyle(loc).label) m.set(nm, null); // 지역 충돌 → 모호
+    }
+    return m;
+  }, [masterCourses]);
 
   // 다이어리 + 완료된 일정을 골프장별로 집계 (예정 라운딩은 제외 — 완료된 라운딩만)
   const myCourses = React.useMemo(() => {
@@ -202,6 +222,8 @@ export function CourseLogTab({ avgRating, navigation }) {
         if (!loc && courseKakaoId) loc = userCourses.find(u => u.kakaoId === courseKakaoId)?.loc || '';
         if (!loc) loc = userCourses.find(u => u.name === e.name)?.loc || '';
         if (!loc) loc = COURSE_LOG.find(c => c.name === e.name)?.loc || '';
+        // ⑥ 전국 마스터 정규화 완전일치 — 옛 기록(주소·id 누락)이 '기타'로 떨어지던 것 복구
+        if (!loc) loc = masterLocByName.get(normalizeCourseName(e.name)) || '';
         // 별점은 가장 최근에 매긴 평점 하나만 반영 (평균 아님)
         const latestRatedRec = [...recs]
           .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
@@ -220,7 +242,7 @@ export function CourseLogTab({ avgRating, navigation }) {
         };
       })
       .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
-  }, [diaries, schedules, userCourses]);
+  }, [diaries, schedules, userCourses, masterLocByName]);
 
   // 해외 라운딩 — 다이어리 기록 + 지난 해외 일정 통합 집계
   const overseasCourses = React.useMemo(() => {
