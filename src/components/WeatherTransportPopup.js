@@ -377,6 +377,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             UV_ENABLED ? getUVIndex(loc) : Promise.resolve(null),
           ]);
           if (cancelled) return;
+          if (!f?.current) { setWxFailed(true); return; } // 429 등으로 날씨를 못 받으면 안내 표시(빈 카드 방지)
           setForecast(f); setAirQuality(aq); setUvIndex(uv);
           cacheCurrentWx(f?.current); // 홈 헤더 이모지·배경 톤을 방금 받은 현재 위치 날씨와 일치시킴
         } else if ((schedule?.courseX != null && schedule?.courseY != null) || schedule?.courseId || schedule?.course) {
@@ -400,7 +401,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               ? await fetchWeatherForCourse(schedule.courseId)
               : await fetchWeatherByName(schedule.course);
           if (cancelled) return;
-          if (!data) { setWxFailed(true); return; }
+          if (!data || !data.forecast?.current) { setWxFailed(true); return; } // forecast가 비면(429 등) 안내(빈 카드 방지)
           setForecast(data.forecast);
           setAirQuality(data.airQuality);
           setUvIndex(data.uvIndex);

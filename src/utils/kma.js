@@ -57,7 +57,9 @@ async function fetchJson(url, { timeoutMs = 8000, retries = 1 } = {}) {
       if (!res.ok) {
         const body = await res.text().catch(() => '');
         console.warn(`[kma] HTTP ${res.status} (attempt ${attempt + 1})`, url, '→', body.slice(0, 200));
-        if (attempt < retries) continue; // 일시적 5xx 재시도
+        // 429(호출 한도 초과)·기타 4xx(클라이언트 오류)는 재시도해도 소용없고 한도만 더 깎음 → 즉시 중단.
+        if (res.status === 429 || (res.status >= 400 && res.status < 500)) return null;
+        if (attempt < retries) continue; // 5xx(서버 일시 오류)만 재시도
         return null;
       }
       const text = await res.text();
