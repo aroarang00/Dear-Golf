@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, Alert } from 'react-native';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -7,7 +7,7 @@ import { searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, 
 import { searchGolfCourses } from '../utils/golfCourses';
 import { getCurrentLocation } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
-import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
+import { getRecentCourses, addRecentCourse, clearRecentCourses } from '../utils/recentCourses';
 import { getTop100Courses, normalizeCourseName } from '../utils/top100';
 import { naverSearchUrl } from '../utils/naverMap';
 
@@ -31,14 +31,22 @@ const distLabel = (m) => {
 };
 
 // 공통 섹션 래퍼 — 헤더를 섹션별 단색 컬러 바로 표시 (리스트와 명확히 구분)
-function Section({ title, right, headerBg, titleColor, children }) {
+function Section({ title, right, headerBg, titleColor, children, onRightPress }) {
   const tc = titleColor || C.charcoal;
   return (
     <View style={{ backgroundColor: C.bgPrimary }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         backgroundColor: headerBg || C.charcoal, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11, gap: 8 }}>
         <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(15), color: tc, letterSpacing: 0.3 }}>{title}</Text>
-        {right ? <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: fs(10), color: tc, opacity: 0.7 }}>{right}</Text> : null}
+        {right ? (
+          onRightPress ? (
+            <TouchableOpacity onPress={onRightPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.6} style={{ flexShrink: 0 }}>
+              <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11), color: tc, opacity: 0.85, textDecorationLine: 'underline' }}>{right}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: fs(10), color: tc, opacity: 0.7 }}>{right}</Text>
+          )
+        ) : null}
       </View>
       {children}
     </View>
@@ -382,7 +390,13 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       {!search.trim() && (
         <Section
           title={`🔍 최근 검색${recentCourses.length ? ` ${recentCourses.length}곳` : ''}`}
-          right={recentCourses.length ? '최근 검색순' : ''}
+          right={recentCourses.length ? '지우기' : ''}
+          onRightPress={recentCourses.length ? () => {
+            Alert.alert('최근 검색 지우기', '최근 검색한 골프장 목록을 모두 지울까요?', [
+              { text: '취소', style: 'cancel' },
+              { text: '지우기', style: 'destructive', onPress: async () => { await clearRecentCourses(); refreshRecent(); } },
+            ]);
+          } : undefined}
           headerBg={C.charcoal}
           titleColor={C.butter}>
           {recentCourses.length === 0 ? (
