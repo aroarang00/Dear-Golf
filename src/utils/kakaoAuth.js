@@ -1,5 +1,5 @@
 import { initializeKakaoSDK } from '@react-native-kakao/core';
-import { login, loginWithNewScopes, me } from '@react-native-kakao/user';
+import { login, me } from '@react-native-kakao/user';
 import { getFriends } from '@react-native-kakao/social';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
@@ -150,10 +150,12 @@ export async function fetchKakaoProfileImage() {
 }
 
 // 카카오 친구목록 추가 동의 요청 ([[kakao-friend-api-design]]) — FriendFinder '동의하고 친구 찾기'에서 호출.
-// loginWithNewScopes로 friends 스코프 추가동의를 받아야 getKakaoFriends(talk/friends)가 403을 면한다.
+// loginWithNewScopes는 JS로 노출 안 됨(네이티브에만 존재) → login({scopes})로 추가동의 받음.
+// login에 scopes를 주면 카카오계정 로그인이 실행돼 미동의 scope(friends)만 추가 동의받음.
 export async function requestKakaoFriendsConsent() {
   try {
-    await loginWithNewScopes({ scopes: ['friends'] });
+    // scopes를 주려면 useKakaoAccountLogin:true 필수(login 내부 assert) — 추가 동의는 카카오계정 로그인으로 받음.
+    await login({ scopes: ['friends'], useKakaoAccountLogin: true });
     return { ok: true };
   } catch (e) {
     console.warn('[kakao] friends 추가동의 실패', e?.code || e?.message);
