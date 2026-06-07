@@ -16,7 +16,9 @@ import {
   isFriendRequestLimitReached, incrementFriendRequestCount,
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
-import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
+import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend, blockUid as fsBlockUid } from '../utils/friends';
+import { blockUser, remainingBlocksToday } from '../utils/block';
+import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds } from '../utils/round';
 import { db, getUid } from '../utils/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
@@ -102,7 +104,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPr
 }
 
 export function FriendsTab({ navigation, onInvite, openFinderRef }) {
-  const { userProfile } = React.useContext(UserContext);
+  const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { setFriendReqCount } = useContext(FriendBadgeContext);
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState([]);
@@ -364,6 +366,34 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       ],
     );
   };
+  // 친구 차단 — 일방. 친구 끊기 + blockedUsers 추가(친구목록·라운지서 가림). 5명/일 한도.
+  // ([[block-nickname]]·[[friend-relationship]] 일반 차단=일방 친구 해지)
+  const blockFriend = (id) => {
+    const target = friends.find(f => f.id === id);
+    if (!target) return;
+    if (remainingBlocksToday(userProfile) <= 0) {
+      showAppAlert('차단 횟수 초과', '오늘 차단 가능한 횟수를 초과했어요.\n내일 다시 시도해주세요.', [{ text: '확인' }]);
+      return;
+    }
+    showAppAlert(
+      `${target.name}님을 차단할까요?`,
+      `친구가 끊기고, 이 사람의 글·모집이\n더 이상 보이지 않아요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '차단', style: 'destructive', onPress: async () => {
+          const result = blockUser(userProfile, id);
+          if (!result.ok) return;
+          setUserProfile(result.profile);
+          storage.save(STORAGE_KEYS.profile, result.profile);
+          // Firestore write-through — users/{myUid}.blockedUids (멀티기기 일관성, RoundupTab과 동일)
+          fsBlockUid(id).catch(e => __DEV__ && console.warn('[FriendsTab] fsBlockUid failed', e?.message));
+          // 차단은 친구 관계도 종료(일방) — friendships doc 삭제
+          try { await unfriend(id); } catch (e) { if (__DEV__) console.warn('[FriendsTab] unfriend(block) failed', e?.message); }
+          setFriends(p => p.filter(f => f.id !== id));
+        } },
+      ],
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
@@ -528,6 +558,12 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           if (!target) return;
           setProfileFriend(null);
           deleteFriend(target.id);
+        }}
+        onBlock={() => {
+          const target = profileFriend;
+          if (!target) return;
+          setProfileFriend(null);
+          blockFriend(target.id);
         }} />
 
       {/* 신뢰 등급 설명 팝업 */}

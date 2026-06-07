@@ -18,7 +18,7 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
 // 피드 카드는 MY와 동일한 DiaryCard(variant='friend') 재사용 — 정보만 선별 ([[friend-feed-design]])
-export function FriendProfile({ friend, visible, feedLoading, onClose, muted, onToggleMute, onHide, onDelete }) {
+export function FriendProfile({ friend, visible, feedLoading, onClose, muted, onToggleMute, onHide, onDelete, onBlock }) {
   const [gradeOpen, setGradeOpen] = useState(false);
   const [mannerOpen, setMannerOpen] = useState(false);
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
@@ -43,6 +43,7 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
     },
     { text: '🙈  친구 숨기기', onPress: handleOption(onHide) },
     { text: '✂️  친구 끊기', danger: true, onPress: handleOption(onDelete) },
+    { text: '🚫  차단하기', subtitle: '친구가 끊기고 글·모집이 안 보여요', danger: true, onPress: handleOption(onBlock) },
   ];
   const palette = friend.palette || { bg: '#C8D9E6', fg: '#1A3D52' };
   const stats = friend.stats || {};
