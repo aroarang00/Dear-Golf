@@ -173,33 +173,74 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     </View>
   );
 
-  // ===== 일상(모멘트) — 글/사진 중심 카드. 스코어·구장·태그·세로바 없음 ([[moment-feed-extension]]) =====
-  //  사진은 오버레이 없이 깔끔하게, 날짜+글은 글 영역에 함께(중복 방지). 라운딩 카드와 완전히 분리.
+  // ===== 일상(모멘트) — 라운딩 카드와 높이·구조 통일 ([[moment-feed-extension]]) =====
+  //  · 사진 일상 = 라운딩 사진카드와 동일: 사진(날짜 오버레이) + 더보기 토글 + 펼침(글)
+  //  · 글만 일상 = 무사진 라운딩 카드와 높이 맞춤: 날짜+글 붙이고 더보기는 날짜 옆(인라인)
   if (item.kind === 'moment') {
-    const momentPhoto = hasPhoto ? (
-      <View style={dS.photoHero43}>
-        <MediaCarousel photos={item.photos}
-          onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
-      </View>
-    ) : null;
-    const momentText = (
-      <View style={hasPhoto ? { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 } : dS.cardBody}>
-        <Text style={dS.cardDate}>{item.date} {item.day}</Text>
-        {item.memo ? (
-          <ExpandableMemo
-            text={item.memo}
-            style={{ fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21, marginTop: 4 }}
-            lines={5}
-          />
-        ) : null}
+    const momentTextStyle = { fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21 };
+    if (hasPhoto) {
+      const photoEl = (
+        <View style={dS.photoHero43}>
+          <MediaCarousel photos={item.photos}
+            onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
+          {/* 날짜만 사진 위에 — 보여지는(접힌) 부분에 표시 */}
+          <View pointerEvents="none" style={dS.photoBottomOverlay}>
+            <Text style={dS.overlayDate}>{item.date} {item.day}</Text>
+          </View>
+        </View>
+      );
+      if (isFriend) {
+        // 친구 사진 일상 — 라운딩 친구 사진카드와 동일(사진 + 글 1줄 + 좋아요)
+        return (
+          <View style={dS.card}>
+            {photoEl}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+              <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
+                {item.memo ? `"${item.memo}"` : ''}
+              </Text>
+              {likeButton}
+            </View>
+          </View>
+        );
+      }
+      // 내 피드 사진 일상 — 라운딩 사진카드처럼 더보기 토글
+      return (
+        <>
+        <TouchableOpacity style={dS.card} activeOpacity={0.88} onPress={() => onPress(item)}>
+          {photoEl}
+          {item.memo ? (
+            <>
+              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
+                <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
+              </TouchableOpacity>
+              {expanded && (
+                <View style={dS.cardBody}>
+                  <Text style={momentTextStyle}>{item.memo}</Text>
+                  {mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
+                </View>
+              )}
+            </>
+          ) : (mineLikeRow ? (
+            <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingVertical: 8 }}>{mineLikeRow}</View>
+          ) : null)}
+        </TouchableOpacity>
+        {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
+        </>
+      );
+    }
+    // 글만 일상 — 날짜+글 붙이고 더보기 인라인(날짜 옆). 무사진 라운딩 카드와 높이 통일.
+    const textBody = (
+      <View style={dS.cardBody}>
+        <ExpandableMemo text={item.memo} style={momentTextStyle} lines={5}
+          dateNode={<Text style={dS.cardDate}>{item.date} {item.day}</Text>} />
+        {!isFriend && mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
       </View>
     );
     if (isFriend) {
       return (
         <View style={dS.card}>
-          {momentPhoto}
-          {momentText}
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingBottom: 10 }}>
+          {textBody}
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingBottom: 10, marginTop: -4 }}>
             {likeButton}
           </View>
         </View>
@@ -208,11 +249,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     return (
       <>
       <TouchableOpacity style={dS.card} activeOpacity={0.88} onPress={() => onPress(item)}>
-        {momentPhoto}
-        {momentText}
-        {mineLikeRow ? (
-          <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 10 }}>{mineLikeRow}</View>
-        ) : null}
+        {textBody}
       </TouchableOpacity>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
       </>
@@ -342,12 +379,28 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
 // 일상(모멘트) 카드 본문 — 긴 글은 N줄까지만 보이고 인라인 '더보기/접기'로 펼침.
 // RN은 numberOfLines를 건 텍스트의 onTextLayout이 잘린 줄 수만 줘서 넘침을 못 잡으므로,
 // 화면 밖(absolute·opacity 0) 숨은 텍스트로 실제 줄 수를 1회 측정해 토글 노출을 결정한다.
-function ExpandableMemo({ text, style, lines = 5 }) {
+// dateNode를 주면 날짜 + 더보기(옆)를 한 줄로 묶어 글과 붙임(무사진 라운딩 카드와 높이 통일).
+// 없으면 글 아래에 더보기 표시(기본).
+function ExpandableMemo({ text, style, lines = 5, dateNode }) {
   const [expanded, setExpanded] = useState(false);
   const [overflow, setOverflow] = useState(false);
   const [measured, setMeasured] = useState(false);
+  const toggle = overflow ? (
+    <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      onPress={(e) => { e.stopPropagation?.(); setExpanded(v => !v); }}>
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy, marginLeft: 8 }}>
+        {expanded ? '접기' : '더보기'}
+      </Text>
+    </TouchableOpacity>
+  ) : null;
   return (
     <View>
+      {dateNode ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+          <View style={{ flex: 1 }}>{dateNode}</View>
+          {toggle}
+        </View>
+      ) : null}
       {!measured && (
         <Text style={[style, { position: 'absolute', left: 0, right: 0, opacity: 0 }]}
           onTextLayout={(e) => { setOverflow(e.nativeEvent.lines.length > lines); setMeasured(true); }}>
@@ -355,14 +408,9 @@ function ExpandableMemo({ text, style, lines = 5 }) {
         </Text>
       )}
       <Text style={style} numberOfLines={expanded ? undefined : lines}>{text}</Text>
-      {overflow && (
-        <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          onPress={(e) => { e.stopPropagation?.(); setExpanded(v => !v); }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy, marginTop: 5 }}>
-            {expanded ? '접기' : '더보기'}
-          </Text>
-        </TouchableOpacity>
-      )}
+      {!dateNode && toggle ? (
+        <View style={{ marginTop: 5 }}>{toggle}</View>
+      ) : null}
     </View>
   );
 }
