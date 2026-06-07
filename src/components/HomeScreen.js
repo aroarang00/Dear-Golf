@@ -740,6 +740,13 @@ export function HomeScreen({ navigation, route }) {
               onPress={() => setShowAddModal(true)}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
             </TouchableOpacity>
+            {/* 일정 없어도 캘린더(과거 일정·기록) 진입 — 빈 상태에서도 접근 가능하게 */}
+            <TouchableOpacity onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5 }}>
+              <Text style={{ fontSize: fs(13) }}>📅</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: 'rgba(255,255,255,0.7)' }}>일정 캘린더 보기 ›</Text>
+            </TouchableOpacity>
           </View>
         </View>
         ) : (
