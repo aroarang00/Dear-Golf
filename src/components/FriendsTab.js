@@ -201,7 +201,9 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           };
         };
         setFriends(friendsList.map(f => toMinimal(f.otherUid)));
-        setReceivedRequests(received.map(r => ({
+        // 차단한 사용자의 받은 친구신청은 숨김 — 차단=재접촉 차단([[block-nickname]] 차단 강화)
+        const blockedSet = new Set(userProfile?.blockedUsers || []);
+        setReceivedRequests(received.filter(r => !blockedSet.has(r.requesterUid)).map(r => ({
           id: r.requesterUid,
           name: profileByUid[r.requesterUid]?.nickname || '친구',
           realName: profileByUid[r.requesterUid]?.realName || '',
@@ -248,6 +250,11 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     if (blockedIds.length === 0) return;
     setFriends(prev => {
       const next = prev.filter(f => !blockedIds.includes(f.id) && !blockedIds.includes(f.name));
+      return next.length === prev.length ? prev : next;
+    });
+    // 차단 시 그 사람의 받은 친구신청도 즉시 가림 (재접촉 차단)
+    setReceivedRequests(prev => {
+      const next = prev.filter(r => !blockedIds.includes(r.id));
       return next.length === prev.length ? prev : next;
     });
   }, [blockedIds]);
