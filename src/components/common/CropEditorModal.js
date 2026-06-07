@@ -26,6 +26,7 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
 
   const [imgSize, setImgSize] = useState(null); // 원본 { w, h }(픽셀)
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(false);
   // 프레임 위치는 화면상수(SH) 대신 실측 컨테이너 크기로 — 안드 상태바 차이로 인한 수직 어긋남(크롭 오차) 방지
   const [layout, setLayout] = useState({ w: SW, h: SH });
 
@@ -48,6 +49,7 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
   useEffect(() => {
     if (!visible || !uri) return;
     setImgSize(null);
+    setSaveErr(false);
     scale.value = 1; savedScale.value = 1;
     tx.value = 0; ty.value = 0; savedTx.value = 0; savedTy.value = 0;
     Image.getSize(uri, (w, h) => setImgSize({ w, h }), () => setImgSize(null));
@@ -88,6 +90,7 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
   const handleSave = async () => {
     if (!uri || !imgSize || saving) return;
     setSaving(true);
+    setSaveErr(false);
     try {
       const s = scale.value;
       const displayScale = baseScale * s; // 화면 px / 원본 px
@@ -97,22 +100,31 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
       let originY = (dh0 * s) / 2 - frameH / 2 - ty.value;
       originX /= displayScale;
       originY /= displayScale;
-      // 원본 경계 내로 정수 클램프
-      cropW = Math.min(imgSize.w, Math.round(cropW));
-      cropH = Math.min(imgSize.h, Math.round(cropH));
+      // 원본 경계 내로 정수 클램프 + 최소 1px 보장 — 줌·제스처 값에 따라 0/범위초과가 되면
+      //   renderAsync가 거부해 간헐 실패하던 것 방지.
+      cropW = Math.max(1, Math.min(imgSize.w, Math.round(cropW)));
+      cropH = Math.max(1, Math.min(imgSize.h, Math.round(cropH)));
       originX = Math.min(imgSize.w - cropW, Math.max(0, Math.round(originX)));
       originY = Math.min(imgSize.h - cropH, Math.max(0, Math.round(originY)));
 
       const actions = [{ crop: { originX, originY, width: cropW, height: cropH } }];
       if (cropW > cfg.maxOut) actions.push({ resize: { width: cfg.maxOut } });
 
-      const result = await ImageManipulator.manipulateAsync(
-        uri, actions, { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
-      );
+      const opts = { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG };
+      // renderAsync가 간헐적으로 실패(expo-image-manipulator)해 1회 재시도.
+      let result;
+      try {
+        result = await ImageManipulator.manipulateAsync(uri, actions, opts);
+      } catch (e1) {
+        if (__DEV__) console.warn('[CropEditor] 1차 실패 → 재시도', e1?.message);
+        result = await ImageManipulator.manipulateAsync(uri, actions, opts);
+      }
       onSave && onSave(result.uri);
     } catch (e) {
       console.warn('[CropEditor] 크롭 실패', e?.message);
-      setSaving(false);
+      setSaveErr(true); // 사용자에게 안내(조용한 실패 방지)
+    } finally {
+      setSaving(false); // 성공·실패 모두 스피너 해제(무한 '저장 중' 방지)
     }
   };
 
@@ -172,6 +184,16 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* 저장 실패 안내 — 조용한 실패 방지 */}
+          {saveErr && (
+            <View pointerEvents="none" style={{ position: 'absolute', top: 86, left: 0, right: 0, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#fff',
+                backgroundColor: 'rgba(150,40,40,0.92)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' }}>
+                저장에 실패했어요. 다시 시도해 주세요.
+              </Text>
+            </View>
+          )}
 
           {/* 안내 */}
           <View pointerEvents="none" style={{ position: 'absolute', bottom: 48, left: 0, right: 0, alignItems: 'center' }}>
