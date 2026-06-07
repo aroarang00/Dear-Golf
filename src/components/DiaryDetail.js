@@ -33,6 +33,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
   }, [item.photos]);
   const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
+  const isMoment = item.kind === 'moment'; // 일상 — 스코어·구장·동반자 없이 날짜+글만 ([[moment-feed-extension]])
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -51,8 +52,8 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
     // 삭제는 단일 동작으로 통일 — 기록 + 연결된 개인 일정 함께 삭제(라운지 일정은 보호).
     // '기록만/전체' 두 갈래는 자동일정 폐지 후 구분 실익이 없어 단순화. ([[diary-schedule-orphan-fix]])
     showAppAlert(
-      '라운딩 삭제',
-      '이 라운딩 기록을 삭제할까요?',
+      isMoment ? '일상 삭제' : '라운딩 삭제',
+      isMoment ? '이 일상 기록을 삭제할까요?' : '이 라운딩 기록을 삭제할까요?',
       [
         { text: '취소', style: 'cancel' },
         { text: '삭제', style: 'destructive', onPress: () => onDelete && onDelete(item, 'all') },
@@ -129,6 +130,17 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
           </View>
         )}
         <View style={[dS.detailInfoArea, (isSpecial || isFirstSingle) && { borderBottomColor: '#C9A84C33' }]}>
+          {isMoment ? (
+            <>
+              <Text style={dS.detailCourseTxt}>{item.date} {item.day}</Text>
+              {item.memo ? (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.textPrimary, lineHeight: 24, marginTop: 10 }}>
+                  {item.memo}
+                </Text>
+              ) : null}
+            </>
+          ) : (
+          <>
           <View style={dS.detailScoreRow}>
             <Text style={[dS.detailScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
             <Text style={[dS.detailScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
@@ -270,7 +282,10 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
               </View>
             );
           })()}
+          </>
+          )}
         </View>
+        {(photosToShow.length > 0 || !isMoment) && (
         <View style={dS.photosArea}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={dS.photosLabel}>사진 · 영상</Text>
@@ -338,6 +353,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
           </View>
           )}
         </View>
+        )}
         <View style={{ height: 40 }} />
       </ScrollView>
       {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}

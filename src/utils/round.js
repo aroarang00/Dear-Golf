@@ -59,6 +59,7 @@ export async function createRound(data) {
   if (!uid) throw new Error('Not authenticated');
   const round = {
     ownerUid: uid,
+    kind: data.kind === 'moment' ? 'moment' : 'round', // 일상(모멘트) 격리 플래그. 없으면 round(하위호환)
     visibility: data.visibility || 'friends',
     date: data.date || '',
     day: data.day || '',

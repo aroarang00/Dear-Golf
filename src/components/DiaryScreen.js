@@ -272,6 +272,7 @@ export function DiaryScreen({ route, navigation }) {
     if (type === 'diary') {
       // Firestore에서 ID 자동 생성. 신규 생성 후 명예의 전당도 같이 갱신.
       const created = await addDiary({
+        kind: data.kind === 'moment' ? 'moment' : 'round', // 일상(모멘트) 격리 플래그([[moment-feed-extension]])
         date: data.date, day: data.day, course: data.course,
         scheduleId: data.scheduleId || null,        // 일정 연결 — 미기록 리스트 선택/일정 진입 시 1:1 매칭(같은 구장·날 비대칭 차단)
         score: data.score, par: 72, memo: data.memo || '',
@@ -297,25 +298,28 @@ export function DiaryScreen({ route, navigation }) {
         overseas: !!data.overseas,
         country: data.country || '',
       });
-      setHallOfFame(prev => {
-        let next = prev;
-        // 특별한 순간(홀인원·이글·알바트로스) 카드
-        if (data.special) next = [buildHofEntry(data, created.id), ...next];
-        // 퍼스트 싱글 — 80타 미만 첫 기록 시 1회 자동 등재.
-        // 온보딩/프로필 라이프베스트가 이미 싱글(≤79)이면 제외 — 이미 싱글이라 '첫' 싱글 아님.
-        // lifeBest 직접 사용: MyPage에서 lifeBest 수정 시 hasFirstSingle 플래그는 stale → lifeBest가 정확.
-        const onboardBest = userProfile.lifeBest || 99;
-        if (data.score <= 79 && onboardBest > 79 && !prev.some(h => h.type === '퍼스트 싱글')) {
-          next = [buildSingleHofEntry(data, created.id), ...next];
-        }
-        return next;
-      });
+      // 일상(모멘트)은 명예의전당·첫싱글 대상 아님 — score:null이라 가드 없으면 첫싱글(≤79) 오발동([[moment-feed-extension]])
+      if (data.kind !== 'moment') {
+        setHallOfFame(prev => {
+          let next = prev;
+          // 특별한 순간(홀인원·이글·알바트로스) 카드
+          if (data.special) next = [buildHofEntry(data, created.id), ...next];
+          // 퍼스트 싱글 — 80타 미만 첫 기록 시 1회 자동 등재.
+          // 온보딩/프로필 라이프베스트가 이미 싱글(≤79)이면 제외 — 이미 싱글이라 '첫' 싱글 아님.
+          // lifeBest 직접 사용: MyPage에서 lifeBest 수정 시 hasFirstSingle 플래그는 stale → lifeBest가 정확.
+          const onboardBest = userProfile.lifeBest || 99;
+          if (data.score <= 79 && onboardBest > 79 && !prev.some(h => h.type === '퍼스트 싱글')) {
+            next = [buildSingleHofEntry(data, created.id), ...next];
+          }
+          return next;
+        });
+      }
       // 직접 작성 다이어리(scheduleId 없음) → 미리 잡아둔 일정이 있으면 거기에만 연결.
       // ★ 과거 기록의 '일정 자동 생성'은 폐지 — 통계·방문수에 0 기여(roundStats가 diary와
       //   중복제거·매칭제외)하면서 날짜수정·삭제 시 고아 카드만 양산. 캘린더 표시는 diary
       //   가상카드(orphanItems)로 커버됨. ([[diary-schedule-orphan-fix]])
       // 국내/해외 도메인이 같은 일정만 매칭 (해외 기록이 국내 일정에 붙어 미기록 카드로 새는 것 방지)
-      if (!data.scheduleId) {
+      if (data.kind !== 'moment' && !data.scheduleId) { // 일상은 일정 연결 안 함
         try {
           const existingSched = schedules.find(s =>
             s.course === data.course && s.date === data.date

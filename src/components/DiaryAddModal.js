@@ -75,6 +75,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [detailMemo, setDetailMemo] = useState('');
   const [overseas, setOverseas] = useState(false); // 국내/해외 라운딩
   const [country, setCountry] = useState('');      // 해외일 때 국가·지역
+  // 상위 분기 — 'round'(라운딩 기록) | 'moment'(일상). 일상은 글/사진만, 통계·캘린더서 격리([[moment-feed-extension]])
+  const [kind, setKind] = useState('round');
 
   const toggleTag = (tag) => {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
@@ -247,6 +249,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setPrivacy('friends');
     setCompanions([]); setCompanionInput('');
     setOverseas(false); setCountry('');
+    setKind('round');
   };
 
   useEffect(() => {
@@ -288,6 +291,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setCompanionInput('');
       setOverseas(!!initial.overseas);
       setCountry(initial.country || '');
+      setKind(initial.kind === 'moment' ? 'moment' : 'round');
       if (initial.cost) {
         setCosts({
           green: initial.cost.green ? String(initial.cost.green) : '',
@@ -330,13 +334,42 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   const [saveError, setSaveError] = useState('');
 
+  const isMoment = kind === 'moment';
   const finalCourseLive = selectedCourse || courseSearch.trim();
-  const canSave = !!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim() && !photoBusy;
+  const canSave = isMoment
+    ? ((!!memo.trim() || addPhotos.length > 0) && !photoBusy) // 일상: 글만/사진만이라도 OK
+    : (!!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim() && !photoBusy);
 
   const costTotal = COST_ITEMS.reduce((sum, [k]) => sum + (parseInt(costs[k]) || 0), 0);
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   const handleSave = () => {
+    // 일상(모멘트) — 글/사진만. 라운딩 전용 필드는 비워서 저장(통계 격리는 kind로 보장, 데이터도 깔끔히).
+    if (isMoment) {
+      if (!memo.trim() && addPhotos.length === 0) {
+        setSaveError('내용이나 사진을 남겨주세요');
+        return;
+      }
+      setSaveError('');
+      const mPayload = {
+        kind: 'moment',
+        date: formatDate(date), day: formatDay(date), // 기본 오늘 (캘린더 미표시·작성시각 정렬)
+        memo: memo.trim(), detailMemo: '',
+        photos: addPhotos,
+        visibility: privacy,
+        score: null, course: '', courseId: null, courseLoc: null,
+        holeScores: null, holePars: null, birdieCount: 0,
+        weather: null, special: null, specialHole: null, specialPar: null,
+        specialDist: '', specialBall: '', specialMemo: '',
+        starRating: 0, tags: [], cost: null,
+        companions: [{ name: userProfile.nickname, isMe: true }],
+        overseas: false, country: '', scheduleId: null,
+      };
+      if (isEdit) onSave('diary-edit', { id: initial.id, ...mPayload });
+      else onSave('diary', mPayload);
+      reset(); onClose();
+      return;
+    }
     const finalCourse = selectedCourse || courseSearch.trim();
     if (!finalCourse) {
       setSaveError('골프장을 입력해주세요');
@@ -404,7 +437,35 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             </TouchableOpacity>
             <ScrollView style={{ flexShrink: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-              <Text style={mS.title}>{isEdit ? '라운딩 기록 수정' : '라운딩 기록 추가'}</Text>
+              {/* 상위 분기: 라운딩 기록 | 일상 — 아이콘 카드 2개(아이콘+제목+한줄설명).
+                  카드형이라 아래 [국내|해외] 작은 칩과 모양·높이가 전혀 달라 안 헷갈리고, 설명으로 차이도 바로 전달.
+                  편집은 토글 잠금(round↔moment 전환 금지: 데이터·통계 정합성)이라 제목 텍스트로 표시. */}
+              {!isEdit ? (
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 12 }}>
+                  {[
+                    { v: 'round', icon: '⛳', label: '라운딩 기록', sub: '스코어·코스' },
+                    { v: 'moment', icon: '📷', label: '일상', sub: '글·사진' },
+                  ].map(opt => {
+                    const on = kind === opt.v;
+                    return (
+                      <TouchableOpacity key={opt.v} activeOpacity={0.85} onPress={() => setKind(opt.v)}
+                        style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 14,
+                          borderWidth: 1.5,
+                          borderColor: on ? C.burgundy : C.hairline,
+                          backgroundColor: on ? (C.burgundy + '12') : C.bgSecondary }}>
+                        <Text style={{ fontSize: fs(24), marginBottom: 5 }}>{opt.icon}</Text>
+                        <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(14),
+                          color: on ? C.burgundy : C.charcoal }}>{opt.label}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11),
+                          color: on ? C.burgundy : C.warmGray, marginTop: 2 }}>{opt.sub}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={mS.title}>{isMoment ? '일상 기록 수정' : '라운딩 기록 수정'}</Text>
+              )}
+              {kind === 'round' && (<>
               {/* 국내 / 해외 */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                 {[['국내', false], ['해외', true]].map(([l, v]) => (
@@ -786,6 +847,34 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary }}>합계</Text>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.burgundy }}>
                       {won(costTotal)}원
+                    </Text>
+                  </View>
+                </View>
+              )}
+              </>)}
+
+              {/* 일상(모멘트) — 본문 텍스트(최대 1000자). 사진은 아래 공용 섹션. */}
+              {isMoment && (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={mS.bigLabel}>
+                    오늘의 한 마디
+                    <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (사진만 올려도 돼요 · 최대 1000자)</Text>
+                  </Text>
+                  <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                    borderRadius: 12, padding: 14, minHeight: 140 }}>
+                    <TextInput
+                      style={{ fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary,
+                        minHeight: 100, textAlignVertical: 'top' }}
+                      placeholder="밥, 연습장, 풍경... 골프와 함께한 일상을 자유롭게 남겨보세요"
+                      placeholderTextColor={C.warmGrayLight}
+                      value={memo}
+                      onChangeText={(t) => { if (t.length <= 1000) setMemo(t); }}
+                      multiline
+                      textAlignVertical="top"
+                      maxLength={1000}
+                    />
+                    <Text style={{ fontSize: fs(10), color: C.warmGray, textAlign: 'right', marginTop: 8 }}>
+                      {memo.length} / 1000
                     </Text>
                   </View>
                 </View>
