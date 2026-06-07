@@ -6,7 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { C, F, fs } from '../constants/colors';
-import { COURSE_TAGS, COURSE_TAG_COLORS, WEEKDAYS } from '../constants/data';
+import { COURSE_TAGS, COURSE_TAG_COLORS, COURSE_TAG_OPPOSITES, WEEKDAYS } from '../constants/data';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { mS } from '../styles/mS';
@@ -89,7 +89,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         const rest = prev.filter(t => !group.includes(t)); // 같은 그룹 기존 선택 제거
         return has ? rest : [...rest, tag];               // 누른 게 켜져 있었으면 해제, 아니면 그룹 내 단일 선택
       }
-      return has ? prev.filter(t => t !== tag) : [...prev, tag];
+      if (has) return prev.filter(t => t !== tag);
+      // 선택 시 반대쌍(그린 빠름↔느림 등)은 자동 해제 — 다른 속성과는 공존
+      const opp = COURSE_TAG_OPPOSITES[tag];
+      const base = opp ? prev.filter(t => t !== opp) : prev;
+      return [...base, tag];
     });
   };
   // 예시 칩 탭 → '더 기록하기' 입력칸에 '라벨: ' 삽입 + 포커스
