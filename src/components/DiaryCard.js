@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
@@ -187,13 +188,15 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <View style={dS.photoHero43}>
           <MediaCarousel photos={item.photos}
             onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
-          {/* 날짜만 사진 위에 — 어두운 띠 없이 그림자로 최소 오버레이 */}
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, bottom: 0, paddingHorizontal: 10, paddingVertical: 8 }}>
+          {/* 날짜 — 하단 부드러운 그라데이션 스크림(위는 투명→아래만 살짝 어둡게)으로 어떤 사진에서도 읽힘 */}
+          <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.45)']}
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 46,
+              justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#fff',
-              textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 }}>
+              textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
               {item.date} {item.day}
             </Text>
-          </View>
+          </LinearGradient>
         </View>
       );
       if (isFriend) {
