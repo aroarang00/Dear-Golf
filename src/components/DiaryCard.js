@@ -178,10 +178,10 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   //  · 글만 일상 = 무사진 라운딩 카드와 높이 맞춤: 날짜+글 붙이고 더보기는 날짜 옆(인라인)
   if (item.kind === 'moment') {
     const momentTextStyle = { fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21 };
-    // 일상 색 구분 — 연한 세이지 바탕 + 왼쪽 세이지 띠 (페이지 크림·라운딩 흰색 둘 다와 구분).
-    const SAGE_BG = '#ECF1E6';
-    const SAGE_BAR = '#9CAF88';
-    const momentCard = [dS.card, { backgroundColor: SAGE_BG, borderLeftWidth: 3, borderLeftColor: SAGE_BAR }];
+    // 일상 색 구분 — 옅은 버터 바탕 + 왼쪽 버터 띠 (페이지 크림·라운딩 흰색 둘 다와 구분, 우리 팔레트).
+    const MOMENT_BG = '#FBF3D6';
+    const MOMENT_BAR = C.butter; // #F5E6A8
+    const momentCard = [dS.card, { backgroundColor: MOMENT_BG, borderLeftWidth: 3, borderLeftColor: MOMENT_BAR }];
     if (hasPhoto) {
       const photoEl = (
         <View style={dS.photoHero43}>
@@ -214,7 +214,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           {photoEl}
           {item.memo ? (
             <>
-              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={[dS.toggleBtn, { backgroundColor: SAGE_BG }]}>
+              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={[dS.toggleBtn, { backgroundColor: MOMENT_BG }]}>
                 <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
               </TouchableOpacity>
               {expanded && (
