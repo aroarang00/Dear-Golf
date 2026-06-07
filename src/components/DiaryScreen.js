@@ -242,17 +242,19 @@ export function DiaryScreen({ route, navigation }) {
     if (route?.params?.openAddModal) {
       // 일정 캘린더·내 코스기록에서 날짜·골프장·일정ID를 미리 채워서 전달
       // scheduleId가 있으면 다이어리에 보존되어 같은 날 일정 N건 매칭 시 1:1 보장
-      const { addDate, addCourse, addCourseId, addScheduleId, returnToSchedule } = route.params;
-      // 일정에서 진입 시 동반자도 함께 끌어옴 — route params로 객체배열을 직접 넘기지 않고
-      // scheduleId로 해당 일정을 찾아 companions를 채움(미기록 라운딩 선택 경로 pickRoundToRecord와 동일).
+      const { addDate, addCourse, addCourseId, addScheduleId, addCompanions, returnToSchedule } = route.params;
+      // 일정에서 진입 시 동반자도 함께 끌어옴 — 진입처가 일정 객체를 갖고 있으면 addCompanions로 직접 전달(권장),
+      // 없으면 scheduleId로 해당 일정을 찾아 채움(폴백). find는 일정 목록 미로드·id 불일치 시 빈 배열이 되는 취약점이 있어 직접 전달 우선.
       const seedSchedule = addScheduleId ? (schedules || []).find(s => s.id === addScheduleId) : null;
+      const seedCompanions = Array.isArray(addCompanions) ? addCompanions
+        : (Array.isArray(seedSchedule?.companions) ? seedSchedule.companions : []);
       setAddSeed((addDate || addCourse || addScheduleId)
         ? { date: addDate, course: addCourse, courseId: addCourseId, scheduleId: addScheduleId || null,
-            companions: Array.isArray(seedSchedule?.companions) ? seedSchedule.companions : [] }
+            companions: seedCompanions }
         : null);
       returnToScheduleRef.current = !!returnToSchedule;
       setShowModal(true);
-      navigation.setParams({ openAddModal: undefined, addDate: undefined, addCourse: undefined, addCourseId: undefined, addScheduleId: undefined, returnToSchedule: undefined });
+      navigation.setParams({ openAddModal: undefined, addDate: undefined, addCourse: undefined, addCourseId: undefined, addScheduleId: undefined, addCompanions: undefined, returnToSchedule: undefined });
     }
   }, [route?.params?.openAddModal]);
 

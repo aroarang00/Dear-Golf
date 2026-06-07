@@ -494,6 +494,8 @@ export function HomeScreen({ navigation, route }) {
                         addCourse: next.course,
                         addCourseId: next.courseLogId || next.courseId,
                         addScheduleId: next.id || null,
+                        // 동반자를 일정 객체에서 직접 전달(pickRoundToRecord와 동일) — scheduleId find 의존 제거([[diary-companion-matching]])
+                        addCompanions: Array.isArray(next.companions) ? next.companions : null,
                       })}
                       style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
@@ -656,6 +658,8 @@ export function HomeScreen({ navigation, route }) {
                           addCourse: next?.course,
                           addCourseId: next?.courseLogId || next?.courseId,
                           addScheduleId: next?.id || null,
+                          // 동반자 직접 전달(scheduleId find 의존 제거)
+                          addCompanions: Array.isArray(next?.companions) ? next.companions : null,
                         })}
                         style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
