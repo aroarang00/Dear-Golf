@@ -403,13 +403,17 @@ export function DiaryScreen({ route, navigation }) {
     storage.save(STORAGE_KEYS.hofHintSeen, true);
   };
 
-  // createdAt(Firestore Timestamp) → millis. 없으면 0.
+  // createdAt(Firestore Timestamp) → millis.
+  //  - 없음(아주 옛 데이터): 0 (맨 뒤)
+  //  - 미해결 serverTimestamp() 센티넬(방금 낙관적 추가, 리로드 전): Infinity = 최신 취급
+  //    (안 그러면 0이 돼 같은 날 기록 중 방금 만든 게 맨 아래로 가고, 리로드 때만 제자리)
   const tsMillis = (d) => {
     const c = d?.createdAt;
     if (!c) return 0;
+    if (typeof c === 'number') return c;
     if (typeof c.toMillis === 'function') return c.toMillis();
     if (typeof c.seconds === 'number') return c.seconds * 1000;
-    return typeof c === 'number' ? c : 0;
+    return Infinity;
   };
   const sortedDiaries = [...diaries].sort((a, b) => {
     const dateA = new Date((a.date || '').replace(/\./g, '-'));
@@ -488,7 +492,6 @@ export function DiaryScreen({ route, navigation }) {
   const myHandicap = calcHandicap(diaries, userProfile.avgScore);
   // 통계 박스 — 평균타 라벨 폐기, 핸디로 통일 (친구에게 공개되는 핸디 뱃지와 일관성).
   // 라운딩 5개 이하면 입력값 우선, 6개부터는 베스트 5개 평균 (잘 친 5개만, 못 친 건 버림).
-  const hasRecords = diaries.length > 0;
   // 총 라운딩 = 자동 완료 라운딩(다이어리+미기록 지난 일정)에, 마이페이지 입력 기준값 반영([[project_total_rounds]])
   const completedRounds = countCompletedRounds(diaries, schedules);
   const _dispTotal = displayTotalRounds(userProfile, completedRounds);
