@@ -202,14 +202,16 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         </View>
       );
       if (isFriend) {
-        // 친구 사진 일상 — 사진 위 날짜 + 글 1줄 + 좋아요
+        // 친구 사진 일상 — 사진 위 날짜 + 글(5줄+더보기, 일상은 글이 본체) + 좋아요
         return (
           <View style={momentCard}>
             {photoEl(true)}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
-              <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
-                {item.memo ? `"${item.memo}"` : ''}
-              </Text>
+            {item.memo ? (
+              <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2 }}>
+                <ExpandableMemo text={item.memo} style={momentTextStyle} lines={5} />
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingTop: item.memo ? 4 : 10, paddingBottom: 10 }}>
               {likeButton}
             </View>
           </View>
