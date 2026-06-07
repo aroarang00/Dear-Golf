@@ -184,26 +184,28 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     const MOMENT_BAR = '#C9A84C'; // 골드 — 옅은 버터 바탕 위 대비 확보
     const momentCard = [dS.card, { backgroundColor: MOMENT_BG, borderLeftWidth: 3, borderLeftColor: MOMENT_BAR }];
     if (hasPhoto) {
-      const photoEl = (
+      // withDate=true → 사진 위 날짜 그라데이션(친구 카드). 내 카드는 날짜를 아래 더보기 줄로 옮김(false).
+      const photoEl = (withDate) => (
         <View style={dS.photoHero43}>
           <MediaCarousel photos={item.photos}
             onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
-          {/* 날짜 — 하단 부드러운 그라데이션 스크림(위는 투명→아래만 살짝 어둡게)으로 어떤 사진에서도 읽힘 */}
-          <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.45)']}
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 46,
-              justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#fff',
-              textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
-              {item.date} {item.day}
-            </Text>
-          </LinearGradient>
+          {withDate && (
+            <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.45)']}
+              style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 46,
+                justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#fff',
+                textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
+                {item.date} {item.day}
+              </Text>
+            </LinearGradient>
+          )}
         </View>
       );
       if (isFriend) {
-        // 친구 사진 일상 — 라운딩 친구 사진카드와 동일(사진 + 글 1줄 + 좋아요)
+        // 친구 사진 일상 — 사진 위 날짜 + 글 1줄 + 좋아요
         return (
           <View style={momentCard}>
-            {photoEl}
+            {photoEl(true)}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
               <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
                 {item.memo ? `"${item.memo}"` : ''}
@@ -213,26 +215,29 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           </View>
         );
       }
-      // 내 피드 사진 일상 — 라운딩 사진카드처럼 더보기 토글
+      // 내 피드 사진 일상 — 날짜를 아래 바의 '더보기' 옆에 표시(사진 위 오버레이 없음)
       return (
         <>
         <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
-          {photoEl}
-          {item.memo ? (
-            <>
-              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={[dS.toggleBtn, { backgroundColor: MOMENT_BG }]}>
+          {photoEl(false)}
+          <View style={[dS.toggleBtn, { backgroundColor: MOMENT_BG, flexDirection: 'row',
+            alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 }]}>
+            <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
+            {item.memo ? (
+              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
               </TouchableOpacity>
-              {expanded && (
-                <View style={dS.cardBody}>
-                  <Text style={momentTextStyle}>{item.memo}</Text>
-                  {mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
-                </View>
-              )}
-            </>
-          ) : (mineLikeRow ? (
-            <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingVertical: 8 }}>{mineLikeRow}</View>
-          ) : null)}
+            ) : null}
+          </View>
+          {item.memo && expanded && (
+            <View style={dS.cardBody}>
+              <Text style={momentTextStyle}>{item.memo}</Text>
+              {mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
+            </View>
+          )}
+          {!item.memo && mineLikeRow ? (
+            <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 10 }}>{mineLikeRow}</View>
+          ) : null}
         </TouchableOpacity>
         {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
         </>
