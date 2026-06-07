@@ -124,7 +124,7 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             {/* 라운딩 피드 — 평균타(핸디)는 명함의 핸디 뱃지로 노출 */}
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
-              라운딩 피드
+              라운딩 · 일상 피드
             </Text>
             <View style={{ paddingHorizontal: 16 }}>
               {(friend.feed || []).length === 0 ? (
@@ -134,10 +134,10 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
                   <View style={{ alignItems: 'center', paddingVertical: 28 }}>
                     <Text style={{ fontSize: fs(30), marginBottom: 10 }}>🌱</Text>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: 5 }}>
-                      아직 공개된 라운딩이 없어요
+                      아직 공개된 기록이 없어요
                     </Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 18 }}>
-                      이 친구가 라운딩을 공개하면{'\n'}여기에 차곡차곡 모여요
+                      이 친구가 라운딩이나 일상을 공개하면{'\n'}여기에 차곡차곡 모여요
                     </Text>
                   </View>
                 )
