@@ -5,9 +5,11 @@
 // 기록이 5개 이하면(=6개 미만) 표본이 적고 버릴 라운드도 없어 핸디 신뢰도가 낮으므로,
 // 사용자가 온보딩/마이페이지에서 입력한 평균타(manualAvg)를 우선 사용한다.
 // 입력값도 없으면 있는 기록의 평균, 그것도 없으면 null.
+import { roundsOnly } from './diaryKind';
+
 export const HANDICAP_BEST_COUNT = 5;
 
-const collectScores = (diaries) => (diaries || [])
+const collectScores = (diaries) => roundsOnly(diaries) // 일상(모멘트) 제외
   .map(d => d?.score)
   .filter(s => typeof s === 'number' && s > 0);
 

@@ -25,6 +25,7 @@ import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal } from './AlarmSetupModal';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
+import { isRoundDiary } from '../utils/diaryKind';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -205,7 +206,7 @@ export function HomeScreen({ navigation, route }) {
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
     if (!course) return false;
-    const hasMyMemo = diaries.some(d => d.course === course && d.memo);
+    const hasMyMemo = diaries.some(d => isRoundDiary(d) && d.course === course && d.memo); // 일상(모멘트) 제외
     if (!hasMyMemo) return false;
     return !!homeTopComment;
   }, [next?.course, diaries, homeTopComment]);
@@ -594,7 +595,7 @@ export function HomeScreen({ navigation, route }) {
           {(() => {
             const courseLabel = next?.course || '';
 
-            const diaryEntries = diaries.filter(d => d.course === next?.course);
+            const diaryEntries = diaries.filter(d => isRoundDiary(d) && d.course === next?.course); // 일상(모멘트) 제외 — 방문 판정은 라운딩만
             const myMemo = diaryEntries[0]?.memo;
             // 방문 여부는 실제 라운딩 기록 기준 (COURSE_LOG 목업이 아님)
             const visitCount = diaryEntries.length;

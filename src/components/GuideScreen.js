@@ -24,6 +24,7 @@ import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword } from '../utils/kakao';
 import { searchGolfCourses } from '../utils/golfCourses';
+import { isRoundDiary } from '../utils/diaryKind';
 import { buildFoodMapUrl, NAVER_MAP_HEADERS, cityTokenOf, regionOf, naverSearchUrl } from '../utils/naverMap';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
@@ -621,8 +622,10 @@ export function GuideScreen({ route, navigation }) {
       return na === nb || na.includes(nb) || nb.includes(na);
     };
     const myDiaries = diaries.filter(d =>
-      (d.courseId && c.id && d.courseId === c.id) ||
-      nameMatch(d.course, c.name)
+      isRoundDiary(d) && ( // 일상(모멘트) 제외 — 방문 횟수는 라운딩만
+        (d.courseId && c.id && d.courseId === c.id) ||
+        nameMatch(d.course, c.name)
+      )
     );
     // 방문 횟수 = 다이어리 기록 + 기록 없는 지난 일정 (CourseLogTab '방문' 기준과 통일).
     // 방문이 본질, 기록은 옵션 — 라운딩만 하고 기록 안 남긴 경우도 방문에 포함.

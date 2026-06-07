@@ -1,4 +1,5 @@
 // 라운딩 통계 계산 — 순수 함수(Firestore 비의존). 여러 화면(MY 통계·마이페이지)에서 공유.
+import { roundsOnly } from './diaryKind';
 
 // 완료된 라운딩 수 = 다이어리 기록 + 기록 없는 지난 일정.
 // 같은 날 36홀은 scheduleId/course+date 매칭으로 각각 셈, 예정(미래)·기록과 매칭된 일정은 제외.
@@ -6,7 +7,7 @@ export function countCompletedRounds(diaries, schedules) {
   const t = new Date(); t.setHours(0, 0, 0, 0);
   const todayMs = t.getTime();
   const isPast = (date) => !!date && new Date(String(date).replace(/\./g, '-')).getTime() < todayMs;
-  const ds = diaries || [];
+  const ds = roundsOnly(diaries); // 일상(모멘트) 제외 — 라운딩만 카운트
   const unrecorded = (schedules || []).filter(s =>
     isPast(s.date) &&
     !ds.some(d => (s.id && d.scheduleId === s.id) || (!d.scheduleId && d.course === s.course && d.date === s.date))
@@ -30,7 +31,7 @@ export function countVisitedCourses(diaries, schedules) {
   const t = new Date(); t.setHours(0, 0, 0, 0);
   const todayMs = t.getTime();
   const isPast = (date) => !!date && new Date(String(date).replace(/\./g, '-')).getTime() < todayMs;
-  const ds = diaries || [];
+  const ds = roundsOnly(diaries); // 일상(모멘트) 제외 — 방문 구장 집계에서 빠짐
   const names = new Set();
   // 해외 다이어리가 연결한 일정 id — overseas 플래그 누락된 옛 데이터라도 국내로 새지 않게 방어(CourseLogTab과 동일)
   const overseasLinked = new Set(ds.filter(d => d.overseas && d.scheduleId).map(d => d.scheduleId));

@@ -25,6 +25,7 @@ import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '../utils/roundStats';
+import { roundsOnly } from '../utils/diaryKind';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { uploadAvatar } from '../utils/avatarStorage';
@@ -480,7 +481,9 @@ export function DiaryScreen({ route, navigation }) {
   const totalRounds = _dispTotal > 0 ? _dispTotal : null;
   // 라이프베스트 = 설정값(수동 입력한 과거 베스트)과 다이어리 최저 중 더 좋은(낮은) 값.
   // (다이어리만 쓰면 설정 89가 무시돼, 100짜리 라운딩 추가 시 100으로 잘못 표시되던 버그 수정)
-  const diaryBest = hasRecords ? Math.min(...diaries.map(d => d.score)) : null;
+  // 일상(모멘트)은 스코어가 없으므로 제외 — 안 그러면 Math.min에 undefined 섞여 NaN
+  const roundScores = roundsOnly(diaries).map(d => d.score).filter(v => Number.isFinite(v) && v > 0);
+  const diaryBest = roundScores.length ? Math.min(...roundScores) : null;
   const bestCandidates = [diaryBest, userProfile.lifeBest].filter(v => Number.isFinite(v) && v > 0);
   const bestScore = bestCandidates.length ? Math.min(...bestCandidates) : null;
   // 명함 — 마일스톤 배지(최고 1개) · 멘트

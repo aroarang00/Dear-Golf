@@ -8,6 +8,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks, normalizeCourseName } from '../utils/top100';
 import { getGolfCourses } from '../utils/golfCourses';
+import { isRoundDiary } from '../utils/diaryKind';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { dS } from '../styles/dS';
@@ -182,7 +183,7 @@ export function CourseLogTab({ avgRating, navigation }) {
       if (!map[k]) map[k] = { name: k, records: [], scheduleEntries: [] };
       return map[k];
     };
-    (diaries || []).filter(d => !d.overseas).forEach(d => { const e = entryOf(d.course); if (e) e.records.push(d); });
+    (diaries || []).filter(d => !d.overseas && isRoundDiary(d)).forEach(d => { const e = entryOf(d.course); if (e) e.records.push(d); }); // 일상(모멘트) 제외
     // 해외 다이어리가 연결한 일정 id — overseas 플래그가 누락된 옛 데이터라도 국내로 새지 않게 방어
     const overseasLinkedSchedIds = new Set(
       (diaries || []).filter(d => d.overseas && d.scheduleId).map(d => d.scheduleId));
@@ -259,7 +260,7 @@ export function CourseLogTab({ avgRating, navigation }) {
       if (!map[k]) map[k] = { key: k, name: k, country: '', records: [], scheduleEntries: [] };
       return map[k];
     };
-    (diaries || []).filter(d => d.overseas).forEach(d => {
+    (diaries || []).filter(d => d.overseas && isRoundDiary(d)).forEach(d => { // 일상(모멘트) 제외
       const e = entryOf(d.course);
       if (!e) return;
       e.records.push(d);

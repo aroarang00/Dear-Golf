@@ -17,6 +17,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { getCalendarChoice } from '../utils/deviceCalendar';
+import { roundsOnly } from '../utils/diaryKind';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { CourseLogModal } from './CourseLogModal';
 
@@ -98,8 +99,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (jumpDate) setCurrentDate(new Date(jumpDate.y, jumpDate.m, 1));
   }, [jumpDate]);
 
+  // 일상(모멘트)은 캘린더에 안 뜸 — 라운딩 기록만 날짜 점으로 표시([[moment-feed-extension]] 캘린더 무관)
   const completedDates = React.useMemo(
-    () => diaries.map(x => x.date).filter(Boolean),
+    () => roundsOnly(diaries).map(x => x.date).filter(Boolean),
     [diaries],
   );
 
