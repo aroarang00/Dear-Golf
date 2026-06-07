@@ -360,7 +360,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   // (통계·내코스모아보기와 일관). 카드 탭 시 onPress의 past+rec 분기가 다이어리 상세로 연결하므로
   // B-3안(2026-05-29)이 우려했던 '잘못된 진입'은 해소된 상태.
   const scheduleDateSet = new Set(monthSchedules.map(s => s.date));
-  const orphanItems = diaries
+  const orphanItems = roundsOnly(diaries) // 일상(모멘트)은 일정/캘린더 무관 — 가상 카드서 제외([[moment-feed-extension]])
     .filter(d => d.date && d.date.startsWith(monthStr) && !scheduleDateSet.has(d.date))
     .map(d => {
       const [y, mm, dd] = d.date.split('.').map(Number);
