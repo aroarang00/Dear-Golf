@@ -19,7 +19,7 @@ import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils
 import { ScorecardReviewModal } from './ScorecardReviewModal';
 import { CropEditorModal } from './common/CropEditorModal';
 import { PhotoEditModal } from './PhotoEditModal';
-import { showAppAlert } from './AppAlert';
+import { OverlayAlert } from './common/OverlayAlert';
 
 const COST_ITEMS = [
   ['green', '그린피'],
@@ -116,12 +116,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [photoBusy, setPhotoBusy] = useState(false); // 사진 추가(압축·영속) 처리 중 — 끝나기 전 저장 시 사진 누락되던 경합 방지
   const [cropIdx, setCropIdx] = useState(null); // 자르기(크롭) 대상 사진 인덱스
   const [editorIndex, setEditorIndex] = useState(null); // 회전 편집 대상 사진 인덱스 (PhotoEditModal)
+  // 인-모달 알럿/메뉴 — 글로벌 showAppAlert는 Modal 위 Modal 터치 충돌로 안 먹혀, 오버레이 View(OverlayAlert) 사용.
+  const [overlay, setOverlay] = useState(null);
   // 사진 탭 → 편집 메뉴(대표지정·회전·자르기·삭제). 상세의 '편집' 모드를 수정/추가 한 곳으로 통합.
   const handleThumbMenu = (i) => {
     const it = addPhotos[i];
     const isVideo = typeof it === 'object' && it?.type === 'video';
-    showAppAlert('사진 편집', null, [
-      { text: '취소', style: 'cancel' },
+    setOverlay({ title: '사진 편집', buttons: [
       ...(i === 0 ? [] : [{ text: '대표사진으로 지정', onPress: () => setAddPhotos(prev => {
         const n = [...prev]; const [p] = n.splice(i, 1); n.unshift(p); return n;
       }) }]),
@@ -131,7 +132,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         { text: '자르기', onPress: () => setCropIdx(i) },
       ]),
       { text: '삭제', style: 'destructive', onPress: () => setAddPhotos(prev => prev.filter((_, idx) => idx !== i)) },
-    ]);
+      { text: '취소', style: 'cancel' },
+    ] });
   };
   const [companions, setCompanions] = useState([]);
   const [companionInput, setCompanionInput] = useState('');
@@ -159,7 +161,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const overLimit = result.assets.filter(a => a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500);
       const assets = result.assets.filter(a => !(a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500));
       if (overLimit.length) {
-        showAppAlert('동영상이 너무 길어요', `동영상은 최대 ${MAX_VIDEO_SEC}초까지 올릴 수 있어요.\n길이를 넘는 ${overLimit.length}개는 제외했어요.`);
+        setOverlay({ title: '동영상이 너무 길어요', message: `동영상은 최대 ${MAX_VIDEO_SEC}초까지 올릴 수 있어요.\n길이를 넘는 ${overLimit.length}개는 제외했어요.` });
       }
       if (assets.length === 0) return;
       const rawItems = assets.map(a =>
@@ -186,7 +188,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       }
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAddModal] pickPhoto failed', e?.message);
-      showAppAlert('사진을 불러오지 못했어요', '사진 접근 권한을 허용했는지 확인하거나\n잠시 후 다시 시도해주세요.');
+      setOverlay({ title: '사진을 불러오지 못했어요', message: '사진 접근 권한을 허용했는지 확인하거나\n잠시 후 다시 시도해주세요.' });
     } finally {
       setPhotoBusy(false);
     }
@@ -957,6 +959,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             </ScrollView>
           </View>
         </View>
+        {/* 인-모달 알럿/메뉴 — 글로벌 showAppAlert는 Modal 위에서 터치 충돌, 오버레이 View로 처리 */}
+        <OverlayAlert data={overlay} onClose={() => setOverlay(null)} />
         <ScorecardReviewModal
           visible={scReview}
           rows={scRows}
