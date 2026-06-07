@@ -608,7 +608,7 @@ export function DiaryScreen({ route, navigation }) {
       </View>
 
       {(() => {
-        const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트순'];
+        const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트 스코어'];
 
         const filtered = (() => {
           let list = sortedDiaries;
@@ -627,7 +627,7 @@ export function DiaryScreen({ route, navigation }) {
           } else if (filterKey === '올해') {
             list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
           }
-          if (filterKey === '베스트순') {
+          if (filterKey === '베스트 스코어') {
             // 일상(모멘트)은 스코어가 없어 랭킹서 제외 — 안 그러면 score null이 0으로 최상단 오염
             list = roundsOnly(list).sort((a, b) => a.score - b.score);
           }
@@ -671,7 +671,8 @@ export function DiaryScreen({ route, navigation }) {
           <>
             <View style={dS.filterRow}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                style={{ flex: 1 }} contentContainerStyle={dS.filterTabRow}>
+                style={{ flex: 1 }}
+                contentContainerStyle={[dS.filterTabRow, { flexGrow: 1, justifyContent: 'space-between', paddingRight: 16 }]}>
                 {FILTERS.map(f => {
                   const on = filterKey === f;
                   return (
