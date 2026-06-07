@@ -18,6 +18,7 @@ import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils/scorecardOcr';
 import { ScorecardReviewModal } from './ScorecardReviewModal';
 import { CropEditorModal } from './common/CropEditorModal';
+import { PhotoEditModal } from './PhotoEditModal';
 import { showAppAlert } from './AppAlert';
 
 const COST_ITEMS = [
@@ -114,6 +115,24 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [addPhotos, setAddPhotos] = useState([]);
   const [photoBusy, setPhotoBusy] = useState(false); // 사진 추가(압축·영속) 처리 중 — 끝나기 전 저장 시 사진 누락되던 경합 방지
   const [cropIdx, setCropIdx] = useState(null); // 자르기(크롭) 대상 사진 인덱스
+  const [editorIndex, setEditorIndex] = useState(null); // 회전 편집 대상 사진 인덱스 (PhotoEditModal)
+  // 사진 탭 → 편집 메뉴(대표지정·회전·자르기·삭제). 상세의 '편집' 모드를 수정/추가 한 곳으로 통합.
+  const handleThumbMenu = (i) => {
+    const it = addPhotos[i];
+    const isVideo = typeof it === 'object' && it?.type === 'video';
+    showAppAlert('사진 편집', null, [
+      { text: '취소', style: 'cancel' },
+      ...(i === 0 ? [] : [{ text: '대표사진으로 지정', onPress: () => setAddPhotos(prev => {
+        const n = [...prev]; const [p] = n.splice(i, 1); n.unshift(p); return n;
+      }) }]),
+      // 영상은 회전·자르기 제외(첫프레임 포스터 기반)
+      ...(isVideo ? [] : [
+        { text: '회전', onPress: () => setEditorIndex(i) },
+        { text: '자르기', onPress: () => setCropIdx(i) },
+      ]),
+      { text: '삭제', style: 'destructive', onPress: () => setAddPhotos(prev => prev.filter((_, idx) => idx !== i)) },
+    ]);
+  };
   const [companions, setCompanions] = useState([]);
   const [companionInput, setCompanionInput] = useState('');
 
@@ -910,9 +929,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {addPhotos.map((item, i) => (
-                    <AddPhotoThumb key={i} item={item}
-                      onRemove={() => setAddPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                      onAdjust={() => setCropIdx(i)} />
+                    <AddPhotoThumb key={i} item={item} isCover={i === 0}
+                      onMenu={() => handleThumbMenu(i)} />
                   ))}
                   {addPhotos.length < MAX_PHOTOS && (
                     <TouchableOpacity onPress={pickPhoto} disabled={photoBusy}
@@ -961,11 +979,25 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             });
             setCropIdx(null);
           }} />
+        <PhotoEditModal
+          visible={editorIndex !== null}
+          uri={editorIndex !== null ? resolvePhotoUri(typeof addPhotos[editorIndex] === 'object' ? addPhotos[editorIndex].uri : addPhotos[editorIndex]) : null}
+          onClose={() => setEditorIndex(null)}
+          onSave={async (newUri) => {
+            const persisted = await persistPhoto(newUri);
+            setAddPhotos(prev => {
+              const next = [...prev];
+              const orig = next[editorIndex];
+              next[editorIndex] = typeof orig === 'object' ? { ...orig, uri: persisted } : persisted;
+              return next;
+            });
+            setEditorIndex(null);
+          }} />
     </Modal>
   );
 }
 
-function AddPhotoThumb({ item, onRemove, onAdjust }) {
+function AddPhotoThumb({ item, isCover, onMenu }) {
   const isVideo = typeof item === 'object' && item?.type === 'video';
   const src = resolvePhotoUri(typeof item === 'object' ? item.uri : item);
   const [thumb, setThumb] = useState(null);
@@ -987,7 +1019,8 @@ function AddPhotoThumb({ item, onRemove, onAdjust }) {
   const imgStyle = { width: 80, height: 80, borderRadius: 8 };
 
   return (
-    <View style={{ width: 80, height: 80, marginRight: 8 }}>
+    // 사진 탭 → 편집 메뉴(대표지정·회전·자르기·삭제). 상세 '편집'을 수정/추가 한 곳으로 통합.
+    <TouchableOpacity activeOpacity={0.85} onPress={onMenu} style={{ width: 80, height: 80, marginRight: 8 }}>
       {isVideo ? (
         <View style={imgStyle}>
           {thumb ? (
@@ -1008,30 +1041,21 @@ function AddPhotoThumb({ item, onRemove, onAdjust }) {
             </View>
           </View>
         </View>
-      ) : onAdjust ? (
-        // 사진 탭 = 자르기(크롭) 편집. 하단에 작은 안내 칩으로 가능함을 인지 ([[cover-focal-point]])
-        <TouchableOpacity activeOpacity={0.85} onPress={onAdjust} style={imgStyle}>
-          <Image source={{ uri: src }} style={imgStyle} />
-          <View style={{ position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', alignItems: 'center',
-            backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={{ color: '#fff', fontSize: fs(9) }}>✂ 자르기</Text>
-          </View>
-        </TouchableOpacity>
       ) : (
         <Image source={{ uri: src }} style={imgStyle} />
       )}
-      {onRemove && (
-        <TouchableOpacity onPress={onRemove}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{
-            position: 'absolute', top: 3, right: 3,
-            width: 22, height: 22, borderRadius: 11,
-            backgroundColor: 'rgba(0,0,0,0.78)',
-            alignItems: 'center', justifyContent: 'center',
-          }}>
-          <Text style={{ color: '#fff', fontSize: fs(11), lineHeight: 13 }}>✕</Text>
-        </TouchableOpacity>
+      {/* 대표사진 배지(첫 장) */}
+      {isCover && (
+        <View style={{ position: 'absolute', top: 3, left: 3, backgroundColor: C.burgundy,
+          borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(8), color: '#fff' }}>대표</Text>
+        </View>
       )}
-    </View>
+      {/* 탭하여 편집 안내 */}
+      <View style={{ position: 'absolute', bottom: 4, left: 4,
+        backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+        <Text style={{ color: '#fff', fontSize: fs(9) }}>✎ 편집</Text>
+      </View>
+    </TouchableOpacity>
   );
 }

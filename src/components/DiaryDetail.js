@@ -11,9 +11,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { PhotoViewer } from './common/PhotoViewer';
 import { DiaryAddModal } from './DiaryAddModal';
 import { hofBgColor } from './HallOfFameCard';
-import { PhotoEditModal } from './PhotoEditModal';
-import { CropEditorModal } from './common/CropEditorModal';
-import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
+import { resolvePhotoUri } from '../utils/photoStorage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }) {
@@ -23,14 +21,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
   const [photoViewer, setPhotoViewer] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editPhotos, setEditPhotos] = useState(item.photos || []);
-  const [editorIndex, setEditorIndex] = useState(null);
-  const [cropIndex, setCropIndex] = useState(null); // 자르기(크롭) 대상 사진 인덱스
 
-  useEffect(() => {
-    setEditPhotos(item.photos || []);
-  }, [item.photos]);
   const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const isMoment = item.kind === 'moment'; // 일상 — 스코어·구장·동반자 없이 날짜+글만 ([[moment-feed-extension]])
@@ -61,39 +52,6 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
     );
   };
 
-  const handlePhotoLongPress = (index) => {
-    if (!isEditing) return;
-    const it = editPhotos[index];
-    const isVideo = typeof it === 'object' && it?.type === 'video';
-    showAppAlert(
-      '사진 옵션',
-      null,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '대표사진으로 지정',
-          onPress: () => {
-            if (index === 0) return;
-            setEditPhotos(prev => {
-              const next = [...prev];
-              const [picked] = next.splice(index, 1);
-              next.unshift(picked);
-              return next;
-            });
-          },
-        },
-        // 영상은 자동 첫프레임 포스터라 자르기 제외 ([[cover-focal-point]])
-        ...(isVideo ? [] : [{ text: '자르기', onPress: () => setCropIndex(index) }]),
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => {
-            setEditPhotos(prev => prev.filter((_, i) => i !== index));
-          },
-        },
-      ],
-    );
-  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }}>
@@ -287,31 +245,10 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
         </View>
         {(photosToShow.length > 0 || !isMoment) && (
         <View style={dS.photosArea}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <Text style={dS.photosLabel}>사진 · 영상</Text>
-            {isEditing ? (
-              <View style={{ flexDirection: 'row', gap: 14 }}>
-                <TouchableOpacity onPress={() => {
-                  setEditPhotos(item.photos || []);
-                  setIsEditing(false);
-                }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>취소</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => {
-                  onUpdate && onUpdate({ ...item, photos: editPhotos });
-                  setIsEditing(false);
-                }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>완료</Text>
-                </TouchableOpacity>
-              </View>
-            ) : photosToShow.length > 0 ? (
-              <TouchableOpacity onPress={() => setIsEditing(true)}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.burgundy }}>편집</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          {(!isEditing && photosToShow.length === 0) ? (
-            // 사진 미등록 — 권장 안내 + 추가 경로(수정) 명시. 탭하면 수정(DiaryAddModal) 진입.
+          <Text style={[dS.photosLabel, { marginBottom: 10 }]}>사진 · 영상</Text>
+          {/* 사진 추가·대표지정·회전·자르기·삭제는 모두 '수정'에서 — 상세는 보기 전용(탭→전체화면) ([[cover-focal-point]]) */}
+          {photosToShow.length === 0 ? (
+            // 사진 미등록 — 탭하면 수정(DiaryAddModal) 진입.
             <TouchableOpacity activeOpacity={0.85} onPress={() => setShowEditModal(true)}
               style={{ paddingVertical: 18, paddingHorizontal: 16, borderRadius: 12,
                 backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
@@ -319,27 +256,16 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
                 📷 사진을 등록하면 미리보기에{'\n'}대표 사진이 표시돼요.{'\n'}그날 라운딩의 순간을{'\n'}언제든 다시 볼 수 있어요.
               </Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy, textAlign: 'center', marginTop: 10 }}>
-                [수정]에서 사진 추가하기
+                [수정]에서 사진 추가·편집하기
               </Text>
             </TouchableOpacity>
           ) : (
           <View style={dS.photosGrid}>
-            {(isEditing ? editPhotos : photosToShow).map((uri, i) => {
+            {photosToShow.map((uri, i) => {
               const src = resolvePhotoUri(typeof uri === 'object' ? uri.uri : uri);
               return (
                 <TouchableOpacity key={i}
-                  onPress={() => {
-                    if (isEditing) {
-                      const isVideo = typeof uri === 'object' && uri?.type === 'video';
-                      if (isVideo) {
-                        showAppAlert('편집 불가', '동영상은 회전 편집을 지원하지 않습니다.\n길게 눌러 대표 지정/삭제만 가능해요.');
-                        return;
-                      }
-                      setEditorIndex(i);
-                    } else { setViewerStart(i); setPhotoViewer(true); }
-                  }}
-                  onLongPress={() => handlePhotoLongPress(i)}
-                  delayLongPress={400}
+                  onPress={() => { setViewerStart(i); setPhotoViewer(true); }}
                   style={dS.photoGridItem}>
                   <GridThumb item={uri} src={src} />
                   {i === 0 && (
@@ -357,39 +283,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
         <View style={{ height: 40 }} />
       </ScrollView>
       {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
-      <PhotoEditModal
-        visible={editorIndex !== null}
-        uri={editorIndex !== null ? resolvePhotoUri(typeof editPhotos[editorIndex] === 'object' ? editPhotos[editorIndex].uri : editPhotos[editorIndex]) : null}
-        onClose={() => setEditorIndex(null)}
-        onSave={async (newUri) => {
-          // 회전 등 편집 결과(임시 캐시 uri)를 영구 저장
-          const persisted = await persistPhoto(newUri);
-          setEditPhotos(prev => {
-            const next = [...prev];
-            const orig = next[editorIndex];
-            next[editorIndex] = typeof orig === 'object' ? { ...orig, uri: persisted } : persisted;
-            return next;
-          });
-          setEditorIndex(null);
-        }}
-      />
-      <CropEditorModal
-        visible={cropIndex !== null}
-        aspect="cover"
-        uri={cropIndex !== null ? resolvePhotoUri(typeof editPhotos[cropIndex] === 'object' ? (editPhotos[cropIndex].orig || editPhotos[cropIndex].uri) : editPhotos[cropIndex]) : null}
-        onClose={() => setCropIndex(null)}
-        onSave={async (croppedUri) => {
-          const persisted = await persistPhoto(croppedUri);
-          setEditPhotos(prev => {
-            const next = [...prev];
-            const cur = next[cropIndex];
-            const origStored = typeof cur === 'object' ? (cur.orig || cur.uri) : cur; // 재편집용 원본 보관
-            next[cropIndex] = { uri: persisted, orig: origStored };
-            return next;
-          });
-          setCropIndex(null);
-        }}
-      />
+      {/* 사진 편집(대표지정·회전·자르기·삭제)은 DiaryAddModal('수정')로 일원화 — 상세의 편집 모드 제거 */}
       <DiaryAddModal
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
