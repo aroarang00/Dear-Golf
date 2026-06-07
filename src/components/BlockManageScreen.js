@@ -7,6 +7,8 @@ import { UserContext } from '../contexts/UserContext';
 import { unblockUser, remainingBlocksToday, DAILY_BLOCK_LIMIT } from '../utils/block';
 import { unblockUid as fsUnblockUid } from '../utils/friends';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { db } from '../utils/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { OverlayAlert } from './common/OverlayAlert';
 
 export function BlockManageScreen({ visible, onClose }) {
@@ -20,9 +22,28 @@ export function BlockManageScreen({ visible, onClose }) {
   const blocked = userProfile?.blockedUsers || [];
   const remaining = remainingBlocksToday(userProfile);
 
+  // 차단 목록은 uid만 보관 → 열 때 users 문서에서 닉네임을 불러와 표시. 못 찾으면(옛 더미=이름 저장분) 원문 폴백.
+  const [namesByUid, setNamesByUid] = React.useState({});
+  const blockedKey = blocked.join('|');
+  React.useEffect(() => {
+    if (!visible || blocked.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(blocked.map(async (id) => {
+        try {
+          const snap = await getDoc(doc(db, 'users', id));
+          return [id, snap.exists() ? (snap.data().nickname || '') : ''];
+        } catch { return [id, '']; }
+      }));
+      if (!cancelled) setNamesByUid(Object.fromEntries(entries.filter(([, n]) => n)));
+    })();
+    return () => { cancelled = true; };
+  }, [visible, blockedKey]);
+  const displayName = (id) => namesByUid[id] || id; // 닉네임 우선, 없으면 원문(이름 저장분/로딩 전)
+
   const handleUnblock = (id) => {
     setAlert({
-      title: `${id}님 차단을 해제할까요?`,
+      title: `${displayName(id)}님 차단을 해제할까요?`,
       message: '차단을 풀면 서로의 모집글이 다시 보여요.\n다만 이미 끊긴 친구 관계는 복원되지 않으며, 다시 친구가 되려면 친구 신청을 해야 해요.',
       buttons: [
         { text: '취소', style: 'cancel' },
@@ -80,10 +101,10 @@ export function BlockManageScreen({ visible, onClose }) {
                   <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.hairline,
                     alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.warmGray }}>
-                      {String(id).charAt(0)}
+                      {String(displayName(id)).charAt(0)}
                     </Text>
                   </View>
-                  <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{id}</Text>
+                  <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{displayName(id)}</Text>
                   <TouchableOpacity onPress={() => handleUnblock(id)} activeOpacity={0.8}
                     style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
                       backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
