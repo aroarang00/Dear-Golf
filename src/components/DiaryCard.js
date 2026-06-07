@@ -220,8 +220,9 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <>
         <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
           {photoEl(false)}
+          {/* 날짜+더보기를 가운데 묶음으로 — 오른쪽 끝 FAB(+ 기록하기)와 겹쳐 안 눌리던 문제 회피 */}
           <View style={[dS.toggleBtn, { backgroundColor: MOMENT_BG, flexDirection: 'row',
-            alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 }]}>
+            alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 12 }]}>
             <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
             {item.memo ? (
               <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
