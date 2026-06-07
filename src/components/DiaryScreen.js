@@ -25,7 +25,7 @@ import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '../utils/roundStats';
-import { roundsOnly } from '../utils/diaryKind';
+import { roundsOnly, isMomentDiary, isRoundDiary } from '../utils/diaryKind';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { uploadAvatar } from '../utils/avatarStorage';
@@ -403,10 +403,20 @@ export function DiaryScreen({ route, navigation }) {
     storage.save(STORAGE_KEYS.hofHintSeen, true);
   };
 
+  // createdAt(Firestore Timestamp) → millis. 없으면 0.
+  const tsMillis = (d) => {
+    const c = d?.createdAt;
+    if (!c) return 0;
+    if (typeof c.toMillis === 'function') return c.toMillis();
+    if (typeof c.seconds === 'number') return c.seconds * 1000;
+    return typeof c === 'number' ? c : 0;
+  };
   const sortedDiaries = [...diaries].sort((a, b) => {
     const dateA = new Date((a.date || '').replace(/\./g, '-'));
     const dateB = new Date((b.date || '').replace(/\./g, '-'));
-    return dateB - dateA;
+    if (dateB - dateA !== 0) return dateB - dateA;
+    // 같은 날짜는 작성 시각 최신순 — 일상(모멘트, date=작성일)이 같은 날 라운딩 사이에 자연스럽게 인터리브([[moment-feed-extension]])
+    return tsMillis(b) - tsMillis(a);
   });
 
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
@@ -598,7 +608,7 @@ export function DiaryScreen({ route, navigation }) {
       </View>
 
       {(() => {
-        const FILTERS = ['전체', '올해', '최근 3개월', '베스트순', '특별한 순간'];
+        const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트순'];
 
         const filtered = (() => {
           let list = sortedDiaries;
@@ -610,21 +620,16 @@ export function DiaryScreen({ route, navigation }) {
             });
           }
           const now = new Date();
-          if (filterKey === '올해') {
+          if (filterKey === '라운딩') {
+            list = list.filter(isRoundDiary); // 라운딩 기록만 보기
+          } else if (filterKey === '일상') {
+            list = list.filter(isMomentDiary); // 일상(모멘트)만 보기
+          } else if (filterKey === '올해') {
             list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
-          } else if (filterKey === '최근 3개월') {
-            const cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3);
-            list = list.filter(d => {
-              const [y, m, day] = (d.date || '').split('.').map(Number);
-              return y ? new Date(y, m - 1, day) >= cutoff : false;
-            });
-          } else if (filterKey === '특별한 순간') {
-            // 명예의 전당에 오른 기록 모두 — special(홀인원·이글 등) + 퍼스트 싱글
-            const hofIds = new Set(hallOfFame.map(h => h.diaryId).filter(Boolean));
-            list = list.filter(d => d.special != null || hofIds.has(d.id));
           }
           if (filterKey === '베스트순') {
-            list = [...list].sort((a, b) => a.score - b.score);
+            // 일상(모멘트)은 스코어가 없어 랭킹서 제외 — 안 그러면 score null이 0으로 최상단 오염
+            list = roundsOnly(list).sort((a, b) => a.score - b.score);
           }
           return list;
         })();
@@ -752,7 +757,7 @@ export function DiaryScreen({ route, navigation }) {
 
               {filtered.length === 0 ? (
                 <View style={dS.emptyWrap}>
-                  <Text style={dS.emptyMsg}>검색 결과가 없어요</Text>
+                  <Text style={dS.emptyMsg}>{filterKey === '일상' ? '아직 일상이 없어요' : filterKey === '라운딩' ? '아직 라운딩 기록이 없어요' : '검색 결과가 없어요'}</Text>
                 </View>
               ) : (
                 <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
