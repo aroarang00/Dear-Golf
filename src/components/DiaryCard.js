@@ -178,6 +178,10 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   //  · 글만 일상 = 무사진 라운딩 카드와 높이 맞춤: 날짜+글 붙이고 더보기는 날짜 옆(인라인)
   if (item.kind === 'moment') {
     const momentTextStyle = { fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21 };
+    // 일상 색 구분 — 연한 세이지 바탕 + 왼쪽 세이지 띠 (페이지 크림·라운딩 흰색 둘 다와 구분).
+    const SAGE_BG = '#ECF1E6';
+    const SAGE_BAR = '#9CAF88';
+    const momentCard = [dS.card, { backgroundColor: SAGE_BG, borderLeftWidth: 3, borderLeftColor: SAGE_BAR }];
     if (hasPhoto) {
       const photoEl = (
         <View style={dS.photoHero43}>
@@ -192,7 +196,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       if (isFriend) {
         // 친구 사진 일상 — 라운딩 친구 사진카드와 동일(사진 + 글 1줄 + 좋아요)
         return (
-          <View style={dS.card}>
+          <View style={momentCard}>
             {photoEl}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
               <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
@@ -206,11 +210,11 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       // 내 피드 사진 일상 — 라운딩 사진카드처럼 더보기 토글
       return (
         <>
-        <TouchableOpacity style={dS.card} activeOpacity={0.88} onPress={() => onPress(item)}>
+        <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
           {photoEl}
           {item.memo ? (
             <>
-              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
+              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={[dS.toggleBtn, { backgroundColor: SAGE_BG }]}>
                 <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
               </TouchableOpacity>
               {expanded && (
@@ -238,7 +242,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     );
     if (isFriend) {
       return (
-        <View style={dS.card}>
+        <View style={momentCard}>
           {textBody}
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingBottom: 10, marginTop: -4 }}>
             {likeButton}
@@ -248,7 +252,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     }
     return (
       <>
-      <TouchableOpacity style={dS.card} activeOpacity={0.88} onPress={() => onPress(item)}>
+      <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
         {textBody}
       </TouchableOpacity>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
