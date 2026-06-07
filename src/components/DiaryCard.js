@@ -187,9 +187,12 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <View style={dS.photoHero43}>
           <MediaCarousel photos={item.photos}
             onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
-          {/* 날짜만 사진 위에 — 보여지는(접힌) 부분에 표시 */}
-          <View pointerEvents="none" style={dS.photoBottomOverlay}>
-            <Text style={dS.overlayDate}>{item.date} {item.day}</Text>
+          {/* 날짜만 사진 위에 — 어두운 띠 없이 그림자로 최소 오버레이 */}
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, bottom: 0, paddingHorizontal: 10, paddingVertical: 8 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#fff',
+              textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 }}>
+              {item.date} {item.day}
+            </Text>
           </View>
         </View>
       );
