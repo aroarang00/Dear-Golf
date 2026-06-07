@@ -109,7 +109,7 @@ export function ReportModal({ visible, onClose }) {
     setRemaining(next);
     setAlert({
       title: '신고가 접수됐어요',
-      message: `디어골프 팀이 7일 이내에 검토하고 결과를 알려드릴게요.\n진행 상황은 마이페이지에서 확인할 수 있어요.\n\n이번 달 남은 신고 ${next}/${REPORT_MONTH_LIMIT}건`,
+      message: `디어골프 팀이 7일 이내에 검토하고 결과를 알려드릴게요.\n진행 상황은 마이페이지에서 확인할 수 있어요.\n\n이번 달 남은 신고 ${next}건`,
       buttons: [{ text: '확인', onPress: onClose }],
     });
   };
@@ -126,7 +126,7 @@ export function ReportModal({ visible, onClose }) {
             </TouchableOpacity>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>신고하기</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginLeft: 'auto' }}>
-              이번 달 {remaining}/{REPORT_MONTH_LIMIT}건
+              {remaining > 0 ? `이번 달 ${remaining}건 남음` : '이번 달 한도 도달'}
             </Text>
           </View>
 

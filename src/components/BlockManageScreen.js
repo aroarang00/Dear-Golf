@@ -81,7 +81,7 @@ export function BlockManageScreen({ visible, onClose }) {
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18 }}>
                 차단하면 서로의 모집글이 보이지 않아요. 차단 사실은 상대에게 알리지 않아요.{'\n'}
-                오늘 남은 차단 가능 횟수: <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{remaining}</Text>/{DAILY_BLOCK_LIMIT}회
+                오늘 차단 가능: <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{remaining}</Text>명 남음 <Text style={{ color: C.warmGrayLight }}>(하루 {DAILY_BLOCK_LIMIT}명)</Text>
               </Text>
             </View>
 
