@@ -591,7 +591,8 @@ export function MyPageModal({ visible, onClose }) {
                   // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화 ([[report-block-policy]] §5-1)
                   // Firestore reports 컬렉션 등록·이메일 발송·검토 결과 통보는 Phase 2 Cloud Functions
                   { icon: '🚨', label: '신고하기',
-                    value: `이번 달 ${reportRemaining}/${REPORT_MONTH_LIMIT}건`,
+                    // 월 1건 한도. "1/1" 분수는 다 쓴 것처럼 헷갈려 "N건 남음"으로 명확히.
+                    value: reportRemaining > 0 ? `이번 달 ${reportRemaining}건 남음` : '이번 달 한도 도달',
                     onPress: () => setReportOpen(true) },
                   ...(userProfile.kakaoLinked
                     ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
