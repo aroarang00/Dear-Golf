@@ -78,8 +78,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   // 상위 분기 — 'round'(라운딩 기록) | 'moment'(일상). 일상은 글/사진만, 통계·캘린더서 격리([[moment-feed-extension]])
   const [kind, setKind] = useState('round');
 
-  const toggleTag = (tag) => {
-    setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  // 코스 관리(관리 최상/보통/아쉬움)는 등급이라 카테고리 내 단일 선택 — 하나 누르면 같은 그룹 나머지는 해제.
+  // 그 외 카테고리는 독립 속성이라 다중 선택 유지.
+  const SINGLE_SELECT_TAG_CATEGORIES = ['코스 관리'];
+  const toggleTag = (tag, category) => {
+    setSelectedTags(prev => {
+      const has = prev.includes(tag);
+      if (SINGLE_SELECT_TAG_CATEGORIES.includes(category)) {
+        const group = COURSE_TAGS[category] || [];
+        const rest = prev.filter(t => !group.includes(t)); // 같은 그룹 기존 선택 제거
+        return has ? rest : [...rest, tag];               // 누른 게 켜져 있었으면 해제, 아니면 그룹 내 단일 선택
+      }
+      return has ? prev.filter(t => t !== tag) : [...prev, tag];
+    });
   };
   // 예시 칩 탭 → '더 기록하기' 입력칸에 '라벨: ' 삽입 + 포커스
   const insertGuideChip = (label) => {
@@ -744,7 +755,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                               borderWidth: 0.5,
                               borderColor: on ? catColor.bg : C.hairline,
                             }}
-                            onPress={() => toggleTag(tag)}>
+                            onPress={() => toggleTag(tag, category)}>
                             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: on ? catColor.text : C.warmGrayLight }}>{tag}</Text>
                           </TouchableOpacity>
                         );
