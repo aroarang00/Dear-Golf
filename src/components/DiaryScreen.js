@@ -648,10 +648,10 @@ export function DiaryScreen({ route, navigation }) {
               contentContainerStyle={{ alignItems: 'center', paddingTop: 40, paddingBottom: 48 }}>
               <Text style={{ fontSize: fs(40), marginBottom: 14 }}>⛳</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
-                아직 라운딩 기록이 없어요
+                아직 기록이 없어요
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
-                첫 라운딩을 기록하면 이렇게 남아요
+                라운딩 기록이나 일상을 남기면{'\n'}이렇게 피드에 쌓여요
               </Text>
               <View style={{ width: '100%', marginTop: 22 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8, marginLeft: 16 }}>예시</Text>
