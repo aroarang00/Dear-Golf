@@ -865,7 +865,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     <TextInput
                       style={{ fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary,
                         minHeight: 100, textAlignVertical: 'top' }}
-                      placeholder="밥, 연습장, 풍경... 골프와 함께한 일상을 자유롭게 남겨보세요"
+                      placeholder="스크린 기록과 사진, 연습장 기록, 그 외 친구들과 공유할 일상을 남겨보세요"
                       placeholderTextColor={C.warmGrayLight}
                       value={memo}
                       onChangeText={(t) => { if (t.length <= 1000) setMemo(t); }}
