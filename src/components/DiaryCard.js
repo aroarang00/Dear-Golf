@@ -178,9 +178,9 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   //  · 글만 일상 = 무사진 라운딩 카드와 높이 맞춤: 날짜+글 붙이고 더보기는 날짜 옆(인라인)
   if (item.kind === 'moment') {
     const momentTextStyle = { fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21 };
-    // 일상 색 구분 — 옅은 버터 바탕 + 왼쪽 버터 띠 (페이지 크림·라운딩 흰색 둘 다와 구분, 우리 팔레트).
+    // 일상 색 구분 — 옅은 버터 바탕 + 왼쪽 골드 띠 (페이지 크림·라운딩 흰색 둘 다와 구분).
     const MOMENT_BG = '#FBF3D6';
-    const MOMENT_BAR = C.butter; // #F5E6A8
+    const MOMENT_BAR = '#C9A84C'; // 골드 — 옅은 버터 바탕 위 대비 확보
     const momentCard = [dS.card, { backgroundColor: MOMENT_BG, borderLeftWidth: 3, borderLeftColor: MOMENT_BAR }];
     if (hasPhoto) {
       const photoEl = (
