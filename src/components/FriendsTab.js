@@ -17,6 +17,7 @@ import {
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend, blockUid as fsBlockUid } from '../utils/friends';
+import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { blockUser, remainingBlocksToday } from '../utils/block';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds } from '../utils/round';
@@ -109,6 +110,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState([]);
   const [friendsLoaded, setFriendsLoaded] = useState(false); // 첫 로드 완료 전 빈 가이드 숨김(깜빡임 방지)
+  // 친구 그룹·별명 (내 private 메타 — owner-only). 표시 이름·그룹 지정에 사용 ([[friend_groups]])
+  const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
@@ -153,11 +156,13 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           favArr.forEach(u => { fm[u] = true; });
           setFavorites(fm);
         }
-        // 2) 친구·받은 신청·보낸 신청 병렬 로드
-        const [friendsList, received, sent] = await Promise.all([
-          loadMyFriends(), loadReceivedRequests(), loadSentRequests(),
+        // 2) 친구·받은 신청·보낸 신청 + 친구 그룹·별명(내 private 메타) 병렬 로드
+        const [friendsList, received, sent, fdata] = await Promise.all([
+          loadMyFriends(), loadReceivedRequests(), loadSentRequests(), loadFriendData(),
         ]);
         if (cancelled) return;
+        const friendMeta = fdata.friendMeta || {};
+        setFriendData(fdata);
         // 3) 상대 uid 모음 → users 문서 한 번에 fetch (Promise.all)
         const otherUids = Array.from(new Set([
           ...friendsList.map(f => f.otherUid),
@@ -186,9 +191,15 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         // 4) UI 객체로 매핑 — 명함 공개필드(멘트·라이프베스트·평균타·총라운딩·사진) 반영 (친구 공개 뷰 2단계)
         const toMinimal = (uid) => {
           const p = profileByUid[uid] || {};
+          const meta = friendMeta[uid] || {};
+          const nickname = p.nickname || '친구';
+          const cn = (meta.customName || '').trim();
           return {
             id: uid,
-            name: p.nickname || '친구',
+            nickname,                          // 원본 닉네임(별명 편집 시 placeholder·복원용)
+            name: cn || nickname,              // 표시 이름 — 별명 우선 ([[friend_groups]])
+            customName: cn,
+            groupIds: Array.isArray(meta.groupIds) ? meta.groupIds : [],
             realName: p.realName || '',
             statusMessage: p.statusMessage || '',
             avatarUri: p.avatarUrl || null,
@@ -402,6 +413,22 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     );
   };
 
+  // 친구 그룹·별명 저장 — friendData(private 메타) write-through + 목록·열린 프로필 표시 갱신 ([[friend_groups]])
+  const handleSaveFriendMeta = async (friendUid, { customName, groupIds }) => {
+    const cn = (customName || '').trim();
+    const gids = Array.isArray(groupIds) ? groupIds : [];
+    try {
+      const updated = await setFriendMeta(friendUid, { customName: cn, groupIds: gids });
+      if (updated) setFriendData(updated);
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] setFriendMeta failed', e?.message);
+    }
+    setFriends(prev => prev.map(f => f.id === friendUid
+      ? { ...f, customName: cn, groupIds: gids, name: cn || f.nickname || f.name } : f));
+    setProfileFriend(prev => (prev && prev.id === friendUid
+      ? { ...prev, customName: cn, groupIds: gids, name: cn || prev.nickname || prev.name } : prev));
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       {/* 친구 검색창 + 친구 추가 */}
@@ -551,6 +578,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         friend={profileFriend}
         visible={!!profileFriend}
         feedLoading={feedLoading}
+        friendGroups={friendData.friendGroups}
+        onSaveMeta={handleSaveFriendMeta}
         onClose={() => setProfileFriend(null)}
         muted={profileFriend ? !!muted[profileFriend.id] : false}
         onToggleMute={() => profileFriend && toggleMute(profileFriend.id)}

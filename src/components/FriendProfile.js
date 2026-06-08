@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
@@ -19,7 +19,7 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
 // 피드 카드는 MY와 동일한 DiaryCard(variant='friend') 재사용 — 정보만 선별 ([[friend-feed-design]])
-export function FriendProfile({ friend, visible, feedLoading, onClose, muted, onToggleMute, onHide, onDelete, onBlock }) {
+export function FriendProfile({ friend, visible, feedLoading, friendGroups = [], onSaveMeta, onClose, muted, onToggleMute, onHide, onDelete, onBlock }) {
   const [gradeOpen, setGradeOpen] = useState(false);
   const [mannerOpen, setMannerOpen] = useState(false);
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
@@ -29,16 +29,33 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
   const [viewer, setViewer] = useState(null);              // { photos, index } — 사진/영상 전체화면
   const [reportItem, setReportItem] = useState(null);      // 피드 게시물 신고 — 사유 선택 시트 ([[content-report-policy]])
   const [reportMsg, setReportMsg] = useState(null);        // 신고 결과 안내 텍스트
+  const [metaOpen, setMetaOpen] = useState(false);         // 그룹·별명 설정 시트 ([[friend_groups]])
+  const [editName, setEditName] = useState('');            // 편집 중 별명
+  const [editGroups, setEditGroups] = useState([]);        // 편집 중 소속 그룹 id 배열
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(msgNoticeOpen, () => setMsgNoticeOpen(false)); // 메시지 준비중 안내 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(!!reportItem, () => setReportItem(null)); // 신고 시트 뒤로가기 → 닫기
   useAndroidBack(!!reportMsg, () => setReportMsg(null));   // 신고 결과 뒤로가기 → 닫기
+  useAndroidBack(metaOpen, () => setMetaOpen(false));      // 그룹·별명 시트 뒤로가기 → 닫기
   useEffect(() => { getUid().then(setMyUid).catch(() => {}); }, []);
   if (!friend) return null;
 
   const handleOption = (fn) => () => { setOptionsOpen(false); fn && fn(); };
+  // 그룹·별명 설정 ([[friend_groups]]) — 내 private 메타. 친구에겐 안 보임.
+  const openMetaEditor = () => {
+    setEditName(friend.customName || '');
+    setEditGroups(Array.isArray(friend.groupIds) ? [...friend.groupIds] : []);
+    setMetaOpen(true);
+  };
+  const toggleEditGroup = (gid) =>
+    setEditGroups(prev => (prev.includes(gid) ? prev.filter(x => x !== gid) : [...prev, gid]));
+  const saveMeta = () => {
+    onSaveMeta && onSaveMeta(friend.id, { customName: editName, groupIds: editGroups });
+    setMetaOpen(false);
+  };
   const options = [
+    { text: '✏️  그룹·별명 설정', subtitle: '나만 보는 별명·그룹 (친구에겐 안 보여요)', onPress: handleOption(openMetaEditor) },
     {
       text: muted ? '🔔  알림 켜기' : '🔕  알림 끄기',
       subtitle: muted
@@ -278,6 +295,53 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>확인</Text>
                 </TouchableOpacity>
               </View>
+            </TouchableOpacity>
+          )}
+
+          {/* 그룹·별명 설정 — 내 private 메타. 친구에겐 안 보임 ([[friend_groups]]) */}
+          {metaOpen && (
+            <TouchableOpacity activeOpacity={1} onPress={() => setMetaOpen(false)}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 28 }}>
+              <TouchableOpacity activeOpacity={1} onPress={() => {}}
+                style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 20 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, textAlign: 'center', marginBottom: 4 }}>그룹 · 별명 설정</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginBottom: 16 }}>나만 보는 설정이에요 · 친구에겐 안 보여요</Text>
+
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>별명</Text>
+                <TextInput value={editName} onChangeText={setEditName}
+                  placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight} maxLength={20}
+                  style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
+                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 4 }}>
+                  비우면 닉네임({friend.nickname || friend.name})으로 표시돼요
+                </Text>
+
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginTop: 16, marginBottom: 8 }}>그룹</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {friendGroups.map(g => {
+                    const on = editGroups.includes(g.id);
+                    return (
+                      <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => toggleEditGroup(g.id)}
+                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18,
+                          backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: on ? C.butter : C.charcoal }}>{g.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => setMetaOpen(false)}
+                    style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity activeOpacity={0.85} onPress={saveMeta}
+                    style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.burgundy, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>저장</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
             </TouchableOpacity>
           )}
 
