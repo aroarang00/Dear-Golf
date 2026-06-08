@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { Spinner } from './common/Spinner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -71,7 +72,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [weather, setWeather] = useState('맑음');
   const [memo, setMemo] = useState('');
   const [birdieCount, setBirdieCount] = useState(0);
-  const [privacy, setPrivacy] = useState('friends');
+  const [privacy, setPrivacy] = useState('friends'); // 'friends'(전체) | 'private'(나만) | 그룹id ([[friend_groups]])
+  const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [starRating, setStarRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState([]);
   const [detailMemo, setDetailMemo] = useState('');
@@ -291,6 +293,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   useEffect(() => {
     if (!visible) return;
+    loadFriendData().then(setFriendData).catch(() => {}); // 공개범위 그룹 선택·해석용 ([[friend_groups]])
     if (isEdit && initial) {
       setCourseSearch(initial.course || '');
       setSelectedCourse(initial.course || '');
@@ -318,8 +321,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setSelectedTags(initial.tags || []);
       setAddPhotos(initial.photos || []);
       // 저장 필드는 visibility — 옛 코드가 privacy로 내보내 visibility가 안 바뀌던 버그 수정.
-      // 혹시 남아있는 옛 privacy 값도 폴백으로 인정.
-      setPrivacy(initial.visibility || initial.privacy || 'friends');
+      // 혹시 남아있는 옛 privacy 값도 폴백으로 인정. group이면 그룹 칩(첫 audienceGroupId) 복원 ([[friend_groups]]).
+      {
+        const v = initial.visibility || initial.privacy || 'friends';
+        setPrivacy(v === 'group'
+          ? ((Array.isArray(initial.audienceGroupIds) && initial.audienceGroupIds[0]) || 'friends')
+          : v);
+      }
       setCompanions(
         (initial.companions || [])
           .filter(c => !c.isMe)
@@ -381,6 +389,25 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   const handleSave = () => {
+    // 공개범위 해석 — friends/private은 그대로, 그룹 id면 group + audienceUids 스냅샷 ([[friend_groups]])
+    let vis;
+    if (privacy === 'private') {
+      vis = { visibility: 'private' };
+    } else if (privacy === 'friends') {
+      vis = { visibility: 'friends' };
+    } else {
+      const uids = resolveGroupAudience(friendData.friendMeta, [privacy]);
+      if (uids.length === 0) {
+        const gname = (friendData.friendGroups.find(g => g.id === privacy) || {}).name || '그룹';
+        setOverlay({
+          title: `'${gname}'에 지정된 친구가 없어요`,
+          message: '친구 프로필 ⋯ → 그룹·별명 설정에서\n이 그룹에 친구를 먼저 지정해주세요.',
+          buttons: [{ text: '확인' }],
+        });
+        return;
+      }
+      vis = { visibility: 'group', audienceUids: uids, audienceGroupIds: [privacy] };
+    }
     // 일상(모멘트) — 글/사진만. 라운딩 전용 필드는 비워서 저장(통계 격리는 kind로 보장, 데이터도 깔끔히).
     if (isMoment) {
       if (!memo.trim() && addPhotos.length === 0) {
@@ -393,7 +420,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         date: formatDate(date), day: formatDay(date), // 기본 오늘 (캘린더 미표시·작성시각 정렬)
         memo: memo.trim(), detailMemo: '',
         photos: addPhotos,
-        visibility: privacy,
+        ...vis,
         score: null, course: '', courseId: null, courseLoc: null,
         holeScores: null, holePars: null, birdieCount: 0,
         weather: null, special: null, specialHole: null, specialPar: null,
@@ -423,7 +450,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSaveError('');
     const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
-      score: parseInt(score) || 0, holeScores, holePars, weather, memo, birdieCount, visibility: privacy,
+      score: parseInt(score) || 0, holeScores, holePars, weather, memo, birdieCount, ...vis,
       special, specialHole: parseInt(specialHole),
       specialPar: parseInt(specialPar) || null,
       specialDist, specialBall, specialMemo,
@@ -921,14 +948,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               )}
 
               <Text style={mS.bigLabel}>공개 범위</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity style={[mS.chip, privacy === 'friends' && mS.chipOn]} onPress={() => setPrivacy('friends')}>
-                  <Text style={[mS.chipTxt, privacy === 'friends' && mS.chipTxtOn]}>친구공개</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[mS.chip, privacy === 'private' && mS.chipOn]} onPress={() => setPrivacy('private')}>
-                  <Text style={[mS.chipTxt, privacy === 'private' && mS.chipTxtOn]}>나만보기</Text>
-                </TouchableOpacity>
+              {/* 친구 전체 / 그룹들(가까운 친구·라운딩 멤버) / 나만 보기 — 단일 선택 ([[friend_groups]]) */}
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {[{ key: 'friends', label: '친구 전체' },
+                  ...friendData.friendGroups.map(g => ({ key: g.id, label: g.name })),
+                  { key: 'private', label: '나만 보기' }].map(opt => (
+                  <TouchableOpacity key={opt.key} style={[mS.chip, privacy === opt.key && mS.chipOn]} onPress={() => setPrivacy(opt.key)}>
+                    <Text style={[mS.chipTxt, privacy === opt.key && mS.chipTxtOn]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+              {privacy !== 'friends' && privacy !== 'private' && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
+                  '{(friendData.friendGroups.find(g => g.id === privacy) || {}).name || '그룹'}' 그룹 친구에게만 보여요
+                </Text>
+              )}
               <View style={{ marginTop: 16, marginBottom: 16 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 8 }}>
                   사진 · 영상 (선택 · {addPhotos.length}/{MAX_PHOTOS})

@@ -295,6 +295,8 @@ export function DiaryScreen({ route, navigation }) {
         courseId: data.courseId || null,
         cost: data.cost || null,
         visibility: data.visibility || 'friends',
+        audienceUids: data.audienceUids || [],          // 그룹 공개 수신자 스냅샷 ([[friend_groups]])
+        audienceGroupIds: data.audienceGroupIds || [],  // 원본 그룹 선택(수정 복원용)
         overseas: !!data.overseas,
         country: data.country || '',
       });
