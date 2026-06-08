@@ -39,11 +39,12 @@ import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addC
 import { getUid, auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { shareInvite } from '../utils/invite';
+import { loadFriendData, groupColor, groupName, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
 
-function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
+function PostCard({ post, myUid, friendGroups, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -131,6 +132,18 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
           )}
         </View>
       </View>
+
+      {/* owner-only 그룹 색라벨 — 주최자 밑(우측). 내가 그룹으로 모집했을 때만, 나만 보임 ([[friend_groups]]) */}
+      {(() => {
+        const gid = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds)) ? post.audienceGroupIds[0] : null;
+        if (!gid) return null;
+        return (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 4 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: groupColor(friendGroups, gid) }} />
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{groupName(friendGroups, gid)}</Text>
+          </View>
+        );
+      })()}
 
       {/* 라운딩 정보 — 확정형은 구장·일시가 카드의 1순위 정보라 시각 무게 강화 */}
       {post.type === 'fixed' ? (
@@ -250,6 +263,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [applied, setApplied] = useState({});          // Phase 3-C: 전체공개 신청 대기
   const [waitlist, setWaitlist] = useState({});        // Phase 3-D: waitlistUids에서 복원
   const [participantNames, setParticipantNames] = useState({}); // {uid: nickname} — 참여자 현황 실제 이름
+  const [friendGroups, setFriendGroups] = useState(DEFAULT_FRIEND_GROUPS); // owner 그룹 색라벨용 ([[friend_groups]])
+  useEffect(() => { loadFriendData().then(fd => setFriendGroups(fd.friendGroups)).catch(() => {}); }, []);
   const participantNamesRef = useRef(participantNames); // 최신 이름 맵 미러 — 상세 실시간 구독이 deps 없이 읽기 위함
   useEffect(() => { participantNamesRef.current = participantNames; }, [participantNames]);
   const [bookmarks, setBookmarks] = useState({});      // 관심 모집 {postId: true}
@@ -1726,7 +1741,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 : <InvitationTicket key={p.id} accent="tab" tags={p.tags} {...inviteProps} />;
             }
             return (
-              <PostCard key={p.id} post={p} myUid={myUid} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
+              <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
                 isBookmarked={!!bookmarks[p.id]}
                 onApply={() => confirmApply(p.id)}
                 onWaitlist={() => handleWaitlist(p.id)}
@@ -1794,6 +1809,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         post={detailPost}
         myUid={myUid}
         friendUids={friendUids}
+        friendGroups={friendGroups}
         participantNames={participantNames}
         visible={!!detailPost}
         joined={!!(detailId && joined[detailId])}

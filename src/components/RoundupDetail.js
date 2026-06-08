@@ -4,6 +4,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Platform, Keyboard, us
 const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { groupColor, groupName } from '../utils/friendGroups';
 import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -114,7 +115,7 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
+export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [alert, setAlert] = useState(null);
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
@@ -561,6 +562,17 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
                 </TouchableOpacity>
                 {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                  {/* owner-only 그룹 색라벨 — 주최자 바 맨 우측. 내가 그룹으로 모집했을 때만, 나만 보임 ([[friend_groups]]) */}
+                  {(() => {
+                    const gid = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds)) ? post.audienceGroupIds[0] : null;
+                    if (!gid || !friendGroups) return null;
+                    return (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: groupColor(friendGroups, gid) }} />
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{groupName(friendGroups, gid)}</Text>
+                      </View>
+                    );
+                  })()}
                   {ROUNDUP_PUBLIC_ENABLED && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
