@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, Image, Dimensions } from 'react-na
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 
@@ -30,7 +31,7 @@ function VideoItem({ uri, active }) {
   );
 }
 
-function PinchableImage({ uri, width, height, active, onZoomChange }) {
+function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap }) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const tx = useSharedValue(0);
@@ -90,7 +91,11 @@ function PinchableImage({ uri, width, height, active, onZoomChange }) {
       }
     });
 
-  const composed = Gesture.Simultaneous(Gesture.Race(doubleTap, pan), pinch);
+  // 단일 탭 — 캡션(글) 표시/숨김 토글. 더블탭(확대)이 우선이라 Exclusive로 묶어 더블탭 실패 시에만 발화.
+  const singleTap = Gesture.Tap().numberOfTaps(1)
+    .onEnd((_e, success) => { if (success && onSingleTap) runOnJS(onSingleTap)(); });
+  const taps = Gesture.Exclusive(doubleTap, singleTap);
+  const composed = Gesture.Simultaneous(Gesture.Race(taps, pan), pinch);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
@@ -105,9 +110,10 @@ function PinchableImage({ uri, width, height, active, onZoomChange }) {
   );
 }
 
-export function PhotoViewer({ photos, startIndex, onClose }) {
+export function PhotoViewer({ photos, startIndex, onClose, caption }) {
   const [idx, setIdx] = useState(startIndex);
   const [zoomed, setZoomed] = useState(false); // 현재 사진 확대 여부 — 확대 중 가로 페이저 잠금
+  const [showCaption, setShowCaption] = useState(true); // 글(caption) 표시 — 사진 탭으로 토글
   const current = photos[idx];
   const isVideo = current?.type === 'video';
 
@@ -134,11 +140,23 @@ export function PhotoViewer({ photos, startIndex, onClose }) {
               {item.type === 'video' ? (
                 <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} />
               ) : (
-                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={SW * 1.2} active={i === idx} onZoomChange={setZoomed} />
+                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={SW * 1.2} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} />
               )}
             </View>
           ))}
         </ScrollView>
+
+        {/* 글(캡션) — 친구 피드 등에서 사진과 함께 글 표시. 사진 탭으로 숨김/표시 토글. 길면 스크롤. */}
+        {caption && showCaption ? (
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.92)']}
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 48 }}>
+            <ScrollView style={{ maxHeight: 170 }}
+              contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#fff', lineHeight: 21 }}>{caption}</Text>
+            </ScrollView>
+          </LinearGradient>
+        ) : null}
       </View>
       </GestureHandlerRootView>
     </Modal>

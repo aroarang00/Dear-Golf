@@ -195,7 +195,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       const photoEl = (withDate) => (
         <View style={dS.photoHero43}>
           <MediaCarousel photos={item.photos}
-            onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
+            onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo)) : (() => onPress(item))} />
           {withDate && (
             <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.45)']}
               style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 46,
@@ -288,7 +288,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       return wrapFriend(
         <View style={[dS.card, isSpecial && dS.cardSpecial]}>
           {isSpecial && <View style={dS.cardSpecialLine} />}
-          {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i), photoScoreOverlay)}
+          {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo), photoScoreOverlay)}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
             <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
               {item.memo ? `"${item.memo}"` : ''}
