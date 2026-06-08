@@ -45,11 +45,13 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   // 그룹·별명 설정 ([[friend_groups]]) — 내 private 메타. 친구에겐 안 보임.
   const openMetaEditor = () => {
     setEditName(friend.customName || '');
-    setEditGroups(Array.isArray(friend.groupIds) ? [...friend.groupIds] : []);
+    const gids = Array.isArray(friend.groupIds) ? friend.groupIds : [];
+    setEditGroups(gids.length ? [gids[0]] : []);   // 단일 소속 — 첫 그룹만(옛 다중 데이터 정규화)
     setMetaOpen(true);
   };
+  // 단일 소속 — 한 친구는 한 그룹만(또는 없음). 같은 칩 다시 누르면 해제 ([[friend_groups]]).
   const toggleEditGroup = (gid) =>
-    setEditGroups(prev => (prev.includes(gid) ? prev.filter(x => x !== gid) : [...prev, gid]));
+    setEditGroups(prev => (prev.includes(gid) ? [] : [gid]));
   const saveMeta = () => {
     onSaveMeta && onSaveMeta(friend.id, { customName: editName, groupIds: editGroups });
     setMetaOpen(false);
@@ -313,8 +315,8 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                   placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight} maxLength={20}
                   style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
                     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 4 }}>
-                  비우면 닉네임({friend.nickname || friend.name})으로 표시돼요
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>
+                  💡 별명을 적으면 친구 목록·피드에서 그 이름으로 보여요
                 </Text>
 
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginTop: 16, marginBottom: 8 }}>그룹</Text>
@@ -330,6 +332,9 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     );
                   })}
                 </View>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
+                  한 친구는 한 그룹만 — 다시 누르면 해제돼요
+                </Text>
 
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
                   <TouchableOpacity activeOpacity={0.7} onPress={() => setMetaOpen(false)}
