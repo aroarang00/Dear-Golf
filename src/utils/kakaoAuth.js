@@ -136,11 +136,16 @@ export async function getKakaoFriends() {
 
 // 카카오 프로필 사진 URL만 다시 가져오기 — 이미 연동된 사용자가 사진을 카카오 것으로 되돌릴 때 사용.
 // 토큰이 살아있으면 getProfile()만, 만료됐으면 login() 후 재시도. 실패 시 null.
-export async function fetchKakaoProfileImage() {
+//   silent:true → 앱 시작 시 자동 backfill 등 백그라운드 용도. 토큰 만료여도 login() 팝업을 띄우지 않고 건너뜀.
+export async function fetchKakaoProfileImage({ silent = false } = {}) {
   const pick = (p) => p?.profileImageUrl || p?.thumbnailImageUrl || null;
   try {
     return pick(await me());
   } catch (e) {
+    if (silent) {
+      console.warn('[kakao] 프로필 이미지(silent) 건너뜀 — 토큰 만료', e?.message || e);
+      return null;
+    }
     try {
       await login();
       return pick(await me());
