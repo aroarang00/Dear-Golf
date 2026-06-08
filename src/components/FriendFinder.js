@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -77,6 +77,7 @@ export function FriendFinder({
   // 카카오 친구 — 'idle'|'loading'|'ok'|'empty'|'no-consent'|'error'
   const [kakaoState, setKakaoState] = useState('idle');
   const [kakaoUsers, setKakaoUsers] = useState([]);  // [{ id: uid, name: nickname }]
+  const [refreshing, setRefreshing] = useState(false); // 카카오 탭 당겨서 새로고침 스피너
   const [alert, setAlert] = useState(null);   // Modal 내부 OverlayAlert — 글로벌 showAppAlert가 Modal 뒤로 가려지는 이슈 회피
 
   // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
@@ -90,8 +91,8 @@ export function FriendFinder({
   }, [visible, initialTab]);
 
   // 카카오 친구 중 Dear Golf 가입자 로드 — 카카오 탭 진입 시 1회. (friends scope 선택동의 + 팀멤버 조건)
-  const loadKakao = async () => {
-    setKakaoState('loading');
+  const loadKakao = async ({ silent = false } = {}) => {
+    if (!silent) setKakaoState('loading'); // 당겨서 새로고침 땐 기존 목록 유지(상단 스피너만)
     try {
       const res = await findKakaoFriendUsers();
       if (res.status === 'ok') {
@@ -108,6 +109,12 @@ export function FriendFinder({
   useEffect(() => {
     if (visible && tab === 'kakao' && kakaoState === 'idle') loadKakao();
   }, [visible, tab, kakaoState]);
+  // 당겨서 새로고침 — 방금 카카오 연동한 친구가 전파 지연으로 안 뜰 때 재조회 ([[kakao-friend-api-design]])
+  const onRefreshKakao = async () => {
+    setRefreshing(true);
+    await loadKakao({ silent: true });
+    setRefreshing(false);
+  };
 
   // 이미 친구이거나 신청한 사람은 후보에서 제외하지 않고 상태로만 표시
   const isFriend = (id) => friendIds.includes(id);
@@ -218,7 +225,10 @@ export function FriendFinder({
 
           <ScrollView showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}
-            keyboardShouldPersistTaps="handled">
+            keyboardShouldPersistTaps="handled"
+            refreshControl={tab === 'kakao'
+              ? <RefreshControl refreshing={refreshing} onRefresh={onRefreshKakao} tintColor={C.warmGray} colors={[C.burgundy]} />
+              : undefined}>
 
             {/* 카카오 친구 — Dear Golf 가입자만 노출 (카카오 친구 전체 X, 개인정보 보호)
                 안내 멘트는 친구 N명 표시될 때만 목록 아래에 — 빈 상태에선 EmptyHint로 충분 */}
@@ -249,7 +259,12 @@ export function FriendFinder({
                 )}
 
                 {kakaoState === 'empty' && (
-                  <EmptyHint text="카카오톡 친구 중 Dear Golf에 가입한 사람이 아직 없어요" />
+                  <View style={{ paddingTop: 8 }}>
+                    <EmptyHint text="카카오톡 친구 중 Dear Golf에 가입한 사람이 아직 없어요" />
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
+                      친구가 방금 가입했다면{'\n'}아래로 당겨 새로고침해보세요 ↓
+                    </Text>
+                  </View>
                 )}
 
                 {kakaoState === 'ok' && (
@@ -263,7 +278,7 @@ export function FriendFinder({
                         💡 카카오톡 친구 중 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 가입한 사람만</Text> 보여요
                       </Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
-                        다른 친구가 가입하면 자동으로 여기에 표시돼요.
+                        새로 가입한 친구는 아래로 당겨 새로고침하면 보여요.
                       </Text>
                     </View>
                   </>
