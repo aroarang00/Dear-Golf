@@ -42,7 +42,7 @@ const AVATARS = [
   { bg: '#6B8B5E', fg: '#fff' },
 ];
 
-function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPress, onGradePress }) {
+function FriendCard({ friend, palette, muted, favorite, grade, isNew, onPress, onLongPress, onGradePress }) {
   const r = friend.recent;
   const diff = r ? r.score - r.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -57,6 +57,8 @@ function FriendCard({ friend, palette, muted, favorite, grade, onPress, onLongPr
         // 즐겨찾기 = 왼쪽 보더 강조. ★ borderLeftWidth/Color를 '항상 명시'하고 값만 토글(1↔3)해야 함.
         //   조건부로 속성을 추가/제거하면 안드에서 부분 보더 재계산이 깨져 해제 후에도 굵은 선이 잔존(iOS는 정상).
         borderLeftWidth: favorite ? 3 : 1, borderLeftColor: favorite ? C.burgundy : 'rgba(0,0,0,0.07)' }]}>
+      {/* NEW 점 — 새 글 있으면 우측 상단 모서리 (숫자 뱃지 X, 깔끔하게) ([[friend_groups]] ⑤) */}
+      {isNew && <View style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: C.burgundy, zIndex: 2 }} />}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
@@ -113,6 +115,18 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   // 친구 그룹·별명 (내 private 메타 — owner-only). 표시 이름·그룹 지정에 사용 ([[friend_groups]])
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [groupFilter, setGroupFilter] = useState('all'); // 그룹 필터칩 (전체/그룹들) ([[friend_groups]])
+  const [feedSeen, setFeedSeen] = useState({}); // {uid: millis} 친구별 마지막 본 글 시각 — NEW 점 ([[friend_groups]] ⑤)
+  useEffect(() => { storage.load(STORAGE_KEYS.friendFeedSeen, {}).then(m => setFeedSeen(m || {})).catch(() => {}); }, []);
+  // 베이스라인 — 처음 보는 친구는 현재 최신글을 '본 것'으로(과거 글로 점 안 뜨게). 새 친구만 기록.
+  useEffect(() => {
+    if (!friends.length) return;
+    setFeedSeen(prev => {
+      let changed = false; const next = { ...prev };
+      friends.forEach(f => { if (next[f.id] === undefined) { next[f.id] = f.lastPostAt || 0; changed = true; } });
+      if (changed) storage.save(STORAGE_KEYS.friendFeedSeen, next);
+      return changed ? next : prev;
+    });
+  }, [friends]);
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
@@ -208,6 +222,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             hostedCount: 0, attendedCount: 0, mannerScore: 0,
             recent: null,
             stats: { rounds: p.totalRounds || 0, avg: p.avgScore || null, best: p.lifeBest || null },
+            lastPostAt: p.lastFriendPostAt?.toMillis ? p.lastFriendPostAt.toMillis() : 0, // 친구 피드 최신 글 시각 — NEW 점·새글순 ([[friend_groups]] ⑤)
             feed: [],
             togetherCount: 0, // 자리만 — 동반자 매칭(닉네임/본명) 구현 후 채움. 0이면 명함에 미표시 ([[diary-companion-matching]])
           };
@@ -275,7 +290,11 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const visible = friends
     .filter(f => !hidden[f.id] && (!q || f.name.includes(q))
       && (groupFilter === 'all' || (friendData.friendMeta[f.id]?.groupIds || []).includes(groupFilter))) // 그룹 필터 ([[friend_groups]])
-    .sort((a, b) => (favorites[b.id] ? 1 : 0) - (favorites[a.id] ? 1 : 0)); // 즐겨찾기 상단 (안정 정렬)
+    .sort((a, b) => {
+      const fav = (favorites[b.id] ? 1 : 0) - (favorites[a.id] ? 1 : 0);
+      if (fav !== 0) return fav;                          // 즐겨찾기 상단
+      return (b.lastPostAt || 0) - (a.lastPostAt || 0);   // 그 외 새 글 순 ([[friend_groups]] ⑤)
+    });
   const hiddenFriends = friends.filter(f => hidden[f.id]);
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
 
@@ -302,6 +321,12 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   // 친구 카드 탭 → 프로필 즉시 열고(명함 먼저 보임), 친구공개 라운딩 피드는 비동기 로드해 병합.
   // 친구공개(visibility=='friends') 기록만 조회 — 나만보기는 보안 규칙·쿼리에서 제외 ([[profile-diary-split]]).
   const openFriendProfile = async (f) => {
+    // 프로필 열면 그 친구 글을 본 것으로 — NEW 점 제거 ([[friend_groups]] ⑤)
+    setFeedSeen(prev => {
+      const next = { ...prev, [f.id]: Math.max(f.lastPostAt || 0, prev[f.id] || 0, Date.now()) };
+      storage.save(STORAGE_KEYS.friendFeedSeen, next);
+      return next;
+    });
     setProfileFriend(f);
     setFeedLoading(true);
     try {
@@ -581,6 +606,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
                 muted={!!muted[f.id]}
                 favorite={!!favorites[f.id]}
                 grade={grade}
+                isNew={f.lastPostAt > 0 && feedSeen[f.id] !== undefined && f.lastPostAt > feedSeen[f.id]}
                 onPress={() => openFriendProfile(f)}
                 onLongPress={() => toggleFavorite(f.id)}
                 onGradePress={() => setGradeModalKey(grade.key)}

@@ -140,6 +140,12 @@ export async function createRound(data) {
     round.photos = await uploadRoundMedia(uid, round.photos);
   }
   const ref = await addDoc(collection(db, COLLECTION), round);
+  // 친구 피드 새 글 시각 — 친구탭 NEW 점·새글순용. 친구공개/그룹 글만(나만보기 제외) ([[friend_groups]] ⑤).
+  if (round.visibility === 'friends' || round.visibility === 'group') {
+    try {
+      await setDoc(doc(db, 'users', uid), { uid, lastFriendPostAt: serverTimestamp() }, { merge: true });
+    } catch (e) { if (__DEV__) console.warn('[round] lastFriendPostAt', e?.message); }
+  }
   return { id: ref.id, ...round };
 }
 
