@@ -3,7 +3,6 @@ import { Modal, View, Text, TouchableOpacity, Image, Dimensions } from 'react-na
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 
@@ -122,16 +121,20 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
       {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라 핀치 줌이 안 먹는다.
           ScheduleScreen·WeatherTransportPopup과 동일하게 Modal 안에서 한 번 더 감싼다(2026-06-04 핀치 줌 버그 수정). */}
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: (caption && showCaption) ? 'flex-start' : 'center' }}>
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
-        <View style={{ position: 'absolute', top: 56, left: 0, right: 0, alignItems: 'center' }}>
+        <View style={{ position: 'absolute', top: 56, left: 0, right: 0, alignItems: 'center', zIndex: 5 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
           </Text>
         </View>
+        {/* 캡션 표시 중엔 사진을 위로 올려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백·바닥붙음 해소).
+            캡션 숨김(탭)·순수 사진 보기는 가운데 정렬 유지. */}
+        {caption && showCaption ? <View style={{ height: 88 }} /> : null}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, height: SW * 1.2 }}
           scrollEnabled={!zoomed}
           contentOffset={{ x: idx * SW, y: 0 }}
           onMomentumScrollEnd={e => { setIdx(Math.round(e.nativeEvent.contentOffset.x / SW)); setZoomed(false); }}>
@@ -146,16 +149,13 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
           ))}
         </ScrollView>
 
-        {/* 글(캡션) — 친구 피드 등에서 사진과 함께 글 표시. 사진 탭으로 숨김/표시 토글. 길면 스크롤. */}
+        {/* 글(캡션) — 사진 바로 아래 흐름으로 배치, 남은 공간 전체에서 세로 스크롤. 사진 탭으로 숨김/표시 토글. */}
         {caption && showCaption ? (
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.92)']}
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 48 }}>
-            <ScrollView style={{ maxHeight: 170 }}
-              contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 40 }}
-              showsVerticalScrollIndicator={false}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#fff', lineHeight: 21 }}>{caption}</Text>
-            </ScrollView>
-          </LinearGradient>
+          <ScrollView style={{ flex: 1, alignSelf: 'stretch' }}
+            contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: '#fff', lineHeight: 23 }}>{caption}</Text>
+          </ScrollView>
         ) : null}
       </View>
       </GestureHandlerRootView>
