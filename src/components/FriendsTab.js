@@ -17,7 +17,7 @@ import {
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend, blockUid as fsBlockUid } from '../utils/friends';
-import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
+import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
 import { blockUser, remainingBlocksToday } from '../utils/block';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds } from '../utils/round';
@@ -112,6 +112,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [friendsLoaded, setFriendsLoaded] = useState(false); // 첫 로드 완료 전 빈 가이드 숨김(깜빡임 방지)
   // 친구 그룹·별명 (내 private 메타 — owner-only). 표시 이름·그룹 지정에 사용 ([[friend_groups]])
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
+  const [groupFilter, setGroupFilter] = useState('all'); // 그룹 필터칩 (전체/그룹들) ([[friend_groups]])
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
@@ -272,7 +273,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
 
   const q = search.trim();
   const visible = friends
-    .filter(f => !hidden[f.id] && (!q || f.name.includes(q)))
+    .filter(f => !hidden[f.id] && (!q || f.name.includes(q))
+      && (groupFilter === 'all' || (friendData.friendMeta[f.id]?.groupIds || []).includes(groupFilter))) // 그룹 필터 ([[friend_groups]])
     .sort((a, b) => (favorites[b.id] ? 1 : 0) - (favorites[a.id] ? 1 : 0)); // 즐겨찾기 상단 (안정 정렬)
   const hiddenFriends = friends.filter(f => hidden[f.id]);
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
@@ -479,6 +481,25 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* 그룹 필터칩 — 전체/그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
+        {friends.length > 0 && Object.values(friendData.friendMeta).some(m => (m.groupIds || []).length) && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: _and ? 8 : 12 }}
+            contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
+            {[{ id: 'all', name: '전체' }, ...friendData.friendGroups].map(g => {
+              const on = groupFilter === g.id;
+              const dotColor = g.id === 'all' ? null : groupColor(friendData.friendGroups, g.id);
+              return (
+                <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => setGroupFilter(g.id)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+                    backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                  {dotColor && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />}
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: on ? C.butter : C.charcoal }}>{g.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* 숨긴 친구 목록 — 펼침 시 */}
         {showHidden && hiddenFriends.length > 0 && (
