@@ -509,10 +509,10 @@ export function DiaryScreen({ route, navigation }) {
   const visitedCourses = countVisitedCourses(diaries, schedules);
   const topMs = milestoneBadge(topMilestone({ rounds: _dispTotal, courses: visitedCourses }));
   const myStatus = (userProfile.statusMessage || '').trim();
+  // 핸디·라베(베스트)는 명함 헤더 알약으로 이동(중복 제거) → 통계박스는 누적 카운트만.
   const statBoxes = [
     { label: '총 라운딩', value: totalRounds },
-    { label: '핸디', value: myHandicap, hi: true },
-    { label: '베스트', value: bestScore },
+    { label: '방문 구장', value: visitedCourses },
   ];
 
   return (
@@ -568,10 +568,15 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               )}
             </View>
-            {/* 라이프베스트 — 버터색 알약 배지(이모지 과다 방지, 크림 배경 위 대비) */}
-            <View style={{ alignSelf: 'flex-start', backgroundColor: C.butter, borderRadius: 999,
-              paddingHorizontal: 12, paddingVertical: 4, marginTop: 7 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라이프베스트 {bestScore ?? '—'}</Text>
+            {/* 라베·핸디 — 알약 배지 2개 나란히(같은 모양, 색만 다름). 친구모집 시 한눈에 정보 제공.
+                라베=버터색, 핸디=세이지색. '라이프베스트'는 '라베'로 축약 ([[lifebest-calc]] · [[roundup-friend-redesign]]) */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+              <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라베 {bestScore ?? '—'}</Text>
+              </View>
+              <View style={{ backgroundColor: '#DCE5D6', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>핸디 {myHandicap ?? '—'}</Text>
+              </View>
             </View>
             {/* 멘트(상태 메시지) — 표시 전용. 편집은 마이페이지 내 정보에서.
                 lineHeight 넉넉히(이모지 윗부분 잘림 방지) */}
