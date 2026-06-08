@@ -227,23 +227,22 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         return wrapFriend(
           <View style={momentCard}>
             {photoEl(false)}
+            {/* 날짜·더보기·좋아요 한 줄 — 별도 좋아요 줄 제거(라운딩 사진카드와 통일, 카드 안 길어지게) ([[friend_feed_design]]) */}
             <View style={[dS.toggleBtn, { backgroundColor: MOMENT_BG, flexDirection: 'row',
-              alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 12 }]}>
+              alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
               <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
               {item.memo ? (
                 <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
                 </TouchableOpacity>
               ) : null}
+              <View style={{ marginLeft: 'auto' }}>{likeButton}</View>
             </View>
             {item.memo && expanded && (
               <View style={dS.cardBody}>
                 <Text style={momentTextStyle}>{item.memo}</Text>
               </View>
             )}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingTop: item.memo ? 4 : 8, paddingBottom: 10 }}>
-              {likeButton}
-            </View>
           </View>
         );
       }
