@@ -36,7 +36,7 @@ function Badge({ bg, fg, text }) {
 }
 
 // 참여자 / 빈 슬롯 한 줄. onPress 시 신고/차단 시트.
-function SlotRow({ slot, idx, onPress }) {
+function SlotRow({ slot, idx, onPress, handicap }) {
   if (slot.open) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: _and ? 4 : 6 }}>
@@ -62,6 +62,9 @@ function SlotRow({ slot, idx, onPress }) {
           </TouchableOpacity>
         ) : (
           <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
+        )}
+        {handicap != null && (
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: C.warmGray }}>·{handicap}</Text>
         )}
         {slot.host && (
           <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
@@ -115,7 +118,7 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
+export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [alert, setAlert] = useState(null);
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
@@ -172,6 +175,12 @@ export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}
 
   const isTeam = post.teams > 1;
   const isMine = !!myUid && post.authorUid === myUid;
+  // 핸디 조회 — 내 핸디는 userProfile, 남은 participantHandicaps(users 문서). 라운지에선 작고 흐리게.
+  const hcOf = (uid) => {
+    if (!uid) return null;
+    const v = (uid === myUid) ? userProfile?.handicap : participantHandicaps[uid];
+    return (typeof v === 'number') ? v : null;
+  };
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
   // 옛 더미 데이터에 companions가 남아있을 수 있음(2026-05-26 폐기 전 데이터). 호환 위해 합산.
@@ -560,6 +569,9 @@ export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.authorName || post.author || '주최자'}</Text>
                 </TouchableOpacity>
+                {hcOf(post.authorUid) != null && (
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 핸디 {hcOf(post.authorUid)}</Text>
+                )}
                 {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
                   {/* owner-only 그룹 색라벨 — 주최자 바 맨 우측. 내가 그룹으로 모집했을 때만, 나만 보임 ([[friend_groups]]) */}
@@ -680,7 +692,7 @@ export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}
                 // id는 uid 우선(친구상태 매칭·isMe 판정용), 없으면 이름 fallback(옛 더미).
                 const isSelfSlot = (s.uid && s.uid === myUid) || s.name === '나';
                 return (
-                  <SlotRow key={i} slot={s} idx={i}
+                  <SlotRow key={i} slot={s} idx={i} handicap={hcOf(s.uid)}
                     onPress={(s.name && !isSelfSlot)
                       ? () => setActionTarget({ id: s.uid || s.name, name: s.name, role: s.host ? 'host' : 'participant' })
                       : null} />

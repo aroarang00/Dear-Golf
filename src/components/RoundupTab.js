@@ -263,6 +263,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [applied, setApplied] = useState({});          // Phase 3-C: 전체공개 신청 대기
   const [waitlist, setWaitlist] = useState({});        // Phase 3-D: waitlistUids에서 복원
   const [participantNames, setParticipantNames] = useState({}); // {uid: nickname} — 참여자 현황 실제 이름
+  const [participantHandicaps, setParticipantHandicaps] = useState({}); // {uid: handicap} — 상세 참여자 핸디 (users 문서)
   const [friendGroups, setFriendGroups] = useState(DEFAULT_FRIEND_GROUPS); // owner 그룹 색라벨용 ([[friend_groups]])
   useEffect(() => { loadFriendData().then(fd => setFriendGroups(fd.friendGroups)).catch(() => {}); }, []);
   const participantNamesRef = useRef(participantNames); // 최신 이름 맵 미러 — 상세 실시간 구독이 deps 없이 읽기 위함
@@ -369,8 +370,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             partUids.map(u => getDoc(doc(db, 'users', u)).catch(() => null)));
           if (cancelled) return;
           const nameMap = {};
-          partSnaps.forEach((s, i) => { if (s?.exists()) nameMap[partUids[i]] = s.data().nickname || '동반자'; });
+          const handiMap = {};
+          partSnaps.forEach((s, i) => {
+            if (!s?.exists()) return;
+            const d = s.data();
+            nameMap[partUids[i]] = d.nickname || '동반자';
+            if (typeof d.handicap === 'number') handiMap[partUids[i]] = d.handicap;
+          });
           setParticipantNames(nameMap);
+          setParticipantHandicaps(handiMap);
         }
         // 인앱 알림 로드 — Phase 3-N2
         //   친구신청(friendRequest)은 라운지 알림함에서 제외 — 친구 관계 알림은 친구 탭 소관(탭바 뱃지).
@@ -1811,6 +1819,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         friendUids={friendUids}
         friendGroups={friendGroups}
         participantNames={participantNames}
+        participantHandicaps={participantHandicaps}
         visible={!!detailPost}
         joined={!!(detailId && joined[detailId])}
         applied={!!(detailId && applied[detailId])}
