@@ -136,6 +136,18 @@ export function nextGroupColor(friendGroups) {
   return GROUP_COLORS.find(c => !used.has(c)) || GROUP_COLORS[normGroups(friendGroups).length % GROUP_COLORS.length];
 }
 
+// 내 글/모집의 공개범위 → owner-only 표시 라벨. 친구 전체는 null(라벨 없음=깔끔).
+//   group → { text: 그룹명, color: 그룹색 } / private → { text:'나만 보기', icon:'🔒' }. ([[friend_groups]])
+//   ★남에겐 절대 노출 금지 — 호출부에서 authorUid==나(또는 variant==='mine')일 때만 렌더할 것.
+export function ownerVisibilityLabel(friendGroups, visibility, audienceGroupIds) {
+  if (visibility === 'private') return { text: '나만 보기', icon: '🔒', color: null };
+  if (visibility === 'group') {
+    const gid = Array.isArray(audienceGroupIds) ? audienceGroupIds[0] : null;
+    if (gid) return { text: groupName(friendGroups, gid), color: groupColor(friendGroups, gid), icon: null };
+  }
+  return null; // friends(친구 전체) 등 — 라벨 없음
+}
+
 // 그룹 목록 통째 저장 (관리 화면 CRUD 공용) — friendMeta는 안 건드림. 반환 성공여부.
 export async function saveFriendGroups(friendGroups) {
   const uid = await getUid();

@@ -14,6 +14,7 @@ import { LoadingState } from './common/LoadingState';
 import { showAppAlert } from './AppAlert';
 import { HallOfFameCard } from './HallOfFameCard';
 import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals } from './MilestoneCard';
+import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
@@ -92,6 +93,8 @@ export function DiaryScreen({ route, navigation }) {
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
   const [milestoneInfoOpen, setMilestoneInfoOpen] = useState(false); // 마일스톤 안내 ([[milestone_badges]])
+  const [friendGroups, setFriendGroups] = useState(DEFAULT_FRIEND_GROUPS); // 내 카드 owner 그룹 색라벨용 ([[friend_groups]])
+  useEffect(() => { loadFriendData().then(fd => setFriendGroups(fd.friendGroups)).catch(() => {}); }, []);
   const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
@@ -779,7 +782,7 @@ export function DiaryScreen({ route, navigation }) {
                     <View key={item.id} style={dS.tlNode}>
                       {idx < filtered.length - 1 && <View style={dS.tlLine} />}
                       <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial]} />
-                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} onPress={(it) => setSelected(it)} />
+                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={(it) => setSelected(it)} />
                     </View>
                     );
                   })}

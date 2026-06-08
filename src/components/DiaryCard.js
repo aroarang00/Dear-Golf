@@ -8,12 +8,13 @@ import { hofBgColor } from './HallOfFameCard';
 import { MediaCarousel } from './common/MediaCarousel';
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { toggleRoundLike } from '../utils/round';
+import { ownerVisibilityLabel } from '../utils/friendGroups';
 
 // 라운딩 기록 카드.
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
 //  - variant 'friend'    : 친구 피드 — 같은 골격에 정보만 줄임(구장·스코어·한줄메모·★) + 좋아요/댓글 줄.
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
-export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport }) {
+export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups }) {
   const [expanded, setExpanded] = useState(false);
   const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
@@ -42,6 +43,17 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   const hasBest = item.badge === '베스트';
   const hasPhoto = item.photos && item.photos.length > 0;
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
+
+  // owner-only 그룹/공개범위 색라벨 — 내 카드에서만(친구 카드엔 숨김). group=색점+그룹명, private=🔒, 친구전체=없음 ([[friend_groups]])
+  const ownerLabelData = (!isFriend && friendGroups) ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds) : null;
+  const ownerLabel = ownerLabelData ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+      {ownerLabelData.color
+        ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: ownerLabelData.color }} />
+        : (ownerLabelData.icon ? <Text style={{ fontSize: fs(9) }}>{ownerLabelData.icon}</Text> : null)}
+      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ownerLabelData.text}</Text>
+    </View>
+  ) : null;
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
   const highlight = isSpecial || (!isFriend && isFirstSingle); // 골드 프레임 (친구 피드의 첫싱글 처리는 HoF 논의 후)
   const rating = item.starRating || 0;
@@ -110,6 +122,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   const body = (
     <View style={dS.cardBody}>
       <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+      {ownerLabel}
       {/* 구장명 줄 — 스코어가 아래 별도 줄이라 비는 우측 끝에 좋아요 배치 */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { flex: 1 }]} numberOfLines={1}>{item.course}</Text>
@@ -249,6 +262,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
               </TouchableOpacity>
             ) : null}
           </View>
+          {ownerLabel ? <View style={{ alignItems: 'center', paddingBottom: 2 }}>{ownerLabel}</View> : null}
           {item.memo && expanded && (
             <View style={dS.cardBody}>
               <Text style={momentTextStyle}>{item.memo}</Text>
@@ -268,6 +282,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       <View style={dS.cardBody}>
         <ExpandableMemo text={item.memo} style={momentTextStyle} lines={5}
           dateNode={<Text style={dS.cardDate}>{item.date} {item.day}</Text>} />
+        {ownerLabel}
         {!isFriend && mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
       </View>
     );
