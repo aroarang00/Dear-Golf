@@ -209,16 +209,26 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         </View>
       );
       if (isFriend) {
-        // 친구 사진 일상 — 사진 위 날짜 + 글(5줄+더보기, 일상은 글이 본체) + 좋아요
+        // 친구 사진 일상 — MY 카드와 동일 스타일: 사진 + [날짜+더보기] 바 + 글 기본 숨김(더보기로 펼침).
+        //   친구는 상세가 없어 사진 탭은 PhotoViewer(사진 위 + 캡션 아래)로 전체 글 표시 ([[friend-feed-design]]).
         return wrapFriend(
           <View style={momentCard}>
-            {photoEl(true)}
-            {item.memo ? (
-              <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2 }}>
-                <ExpandableMemo text={item.memo} style={momentTextStyle} lines={5} />
+            {photoEl(false)}
+            <View style={[dS.toggleBtn, { backgroundColor: MOMENT_BG, flexDirection: 'row',
+              alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 12 }]}>
+              <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
+              {item.memo ? (
+                <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            {item.memo && expanded && (
+              <View style={dS.cardBody}>
+                <Text style={momentTextStyle}>{item.memo}</Text>
               </View>
-            ) : null}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingTop: item.memo ? 4 : 10, paddingBottom: 10 }}>
+            )}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingTop: item.memo ? 4 : 8, paddingBottom: 10 }}>
               {likeButton}
             </View>
           </View>
@@ -288,7 +298,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       return wrapFriend(
         <View style={[dS.card, isSpecial && dS.cardSpecial]}>
           {isSpecial && <View style={dS.cardSpecialLine} />}
-          {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo), photoScoreOverlay)}
+          {/* 라운딩 기록은 사진만(캡션 X) — 메모 미전달. 일상만 사진+캡션(글이 본체) ([[friend-feed-design]]) */}
+          {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i), photoScoreOverlay)}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
             <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
               {item.memo ? `"${item.memo}"` : ''}
