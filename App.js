@@ -12,6 +12,7 @@ const _withDefaultFont = (Comp) => {
 _withDefaultFont(Text);
 _withDefaultFont(TextInput);
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 
@@ -398,6 +399,7 @@ function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+    <KeyboardProvider>
     <SafeAreaProvider>
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
@@ -469,6 +471,7 @@ function App() {
     </UserContext.Provider>
     </SafeAreaProvider>
     <SplashOverlay appReady={appReady} />
+    </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

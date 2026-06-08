@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/golfCourses';
@@ -241,21 +242,22 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     <Modal visible={visible} transparent animationType="slide"
       statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={() => { reset(); onClose(); }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* KeyboardProvider — RN Modal은 별도 네이티브 윈도우라 모달 안 KAS는 자체 Provider 필요 */}
+      <KeyboardProvider>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
           {/* flexShrink:1 — 시트 maxHeight(92%)에 맞춰 스크롤뷰가 줄어들어 스크롤 가능해짐 */}
-          <ScrollView
+          {/* KeyboardAwareScrollView — 포커스된 입력칸을 키보드 위로 자동 스크롤(iOS·안드 공통).
+              안드는 기존 KeyboardAvoidingView(behavior undefined)가 무효라 동반자 입력칸이 가려졌었음. */}
+          <KeyboardAwareScrollView
             style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            automaticallyAdjustKeyboardInsets>
+            bottomOffset={24}>
               <Text style={[mS.title, { fontSize: fs(21) }]}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
 
               {/* 국내 / 해외 */}
@@ -479,10 +481,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
               </TouchableOpacity>
               <View style={{ height: 40 }} />
-            </ScrollView>
+            </KeyboardAwareScrollView>
         </View>
       </View>
-      </KeyboardAvoidingView>
+      </KeyboardProvider>
       {/* 동반자 친구 선택 — 본명 마스킹 표시, 다중선택 */}
       <FriendSelectModal
         visible={showCompanionPicker}

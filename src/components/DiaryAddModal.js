@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Spinner } from './common/Spinner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -464,6 +465,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+        {/* KeyboardProvider — RN Modal은 별도 네이티브 윈도우라 모달 안 KAS는 자체 Provider 필요 */}
+        <KeyboardProvider>
         <View style={mS.mask}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
           <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
@@ -471,8 +474,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               style={{ alignItems: 'center', paddingVertical: 10 }}>
               <View style={mS.handle} />
             </TouchableOpacity>
-            <ScrollView style={{ flexShrink: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+            {/* KeyboardAwareScrollView — 포커스 입력칸을 키보드 위로 자동 스크롤(iOS·안드 공통) */}
+            <KeyboardAwareScrollView style={{ flexShrink: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled" bottomOffset={24}>
               {/* 상위 분기: 라운딩 기록 | 일상 — 아이콘 카드 2개(아이콘+제목+한줄설명).
                   카드형이라 아래 [국내|해외] 작은 칩과 모양·높이가 전혀 달라 안 헷갈리고, 설명으로 차이도 바로 전달.
                   편집은 토글 잠금(round↔moment 전환 금지: 데이터·통계 정합성)이라 제목 텍스트로 표시. */}
@@ -956,9 +960,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
               </TouchableOpacity>
               <View style={{ height: 40 }} />
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </View>
         </View>
+        </KeyboardProvider>
         {/* 인-모달 알럿/메뉴 — 글로벌 showAppAlert는 Modal 위에서 터치 충돌, 오버레이 View로 처리 */}
         <OverlayAlert data={overlay} onClose={() => setOverlay(null)} />
         <ScorecardReviewModal
