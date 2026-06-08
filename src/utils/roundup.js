@@ -115,6 +115,8 @@ export async function createRoundup(data) {
     selectMode: data.scope === 'select' ? (data.selectMode || 'include') : null,
     selectedUids: Array.isArray(data.selectedUids) ? data.selectedUids : [],
     audienceUids: Array.isArray(data.audienceUids) ? data.audienceUids : [],
+    // 그룹 빠른선택으로 채운 경우 원본 그룹 id(수정 복원·표시용). 친구지정 audienceUids는 위에서 처리 ([[friend_groups]] Phase C)
+    audienceGroupIds: Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [],
     inviteStyle: data.scope === 'select' ? (data.inviteStyle || 'casual') : null,
     closed: false,
     word: data.word || '',
