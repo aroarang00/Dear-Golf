@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
 import { maskKoreanName } from '../utils/maskName';
+import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 
 // 친구지정 모집글 — 친구 선택 모달 ([[roundup-visibility-design]] UI 흐름).
 // 포함/제외 토글 + 친구 체크박스 + 검색. 확인 시 onConfirm({ selectMode, selectedUids }).
@@ -22,20 +23,25 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
   const [selectMode, setSelectMode] = useState(initial?.selectMode || 'include');
   const [selected, setSelected] = useState(initial?.selectedUids || []);
   const [query, setQuery] = useState('');
+  const [friendMeta, setFriendMeta] = useState({});   // 내 별명(customName) 적용용 ([[friend_groups]])
 
   useEffect(() => {
     if (!visible) return;
     setSelectMode(initial?.selectMode || 'include');
     setSelected(initial?.selectedUids || []);
     setQuery('');
+    loadFriendData().then(fd => setFriendMeta(fd.friendMeta)).catch(() => {});
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 표시 이름 — 내가 지정한 별명 우선, 없으면 닉네임 ([[friend_groups]])
+  const dispName = (f) => friendDisplayName(friendMeta, f.uid || f.id, f.name);
 
   const filtered = useMemo(() => {
     const q = query.trim();
     if (!q) return friends;
-    // 검색은 닉네임 + 본명(내부 풀네임)으로 매칭, 표시는 마스킹 ([[realname-policy]] B안)
-    return friends.filter(f => f.name?.includes(q) || f.realName?.includes(q));
-  }, [friends, query]);
+    // 검색은 별명 + 닉네임 + 본명(내부 풀네임)으로 매칭, 표시는 마스킹 ([[realname-policy]] B안)
+    return friends.filter(f => dispName(f)?.includes(q) || f.name?.includes(q) || f.realName?.includes(q));
+  }, [friends, query, friendMeta]);
 
   const toggle = (uid) => {
     setSelected(prev => prev.includes(uid) ? prev.filter(x => x !== uid) : [...prev, uid]);
@@ -119,11 +125,11 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
                     <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.bgSecondary,
                       alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>
-                        {f.name?.charAt(0) || '?'}
+                        {dispName(f)?.charAt(0) || '?'}
                       </Text>
                     </View>
                     <Text style={{ flex: 1 }} numberOfLines={1}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{f.name}</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{dispName(f)}</Text>
                       {maskKoreanName(f.realName) ? (
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>{`   ${maskKoreanName(f.realName)}`}</Text>
                       ) : null}

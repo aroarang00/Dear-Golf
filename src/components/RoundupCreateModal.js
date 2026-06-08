@@ -24,6 +24,9 @@ const SCOPES_FRIENDS_ONLY = [
   ['select', '친구지정'],
 ];
 const DAYS = WEEKDAYS;
+// 공개범위 칩 선택 색 — 친구공개/친구지정을 한눈에 구분(중요 구분). 라운지라 navy 사용 가능([[feedback_navy_lounge_color]]).
+//   친구공개=네이비(라운지색), 친구지정=버건디(초대장·체크 액센트와 통일), 전체공개=차콜(중립).
+const SCOPE_ON_COLOR = { all: C.charcoal, friends: C.navy, select: C.burgundy };
 
 // 라운딩 모집글 작성·수정 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디.
 // initialPost 있으면 수정 모드 (prefill + 타이틀·버튼 변경). 부모에서 id 매칭으로 분기.
@@ -525,7 +528,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 const blocked = k === 'all' && groupMode === 'team';
                 return (
                   <TouchableOpacity key={k}
-                    style={[mS.chip, scope === k && mS.chipOn, blocked && { opacity: 0.4 }, { flex: 1, alignItems: 'center' }]}
+                    style={[mS.chip, scope === k && { backgroundColor: SCOPE_ON_COLOR[k] || C.charcoal, borderColor: SCOPE_ON_COLOR[k] || C.charcoal },
+                      blocked && { opacity: 0.4 }, { flex: 1, alignItems: 'center' }]}
                     onPress={() => {
                       if (blocked) {
                         setAlert({
