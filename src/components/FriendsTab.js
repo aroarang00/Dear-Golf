@@ -20,7 +20,7 @@ import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendReques
 import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
 import { blockUser, remainingBlocksToday } from '../utils/block';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { loadFriendRounds } from '../utils/round';
+import { loadFriendRounds, recomputeMyGroupAudiences } from '../utils/round';
 import { db, getUid } from '../utils/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 
@@ -391,6 +391,14 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   };
   const unhideFriend = (id) => setHidden(p => { const n = { ...p }; delete n[id]; return n; });
   // 친구 끊기 — 일방·블라인드 ([[friend-relationship]] §1). Firestore friendships doc 삭제.
+  // 차단·끊기 — 그 사람을 내 friendMeta(그룹/별명)에서 제거 + 과거 group 글 공개대상 재계산 ([[friend_groups]] ⑥)
+  const cleanupRemovedFriendGroup = async (id) => {
+    if (!friendData.friendMeta[id]) return;
+    try {
+      const updated = await setFriendMeta(id, {});  // 항목 제거(별명·그룹 비움)
+      if (updated) { setFriendData(updated); recomputeMyGroupAudiences(updated.friendMeta); }
+    } catch (e) { if (__DEV__) console.warn('[FriendsTab] cleanup group on remove', e?.message); }
+  };
   const deleteFriend = (id) => {
     const target = friends.find(f => f.id === id);
     if (!target) return;
@@ -407,6 +415,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             return;
           }
           setFriends(p => p.filter(f => f.id !== id));
+          cleanupRemovedFriendGroup(id);
         } },
       ],
     );
@@ -435,6 +444,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           // 차단은 친구 관계도 종료(일방) — friendships doc 삭제
           try { await unfriend(id); } catch (e) { if (__DEV__) console.warn('[FriendsTab] unfriend(block) failed', e?.message); }
           setFriends(p => p.filter(f => f.id !== id));
+          cleanupRemovedFriendGroup(id);
         } },
       ],
     );
@@ -446,7 +456,11 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     const gids = Array.isArray(groupIds) ? groupIds : [];
     try {
       const updated = await setFriendMeta(friendUid, { customName: cn, groupIds: gids });
-      if (updated) setFriendData(updated);
+      if (updated) {
+        setFriendData(updated);
+        // 완전 동적 피드 — 그룹 멤버십 바뀌면 내 과거 group 글 공개 대상 재계산 ([[friend_groups]] ⑥)
+        recomputeMyGroupAudiences(updated.friendMeta);
+      }
     } catch (e) {
       if (__DEV__) console.warn('[FriendsTab] setFriendMeta failed', e?.message);
     }

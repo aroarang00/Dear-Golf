@@ -1,10 +1,11 @@
 import {
   collection, query, where, orderBy, getDocs,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
-  arrayUnion, arrayRemove,
+  arrayUnion, arrayRemove, writeBatch,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { uploadRoundMedia } from './roundMedia';
+import { resolveGroupAudience } from './friendGroups';
 
 // =============================================================
 // rounds/{roundId} — 라운딩 1회 기록 (구 diaries + 친구 feed 통합)
@@ -84,6 +85,32 @@ export async function loadMyUsedGroupIds() {
   } catch (e) {
     if (__DEV__) console.warn('[round] loadMyUsedGroupIds', e?.message);
     return new Set();
+  }
+}
+
+// 내 group 공개 글들의 audienceUids를 현재 friendMeta로 재계산 — 완전 동적 피드 ([[friend_groups]] ⑥).
+//   그룹 멤버십 변경·차단·끊기 후 호출. 가까운친구로 옮기면 과거글도 보이고, 빼면 숨겨짐.
+//   바뀐 글만 batch 갱신(정렬 무시 비교). 내 글만이라 가벼움. 라운지(roundups)는 스냅샷이라 손 안 댐.
+export async function recomputeMyGroupAudiences(friendMeta) {
+  const me = await getUid();
+  if (!me || !friendMeta) return;
+  try {
+    const snap = await getDocs(query(collection(db, COLLECTION),
+      where('ownerUid', '==', me), where('visibility', '==', 'group')));
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    let n = 0;
+    snap.docs.forEach(d => {
+      const data = d.data();
+      const gids = Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [];
+      const next = resolveGroupAudience(friendMeta, gids);   // 현재 멤버십 기준 재산출
+      const cur = Array.isArray(data.audienceUids) ? data.audienceUids : [];
+      const same = next.length === cur.length && next.every(u => cur.includes(u));
+      if (!same) { batch.update(d.ref, { audienceUids: next, updatedAt: serverTimestamp() }); n++; }
+    });
+    if (n > 0) await batch.commit();
+  } catch (e) {
+    if (__DEV__) console.warn('[round] recomputeMyGroupAudiences', e?.message);
   }
 }
 
