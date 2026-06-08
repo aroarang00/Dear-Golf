@@ -584,6 +584,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         onClose={() => setFinder(null)}
         sentIds={sentRequests}
         friendIds={friends.map(f => f.id)}
+        blockedIds={blockedIds}
         received={receivedRequests}
         onSend={sendRequest}
         onCancelSend={cancelRequest}

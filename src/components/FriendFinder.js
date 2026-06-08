@@ -68,7 +68,7 @@ function EmptyHint({ text }) {
 export function FriendFinder({
   visible, onClose, initialTab = 'kakao',
   sentIds = [], onSend, onCancelSend,
-  friendIds = [], received = [], onAccept, onIgnore,
+  friendIds = [], blockedIds = [], received = [], onAccept, onIgnore,
 }) {
   const [tab, setTab] = useState(initialTab);
   const [query, setQuery] = useState('');
@@ -96,8 +96,10 @@ export function FriendFinder({
     try {
       const res = await findKakaoFriendUsers();
       if (res.status === 'ok') {
-        setKakaoUsers(res.users.map(u => ({ id: u.uid, name: u.nickname || '디어골프 친구' })));
-        setKakaoState(res.users.length ? 'ok' : 'empty');
+        // 차단한 사람은 내 화면에서 숨김 (카카오톡 차단친구 모델 — [[block-nickname]])
+        const visible = res.users.filter(u => !blockedIds.includes(u.uid));
+        setKakaoUsers(visible.map(u => ({ id: u.uid, name: u.nickname || '디어골프 친구' })));
+        setKakaoState(visible.length ? 'ok' : 'empty');
       } else {
         setKakaoState(res.status); // 'no-consent' | 'error'
       }
@@ -128,11 +130,14 @@ export function FriendFinder({
     setSearching(true);
     try {
       const users = await searchUsersByNickname(q);
+      // 차단한 사람은 검색결과에서 숨김 (카카오톡 차단친구 모델 — [[block-nickname]])
       // FriendFinder UI는 옛 더미 객체 형태 기대 — uid/nickname을 매핑
-      setSearchResults(users.map(u => ({
-        id: u.uid, name: u.nickname,
-        hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: null,
-      })));
+      setSearchResults(users
+        .filter(u => !blockedIds.includes(u.uid))
+        .map(u => ({
+          id: u.uid, name: u.nickname,
+          hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: null,
+        })));
     } catch (e) {
       if (__DEV__) console.warn('[FriendFinder] search failed', e?.message);
       setSearchResults([]);
