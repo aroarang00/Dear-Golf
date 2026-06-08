@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
+import { formatNameList } from '../utils/nameList';
 
 // 명예의 전당 카드 배경색 — 성취 타입별 (공유 미리보기 헤더에서도 재사용)
 export function hofBgColor(type) {
@@ -62,13 +63,13 @@ export function HallOfFameCard({ item, onShare }) {
         {(isRound
           ? [
               { label: 'SCORE', value: `${item.score}타`, big: true },
-              { label: 'WITH', value: (item.companions || []).join(', ') || '나 홀로 라운딩' },
+              { label: 'WITH', value: formatNameList(item.companions, { sep: ', ' }) || '나 홀로 라운딩' },
             ]
           : [
               { label: 'HOLE', value: `${item.hole}번홀`, big: true },
               { label: 'PAR · DIST', value: `파${item.par} · ${item.distance}` },
               { label: 'BALL', value: item.ball },
-              { label: 'WITH', value: (item.companions || []).join(', ') || '나 홀로 라운딩' },
+              { label: 'WITH', value: formatNameList(item.companions, { sep: ', ' }) || '나 홀로 라운딩' },
             ]
         ).map((cell, i) => (
           // 셀 양각 — 상단·좌측 밝게(광택), 우측·하단 어둡게(그림자)로 입체감

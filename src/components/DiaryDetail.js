@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS, getCountryFlag } from '../constants/data';
 import { dS } from '../styles/dS';
+import { formatNameList } from '../utils/nameList';
 import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
 import { PhotoViewer } from './common/PhotoViewer';
@@ -190,7 +191,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
                   })}
                 </View>
                 <Text style={dS.compNames} numberOfLines={1}>
-                  {companionsToShow.map(c => c.name).join(' · ')}
+                  {formatNameList(companionsToShow.map(c => c.name))}
                 </Text>
               </View>
             </View>

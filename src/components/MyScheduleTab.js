@@ -7,6 +7,7 @@ import { ROUTES } from '../constants/routes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { C, F, fs } from '../constants/colors';
+import { formatNameList } from '../utils/nameList';
 import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
@@ -649,7 +650,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                       </Text>
                       {Array.isArray(s.companions) && s.companions.length > 0 && (
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
-                          👥 {s.companions.map(c => (typeof c === 'string' ? c : c?.name)).filter(Boolean).join(', ')}
+                          👥 {formatNameList(s.companions.map(c => (typeof c === 'string' ? c : c?.name)), { sep: ', ' })}
                         </Text>
                       )}
                     </View>
