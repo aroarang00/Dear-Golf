@@ -83,46 +83,36 @@ function WaitRow({ num, name, me }) {
   );
 }
 
-// 슬롯 배열 생성 — teamIdx가 null이면 개별 모집
+// 슬롯 배열 생성 — 개별·단체 모두 평면 리스트(participantUids 기준).
+//  ★단체도 팀으로 쪼개지 않고 전원(teams*4명)을 쭉 나열한다 — uid↔팀 매핑이 없어 팀별로 나누면
+//   선착순 카운트가 '조편성'처럼 오해됨(카톡 오픈챗도 평면 나열). 조편성은 댓글로 ([[roundup-comments-policy]]).
 // nameMap: { uid: nickname } — 실제 참여자 이름. participantUids 우선, 옛 더미 호환 위해 pickNames fallback.
-function buildSlots(post, teamIdx, nameMap = {}, myUid = null, myName = null) {
+function buildSlots(post, nameMap = {}, myUid = null, myName = null) {
   const hostName = post.authorName || post.author || '주최자';
-  if (teamIdx == null) {
-    const cap = post.capacity || 4;
-    const filled = post.joined || 0;
-    const uids = Array.isArray(post.participantUids) ? post.participantUids : [];
-    // participantUids가 있으면 실제 참여자 기준, 없으면(옛 더미) pickNames fallback
-    if (uids.length > 0) {
-      return Array.from({ length: cap }, (_, i) => {
-        if (i >= filled) return { open: true };
-        const uid = uids[i];
-        const host = uid ? uid === post.authorUid : i === 0;
-        const isSelf = !!uid && uid === myUid;
-        const base = host ? hostName
-          : (nameMap[uid] || (isSelf ? (myName || '동반자') : '동반자'));
-        const name = isSelf ? `${base}(나)` : base;   // 참여자 현황에서만 본인 표시
-        return { name, host, uid };
-      });
-    }
-    const names = pickNames(post.id, filled);
-    return Array.from({ length: cap }, (_, i) =>
-      i < filled ? { name: i === 0 ? hostName : names[i], host: i === 0 } : { open: true });
+  const cap = post.capacity || 4;            // 단체=teams*4, 개별=members+1
+  const filled = post.joined || 0;
+  const uids = Array.isArray(post.participantUids) ? post.participantUids : [];
+  // participantUids가 있으면 실제 참여자 기준, 없으면(옛 더미) pickNames fallback
+  if (uids.length > 0) {
+    return Array.from({ length: cap }, (_, i) => {
+      if (i >= filled) return { open: true };
+      const uid = uids[i];
+      const host = uid ? uid === post.authorUid : i === 0;
+      const isSelf = !!uid && uid === myUid;
+      const base = host ? hostName
+        : (nameMap[uid] || (isSelf ? (myName || '동반자') : '동반자'));
+      const name = isSelf ? `${base}(나)` : base;   // 참여자 현황에서만 본인 표시
+      return { name, host, uid };
+    });
   }
-  // 단체(팀) 모집 — 데이터 모델상 uid가 어느 팀에 속하는지 매핑이 없음(participantUids 평면 + teamJoined 카운트만).
-  //  특정 팀 슬롯에 실명을 박으면 거짓 배치가 되므로, 주최자만 표시하고 나머지는 중립 '동반자' 라벨.
-  //  (옛 pickNames 더미 인명 제거 — 가짜 신원 노출 방지. 정확한 팀별 실명은 Phase 2 팀 배정 데이터 필요.)
-  const filled = post.teamJoined[teamIdx] || 0;
-  return Array.from({ length: 4 }, (_, i) => {
-    if (i >= filled) return { open: true };
-    const host = teamIdx === 0 && i === 0;
-    return { name: host ? hostName : '동반자', host };
-  });
+  const names = pickNames(post.id, filled);
+  return Array.from({ length: cap }, (_, i) =>
+    i < filled ? { name: i === 0 ? hostName : names[i], host: i === 0 } : { open: true });
 }
 
 // 라운딩 모집 상세 화면
 export function RoundupDetail({ post, myUid, participantNames = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
-  const [teamTab, setTeamTab] = useState(0);
   const [alert, setAlert] = useState(null);
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
   // z-index 이슈로 부모(RoundupTab)의 모달이 이 Modal 뒤로 가려져서, 등급/차단 확인 모달은 여기서 자체 렌더링.
@@ -189,7 +179,7 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
   //  취소 시엔 leaveRoundup이 closed:false + joined-1로 둘 다 풀어주므로 참여 버튼이 정상 복귀.
   const isClosed = post.closed || allFull;
   const respondHours = waitlistRespondHours(post.date);
-  const slots = buildSlots(post, isTeam ? teamTab : null, participantNames, myUid, userProfile?.nickname);
+  const slots = buildSlots(post, participantNames, myUid, userProfile?.nickname);
   const waiters = pickNames(post.id + ':wait', post.waitlistCount || 0);
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
@@ -666,26 +656,10 @@ export function RoundupDetail({ post, myUid, participantNames = {}, visible, joi
               <View style={{ marginTop: _and ? 9 : 12 }}>{actionBtn}</View>
             </View>
 
-            {/* 2·3. 참여자 현황 (단체면 팀 탭) */}
+            {/* 2·3. 참여자 현황 — 단체도 팀으로 안 나누고 전원 평면 나열(조편성은 댓글) */}
             <Text style={[sectionLabel, { marginTop: _and ? 6 : 8 }]}>참여자 현황</Text>
             <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
               borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14 }}>
-              {isTeam && (
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: _and ? 6 : 8 }}>
-                  {post.teamJoined.map((_, i) => {
-                    const on = teamTab === i;
-                    return (
-                      <TouchableOpacity key={i} onPress={() => setTeamTab(i)} activeOpacity={0.8}
-                        style={{ flex: 1, alignItems: 'center', paddingVertical: _and ? 5 : 7, borderRadius: 8,
-                          backgroundColor: on ? C.charcoal : C.bgPrimary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
-                        <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(12), color: on ? C.butter : C.warmGray }}>
-                          {i + 1}팀
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
               {slots.map((s, i) => {
                 // 본인 슬롯(uid===myUid 또는 라벨 '나')은 액션시트 X — 자기 차단·신고·친구신청 방지.
                 // id는 uid 우선(친구상태 매칭·isMe 판정용), 없으면 이름 fallback(옛 더미).
