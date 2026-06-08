@@ -75,3 +75,14 @@ export function friendDisplayName(friendMeta, friendUid, fallbackNickname) {
   const cn = friendMeta && friendMeta[friendUid] && friendMeta[friendUid].customName;
   return (cn && String(cn).trim()) || fallbackNickname || '친구';
 }
+
+// 선택한 그룹들 → 그 그룹에 속한 친구 uid 합집합. 글 작성 시점 audienceUids 스냅샷 산출.
+//   friendMeta = loadFriendData().friendMeta, groupIds = 선택한 그룹 id 배열.
+export function resolveGroupAudience(friendMeta, groupIds) {
+  if (!friendMeta || !Array.isArray(groupIds) || groupIds.length === 0) return [];
+  const sel = new Set(groupIds);
+  return Object.keys(friendMeta).filter(uid => {
+    const g = friendMeta[uid] && friendMeta[uid].groupIds;
+    return Array.isArray(g) && g.some(x => sel.has(x));
+  });
+}

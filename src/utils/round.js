@@ -38,17 +38,33 @@ export async function loadMyRounds() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-// 친구의 친구공개 다이어리 — feed. (ownerUid, visibility, date desc) 인덱스 사용.
+// 친구의 친구공개 다이어리 — feed. ([[friend_groups]] 그룹 공개 포함)
+//  2쿼리 병합(Firestore OR 미지원):
+//   Q1 visibility=='friends'(친구 전체)  +  Q2 audienceUids array-contains me(나 포함 그룹 글)
+//  인덱스: (ownerUid, visibility, date desc) + (ownerUid, audienceUids CONTAINS, date desc).
 export async function loadFriendRounds(friendUid) {
   if (!friendUid) return [];
-  const q = query(
-    collection(db, COLLECTION),
-    where('ownerUid', '==', friendUid),
-    where('visibility', '==', 'friends'),
-    orderBy('date', 'desc'),
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const me = await getUid();
+  const base = collection(db, COLLECTION);
+  const qs = [
+    getDocs(query(base,
+      where('ownerUid', '==', friendUid),
+      where('visibility', '==', 'friends'),
+      orderBy('date', 'desc'),
+    )).catch(() => null),
+  ];
+  if (me) {
+    qs.push(getDocs(query(base,
+      where('ownerUid', '==', friendUid),
+      where('audienceUids', 'array-contains', me),
+      orderBy('date', 'desc'),
+    )).catch(() => null));
+  }
+  const snaps = await Promise.all(qs);
+  const map = new Map();           // doc id 기준 dedupe(겹침 없음 — 안전망)
+  snaps.forEach(snap => snap && snap.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() })));
+  return Array.from(map.values())
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)); // date desc
 }
 
 // ── 생성·수정·삭제 ─────────────────────────────────────────────
@@ -61,6 +77,9 @@ export async function createRound(data) {
     ownerUid: uid,
     kind: data.kind === 'moment' ? 'moment' : 'round', // 일상(모멘트) 격리 플래그. 없으면 round(하위호환)
     visibility: data.visibility || 'friends',
+    // 그룹 공개 — 작성 시점 그룹 멤버 uid 스냅샷 + 원본 그룹 선택(수정 복원용). group 아니면 빈 배열 ([[friend_groups]])
+    audienceUids: data.visibility === 'group' && Array.isArray(data.audienceUids) ? data.audienceUids : [],
+    audienceGroupIds: data.visibility === 'group' && Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [],
     date: data.date || '',
     day: data.day || '',
     course: data.course || '',
@@ -96,8 +115,8 @@ export async function createRound(data) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  // 친구공개면 사진/영상을 Storage 업로드(https) — 친구가 볼 수 있게. 나만보기는 로컬 유지 ([[friend-feed-design]]).
-  if (round.visibility === 'friends') {
+  // 친구·그룹 공개면 사진/영상을 Storage 업로드(https) — 친구가 볼 수 있게. 나만보기는 로컬 유지 ([[friend-feed-design]]).
+  if (round.visibility === 'friends' || round.visibility === 'group') {
     round.photos = await uploadRoundMedia(uid, round.photos);
   }
   const ref = await addDoc(collection(db, COLLECTION), round);
@@ -109,8 +128,18 @@ export async function updateRound(roundId, data) {
   if (!roundId) throw new Error('roundId required');
   const ref = doc(db, COLLECTION, roundId);
   const { ownerUid, id, createdAt, likes, ...updatable } = data; // 변경 금지·별도관리(likes) 필드 제거
-  // 친구공개면 새로 추가된 로컬 사진/영상만 Storage 업로드(https는 멱등 스킵) ([[friend-feed-design]]).
-  if (updatable.visibility === 'friends' && Array.isArray(updatable.photos)) {
+  // 공개범위 바뀌면 그룹 audience 일관성 — group이면 스냅샷 유지, 아니면 비움 ([[friend_groups]])
+  if (updatable.visibility) {
+    if (updatable.visibility === 'group') {
+      updatable.audienceUids = Array.isArray(updatable.audienceUids) ? updatable.audienceUids : [];
+      updatable.audienceGroupIds = Array.isArray(updatable.audienceGroupIds) ? updatable.audienceGroupIds : [];
+    } else {
+      updatable.audienceUids = [];
+      updatable.audienceGroupIds = [];
+    }
+  }
+  // 친구·그룹 공개면 새로 추가된 로컬 사진/영상만 Storage 업로드(https는 멱등 스킵) ([[friend-feed-design]]).
+  if ((updatable.visibility === 'friends' || updatable.visibility === 'group') && Array.isArray(updatable.photos)) {
     const uid = await getUid();
     if (uid) updatable.photos = await uploadRoundMedia(uid, updatable.photos);
   }

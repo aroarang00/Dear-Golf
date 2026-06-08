@@ -77,10 +77,13 @@ service cloud.firestore {
         resource.data.ownerUid == request.auth.uid
         || (resource.data.visibility == 'friends'
             && areFriends(request.auth.uid, resource.data.ownerUid))
+        // 그룹 공개 — 작성 시점 audienceUids(작성자 친구로 한정)에 포함된 수신자만 ([[friend_groups]])
+        || (resource.data.visibility == 'group'
+            && request.auth.uid in resource.data.audienceUids)
       );
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.visibility in ['friends', 'private'];
+        && request.resource.data.visibility in ['friends', 'group', 'private'];
       allow update: if isSignedIn() && (
         // 본인 — 전체 수정 (ownerUid 변조 금지)
         (resource.data.ownerUid == request.auth.uid
@@ -88,6 +91,11 @@ service cloud.firestore {
         // 친구 — 친구공개 라운드의 좋아요(likes)에서 자기 uid만 토글 ([[friend-feed-design]])
         || (resource.data.visibility == 'friends'
             && areFriends(request.auth.uid, resource.data.ownerUid)
+            && changedKeysWithin(['likes', 'updatedAt'])
+            && selfMembershipToggled('likes'))
+        // 그룹 공개 글 좋아요 — 수신자(audienceUids)만 자기 uid 토글 ([[friend_groups]])
+        || (resource.data.visibility == 'group'
+            && request.auth.uid in resource.data.audienceUids
             && changedKeysWithin(['likes', 'updatedAt'])
             && selfMembershipToggled('likes'))
       );
