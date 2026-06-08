@@ -20,6 +20,7 @@ import { searchPlaces } from '../utils/kakao';
 import { deleteAccount } from '../utils/account';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { BlockManageScreen } from './BlockManageScreen';
+import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { ReportModal } from './ReportModal';
 import { MyRoundupActivityScreen } from './MyRoundupActivityScreen';
 import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
@@ -47,6 +48,7 @@ export function MyPageModal({ visible, onClose }) {
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
   const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
+  const [groupManageOpen, setGroupManageOpen] = useState(false);  // 친구 그룹 관리 ([[friend_groups]])
   const [reportOpen, setReportOpen] = useState(false);             // 신고하기
   const [roundupActivityOpen, setRoundupActivityOpen] = useState(false); // 내 라운지 활동
   const [termsViewer, setTermsViewer] = useState({ visible: false, title: '', body: '', externalUrl: null }); // 약관·정책 본문 뷰어
@@ -586,6 +588,8 @@ export function MyPageModal({ visible, onClose }) {
                   // 내 라운지 활동 — 매너·신뢰 등급, 패널티 이력, 진행 중 신고 통합 진입점 ([[my-roundup-activity]])
                   { icon: '📋', label: '내 라운지 활동',
                     onPress: () => setRoundupActivityOpen(true) },
+                  { icon: '👥', label: '친구 그룹 관리',
+                    onPress: () => setGroupManageOpen(true) },
                   { icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
                     onPress: () => setBlockManageOpen(true) },
                   // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화 ([[report-block-policy]] §5-1)
@@ -830,6 +834,7 @@ export function MyPageModal({ visible, onClose }) {
         </View>
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
       <BlockManageScreen visible={blockManageOpen} onClose={() => setBlockManageOpen(false)} />
+      <FriendGroupManageModal visible={groupManageOpen} onClose={() => setGroupManageOpen(false)} />
       <ReportModal visible={reportOpen}
         onClose={() => { setReportOpen(false); getReportRemainingThisMonth().then(setReportRemaining); }} />
       <MyRoundupActivityScreen visible={roundupActivityOpen}

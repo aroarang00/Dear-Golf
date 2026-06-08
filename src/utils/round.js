@@ -67,6 +67,26 @@ export async function loadFriendRounds(friendUid) {
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)); // date desc
 }
 
+// 내 group 공개 글들이 참조하는 그룹 id 집합 — 그룹 관리 화면의 '글 0' 삭제 가드용 ([[friend_groups]]).
+//   인덱스 (ownerUid, visibility, date) 재사용. 내 글만이라 가벼움.
+export async function loadMyUsedGroupIds() {
+  const me = await getUid();
+  if (!me) return new Set();
+  try {
+    const snap = await getDocs(query(collection(db, COLLECTION),
+      where('ownerUid', '==', me), where('visibility', '==', 'group')));
+    const s = new Set();
+    snap.docs.forEach(d => {
+      const gids = d.data().audienceGroupIds;
+      if (Array.isArray(gids)) gids.forEach(g => g && s.add(g));
+    });
+    return s;
+  } catch (e) {
+    if (__DEV__) console.warn('[round] loadMyUsedGroupIds', e?.message);
+    return new Set();
+  }
+}
+
 // ── 생성·수정·삭제 ─────────────────────────────────────────────
 
 // 신규 다이어리 생성. visibility 기본값 'friends' ([[profile-diary-split]]).
