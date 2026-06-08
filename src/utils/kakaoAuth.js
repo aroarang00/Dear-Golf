@@ -1,7 +1,6 @@
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { login, me } from '@react-native-kakao/user';
 import { getFriends } from '@react-native-kakao/social';
-import { Alert } from 'react-native';  // [임시 디버그] 친구 동의 결과 화면 표시 — 검증 후 제거
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
 import { storage, STORAGE_KEYS } from './storage';
@@ -116,7 +115,6 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
 export async function getKakaoFriends() {
   try {
     const res = await getFriends({});
-    Alert.alert('[디버그] getFriends 성공', `friends ${res?.friends?.length ?? 0} / total ${res?.totalCount}`);
     const friends = (res?.friends || [])
       .filter(f => f.id != null)   // id 있는 친구 = 앱 연결(가입) 친구
       .map(f => ({
@@ -129,7 +127,7 @@ export async function getKakaoFriends() {
   } catch (e) {
     // friends 미동의면 getFriends가 throw. 네이티브 에러 코드가 플랫폼마다 달라
     // 첫 사용 시 가장 흔한 '미동의'로 우선 처리 → '동의하고 친구 찾기'(loginWithNewScopes) 유도.
-    Alert.alert('[디버그] getFriends 실패', `code: ${e?.code}\nmsg: ${e?.message}`);
+    if (__DEV__) console.warn('[kakao] getFriends 실패', e?.code, e?.message);
     return { ok: false, error: 'no-consent' };
   }
 }
