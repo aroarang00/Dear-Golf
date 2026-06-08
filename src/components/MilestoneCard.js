@@ -62,6 +62,20 @@ export function milestoneBadge(ms) {
   };
 }
 
+// 트랙별 최고 달성 메달 value — 명함 '흐린 메달 줄'용. { rounds: value|null, courses: value|null }.
+//   배지 임계값(badgeThresholdsFor, TEMP 포함) 기준 → TEMP_PREVIEW_10이면 10도 잡힘(미리보기).
+//   TEMP 제거 시 자동으로 실 임계값(라운딩 30·구장 30부터)으로 복귀.
+export function trackTopMedals(counts) {
+  const out = {};
+  Object.keys(MILESTONE_DEFS).forEach((category) => {
+    const n = counts[category] || 0;
+    let best = null;
+    badgeThresholdsFor(category).forEach((value) => { if (n >= value) best = value; });
+    out[category] = best;
+  });
+  return out;
+}
+
 // 마일스톤 → hallOfFame 엔트리. kind:'milestone'로 카드 분기.
 export function buildMilestoneEntry({ category, value, tier, date }) {
   return {

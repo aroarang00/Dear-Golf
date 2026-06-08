@@ -13,7 +13,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { LoadingState } from './common/LoadingState';
 import { showAppAlert } from './AppAlert';
 import { HallOfFameCard } from './HallOfFameCard';
-import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, topMilestone, milestoneBadge } from './MilestoneCard';
+import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals } from './MilestoneCard';
 import { ShareMomentModal } from './ShareMomentModal';
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
@@ -35,6 +35,7 @@ import { getUid } from '../utils/firebase';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
+import { MilestoneInfoModal } from './common/MilestoneInfoModal';
 
 // 빈 상태 예시 카드용 더미 데이터 (실제 DiaryCard 컴포넌트로 렌더)
 const SAMPLE_DIARY = {
@@ -90,6 +91,7 @@ export function DiaryScreen({ route, navigation }) {
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
+  const [milestoneInfoOpen, setMilestoneInfoOpen] = useState(false); // 마일스톤 안내 ([[milestone_badges]])
   const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
@@ -505,14 +507,15 @@ export function DiaryScreen({ route, navigation }) {
   const diaryBest = roundScores.length ? Math.min(...roundScores) : null;
   const bestCandidates = [diaryBest, userProfile.lifeBest].filter(v => Number.isFinite(v) && v > 0);
   const bestScore = bestCandidates.length ? Math.min(...bestCandidates) : null;
-  // 명함 — 마일스톤 배지(최고 1개) · 멘트
+  // 명함 — 이름 / 흐린 트랙 메달 줄(탭→안내) / 멘트
   const visitedCourses = countVisitedCourses(diaries, schedules);
-  const topMs = milestoneBadge(topMilestone({ rounds: _dispTotal, courses: visitedCourses }));
+  const medals = trackTopMedals({ rounds: _dispTotal, courses: visitedCourses }); // { rounds, courses }: 트랙별 최고 메달 value|null
   const myStatus = (userProfile.statusMessage || '').trim();
-  // 핸디·라베(베스트)는 명함 헤더 알약으로 이동(중복 제거) → 통계박스는 누적 카운트만.
+  // 통계박스 — 핸디 계산 라벨·설명 유지(애매함 방지). 핸디/베스트 그대로 둠.
   const statBoxes = [
     { label: '총 라운딩', value: totalRounds },
-    { label: '방문 구장', value: visitedCourses },
+    { label: '핸디', value: myHandicap, hi: true },
+    { label: '베스트', value: bestScore },
   ];
 
   return (
@@ -557,27 +560,22 @@ export function DiaryScreen({ route, navigation }) {
           </View>
           {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}
           <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{myName}</Text>
-              {/* 마일스톤 배지 — 가장 높은 달성 1개(미달성이면 숨김) */}
-              {topMs && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
-                  backgroundColor: '#2A2D3A', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 }}>
-                  <Text style={{ fontSize: fs(11) }}>{topMs.icon}</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#E6C677' }}>{topMs.label}</Text>
-                </View>
+            {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{myName}</Text>
+            {/* 흐린 트랙 메달 줄 — 이름 아래(옛 라베 자리). 탭하면 마일스톤 안내. 미달성이면 '모으는 중'. ([[milestone_badges]])
+                트랙별 최고 메달만 흐리게(라운딩·구장). TEMP 10이면 10도 표시(미리보기). */}
+            <TouchableOpacity onPress={() => setMilestoneInfoOpen(true)} activeOpacity={0.7}
+              style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7, marginLeft: 12 }}>
+              {(medals.rounds != null || medals.courses != null) ? (
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>
+                  {[medals.rounds != null ? `🏅 라운딩 ${medals.rounds}` : null,
+                    medals.courses != null ? `🏅 구장 ${medals.courses}` : null].filter(Boolean).join('   ·   ')}
+                </Text>
+              ) : (
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGrayLight }}>🏅 마일스톤 모으는 중</Text>
               )}
-            </View>
-            {/* 라베·핸디 — 알약 배지 2개 나란히(같은 모양, 색만 다름). 친구모집 시 한눈에 정보 제공.
-                라베=버터색, 핸디=세이지색. '라이프베스트'는 '라베'로 축약 ([[lifebest-calc]] · [[roundup-friend-redesign]]) */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
-              <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라베 {bestScore ?? '—'}</Text>
-              </View>
-              <View style={{ backgroundColor: '#DCE5D6', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>핸디 {myHandicap ?? '—'}</Text>
-              </View>
-            </View>
+              <Text style={{ fontSize: fs(10), color: C.warmGrayLight }}>ⓘ</Text>
+            </TouchableOpacity>
             {/* 멘트(상태 메시지) — 표시 전용. 편집은 마이페이지 내 정보에서.
                 lineHeight 넉넉히(이모지 윗부분 잘림 방지) */}
             {/* 멘트 — 한 줄 고정. 버튼(💰·⚙️)보다 아래라 우측 여백을 되찾아(marginRight 음수) 폭 확보 */}
@@ -843,6 +841,7 @@ export function DiaryScreen({ route, navigation }) {
       <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key} onClose={() => setGradeModalOpen(false)} />
       <MannerGradeModal visible={mannerModalOpen} highlightKey={myManner.key} onClose={() => setMannerModalOpen(false)} />
       <HandicapInfoModal visible={handicapInfoOpen} onClose={() => setHandicapInfoOpen(false)} />
+      <MilestoneInfoModal visible={milestoneInfoOpen} onClose={() => setMilestoneInfoOpen(false)} />
 
       {/* 프로필 사진 변경 시트 — 자체 오버레이 (Modal 전환 충돌 회피) */}
       {avatarSheetOpen && (
