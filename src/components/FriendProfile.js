@@ -310,9 +310,9 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, textAlign: 'center', marginBottom: 4 }}>그룹 · 별명 설정</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginBottom: 16 }}>나만 보는 설정이에요 · 친구에겐 안 보여요</Text>
 
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>별명</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>별명 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(최대 6자)</Text></Text>
                 <TextInput value={editName} onChangeText={setEditName}
-                  placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight} maxLength={20}
+                  placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight} maxLength={6}
                   style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
                     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>

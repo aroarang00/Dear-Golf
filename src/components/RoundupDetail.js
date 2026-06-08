@@ -53,19 +53,22 @@ function SlotRow({ slot, idx, onPress }) {
       <View style={{ width: _and ? 32 : 36, height: _and ? 32 : 36, borderRadius: _and ? 16 : 18, backgroundColor: pal.bg, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 13 : 14), color: pal.fg }}>{(slot.name || '?').charAt(0)}</Text>
       </View>
-      {onPress ? (
-        <TouchableOpacity activeOpacity={0.7} onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
-        </TouchableOpacity>
-      ) : (
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
-      )}
-      {slot.host && (
-        <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>주최자</Text>
-        </View>
-      )}
-      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F', marginLeft: 'auto' }}>참여 확정</Text>
+      {/* 이름 영역 — flex:1 + 말줄임. 별명·닉네임이 길어도 행이 깨지지 않게 ([[friend_groups]] 2026-06-09) */}
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {onPress ? (
+          <TouchableOpacity style={{ flexShrink: 1 }} activeOpacity={0.7} onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+            <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
+        )}
+        {slot.host && (
+          <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>주최자</Text>
+          </View>
+        )}
+      </View>
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F' }}>참여 확정</Text>
     </View>
   );
 }

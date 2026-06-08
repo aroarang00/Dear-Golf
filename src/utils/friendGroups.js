@@ -31,7 +31,7 @@ export const DEFAULT_FRIEND_GROUPS = [
   { id: 'rounding', name: '라운딩 멤버', order: 1, color: GROUP_COLORS[1] },
 ];
 
-const CUSTOM_NAME_MAX = 20;
+const CUSTOM_NAME_MAX = 6;   // 별명은 짧게 — 카드·상세에서 이름이 길어지지 않게(2026-06-09)
 
 const normGroups = (g) =>
   (Array.isArray(g) && g.length) ? g : DEFAULT_FRIEND_GROUPS;
