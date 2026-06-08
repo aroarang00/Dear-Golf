@@ -46,6 +46,13 @@ service cloud.firestore {
       allow create: if isOwner(uid) && request.resource.data.uid == uid;
       allow update: if isOwner(uid) && request.resource.data.uid == uid;
       allow delete: if isOwner(uid);
+
+      // 친구 그룹·별명 (친구 그룹 기능 — docs/friend-groups-design.md). 본인만.
+      //   users 문서 read가 전면 개방(위 line)이라 친구메타는 반드시 owner-only 서브컬렉션에 둔다.
+      //   서브컬렉션은 부모 규칙을 상속하지 않으므로 여기서 명시.
+      match /private/{docId} {
+        allow read, write: if isOwner(uid);
+      }
     }
 
     // ===== schedules — 라운딩 예정 일정 (본인만 read/write) =====
