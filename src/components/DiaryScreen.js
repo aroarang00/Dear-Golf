@@ -24,7 +24,7 @@ import { MyPageModal } from './MyPageModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
-import { calcHandicap } from '../utils/handicap';
+import { calcHandicap, syncMyHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '../utils/roundStats';
 import { roundsOnly, isMomentDiary, isRoundDiary } from '../utils/diaryKind';
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
@@ -215,6 +215,13 @@ export function DiaryScreen({ route, navigation }) {
       return [...missing.map(buildMilestoneEntry), ...prev];
     });
   }, [hofHydrated, diaries, schedules, userProfile]);
+
+  // 내 핸디를 users 문서에 동기화 — 라운지 모집 상세에서 남(주최자·참여자)이 내 핸디 보이게.
+  //   값이 바뀔 때만 write(중복 방지). ([[friend_groups]] 핸디표시 / handicap.syncMyHandicap)
+  useEffect(() => {
+    const hc = calcHandicap(diaries, userProfile.avgScore);
+    if (hc != null && hc !== userProfile.handicap) syncMyHandicap(hc);
+  }, [diaries, userProfile.avgScore, userProfile.handicap]);
 
   // 홈 'D-0 기록 보기'로 상세 진입한 경우, 닫을 때(안드 뒤로가기 포함) MY 목록이 아니라 홈으로 복귀
   const detailFromHomeRef = React.useRef(false);
