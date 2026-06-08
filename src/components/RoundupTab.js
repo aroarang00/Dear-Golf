@@ -102,8 +102,8 @@ function PostCard({ post, myUid, joined, applied, waitlistNum, isBookmarked, onA
             <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#5C1E1E' }}>마감</Text>
           </View>
         )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{post.authorName || post.author}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{post.authorName || post.author}</Text>
           {/* 좋아요(응원) — 소프트 비활성([[roundup-likes-disabled]]). 관심(별표)과 경쟁 제거. 데이터·함수 보존 */}
           {ROUNDUP_LIKES_ENABLED && (() => {
             const likeCount = Array.isArray(post.likedBy) ? post.likedBy.length : 0;

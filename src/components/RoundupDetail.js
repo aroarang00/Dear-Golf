@@ -80,8 +80,8 @@ function WaitRow({ num, name, me }) {
       <View style={{ minWidth: 44, alignItems: 'center', backgroundColor: '#F0E8D8', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914' }}>대기 {num}번</Text>
       </View>
-      <Text style={{ fontFamily: me ? F.sysB : F.sysSb, fontSize: fs(13), color: C.charcoal }}>{name}</Text>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 'auto' }}>대기 중</Text>
+      <Text numberOfLines={1} style={{ flex: 1, fontFamily: me ? F.sysB : F.sysSb, fontSize: fs(13), color: C.charcoal }}>{name}</Text>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>대기 중</Text>
     </View>
   );
 }

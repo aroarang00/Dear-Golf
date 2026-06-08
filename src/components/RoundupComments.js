@@ -27,7 +27,7 @@ function CommentRow({ comment, onPress }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>📌 주최자 고정</Text>
           </View>
         )}
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
           {comment.authorName || '동반자'}
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>· {dateLabel}</Text>
