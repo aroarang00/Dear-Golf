@@ -7,7 +7,7 @@ import { db, getUid } from './firebase';
 // content_reports/{reportId} — 게시물 신고 ([[content-report-policy]])
 //
 // Doc ID = `{targetType}_{targetId}_{reporterUid}` (deterministic, 1인 1회 제한)
-// targetType: 'courseComment' | 'roundup' | 'roundupComment'
+// targetType: 'courseComment' | 'roundup' | 'roundupComment' | 'friendDiary'
 // reason: 'ad_spam' | 'inappropriate'
 // status: 'pending' | 'confirmed' | 'rejected'
 //
@@ -38,7 +38,7 @@ export async function createContentReport(data) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!data.targetType || !data.targetId) throw new Error('targetType/targetId required');
-  if (!['courseComment', 'roundup', 'roundupComment'].includes(data.targetType)) {
+  if (!['courseComment', 'roundup', 'roundupComment', 'friendDiary'].includes(data.targetType)) {
     throw new Error('invalid targetType');
   }
   if (!['ad_spam', 'inappropriate'].includes(data.reason)) {

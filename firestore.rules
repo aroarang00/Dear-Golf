@@ -363,7 +363,7 @@ service cloud.firestore {
 
     // ===== content_reports — 게시물 신고 ([[content-report-policy]]) =====
     //  Doc ID = {targetType}_{targetId}_{reporterUid} (deterministic, 1인 1회 제한)
-    //  targetType: 'courseComment' | 'roundup' | 'roundupComment'
+    //  targetType: 'courseComment' | 'roundup' | 'roundupComment' | 'friendDiary'
     //  status: 'pending' | 'confirmed' | 'rejected'
     //  보안: 신고자 본인이 자기 신고 read·create. 변조·삭제는 Cloud Functions만.
     //  사용자 신고(reports)와 분리 — 한도 X, 양방향 차단 X, 부담 없는 신고.
@@ -373,7 +373,7 @@ service cloud.firestore {
         && (resource == null || resource.data.reporterUid == request.auth.uid);
       allow create: if isSignedIn()
         && request.resource.data.reporterUid == request.auth.uid
-        && request.resource.data.targetType in ['courseComment', 'roundup', 'roundupComment']
+        && request.resource.data.targetType in ['courseComment', 'roundup', 'roundupComment', 'friendDiary']
         && request.resource.data.targetId is string
         && request.resource.data.reason in ['ad_spam', 'inappropriate']
         && request.resource.data.status == 'pending'

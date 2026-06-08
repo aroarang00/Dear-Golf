@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
@@ -13,10 +13,17 @@ import { toggleRoundLike } from '../utils/round';
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
 //  - variant 'friend'    : 친구 피드 — 같은 골격에 정보만 줄임(구장·스코어·한줄메모·★) + 좋아요/댓글 줄.
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
-export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid }) {
+export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport }) {
   const [expanded, setExpanded] = useState(false);
   const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
+
+  // 친구 피드 카드 — 길게 누르면 신고 액션시트 ([[content-report-policy]]·[[diary-profanity-policy]]).
+  //   onReport 미연결이면 그대로 통과. 일상·라운드 4갈래 모두 같은 래퍼로 감싼다(탭은 내부 사진/좋아요가 처리).
+  const wrapFriend = (children) =>
+    onReport ? (
+      <Pressable onLongPress={() => onReport(item)} delayLongPress={350}>{children}</Pressable>
+    ) : children;
 
   // 좋아요 상태 — 친구 변형에서만 의미. (훅은 항상 호출)
   const likedInit = !!(myUid && (item.likes || []).includes(myUid));
@@ -203,7 +210,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       );
       if (isFriend) {
         // 친구 사진 일상 — 사진 위 날짜 + 글(5줄+더보기, 일상은 글이 본체) + 좋아요
-        return (
+        return wrapFriend(
           <View style={momentCard}>
             {photoEl(true)}
             {item.memo ? (
@@ -255,7 +262,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       </View>
     );
     if (isFriend) {
-      return (
+      return wrapFriend(
         <View style={momentCard}>
           {textBody}
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingBottom: 10, marginTop: -4 }}>
@@ -278,7 +285,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   if (isFriend) {
     // 사진 카드 — 접기 없음. 사진 하단 오버레이: 좌 구장·일시 / 우 타수. 사진 아래: 작은 메모 + 우측끝 좋아요
     if (hasPhoto) {
-      return (
+      return wrapFriend(
         <View style={[dS.card, isSpecial && dS.cardSpecial]}>
           {isSpecial && <View style={dS.cardSpecialLine} />}
           {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i), photoScoreOverlay)}
@@ -294,7 +301,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     // 사진 없는 카드 — 좌(구장·별점·메모) / 우(타수·좋아요) 2열. 친구 카드는 버디·태그가 없어
     // 우측이 휑하므로 타수를 우측으로 옮겨 균형 + 좌우 묶음으로 높이 축소.
     // 왼쪽 바: 의미 없는 버터(통일), 특별 카드만 골드(cardSpecial). 타임라인 점은 FriendProfile에서.
-    return (
+    return wrapFriend(
       <View style={[dS.card, isSpecial ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: C.butter }]}>
         {isSpecial && <View style={dS.cardSpecialLine} />}
         {/* 특별 카드 — 홀수 빼고 라벨만 크게(특별함만). 명예의전당 카드는 공유용 별도 ([[friend-feed-design]]) */}

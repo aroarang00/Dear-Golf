@@ -13,6 +13,7 @@ import { DiaryCard } from './DiaryCard';
 import { LoadingState } from './common/LoadingState';
 import { PhotoViewer } from './common/PhotoViewer';
 import { getUid } from '../utils/firebase';
+import { createContentReport } from '../utils/contentReports';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
@@ -26,9 +27,13 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
   const [msgNoticeOpen, setMsgNoticeOpen] = useState(false); // 메시지(DM) 준비중 안내 — 본체 출시 직후([[dm-design]])
   const [myUid, setMyUid] = useState(null);                // 좋아요 내 상태 판정용
   const [viewer, setViewer] = useState(null);              // { photos, index } — 사진/영상 전체화면
+  const [reportItem, setReportItem] = useState(null);      // 피드 게시물 신고 — 사유 선택 시트 ([[content-report-policy]])
+  const [reportMsg, setReportMsg] = useState(null);        // 신고 결과 안내 텍스트
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(msgNoticeOpen, () => setMsgNoticeOpen(false)); // 메시지 준비중 안내 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
+  useAndroidBack(!!reportItem, () => setReportItem(null)); // 신고 시트 뒤로가기 → 닫기
+  useAndroidBack(!!reportMsg, () => setReportMsg(null));   // 신고 결과 뒤로가기 → 닫기
   useEffect(() => { getUid().then(setMyUid).catch(() => {}); }, []);
   if (!friend) return null;
 
@@ -45,6 +50,25 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
     { text: '✂️  친구 끊기', danger: true, onPress: handleOption(onDelete) },
     { text: '🚫  차단하기', subtitle: '친구가 끊기고 글·모집이 안 보여요', danger: true, onPress: handleOption(onBlock) },
   ];
+
+  // 피드 게시물 신고 — 사유 선택 후 createContentReport(멱등). 1인 1회는 deterministic Doc ID가 차단.
+  //   targetAuthorUid = 이 피드의 주인(friend.id). 검토 후 처리, 즉시 가림 X ([[content-report-policy]]).
+  const doReport = async (reason) => {
+    const it = reportItem;
+    setReportItem(null);
+    if (!it) return;
+    try {
+      const r = await createContentReport({
+        targetType: 'friendDiary', targetId: it.id, targetAuthorUid: friend.id || null, reason,
+      });
+      setReportMsg(r.alreadyReported
+        ? '이미 신고한 게시물이에요.\n검토 결과는 자동으로 반영돼요.'
+        : '신고가 접수됐어요.\n디어골프 팀이 3일 이내에 확인할게요.');
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendProfile] content report fail', e?.message);
+      setReportMsg('신고 접수에 실패했어요.\n잠시 후 다시 시도해주세요.');
+    }
+  };
   const palette = friend.palette || { bg: '#C8D9E6', fg: '#1A3D52' };
   const stats = friend.stats || {};
   const grade = getTrustGrade(friend.hostedCount, friend.mannerScore);
@@ -150,6 +174,7 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
                     <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: C.butter, borderWidth: 0 }]} />
                     <DiaryCard
                       item={item} variant="friend" myUid={myUid}
+                      onReport={setReportItem}
                       onOpenPhoto={(photos, index) => setViewer({ photos, index })} />
                   </View>
                 ))
@@ -208,6 +233,47 @@ export function FriendProfile({ friend, visible, feedLoading, onClose, muted, on
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginTop: 8 }}>준비 중이에요</Text>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>메시지 기능은{'\n'}곧 찾아올게요</Text>
                 <TouchableOpacity activeOpacity={0.7} onPress={() => setMsgNoticeOpen(false)}
+                  style={{ marginTop: 16, backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 22, paddingVertical: 10 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>확인</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* 게시물 신고 — 사유 선택 시트(카드 길게 누르기 → onReport). Modal 위 Modal 충돌 회피 위해 자체 오버레이. */}
+          {reportItem && (
+            <TouchableOpacity activeOpacity={1} onPress={() => setReportItem(null)}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
+              <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, textAlign: 'center', paddingTop: 16, paddingBottom: 4 }}>
+                  게시물 신고
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, textAlign: 'center', paddingBottom: 10 }}>
+                  어떤 이유로 신고할까요?
+                </Text>
+                {[{ k: 'ad_spam', t: '광고 · 스팸' }, { k: 'inappropriate', t: '부적절한 내용' }].map(r => (
+                  <TouchableOpacity key={r.k} activeOpacity={0.6} onPress={() => doReport(r.k)}
+                    style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, textAlign: 'center' }}>{r.t}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity activeOpacity={0.6} onPress={() => setReportItem(null)}
+                  style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, textAlign: 'center' }}>취소</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* 신고 결과 안내 */}
+          {reportMsg && (
+            <TouchableOpacity activeOpacity={1} onPress={() => setReportMsg(null)}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+              <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingVertical: 24, paddingHorizontal: 26, alignItems: 'center', maxWidth: 320 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, textAlign: 'center', lineHeight: 20 }}>{reportMsg}</Text>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => setReportMsg(null)}
                   style={{ marginTop: 16, backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 22, paddingVertical: 10 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>확인</Text>
                 </TouchableOpacity>
