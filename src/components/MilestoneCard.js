@@ -8,19 +8,37 @@ import { F, fs } from '../constants/colors';
 // 네이비는 라운지 전용색([[navy-lounge-color]])이라, 여기선 라운지 navy(#1A3D52)와 구분되는 훨씬 어두운 미드나잇 톤 사용.
 
 export const MILESTONE_DEFS = {
-  rounds:  { label: '라운딩',    unit: 'ROUNDS',  thresholds: [50, 100, 200] },
+  rounds:  { label: '라운딩',    unit: 'ROUNDS',  thresholds: [30, 50, 100, 200] },  // 라운딩 30 정식 추가(2026-06-09)
   courses: { label: '방문 구장', unit: 'COURSES', thresholds: [30, 50, 100] },
+};
+
+// 메달 장식 단계 — 임계값 '개수'와 무관하게 value 기준으로 안정화(라운딩 4단계·구장 3단계·TEMP 10 모두 대응).
+//   트랙 최고 임계값 = 왕관(2) / 트랙 첫 임계값 이하(TEMP 10·엔트리) = 기본 메달(0) / 그 사이 = 골드(1).
+export const milestoneDecoLevel = (category, value) => {
+  const ths = MILESTONE_DEFS[category]?.thresholds || MILESTONE_DEFS.rounds.thresholds;
+  if (value >= ths[ths.length - 1]) return 2;
+  if (value <= ths[0]) return 0;
+  return 1;
 };
 
 // 멱등 등재용 안정 id — 같은 마일스톤은 항상 같은 id (중복 등재 방지)
 export const milestoneId = (category, value) => `hof_ms_${category}_${value}`;
 
+// ⚠️⚠️ TEMP(2026-06-09) — 마일스톤 메달 '배지' 표시 위치 확인용 임시 10 임계값.
+//   사용자가 라운딩 10회·구장 10회로 배지가 어디에 붙는지 보려고 요청. **확인 후 이 블록 통째 삭제 +
+//   topMilestone의 badgeThresholdsFor → MILESTONE_DEFS 원복 할 것!** (배지에만 적용, hallOfFame 백필엔
+//   미적용이라 영구 기록 잔여물 없음 — reachedMilestones는 그대로 50/30 임계값 사용.)
+const TEMP_PREVIEW_10 = true;
+const badgeThresholdsFor = (category) =>
+  (TEMP_PREVIEW_10 ? [10, ...MILESTONE_DEFS[category].thresholds] : MILESTONE_DEFS[category].thresholds);
+
 // 누적 카운트 → 도달한 마일스톤 목록. 백필(이미 넘긴 단계도 모두 포함)에 그대로 쓴다.
-export function reachedMilestones(counts) {
+//   thresholdsFor 주입 가능(기본=실 임계값). 배지 미리보기(TEMP)는 별도 임계값을 넘겨 hallOfFame 오염 방지.
+export function reachedMilestones(counts, thresholdsFor = (category) => MILESTONE_DEFS[category].thresholds) {
   const out = [];
-  Object.entries(MILESTONE_DEFS).forEach(([category, def]) => {
+  Object.keys(MILESTONE_DEFS).forEach((category) => {
     const n = counts[category] || 0;
-    def.thresholds.forEach((value, tier) => {
+    thresholdsFor(category).forEach((value, tier) => {
       if (n >= value) out.push({ category, value, tier });
     });
   });
@@ -28,8 +46,9 @@ export function reachedMilestones(counts) {
 }
 
 // 명함 배지용 — 도달한 마일스톤 중 가장 큰 1개(value 내림차순, 동률이면 라운딩 우선). 없으면 null.
+//   배지는 badgeThresholdsFor 사용(TEMP 10 포함). hallOfFame 백필(reachedMilestones 기본 호출)과 분리.
 export function topMilestone(counts) {
-  const reached = reachedMilestones(counts);
+  const reached = reachedMilestones(counts, badgeThresholdsFor);
   if (!reached.length) return null;
   return reached.sort((a, b) => (b.value - a.value) || (a.category === 'rounds' ? -1 : 1))[0];
 }
@@ -38,7 +57,7 @@ export function topMilestone(counts) {
 export function milestoneBadge(ms) {
   if (!ms) return null;
   return {
-    icon: ['🏅', '🥇', '👑'][ms.tier] || '🏅',
+    icon: ['🏅', '🥇', '👑'][milestoneDecoLevel(ms.category, ms.value)] || '🏅',
     label: `${MILESTONE_DEFS[ms.category]?.label || ''} ${ms.value}`,
   };
 }
@@ -56,12 +75,13 @@ export function buildMilestoneEntry({ category, value, tier, date }) {
   };
 }
 
-// 의미 있는 헤드라인 — 단계·종류별. 부드럽되 '쌓아온 것'의 무게가 느껴지게.
-function headlineFor(category, value, tier) {
+// 의미 있는 헤드라인 — 장식 단계(value 기준)별. 부드럽되 '쌓아온 것'의 무게가 느껴지게.
+function headlineFor(category, value) {
+  const level = milestoneDecoLevel(category, value);
   if (category === 'courses') {
-    return ['발길이 그려온 지도', '넓어진 라운드의 반경', '백 개의 코스를 품다'][tier] || '발길이 그려온 지도';
+    return ['발길이 그려온 지도', '넓어진 라운드의 반경', '백 개의 코스를 품다'][level] || '발길이 그려온 지도';
   }
-  return ['꾸준함이 만든 발자취', '흔치 않은 기록에 닿다', '이 길 위에서 보낸 시간'][tier] || '꾸준함이 만든 발자취';
+  return ['꾸준함이 만든 발자취', '흔치 않은 기록에 닿다', '이 길 위에서 보낸 시간'][level] || '꾸준함이 만든 발자취';
 }
 
 // ── 럭셔리 팔레트(통일) ─────────────────────────────────────────
@@ -112,7 +132,8 @@ function Crown() {
 
 export function MilestoneCard({ item, onShare }) {
   const def = MILESTONE_DEFS[item.category] || MILESTONE_DEFS.rounds;
-  const tier = typeof item.tier === 'number' ? item.tier : 0;
+  // 장식 단계 — value 기준(임계값 개수 무관). 0 기본 / 1 골드(두 줄) / 2 왕관. ([[milestone_badges]])
+  const tier = milestoneDecoLevel(item.category, item.value);
   // 자릿수 기반 폰트 — 3자리(100·200)는 작게. adjustsFontSizeToFit 과축소(거의 안 보이게 줄던 문제) 방지.
   const numFs = String(item.value).length >= 3 ? 46 : 58;
   const cardBg = CARD_BG_TIERS[tier] || CARD_BG_TIERS[0];  // 단계 오를수록 깊은 배경
@@ -196,7 +217,7 @@ export function MilestoneCard({ item, onShare }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, paddingHorizontal: 8 }}>
           <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(169,133,74,0.45)' }} />
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD, letterSpacing: 0.4, textAlign: 'center' }}>
-            {headlineFor(item.category, item.value, tier)}
+            {headlineFor(item.category, item.value)}
           </Text>
           <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(169,133,74,0.45)' }} />
         </View>
