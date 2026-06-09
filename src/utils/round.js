@@ -41,8 +41,11 @@ export async function loadMyRounds() {
 
 // 친구의 친구공개 다이어리 — feed. ([[friend_groups]] 그룹 공개 포함)
 //  2쿼리 병합(Firestore OR 미지원):
-//   Q1 visibility=='friends'(친구 전체)  +  Q2 audienceUids array-contains me(나 포함 그룹 글)
-//  인덱스: (ownerUid, visibility, date desc) + (ownerUid, audienceUids CONTAINS, date desc).
+//   Q1 visibility=='friends'(친구 전체)  +  Q2 visibility=='group' && audienceUids array-contains me(나 포함 그룹 글)
+//  ★Q2에 visibility=='group' 필수 — read 규칙 group절(visibility=='group' && uid in audienceUids)과 쿼리가 정합해야
+//   Firestore가 쿼리를 허용함. visibility 필터를 빼면 "규칙 허용 문서만 반환" 보장 실패로 쿼리 전체 permission-denied
+//   → catch에 삼켜져 그룹글이 통째로 안 보임(라운지 select가 scope=='select'를 거는 것과 동일 패턴, 2026-06-10 수정).
+//  인덱스: (ownerUid, visibility, date desc) + (ownerUid, visibility, audienceUids CONTAINS, date desc).
 export async function loadFriendRounds(friendUid) {
   if (!friendUid) return [];
   const me = await getUid();
@@ -57,6 +60,7 @@ export async function loadFriendRounds(friendUid) {
   if (me) {
     qs.push(getDocs(query(base,
       where('ownerUid', '==', friendUid),
+      where('visibility', '==', 'group'),
       where('audienceUids', 'array-contains', me),
       orderBy('date', 'desc'),
     )).catch(() => null));
