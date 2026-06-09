@@ -5,6 +5,7 @@ import {
 import { db, getUid } from './firebase';
 import { createNotification } from './roundupNotifications';
 import { getKakaoFriends } from './kakaoAuth';
+import { loadFriendData } from './friendGroups';
 
 // =============================================================
 // friendships/{pairId} — 친구 관계
@@ -47,14 +48,22 @@ export async function loadMyFriends() {
 
 // 내 친구 목록 + 프로필(닉네임·본명) 한 번에 — 동반자/친구지정 선택 화면 표시용.
 //   각 친구의 users 문서를 병렬 fetch해 [{ id, name(닉네임), realName }] 반환. 본명은 마스킹 표시에 사용 ([[realname-policy]]).
+// ★별명(customName)은 owner-only — 저장(공유 round/일정으로 전파됨)엔 절대 넣지 말 것(누출).
+//   name=닉네임(저장 안전), customName은 표시 전용으로 분리 동봉. 동반자 저장은 name, 화면 표시는 customName||name resolve ([[friend_groups]])
 export async function loadMyFriendsEnriched() {
   const friends = await loadMyFriends();
   const uids = friends.map(f => f.otherUid).filter(Boolean);
   if (uids.length === 0) return [];
-  const snaps = await Promise.all(uids.map(u => getDoc(doc(db, USERS, u)).catch(() => null)));
+  const [snaps, fdata] = await Promise.all([
+    Promise.all(uids.map(u => getDoc(doc(db, USERS, u)).catch(() => null))),
+    loadFriendData().catch(() => ({ friendMeta: {} })),
+  ]);
+  const meta = fdata?.friendMeta || {};
   return uids.map((u, i) => {
     const d = snaps[i]?.exists() ? snaps[i].data() : null;
-    return { id: u, name: d?.nickname || '친구', realName: d?.realName || '' };
+    const nickname = d?.nickname || '친구';
+    const customName = (meta[u]?.customName || '').trim() || null;
+    return { id: u, name: nickname, nickname, customName, realName: d?.realName || '' };
   });
 }
 
@@ -200,20 +209,20 @@ export async function blockUid(targetUid) {
   }
 }
 
-// 닉네임 prefix 검색 — users.nickname >= q && <= q + . 자기 자신 제외, 최대 20개.
-// Firestore는 부분 일치 미지원이라 prefix만. 차단된 사용자 필터는 호출 측에서 추가.
+// 닉네임 정확일치 검색 — users.nickname == q. 자기 자신 제외, 최대 20개.
+// prefix 아님(앞부분 검색 X): 닉을 정확히 아는 지인만 매칭(낯선사람 브라우징↓, 카카오가 주 경로 [[roundup-public-disabled]]). 동명이인은 여럿 반환될 수 있어 마스킹 본명·아바타로 구분.
 export async function searchUsersByNickname(qstr, maxResults = 20) {
   if (!qstr) return [];
   const me = await getUid();
   const q = query(
     collection(db, USERS),
-    where('nickname', '>=', qstr),
-    where('nickname', '<=', qstr + ''),
+    where('nickname', '==', qstr),
     fsLimit(maxResults),
   );
   const snap = await getDocs(q);
   return snap.docs
-    .map(d => ({ uid: d.data().uid || d.id, nickname: d.data().nickname || '' }))
+    // realName도 반환 — 검색 결과에서 동명이인 구분용(마스킹 표시). 본명 미입력자는 빈 값 ([[realname-policy]])
+    .map(d => ({ uid: d.data().uid || d.id, nickname: d.data().nickname || '', realName: d.data().realName || '' }))
     .filter(p => p.uid && p.uid !== me);
 }
 

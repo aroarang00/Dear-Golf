@@ -55,9 +55,8 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
             )}
             <Text style={obS.label}>닉네임</Text>
             <TextInput style={obS.input} placeholder="민지 / Jessica" placeholderTextColor={C.warmGrayLight}
-              value={nickname} onChangeText={setNickname}
-              autoCapitalize="none" autoCorrect={false} keyboardType="default"
-              maxLength={10} />
+              value={nickname} onChangeText={(t) => setNickname(t.slice(0, 10))}
+              autoCapitalize="none" autoCorrect={false} keyboardType="default" />{/* maxLength 금지 — 한글 조합 충돌 [[project_textinput_maxlength_hangul_bug]] */}
             <Text style={obS.label}>본명 (선택)</Text>
             <TextInput style={obS.input} placeholder="김골프" placeholderTextColor={C.warmGrayLight}
               value={realName} onChangeText={setRealName} />

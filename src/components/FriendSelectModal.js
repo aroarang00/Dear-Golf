@@ -117,6 +117,8 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
             ) : (
               filtered.map(f => {
                 const on = selected.includes(f.uid || f.id);
+                // 내가 정한 별명이 있으면 본명 마스킹은 생략 — 별명이 더 명확(owner-only) ([[friend_groups]])
+                const hasCustom = !!((friendMeta[f.uid || f.id]?.customName || '').trim());
                 return (
                   <TouchableOpacity key={f.uid || f.id} activeOpacity={0.7}
                     onPress={() => toggle(f.uid || f.id)}
@@ -130,7 +132,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
                     </View>
                     <Text style={{ flex: 1 }} numberOfLines={1}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{dispName(f)}</Text>
-                      {maskKoreanName(f.realName) ? (
+                      {!hasCustom && maskKoreanName(f.realName) ? (
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>{`   ${maskKoreanName(f.realName)}`}</Text>
                       ) : null}
                     </Text>

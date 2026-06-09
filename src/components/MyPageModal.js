@@ -264,11 +264,11 @@ export function MyPageModal({ visible, onClose }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <TextInput
                         style={[myS.nickInput, { flex: 1 }]}
-                        value={nickname} onChangeText={setNickname}
+                        value={nickname} onChangeText={(t) => setNickname(t.slice(0, 10))}
                         onSubmitEditing={handleSaveNickname}
                         returnKeyType="done"
-                        autoFocus maxLength={10}
-                        autoCapitalize="none" autoCorrect={false} keyboardType="default" />
+                        autoFocus
+                        autoCapitalize="none" autoCorrect={false} keyboardType="default" />{/* maxLength 금지 — 한글 조합 충돌 [[project_textinput_maxlength_hangul_bug]] */}
                       <TouchableOpacity onPress={handleSaveNickname}
                         style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}
                         activeOpacity={0.7}>
@@ -316,7 +316,7 @@ export function MyPageModal({ visible, onClose }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
                       <TextInput
                         style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2 }}
-                        value={statusMessage} onChangeText={setStatusMessage} maxLength={15} autoFocus
+                        value={statusMessage} onChangeText={(t) => setStatusMessage(t.slice(0, 15))} autoFocus
                         onSubmitEditing={handleSaveStatus} returnKeyType="done"
                         placeholder="프로필에 보일 한마디 (최대 15자)" placeholderTextColor={C.warmGrayLight} />
                       <TouchableOpacity onPress={handleSaveStatus} activeOpacity={0.7}
@@ -490,7 +490,7 @@ export function MyPageModal({ visible, onClose }) {
                     {editingInfo ? (
                       <>
                         <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
-                          value={realName} onChangeText={setRealName} maxLength={20}
+                          value={realName} onChangeText={(t) => setRealName(t.slice(0, 20))}
                           placeholder="김골프" placeholderTextColor={C.warmGrayLight} />
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
                           친구·동반자 찾기가 정확해져요. 검색엔 이름 일부만 가려 보여요 (예: 김*프)

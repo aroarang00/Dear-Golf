@@ -125,7 +125,7 @@ export function FriendGroupManageModal({ visible, onClose }) {
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: groupColor(groups, g.id) }} />
                   {isEditing ? (
-                    <TextInput value={editingName} onChangeText={setEditingName} autoFocus maxLength={GROUP_NAME_MAX}
+                    <TextInput value={editingName} onChangeText={(t) => setEditingName(t.slice(0, GROUP_NAME_MAX))} autoFocus
                       onSubmitEditing={commitRename} onBlur={commitRename} returnKeyType="done"
                       style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal,
                         borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingVertical: 3 }} />
@@ -150,8 +150,9 @@ export function FriendGroupManageModal({ visible, onClose }) {
 
             {groups.length < MAX_FRIEND_GROUPS ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}>
-                <TextInput value={newName} onChangeText={setNewName} placeholder="새 그룹 이름"
-                  placeholderTextColor={C.warmGrayLight} maxLength={GROUP_NAME_MAX} onSubmitEditing={addGroup} returnKeyType="done"
+                {/* maxLength 금지 — 한글 조합 충돌(마지막 글자 막힘). onChangeText에서 컷 + addGroup/commitRename 저장 시 slice 백스톱 */}
+                <TextInput value={newName} onChangeText={(t) => setNewName(t.slice(0, GROUP_NAME_MAX))} placeholder="새 그룹 이름"
+                  placeholderTextColor={C.warmGrayLight} onSubmitEditing={addGroup} returnKeyType="done"
                   style={{ flex: 1, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
                     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
                 <TouchableOpacity onPress={addGroup} activeOpacity={0.85}

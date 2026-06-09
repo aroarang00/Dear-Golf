@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Image } from 'react-native';
+import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Image, Modal } from 'react-native';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
 import { LoadingState } from './common/LoadingState';
 import { FriendFinder } from './FriendFinder';
+import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { topMilestone, milestoneBadge } from './MilestoneCard';
@@ -34,6 +35,9 @@ const personToFriend = (p) => ({
   stats: { rounds: 0, courses: 0, avg: p.avg ?? null, best: null },
   feed: [],
 });
+
+// 그룹 필터 — 미지정(어떤 그룹에도 안 속한 친구) 가상 칩 id ([[friend_groups]])
+const UNGROUPED = '__ungrouped__';
 
 const AVATARS = [
   { bg: '#C8D9E6', fg: '#1A3D52' },
@@ -83,10 +87,16 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, onPress, o
             <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2 }}>{fStatus}</Text>
           ) : null}
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
           <View style={{ backgroundColor: C.butter, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>라베 {friend.stats?.best ?? '—'}</Text>
           </View>
+          {/* 핸디 = paleSky(하늘빛), 라베와 색 구분. 동기화된 친구만(users.handicap) ([[friend_groups]] 핸디표시) */}
+          {friend.stats?.handicap != null && (
+            <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>핸디 {friend.stats.handicap}</Text>
+            </View>
+          )}
           {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}
         </View>
       </View>
@@ -135,6 +145,10 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
+  const [groupManageOpen, setGroupManageOpen] = useState(false);   // 친구 그룹 관리 모달 — 친구탭 헤더 톱니에서 직접 진입 ([[friend_groups]])
+  const [quickFriend, setQuickFriend] = useState(null);   // 카드 길게누르기 빠른 액션(즐겨찾기·그룹 이동) 대상 친구 ([[friend_groups]] v3)
+  const [guideDone, setGuideDone] = useState(true);   // 친구 1회 안내 카드 — 로드 전 숨김(깜빡임 방지). friendCoachDone 재사용(MyPage 리셋 연동)
+  useEffect(() => { storage.load(STORAGE_KEYS.friendCoachDone, false).then(v => setGuideDone(!!v)).catch(() => {}); }, []);
   // 친구 화면 파란 헤더의 '친구 찾기' 버튼이 이 finder를 열도록 핸들 노출 (진입점을 헤더로 드러냄)
   useEffect(() => { if (openFinderRef) openFinderRef.current = setFinder; }, [openFinderRef]);
   const listScrollRef = useRef(null);
@@ -256,6 +270,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       setFinder(null);
       setShowHidden(false);
       setGradeModalKey(null);
+      setQuickFriend(null);
+      setGroupManageOpen(false);
       setReloadKey(k => k + 1);   // 상대의 수락·신청이 반영되도록 재조회
       listScrollRef.current?.scrollTo({ y: 0, animated: true });
     });
@@ -288,9 +304,20 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   }, [blockedIds]);
 
   const q = search.trim();
+  // 미지정 = 어떤 그룹에도 안 속한 친구. 전체(catch-all)엔 항상 보임 — 1명 이상일 때만 칩 노출 ([[friend_groups]])
+  const ungroupedList = friends.filter(f => !hidden[f.id] && !(friendData.friendMeta[f.id]?.groupIds || []).length);
+  const hasUngrouped = ungroupedList.length > 0;
+  // 선택한 필터 칩이 사라졌으면(그룹 삭제·미지정 0) 전체로 폴백 — 별도 state 리셋 없이 표시만 보정
+  const groupExists = (id) => id === 'all'
+    || (id === UNGROUPED ? hasUngrouped : friendData.friendGroups.some(g => g.id === id));
+  const effFilter = groupExists(groupFilter) ? groupFilter : 'all';
+  const matchFilter = (f) => {
+    if (effFilter === 'all') return true;
+    const gids = friendData.friendMeta[f.id]?.groupIds || [];
+    return effFilter === UNGROUPED ? gids.length === 0 : gids.includes(effFilter);
+  };
   const visible = friends
-    .filter(f => !hidden[f.id] && (!q || f.name.includes(q))
-      && (groupFilter === 'all' || (friendData.friendMeta[f.id]?.groupIds || []).includes(groupFilter))) // 그룹 필터 ([[friend_groups]])
+    .filter(f => !hidden[f.id] && (!q || f.name.includes(q)) && matchFilter(f))
     .sort((a, b) => {
       const fav = (favorites[b.id] ? 1 : 0) - (favorites[a.id] ? 1 : 0);
       if (fav !== 0) return fav;                          // 즐겨찾기 상단
@@ -504,37 +531,85 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           </TouchableOpacity>
         )}
 
-        {/* 친구 수 + 숨긴 친구 관리 (목록 위에 배치 — 스크롤 없이 접근) */}
+        {/* 친구 첫 진입 1회 안내 — 접이식 카드(확인 시 사라짐). 친구 1명 이상일 때만(0명은 빈 화면 가이드가 설명) ([[friend_groups]]) */}
+        {friendsLoaded && friends.length > 0 && !guideDone && (
+          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+            padding: 14, marginBottom: _and ? 9 : 12 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginBottom: 10 }}>👋 친구, 이렇게 써요</Text>
+            {[
+              '카카오 친구나 닉네임으로 친구를 추가할 수 있어요',
+              '카드를 길게 누르면 즐겨찾기·그룹 이동을 바로 해요',
+              '그룹은 ⚙ 그룹 관리에서 만들고 정리할 수 있어요',
+              '별명은 친구 프로필에서 언제든 바꿀 수 있어요',
+              '친구가 새 글을 올리면 카드에 빨간 점이 떠요',
+              '불편한 친구는 숨기거나 끊을 수 있어요',
+            ].map((t, i) => (
+              <View key={i} style={{ flexDirection: 'row', gap: 7, marginBottom: 6 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.burgundy, lineHeight: 18 }}>·</Text>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>{t}</Text>
+              </View>
+            ))}
+            <TouchableOpacity activeOpacity={0.85}
+              onPress={() => { setGuideDone(true); storage.save(STORAGE_KEYS.friendCoachDone, true); }}
+              style={{ alignSelf: 'flex-end', marginTop: 6, backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 7 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>확인했어요</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 친구 수 + 우측 액션(그룹 관리·숨긴 친구) — 목록 위에 배치, 스크롤 없이 접근 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: _and ? 8 : 12 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
             친구 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{visible.length}</Text>명
           </Text>
-          {hiddenFriends.length > 0 && (
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
-              style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4,
-                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
-                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
-                🙈 숨긴 친구 {hiddenFriends.length}
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{showHidden ? '▲' : '▼'}</Text>
-            </TouchableOpacity>
-          )}
+          {/* 우측 액션 묶음 — 그룹 관리(항상) → 숨긴 친구(있을 때만). 톱니는 그룹 0개여도 노출=발견성 ([[friend_groups]]) */}
+          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {friends.length > 0 && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontSize: fs(11) }}>⚙</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>그룹 관리</Text>
+              </TouchableOpacity>
+            )}
+            {hiddenFriends.length > 0 && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4,
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
+                  🙈 숨긴 친구 {hiddenFriends.length}
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{showHidden ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* 그룹 필터칩 — 전체/그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
+        {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]])
+            미지정 칩은 '전체' 바로 옆 고정 + 버건디 강조(정리 유도) — 가로스크롤에 묻히지 않게 ([[friend_groups]]) */}
         {friends.length > 0 && Object.values(friendData.friendMeta).some(m => (m.groupIds || []).length) && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: _and ? 8 : 12 }}
             contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
-            {[{ id: 'all', name: '전체' }, ...friendData.friendGroups].map(g => {
-              const on = groupFilter === g.id;
-              const dotColor = g.id === 'all' ? null : groupColor(friendData.friendGroups, g.id);
+            {[
+              { id: 'all', name: '전체' },
+              ...(hasUngrouped ? [{ id: UNGROUPED, name: `미지정 ${ungroupedList.length}` }] : []),
+              ...friendData.friendGroups,
+            ].map(g => {
+              const on = effFilter === g.id;
+              const isUngrouped = g.id === UNGROUPED;
+              const dotColor = (g.id === 'all' || isUngrouped) ? null : groupColor(friendData.friendGroups, g.id);
+              // 미지정 = 버건디 강조(off도 버건디 테두리·글자), 그 외 = 기본(off 회색 / on 차콜)
+              const bg = on ? (isUngrouped ? C.burgundy : C.charcoal) : C.bgSecondary;
+              const bd = on ? bg : (isUngrouped ? C.burgundy : C.hairline);
+              const tx = on ? C.butter : (isUngrouped ? C.burgundy : C.charcoal);
               return (
                 <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => setGroupFilter(g.id)}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-                    backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                    backgroundColor: bg, borderWidth: isUngrouped && !on ? 1 : 0.5, borderColor: bd }}>
                   {dotColor && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />}
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: on ? C.butter : C.charcoal }}>{g.name}</Text>
+                  <Text style={{ fontFamily: isUngrouped ? F.sysB : F.sysSb, fontSize: fs(12), color: tx }}>{g.name}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -623,7 +698,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
                 grade={grade}
                 isNew={f.lastPostAt > 0 && feedSeen[f.id] !== undefined && f.lastPostAt > feedSeen[f.id]}
                 onPress={() => openFriendProfile(f)}
-                onLongPress={() => toggleFavorite(f.id)}
+                onLongPress={() => setQuickFriend(f)}
                 onGradePress={() => setGradeModalKey(grade.key)}
               />
             );
@@ -631,7 +706,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         )}
 
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 6 }}>
-          탭하면 프로필 · 길게 누르면 즐겨찾기 ⭐
+          탭하면 프로필 · 길게 누르면 그룹·즐겨찾기
         </Text>
       </ScrollView>
 
@@ -681,6 +756,82 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         onCancelSend={cancelRequest}
         onAccept={acceptRequest}
         onIgnore={ignoreRequest} />
+
+      {/* 친구 그룹 관리 — 헤더 톱니에서 직접 진입(친구 한 명 안 거침). 닫을 때 그룹·메타 재로드해 칩 반영 ([[friend_groups]]) */}
+      <FriendGroupManageModal
+        visible={groupManageOpen}
+        onClose={() => {
+          setGroupManageOpen(false);
+          loadFriendData().then(setFriendData).catch(() => {});
+        }} />
+
+      {/* 카드 길게누르기 빠른 액션 — 즐겨찾기·그룹 이동. 별명은 친구상세 ⋯에서 (중복 OK). 상시·전체 친구 ([[friend_groups]] v3) */}
+      <Modal visible={!!quickFriend} transparent animationType="fade" onRequestClose={() => setQuickFriend(null)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setQuickFriend(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}
+            style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 20 }}>
+            {quickFriend && (() => {
+              const meta = friendData.friendMeta[quickFriend.id] || {};
+              const curGroup = Array.isArray(meta.groupIds) && meta.groupIds.length ? meta.groupIds[0] : null;
+              const isFav = !!favorites[quickFriend.id];
+              // 그룹 이동 = 기존 핸들러 재사용. 별명(customName) 반드시 보존. 현재 그룹 다시 누르면 미지정.
+              const moveTo = (gid) => handleSaveFriendMeta(quickFriend.id, {
+                customName: meta.customName || '',
+                groupIds: curGroup === gid ? [] : [gid],
+              });
+              return (
+                <>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, textAlign: 'center', marginBottom: 14 }}>
+                    {quickFriend.name || '친구'}
+                  </Text>
+
+                  {/* 즐겨찾기 토글 */}
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleFavorite(quickFriend.id)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 2 }}>
+                    <Text style={{ fontSize: fs(16) }}>⭐</Text>
+                    <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>즐겨찾기</Text>
+                    <View style={{ backgroundColor: isFav ? C.burgundy : C.bgSecondary, borderWidth: isFav ? 0 : 0.5, borderColor: C.hairline,
+                      borderRadius: 12, paddingHorizontal: 11, paddingVertical: 4 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: isFav ? C.butter : C.warmGray }}>{isFav ? '켜짐' : '꺼짐'}</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* 그룹 이동 */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8,
+                    borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 16 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>그룹 이동</Text>
+                    <TouchableOpacity onPress={() => { setQuickFriend(null); setGroupManageOpen(true); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>⚙ 그룹 관리 ›</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {friendData.friendGroups.map(g => {
+                      const on = curGroup === g.id;
+                      return (
+                        <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => moveTo(g.id)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18,
+                            backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: groupColor(friendData.friendGroups, g.id) }} />
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: on ? C.butter : C.charcoal }}>{g.name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 7 }}>
+                    {curGroup ? '현재 그룹을 다시 누르면 미지정으로 빼요' : '한 친구는 한 그룹만 — 탭해서 넣어요'}
+                  </Text>
+
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => setQuickFriend(null)}
+                    style={{ marginTop: 20, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>닫기</Text>
+                  </TouchableOpacity>
+                </>
+              );
+            })()}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }

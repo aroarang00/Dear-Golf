@@ -39,12 +39,12 @@ import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addC
 import { getUid, auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { shareInvite } from '../utils/invite';
-import { loadFriendData, groupColor, groupName, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
+import { loadFriendData, groupColor, groupName, friendDisplayName, ownerVisibilityLabel, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
 
-function PostCard({ post, myUid, friendGroups, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
+function PostCard({ post, myUid, friendGroups, friendMeta, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -104,7 +104,8 @@ function PostCard({ post, myUid, friendGroups, joined, applied, waitlistNum, isB
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
-          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{post.authorName || post.author}</Text>
+          {/* 주최자 이름 — 내가 정한 별명 우선(owner-only), 없으면 닉네임 ([[friend_groups]]) */}
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{friendDisplayName(friendMeta, post.authorUid, post.authorName || post.author)}</Text>
           {/* 좋아요(응원) — 소프트 비활성([[roundup-likes-disabled]]). 관심(별표)과 경쟁 제거. 데이터·함수 보존 */}
           {ROUNDUP_LIKES_ENABLED && (() => {
             const likeCount = Array.isArray(post.likedBy) ? post.likedBy.length : 0;
@@ -133,14 +134,15 @@ function PostCard({ post, myUid, friendGroups, joined, applied, waitlistNum, isB
         </View>
       </View>
 
-      {/* owner-only 그룹 색라벨 — 주최자 밑(우측). 내가 그룹으로 모집했을 때만, 나만 보임 ([[friend_groups]]) */}
+      {/* owner-only 그룹 색라벨 — 주최자 밑(우측). 내가 그룹으로 모집했을 때만, 나만 보임. 다중그룹=색점 다+"외 N" ([[friend_groups]]) */}
       {(() => {
-        const gid = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds)) ? post.audienceGroupIds[0] : null;
-        if (!gid) return null;
+        const ov = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds) && post.audienceGroupIds.length)
+          ? ownerVisibilityLabel(friendGroups, 'group', post.audienceGroupIds) : null;
+        if (!ov) return null;
         return (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 4 }}>
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: groupColor(friendGroups, gid) }} />
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{groupName(friendGroups, gid)}</Text>
+            {ov.groups.map((g, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ov.text}</Text>
           </View>
         );
       })()}
@@ -265,7 +267,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
   const [participantNames, setParticipantNames] = useState({}); // {uid: nickname} — 참여자 현황 실제 이름
   const [participantHandicaps, setParticipantHandicaps] = useState({}); // {uid: handicap} — 상세 참여자 핸디 (users 문서)
   const [friendGroups, setFriendGroups] = useState(DEFAULT_FRIEND_GROUPS); // owner 그룹 색라벨용 ([[friend_groups]])
-  useEffect(() => { loadFriendData().then(fd => setFriendGroups(fd.friendGroups)).catch(() => {}); }, []);
+  const [friendMeta, setFriendMeta] = useState({}); // 내 별명(customName) — 라운지 주최자·동반자 이름에 별명 우선 ([[friend_groups]])
+  useEffect(() => { loadFriendData().then(fd => { setFriendGroups(fd.friendGroups); setFriendMeta(fd.friendMeta); }).catch(() => {}); }, []);
   const participantNamesRef = useRef(participantNames); // 최신 이름 맵 미러 — 상세 실시간 구독이 deps 없이 읽기 위함
   useEffect(() => { participantNamesRef.current = participantNames; }, [participantNames]);
   const [bookmarks, setBookmarks] = useState({});      // 관심 모집 {postId: true}
@@ -679,6 +682,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
       // 동반자 — 같은 모집의 다른 사람들(호스트 + 다른 확정 참여자 + 호스트가 적은 비앱 동반자).
       //   공유 모집글(participantUids)을 읽어 '내 일정'에만 채움(전파 X) → 각자 실행돼 모두가 서로를 동반자로 봄. ([[companion-design]] Phase A)
       //   이름은 best-effort(participantNames→친구목록→폴백), friendUid로 안정 연결.
+      // 동반자 이름 — ★별명(owner-only) 저장 금지(이 companions가 기록=친구공개로 전파됨). 닉네임으로 저장,
+      //   별명 표시는 화면(라운지 카드·상세)서 friendUid로 resolve. friendUid는 동봉(표시 resolve·매칭용) ([[friend_groups]])
       const nameOf = (u) => participantNames[u] || friends.find(f => f.id === u)?.name || '동반자';
       const companions = [];
       if (p.authorUid && p.authorUid !== myUid) companions.push({ name: p.authorName || nameOf(p.authorUid), friendUid: p.authorUid });
@@ -1738,7 +1743,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
             if (showInvite) {
               const inviteProps = {
                 type: p.type === 'open' ? 'open' : 'fixed',
-                hostName: p.authorName || '친구',
+                hostName: friendDisplayName(friendMeta, p.authorUid, p.authorName || '친구'),  // 초대장 주최자도 내 별명 우선 ([[friend_groups]])
                 course: p.course || '',
                 date: p.date || '',
                 time: p.time || '',
@@ -1751,7 +1756,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
                 : <InvitationTicket key={p.id} accent="tab" tags={p.tags} {...inviteProps} />;
             }
             return (
-              <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
+              <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} friendMeta={friendMeta} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
                 isBookmarked={!!bookmarks[p.id]}
                 onApply={() => confirmApply(p.id)}
                 onWaitlist={() => handleWaitlist(p.id)}
@@ -1820,6 +1825,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         myUid={myUid}
         friendUids={friendUids}
         friendGroups={friendGroups}
+        friendMeta={friendMeta}
         participantNames={participantNames}
         participantHandicaps={participantHandicaps}
         visible={!!detailPost}

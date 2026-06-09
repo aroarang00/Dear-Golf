@@ -162,7 +162,8 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라베 {stats.best ?? '—'}</Text>
                   </View>
                   {stats.handicap != null && (
-                    <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+                    /* 핸디 = paleSky(하늘빛) — 라베(butter 금색)와 색 구분(따뜻함↔차가움) ([[friend_groups]] 핸디표시) */
+                    <View style={{ backgroundColor: C.paleSky, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>핸디 {stats.handicap}</Text>
                     </View>
                   )}
@@ -322,8 +323,9 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginBottom: 16 }}>나만 보는 설정이에요 · 친구에겐 안 보여요</Text>
 
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>별명 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(최대 6자)</Text></Text>
-                <TextInput value={editName} onChangeText={setEditName}
-                  placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight} maxLength={6}
+                {/* ⚠️ maxLength 금지 — 한글 조합(IME) 충돌로 마지막 글자가 자모서 막힘(iOS서 발현). onChangeText에서 6자 컷 ([[friend_groups]]) */}
+                <TextInput value={editName} onChangeText={(t) => setEditName(t.slice(0, 6))}
+                  placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight}
                   style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
                     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>

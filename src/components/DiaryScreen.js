@@ -105,7 +105,7 @@ export function DiaryScreen({ route, navigation }) {
   //  DiariesContext는 마운트 1회 로드라 친구가 누른 좋아요가 재진입 전까진 안 들어옴 → 포커스 갱신.
   useEffect(() => {
     loadMyFriendsEnriched()
-      .then(list => { const m = {}; list.forEach(f => { m[f.id] = f.name; }); setFriendNameByUid(m); })
+      .then(list => { const m = {}; list.forEach(f => { m[f.id] = f.customName || f.name; }); setFriendNameByUid(m); })
       .catch(() => {});
     const unsub = navigation?.addListener?.('focus', () => { reloadDiaries(); });
     return unsub;
@@ -440,7 +440,7 @@ export function DiaryScreen({ route, navigation }) {
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
-  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} onClose={handleCloseDetail}
+  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} onClose={handleCloseDetail}
     onUpdate={(updated) => {
       // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
       handleSave('diary-edit', updated);

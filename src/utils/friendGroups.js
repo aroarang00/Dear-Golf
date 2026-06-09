@@ -140,10 +140,15 @@ export function nextGroupColor(friendGroups) {
 //   group → { text: 그룹명, color: 그룹색 } / private → { text:'나만 보기', icon:'🔒' }. ([[friend_groups]])
 //   ★남에겐 절대 노출 금지 — 호출부에서 authorUid==나(또는 variant==='mine')일 때만 렌더할 것.
 export function ownerVisibilityLabel(friendGroups, visibility, audienceGroupIds) {
-  if (visibility === 'private') return { text: '나만 보기', icon: '🔒', color: null };
+  if (visibility === 'private') return { text: '나만 보기', icon: '🔒', color: null, groups: [] };
   if (visibility === 'group') {
-    const gid = Array.isArray(audienceGroupIds) ? audienceGroupIds[0] : null;
-    if (gid) return { text: groupName(friendGroups, gid), color: groupColor(friendGroups, gid), icon: null };
+    const ids = Array.isArray(audienceGroupIds) ? audienceGroupIds.filter(Boolean) : [];
+    if (ids.length) {
+      // groups=전체(상세=색점+이름 다 표시). text=컴팩트(카드=첫 그룹 + "외 N") ([[friend_groups]])
+      const groups = ids.map(gid => ({ name: groupName(friendGroups, gid), color: groupColor(friendGroups, gid) }));
+      const text = groups.length > 1 ? `${groups[0].name} 외 ${groups.length - 1}` : groups[0].name;
+      return { text, color: groups[0].color, icon: null, groups };
+    }
   }
   return null; // friends(친구 전체) 등 — 라벨 없음
 }

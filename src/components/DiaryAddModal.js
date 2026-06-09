@@ -867,10 +867,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     placeholder="그날의 라운딩을 자유롭게 남겨보세요"
                     placeholderTextColor={C.warmGrayLight}
                     value={detailMemo}
-                    onChangeText={(t) => { if (t.length <= 1000) setDetailMemo(t); }}
+                    onChangeText={(t) => setDetailMemo(t.slice(0, 1000))}
                     multiline
                     textAlignVertical="top"
-                    maxLength={1000}
                   />
                   <Text style={{ fontSize: fs(10), color: C.warmGray, textAlign: 'right', marginTop: 8 }}>
                     {detailMemo.length} / 1000
@@ -934,8 +933,20 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               {/* 일상(모멘트) — 본문 텍스트(최대 1000자). 사진은 아래 공용 섹션. */}
               {isMoment && (
                 <View style={{ marginTop: 4 }}>
-                  <Text style={mS.bigLabel}>
-                    오늘의 한 마디
+                  {/* 일상 날짜 — 기본 오늘, 선택 가능(과거 일상도 기록). 통계·캘린더 미표시는 kind로 격리 ([[moment-feed-extension]]) */}
+                  <Text style={mS.bigLabel}>날짜</Text>
+                  <TouchableOpacity style={mS.input} activeOpacity={0.7} onPress={() => setShowDatePicker(true)}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>
+                      {formatDate(date)} ({formatDay(date)})
+                    </Text>
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker value={date} mode="date" display="spinner"
+                      onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
+                      maximumDate={new Date()} locale="ko" />
+                  )}
+                  <Text style={[mS.bigLabel, { marginTop: 14 }]}>
+                    일상 기록
                     <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (사진만 올려도 돼요 · 최대 1000자)</Text>
                   </Text>
                   <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
@@ -946,10 +957,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       placeholder="스크린 기록과 사진, 연습장 기록, 그 외 친구들과 공유할 일상을 남겨보세요"
                       placeholderTextColor={C.warmGrayLight}
                       value={memo}
-                      onChangeText={(t) => { if (t.length <= 1000) setMemo(t); }}
+                      onChangeText={(t) => setMemo(t.slice(0, 1000))}
                       multiline
                       textAlignVertical="top"
-                      maxLength={1000}
                     />
                     <Text style={{ fontSize: fs(10), color: C.warmGray, textAlign: 'right', marginTop: 8 }}>
                       {memo.length} / 1000

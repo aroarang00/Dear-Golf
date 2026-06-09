@@ -214,9 +214,8 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, inpu
                     placeholder="동반자에게 남길 댓글을 적어주세요"
                     placeholderTextColor={C.warmGrayLight}
                     value={body}
-                    onChangeText={(t) => { setBody(t); if (error) setError(null); }}
+                    onChangeText={(t) => { setBody(t.slice(0, COMMENT_MAX)); if (error) setError(null); }}
                     multiline
-                    maxLength={COMMENT_MAX}
                   />
                   {error && (
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#8B2A2A', marginTop: 6 }}>{error}</Text>

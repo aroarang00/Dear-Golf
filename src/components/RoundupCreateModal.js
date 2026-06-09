@@ -696,7 +696,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             )}
             <TextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline
               placeholder="동반자에게 남길 한마디를 적어주세요" placeholderTextColor={C.warmGrayLight}
-              value={word} onChangeText={setWord} maxLength={40} />
+              value={word} onChangeText={(t) => setWord(t.slice(0, 40))} />
 
             <TouchableOpacity style={mS.saveBtn} onPress={handleSubmit}>
               <Text style={[mS.saveBtnTxt, { fontSize: fs(17) }]}>

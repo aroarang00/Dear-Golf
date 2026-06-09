@@ -46,12 +46,23 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
 
   // owner-only 그룹/공개범위 색라벨 — 내 카드에서만(친구 카드엔 숨김). group=색점+그룹명, private=🔒, 친구전체=없음 ([[friend_groups]])
   const ownerLabelData = (!isFriend && friendGroups) ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds) : null;
+  // 인라인(글만 카드 본문 아래) — 그룹 색점 다 + 컴팩트 텍스트("가까운친구 외 N")
   const ownerLabel = ownerLabelData ? (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-      {ownerLabelData.color
-        ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: ownerLabelData.color }} />
+      {ownerLabelData.groups && ownerLabelData.groups.length
+        ? ownerLabelData.groups.map((g, gi) => <View key={gi} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)
         : (ownerLabelData.icon ? <Text style={{ fontSize: fs(9) }}>{ownerLabelData.icon}</Text> : null)}
       <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ownerLabelData.text}</Text>
+    </View>
+  ) : null;
+  // 사진 카드용 — 사진 우상단 반투명 코너 칩(높이 0 증가 → 카드 통일 유지). 좌상단은 specialBadge와 충돌 회피 ([[friend_groups]] A안)
+  const ownerChip = ownerLabelData ? (
+    <View style={{ position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4,
+      backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, zIndex: 3 }}>
+      {ownerLabelData.groups && ownerLabelData.groups.length
+        ? ownerLabelData.groups.map((g, gi) => <View key={gi} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: g.color }} />)
+        : (ownerLabelData.icon ? <Text style={{ fontSize: fs(9) }}>{ownerLabelData.icon}</Text> : null)}
+      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#fff' }}>{ownerLabelData.text}</Text>
     </View>
   ) : null;
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
@@ -122,7 +133,6 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   const body = (
     <View style={dS.cardBody}>
       <Text style={dS.cardDate}>{item.date} {item.day}</Text>
-      {ownerLabel}
       {/* 구장명 줄 — 스코어가 아래 별도 줄이라 비는 우측 끝에 좋아요 배치 */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { flex: 1 }]} numberOfLines={1}>{item.course}</Text>
@@ -147,6 +157,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           </View>
         </ScrollView>
       )}
+      {/* 공개범위 라벨 — 글만 카드는 본문 아래 인라인. 사진 카드는 코너 칩(ownerChip)이 대신 ([[friend_groups]] A안) */}
+      {!hasPhoto && ownerLabel}
     </View>
   );
 
@@ -174,6 +186,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   const photoHero = (onTap, scoreNode) => (
     <View style={dS.photoHero43}>
       <MediaCarousel photos={item.photos} onTap={onTap} />
+      {ownerChip}
       <View pointerEvents="none" style={[dS.photoBottomOverlay, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
         <View style={{ flex: 1 }}>
           <Text style={dS.overlayCourse} numberOfLines={1}>{item.course}</Text>
@@ -209,6 +222,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <View style={dS.photoHero43}>
           <MediaCarousel photos={item.photos}
             onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo)) : (() => onPress(item))} />
+          {ownerChip}
           {withDate && (
             <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.45)']}
               style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 46,
@@ -261,7 +275,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
               </TouchableOpacity>
             ) : null}
           </View>
-          {ownerLabel ? <View style={{ alignItems: 'center', paddingBottom: 2 }}>{ownerLabel}</View> : null}
+          {/* 공개범위는 사진 코너 칩(ownerChip)으로 — 별도 줄 제거(높이 통일) ([[friend_groups]] A안) */}
           {item.memo && expanded && (
             <View style={dS.cardBody}>
               <Text style={momentTextStyle}>{item.memo}</Text>

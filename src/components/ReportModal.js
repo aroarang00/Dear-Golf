@@ -243,8 +243,7 @@ export function ReportModal({ visible, onClose }) {
                       placeholderTextColor={C.warmGrayLight}
                       multiline
                       value={evidence}
-                      onChangeText={setEvidence}
-                      maxLength={500}
+                      onChangeText={(t) => setEvidence(t.slice(0, 500))}
                     />
                     <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight,
                       textAlign: 'right', marginTop: 4 }}>

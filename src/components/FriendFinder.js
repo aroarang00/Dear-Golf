@@ -5,6 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
 import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
 import { searchUsersByNickname, findKakaoFriendUsers } from '../utils/friends';
+import { maskKoreanName } from '../utils/maskName';
 import { requestKakaoFriendsConsent } from '../utils/kakaoAuth';
 
 // 아바타 색상 — 이름 글자 기준 순환
@@ -30,6 +31,10 @@ function PersonRow({ person, right }) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{person.name}</Text>
+        {/* 본명 입력자만 마스킹 본명(홍*동) — 동명이인 구분 단서. 안 넣었으면 표시 안 됨, 사용자가 알아서 검증 ([[realname-policy]]) */}
+        {maskKoreanName(person.realName) ? (
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>{maskKoreanName(person.realName)}</Text>
+        ) : null}
       </View>
       {right}
     </View>
@@ -118,9 +123,11 @@ export function FriendFinder({
     setRefreshing(false);
   };
 
-  // 이미 친구이거나 신청한 사람은 후보에서 제외하지 않고 상태로만 표시
+  // 신청중인 사람은 후보에 남겨 상태(신청함)로 표시
   const isFriend = (id) => friendIds.includes(id);
   const isSent = (id) => sentIds.includes(id);
+  // 카카오 친구 목록 — 이미 친구 맺은 사람은 숨김(불필요·번잡). 신청중은 유지(취소 동선) ([[kakao-friend-api-design]])
+  const kakaoCandidates = kakaoUsers.filter(p => !isFriend(p.id));
 
   const q = query.trim();
 
@@ -135,7 +142,7 @@ export function FriendFinder({
       setSearchResults(users
         .filter(u => !blockedIds.includes(u.uid))
         .map(u => ({
-          id: u.uid, name: u.nickname,
+          id: u.uid, name: u.nickname, realName: u.realName,
           hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: null,
         })));
     } catch (e) {
@@ -274,7 +281,15 @@ export function FriendFinder({
 
                 {kakaoState === 'ok' && (
                   <>
-                    {kakaoUsers.map(p => (
+                    {/* 이미 친구인 사람을 빼고 나니 후보가 없음 = 카카오 가입친구 전원 이미 친구 */}
+                    {kakaoCandidates.length === 0 ? (
+                      <View style={{ paddingTop: 8 }}>
+                        <EmptyHint text="카카오 친구 중 Dear Golf 가입자와 이미 모두 친구예요" />
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
+                          새로 가입한 친구가 있다면{'\n'}아래로 당겨 새로고침해보세요 ↓
+                        </Text>
+                      </View>
+                    ) : kakaoCandidates.map(p => (
                       <PersonRow key={p.id} person={p} right={candidateRight(p)} />
                     ))}
                     <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,

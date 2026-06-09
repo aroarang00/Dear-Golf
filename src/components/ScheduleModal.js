@@ -454,7 +454,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   {companions.map((c, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary,
                       borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, paddingLeft: 10, paddingRight: 6, paddingVertical: 5 }}>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{c.friendUid ? '👤 ' : ''}{c.name}</Text>
+                      {/* 친구 동반자는 화면에서만 별명으로 표시(저장은 닉네임). 별명 없으면 저장된 이름 ([[friend_groups]]) */}
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{c.friendUid ? '👤 ' : ''}{c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name}</Text>
                       <TouchableOpacity onPress={() => removeCompanion(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                         <Text style={{ fontSize: fs(12), color: C.warmGray }}>✕</Text>
                       </TouchableOpacity>

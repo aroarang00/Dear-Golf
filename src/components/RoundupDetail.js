@@ -4,7 +4,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Platform, Keyboard, us
 const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { groupColor, groupName } from '../utils/friendGroups';
+import { groupColor, groupName, friendDisplayName, ownerVisibilityLabel } from '../utils/friendGroups';
 import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -64,7 +64,8 @@ function SlotRow({ slot, idx, onPress, handicap }) {
           <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
         )}
         {handicap != null && (
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: C.warmGray }}>·{handicap}</Text>
+          /* 이름과 gap:8로 이미 분리 — 구분점(·) 대신 '핸디' 라벨로(주최자 표시와 의미 통일). 작고 흐리게 유지 */
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: C.warmGray }}>핸디 {handicap}</Text>
         )}
         {slot.host && (
           <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
@@ -94,7 +95,7 @@ function WaitRow({ num, name, me }) {
 //  ★단체도 팀으로 쪼개지 않고 전원(teams*4명)을 쭉 나열한다 — uid↔팀 매핑이 없어 팀별로 나누면
 //   선착순 카운트가 '조편성'처럼 오해됨(카톡 오픈챗도 평면 나열). 조편성은 댓글로 ([[roundup-comments-policy]]).
 // nameMap: { uid: nickname } — 실제 참여자 이름. participantUids 우선, 옛 더미 호환 위해 pickNames fallback.
-function buildSlots(post, nameMap = {}, myUid = null, myName = null) {
+function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta = {}) {
   const hostName = post.authorName || post.author || '주최자';
   const cap = post.capacity || 4;            // 단체=teams*4, 개별=members+1
   const filled = post.joined || 0;
@@ -106,8 +107,10 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null) {
       const uid = uids[i];
       const host = uid ? uid === post.authorUid : i === 0;
       const isSelf = !!uid && uid === myUid;
-      const base = host ? hostName
+      const fallback = host ? hostName
         : (nameMap[uid] || (isSelf ? (myName || '동반자') : '동반자'));
+      // 내가 정한 별명 우선(owner-only) — 본인(나)은 제외 ([[friend_groups]])
+      const base = (uid && !isSelf) ? friendDisplayName(friendMeta, uid, fallback) : fallback;
       const name = isSelf ? `${base}(나)` : base;   // 참여자 현황에서만 본인 표시
       return { name, host, uid };
     });
@@ -118,7 +121,7 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null) {
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
+export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [alert, setAlert] = useState(null);
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
@@ -190,7 +193,7 @@ export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}
   //  취소 시엔 leaveRoundup이 closed:false + joined-1로 둘 다 풀어주므로 참여 버튼이 정상 복귀.
   const isClosed = post.closed || allFull;
   const respondHours = waitlistRespondHours(post.date);
-  const slots = buildSlots(post, participantNames, myUid, userProfile?.nickname);
+  const slots = buildSlots(post, participantNames, myUid, userProfile?.nickname, friendMeta);
   const waiters = pickNames(post.id + ':wait', post.waitlistCount || 0);
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
@@ -563,23 +566,24 @@ export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}
                   backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: _and ? 8 : 10 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
                 <TouchableOpacity activeOpacity={0.7}
-                  onPress={() => setActionTarget({ id: post.authorUid || post.authorId || post.author, name: post.authorName || post.author || '주최자', role: 'host' })}
+                  onPress={() => setActionTarget({ id: post.authorUid || post.authorId || post.author, name: friendDisplayName(friendMeta, post.authorUid, post.authorName || post.author || '주최자'), role: 'host' })}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{post.authorName || post.author || '주최자'}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{friendDisplayName(friendMeta, post.authorUid, post.authorName || post.author || '주최자')}</Text>
                 </TouchableOpacity>
                 {hcOf(post.authorUid) != null && (
                   <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 핸디 {hcOf(post.authorUid)}</Text>
                 )}
                 {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-                  {/* owner-only 그룹 색라벨 — 주최자 바 맨 우측. 내가 그룹으로 모집했을 때만, 나만 보임 ([[friend_groups]]) */}
+                  {/* owner-only 그룹 색라벨 — 주최자 바 맨 우측. 내가 그룹으로 모집했을 때만, 나만 보임. 다중그룹=색점 다+"외 N"(컴팩트) ([[friend_groups]]) */}
                   {(() => {
-                    const gid = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds)) ? post.audienceGroupIds[0] : null;
-                    if (!gid || !friendGroups) return null;
+                    const ov = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds) && post.audienceGroupIds.length && friendGroups)
+                      ? ownerVisibilityLabel(friendGroups, 'group', post.audienceGroupIds) : null;
+                    if (!ov) return null;
                     return (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: groupColor(friendGroups, gid) }} />
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{groupName(friendGroups, gid)}</Text>
+                        {ov.groups.map((g, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)}
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ov.text}</Text>
                       </View>
                     );
                   })()}

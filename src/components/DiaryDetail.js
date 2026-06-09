@@ -14,8 +14,9 @@ import { DiaryAddModal } from './DiaryAddModal';
 import { hofBgColor } from './HallOfFameCard';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { ownerVisibilityLabel } from '../utils/friendGroups';
 
-export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }) {
+export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, friendGroups }) {
   const { userProfile } = React.useContext(UserContext);
   // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
   useAndroidBack(true, onClose);
@@ -26,6 +27,8 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
   const hasBest = item.badge === '베스트';
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const isMoment = item.kind === 'moment'; // 일상 — 스코어·구장·동반자 없이 날짜+글만 ([[moment-feed-extension]])
+  // 공개범위(나만 보는 라벨) — 상세는 선택 그룹 전체 표시(색점+이름). 친구전체는 null ([[friend_groups]])
+  const ovd = friendGroups ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds) : null;
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
   const diff = item.score - item.par;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -89,6 +92,24 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle }
           </View>
         )}
         <View style={[dS.detailInfoArea, (isSpecial || isFirstSingle) && { borderBottomColor: '#C9A84C33' }]}>
+          {/* 공개범위 — 헤더(수정·삭제) 아래 우측, 선택 그룹 전체 표시 ([[friend_groups]]) */}
+          {ovd && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              {ovd.groups && ovd.groups.length
+                ? ovd.groups.map((g, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{g.name}</Text>
+                    </View>
+                  ))
+                : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      {ovd.icon ? <Text style={{ fontSize: fs(10) }}>{ovd.icon}</Text> : null}
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{ovd.text}</Text>
+                    </View>
+                  )}
+            </View>
+          )}
           {isMoment ? (
             <>
               <Text style={dS.detailCourseTxt}>{item.date} {item.day}</Text>
