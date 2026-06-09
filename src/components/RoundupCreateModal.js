@@ -28,6 +28,28 @@ const DAYS = WEEKDAYS;
 //   친구공개=네이비(라운지색), 친구지정=버건디(초대장·체크 액센트와 통일), 전체공개=차콜(중립).
 const SCOPE_ON_COLOR = { all: C.charcoal, friends: C.navy, select: C.burgundy };
 
+// 라운지 모집은 '미래 라운딩'이라 티오프가 과거면 안 됨 — 만들자마자 노출 윈도우(티오프+5h)에 걸려
+//   주최자·참여자 화면에서 사라지는 함정 방지([[roundup-schedule-sync]] / isInVisibleWindow). 확정형 한정.
+const isSameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+// 결합 datetime이 현재보다 과거면 현재 이후로 끌어올림(다음 10분 단위로 깔끔하게). 안드 시간피커는
+//   minimumDate가 불안정해 onChange에서 직접 클램프 — iOS minimumDate는 시각화 보조.
+const clampFutureTee = (d) => {
+  const now = new Date();
+  if (d.getTime() >= now.getTime()) return d;
+  const c = new Date(now);
+  c.setSeconds(0, 0);
+  c.setMinutes(Math.ceil((c.getMinutes() + 1) / 10) * 10); // 다음 10분 슬롯
+  return c;
+};
+// 신규 작성 기본 티오프 — 오늘 07:00, 단 이미 지났으면 내일 07:00(오후에 열어도 과거 기본값 X).
+const defaultTeeOff = () => {
+  const d = new Date();
+  d.setHours(7, 0, 0, 0);
+  if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
+  return d;
+};
+
 // 라운딩 모집글 작성·수정 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디.
 // initialPost 있으면 수정 모드 (prefill + 타이틀·버튼 변경). 부모에서 id 매칭으로 분기.
 // friends — 친구지정 모달용 친구 목록 [{ id, name(닉네임), realName }]. RoundupTab이 friendships 컬렉션에서 실제 로드해 주입.
@@ -52,7 +74,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const [course, setCourse] = useState(null);
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [date, setDate] = useState(() => { const d = new Date(); d.setHours(7, 0, 0, 0); return d; });
+  const [date, setDate] = useState(defaultTeeOff); // 과거 티오프 방지 — 오늘 07:00(지났으면 내일)
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [groupMode, setGroupMode] = useState('single'); // single(개별) | team(단체)
@@ -167,7 +189,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   // 신규 작성 모드일 때만 reset. 수정 모드는 닫을 때 자체 prefill로 유지(다음 visible에 useEffect로 재적용).
   const reset = () => {
     setType('fixed'); setCourseQuery(''); setCourse(null); setResults([]); setSearching(false);
-    const d = new Date(); d.setHours(7, 0, 0, 0); setDate(d);
+    setDate(defaultTeeOff());
     setGroupMode('single'); setMembers(3); setTeams(2); setScope(hideStranger ? 'friends' : 'all'); setWord(''); setOpenTime([]);
     setCompanion('any'); setAgeGroup('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
@@ -255,6 +277,17 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const handleSubmit = () => {
     const courseName = course?.name || courseQuery.trim();
     if (type === 'fixed' && !courseName) return; // 확정형은 골프장 필수
+
+    // 과거 티오프 백스톱 — 피커 클램프를 통과해도(엣지케이스) 만들자마자 노출 윈도우에 걸려
+    //   화면에서 사라지는 함정 차단. 확정형만(오픈형은 날짜 미정). [[roundup-schedule-sync]]
+    if (type === 'fixed' && date.getTime() < Date.now()) {
+      setAlert({
+        title: '이미 지난 시간이에요',
+        message: '라운지 모집은 앞으로의 라운딩을 잡는 거예요.\n현재 이후의 날짜·시간으로 정해주세요.',
+        buttons: [{ text: '확인', style: 'cancel' }],
+      });
+      return;
+    }
 
     // 친구지정 가드 — include + 0명 차단 (아무도 못 봄), exclude + 0명은 친구공개 동등이라 허용
     if (scope === 'select' && selectMode === 'include' && selectedUids.length === 0) {
@@ -417,7 +450,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                   <DateTimePicker value={date} mode="date" display="spinner" minimumDate={new Date()} locale="ko"
                     onChange={(e, d) => {
                       setShowDate(false);
-                      if (d) { const nd = new Date(date); nd.setFullYear(d.getFullYear(), d.getMonth(), d.getDate()); setDate(nd); }
+                      // 오늘로 당기면 기존 시각이 과거가 될 수 있어 결합 후 현재 이후로 클램프
+                      if (d) { const nd = new Date(date); nd.setFullYear(d.getFullYear(), d.getMonth(), d.getDate()); setDate(clampFutureTee(nd)); }
                     }} />
                 )}
 
@@ -427,9 +461,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 </TouchableOpacity>
                 {showTime && (
                   <DateTimePicker value={date} mode="time" display="spinner" is24Hour
+                    minimumDate={isSameDay(date, new Date()) ? new Date() : undefined}
                     onChange={(e, t) => {
                       setShowTime(false);
-                      if (t) { const nd = new Date(date); nd.setHours(t.getHours(), t.getMinutes(), 0, 0); setDate(nd); }
+                      // 오늘 모집인데 과거 시각을 고르면 현재 이후로 클램프(안드 minimumDate 불안정 대비)
+                      if (t) { const nd = new Date(date); nd.setHours(t.getHours(), t.getMinutes(), 0, 0); setDate(clampFutureTee(nd)); }
                     }} />
                 )}
               </>

@@ -44,7 +44,7 @@ import { loadFriendData, groupColor, groupName, friendDisplayName, ownerVisibili
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
 
-function PostCard({ post, myUid, friendGroups, friendMeta, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
+function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -58,7 +58,10 @@ function PostCard({ post, myUid, friendGroups, friendMeta, joined, applied, wait
   const total = rows.reduce((s, r) => s + r.cur, 0);
   const capTotal = rows.reduce((s, r) => s + r.cap, 0);
   const allFull = rows.every(r => r.cur >= r.cap);
-  const isClosed = post.closed || allFull;
+  // 오픈형(날짜 미정)은 만석이어도 '확정/마감'이 아님 — 주최자가 확정형으로 전환해야 확정 가능.
+  //   만석을 마감(회색+뱃지)으로 표시하면 자동 확정된 것처럼 오인됨([[roundup-friend-redesign]], 만석≠확정).
+  //   확정형만 만석=마감 시각 처리, 오픈형은 명시적 closed일 때만.
+  const isClosed = post.closed || (post.type !== 'open' && allFull);
   const isMine = !!myUid && post.authorUid === myUid;
   const respondHours = waitlistRespondHours(post.date);
 
@@ -134,17 +137,38 @@ function PostCard({ post, myUid, friendGroups, friendMeta, joined, applied, wait
         </View>
       </View>
 
-      {/* owner-only 그룹 색라벨 — 주최자 밑(우측). 내가 그룹으로 모집했을 때만, 나만 보임. 다중그룹=색점 다+"외 N" ([[friend_groups]]) */}
+      {/* owner-only 지정 대상 라벨 — 주최자 밑(우측), 나만 보임. 누구/어느 그룹에게 보냈는지 확인용 ([[friend_groups]]).
+          그룹지정=그룹 색점+이름("외 N"), 개인지정=버건디 점+친구 이름("외 N명"). exclude(제외)는 대상이 모호해 라벨 없음. */}
       {(() => {
-        const ov = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds) && post.audienceGroupIds.length)
-          ? ownerVisibilityLabel(friendGroups, 'group', post.audienceGroupIds) : null;
-        if (!ov) return null;
-        return (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 4 }}>
-            {ov.groups.map((g, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ov.text}</Text>
-          </View>
-        );
+        if (!(isMine && post.scope === 'select')) return null;
+        // (1) 그룹으로 지정 — 다중그룹=색점 여러 개 + "외 N"
+        const groupIds = Array.isArray(post.audienceGroupIds) ? post.audienceGroupIds.filter(Boolean) : [];
+        const ov = groupIds.length ? ownerVisibilityLabel(friendGroups, 'group', groupIds) : null;
+        if (ov) {
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 4 }}>
+              {ov.groups.map((g, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)}
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ov.text}</Text>
+            </View>
+          );
+        }
+        // (2) 개인지정(include) — 그룹 없이 친구를 직접 골랐을 때. selectedUids(원래 선택) 우선, 없으면 audienceUids.
+        if (post.selectMode === 'include') {
+          const uids = (Array.isArray(post.selectedUids) && post.selectedUids.length
+            ? post.selectedUids
+            : (Array.isArray(post.audienceUids) ? post.audienceUids : [])).filter(Boolean);
+          if (uids.length) {
+            const first = friendDisplayName(friendMeta, uids[0], friendNames?.[uids[0]]);
+            const text = uids.length > 1 ? `${first} 외 ${uids.length - 1}명` : `${first}님`;
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 4 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.burgundy }} />
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{text}</Text>
+              </View>
+            );
+          }
+        }
+        return null;
       })()}
 
       {/* 라운딩 정보 — 확정형은 구장·일시가 카드의 1순위 정보라 시각 무게 강화 */}
@@ -191,15 +215,16 @@ function PostCard({ post, myUid, friendGroups, friendMeta, joined, applied, wait
       {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서. 게스트(앱 미사용자)가 있으면 명시. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 9 : 12,
         backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 6 : 8 }}>
-        <Text style={{ fontSize: fs(13) }}>{allFull ? '✅' : '🔄'}</Text>
+        <Text style={{ fontSize: fs(13) }}>{allFull ? (post.type === 'open' ? '📅' : '✅') : '🔄'}</Text>
         <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
         {post.companions?.length > 0 ? (
           <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 동반자 {post.companions.length}명 포함</Text>
         ) : null}
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
-          color: allFull ? '#3C7D4F' : C.warmGray, marginLeft: 'auto' }}>
-          {allFull ? '모집 완료' : '모집중'}
+          color: allFull ? (post.type === 'open' ? C.charcoal : '#3C7D4F') : C.warmGray, marginLeft: 'auto' }}>
+          {/* 오픈형은 만석=확정 아님 — '동반자 다 모임 → 이제 날짜 조율' 단계로 안내(만석≠확정, [[roundup-friend-redesign]]) */}
+          {allFull ? (post.type === 'open' ? '날짜 정하기' : '모집 완료') : '모집중'}
         </Text>
       </View>
 
@@ -767,6 +792,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // (단, 내가 직접 올린 모집은 mine 탭에서 항상 보임. joined/applied/waitlist도 본인 활동 보존)
   //  가리기(hidden) 필터 — 내가 길게 눌러 숨긴 모집은 탐색 탭에서 제외.
   //   내가 올린 모집·참여/신청/대기 중인 모집은 숨겨도 mine 탭엔 보존(본인 활동 우선) — mineTab은 이 필터 미적용.
+  // 친구 uid→닉네임 맵 — 친구지정 '개인지정' 카드 라벨에서 누구를 지정했는지 표시용(주최자 본인만).
+  //   designated uid는 항상 내 친구라 friends(로드된 친구 목록)로 전부 커버. friendMeta의 customName이 우선.
+  const friendNameMap = React.useMemo(
+    () => Object.fromEntries(friends.map(f => [f.id, f.name]).filter(([id]) => id)),
+    [friends]);
+
   const visiblePosts = posts.filter(p => isPostVisible(p, userProfile) && isInVisibleWindow(p) && !hidden[p.id]);
 
   // 탭별 목록 — 전체: 전체공개만 (+ 지역 필터) / 친구: 친구공개 모집만 (친구가 올린 것 + 내가 올린 것) / 내 참여 중 / 관심
@@ -1802,7 +1833,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
                 : <InvitationTicket key={p.id} accent="tab" tags={p.tags} {...inviteProps} />;
             }
             return (
-              <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} friendMeta={friendMeta} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
+              <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} friendMeta={friendMeta} friendNames={friendNameMap} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
                 isBookmarked={!!bookmarks[p.id]}
                 onApply={() => confirmApply(p.id)}
                 onWaitlist={() => handleWaitlist(p.id)}
