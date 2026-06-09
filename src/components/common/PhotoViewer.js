@@ -6,7 +6,8 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 
-const { width: SW } = Dimensions.get('window');
+const { width: SW, height: SH } = Dimensions.get('window');
+const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
 function VideoItem({ uri, active }) {
   const player = useVideoPlayer(uri, p => {
@@ -116,6 +117,24 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
   const current = photos[idx];
   const isVideo = current?.type === 'video';
 
+  // 사진 실제 비율 측정 → 가로사진은 높이를 낮춰 위로 붙이고, 남는 공간은 글이 채움(고정 박스 검은 여백 해소).
+  const [arMap, setArMap] = useState({});
+  useEffect(() => {
+    photos.forEach(p => {
+      if (p?.type === 'video') return;
+      const u = resolvePhotoUri(p.uri || p);
+      if (_arCache.has(u)) { setArMap(m => (m[u] ? m : { ...m, [u]: _arCache.get(u) })); return; }
+      Image.getSize(u, (w, h) => { if (h) { const ar = w / h; _arCache.set(u, ar); setArMap(m => ({ ...m, [u]: ar })); } }, () => {});
+    });
+  }, [photos]);
+  const captionShown = !!(caption && showCaption);
+  // 사진 영역 최대 높이 — 캡션 보일 땐 화면 절반(아래 글 공간 확보), 순수 보기는 크게.
+  const availMax = captionShown ? SH * 0.5 : SH * 0.84;
+  const curUri = !isVideo && current ? resolvePhotoUri(current.uri || current) : null;
+  const curAr = curUri ? arMap[curUri] : null;
+  // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 4:5 폴백
+  const mediaH = isVideo ? SW * 1.2 : (curAr ? Math.min(availMax, Math.round(SW / curAr)) : Math.min(availMax, Math.round(SW * 1.25)));
+
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라 핀치 줌이 안 먹는다.
@@ -130,20 +149,20 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
           </Text>
         </View>
-        {/* 캡션 표시 중엔 사진을 위로 올려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백·바닥붙음 해소).
+        {/* 캡션 표시 중엔 사진을 위(카운터 아래)로 올려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백 해소).
             캡션 숨김(탭)·순수 사진 보기는 가운데 정렬 유지. */}
-        {caption && showCaption ? <View style={{ height: 88 }} /> : null}
+        {captionShown ? <View style={{ height: 92 }} /> : null}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0, height: SW * 1.2 }}
+          style={{ flexGrow: 0, height: mediaH }}
           scrollEnabled={!zoomed}
           contentOffset={{ x: idx * SW, y: 0 }}
           onMomentumScrollEnd={e => { setIdx(Math.round(e.nativeEvent.contentOffset.x / SW)); setZoomed(false); }}>
           {photos.map((item, i) => (
-            <View key={i} style={{ width: SW, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+            <View key={i} style={{ width: SW, height: mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
                 <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} />
               ) : (
-                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={SW * 1.2} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} />
+                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} />
               )}
             </View>
           ))}
