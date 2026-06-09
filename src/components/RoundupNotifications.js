@@ -65,7 +65,11 @@ function notiText(n) {
       if (n.status === 'rejected') return `${who}님의 참여 신청을 거절했어요`;
       return `${who}님이 '${n.postTitle}' 모집에 참여 신청했어요`;
     case 'cancel':    return `${who}님이 '${n.postTitle}' 모집 참여를 취소했어요`;
-    case 'roundupCancelled': return `'${n.postTitle}' 모집이 취소됐어요 — 일정에서 확인해주세요`;
+    // 취소되면 모집글·연결 일정이 사라져 식별이 어려움 → 주최자 이름 + 코스명으로 최소 식별 정보 보장.
+    //   오픈형은 코스 미정(postTitle 빈값)이라 주최자 이름으로 표시. "일정에서 확인"은 일정도 자동 삭제돼 제거.
+    case 'roundupCancelled': return n.postTitle
+      ? `${who}님의 '${n.postTitle}'${n.scheduleDate ? ` (${n.scheduleDate})` : ''} 모집이 취소됐어요`
+      : `${who}님이 만든 모집이 취소됐어요`;
     case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
     case 'confirmed': return `${who}님이 '${n.postTitle}' 모집에 참여했어요`;
     case 'invite': {

@@ -1273,6 +1273,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         actorName: userProfile?.nickname || '',
         postId: id,
         postTitle: cancelledPost?.course || '',
+        scheduleDate: cancelledPost?.date || '', // 확정형 날짜 — 알림에서 어떤 모집인지 식별용
       }).catch(e => __DEV__ && console.warn('[RoundupTab] roundupCancelled noti fail', e?.message));
     }
     // 주최자 본인 일정에서도 제거 (확정 때 생성됐던 것). 참여자 일정은 roundupCancelled 알림 수신 시 각 클라가 정리.

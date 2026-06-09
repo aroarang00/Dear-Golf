@@ -97,6 +97,7 @@ function titleFor(type) {
     case 'friendRequest':   return '새 친구 신청';
     case 'invite':          return '라운딩 초대';
     case 'roundupChanged':  return '모집 내용 변경';
+    case 'roundupCancelled': return '모집 취소';
     // 노쇼 신고
     case 'noshowReported':            return '노쇼 신고 접수';
     case 'noshowReportSubmitted':     return '노쇼 신고 접수됨';
@@ -142,6 +143,9 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     case 'mannerEval':  return `${t} 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     case 'hostCancelledD7': return `${t} 모집이 주최자에 의해 취소됐어요 — 매너 평가를 남길 수 있어요`;
     case 'roundupChanged':  return `${t} 모집 내용이 변경됐어요 — 날짜·장소·시간을 확인해주세요`;
+    case 'roundupCancelled': return postTitle
+      ? `${actorName ? actorName + '님의 ' : ''}'${postTitle}'${scheduleDate ? ` (${scheduleDate})` : ''} 모집이 취소됐어요`
+      : `${actorName ? actorName + '님이 만든 ' : ''}모집이 취소됐어요`;
     // 노쇼 신고
     case 'noshowReported':            return `${t} 라운딩 노쇼 신고가 접수됐어요 — 7일 안에 신고자와 직접 해결할 수 있어요`;
     case 'noshowReportSubmitted':     return `${t} 라운딩 노쇼 신고가 정상 접수됐어요`;

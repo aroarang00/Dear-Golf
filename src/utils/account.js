@@ -84,7 +84,7 @@ async function cancelOwnRoundups(uid, actorName) {
         .filter(u => u && u !== uid);
       await Promise.all(parts.map(rid => createNotification({
         type: 'roundupCancelled', recipientUid: rid, actorName: actorName || '',
-        postId: d.id, postTitle: data.course || '',
+        postId: d.id, postTitle: data.course || '', scheduleDate: data.date || '',
       }).catch(() => {})));
       await deleteDoc(d.ref).catch(e => __DEV__ && console.warn('[account] own roundup delete fail', e?.message));
     }));
