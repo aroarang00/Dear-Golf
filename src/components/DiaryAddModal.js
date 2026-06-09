@@ -72,7 +72,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [weather, setWeather] = useState('맑음');
   const [memo, setMemo] = useState('');
   const [birdieCount, setBirdieCount] = useState(0);
-  const [privacy, setPrivacy] = useState('friends'); // 'friends'(전체) | 'private'(나만) | 그룹id ([[friend_groups]])
+  const [privacy, setPrivacy] = useState(['friends']); // 배열: ['friends'](전체) | ['private'](나만) | [그룹id…](복수 그룹 공개) ([[friend_groups]])
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [starRating, setStarRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState([]);
@@ -285,7 +285,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
-    setPrivacy('friends');
+    setPrivacy(['friends']);
     setCompanions([]); setCompanionInput('');
     setOverseas(false); setCountry('');
     setKind('round');
@@ -325,8 +325,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       {
         const v = initial.visibility || initial.privacy || 'friends';
         setPrivacy(v === 'group'
-          ? ((Array.isArray(initial.audienceGroupIds) && initial.audienceGroupIds[0]) || 'friends')
-          : v);
+          ? ((Array.isArray(initial.audienceGroupIds) && initial.audienceGroupIds.length) ? initial.audienceGroupIds : ['friends'])
+          : [v]);
       }
       setCompanions(
         (initial.companions || [])
@@ -388,25 +388,36 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const costTotal = COST_ITEMS.reduce((sum, [k]) => sum + (parseInt(costs[k]) || 0), 0);
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+  // 공개범위 복수선택 — 친구전체·나만보기는 단독, 그룹은 복수 토글(여러 그룹 동시 공개) ([[friend_groups]])
+  const togglePrivacy = (key) => {
+    if (key === 'friends' || key === 'private') { setPrivacy([key]); return; }
+    setPrivacy(prev => {
+      const groupsOnly = prev.filter(k => k !== 'friends' && k !== 'private');
+      const next = groupsOnly.includes(key) ? groupsOnly.filter(k => k !== key) : [...groupsOnly, key];
+      return next.length ? next : ['friends']; // 그룹을 다 해제하면 친구 전체로 복귀(빈 공개범위 방지)
+    });
+  };
+
   const handleSave = () => {
-    // 공개범위 해석 — friends/private은 그대로, 그룹 id면 group + audienceUids 스냅샷 ([[friend_groups]])
+    // 공개범위 해석 — friends/private은 단독, 그룹(복수)이면 group + 선택 그룹들 멤버 합집합 스냅샷 ([[friend_groups]])
     let vis;
-    if (privacy === 'private') {
+    if (privacy.includes('private')) {
       vis = { visibility: 'private' };
-    } else if (privacy === 'friends') {
+    } else if (privacy.includes('friends')) {
       vis = { visibility: 'friends' };
     } else {
-      const uids = resolveGroupAudience(friendData.friendMeta, [privacy]);
+      const gids = privacy;
+      const uids = resolveGroupAudience(friendData.friendMeta, gids);
       if (uids.length === 0) {
-        const gname = (friendData.friendGroups.find(g => g.id === privacy) || {}).name || '그룹';
+        const names = gids.map(id => (friendData.friendGroups.find(g => g.id === id) || {}).name).filter(Boolean).join(' · ') || '그룹';
         setOverlay({
-          title: `'${gname}'에 지정된 친구가 없어요`,
+          title: `'${names}'에 지정된 친구가 없어요`,
           message: '친구 프로필 ⋯ → 그룹·별명 설정에서\n이 그룹에 친구를 먼저 지정해주세요.',
           buttons: [{ text: '확인' }],
         });
         return;
       }
-      vis = { visibility: 'group', audienceUids: uids, audienceGroupIds: [privacy] };
+      vis = { visibility: 'group', audienceUids: uids, audienceGroupIds: gids };
     }
     // 일상(모멘트) — 글/사진만. 라운딩 전용 필드는 비워서 저장(통계 격리는 kind로 보장, 데이터도 깔끔히).
     if (isMoment) {
@@ -952,15 +963,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {[{ key: 'friends', label: '친구 전체' },
                   ...friendData.friendGroups.map(g => ({ key: g.id, label: g.name })),
-                  { key: 'private', label: '나만 보기' }].map(opt => (
-                  <TouchableOpacity key={opt.key} style={[mS.chip, privacy === opt.key && mS.chipOn]} onPress={() => setPrivacy(opt.key)}>
-                    <Text style={[mS.chipTxt, privacy === opt.key && mS.chipTxtOn]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                  { key: 'private', label: '나만 보기' }].map(opt => {
+                  const on = privacy.includes(opt.key);
+                  return (
+                    <TouchableOpacity key={opt.key} style={[mS.chip, on && mS.chipOn]} onPress={() => togglePrivacy(opt.key)}>
+                      <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              {privacy !== 'friends' && privacy !== 'private' && (
+              {!privacy.includes('friends') && !privacy.includes('private') && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
-                  '{(friendData.friendGroups.find(g => g.id === privacy) || {}).name || '그룹'}' 그룹 친구에게만 보여요
+                  {privacy.map(id => (friendData.friendGroups.find(g => g.id === id) || {}).name).filter(Boolean).join(' · ')} 그룹 친구에게만 보여요 (여러 그룹 선택 가능)
                 </Text>
               )}
               <View style={{ marginTop: 16, marginBottom: 16 }}>

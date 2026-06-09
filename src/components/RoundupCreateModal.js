@@ -66,7 +66,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const [selectedUids, setSelectedUids] = useState([]);
   // 친구 그룹(가까운친구·라운딩멤버) 빠른선택 — 그룹 멤버 uid로 selectedUids 채움 ([[friend_groups]] Phase C)
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
-  const [selectedGroupId, setSelectedGroupId] = useState(null); // 그룹으로 채운 경우 그 그룹 id(표시·audienceGroupIds용). 수동 선택 시 null
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]); // 그룹으로 채운 경우 그 그룹 id들(복수, 표시·audienceGroupIds용). 수동 선택 시 [] ([[friend_groups]])
   const [inviteStyle, setInviteStyle] = useState('casual'); // 친구지정 초대장 톤: 'casual'(보딩패스) | 'formal'(격식) ([[roundup-invitation]])
   const [showFriendSelect, setShowFriendSelect] = useState(false);
   const [word, setWord] = useState('');
@@ -138,7 +138,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setOpenTime(Array.isArray(initialPost.openTime) ? initialPost.openTime : []);
     setSelectMode(initialPost.selectMode || 'include');
     setSelectedUids(Array.isArray(initialPost.selectedUids) ? initialPost.selectedUids : []);
-    setSelectedGroupId(Array.isArray(initialPost.audienceGroupIds) ? (initialPost.audienceGroupIds[0] || null) : null);
+    setSelectedGroupIds(Array.isArray(initialPost.audienceGroupIds) ? initialPost.audienceGroupIds : []);
     setInviteStyle(initialPost.inviteStyle || 'casual');
   }, [visible, initialPost]);
 
@@ -171,7 +171,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setGroupMode('single'); setMembers(3); setTeams(2); setScope(hideStranger ? 'friends' : 'all'); setWord(''); setOpenTime([]);
     setCompanion('any'); setAgeGroup('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
-    setSelectMode('include'); setSelectedUids([]); setSelectedGroupId(null); setShowFriendSelect(false);
+    setSelectMode('include'); setSelectedUids([]); setSelectedGroupIds([]); setShowFriendSelect(false);
   };
   const close = () => { if (!initialPost) reset(); onClose(); };
   // 안드로이드 뒤로가기 — 확인창(OverlayAlert)이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
@@ -184,9 +184,12 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   // 친구 그룹 빠른선택 — 그 그룹 멤버 uid로 selectedUids 채움(현재 친구로 한정). 빈 그룹은 안내 후 중단.
   //   scope=select·include 환원이라 다운스트림(필터·초대장·일정동기화) 무변경 ([[friend_groups]] Phase C)
   const pickGroup = (gid) => {
-    const uids = resolveGroupAudience(friendData.friendMeta, [gid])
+    // 복수 그룹 토글 — 켜진 그룹들 멤버의 합집합을 selectedUids로 (현재 친구로 한정) ([[friend_groups]])
+    const adding = !selectedGroupIds.includes(gid);
+    const next = adding ? [...selectedGroupIds, gid] : selectedGroupIds.filter(x => x !== gid);
+    const uids = resolveGroupAudience(friendData.friendMeta, next)
       .filter(id => friends.some(f => f.id === id)); // 그룹에 넣었지만 지금은 친구 아닌 uid 제외
-    if (uids.length === 0) {
+    if (adding && uids.length === 0) {
       const gname = (friendData.friendGroups.find(g => g.id === gid) || {}).name || '그룹';
       setAlert({
         title: `'${gname}'에 지정된 친구가 없어요`,
@@ -197,7 +200,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     }
     setSelectMode('include');
     setSelectedUids(uids);
-    setSelectedGroupId(gid);
+    setSelectedGroupIds(next);
   };
 
   // 최종 데이터 빌드
@@ -232,7 +235,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             : selectedUids)
         : [],
       // 그룹 빠른선택으로 채운 경우 원본 그룹 id(표시·수정복원용). 수동 선택이면 빈 배열 ([[friend_groups]] Phase C)
-      audienceGroupIds: scope === 'select' && selectMode === 'include' && selectedGroupId ? [selectedGroupId] : [],
+      audienceGroupIds: scope === 'select' && selectMode === 'include' ? selectedGroupIds : [],
       // 초대장 톤(격식/편안) — select일 때만 ([[roundup-invitation]])
       inviteStyle: scope === 'select' ? inviteStyle : null,
       word: word.trim(),
@@ -557,8 +560,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                   {friendData.friendGroups.map(g => (
                     <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => pickGroup(g.id)}
-                      style={[mS.chip, selectedGroupId === g.id && mS.chipOn]}>
-                      <Text style={[mS.chipTxt, selectedGroupId === g.id && mS.chipTxtOn]}>{g.name}</Text>
+                      style={[mS.chip, selectedGroupIds.includes(g.id) && mS.chipOn]}>
+                      <Text style={[mS.chipTxt, selectedGroupIds.includes(g.id) && mS.chipTxtOn]}>{g.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -710,7 +713,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
         friends={friends}
         initial={{ selectMode, selectedUids }}
         onClose={() => setShowFriendSelect(false)}
-        onConfirm={({ selectMode: m, selectedUids: u }) => { setSelectMode(m); setSelectedUids(u); setSelectedGroupId(null); }} />
+        onConfirm={({ selectMode: m, selectedUids: u }) => { setSelectMode(m); setSelectedUids(u); setSelectedGroupIds([]); }} />
     </Modal>
   );
 }
