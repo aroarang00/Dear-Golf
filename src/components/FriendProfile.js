@@ -15,6 +15,8 @@ import { PhotoViewer } from './common/PhotoViewer';
 import { getUid } from '../utils/firebase';
 import { createContentReport } from '../utils/contentReports';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { FriendGroupManageModal } from './FriendGroupManageModal';
+import { loadFriendData } from '../utils/friendGroups';
 
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
@@ -32,12 +34,15 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [metaOpen, setMetaOpen] = useState(false);         // 그룹·별명 설정 시트 ([[friend_groups]])
   const [editName, setEditName] = useState('');            // 편집 중 별명
   const [editGroups, setEditGroups] = useState([]);        // 편집 중 소속 그룹 id 배열
+  const [groupManageOpen, setGroupManageOpen] = useState(false); // 그룹 관리 모달 — 시트에서 진입(B안) ([[friend_groups]])
+  const [localGroups, setLocalGroups] = useState(null);    // 그룹 관리 후 갱신본 — prop보다 우선(부모 재로드 없이 칩 반영)
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(msgNoticeOpen, () => setMsgNoticeOpen(false)); // 메시지 준비중 안내 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(!!reportItem, () => setReportItem(null)); // 신고 시트 뒤로가기 → 닫기
   useAndroidBack(!!reportMsg, () => setReportMsg(null));   // 신고 결과 뒤로가기 → 닫기
   useAndroidBack(metaOpen, () => setMetaOpen(false));      // 그룹·별명 시트 뒤로가기 → 닫기
+  useAndroidBack(groupManageOpen, () => setGroupManageOpen(false)); // 그룹 관리 모달 뒤로가기 → 닫기
   useEffect(() => { getUid().then(setMyUid).catch(() => {}); }, []);
   if (!friend) return null;
 
@@ -151,10 +156,16 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     </View>
                   )}
                 </View>
-                {/* 라이프베스트 알약 */}
-                <View style={{ alignSelf: 'flex-start', backgroundColor: C.butter, borderRadius: 999,
-                  paddingHorizontal: 12, paddingVertical: 4, marginTop: 7 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라이프베스트 {stats.best ?? '—'}</Text>
+                {/* 라베·핸디 알약 — 핸디는 users 문서에 동기화된 친구만 표시 ([[friend_groups]] 핸디표시) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 }}>
+                  <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라베 {stats.best ?? '—'}</Text>
+                  </View>
+                  {stats.handicap != null && (
+                    <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>핸디 {stats.handicap}</Text>
+                    </View>
+                  )}
                 </View>
                 {/* 멘트 — 친구가 작성한 경우만 표시 */}
                 {fStatus ? (
@@ -319,9 +330,15 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                   💡 별명을 적으면 친구 목록·피드에서 그 이름으로 보여요
                 </Text>
 
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginTop: 16, marginBottom: 8 }}>그룹</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>그룹</Text>
+                  {/* 그룹 추가·이름변경은 여기서 (B안 — 마이페이지 안 거치고 친구화면서 바로) ([[friend_groups]]) */}
+                  <TouchableOpacity onPress={() => setGroupManageOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>그룹 관리 ›</Text>
+                  </TouchableOpacity>
+                </View>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {friendGroups.map(g => {
+                  {(localGroups || friendGroups).map(g => {
                     const on = editGroups.includes(g.id);
                     return (
                       <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => toggleEditGroup(g.id)}
@@ -348,6 +365,14 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 </View>
               </TouchableOpacity>
             </TouchableOpacity>
+          )}
+
+          {/* 친구 그룹 관리 — 그룹·별명 시트에서 진입(B안). 닫을 때 그룹 목록만 다시 읽어 칩 반영 ([[friend_groups]]) */}
+          {groupManageOpen && (
+            <FriendGroupManageModal visible onClose={() => {
+              loadFriendData().then(fd => setLocalGroups(fd.friendGroups)).catch(() => {});
+              setGroupManageOpen(false);
+            }} />
           )}
 
           {/* 사진·영상 전체화면 뷰어 — 카드 캐러셀에서 탭 시 */}
