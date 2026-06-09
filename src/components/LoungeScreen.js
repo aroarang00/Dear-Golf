@@ -3,6 +3,7 @@
 import React from 'react';
 import { RoundupTab } from './RoundupTab';
 
-export function LoungeScreen({ navigation }) {
-  return <RoundupTab asScreen visible navigation={navigation} />;
+export function LoungeScreen({ navigation, route }) {
+  // route — 푸시 탭으로 전달된 { openPostId }를 RoundupTab이 소비해 해당 모집글 상세를 연다.
+  return <RoundupTab asScreen visible navigation={navigation} route={route} />;
 }

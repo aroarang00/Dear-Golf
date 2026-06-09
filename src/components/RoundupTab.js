@@ -250,7 +250,7 @@ function PostCard({ post, myUid, friendGroups, friendMeta, joined, applied, wait
   );
 }
 
-export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
+export function RoundupTab({ visible, onClose, asScreen = false, navigation, route }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, editSchedule, removeSchedule } = useContext(SchedulesContext);
   const { diaries } = useContext(DiariesContext); // 취소 정리 시 '기록 연결된 일정' 보호용
@@ -475,6 +475,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
     }, (err) => { if (__DEV__) console.warn('[RoundupTab] detail snapshot', err?.message); });
     return () => unsub();
   }, [detailId, myUid]);
+
+  // 푸시 탭으로 전달된 모집글 상세 자동 오픈 — App이 navigate(라운지, { openPostId })로 넘긴다.
+  //   detailId 설정 시 위 onSnapshot이 목록에 없던 글도 불러와 상세가 열린다(postId만으로 충분).
+  //   1회 소비 후 파라미터를 비워, 탭 재렌더·동일 푸시 재탭 시 재오픈되는 것을 막는다.
+  useEffect(() => {
+    const pid = route?.params?.openPostId;
+    if (!pid) return;
+    setDetailId(pid);
+    navigation?.setParams?.({ openPostId: undefined });
+  }, [route?.params?.openPostId]);
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
   const [notifications, setNotifications] = useState([]);
   const [showNoti, setShowNoti] = useState(false);            // 알림함

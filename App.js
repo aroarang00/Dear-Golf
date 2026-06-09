@@ -318,19 +318,36 @@ function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // 라운딩 알람을 탭하면 홈 탭(D-day 카드)으로 이동
+  // 푸시 알림을 탭하면 종류에 맞는 화면으로 이동.
+  //  - 친구신청·초대 → 친구 탭 (받은 신청·초대 카드가 친구 탭 메인에 인라인 노출, [[friend-notification-ia]])
+  //  - 모집글 중심 알림(댓글·확정·참여 등) → 라운지 탭 + 해당 모집글 상세 자동 오픈
+  //  - 그 외 라운지 알림(노쇼·매너·정지·신고 등) → 라운지 탭 (종 아이콘 알림함에서 확인)
+  //  - type 없는 로컬 라운딩 알람(D-3/D-1/당일) → 홈 D-day 카드
+  //  서버 푸시 data:{ type, postId, notiId } / 로컬 알람 data:{ scheduleId, nav:'home' }(type 없음).
+  //  postId는 푸시에 이미 포함 — 앱이 그 id로 Firestore 최신 상세를 다시 읽어 연다(푸시엔 식별자만, 내용 X).
   useEffect(() => {
-    const goHome = () => {
-      if (navigationRef.isReady()) {
-        try { navigationRef.navigate(ROUTES.HOME); } catch (e) { /* 네비게이션 미준비 */ }
-      }
+    // 모집글 상세로 바로 여는 게 자연스러운(글 중심) 타입. 노쇼·정지 등은 상세 대신 라운지 착지.
+    const POST_DETAIL_TYPES = new Set([
+      'apply', 'confirmed', 'cancel', 'waitlist', 'kicked', 'slotOpen',
+      'comment', 'mannerEval', 'hostCancelledD7', 'scheduleNotice',
+    ]);
+    const handleResponse = (resp) => {
+      if (!navigationRef.isReady()) return;
+      const data = resp?.notification?.request?.content?.data || {};
+      const type = data.type;
+      try {
+        if (!type) { navigationRef.navigate(ROUTES.HOME); return; }
+        if (type === 'friendRequest' || type === 'invite') { navigationRef.navigate(ROUTES.FRIENDS); return; }
+        const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
+        navigationRef.navigate(ROUTES.LOUNGE, openPostId ? { openPostId } : undefined);
+      } catch (e) { /* 네비게이션 미준비 */ }
     };
-    // 앱이 종료된 상태에서 알림 탭으로 실행된 경우
+    // 앱이 종료된 상태에서 알림 탭으로 실행된 경우 — 네비게이션 준비 시간 확보
     Notifications.getLastNotificationResponseAsync().then(resp => {
-      if (resp) setTimeout(goHome, 400);
+      if (resp) setTimeout(() => handleResponse(resp), 400);
     });
     // 앱 실행 중 알림 탭
-    const sub = Notifications.addNotificationResponseReceivedListener(() => goHome());
+    const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
     return () => sub.remove();
   }, []);
 
