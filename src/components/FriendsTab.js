@@ -200,6 +200,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
               avgScore: d.avgScore || 0,
               totalRounds: d.totalRounds || 0,
               avatarUrl: d.avatarUrl || null,
+              handicap: typeof d.handicap === 'number' ? d.handicap : null, // 친구 핸디 — 명함 라베 옆 뱃지 ([[friend_groups]] 핸디표시)
             };
           }
         });
@@ -221,7 +222,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             style: '',
             hostedCount: 0, attendedCount: 0, mannerScore: 0,
             recent: null,
-            stats: { rounds: p.totalRounds || 0, avg: p.avgScore || null, best: p.lifeBest || null },
+            stats: { rounds: p.totalRounds || 0, avg: p.avgScore || null, best: p.lifeBest || null, handicap: p.handicap ?? null },
             lastPostAt: p.lastFriendPostAt?.toMillis ? p.lastFriendPostAt.toMillis() : 0, // 친구 피드 최신 글 시각 — NEW 점·새글순 ([[friend_groups]] ⑤)
             feed: [],
             togetherCount: 0, // 자리만 — 동반자 매칭(닉네임/본명) 구현 후 채움. 0이면 명함에 미표시 ([[diary-companion-matching]])

@@ -360,6 +360,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation }) {
         // 참여자 이름 — 모든 모집의 participantUids 닉네임 로드 (참여자 현황에 실제 이름 표시, 더미 이름 제거)
         const partUidSet = new Set();
         for (const p of merged) {
+          // 주최자도 포함 — 참여자가 상세를 볼 때 주최자 핸디가 보이도록 (owner는 participantUids에 없음) ([[friend_groups]] 핸디표시)
+          if (p.authorUid && p.authorUid !== uid) partUidSet.add(p.authorUid);
           if (Array.isArray(p.participantUids)) {
             p.participantUids.forEach(u => { if (u && u !== uid) partUidSet.add(u); });
           }
