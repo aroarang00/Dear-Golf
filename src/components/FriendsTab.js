@@ -126,17 +126,19 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [groupFilter, setGroupFilter] = useState('all'); // 그룹 필터칩 (전체/그룹들) ([[friend_groups]])
   const [feedSeen, setFeedSeen] = useState({}); // {uid: millis} 친구별 마지막 본 글 시각 — NEW 점 ([[friend_groups]] ⑤)
-  useEffect(() => { storage.load(STORAGE_KEYS.friendFeedSeen, {}).then(m => setFeedSeen(m || {})).catch(() => {}); }, []);
+  const [feedSeenLoaded, setFeedSeenLoaded] = useState(false); // 저장된 seen 로드 완료 — baseline 레이스 가드
+  useEffect(() => { storage.load(STORAGE_KEYS.friendFeedSeen, {}).then(m => setFeedSeen(m || {})).catch(() => {}).finally(() => setFeedSeenLoaded(true)); }, []);
   // 베이스라인 — 처음 보는 친구는 현재 최신글을 '본 것'으로(과거 글로 점 안 뜨게). 새 친구만 기록.
+  //   ★저장된 seen 로드 전엔 실행 금지 — 안 그러면 친구가 먼저 로드될 때 새 글까지 '본 것'으로 덮어써 NEW가 안 뜸.
   useEffect(() => {
-    if (!friends.length) return;
+    if (!friends.length || !feedSeenLoaded) return;
     setFeedSeen(prev => {
       let changed = false; const next = { ...prev };
       friends.forEach(f => { if (next[f.id] === undefined) { next[f.id] = f.lastPostAt || 0; changed = true; } });
       if (changed) storage.save(STORAGE_KEYS.friendFeedSeen, next);
       return changed ? next : prev;
     });
-  }, [friends]);
+  }, [friends, feedSeenLoaded]);
   const [muted, setMuted] = useState({});           // { [id]: true }
   const [hidden, setHidden] = useState({});          // 숨긴 친구
   const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
@@ -215,6 +217,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
               totalRounds: d.totalRounds || 0,
               avatarUrl: d.avatarUrl || null,
               handicap: typeof d.handicap === 'number' ? d.handicap : null, // 친구 핸디 — 명함 라베 옆 뱃지 ([[friend_groups]] 핸디표시)
+              lastFriendPostAt: d.lastFriendPostAt || null, // 친구 피드 최신 글 시각 — NEW 점·활동순 정렬 (안 옮기면 전원 0 → NEW·활동순 무력화)
             };
           }
         });
@@ -320,8 +323,12 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     .filter(f => !hidden[f.id] && (!q || f.name.includes(q)) && matchFilter(f))
     .sort((a, b) => {
       const fav = (favorites[b.id] ? 1 : 0) - (favorites[a.id] ? 1 : 0);
-      if (fav !== 0) return fav;                          // 즐겨찾기 상단
-      return (b.lastPostAt || 0) - (a.lastPostAt || 0);   // 그 외 새 글 순 ([[friend_groups]] ⑤)
+      if (fav !== 0) return fav;                            // 1) 즐겨찾기 상단
+      const act = (b.lastPostAt || 0) - (a.lastPostAt || 0);
+      if (act !== 0) return act;                            // 2) 활동순(최근 글, [[friend_groups]] ⑤)
+      // 3) 가나다순 — 활동 없는(lastPostAt=0) 친구들이 로드순으로 무작위 나열되던 것 정리.
+      //    한글 음절은 유니코드 순서가 곧 가나다라 Hermes Intl 없이도 정확(영문·숫자는 한글보다 앞).
+      return (a.name || '').localeCompare(b.name || '', 'ko');
     });
   const hiddenFriends = friends.filter(f => hidden[f.id]);
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
