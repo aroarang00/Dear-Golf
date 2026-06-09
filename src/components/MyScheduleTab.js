@@ -374,6 +374,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         day: d.day || DAYS[dt.getDay()],
         time: d.time || '',
         members: d.members || 0,
+        // 과거 기록의 동반자도 카드에 표시 — 본인(isMe)은 예정 카드와 동일하게 제외 (diary는 {name,isMe} 저장)
+        companions: Array.isArray(d.companions) ? d.companions.filter(c => c && !c.isMe) : [],
       };
     });
   const monthItems = [...monthSchedules, ...orphanItems];
