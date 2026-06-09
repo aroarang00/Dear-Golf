@@ -842,6 +842,21 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             });
           } catch (e) { console.warn('[roundup] linked schedule edit failed:', e?.message); }
         }
+        // 수정으로 새로 지정된 친구에게만 초대 발송 — 거절·이탈로 빈 자리를 다른 친구로 채우는 동선 ([[roundup-invitation]]).
+        //   diff(신규 uid)만 보냄: 전체로 보내면 멱등 setDoc(invite_{postId}_{uid})이 기존 수신자 문서를
+        //   덮어써 createdAt·read가 리셋되고 알림함 순서가 흐트러짐. diff면 기존 수신자 무영향.
+        //   !closed(모집 중)만 — 빈자리는 항상 closed=false에서 생기고(이탈 시 leaveRoundup이 확정해제+자리열기),
+        //   확정 모집은 만석이라 빈자리 없음 + 일정 이미 생성이라 신규 참여 desync 위험([[roundup-schedule-sync]]) 차단.
+        //   include 게이트는 생성 분기와 동일(exclude엔 초대장 개념 없음).
+        if (!editingPost.closed && nextPost.scope === 'select' && nextPost.selectMode === 'include') {
+          const beforeUids = Array.isArray(editingPost.selectedUids) ? editingPost.selectedUids : [];
+          const added = (Array.isArray(nextPost.selectedUids) ? nextPost.selectedUids : [])
+            .filter(u => u && !beforeUids.includes(u));
+          if (added.length) {
+            createInviteNotifications(eid, nextPost.course || '', added, userProfile?.nickname || '')
+              .catch(e => __DEV__ && console.warn('[RoundupTab] edit invite failed', e?.message));
+          }
+        }
         setEditingPost(null);
         return;
       }
