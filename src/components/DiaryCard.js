@@ -108,7 +108,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
 
   const memoBlock = item.memo ? (
     <View style={{ borderLeftWidth: 2, borderLeftColor: memoBorderColor, paddingLeft: 8, marginBottom: 8 }}>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, fontStyle: 'italic' }}>"{item.memo}"</Text>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
     </View>
   ) : null;
 
@@ -329,7 +329,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           {/* 라운딩 기록은 사진만(캡션 X) — 메모 미전달. 일상만 사진+캡션(글이 본체) ([[friend-feed-design]]) */}
           {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i), photoScoreOverlay)}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
-            <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, fontStyle: 'italic' }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>
               {item.memo ? `"${item.memo}"` : ''}
             </Text>
             {likeButton}
@@ -356,7 +356,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
             <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { marginBottom: 6 }]} numberOfLines={1}>{item.course}</Text>
             {ratingStars}
             {item.memo ? (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, fontStyle: 'italic' }}>"{item.memo}"</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
             ) : null}
           </View>
           {/* 우 — 타수(크게) · 싱글 배지(타수 밑) */}
