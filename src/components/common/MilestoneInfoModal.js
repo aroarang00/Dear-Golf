@@ -22,9 +22,6 @@ export function MilestoneInfoModal({ visible, onClose }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: 19 }}>
               라운딩 30·50·100·200회,{'\n'}방문 구장 30·50·100곳마다{'\n'}메달이 하나씩 쌓여요.
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: 19 }}>
-              달성하면 명예의 전당에{'\n'}특별한 카드로도 남아요.
-            </Text>
           </View>
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}
             style={{ paddingVertical: 13, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
