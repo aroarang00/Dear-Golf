@@ -842,6 +842,26 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             });
           } catch (e) { console.warn('[roundup] linked schedule edit failed:', e?.message); }
         }
+        // 주요 변경(날짜·장소·시간) 시 확정 참여자에게 변경 알림 — 모달이 약속한 "변경 알림" 실발송 ([[roundup-edit-policy]] §2·§4-1).
+        //   본인(주최자)은 createNotification이 자동 스킵. closed 무관(확정 모집 D-7밖 수정도 참여자에게 알려야 함).
+        //   주최자는 participantUids에 없음(owner 미포함) → targets는 순수 참여자. 단순 정보 알림(재확인 X, [[roundup-edit-policy]] B안 보류).
+        const majorChanged =
+          (nextPost.date || null) !== (editingPost.date || null) ||
+          (nextPost.course || null) !== (editingPost.course || null) ||
+          (nextPost.time || null) !== (editingPost.time || null);
+        if (majorChanged) {
+          const targets = (Array.isArray(editingPost.participantUids) ? editingPost.participantUids : [])
+            .filter(u => u && u !== myUid);
+          for (const rid of targets) {
+            createNotification({
+              recipientUid: rid,
+              type: 'roundupChanged',
+              postId: eid,
+              postTitle: nextPost.course || editingPost.course || '',
+              actorName: userProfile?.nickname || '',
+            }).catch(e => __DEV__ && console.warn('[RoundupTab] change noti failed', e?.message));
+          }
+        }
         // 수정으로 새로 지정된 친구에게만 초대 발송 — 거절·이탈로 빈 자리를 다른 친구로 채우는 동선 ([[roundup-invitation]]).
         //   diff(신규 uid)만 보냄: 전체로 보내면 멱등 setDoc(invite_{postId}_{uid})이 기존 수신자 문서를
         //   덮어써 createdAt·read가 리셋되고 알림함 순서가 흐트러짐. diff면 기존 수신자 무영향.
