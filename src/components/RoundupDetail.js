@@ -169,8 +169,6 @@ export function RoundupDetail({ post, myUid, friendGroups, participantNames = {}
     onClose();
   };
 
-  useEffect(() => { if (visible) setTeamTab(0); }, [visible]);
-
   if (!post) return null;
 
   const isTeam = post.teams > 1;
