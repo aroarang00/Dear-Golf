@@ -102,6 +102,8 @@ exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/
     if (!rSnap.exists) return;
     const r = rSnap.data();
     if (r.settings?.notifyPrefs?.dm === false) return;   // 마이페이지에서 DM 알림 OFF
+    // 수신자가 발신자를 차단 — 푸시 차단(규칙이 전송을 막지만, 규칙 배포 전 잔존 메시지·우회 방어)
+    if (Array.isArray(r.blockedUids) && r.blockedUids.includes(senderUid)) return;
     const token = r.pushToken;
     if (!token) return;
     const senderName = (sSnap.exists && sSnap.data().nickname) ? sSnap.data().nickname : '친구';

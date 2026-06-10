@@ -28,6 +28,12 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/friendships/$(pairId(a, b)))
         && get(/databases/$(database)/documents/friendships/$(pairId(a, b))).data.status == 'accepted';
     }
+    // a·b 중 한쪽이라도 상대를 차단했는지 (users.blockedUids 양방향) — DM 전송 차단용.
+    //   차단 사실 비노출 정책이라 클라이언트는 사유 없는 중립 실패로 처리 ([[report-block-policy]]).
+    function dmBlockedBetween(a, b) {
+      return (b in get(/databases/$(database)/documents/users/$(a)).data.get('blockedUids', []))
+        || (a in get(/databases/$(database)/documents/users/$(b)).data.get('blockedUids', []));
+    }
     // update 시 변경된 필드가 허용 목록 안에만 있는지
     function changedKeysWithin(allowed) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
@@ -472,20 +478,37 @@ service cloud.firestore {
         && request.resource.data.participantUids.size() == 2
         && convId == pairId(request.resource.data.participantUids[0], request.resource.data.participantUids[1])
         && areFriends(request.auth.uid, otherUidNew());
-      // 메타 갱신만 — 참여자 변경·방 삭제 불가
+      // 현재 문서 기준 상대 uid
+      function otherUidCur() {
+        return resource.data.participantUids[0] == request.auth.uid
+          ? resource.data.participantUids[1]
+          : resource.data.participantUids[0];
+      }
+      // 메타 갱신만 — 참여자 변경·방 삭제 불가.
+      //   친구+비차단일 때만(sendMessage의 lastMessage 갱신이 메시지 create보다 먼저라, 여기 안 막으면
+      //   차단 후에도 목록 미리보기가 갱신되는 유령 lastMessage 발생) ([[dm-design]] 차단 모순 수정 2026-06-10)
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.participantUids
-        && changedKeysWithin(['lastMessage', 'lastSenderUid', 'lastAt', 'updatedAt']);
+        && changedKeysWithin(['lastMessage', 'lastSenderUid', 'lastAt', 'updatedAt'])
+        && areFriends(request.auth.uid, otherUidCur())
+        && !dmBlockedBetween(request.auth.uid, otherUidCur());
       allow delete: if false;
 
       match /messages/{msgId} {
         function members() {
           return get(/databases/$(database)/documents/conversations/$(convId)).data.participantUids;
         }
+        function otherMember() {
+          return members()[0] == request.auth.uid ? members()[1] : members()[0];
+        }
         allow read: if isSignedIn() && request.auth.uid in members();
+        // 전송 = 친구 + 양방향 비차단일 때만 — 차단했는데 DM이 오는 모순 차단(친구 해지·차단 모두 커버).
+        //   기존 메시지 read는 유지(카톡식 — 대화 이력은 보임).
         allow create: if isSignedIn()
           && request.resource.data.senderUid == request.auth.uid
           && request.auth.uid in members()
+          && areFriends(request.auth.uid, otherMember())
+          && !dmBlockedBetween(request.auth.uid, otherMember())
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
           && request.resource.data.body.size() <= 2000;

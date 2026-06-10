@@ -5,7 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { subscribeConversations, otherUidOf } from '../utils/dm';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
-import { loadMyFriendsEnriched } from '../utils/friends';
+import { loadMyFriendsEnriched, loadMyBlockedUids } from '../utils/friends';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 // 대화 목록 시각 — 오늘이면 오전/오후 h:mm, 아니면 월.일
@@ -37,8 +37,12 @@ export function DMListScreen({ onClose, onOpenChat }) {
     (async () => {
       const uid = await getUid();
       if (alive) setMyUid(uid);
+      let blocked = [];
       try {
-        const [fd, friends] = await Promise.all([loadFriendData(), loadMyFriendsEnriched()]);
+        const [fd, friends, blockedArr] = await Promise.all([
+          loadFriendData(), loadMyFriendsEnriched(), loadMyBlockedUids().catch(() => []),
+        ]);
+        blocked = blockedArr || [];
         if (alive) {
           setFriendMeta(fd.friendMeta || {});
           const m = {};
@@ -46,7 +50,10 @@ export function DMListScreen({ onClose, onOpenChat }) {
           setNameMap(m);
         }
       } catch (e) { if (__DEV__) console.warn('[DMList] friends', e?.message); }
-      unsub = subscribeConversations(uid, (list) => { if (alive) setConvs(list); });
+      // 내가 차단한 상대와의 대화는 목록에서 숨김 — 검색·카카오 결과 차단자 숨김과 일관(카톡 모델)
+      unsub = subscribeConversations(uid, (list) => {
+        if (alive) setConvs(list.filter(c => !blocked.includes(otherUidOf(c, uid))));
+      });
     })();
     return () => { alive = false; unsub(); };
   }, []);

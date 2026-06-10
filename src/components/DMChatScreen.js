@@ -5,6 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
+import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 const _and = Platform.OS === 'android';
@@ -50,6 +51,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
   const [messages, setMessages] = useState(null);  // null = 로딩 중
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
   const [kb, setKb] = useState(0);  // 안드 키보드 높이 — 입력창이 키보드에 가려지지 않게 직접 띄움
   const listRef = useRef(null);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
@@ -103,7 +105,16 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
     setText('');
     setSending(true);
     try { await sendMessage(friendUid, body); }
-    catch (e) { if (__DEV__) console.warn('[DMChat] send', e?.message); setText(body); } // 실패 시 입력 복구
+    catch (e) {
+      if (__DEV__) console.warn('[DMChat] send', e?.message);
+      setText(body); // 실패 시 입력 복구
+      // 중립 안내 — 차단·친구해지로 인한 거부(permission-denied)도 사유를 노출하지 않음(차단 비노출 정책)
+      setAlert({
+        title: '메시지를 보내지 못했어요',
+        message: '지금은 이 대화에\n메시지를 보낼 수 없어요.',
+        buttons: [{ text: '확인' }],
+      });
+    }
     finally { setSending(false); }
   };
 
@@ -200,6 +211,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
   );
 }

@@ -25,7 +25,7 @@ import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
-import { blockUid as fsBlockUid, loadMyFriends } from '../utils/friends';
+import { blockUid as fsBlockUid, loadMyFriends, unfriend } from '../utils/friends';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
@@ -1128,6 +1128,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         return { ...p, waitlistUids: next };
       }));
       setWaitlist(prev => ({ ...prev, [id]: myIdx }));
+      // 주최자에게 대기 신청 알림 — 타입·푸시문구·토글('대기 신청')은 이미 준비돼 있었는데 발송만 누락돼 있었음
+      const post = posts.find(p => p.id === id);
+      if (post?.authorUid && post.authorUid !== myUid) {
+        createNotification({
+          type: 'waitlist',
+          recipientUid: post.authorUid,
+          actorName: userProfile?.nickname || '',
+          postId: id,
+          postTitle: post.course || '',
+        }).catch(e => __DEV__ && console.warn('[RoundupTab] waitlist noti fail', e?.message));
+      }
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] joinWaitlist failed', e);
       setAlert({
@@ -1505,6 +1516,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     storage.save(STORAGE_KEYS.profile, result.profile);
     // Firestore write-through — users/{myUid}.blockedUids 동기화 (멀티기기 일관성)
     fsBlockUid(target.id).catch(e => __DEV__ && console.warn('[RoundupTab] fsBlockUid failed', e?.message));
+    // 일반 차단 = 일방 친구 해지 ([[friend-relationship]]) — FriendsTab 차단 경로와 일관.
+    //   friendship 삭제로 areFriends=false → DM 전송도 규칙에서 차단됨. 친구 아니었으면 no-op(멱등).
+    unfriend(target.id).catch(e => __DEV__ && console.warn('[RoundupTab] unfriend(block) failed', e?.message));
     // 차단된 사용자가 actor·author인 알림도 모두 정리 (수락 알림 등으로 다시 진입 방지).
     const targetKey = target.id;
     setNotifications(prev => prev.filter(n => {
