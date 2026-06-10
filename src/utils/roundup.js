@@ -178,17 +178,25 @@ export async function joinRoundup(postId) {
 }
 
 // 참여 취소 — participantUids에서 me 제거, joined -1
+// 트랜잭션 — 실제 참여자일 때만 차감. 가드 없이 increment(-1)만 하면 더블탭·재시도로
+//   joined가 participantUids.length보다 작아지거나 음수가 되어 정원·만석 판정이 깨진다(언더플로우 방지).
 export async function leaveRoundup(postId) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
-  // closed:false — 결원 발생 시 확정 해제 (이미 false면 diff에 안 잡혀 무해). [[roundup-penalty-policy]] §4
-  await updateDoc(ref, {
-    participantUids: arrayRemove(uid),
-    joined: increment(-1),
-    closed: false,
-    updatedAt: serverTimestamp(),
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('not-found');
+    const participants = Array.isArray(snap.data().participantUids) ? snap.data().participantUids : [];
+    if (!participants.includes(uid)) return; // 이미 빠진 상태 — 멱등(아무 변경 없이 성공)
+    // closed:false — 결원 발생 시 확정 해제 (이미 false면 diff에 안 잡혀 무해). [[roundup-penalty-policy]] §4
+    tx.update(ref, {
+      participantUids: arrayRemove(uid),
+      joined: increment(-1),
+      closed: false,
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 
@@ -316,18 +324,26 @@ export async function cancelApplication(postId) {
 }
 
 // 주최자 수락 — applications status='accepted' + roundup.participantUids 추가
-// ※ 두 단계 분리 호출 — 사이에 실패 시 정합성 깨질 수 있음.
-//   정확한 트랜잭션은 Cloud Function 권장(기존 정원 처리 주석과 일관).
+// 트랜잭션 — 신청서 accepted와 정원 +1을 원자적으로(중간 실패 시 "accepted인데 명단엔 없음" 방지).
+//   + 정원 초과 수락 차단(throw 'full'). 이미 참여자면 멱등(중복 +1 방지).
 export async function acceptApplication(postId, applicantUid) {
   if (!postId || !applicantUid) throw new Error('postId and applicantUid required');
-  await updateDoc(doc(db, APP_COLLECTION, appDocId(postId, applicantUid)), {
-    status: 'accepted',
-    updatedAt: serverTimestamp(),
-  });
-  await updateDoc(doc(db, COLLECTION, postId), {
-    participantUids: arrayUnion(applicantUid),
-    joined: increment(1),
-    updatedAt: serverTimestamp(),
+  const appRef = doc(db, APP_COLLECTION, appDocId(postId, applicantUid));
+  const postRef = doc(db, COLLECTION, postId);
+  return await runTransaction(db, async (tx) => {
+    const postSnap = await tx.get(postRef);
+    if (!postSnap.exists()) throw new Error('not-found');
+    const p = postSnap.data();
+    const participants = Array.isArray(p.participantUids) ? p.participantUids : [];
+    if (participants.includes(applicantUid)) return; // 이미 확정 — 정원 중복 증가 방지(멱등)
+    const cap = p.capacity || (p.teams > 1 ? p.teams * 4 : 4);
+    if ((p.joined || 0) >= cap) throw new Error('full'); // 정원 초과 수락 차단
+    tx.update(appRef, { status: 'accepted', updatedAt: serverTimestamp() });
+    tx.update(postRef, {
+      participantUids: arrayUnion(applicantUid),
+      joined: increment(1),
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 

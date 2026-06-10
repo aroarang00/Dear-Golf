@@ -186,15 +186,20 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
   // 옛 더미 데이터에 companions가 남아있을 수 있음(2026-05-26 폐기 전 데이터). 호환 위해 합산.
   const companionsCount = isTeam ? 0 : (post.companions?.length || 0);
-  const allFull = isTeam
-    ? post.teamJoined.every(c => c >= 4)
-    : (post.joined || 0) + companionsCount >= (post.capacity || 4);
+  // 정원 만석 판정 — 단체·개별 모두 joined 기반으로 통일(카드와 동일). teamJoined는 joinRoundup이
+  //   갱신하지 않아(joined만 +1) 단체 모집이 만석에 못 닿고 확정 버튼이 안 뜨던 버그가 있었다 ([[roundup-team-flat-roster]]).
+  const capTotal = post.capacity || (isTeam ? post.teams * 4 : 4);
+  const allFull = (post.joined || 0) + companionsCount >= capTotal;
   // 만석(allFull) 또는 주최자 확정(closed)이면 마감 — 비참여자에겐 대기신청 동선.
   //  취소 시엔 leaveRoundup이 closed:false + joined-1로 둘 다 풀어주므로 참여 버튼이 정상 복귀.
   const isClosed = post.closed || allFull;
   const respondHours = waitlistRespondHours(post.date);
   const slots = buildSlots(post, participantNames, myUid, userProfile?.nickname, friendMeta);
-  const waiters = pickNames(post.id + ':wait', post.waitlistCount || 0);
+  // 대기자 수 — 실제 대기열(waitlistUids) 기준. 옛 waitlistCount 필드는 아무도 갱신하지 않아 항상 0이었다.
+  const waitlistTotal = Array.isArray(post.waitlistUids) ? post.waitlistUids.length : (post.waitlistCount || 0);
+  // 본인은 아래 'me' 행으로 따로 표시하므로, 익명 행은 본인 제외 수만큼만 생성(중복 카운트 방지).
+  const othersWaiting = Math.max(0, waitlistTotal - (waitlistNum ? 1 : 0));
+  const waiters = pickNames(post.id + ':wait', othersWaiting);
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
@@ -506,7 +511,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
           style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>
-            대기 신청{post.waitlistCount > 0 ? ` (현재 ${post.waitlistCount}명 대기)` : ''}
+            대기 신청{waitlistTotal > 0 ? ` (현재 ${waitlistTotal}명 대기)` : ''}
           </Text>
         </TouchableOpacity>
         <Text style={hintStyle}>
@@ -703,7 +708,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             </View>
 
             {/* 대기자 */}
-            {(post.waitlistCount > 0 || waitlistNum) && (
+            {(waitlistTotal > 0 || waitlistNum) && (
               <>
                 <Text style={sectionLabel}>대기자</Text>
                 <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,

@@ -721,9 +721,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       if (schedules.some(s => s.roundupId === p.id)) continue;
       if (autoSchedRef.current.has(p.id)) continue; // 경합 가드 — schedules 상태 갱신 전 재실행돼도 중복 생성 차단
       autoSchedRef.current.add(p.id);
-      const members = p.teams > 1
-        ? (p.teamJoined?.reduce((s, c) => s + c, 0) || 0)
-        : (p.joined || 0) + compCount;
+      // 단체·개별 모두 joined 기반(teamJoined는 갱신되지 않아 신뢰 불가). compCount는 단체에선 0.
+      const members = (p.joined || 0) + compCount;
       // 동반자 — 같은 모집의 다른 사람들(호스트 + 다른 확정 참여자 + 호스트가 적은 비앱 동반자).
       //   공유 모집글(participantUids)을 읽어 '내 일정'에만 채움(전파 X) → 각자 실행돼 모두가 서로를 동반자로 봄. ([[companion-design]] Phase A)
       //   이름은 best-effort(participantNames→친구목록→폴백), friendUid로 안정 연결.
@@ -1407,7 +1406,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       await acceptApplication(n.postId, applicantUid);
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] acceptApplication failed', e);
-      setAlert({ title: '수락 처리에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+      setAlert(e?.message === 'full'
+        ? { title: '정원이 가득 찼어요', message: '이미 정원이 다 차서 수락할 수 없어요.', buttons: [{ text: '확인' }] }
+        : { title: '수락 처리에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
       return;
     }
     // 신청자에게 확정 알림

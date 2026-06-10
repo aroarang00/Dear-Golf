@@ -129,9 +129,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
   // 오픈형 친구지정 모집이 만석이면, 수정은 '확정형으로 전환'만 허용 (오픈형 잠금) — 일정 확정 동선
   const isEdit = !!initialPost;
-  const editFull = isEdit && ((initialPost.teams || 1) > 1
-    ? (Array.isArray(initialPost.teamJoined) && initialPost.teamJoined.every(c => c >= 4))
-    : (initialPost.joined || 0) >= (initialPost.capacity || 4));
+  // 만석 판정 — joined 기반 통일. teamJoined는 joinRoundup이 갱신 안 해 단체 모집이 만석에 못 닿던 버그 ([[roundup-team-flat-roster]]).
+  const editCapTotal = ((initialPost?.teams || 1) > 1) ? ((initialPost?.teams || 0) * 4) : 4;
+  const editFull = isEdit && (initialPost.joined || 0) >= ((initialPost.capacity) || editCapTotal);
   const lockToFixed = isEdit && initialPost.scope === 'select' && initialPost.type === 'open' && editFull;
 
   // 수정 모드 — initialPost로 모든 state prefill

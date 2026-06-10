@@ -41,19 +41,14 @@ async function createSystemNotification({ recipientUid, type, postId, postTitle 
   }
 }
 
-// 정원 만석 판정
+// 정원 만석 판정 — 단체·개별 모두 joined 기반. teamJoined는 joinRoundup이 갱신하지 않아 신뢰 불가.
 function isFull(p) {
-  if (p.teams > 1 && Array.isArray(p.teamJoined)) {
-    return p.teamJoined.every(c => c >= 4);
-  }
-  return (p.joined || 0) >= (p.capacity || 4);
+  const cap = p.capacity || (p.teams > 1 ? p.teams * 4 : 4);
+  return (p.joined || 0) >= cap;
 }
 
-// 자리 차감 (참여자 또는 대기자 줄어듦)
+// 자리 차감 감지용 총원 — joined 기반 통일(단체 모집에서 자리열림이 안 잡히던 버그 수정).
 function totalCount(p) {
-  if (p.teams > 1 && Array.isArray(p.teamJoined)) {
-    return p.teamJoined.reduce((s, c) => s + c, 0);
-  }
   return p.joined || 0;
 }
 
@@ -81,6 +76,24 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
   //  정책: "만석 자체는 자동 확정 X" (2026-05-28) — 만석이어도 주최자가 명시적으로 "모집 확정하기"를 눌러야 closed.
   //  특히 오픈형(날짜 미정)은 자동 확정되면 안 됨(일정 미정인데 확정·수정잠김 발생). 클라가 allFull→확정버튼으로 처리.
   //  isFull은 (B)/기타에서 미사용이면 추후 정리 가능.
+
+  // (B0) 호출된 대기자가 참여 확정되면 정리 — calledWaitlistUid 비우고 waitlistUids에서 제거.
+  //   안 그러면 같은 사람이 '참여자+대기자'로 중복 잔존하고, calledWaitlistUid가 남아 다음 자리열림
+  //   호출이 (B) 가드(!calledWaitlistUid)에 막혀 최대 12h(cutoff tick) 지연된다.
+  //   클라(참여자)는 보안규칙상 calledWaitlistUid를 못 지우므로 서버에서 처리(멱등).
+  const calledUid = after.calledWaitlistUid;
+  if (calledUid && Array.isArray(after.participantUids) && after.participantUids.includes(calledUid)) {
+    try {
+      await ref.update({
+        calledWaitlistUid: FieldValue.delete(),
+        calledAt: FieldValue.delete(),
+        waitlistUids: FieldValue.arrayRemove(calledUid),
+      });
+    } catch (e) {
+      logger.warn('[roundup] called-waitlist cleanup fail', e?.message);
+    }
+    return; // 자리 채워짐(열림 아님) — 이 이벤트는 정리 전용
+  }
 
   // (B) 자리 열림 — 참여자 줄어들고 대기자 있으면 1번에게 호출
   const totalBefore = totalCount(before);
