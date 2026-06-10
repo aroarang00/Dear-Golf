@@ -510,6 +510,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     setDetailId(pid);
     navigation?.setParams?.({ openPostId: undefined });
   }, [route?.params?.openPostId]);
+  // 친구지정 초대(invite) 푸시 탭 — '내 참여(mine)' view로 전환해 초대장 카드를 보게 한다 ([[roundup-invitation]]).
+  //   초대장은 view==='mine' 게이트로만 렌더되고 mineTab이 초대 수신글을 포함하므로 view만 바꾸면 노출된다.
+  useEffect(() => {
+    const v = route?.params?.openView;
+    if (!v) return;
+    setView(v);
+    navigation?.setParams?.({ openView: undefined });
+  }, [route?.params?.openView]);
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
   const [notifications, setNotifications] = useState([]);
   const [showNoti, setShowNoti] = useState(false);            // 알림함

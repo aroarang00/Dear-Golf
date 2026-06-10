@@ -337,7 +337,10 @@ function App() {
       const type = data.type;
       try {
         if (!type) { navigationRef.navigate(ROUTES.HOME); return; }
-        if (type === 'friendRequest' || type === 'invite') { navigationRef.navigate(ROUTES.FRIENDS); return; }
+        if (type === 'friendRequest') { navigationRef.navigate(ROUTES.FRIENDS); return; }
+        // 라운지 친구지정 초대(invite) — 초대장 카드는 라운지 '내 참여(mine)' view에만 렌더되므로
+        //   (RoundupTab의 InvitationCard/Ticket, view==='mine' 게이트) 그 view로 열어준다 ([[roundup-invitation]]).
+        if (type === 'invite') { navigationRef.navigate(ROUTES.LOUNGE, { openView: 'mine' }); return; }
         const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
         navigationRef.navigate(ROUTES.LOUNGE, openPostId ? { openPostId } : undefined);
       } catch (e) { /* 네비게이션 미준비 */ }
