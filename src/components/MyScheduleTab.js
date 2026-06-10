@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Share, Platform } from 'react-native';
 
 const _and = Platform.OS === 'android';
@@ -21,6 +21,7 @@ import { getCalendarChoice } from '../utils/deviceCalendar';
 import { roundsOnly } from '../utils/diaryKind';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { CourseLogModal } from './CourseLogModal';
+import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 
 const DAYS = WEEKDAYS;
 
@@ -58,6 +59,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
   const [showCourseLog, setShowCourseLog] = useState(false);
+  // 내가 지정한 친구 별명(customName) — 동반자 이름 '표시'에만 resolve. 저장된 일정 데이터(companions.name)는
+  //   닉네임 그대로(전파·공유는 닉네임, owner-only 표시만 별명) ([[friend_groups]], [[diary-companion-matching]])
+  const [friendMeta, setFriendMeta] = useState({});
+  useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
 
   // B안 — 그리드 셀 탭 시 monthItems 카드로 스크롤 + 일시 하이라이트
   // ([[home-multi-schedule-same-day]] 일정-다이어리 풀 진입 제거, 캘린더 안에서 정보 확인 완결)
@@ -652,7 +657,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                       </Text>
                       {Array.isArray(s.companions) && s.companions.length > 0 && (
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
-                          👥 {formatNameList(s.companions.map(c => (typeof c === 'string' ? c : c?.name)), { sep: ', ' })}
+                          👥 {formatNameList(s.companions.map(c => (typeof c === 'string' ? c : friendDisplayName(friendMeta, c?.friendUid, c?.name))), { sep: ', ' })}
                         </Text>
                       )}
                     </View>

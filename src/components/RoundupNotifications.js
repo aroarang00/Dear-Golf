@@ -10,6 +10,7 @@ import { UserContext } from '../contexts/UserContext';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { OverlayAlert } from './common/OverlayAlert';
+import { friendDisplayName } from '../utils/friendGroups';
 
 // 라운지 알림 토글 — ON/OFF. 댓글 알림은 미발송(생성 안 함)이라 토글에서 제외 (켜도 안 와 혼란 방지).
 const ROUNDUP_NOTI_TYPES = [
@@ -56,9 +57,10 @@ function notiTime(n) {
   return `${d.getMonth() + 1}.${d.getDate()}`;
 }
 
-function notiText(n) {
-  // actor 표시 이름 — Firestore 저장 키는 actorName(과거 더미는 actor). 폴백 통일.
-  const who = n.actorName || n.actor || '동반자';
+function notiText(n, friendMeta) {
+  // actor 표시 이름 — 내가 지정한 별명(customName) 우선, 없으면 닉네임(actorName, 과거 더미는 actor).
+  //   별명은 owner-only 표시 resolve일 뿐, 알림 데이터(actorName)·서버 푸시는 닉네임 그대로 ([[friend_groups]])
+  const who = friendDisplayName(friendMeta, n.actorUid, n.actorName || n.actor || '동반자');
   switch (n.type) {
     case 'apply':
       if (n.status === 'accepted') return `${who}님의 참여 신청을 수락했어요`;
@@ -74,7 +76,7 @@ function notiText(n) {
     case 'confirmed': return `${who}님이 '${n.postTitle}' 모집에 참여했어요`;
     case 'invite': {
       // 오픈형은 코스 미정이라 postTitle 비거나 '라운딩 초대' 폴백 → 코스명 있을 때만 표기
-      const inviter = n.actorName || n.actor || '친구';
+      const inviter = friendDisplayName(friendMeta, n.actorUid, n.actorName || n.actor || '친구');
       const place = n.postTitle && n.postTitle !== '라운딩 초대' ? `'${n.postTitle}' ` : '';
       return `${inviter}님이 ${place}라운딩에 초대했어요`;
     }
@@ -140,7 +142,7 @@ function notiText(n) {
 }
 
 // 알림함 — 내 모집글 알림 + 내가 참여·대기한 모집 알림. 참여 신청은 수락/거절 가능.
-export function RoundupNotifications({ visible, notifications = [], onClose, onOpenPost, onReadAll, onAccept, onReject, onGradePress, onDelete, onClearAll }) {
+export function RoundupNotifications({ visible, notifications = [], friendMeta = {}, onClose, onOpenPost, onReadAll, onAccept, onReject, onGradePress, onDelete, onClearAll }) {
   const { userProfile, setUserProfile } = useContext(UserContext);
   const insets = useSafeAreaInsets();   // 안드 내비바 인셋 — 알림 설정 시트 하단 잘림 방지
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -291,14 +293,14 @@ export function RoundupNotifications({ visible, notifications = [], onClose, onO
                         {n.type === 'friendRequest' ? '친구' : (isHost ? '내 모집글' : '내 참여·대기')}
                       </Text>
                       <Text style={{ fontFamily: n.read ? F.sys : F.sysSb, fontSize: fs(13), color: C.charcoal, lineHeight: 18 }}>
-                        {notiText(n)}
+                        {notiText(n, friendMeta)}
                       </Text>
                       {/* 신청자 신뢰도 — 주최자 승인 판단 참고용. 친구모집(전체공개 OFF)에선 무의미해 숨김 */}
                       {ROUNDUP_PUBLIC_ENABLED && showActorGrade && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6,
                           paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: C.bgPrimary,
                           borderWidth: 0.5, borderColor: C.hairline, alignSelf: 'flex-start' }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{n.actorName}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{friendDisplayName(friendMeta, n.actorUid, n.actorName)}</Text>
                           <TrustBadge grade={actorGrade} onPress={() => onGradePress?.(actorGrade.key)} />
                           <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>
                             주최 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{n.actorHostedCount || 0}</Text>회 ·

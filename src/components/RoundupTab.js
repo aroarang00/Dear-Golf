@@ -1941,6 +1941,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
           <RoundupNotifications
             visible={showNoti}
             notifications={notifications}
+            friendMeta={friendMeta}
             onClose={() => setShowNoti(false)}
             onOpenPost={openNotiPost}
             onReadAll={readAllNoti}
