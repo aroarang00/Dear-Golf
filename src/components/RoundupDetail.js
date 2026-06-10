@@ -197,9 +197,8 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const slots = buildSlots(post, participantNames, myUid, userProfile?.nickname, friendMeta);
   // 대기자 수 — 실제 대기열(waitlistUids) 기준. 옛 waitlistCount 필드는 아무도 갱신하지 않아 항상 0이었다.
   const waitlistTotal = Array.isArray(post.waitlistUids) ? post.waitlistUids.length : (post.waitlistCount || 0);
-  // 본인은 아래 'me' 행으로 따로 표시하므로, 익명 행은 본인 제외 수만큼만 생성(중복 카운트 방지).
+  // 본인 외 다른 대기자 — 개별 명단/이름으로 노출하지 않고 요약 한 줄로만 표시(가짜 이름·타인 신원 노출 방지).
   const othersWaiting = Math.max(0, waitlistTotal - (waitlistNum ? 1 : 0));
-  const waiters = pickNames(post.id + ':wait', othersWaiting);
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
@@ -276,14 +275,27 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     });
   };
   // 모집 확정 — 만석 상태에서 주최자가 명시적으로 closed:true. 매너 -5 분기점 ([[roundup-penalty-policy]] §1)
-  const confirmFinalize = () => setAlert({
-    title: '모집을 확정할까요?',
-    message: '확정하면 동반자와 본인 일정에\n이 라운딩이 자동 등록돼요.\n\n확정 후엔 수정할 수 없어요.\n바꾸려면 삭제 후 다시 모집해주세요.',
-    buttons: [
-      { text: '취소', style: 'cancel' },
-      { text: '모집 확정', onPress: onConfirm },
-    ],
-  });
+  // ★확정 후엔 수정 불가(삭제 후 재모집뿐)이라, 잠길 코스·날짜·시간을 눈으로 확인시키고 오타·시간 오기재를
+  //   지금 고치도록 강하게 안내. 단체는 삭제 시 동반자 전원에게 취소 알림이 가 부담이 더 큼.
+  const confirmFinalize = () => {
+    const others = (Array.isArray(post.participantUids) ? post.participantUids : [])
+      .filter(u => u && u !== myUid).length;
+    const dateLine = `🗓️ ${post.date}${post.day ? ` (${post.day})` : ''} · ${post.time}`;
+    setAlert({
+      title: '이대로 확정할까요?',
+      message:
+        '확정하면 코스·날짜·시간을 더는 수정할 수 없어요.\n아래 내용이 맞는지 꼭 확인해 주세요.\n\n' +
+        `📍 ${post.course}\n${dateLine}\n\n` +
+        '잘못 적었다면 지금 닫고\n‘모집글 수정’에서 고쳐주세요.\n\n' +
+        (others > 0
+          ? `확정 뒤 바꾸려면 모집을 삭제하고\n다시 만들어야 해서, 동반자 ${others}명에게\n취소 알림이 가요.`
+          : '확정 뒤 바꾸려면 모집을 삭제하고\n다시 만들어야 해요.'),
+      buttons: [
+        { text: '다시 확인', style: 'cancel' },
+        { text: '확정', onPress: onConfirm },
+      ],
+    });
+  };
   // 신청 취소 — 아직 미확정(수락 대기)이라 자유 취소, 매너/패널티 영향 없음
   const confirmCancelApplication = () => setAlert({
     title: '신청을 취소할까요?',
@@ -707,14 +719,22 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               })}
             </View>
 
-            {/* 대기자 */}
+            {/* 대기자 — 개별 명단은 노출하지 않고 '내 자리 + 요약 한 줄'만(타인 신원·가짜 이름 노출 방지) */}
             {(waitlistTotal > 0 || waitlistNum) && (
               <>
                 <Text style={sectionLabel}>대기자</Text>
                 <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
                   borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
-                  {waiters.map((nm, i) => <WaitRow key={i} num={i + 1} name={nm} />)}
                   {waitlistNum ? <WaitRow num={waitlistNum} name={userProfile?.nickname || '나'} me /> : null}
+                  {othersWaiting > 0 ? (
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray,
+                      marginTop: waitlistNum ? (_and ? 6 : 8) : 0,
+                      textAlign: waitlistNum ? 'left' : 'center' }}>
+                      {waitlistNum
+                        ? `나 외 ${othersWaiting}명이 함께 대기하고 있어요`
+                        : `현재 ${othersWaiting}명이 대기하고 있어요`}
+                    </Text>
+                  ) : null}
                 </View>
               </>
             )}
