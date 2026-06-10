@@ -83,6 +83,35 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
   await sendExpoPush(token, title, body, { type, postId: data.postId, notiId: event.params.notiId });
 });
 
+// DM 메시지 생성 시 상대에게 푸시 — 마이페이지 'DM 알림' 토글(settings.notifyPrefs.dm) 기본 ON, false면 차단.
+//   친구 1:1이라 수신자=상대 1명. 인앱 알림함(roundupNotifications)은 안 거치고 푸시만 보냄(알림함 오염 방지).
+//   안 읽음·대화방별 음소거는 출시 후([[dm-design]]). 수신자가 방을 열어둔 경우의 중복은 감수(presence 미구현).
+exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/{msgId}', async (event) => {
+  const msg = event.data?.data();
+  if (!msg || !msg.senderUid || !msg.body) return;
+  const senderUid = msg.senderUid;
+  try {
+    const convSnap = await db.doc(`conversations/${event.params.pairId}`).get();
+    const participants = convSnap.exists ? (convSnap.data().participantUids || []) : [];
+    const recipientUid = participants.find(u => u && u !== senderUid);
+    if (!recipientUid) return;
+    const [rSnap, sSnap] = await Promise.all([
+      db.doc(`users/${recipientUid}`).get(),
+      db.doc(`users/${senderUid}`).get(),
+    ]);
+    if (!rSnap.exists) return;
+    const r = rSnap.data();
+    if (r.settings?.notifyPrefs?.dm === false) return;   // 마이페이지에서 DM 알림 OFF
+    const token = r.pushToken;
+    if (!token) return;
+    const senderName = (sSnap.exists && sSnap.data().nickname) ? sSnap.data().nickname : '친구';
+    const preview = msg.body.length > 80 ? `${msg.body.slice(0, 80)}…` : msg.body;
+    await sendExpoPush(token, senderName, preview, { type: 'dm', pairId: event.params.pairId, senderUid });
+  } catch (e) {
+    logger.warn('[dm] push fail', e?.message);
+  }
+});
+
 // 푸시 제목·본문 — 인앱 알림함(RoundupNotifications.js notiText)과 타입·톤 일치.
 // 누락 타입은 default로 빠지므로, 새 알림 타입 추가 시 양쪽 모두 갱신할 것.
 function titleFor(type) {

@@ -551,6 +551,7 @@ export function MyPageModal({ visible, onClose }) {
                     홈 라운딩 종료 카드의 "기록 남기기 →" 버튼이 자연스러운 유도 경로 ([[softer-tone-guideline]]). */}
                 {[
                   { key: 'friendRequest', icon: '🤝', label: '친구 신청', sub: '친구 신청을 받으면 알려드려요' },
+                  { key: 'dm', icon: '💬', label: '메시지 (DM)', sub: '친구가 보낸 메시지를 알려드려요' },
                   // 라운딩 평가 요청 토글 제거 — 전체공개 비활성으로 매너 평가 시스템 휴면 ([[project_roundup_public_disabled]])
                 ].map((item, i, arr) => {
                   const prefs = userProfile.notifyPrefs || {};
