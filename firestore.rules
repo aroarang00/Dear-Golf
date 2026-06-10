@@ -456,6 +456,44 @@ service cloud.firestore {
       allow write: if false;     // 콘솔/관리자 스크립트로만 수정
     }
 
+    // ===== conversations — 친구 1:1 DM ([[dm-design]]) =====
+    //   convId = pairId(두 uid). 양쪽 참여자만 read/write. 메시지는 messages 서브컬렉션.
+    //   새 방·메시지 생성 시 areFriends 강제(낯선 사람 DM 차단). 기존 대화 read는 멤버십만(끊겨도 열람).
+    match /conversations/{convId} {
+      // 새 문서 기준 상대 uid (participantUids는 정렬된 2개)
+      function otherUidNew() {
+        return request.resource.data.participantUids[0] == request.auth.uid
+          ? request.resource.data.participantUids[1]
+          : request.resource.data.participantUids[0];
+      }
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participantUids;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.participantUids
+        && request.resource.data.participantUids.size() == 2
+        && convId == pairId(request.resource.data.participantUids[0], request.resource.data.participantUids[1])
+        && areFriends(request.auth.uid, otherUidNew());
+      // 메타 갱신만 — 참여자 변경·방 삭제 불가
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.participantUids
+        && changedKeysWithin(['lastMessage', 'lastSenderUid', 'lastAt', 'updatedAt']);
+      allow delete: if false;
+
+      match /messages/{msgId} {
+        function members() {
+          return get(/databases/$(database)/documents/conversations/$(convId)).data.participantUids;
+        }
+        allow read: if isSignedIn() && request.auth.uid in members();
+        allow create: if isSignedIn()
+          && request.resource.data.senderUid == request.auth.uid
+          && request.auth.uid in members()
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 2000;
+        allow update: if false;            // 메시지 수정 불가
+        allow delete: if isSignedIn() && resource.data.senderUid == request.auth.uid;  // 본인 메시지만
+      }
+    }
+
     // 위에 없는 모든 컬렉션은 기본 거부됨 (schedules·userCourses 등은 현재 로컬 보관)
   }
 }
