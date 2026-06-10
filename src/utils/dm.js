@@ -1,0 +1,109 @@
+// 친구 1:1 DM(다이렉트 메시지) 데이터 레이어 ([[dm-design]]).
+//   conversations/{pairId} (메타) + conversations/{pairId}/messages/{msgId} (메시지).
+//   pairId = 두 uid 정렬 조합 → 한 쌍당 방 하나(멱등). 친구끼리만, 낯선 사람 DM 없음.
+//   비용 통제([[lounge-realtime]]): 1:1이라 관망자=2명, 대화방/목록 열린 동안만 onSnapshot 구독.
+//   안 읽음·타이핑은 출시 후(비용 큰 실시간 상태) — 본체는 텍스트 송수신만.
+import {
+  collection, query, where, orderBy, limit as fsLimit, getDocs, getDoc,
+  addDoc, setDoc, updateDoc, doc, serverTimestamp, onSnapshot,
+} from 'firebase/firestore';
+import { db, getUid } from './firebase';
+
+const CONV = 'conversations';
+
+// 두 uid → 결정적 방 id(정렬 조합). a·b 순서 무관하게 같은 방 ([[data-integrity-principles]] 멱등).
+export function pairId(a, b) {
+  return [a, b].sort().join('_');
+}
+
+// 내 uid 기준 상대 uid 추출 — conversation.participantUids[2]에서 나 아닌 쪽.
+export function otherUidOf(conv, myUid) {
+  const uids = Array.isArray(conv?.participantUids) ? conv.participantUids : [];
+  return uids.find(u => u && u !== myUid) || null;
+}
+
+// 대화방 보장 — 없으면 메타 문서 생성, 있으면 그대로. 첫 진입 시 호출(메시지 0건이라도 방은 존재).
+export async function ensureConversation(friendUid) {
+  const uid = await getUid();
+  if (!uid || !friendUid) throw new Error('dm: uid required');
+  const id = pairId(uid, friendUid);
+  const ref = doc(db, CONV, id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      participantUids: [uid, friendUid].sort(),
+      lastMessage: '',
+      lastSenderUid: null,
+      lastAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+  return id;
+}
+
+// 메시지 전송 — messages에 1건 추가 + 대화방 메타(lastMessage·lastAt) 갱신.
+//   방이 없으면 함께 생성(merge). 빈 문자열은 무시. body는 트림 후 저장.
+export async function sendMessage(friendUid, text) {
+  const uid = await getUid();
+  if (!uid || !friendUid) throw new Error('dm: uid required');
+  const body = (text || '').trim();
+  if (!body) return null;
+  const id = pairId(uid, friendUid);
+  const ref = doc(db, CONV, id);
+  await setDoc(ref, {
+    participantUids: [uid, friendUid].sort(),
+    lastMessage: body,
+    lastSenderUid: uid,
+    lastAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+  const msgRef = await addDoc(collection(db, CONV, id, 'messages'), {
+    senderUid: uid,
+    body,
+    createdAt: serverTimestamp(),
+  });
+  return msgRef.id;
+}
+
+// 대화방 메시지 실시간 구독 — 최근 limitN개. 대화방 열린 동안만(닫을 때 반환된 unsub 호출해 비용 차단).
+//   createdAt desc로 받아 화면용으로 오래된→최신 순서로 뒤집어 전달.
+export function subscribeMessages(convId, cb, limitN = 40) {
+  if (!convId) return () => {};
+  const q = query(
+    collection(db, CONV, convId, 'messages'),
+    orderBy('createdAt', 'desc'),
+    fsLimit(limitN),
+  );
+  return onSnapshot(q, (snap) => {
+    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    msgs.reverse();
+    cb(msgs);
+  }, (err) => { if (__DEV__) console.warn('[dm] messages snapshot', err?.message); });
+}
+
+// 내 대화방 목록 1회 로드 — 참여 중 conversations, 최근 활동(lastAt)순. 빈 방(메시지 없음) 제외.
+export async function loadMyConversations() {
+  const uid = await getUid();
+  if (!uid) return [];
+  const q = query(
+    collection(db, CONV),
+    where('participantUids', 'array-contains', uid),
+    orderBy('lastAt', 'desc'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.lastMessage);
+}
+
+// 내 대화방 목록 실시간 구독 — 목록 화면 열린 동안만. uid는 호출부에서(getUid는 async).
+export function subscribeConversations(uid, cb) {
+  if (!uid) return () => {};
+  const q = query(
+    collection(db, CONV),
+    where('participantUids', 'array-contains', uid),
+    orderBy('lastAt', 'desc'),
+  );
+  return onSnapshot(q, (snap) => {
+    cb(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.lastMessage));
+  }, (err) => { if (__DEV__) console.warn('[dm] conversations snapshot', err?.message); });
+}
