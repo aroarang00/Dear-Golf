@@ -842,7 +842,19 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     : view === 'watch' ? watchTab : view === 'match' ? matchTab : allTab;
   // Firestore createdAt(Timestamp) 우선, 더미 호환 위해 ts fallback
   const tsOf = (p) => (p.createdAt?.toMillis?.() ?? p.ts ?? 0);
-  const list = [...tabList].sort((a, b) => tsOf(b) - tsOf(a));
+  // '내 참여' 뷰에서 아직 응답 안 한 친구지정 초대장은 항상 맨 위로 고정 — 사적 초대라 놓치지 않게 ([[roundup-invitation]]).
+  //   showInvite(렌더 분기)와 동일 조건. 수락(joined)·신청(applied)하면 false가 돼 일반 최신순으로 내려감(노이즈 X).
+  const isPendingInvite = (p) =>
+    view === 'mine' && p.scope === 'select' && p.selectMode === 'include'
+    && !joined[p.id] && !applied[p.id]
+    && !(!!myUid && p.authorUid === myUid)
+    && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
+  const list = [...tabList].sort((a, b) => {
+    const ia = isPendingInvite(a) ? 1 : 0;
+    const ib = isPendingInvite(b) ? 1 : 0;
+    if (ia !== ib) return ib - ia;     // 초대장 먼저
+    return tsOf(b) - tsOf(a);          // 그 안에서 최신순
+  });
   // 소도시 예외 — 전체/친구 탭에서 보이는 모집글이 3개 이하면 조건 완화 안내
   const showSparseHint = (view === 'all' || view === 'friend') && list.length > 0 && list.length <= 3;
 
