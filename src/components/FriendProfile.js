@@ -15,6 +15,7 @@ import { PhotoViewer } from './common/PhotoViewer';
 import { getUid } from '../utils/firebase';
 import { createContentReport } from '../utils/contentReports';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { DMChatScreen } from './DMChatScreen';
 import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { loadFriendData } from '../utils/friendGroups';
 
@@ -26,7 +27,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [mannerOpen, setMannerOpen] = useState(false);
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);   // 헤더 ⋯ 옵션
-  const [msgNoticeOpen, setMsgNoticeOpen] = useState(false); // 메시지(DM) 준비중 안내 — 본체 출시 직후([[dm-design]])
+  const [dmOpen, setDmOpen] = useState(false); // 메시지(DM) 대화방 — Modal 위 Modal freeze 회피 위해 자체 오버레이([[dm-design]])
   const [myUid, setMyUid] = useState(null);                // 좋아요 내 상태 판정용
   const [viewer, setViewer] = useState(null);              // { photos, index } — 사진/영상 전체화면
   const [reportItem, setReportItem] = useState(null);      // 피드 게시물 신고 — 사유 선택 시트 ([[content-report-policy]])
@@ -37,7 +38,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [groupManageOpen, setGroupManageOpen] = useState(false); // 그룹 관리 모달 — 시트에서 진입(B안) ([[friend_groups]])
   const [localGroups, setLocalGroups] = useState(null);    // 그룹 관리 후 갱신본 — prop보다 우선(부모 재로드 없이 칩 반영)
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
-  useAndroidBack(msgNoticeOpen, () => setMsgNoticeOpen(false)); // 메시지 준비중 안내 뒤로가기 → 닫기
+  useAndroidBack(dmOpen, () => setDmOpen(false)); // 메시지 대화방 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(!!reportItem, () => setReportItem(null)); // 신고 시트 뒤로가기 → 닫기
   useAndroidBack(!!reportMsg, () => setReportMsg(null));   // 신고 결과 뒤로가기 → 닫기
@@ -113,8 +114,8 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
             </TouchableOpacity>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>친구 프로필</Text>
             <View style={{ flex: 1 }} />
-            {/* 메시지(DM) — 헤더 우측. 본체는 출시 직후([[dm-design]]), 지금은 준비 중 안내(창 비활성) */}
-            <TouchableOpacity onPress={() => setMsgNoticeOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+            {/* 메시지(DM) — 헤더 우측. 대화방을 자체 오버레이로 연다([[dm-design]]) */}
+            <TouchableOpacity onPress={() => setDmOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 10 }}>
               <Text style={{ fontSize: fs(28) }}>💬</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>메시지</Text>
@@ -254,21 +255,15 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
             </TouchableOpacity>
           )}
 
-          {/* 메시지(DM) 준비중 안내 — 자체 오버레이(Modal 위 Modal 충돌 회피). 본체는 출시 직후([[dm-design]]) */}
-          {msgNoticeOpen && (
-            <TouchableOpacity activeOpacity={1} onPress={() => setMsgNoticeOpen(false)}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-              <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingVertical: 24, paddingHorizontal: 26, alignItems: 'center', maxWidth: 320 }}>
-                <Text style={{ fontSize: fs(30) }}>💬</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginTop: 8 }}>준비 중이에요</Text>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>메시지 기능은{'\n'}곧 찾아올게요</Text>
-                <TouchableOpacity activeOpacity={0.7} onPress={() => setMsgNoticeOpen(false)}
-                  style={{ marginTop: 16, backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 22, paddingVertical: 10 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>확인</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+          {/* 메시지(DM) 대화방 — 자체 absolute 오버레이(Modal 위 Modal freeze 회피, [[modal-navigation-pattern]]). 풀스크린·실시간([[dm-design]]) */}
+          {dmOpen && friend?.id && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bgPrimary, zIndex: 20 }}>
+              <DMChatScreen
+                friendUid={friend.id}
+                friendName={(friend.customName || '').trim() || friend.name || '친구'}
+                onClose={() => setDmOpen(false)}
+              />
+            </View>
           )}
 
           {/* 게시물 신고 — 사유 선택 시트(카드 길게 누르기 → onReport). Modal 위 Modal 충돌 회피 위해 자체 오버레이. */}
