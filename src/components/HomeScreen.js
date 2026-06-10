@@ -26,6 +26,7 @@ import { AlarmSetupModal } from './AlarmSetupModal';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
+import { loadFriendData } from '../utils/friendGroups';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,6 +40,9 @@ export function HomeScreen({ navigation, route }) {
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  // 동반자 별명(customName) 해석용 owner-only 메타 — 일정 시트에서 별명 표시 ([[friend_groups]])
+  const [friendMeta, setFriendMeta] = useState({});
+  useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
   const [showHomeIntro, setShowHomeIntro] = useState(false);   // Dear Golf 이용 안내 모달
   const [homeIntroSeen, setHomeIntroSeen] = useState(true);    // 초기 true(뱃지 X), AsyncStorage 로드 후 갱신
   const [showWeatherFull, setShowWeatherFull] = useState(false);
@@ -757,6 +761,7 @@ export function HomeScreen({ navigation, route }) {
 
       <ScheduleSheetModal
         visible={showScheduleModal}
+        friendMeta={friendMeta}
         schedule={selectedSchedule}
         onClose={() => setShowScheduleModal(false)}
         courseNavigable={canOpenCourse(selectedSchedule)}

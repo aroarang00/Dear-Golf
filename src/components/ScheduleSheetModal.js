@@ -4,8 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
 import { TripleStripe } from './common/TripleStripe';
+import { friendDisplayName } from '../utils/friendGroups';
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete, courseNavigable }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -39,9 +40,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     ? courseNavigable
     : !!(schedule.courseLogId || schedule.courseId);
 
-  // 동반자 닉네임 한 줄 (모집확정·수동입력 일정 공통, 본명 아님)
+  // 동반자 닉네임 한 줄 (모집확정·수동입력 일정 공통, 본명 아님).
+  //   내가 정한 별명(customName) 우선 — friendUid로 resolve (MyScheduleTab 리스트와 동일). friendMeta 없으면 닉네임 폴백 ([[friend_groups]])
   const companionNames = (schedule.companions || [])
-    .map(c => (typeof c === 'string' ? c : c?.name))
+    .map(c => (typeof c === 'string' ? c : friendDisplayName(friendMeta, c?.friendUid, c?.name)))
     .filter(Boolean);
 
   return (

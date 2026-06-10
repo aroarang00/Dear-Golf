@@ -738,6 +738,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       {/* 일정 바텀시트 — 코스정보 · 날씨 · 교통 · 공유 · 수정 · 삭제 (홈 화면과 동일) */}
       <ScheduleSheetModal
         visible={sheet.visible}
+        friendMeta={friendMeta}
         schedule={sheet.schedule ? { ...sheet.schedule, dDay: computeDDay(sheet.schedule) } : null}
         onClose={() => setSheet(prev => ({ ...prev, visible: false }))}
         onCourseTap={handleSheetCourse}
