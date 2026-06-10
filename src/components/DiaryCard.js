@@ -46,9 +46,9 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
 
   // owner-only 그룹/공개범위 색라벨 — 내 카드에서만(친구 카드엔 숨김). group=색점+그룹명, private=🔒, 친구전체=없음 ([[friend_groups]])
   const ownerLabelData = (!isFriend && friendGroups) ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds) : null;
-  // 인라인(글만 카드 본문 아래) — 그룹 색점 다 + 컴팩트 텍스트("가까운친구 외 N")
-  const ownerLabel = ownerLabelData ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+  // 공개범위 색라벨 — 무사진 카드 날짜 줄 오른쪽 끝(우상단)에 인라인. 사진 카드의 코너칩(ownerChip)과 같은 시각 위치로 통일 ([[friend_groups]])
+  const ownerLabelTopRight = ownerLabelData ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       {ownerLabelData.groups && ownerLabelData.groups.length
         ? ownerLabelData.groups.map((g, gi) => <View key={gi} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)
         : (ownerLabelData.icon ? <Text style={{ fontSize: fs(9) }}>{ownerLabelData.icon}</Text> : null)}
@@ -132,7 +132,11 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   // ── MY 상세 본문 (태그 포함, 풍부) ──
   const body = (
     <View style={dS.cardBody}>
-      <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+      {/* 날짜 줄 — 무사진 카드는 공개범위 라벨을 우측 끝(우상단)에 둬 사진 카드 코너칩과 위치 통일 ([[friend_groups]]) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+        {!hasPhoto ? ownerLabelTopRight : null}
+      </View>
       {/* 구장명 줄 — 스코어가 아래 별도 줄이라 비는 우측 끝에 좋아요 배치 */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { flex: 1 }]} numberOfLines={1}>{item.course}</Text>
@@ -157,8 +161,6 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           </View>
         </ScrollView>
       )}
-      {/* 공개범위 라벨 — 글만 카드는 본문 아래 인라인. 사진 카드는 코너 칩(ownerChip)이 대신 ([[friend_groups]] A안) */}
-      {!hasPhoto && ownerLabel}
     </View>
   );
 
@@ -294,8 +296,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     const textBody = (
       <View style={dS.cardBody}>
         <ExpandableMemo text={item.memo} style={momentTextStyle} lines={5}
-          dateNode={<Text style={dS.cardDate}>{item.date} {item.day}</Text>} />
-        {ownerLabel}
+          dateNode={<Text style={dS.cardDate}>{item.date} {item.day}</Text>}
+          rightNode={!isFriend ? ownerLabelTopRight : null} />
         {!isFriend && mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
       </View>
     );
@@ -445,7 +447,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
 // 화면 밖(absolute·opacity 0) 숨은 텍스트로 실제 줄 수를 1회 측정해 토글 노출을 결정한다.
 // dateNode를 주면 날짜 + 더보기(옆)를 한 줄로 묶어 글과 붙임(무사진 라운딩 카드와 높이 통일).
 // 없으면 글 아래에 더보기 표시(기본).
-function ExpandableMemo({ text, style, lines = 5, dateNode }) {
+function ExpandableMemo({ text, style, lines = 5, dateNode, rightNode }) {
   const [expanded, setExpanded] = useState(false);
   const [overflow, setOverflow] = useState(false);
   const [measured, setMeasured] = useState(false);
@@ -462,6 +464,7 @@ function ExpandableMemo({ text, style, lines = 5, dateNode }) {
       {dateNode ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
           <View style={{ flex: 1 }}>{dateNode}</View>
+          {rightNode}
           {toggle}
         </View>
       ) : null}
