@@ -51,13 +51,11 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
   const isTeam = post.teams > 1;
   // 개별 모집의 동반자(앱 미사용자)는 정원에 자리 차지. 단체 모집은 동반자 미적용.
   const companionsCount = isTeam ? 0 : (post.companions?.length || 0);
-  // 개별 모집과 단체 모집을 동일한 행 구조로 통일
-  const rows = isTeam
-    ? post.teamJoined.map((c, i) => ({ label: `${i + 1}팀`, cur: c, cap: 4 }))
-    : [{ label: null, cur: (post.joined || 0) + companionsCount, cap: post.capacity || 4 }];
-  const total = rows.reduce((s, r) => s + r.cur, 0);
-  const capTotal = rows.reduce((s, r) => s + r.cap, 0);
-  const allFull = rows.every(r => r.cur >= r.cap);
+  // 정원 카운트 — 단체·개별 모두 joined 기반으로 통일. teamJoined(팀별 카운트)는 joinRoundup이 참여 시
+  //   갱신하지 않아(joined만 +1) 재로드하면 "1/12"로 어긋났다. 단체 평면화 정책과도 일관 ([[roundup-team-flat-roster]]).
+  const total = (post.joined || 0) + companionsCount;
+  const capTotal = post.capacity || (isTeam ? post.teams * 4 : 4);
+  const allFull = total >= capTotal;
   // 오픈형(날짜 미정)은 만석이어도 '확정/마감'이 아님 — 주최자가 확정형으로 전환해야 확정 가능.
   //   만석을 마감(회색+뱃지)으로 표시하면 자동 확정된 것처럼 오인됨([[roundup-friend-redesign]], 만석≠확정).
   //   확정형만 만석=마감 시각 처리, 오픈형은 명시적 closed일 때만.
@@ -215,7 +213,7 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
       {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서. 게스트(앱 미사용자)가 있으면 명시. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 9 : 12,
         backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 6 : 8 }}>
-        <Text style={{ fontSize: fs(13) }}>{allFull ? (post.type === 'open' ? '📅' : '✅') : '🔄'}</Text>
+        <Text style={{ fontSize: fs(13) }}>{allFull ? (post.type === 'open' ? '📅' : '✅') : '👥'}</Text>
         <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
         {post.companions?.length > 0 ? (
@@ -1020,18 +1018,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     setShowCreate(true);
   };
 
-  // 모집 인원 +1 — 단체는 빈 첫 팀에, 개별은 인원 (주최자가 신청을 수락할 때 호출)
+  // 모집 인원 +1 (주최자가 신청을 수락할 때 호출) — 단체·개별 모두 joined 기반 통일
   const bumpPostCount = (id) => {
-    setPosts(prev => prev.map(p => {
-      if (p.id !== id) return p;
-      if (p.teams > 1) {
-        const tj = [...p.teamJoined];
-        const idx = tj.findIndex(c => c < 4);
-        if (idx >= 0) tj[idx] += 1;
-        return { ...p, teamJoined: tj };
-      }
-      return { ...p, joined: (p.joined || 0) + 1 };
-    }));
+    setPosts(prev => prev.map(p => (p.id === id ? { ...p, joined: (p.joined || 0) + 1 } : p)));
   };
 
   // 참여 신청 — 확인 후 신청 (주최자 수락 대기)
@@ -1057,17 +1046,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       // 친구공개·친구지정 — 바로 참여 확정 + 모집글 인원 +1
       await joinRoundup(id);
       setJoined(prev => ({ ...prev, [id]: true }));
-      setPosts(prev => prev.map(p => {
-        if (p.id !== id) return p;
-        if (p.teams > 1) {
-          const tj = [...p.teamJoined];
-          for (let i = 0; i < tj.length; i++) {
-            if (tj[i] < 4) { tj[i] += 1; break; }
-          }
-          return { ...p, teamJoined: tj };
-        }
-        return { ...p, joined: (p.joined || 0) + 1 };
-      }));
+      // 단체·개별 모두 joined +1 — 카드 정원이 joined 기반이라 통일 (joinRoundup도 joined만 증가)
+      setPosts(prev => prev.map(p => (p.id === id ? { ...p, joined: (p.joined || 0) + 1 } : p)));
       // 친구공개·친구지정 — 주최자에게 참여 확정 알림
       createNotification({
         type: 'confirmed',
@@ -1173,18 +1153,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       // leaveRoundup이 closed:false도 함께 처리 → 확정 해제 + 자리 다시 열기 ([[roundup-penalty-policy]] §4, 2026-05-30)
       //  ※ 취소자 매너 -5는 별개 분기(취소 시점 상태로 이미 판정) — 확정 해제와 양립.
       await leaveRoundup(id);
-      // 1) 모집글 인원 -1 (마지막 채워진 자리에서) + 확정 해제
-      setPosts(prev => prev.map(p => {
-        if (p.id !== id) return p;
-        if (p.teams > 1) {
-          const tj = [...p.teamJoined];
-          for (let i = tj.length - 1; i >= 0; i--) {
-            if (tj[i] > 0) { tj[i] -= 1; break; }
-          }
-          return { ...p, teamJoined: tj, closed: false };
-        }
-        return { ...p, joined: Math.max(0, (p.joined || 0) - 1), closed: false };
-      }));
+      // 1) 모집글 인원 -1 + 확정 해제 — 단체·개별 모두 joined 기반 통일
+      setPosts(prev => prev.map(p => (p.id === id
+        ? { ...p, joined: Math.max(0, (p.joined || 0) - 1), closed: false }
+        : p)));
       // 2) 내 joined 플래그 해제
       setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
       // 3) 확정 때 생성됐던 본인 일정 제거 (취소했으니 일정에서도 빠짐). 오픈형 등 일정 없으면 no-op.
@@ -1538,14 +1510,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       setWaitlist(drop);
       setPosts(prev => prev.map(p => {
         if (!isAuthored(p)) return p;
-        // 내가 confirmed 참여자였다면 정원 카운트도 1 감소 (단체 모집은 단순화 — 첫 팀에서 차감)
+        // 내가 confirmed 참여자였다면 정원 -1 (단체·개별 모두 joined 기반 통일)
         if (!joined[p.id]) return p;
-        if (p.teams > 1 && Array.isArray(p.teamJoined)) {
-          const tj = [...p.teamJoined];
-          const idx = tj.findIndex(c => c > 0);
-          if (idx >= 0) tj[idx] = Math.max(0, tj[idx] - 1);
-          return { ...p, teamJoined: tj };
-        }
         return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
       }));
     }
