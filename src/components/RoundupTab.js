@@ -410,10 +410,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         }
         // 인앱 알림 로드 — Phase 3-N2
         //   친구신청(friendRequest)은 라운지 알림함에서 제외 — 친구 관계 알림은 친구 탭 소관(탭바 뱃지).
-        //   문서 자체는 보존(향후 푸시용), 라운지(모집 전용) 표시에서만 숨김.
+        //   매너평가(mannerEval·hostCancelledD7)는 전체공개 OFF 동안 숨김 — 친구끼린 서로 평가 안 함([[roundup-public-disabled]]).
+        //     모달 진입·pending도 이미 ROUNDUP_PUBLIC_ENABLED로 가드됨(아래). 알림 카드만 남아 노출되던 구멍을 막음.
+        //   문서 자체는 보존(향후 푸시용·전체공개 부활 대비), 라운지(모집 전용) 표시에서만 숨김.
         try {
           const notis = await loadMyNotifications(50);
-          if (!cancelled) setNotifications(notis.filter(n => n.type !== 'friendRequest'));
+          const MANNER_HIDDEN = ['mannerEval', 'hostCancelledD7'];
+          if (!cancelled) setNotifications(notis.filter(n =>
+            n.type !== 'friendRequest' && !(!ROUNDUP_PUBLIC_ENABLED && MANNER_HIDDEN.includes(n.type))));
         } catch (e) {
           if (__DEV__) console.warn('[RoundupTab] notifications load failed', e?.message);
         }
