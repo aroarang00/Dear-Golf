@@ -94,7 +94,8 @@ export function DiaryScreen({ route, navigation }) {
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
   const [milestoneInfoOpen, setMilestoneInfoOpen] = useState(false); // 마일스톤 안내 ([[milestone_badges]])
   const [friendGroups, setFriendGroups] = useState(DEFAULT_FRIEND_GROUPS); // 내 카드 owner 그룹 색라벨용 ([[friend_groups]])
-  useEffect(() => { loadFriendData().then(fd => setFriendGroups(fd.friendGroups)).catch(() => {}); }, []);
+  const [friendMeta, setFriendMeta] = useState({}); // 내가 지정한 별명(customName) — 동반자 이름 표시 resolve용 ([[friend_groups]])
+  useEffect(() => { loadFriendData().then(fd => { setFriendGroups(fd.friendGroups); setFriendMeta(fd.friendMeta || {}); }).catch(() => {}); }, []);
   const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
@@ -440,7 +441,7 @@ export function DiaryScreen({ route, navigation }) {
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
-  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} onClose={handleCloseDetail}
+  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
     onUpdate={(updated) => {
       // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
       handleSave('diary-edit', updated);

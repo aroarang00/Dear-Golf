@@ -14,9 +14,9 @@ import { DiaryAddModal } from './DiaryAddModal';
 import { hofBgColor } from './HallOfFameCard';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
-import { ownerVisibilityLabel } from '../utils/friendGroups';
+import { ownerVisibilityLabel, friendDisplayName } from '../utils/friendGroups';
 
-export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, friendGroups }) {
+export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, friendGroups, friendMeta = {} }) {
   const { userProfile } = React.useContext(UserContext);
   // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
   useAndroidBack(true, onClose);
@@ -206,13 +206,13 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, 
                       : COMP_PALETTE[colorIdx % COMP_PALETTE.length];
                     return (
                       <View key={i} style={[dS.avatar, { backgroundColor: palette.bg, marginLeft: i === 0 ? 0 : -8 }]}>
-                        <Text style={[dS.avatarTxt, { color: palette.fg }]}>{(c.name || '?').charAt(0)}</Text>
+                        <Text style={[dS.avatarTxt, { color: palette.fg }]}>{(friendDisplayName(friendMeta, c.friendUid, c.name) || '?').charAt(0)}</Text>
                       </View>
                     );
                   })}
                 </View>
                 <Text style={dS.compNames} numberOfLines={1}>
-                  {formatNameList(companionsToShow.map(c => c.name))}
+                  {formatNameList(companionsToShow.map(c => friendDisplayName(friendMeta, c.friendUid, c.name)))}
                 </Text>
               </View>
             </View>
