@@ -61,6 +61,10 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
   const { recipientUid, type, postTitle, actorName, priority, scheduleDate, scheduleTime } = data;
   if (!recipientUid) return;
 
+  // slotPassed(대기 넘어감)는 긴급하지 않아 인앱 알림함·배지로만 — 푸시는 보내지 않음(알림 과다 방지).
+  //   인앱 문서는 이미 생성돼 있으므로 여기서 return해도 알림함엔 그대로 남는다(유저 문서 read도 절약).
+  if (type === 'slotPassed') return;
+
   // 수신자 settings 조회 — 일반 알림이면 토글 체크, 중요 알림은 무시
   const userSnap = await db.doc(`users/${recipientUid}`).get();
   if (!userSnap.exists) return;
