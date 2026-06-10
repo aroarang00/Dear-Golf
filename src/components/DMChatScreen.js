@@ -168,25 +168,26 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
             </View>
           ) : null}
         />
-        {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]) */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: C.hairline, gap: 8 }}>
+        {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]).
+            크고 넓게 + 글씨 또렷하게(중장년 가독성 [[avoid-small-text]]): fs15·minHeight44·넉넉한 패딩 */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: C.hairline, gap: 8 }}>
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="메시지 입력"
-            placeholderTextColor={C.warmGrayLight}
+            placeholder="메시지를 입력하세요"
+            placeholderTextColor={C.warmGray}
             multiline
             style={{
-              flex: 1, maxHeight: 100, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal,
-              backgroundColor: C.bgSecondary, borderRadius: 18, borderWidth: 0.5, borderColor: C.hairline,
-              paddingHorizontal: 14, paddingTop: 9, paddingBottom: 9,
+              flex: 1, minHeight: 44, maxHeight: 120, fontFamily: F.sys, fontSize: fs(15), lineHeight: 21, color: C.charcoal,
+              backgroundColor: C.bgSecondary, borderRadius: 20, borderWidth: 0.5, borderColor: C.hairline,
+              paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
             }}
           />
-          {/* 전송 — 활성=차콜바탕+흰 화살표(또렷), 비활성=흰바탕+테두리+회색 화살표(흐릿하지만 보임) */}
+          {/* 전송 — 활성=차콜바탕+흰 화살표(또렷), 비활성=흰바탕+테두리+회색 화살표(흐릿하지만 보임). 입력창과 높이 맞춤(44) */}
           <TouchableOpacity onPress={handleSend} disabled={!canSend} activeOpacity={0.8}
-            style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+            style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
               backgroundColor: canSend ? C.charcoal : C.bgSecondary, borderWidth: canSend ? 0 : 1, borderColor: C.hairline }}>
-            <Text style={{ fontSize: fs(19), fontFamily: F.sysB, color: canSend ? '#fff' : C.warmGray }}>↑</Text>
+            <Text style={{ fontSize: fs(20), fontFamily: F.sysB, color: canSend ? '#fff' : C.warmGray }}>↑</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
