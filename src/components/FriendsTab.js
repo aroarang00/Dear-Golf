@@ -580,6 +580,18 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       {/* 목록 컨트롤(친구 수·그룹 관리·그룹 필터칩) — 검색창과 함께 고정, 리스트만 스크롤 ([[friend_groups]]).
           그룹 필터칩이 스크롤로 사라지면 그룹 전환이 불편해 고정으로 끌어냄(원작 "스크롤 없이 접근" 의도 충족) */}
       <View style={{ paddingHorizontal: 16 }}>
+        {/* 받은 친구 신청 배너 — 있을 때만. 검색창 아래 고정(스크롤로 묻히지 않게) */}
+        {receivedRequests.length > 0 && (
+          <TouchableOpacity onPress={() => setFinder('received')} activeOpacity={0.8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: _and ? 9 : 12,
+              backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
+            <Text style={{ fontSize: fs(15) }}>📬</Text>
+            <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
+              받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{receivedRequests.length}</Text>건
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>›</Text>
+          </TouchableOpacity>
+        )}
         {/* 친구 수 + 우측 액션(그룹 관리·숨긴 친구) */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: _and ? 8 : 12 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
@@ -641,18 +653,6 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled">
-        {/* 받은 친구 신청 배너 — 있을 때만 */}
-        {receivedRequests.length > 0 && (
-          <TouchableOpacity onPress={() => setFinder('received')} activeOpacity={0.8}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: _and ? 9 : 12,
-              backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
-            <Text style={{ fontSize: fs(15) }}>📬</Text>
-            <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
-              받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{receivedRequests.length}</Text>건
-            </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>›</Text>
-          </TouchableOpacity>
-        )}
 
         {/* 친구 첫 진입 1회 안내 — 접이식 카드(확인 시 사라짐). 친구 1명 이상일 때만(0명은 빈 화면 가이드가 설명) ([[friend_groups]]) */}
         {friendsLoaded && friends.length > 0 && !guideDone && (
