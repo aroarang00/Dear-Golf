@@ -4,7 +4,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Platform, Keyboard, us
 const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { groupColor, groupName, friendDisplayName, ownerVisibilityLabel } from '../utils/friendGroups';
+import { groupColor, groupName, friendDisplayName } from '../utils/friendGroups';
 import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, waitlistRespondHours, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -592,18 +592,8 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 )}
                 {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => setGradeKey(authorGrade.key)} />}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-                  {/* owner-only 그룹 색라벨 — 주최자 바 맨 우측. 내가 그룹으로 모집했을 때만, 나만 보임. 다중그룹=색점 다+"외 N"(컴팩트) ([[friend_groups]]) */}
-                  {(() => {
-                    const ov = (isMine && post.scope === 'select' && Array.isArray(post.audienceGroupIds) && post.audienceGroupIds.length && friendGroups)
-                      ? ownerVisibilityLabel(friendGroups, 'group', post.audienceGroupIds) : null;
-                    if (!ov) return null;
-                    return (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        {ov.groups.map((g, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)}
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ov.text}</Text>
-                      </View>
-                    );
-                  })()}
+                  {/* 지정 라벨(그룹·개인)은 카드에서만 표시 — 상세는 한 모집만 보는 화면이라 구분 불필요하고
+                      상단 '친구지정' 뱃지로 충분. 라벨은 여러 모집을 구분하는 카드(목록)용 (2026-06-10) */}
                   {ROUNDUP_PUBLIC_ENABLED && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
