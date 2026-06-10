@@ -136,7 +136,7 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
       </View>
 
       {/* owner-only 지정 대상 라벨 — 주최자 밑(우측), 나만 보임. 누구/어느 그룹에게 보냈는지 확인용 ([[friend_groups]]).
-          그룹지정=그룹 색점+이름("외 N"), 개인지정=버건디 점+친구 이름("외 N명"). exclude(제외)는 대상이 모호해 라벨 없음. */}
+          그룹지정=그룹 색점+이름("외 N"), 개인지정=버건디 점+'친구 개별지정' 고정 라벨. exclude(제외)는 대상이 모호해 라벨 없음. */}
       {(() => {
         if (!(isMine && post.scope === 'select')) return null;
         // (1) 그룹으로 지정 — 다중그룹=색점 여러 개 + "외 N"
@@ -150,21 +150,17 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
             </View>
           );
         }
-        // (2) 개인지정(include) — 그룹 없이 친구를 직접 골랐을 때. selectedUids(원래 선택) 우선, 없으면 audienceUids.
+        // (2) 개인지정(include) — 그룹 없이 친구를 직접 골랐을 때.
+        //   ★이름 나열 폐기 — 거절·재초대로 selectedUids가 바뀌면 'uids[0] 1명'만 찍혀 "그 사람만 초대"처럼 오인됐다.
+        //   라벨 역할은 '명단 스냅샷'이 아니라 '내가 어떻게 좁혔나(그룹 vs 개별)' 구분이므로 고정 라벨로 통일.
+        //   실제 명단은 상세(참여자 슬롯)가 진실원 ([[roundup-invitation]]).
         if (post.selectMode === 'include') {
-          const uids = (Array.isArray(post.selectedUids) && post.selectedUids.length
-            ? post.selectedUids
-            : (Array.isArray(post.audienceUids) ? post.audienceUids : [])).filter(Boolean);
-          if (uids.length) {
-            const first = friendDisplayName(friendMeta, uids[0], friendNames?.[uids[0]]);
-            const text = uids.length > 1 ? `${first} 외 ${uids.length - 1}명` : `${first}님`;
-            return (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 4 }}>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.burgundy }} />
-                <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{text}</Text>
-              </View>
-            );
-          }
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 4 }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.burgundy }} />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>친구 개별지정</Text>
+            </View>
+          );
         }
         return null;
       })()}
