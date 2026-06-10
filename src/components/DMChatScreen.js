@@ -1,22 +1,69 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages } from '../utils/dm';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
+const _and = Platform.OS === 'android';
+const WD = ['일', '월', '화', '수', '목', '금', '토'];
+// 말풍선 옆 시각 — 작고 흐리게
+const timeStyle = { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginBottom: 2 };
+
+// 메시지 시각 — 오전/오후 h:mm
+function fmtClock(ts) {
+  const ms = ts?.toMillis ? ts.toMillis() : 0;
+  if (!ms) return '';
+  const d = new Date(ms);
+  const h = d.getHours();
+  return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+// 날짜 구분선 라벨 — 오늘/어제/그 외 'YYYY년 M월 D일 요일'
+function fmtDay(ts) {
+  const ms = ts?.toMillis ? ts.toMillis() : 0;
+  if (!ms) return '';
+  const d = new Date(ms);
+  const a = new Date(d); a.setHours(0, 0, 0, 0);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const diff = Math.round((t - a) / 86400000);
+  if (diff === 0) return '오늘';
+  if (diff === 1) return '어제';
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일`;
+}
+// 같은 날 판정용 키 (null/pending이면 빈 문자열 → 구분선 미표시)
+function dayKey(ts) {
+  const ms = ts?.toMillis ? ts.toMillis() : 0;
+  if (!ms) return '';
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 // 친구 1:1 DM 대화방 — 풀스크린, 말풍선(내 메시지 우측·상대 좌측). 카톡식 ([[dm-design]]).
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
 export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpenOptions }) {
+  const insets = useSafeAreaInsets();
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [kb, setKb] = useState(0);  // 안드 키보드 높이 — 입력창이 키보드에 가려지지 않게 직접 띄움
   const listRef = useRef(null);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
+
+  // 안드(엣지투엣지)에선 키보드가 창을 리사이즈하지 않아 입력창이 가려진다([[fresh-install-release-bugs]] 류 환경차).
+  //   키보드 높이만큼 입력영역을 직접 띄운다(아래 androidKbPad). iOS는 KeyboardAvoidingView(padding)가 처리.
+  useEffect(() => {
+    if (!_and) return;
+    const show = Keyboard.addListener('keyboardDidShow', e => {
+      setKb(e.endCoordinates?.height || 0);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKb(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   // 내 uid + 대화방 보장(메시지 0건이라도 방은 존재)
   useEffect(() => {
@@ -51,20 +98,44 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
     finally { setSending(false); }
   };
 
-  const renderItem = ({ item }) => {
+  const list = messages || [];
+  const renderItem = ({ item, index }) => {
     const mine = item.senderUid === myUid;
+    const prev = index > 0 ? list[index - 1] : null;
+    // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
+    const showDate = (!prev || dayKey(prev.createdAt) !== dayKey(item.createdAt)) && !!fmtDay(item.createdAt);
+    const time = fmtClock(item.createdAt);
     return (
-      <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start', paddingHorizontal: 14, marginVertical: 3 }}>
-        <View style={{
-          maxWidth: '76%', backgroundColor: mine ? C.burgundy : C.bgSecondary,
-          borderRadius: 16, borderTopRightRadius: mine ? 4 : 16, borderTopLeftRadius: mine ? 16 : 4,
-          paddingHorizontal: 13, paddingVertical: 9,
-        }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(14), lineHeight: 20, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
+      <View>
+        {showDate && (
+          <View style={{ alignItems: 'center', marginVertical: 10 }}>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.textSecondary,
+              backgroundColor: C.hairline, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 11, overflow: 'hidden' }}>
+              {fmtDay(item.createdAt)}
+            </Text>
+          </View>
+        )}
+        {/* 말풍선 — 내것=차콜+흰글씨(고대비), 상대=흰바탕+차콜글씨+테두리(크림 배경서 또렷). 시각은 안쪽에 작게 */}
+        <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
+          alignItems: 'flex-end', paddingHorizontal: 14, marginVertical: 3, gap: 6 }}>
+          {mine && !!time && <Text style={timeStyle}>{time}</Text>}
+          <View style={{
+            maxWidth: '76%', backgroundColor: mine ? C.charcoal : C.bgSecondary,
+            borderRadius: 16, borderTopRightRadius: mine ? 4 : 16, borderTopLeftRadius: mine ? 16 : 4,
+            paddingHorizontal: 13, paddingVertical: 9,
+            borderWidth: mine ? 0 : 0.5, borderColor: C.hairline,
+          }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), lineHeight: 20, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
+          </View>
+          {!mine && !!time && <Text style={timeStyle}>{time}</Text>}
         </View>
       </View>
     );
   };
+
+  const canSend = !!text.trim() && !sending;
+  // SafeAreaView가 이미 하단 inset만큼 패딩하므로, 키보드 높이에서 그만큼 빼서 입력창을 키보드 바로 위로.
+  const androidKbPad = (_and && kb) ? Math.max(0, kb - insets.bottom) : 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
@@ -81,10 +152,10 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
         )}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1, paddingBottom: androidKbPad }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
           ref={listRef}
-          data={messages || []}
+          data={list}
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           contentContainerStyle={{ paddingVertical: 12, flexGrow: 1, justifyContent: 'flex-end' }}
@@ -107,12 +178,15 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
             multiline
             style={{
               flex: 1, maxHeight: 100, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal,
-              backgroundColor: C.bgSecondary, borderRadius: 18, paddingHorizontal: 14, paddingTop: 9, paddingBottom: 9,
+              backgroundColor: C.bgSecondary, borderRadius: 18, borderWidth: 0.5, borderColor: C.hairline,
+              paddingHorizontal: 14, paddingTop: 9, paddingBottom: 9,
             }}
           />
-          <TouchableOpacity onPress={handleSend} disabled={!text.trim() || sending} activeOpacity={0.8}
-            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: text.trim() ? C.burgundy : C.hairline, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(18), color: '#fff' }}>↑</Text>
+          {/* 전송 — 활성=차콜바탕+흰 화살표(또렷), 비활성=흰바탕+테두리+회색 화살표(흐릿하지만 보임) */}
+          <TouchableOpacity onPress={handleSend} disabled={!canSend} activeOpacity={0.8}
+            style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+              backgroundColor: canSend ? C.charcoal : C.bgSecondary, borderWidth: canSend ? 0 : 1, borderColor: C.hairline }}>
+            <Text style={{ fontSize: fs(19), fontFamily: F.sysB, color: canSend ? '#fff' : C.warmGray }}>↑</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

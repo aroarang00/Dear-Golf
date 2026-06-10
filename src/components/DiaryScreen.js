@@ -21,6 +21,8 @@ import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
 import { GolfLedgerModal } from './GolfLedgerModal';
 import { MyPageModal } from './MyPageModal';
+import { DMListScreen } from './DMListScreen';
+import { DMChatScreen } from './DMChatScreen';
 import { getTrustGrade } from '../constants/trustGrade';
 import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
@@ -89,6 +91,8 @@ export function DiaryScreen({ route, navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
   const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
+  const [dmOpen, setDmOpen] = useState(false);   // 내 프로필 → DM 목록(인스타식) ([[dm-design]])
+  const [dmChat, setDmChat] = useState(null);    // 목록에서 연 대화 상대 { uid, name }
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
@@ -562,8 +566,8 @@ export function DiaryScreen({ route, navigation }) {
               borderWidth: 2, borderColor: C.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: fs(12) }}>📷</Text>
             </View>
-            {/* 메시지(DM) — 아바타 우상단. 본체는 출시 직후([[dm-design]]), 지금은 준비 중 안내(창 비활성) */}
-            <TouchableOpacity onPress={() => showAppAlert('준비 중이에요', '메시지 기능은\n곧 찾아올게요')}
+            {/* 메시지(DM) — 아바타 우상단. 내 프로필 진입 = 대화 목록(인스타식) ([[dm-design]]) */}
+            <TouchableOpacity onPress={() => setDmOpen(true)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ position: 'absolute', top: -18, right: -12 }}>
               <Text style={{ fontSize: fs(36), textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>💬</Text>
@@ -849,6 +853,14 @@ export function DiaryScreen({ route, navigation }) {
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
+      {/* 메시지(DM) — 내 프로필 진입 = 대화 목록(인스타식). 단일 Modal에서 목록↔대화방 전환(Modal 중첩 회피) ([[dm-design]]) */}
+      <Modal visible={dmOpen} animationType="slide" onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
+        {dmChat ? (
+          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} onClose={() => setDmChat(null)} />
+        ) : (
+          <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name) => setDmChat({ uid, name })} />
+        )}
+      </Modal>
       <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key} onClose={() => setGradeModalOpen(false)} />
       <MannerGradeModal visible={mannerModalOpen} highlightKey={myManner.key} onClose={() => setMannerModalOpen(false)} />
       <HandicapInfoModal visible={handicapInfoOpen} onClose={() => setHandicapInfoOpen(false)} />
