@@ -577,6 +577,67 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         </View>
       </View>
 
+      {/* 목록 컨트롤(친구 수·그룹 관리·그룹 필터칩) — 검색창과 함께 고정, 리스트만 스크롤 ([[friend_groups]]).
+          그룹 필터칩이 스크롤로 사라지면 그룹 전환이 불편해 고정으로 끌어냄(원작 "스크롤 없이 접근" 의도 충족) */}
+      <View style={{ paddingHorizontal: 16 }}>
+        {/* 친구 수 + 우측 액션(그룹 관리·숨긴 친구) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: _and ? 8 : 12 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
+            친구 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{visible.length}</Text>명
+          </Text>
+          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {friends.length > 0 && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontSize: fs(11) }}>⚙</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>그룹 관리</Text>
+              </TouchableOpacity>
+            )}
+            {hiddenFriends.length > 0 && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4,
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
+                  🙈 숨긴 친구 {hiddenFriends.length}
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{showHidden ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
+        {friends.length > 0 && Object.values(friendData.friendMeta).some(m => (m.groupIds || []).length) && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: _and ? 8 : 12 }}
+            contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
+            {[
+              { id: 'all', name: '전체' },
+              ...(hasUngrouped ? [{ id: UNGROUPED, name: `미지정 ${ungroupedList.length}` }] : []),
+              ...friendData.friendGroups,
+            ].map(g => {
+              const on = effFilter === g.id;
+              const isUngrouped = g.id === UNGROUPED;
+              const dotColor = (g.id === 'all' || isUngrouped) ? null : groupColor(friendData.friendGroups, g.id);
+              // 미지정 = 버건디 강조(off도 버건디 테두리·글자), 그 외 = 기본(off 회색 / on 차콜)
+              const bg = on ? (isUngrouped ? C.burgundy : C.charcoal) : C.bgSecondary;
+              const bd = on ? bg : (isUngrouped ? C.burgundy : C.hairline);
+              const tx = on ? C.butter : (isUngrouped ? C.burgundy : C.charcoal);
+              return (
+                <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => setGroupFilter(g.id)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+                    backgroundColor: bg, borderWidth: isUngrouped && !on ? 1 : 0.5, borderColor: bd }}>
+                  {dotColor && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />}
+                  <Text style={{ fontFamily: isUngrouped ? F.sysB : F.sysSb, fontSize: fs(12), color: tx }}>{g.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
+
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled">
@@ -617,65 +678,6 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>확인했어요</Text>
             </TouchableOpacity>
           </View>
-        )}
-
-        {/* 친구 수 + 우측 액션(그룹 관리·숨긴 친구) — 목록 위에 배치, 스크롤 없이 접근 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: _and ? 8 : 12 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
-            친구 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{visible.length}</Text>명
-          </Text>
-          {/* 우측 액션 묶음 — 그룹 관리(항상) → 숨긴 친구(있을 때만). 톱니는 그룹 0개여도 노출=발견성 ([[friend_groups]]) */}
-          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {friends.length > 0 && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
-                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ fontSize: fs(11) }}>⚙</Text>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>그룹 관리</Text>
-              </TouchableOpacity>
-            )}
-            {hiddenFriends.length > 0 && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
-                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
-                  🙈 숨긴 친구 {hiddenFriends.length}
-                </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{showHidden ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]])
-            미지정 칩은 '전체' 바로 옆 고정 + 버건디 강조(정리 유도) — 가로스크롤에 묻히지 않게 ([[friend_groups]]) */}
-        {friends.length > 0 && Object.values(friendData.friendMeta).some(m => (m.groupIds || []).length) && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: _and ? 8 : 12 }}
-            contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
-            {[
-              { id: 'all', name: '전체' },
-              ...(hasUngrouped ? [{ id: UNGROUPED, name: `미지정 ${ungroupedList.length}` }] : []),
-              ...friendData.friendGroups,
-            ].map(g => {
-              const on = effFilter === g.id;
-              const isUngrouped = g.id === UNGROUPED;
-              const dotColor = (g.id === 'all' || isUngrouped) ? null : groupColor(friendData.friendGroups, g.id);
-              // 미지정 = 버건디 강조(off도 버건디 테두리·글자), 그 외 = 기본(off 회색 / on 차콜)
-              const bg = on ? (isUngrouped ? C.burgundy : C.charcoal) : C.bgSecondary;
-              const bd = on ? bg : (isUngrouped ? C.burgundy : C.hairline);
-              const tx = on ? C.butter : (isUngrouped ? C.burgundy : C.charcoal);
-              return (
-                <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => setGroupFilter(g.id)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-                    backgroundColor: bg, borderWidth: isUngrouped && !on ? 1 : 0.5, borderColor: bd }}>
-                  {dotColor && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />}
-                  <Text style={{ fontFamily: isUngrouped ? F.sysB : F.sysSb, fontSize: fs(12), color: tx }}>{g.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
         )}
 
         {/* 숨긴 친구 목록 — 펼침 시 */}
