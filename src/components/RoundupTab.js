@@ -867,6 +867,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             ? Array.from({ length: post.teams }, (_, i) => prevTJ[i] ?? 0)
             : [1],
         };
+        // 이미 참여 확정한 사람은 audienceUids에서 빠지면 모집·일정 가시성을 잃는다(조회가 audienceUids array-contains).
+        //   빈자리를 새 친구로 채우려 selectedUids를 바꿀 때 기존 참여자가 누락되던 버그 → 참여자(주최자 제외)는 항상 보존.
+        if (nextPost.scope === 'select') {
+          const parts = (Array.isArray(editingPost.participantUids) ? editingPost.participantUids : [])
+            .filter(u => u && u !== editingPost.authorUid);
+          nextPost.audienceUids = Array.from(new Set([...(Array.isArray(nextPost.audienceUids) ? nextPost.audienceUids : []), ...parts]));
+        }
         await updateRoundupAsAuthor(eid, nextPost);
         setPosts(prev => prev.map(p => p.id === eid ? { ...p, ...nextPost } : p));
         // schedules 동기화 — date·time·course 변경 시 본인 자동 일정도 함께 갱신
