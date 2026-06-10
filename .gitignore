@@ -43,6 +43,9 @@ yarn-error.*
 /ios
 /android
 
+# 스플래시 옛 워드마크 백업 (로컬 보관용)
+assets/splash-icon-playfair-old.png
+
 # 개발용 QR 이미지
 expo_qr.png
 
