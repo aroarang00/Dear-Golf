@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Image, Modal } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler'; // 친구카드 좌우 스와이프(즐겨찾기·숨기기) ([[friend_card_gestures]])
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -46,7 +47,7 @@ const AVATARS = [
   { bg: '#6B8B5E', fg: '#fff' },
 ];
 
-function FriendCard({ friend, palette, muted, favorite, grade, isNew, onPress, onLongPress, onGradePress }) {
+function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onPress, onLongPress, onGradePress }) {
   const r = friend.recent;
   const diff = r ? r.score - r.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
@@ -55,7 +56,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, onPress, o
   const fStatus = (friend.statusMessage || '').trim();
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
-      style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: _and ? 9 : 12,
+      style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: flush ? 0 : (_and ? 9 : 12),
         // 라운지 모집카드와 동일 입체감 — 크림 배경 위 흰 카드 분리감 (iOS·Android)
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
         // 즐겨찾기 = 왼쪽 보더 강조. ★ borderLeftWidth/Color를 '항상 명시'하고 값만 토글(1↔3)해야 함.
@@ -116,6 +117,39 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, onPress, o
   );
 }
 
+// 카카오톡식 좌우 스와이프 래퍼 — 카드 왼쪽으로 밀기=즐겨찾기(오른쪽 액션), 오른쪽으로 밀기=숨기기(왼쪽 액션).
+//   액션 노출 후 탭해 실행(실수 방지). 그룹 지정은 롱탭 시트 유지. ([[friend_card_gestures]])
+function SwipeableFriendCard({ friend, favorite, onToggleFavorite, onHide, ...cardProps }) {
+  const ref = useRef(null);
+  const ACT_W = 86;
+  // 즐겨찾기(오른쪽 액션) — 카드를 왼쪽으로 밀면 노출. 현재 상태 따라 설정/해제 토글.
+  const renderRight = () => (
+    <TouchableOpacity activeOpacity={0.85}
+      onPress={() => { onToggleFavorite(friend.id); ref.current?.close(); }}
+      style={{ width: ACT_W, backgroundColor: C.burgundy, justifyContent: 'center', alignItems: 'center', gap: 3 }}>
+      <Text style={{ fontSize: fs(18), color: C.butter }}>{favorite ? '★' : '☆'}</Text>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>{favorite ? '즐겨찾기 해제' : '즐겨찾기'}</Text>
+    </TouchableOpacity>
+  );
+  // 숨기기(왼쪽 액션) — 카드를 오른쪽으로 밀면 노출. 숨기면 카드가 목록에서 빠지고 '숨긴 친구'로 이동.
+  const renderLeft = () => (
+    <TouchableOpacity activeOpacity={0.85}
+      onPress={() => { ref.current?.close(); onHide(friend.id); }}
+      style={{ width: ACT_W, backgroundColor: '#8A837A', justifyContent: 'center', alignItems: 'center', gap: 3 }}>
+      <Text style={{ fontSize: fs(18) }}>🙈</Text>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>숨기기</Text>
+    </TouchableOpacity>
+  );
+  return (
+    <Swipeable ref={ref} friction={1.6} leftThreshold={44} rightThreshold={44}
+      overshootLeft={false} overshootRight={false}
+      renderLeftActions={renderLeft} renderRightActions={renderRight}
+      containerStyle={{ marginBottom: _and ? 9 : 12 }}>
+      <FriendCard friend={friend} favorite={favorite} flush {...cardProps} />
+    </Swipeable>
+  );
+}
+
 export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { setFriendReqCount } = useContext(FriendBadgeContext);
@@ -148,7 +182,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
   const [groupManageOpen, setGroupManageOpen] = useState(false);   // 친구 그룹 관리 모달 — 친구탭 헤더 톱니에서 직접 진입 ([[friend_groups]])
-  const [quickFriend, setQuickFriend] = useState(null);   // 카드 길게누르기 빠른 액션(즐겨찾기·그룹 이동) 대상 친구 ([[friend_groups]] v3)
+  const [quickFriend, setQuickFriend] = useState(null);   // 카드 길게누르기 빠른 액션(그룹 지정) 대상 친구. 즐겨찾기·숨기기는 스와이프 ([[friend_card_gestures]])
   const [guideDone, setGuideDone] = useState(true);   // 친구 1회 안내 카드 — 로드 전 숨김(깜빡임 방지). friendCoachDone 재사용(MyPage 리셋 연동)
   useEffect(() => { storage.load(STORAGE_KEYS.friendCoachDone, false).then(v => setGuideDone(!!v)).catch(() => {}); }, []);
   // 친구 화면 파란 헤더의 '친구 찾기' 버튼이 이 finder를 열도록 핸들 노출 (진입점을 헤더로 드러냄)
@@ -180,12 +214,15 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           // 닉네임 변경 시 동기화 (간단 케이스만, 30일 제한은 F4 MyPage에서)
           await setDoc(meRef, { nickname: userProfile.nickname, updatedAt: serverTimestamp() }, { merge: true });
         }
-        // 즐겨찾기 로드 — users.favoriteUids → 맵
+        // 즐겨찾기·숨긴친구 로드 — users.favoriteUids / hiddenFriendUids → 맵 (둘 다 Firestore 영속)
         if (!cancelled) {
-          const favArr = meSnap.exists() ? (meSnap.data().favoriteUids || []) : [];
+          const data = meSnap.exists() ? meSnap.data() : {};
           const fm = {};
-          favArr.forEach(u => { fm[u] = true; });
+          (data.favoriteUids || []).forEach(u => { fm[u] = true; });
           setFavorites(fm);
+          const hm = {};
+          (data.hiddenFriendUids || []).forEach(u => { hm[u] = true; });
+          setHidden(hm);
         }
         // 2) 친구·받은 신청·보낸 신청 + 친구 그룹·별명(내 private 메타) 병렬 로드
         const [friendsList, received, sent, fdata] = await Promise.all([
@@ -334,7 +371,24 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const paletteOf = (id) => AVATARS[friends.findIndex(f => f.id === id) % AVATARS.length];
 
   const toggleMute = (id) => setMuted(p => ({ ...p, [id]: !p[id] }));
-  const hideFriend = (id) => setHidden(p => ({ ...p, [id]: true }));
+
+  // 숨기기/해제 — 로컬 즉시 반영 + Firestore users.hiddenFriendUids 영속(즐겨찾기와 동일 패턴). 실패 시 롤백.
+  //   영속이라 앱 재시작·새로고침에도 유지 (스와이프로 쉬워진 만큼 '영구 숨김' 기대에 맞춤).
+  const persistHidden = async (id, hide) => {
+    try {
+      const uid = await getUid();
+      if (!uid) return;
+      await setDoc(doc(db, 'users', uid), {
+        uid, // 규칙 uid==uid 통과 보장 ([[project_users_doc_uid_required]])
+        hiddenFriendUids: hide ? arrayUnion(id) : arrayRemove(id),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) {
+      if (__DEV__) console.warn('[FriendsTab] persistHidden failed', e?.message);
+      setHidden(p => { const n = { ...p }; if (hide) delete n[id]; else n[id] = true; return n; }); // 롤백
+    }
+  };
+  const hideFriend = (id) => { setHidden(p => ({ ...p, [id]: true })); persistHidden(id, true); };
 
   // 즐겨찾기 토글 — 로컬 즉시 반영 + Firestore users.favoriteUids 영속. 실패 시 롤백.
   const toggleFavorite = async (id) => {
@@ -424,7 +478,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     }
     setReceivedRequests(p => p.filter(r => r.id !== id));
   };
-  const unhideFriend = (id) => setHidden(p => { const n = { ...p }; delete n[id]; return n; });
+  const unhideFriend = (id) => { setHidden(p => { const n = { ...p }; delete n[id]; return n; }); persistHidden(id, false); };
   // 친구 끊기 — 일방·블라인드 ([[friend-relationship]] §1). Firestore friendships doc 삭제.
   // 차단·끊기 — 그 사람을 내 friendMeta(그룹/별명)에서 제거 + 과거 group 글 공개대상 재계산 ([[friend_groups]] ⑥)
   const cleanupRemovedFriendGroup = async (id) => {
@@ -545,7 +599,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginBottom: 10 }}>👋 친구, 이렇게 써요</Text>
             {[
               '카카오 친구나 닉네임으로 친구를 추가할 수 있어요',
-              '카드를 길게 누르면 즐겨찾기·그룹 이동을 바로 해요',
+              '카드를 좌우로 밀면 즐겨찾기·숨기기, 길게 누르면 그룹 이동을 해요',
               '그룹은 ⚙ 그룹 관리에서 만들고 정리할 수 있어요',
               '별명은 친구 프로필에서 언제든 바꿀 수 있어요',
               '친구가 새 글을 올리면 카드에 빨간 점이 떠요',
@@ -696,7 +750,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           visible.map(f => {
             const grade = getTrustGrade(f.hostedCount, f.mannerScore);
             return (
-              <FriendCard
+              <SwipeableFriendCard
                 key={f.id}
                 friend={f}
                 palette={paletteOf(f.id)}
@@ -704,6 +758,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
                 favorite={!!favorites[f.id]}
                 grade={grade}
                 isNew={f.lastPostAt > 0 && feedSeen[f.id] !== undefined && f.lastPostAt > feedSeen[f.id]}
+                onToggleFavorite={toggleFavorite}
+                onHide={hideFriend}
                 onPress={() => openFriendProfile(f)}
                 onLongPress={() => setQuickFriend(f)}
                 onGradePress={() => setGradeModalKey(grade.key)}
@@ -713,7 +769,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         )}
 
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 6 }}>
-          탭하면 프로필 · 길게 누르면 그룹·즐겨찾기
+          탭하면 프로필 · 길게 누르면 그룹 · 좌우로 밀면 즐겨찾기·숨기기
         </Text>
       </ScrollView>
 
@@ -772,7 +828,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           loadFriendData().then(setFriendData).catch(() => {});
         }} />
 
-      {/* 카드 길게누르기 빠른 액션 — 즐겨찾기·그룹 이동. 별명은 친구상세 ⋯에서 (중복 OK). 상시·전체 친구 ([[friend_groups]] v3) */}
+      {/* 카드 길게누르기 빠른 액션 — 그룹 지정 전용(즐겨찾기·숨기기는 스와이프로 이동). 별명은 친구상세 ⋯에서 ([[friend_card_gestures]]) */}
       <Modal visible={!!quickFriend} transparent animationType="fade" onRequestClose={() => setQuickFriend(null)}>
         <TouchableOpacity activeOpacity={1} onPress={() => setQuickFriend(null)}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
@@ -781,7 +837,6 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             {quickFriend && (() => {
               const meta = friendData.friendMeta[quickFriend.id] || {};
               const curGroup = Array.isArray(meta.groupIds) && meta.groupIds.length ? meta.groupIds[0] : null;
-              const isFav = !!favorites[quickFriend.id];
               // 그룹 이동 = 기존 핸들러 재사용. 별명(customName) 반드시 보존. 현재 그룹 다시 누르면 미지정.
               const moveTo = (gid) => handleSaveFriendMeta(quickFriend.id, {
                 customName: meta.customName || '',
@@ -793,20 +848,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
                     {quickFriend.name || '친구'}
                   </Text>
 
-                  {/* 즐겨찾기 토글 */}
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleFavorite(quickFriend.id)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 2 }}>
-                    <Text style={{ fontSize: fs(16) }}>⭐</Text>
-                    <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>즐겨찾기</Text>
-                    <View style={{ backgroundColor: isFav ? C.burgundy : C.bgSecondary, borderWidth: isFav ? 0 : 0.5, borderColor: C.hairline,
-                      borderRadius: 12, paddingHorizontal: 11, paddingVertical: 4 }}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: isFav ? C.butter : C.warmGray }}>{isFav ? '켜짐' : '꺼짐'}</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* 그룹 이동 */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8,
-                    borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 16 }}>
+                  {/* 그룹 이동 — 즐겨찾기·숨기기는 카드 좌우 스와이프로 이동([[friend_card_gestures]]). 팝업은 그룹 지정 전용 */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>그룹 이동</Text>
                     <TouchableOpacity onPress={() => { setQuickFriend(null); setGroupManageOpen(true); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>⚙ 그룹 관리 ›</Text>
