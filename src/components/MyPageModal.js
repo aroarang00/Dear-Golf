@@ -585,9 +585,10 @@ export function MyPageModal({ visible, onClose }) {
                   { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
                   { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
                   { icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
-                  // 내 라운지 활동 — 매너·신뢰 등급, 패널티 이력, 진행 중 신고 통합 진입점 ([[my-roundup-activity]])
-                  { icon: '📋', label: '내 라운지 활동',
-                    onPress: () => setRoundupActivityOpen(true) },
+                  // 내 라운지 활동 — 매너·신뢰 등급, 패널티 이력, 진행 중 신고 통합 진입점 ([[my-roundup-activity]]).
+                  //   전체공개 OFF 동안 메뉴 통째로 숨김 — 매너·신뢰는 낯선사람 신뢰용이라 친구 전용 모드에선 의미 약함 ([[roundup-public-disabled]]).
+                  ...(ROUNDUP_PUBLIC_ENABLED ? [{ icon: '📋', label: '내 라운지 활동',
+                    onPress: () => setRoundupActivityOpen(true) }] : []),
                   { icon: '👥', label: '친구 그룹 관리',
                     onPress: () => setGroupManageOpen(true) },
                   { icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
