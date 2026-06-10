@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, AppState } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -102,11 +102,19 @@ export function cacheCurrentWx(current) {
 export function HomeBgSlider() {
   const [imageUri, setImageUri] = useState(pickImage);
   const [weather, setWeather] = useState('clear');
+  // 현재 사진의 시간대 — 같은 시간대면 사진을 그대로 둔다.
+  // (매 포그라운드 복귀마다 랜덤 재추출하면 안드 <Image> 크로스페이드로 두 사진이 겹쳐 보임)
+  const bucketRef = useRef(timeBucket());
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
-      setImageUri(pickImage());
+      // 시간대(아침/낮/노을/밤)가 실제로 바뀌었을 때만 사진 교체 — 불필요한 깜빡임 제거
+      const b = timeBucket();
+      if (b !== bucketRef.current) {
+        bucketRef.current = b;
+        setImageUri(pickImage());
+      }
       const w = await getCurrentWxClass();
       if (cancelled) return;
       setWeather(w === 'rain' ? 'rain' : w === 'cloudy' ? 'cloudy' : 'clear');
@@ -121,7 +129,7 @@ export function HomeBgSlider() {
 
   return (
     <View style={StyleSheet.absoluteFillObject}>
-      <Image source={imageUri} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      <Image source={imageUri} fadeDuration={0} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       <LinearGradient
         style={StyleSheet.absoluteFillObject}
         colors={OVERLAYS[weather] || OVERLAYS.clear}

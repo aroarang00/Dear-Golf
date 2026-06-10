@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { CourseLogTab } from './CourseLogTab';
@@ -11,15 +11,33 @@ export function CourseLogModal({ visible, onClose, navigation }) {
   // navigation 식별자 기준으로 메모이즈 — CourseLogTab의 리스너 effect가 매 렌더 재실행되지 않게.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  // iOS는 모달 dismiss 애니메이션과 화면 전환이 같은 프레임에 겹치면 검은 화면→튕김이 난다.
+  // 그래서 iOS에선 navigate를 보류해 두고 모달이 완전히 닫힌 뒤(onDismiss) 실행한다.
+  // 안드는 Modal이 네이티브 Dialog라 이 경합이 없어 기존처럼 즉시 이동. ([[modal-navigation-pattern]])
+  const pendingNavRef = useRef(null);
   const wrappedNav = useMemo(() => (navigation ? {
-    navigate: (name, params) => { onCloseRef.current(); navigation.navigate(name, params); },
+    navigate: (name, params) => {
+      if (Platform.OS === 'ios') {
+        pendingNavRef.current = { name, params };
+        onCloseRef.current(); // 닫힘 → onDismiss에서 실제 이동
+      } else {
+        onCloseRef.current();
+        navigation.navigate(name, params);
+      }
+    },
     addListener: (ev, cb) => navigation.addListener(ev, cb),
   } : undefined), [navigation]);
+
+  // iOS 전용 — 모달이 닫힌 뒤 보류해 둔 화면 이동을 실행. 일반 닫기(뒤로가기)면 pending이 없어 무동작.
+  const handleDismiss = () => {
+    const p = pendingNavRef.current;
+    if (p && navigation) { pendingNavRef.current = null; navigation.navigate(p.name, p.params); }
+  };
 
   const [showInfo, setShowInfo] = useState(false);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} onDismiss={handleDismiss}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 — 골프 그린(#6B8B5E, 지역색 강원과 동일) + 흰 글씨. 네이비는 라운지 전용 ([[navy-lounge-color]]) */}
