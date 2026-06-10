@@ -48,11 +48,12 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   const ownerLabelData = (!isFriend && friendGroups) ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds) : null;
   // 공개범위 색라벨 — 무사진 카드 날짜 줄 오른쪽 끝(우상단)에 인라인. 사진 카드의 코너칩(ownerChip)과 같은 시각 위치로 통일 ([[friend_groups]])
   const ownerLabelTopRight = ownerLabelData ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+    // flexShrink/minWidth/numberOfLines — 긴 그룹명이 날짜·더보기와 같은 줄에서 겹치지 않게 말줄임 ([[friend_groups]])
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 }}>
       {ownerLabelData.groups && ownerLabelData.groups.length
         ? ownerLabelData.groups.map((g, gi) => <View key={gi} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.color }} />)
         : (ownerLabelData.icon ? <Text style={{ fontSize: fs(9) }}>{ownerLabelData.icon}</Text> : null)}
-      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{ownerLabelData.text}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, flexShrink: 1 }}>{ownerLabelData.text}</Text>
     </View>
   ) : null;
   // 사진 카드용 — 사진 우상단 반투명 코너 칩(높이 0 증가 → 카드 통일 유지). 좌상단은 specialBadge와 충돌 회피 ([[friend_groups]] A안)
@@ -462,8 +463,10 @@ function ExpandableMemo({ text, style, lines = 5, dateNode, rightNode }) {
   return (
     <View>
       {dateNode ? (
+        // 날짜(고정) · 가변 spacer · 공개라벨(길면 말줄임) · 더보기(고정) — 좁은 기기에서도 한 줄 겹침 방지
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
-          <View style={{ flex: 1 }}>{dateNode}</View>
+          <View style={{ flexShrink: 0 }}>{dateNode}</View>
+          <View style={{ flex: 1, minWidth: 8 }} />
           {rightNode}
           {toggle}
         </View>
