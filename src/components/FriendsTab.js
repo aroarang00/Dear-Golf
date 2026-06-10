@@ -117,33 +117,34 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
   );
 }
 
-// 카카오톡식 좌우 스와이프 래퍼 — 카드 왼쪽으로 밀기=즐겨찾기(오른쪽 액션), 오른쪽으로 밀기=숨기기(왼쪽 액션).
+// 카카오톡식 좌우 스와이프 래퍼 — 카드 오른쪽으로 밀기=즐겨찾기(왼쪽 액션), 왼쪽으로 밀기=숨기기(오른쪽 액션).
+//   배경색 없이 페이지 기본 바탕 위 이모지+텍스트만(즐겨찾기=별표·버건디 / 숨기기=🙈·차콜).
 //   액션 노출 후 탭해 실행(실수 방지). 그룹 지정은 롱탭 시트 유지. ([[friend_card_gestures]])
 function SwipeableFriendCard({ friend, favorite, onToggleFavorite, onHide, ...cardProps }) {
   const ref = useRef(null);
   const ACT_W = 86;
-  // 즐겨찾기(오른쪽 액션) — 카드를 왼쪽으로 밀면 노출. 현재 상태 따라 설정/해제 토글.
-  const renderRight = () => (
-    <TouchableOpacity activeOpacity={0.85}
+  // 즐겨찾기(왼쪽 액션) — 카드를 오른쪽으로 밀면 노출. 별표 + 버건디 텍스트, 배경 없음(페이지 바탕).
+  const renderFavorite = () => (
+    <TouchableOpacity activeOpacity={0.7}
       onPress={() => { onToggleFavorite(friend.id); ref.current?.close(); }}
-      style={{ width: ACT_W, backgroundColor: C.burgundy, justifyContent: 'center', alignItems: 'center', gap: 3 }}>
-      <Text style={{ fontSize: fs(18), color: C.butter }}>{favorite ? '★' : '☆'}</Text>
-      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>{favorite ? '즐겨찾기 해제' : '즐겨찾기'}</Text>
+      style={{ width: ACT_W, justifyContent: 'center', alignItems: 'center', gap: 3 }}>
+      <Text style={{ fontSize: fs(18), color: C.burgundy }}>{favorite ? '★' : '☆'}</Text>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy }}>{favorite ? '즐겨찾기 해제' : '즐겨찾기'}</Text>
     </TouchableOpacity>
   );
-  // 숨기기(왼쪽 액션) — 카드를 오른쪽으로 밀면 노출. 숨기면 카드가 목록에서 빠지고 '숨긴 친구'로 이동.
-  const renderLeft = () => (
-    <TouchableOpacity activeOpacity={0.85}
+  // 숨기기(오른쪽 액션) — 카드를 왼쪽으로 밀면 노출. 🙈 + 차콜 텍스트, 배경 없음. 숨기면 '숨긴 친구'로 이동.
+  const renderHide = () => (
+    <TouchableOpacity activeOpacity={0.7}
       onPress={() => { ref.current?.close(); onHide(friend.id); }}
-      style={{ width: ACT_W, backgroundColor: '#8A837A', justifyContent: 'center', alignItems: 'center', gap: 3 }}>
+      style={{ width: ACT_W, justifyContent: 'center', alignItems: 'center', gap: 3 }}>
       <Text style={{ fontSize: fs(18) }}>🙈</Text>
-      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>숨기기</Text>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>숨기기</Text>
     </TouchableOpacity>
   );
   return (
     <Swipeable ref={ref} friction={1.6} leftThreshold={44} rightThreshold={44}
       overshootLeft={false} overshootRight={false}
-      renderLeftActions={renderLeft} renderRightActions={renderRight}
+      renderLeftActions={renderFavorite} renderRightActions={renderHide}
       containerStyle={{ marginBottom: _and ? 9 : 12 }}>
       <FriendCard friend={friend} favorite={favorite} flush {...cardProps} />
     </Swipeable>
