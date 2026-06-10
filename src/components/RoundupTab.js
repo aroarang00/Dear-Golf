@@ -866,16 +866,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       // 수정 모드 — editingPost가 있으면 Firestore 업데이트 + 로컬 머지 + schedules 동기화
       if (editingPost) {
         const eid = editingPost.id;
-        // 팀 수 변경 반영 — buildPayload엔 teamJoined가 없어, 새 팀 수에 맞춰 재구성한다.
-        //   (기존 팀 인원 보존 + 새로 생긴 팀은 0, 단체→개별 전환 시 [1]).
-        //   이게 빠져서 2→4 팀 수정이 화면·정원에 안 먹던 버그.
-        const prevTJ = Array.isArray(editingPost.teamJoined) ? editingPost.teamJoined : [];
-        const nextPost = {
-          ...post,
-          teamJoined: (post.teams || 1) > 1
-            ? Array.from({ length: post.teams }, (_, i) => prevTJ[i] ?? 0)
-            : [1],
-        };
+        // teamJoined 재구성 폐기(2026-06-10) — 정원·만석은 joined 단일 기준으로 통일돼 어떤 로직도
+        //   teamJoined를 읽지 않는다([[roundup-team-flat-roster]]). 기존 문서의 필드는 그대로 보존(옛 빌드 호환).
+        const nextPost = { ...post };
         // 이미 참여 확정한 사람은 audienceUids에서 빠지면 모집·일정 가시성을 잃는다(조회가 audienceUids array-contains).
         //   빈자리를 새 친구로 채우려 selectedUids를 바꿀 때 기존 참여자가 누락되던 버그 → 참여자(주최자 제외)는 항상 보존.
         if (nextPost.scope === 'select') {
@@ -936,11 +929,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         return;
       }
       const teams = post.teams || 1;
+      // teamJoined는 payload서 제거(joined 단일 기준, 미사용 죽은 필드) — createRoundup 기본값 [1]이
+      //   필드 존재만 보장(옛 빌드 v50 이하 상세가 .every를 읽어 crash 방지용. 값은 어차피 안 씀)
       const payload = {
         ...post,
         authorName: userProfile?.nickname || '',
         teams,
-        teamJoined: teams > 1 ? Array.from({ length: teams }, (_, i) => (i === 0 ? 1 : 0)) : [1],
         // 동반자 조건 기본값 — post에 없으면 '상관없음'/빈 배열
         companion: post.companion || 'any',
         skill: post.skill || 'any',

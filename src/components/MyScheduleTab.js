@@ -335,6 +335,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       showAppAlert('삭제 안내', '이 라운딩은 기록이 있어요.\nMY 탭에서 삭제해주세요.', [{ text: '확인' }]);
       return;
     }
+    // 라운지 모집으로 생긴 예정 일정 — 캘린더에서 직접 삭제 X, 라운지 취소·나가기로만 ([[roundup-schedule-delete-policy]]).
+    //   탭→시트(ScheduleSheetModal) 경로는 이미 막는데 길게누르기 경로만 가드가 빠져 있었음. 과거는 시트와 동일하게 일반 삭제 허용.
+    if (s.roundupId && !isPast) {
+      showAppAlert('라운지 일정', '이 라운딩은 라운지 모집으로\n만들어졌어요.\n취소하려면 라운지에서 모집을\n취소하거나 나가주세요.', [{ text: '확인' }]);
+      return;
+    }
     // 과거 + 기록 없음 → 일정·코스기록 모두 삭제 / 예정 → 단순 확인
     showAppAlert(
       '일정 삭제',

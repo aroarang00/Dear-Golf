@@ -76,7 +76,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         setMinText(pad2(tParts[1]));
       }
       setMembers(String(initial.members || '4'));
-      setCompanions(Array.isArray(initial.companions) ? initial.companions : []);
+      // 옛 데이터 호환 — 문자열 동반자('홍길동')를 {name, friendUid:null}로 정규화.
+      //   문자열인 채 두면 c.name이 undefined라 표시·중복제거(onPickFriends freeText)가 깨짐.
+      setCompanions(Array.isArray(initial.companions)
+        ? initial.companions
+            .map(c => (typeof c === 'string' ? { name: c, friendUid: null } : c))
+            .filter(c => c && c.name)
+        : []);
       setCompanionInput('');
       setOverseas(!!initial.overseas);
       if (initial.overseas && initial.city) {
