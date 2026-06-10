@@ -191,6 +191,15 @@ exports.waitlistCallCutoffTick = onSchedule({ schedule: 'every 60 minutes', time
       };
       try {
         await doc.ref.update(update);
+        // 넘어간 본인에게 닫힘 통보 — '자리 났어요' 기대만 주고 침묵으로 탈락시키던 정서 공백 보완.
+        //   정보성이라 normal 우선순위. 재대기 가능 안내로 잔류 유도 ([[roundup-waitlist-policy]]).
+        await createSystemNotification({
+          recipientUid: stuckUid,
+          type: 'slotPassed',
+          postId: doc.id,
+          postTitle: d.course || '',
+          priority: 'normal',
+        });
         if (next) {
           await createSystemNotification({
             recipientUid: next,

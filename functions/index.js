@@ -90,6 +90,7 @@ function titleFor(type) {
     case 'waitlist':    return '새 대기 신청';
     case 'kicked':      return '참여 취소 안내';
     case 'slotOpen':    return '대기 자리 열림';
+    case 'slotPassed':  return '대기 안내';
     case 'comment':     return '새 댓글';
     case 'mannerEval':  return '매너 평가 요청';
     case 'hostCancelledD7': return '모집 취소 안내';
@@ -139,6 +140,7 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     case 'waitlist':    return `${actorName}님이 ${t} 모집에 대기 신청했어요`;
     case 'kicked':      return `${t} 모집 참여가 주최자 사정으로 취소됐어요`;
     case 'slotOpen':    return `대기 중이던 ${t} 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
+    case 'slotPassed':  return `대기 중이던 ${t} 모집은 이번엔 다음 분께 자리가 넘어갔어요 — 다시 대기 신청할 수 있어요`;
     case 'comment':     return `${actorName}님이 ${t} 모집에 댓글을 남겼어요`;
     case 'mannerEval':  return `${t} 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     case 'hostCancelledD7': return `${t} 모집이 주최자에 의해 취소됐어요 — 매너 평가를 남길 수 있어요`;
