@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages } from '../utils/dm';
+import { setActiveDmPair } from '../utils/notifications';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 const _and = Platform.OS === 'android';
@@ -86,6 +87,14 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
       requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
     });
     return () => unsub();
+  }, [convId]);
+
+  // 이 방을 보는 동안엔 같은 방 DM 푸시 배너 숨김(이미 실시간으로 보임). 이탈 시 해제 ([[dm-design]]).
+  //   convId === pairId === CF 푸시 data.pairId 라 정확히 이 방만 억제.
+  useEffect(() => {
+    if (!convId) return;
+    setActiveDmPair(convId);
+    return () => setActiveDmPair(null);
   }, [convId]);
 
   const handleSend = async () => {

@@ -1,14 +1,25 @@
 import * as Notifications from 'expo-notifications';
 import { STORAGE_KEYS, storage } from './storage';
 
-// 포그라운드에서도 알림 배너를 띄움
+// 현재 열려 있는 DM 대화방 pairId — 포그라운드 중복 푸시 억제용 ([[dm-design]]).
+//   그 방을 보고 있으면 메시지가 이미 실시간으로 보이므로 배너를 띄우지 않는다(앱이 백그라운드면
+//   이 JS 핸들러가 호출되지 않아 OS가 정상 표시 — 억제는 '포그라운드+그 방'일 때만).
+//   DMChatScreen이 진입 시 setActiveDmPair(pairId), 이탈 시 setActiveDmPair(null) 호출.
+let _activeDmPairId = null;
+export function setActiveDmPair(pairId) { _activeDmPairId = pairId || null; }
+
+// 포그라운드에서도 알림 배너를 띄움 — 단, 지금 보고 있는 DM 대화방 메시지는 제외(중복 방지)
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification?.request?.content?.data || {};
+    const suppress = data.type === 'dm' && !!data.pairId && data.pairId === _activeDmPairId;
+    return {
+      shouldShowBanner: !suppress,
+      shouldShowList: !suppress,
+      shouldPlaySound: !suppress,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 // 알람 시점별 정의 — title은 알림 제목, tail은 본문 둘째 줄(행동 유도)
