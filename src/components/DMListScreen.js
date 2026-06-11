@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+
+// DM 다크 룸 팔레트 — DMChatScreen과 동일(소스 오브 트루스는 거기, 같이 바꿀 것). 목록도 다크로 맞춰 방 전환 시 안 튀게.
+const DM_CANVAS   = '#2A2622';                 // 리스트 배경
+const DM_SURFACE  = '#211E1B';                 // 헤더·상태바 영역
+const DM_TEXT     = '#EDE9E1';                 // 주요 글씨
+const DM_TEXT_DIM = '#9A938B';                 // 시각·미리보기·부제
+const DM_LINE     = 'rgba(255,255,255,0.08)';  // 다크용 헤어라인·구분선
+const DM_AVATAR   = '#46403B';                 // 친구 아바타 이니셜 배경(대화방과 통일)
 import { getUid } from '../utils/firebase';
 import { subscribeConversations, otherUidOf } from '../utils/dm';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
@@ -72,8 +80,8 @@ export function DMListScreen({ onClose, onOpenChat }) {
     return (
       <TouchableOpacity activeOpacity={0.7} onPress={() => onOpenChat?.(ouid, name, avatar || null)}
         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, gap: 12 }}>
-        {/* 사진 우선 + 이니셜 fallback — 친구리스트(FriendsTab)와 동일 패턴, 원격 URL만 유효 */}
-        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {/* 사진 우선 + 이니셜 fallback — 대화방 아바타와 통일(다크 차콜 배경 + 버터골드 이니셜) */}
+        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {avatar && /^https?:\/\//.test(avatar) ? (
             <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
           ) : (
@@ -83,37 +91,43 @@ export function DMListScreen({ onClose, onOpenChat }) {
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* 이름 fs(16)·미리보기 fs(15) — 옛 fs(15)/fs(13)은 BODY_BUMP(11~13만 보정) 탓에 미리보기가 이름보다 크게 렌더되는 역전이 있었음([[avoid-small-text]]) */}
-            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }} numberOfLines={1}>{name}</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 8 }}>{fmtTime(item.lastAt)}</Text>
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: DM_TEXT }} numberOfLines={1}>{name}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: DM_TEXT_DIM, marginLeft: 8 }}>{fmtTime(item.lastAt)}</Text>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{item.lastMessage}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: DM_TEXT_DIM, marginTop: 3 }} numberOfLines={1}>{item.lastMessage}</Text>
         </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: C.hairline, gap: 12 }}>
+    // RN Modal(DiaryScreen) 안에선 루트 SafeAreaProvider가 안 닿아 inset이 0이 됨(헤더 상태바 겹침) → 자체 Provider로 재측정.
+    //   DMChatScreen과 동일 처리([[dm-design]] iOS safe-area 버그). initialWindowMetrics로 첫 프레임 깜빡임 방지.
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: DM_CANVAS }} edges={['top', 'bottom', 'left', 'right']}>
+      {/* 다크 룸이라 상태바 아이콘 밝게 — 언마운트 시 자동복원([[dm-design]] StatusBar 패턴) */}
+      <StatusBar barStyle="light-content" />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, backgroundColor: DM_SURFACE, gap: 12 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
+          <Text style={{ fontSize: fs(22), color: DM_TEXT }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>메시지</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: DM_TEXT }}>메시지</Text>
         {/* 'DM 알림 받기' 전역 토글 자리 — 출시 후 실연결([[dm-design]] 알림 설정) */}
       </View>
       <FlatList
         data={convs || []}
         keyExtractor={(c) => c.id}
         renderItem={renderItem}
-        ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: C.hairline, marginLeft: 74 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: DM_LINE, marginLeft: 74 }} />}
         ListEmptyComponent={convs !== null ? (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_TEXT_DIM, textAlign: 'center', lineHeight: 22 }}>
               아직 주고받은 메시지가 없어요{'\n'}친구 프로필에서 대화를 시작해보세요
             </Text>
           </View>
         ) : null}
       />
     </SafeAreaView>
+    </SafeAreaProvider>
   );
 }

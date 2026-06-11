@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
-import { KeyboardProvider, KeyboardStickyView } from 'react-native-keyboard-controller';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Reanimated, { useAnimatedStyle } from 'react-native-reanimated';
+import { KeyboardProvider, KeyboardStickyView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages, setReaction } from '../utils/dm';
@@ -11,14 +12,21 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
+// DM 다크 룸 팔레트 — 디어골프는 전반이 크림/밝은 톤이라 DM만 진한 '방'으로 분리(사용자 확정 2026-06-11 [[dm-design]]).
+//   뉴트럴 블랙 X → 따뜻한 차콜 계열로 디어골프 온기 유지. 포인트=딥그린(보낸 말풍선)·버터골드(공감 하이라이트), '고급 톤'.
+const DM_CANVAS   = '#2A2622';                 // 대화 리스트 배경 — '방' 바닥(가장 깊음)
+const DM_SURFACE  = '#211E1B';                 // 헤더·입력바·상태바 영역 — 프레임(캔버스보다 한 톤 어둡게)
+const DM_RECV     = '#3A3531';                 // 받은 말풍선 — 캔버스 위로 살짝 떠오른 elevated 차콜
+const DM_FIELD    = '#322E2A';                 // 입력 필드·비활성 전송버튼 바탕
+const DM_TEXT     = '#EDE9E1';                 // 주요 글씨 — 웜 오프화이트
+const DM_TEXT_DIM = '#9A938B';                 // 보조 글씨 — 시각·부제
+const DM_PLACE    = '#837C74';                 // 플레이스홀더
+const DM_LINE     = 'rgba(255,255,255,0.08)';  // 다크용 헤어라인
+const DM_AVATAR   = '#46403B';                 // 친구 아바타 이니셜 배경 — 다크 위 식별
 // 말풍선 옆 시각 — 작고 흐리게
-const timeStyle = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 2 };
-// 말풍선 색 — 디어골프 고급 톤(사용자 확정 2026-06-11 [[dm-design]]): 내것=딥 포레스트 그린(골프 그린·흰글씨),
-//   받은것=흰 바탕+테두리(대화 배경서 또렷). 네이비는 라운지 전용이라 회피([[navy-lounge-color]]).
+const timeStyle = { fontFamily: F.sys, fontSize: fs(11), color: DM_TEXT_DIM, marginBottom: 2 };
+// 보낸 말풍선 색 — 딥 포레스트 그린(골프 그린·흰글씨), 다크 캔버스서도 '내 색' 유지. 네이비는 라운지 전용 회피([[navy-lounge-color]]).
 const MY_BUBBLE = '#1F4A38';
-// 대화 영역 배경 — 헤더·입력창(크림)과 분리해 채팅 공간을 '방'처럼(사용자 확정 2026-06-11).
-//   옅은 원 그레이: 크림보다 채도 낮춘 따뜻한 회색, 흰 말풍선이 또렷이 뜸.
-const CHAT_BG = '#EDEAE2';
 // 공감 이모지 세트 — 인스타식 6개(마지막은 골프 ⛳). 메시지 길게누르기 → 선택, 같은 것 다시 누르면 해제.
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '⛳'];
 
@@ -53,8 +61,15 @@ function dayKey(ts) {
 // 친구 1:1 DM 대화방 — 풀스크린, 말풍선(내 메시지 우측·상대 좌측). 카톡식 ([[dm-design]]).
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
-export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
+function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
   const insets = useSafeAreaInsets();  // 입력창 하단 여백(홈바) — SafeAreaView bottom edge 대신 입력 컨테이너에 직접
+  // 키보드 애니메이션([[dm-design]]) — keyboard-controller가 iOS·Android 모두 시스템 창 리사이즈를 가로채므로
+  //   (그래서 입력창을 KeyboardStickyView로 직접 띄워야 함) 두 플랫폼 다 FlatList가 안 줄어 메시지가 키보드 뒤로 숨음.
+  //   → 리스트에 키보드 높이(Math.abs)만큼 하단 패딩을 줘 메시지를 키보드 위로 끌어올림(양 플랫폼 공통).
+  //   입력창 홈바 여백(insets.bottom)도 키보드 뜨면(progress) 접어 '너무 떠 보이는' 갭 제거.
+  const { height: kbHeight, progress: kbProgress } = useReanimatedKeyboardAnimation();
+  const listPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.abs(kbHeight.value) }));
+  const inputPadStyle = useAnimatedStyle(() => ({ paddingBottom: 10 + insets.bottom * (1 - kbProgress.value) }));
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
@@ -154,9 +169,9 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
       <View>
         {showDate && (
           <View style={{ alignItems: 'center', marginVertical: 10 }}>
-            {/* 날짜 캡슐 — 원그레이 대화배경 위에서 또렷하게 반투명 차콜+흰글씨(중앙·소형이라 말풍선과 안 헷갈림) */}
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: '#fff',
-              backgroundColor: 'rgba(61,57,53,0.55)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 11, overflow: 'hidden' }}>
+            {/* 날짜 캡슐 — 다크 캔버스 위 은은하게: 반투명 화이트 바탕 + 흐린 오프화이트 글씨(중앙·소형이라 말풍선과 안 헷갈림) */}
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: '#C9C2B8',
+              backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 11, overflow: 'hidden' }}>
               {fmtDay(item.createdAt)}
             </Text>
           </View>
@@ -168,7 +183,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
           {mine && !!time && <Text style={timeStyle}>{time}</Text>}
           {!mine && (
             <View style={{ width: 28, height: 28, borderRadius: 14, overflow: 'hidden', marginBottom: 1,
-              backgroundColor: lastOfGroup ? C.charcoal : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+              backgroundColor: lastOfGroup ? DM_AVATAR : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
               {lastOfGroup && (friendAvatarUri && /^https?:\/\//.test(friendAvatarUri) ? (
                 <Image source={{ uri: friendAvatarUri }} style={{ width: 28, height: 28 }} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
@@ -176,27 +191,26 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
               ))}
             </View>
           )}
-          <View style={{ maxWidth: '74%' }}>
+          <View style={{ maxWidth: '78%' }}>
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             <TouchableOpacity activeOpacity={0.85} delayLongPress={300} onLongPress={() => setReactTarget(item)}
-              style={{ backgroundColor: mine ? MY_BUBBLE : C.bgSecondary, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9,
-                borderWidth: mine ? 0 : 0.5, borderColor: C.hairline }}>
+              style={{ backgroundColor: mine ? MY_BUBBLE : DM_RECV, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12 }}>
               {/* 답장(인용) 블록 — 본문 위에 원본 발신자+내용 2줄 요약. 말풍선 색에 맞춘 반투명 박스+좌측 액센트 */}
               {item.replyTo && (
-                <View style={{ borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(255,255,255,0.45)' : C.warmGrayLight,
-                  backgroundColor: mine ? 'rgba(255,255,255,0.12)' : 'rgba(61,57,53,0.06)',
+                <View style={{ borderLeftWidth: 3, borderLeftColor: 'rgba(255,255,255,0.35)',
+                  backgroundColor: 'rgba(255,255,255,0.10)',
                   borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, marginBottom: 6 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: mine ? 'rgba(255,255,255,0.85)' : C.textSecondary }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>
                     {item.replyTo.senderUid === myUid ? '나' : friendName}
                   </Text>
                   <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 18,
-                    color: mine ? 'rgba(255,255,255,0.75)' : C.textSecondary, marginTop: 1 }}>
+                    color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
                     {item.replyTo.body}
                   </Text>
                 </View>
               )}
-              {/* fs(16) — fs(14)는 BODY_BUMP(11~13만 보정) 사각지대라 안드서 13으로 렌더돼 너무 작았음([[avoid-small-text]]) */}
-              <Text style={{ fontFamily: F.sys, fontSize: fs(16), lineHeight: 23, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
+              {/* fs(17) — 중장년 가독성 위해 한 단계 더 키움(fs16도 작다는 피드백 2026-06-11). BODY_BUMP 사각지대(14) 회피 겸 ([[avoid-small-text]]) */}
+              <Text style={{ fontFamily: F.sys, fontSize: fs(17), lineHeight: 25, color: mine ? '#fff' : DM_TEXT }}>{item.body}</Text>
             </TouchableOpacity>
             {/* 공감 표시 — 인스타식 말풍선 하단 안쪽 모서리에 살짝 겹친 알약 */}
             {(() => {
@@ -204,8 +218,8 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
               if (!emojis.length) return null;
               return (
                 <View style={{ alignSelf: mine ? 'flex-start' : 'flex-end', marginTop: -7, marginHorizontal: 8,
-                  backgroundColor: C.bgSecondary, borderRadius: 11, paddingHorizontal: 7, paddingVertical: 2,
-                  borderWidth: 0.5, borderColor: C.hairline }}>
+                  backgroundColor: DM_FIELD, borderRadius: 11, paddingHorizontal: 7, paddingVertical: 2,
+                  borderWidth: 0.5, borderColor: DM_LINE }}>
                   <Text style={{ fontSize: fs(12), lineHeight: 16 }}>{emojis.join(' ')}</Text>
                 </View>
               );
@@ -220,38 +234,38 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
   const canSend = !!text.trim() && !sending;
 
   return (
-    // KeyboardProvider — 호스트(DiaryScreen·FriendProfile)가 RN Modal=별도 네이티브 윈도우라 자체 Provider 필요
-    //   (DiaryAddModal·ScheduleModal과 동일 패턴, 안드 빌드 검증됨). 수동 키보드 높이 계산(endCoordinates)은
-    //   엣지투엣지서 내비바 포함 여부가 기기마다 달라 폐기 ([[dm-design]]).
-    <KeyboardProvider>
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      {/* 헤더 — 누구와의 대화인지 명확히: 상대 아바타 + 큰 이름 + '님과 대화'. 별명은 friendName으로 전달 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderBottomWidth: 0.5, borderBottomColor: C.hairline, gap: 10 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: DM_SURFACE }} edges={['top', 'left', 'right']}>
+      {/* 다크 룸이라 상태바 아이콘(시계·배터리)을 밝게 — 언마운트 시 직전 화면 스타일로 자동 복원(RN StatusBar 스택). */}
+      <StatusBar barStyle="light-content" />
+      {/* 헤더 — 다크 프레임. 상대 아바타 + 큰 이름 + '님과 대화'. 별명은 friendName으로 전달 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 10 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ fontSize: fs(24), color: C.charcoal }}>←</Text>
+          <Text style={{ fontSize: fs(24), color: DM_TEXT }}>←</Text>
         </TouchableOpacity>
-        {/* 상대 아바타(사진 우선·이니셜 fallback) — 친구 식별색=차콜(내 딥그린 말풍선과 구분) */}
-        <View style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', backgroundColor: C.charcoal, alignItems: 'center', justifyContent: 'center' }}>
+        {/* 상대 아바타(사진 우선·이니셜 fallback) — 다크 위 식별색 */}
+        <View style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center' }}>
           {friendAvatarUri && /^https?:\/\//.test(friendAvatarUri)
             ? <Image source={{ uri: friendAvatarUri }} style={{ width: 36, height: 36 }} contentFit="cover" cachePolicy="memory-disk" />
-            : <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff' }}>{(friendName || '?').charAt(0)}</Text>}
+            : <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>{(friendName || '?').charAt(0)}</Text>}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }} numberOfLines={1}>{friendName}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>님과 대화 중</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: DM_TEXT }} numberOfLines={1}>{friendName}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: DM_TEXT_DIM, marginTop: 1 }}>님과 대화 중</Text>
         </View>
         {onOpenOptions && (
           <TouchableOpacity onPress={onOpenOptions} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ fontSize: fs(20), color: C.warmGray }}>⋯</Text>
+            <Text style={{ fontSize: fs(20), color: DM_TEXT_DIM }}>⋯</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* 채팅 리스트 — flex로 남은 공간 채우고, 입력영역은 아래 KeyboardStickyView가 키보드 위에 고정 */}
+      {/* 채팅 리스트 — flex로 남은 공간 채움. iOS는 키보드 높이만큼 하단 패딩(listPadStyle)으로 리스트를 줄여
+          바닥 정렬 메시지를 키보드 위로 끌어올림(안 그러면 키보드 뒤로 숨음). 입력영역은 KeyboardStickyView가 키보드 위 고정. */}
+      <Reanimated.View style={[{ flex: 1, backgroundColor: DM_CANVAS }, listPadStyle]}>
       <FlatList
         ref={listRef}
         data={list}
-        style={{ flex: 1, backgroundColor: CHAT_BG }}
+        style={{ flex: 1 }}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
         contentContainerStyle={{ paddingVertical: 12, flexGrow: 1, justifyContent: 'flex-end' }}
@@ -259,12 +273,13 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={messages !== null ? (
           <View style={{ alignItems: 'center', paddingVertical: 44 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_TEXT_DIM, textAlign: 'center', lineHeight: 22 }}>
               {friendName}님과의 첫 메시지를{'\n'}남겨보세요
             </Text>
           </View>
         ) : null}
       />
+      </Reanimated.View>
       {/* KeyboardStickyView — 채팅 입력영역을 키보드 위에 딱 붙임(채팅 표준, 안드·iOS 공통).
           이전 KeyboardAvoidingView(padding)가 안드 FlatList 구조에서 입력창을 못 띄우던 문제 교체 ([[dm-design]]).
           하단 홈바 여백은 insets.bottom으로(SafeAreaView bottom edge 대신). */}
@@ -272,55 +287,54 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
         {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
         {replyTo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9,
-            borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgSecondary }}>
-            <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: C.warmGrayLight }} />
+            borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_FIELD }}>
+            <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' }} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.textSecondary }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: DM_TEXT }}>
                 {replyTo.senderUid === myUid ? '나' : friendName}님에게 답장
               </Text>
-              <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 1 }}>
+              <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_TEXT_DIM, marginTop: 1 }}>
                 {replyTo.body}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(16), color: C.warmGray }}>✕</Text>
+              <Text style={{ fontSize: fs(16), color: DM_TEXT_DIM }}>✕</Text>
             </TouchableOpacity>
           </View>
         )}
         {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]).
-            크고 넓게 + 글씨 또렷하게(중장년 가독성 [[avoid-small-text]]): fs15·minHeight44·넉넉한 패딩 */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
-          paddingBottom: 10 + insets.bottom, backgroundColor: C.bgPrimary,
-          borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: C.hairline, gap: 8 }}>
+            다크 프레임 위 elevated 필드. 크고 넓게 + 글씨 또렷하게(중장년 가독성 [[avoid-small-text]]) */}
+        <Reanimated.View style={[{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
+          backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }, inputPadStyle]}>
           <TextInput
             ref={inputRef}
             value={text}
             onChangeText={setText}
             placeholder="메시지를 입력하세요"
-            placeholderTextColor={C.warmGray}
+            placeholderTextColor={DM_PLACE}
             multiline
             style={{
-              flex: 1, minHeight: 44, maxHeight: 120, fontFamily: F.sys, fontSize: fs(16), lineHeight: 22, color: C.charcoal,
-              backgroundColor: C.bgSecondary, borderRadius: 20, borderWidth: 0.5, borderColor: C.hairline,
+              flex: 1, minHeight: 44, maxHeight: 120, fontFamily: F.sys, fontSize: fs(16), lineHeight: 22, color: DM_TEXT,
+              backgroundColor: DM_FIELD, borderRadius: 20, borderWidth: 0.5, borderColor: DM_LINE,
               paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
             }}
           />
-          {/* 전송 — 활성=딥그린바탕+흰 화살표(말풍선과 통일), 비활성=흰바탕+테두리+회색. 입력창과 높이 맞춤(44) */}
+          {/* 전송 — 활성=딥그린바탕+흰 화살표(말풍선과 통일), 비활성=어두운 필드+흐린 화살표. 입력창과 높이 맞춤(44) */}
           <TouchableOpacity onPress={handleSend} disabled={!canSend} activeOpacity={0.8}
             style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
-              backgroundColor: canSend ? MY_BUBBLE : C.bgSecondary, borderWidth: canSend ? 0 : 1, borderColor: C.hairline }}>
-            <Text style={{ fontSize: fs(20), fontFamily: F.sysB, color: canSend ? '#fff' : C.warmGray }}>↑</Text>
+              backgroundColor: canSend ? MY_BUBBLE : DM_FIELD, borderWidth: canSend ? 0 : 1, borderColor: DM_LINE }}>
+            <Text style={{ fontSize: fs(20), fontFamily: F.sysB, color: canSend ? '#fff' : DM_TEXT_DIM }}>↑</Text>
           </TouchableOpacity>
-        </View>
+        </Reanimated.View>
       </KeyboardStickyView>
       {/* 공감 피커 — 자체 오버레이(Modal 호스트 안이라 글로벌 시트 대신, OverlayAlert와 동일 패턴). 바깥 탭/뒤로가기=닫기 */}
       {reactTarget && (
         <TouchableOpacity activeOpacity={1} onPress={() => setReactTarget(null)}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+            backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ alignItems: 'center', gap: 10 }}>
-            <View style={{ flexDirection: 'row', gap: 4, backgroundColor: C.bgSecondary, borderRadius: 26,
-              paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: C.hairline }}>
+            <View style={{ flexDirection: 'row', gap: 4, backgroundColor: DM_FIELD, borderRadius: 26,
+              paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: DM_LINE }}>
               {REACTIONS.map(em => {
                 const on = reactTarget.reactions?.[myUid] === em;  // 내가 이미 누른 이모지는 버터 하이라이트(다시 누르면 해제)
                 return (
@@ -340,16 +354,28 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
                 setReplyTo(t);
                 requestAnimationFrame(() => inputRef.current?.focus?.());
               }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bgSecondary,
-                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }}>
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: DM_LINE }}>
               <Text style={{ fontSize: fs(15) }}>↩️</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>답장</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_TEXT }}>답장</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
+  );
+}
+
+// 친구 1:1 DM 대화방 — 외부 래퍼. RN Modal 호스트(DiaryScreen) 안에선 루트 SafeAreaProvider가 안 닿아
+//   inset이 0이 되고 헤더가 상태바와 겹쳤음(iOS) → 자체 SafeAreaProvider로 모달 윈도우 기준 재측정.
+//   initialWindowMetrics로 첫 프레임 깜빡임 방지. KeyboardProvider도 여기서(모달=별도 네이티브 윈도우) ([[dm-design]]).
+export function DMChatScreen(props) {
+  return (
+    <KeyboardProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <DMChatInner {...props} />
+      </SafeAreaProvider>
     </KeyboardProvider>
   );
 }
