@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -103,10 +103,12 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const fMs = milestoneBadge(topMilestone({ rounds: stats.rounds ?? 0, courses: stats.courses ?? 0 }));
   const fStatus = (friend.statusMessage || '').trim();
 
-  // transparent 필수 — 불투명 RN Modal은 안드서 keyboard-controller가 키보드 inset을 못 받아
-  //   내부 DM 대화방 입력창이 키보드에 가림(DiaryAddModal과 동일 패턴). 콘텐츠가 불투명 SafeAreaView라 화면은 동일.
+  // transparent + statusBarTranslucent(안드) 필수 — 불투명 RN Modal은 안드서 keyboard-controller가 키보드 inset을
+  //   못 받아 내부 DM 대화방 입력창이 키보드에 가림. ScheduleModal·RestaurantSaveModal과 동일한 검증된 조합.
+  //   콘텐츠가 불투명 SafeAreaView(top inset 처리)라 화면은 동일.
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide"
+      statusBarTranslucent={Platform.OS === 'android'} onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 — 버터. 우측 ⋯ 옵션(알림·숨기기·삭제) */}

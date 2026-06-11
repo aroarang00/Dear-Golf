@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { C, F, fs } from '../constants/colors';
@@ -854,9 +854,11 @@ export function DiaryScreen({ route, navigation }) {
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       {/* 메시지(DM) — 내 프로필 진입 = 대화 목록(인스타식). 단일 Modal에서 목록↔대화방 전환(Modal 중첩 회피) ([[dm-design]]).
-          transparent 필수 — 불투명 RN Modal은 안드서 keyboard-controller가 키보드 inset을 못 받아 입력창이 키보드에 가림
-          (DiaryAddModal과 동일 패턴). DMChat/DMList SafeAreaView가 불투명이라 화면은 동일. */}
-      <Modal visible={dmOpen} transparent animationType="slide" onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
+          transparent + statusBarTranslucent(안드) 필수 — 불투명 RN Modal은 안드서 keyboard-controller가 키보드 inset을
+          못 받아 입력창이 키보드에 가림. ScheduleModal·RestaurantSaveModal과 동일한 검증된 조합.
+          DMChat/DMList SafeAreaView(top inset)가 불투명이라 화면은 동일. */}
+      <Modal visible={dmOpen} transparent animationType="slide"
+        statusBarTranslucent={Platform.OS === 'android'} onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
         {dmChat ? (
           <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)} />
         ) : (
