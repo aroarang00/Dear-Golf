@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
 
 // 맛집 저장 모달 — 카카오 검색 결과 또는 직접 입력한 맛집을 내 목록에 추가
@@ -41,10 +42,12 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}>
+    <Modal visible={visible} transparent animationType="fade"
+      statusBarTranslucent={Platform.OS === 'android'} onRequestClose={onClose}>
+      {/* KeyboardProvider — RN Modal은 별도 네이티브 윈도우라 모달 안 자체 Provider 필요(DM·일정모달 동일 패턴).
+          중앙 카드라 안드 기본 KeyboardAvoidingView(behavior undefined)가 무효 → 메모 입력창이 키보드에 가려졌음. */}
+      <KeyboardProvider>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <TouchableOpacity activeOpacity={1} onPress={onClose}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 28 }}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}}
@@ -73,7 +76,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>메모 (선택)</Text>
             <TextInput
               value={memo}
-              onChangeText={(t) => { if (t.length <= 100) setMemo(t); }}
+              onChangeText={(t) => setMemo(t.slice(0, 100))}
               placeholder="라운딩 후 꼭 가기, 추천 메뉴 등"
               placeholderTextColor={C.warmGrayLight}
               multiline
@@ -93,6 +96,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
           </TouchableOpacity>
         </TouchableOpacity>
       </KeyboardAvoidingView>
+      </KeyboardProvider>
     </Modal>
   );
 }
