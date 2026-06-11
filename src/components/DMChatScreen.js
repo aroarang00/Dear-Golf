@@ -56,7 +56,9 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
   const [sending, setSending] = useState(false);
   const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
   const [reactTarget, setReactTarget] = useState(null);  // 공감 피커 대상 메시지(길게누르기)
+  const [replyTo, setReplyTo] = useState(null);  // 답장(인용) 대상 메시지 — 입력창 위 미리보기 바
   const listRef = useRef(null);
+  const inputRef = useRef(null);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
   // 피커가 떠 있으면 뒤로가기는 피커만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
@@ -103,12 +105,15 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
   const handleSend = async () => {
     const body = text.trim();
     if (!body || sending) return;
+    const quote = replyTo;  // 전송 시점 인용 캡처 — 실패 시 함께 복구
     setText('');
+    setReplyTo(null);
     setSending(true);
-    try { await sendMessage(friendUid, body); }
+    try { await sendMessage(friendUid, body, quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null); }
     catch (e) {
       if (__DEV__) console.warn('[DMChat] send', e?.message);
       setText(body); // 실패 시 입력 복구
+      setReplyTo(quote);
       // 중립 안내 — 차단·친구해지로 인한 거부(permission-denied)도 사유를 노출하지 않음(차단 비노출 정책)
       setAlert({
         title: '메시지를 보내지 못했어요',
@@ -168,6 +173,20 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             <TouchableOpacity activeOpacity={0.85} delayLongPress={300} onLongPress={() => setReactTarget(item)}
               style={{ backgroundColor: mine ? C.charcoal : FRIEND_BUBBLE, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 }}>
+              {/* 답장(인용) 블록 — 본문 위에 원본 발신자+내용 2줄 요약. 말풍선 색에 맞춘 반투명 박스+좌측 액센트 */}
+              {item.replyTo && (
+                <View style={{ borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(255,255,255,0.45)' : C.warmGrayLight,
+                  backgroundColor: mine ? 'rgba(255,255,255,0.12)' : 'rgba(61,57,53,0.06)',
+                  borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, marginBottom: 6 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: mine ? 'rgba(255,255,255,0.85)' : C.textSecondary }}>
+                    {item.replyTo.senderUid === myUid ? '나' : friendName}
+                  </Text>
+                  <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 18,
+                    color: mine ? 'rgba(255,255,255,0.75)' : C.textSecondary, marginTop: 1 }}>
+                    {item.replyTo.body}
+                  </Text>
+                </View>
+              )}
               {/* fs(16) — fs(14)는 BODY_BUMP(11~13만 보정) 사각지대라 안드서 13으로 렌더돼 너무 작았음([[avoid-small-text]]) */}
               <Text style={{ fontFamily: F.sys, fontSize: fs(16), lineHeight: 23, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
             </TouchableOpacity>
@@ -228,10 +247,30 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
             </View>
           ) : null}
         />
+        {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
+        {replyTo && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9,
+            borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgSecondary }}>
+            <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: C.warmGrayLight }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.textSecondary }}>
+                {replyTo.senderUid === myUid ? '나' : friendName}님에게 답장
+              </Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 1 }}>
+                {replyTo.body}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontSize: fs(16), color: C.warmGray }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]).
             크고 넓게 + 글씨 또렷하게(중장년 가독성 [[avoid-small-text]]): fs15·minHeight44·넉넉한 패딩 */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: C.hairline, gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 10,
+          borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: C.hairline, gap: 8 }}>
           <TextInput
+            ref={inputRef}
             value={text}
             onChangeText={setText}
             placeholder="메시지를 입력하세요"
@@ -256,18 +295,33 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
         <TouchableOpacity activeOpacity={1} onPress={() => setReactTarget(null)}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ flexDirection: 'row', gap: 4, backgroundColor: C.bgSecondary, borderRadius: 26,
-            paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: C.hairline }}>
-            {REACTIONS.map(em => {
-              const on = reactTarget.reactions?.[myUid] === em;  // 내가 이미 누른 이모지는 버터 하이라이트(다시 누르면 해제)
-              return (
-                <TouchableOpacity key={em} activeOpacity={0.7} onPress={() => handleReact(em)}
-                  style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: on ? C.butter : 'transparent' }}>
-                  <Text style={{ fontSize: fs(24) }}>{em}</Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={{ alignItems: 'center', gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 4, backgroundColor: C.bgSecondary, borderRadius: 26,
+              paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: C.hairline }}>
+              {REACTIONS.map(em => {
+                const on = reactTarget.reactions?.[myUid] === em;  // 내가 이미 누른 이모지는 버터 하이라이트(다시 누르면 해제)
+                return (
+                  <TouchableOpacity key={em} activeOpacity={0.7} onPress={() => handleReact(em)}
+                    style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: on ? C.butter : 'transparent' }}>
+                    <Text style={{ fontSize: fs(24) }}>{em}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {/* 답장 — 인용 대상으로 지정하고 입력창 포커스(인스타식 long-press 메뉴) */}
+            <TouchableOpacity activeOpacity={0.8}
+              onPress={() => {
+                const t = reactTarget;
+                setReactTarget(null);
+                setReplyTo(t);
+                requestAnimationFrame(() => inputRef.current?.focus?.());
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bgSecondary,
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }}>
+              <Text style={{ fontSize: fs(15) }}>↩️</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>답장</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       )}

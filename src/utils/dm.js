@@ -44,7 +44,9 @@ export async function ensureConversation(friendUid) {
 
 // 메시지 전송 — messages에 1건 추가 + 대화방 메타(lastMessage·lastAt) 갱신.
 //   방이 없으면 함께 생성(merge). 빈 문자열은 무시. body는 트림 후 저장.
-export async function sendMessage(friendUid, text) {
+//   replyTo(답장·인용) = {msgId, body, senderUid} 스냅샷 — body는 원본 전문(규칙이 원본과 일치 검증
+//   = 인용 위조 차단, 표시부에서 잘라 씀). 없으면 필드 자체를 안 넣음(규칙 'replyTo' in data 분기).
+export async function sendMessage(friendUid, text, replyTo = null) {
   const uid = await getUid();
   if (!uid || !friendUid) throw new Error('dm: uid required');
   const body = (text || '').trim();
@@ -61,6 +63,7 @@ export async function sendMessage(friendUid, text) {
   const msgRef = await addDoc(collection(db, CONV, id, 'messages'), {
     senderUid: uid,
     body,
+    ...(replyTo?.msgId ? { replyTo: { msgId: replyTo.msgId, body: replyTo.body || '', senderUid: replyTo.senderUid || '' } } : {}),
     createdAt: serverTimestamp(),
   });
   return msgRef.id;

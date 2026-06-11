@@ -502,6 +502,16 @@ service cloud.firestore {
           return members()[0] == request.auth.uid ? members()[1] : members()[0];
         }
         allow read: if isSignedIn() && request.auth.uid in members();
+        // 답장(인용) 검증 — replyTo가 있으면 스냅샷(body·senderUid)이 같은 방의 '실제 원본 메시지'와
+        //   일치해야 함 = 인용 위조(안 한 말 조작) 차단. 원본 삭제 후엔 새 답장 불가(기존 답장은 유지).
+        function replyToValid() {
+          return !('replyTo' in request.resource.data)
+            || (request.resource.data.replyTo is map
+                && request.resource.data.replyTo.keys().hasOnly(['msgId', 'body', 'senderUid'])
+                && request.resource.data.replyTo.msgId is string
+                && get(/databases/$(database)/documents/conversations/$(convId)/messages/$(request.resource.data.replyTo.msgId)).data.body == request.resource.data.replyTo.body
+                && get(/databases/$(database)/documents/conversations/$(convId)/messages/$(request.resource.data.replyTo.msgId)).data.senderUid == request.resource.data.replyTo.senderUid);
+        }
         // 전송 = 친구 + 양방향 비차단일 때만 — 차단했는데 DM이 오는 모순 차단(친구 해지·차단 모두 커버).
         //   기존 메시지 read는 유지(카톡식 — 대화 이력은 보임).
         allow create: if isSignedIn()
@@ -511,7 +521,8 @@ service cloud.firestore {
           && !dmBlockedBetween(request.auth.uid, otherMember())
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
-          && request.resource.data.body.size() <= 2000;
+          && request.resource.data.body.size() <= 2000
+          && replyToValid();
         // 수정은 공감(reactions)만 — 본문·발신자 불변(신고 증거 보전, 몰래 고치기 차단).
         //   참여자가 reactions 맵의 '자기 uid 키'만 추가/변경/제거 가능. 값=짧은 이모지 문자열.
         //   전송(create)과 동일하게 친구+양방향 비차단일 때만(차단 후 상호작용 모순 차단).
