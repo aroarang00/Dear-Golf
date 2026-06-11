@@ -16,8 +16,9 @@ module.exports = {
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     splash: {
-      image: './assets/splash-icon.png',
-      resizeMode: 'contain',
+      // 글씨 없는 연하늘(paleSky) 단색 — 네이티브 런치 스크린이 JS 로딩화면(SplashOverlay, paleSky 배경)과
+      //   같은 색이라, 'Dear Golf' 워드마크가 크게 떴다가 작아지며 슬로건 뜨던 점프 없이 글씨만 떠오름.
+      //   이미지(splash-icon.png) 제거 = 단색만 표시(사용자 확정 2026-06-11). 색 바꿀 땐 SplashOverlay/paleSky도 같이.
       backgroundColor: '#C8D9E6',
     },
     ios: {
