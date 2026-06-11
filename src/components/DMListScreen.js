@@ -7,8 +7,8 @@ import { C, F, fs } from '../constants/colors';
 // DM 다크 룸 팔레트 — DMChatScreen과 동일(소스 오브 트루스는 거기, 같이 바꿀 것). 목록도 다크로 맞춰 방 전환 시 안 튀게.
 const DM_CANVAS   = '#2A2622';                 // 리스트 배경
 const DM_SURFACE  = '#211E1B';                 // 헤더·상태바 영역
-const DM_TEXT     = '#EDE9E1';                 // 주요 글씨
-const DM_TEXT_DIM = '#9A938B';                 // 시각·미리보기·부제
+const DM_BUTTER   = '#F5E6A8';                 // ←·제목·친구 이름 — 채팅 헤더와 통일(버터)
+const DM_PALESKY  = '#C8D9E6';                 // 미리보기·시각 — 채팅 부제와 통일(페일스카이)
 const DM_LINE     = 'rgba(255,255,255,0.08)';  // 다크용 헤어라인·구분선
 const DM_AVATAR   = '#46403B';                 // 친구 아바타 이니셜 배경(대화방과 통일)
 import { getUid } from '../utils/firebase';
@@ -91,10 +91,10 @@ export function DMListScreen({ onClose, onOpenChat }) {
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* 이름 fs(16)·미리보기 fs(15) — 옛 fs(15)/fs(13)은 BODY_BUMP(11~13만 보정) 탓에 미리보기가 이름보다 크게 렌더되는 역전이 있었음([[avoid-small-text]]) */}
-            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: DM_TEXT }} numberOfLines={1}>{name}</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: DM_TEXT_DIM, marginLeft: 8 }}>{fmtTime(item.lastAt)}</Text>
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: DM_BUTTER }} numberOfLines={1}>{name}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(200,217,230,0.6)', marginLeft: 8 }}>{fmtTime(item.lastAt)}</Text>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: DM_TEXT_DIM, marginTop: 3 }} numberOfLines={1}>{item.lastMessage}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: DM_PALESKY, marginTop: 3 }} numberOfLines={1}>{item.lastMessage}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -109,9 +109,9 @@ export function DMListScreen({ onClose, onOpenChat }) {
       <StatusBar barStyle="light-content" />
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, backgroundColor: DM_SURFACE, gap: 12 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ fontSize: fs(22), color: DM_TEXT }}>←</Text>
+          <Text style={{ fontSize: fs(24), color: DM_BUTTER }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: DM_TEXT }}>메시지</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: DM_BUTTER }}>메시지</Text>
         {/* 'DM 알림 받기' 전역 토글 자리 — 출시 후 실연결([[dm-design]] 알림 설정) */}
       </View>
       <FlatList
@@ -121,7 +121,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
         ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: DM_LINE, marginLeft: 74 }} />}
         ListEmptyComponent={convs !== null ? (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_TEXT_DIM, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: DM_PALESKY, textAlign: 'center', lineHeight: 22 }}>
               아직 주고받은 메시지가 없어요{'\n'}친구 프로필에서 대화를 시작해보세요
             </Text>
           </View>

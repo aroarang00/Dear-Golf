@@ -492,6 +492,12 @@ service cloud.firestore {
         && changedKeysWithin(['lastMessage', 'lastSenderUid', 'lastAt', 'updatedAt'])
         && areFriends(request.auth.uid, otherUidCur())
         && !dmBlockedBetween(request.auth.uid, otherUidCur());
+      // 읽음 표시 — 본인 lastRead 키만 갱신. 멤버십만 요구(친구해지·차단 무관하게 '읽음' 처리는 무해).
+      //   reactions와 동일 패턴: lastRead 맵의 자기 uid 키만 변경 허용(상대 읽음시각 위조 차단). ([[dm-design]])
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.participantUids
+        && changedKeysWithin(['lastRead'])
+        && request.resource.data.get('lastRead', {}).diff(resource.data.get('lastRead', {})).affectedKeys().hasOnly([request.auth.uid]);
       allow delete: if false;
 
       match /messages/{msgId} {

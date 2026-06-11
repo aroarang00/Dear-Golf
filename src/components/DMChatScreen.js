@@ -7,7 +7,7 @@ import { KeyboardProvider, KeyboardStickyView, useReanimatedKeyboardAnimation } 
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
-import { ensureConversation, sendMessage, subscribeMessages, setReaction } from '../utils/dm';
+import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -82,6 +82,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
   const [reactTarget, setReactTarget] = useState(null);  // 공감 피커 대상 메시지(길게누르기)
   const [replyTo, setReplyTo] = useState(null);  // 답장(인용) 대상 메시지 — 입력창 위 미리보기 바
+  const [otherReadMs, setOtherReadMs] = useState(0);  // 상대가 이 방을 마지막으로 본 시각(ms) — 내 말풍선 읽음(✓✓) 판정
   const listRef = useRef(null);
   const inputRef = useRef(null);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
@@ -114,10 +115,21 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     if (!convId) return;
     const unsub = subscribeMessages(convId, (msgs) => {
       setMessages(msgs);
+      markConversationRead(convId);  // 첫 로드·새 메시지 도착 = 내가 보는 중 → 내 읽음시각 갱신(상대 화면 ✓✓)
       requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
     });
     return () => unsub();
   }, [convId]);
+
+  // 상대의 읽음 시각 실시간 구독(conversation 1문서) — 내 말풍선 ✓✓ 판정용. 열린 동안만(저렴).
+  useEffect(() => {
+    if (!convId) return;
+    const unsub = subscribeConversation(convId, (conv) => {
+      const ts = conv?.lastRead?.[friendUid];
+      setOtherReadMs(ts?.toMillis ? ts.toMillis() : 0);
+    });
+    return () => unsub();
+  }, [convId, friendUid]);
 
   // 이 방을 보는 동안엔 같은 방 DM 푸시 배너 숨김(이미 실시간으로 보임). 이탈 시 해제 ([[dm-design]]).
   //   convId === pairId === CF 푸시 data.pairId 라 정확히 이 방만 억제.
@@ -167,6 +179,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
     const showDate = (!prev || dayKey(prev.createdAt) !== dayKey(item.createdAt)) && !!fmtDay(item.createdAt);
     const time = fmtClock(item.createdAt);
+    // 읽음(✓✓) — 내 메시지이고, 상대가 이 방을 본 시각이 이 메시지 시각 이후면 '읽음'.
+    const msgMs = item.createdAt?.toMillis ? item.createdAt.toMillis() : 0;
+    const read = mine && msgMs > 0 && otherReadMs >= msgMs;
     // 인스타식: 연속된 상대 메시지 묶음의 마지막에만 아바타 1개(매 줄 반복 X), 나머지는 자리만 확보해 정렬 유지
     const lastOfGroup = !next || next.senderUid !== item.senderUid;
     return (
@@ -184,7 +199,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             보낸/받은 구분 = 정렬방향+색+아바타 3중. 시각은 옆에 작게(우리 식 유지) */}
         <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
           alignItems: 'flex-end', paddingHorizontal: 12, marginVertical: 2, gap: 6 }}>
-          {mine && !!time && <Text style={timeStyle}>{time}</Text>}
+          {/* 내 메시지 좌측: 읽음(✓✓ 페일스카이) + 시각. 읽기 전엔 시각만. */}
+          {mine && (!!time || read) && (
+            <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
+              {read && <Text style={{ fontFamily: F.sysB, fontSize: fs(11), lineHeight: 14, color: '#C8D9E6' }}>✓✓</Text>}
+              {!!time && <Text style={[timeStyle, { marginBottom: 0 }]}>{time}</Text>}
+            </View>
+          )}
           {!mine && (
             <View style={{ width: 28, height: 28, borderRadius: 14, overflow: 'hidden', marginBottom: 1,
               backgroundColor: lastOfGroup ? DM_AVATAR : 'transparent', alignItems: 'center', justifyContent: 'center' }}>

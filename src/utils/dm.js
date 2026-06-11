@@ -79,6 +79,24 @@ export async function setReaction(convId, msgId, emoji) {
   });
 }
 
+// 읽음 표시 — 내가 이 방을 본 시각(lastRead.{내uid})을 서버시간으로 갱신. 대화방 열림·새 메시지 수신 시 호출.
+//   상대는 conversation 문서를 구독 중이라 자기 화면의 내 말풍선에 '읽음(✓✓)'이 실시간 반영됨.
+//   실패(차단·친구해지 등)는 조용히 무시 — 읽음표시는 부가 정보라 막혀도 대화엔 영향 없음.
+export async function markConversationRead(convId) {
+  const uid = await getUid();
+  if (!uid || !convId) return;
+  try { await updateDoc(doc(db, CONV, convId), { [`lastRead.${uid}`]: serverTimestamp() }); }
+  catch (e) { if (__DEV__) console.warn('[dm] markRead', e?.message); }
+}
+
+// 대화방 메타(conversation) 1건 실시간 구독 — lastRead 맵으로 상대의 읽음 시각을 받기 위함(대화방 열린 동안만, 1문서라 저렴).
+export function subscribeConversation(convId, cb) {
+  if (!convId) return () => {};
+  return onSnapshot(doc(db, CONV, convId), (snap) => {
+    cb(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+  }, (err) => { if (__DEV__) console.warn('[dm] conversation snapshot', err?.message); });
+}
+
 // 대화방 메시지 실시간 구독 — 최근 limitN개. 대화방 열린 동안만(닫을 때 반환된 unsub 호출해 비용 차단).
 //   createdAt desc로 받아 화면용으로 오래된→최신 순서로 뒤집어 전달.
 export function subscribeMessages(convId, cb, limitN = 40) {
