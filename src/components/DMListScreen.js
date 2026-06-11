@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
@@ -28,6 +28,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
   const [myUid, setMyUid] = useState(null);
   const [convs, setConvs] = useState(null);    // null = 로딩 중
   const [nameMap, setNameMap] = useState({});  // uid → nickname
+  const [avatarMap, setAvatarMap] = useState({});  // uid → 원격 avatarUrl (사진 우선·이니셜 fallback, 친구리스트와 동일)
   const [friendMeta, setFriendMeta] = useState({});
   useAndroidBack(true, onClose);
 
@@ -45,9 +46,14 @@ export function DMListScreen({ onClose, onOpenChat }) {
         blocked = blockedArr || [];
         if (alive) {
           setFriendMeta(fd.friendMeta || {});
-          const m = {};
-          (friends || []).forEach(f => { if (f.id) m[f.id] = f.nickname || f.name; });
+          const m = {}, av = {};
+          (friends || []).forEach(f => {
+            if (!f.id) return;
+            m[f.id] = f.nickname || f.name;
+            if (f.avatarUri) av[f.id] = f.avatarUri;
+          });
           setNameMap(m);
+          setAvatarMap(av);
         }
       } catch (e) { if (__DEV__) console.warn('[DMList] friends', e?.message); }
       // 내가 차단한 상대와의 대화는 목록에서 숨김 — 검색·카카오 결과 차단자 숨김과 일관(카톡 모델)
@@ -61,11 +67,17 @@ export function DMListScreen({ onClose, onOpenChat }) {
   const renderItem = ({ item }) => {
     const ouid = otherUidOf(item, myUid);
     const name = friendDisplayName(friendMeta, ouid, nameMap[ouid] || '친구');
+    const avatar = avatarMap[ouid];
     return (
-      <TouchableOpacity activeOpacity={0.7} onPress={() => onOpenChat?.(ouid, name)}
+      <TouchableOpacity activeOpacity={0.7} onPress={() => onOpenChat?.(ouid, name, avatar || null)}
         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, gap: 12 }}>
-        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.butter }}>{(name || '?').charAt(0)}</Text>
+        {/* 사진 우선 + 이니셜 fallback — 친구리스트(FriendsTab)와 동일 패턴, 원격 URL만 유효 */}
+        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {avatar && /^https?:\/\//.test(avatar) ? (
+            <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} />
+          ) : (
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.butter }}>{(name || '?').charAt(0)}</Text>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

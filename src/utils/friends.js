@@ -63,7 +63,8 @@ export async function loadMyFriendsEnriched() {
     const d = snaps[i]?.exists() ? snaps[i].data() : null;
     const nickname = d?.nickname || '친구';
     const customName = (meta[u]?.customName || '').trim() || null;
-    return { id: u, name: nickname, nickname, customName, realName: d?.realName || '' };
+    // avatarUri — 원격 URL(카카오 등)만 유효, 로컬 키는 친구가 못 읽음(표시부에서 https 검사 후 사용, FriendsTab과 동일)
+    return { id: u, name: nickname, nickname, customName, realName: d?.realName || '', avatarUri: d?.avatarUrl || null };
   });
 }
 

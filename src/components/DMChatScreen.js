@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, Image } from 'react-native';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -12,6 +12,8 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 // 말풍선 옆 시각 — 작고 흐리게
 const timeStyle = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 2 };
+// 받은 말풍선 배경 — 인스타식 연그레이(테두리 없음). 크림 배경(#FAF6EC)보다 살짝 어두운 웜그레이로 면 분리.
+const FRIEND_BUBBLE = '#EFEAE0';
 
 // 메시지 시각 — 오전/오후 h:mm
 function fmtClock(ts) {
@@ -44,7 +46,7 @@ function dayKey(ts) {
 // 친구 1:1 DM 대화방 — 풀스크린, 말풍선(내 메시지 우측·상대 좌측). 카톡식 ([[dm-design]]).
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
-export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpenOptions }) {
+export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
@@ -116,9 +118,12 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
   const renderItem = ({ item, index }) => {
     const mine = item.senderUid === myUid;
     const prev = index > 0 ? list[index - 1] : null;
+    const next = index < list.length - 1 ? list[index + 1] : null;
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
     const showDate = (!prev || dayKey(prev.createdAt) !== dayKey(item.createdAt)) && !!fmtDay(item.createdAt);
     const time = fmtClock(item.createdAt);
+    // 인스타식: 연속된 상대 메시지 묶음의 마지막에만 아바타 1개(매 줄 반복 X), 나머지는 자리만 확보해 정렬 유지
+    const lastOfGroup = !next || next.senderUid !== item.senderUid;
     return (
       <View>
         {showDate && (
@@ -129,15 +134,24 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
             </Text>
           </View>
         )}
-        {/* 말풍선 — 내것=차콜+흰글씨(고대비), 상대=흰바탕+차콜글씨+테두리(크림 배경서 또렷). 시각은 안쪽에 작게 */}
+        {/* 말풍선 — 인스타 DM식(2026-06-11 사용자 지시): 내것=차콜+흰글씨 우측, 상대=연그레이(테두리 없음)+차콜글씨 좌측+아바타.
+            보낸/받은 구분 = 정렬방향+색+아바타 3중. 시각은 옆에 작게(우리 식 유지) */}
         <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
-          alignItems: 'flex-end', paddingHorizontal: 14, marginVertical: 3, gap: 6 }}>
+          alignItems: 'flex-end', paddingHorizontal: 12, marginVertical: 2, gap: 6 }}>
           {mine && !!time && <Text style={timeStyle}>{time}</Text>}
+          {!mine && (
+            <View style={{ width: 28, height: 28, borderRadius: 14, overflow: 'hidden', marginBottom: 1,
+              backgroundColor: lastOfGroup ? C.burgundy : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+              {lastOfGroup && (friendAvatarUri && /^https?:\/\//.test(friendAvatarUri) ? (
+                <Image source={{ uri: friendAvatarUri }} style={{ width: 28, height: 28 }} />
+              ) : (
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>{(friendName || '?').charAt(0)}</Text>
+              ))}
+            </View>
+          )}
           <View style={{
-            maxWidth: '76%', backgroundColor: mine ? C.charcoal : C.bgSecondary,
-            borderRadius: 16, borderTopRightRadius: mine ? 4 : 16, borderTopLeftRadius: mine ? 16 : 4,
-            paddingHorizontal: 13, paddingVertical: 9,
-            borderWidth: mine ? 0 : 0.5, borderColor: C.hairline,
+            maxWidth: '74%', backgroundColor: mine ? C.charcoal : FRIEND_BUBBLE,
+            borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9,
           }}>
             {/* fs(16) — fs(14)는 BODY_BUMP(11~13만 보정) 사각지대라 안드서 13으로 렌더돼 너무 작았음([[avoid-small-text]]) */}
             <Text style={{ fontFamily: F.sys, fontSize: fs(16), lineHeight: 23, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>

@@ -856,9 +856,9 @@ export function DiaryScreen({ route, navigation }) {
       {/* 메시지(DM) — 내 프로필 진입 = 대화 목록(인스타식). 단일 Modal에서 목록↔대화방 전환(Modal 중첩 회피) ([[dm-design]]) */}
       <Modal visible={dmOpen} animationType="slide" onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
         {dmChat ? (
-          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} onClose={() => setDmChat(null)} />
+          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)} />
         ) : (
-          <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name) => setDmChat({ uid, name })} />
+          <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
         )}
       </Modal>
       <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key} onClose={() => setGradeModalOpen(false)} />

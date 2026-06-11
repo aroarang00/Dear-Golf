@@ -261,6 +261,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
               <DMChatScreen
                 friendUid={friend.id}
                 friendName={(friend.customName || '').trim() || friend.name || '친구'}
+                friendAvatarUri={friend.avatarUri || null}
                 onClose={() => setDmOpen(false)}
               />
             </View>
