@@ -12,21 +12,24 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
-// DM 다크 룸 팔레트 — 디어골프는 전반이 크림/밝은 톤이라 DM만 진한 '방'으로 분리(사용자 확정 2026-06-11 [[dm-design]]).
-//   뉴트럴 블랙 X → 따뜻한 차콜 계열로 디어골프 온기 유지. 포인트=딥그린(보낸 말풍선)·버터골드(공감 하이라이트), '고급 톤'.
-const DM_CANVAS   = '#2A2622';                 // 대화 리스트 배경 — '방' 바닥(가장 깊음)
-const DM_SURFACE  = '#211E1B';                 // 헤더·입력바·상태바 영역 — 프레임(캔버스보다 한 톤 어둡게)
-const DM_RECV     = '#3A3531';                 // 받은 말풍선 — 캔버스 위로 살짝 떠오른 elevated 차콜
-const DM_FIELD    = '#322E2A';                 // 입력 필드·비활성 전송버튼 바탕
-const DM_TEXT     = '#EDE9E1';                 // 주요 글씨 — 웜 오프화이트
-const DM_TEXT_DIM = '#9A938B';                 // 보조 글씨 — 시각·부제
-const DM_PLACE    = '#837C74';                 // 플레이스홀더
+// DM 다크 룸 + 브랜드 색 말풍선 (사용자 상세 스펙 2026-06-11 [[dm-design]]):
+//   다크 차콜 캔버스 위에 라이트 브랜드 말풍선 — 받은=페일스카이, 보낸=버터, 입력=크림. 헤더 포인트=버터/페일스카이.
+const DM_CANVAS   = '#2A2622';                 // 대화 배경 — 다크 '방' 바닥(라이트 말풍선이 또렷이 뜸)
+const DM_SURFACE  = '#211E1B';                 // 헤더·입력바·상태바 영역 — 다크 프레임
+const DM_RECV_BG  = '#C8D9E6';                 // 받은 말풍선 = 페일스카이
+const DM_RECV_TX  = '#2A3D47';                 // 받은 말풍선 글씨 — 딥 슬레이트
+const DM_MINE_BG  = '#F5E6A8';                 // 보낸 말풍선 = 버터
+const DM_MINE_TX  = '#3D3935';                 // 보낸 말풍선 글씨 = 차콜
+const DM_FIELD    = '#FAF6EC';                 // 입력 필드 = 크림(둥근 모서리)
+const DM_SEND     = '#6B1E2A';                 // 전송 버튼 = 버건디(원형)
+const DM_BUTTER   = '#F5E6A8';                 // 헤더 ←·이름·전송 아이콘
+const DM_PALESKY  = '#C8D9E6';                 // 헤더 부제·시각 등 보조
+const DM_PLACE    = 'rgba(61,57,53,0.4)';      // 입력 플레이스홀더
 const DM_LINE     = 'rgba(255,255,255,0.08)';  // 다크용 헤어라인
-const DM_AVATAR   = '#46403B';                 // 친구 아바타 이니셜 배경 — 다크 위 식별
-// 말풍선 옆 시각 — 작고 흐리게
-const timeStyle = { fontFamily: F.sys, fontSize: fs(11), color: DM_TEXT_DIM, marginBottom: 2 };
-// 보낸 말풍선 색 — 딥 포레스트 그린(골프 그린·흰글씨), 다크 캔버스서도 '내 색' 유지. 네이비는 라운지 전용 회피([[navy-lounge-color]]).
-const MY_BUBBLE = '#1F4A38';
+const DM_AVATAR   = '#46403B';                 // 친구 아바타 이니셜 배경 — 다크 위 식별(버터 이니셜)
+// 말풍선 옆 시각 — 소형 반투명 페일스카이(사용자 스펙)
+const timeStyle = { fontFamily: F.sys, fontSize: fs(12), color: 'rgba(200,217,230,0.5)', marginBottom: 2 };
+// 공감 이모지 세트 — 인스타식 6개(마지막은 골프 ⛳). 메시지 길게누르기 → 선택, 같은 것 다시 누르면 해제.
 // 공감 이모지 세트 — 인스타식 6개(마지막은 골프 ⛳). 메시지 길게누르기 → 선택, 같은 것 다시 누르면 해제.
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '⛳'];
 
@@ -193,24 +196,27 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           )}
           <View style={{ maxWidth: '78%' }}>
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
+            {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
             <TouchableOpacity activeOpacity={0.85} delayLongPress={300} onLongPress={() => setReactTarget(item)}
-              style={{ backgroundColor: mine ? MY_BUBBLE : DM_RECV, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12 }}>
-              {/* 답장(인용) 블록 — 본문 위에 원본 발신자+내용 2줄 요약. 말풍선 색에 맞춘 반투명 박스+좌측 액센트 */}
+              style={{ backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
+                borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
+                borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
+              {/* 답장(인용) 블록 — 라이트 말풍선이라 어둡게 반투명. 좌측 액센트+발신자+2줄 요약 */}
               {item.replyTo && (
-                <View style={{ borderLeftWidth: 3, borderLeftColor: 'rgba(255,255,255,0.35)',
-                  backgroundColor: 'rgba(255,255,255,0.10)',
+                <View style={{ borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(61,57,53,0.3)' : 'rgba(42,61,71,0.3)',
+                  backgroundColor: mine ? 'rgba(61,57,53,0.08)' : 'rgba(42,61,71,0.08)',
                   borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, marginBottom: 6 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: mine ? DM_MINE_TX : DM_RECV_TX }}>
                     {item.replyTo.senderUid === myUid ? '나' : friendName}
                   </Text>
                   <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 18,
-                    color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
+                    color: mine ? 'rgba(61,57,53,0.7)' : 'rgba(42,61,71,0.7)', marginTop: 1 }}>
                     {item.replyTo.body}
                   </Text>
                 </View>
               )}
-              {/* fs(17) — 중장년 가독성 위해 한 단계 더 키움(fs16도 작다는 피드백 2026-06-11). BODY_BUMP 사각지대(14) 회피 겸 ([[avoid-small-text]]) */}
-              <Text style={{ fontFamily: F.sys, fontSize: fs(17), lineHeight: 25, color: mine ? '#fff' : DM_TEXT }}>{item.body}</Text>
+              {/* 본문 fs(17) — 가독성([[avoid-small-text]]). 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
+              <Text style={{ fontFamily: F.sys, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX }}>{item.body}</Text>
             </TouchableOpacity>
             {/* 공감 표시 — 인스타식 말풍선 하단 안쪽 모서리에 살짝 겹친 알약 */}
             {(() => {
@@ -218,9 +224,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               if (!emojis.length) return null;
               return (
                 <View style={{ alignSelf: mine ? 'flex-start' : 'flex-end', marginTop: -7, marginHorizontal: 8,
-                  backgroundColor: DM_FIELD, borderRadius: 11, paddingHorizontal: 7, paddingVertical: 2,
-                  borderWidth: 0.5, borderColor: DM_LINE }}>
-                  <Text style={{ fontSize: fs(12), lineHeight: 16 }}>{emojis.join(' ')}</Text>
+                  backgroundColor: '#FFFFFF', borderRadius: 11, paddingHorizontal: 7, paddingVertical: 2,
+                  borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                  <Text style={{ fontSize: fs(13), lineHeight: 17 }}>{emojis.join(' ')}</Text>
                 </View>
               );
             })()}
@@ -237,24 +243,24 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     <SafeAreaView style={{ flex: 1, backgroundColor: DM_SURFACE }} edges={['top', 'left', 'right']}>
       {/* 다크 룸이라 상태바 아이콘(시계·배터리)을 밝게 — 언마운트 시 직전 화면 스타일로 자동 복원(RN StatusBar 스택). */}
       <StatusBar barStyle="light-content" />
-      {/* 헤더 — 다크 프레임. 상대 아바타 + 큰 이름 + '님과 대화'. 별명은 friendName으로 전달 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 10 }}>
+      {/* 헤더 — 다크 프레임. 키운 상대 아바타(44) + 버터 이름 + 페일스카이 '님과 대화 중'. 별명은 friendName으로 전달 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 12 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ fontSize: fs(24), color: DM_TEXT }}>←</Text>
+          <Text style={{ fontSize: fs(27), color: DM_BUTTER }}>←</Text>
         </TouchableOpacity>
-        {/* 상대 아바타(사진 우선·이니셜 fallback) — 다크 위 식별색 */}
-        <View style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center' }}>
+        {/* 상대 아바타(사진 우선·이니셜 fallback) — 44px로 키움, 다크 위 식별색 */}
+        <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center' }}>
           {friendAvatarUri && /^https?:\/\//.test(friendAvatarUri)
-            ? <Image source={{ uri: friendAvatarUri }} style={{ width: 36, height: 36 }} contentFit="cover" cachePolicy="memory-disk" />
-            : <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>{(friendName || '?').charAt(0)}</Text>}
+            ? <Image source={{ uri: friendAvatarUri }} style={{ width: 44, height: 44 }} contentFit="cover" cachePolicy="memory-disk" />
+            : <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: DM_BUTTER }}>{(friendName || '?').charAt(0)}</Text>}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: DM_TEXT }} numberOfLines={1}>{friendName}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: DM_TEXT_DIM, marginTop: 1 }}>님과 대화 중</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: DM_BUTTER }} numberOfLines={1}>{friendName}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 2 }}>님과 대화 중</Text>
         </View>
         {onOpenOptions && (
           <TouchableOpacity onPress={onOpenOptions} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ fontSize: fs(20), color: DM_TEXT_DIM }}>⋯</Text>
+            <Text style={{ fontSize: fs(22), color: DM_PALESKY }}>⋯</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -273,7 +279,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={messages !== null ? (
           <View style={{ alignItems: 'center', paddingVertical: 44 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_TEXT_DIM, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: DM_PALESKY, textAlign: 'center', lineHeight: 22 }}>
               {friendName}님과의 첫 메시지를{'\n'}남겨보세요
             </Text>
           </View>
@@ -287,23 +293,23 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
         {replyTo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9,
-            borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_FIELD }}>
-            <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' }} />
+            borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_SURFACE }}>
+            <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: DM_PALESKY }} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: DM_TEXT }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: DM_BUTTER }}>
                 {replyTo.senderUid === myUid ? '나' : friendName}님에게 답장
               </Text>
-              <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_TEXT_DIM, marginTop: 1 }}>
+              <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 1 }}>
                 {replyTo.body}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(16), color: DM_TEXT_DIM }}>✕</Text>
+              <Text style={{ fontSize: fs(18), color: DM_PALESKY }}>✕</Text>
             </TouchableOpacity>
           </View>
         )}
         {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]).
-            다크 프레임 위 elevated 필드. 크고 넓게 + 글씨 또렷하게(중장년 가독성 [[avoid-small-text]]) */}
+            다크 프레임 위 크림 필드(둥근 22). 글씨 또렷·크게(중장년 가독성 [[avoid-small-text]]) */}
         <Reanimated.View style={[{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
           backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }, inputPadStyle]}>
           <TextInput
@@ -314,16 +320,16 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             placeholderTextColor={DM_PLACE}
             multiline
             style={{
-              flex: 1, minHeight: 44, maxHeight: 120, fontFamily: F.sys, fontSize: fs(16), lineHeight: 22, color: DM_TEXT,
-              backgroundColor: DM_FIELD, borderRadius: 20, borderWidth: 0.5, borderColor: DM_LINE,
-              paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
+              flex: 1, minHeight: 46, maxHeight: 120, fontFamily: F.sys, fontSize: fs(17), lineHeight: 23, color: DM_MINE_TX,
+              backgroundColor: DM_FIELD, borderRadius: 22,
+              paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
             }}
           />
-          {/* 전송 — 활성=딥그린바탕+흰 화살표(말풍선과 통일), 비활성=어두운 필드+흐린 화살표. 입력창과 높이 맞춤(44) */}
+          {/* 전송 — 활성=버건디 원형+버터 화살표, 비활성=흐린 버건디+흐린 버터. 입력창과 높이 맞춤(46) */}
           <TouchableOpacity onPress={handleSend} disabled={!canSend} activeOpacity={0.8}
-            style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
-              backgroundColor: canSend ? MY_BUBBLE : DM_FIELD, borderWidth: canSend ? 0 : 1, borderColor: DM_LINE }}>
-            <Text style={{ fontSize: fs(20), fontFamily: F.sysB, color: canSend ? '#fff' : DM_TEXT_DIM }}>↑</Text>
+            style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center',
+              backgroundColor: canSend ? DM_SEND : 'rgba(107,30,42,0.4)' }}>
+            <Text style={{ fontSize: fs(22), fontFamily: F.sysB, color: canSend ? DM_BUTTER : 'rgba(245,230,168,0.5)' }}>↑</Text>
           </TouchableOpacity>
         </Reanimated.View>
       </KeyboardStickyView>
@@ -334,13 +340,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ alignItems: 'center', gap: 10 }}>
             <View style={{ flexDirection: 'row', gap: 4, backgroundColor: DM_FIELD, borderRadius: 26,
-              paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: DM_LINE }}>
+              paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
               {REACTIONS.map(em => {
-                const on = reactTarget.reactions?.[myUid] === em;  // 내가 이미 누른 이모지는 버터 하이라이트(다시 누르면 해제)
+                const on = reactTarget.reactions?.[myUid] === em;  // 내가 이미 누른 이모지는 페일스카이 하이라이트(크림 카드 위 또렷, 다시 누르면 해제)
                 return (
                   <TouchableOpacity key={em} activeOpacity={0.7} onPress={() => handleReact(em)}
                     style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
-                      backgroundColor: on ? C.butter : 'transparent' }}>
+                      backgroundColor: on ? C.paleSky : 'transparent' }}>
                     <Text style={{ fontSize: fs(24) }}>{em}</Text>
                   </TouchableOpacity>
                 );
@@ -355,9 +361,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 requestAnimationFrame(() => inputRef.current?.focus?.());
               }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
-                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: DM_LINE }}>
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
               <Text style={{ fontSize: fs(15) }}>↩️</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_TEXT }}>답장</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>답장</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
