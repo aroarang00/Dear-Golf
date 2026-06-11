@@ -14,8 +14,11 @@ const WD = ['일', '월', '화', '수', '목', '금', '토'];
 // 말풍선 옆 시각 — 작고 흐리게
 const timeStyle = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 2 };
 // 말풍선 색 — 디어골프 고급 톤(사용자 확정 2026-06-11 [[dm-design]]): 내것=딥 포레스트 그린(골프 그린·흰글씨),
-//   받은것=흰 바탕+테두리(크림 배경서 또렷). 네이비는 라운지 전용이라 회피([[navy-lounge-color]]).
+//   받은것=흰 바탕+테두리(대화 배경서 또렷). 네이비는 라운지 전용이라 회피([[navy-lounge-color]]).
 const MY_BUBBLE = '#1F4A38';
+// 대화 영역 배경 — 헤더·입력창(크림)과 분리해 채팅 공간을 '방'처럼(사용자 확정 2026-06-11).
+//   옅은 원 그레이: 크림보다 채도 낮춘 따뜻한 회색, 흰 말풍선이 또렷이 뜸.
+const CHAT_BG = '#EDEAE2';
 // 공감 이모지 세트 — 인스타식 6개(마지막은 골프 ⛳). 메시지 길게누르기 → 선택, 같은 것 다시 누르면 해제.
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '⛳'];
 
@@ -151,8 +154,9 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
       <View>
         {showDate && (
           <View style={{ alignItems: 'center', marginVertical: 10 }}>
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.textSecondary,
-              backgroundColor: C.hairline, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 11, overflow: 'hidden' }}>
+            {/* 날짜 캡슐 — 원그레이 대화배경 위에서 또렷하게 반투명 차콜+흰글씨(중앙·소형이라 말풍선과 안 헷갈림) */}
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: '#fff',
+              backgroundColor: 'rgba(61,57,53,0.55)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 11, overflow: 'hidden' }}>
               {fmtDay(item.createdAt)}
             </Text>
           </View>
@@ -247,7 +251,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
       <FlatList
         ref={listRef}
         data={list}
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: CHAT_BG }}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
         contentContainerStyle={{ paddingVertical: 12, flexGrow: 1, justifyContent: 'flex-end' }}
