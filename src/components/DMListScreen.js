@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Image } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList } from 'react-native';
+import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
@@ -74,7 +75,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
         {/* 사진 우선 + 이니셜 fallback — 친구리스트(FriendsTab)와 동일 패턴, 원격 URL만 유효 */}
         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {avatar && /^https?:\/\//.test(avatar) ? (
-            <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} />
+            <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
           ) : (
             <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.butter }}>{(name || '?').charAt(0)}</Text>
           )}

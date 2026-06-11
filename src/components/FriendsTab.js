@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Image, Modal } from 'react-native';
+import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Modal } from 'react-native';
+import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { Swipeable } from 'react-native-gesture-handler'; // 친구카드 좌우 스와이프(즐겨찾기·숨기기) ([[friend_card_gestures]])
 
 const _and = Platform.OS === 'android';
@@ -67,7 +68,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
-            <Image source={{ uri: friend.avatarUri }} style={{ width: '100%', height: '100%' }} />
+            <Image source={{ uri: friend.avatarUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
           ) : (
             <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 17 : 19), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
           )}

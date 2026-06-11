@@ -12,7 +12,7 @@ import { addressToCoord } from '../utils/kakao';
 import { getDrivingDirections } from '../utils/directions';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { getOverseasWeather } from '../utils/openweather';
-import { getCurrentLocation, reverseGeocode } from '../utils/location';
+import { getCurrentLocation, reverseGeocode, hasLocationPermission } from '../utils/location';
 import { cacheCurrentWx } from './common/HomeBgSlider';
 import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +22,7 @@ const MODE_LABEL = { home: '마이페이지', course: '골프장', current: '현
 
 // 동일 코스 재오픈 시 즉시 표시. in-flight 요청 dedupe + AsyncStorage 영속 캐시
 const wxCache = new Map(); // courseId → { data, pending?, ts }
+let _curWxPrefetched = false; // 현재위치 날씨 프리페치 세션 1회 가드 (홈 인스턴스 전용)
 const WX_TTL = 30 * 60 * 1000;
 const WX_CACHE_KEY = '@dg_wx_cache_v2';
 
@@ -363,23 +364,25 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
           if (!ow) { setWxFailed(true); return; }
           setForecast({ current: ow.current, days: ow.days, slotsByDate: {} });
         } else if (weatherOnly) {
-          setForecast(null); setAirQuality(null); setUvIndex(null); setResolvedLoc('');
+          // 현재위치 날씨 — 일정 날씨와 동일한 캐시 체계(fetchWeatherByCoord: 30분 TTL+디스크영속+dedupe)로 통합(2026-06-11).
+          //   이전엔 캐시 없이 매번 GPS→역지오코딩→예보 직렬 풀코스라 느렸음. 좌표는 소수 2자리(≈1.1km) 반올림으로
+          //   GPS 미세요동에도 캐시키 안정화(KMA 격자 ~5km라 정확도 무손실). 역지오코딩도 resolver 안에서 1회만.
+          await wxRestorePromise;
+          if (cancelled) return;
           const pos = await getCurrentLocation();
           if (cancelled) return;
           if (!pos) { setWxFailed(true); return; }
+          const cx = Number(pos.lng.toFixed(2)), cy = Number(pos.lat.toFixed(2));
           setCurrentCoord({ x: pos.lng, y: pos.lat });
-          const loc = await reverseGeocode(pos.lat, pos.lng);
+          const existing = wxCache.get(`coord:${cx},${cy}`);
+          const hasFresh = existing?.data && Date.now() - existing.ts < WX_TTL;
+          if (!hasFresh) { setForecast(null); setAirQuality(null); setUvIndex(null); setResolvedLoc(''); }
+          const data = await fetchWeatherByCoord(cx, cy);
           if (cancelled) return;
-          setResolvedLoc(loc || '');
-          const [f, aq, uv] = await Promise.all([
-            getCombinedForecast({ lat: pos.lat, lng: pos.lng, loc }),
-            getAirQuality(loc),
-            UV_ENABLED ? getUVIndex(loc) : Promise.resolve(null),
-          ]);
-          if (cancelled) return;
-          if (!f?.current) { setWxFailed(true); return; } // 429 등으로 날씨를 못 받으면 안내 표시(빈 카드 방지)
-          setForecast(f); setAirQuality(aq); setUvIndex(uv);
-          cacheCurrentWx(f?.current); // 홈 헤더 이모지·배경 톤을 방금 받은 현재 위치 날씨와 일치시킴
+          if (!data?.forecast?.current) { setWxFailed(true); return; } // 429 등으로 날씨를 못 받으면 안내 표시(빈 카드 방지)
+          setResolvedLoc(data.courseCoord?.loc || '');
+          setForecast(data.forecast); setAirQuality(data.airQuality); setUvIndex(data.uvIndex);
+          cacheCurrentWx(data.forecast.current); // 홈 헤더 이모지·배경 톤을 방금 받은 현재 위치 날씨와 일치시킴
         } else if ((schedule?.courseX != null && schedule?.courseY != null) || schedule?.courseId || schedule?.course) {
           // 디스크 캐시 복원 대기 후 cache 체크 (보통 즉시 resolve)
           await wxRestorePromise;
@@ -439,6 +442,21 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     } else if (schedule?.courseId) fetchWeatherForCourse(schedule.courseId).catch(() => {});
     else if (schedule?.course) fetchWeatherByName(schedule.course).catch(() => {});
   }, [schedule?.courseId, schedule?.course, schedule?.courseX, schedule?.courseY, weatherOnly]);
+
+  // 현재위치 날씨 prefetch — 홈 인스턴스(weatherOnly prop 보유)만, 세션 1회, 권한 이미 허용된 경우만(OS 팝업 금지).
+  //   홈 진입 시 미리 받아둬 날씨 버튼 첫 탭도 즉시 표시. 이후엔 위 30분 캐시가 커버.
+  useEffect(() => {
+    if (weatherOnly === undefined || _curWxPrefetched) return;
+    _curWxPrefetched = true;
+    (async () => {
+      try {
+        if (!(await hasLocationPermission())) return;
+        const pos = await getCurrentLocation();
+        if (!pos) return;
+        fetchWeatherByCoord(Number(pos.lng.toFixed(2)), Number(pos.lat.toFixed(2))).catch(() => {});
+      } catch {}
+    })();
+  }, []);
 
   // 일정 바뀌면 종료시간 오프셋 리셋
   useEffect(() => { setEndOffsetMin(0); }, [schedule?.courseId, schedule?.time]);

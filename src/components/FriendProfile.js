@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
@@ -133,7 +134,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
                   // 원격 URL(카카오 등)만 표시. dgphoto: 등 로컬 키는 친구가 못 읽으므로 이니셜 fallback (사진 친구공개는 Storage 업로드 후)
-                  <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} />
+                  <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
                 ) : (
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
                 )}

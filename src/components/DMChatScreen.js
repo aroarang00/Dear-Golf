@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard } from 'react-native';
+import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -163,7 +164,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
             <View style={{ width: 28, height: 28, borderRadius: 14, overflow: 'hidden', marginBottom: 1,
               backgroundColor: lastOfGroup ? C.burgundy : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
               {lastOfGroup && (friendAvatarUri && /^https?:\/\//.test(friendAvatarUri) ? (
-                <Image source={{ uri: friendAvatarUri }} style={{ width: 28, height: 28 }} />
+                <Image source={{ uri: friendAvatarUri }} style={{ width: 28, height: 28 }} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>{(friendName || '?').charAt(0)}</Text>
               ))}

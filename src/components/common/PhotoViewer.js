@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -31,7 +32,7 @@ function VideoItem({ uri, active }) {
   );
 }
 
-function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap }) {
+function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap, onRatio }) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const tx = useSharedValue(0);
@@ -104,7 +105,9 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap 
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={[{ width, height }, animStyle]}>
-        <Image source={{ uri }} style={{ width, height }} resizeMode="contain" />
+        {/* expo-image — 피드(FocalImage)와 디스크 캐시 공유 = 전체화면 열기 즉시. onLoad로 실비율 보고(getSize 별도 다운로드 제거) */}
+        <Image source={{ uri }} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk"
+          onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(uri, w / h); }} />
       </Animated.View>
     </GestureDetector>
   );
@@ -120,13 +123,18 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
   // 사진 실제 비율 측정 → 가로사진은 높이를 낮춰 위로 붙이고, 남는 공간은 글이 채움(고정 박스 검은 여백 해소).
   const [arMap, setArMap] = useState({});
   useEffect(() => {
+    // 캐시된 비율만 즉시 반영 — 새 비율은 각 이미지 onLoad(handleRatio)로 도착(옛 Image.getSize 별도 다운로드 제거)
     photos.forEach(p => {
       if (p?.type === 'video') return;
       const u = resolvePhotoUri(p.uri || p);
-      if (_arCache.has(u)) { setArMap(m => (m[u] ? m : { ...m, [u]: _arCache.get(u) })); return; }
-      Image.getSize(u, (w, h) => { if (h) { const ar = w / h; _arCache.set(u, ar); setArMap(m => ({ ...m, [u]: ar })); } }, () => {});
+      if (_arCache.has(u)) setArMap(m => (m[u] ? m : { ...m, [u]: _arCache.get(u) }));
     });
   }, [photos]);
+  const handleRatio = (u, ar) => {
+    if (!ar) return;
+    _arCache.set(u, ar);
+    setArMap(m => (m[u] ? m : { ...m, [u]: ar }));
+  };
   const captionShown = !!(caption && showCaption);
   // 사진 영역 최대 높이 — 캡션 보일 땐 화면 절반(아래 글 공간 확보), 순수 보기는 크게.
   const availMax = captionShown ? SH * 0.5 : SH * 0.84;
@@ -162,7 +170,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
               {item.type === 'video' ? (
                 <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} />
               ) : (
-                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} />
+                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
               )}
             </View>
           ))}
