@@ -164,7 +164,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
           {mine && !!time && <Text style={timeStyle}>{time}</Text>}
           {!mine && (
             <View style={{ width: 28, height: 28, borderRadius: 14, overflow: 'hidden', marginBottom: 1,
-              backgroundColor: lastOfGroup ? MY_BUBBLE : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+              backgroundColor: lastOfGroup ? C.charcoal : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
               {lastOfGroup && (friendAvatarUri && /^https?:\/\//.test(friendAvatarUri) ? (
                 <Image source={{ uri: friendAvatarUri }} style={{ width: 28, height: 28 }} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
@@ -221,12 +221,21 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
     //   엣지투엣지서 내비바 포함 여부가 기기마다 달라 폐기 ([[dm-design]]).
     <KeyboardProvider>
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      {/* 헤더 — 뒤로 · 상대 이름(별명은 진입부에서 friendName으로 전달) · 옵션(차단/신고, 5단계) */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: C.hairline, gap: 12 }}>
+      {/* 헤더 — 누구와의 대화인지 명확히: 상대 아바타 + 큰 이름 + '님과 대화'. 별명은 friendName으로 전달 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderBottomWidth: 0.5, borderBottomColor: C.hairline, gap: 10 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
+          <Text style={{ fontSize: fs(24), color: C.charcoal }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }} numberOfLines={1}>{friendName}</Text>
+        {/* 상대 아바타(사진 우선·이니셜 fallback) — 친구 식별색=차콜(내 딥그린 말풍선과 구분) */}
+        <View style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', backgroundColor: C.charcoal, alignItems: 'center', justifyContent: 'center' }}>
+          {friendAvatarUri && /^https?:\/\//.test(friendAvatarUri)
+            ? <Image source={{ uri: friendAvatarUri }} style={{ width: 36, height: 36 }} contentFit="cover" cachePolicy="memory-disk" />
+            : <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff' }}>{(friendName || '?').charAt(0)}</Text>}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }} numberOfLines={1}>{friendName}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>님과 대화 중</Text>
+        </View>
         {onOpenOptions && (
           <TouchableOpacity onPress={onOpenOptions} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(20), color: C.warmGray }}>⋯</Text>
