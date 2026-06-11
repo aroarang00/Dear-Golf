@@ -28,6 +28,11 @@ export function DiariesProvider({ children }) {
       const uid = user?.uid || null;
       if (uid === prevUid) return;
       prevUid = uid;
+      // 로그인 settle 전(null)·uid 전환 중엔 hydrated를 내려 로딩 유지 — 빈 데이터로 hydrate되며
+      //   MY '첫 기록 남기기'(신규가입 안내)가 깜빡이던 문제 방지([[home-empty-state-flash]], [[auth-relink-and-seed-cleanup]]).
+      //   세션 복원은 비동기라 첫 콜백이 null로 한 번 오고, 익명→카카오 settle 시 uid가 바뀜.
+      setHydrated(false);
+      if (!uid) return;  // 아직 로그인 전 — 실제 uid 콜백을 기다림(앱은 항상 익명 폴백 로그인됨)
       try {
         const loaded = await loadMyRounds();
         setDiaries(loaded);
