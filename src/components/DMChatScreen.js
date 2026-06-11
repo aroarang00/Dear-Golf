@@ -11,7 +11,7 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 // 말풍선 옆 시각 — 작고 흐리게
-const timeStyle = { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginBottom: 2 };
+const timeStyle = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 2 };
 
 // 메시지 시각 — 오전/오후 h:mm
 function fmtClock(ts) {
@@ -139,7 +139,8 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
             paddingHorizontal: 13, paddingVertical: 9,
             borderWidth: mine ? 0 : 0.5, borderColor: C.hairline,
           }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(14), lineHeight: 20, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
+            {/* fs(16) — fs(14)는 BODY_BUMP(11~13만 보정) 사각지대라 안드서 13으로 렌더돼 너무 작았음([[avoid-small-text]]) */}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(16), lineHeight: 23, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
           </View>
           {!mine && !!time && <Text style={timeStyle}>{time}</Text>}
         </View>
@@ -160,7 +161,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }} numberOfLines={1}>{friendName}</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }} numberOfLines={1}>{friendName}</Text>
         {onOpenOptions && (
           <TouchableOpacity onPress={onOpenOptions} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(20), color: C.warmGray }}>⋯</Text>
@@ -179,7 +180,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
           onContentSizeChange={() => listRef.current?.scrollToEnd?.({ animated: false })}
           ListEmptyComponent={messages !== null ? (
             <View style={{ alignItems: 'center', paddingVertical: 44 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 22 }}>
                 {friendName}님과의 첫 메시지를{'\n'}남겨보세요
               </Text>
             </View>
@@ -195,7 +196,7 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
             placeholderTextColor={C.warmGray}
             multiline
             style={{
-              flex: 1, minHeight: 44, maxHeight: 120, fontFamily: F.sys, fontSize: fs(15), lineHeight: 21, color: C.charcoal,
+              flex: 1, minHeight: 44, maxHeight: 120, fontFamily: F.sys, fontSize: fs(16), lineHeight: 22, color: C.charcoal,
               backgroundColor: C.bgSecondary, borderRadius: 20, borderWidth: 0.5, borderColor: C.hairline,
               paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
             }}

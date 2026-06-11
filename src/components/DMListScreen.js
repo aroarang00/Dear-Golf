@@ -69,10 +69,11 @@ export function DMListScreen({ onClose, onOpenChat }) {
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{name}</Text>
+            {/* 이름 fs(16)·미리보기 fs(15) — 옛 fs(15)/fs(13)은 BODY_BUMP(11~13만 보정) 탓에 미리보기가 이름보다 크게 렌더되는 역전이 있었음([[avoid-small-text]]) */}
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }} numberOfLines={1}>{name}</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 8 }}>{fmtTime(item.lastAt)}</Text>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{item.lastMessage}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{item.lastMessage}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -94,7 +95,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
         ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: C.hairline, marginLeft: 74 }} />}
         ListEmptyComponent={convs !== null ? (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 22 }}>
               아직 주고받은 메시지가 없어요{'\n'}친구 프로필에서 대화를 시작해보세요
             </Text>
           </View>
