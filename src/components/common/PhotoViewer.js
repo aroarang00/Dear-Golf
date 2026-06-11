@@ -39,6 +39,7 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
   const ty = useSharedValue(0);
   const savedTx = useSharedValue(0);
   const savedTy = useSharedValue(0);
+  const zoomedSV = useSharedValue(0); // 박스 풀스크린 확장을 부모에 1회만 통지하기 위한 가드(라이브 핀치 중 중복 setState 방지)
   const [isZoomed, setIsZoomed] = useState(false); // pan 활성/페이저 잠금 토글
 
   const notify = (z) => { setIsZoomed(z); onZoomChange && onZoomChange(z); };
@@ -46,6 +47,7 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
   const hardReset = () => {
     scale.value = 1; savedScale.value = 1;
     tx.value = 0; ty.value = 0; savedTx.value = 0; savedTy.value = 0;
+    zoomedSV.value = 0;
   };
 
   // 다른 사진으로 스와이프해 비활성화되면 확대·이동 초기화
@@ -63,14 +65,20 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
   };
 
   const pinch = Gesture.Pinch()
-    .onUpdate(e => { scale.value = Math.min(4, Math.max(1, savedScale.value * e.scale)); clampPan(); })
+    .onUpdate(e => {
+      scale.value = Math.min(4, Math.max(1, savedScale.value * e.scale));
+      // 핀치로 확대 시작하는 순간 박스를 풀스크린으로(부모 onZoomChange) — 라이브 핀치 중 비율 박스에 잘리던 문제 방지. 1회만.
+      if (scale.value > 1.02 && zoomedSV.value === 0) { zoomedSV.value = 1; runOnJS(notify)(true); }
+      clampPan();
+    })
     .onEnd(() => {
       if (scale.value < 1.05) {
         scale.value = withSpring(1); savedScale.value = 1;
         tx.value = withSpring(0); ty.value = withSpring(0); savedTx.value = 0; savedTy.value = 0;
+        zoomedSV.value = 0;
         runOnJS(notify)(false);
       } else {
-        savedScale.value = scale.value; runOnJS(notify)(true);
+        savedScale.value = scale.value; zoomedSV.value = 1; runOnJS(notify)(true);
       }
     });
 
@@ -86,9 +94,10 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
       if (scale.value > 1.05) {
         scale.value = withSpring(1); savedScale.value = 1;
         tx.value = withSpring(0); ty.value = withSpring(0); savedTx.value = 0; savedTy.value = 0;
+        zoomedSV.value = 0;
         runOnJS(notify)(false);
       } else {
-        scale.value = withSpring(2.5); savedScale.value = 2.5; runOnJS(notify)(true);
+        scale.value = withSpring(2.5); savedScale.value = 2.5; zoomedSV.value = 1; runOnJS(notify)(true);
       }
     });
 
@@ -148,7 +157,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
       {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라 핀치 줌이 안 먹는다.
           ScheduleScreen·WeatherTransportPopup과 동일하게 Modal 안에서 한 번 더 감싼다(2026-06-04 핀치 줌 버그 수정). */}
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: (caption && showCaption) ? 'flex-start' : 'center' }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: (caption && showCaption && !zoomed) ? 'flex-start' : 'center' }}>
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
@@ -159,14 +168,15 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
         </View>
         {/* 캡션 표시 중엔 사진을 위(카운터 아래)로 올려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백 해소).
             캡션 숨김(탭)·순수 사진 보기는 가운데 정렬 유지. */}
-        {captionShown ? <View style={{ height: 92 }} /> : null}
+        {captionShown && !zoomed ? <View style={{ height: 92 }} /> : null}
+        {/* 확대(zoomed) 중엔 박스를 풀스크린(SH)으로 펼쳐 화면 전체에서 확대되게 — 평상시엔 사진 비율 높이(mediaH, 검은여백·캡션 잘림 해소). */}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0, height: mediaH }}
+          style={{ flexGrow: 0, height: zoomed ? SH : mediaH }}
           scrollEnabled={!zoomed}
           contentOffset={{ x: idx * SW, y: 0 }}
           onMomentumScrollEnd={e => { setIdx(Math.round(e.nativeEvent.contentOffset.x / SW)); setZoomed(false); }}>
           {photos.map((item, i) => (
-            <View key={i} style={{ width: SW, height: mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+            <View key={i} style={{ width: SW, height: zoomed ? SH : mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
                 <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} />
               ) : (
@@ -176,8 +186,8 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
           ))}
         </ScrollView>
 
-        {/* 글(캡션) — 사진 바로 아래 흐름으로 배치, 남은 공간 전체에서 세로 스크롤. 사진 탭으로 숨김/표시 토글. */}
-        {caption && showCaption ? (
+        {/* 글(캡션) — 사진 바로 아래 흐름으로 배치, 남은 공간 전체에서 세로 스크롤. 사진 탭으로 숨김/표시 토글. 확대 중엔 숨김. */}
+        {caption && showCaption && !zoomed ? (
           <ScrollView style={{ flex: 1, alignSelf: 'stretch' }}
             contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}>
