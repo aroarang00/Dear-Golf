@@ -103,9 +103,9 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const fMs = milestoneBadge(topMilestone({ rounds: stats.rounds ?? 0, courses: stats.courses ?? 0 }));
   const fStatus = (friend.statusMessage || '').trim();
 
+  // transparent 필수 — 불투명 RN Modal은 안드서 keyboard-controller가 키보드 inset을 못 받아
+  //   내부 DM 대화방 입력창이 키보드에 가림(DiaryAddModal과 동일 패턴). 콘텐츠가 불투명 SafeAreaView라 화면은 동일.
   return (
-    {/* transparent 필수 — 불투명 RN Modal은 안드서 keyboard-controller가 키보드 inset을 못 받아
-        내부 DM 대화방 입력창이 키보드에 가림(DiaryAddModal과 동일 패턴). 콘텐츠가 불투명 SafeAreaView라 화면은 동일. */}
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
