@@ -1,15 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, Alert, RefreshControl } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
 import { searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
 import { searchGolfCourses } from '../utils/golfCourses';
-import { getCurrentLocation } from '../utils/location';
+import { getCurrentLocation, hasLocationPermission } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse, clearRecentCourses } from '../utils/recentCourses';
 import { getTop100Courses, normalizeCourseName } from '../utils/top100';
 import { naverSearchUrl } from '../utils/naverMap';
+
+// 주변 연습장·스크린골프 결과 디스크 캐시 — 위치 fix 간헐 실패·카카오 일시오류(429·순단) 시 직전 성공값 폴백.
+//   연습장 위치는 거의 안 변해 TTL 길게(7일). 날씨(wxCache) 폴백 패턴과 동일 ([[image-load-speed]] 류 회복력).
+const NEARBY_CACHE_KEY = '@dg_nearby_v1';
+const NEARBY_TTL = 7 * 24 * 3600 * 1000;
+const RETRY_HINT = '\n아래로 당겨 다시 불러올 수 있어요';
 
 const REGIONS = ['전체', '수도권', '강원', '충청', '경상', '전라', '제주'];
 const getRegion = (loc) => {
@@ -86,6 +93,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   const [screenLoading, setScreenLoading] = useState(false);
   const [screenMsg, setScreenMsg] = useState('');
   const [screenExpanded, setScreenExpanded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // 당겨서 새로고침 표시 (주변 시설 재시도)
 
   const refreshSaved = useCallback(async () => {
     const list = await getUserCourses();
@@ -102,34 +110,64 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   // 100대 코스 목록 로드 (지역 탭 둘러보기용)
   useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
 
-  // 가까운 연습장 + 스크린골프 — 마운트 시 1회 fetch
+  // 주변 연습장·스크린골프 fetch — 위치→카카오. 실패해도 직전 캐시(이미 표시 중)는 유지(빈 화면 방지).
+  //   빈 결과여도 리스트가 비어있을 때만 메시지가 보이므로(렌더 조건), 캐시 표시 중엔 오인 메시지가 가려짐.
+  const loadNearby = useCallback(async () => {
+    try {
+      const loc = await getCurrentLocation();
+      if (!loc) {
+        // 위치 실패 — 권한 거부와 'fix 실패(권한 있음)'를 구분해 안내(기존엔 둘 다 권한 메시지라 혼란).
+        const granted = await hasLocationPermission().catch(() => true);
+        const msg = granted
+          ? '위치를 확인할 수 없어요.' + RETRY_HINT
+          : '위치 권한을 허용하면\n주변 시설을 보여드려요';
+        setNearbyMsg(msg); setScreenMsg(msg);
+        return;
+      }
+      const [d, s] = await Promise.all([
+        searchNearbyDrivingRanges(loc.lat, loc.lng, 10000),
+        searchNearbyScreenGolf(loc.lat, loc.lng, 5000),
+      ]);
+      // 결과 있으면 갱신, 빈 결과(카카오 일시오류 가능)면 기존(캐시) 유지 — setX 안 해 덮어쓰지 않음.
+      if (d.length) setNearby(d);
+      setNearbyMsg(d.length ? '' : '근처 연습장 정보가 없어요' + RETRY_HINT);
+      if (s.length) setScreen(s);
+      setScreenMsg(s.length ? '' : '근처 스크린골프 정보가 없어요' + RETRY_HINT);
+      if (d.length || s.length) {
+        AsyncStorage.setItem(NEARBY_CACHE_KEY, JSON.stringify({ ts: Date.now(), ranges: d, screens: s })).catch(() => {});
+      }
+    } catch (e) {
+      setNearbyMsg('주변 시설 정보를 불러올 수 없어요' + RETRY_HINT);
+      setScreenMsg('주변 시설 정보를 불러올 수 없어요' + RETRY_HINT);
+    }
+  }, []);
+
+  // 마운트 — 캐시 즉시 표시(빈 화면 방지) 후 최신 fetch. 캐시 없을 때만 섹션 스피너.
   useEffect(() => {
     (async () => {
-      setNearbyLoading(true);
-      setScreenLoading(true);
+      let hasCache = false;
       try {
-        const loc = await getCurrentLocation();
-        if (!loc) {
-          setNearbyMsg('위치 권한을 허용하면 주변 시설을 보여드려요');
-          setScreenMsg('위치 권한을 허용하면 주변 시설을 보여드려요');
-          setNearby([]); setScreen([]);
-          return;
+        const raw = await AsyncStorage.getItem(NEARBY_CACHE_KEY);
+        if (raw) {
+          const c = JSON.parse(raw);
+          if (c && Date.now() - c.ts < NEARBY_TTL) {
+            if (c.ranges?.length) { setNearby(c.ranges); hasCache = true; }
+            if (c.screens?.length) { setScreen(c.screens); hasCache = true; }
+          }
         }
-        const [d, s] = await Promise.all([
-          searchNearbyDrivingRanges(loc.lat, loc.lng, 10000),
-          searchNearbyScreenGolf(loc.lat, loc.lng, 5000),
-        ]);
-        setNearby(d); setNearbyMsg(d.length ? '' : '근처 연습장 정보가 없어요');
-        setScreen(s); setScreenMsg(s.length ? '' : '근처 스크린골프 정보가 없어요');
-      } catch (e) {
-        setNearbyMsg('주변 시설 정보를 불러올 수 없어요');
-        setScreenMsg('주변 시설 정보를 불러올 수 없어요');
-      } finally {
-        setNearbyLoading(false);
-        setScreenLoading(false);
-      }
+      } catch {}
+      if (!hasCache) { setNearbyLoading(true); setScreenLoading(true); }
+      await loadNearby();
+      setNearbyLoading(false); setScreenLoading(false);
     })();
-  }, []);
+  }, [loadNearby]);
+
+  // 당겨서 새로고침 / 헤더 새로고침 버튼 공통 — 위치·카카오 재시도(간헐 실패 회복 수단)
+  const onRefreshNearby = useCallback(async () => {
+    setRefreshing(true);
+    await loadNearby();
+    setRefreshing(false);
+  }, [loadNearby]);
 
   // 검색 — 디바운스
   useEffect(() => {
@@ -200,7 +238,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   const moreScreen = screen.length - visibleScreen.length;
 
   return (
-    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
       {/* 1. 검색창 */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }}>
         <View style={{
@@ -439,7 +478,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       {/* 4. 내 주변 연습장 */}
       <Section
         title="🏌️ 내 주변 연습장"
-        right="현재위치 기준"
+        right="↻ 새로고침"
+        onRightPress={onRefreshNearby}
         headerBg={C.paleSky}
         titleColor={C.navy}>
         {nearbyLoading ? (
@@ -477,7 +517,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       {/* 5. 내 주변 스크린골프 */}
       <Section
         title="🖥️ 내 주변 스크린골프"
-        right="현재위치 기준"
+        right="↻ 새로고침"
+        onRightPress={onRefreshNearby}
         headerBg={C.butter}
         titleColor={C.charcoal}>
         {screenLoading ? (
