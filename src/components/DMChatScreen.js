@@ -4,7 +4,7 @@ import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-co
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
-import { ensureConversation, sendMessage, subscribeMessages } from '../utils/dm';
+import { ensureConversation, sendMessage, subscribeMessages, setReaction } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -14,6 +14,8 @@ const WD = ['일', '월', '화', '수', '목', '금', '토'];
 const timeStyle = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 2 };
 // 받은 말풍선 배경 — 인스타식 연그레이(테두리 없음). 크림 배경(#FAF6EC)보다 살짝 어두운 웜그레이로 면 분리.
 const FRIEND_BUBBLE = '#EFEAE0';
+// 공감 이모지 세트 — 인스타식 6개(마지막은 골프 ⛳). 메시지 길게누르기 → 선택, 같은 것 다시 누르면 해제.
+const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '⛳'];
 
 // 메시지 시각 — 오전/오후 h:mm
 function fmtClock(ts) {
@@ -53,8 +55,11 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
+  const [reactTarget, setReactTarget] = useState(null);  // 공감 피커 대상 메시지(길게누르기)
   const listRef = useRef(null);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
+  // 피커가 떠 있으면 뒤로가기는 피커만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
+  useAndroidBack(!!reactTarget, () => setReactTarget(null));
 
   // 키보드가 뜨면 마지막 메시지가 보이게 끝으로 스크롤 (입력영역 띄우기는 keyboard-controller KAV가 처리)
   useEffect(() => {
@@ -114,6 +119,16 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
     finally { setSending(false); }
   };
 
+  // 공감 토글 — 같은 이모지 다시 누르면 해제. 실패(차단·친구해지 거부)는 조용히(차단 비노출 정책, 실시간이라 화면 반영도 안 됨)
+  const handleReact = async (emoji) => {
+    const target = reactTarget;
+    setReactTarget(null);
+    if (!target || !convId) return;
+    const cur = target.reactions?.[myUid];
+    try { await setReaction(convId, target.id, cur === emoji ? null : emoji); }
+    catch (e) { if (__DEV__) console.warn('[DMChat] react', e?.message); }
+  };
+
   const list = messages || [];
   const renderItem = ({ item, index }) => {
     const mine = item.senderUid === myUid;
@@ -149,12 +164,25 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
               ))}
             </View>
           )}
-          <View style={{
-            maxWidth: '74%', backgroundColor: mine ? C.charcoal : FRIEND_BUBBLE,
-            borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9,
-          }}>
-            {/* fs(16) — fs(14)는 BODY_BUMP(11~13만 보정) 사각지대라 안드서 13으로 렌더돼 너무 작았음([[avoid-small-text]]) */}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(16), lineHeight: 23, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
+          <View style={{ maxWidth: '74%' }}>
+            {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
+            <TouchableOpacity activeOpacity={0.85} delayLongPress={300} onLongPress={() => setReactTarget(item)}
+              style={{ backgroundColor: mine ? C.charcoal : FRIEND_BUBBLE, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 }}>
+              {/* fs(16) — fs(14)는 BODY_BUMP(11~13만 보정) 사각지대라 안드서 13으로 렌더돼 너무 작았음([[avoid-small-text]]) */}
+              <Text style={{ fontFamily: F.sys, fontSize: fs(16), lineHeight: 23, color: mine ? '#fff' : C.charcoal }}>{item.body}</Text>
+            </TouchableOpacity>
+            {/* 공감 표시 — 인스타식 말풍선 하단 안쪽 모서리에 살짝 겹친 알약 */}
+            {(() => {
+              const emojis = Object.values(item.reactions || {}).filter(Boolean);
+              if (!emojis.length) return null;
+              return (
+                <View style={{ alignSelf: mine ? 'flex-start' : 'flex-end', marginTop: -7, marginHorizontal: 8,
+                  backgroundColor: C.bgSecondary, borderRadius: 11, paddingHorizontal: 7, paddingVertical: 2,
+                  borderWidth: 0.5, borderColor: C.hairline }}>
+                  <Text style={{ fontSize: fs(12), lineHeight: 16 }}>{emojis.join(' ')}</Text>
+                </View>
+              );
+            })()}
           </View>
           {!mine && !!time && <Text style={timeStyle}>{time}</Text>}
         </View>
@@ -223,6 +251,26 @@ export function DMChatScreen({ friendUid, friendName = '친구', friendAvatarUri
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      {/* 공감 피커 — 자체 오버레이(Modal 호스트 안이라 글로벌 시트 대신, OverlayAlert와 동일 패턴). 바깥 탭/뒤로가기=닫기 */}
+      {reactTarget && (
+        <TouchableOpacity activeOpacity={1} onPress={() => setReactTarget(null)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', gap: 4, backgroundColor: C.bgSecondary, borderRadius: 26,
+            paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: C.hairline }}>
+            {REACTIONS.map(em => {
+              const on = reactTarget.reactions?.[myUid] === em;  // 내가 이미 누른 이모지는 버터 하이라이트(다시 누르면 해제)
+              return (
+                <TouchableOpacity key={em} activeOpacity={0.7} onPress={() => handleReact(em)}
+                  style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: on ? C.butter : 'transparent' }}>
+                  <Text style={{ fontSize: fs(24) }}>{em}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
     </KeyboardProvider>

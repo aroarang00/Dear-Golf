@@ -5,7 +5,7 @@
 //   안 읽음·타이핑은 출시 후(비용 큰 실시간 상태) — 본체는 텍스트 송수신만.
 import {
   collection, query, where, orderBy, limit as fsLimit, getDocs, getDoc,
-  addDoc, setDoc, updateDoc, doc, serverTimestamp, onSnapshot,
+  addDoc, setDoc, updateDoc, doc, serverTimestamp, onSnapshot, deleteField,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -64,6 +64,16 @@ export async function sendMessage(friendUid, text) {
     createdAt: serverTimestamp(),
   });
   return msgRef.id;
+}
+
+// 공감(리액션) — 메시지 reactions 맵에 '내 uid 키'만 set/제거(보안규칙과 1:1 대응, 본문 불변).
+//   emoji=null이면 해제. 실패(차단·친구해지 permission-denied)는 호출부에서 조용히 처리(차단 비노출 정책).
+export async function setReaction(convId, msgId, emoji) {
+  const uid = await getUid();
+  if (!uid || !convId || !msgId) throw new Error('dm: reaction args');
+  await updateDoc(doc(db, CONV, convId, 'messages', msgId), {
+    [`reactions.${uid}`]: emoji || deleteField(),
+  });
 }
 
 // 대화방 메시지 실시간 구독 — 최근 limitN개. 대화방 열린 동안만(닫을 때 반환된 unsub 호출해 비용 차단).
