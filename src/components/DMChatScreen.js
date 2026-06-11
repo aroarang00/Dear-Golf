@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard } from 'react-native';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages } from '../utils/dm';
@@ -8,7 +9,6 @@ import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
-const _and = Platform.OS === 'android';
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 // 말풍선 옆 시각 — 작고 흐리게
 const timeStyle = { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginBottom: 2 };
@@ -45,27 +45,21 @@ function dayKey(ts) {
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
 export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpenOptions }) {
-  const insets = useSafeAreaInsets();
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
-  const [kb, setKb] = useState(0);  // 안드 키보드 높이 — 입력창이 키보드에 가려지지 않게 직접 띄움
   const listRef = useRef(null);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
 
-  // 안드(엣지투엣지)에선 키보드가 창을 리사이즈하지 않아 입력창이 가려진다([[fresh-install-release-bugs]] 류 환경차).
-  //   키보드 높이만큼 입력영역을 직접 띄운다(아래 androidKbPad). iOS는 KeyboardAvoidingView(padding)가 처리.
+  // 키보드가 뜨면 마지막 메시지가 보이게 끝으로 스크롤 (입력영역 띄우기는 keyboard-controller KAV가 처리)
   useEffect(() => {
-    if (!_and) return;
-    const show = Keyboard.addListener('keyboardDidShow', e => {
-      setKb(e.endCoordinates?.height || 0);
+    const show = Keyboard.addListener('keyboardDidShow', () => {
       requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKb(0));
-    return () => { show.remove(); hide.remove(); };
+    return () => show.remove();
   }, []);
 
   // 내 uid + 대화방 보장(메시지 0건이라도 방은 존재)
@@ -154,10 +148,12 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
   };
 
   const canSend = !!text.trim() && !sending;
-  // SafeAreaView가 이미 하단 inset만큼 패딩하므로, 키보드 높이에서 그만큼 빼서 입력창을 키보드 바로 위로.
-  const androidKbPad = (_and && kb) ? Math.max(0, kb - insets.bottom) : 0;
 
   return (
+    // KeyboardProvider — 호스트(DiaryScreen·FriendProfile)가 RN Modal=별도 네이티브 윈도우라 자체 Provider 필요
+    //   (DiaryAddModal·ScheduleModal과 동일 패턴, 안드 빌드 검증됨). 수동 키보드 높이 계산(endCoordinates)은
+    //   엣지투엣지서 내비바 포함 여부가 기기마다 달라 폐기 ([[dm-design]]).
+    <KeyboardProvider>
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
       {/* 헤더 — 뒤로 · 상대 이름(별명은 진입부에서 friendName으로 전달) · 옵션(차단/신고, 5단계) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: C.hairline, gap: 12 }}>
@@ -172,7 +168,8 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
         )}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1, paddingBottom: androidKbPad }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* keyboard-controller KAV — 키보드 실측 높이로 입력영역을 키보드 바로 위까지 띄움(iOS·안드 공통, 엣지투엣지 대응) */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <FlatList
           ref={listRef}
           data={list}
@@ -213,5 +210,6 @@ export function DMChatScreen({ friendUid, friendName = '친구', onClose, onOpen
       </KeyboardAvoidingView>
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
+    </KeyboardProvider>
   );
 }
