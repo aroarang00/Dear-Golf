@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
+import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
 import Reanimated, { useAnimatedStyle } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardStickyView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -325,11 +326,15 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
             }}
           />
-          {/* 전송 — 활성=버건디 원형+버터 화살표, 비활성=흐린 버건디+흐린 버터. 입력창과 높이 맞춤(46) */}
+          {/* 전송 — 버건디 원형 + 버터 종이비행기(Tabler send 아웃라인 SVG). 비활성=흐린 버건디+흐린 버터. 입력창과 높이 맞춤(46) */}
           <TouchableOpacity onPress={handleSend} disabled={!canSend} activeOpacity={0.8}
             style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center',
               backgroundColor: canSend ? DM_SEND : 'rgba(107,30,42,0.4)' }}>
-            <Text style={{ fontSize: fs(22), fontFamily: F.sysB, color: canSend ? DM_BUTTER : 'rgba(245,230,168,0.5)' }}>↑</Text>
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" style={{ marginLeft: -1 }}>
+              <Path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"
+                stroke={canSend ? DM_BUTTER : 'rgba(245,230,168,0.5)'}
+                strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           </TouchableOpacity>
         </Reanimated.View>
       </KeyboardStickyView>
