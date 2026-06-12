@@ -449,10 +449,9 @@ export function HomeScreen({ navigation, route }) {
                 paddingHorizontal: 12, paddingVertical: 6,
                 borderRadius: 20,
               }}>
-              <Text style={{ fontSize: fs(14) }}>📅</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: 'rgba(255,255,255,0.95)' }}>{todayLabel}</Text>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: 'rgba(255,255,255,0.8)' }}>일정관리</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.85)' }}>›</Text>
+              <Text style={{ fontSize: fs(16) }}>📅</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: 'rgba(255,255,255,0.95)' }}>{todayLabel}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>›</Text>
             </TouchableOpacity>
             {upcomingSchedules.length < 10 && (
               <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
