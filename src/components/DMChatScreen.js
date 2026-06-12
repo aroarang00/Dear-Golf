@@ -184,14 +184,15 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     return (
       <View>
         {showDate && (
-          <View style={{ alignItems: 'center', marginVertical: 12 }}>
-            {/* 날짜 캡슐 — 다크 캔버스 위에서 또렷하게: 살짝 밝은 반투명 바탕 + 옅은 테두리 + 밝은 글씨
-                (기존 0.07 바탕·#C9C2B8은 어두운 방에서 거의 안 보였음, 사용자 2026-06-13). */}
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#E6E1D8',
-              backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.13)',
-              paddingHorizontal: 13, paddingVertical: 5, borderRadius: 12, overflow: 'hidden' }}>
+          // 날짜 구분선 — 양옆 가로선 + 또렷한 캡슐(─── 오늘 ───). 캡슐만으론 다크 배경서 안 보인다는 피드백으로
+          //   선 추가 + 글씨/바탕 밝기 강화(사용자 2026-06-13).
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 14, paddingHorizontal: 26, gap: 10 }}>
+            <View style={{ flex: 1, height: 0.5, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#F2ECE0',
+              backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 13, paddingVertical: 5, borderRadius: 12, overflow: 'hidden' }}>
               {fmtDay(item.createdAt)}
             </Text>
+            <View style={{ flex: 1, height: 0.5, backgroundColor: 'rgba(255,255,255,0.2)' }} />
           </View>
         )}
         {/* 받은 메시지 묶음 시작 — 아바타를 말풍선 '위'에 한 번 올림. 이렇게 해야 아래 말풍선들이 좌측에 깔끔히 붙음(사용자 2026-06-13). */}
