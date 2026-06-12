@@ -535,6 +535,11 @@ export function DiaryScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+      {/* 전체 스크롤(인스타식) — 명함·통계·필터·카드를 한 ScrollView에 담아 함께 스크롤. 명함·통계·💰⚙️💬는
+          위로 밀려 사라지고, 맨 위 복귀는 탭 재탭(아래 tabPress 스크롤투탑)·iOS 상태바 탭으로.
+          ★1차는 sticky·auto-hide 둘 다 미적용 — 실기 테스트 후 필터 고정 여부 결정([[project_fullscroll_profile]]). */}
+      <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }}
+        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
         <View style={{ position: 'absolute', top: 14, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
@@ -667,8 +672,7 @@ export function DiaryScreen({ route, navigation }) {
         // 기록이 하나도 없을 때 — 빈 상태 (예시 카드 + CTA)
         if (diaries.length === 0) {
           return (
-            <ScrollView style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ alignItems: 'center', paddingTop: 40, paddingBottom: 48 }}>
+            <View style={{ backgroundColor: C.bgPrimary, alignItems: 'center', paddingTop: 40, paddingBottom: 48 }}>
               <Text style={{ fontSize: fs(38), marginBottom: 14 }}>⛳  📷</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
                 아직 라운딩 기록 / 일상이 없어요
@@ -689,7 +693,7 @@ export function DiaryScreen({ route, navigation }) {
                 style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 32 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>✏️ 첫 기록 남기기</Text>
               </TouchableOpacity>
-            </ScrollView>
+            </View>
           );
         }
 
@@ -738,8 +742,7 @@ export function DiaryScreen({ route, navigation }) {
               </View>
             )}
 
-            <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
-              {hallOfFame.length > 0 ? (
+            {hallOfFame.length > 0 ? (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
                     <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
@@ -801,10 +804,10 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               )}
               <View style={{ height: 32 }} />
-            </ScrollView>
           </>
         );
       })()}
+      </ScrollView>
 
       {/* + 다이어리 추가 — 우하단 FAB */}
       <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
