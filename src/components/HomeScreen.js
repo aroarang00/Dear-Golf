@@ -385,6 +385,10 @@ export function HomeScreen({ navigation, route }) {
     }
   };
 
+  // 하단 캘린더 알약 라벨 — 오늘 날짜·요일 노출(진입 유도 + 정보 겸용). 렌더마다 계산이라 자정 넘어가도 갱신.
+  const _today = new Date();
+  const todayLabel = `${_today.getMonth() + 1}월 ${_today.getDate()}일 (${WEEKDAYS[_today.getDay()]})`;
+
   return (
     <View style={{ flex: 1, backgroundColor: '#0a1e10' }}>
       <StatusBar barStyle="light-content" />
@@ -446,7 +450,8 @@ export function HomeScreen({ navigation, route }) {
                 borderRadius: 20,
               }}>
               <Text style={{ fontSize: fs(14) }}>📅</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: 'rgba(255,255,255,0.95)' }}>캘린더</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: 'rgba(255,255,255,0.95)' }}>{todayLabel}</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: 'rgba(255,255,255,0.8)' }}>일정관리</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.85)' }}>›</Text>
             </TouchableOpacity>
             {upcomingSchedules.length < 10 && (
