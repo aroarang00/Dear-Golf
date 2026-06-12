@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
-import Reanimated, { useAnimatedStyle } from 'react-native-reanimated';
-import { KeyboardProvider, KeyboardStickyView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
@@ -66,14 +65,10 @@ function dayKey(ts) {
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
 function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
-  const insets = useSafeAreaInsets();  // 입력창 하단 여백(홈바) — SafeAreaView bottom edge 대신 입력 컨테이너에 직접
-  // 키보드 애니메이션([[dm-design]]) — keyboard-controller가 iOS·Android 모두 시스템 창 리사이즈를 가로채므로
-  //   (그래서 입력창을 KeyboardStickyView로 직접 띄워야 함) 두 플랫폼 다 FlatList가 안 줄어 메시지가 키보드 뒤로 숨음.
-  //   → 리스트에 키보드 높이(Math.abs)만큼 하단 패딩을 줘 메시지를 키보드 위로 끌어올림(양 플랫폼 공통).
-  //   입력창 홈바 여백(insets.bottom)도 키보드 뜨면(progress) 접어 '너무 떠 보이는' 갭 제거.
-  const { height: kbHeight, progress: kbProgress } = useReanimatedKeyboardAnimation();
-  const listPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.abs(kbHeight.value) }));
-  const inputPadStyle = useAnimatedStyle(() => ({ paddingBottom: 10 + insets.bottom * (1 - kbProgress.value) }));
+  const insets = useSafeAreaInsets();  // 입력창 하단 홈바 여백 — 입력 컨테이너 paddingBottom에 직접
+  // ★키보드 처리 — 앱의 다른 모달(맛집저장·일정·기록)과 동일하게 keyboard-controller의 KeyboardAvoidingView(behavior="padding")로
+  //   전체를 감싸 키보드가 뜨면 컨테이너 높이를 줄여 입력창을 위로 올린다. 그 모달들은 안드서 검증된 방식.
+  //   (옛 KeyboardStickyView+수동 패딩계산은 DM만 다르게 써서 안드서 입력창이 키보드에 가렸음 → 이번에 표준 방식으로 통일) ([[dm-design]])
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
@@ -269,6 +264,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const canSend = !!text.trim() && !sending;
 
   return (
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
     <SafeAreaView style={{ flex: 1, backgroundColor: DM_SURFACE }} edges={['top', 'left', 'right']}>
       {/* 다크 룸이라 상태바 아이콘(시계·배터리)을 밝게 — 언마운트 시 직전 화면 스타일로 자동 복원(RN StatusBar 스택). */}
       <StatusBar barStyle="light-content" />
@@ -294,9 +290,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         )}
       </View>
 
-      {/* 채팅 리스트 — flex로 남은 공간 채움. iOS는 키보드 높이만큼 하단 패딩(listPadStyle)으로 리스트를 줄여
-          바닥 정렬 메시지를 키보드 위로 끌어올림(안 그러면 키보드 뒤로 숨음). 입력영역은 KeyboardStickyView가 키보드 위 고정. */}
-      <Reanimated.View style={[{ flex: 1, backgroundColor: DM_CANVAS }, listPadStyle]}>
+      {/* 채팅 리스트 — flex로 남은 공간 채움. KeyboardAvoidingView(padding)가 키보드 뜨면 전체 높이를 줄여
+          입력창을 키보드 위로 올리고 리스트도 그만큼 줄어 메시지가 안 가려짐(맛집·일정 모달과 동일 검증 방식). */}
+      <View style={{ flex: 1, backgroundColor: DM_CANVAS }}>
       <FlatList
         ref={listRef}
         data={list}
@@ -314,12 +310,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           </View>
         ) : null}
       />
-      </Reanimated.View>
-      {/* KeyboardStickyView — 채팅 입력영역을 키보드 위에 딱 붙임(채팅 표준, 안드·iOS 공통).
-          이전 KeyboardAvoidingView(padding)가 안드 FlatList 구조에서 입력창을 못 띄우던 문제 교체 ([[dm-design]]).
-          하단 홈바 여백은 insets.bottom으로(SafeAreaView bottom edge 대신). */}
-      <KeyboardStickyView>
-        {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
+      </View>
+      {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
         {replyTo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9,
             borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_SURFACE }}>
@@ -339,8 +331,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         )}
         {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]).
             다크 프레임 위 크림 필드(둥근 22). 글씨 또렷·크게(중장년 가독성 [[avoid-small-text]]) */}
-        <Reanimated.View style={[{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
-          backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }, inputPadStyle]}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
+          paddingBottom: 10 + insets.bottom, backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }}>
           <TextInput
             ref={inputRef}
             value={text}
@@ -364,8 +356,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
           </TouchableOpacity>
-        </Reanimated.View>
-      </KeyboardStickyView>
+        </View>
       {/* 공감 피커 — 자체 오버레이(Modal 호스트 안이라 글로벌 시트 대신, OverlayAlert와 동일 패턴). 바깥 탭/뒤로가기=닫기 */}
       {reactTarget && (
         <TouchableOpacity activeOpacity={1} onPress={() => setReactTarget(null)}
@@ -403,6 +394,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

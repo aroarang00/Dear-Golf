@@ -103,13 +103,11 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const fMs = milestoneBadge(topMilestone({ rounds: stats.rounds ?? 0, courses: stats.courses ?? 0 }));
   const fStatus = (friend.statusMessage || '').trim();
 
-  // transparent + statusBarTranslucent + navigationBarTranslucent(안드) 필수 — edge-to-edge 앱에선 OS 자동 창
-  //   리사이즈가 꺼져 keyboard-controller가 IME inset을 전담. DM 대화방(자체 오버레이)이 이 Modal 안에 떠서,
-  //   Dialog 윈도가 완전한 edge-to-edge라야(두 translucent 다 켜야) IME inset이 전달됨. 하나만 켜면 안드 일부
-  //   기기에서만 inset이 와 DM 키보드가 입력창을 가리는 간헐 버그 발생([[dm-design]]). 콘텐츠는 불투명 SafeAreaView.
+  // transparent + statusBarTranslucent(안드) — 앱의 검증된 키보드 모달(맛집저장·일정·기록)과 동일 조합.
+  //   내부 DM 대화방의 키보드는 DMChatScreen의 KeyboardAvoidingView(behavior="padding")가 담당([[dm-design]]).
   return (
     <Modal visible={visible} transparent animationType="slide"
-      statusBarTranslucent={Platform.OS === 'android'} navigationBarTranslucent={Platform.OS === 'android'}
+      statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>

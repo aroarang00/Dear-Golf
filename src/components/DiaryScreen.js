@@ -857,13 +857,10 @@ export function DiaryScreen({ route, navigation }) {
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       {/* 메시지(DM) — 내 프로필 진입 = 대화 목록(인스타식). 단일 Modal에서 목록↔대화방 전환(Modal 중첩 회피) ([[dm-design]]).
-          transparent + statusBarTranslucent + navigationBarTranslucent(안드) 필수 — edgeToEdgeEnabled 앱에선 OS 자동
-          창 리사이즈가 꺼져 keyboard-controller(WindowInsets)가 키보드 처리를 전담. RN Modal은 별도 Dialog 윈도라
-          두 translucent를 다 켜야 Dialog가 edge-to-edge가 되고 IME inset이 전달됨. 하나만 켜면 안드 버전·기기에 따라
-          inset이 올 때도/안 올 때도 있어 키보드가 입력창을 가리는 간헐 버그 발생([[dm-design]]).
-          DMChat/DMList SafeAreaView(top·bottom inset)가 불투명이라 화면은 동일. */}
+          transparent + statusBarTranslucent(안드) — 앱의 검증된 키보드 모달(맛집저장·일정·기록)과 동일 조합.
+          키보드 처리는 DMChatScreen 내부 KeyboardAvoidingView(behavior="padding")가 담당(그 모달들과 동일 방식). */}
       <Modal visible={dmOpen} transparent animationType="slide"
-        statusBarTranslucent={Platform.OS === 'android'} navigationBarTranslucent={Platform.OS === 'android'}
+        statusBarTranslucent={Platform.OS === 'android'}
         onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
         {dmChat ? (
           <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)} />
