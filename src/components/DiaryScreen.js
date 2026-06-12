@@ -533,13 +533,36 @@ export function DiaryScreen({ route, navigation }) {
     { label: '베스트', value: bestScore },
   ];
 
+  // 필터·검색·피드 계산 — 본문으로 올림(필터 바를 ScrollView 고정 인덱스 자식으로 떼어 sticky 시키기 위해, [[project_fullscroll_profile]])
+  const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트 스코어'];
+  const filtered = (() => {
+    let list = sortedDiaries;
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(d => {
+        if ((d.course || '').toLowerCase().includes(q)) return true;
+        return (d.companions || []).some(c => (c.name || '').toLowerCase().includes(q));
+      });
+    }
+    const now = new Date();
+    if (filterKey === '라운딩') list = list.filter(isRoundDiary);
+    else if (filterKey === '일상') list = list.filter(isMomentDiary);
+    else if (filterKey === '올해') list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
+    if (filterKey === '베스트 스코어') list = roundsOnly(list).sort((a, b) => a.score - b.score); // 일상은 스코어 없어 제외
+    return list;
+  })();
+  const avgScore = myHandicap; // DiaryCard 색상 비교용(통계 핸디로 통일)
+  // 필터 바를 sticky로 띄울 조건 — 로딩·빈 상태엔 필터 없음(인덱스 고정 위해 그 땐 null + sticky 미적용)
+  const canShowFilter = diariesHydrated && diaries.length > 0;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       {/* 전체 스크롤(인스타식) — 명함·통계·필터·카드를 한 ScrollView에 담아 함께 스크롤. 명함·통계·💰⚙️💬는
-          위로 밀려 사라지고, 맨 위 복귀는 탭 재탭(아래 tabPress 스크롤투탑)·iOS 상태바 탭으로.
-          ★1차는 sticky·auto-hide 둘 다 미적용 — 실기 테스트 후 필터 고정 여부 결정([[project_fullscroll_profile]]). */}
+          위로 밀려 사라지고, 필터 줄(인덱스 2)만 stickyHeaderIndices로 상단 고정(사용자 결정 2026-06-13).
+          ★sticky 인덱스 안정 위해 자식 순서 고정: [명함0·통계1·필터2(또는 null)·피드3]. 검색은 필터와 한 묶음(인덱스 유지). */}
       <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }}
-        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+        stickyHeaderIndices={canShowFilter ? [2] : undefined}>
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
         <View style={{ position: 'absolute', top: 14, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
@@ -635,36 +658,46 @@ export function DiaryScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* 인덱스 2 — ★sticky 필터 바(필터 칩 + 🔍 + 검색입력 한 묶음). 위에 딱 붙도록 배경 불투명(C.bgPrimary)으로
+          아래 카드가 비쳐 보이지 않게, 하단 구분선은 dS.filterRow 자체 borderBottom. 로딩·빈 상태엔 null(인덱스 고정·sticky 미적용). */}
+      {canShowFilter ? (
+        <View style={{ backgroundColor: C.bgPrimary }}>
+          <View style={dS.filterRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={{ flex: 1 }}
+              contentContainerStyle={[dS.filterTabRow, { flexGrow: 1, justifyContent: 'space-between', paddingRight: 16 }]}>
+              {FILTERS.map(f => {
+                const on = filterKey === f;
+                return (
+                  <TouchableOpacity key={f} activeOpacity={0.7}
+                    style={[dS.filterTab, on && dS.filterTabOn]}
+                    onPress={() => setFilterKey(on ? '전체' : f)}>
+                    <Text style={[dS.filterTabTxt, on && dS.filterTabTxtOn]}>{f}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity activeOpacity={0.6}
+              style={dS.searchToggleBtn}
+              onPress={() => { if (showSearch) { setShowSearch(false); setSearch(''); } else setShowSearch(true); }}>
+              <Text style={[dS.searchToggleTxt, showSearch && { color: '#6B1E2A' }]}>🔍</Text>
+            </TouchableOpacity>
+          </View>
+          {showSearch && (
+            <View style={dS.searchWrap}>
+              <Text style={dS.searchIcon}>🔍</Text>
+              <TextInput style={dS.searchInput} placeholder="골프장 또는 동반자 이름" placeholderTextColor={C.warmGrayLight}
+                value={search} onChangeText={setSearch} autoFocus />
+              <TouchableOpacity activeOpacity={0.6} onPress={() => { setShowSearch(false); setSearch(''); }}>
+                <Text style={dS.searchCloseTxt}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      ) : null}
+
+      {/* 인덱스 3 — 피드 본문(로딩 / 빈 상태 / 명예의전당 + 카드). 필터·검색은 위 sticky 인덱스2로 분리됨 */}
       {(() => {
-        const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트 스코어'];
-
-        const filtered = (() => {
-          let list = sortedDiaries;
-          const q = search.trim().toLowerCase();
-          if (q) {
-            list = list.filter(d => {
-              if ((d.course || '').toLowerCase().includes(q)) return true;
-              return (d.companions || []).some(c => (c.name || '').toLowerCase().includes(q));
-            });
-          }
-          const now = new Date();
-          if (filterKey === '라운딩') {
-            list = list.filter(isRoundDiary); // 라운딩 기록만 보기
-          } else if (filterKey === '일상') {
-            list = list.filter(isMomentDiary); // 일상(모멘트)만 보기
-          } else if (filterKey === '올해') {
-            list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
-          }
-          if (filterKey === '베스트 스코어') {
-            // 일상(모멘트)은 스코어가 없어 랭킹서 제외 — 안 그러면 score null이 0으로 최상단 오염
-            list = roundsOnly(list).sort((a, b) => a.score - b.score);
-          }
-          return list;
-        })();
-
-        // DiaryCard 색상 비교용 — 통계 박스 핸디로 통일 (5개 미만 입력값, 6개+ 베스트 5개 평균)
-        const avgScore = myHandicap;
-
         // 첫 로드 전 — 빈 상태 대신 로딩 스피너 (다이어리 로컬+Firestore 로드 동안 깜빡임 방지)
         if (!diariesHydrated) {
           return <LoadingState style={{ backgroundColor: C.bgPrimary }} />;
@@ -699,49 +732,6 @@ export function DiaryScreen({ route, navigation }) {
 
         return (
           <>
-            <View style={dS.filterRow}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                style={{ flex: 1 }}
-                contentContainerStyle={[dS.filterTabRow, { flexGrow: 1, justifyContent: 'space-between', paddingRight: 16 }]}>
-                {FILTERS.map(f => {
-                  const on = filterKey === f;
-                  return (
-                    <TouchableOpacity key={f} activeOpacity={0.7}
-                      style={[dS.filterTab, on && dS.filterTabOn]}
-                      onPress={() => setFilterKey(on ? '전체' : f)}>
-                      <Text style={[dS.filterTabTxt, on && dS.filterTabTxtOn]}>{f}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <TouchableOpacity activeOpacity={0.6}
-                style={dS.searchToggleBtn}
-                onPress={() => {
-                  if (showSearch) { setShowSearch(false); setSearch(''); }
-                  else setShowSearch(true);
-                }}>
-                <Text style={[dS.searchToggleTxt, showSearch && { color: '#6B1E2A' }]}>🔍</Text>
-              </TouchableOpacity>
-            </View>
-
-            {showSearch && (
-              <View style={dS.searchWrap}>
-                <Text style={dS.searchIcon}>🔍</Text>
-                <TextInput
-                  style={dS.searchInput}
-                  placeholder="골프장 또는 동반자 이름"
-                  placeholderTextColor={C.warmGrayLight}
-                  value={search}
-                  onChangeText={setSearch}
-                  autoFocus
-                />
-                <TouchableOpacity activeOpacity={0.6}
-                  onPress={() => { setShowSearch(false); setSearch(''); }}>
-                  <Text style={dS.searchCloseTxt}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             {hallOfFame.length > 0 ? (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
