@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar 
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation } from '../utils/dm';
@@ -264,10 +264,12 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const canSend = !!text.trim() && !sending;
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-    <SafeAreaView style={{ flex: 1, backgroundColor: DM_SURFACE }} edges={['top', 'left', 'right']}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: DM_SURFACE }}>
       {/* 다크 룸이라 상태바 아이콘(시계·배터리)을 밝게 — 언마운트 시 직전 화면 스타일로 자동 복원(RN StatusBar 스택). */}
       <StatusBar barStyle="light-content" />
+      {/* 상단 안전영역 — ★잘 되는 모달들(일정·기록·맛집)처럼 SafeAreaView/중첩 SafeAreaProvider 없이 루트 insets로 직접 패딩.
+          중첩 SafeAreaProvider+SafeAreaView가 안드서 keyboard-controller의 키보드 회피를 막던 진짜 원인이라 제거([[dm-design]]). */}
+      <View style={{ flex: 1, paddingTop: insets.top }}>
       {/* 헤더 — 다크 프레임. 키운 상대 아바타(44) + 버터 이름 + 페일스카이 '님과 대화 중'. 별명은 friendName으로 전달 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 12 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -393,20 +395,18 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         </TouchableOpacity>
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
-    </SafeAreaView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
-// 친구 1:1 DM 대화방 — 외부 래퍼. RN Modal 호스트(DiaryScreen) 안에선 루트 SafeAreaProvider가 안 닿아
-//   inset이 0이 되고 헤더가 상태바와 겹쳤음(iOS) → 자체 SafeAreaProvider로 모달 윈도우 기준 재측정.
-//   initialWindowMetrics로 첫 프레임 깜빡임 방지. KeyboardProvider도 여기서(모달=별도 네이티브 윈도우) ([[dm-design]]).
+// 친구 1:1 DM 대화방 — 외부 래퍼. RN Modal은 별도 네이티브 윈도우라 KeyboardProvider를 모달 안에 둠
+//   (잘 되는 일정·기록·맛집 모달과 동일 구조). ★중첩 SafeAreaProvider는 제거 — 루트 insets가 모달 안에서도
+//   정상 동작함이 ScheduleModal로 확인됨(insets.bottom 작동). 중첩 Provider가 안드 키보드 회피를 막았었음 ([[dm-design]]).
 export function DMChatScreen(props) {
   return (
     <KeyboardProvider>
-      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <DMChatInner {...props} />
-      </SafeAreaProvider>
+      <DMChatInner {...props} />
     </KeyboardProvider>
   );
 }
