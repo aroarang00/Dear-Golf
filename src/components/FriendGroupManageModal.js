@@ -167,7 +167,7 @@ export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], o
             )}
 
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 20, lineHeight: 17 }}>
-              · 이름을 탭하면 바꿀 수 있어요.{'\n'}· 친구가 있거나 이 그룹으로 올린 글이 있으면 삭제할 수 없어요 (비운 뒤 삭제).
+              {'· 이름을 탭하면 바꿀 수 있어요.\n· 친구가 있거나 이 그룹으로 올린 글이 있으면\n   삭제할 수 없어요 (비운 뒤 삭제).'}
             </Text>
 
             {/* 숨긴 친구 — 친구 목록 메인에서 빼고 여기서만 관리(노출 0). 해제하면 목록에 다시 보임 ([[project_fullscroll_profile]]) */}
@@ -175,7 +175,7 @@ export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], o
               <View style={{ marginTop: 26, borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 18 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginBottom: 4 }}>숨긴 친구 {hiddenFriends.length}</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 12, lineHeight: 16 }}>
-                  숨긴 친구는 목록에 안 보여요. 상대방은 알 수 없어요. 해제하면 다시 보여요.
+                  {'숨긴 친구는 목록에 안 보여요. 상대방은 알 수 없어요.\n숨김 해제하면 목록에 다시 보여요.'}
                 </Text>
                 {hiddenFriends.map(f => (
                   <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9,
