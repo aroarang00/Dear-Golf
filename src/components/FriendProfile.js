@@ -103,13 +103,11 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const fMs = milestoneBadge(topMilestone({ rounds: stats.rounds ?? 0, courses: stats.courses ?? 0 }));
   const fStatus = (friend.statusMessage || '').trim();
 
-  // transparent + statusBarTranslucent(안드) 필수 — 불투명 RN Modal은 안드서 keyboard-controller가 키보드 inset을
-  //   못 받아 내부 DM 대화방 입력창이 키보드에 가림. ScheduleModal·RestaurantSaveModal과 동일한 검증된 조합.
-  //   콘텐츠가 불투명 SafeAreaView(top inset 처리)라 화면은 동일.
+  // transparent + statusBarTranslucent + navigationBarTranslucent(안드) 필수 — edge-to-edge 앱에선 OS 자동 창
+  //   리사이즈가 꺼져 keyboard-controller가 IME inset을 전담. DM 대화방(자체 오버레이)이 이 Modal 안에 떠서,
+  //   Dialog 윈도가 완전한 edge-to-edge라야(두 translucent 다 켜야) IME inset이 전달됨. 하나만 켜면 안드 일부
+  //   기기에서만 inset이 와 DM 키보드가 입력창을 가리는 간헐 버그 발생([[dm-design]]). 콘텐츠는 불투명 SafeAreaView.
   return (
-    {/* navigationBarTranslucent(안드) — DM 대화방(자체 오버레이)이 이 Modal 안에 떠서 keyboard-controller가
-        키보드 inset을 받으려면 statusBar·navigationBar 둘 다 translucent여야 함(edge-to-edge Dialog). 안 그러면
-        안드 일부 기기에서 DM 키보드가 입력창을 가림 — 간헐 버그 근본 원인([[dm-design]]). */}
     <Modal visible={visible} transparent animationType="slide"
       statusBarTranslucent={Platform.OS === 'android'} navigationBarTranslucent={Platform.OS === 'android'}
       onRequestClose={onClose}>
