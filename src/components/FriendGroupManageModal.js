@@ -14,7 +14,7 @@ import { loadMyUsedGroupIds } from '../utils/round';
 // 친구 그룹 관리 — MyPage 설정 진입. 추가·이름변경·삭제(빈 그룹만)·순서. 최대 MAX_FRIEND_GROUPS개.
 //   삭제 가드(c안): 멤버 0 + 이 그룹으로 올린 글 0 일 때만. (피드 동적이라 글 있는 그룹 삭제 시 과거글 숨겨짐 회피)
 //   그룹·소속은 owner-only(친구에겐 안 보임). ([[friend_groups]])
-export function FriendGroupManageModal({ visible, onClose }) {
+export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], onUnhide }) {
   const insets = useSafeAreaInsets();
   const [groups, setGroups] = useState([]);
   const [friendMeta, setFriendMeta] = useState({});
@@ -106,7 +106,7 @@ export function FriendGroupManageModal({ visible, onClose }) {
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(26), color: C.charcoal, lineHeight: 28 }}>‹</Text>
           </TouchableOpacity>
-          <Text style={{ flex: 1, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>친구 그룹 관리</Text>
+          <Text style={{ flex: 1, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>친구 관리</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -169,6 +169,26 @@ export function FriendGroupManageModal({ visible, onClose }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 20, lineHeight: 17 }}>
               · 이름을 탭하면 바꿀 수 있어요.{'\n'}· 친구가 있거나 이 그룹으로 올린 글이 있으면 삭제할 수 없어요 (비운 뒤 삭제).
             </Text>
+
+            {/* 숨긴 친구 — 친구 목록 메인에서 빼고 여기서만 관리(노출 0). 해제하면 목록에 다시 보임 ([[project_fullscroll_profile]]) */}
+            {hiddenFriends.length > 0 && (
+              <View style={{ marginTop: 26, borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 18 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginBottom: 4 }}>숨긴 친구 {hiddenFriends.length}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 12, lineHeight: 16 }}>
+                  숨긴 친구는 목록에 안 보여요. 상대방은 알 수 없어요. 해제하면 다시 보여요.
+                </Text>
+                {hiddenFriends.map(f => (
+                  <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9,
+                    borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                    <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{f.name}</Text>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => onUnhide && onUnhide(f.id)}
+                      style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 6 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>숨김 해제</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </ScrollView>
         )}
         <OverlayAlert data={alert} onClose={() => setAlert(null)} />

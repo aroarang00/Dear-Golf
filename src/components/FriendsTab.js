@@ -180,7 +180,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
   const [profileFriend, setProfileFriend] = useState(null);
   const [feedLoading, setFeedLoading] = useState(false);   // 친구 프로필 피드 로드 중
-  const [showHidden, setShowHidden] = useState(false);   // 숨긴 친구 섹션 펼침 여부
+  const [searchOpen, setSearchOpen] = useState(false);   // 검색 입력 펼침 — 평소엔 🔍 아이콘만(자리 절약). 숨긴 친구는 ⚙ 관리 시트로 이동
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
   const [groupManageOpen, setGroupManageOpen] = useState(false);   // 친구 그룹 관리 모달 — 친구탭 헤더 톱니에서 직접 진입 ([[friend_groups]])
@@ -308,9 +308,9 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('tabPress', () => {
       setSearch('');
+      setSearchOpen(false);
       setProfileFriend(null);
       setFinder(null);
-      setShowHidden(false);
       setGradeModalKey(null);
       setQuickFriend(null);
       setGroupManageOpen(false);
@@ -563,19 +563,47 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      {/* 친구 검색창 + 친구 추가 */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
-          <Text style={{ fontSize: fs(13) }}>🔍</Text>
-          <TextInput
-            style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
-            placeholder="내 친구 중에서 검색"
-            placeholderTextColor={C.warmGrayLight}
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
+      {/* 상단 컴팩트 헤더 — 친구 N명 ··· 🔍(검색 토글) ⚙(친구 관리). 검색은 평소 아이콘만, 탭하면 입력 펼침(자리 절약, [[project_fullscroll_profile]] 디클러터) */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
+            친구 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{visible.length}</Text>명
+          </Text>
+          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TouchableOpacity activeOpacity={0.7}
+              onPress={() => { if (searchOpen) { setSearchOpen(false); setSearch(''); } else setSearchOpen(true); }}
+              style={{ width: 34, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+                backgroundColor: searchOpen ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: searchOpen ? C.charcoal : C.hairline }}>
+              <Text style={{ fontSize: fs(14) }}>🔍</Text>
+            </TouchableOpacity>
+            {friends.length > 0 && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
+                style={{ width: 34, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                <Text style={{ fontSize: fs(15) }}>⚙</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
+        {/* 검색 입력 — 🔍 토글 시만 (사용자 "검색 쓸 일 별로 없어") */}
+        {searchOpen && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, backgroundColor: C.bgSecondary,
+            borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
+            <Text style={{ fontSize: fs(13) }}>🔍</Text>
+            <TextInput
+              style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
+              placeholder="내 친구 중에서 검색"
+              placeholderTextColor={C.warmGrayLight}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+              autoFocus
+            />
+            <TouchableOpacity onPress={() => { setSearchOpen(false); setSearch(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: fs(15), color: C.warmGray }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* 목록 컨트롤(친구 수·그룹 관리·그룹 필터칩) — 검색창과 함께 고정, 리스트만 스크롤 ([[friend_groups]]).
@@ -593,35 +621,6 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>›</Text>
           </TouchableOpacity>
         )}
-        {/* 친구 수 + 우측 액션(그룹 관리·숨긴 친구) */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: _and ? 8 : 12 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
-            친구 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>{visible.length}</Text>명
-          </Text>
-          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {friends.length > 0 && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
-                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ fontSize: fs(11) }}>⚙</Text>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>그룹 관리</Text>
-              </TouchableOpacity>
-            )}
-            {hiddenFriends.length > 0 && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => setShowHidden(v => !v)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
-                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
-                  🙈 숨긴 친구 {hiddenFriends.length}
-                </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{showHidden ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
         {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
         {friends.length > 0 && Object.values(friendData.friendMeta).some(m => (m.groupIds || []).length) && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: _and ? 8 : 12 }}
@@ -681,27 +680,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           </View>
         )}
 
-        {/* 숨긴 친구 목록 — 펼침 시 */}
-        {showHidden && hiddenFriends.length > 0 && (
-          <View style={{ marginBottom: 14 }}>
-            {hiddenFriends.map(f => (
-              <View key={f.id}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8,
-                  backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
-                  paddingHorizontal: 12, paddingVertical: 10 }}>
-                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: paletteOf(f.id).bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: paletteOf(f.id).fg }}>{f.name.charAt(0)}</Text>
-                </View>
-                <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{f.name}</Text>
-                <TouchableOpacity activeOpacity={0.7} onPress={() => unhideFriend(f.id)}
-                  style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>숨김 해제</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-
+        {/* 숨긴 친구 목록은 ⚙ 친구 관리 시트로 이동(메인 노출 0) — "숨겼는데 계속 보이는 모순" 해소 ([[project_fullscroll_profile]]) */}
         {!friendsLoaded ? <LoadingState /> : visible.length === 0 ? (
           q ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36, lineHeight: 19 }}>
@@ -771,10 +750,6 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             );
           })
         )}
-
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 6 }}>
-          탭하면 프로필 · 길게 누르면 그룹 · 좌우로 밀면 즐겨찾기·숨기기
-        </Text>
       </ScrollView>
 
       {/* 풀 프로필 — 옵션(알림·숨기기·삭제)도 프로필 상단에서 처리 */}
@@ -824,9 +799,12 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         onAccept={acceptRequest}
         onIgnore={ignoreRequest} />
 
-      {/* 친구 그룹 관리 — 헤더 톱니에서 직접 진입(친구 한 명 안 거침). 닫을 때 그룹·메타 재로드해 칩 반영 ([[friend_groups]]) */}
+      {/* 친구 관리 — ⚙에서 진입. 그룹 관리 + 숨긴 친구 해제를 한 시트에서(메인 노출 0, [[project_fullscroll_profile]]).
+          닫을 때 그룹·메타 재로드해 칩 반영 ([[friend_groups]]) */}
       <FriendGroupManageModal
         visible={groupManageOpen}
+        hiddenFriends={hiddenFriends}
+        onUnhide={unhideFriend}
         onClose={() => {
           setGroupManageOpen(false);
           loadFriendData().then(setFriendData).catch(() => {});
