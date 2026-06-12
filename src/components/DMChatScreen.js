@@ -202,7 +202,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           {/* 내 메시지 좌측: 읽음(✓✓ 페일스카이) + 시각. 읽기 전엔 시각만. */}
           {mine && (!!time || read) && (
             <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
-              {read && <Text style={{ fontFamily: F.sysB, fontSize: fs(11), lineHeight: 14, color: '#C8D9E6' }}>✓✓</Text>}
+              {read && <Text style={{ fontFamily: F.sysB, fontSize: fs(11), lineHeight: 14, color: '#C8D9E6' }}>✓</Text>}
               {!!time && <Text style={[timeStyle, { marginBottom: 0 }]}>{time}</Text>}
             </View>
           )}
@@ -237,18 +237,19 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                   </Text>
                 </View>
               )}
-              {/* 본문 fs(17) — 가독성([[avoid-small-text]]). 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
-              <Text style={{ fontFamily: F.sys, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX }}>{item.body}</Text>
+              {/* 본문 fs(17)·미디엄 — 가독성([[avoid-small-text]]). 얇아 보인다는 피드백으로 F.sys→F.sysM. 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX }}>{item.body}</Text>
             </TouchableOpacity>
             {/* 공감 표시 — 인스타식 말풍선 하단 안쪽 모서리에 살짝 겹친 알약 */}
             {(() => {
               const emojis = Object.values(item.reactions || {}).filter(Boolean);
               if (!emojis.length) return null;
               return (
-                <View style={{ alignSelf: mine ? 'flex-start' : 'flex-end', marginTop: -7, marginHorizontal: 8,
-                  backgroundColor: '#FFFFFF', borderRadius: 11, paddingHorizontal: 7, paddingVertical: 2,
+                <View style={{ alignSelf: mine ? 'flex-start' : 'flex-end', marginTop: -10, marginHorizontal: 8,
+                  backgroundColor: '#FFFFFF', borderRadius: 15, paddingHorizontal: 9, paddingVertical: 3,
                   borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
-                  <Text style={{ fontSize: fs(13), lineHeight: 17 }}>{emojis.join(' ')}</Text>
+                  {/* 말풍선에 붙는 공감 이모지 — 선택 피커(fs24)는 그대로, 표시 알약만 약 2배로 키움(사용자 "너무 작아") */}
+                  <Text style={{ fontSize: fs(24), lineHeight: 30 }}>{emojis.join(' ')}</Text>
                 </View>
               );
             })()}
@@ -296,7 +297,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         style={{ flex: 1 }}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingVertical: 12, flexGrow: 1, justifyContent: 'flex-end' }}
+        contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
         onContentSizeChange={() => listRef.current?.scrollToEnd?.({ animated: false })}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={messages !== null ? (

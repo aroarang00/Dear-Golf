@@ -107,8 +107,12 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   //   못 받아 내부 DM 대화방 입력창이 키보드에 가림. ScheduleModal·RestaurantSaveModal과 동일한 검증된 조합.
   //   콘텐츠가 불투명 SafeAreaView(top inset 처리)라 화면은 동일.
   return (
+    {/* navigationBarTranslucent(안드) — DM 대화방(자체 오버레이)이 이 Modal 안에 떠서 keyboard-controller가
+        키보드 inset을 받으려면 statusBar·navigationBar 둘 다 translucent여야 함(edge-to-edge Dialog). 안 그러면
+        안드 일부 기기에서 DM 키보드가 입력창을 가림 — 간헐 버그 근본 원인([[dm-design]]). */}
     <Modal visible={visible} transparent animationType="slide"
-      statusBarTranslucent={Platform.OS === 'android'} onRequestClose={onClose}>
+      statusBarTranslucent={Platform.OS === 'android'} navigationBarTranslucent={Platform.OS === 'android'}
+      onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 — 버터. 우측 ⋯ 옵션(알림·숨기기·삭제) */}
