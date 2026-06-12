@@ -175,28 +175,42 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const renderItem = ({ item, index }) => {
     const mine = item.senderUid === myUid;
     const prev = index > 0 ? list[index - 1] : null;
-    const next = index < list.length - 1 ? list[index + 1] : null;
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
     const showDate = (!prev || dayKey(prev.createdAt) !== dayKey(item.createdAt)) && !!fmtDay(item.createdAt);
     const time = fmtClock(item.createdAt);
     // 읽음(✓✓) — 내 메시지이고, 상대가 이 방을 본 시각이 이 메시지 시각 이후면 '읽음'.
     const msgMs = item.createdAt?.toMillis ? item.createdAt.toMillis() : 0;
     const read = mine && msgMs > 0 && otherReadMs >= msgMs;
-    // 인스타식: 연속된 상대 메시지 묶음의 마지막에만 아바타 1개(매 줄 반복 X), 나머지는 자리만 확보해 정렬 유지
-    const lastOfGroup = !next || next.senderUid !== item.senderUid;
+    // 받은 메시지 묶음의 '첫 줄'에만 아바타를 말풍선 위에 1개 표시 → 아래 말풍선들은 좌측에 플러시로 붙음(사용자 2026-06-13).
+    // 날짜가 바뀌면 새 묶음으로 봐 아바타 다시 표시.
+    const firstOfGroup = !prev || prev.senderUid !== item.senderUid || showDate;
     return (
       <View>
         {showDate && (
-          <View style={{ alignItems: 'center', marginVertical: 10 }}>
-            {/* 날짜 캡슐 — 다크 캔버스 위 은은하게: 반투명 화이트 바탕 + 흐린 오프화이트 글씨(중앙·소형이라 말풍선과 안 헷갈림) */}
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: '#C9C2B8',
-              backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 11, overflow: 'hidden' }}>
+          <View style={{ alignItems: 'center', marginVertical: 12 }}>
+            {/* 날짜 캡슐 — 다크 캔버스 위에서 또렷하게: 살짝 밝은 반투명 바탕 + 옅은 테두리 + 밝은 글씨
+                (기존 0.07 바탕·#C9C2B8은 어두운 방에서 거의 안 보였음, 사용자 2026-06-13). */}
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#E6E1D8',
+              backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.13)',
+              paddingHorizontal: 13, paddingVertical: 5, borderRadius: 12, overflow: 'hidden' }}>
               {fmtDay(item.createdAt)}
             </Text>
           </View>
         )}
-        {/* 말풍선 — 인스타 DM식(2026-06-11 사용자 지시): 내것=차콜+흰글씨 우측, 상대=연그레이(테두리 없음)+차콜글씨 좌측+아바타.
-            보낸/받은 구분 = 정렬방향+색+아바타 3중. 시각은 옆에 작게(우리 식 유지) */}
+        {/* 받은 메시지 묶음 시작 — 아바타를 말풍선 '위'에 한 번 올림. 이렇게 해야 아래 말풍선들이 좌측에 깔끔히 붙음(사용자 2026-06-13). */}
+        {!mine && firstOfGroup && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, marginTop: 8, marginBottom: 3 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, overflow: 'hidden',
+              backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center' }}>
+              {friendAvatarUri && /^https?:\/\//.test(friendAvatarUri) ? (
+                <Image source={{ uri: friendAvatarUri }} style={{ width: 28, height: 28 }} contentFit="cover" cachePolicy="memory-disk" />
+              ) : (
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>{(friendName || '?').charAt(0)}</Text>
+              )}
+            </View>
+          </View>
+        )}
+        {/* 말풍선 — 보낸=우측(버터), 받은=좌측 플러시(페일스카이). 아바타는 위 묶음 헤더로 분리. 시각은 옆에 작게 */}
         <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
           alignItems: 'flex-end', paddingHorizontal: 12, marginVertical: 2, gap: 6 }}>
           {/* 내 메시지 좌측: 읽음(✓✓ 페일스카이) + 시각. 읽기 전엔 시각만. */}
@@ -204,16 +218,6 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
               {read && <Text style={{ fontFamily: F.sysB, fontSize: fs(11), lineHeight: 14, color: '#C8D9E6' }}>✓</Text>}
               {!!time && <Text style={[timeStyle, { marginBottom: 0 }]}>{time}</Text>}
-            </View>
-          )}
-          {!mine && (
-            <View style={{ width: 28, height: 28, borderRadius: 14, overflow: 'hidden', marginBottom: 1,
-              backgroundColor: lastOfGroup ? DM_AVATAR : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-              {lastOfGroup && (friendAvatarUri && /^https?:\/\//.test(friendAvatarUri) ? (
-                <Image source={{ uri: friendAvatarUri }} style={{ width: 28, height: 28 }} contentFit="cover" cachePolicy="memory-disk" />
-              ) : (
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>{(friendName || '?').charAt(0)}</Text>
-              ))}
             </View>
           )}
           <View style={{ maxWidth: '78%' }}>
