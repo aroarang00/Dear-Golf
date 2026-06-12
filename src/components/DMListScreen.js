@@ -18,16 +18,27 @@ import { loadMyFriendsEnriched, loadMyBlockedUids } from '../utils/friends';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 // 대화 목록 시각 — 오늘이면 오전/오후 h:mm, 아니면 월.일
+// DM 목록 시각 — 인스타·카톡식 상대표현. 오늘=시간 / 어제 / N일 전(~6) / N주 전(~4) / 그 이상=날짜.
 function fmtTime(ts) {
   const ms = ts?.toMillis ? ts.toMillis() : 0;
   if (!ms) return '';
   const d = new Date(ms);
   const now = new Date();
+  // 오늘 → 시간
   if (d.toDateString() === now.toDateString()) {
     const h = d.getHours(), m = d.getMinutes();
     return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(m).padStart(2, '0')}`;
   }
-  return `${d.getMonth() + 1}.${d.getDate()}`;
+  // 날짜 차이(자정 기준)로 상대표현
+  const a = new Date(d); a.setHours(0, 0, 0, 0);
+  const t = new Date(now); t.setHours(0, 0, 0, 0);
+  const days = Math.round((t - a) / 86400000);
+  if (days === 1) return '어제';
+  if (days <= 6) return `${days}일 전`;
+  if (days <= 34) return `${Math.floor(days / 7)}주 전`;
+  // 그 이상 — 같은 해면 'M월 D일', 다른 해면 'YYYY. M. D'
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
 }
 
 // 친구 메시지 목록 — 인스타식 대화 리스트. 항목 탭 → 대화방 ([[dm-design]]).
