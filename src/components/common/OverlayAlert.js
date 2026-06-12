@@ -6,7 +6,9 @@ import { useAndroidBack } from '../../hooks/useAndroidBack';
 
 // 풀스크린 모달 위에서도 보이는 알럿/액션시트.
 // 네이티브 Modal이 아닌 오버레이 View로 띄워 모달 전환 충돌을 피한다.
-//   data: { title, message, buttons: [{ text, onPress, style }] }
+//   data: { title, message, highlight, note, buttons: [{ text, onPress, style }] }
+//   highlight: [{ icon, text }] — 진하게 강조할 핵심 정보(구장·날짜 등) 카드. 선택.
+//   note: 강조 카드 아래 작은 보조 안내. 선택.
 export function OverlayAlert({ data, onClose }) {
   const insets = useSafeAreaInsets();
   // 안드로이드 뒤로가기 — 알럿이 떠 있으면 닫기만 하고 네비게이션으로 넘기지 않음
@@ -30,8 +32,24 @@ export function OverlayAlert({ data, onClose }) {
           </Text>
         )}
         {!!data.message && (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20, marginBottom: data.highlight || data.note ? 14 : 20 }}>
             {data.message}
+          </Text>
+        )}
+        {Array.isArray(data.highlight) && data.highlight.length > 0 && (
+          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
+            paddingVertical: 14, paddingHorizontal: 16, marginBottom: data.note ? 12 : 20 }}>
+            {data.highlight.map((h, i) => (
+              <Text key={i} style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, textAlign: 'center',
+                lineHeight: 22, marginTop: i === 0 ? 0 : 6 }}>
+                {h.icon ? `${h.icon} ` : ''}{h.text}
+              </Text>
+            ))}
+          </View>
+        )}
+        {!!data.note && (
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', lineHeight: 18, marginBottom: 20 }}>
+            {data.note}
           </Text>
         )}
         <View style={{ flexDirection: inRow ? 'row' : 'column', gap: 8 }}>

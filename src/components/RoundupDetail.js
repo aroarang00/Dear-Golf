@@ -281,12 +281,16 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const confirmFinalize = () => {
     const others = (Array.isArray(post.participantUids) ? post.participantUids : [])
       .filter(u => u && u !== myUid).length;
-    const dateLine = `🗓️ ${post.date}${post.day ? ` (${post.day})` : ''} · ${post.time}`;
+    const dateLine = `${post.date}${post.day ? ` (${post.day})` : ''} · ${post.time}`;
     setAlert({
       title: '이대로 확정할까요?',
       message:
-        '확정하면 코스·날짜·시간을 더는 수정할 수 없어요.\n아래 내용이 맞는지 꼭 확인해 주세요.\n\n' +
-        `📍 ${post.course}\n${dateLine}\n\n` +
+        '확정하면 코스·날짜·시간을\n더는 수정할 수 없어요.\n아래 내용이 맞는지 확인해 주세요.',
+      highlight: [
+        { icon: '📍', text: post.course },
+        { icon: '🗓️', text: dateLine },
+      ],
+      note:
         '잘못 적었다면 지금 닫고\n‘모집글 수정’에서 고쳐주세요.\n\n' +
         (others > 0
           ? `확정 뒤 바꾸려면 모집을 삭제하고\n다시 만들어야 해서, 동반자 ${others}명에게\n취소 알림이 가요.`
