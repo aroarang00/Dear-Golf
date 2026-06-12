@@ -132,7 +132,9 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
             </TouchableOpacity>
           </View>
 
-          {/* 명함 — 상단 고정 (스크롤해도 유지, 피드만 스크롤) */}
+          {/* 전체 스크롤 — 상단 바(←·프로필·💬·⋯)만 고정, 명함은 피드와 함께 스크롤(사용자 "피드 시원하게", [[project_fullscroll_profile]]) */}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+          {/* 명함 — 이제 피드와 함께 스크롤(옛 고정 해제) */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
             paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, backgroundColor: C.bgPrimary,
             borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
@@ -185,7 +187,6 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
               </View>
             </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             {/* 라운딩 피드 — 평균타(핸디)는 명함의 핸디 뱃지로 노출 */}
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
               라운딩 · 일상 피드
