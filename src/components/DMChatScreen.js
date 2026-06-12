@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
-import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardProvider, KeyboardAvoidingView, KeyboardEvents } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
@@ -10,6 +10,12 @@ import { ensureConversation, sendMessage, subscribeMessages, setReaction, markCo
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+
+// ⚠️TEMP 키보드 진단 — DM 화면 우상단에 RN/keyboard-controller 키보드 높이를 띄움. 안드 키보드 가림 원인 확정용.
+//   RN>0인데 KC=0 → keyboard-controller가 이 모달 윈도에서 키보드를 못 받음(Provider/윈도 문제).
+//   둘 다 0 → 키보드 이벤트 자체가 이 윈도에 안 옴.  둘 다 >0인데 입력창 안 오름 → KAV 레이아웃 문제.
+//   ★검증 끝나면 이 플래그·디버그 뷰·KeyboardEvents 제거할 것.
+const TEMP_KB_DEBUG = true;
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 // DM 다크 룸 + 브랜드 색 말풍선 (사용자 상세 스펙 2026-06-11 [[dm-design]]):
@@ -144,6 +150,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [reactTarget, setReactTarget] = useState(null);  // 공감 피커 대상 메시지(길게누르기)
   const [replyTo, setReplyTo] = useState(null);  // 답장(인용) 대상 메시지 — 입력창 위 미리보기 바
   const [otherReadMs, setOtherReadMs] = useState(0);  // 상대가 이 방을 마지막으로 본 시각(ms) — 내 말풍선 읽음(✓✓) 판정
+  const [kbDbg, setKbDbg] = useState({ rn: 0, kc: 0 });  // ⚠️TEMP 키보드 진단(검증 후 제거)
   const listRef = useRef(null);
   const inputRef = useRef(null);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
@@ -156,6 +163,16 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
     });
     return () => show.remove();
+  }, []);
+
+  // ⚠️TEMP 키보드 진단 — RN 기본 이벤트와 keyboard-controller 이벤트의 키보드 높이를 각각 잡아 비교(검증 후 제거)
+  useEffect(() => {
+    if (!TEMP_KB_DEBUG) return;
+    const rnShow = Keyboard.addListener('keyboardDidShow', (e) => setKbDbg((s) => ({ ...s, rn: Math.round(e?.endCoordinates?.height || 0) })));
+    const rnHide = Keyboard.addListener('keyboardDidHide', () => setKbDbg((s) => ({ ...s, rn: 0 })));
+    const kcShow = KeyboardEvents.addListener('keyboardDidShow', (e) => setKbDbg((s) => ({ ...s, kc: Math.round(e?.height || 0) })));
+    const kcHide = KeyboardEvents.addListener('keyboardDidHide', () => setKbDbg((s) => ({ ...s, kc: 0 })));
+    return () => { rnShow.remove(); rnHide.remove(); kcShow.remove(); kcHide.remove(); };
   }, []);
 
   // 내 uid + 대화방 보장(메시지 0건이라도 방은 존재)
@@ -425,6 +442,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         </TouchableOpacity>
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
+      {/* ⚠️TEMP 키보드 진단 칩 — 우상단. RN=RN기본 키보드높이, KC=keyboard-controller 높이. 검증 후 제거 */}
+      {TEMP_KB_DEBUG && (
+        <View style={{ position: 'absolute', top: insets.top + 6, right: 8, zIndex: 999,
+          backgroundColor: 'rgba(200,0,0,0.9)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>RN {kbDbg.rn} · KC {kbDbg.kc}</Text>
+        </View>
+      )}
       </View>
     </KeyboardAvoidingView>
   );
