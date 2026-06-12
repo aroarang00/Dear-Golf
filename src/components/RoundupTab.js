@@ -1631,6 +1631,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         </View>
       </View>
 
+      {/* 전체스크롤 — 헤더·뷰 탭은 위에 고정, 지역칩·맞춤배너·안내·카드는 이 ScrollView에 담아 함께 스크롤(스크롤아웃).
+          ([[project_fullscroll_profile]] 라운지: sticky 아님·헤더+뷰탭 붙박이, 그 아래만 흐름) */}
+      <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
+        contentContainerStyle={{ paddingBottom: 32 }}>
       {/* 전체 탭 — 지역 칩 필터 (수도권/강원/충청/전라/경상/제주) */}
       {view === 'all' && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -1696,9 +1701,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         </View>
       )}
 
-      <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5, paddingBottom: 32 }}>
+      {/* 카드 영역 — 좌우 16 패딩(옛 ScrollView contentContainer 패딩 대체). 위 줄들(지역칩 풀블리드·맞춤배너 marginH16·안내 paddingH16)은 자체 여백 유지 */}
+      <View style={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5 }}>
         {/* 초대장(친구지정·포함)은 아래 list.map에서 실제 카드로 렌더 — dev에선 내가 만든 글도 자기 미리보기로 보임 ([[roundup-invitation]]) */}
         {!hydrated ? <LoadingState /> : list.length === 0 ? (
           view === 'mine' ? (
@@ -1872,6 +1876,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             </Text>
           </View>
         )}
+      </View>
       </ScrollView>
 
       <RoundupCreateModal visible={showCreate}
