@@ -61,6 +61,74 @@ function dayKey(ts) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+// 입력 바 — ★자체 text 상태로 분리해 타이핑이 부모(메시지 리스트)를 리렌더하지 않게 함(입력 지연 방지).
+//   onSend(body)→true/false(false면 입력 복구). 답장 미리보기·전송 버튼 포함. 포커스는 ref로 노출(공감→답장 동선).
+const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, replyTo, onCancelReply, friendName, myUid, bottomPad }, ref) {
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const inputRef = useRef(null);
+  React.useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }), []);
+  const send = async () => {
+    const body = text.trim();
+    if (!body || sending) return;
+    setText('');
+    setSending(true);
+    const ok = await onSend(body);
+    if (ok === false) setText(body);  // 전송 실패 시 입력 복구
+    setSending(false);
+  };
+  const canSend = !!text.trim() && !sending;
+  return (
+    <>
+      {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
+      {replyTo && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9,
+          borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_SURFACE }}>
+          <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: DM_PALESKY }} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: DM_BUTTER }}>
+              {replyTo.senderUid === myUid ? '나' : friendName}님에게 답장
+            </Text>
+            <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 1 }}>
+              {replyTo.body}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onCancelReply} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ fontSize: fs(18), color: DM_PALESKY }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]). 크림 필드(둥근 22) */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
+        paddingBottom: bottomPad, backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }}>
+        <TextInput
+          ref={inputRef}
+          value={text}
+          onChangeText={setText}
+          placeholder="메시지를 입력하세요"
+          placeholderTextColor={DM_PLACE}
+          multiline
+          style={{
+            flex: 1, minHeight: 46, maxHeight: 120, fontFamily: F.sys, fontSize: fs(17), lineHeight: 23, color: DM_MINE_TX,
+            backgroundColor: DM_FIELD, borderRadius: 22,
+            paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
+          }}
+        />
+        {/* 전송 — 버건디 원형 + 버터 종이비행기(Tabler send 아웃라인 SVG). 비활성=흐린 버건디+흐린 버터 */}
+        <TouchableOpacity onPress={send} disabled={!canSend} activeOpacity={0.8}
+          style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: canSend ? DM_SEND : 'rgba(107,30,42,0.4)' }}>
+          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" style={{ marginLeft: -1 }}>
+            <Path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"
+              stroke={canSend ? DM_BUTTER : 'rgba(245,230,168,0.5)'}
+              strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+}));
+
 // 친구 1:1 DM 대화방 — 풀스크린, 말풍선(내 메시지 우측·상대 좌측). 카톡식 ([[dm-design]]).
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
@@ -72,8 +140,6 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
-  const [text, setText] = useState('');
-  const [sending, setSending] = useState(false);
   const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
   const [reactTarget, setReactTarget] = useState(null);  // 공감 피커 대상 메시지(길게누르기)
   const [replyTo, setReplyTo] = useState(null);  // 답장(인용) 대상 메시지 — 입력창 위 미리보기 바
@@ -134,17 +200,15 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     return () => setActiveDmPair(null);
   }, [convId]);
 
-  const handleSend = async () => {
-    const body = text.trim();
-    if (!body || sending) return;
+  // 전송 — DMInputBar가 body를 넘겨줌. true/false 반환(false면 입력바가 입력 복구). 인용은 replyTo로.
+  const handleSend = useCallback(async (body) => {
     const quote = replyTo;  // 전송 시점 인용 캡처 — 실패 시 함께 복구
-    setText('');
     setReplyTo(null);
-    setSending(true);
-    try { await sendMessage(friendUid, body, quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null); }
-    catch (e) {
+    try {
+      await sendMessage(friendUid, body, quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null);
+      return true;
+    } catch (e) {
       if (__DEV__) console.warn('[DMChat] send', e?.message);
-      setText(body); // 실패 시 입력 복구
       setReplyTo(quote);
       // 중립 안내 — 차단·친구해지로 인한 거부(permission-denied)도 사유를 노출하지 않음(차단 비노출 정책)
       setAlert({
@@ -152,9 +216,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         message: '지금은 이 대화에\n메시지를 보낼 수 없어요.',
         buttons: [{ text: '확인' }],
       });
+      return false;
     }
-    finally { setSending(false); }
-  };
+  }, [replyTo, friendUid]);
 
   // 공감 토글 — 같은 이모지 다시 누르면 해제. 실패(차단·친구해지 거부)는 조용히(차단 비노출 정책, 실시간이라 화면 반영도 안 됨)
   const handleReact = async (emoji) => {
@@ -262,8 +326,6 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     );
   }, [list, myUid, otherReadMs, friendName, friendAvatarUri]);
 
-  const canSend = !!text.trim() && !sending;
-
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: DM_SURFACE }}>
       {/* 다크 룸이라 상태바 아이콘(시계·배터리)을 밝게 — 언마운트 시 직전 화면 스타일로 자동 복원(RN StatusBar 스택). */}
@@ -305,6 +367,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
         onContentSizeChange={() => listRef.current?.scrollToEnd?.({ animated: false })}
         keyboardShouldPersistTaps="handled"
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={11}
         ListEmptyComponent={messages !== null ? (
           <View style={{ alignItems: 'center', paddingVertical: 44 }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: DM_PALESKY, textAlign: 'center', lineHeight: 22 }}>
@@ -314,52 +379,16 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         ) : null}
       />
       </View>
-      {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
-        {replyTo && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9,
-            borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_SURFACE }}>
-            <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: DM_PALESKY }} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: DM_BUTTER }}>
-                {replyTo.senderUid === myUid ? '나' : friendName}님에게 답장
-              </Text>
-              <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 1 }}>
-                {replyTo.body}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(18), color: DM_PALESKY }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]).
-            다크 프레임 위 크림 필드(둥근 22). 글씨 또렷·크게(중장년 가독성 [[avoid-small-text]]) */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
-          paddingBottom: 10 + insets.bottom, backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }}>
-          <TextInput
-            ref={inputRef}
-            value={text}
-            onChangeText={setText}
-            placeholder="메시지를 입력하세요"
-            placeholderTextColor={DM_PLACE}
-            multiline
-            style={{
-              flex: 1, minHeight: 46, maxHeight: 120, fontFamily: F.sys, fontSize: fs(17), lineHeight: 23, color: DM_MINE_TX,
-              backgroundColor: DM_FIELD, borderRadius: 22,
-              paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
-            }}
-          />
-          {/* 전송 — 버건디 원형 + 버터 종이비행기(Tabler send 아웃라인 SVG). 비활성=흐린 버건디+흐린 버터. 입력창과 높이 맞춤(46) */}
-          <TouchableOpacity onPress={handleSend} disabled={!canSend} activeOpacity={0.8}
-            style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center',
-              backgroundColor: canSend ? DM_SEND : 'rgba(107,30,42,0.4)' }}>
-            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" style={{ marginLeft: -1 }}>
-              <Path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"
-                stroke={canSend ? DM_BUTTER : 'rgba(245,230,168,0.5)'}
-                strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-          </TouchableOpacity>
-        </View>
+      {/* 입력 바 — 분리된 컴포넌트(자체 text 상태)라 타이핑이 위 리스트를 리렌더 안 함(입력 지연 방지) */}
+      <DMInputBar
+        ref={inputRef}
+        onSend={handleSend}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        friendName={friendName}
+        myUid={myUid}
+        bottomPad={10 + insets.bottom}
+      />
       {/* 공감 피커 — 자체 오버레이(Modal 호스트 안이라 글로벌 시트 대신, OverlayAlert와 동일 패턴). 바깥 탭/뒤로가기=닫기 */}
       {reactTarget && (
         <TouchableOpacity activeOpacity={1} onPress={() => setReactTarget(null)}
