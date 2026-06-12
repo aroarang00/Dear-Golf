@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
@@ -172,7 +172,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   };
 
   const list = messages || [];
-  const renderItem = ({ item, index }) => {
+  // ★입력 지연 방지 — renderItem을 useCallback으로 안정화. 안 하면 매 글자(setText) 리렌더마다 renderItem 참조가
+  //   새로 생겨 FlatList가 보이는 말풍선을 전부 다시 그려 입력이 버벅임(안드 특히). list/읽음/상대정보 바뀔 때만 갱신.
+  const renderItem = useCallback(({ item, index }) => {
     const mine = item.senderUid === myUid;
     const prev = index > 0 ? list[index - 1] : null;
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
@@ -262,7 +264,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         </View>
       </View>
     );
-  };
+  }, [list, myUid, otherReadMs, friendName, friendAvatarUri]);
 
   const canSend = !!text.trim() && !sending;
 
