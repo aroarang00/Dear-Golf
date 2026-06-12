@@ -563,6 +563,10 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
+      {/* 전체 스크롤(인스타식) — 외부 네이비 헤더(친구 찾기)는 위 고정, 컴팩트 헤더·받은신청·필터칩·카드는 이 ScrollView에
+          담아 함께 스크롤. sticky는 MY와 동일하게 1차 미적용 — 실기 테스트 후 결정([[project_fullscroll_profile]]). */}
+      <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
       {/* 상단 컴팩트 헤더 — 친구 N명 ··· 🔍(검색 토글) ⚙(친구 관리). 검색은 평소 아이콘만, 탭하면 입력 펼침(자리 절약, [[project_fullscroll_profile]] 디클러터) */}
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -606,8 +610,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         )}
       </View>
 
-      {/* 목록 컨트롤(친구 수·그룹 관리·그룹 필터칩) — 검색창과 함께 고정, 리스트만 스크롤 ([[friend_groups]]).
-          그룹 필터칩이 스크롤로 사라지면 그룹 전환이 불편해 고정으로 끌어냄(원작 "스크롤 없이 접근" 의도 충족) */}
+      {/* 받은신청 배너 + 그룹 필터칩 — 전체 스크롤로 함께 흐름(옛 고정 → 스크롤아웃). 필터칩 sticky는 실기 후 결정 */}
       <View style={{ paddingHorizontal: 16 }}>
         {/* 받은 친구 신청 배너 — 있을 때만. 검색창 아래 고정(스크롤로 묻히지 않게) */}
         {receivedRequests.length > 0 && (
@@ -650,9 +653,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         )}
       </View>
 
-      <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 32 }}
-        keyboardShouldPersistTaps="handled">
+      {/* 카드 영역 — 좌우 16(옛 ScrollView contentContainer 패딩 대체). 위 컴팩트 헤더·컨트롤은 자체 pH16 유지 */}
+      <View style={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6 }}>
 
         {/* 친구 첫 진입 1회 안내 — 접이식 카드(확인 시 사라짐). 친구 1명 이상일 때만(0명은 빈 화면 가이드가 설명) ([[friend_groups]]) */}
         {friendsLoaded && friends.length > 0 && !guideDone && (
@@ -750,6 +752,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             );
           })
         )}
+      </View>
       </ScrollView>
 
       {/* 풀 프로필 — 옵션(알림·숨기기·삭제)도 프로필 상단에서 처리 */}
