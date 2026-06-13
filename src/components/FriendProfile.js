@@ -38,6 +38,8 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [editGroups, setEditGroups] = useState([]);        // 편집 중 소속 그룹 id 배열
   const [groupManageOpen, setGroupManageOpen] = useState(false); // 그룹 관리 모달 — 시트에서 진입(B안) ([[friend_groups]])
   const [localGroups, setLocalGroups] = useState(null);    // 그룹 관리 후 갱신본 — prop보다 우선(부모 재로드 없이 칩 반영)
+  const [feedLimit, setFeedLimit] = useState(8);           // 피드 점진 렌더 — 비가상화 ScrollView라 한 번에 다 마운트하면 버벅임(미디어 무거운 친구). 첫 8개+더보기 ([[fullscroll_profile]] perf)
+  useEffect(() => { setFeedLimit(8); }, [friend?.id]);     // 다른 친구 프로필 열면 리셋
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(dmOpen, () => setDmOpen(false)); // 메시지 대화방 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
@@ -206,16 +208,28 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 )
               ) : (
                 // MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터(노랑), 특별 카드만 골드 ([[friend-feed-design]])
-                friend.feed.map((item, idx) => (
+                <>
+                {friend.feed.slice(0, feedLimit).map((item, idx, arr) => (
                   <View key={item.id} style={dS.tlNode}>
-                    {idx < friend.feed.length - 1 && <View style={dS.tlLine} />}
+                    {idx < arr.length - 1 && <View style={dS.tlLine} />}
                     <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: C.butter, borderWidth: 0 }]} />
                     <DiaryCard
                       item={item} variant="friend" myUid={myUid}
                       onReport={setReportItem}
                       onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
                   </View>
-                ))
+                ))}
+                {/* 더 보기 — 비가상화 ScrollView 버벅임 방지로 8개씩 점진 마운트 (미디어 디코드량 분산) */}
+                {friend.feed.length > feedLimit && (
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => setFeedLimit(l => l + 8)}
+                    style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4, paddingVertical: 12, borderRadius: 12,
+                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
+                      더 보기 ({friend.feed.length - feedLimit})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                </>
               )}
             </View>
           </ScrollView>
