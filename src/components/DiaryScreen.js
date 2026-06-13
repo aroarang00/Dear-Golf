@@ -611,12 +611,13 @@ export function DiaryScreen({ route, navigation }) {
             <TouchableOpacity onPress={() => setMilestoneInfoOpen(true)} activeOpacity={0.7}
               style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7, marginLeft: 12 }}>
               {(medals.rounds != null || medals.courses != null) ? (
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>
+                // 마일스톤 = 명예 표시 — 흐린 회색이라 안 보인다는 피드백으로 키우고(fs12) 메달 골드(#8B6914)로 구분(2026-06-13)
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#8B6914' }}>
                   {[medals.rounds != null ? `🏅 라운딩 ${medals.rounds}` : null,
                     medals.courses != null ? `🏅 구장 ${medals.courses}` : null].filter(Boolean).join('   ·   ')}
                 </Text>
               ) : (
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGrayLight }}>🏅 마일스톤 모으는 중</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGrayLight }}>🏅 마일스톤 모으는 중</Text>
               )}
               <Text style={{ fontSize: fs(10), color: C.warmGrayLight }}>ⓘ</Text>
             </TouchableOpacity>
