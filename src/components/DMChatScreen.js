@@ -234,7 +234,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   // 키보드가 뜨면 마지막 메시지가 보이게 끝으로 스크롤 (입력영역 띄우기는 keyboard-controller KAV가 처리)
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => {
-      requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: true }));  // 인버티드: offset 0 = 최신(바닥)
+      requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: false }));  // 인버티드: offset 0 = 최신(바닥). 즉시 점프(스냅샷마다 애니 스크롤=실시간 수신 버벅임 원인)
     });
     return () => show.remove();
   }, []);
@@ -261,7 +261,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       // 최신 메시지가 상대 것일 때만 읽음 기록 — 내 전송·리액션 변경 땐 불필요한 쓰기·스냅샷 churn 제거(렉 완화). msgs=오래된→최신.
       const newest = msgs[msgs.length - 1];
       if (newest && newest.senderUid !== myUidRef.current) markConversationRead(convId);
-      requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: true }));  // 인버티드: offset 0 = 최신(바닥)
+      requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: false }));  // 인버티드: offset 0 = 최신(바닥). 즉시 점프(스냅샷마다 애니 스크롤=실시간 수신 버벅임 원인)
     });
     return () => unsub();
   }, [convId]);
