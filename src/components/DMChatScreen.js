@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, withRepeat, withDelay } from 'react-native-reanimated';
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -158,14 +158,20 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
 // 입력 중 표시 — iMessage식 통통 튀는 점 3개(받은 말풍선 톤). 인버티드 리스트의 ListHeaderComponent(=시각적 바닥)로 노출.
 function TypingDot({ delay }) {
-  const t = useSharedValue(0);
+  // ★RN Animated(useNativeDriver) — Reanimated withRepeat가 안드 RN Modal에서 안 도는 현상(reverse 패턴으로도 미해결)
+  //   이라 검증된 네이티브 루프로 교체. 모달 안에서도 안정적으로 펄스+튐 반복.
+  const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    // ★reverse 요요 패턴(3번째 인자 true) — withSequence를 -1로 반복하면 안드에서 한 번만 돌고 멈추는 알려진 이슈가 있어
-    //   withTiming 1개 + reverse로 0↔1 자동 왕복(iOS·Android 모두 안정적). 시각 효과는 동일(펄스+살짝 튐).
-    t.value = withDelay(delay, withRepeat(withTiming(1, { duration: 420 }), -1, true));
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(v, { toValue: 1, duration: 420, useNativeDriver: true }),
+      Animated.timing(v, { toValue: 0, duration: 420, useNativeDriver: true }),
+    ]));
+    const t = setTimeout(() => loop.start(), delay);  // 점마다 시차(스태거)
+    return () => { clearTimeout(t); loop.stop(); };
   }, []);
-  const st = useAnimatedStyle(() => ({ opacity: 0.35 + t.value * 0.65, transform: [{ translateY: -t.value * 4 }] }));
-  return <Reanimated.View style={[{ width: 7, height: 7, borderRadius: 4, marginHorizontal: 2, backgroundColor: DM_RECV_TX }, st]} />;
+  return <Animated.View style={{ width: 7, height: 7, borderRadius: 4, marginHorizontal: 2, backgroundColor: DM_RECV_TX,
+    opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }),
+    transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] }} />;
 }
 function TypingDots() {
   return (
