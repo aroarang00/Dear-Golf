@@ -18,6 +18,7 @@ import { getCountryFlag } from '../constants/data';
 
 const GOLD = '#E8D9A0';
 const GOLD_DEEP = '#C9A84C';
+const CHAMPAGNE = '#EFE7CC'; // 흰-골드 중간 샴페인 — 구장명에 고급 색감(타수 골드보다 옅어 위계 유지)
 const WHITE = '#F6F2E9'; // 순백 대신 따뜻한 화이트
 const SHADOW = { textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
@@ -97,7 +98,7 @@ export function RoundCard({ item, width = 320 }) {
       ]}>
         {/* 골드 헤어라인 */}
         <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 9 }} />
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: WHITE, letterSpacing: 0.2 }, SHADOW]}>
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}
         </Text>
         {/* 이름 · 날짜 · 날씨 — 골드 한 줄, 촘촘하게 */}
