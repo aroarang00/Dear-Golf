@@ -30,19 +30,19 @@ export function FriendsScreen({ navigation }) {
         flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <View>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 파트너</Text>
-          {/* 'Friends' 글자 우상단에 💬 붙임(MY 아바타 우상단 방식 이관). 크기 fs38=MY(36)보다 키움(iOS서 작아보임 보정), marginTop 음수로 글자 위로 살짝 올림 */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7 }}>
+          {/* 'Friends' 글자 우상단에 메시지 말풍선. 이모지 💬는 글리프라 숫자를 안에 못 넣어 — 말풍선(둥근 박스+좌하단 꼬리)을
+              직접 그려 안읽음 수를 '안에' 표시(카톡 채팅 아이콘식, 사용자 2026-06-13). 헤더 정체성 네이비(타이틀·친구찾기와 통일) */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
             <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.navy }}>Friends</Text>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginTop: -10 }}>
-              <Text style={{ fontSize: fs(38), textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>💬</Text>
-              {/* 안읽음 N 뱃지 — 점 대신 개수. 목록 뱃지(#E5484D)와 색 통일, 헤더 바탕(paleSky) 테두리로 분리 */}
-              {dmUnread > 0 && (
-                <View pointerEvents="none" style={{ position: 'absolute', top: -2, right: -4, minWidth: 18, height: 18, borderRadius: 9,
-                  paddingHorizontal: 5, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
-                </View>
-              )}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: 4 }}>
+              <View style={{ minWidth: 34, height: 27, borderRadius: 9, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 }}>
+                {dmUnread > 0 ? (
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
+                ) : null}
+              </View>
+              {/* 좌하단 꼬리 — 회전 사각형이 박스 아래로 살짝 나와 말풍선 모양 */}
+              <View pointerEvents="none" style={{ position: 'absolute', bottom: -3, left: 8, width: 11, height: 11, backgroundColor: C.navy, transform: [{ rotate: '45deg' }], borderRadius: 2 }} />
             </TouchableOpacity>
           </View>
         </View>
