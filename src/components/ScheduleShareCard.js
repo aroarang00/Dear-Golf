@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { F, fs } from '../constants/colors';
+import QRCode from 'react-native-qrcode-svg';
 
 // 일정 공유 — 공유용 정적 보딩패스 카드. 모집 초대장(RoundupShareCard)과 같은 보딩패스 디자인 재사용(사용자 확정),
 // 개인 라운딩 일정용이라 HOST/남은자리 대신 D-day·동반·날씨를 담음. 홈 D-day 카드(ScheduleSheetModal) 공유에서 호출.
@@ -61,7 +62,13 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
       <View style={styles.body}>
         <View style={styles.kickerRow}>
           <Text style={styles.kicker}>ROUND SCHEDULE</Text>
-          <Text style={styles.brand}>Dear Golf</Text>
+          {/* 우상단 Dear Golf 아래 QR — 보딩패스 항공권처럼 상단 코너. footer 멘트 공간 확보 위해 여기로(사용자 지시) */}
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.brand}>Dear Golf</Text>
+            <View style={{ marginTop: 6 }}>
+              <QRCode value="https://deargolf.app" size={38} color={INK} backgroundColor="transparent" />
+            </View>
+          </View>
         </View>
 
         <View style={{ marginTop: 16 }}>
@@ -87,8 +94,9 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           </Text>
         </View>
 
+        {/* 하단 — 멘트(전체 폭 중앙) + 링크. QR은 우상단으로 옮겨 멘트 공간 확보 */}
         <View style={styles.footer}>
-          <Text style={styles.footerLead}>같이 라운딩 가요</Text>
+          <Text style={styles.footerLead}>골프, 동반자, 그리고{'\n'}우리의 빛나는 아카이브</Text>
           <Text style={styles.footerLink}>deargolf.app</Text>
         </View>
       </View>
@@ -103,7 +111,7 @@ const styles = StyleSheet.create({
 
   body: { paddingHorizontal: 18, paddingLeft: 24, paddingTop: 18, paddingBottom: 18 },
 
-  kickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  kickerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   kicker: { fontFamily: F.sysB, fontSize: fs(11), letterSpacing: 3, color: MUTE },
   brand: { fontFamily: F.brand, fontSize: fs(13), color: BURGUNDY },
 
@@ -126,6 +134,6 @@ const styles = StyleSheet.create({
   metaText: { fontFamily: F.sysSb, fontSize: fs(13), color: INK },
 
   footer: { marginTop: 18, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 14, alignItems: 'center' },
-  footerLead: { fontFamily: F.sysM, fontSize: fs(12), color: MUTE },
-  footerLink: { fontFamily: F.sysB, fontSize: fs(15), color: INK, letterSpacing: 0.5, marginTop: 3 },
+  footerLead: { fontFamily: F.sysM, fontSize: fs(12), lineHeight: fs(12) * 1.45, color: MUTE, textAlign: 'center' },
+  footerLink: { fontFamily: F.sysB, fontSize: fs(15), color: INK, letterSpacing: 0.5, marginTop: 4 },
 });
