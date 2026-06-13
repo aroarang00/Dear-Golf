@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, withRepeat, withSequence, withDelay } from 'react-native-reanimated';
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, withRepeat, withDelay } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -158,9 +158,11 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
 function TypingDot({ delay }) {
   const t = useSharedValue(0);
   useEffect(() => {
-    t.value = withDelay(delay, withRepeat(withSequence(withTiming(1, { duration: 350 }), withTiming(0, { duration: 350 })), -1));
+    // ★reverse 요요 패턴(3번째 인자 true) — withSequence를 -1로 반복하면 안드에서 한 번만 돌고 멈추는 알려진 이슈가 있어
+    //   withTiming 1개 + reverse로 0↔1 자동 왕복(iOS·Android 모두 안정적). 시각 효과는 동일(펄스+살짝 튐).
+    t.value = withDelay(delay, withRepeat(withTiming(1, { duration: 420 }), -1, true));
   }, []);
-  const st = useAnimatedStyle(() => ({ opacity: 0.35 + t.value * 0.65, transform: [{ translateY: -t.value * 3 }] }));
+  const st = useAnimatedStyle(() => ({ opacity: 0.35 + t.value * 0.65, transform: [{ translateY: -t.value * 4 }] }));
   return <Reanimated.View style={[{ width: 7, height: 7, borderRadius: 4, marginHorizontal: 2, backgroundColor: DM_RECV_TX }, st]} />;
 }
 function TypingDots() {
