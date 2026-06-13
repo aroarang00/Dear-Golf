@@ -53,17 +53,22 @@ function RegionTag({ rs }) {
 function RecordedCard({ c, rs, navigation }) {
   return (
     <View style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: rs.bg }]}>
+      {/* › 셰브론을 구장명 바로 옆에 + 구장명·셰브론을 탭 영역으로 — 작은 › 단독 타깃이라 정확히 안 눌리던 문제 개선.
+          구장명만 탭해도 코스 이동(iOS·안드 공통, 2026-06-13) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <Text style={{ fontSize: fs(14), color: C.burgundy }}>✓</Text>
-        <Text style={[dS.courseName, { flex: 1 }]}>{c.name}</Text>
         {c.courseId && navigation ? (
           <TouchableOpacity
             activeOpacity={0.6}
             onPress={() => navigation.navigate(ROUTES.COURSE, { openCourseId: c.courseId })}
-            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-            <Text style={{ fontSize: fs(18), color: C.warmGray }}>›</Text>
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 12 }}
+            style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
+            <Text style={[dS.courseName, { flexShrink: 1 }]} numberOfLines={1}>{c.name}</Text>
+            <Text style={{ fontSize: fs(18), color: C.warmGray, marginLeft: 5 }}>›</Text>
           </TouchableOpacity>
-        ) : null}
+        ) : (
+          <Text style={[dS.courseName, { flex: 1 }]} numberOfLines={1}>{c.name}</Text>
+        )}
       </View>
 
       <View style={dS.recordRow}>
