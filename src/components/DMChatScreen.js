@@ -4,7 +4,7 @@ import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-s
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation } from '../utils/dm';
@@ -490,13 +490,16 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   );
 }
 
-// 친구 1:1 DM 대화방 — 외부 래퍼. RN Modal은 별도 네이티브 윈도우라 KeyboardProvider를 모달 안에 둠
-//   (잘 되는 일정·기록·맛집 모달과 동일 구조). ★중첩 SafeAreaProvider는 제거 — 루트 insets가 모달 안에서도
-//   정상 동작함이 ScheduleModal로 확인됨(insets.bottom 작동). 중첩 Provider가 안드 키보드 회피를 막았었음 ([[dm-design]]).
+// 친구 1:1 DM 대화방 — 외부 래퍼. RN Modal은 별도 네이티브 윈도우라 KeyboardProvider를 모달 안에 둠(일정·기록·맛집 모달과 동일).
+//   ★SafeAreaProvider 복원 — RN Modal 안에선 루트 SafeAreaProvider가 안 닿아 iOS insets.top=0(헤더가 노치 위로 붙음).
+//   DMListScreen과 동일하게 자체 Provider+initialWindowMetrics로 재측정. 옛날엔 중첩 Provider가 reanimated KAV와 충돌해 뺐지만,
+//   지금은 imperative KeyboardEvents 방식이라 충돌 없음(키보드 높이는 Provider와 무관하게 들어옴) ([[dm-design]] iOS safe-area 버그).
 export function DMChatScreen(props) {
   return (
-    <KeyboardProvider>
-      <DMChatInner {...props} />
-    </KeyboardProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <KeyboardProvider>
+        <DMChatInner {...props} />
+      </KeyboardProvider>
+    </SafeAreaProvider>
   );
 }
