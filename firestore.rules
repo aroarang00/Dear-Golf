@@ -494,10 +494,12 @@ service cloud.firestore {
         && !dmBlockedBetween(request.auth.uid, otherUidCur());
       // 읽음 표시 — 본인 lastRead 키만 갱신. 멤버십만 요구(친구해지·차단 무관하게 '읽음' 처리는 무해).
       //   reactions와 동일 패턴: lastRead 맵의 자기 uid 키만 변경 허용(상대 읽음시각 위조 차단). ([[dm-design]])
+      //   + unread: 본인 안읽음 카운트 리셋(0)도 함께 허용(CF가 +1, 읽으면 본인 키만 0). 둘 다 자기 uid 키만.
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.participantUids
-        && changedKeysWithin(['lastRead'])
-        && request.resource.data.get('lastRead', {}).diff(resource.data.get('lastRead', {})).affectedKeys().hasOnly([request.auth.uid]);
+        && changedKeysWithin(['lastRead', 'unread'])
+        && request.resource.data.get('lastRead', {}).diff(resource.data.get('lastRead', {})).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.get('unread', {}).diff(resource.data.get('unread', {})).affectedKeys().hasOnly([request.auth.uid]);
       // 입력 중(타이핑) 표시 — 본인 typing 키만 갱신/해제. 멤버십만(상태 표시라 무해), lastRead와 동일 위조방지.
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.participantUids

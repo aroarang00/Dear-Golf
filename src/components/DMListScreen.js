@@ -95,6 +95,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
     const ouid = otherUidOf(item, myUid);
     const name = friendDisplayName(friendMeta, ouid, nameMap[ouid] || '친구');
     const avatar = avatarMap[ouid];
+    const unreadN = item.unread?.[myUid] || 0;  // 안읽은 메시지 수(목록 뱃지)
     return (
       <TouchableOpacity activeOpacity={0.7} onPress={() => onOpenChat?.(ouid, name, avatar || null)}
         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, gap: 12 }}>
@@ -112,7 +113,15 @@ export function DMListScreen({ onClose, onOpenChat }) {
             <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: DM_BUTTER }} numberOfLines={1}>{name}</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(200,217,230,0.6)', marginLeft: 8 }}>{fmtTime(item.lastAt)}</Text>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: DM_PALESKY, marginTop: 3 }} numberOfLines={1}>{item.lastMessage}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+            {/* 안읽음이면 미리보기를 버터로 강조(카톡식) + 우측 빨간 카운트 뱃지 */}
+            <Text style={{ flex: 1, fontFamily: unreadN > 0 ? F.sysSb : F.sys, fontSize: fs(15), color: unreadN > 0 ? DM_BUTTER : DM_PALESKY }} numberOfLines={1}>{item.lastMessage}</Text>
+            {unreadN > 0 && (
+              <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: '#E5484D', alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{unreadN > 99 ? '99+' : unreadN}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );

@@ -88,7 +88,7 @@ export async function setReaction(convId, msgId, emoji) {
 export async function markConversationRead(convId) {
   const uid = await getUid();
   if (!uid || !convId) return;
-  try { await updateDoc(doc(db, CONV, convId), { [`lastRead.${uid}`]: serverTimestamp() }); }
+  try { await updateDoc(doc(db, CONV, convId), { [`lastRead.${uid}`]: serverTimestamp(), [`unread.${uid}`]: 0 }); }
   catch (e) { if (__DEV__) console.warn('[dm] markRead', e?.message); }
 }
 

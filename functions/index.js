@@ -95,6 +95,8 @@ exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/
     const participants = convSnap.exists ? (convSnap.data().participantUids || []) : [];
     const recipientUid = participants.find(u => u && u !== senderUid);
     if (!recipientUid) return;
+    // 안읽음 카운트 +1 (수신자) — DM 목록 뱃지용. 수신자가 방을 열어 읽으면 markConversationRead가 본인 unread를 0으로 리셋.
+    db.doc(`conversations/${event.params.pairId}`).update({ [`unread.${recipientUid}`]: FieldValue.increment(1) }).catch(() => {});
     const [rSnap, sSnap] = await Promise.all([
       db.doc(`users/${recipientUid}`).get(),
       db.doc(`users/${senderUid}`).get(),
