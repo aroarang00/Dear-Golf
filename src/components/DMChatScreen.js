@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -542,7 +542,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               {friendName}님과의 첫 메시지를{'\n'}남겨보세요
             </Text>
           </View>
-        ) : null}
+        ) : (
+          // 로딩 중(messages === null) — 빈 화면 대신 스피너+안내(느릴 때 멈춘 듯 보이던 것 방지)
+          <View style={{ alignItems: 'center', paddingVertical: 44 }}>
+            <ActivityIndicator color={DM_PALESKY} />
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 10 }}>대화를 불러오는 중…</Text>
+          </View>
+        )}
       />
       </View>
       {/* 입력 바 — 분리된 컴포넌트(자체 text 상태)라 타이핑이 위 리스트를 리렌더 안 함(입력 지연 방지) */}

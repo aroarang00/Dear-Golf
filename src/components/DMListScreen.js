@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StatusBar, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler'; // 행 좌측밀기 삭제(친구카드와 동일 레거시 Swipeable). RN Modal 안이라 자체 RootView 필요
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -236,7 +236,13 @@ export function DMListScreen({ onClose, onOpenChat }) {
                 아직 주고받은 메시지가 없어요{'\n'}위 검색창에서 친구를 찾아 먼저 말을 걸어보세요
               </Text>
             </View>
-          ) : null}
+          ) : (
+            // 로딩 중(convs === null) — 빈 화면 대신 스피너+안내
+            <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+              <ActivityIndicator color={DM_PALESKY} />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 10 }}>불러오는 중…</Text>
+            </View>
+          )}
         />
       )}
     </SafeAreaView>
