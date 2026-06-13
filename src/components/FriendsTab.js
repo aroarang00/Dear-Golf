@@ -57,7 +57,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
   const fStatus = (friend.statusMessage || '').trim();
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
-      style={[{ backgroundColor: isNew ? '#FBF4D6' : C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: flush ? 0 : (_and ? 9 : 12),
+      style={[{ backgroundColor: isNew ? '#FBF0C8' : C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: flush ? 0 : (_and ? 9 : 12),
         // 라운지 모집카드와 동일 입체감 — 크림 배경 위 흰 카드 분리감 (iOS·Android)
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
         // 즐겨찾기 = 왼쪽 보더 강조. ★ borderLeftWidth/Color를 '항상 명시'하고 값만 토글(1↔3)해야 함.
@@ -75,6 +75,12 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(_and ? 14 : 15), color: C.charcoal }}>{friend.name || '친구'}</Text>
+            {/* 새 글 — 버터 워시만으론 기기서 잘 안 보인다는 피드백(2026-06-13)으로 명시적 칩 추가. 이름 옆 버건디 */}
+            {isNew && (
+              <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1.5 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: C.butter }}>새 글</Text>
+              </View>
+            )}
             {fMs && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
                 backgroundColor: '#2A2D3A', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
