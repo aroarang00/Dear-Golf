@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View, Alert, ActivityIndicator, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
+import { DMChatScreen } from './DMChatScreen';  // ⚠️TEMP __DEV__ 키보드 미리보기용(검증 후 import·버튼·모달 함께 제거)
 import { loginWithKakao, linkOrSignInWithKakao } from '../utils/kakaoAuth';
 import { ensureUserDoc } from '../utils/userDoc';
 import { checkBannedByKakaoSub } from '../utils/account';
@@ -13,6 +14,7 @@ import { calculateAgeFromKakao, ADULT_AGE } from '../utils/age';
 // '나중에 하기'로 건너뛰면 익명 계정 그대로 사용.
 export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
   const [loading, setLoading] = useState(false);
+  const [devDm, setDevDm] = useState(false);  // ⚠️TEMP __DEV__ DM 키보드 미리보기 모달(검증 후 제거)
 
   // "나중에 하기" 정책 ([[anonymous-user-policy]] 2026-06-06 확정):
   //  - prod: 익명 진입 허용(혼자 기능 OK). ★출시 전 여기에 '면책 동의 모달'(①)을 붙여
@@ -156,7 +158,25 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 4 }}>
           카카오 없이도 사용할 수 있어요
         </Text>
+
+        {/* ⚠️TEMP __DEV__ 전용 — 로그인·친구 없이 DM 키보드만 점검. 검증 후 이 블록·아래 모달·import·devDm 함께 제거. */}
+        {__DEV__ && (
+          <TouchableOpacity onPress={() => setDevDm(true)} activeOpacity={0.8}
+            style={{ marginTop: 28, alignSelf: 'center', borderWidth: 1, borderColor: C.hairline,
+              borderRadius: 10, paddingVertical: 10, paddingHorizontal: 18 }}>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>🧪 DM 키보드 테스트 (개발용)</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
+      {/* ⚠️TEMP __DEV__ DM 키보드 미리보기 모달 — DiaryScreen의 실제 DM 모달과 동일 조합(transparent·statusBarTranslucent)이라
+          키보드 환경이 release와 동일. 검증 후 제거. */}
+      {__DEV__ && (
+        <Modal visible={devDm} transparent animationType="slide"
+          statusBarTranslucent={Platform.OS === 'android'} onRequestClose={() => setDevDm(false)}>
+          <DMChatScreen devPreview friendUid="__friend__" friendName="테스트" onClose={() => setDevDm(false)} />
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }

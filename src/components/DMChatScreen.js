@@ -18,6 +18,15 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 //   ★검증 끝나면 이 플래그·디버그 뷰·KeyboardEvents 제거할 것.
 const TEMP_KB_DEBUG = true;
 
+// ⚠️TEMP __DEV__ 키보드 미리보기 — 로그인·친구 없이 Metro에서 DM 키보드 레이아웃만 점검(가짜 대화방). 검증 후 제거.
+//   DMChatScreen에 devPreview prop을 주면 네트워크(uid·대화방·구독·전송) 전부 건너뛰고, 입력창/키보드만 실제 Modal 환경 그대로 테스트.
+const mockTs = (ms) => ({ toMillis: () => ms });
+const DEV_PREVIEW_MESSAGES = [
+  { id: 'dev1', senderUid: '__friend__', body: '키보드 테스트용 가짜 대화예요.', createdAt: mockTs(1700000000000) },
+  { id: 'dev2', senderUid: '__me__', body: '아래 입력창을 눌러 키보드를 올려보세요.', createdAt: mockTs(1700000600000) },
+  { id: 'dev3', senderUid: '__friend__', body: '입력창이 키보드 바로 위에 붙으면 정상이에요.', createdAt: mockTs(1700001200000) },
+];
+
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 // DM 다크 룸 + 브랜드 색 말풍선 (사용자 상세 스펙 2026-06-11 [[dm-design]]):
 //   다크 차콜 캔버스 위에 라이트 브랜드 말풍선 — 받은=페일스카이, 보낸=버터, 입력=크림. 헤더 포인트=버터/페일스카이.
@@ -139,7 +148,7 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
 // 친구 1:1 DM 대화방 — 풀스크린, 말풍선(내 메시지 우측·상대 좌측). 카톡식 ([[dm-design]]).
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
-function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
+function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions, devPreview = false }) {
   const insets = useSafeAreaInsets();
   const BAR_PAD = 8;  // 입력 바 내부 하단 숨틈(항상)
   // 닫힘 시 컨테이너 하단 패딩 — 합치면 옛 DM_BOTTOM_PAD(10+insets.bottom) 유지(닫힘 상태 픽셀 동일)
@@ -194,6 +203,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
 
   // 내 uid + 대화방 보장(메시지 0건이라도 방은 존재)
   useEffect(() => {
+    if (devPreview) { setMyUid('__me__'); setMessages(DEV_PREVIEW_MESSAGES); return; }  // ⚠️TEMP 키보드 미리보기 — 네트워크 건너뜀
     let alive = true;
     (async () => {
       try {
@@ -238,6 +248,11 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const handleSend = useCallback(async (body) => {
     const quote = replyTo;  // 전송 시점 인용 캡처 — 실패 시 함께 복구
     setReplyTo(null);
+    if (devPreview) {  // ⚠️TEMP 키보드 미리보기 — 서버 없이 로컬 append만
+      setMessages((prev) => [...(prev || []), { id: 'dev-s-' + (prev?.length || 0), senderUid: '__me__', body,
+        createdAt: mockTs(Date.now()), replyTo: quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null }]);
+      return true;
+    }
     try {
       await sendMessage(friendUid, body, quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null);
       return true;
@@ -252,7 +267,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       });
       return false;
     }
-  }, [replyTo, friendUid]);
+  }, [replyTo, friendUid, devPreview]);
 
   // 공감 토글 — 같은 이모지 다시 누르면 해제. 실패(차단·친구해지 거부)는 조용히(차단 비노출 정책, 실시간이라 화면 반영도 안 됨)
   const handleReact = async (emoji) => {
