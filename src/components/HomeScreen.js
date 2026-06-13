@@ -572,25 +572,22 @@ export function HomeScreen({ navigation, route }) {
             {upcomingSchedules.slice(1, 5).map((s, i) => {
               const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;
               return (
-              <View key={s.id} style={[homeS.subCard, { opacity }]}>
+              {/* 카드 전체 = 일정 시트 열기(탭 영역 넓힘 — 가운데·여백·D-n 어디를 찍어도 시트, 발견성↑ 2026-06-13).
+                  구장명만 안쪽 터치로 코스 연결(코스 연결 불가하면 구장명도 시트로 폴백). */}
+              <TouchableOpacity key={s.id} style={[homeS.subCard, { opacity }]}
+                onPress={() => openScheduleSheet(s)} activeOpacity={0.85}>
                 <TouchableOpacity
-                  onPress={() => handleCardCoursePress(s)}
+                  onPress={() => (canOpenCourse(s) ? handleCardCoursePress(s) : openScheduleSheet(s))}
                   onLongPress={() => openScheduleSheet(s)}
                   delayLongPress={350}
-                  activeOpacity={canOpenCourse(s) ? 0.7 : 1}>
+                  activeOpacity={canOpenCourse(s) ? 0.7 : 0.85}>
                   <Text style={homeS.subCourse} numberOfLines={2}>{s.course}
                     {canOpenCourse(s) ? <Text style={{ fontSize: fs(8), color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => openScheduleSheet(s)}
-                  onLongPress={() => openScheduleSheet(s)}
-                  delayLongPress={350}
-                  activeOpacity={0.85}>
-                  <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
-                </TouchableOpacity>
-              </View>
+                <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
+              </TouchableOpacity>
               );
             })}
 
