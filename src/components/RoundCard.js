@@ -80,14 +80,10 @@ export function RoundCard({ item, width = 320 }) {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }}
       />
 
-      {/* 상단 — ROUND RECAP 워터마크(세리프) + 특별한 날 액센트 칩 */}
+      {/* 상단 — ROUND RECAP(좌, 세리프) + Dear Golf 워터마크(우). 특별한 날 칩은 박스 타수 줄로(우상단 충돌 회피, 사용자 지시) */}
       <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
-        {accentLabel ? (
-          <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.25)' }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(10), color: GOLD, letterSpacing: 2 }}>{accentLabel}</Text>
-          </View>
-        ) : null}
+        <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
       </View>
 
       {/* 하단 정보 — 사진 있을 때만 반투명 박스(홈 카드 톤 + 골드 보더)로 가독성 확보.
@@ -106,7 +102,7 @@ export function RoundCard({ item, width = 320 }) {
           {playerName ? playerName + '   ·   ' : ''}{item.date}{item.weather ? '   ·   ' + item.weather : ''}
         </Text>
 
-        {/* 줄 간격 균일(6) — 타수 줄만 유난히 떨어져 보이던 것 해소(사용자 지시). Dear Golf는 타수 줄 우측에 맞춤 */}
+        {/* 줄 간격 균일(6). 타수 줄 우측엔 특별한 날 칩(홀인원·싱글·베스트). Dear Golf는 상단으로 이동(사용자 지시) */}
         {hasScore ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 6 }}>
             <Text style={[{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: scoreColor }, SHADOW]}>{item.score}</Text>
@@ -117,13 +113,13 @@ export function RoundCard({ item, width = 320 }) {
               </Text>
             ) : null}
             <View style={{ flex: 1 }} />
-            <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE, marginBottom: 5 }, SHADOW]}>Dear Golf</Text>
+            {accentLabel ? (
+              <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.28)', marginBottom: 5 }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(10), color: GOLD, letterSpacing: 2 }}>{accentLabel}</Text>
+              </View>
+            ) : null}
           </View>
-        ) : (
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 }}>
-            <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
-          </View>
-        )}
+        ) : null}
       </View>
     </View>
   );

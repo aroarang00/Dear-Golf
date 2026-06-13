@@ -44,7 +44,8 @@ export function FriendInviteCard({ width = 320 }) {
           골프, 동반자, 그리고{'\n'}우리의 빛나는 아카이브
         </Text>
         {/* Dear Golf 워드마크 */}
-        <Text style={{ fontFamily: F.brand, fontSize: fs(40), lineHeight: fs(44), color: CHARCOAL, marginTop: 12 }}>
+        {/* lineHeight 제거 + allowFontScaling false — Lora 이탤릭 g·f 디센더 잘림 방지(스플래시와 동일 처리) */}
+        <Text allowFontScaling={false} numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(40), color: CHARCOAL, marginTop: 12, paddingVertical: 4 }}>
           Dear Golf
         </Text>
         {/* 영문 부제 */}
