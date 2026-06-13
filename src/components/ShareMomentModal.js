@@ -8,6 +8,8 @@ import { C, F, fs } from '../constants/colors';
 import { HallOfFameCard } from './HallOfFameCard';
 import { MilestoneCard } from './MilestoneCard';
 import { RoundCard } from './RoundCard';
+import { RoundCardScorecard } from './RoundCardScorecard';
+import { RoundCardPolaroid } from './RoundCardPolaroid';
 import { RoundupShareCard } from './RoundupShareCard';
 import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
@@ -19,6 +21,10 @@ const CARD_WIDTH = Dimensions.get('window').width - 40;
 
 // 공유 옵션 — ①바로 공유(OS 공유 시트로 카톡·인스타 직행, expo-sharing) ②갤러리 저장(폴백·보관).
 // OS 공유 시트는 카카오 SDK 직접 공유([[share-moment]] 보류)와 별개라 출시 전 사용 가능. 인스타는 제외.
+// 라운딩 자랑 카드 3종 — 캐러셀로 골라 공유(매거진/스코어카드/폴라로이드). 배경색 다르게 구분 ([[score-brag-card]])
+const ROUND_CARDS = [RoundCard, RoundCardScorecard, RoundCardPolaroid];
+const ROUND_NAMES = ['매거진', '스코어카드', '폴라로이드'];
+
 const OPTIONS = [
   { key: 'share', icon: '📤', label: '공유하기', primary: true },
   { key: 'save', icon: '🖼', label: '이미지 저장' },
@@ -30,6 +36,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef(null);
+  const roundRefs = useRef([]);                          // 라운딩 카드 3종 캐러셀 — 각 ViewShot ref
+  const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 폴라로이드)
   const isRound = moment?.shareKind === 'round';
   const isRoundup = moment?.shareKind === 'roundup';
   const isSchedule = moment?.shareKind === 'schedule';
@@ -64,7 +72,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
         return;
       }
       // 카드 + 워터마크 영역을 캡처해서 PNG로 저장
-      const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1 });
       await MediaLibrary.saveToLibraryAsync(uri);
       setAlert({
         title: '갤러리에 저장됐어요',
@@ -87,7 +95,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
     if (sharing || saving) return;
     setSharing(true);
     try {
-      const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1 });
       const available = await Sharing.isAvailableAsync();
       if (available) {
         await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: isRound ? '라운딩 카드 공유' : '특별한 순간 공유' });
@@ -128,24 +136,45 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
             </Text>
 
             {/* 공유될 카드 — 명예의 전당 카드 + Dear Golf 워터마크. ViewShot으로 감싸 캡처 영역 지정 */}
-            <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
-              {/* 배경 투명 — 카드만 깔끔하게 저장. Dear Golf 마크는 카드 헤더 안(HallOfFameCard, onShare 없을 때)에 들어가
-                  투명 배경·SNS 미리보기에 영향받지 않고 항상 또렷하게 보인다.
-                  width 고정(CARD_WIDTH)으로 캡처 시 셀 비율 깨짐·이름 잘림 방지. */}
-              <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
-                {isInvite
-                  ? <FriendInviteCard width={CARD_WIDTH} />
-                  : isSchedule
-                    ? <ScheduleShareCard schedule={moment} width={CARD_WIDTH} />
-                    : isRoundup
-                      ? <RoundupShareCard post={moment} width={CARD_WIDTH} />
-                      : isRound
-                        ? <RoundCard item={moment} width={CARD_WIDTH} />
+            {isRound ? (
+              // 라운딩 카드 3종 캐러셀 — 가로 스와이프로 스타일 선택, 선택된 카드만 캡처/공유
+              <View style={{ width: CARD_WIDTH }}>
+                <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(e) => setRoundStyleIdx(Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH))}>
+                  {ROUND_CARDS.map((Comp, i) => (
+                    <ViewShot key={i} ref={(el) => (roundRefs.current[i] = el)} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
+                      <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
+                        <Comp item={moment} width={CARD_WIDTH} />
+                      </View>
+                    </ViewShot>
+                  ))}
+                </ScrollView>
+                {/* 닷 인디케이터 + 현재 스타일 이름 */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 12 }}>
+                  {ROUND_CARDS.map((_, i) => (
+                    <View key={i} style={{ width: i === roundStyleIdx ? 16 : 7, height: 7, borderRadius: 4, backgroundColor: i === roundStyleIdx ? C.charcoal : C.hairline }} />
+                  ))}
+                </View>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 7 }}>
+                  넘겨서 카드 스타일을 골라보세요 · {ROUND_NAMES[roundStyleIdx]}
+                </Text>
+              </View>
+            ) : (
+              <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
+                {/* 배경 투명 — 카드만 깔끔하게 저장. Dear Golf 마크는 카드 안. width 고정으로 캡처 비율 안정 */}
+                <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
+                  {isInvite
+                    ? <FriendInviteCard width={CARD_WIDTH} />
+                    : isSchedule
+                      ? <ScheduleShareCard schedule={moment} width={CARD_WIDTH} />
+                      : isRoundup
+                        ? <RoundupShareCard post={moment} width={CARD_WIDTH} />
                         : moment.kind === 'milestone'
                           ? <MilestoneCard item={moment} />
                           : <HallOfFameCard item={moment} />}
-              </View>
-            </ViewShot>
+                </View>
+              </ViewShot>
+            )}
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
               {(isRoundup || isSchedule || isInvite) && onShareLink
                 ? '카드 이미지로 공유돼요. 클릭 가능한 링크는 ‘링크와 함께 공유’를 눌러주세요.'
