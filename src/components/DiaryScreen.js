@@ -244,6 +244,15 @@ export function DiaryScreen({ route, navigation }) {
     }
   }, [route?.params?.openDiaryId, diaries]);
 
+  // DM 푸시 탭 진입 — senderUid로 그 친구와의 대화방 직행 (App.js handleResponse type==='dm' → openDmUid) ([[dm-design]])
+  useEffect(() => {
+    const uid = route?.params?.openDmUid;
+    if (!uid) return;
+    setDmChat({ uid, name: friendNameByUid[uid] || '친구', avatar: null });
+    setDmOpen(true);
+    navigation.setParams({ openDmUid: undefined });
+  }, [route?.params?.openDmUid, friendNameByUid]);
+
   // 상세 닫기 — 홈에서 진입했으면 홈으로, 아니면 MY 목록으로 복귀
   const handleCloseDetail = React.useCallback(() => {
     setSelected(null);

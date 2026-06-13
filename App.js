@@ -341,6 +341,8 @@ function App() {
         // 라운지 친구지정 초대(invite) — 초대장 카드는 라운지 '내 참여(mine)' view에만 렌더되므로
         //   (RoundupTab의 InvitationCard/Ticket, view==='mine' 게이트) 그 view로 열어준다 ([[roundup-invitation]]).
         if (type === 'invite') { navigationRef.navigate(ROUTES.LOUNGE, { openView: 'mine' }); return; }
+        // DM 푸시 탭 → MY 탭 열고 senderUid와의 대화방 직행(DiaryScreen openDmUid 처리). 안 그러면 기본값 라운지로 잘못 감.
+        if (type === 'dm') { navigationRef.navigate(ROUTES.MY, { openDmUid: data.senderUid }); return; }
         const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
         navigationRef.navigate(ROUTES.LOUNGE, openPostId ? { openPostId } : undefined);
       } catch (e) { /* 네비게이션 미준비 */ }
