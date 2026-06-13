@@ -17,6 +17,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
+import { ShareMomentModal } from './ShareMomentModal';
 import { ScheduleModal } from './ScheduleModal';
 import { HomeIntroModal } from './HomeIntroModal';
 import { ScheduleScreen } from './ScheduleScreen';
@@ -319,11 +320,19 @@ export function HomeScreen({ navigation, route }) {
     setShowWeatherPopup(true);
   };
 
-  const handleShareSchedule = async (s) => {
+  const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 일정 공유 카드 모달 대상
+  // 일정 공유 평문(설치 링크 동선) — 카드 모달의 '링크와 함께 공유' 옵션에서 사용
+  const buildScheduleMsg = (s) => `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n\n라운딩의 모든 순간을 더 특별하게\nDear Golf ⛳`;
+  const shareScheduleText = async (s) => {
     if (!s) return;
-    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n\n라운딩의 모든 순간을 더 특별하게\nDear Golf ⛳`;
-    try { await Share.share({ message: msg }); }
+    try { await Share.share({ message: buildScheduleMsg(s) }); }
     catch (e) { console.warn('[share schedule]', e?.message); }
+  };
+  // D-day 카드 공유 → 카드 모달(이미지 바로공유/저장 + 링크). 시트 닫고 홈 레벨에서 열어 3중 Modal 회피.
+  const handleShareSchedule = (s) => {
+    if (!s) return;
+    setShowScheduleModal(false);
+    setScheduleShareTarget(s);
   };
 
   const handleEditSchedule = (s) => {
@@ -810,6 +819,14 @@ export function HomeScreen({ navigation, route }) {
         visible={!!pendingAlarmSchedule}
         schedule={pendingAlarmSchedule}
         onClose={() => setPendingAlarmSchedule(null)}
+      />
+
+      {/* 일정 공유 카드 — 이미지(바로공유/저장) + 평문 링크(설치 동선). 시트 닫은 뒤 홈 레벨에서 열림 */}
+      <ShareMomentModal
+        moment={scheduleShareTarget ? { ...scheduleShareTarget, shareKind: 'schedule' } : null}
+        visible={!!scheduleShareTarget}
+        onClose={() => setScheduleShareTarget(null)}
+        onShareLink={() => { shareScheduleText(scheduleShareTarget); setScheduleShareTarget(null); }}
       />
 
       {/* 예정 라운딩 목록 — 라벨 위쪽 팝업 (카드 5개를 넘는 일정도 한눈에) */}

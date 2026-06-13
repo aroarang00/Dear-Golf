@@ -15,6 +15,7 @@ import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { RoundupComments } from './RoundupComments';
 import { shareRoundup } from '../utils/invite';
+import { ShareMomentModal } from './ShareMomentModal';
 
 // 참여자 아바타 색상
 const AV = [
@@ -125,6 +126,7 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta 
 export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [alert, setAlert] = useState(null);
+  const [shareCardOpen, setShareCardOpen] = useState(false); // 모집 초대장 카드 공유 모달
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
   // z-index 이슈로 부모(RoundupTab)의 모달이 이 Modal 뒤로 가려져서, 등급/차단 확인 모달은 여기서 자체 렌더링.
   const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
@@ -551,7 +553,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>모집 상세</Text>
             <View style={{ flex: 1 }} />
             {/* 공유 — 모임 단톡방에 모집 알리기+앱 유도(OS 공유시트→카톡 등). 누구나(친구공개라 보는 사람=친구) */}
-            <TouchableOpacity onPress={() => shareRoundup(post)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            <TouchableOpacity onPress={() => setShareCardOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ fontSize: fs(15) }}>📤</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>공유</Text>
@@ -808,6 +810,13 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 ],
               });
             }} />
+          {/* 모집 초대장 카드 공유 — 이미지(바로공유/저장) + 평문 링크(설치 funnel) ([[score-brag-card]] 인프라 재사용) */}
+          <ShareMomentModal
+            moment={shareCardOpen ? { ...post, shareKind: 'roundup' } : null}
+            visible={shareCardOpen}
+            onClose={() => setShareCardOpen(false)}
+            onShareLink={() => { shareRoundup(post); setShareCardOpen(false); }}
+          />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

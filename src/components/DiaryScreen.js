@@ -311,6 +311,7 @@ export function DiaryScreen({ route, navigation }) {
   }, [navigation]);
 
   const handleSave = async (type, data) => {
+    const cameFromSchedule = returnToScheduleRef.current; // await 전에 캡처 — onClose가 ref를 곧 false로 리셋
     if (type === 'diary') {
       // Firestore에서 ID 자동 생성. 신규 생성 후 명예의 전당도 같이 갱신.
       const created = await addDiary({
@@ -357,6 +358,20 @@ export function DiaryScreen({ route, navigation }) {
           }
           return next;
         });
+      }
+      // 저장 직후 라운딩 카드 — 최근 라운딩(2일 이내) + 일정 복귀 동선 아닐 때만 축하 시트. 방금 만든 라운딩을 자랑/기록 카드로.
+      // 옛 기록 몰아입력 시엔 안 뜸(상세 골드칩으로 언제든 가능). 톤은 카드가 스코어 따라 분기 ([[score-brag-card]])
+      if (data.kind !== 'moment' && !cameFromSchedule) {
+        const parts = String(data.date || '').split('.').map(n => parseInt(n, 10));
+        if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+          const rd = new Date(parts[0], parts[1] - 1, parts[2]).setHours(0, 0, 0, 0);
+          const today = new Date().setHours(0, 0, 0, 0);
+          const days = Math.round((today - rd) / 86400000);
+          if (days >= 0 && days <= 2) {
+            const card = { ...data, id: created.id, par: 72, shareKind: 'round' };
+            setTimeout(() => setShareMoment(card), 350); // 작성 모달 닫힘 애니메이션 후 자연스럽게
+          }
+        }
       }
       // 직접 작성 다이어리(scheduleId 없음) → 미리 잡아둔 일정이 있으면 거기에만 연결.
       // ★ 과거 기록의 '일정 자동 생성'은 폐지 — 통계·방문수에 0 기여(roundStats가 diary와
@@ -471,6 +486,7 @@ export function DiaryScreen({ route, navigation }) {
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
   if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
+    onShare={selected.kind === 'moment' ? undefined : (round) => setShareMoment({ ...round, shareKind: 'round' })}
     onUpdate={(updated) => {
       // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
       handleSave('diary-edit', updated);

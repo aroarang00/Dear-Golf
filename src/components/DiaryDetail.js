@@ -17,7 +17,7 @@ import { resolvePhotoUri } from '../utils/photoStorage';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { ownerVisibilityLabel, friendDisplayName } from '../utils/friendGroups';
 
-export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, friendGroups, friendMeta = {} }) {
+export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirstSingle, friendGroups, friendMeta = {} }) {
   const { userProfile } = React.useContext(UserContext);
   // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
   useAndroidBack(true, onClose);
@@ -168,6 +168,17 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, 
               }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
               </View>
+            )}
+            {/* 자랑 — 스코어 모듈에 붙은 골드 칩(싱글·이글 배지와 같은 시각 언어). 내 기록일 때만(onShare 제공 시) ([[score-brag-card]]) */}
+            {onShare && (
+              <TouchableOpacity
+                onPress={() => onShare(item)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                style={{ marginLeft: 'auto', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 3,
+                  backgroundColor: '#C9A84C', borderRadius: 13, paddingHorizontal: 12, paddingVertical: 5 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>자랑</Text>
+                <Text style={{ fontSize: fs(11), color: '#2A2622' }}>↗</Text>
+              </TouchableOpacity>
             )}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

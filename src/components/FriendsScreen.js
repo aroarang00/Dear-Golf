@@ -7,14 +7,16 @@ import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
 import { loadUnreadTotal } from '../utils/dm';
 import { shareInvite } from '../utils/invite';
+import { ShareMomentModal } from './ShareMomentModal';
 
 // 친구 화면 — 내 프로필·설정은 MY 탭으로 이관, 친구 목록 전용.
 export function FriendsScreen({ navigation }) {
   // 친구 첫 진입 1회 안내는 FriendsTab 상단 인라인 카드로 이관(접이식, friendCoachDone 재사용) ([[friend_groups]])
   const openFinderRef = useRef(null); // FriendsTab의 친구 찾기(finder)를 헤더 버튼에서 열기 위한 핸들
 
-  // 친구 초대 — 공용 헬퍼(모임 단톡방용 문구). 라운지 빈 상태와 동일 문구 공유 ([[lounge-positioning]])
-  const handleInvite = shareInvite;
+  // 친구 초대 — 비사용자에게 나가는 cold-acquisition 카드(랜딩 톤·올인원 차별화). 평문 링크는 카드 모달의 '링크와 함께 공유'로 유지 ([[invite-deeplink-system]])
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const handleInvite = () => setInviteOpen(true);
 
   // DM(메시지) — 친구 탭으로 진입점 이관(테스터 "MY 프로필 💬는 찾기 불편" 피드백, 2026-06-13. 옛 MY 프로필 💬 제거·일원화).
   //   친구 전용이라 의미상 친구 탭이 자연스럽고 발견성도 높음. 단일 Modal서 목록↔대화방 전환(Modal 중첩 회피, [[dm-design]]).
@@ -75,6 +77,14 @@ export function FriendsScreen({ navigation }) {
           <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
         )}
       </Modal>
+
+      {/* 친구 초대 카드 — 이미지(바로공유/저장) + 평문 링크(설치 동선) */}
+      <ShareMomentModal
+        moment={inviteOpen ? { shareKind: 'invite' } : null}
+        visible={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onShareLink={() => { shareInvite(); setInviteOpen(false); }}
+      />
     </SafeAreaView>
   );
 }

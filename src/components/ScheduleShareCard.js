@@ -1,0 +1,131 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { F, fs } from '../constants/colors';
+
+// 일정 공유 — 공유용 정적 보딩패스 카드. 모집 초대장(RoundupShareCard)과 같은 보딩패스 디자인 재사용(사용자 확정),
+// 개인 라운딩 일정용이라 HOST/남은자리 대신 D-day·동반·날씨를 담음. 홈 D-day 카드(ScheduleSheetModal) 공유에서 호출.
+// ([[score-brag-card]] 공유 인프라 재사용, [[invite-deeplink-system]] 묶음)
+
+const YELLOW = '#F5E6A8';
+const SKY = '#C8D9E6';
+const BURGUNDY = '#6B1E2A';
+const INK = '#3D3935';
+const MUTE = '#8B8680';
+const LINE = '#E8E2D0';
+const SURFACE = '#FFFFFF';
+const PAGE = '#FAF6EC';
+
+function Field({ label, value, align = 'left', tone = 'ink', size = 'md' }) {
+  return (
+    <View style={[styles.field, align === 'right' && { alignItems: 'flex-end' }]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text
+        style={[styles.fieldValue, size === 'lg' && styles.fieldValueLg, tone === 'accent' && { color: BURGUNDY }]}
+        numberOfLines={1}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function Perforation() {
+  return (
+    <View style={styles.perfRow}>
+      <View style={[styles.notch, styles.notchLeft]} />
+      <View style={styles.dashWrap}>
+        {Array.from({ length: 44 }).map((_, i) => <View key={i} style={styles.dash} />)}
+      </View>
+      <View style={[styles.notch, styles.notchRight]} />
+    </View>
+  );
+}
+
+export function ScheduleShareCard({ schedule, width = 320 }) {
+  if (!schedule) return null;
+  const s = schedule;
+  const dateText = `${s.date || '-'}${s.day ? ` (${s.day})` : ''}`;
+  const timeText = s.time && s.time !== '--:--' ? s.time : '미정';
+  const dNum = typeof s.dDay === 'number' ? s.dDay : null;
+  const ddayText = dNum == null ? null : dNum === 0 ? 'D-DAY' : dNum > 0 ? `D-${dNum}` : `D+${-dNum}`;
+  const members = typeof s.members === 'number' ? s.members : 0;
+
+  return (
+    <View style={[styles.card, { width }]}>
+      <View style={styles.triVert}>
+        <View style={[styles.triSeg, { backgroundColor: YELLOW }]} />
+        <View style={[styles.triSeg, { backgroundColor: SKY }]} />
+        <View style={[styles.triSeg, { backgroundColor: BURGUNDY }]} />
+      </View>
+
+      <View style={styles.body}>
+        <View style={styles.kickerRow}>
+          <Text style={styles.kicker}>ROUND SCHEDULE</Text>
+          <Text style={styles.brand}>Dear Golf</Text>
+        </View>
+
+        <View style={{ marginTop: 16 }}>
+          <Field label="COURSE" value={s.course || '-'} tone="accent" size="lg" />
+        </View>
+
+        <Perforation />
+
+        <View style={styles.fieldRow}>
+          <Field label="DATE" value={dateText} />
+          <Field label="TEE-OFF" value={timeText} align="right" />
+        </View>
+
+        {/* D-day · 동반 · 날씨 */}
+        <View style={styles.metaRow}>
+          {ddayText ? (
+            <View style={styles.ddayPill}>
+              <Text style={styles.ddayText}>{ddayText}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.metaText}>
+            {members > 0 ? `👥 ${members}명` : ''}{members > 0 && s.weather ? '   ·   ' : ''}{s.weather ? `${s.weather}` : ''}
+          </Text>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerLead}>같이 라운딩 가요</Text>
+          <Text style={styles.footerLink}>deargolf.app</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { borderRadius: 16, backgroundColor: SURFACE, overflow: 'hidden', borderWidth: 1, borderColor: LINE },
+  triVert: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 6, flexDirection: 'column', zIndex: 2 },
+  triSeg: { flex: 1 },
+
+  body: { paddingHorizontal: 18, paddingLeft: 24, paddingTop: 18, paddingBottom: 18 },
+
+  kickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  kicker: { fontFamily: F.sysB, fontSize: fs(11), letterSpacing: 3, color: MUTE },
+  brand: { fontFamily: F.brand, fontSize: fs(13), color: BURGUNDY },
+
+  fieldRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 16 },
+  field: { flex: 1 },
+  fieldLabel: { fontFamily: F.sysB, fontSize: fs(10), letterSpacing: 1.5, color: MUTE, marginBottom: 4 },
+  fieldValue: { fontFamily: F.sysB, fontSize: fs(16), color: INK },
+  fieldValueLg: { fontSize: fs(19) },
+
+  perfRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginHorizontal: -18 },
+  notch: { width: 16, height: 16, borderRadius: 8, backgroundColor: PAGE },
+  notchLeft: { marginLeft: -8 },
+  notchRight: { marginRight: -8 },
+  dashWrap: { flex: 1, flexDirection: 'row', overflow: 'hidden', justifyContent: 'center' },
+  dash: { width: 5, height: 1, marginHorizontal: 2, backgroundColor: LINE },
+
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
+  ddayPill: { backgroundColor: BURGUNDY, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  ddayText: { fontFamily: F.sysB, fontSize: fs(12), color: '#F5E6A8', letterSpacing: 0.5 },
+  metaText: { fontFamily: F.sysSb, fontSize: fs(13), color: INK },
+
+  footer: { marginTop: 18, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 14, alignItems: 'center' },
+  footerLead: { fontFamily: F.sysM, fontSize: fs(12), color: MUTE },
+  footerLink: { fontFamily: F.sysB, fontSize: fs(15), color: INK, letterSpacing: 0.5, marginTop: 3 },
+});
