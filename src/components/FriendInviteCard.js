@@ -37,7 +37,8 @@ export function FriendInviteCard({ width = 320 }) {
       <LinearGradient colors={['rgba(220,233,242,0.85)', 'rgba(220,233,242,0)']} start={{ x: 1, y: 0 }} end={{ x: 0.4, y: 0.55 }} style={ABS_FILL} />
       <LinearGradient colors={['rgba(251,244,217,0)', 'rgba(251,244,217,0.9)']} start={{ x: 0.5, y: 0.5 }} end={{ x: 0.5, y: 1 }} style={ABS_FILL} />
 
-      <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 26, paddingTop: 30 }}>
+      {/* 컨텐츠 세로 중앙 정렬 — 미니카드가 중간에 들어가며 상단이 휑하던 것 해소(사용자 지시) */}
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingTop: 18, paddingBottom: 30 }}>
         {/* 헤드라인(한글) — 정체성 멘트 */}
         <Text style={{ fontFamily: F.sysM, fontSize: fs(13), lineHeight: fs(13) * 1.5, letterSpacing: 0.5, color: CHARCOAL_SOFT, textAlign: 'center' }}>
           골프, 동반자, 그리고{'\n'}우리의 빛나는 아카이브

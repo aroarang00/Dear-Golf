@@ -9,8 +9,8 @@ export const INVITE_MESSAGE =
   '날씨·교통·맛집 따로 안 찾고,\n' +
   '약속·일정·동반자 한 곳에서,\n' +
   '라운딩 기록까지 자동으로.\n\n' +
-  '다들 설치하고 친구 추가해요 👇\n' +
-  '👉 ' + INVITE_LINK;
+  '다들 설치하고 친구 추가해요\n' +
+  INVITE_LINK;
 
 export async function shareInvite() {
   try {
@@ -35,8 +35,8 @@ export async function shareRoundup(post) {
     '[디어골프] 라운딩 동반자 모집\n\n' +
     `${head}\n` +
     `👥 ${isTeam ? `단체 ${post.teams}팀 · 총 ${cap}명` : `${cap}명`}${left > 0 ? ` · 남은 자리 ${left}` : ''}\n\n` +
-    '디어골프에서 친구 맺고 함께해요 👇\n' +
-    '👉 ' + INVITE_LINK;
+    '디어골프에서 친구 맺고 함께해요\n' +
+    INVITE_LINK;
   try {
     await Share.share({ message });
   } catch (e) { /* 사용자 취소 — 무시 */ }
