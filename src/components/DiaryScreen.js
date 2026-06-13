@@ -13,7 +13,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { LoadingState } from './common/LoadingState';
 import { showAppAlert } from './AppAlert';
 import { HallOfFameCard } from './HallOfFameCard';
-import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals } from './MilestoneCard';
+import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals, SHAREABLE_MILESTONE_MIN } from './MilestoneCard';
 import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';
 import { DiaryCard } from './DiaryCard';
@@ -219,7 +219,8 @@ export function DiaryScreen({ route, navigation }) {
     if (!hofHydrated) return;
     const rounds = displayTotalRounds(userProfile, countCompletedRounds(diaries, schedules));
     const courses = countVisitedCourses(diaries, schedules);
-    const reached = reachedMilestones({ rounds, courses });
+    // 기념비적 단위(100+)만 '특별한 순간' 카드로 등재 — 30·50은 명함 메달로만([[milestone_badges]])
+    const reached = reachedMilestones({ rounds, courses }).filter(m => m.value >= SHAREABLE_MILESTONE_MIN);
     if (reached.length === 0) return;
     setHallOfFame(prev => {
       const have = new Set(prev.map(h => h.id));

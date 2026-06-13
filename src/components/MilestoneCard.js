@@ -12,6 +12,11 @@ export const MILESTONE_DEFS = {
   courses: { label: '방문 구장', unit: 'COURSES', thresholds: [30, 50, 100] },
 };
 
+// '특별한 순간' 카드 + 공유로 띄울 기념비적 최소 단위 — 라운딩 100·200, 구장 100만.
+//   그 미만(30·50)은 명함 메달(trackTopMedals)로만 표시해 자잘한 단위 카드 남발 방지.
+//   ※ 명함 메달은 이 상수와 무관하게 전 단위 유지. 사용자 결정 2026-06-14 ([[milestone_badges]])
+export const SHAREABLE_MILESTONE_MIN = 100;
+
 // 메달 장식 단계 — 임계값 '개수'와 무관하게 value 기준으로 안정화(라운딩 4단계·구장 3단계·TEMP 10 모두 대응).
 //   트랙 최고 임계값 = 왕관(2) / 트랙 첫 임계값 이하(TEMP 10·엔트리) = 기본 메달(0) / 그 사이 = 골드(1).
 export const milestoneDecoLevel = (category, value) => {
