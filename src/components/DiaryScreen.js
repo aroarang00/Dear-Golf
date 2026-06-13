@@ -587,6 +587,14 @@ export function DiaryScreen({ route, navigation }) {
           ★sticky 인덱스 안정 위해 자식 순서 고정: [명함0·통계1·필터2(또는 null)·피드3]. 검색은 필터와 한 묶음(인덱스 유지). */}
       <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }}
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+        onScroll={(e) => {
+          // 스크롤 끝 600px 전 자동 로드 — 더보기 버튼 없이 자연 무한스크롤(점진 마운트는 유지해 한 번에 다 안 올림)
+          const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
+            setFeedLimit(l => (l < filtered.length ? l + 10 : l));
+          }
+        }}
+        scrollEventThrottle={16}
         stickyHeaderIndices={canShowFilter ? [2] : undefined}>
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
@@ -813,14 +821,7 @@ export function DiaryScreen({ route, navigation }) {
                     </View>
                     );
                   })}
-                  {/* 더 보기 — 비가상화 ScrollView 버벅임 방지로 점진 마운트(미디어 디코드 분산) */}
-                  {filtered.length > feedLimit && (
-                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFeedLimit(l => l + 10)}
-                      style={{ marginTop: 6, marginBottom: 4, paddingVertical: 12, borderRadius: 12,
-                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, alignItems: 'center' }}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>더 보기 ({filtered.length - feedLimit})</Text>
-                    </TouchableOpacity>
-                  )}
+                  {/* 더보기 버튼 제거 — 스크롤 끝 근처 자동 로드(위 ScrollView onScroll)로 자연 무한스크롤(2026-06-13) */}
                 </View>
               )}
               <View style={{ height: 32 }} />
