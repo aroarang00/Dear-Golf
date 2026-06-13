@@ -46,7 +46,7 @@ try {
   console.warn('[Sentry] init skipped:', e?.message);
 }
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
 import { PlayfairDisplay_700Bold, PlayfairDisplay_700Bold_Italic } from '@expo-google-fonts/playfair-display';
@@ -416,7 +416,7 @@ function App() {
     }
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider initialMetrics={initialWindowMetrics}>{screen}</SafeAreaProvider>
+        <SafeAreaProvider>{screen}</SafeAreaProvider>
         <SplashOverlay appReady={appReady} />
       </GestureHandlerRootView>
     );
@@ -425,7 +425,7 @@ function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <KeyboardProvider>
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+    <SafeAreaProvider>
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
     <DiariesProvider>
