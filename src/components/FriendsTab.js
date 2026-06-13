@@ -57,14 +57,13 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
   const fStatus = (friend.statusMessage || '').trim();
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
-      style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: flush ? 0 : (_and ? 9 : 12),
+      style={[{ backgroundColor: isNew ? '#FBF4D6' : C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: flush ? 0 : (_and ? 9 : 12),
         // 라운지 모집카드와 동일 입체감 — 크림 배경 위 흰 카드 분리감 (iOS·Android)
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
         // 즐겨찾기 = 왼쪽 보더 강조. ★ borderLeftWidth/Color를 '항상 명시'하고 값만 토글(1↔3)해야 함.
         //   조건부로 속성을 추가/제거하면 안드에서 부분 보더 재계산이 깨져 해제 후에도 굵은 선이 잔존(iOS는 정상).
         borderLeftWidth: favorite ? 3 : 1, borderLeftColor: favorite ? C.burgundy : 'rgba(0,0,0,0.07)' }]}>
-      {/* NEW 점 — 새 글 있으면 우측 상단 모서리 (숫자 뱃지 X, 깔끔하게) ([[friend_groups]] ⑤) */}
-      {isNew && <View style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: C.burgundy, zIndex: 2 }} />}
+      {/* NEW 표시 — 새 글 있으면 카드 전체에 연한 버터 워시(점은 잘 안 보여 폐기, 2026-06-13). 즐겨찾기(좌측 버건디 보더)와 조합 가능 ([[friend_groups]] ⑤) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
@@ -670,7 +669,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
               '카드를 좌우로 밀면 즐겨찾기·숨기기, 길게 누르면 그룹 이동을 해요',
               '그룹은 ⚙ 그룹 관리에서 만들고 정리할 수 있어요',
               '별명은 친구 프로필에서 언제든 바꿀 수 있어요',
-              '친구가 새 글을 올리면 카드에 빨간 점이 떠요',
+              '친구가 새 글을 올리면 카드 색이 살짝 밝아져요',
               '불편한 친구는 숨기거나 끊을 수 있어요',
             ].map((t, i) => (
               <View key={i} style={{ flexDirection: 'row', gap: 7, marginBottom: 6 }}>
