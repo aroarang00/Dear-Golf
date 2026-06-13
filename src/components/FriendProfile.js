@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput, Platform } from 'react-native';
+import { Modal, View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -38,8 +38,6 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [editGroups, setEditGroups] = useState([]);        // 편집 중 소속 그룹 id 배열
   const [groupManageOpen, setGroupManageOpen] = useState(false); // 그룹 관리 모달 — 시트에서 진입(B안) ([[friend_groups]])
   const [localGroups, setLocalGroups] = useState(null);    // 그룹 관리 후 갱신본 — prop보다 우선(부모 재로드 없이 칩 반영)
-  const [feedLimit, setFeedLimit] = useState(8);           // 피드 점진 렌더 — 비가상화 ScrollView라 한 번에 다 마운트하면 버벅임(미디어 무거운 친구). 첫 8개+더보기 ([[fullscroll_profile]] perf)
-  useEffect(() => { setFeedLimit(8); }, [friend?.id]);     // 다른 친구 프로필 열면 리셋
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(dmOpen, () => setDmOpen(false)); // 메시지 대화방 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
@@ -132,68 +130,84 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
             </TouchableOpacity>
           </View>
 
-          {/* 전체 스크롤 — 상단 바(←·프로필·💬·⋯)만 고정, 명함은 피드와 함께 스크롤(사용자 "피드 시원하게", [[project_fullscroll_profile]]) */}
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-          {/* 명함 — 이제 피드와 함께 스크롤(옛 고정 해제) */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
-            paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, backgroundColor: C.bgPrimary,
-            borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
-                alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
-                  // 원격 URL(카카오 등)만 표시. dgphoto: 등 로컬 키는 친구가 못 읽으므로 이니셜 fallback (사진 친구공개는 Storage 업로드 후)
-                  <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
-                ) : (
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                {/* 이름 + 마일스톤 배지(좌) / "나와 함께 N회"(같은 줄 우측 끝) */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 12, marginRight: 4 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, flexShrink: 1 }} numberOfLines={1}>{friend.name}</Text>
-                  {fMs && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
-                      backgroundColor: '#2A2D3A', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 }}>
-                      <Text style={{ fontSize: fs(11) }}>{fMs.icon}</Text>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#E6C677' }}>{fMs.label}</Text>
-                    </View>
-                  )}
-                  {/* 자리만 — 동반자 매칭(라운딩 등록 시 친구 선택 uid) 구현 후 togetherCount 채움.
-                      구현 전 가짜 카운트 노출 차단 ([[diary-companion-matching]]) — togetherCount>0일 때만 표시. 같은 줄 우측 끝(marginLeft auto) */}
-                  {typeof friend.togetherCount === 'number' && friend.togetherCount > 0 && (
-                    <View style={{ marginLeft: 'auto', backgroundColor: '#F0E0E2', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy }}>나와 함께 {friend.togetherCount}회</Text>
-                    </View>
-                  )}
-                </View>
-                {/* 라베·핸디 알약 — 핸디는 users 문서에 동기화된 친구만 표시 ([[friend_groups]] 핸디표시) */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 }}>
-                  <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라베 {stats.best ?? '—'}</Text>
+          {/* 전체 스크롤 — FlatList 가상화(보이는 카드만 렌더). 명함=ListHeaderComponent, 피드=data. 더보기 제거·자연 무한스크롤(perf 2단계, [[project_fullscroll_profile]]) */}
+          <FlatList
+            style={{ flex: 1 }}
+            data={friend.feed || []}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 32 }}
+            initialNumToRender={6}
+            maxToRenderPerBatch={5}
+            windowSize={9}
+            ListHeaderComponent={(
+              <>
+                {/* 명함 — 피드와 함께 스크롤 */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
+                  paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, backgroundColor: C.bgPrimary,
+                  borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                  <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
+                    alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
+                      <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+                    ) : (
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
+                    )}
                   </View>
-                  {stats.handicap != null && (
-                    /* 핸디 = paleSky(하늘빛) — 라베(butter 금색)와 색 구분(따뜻함↔차가움) ([[friend_groups]] 핸디표시) */
-                    <View style={{ backgroundColor: C.paleSky, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>핸디 {stats.handicap}</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 12, marginRight: 4 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, flexShrink: 1 }} numberOfLines={1}>{friend.name}</Text>
+                      {fMs && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
+                          backgroundColor: '#2A2D3A', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 }}>
+                          <Text style={{ fontSize: fs(11) }}>{fMs.icon}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#E6C677' }}>{fMs.label}</Text>
+                        </View>
+                      )}
+                      {typeof friend.togetherCount === 'number' && friend.togetherCount > 0 && (
+                        <View style={{ marginLeft: 'auto', backgroundColor: '#F0E0E2', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy }}>나와 함께 {friend.togetherCount}회</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 }}>
+                      <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라베 {stats.best ?? '—'}</Text>
+                      </View>
+                      {stats.handicap != null && (
+                        <View style={{ backgroundColor: C.paleSky, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>핸디 {stats.handicap}</Text>
+                        </View>
+                      )}
+                    </View>
+                    {fStatus ? (
+                      <Text numberOfLines={2} style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, marginTop: 7, marginLeft: 12, lineHeight: 22 }}>
+                        {fStatus}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
-                {/* 멘트 — 친구가 작성한 경우만 표시 */}
-                {fStatus ? (
-                  <Text numberOfLines={2} style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, marginTop: 7, marginLeft: 12, lineHeight: 22 }}>
-                    {fStatus}
-                  </Text>
-                ) : null}
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
+                  라운딩 · 일상 피드
+                </Text>
+              </>
+            )}
+            renderItem={({ item, index: idx }) => (
+              <View style={{ paddingHorizontal: 16 }}>
+                {/* MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터, 특별 카드만 골드 ([[friend-feed-design]]) */}
+                <View style={dS.tlNode}>
+                  {idx < ((friend.feed || []).length - 1) && <View style={dS.tlLine} />}
+                  <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: C.butter, borderWidth: 0 }]} />
+                  <DiaryCard
+                    item={item} variant="friend" myUid={myUid}
+                    onReport={setReportItem}
+                    onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
+                </View>
               </View>
-            </View>
-
-            {/* 라운딩 피드 — 평균타(핸디)는 명함의 핸디 뱃지로 노출 */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
-              라운딩 · 일상 피드
-            </Text>
-            <View style={{ paddingHorizontal: 16 }}>
-              {(friend.feed || []).length === 0 ? (
-                feedLoading ? (
+            )}
+            ListEmptyComponent={(
+              <View style={{ paddingHorizontal: 16 }}>
+                {feedLoading ? (
                   <LoadingState label="라운딩 기록 불러오는 중" />
                 ) : (
                   <View style={{ alignItems: 'center', paddingVertical: 28 }}>
@@ -205,34 +219,10 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                       이 친구가 라운딩이나 일상을 공개하면{'\n'}여기에 차곡차곡 모여요
                     </Text>
                   </View>
-                )
-              ) : (
-                // MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터(노랑), 특별 카드만 골드 ([[friend-feed-design]])
-                <>
-                {friend.feed.slice(0, feedLimit).map((item, idx, arr) => (
-                  <View key={item.id} style={dS.tlNode}>
-                    {idx < arr.length - 1 && <View style={dS.tlLine} />}
-                    <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: C.butter, borderWidth: 0 }]} />
-                    <DiaryCard
-                      item={item} variant="friend" myUid={myUid}
-                      onReport={setReportItem}
-                      onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
-                  </View>
-                ))}
-                {/* 더 보기 — 비가상화 ScrollView 버벅임 방지로 8개씩 점진 마운트 (미디어 디코드량 분산) */}
-                {friend.feed.length > feedLimit && (
-                  <TouchableOpacity activeOpacity={0.8} onPress={() => setFeedLimit(l => l + 8)}
-                    style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4, paddingVertical: 12, borderRadius: 12,
-                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, alignItems: 'center' }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
-                      더 보기 ({friend.feed.length - feedLimit})
-                    </Text>
-                  </TouchableOpacity>
                 )}
-                </>
-              )}
-            </View>
-          </ScrollView>
+              </View>
+            )}
+          />
 
           {/* 신뢰 등급 설명 팝업 */}
           <TrustGradeModal visible={gradeOpen} highlightKey={grade.key}
