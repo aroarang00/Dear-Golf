@@ -91,13 +91,12 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
   const send = async () => {
     const body = textRef.current.trim();
     if (!body || sending) return;
+    // ★낙관적 즉시 비움 — 메시지는 로컬 즉시반영으로 바로 뜸(메시지 우선 전송). 전송 완료까지 입력이 남아 '렉' 느껴지던 것 제거.
+    inputRef.current?.clear();
+    textRef.current = '';
+    setHasText(false);
     setSending(true);
-    const ok = await onSend(body);
-    if (ok !== false) {  // 성공 시에만 비움(실패 시 입력 유지=재시도 쉬움, inputRef.clear는 신·구 아키텍처 모두 안전)
-      inputRef.current?.clear();
-      textRef.current = '';
-      setHasText(false);
-    }
+    await onSend(body);  // 실패는 드물고(차단·친구해지) alert가 안내 — 낙관적이라 입력 복구는 생략
     setSending(false);
   };
   const canSend = hasText && !sending;
@@ -212,6 +211,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const inputRef = useRef(null);
   const typingHideRef = useRef(null);   // 상대 typing 자동 숨김 타이머
   const lastTypingMsRef = useRef(0);    // 상대 typing 마지막 시각(값 변화 감지용 — Date.now 비교 안 함)
+  const myUidRef = useRef(null);        // 구독 콜백에서 내/상대 메시지 판별용(클로저 stale·재구독 방지)
   const typingState = useRef({ last: 0, stop: null });  // 내 typing 디바운스(쓰기 절약)
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
   // 피커가 떠 있으면 뒤로가기는 피커만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
@@ -233,7 +233,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       try {
         const uid = await getUid();
         const id = await ensureConversation(friendUid);
-        if (alive) { setMyUid(uid); setConvId(id); }
+        if (alive) { myUidRef.current = uid; setMyUid(uid); setConvId(id); }
       } catch (e) { if (__DEV__) console.warn('[DMChat] ensure', e?.message); }
     })();
     return () => { alive = false; };
@@ -244,7 +244,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     if (!convId) return;
     const unsub = subscribeMessages(convId, (msgs) => {
       setMessages(msgs);
-      markConversationRead(convId);  // 첫 로드·새 메시지 도착 = 내가 보는 중 → 내 읽음시각 갱신(상대 화면 ✓✓)
+      // 최신 메시지가 상대 것일 때만 읽음 기록 — 내 전송·리액션 변경 땐 불필요한 쓰기·스냅샷 churn 제거(렉 완화). msgs=오래된→최신.
+      const newest = msgs[msgs.length - 1];
+      if (newest && newest.senderUid !== myUidRef.current) markConversationRead(convId);
       requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: true }));  // 인버티드: offset 0 = 최신(바닥)
     });
     return () => unsub();
