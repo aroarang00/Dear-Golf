@@ -260,6 +260,15 @@ export function DiaryScreen({ route, navigation }) {
     navigation.setParams({ openDmUid: undefined });
   }, [route?.params?.openDmUid, friendNameByUid]);
 
+  // 푸시로 연 대화방이 이름맵 로드 전이라 '친구'로 떴으면 — friendNameByUid 로드되는 순간 이름 갱신(닫고 재진입 불필요).
+  //   기존엔 openDmUid param을 바로 비워 핸들러가 다시 안 돌아 '친구'로 굳던 버그(사용자 2026-06-13).
+  useEffect(() => {
+    if (!dmChat?.uid) return;
+    const real = friendNameByUid[dmChat.uid];
+    if (!real) return;
+    setDmChat(c => (c && c.name !== real ? { ...c, name: real } : c));
+  }, [friendNameByUid, dmChat?.uid]);
+
   // 상세 닫기 — 홈에서 진입했으면 홈으로, 아니면 MY 목록으로 복귀
   const handleCloseDetail = React.useCallback(() => {
     setSelected(null);
