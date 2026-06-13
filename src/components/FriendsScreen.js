@@ -37,9 +37,10 @@ export function FriendsScreen({ navigation }) {
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: 4 }}>
               <View style={{ minWidth: 34, height: 27, borderRadius: 9, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 }}>
-                {dmUnread > 0 ? (
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
-                ) : null}
+                {/* 안읽음 없으면 'DM' 라벨, 있으면 숫자 — 말풍선이 항상 차 있어 아이콘이 또렷(사용자 2026-06-13) */}
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(dmUnread > 0 ? 13 : 12), letterSpacing: dmUnread > 0 ? 0 : 0.5, color: '#fff' }}>
+                  {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
+                </Text>
               </View>
               {/* 좌하단 꼬리 — 회전 사각형이 박스 아래로 살짝 나와 말풍선 모양 */}
               <View pointerEvents="none" style={{ position: 'absolute', bottom: -3, left: 8, width: 11, height: 11, backgroundColor: C.navy, transform: [{ rotate: '45deg' }], borderRadius: 2 }} />
