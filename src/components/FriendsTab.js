@@ -414,7 +414,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const openFriendProfile = async (f) => {
     // 프로필 열면 그 친구 글을 본 것으로 — NEW 점 제거 ([[friend_groups]] ⑤)
     setFeedSeen(prev => {
-      const next = { ...prev, [f.id]: Math.max(f.lastPostAt || 0, prev[f.id] || 0, Date.now()) };
+      const next = { ...prev, [f.id]: Math.max(f.lastPostAt || 0, prev[f.id] || 0) };  // 서버시각 기준 통일 — Date.now(폰시계) 혼용은 시계 앞설 때 새 글 점 누락 버그
       storage.save(STORAGE_KEYS.friendFeedSeen, next);
       return next;
     });
