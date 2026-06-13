@@ -169,15 +169,14 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
               </View>
             )}
-            {/* 자랑 — 스코어 모듈에 붙은 골드 칩(싱글·이글 배지와 같은 시각 언어). 내 기록일 때만(onShare 제공 시) ([[score-brag-card]]) */}
+            {/* 공유 — 칩(버튼) 대신 색 텍스트로(앱에 버튼 스타일이 많아 중복 회피, 사용자 지시). 다이어리 골드 테마색. 내 기록일 때만 ([[score-brag-card]]) */}
             {onShare && (
               <TouchableOpacity
                 onPress={() => onShare(item)}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={{ marginLeft: 'auto', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 3,
-                  backgroundColor: '#C9A84C', borderRadius: 13, paddingHorizontal: 12, paddingVertical: 5 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>자랑</Text>
-                <Text style={{ fontSize: fs(11), color: '#2A2622' }}>↗</Text>
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ marginLeft: 'auto', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Text style={{ fontSize: fs(12) }}>🔗</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>공유</Text>
               </TouchableOpacity>
             )}
           </View>

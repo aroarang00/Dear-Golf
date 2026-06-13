@@ -552,11 +552,11 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             </TouchableOpacity>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>모집 상세</Text>
             <View style={{ flex: 1 }} />
-            {/* 공유 — 모임 단톡방에 모집 알리기+앱 유도(OS 공유시트→카톡 등). 누구나(친구공개라 보는 사람=친구) */}
+            {/* 공유 — 칩(버튼) 대신 색 텍스트로(앱에 버튼 스타일 많아 중복 회피, 사용자 지시). 라운지색 네이비로 진하게·크게 ([[navy-lounge-color]]) */}
             <TouchableOpacity onPress={() => setShareCardOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontSize: fs(15) }}>📤</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>공유</Text>
+              <Text style={{ fontSize: fs(15) }}>🔗</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.navy }}>공유</Text>
             </TouchableOpacity>
             {!isMine && onToggleBookmark && (
               <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
