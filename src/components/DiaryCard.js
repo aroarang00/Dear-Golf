@@ -138,11 +138,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <Text style={dS.cardDate}>{item.date} {item.day}</Text>
         {!hasPhoto ? ownerLabelTopRight : null}
       </View>
-      {/* 구장명 줄 — 스코어가 아래 별도 줄이라 비는 우측 끝에 좋아요 배치 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { flex: 1 }]} numberOfLines={1}>{item.course}</Text>
-        {mineLikeRow}
-      </View>
+      {/* 구장명 줄 — 좋아요는 카드 하단 우측으로 이동(친구 피드와 위치 통일, 2026-06-13) */}
+      <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]} numberOfLines={1}>{item.course}</Text>
       {scoreLine}
       {memoBlock}
       {item.tags && item.tags.length > 0 && (
@@ -162,6 +159,10 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           </View>
         </ScrollView>
       )}
+      {/* 좋아요 — 카드 하단 우측(친구 피드와 위치 통일). 사진 카드는 토글줄에서 따로 표시하므로 무사진만 */}
+      {!hasPhoto && mineLikeRow ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View>
+      ) : null}
     </View>
   );
 
@@ -278,16 +279,14 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
               </TouchableOpacity>
             ) : null}
           </View>
+          {/* 좋아요 — 사진 아래 하단 우측(친구 피드와 위치 통일). 중앙 바(날짜·더보기)는 FAB 겹침 회피로 유지하고 좋아요만 별도 우측 줄 */}
+          {mineLikeRow ? <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 8 }}>{mineLikeRow}</View> : null}
           {/* 공개범위는 사진 코너 칩(ownerChip)으로 — 별도 줄 제거(높이 통일) ([[friend_groups]] A안) */}
           {item.memo && expanded && (
             <View style={dS.cardBody}>
               <Text style={momentTextStyle}>{item.memo}</Text>
-              {mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
             </View>
           )}
-          {!item.memo && mineLikeRow ? (
-            <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 10 }}>{mineLikeRow}</View>
-          ) : null}
         </TouchableOpacity>
         {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
         </>
@@ -413,6 +412,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
           <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
         </TouchableOpacity>
+        {/* 좋아요 — 미리보기 하단 우측(친구 피드와 위치 통일). body의 무사진 분기와 중복 안 됨(여긴 사진 카드) */}
+        {mineLikeRow ? <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 8 }}>{mineLikeRow}</View> : null}
         {expanded && body}
       </TouchableOpacity>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
