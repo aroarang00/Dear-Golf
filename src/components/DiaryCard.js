@@ -142,26 +142,26 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]} numberOfLines={1}>{item.course}</Text>
       {scoreLine}
       {memoBlock}
-      {item.tags && item.tags.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', gap: 4 }}>
-            {item.tags.slice(0, 4).map((tag, i) => {
-              const c = getTagColor(tag);
-              return (
-                <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: c.text }}>{tag}</Text>
-                </View>
-              );
-            })}
-            {item.tags.length > 4 && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
-            )}
-          </View>
-        </ScrollView>
-      )}
-      {/* 좋아요 — 카드 하단 우측(친구 피드와 위치 통일). 사진 카드는 토글줄에서 따로 표시하므로 무사진만 */}
-      {!hasPhoto && mineLikeRow ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View>
+      {/* 하단 줄 — 좌: 태그(스크롤) / 우: 좋아요(친구 피드와 같은 라인·우측). 사진 카드 좋아요는 토글줄서 따로 표시(!hasPhoto) */}
+      {((item.tags && item.tags.length > 0) || (!hasPhoto && mineLikeRow)) ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+              {(item.tags || []).slice(0, 4).map((tag, i) => {
+                const c = getTagColor(tag);
+                return (
+                  <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: c.text }}>{tag}</Text>
+                  </View>
+                );
+              })}
+              {(item.tags || []).length > 4 && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
+              )}
+            </View>
+          </ScrollView>
+          {!hasPhoto && mineLikeRow ? <View style={{ marginLeft: 8 }}>{mineLikeRow}</View> : null}
+        </View>
       ) : null}
     </View>
   );
@@ -409,11 +409,15 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       <TouchableOpacity style={[dS.card, highlight && dS.cardSpecial]} activeOpacity={0.88} onPress={() => onPress(item)}>
         {highlight && <View style={dS.cardSpecialLine} />}
         {photoHero(() => onPress(item))}
-        <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
-          <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
-        </TouchableOpacity>
-        {/* 좋아요 — 미리보기 하단 우측(친구 피드와 위치 통일). body의 무사진 분기와 중복 안 됨(여긴 사진 카드) */}
-        {mineLikeRow ? <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 8 }}>{mineLikeRow}</View> : null}
+        {/* 기록보기 토글 줄 — 좋아요를 같은 줄 우측에 절대배치(토글 텍스트는 가운데 유지). 한 줄 아래가 아니라 '기록 보기' 줄에(사용자 2026-06-13) */}
+        <View style={{ justifyContent: 'center' }}>
+          <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
+            <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
+          </TouchableOpacity>
+          {mineLikeRow ? (
+            <View style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>{mineLikeRow}</View>
+          ) : null}
+        </View>
         {expanded && body}
       </TouchableOpacity>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
