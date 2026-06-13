@@ -29,7 +29,10 @@ try {
     enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN, // DSN 없으면 비활성 (dev·미설정 환경 안전)
     sendDefaultPii: false,                          // IP·기기 식별자 등 PII 미전송
     integrations: [sentryNavigationIntegration],
-    tracesSampleRate: 1.0,                          // 출시 후 트래픽 보고 조정 (예: 0.1)
+    // 성능 추적 OFF — tracesSampleRate 1.0(전 트랜잭션·내비 100% 계측)이 안드서 전환·상호작용마다
+    //   부하를 줘 전반 렉의 한 원인(2026-06-13 사용자 "전반적으로 다 렉·반응 느림"). 에러 캡처는 그대로 유지.
+    //   안정화 후 모니터링 필요하면 0.1 등 소량으로 재개([[sentry-symbolication]]).
+    tracesSampleRate: 0,
     beforeSend(event) {
       // 이중 안전망 — 혹시 모를 PII 필드 제거
       if (event.user) {
