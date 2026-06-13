@@ -144,17 +144,18 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const BAR_PAD = 8;  // 입력 바 내부 하단 숨틈(항상)
   // 닫힘 시 컨테이너 하단 패딩 — 합치면 옛 DM_BOTTOM_PAD(10+insets.bottom) 유지(닫힘 상태 픽셀 동일)
   const CLOSED_PAD = Math.max(0, 10 + insets.bottom - BAR_PAD);
-  // ★키보드 처리 — reanimated 자동훅(useReanimatedKeyboardAnimation)은 RN Modal(별도 윈도, navigationBarTranslucent 미설정)
-  //   에 안 붙어 값이 0에 머무름 → 입력창이 키보드 뒤에 완전히 가려짐(진단칩 KC>0인데 패딩 0). 명령형 RN Keyboard 이벤트는 모달서도
-  //   신뢰됨(진단 RN값 매번 정확) → endCoordinates.height(=이 모달 좌표계의 키보드 윗면 높이, 내비바 제외)로 shared value를 직접
-  //   구동. 컨테이너 paddingBottom = 그 높이 → 입력 바 바닥이 키보드 윗면에 딱. 내비바 이중계산 없음(3버튼/제스처 일관) ([[dm-design]]).
+  // ★키보드 처리 — reanimated 자동훅(useReanimatedKeyboardAnimation)은 RN Modal(별도 윈도)에 안 붙어 값이 0에 머무름.
+  //   대신 keyboard-controller 명령형 이벤트(KeyboardEvents)는 모달서도 신뢰됨(진단칩 KC값 매번 정확). 이 모달 콘텐츠는 화면
+  //   진짜 바닥(내비바 아래)까지 깔리므로, 키보드 윗면까지 거리 = 키보드높이 + 내비바 = KeyboardEvents의 e.height(=KC, 내비바 포함).
+  //   RN Keyboard endCoordinates.height(=내비바 제외=310)를 쓰면 딱 내비바(48)만큼 모자라 입력창이 키보드 뒤로 내려가 툴바 아래로만
+  //   살짝 보였음(실측 확인). KC(358)를 써야 입력 바 바닥이 키보드 윗면에 딱 붙음. 컨테이너 paddingBottom = KC ([[dm-design]]).
   const kbLift = useSharedValue(0);
   const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      kbLift.value = withTiming(Math.round(e?.endCoordinates?.height || 0), { duration: 200 });
+    const show = KeyboardEvents.addListener('keyboardDidShow', (e) => {
+      kbLift.value = withTiming(Math.round(e?.height || 0), { duration: 200 });
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => {
+    const hide = KeyboardEvents.addListener('keyboardDidHide', () => {
       kbLift.value = withTiming(0, { duration: 200 });
     });
     return () => { show.remove(); hide.remove(); };
@@ -363,8 +364,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     <View style={{ flex: 1, backgroundColor: DM_SURFACE }}>
       {/* 다크 룸이라 상태바 아이콘(시계·배터리)을 밝게 — 언마운트 시 직전 화면 스타일로 자동 복원(RN StatusBar 스택). */}
       <StatusBar barStyle="light-content" />
-      {/* 콘텐츠 컨테이너 — 루트 insets로 상단 패딩(중첩 SafeAreaProvider 없이). 키보드 뜨면 kbPadStyle로 하단 패딩(=RN
-          endCoordinates.height)을 직접 줘 입력 바를 키보드 윗면에 딱 붙임(reanimated 자동훅 모달 미부착 대체, [[dm-design]]). */}
+      {/* 콘텐츠 컨테이너 — 루트 insets로 상단 패딩(중첩 SafeAreaProvider 없이). 키보드 뜨면 kbPadStyle로 하단 패딩(=KC,
+          내비바 포함 키보드 윗면 높이)을 직접 줘 입력 바를 키보드 윗면에 딱 붙임(reanimated 자동훅 모달 미부착 대체, [[dm-design]]). */}
       <Reanimated.View style={[{ flex: 1, paddingTop: insets.top }, kbPadStyle]}>
       {/* 헤더 — 다크 프레임. 키운 상대 아바타(44) + 버터 이름 + 페일스카이 '님과 대화 중'. 별명은 friendName으로 전달 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 12 }}>
