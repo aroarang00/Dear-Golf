@@ -486,14 +486,21 @@ export function DiaryScreen({ route, navigation }) {
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
-  if (selected) return <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
-    onShare={selected.kind === 'moment' ? undefined : (round) => setShareMoment({ ...round, shareKind: 'round' })}
-    onUpdate={(updated) => {
-      // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
-      handleSave('diary-edit', updated);
-      setSelected(updated);
-    }}
-    onDelete={handleDeleteDiary} />;
+  if (selected) return (
+    <>
+      <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
+        onShare={selected.kind === 'moment' ? undefined : (round) => setShareMoment({ ...round, shareKind: 'round' })}
+        onUpdate={(updated) => {
+          // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
+          handleSave('diary-edit', updated);
+          setSelected(updated);
+        }}
+        onDelete={handleDeleteDiary} />
+      {/* 상세는 early return이라 메인 트리의 ShareMomentModal(아래)이 안 떠서 '상세를 닫아야 공유가 보이던' 버그.
+          상세 위에서도 뜨도록 여기서도 형제로 렌더(RN Modal이라 상세 위에 오버레이됨) */}
+      <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
+    </>
+  );
 
   // 프로필 사진 변경 — 갤러리·카카오·기본
   const persistProfile = (patch) => {
