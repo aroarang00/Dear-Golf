@@ -16,6 +16,7 @@ import { subscribeConversations, otherUidOf } from '../utils/dm';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 import { loadMyFriendsEnriched, loadMyBlockedUids } from '../utils/friends';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { STORAGE_KEYS, storage } from '../utils/storage';
 
 // 대화 목록 시각 — 오늘이면 오전/오후 h:mm, 아니면 월.일
 // DM 목록 시각 — 인스타·카톡식 상대표현. 오늘=시간 / 어제 / N일 전(~6) / N주 전(~4) / 그 이상=날짜.
@@ -53,6 +54,16 @@ export function DMListScreen({ onClose, onOpenChat }) {
   const [blocked, setBlocked] = useState([]);  // 차단 uid — 늦게 도착해도 렌더에서 필터(목록 즉시 표시 위해 구독과 분리)
   useAndroidBack(true, onClose);
 
+  // 캐시된 친구 이름·아바타 즉시 표시(다음 진입부터 N번 user 문서 읽기를 안 기다림) — fresh 로드 도착하면 갱신.
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.dmFriendMeta, null).then(c => {
+      if (!c) return;
+      if (c.names) setNameMap(p => (Object.keys(p).length ? p : c.names));
+      if (c.avatars) setAvatarMap(p => (Object.keys(p).length ? p : c.avatars));
+      if (c.meta) setFriendMeta(p => (Object.keys(p).length ? p : c.meta));
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     let alive = true;
     let unsub = () => {};
@@ -79,6 +90,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
           setNameMap(m);
           setAvatarMap(av);
           setBlocked(blockedArr || []);
+          storage.save(STORAGE_KEYS.dmFriendMeta, { names: m, avatars: av, meta: fd.friendMeta || {} });
         }
       } catch (e) { if (__DEV__) console.warn('[DMList] friends', e?.message); }
     })();

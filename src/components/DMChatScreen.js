@@ -12,11 +12,6 @@ import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
-// ⚠️TEMP 키보드 진단 — DM 화면 우상단에 RN/keyboard-controller 키보드 높이를 띄움. 안드 키보드 가림 원인 확정용.
-//   RN>0인데 KC=0 → keyboard-controller가 이 모달 윈도에서 키보드를 못 받음(Provider/윈도 문제).
-//   둘 다 0 → 키보드 이벤트 자체가 이 윈도에 안 옴.  둘 다 >0인데 입력창 안 오름 → KAV 레이아웃 문제.
-//   ★검증 끝나면 이 플래그·디버그 뷰·KeyboardEvents 제거할 것.
-const TEMP_KB_DEBUG = true;
 
 // ⚠️TEMP __DEV__ 키보드 미리보기 — 로그인·친구 없이 Metro에서 DM 키보드 레이아웃만 점검(가짜 대화방). 검증 후 제거.
 //   DMChatScreen에 devPreview prop을 주면 네트워크(uid·대화방·구독·전송) 전부 건너뛰고, 입력창/키보드만 실제 Modal 환경 그대로 테스트.
@@ -213,10 +208,10 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [replyTo, setReplyTo] = useState(null);  // 답장(인용) 대상 메시지 — 입력창 위 미리보기 바
   const [otherReadMs, setOtherReadMs] = useState(0);  // 상대가 이 방을 마지막으로 본 시각(ms) — 내 말풍선 읽음(✓) 판정
   const [friendTyping, setFriendTyping] = useState(false);  // 상대 입력 중 — 말풍선 점 표시
-  const [kbDbg, setKbDbg] = useState({ rn: 0, kc: 0 });  // ⚠️TEMP 키보드 진단(검증 후 제거)
   const listRef = useRef(null);
   const inputRef = useRef(null);
-  const typingHideRef = useRef(null);   // 상대 typing stale 숨김 타이머
+  const typingHideRef = useRef(null);   // 상대 typing 자동 숨김 타이머
+  const lastTypingMsRef = useRef(0);    // 상대 typing 마지막 시각(값 변화 감지용 — Date.now 비교 안 함)
   const typingState = useRef({ last: 0, stop: null });  // 내 typing 디바운스(쓰기 절약)
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
   // 피커가 떠 있으면 뒤로가기는 피커만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
@@ -228,16 +223,6 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: true }));  // 인버티드: offset 0 = 최신(바닥)
     });
     return () => show.remove();
-  }, []);
-
-  // ⚠️TEMP 키보드 진단 — RN 기본 이벤트와 keyboard-controller 이벤트의 키보드 높이를 각각 잡아 비교(검증 후 제거)
-  useEffect(() => {
-    if (!TEMP_KB_DEBUG) return;
-    const rnShow = Keyboard.addListener('keyboardDidShow', (e) => setKbDbg((s) => ({ ...s, rn: Math.round(e?.endCoordinates?.height || 0) })));
-    const rnHide = Keyboard.addListener('keyboardDidHide', () => setKbDbg((s) => ({ ...s, rn: 0 })));
-    const kcShow = KeyboardEvents.addListener('keyboardDidShow', (e) => setKbDbg((s) => ({ ...s, kc: Math.round(e?.height || 0) })));
-    const kcHide = KeyboardEvents.addListener('keyboardDidHide', () => setKbDbg((s) => ({ ...s, kc: 0 })));
-    return () => { rnShow.remove(); rnHide.remove(); kcShow.remove(); kcHide.remove(); };
   }, []);
 
   // 내 uid + 대화방 보장(메시지 0건이라도 방은 존재)
@@ -271,13 +256,20 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     const unsub = subscribeConversation(convId, (conv) => {
       const ts = conv?.lastRead?.[friendUid];
       setOtherReadMs(ts?.toMillis ? ts.toMillis() : 0);
-      // 상대 입력 중 — typing.{friendUid} 시각이 최근(6초)이면 표시. 멈추면 상대가 해제 기록→false, 안 오면 stale 타이머로 숨김(백스톱).
+      // 상대 입력 중 — typing.{friendUid} 값이 '갱신'되면 표시(방금 입력). ★Date.now 비교 안 함(기기 시계가 서버보다
+      //   앞서면 항상 stale로 처리돼 점이 안 뜨던 버그). 값 변화 감지 + 6초 무갱신 시 자동 숨김. 해제 기록(0) 오면 즉시 숨김.
       const tt = conv?.typing?.[friendUid];
       const tms = tt?.toMillis ? tt.toMillis() : 0;
-      const active = tms > 0 && (Date.now() - tms) < 6000;
-      setFriendTyping(active);
-      clearTimeout(typingHideRef.current);
-      if (active) typingHideRef.current = setTimeout(() => setFriendTyping(false), 6000);
+      if (!tms) {
+        lastTypingMsRef.current = 0;
+        clearTimeout(typingHideRef.current);
+        setFriendTyping(false);
+      } else if (tms !== lastTypingMsRef.current) {
+        lastTypingMsRef.current = tms;
+        setFriendTyping(true);
+        clearTimeout(typingHideRef.current);
+        typingHideRef.current = setTimeout(() => setFriendTyping(false), 6000);
+      }
     });
     return () => { unsub(); clearTimeout(typingHideRef.current); };
   }, [convId, friendUid]);
@@ -542,13 +534,6 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         </TouchableOpacity>
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
-      {/* ⚠️TEMP 키보드 진단 칩 — 우상단. RN=RN기본 키보드높이, KC=keyboard-controller 높이. 검증 후 제거 */}
-      {TEMP_KB_DEBUG && (
-        <View style={{ position: 'absolute', top: insets.top + 6, right: 8, zIndex: 999,
-          backgroundColor: 'rgba(200,0,0,0.9)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>RN {kbDbg.rn} · KC {kbDbg.kc}</Text>
-        </View>
-      )}
     </View>
   );
 }

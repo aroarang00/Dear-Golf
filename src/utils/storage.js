@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   calendarChoice:   '@dg_calendar_choice',
   friendCoachDone:  '@dg_friend_coach_done',     // 친구 탭 첫 진입 툴팁 1회
   friendFeedSeen:   '@dg_friend_feed_seen',      // 친구별 마지막 본 글 시각 {uid: millis} — 친구탭 NEW 점
+  dmFriendMeta:     '@dg_dm_friend_meta',        // DM 목록 친구 이름·아바타·별명 캐시 {names,avatars,meta} — 즉시 표시
   roundupTipDone:   '@dg_roundup_tip_done',      // 모집글 작성 화면 툴팁 1회
   roundupBookmarks: '@dg_roundup_bookmarks',     // 관심 모집 북마크 {postId: true}
   roundupHidden: '@dg_roundup_hidden',           // 가리기 — 길게 눌러 숨긴 모집 {postId: true} (내 화면 한정, 해제 없음)
