@@ -164,13 +164,17 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [feedSeen, setFeedSeen] = useState({}); // {uid: millis} 친구별 마지막 본 글 시각 — NEW 점 ([[friend_groups]] ⑤)
   const [feedSeenLoaded, setFeedSeenLoaded] = useState(false); // 저장된 seen 로드 완료 — baseline 레이스 가드
   useEffect(() => { storage.load(STORAGE_KEYS.friendFeedSeen, {}).then(m => setFeedSeen(m || {})).catch(() => {}).finally(() => setFeedSeenLoaded(true)); }, []);
-  // 베이스라인 — 처음 보는 친구는 현재 최신글을 '본 것'으로(과거 글로 점 안 뜨게). 새 친구만 기록.
+  // 베이스라인 — 처음 보는 친구는 '본 시각'을 min(최신글, 3일 전)으로(기준선 완화 2026-06-13). 새 친구만 기록.
+  //   → 최근 3일 내 글은 처음 봐도 NEW 점이 뜸(실사용자·테스트 모두 인지), 3일보다 오래된 글은 안 뜸(옛 글 도배 방지).
+  //   옛 동작(=현재 최신글로 기준)은 "목록 처음 열기 전 글"을 영영 못 띄워 사실상 안 보였음.
   //   ★저장된 seen 로드 전엔 실행 금지 — 안 그러면 친구가 먼저 로드될 때 새 글까지 '본 것'으로 덮어써 NEW가 안 뜸.
+  //   3일 컷오프는 Date.now 기반이나 3일 버퍼라 시계 미세오차에 견딤(읽음표시 정밀비교와 달리 안전).
   useEffect(() => {
     if (!friends.length || !feedSeenLoaded) return;
+    const cutoff = Date.now() - 3 * 86400000;
     setFeedSeen(prev => {
       let changed = false; const next = { ...prev };
-      friends.forEach(f => { if (next[f.id] === undefined) { next[f.id] = f.lastPostAt || 0; changed = true; } });
+      friends.forEach(f => { if (next[f.id] === undefined) { next[f.id] = Math.min(f.lastPostAt || 0, cutoff); changed = true; } });
       if (changed) storage.save(STORAGE_KEYS.friendFeedSeen, next);
       return changed ? next : prev;
     });
