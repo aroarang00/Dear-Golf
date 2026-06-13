@@ -777,7 +777,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       if (!s.roundupId) continue;
       const p = posts.find(x => x.id === s.roundupId);
       if (!p) continue;                       // 모집글 미로드 — 손대지 않음(오삭제 방지)
-      const stillIn = (!!myUid && p.authorUid === myUid) || !!joined[s.roundupId];
+      // ★참여 판정은 post의 participantUids를 직접 읽음 — joined 캐시는 posts 갱신보다 lag 날 수 있어
+      //   (그 순간 정상 확정 일정을 오삭제). closed와 participantUids는 같은 문서라 항상 정합.
+      const stillIn = !!myUid && (p.authorUid === myUid || (Array.isArray(p.participantUids) && p.participantUids.includes(myUid)));
       if (p.closed && stillIn) continue;      // 확정 + 내가 속함 → 정상 유지
       if (hasRound(s)) continue;              // 기록 연결된 일정은 보존(고아 기록 방지)
       toRemove.push({ id: s.id, roundupId: s.roundupId });
@@ -787,7 +789,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       autoSchedRef.current.delete(roundupId); // 재확정 시 재등록 허용
       removeSchedule(id).catch(e => __DEV__ && console.warn('[RoundupTab] reconcile schedule remove fail', e?.message));
     });
-  }, [posts, joined, schedules, removeSchedule, myUid, diaries]);
+  }, [posts, schedules, removeSchedule, myUid, diaries]);
 
   // 모집 취소 정리 — roundupCancelled 알림이 온 모집으로 만들어졌던 본인 일정 자동 제거 (주최자 삭제 대응).
   //  주석 [[roundup-friend-redesign]]: 주최자 취소 시 참여자도 일정에서 빠져야 함. removeSchedule은 멱등(없으면 no-op).
