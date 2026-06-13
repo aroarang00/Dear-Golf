@@ -48,6 +48,12 @@ assets/splash-icon-playfair-old.png
 
 # 개발용 QR 이미지
 expo_qr.png
+dev_qr.png
+preview_qr.png
+android_apk_qr.png
+
+# 공유 템플릿 작업용 스크린샷 (로컬 보관)
+kakao_screens/
 
 # Expo 빌드 산출물
 expo-qr.png
