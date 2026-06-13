@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
-import Reanimated, { useAnimatedStyle } from 'react-native-reanimated';
-import { KeyboardProvider, KeyboardEvents, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
@@ -140,13 +140,25 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
 function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
-  const insets = useSafeAreaInsets();  // 입력창 하단 홈바 여백 — 입력 컨테이너 paddingBottom에 직접
-  const DM_BOTTOM_PAD = 10 + insets.bottom;  // 입력창 자체 하단 패딩(닫힘 시 홈바 여백)
-  // ★키보드 처리 — KeyboardAvoidingView의 자동 겹침계산이 모달 안 풀스크린에서 기기마다 어긋남(안 올림/과하게 올림, RN/KC 진단으로
-  //   확인). 대신 keyboard-controller가 정확히 주는 키보드 높이(useReanimatedKeyboardAnimation)를 직접 써서 컨테이너에
-  //   paddingBottom = 키보드높이 - 입력창 자체패딩 만큼 줘 입력창을 키보드 바로 위에 딱 붙임(기기편차·간격 모두 해결) ([[dm-design]]).
-  const { height: kbHeight } = useReanimatedKeyboardAnimation();
-  const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(0, Math.abs(kbHeight.value) - DM_BOTTOM_PAD) }));
+  const insets = useSafeAreaInsets();
+  const BAR_PAD = 8;  // 입력 바 내부 하단 숨틈(항상)
+  // 닫힘 시 컨테이너 하단 패딩 — 합치면 옛 DM_BOTTOM_PAD(10+insets.bottom) 유지(닫힘 상태 픽셀 동일)
+  const CLOSED_PAD = Math.max(0, 10 + insets.bottom - BAR_PAD);
+  // ★키보드 처리 — reanimated 자동훅(useReanimatedKeyboardAnimation)은 RN Modal(별도 윈도, navigationBarTranslucent 미설정)
+  //   에 안 붙어 값이 0에 머무름 → 입력창이 키보드 뒤에 완전히 가려짐(진단칩 KC>0인데 패딩 0). 명령형 RN Keyboard 이벤트는 모달서도
+  //   신뢰됨(진단 RN값 매번 정확) → endCoordinates.height(=이 모달 좌표계의 키보드 윗면 높이, 내비바 제외)로 shared value를 직접
+  //   구동. 컨테이너 paddingBottom = 그 높이 → 입력 바 바닥이 키보드 윗면에 딱. 내비바 이중계산 없음(3버튼/제스처 일관) ([[dm-design]]).
+  const kbLift = useSharedValue(0);
+  const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      kbLift.value = withTiming(Math.round(e?.endCoordinates?.height || 0), { duration: 200 });
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      kbLift.value = withTiming(0, { duration: 200 });
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
@@ -351,8 +363,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     <View style={{ flex: 1, backgroundColor: DM_SURFACE }}>
       {/* 다크 룸이라 상태바 아이콘(시계·배터리)을 밝게 — 언마운트 시 직전 화면 스타일로 자동 복원(RN StatusBar 스택). */}
       <StatusBar barStyle="light-content" />
-      {/* 콘텐츠 컨테이너 — 루트 insets로 상단 패딩(중첩 SafeAreaProvider 없이). 키보드 뜨면 kbPadStyle로 하단 패딩(키보드높이)을
-          직접 줘 입력창을 키보드 위로 올림(KAV 자동계산 대체, 기기편차 없음, [[dm-design]]). */}
+      {/* 콘텐츠 컨테이너 — 루트 insets로 상단 패딩(중첩 SafeAreaProvider 없이). 키보드 뜨면 kbPadStyle로 하단 패딩(=RN
+          endCoordinates.height)을 직접 줘 입력 바를 키보드 윗면에 딱 붙임(reanimated 자동훅 모달 미부착 대체, [[dm-design]]). */}
       <Reanimated.View style={[{ flex: 1, paddingTop: insets.top }, kbPadStyle]}>
       {/* 헤더 — 다크 프레임. 키운 상대 아바타(44) + 버터 이름 + 페일스카이 '님과 대화 중'. 별명은 friendName으로 전달 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 12 }}>
@@ -408,7 +420,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         onCancelReply={() => setReplyTo(null)}
         friendName={friendName}
         myUid={myUid}
-        bottomPad={DM_BOTTOM_PAD}
+        bottomPad={BAR_PAD}
       />
       </Reanimated.View>
       {/* 공감 피커 — 자체 오버레이(Modal 호스트 안이라 글로벌 시트 대신, OverlayAlert와 동일 패턴). 바깥 탭/뒤로가기=닫기 */}
