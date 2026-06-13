@@ -19,9 +19,9 @@ import {
   isFriendRequestLimitReached, incrementFriendRequestCount,
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
-import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend, blockUid as fsBlockUid } from '../utils/friends';
+import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
 import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
-import { blockUser, remainingBlocksToday } from '../utils/block';
+import { useBlockUser } from '../hooks/useBlockUser';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds, recomputeMyGroupAudiences } from '../utils/round';
 import { db, getUid } from '../utils/firebase';
@@ -154,6 +154,7 @@ function SwipeableFriendCard({ friend, favorite, onToggleFavorite, onHide, ...ca
 export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { setFriendReqCount } = useContext(FriendBadgeContext);
+  const { block: blockUserFn, remaining: blockRemaining } = useBlockUser(); // 공용 차단 훅(친구·DM 통일)
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState([]);
   const [friendsLoaded, setFriendsLoaded] = useState(false); // 첫 로드 완료 전 빈 가이드 숨김(깜빡임 방지)
@@ -519,7 +520,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const blockFriend = (id) => {
     const target = friends.find(f => f.id === id);
     if (!target) return;
-    if (remainingBlocksToday(userProfile) <= 0) {
+    if (blockRemaining <= 0) {
       showAppAlert('차단 횟수 초과', '오늘 차단 가능한 횟수를 초과했어요.\n내일 다시 시도해주세요.', [{ text: '확인' }]);
       return;
     }
@@ -528,17 +529,12 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       `친구가 끊기고, 이 사람의 글·모집이\n더 이상 보이지 않아요.\n\n💡 상대방에게는 알림이 가지 않아요.`,
       [
         { text: '취소', style: 'cancel' },
+        // 공용 차단 훅이 로컬·Firestore·끊기·그룹정리 일괄 처리. 화면 후처리(목록 제거·friendData 갱신)만 여기서.
         { text: '차단', style: 'destructive', onPress: async () => {
-          const result = blockUser(userProfile, id);
-          if (!result.ok) return;
-          setUserProfile(result.profile);
-          storage.save(STORAGE_KEYS.profile, result.profile);
-          // Firestore write-through — users/{myUid}.blockedUids (멀티기기 일관성, RoundupTab과 동일)
-          fsBlockUid(id).catch(e => __DEV__ && console.warn('[FriendsTab] fsBlockUid failed', e?.message));
-          // 차단은 친구 관계도 종료(일방) — friendships doc 삭제
-          try { await unfriend(id); } catch (e) { if (__DEV__) console.warn('[FriendsTab] unfriend(block) failed', e?.message); }
+          const r = await blockUserFn(id);
+          if (!r.ok) return;
           setFriends(p => p.filter(f => f.id !== id));
-          cleanupRemovedFriendGroup(id);
+          if (r.friendData) setFriendData(r.friendData);
         } },
       ],
     );
