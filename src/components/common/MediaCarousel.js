@@ -71,6 +71,8 @@ export function MediaCarousel({ photos, onTap }) {
           horizontal
           pagingEnabled
           scrollEnabled={!single}
+          bounces={false}              /* iOS — 첫/마지막 사진서 고무줄 오버스크롤 막아 뒤 검정 배경 안 보이게 */
+          overScrollMode="never"       /* Android — 가장자리 오버스크롤(글로우·당김) 제거 */
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / w))}>
           {photos.map((p, i) => {
