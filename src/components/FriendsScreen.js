@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, Platform } from 'react-native';
-import Svg, { Path } from 'react-native-svg'; // 메시지 말풍선 — 벡터라 iOS·안드 픽셀 동일(꼬리까지 깔끔)
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
@@ -31,20 +30,19 @@ export function FriendsScreen({ navigation }) {
         flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <View>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 파트너</Text>
-          {/* 'Friends' 글자 우상단에 메시지 말풍선. 이모지 💬는 글리프라 숫자를 안에 못 넣어 — 말풍선(둥근 박스+좌하단 꼬리)을
-              직접 그려 안읽음 수를 '안에' 표시(카톡 채팅 아이콘식, 사용자 2026-06-13). 헤더 정체성 네이비(타이틀·친구찾기와 통일) */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          {/* 'Friends' 글자 우상단에 💬 + 안읽음 N(말풍선에 바짝 붙인 빨간 뱃지). SVG 커스텀 말풍선은 어색해 폐기, 기존 이모지 복귀(사용자 2026-06-13) */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7 }}>
             <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.navy }}>Friends</Text>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: 4, width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}>
-              {/* 말풍선 — SVG 벡터(좌하단 꼬리 포함). 글리프 이모지 대신이라 안에 텍스트 얹기 가능, 양 플랫폼 동일 렌더 */}
-              <Svg width={34} height={34} viewBox="0 0 24 24" style={{ position: 'absolute' }}>
-                <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill={C.navy} />
-              </Svg>
-              {/* 안읽음 없으면 'DM' 라벨, 있으면 숫자 — 꼬리(하단) 피해 살짝 위로(marginBottom) 중앙 */}
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(dmUnread > 0 ? 12 : 11), letterSpacing: dmUnread > 0 ? 0 : 0.3, color: '#fff', marginBottom: 5 }}>
-                {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
-              </Text>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -8 }}>
+              <Text style={{ fontSize: fs(36), textShadowColor: 'rgba(0,0,0,0.18)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>💬</Text>
+              {/* N 뱃지 — 말풍선 우상단 모서리에 바짝(top·right 0~양수로 글리프 위로 올려 붙임) */}
+              {dmUnread > 0 && (
+                <View pointerEvents="none" style={{ position: 'absolute', top: 2, right: 1, minWidth: 17, height: 17, borderRadius: 8.5,
+                  paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
