@@ -75,10 +75,10 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(_and ? 14 : 15), color: C.charcoal }}>{friend.name || '친구'}</Text>
-            {/* 새 글 — 버터 워시만으론 기기서 잘 안 보인다는 피드백(2026-06-13)으로 명시적 칩 추가. 이름 옆 버건디 */}
+            {/* 새 글 = 'New' 칩 — 이름 옆 버건디(흰 글씨). 작지만 또렷하게(워시만으론 안 보임 피드백, 2026-06-13) */}
             {isNew && (
-              <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1.5 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: C.butter }}>새 글</Text>
+              <View style={{ backgroundColor: C.burgundy, borderRadius: 9, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff', letterSpacing: 0.3 }}>New</Text>
               </View>
             )}
             {fMs && (
