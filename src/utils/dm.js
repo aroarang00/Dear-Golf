@@ -52,20 +52,23 @@ export async function sendMessage(friendUid, text, replyTo = null) {
   const body = (text || '').trim();
   if (!body) return null;
   const id = pairId(uid, friendUid);
-  const ref = doc(db, CONV, id);
-  await setDoc(ref, {
-    participantUids: [uid, friendUid].sort(),
-    lastMessage: body,
-    lastSenderUid: uid,
-    lastAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
+  // ★메시지를 먼저 씀 — Firestore 로컬 즉시반영(latency compensation)으로 내 화면에 바로 뜸(서버 왕복 안 기다림).
+  //   기존엔 conv 메타 setDoc을 먼저 await해서 그 왕복(~0.5~1s)만큼 내 메시지가 늦게 떴음(주고받기 체감 느림 원인).
+  //   conv는 입장 시 ensureConversation으로 이미 존재하므로 메시지 먼저 써도 규칙·정합성 안전.
   const msgRef = await addDoc(collection(db, CONV, id, 'messages'), {
     senderUid: uid,
     body,
     ...(replyTo?.msgId ? { replyTo: { msgId: replyTo.msgId, body: replyTo.body || '', senderUid: replyTo.senderUid || '' } } : {}),
     createdAt: serverTimestamp(),
   });
+  // 대화 메타(목록 미리보기·lastAt 정렬)는 메시지 표시를 막지 않게 비동기로(await X) — 실패해도 메시지는 이미 전송됨.
+  setDoc(doc(db, CONV, id), {
+    participantUids: [uid, friendUid].sort(),
+    lastMessage: body,
+    lastSenderUid: uid,
+    lastAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true }).catch((e) => { if (__DEV__) console.warn('[dm] conv meta', e?.message); });
   return msgRef.id;
 }
 

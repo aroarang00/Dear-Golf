@@ -80,20 +80,31 @@ function dayKey(ts) {
 // 입력 바 — ★자체 text 상태로 분리해 타이핑이 부모(메시지 리스트)를 리렌더하지 않게 함(입력 지연 방지).
 //   onSend(body)→true/false(false면 입력 복구). 답장 미리보기·전송 버튼 포함. 포커스는 ref로 노출(공감→답장 동선).
 const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, replyTo, onCancelReply, friendName, myUid, bottomPad }, ref) {
-  const [text, setText] = useState('');
+  // ★언컨트롤드 입력 — value 바인딩 제거. 키 입력마다 setState/리렌더하던 게 안드 입력 지연의 주범이라,
+  //   실제 텍스트는 textRef(리렌더 안 함)에 두고 setState는 '비었다↔있다' 전환 때만(전송버튼 토글용).
+  const [hasText, setHasText] = useState(false);
   const [sending, setSending] = useState(false);
+  const textRef = useRef('');
   const inputRef = useRef(null);
   React.useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }), []);
+  const onChangeText = (t) => {
+    textRef.current = t;
+    const ne = t.trim().length > 0;
+    setHasText((p) => (p === ne ? p : ne));  // 값이 바뀔 때만 리렌더(매 글자 X)
+  };
   const send = async () => {
-    const body = text.trim();
+    const body = textRef.current.trim();
     if (!body || sending) return;
-    setText('');
     setSending(true);
     const ok = await onSend(body);
-    if (ok === false) setText(body);  // 전송 실패 시 입력 복구
+    if (ok !== false) {  // 성공 시에만 비움(실패 시 입력 유지=재시도 쉬움, inputRef.clear는 신·구 아키텍처 모두 안전)
+      inputRef.current?.clear();
+      textRef.current = '';
+      setHasText(false);
+    }
     setSending(false);
   };
-  const canSend = !!text.trim() && !sending;
+  const canSend = hasText && !sending;
   return (
     <>
       {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
@@ -119,8 +130,8 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
         paddingBottom: bottomPad, backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }}>
         <TextInput
           ref={inputRef}
-          value={text}
-          onChangeText={setText}
+          defaultValue=""
+          onChangeText={onChangeText}
           placeholder="메시지를 입력하세요"
           placeholderTextColor={DM_PLACE}
           multiline
