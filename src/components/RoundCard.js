@@ -101,12 +101,13 @@ export function RoundCard({ item, width = 320 }) {
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}
         </Text>
         {/* 이름 · 날짜 · 날씨 — 골드 한 줄, 촘촘하게 */}
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 3 }, SHADOW]}>
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 6 }, SHADOW]}>
           {playerName ? playerName + '   ·   ' : ''}{item.date}{item.weather ? '   ·   ' + item.weather : ''}
         </Text>
 
+        {/* 줄 간격 균일(6) — 타수 줄만 유난히 떨어져 보이던 것 해소(사용자 지시). Dear Golf는 타수 줄 우측에 맞춤 */}
         {hasScore ? (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 6 }}>
             <Text style={[{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: scoreColor }, SHADOW]}>{item.score}</Text>
             <Text style={[{ fontFamily: F.sysB, fontSize: fs(15), color: scoreColor, marginLeft: 4, marginBottom: 6 }, SHADOW]}>타</Text>
             {diffLabel ? (
@@ -118,7 +119,7 @@ export function RoundCard({ item, width = 320 }) {
             <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE, marginBottom: 5 }, SHADOW]}>Dear Golf</Text>
           </View>
         ) : (
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 }}>
             <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
           </View>
         )}
