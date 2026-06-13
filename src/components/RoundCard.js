@@ -38,7 +38,9 @@ export function RoundCard({ item, width = 320 }) {
   const special = item.special || null;
   const noteworthy = isSingle || isBest || !!special;
   const accentLabel = special || (isBest ? 'BEST' : isSingle ? 'SINGLE' : null);
-  const scoreColor = noteworthy ? GOLD : WHITE;
+  // 타수 색 — 점수로 색을 깎으면(흰·무채) 기록에 연연하는 주 사용자층(80~100타) 자존심을 상하게 함.
+  //   타수는 점수와 무관하게 항상 골드로 강조(평범한 흰색 폐기). 싱글·베스트의 영예는 SINGLE/BEST 칩으로 구분 ([[golfer-score-psychology]])
+  const scoreColor = GOLD;
 
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
   const playerName = (item.playerName || '').trim();
