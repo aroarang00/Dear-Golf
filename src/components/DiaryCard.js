@@ -269,18 +269,17 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <>
         <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
           {photoEl(false)}
-          {/* 날짜+더보기를 가운데 묶음으로 — 오른쪽 끝 FAB(+ 기록하기)와 겹쳐 안 눌리던 문제 회피 */}
+          {/* 날짜·더보기·좋아요 한 줄 — 친구 일상 사진카드와 동일(좋아요를 바 안 우측으로). '한 줄 아래' 해소. 더보기는 좌측이라 FAB와 안 겹침 */}
           <View style={[dS.toggleBtn, { backgroundColor: MOMENT_BG, flexDirection: 'row',
-            alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 12 }]}>
+            alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
             <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
             {item.memo ? (
               <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
               </TouchableOpacity>
             ) : null}
+            {mineLikeRow ? <View style={{ marginLeft: 'auto' }}>{mineLikeRow}</View> : null}
           </View>
-          {/* 좋아요 — 사진 아래 하단 우측(친구 피드와 위치 통일). 중앙 바(날짜·더보기)는 FAB 겹침 회피로 유지하고 좋아요만 별도 우측 줄 */}
-          {mineLikeRow ? <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 8 }}>{mineLikeRow}</View> : null}
           {/* 공개범위는 사진 코너 칩(ownerChip)으로 — 별도 줄 제거(높이 통일) ([[friend_groups]] A안) */}
           {item.memo && expanded && (
             <View style={dS.cardBody}>
