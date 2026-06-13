@@ -63,7 +63,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                 {hasRec
                   ? '이 라운딩은 기록이 있어요.\nMY 탭에서 삭제해주세요.'
                   : isRoundupLinked
-                    ? '이 라운딩은 라운지 모집으로\n만들어졌어요.\n취소하려면 라운지에서 모집을\n취소하거나 나가주세요.'
+                    ? '이 라운딩은 라운지 모집으로\n만들어졌어요.\n취소하려면 라운지에서 모집 취소\n또는 참여 취소를 해주세요.'
                     : isPast
                       ? '이 일정을 삭제하면 일정과\n라운딩 기록이 모두 삭제됩니다.'
                       : '이 예정 라운딩을 삭제할까요?'}
