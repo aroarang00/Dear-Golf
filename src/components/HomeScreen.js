@@ -402,9 +402,13 @@ export function HomeScreen({ navigation, route }) {
     <View style={{ flex: 1, backgroundColor: '#0a1e10' }}>
       <StatusBar barStyle="light-content" />
       <HomeBgSlider />
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-        {/* SafeArea top: iOS는 노치, Android는 status bar 자동 padding.
-            Android는 SafeArea만으로 iOS와 시각적으로 어긋나 약간 보정 ([[cross-platform-check]])
+      <SafeAreaView
+        style={{ flex: 1, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0 }}
+        edges={Platform.OS === 'android' ? ['left', 'right'] : ['top', 'left', 'right']}>
+        {/* 상단 여백 — iOS는 SafeAreaView top(노치). Android는 SafeArea inset이 '비동기 측정'이라
+            첫 프레임 0→측정값으로 콘텐츠가 위에서 아래로 점프(흔들림). StatusBar.currentHeight는
+            '동기' 값이라 첫 프레임부터 정확 → 점프 제거. 배경(HomeBgSlider)은 absoluteFill로 풀화면 유지.
+            ([[cross-platform-check]], f1707f4의 initialWindowMetrics(비동기) 시도 실패 → 동기 값으로 대체)
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
