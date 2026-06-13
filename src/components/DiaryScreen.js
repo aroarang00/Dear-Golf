@@ -169,6 +169,8 @@ export function DiaryScreen({ route, navigation }) {
   const [shareMoment, setShareMoment] = useState(null);   // 특별한 순간 공유 대상
   const [search, setSearch] = useState('');
   const [filterKey, setFilterKey] = useState('전체');
+  const [feedLimit, setFeedLimit] = useState(10);   // 피드 점진 렌더 — 비가상화 ScrollView 버벅임 완화(미디어 디코드량 분산). 첫 10개+더보기
+  useEffect(() => { setFeedLimit(10); }, [filterKey, search]);  // 필터·검색 바뀌면 처음부터
   const [showSearch, setShowSearch] = useState(false);
   const scrollRef = useRef(null);
 
@@ -783,16 +785,24 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : (
                 <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-                  {filtered.map((item, idx) => {
+                  {filtered.slice(0, feedLimit).map((item, idx, arr) => {
                     const isFS = !!firstSingleId && item.id === firstSingleId;
                     return (
                     <View key={item.id} style={dS.tlNode}>
-                      {idx < filtered.length - 1 && <View style={dS.tlLine} />}
+                      {idx < arr.length - 1 && <View style={dS.tlLine} />}
                       <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial]} />
                       <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={(it) => setSelected(it)} />
                     </View>
                     );
                   })}
+                  {/* 더 보기 — 비가상화 ScrollView 버벅임 방지로 점진 마운트(미디어 디코드 분산) */}
+                  {filtered.length > feedLimit && (
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFeedLimit(l => l + 10)}
+                      style={{ marginTop: 6, marginBottom: 4, paddingVertical: 12, borderRadius: 12,
+                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>더 보기 ({filtered.length - feedLimit})</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
               <View style={{ height: 32 }} />
