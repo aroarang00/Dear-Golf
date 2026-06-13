@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
@@ -190,7 +190,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   // 키보드가 뜨면 마지막 메시지가 보이게 끝으로 스크롤 (입력영역 띄우기는 keyboard-controller KAV가 처리)
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => {
-      requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
+      requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: true }));  // 인버티드: offset 0 = 최신(바닥)
     });
     return () => show.remove();
   }, []);
@@ -225,7 +225,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     const unsub = subscribeMessages(convId, (msgs) => {
       setMessages(msgs);
       markConversationRead(convId);  // 첫 로드·새 메시지 도착 = 내가 보는 중 → 내 읽음시각 갱신(상대 화면 ✓✓)
-      requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
+      requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: true }));  // 인버티드: offset 0 = 최신(바닥)
     });
     return () => unsub();
   }, [convId]);
@@ -284,20 +284,23 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   };
 
   const list = messages || [];
+  // 인버티드 FlatList용 — 최신이 index 0(시각적 바닥). 새 메시지가 바닥에 자동으로 쌓여 끌어올릴 필요 없음 + 메시지 적어도 입력창 바로 위에 붙음(카톡식 아래고정).
+  const rlist = useMemo(() => list.slice().reverse(), [list]);
   // ★입력 지연 방지 — renderItem을 useCallback으로 안정화. 안 하면 매 글자(setText) 리렌더마다 renderItem 참조가
   //   새로 생겨 FlatList가 보이는 말풍선을 전부 다시 그려 입력이 버벅임(안드 특히). list/읽음/상대정보 바뀔 때만 갱신.
   const renderItem = useCallback(({ item, index }) => {
     const mine = item.senderUid === myUid;
-    const prev = index > 0 ? list[index - 1] : null;
+    // 인버티드: index+1 = 시각적 위(더 오래된 이웃). 날짜 구분선·아바타 묶음 판정에 '더 오래된 메시지' 사용.
+    const older = index < rlist.length - 1 ? rlist[index + 1] : null;
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
-    const showDate = (!prev || dayKey(prev.createdAt) !== dayKey(item.createdAt)) && !!fmtDay(item.createdAt);
+    const showDate = (!older || dayKey(older.createdAt) !== dayKey(item.createdAt)) && !!fmtDay(item.createdAt);
     const time = fmtClock(item.createdAt);
     // 읽음(✓✓) — 내 메시지이고, 상대가 이 방을 본 시각이 이 메시지 시각 이후면 '읽음'.
     const msgMs = item.createdAt?.toMillis ? item.createdAt.toMillis() : 0;
     const read = mine && msgMs > 0 && otherReadMs >= msgMs;
     // 받은 메시지 묶음의 '첫 줄'에만 아바타를 말풍선 위에 1개 표시 → 아래 말풍선들은 좌측에 플러시로 붙음(사용자 2026-06-13).
     // 날짜가 바뀌면 새 묶음으로 봐 아바타 다시 표시.
-    const firstOfGroup = !prev || prev.senderUid !== item.senderUid || showDate;
+    const firstOfGroup = !older || older.senderUid !== item.senderUid || showDate;
     return (
       <View>
         {showDate && (
@@ -377,7 +380,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         </View>
       </View>
     );
-  }, [list, myUid, otherReadMs, friendName, friendAvatarUri]);
+  }, [rlist, myUid, otherReadMs, friendName, friendAvatarUri]);
 
   return (
     <View style={{ flex: 1, backgroundColor: DM_SURFACE }}>
@@ -413,12 +416,12 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       <View style={{ flex: 1, backgroundColor: DM_CANVAS }}>
       <FlatList
         ref={listRef}
-        data={list}
+        data={rlist}
+        inverted
         style={{ flex: 1 }}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
-        onContentSizeChange={() => listRef.current?.scrollToEnd?.({ animated: false })}
+        contentContainerStyle={{ paddingVertical: 12 }}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={15}
         maxToRenderPerBatch={10}

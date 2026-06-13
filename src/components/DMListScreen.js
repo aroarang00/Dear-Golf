@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -50,6 +50,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
   const [nameMap, setNameMap] = useState({});  // uid → nickname
   const [avatarMap, setAvatarMap] = useState({});  // uid → 원격 avatarUrl (사진 우선·이니셜 fallback, 친구리스트와 동일)
   const [friendMeta, setFriendMeta] = useState({});
+  const [blocked, setBlocked] = useState([]);  // 차단 uid — 늦게 도착해도 렌더에서 필터(목록 즉시 표시 위해 구독과 분리)
   useAndroidBack(true, onClose);
 
   useEffect(() => {
@@ -57,13 +58,16 @@ export function DMListScreen({ onClose, onOpenChat }) {
     let unsub = () => {};
     (async () => {
       const uid = await getUid();
-      if (alive) setMyUid(uid);
-      let blocked = [];
+      if (!alive) return;
+      setMyUid(uid);
+      // 대화 목록을 즉시 구독 — 친구 메타(이름·아바타·차단) 로딩을 기다리지 않아 목록이 바로 뜸(느린 로딩 개선).
+      //   이름·아바타는 친구 메타가 채워지면 리렌더로 hydrate, 차단 숨김은 blocked state 도착 후 렌더에서 적용.
+      unsub = subscribeConversations(uid, (list) => { if (alive) setConvs(list); });
+      // 친구 메타·차단은 병렬로 별도 로드(목록 표시를 막지 않음)
       try {
         const [fd, friends, blockedArr] = await Promise.all([
           loadFriendData(), loadMyFriendsEnriched(), loadMyBlockedUids().catch(() => []),
         ]);
-        blocked = blockedArr || [];
         if (alive) {
           setFriendMeta(fd.friendMeta || {});
           const m = {}, av = {};
@@ -74,15 +78,18 @@ export function DMListScreen({ onClose, onOpenChat }) {
           });
           setNameMap(m);
           setAvatarMap(av);
+          setBlocked(blockedArr || []);
         }
       } catch (e) { if (__DEV__) console.warn('[DMList] friends', e?.message); }
-      // 내가 차단한 상대와의 대화는 목록에서 숨김 — 검색·카카오 결과 차단자 숨김과 일관(카톡 모델)
-      unsub = subscribeConversations(uid, (list) => {
-        if (alive) setConvs(list.filter(c => !blocked.includes(otherUidOf(c, uid))));
-      });
     })();
     return () => { alive = false; unsub(); };
   }, []);
+
+  // 차단 상대 대화 숨김 — blocked가 늦게 와도 렌더에서 적용(목록 표시를 막지 않음). 차단은 드물어 잠깐 보일 수 있으나 도착 즉시 필터.
+  const visibleConvs = useMemo(
+    () => (convs || []).filter(c => !blocked.includes(otherUidOf(c, myUid))),
+    [convs, blocked, myUid]
+  );
 
   const renderItem = ({ item }) => {
     const ouid = otherUidOf(item, myUid);
@@ -126,7 +133,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
         {/* 'DM 알림 받기' 전역 토글 자리 — 출시 후 실연결([[dm-design]] 알림 설정) */}
       </View>
       <FlatList
-        data={convs || []}
+        data={visibleConvs}
         keyExtractor={(c) => c.id}
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: DM_LINE, marginLeft: 74 }} />}
