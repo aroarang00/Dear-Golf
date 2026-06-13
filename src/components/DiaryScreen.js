@@ -369,7 +369,7 @@ export function DiaryScreen({ route, navigation }) {
           const today = new Date().setHours(0, 0, 0, 0);
           const days = Math.round((today - rd) / 86400000);
           if (days >= 0 && days <= 2) {
-            const card = { ...data, id: created.id, par: 72, shareKind: 'round' };
+            const card = { ...data, id: created.id, par: 72, shareKind: 'round', playerName: (userProfile.realName || userProfile.nickname || '').trim() };
             setTimeout(() => setShareMoment(card), 350); // 작성 모달 닫힘 애니메이션 후 자연스럽게
           }
         }
@@ -489,7 +489,7 @@ export function DiaryScreen({ route, navigation }) {
   if (selected) return (
     <>
       <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
-        onShare={selected.kind === 'moment' ? undefined : (round) => setShareMoment({ ...round, shareKind: 'round' })}
+        onShare={selected.kind === 'moment' ? undefined : (round) => setShareMoment({ ...round, shareKind: 'round', playerName: (userProfile.realName || userProfile.nickname || '').trim() })}
         onUpdate={(updated) => {
           // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
           handleSave('diary-edit', updated);

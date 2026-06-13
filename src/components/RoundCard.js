@@ -6,19 +6,20 @@ import { F, fs } from '../constants/colors';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { getCountryFlag } from '../constants/data';
 
-// 라운딩 카드 — 공유용 매거진 스타일(대표사진 풀블리드 + 하단 오버레이).
-// ★명예의전당(트로피·골드·업적)과 결이 다름: 그날의 일상 기록이 주인공 ([[score-brag-card]]).
-// ★평면·만화 금지, 입체·고급 필수(사용자 지시): 다층 그라데이션 + 비네팅 + 텍스트 그림자로 글자가 사진 위로 뜨고,
-//   따뜻한 화이트·골드 헤어라인·얇은 내부 프레임으로 editorial 럭셔리. 사진은 allowDownscaling=false로 선명 유지.
-//  - 스코어 숫자 Playfair 세리프(F.en), "Dear Golf" Lora 이탤릭(F.brand).
-//  - 좋은 날(베스트·싱글·홀인원 등)만 골드 액센트, 평범·힘든 날은 중립(110타에 자랑 강요 X).
+// 라운딩 카드 — 공유용 매거진 스타일(대표사진 풀블리드 + 하단 반투명 정보 패널).
+// ★명예의전당(트로피·골드·업적)과 결이 다름: 그날의 라운딩이 주인공 ([[score-brag-card]]).
+// ★평면·만화 금지, 입체·고급 필수(사용자 지시): 홈 카드 톤의 다크 반투명 패널 + 골드 헤어라인/보더 + 텍스트 그림자로
+//   글자가 사진 위로 또렷이 뜨고, 흰색 일변도 대신 골드 액센트로 색감을 준다. 사진은 allowDownscaling=false로 선명.
+//  - 플레이어 이름(realName||nickname, DiaryScreen에서 주입) 표시 — "누구의 라운딩"인지 분명히.
+//  - 줄 간격 촘촘하게(횅함 방지). 워터마크 = 상단 ROUND RECAP(Playfair 세리프) + 패널 Dear Golf(Lora 이탤릭).
+//  - 좋은 날(베스트·싱글·해외 등)만 골드 액센트 칩, 평범·힘든 날은 중립.
 //  - 사진 없으면 따뜻한 차콜 그라데이션 폴백(라운지색 네이비 회피 [[navy-lounge-color]]).
 //  - ViewShot으로 캡처되는 그래픽 — width는 캡처 컨테이너 폭을 받아 4:5 세로 비율로 그림.
 
 const GOLD = '#E8D9A0';
 const GOLD_DEEP = '#C9A84C';
-const WHITE = '#F6F2E9'; // 순백 대신 따뜻한 화이트 — 평면감 줄이고 고급 톤
-const SHADOW = { textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 7 };
+const WHITE = '#F6F2E9'; // 순백 대신 따뜻한 화이트
+const SHADOW = { textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
 export function RoundCard({ item, width = 320 }) {
   const height = Math.round(width * 1.25); // 4:5 매거진 세로
@@ -40,6 +41,7 @@ export function RoundCard({ item, width = 320 }) {
   const scoreColor = noteworthy ? GOLD : WHITE;
 
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
+  const playerName = (item.playerName || '').trim();
 
   return (
     <View style={{ width, height, borderRadius: 16, overflow: 'hidden', backgroundColor: '#2A2622' }}>
@@ -59,72 +61,63 @@ export function RoundCard({ item, width = 320 }) {
         />
       )}
 
-      {/* 비네팅 — 좌/우 가장자리 미세하게 어둡게(사진 깊이감). 너무 세지 않게 0.22 */}
+      {/* 상단 살짝 어둡게(라벨 가독) + 하단 깊은 그라데이션(패널 안착감) */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.22)', 'transparent']}
-        start={{ x: 0, y: 0.5 }} end={{ x: 0.32, y: 0.5 }}
-        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+        colors={['rgba(0,0,0,0.45)', 'transparent']}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.28) }}
       />
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.22)']}
-        start={{ x: 0.68, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+        colors={['transparent', 'rgba(0,0,0,0.55)']}
+        locations={[0.35, 1]}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.62) }}
       />
-      {/* 상단 살짝 어둡게 — 라벨 가독성 */}
-      <LinearGradient
-        colors={['rgba(0,0,0,0.42)', 'transparent']}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.24) }}
-      />
-      {/* 하단 그라데이션 — 정보 영역(깊은 다층) */}
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.86)']}
-        locations={[0, 0.42, 1]}
-        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.64) }}
-      />
-
       {/* 얇은 내부 프레임 — 럭셔리 액자 느낌 */}
       <View
         pointerEvents="none"
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }}
       />
 
-      {/* 상단 editorial 라벨 + 특별한 날 액센트 */}
-      <View style={{ position: 'absolute', top: 18, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: WHITE, letterSpacing: 3, opacity: 0.95 }, SHADOW]}>ROUND</Text>
+      {/* 상단 — ROUND RECAP 워터마크(세리프) + 특별한 날 액센트 칩 */}
+      <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
         {accentLabel ? (
-          <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 2, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.18)' }}>
+          <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.25)' }}>
             <Text style={{ fontFamily: F.en, fontSize: fs(10), color: GOLD, letterSpacing: 2 }}>{accentLabel}</Text>
           </View>
         ) : null}
       </View>
 
-      {/* 하단 콘텐츠 */}
-      <View style={{ position: 'absolute', left: 20, right: 20, bottom: 20 }}>
-        {/* 골드 헤어라인 — 흰 줄 대신 럭셔리 */}
-        <View style={{ height: 1.5, width: 40, backgroundColor: GOLD_DEEP, marginBottom: 12 }} />
-        <Text numberOfLines={2} style={[{ fontFamily: F.sysB, fontSize: fs(22), lineHeight: fs(28), color: WHITE, letterSpacing: 0.3 }, SHADOW]}>
+      {/* 하단 — 반투명 정보 패널(홈 카드 톤 + 골드 보더). 텍스트를 박스에 담아 입체·가독 */}
+      <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14,
+        backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)',
+        paddingHorizontal: 16, paddingTop: 13, paddingBottom: 14 }}>
+        {/* 골드 헤어라인 */}
+        <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 9 }} />
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: WHITE, letterSpacing: 0.2 }, SHADOW]}>
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}
         </Text>
-        <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: 'rgba(246,242,233,0.88)', letterSpacing: 1.5, marginTop: 6 }, SHADOW]}>
-          {item.date}{item.weather ? '   ·   ' + item.weather : ''}
+        {/* 이름 · 날짜 · 날씨 — 골드 한 줄, 촘촘하게 */}
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 3 }, SHADOW]}>
+          {playerName ? playerName + '   ·   ' : ''}{item.date}{item.weather ? '   ·   ' + item.weather : ''}
         </Text>
 
         {hasScore ? (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 12 }}>
-            <Text style={[{ fontFamily: F.en, fontSize: fs(50), lineHeight: fs(52), color: scoreColor }, SHADOW]}>{item.score}</Text>
-            <Text style={[{ fontFamily: F.sysB, fontSize: fs(16), color: scoreColor, marginLeft: 4, marginBottom: 7 }, SHADOW]}>타</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
+            <Text style={[{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: scoreColor }, SHADOW]}>{item.score}</Text>
+            <Text style={[{ fontFamily: F.sysB, fontSize: fs(15), color: scoreColor, marginLeft: 4, marginBottom: 6 }, SHADOW]}>타</Text>
             {diffLabel ? (
-              <Text style={[{ fontFamily: F.en, fontSize: fs(15), color: 'rgba(246,242,233,0.88)', letterSpacing: 1, marginLeft: 12, marginBottom: 8 }, SHADOW]}>
+              <Text style={[{ fontFamily: F.en, fontSize: fs(14), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 10, marginBottom: 7 }, SHADOW]}>
                 {diffLabel}   ·   par {item.par}
               </Text>
             ) : null}
+            <View style={{ flex: 1 }} />
+            <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE, marginBottom: 5 }, SHADOW]}>Dear Golf</Text>
           </View>
-        ) : null}
-
-        {/* Dear Golf 워드마크 — 매거진 마스트헤드 */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
-          <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE, opacity: 0.95 }, SHADOW]}>Dear Golf</Text>
-        </View>
+        ) : (
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
+          </View>
+        )}
       </View>
     </View>
   );
