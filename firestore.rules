@@ -498,6 +498,11 @@ service cloud.firestore {
         && request.auth.uid in resource.data.participantUids
         && changedKeysWithin(['lastRead'])
         && request.resource.data.get('lastRead', {}).diff(resource.data.get('lastRead', {})).affectedKeys().hasOnly([request.auth.uid]);
+      // 입력 중(타이핑) 표시 — 본인 typing 키만 갱신/해제. 멤버십만(상태 표시라 무해), lastRead와 동일 위조방지.
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.participantUids
+        && changedKeysWithin(['typing'])
+        && request.resource.data.get('typing', {}).diff(resource.data.get('typing', {})).affectedKeys().hasOnly([request.auth.uid]);
       allow delete: if false;
 
       match /messages/{msgId} {

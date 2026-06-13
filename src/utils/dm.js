@@ -92,6 +92,14 @@ export async function markConversationRead(convId) {
   catch (e) { if (__DEV__) console.warn('[dm] markRead', e?.message); }
 }
 
+// 입력 중(타이핑) 표시 — conv 문서 typing.{uid} 갱신(true=serverTimestamp)/해제(deleteField). 디바운스는 호출부(컴포넌트).
+export async function setTyping(convId, isTyping) {
+  const uid = await getUid();
+  if (!uid || !convId) return;
+  try { await updateDoc(doc(db, CONV, convId), { [`typing.${uid}`]: isTyping ? serverTimestamp() : deleteField() }); }
+  catch (e) { if (__DEV__) console.warn('[dm] typing', e?.message); }
+}
+
 // 대화방 메타(conversation) 1건 실시간 구독 — lastRead 맵으로 상대의 읽음 시각을 받기 위함(대화방 열린 동안만, 1문서라 저렴).
 export function subscribeConversation(convId, cb) {
   if (!convId) return () => {};

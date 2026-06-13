@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, withRepeat, withSequence, withDelay } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
-import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation } from '../utils/dm';
+import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -79,7 +79,7 @@ function dayKey(ts) {
 
 // 입력 바 — ★자체 text 상태로 분리해 타이핑이 부모(메시지 리스트)를 리렌더하지 않게 함(입력 지연 방지).
 //   onSend(body)→true/false(false면 입력 복구). 답장 미리보기·전송 버튼 포함. 포커스는 ref로 노출(공감→답장 동선).
-const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, replyTo, onCancelReply, friendName, myUid, bottomPad }, ref) {
+const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, replyTo, onCancelReply, friendName, myUid, bottomPad, onTyping }, ref) {
   // ★언컨트롤드 입력 — value 바인딩 제거. 키 입력마다 setState/리렌더하던 게 안드 입력 지연의 주범이라,
   //   실제 텍스트는 textRef(리렌더 안 함)에 두고 setState는 '비었다↔있다' 전환 때만(전송버튼 토글용).
   const [hasText, setHasText] = useState(false);
@@ -91,6 +91,7 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
     textRef.current = t;
     const ne = t.trim().length > 0;
     setHasText((p) => (p === ne ? p : ne));  // 값이 바뀔 때만 리렌더(매 글자 X)
+    if (ne) onTyping?.();  // 입력 중 알림(디바운스는 부모에서)
   };
   const send = async () => {
     const body = textRef.current.trim();
@@ -159,6 +160,26 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
 // 친구 1:1 DM 대화방 — 풀스크린, 말풍선(내 메시지 우측·상대 좌측). 카톡식 ([[dm-design]]).
 //   열린 동안만 메시지 실시간 구독, 닫으면 unsub로 비용 차단([[lounge-realtime]]). 안 읽음·타이핑은 출시 후.
 //   props 기반(navigation 비의존) — 네비 방식(Stack/모달)과 무관하게 재사용. onOpenOptions=차단·신고 시트(5단계).
+// 입력 중 표시 — iMessage식 통통 튀는 점 3개(받은 말풍선 톤). 인버티드 리스트의 ListHeaderComponent(=시각적 바닥)로 노출.
+function TypingDot({ delay }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = withDelay(delay, withRepeat(withSequence(withTiming(1, { duration: 350 }), withTiming(0, { duration: 350 })), -1));
+  }, []);
+  const st = useAnimatedStyle(() => ({ opacity: 0.35 + t.value * 0.65, transform: [{ translateY: -t.value * 3 }] }));
+  return <Reanimated.View style={[{ width: 7, height: 7, borderRadius: 4, marginHorizontal: 2, backgroundColor: DM_RECV_TX }, st]} />;
+}
+function TypingDots() {
+  return (
+    <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginTop: 4, marginBottom: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: DM_RECV_BG,
+        borderRadius: 16, borderTopLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 14 }}>
+        {[0, 1, 2].map((i) => <TypingDot key={i} delay={i * 160} />)}
+      </View>
+    </View>
+  );
+}
+
 function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions, devPreview = false }) {
   const insets = useSafeAreaInsets();
   const BAR_PAD = 8;  // 입력 바 내부 하단 숨틈(항상)
@@ -190,10 +211,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
   const [reactTarget, setReactTarget] = useState(null);  // 공감 피커 대상 메시지(길게누르기)
   const [replyTo, setReplyTo] = useState(null);  // 답장(인용) 대상 메시지 — 입력창 위 미리보기 바
-  const [otherReadMs, setOtherReadMs] = useState(0);  // 상대가 이 방을 마지막으로 본 시각(ms) — 내 말풍선 읽음(✓✓) 판정
+  const [otherReadMs, setOtherReadMs] = useState(0);  // 상대가 이 방을 마지막으로 본 시각(ms) — 내 말풍선 읽음(✓) 판정
+  const [friendTyping, setFriendTyping] = useState(false);  // 상대 입력 중 — 말풍선 점 표시
   const [kbDbg, setKbDbg] = useState({ rn: 0, kc: 0 });  // ⚠️TEMP 키보드 진단(검증 후 제거)
   const listRef = useRef(null);
   const inputRef = useRef(null);
+  const typingHideRef = useRef(null);   // 상대 typing stale 숨김 타이머
+  const typingState = useRef({ last: 0, stop: null });  // 내 typing 디바운스(쓰기 절약)
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
   // 피커가 떠 있으면 뒤로가기는 피커만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
@@ -241,15 +265,37 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     return () => unsub();
   }, [convId]);
 
-  // 상대의 읽음 시각 실시간 구독(conversation 1문서) — 내 말풍선 ✓✓ 판정용. 열린 동안만(저렴).
+  // 상대 읽음 시각 + 입력 중 실시간 구독(conversation 1문서, 기존 리스너 재사용 — 타이핑 추가 비용 0). 열린 동안만.
   useEffect(() => {
     if (!convId) return;
     const unsub = subscribeConversation(convId, (conv) => {
       const ts = conv?.lastRead?.[friendUid];
       setOtherReadMs(ts?.toMillis ? ts.toMillis() : 0);
+      // 상대 입력 중 — typing.{friendUid} 시각이 최근(6초)이면 표시. 멈추면 상대가 해제 기록→false, 안 오면 stale 타이머로 숨김(백스톱).
+      const tt = conv?.typing?.[friendUid];
+      const tms = tt?.toMillis ? tt.toMillis() : 0;
+      const active = tms > 0 && (Date.now() - tms) < 6000;
+      setFriendTyping(active);
+      clearTimeout(typingHideRef.current);
+      if (active) typingHideRef.current = setTimeout(() => setFriendTyping(false), 6000);
     });
-    return () => unsub();
+    return () => { unsub(); clearTimeout(typingHideRef.current); };
   }, [convId, friendUid]);
+
+  // 내 입력 중 기록 — 디바운스(매 글자 X): 3초에 한 번 typing=true, 4초 멈추면 false. 화면 이탈 시 해제(상대 점 안 남게).
+  const notifyTyping = useCallback(() => {
+    if (!convId) return;
+    const now = Date.now();
+    if (now - typingState.current.last > 3000) { typingState.current.last = now; setTyping(convId, true); }
+    clearTimeout(typingState.current.stop);
+    typingState.current.stop = setTimeout(() => { typingState.current.last = 0; setTyping(convId, false); }, 4000);
+  }, [convId]);
+  const stopTyping = useCallback(() => {
+    clearTimeout(typingState.current.stop);
+    typingState.current.last = 0;
+    if (convId) setTyping(convId, false);
+  }, [convId]);
+  useEffect(() => () => { clearTimeout(typingState.current.stop); if (convId) setTyping(convId, false); }, [convId]);
 
   // 이 방을 보는 동안엔 같은 방 DM 푸시 배너 숨김(이미 실시간으로 보임). 이탈 시 해제 ([[dm-design]]).
   //   convId === pairId === CF 푸시 data.pairId 라 정확히 이 방만 억제.
@@ -263,6 +309,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const handleSend = useCallback(async (body) => {
     const quote = replyTo;  // 전송 시점 인용 캡처 — 실패 시 함께 복구
     setReplyTo(null);
+    stopTyping();  // 전송하면 입력 중 해제
     if (devPreview) {  // ⚠️TEMP 키보드 미리보기 — 서버 없이 로컬 append만
       setMessages((prev) => [...(prev || []), { id: 'dev-s-' + (prev?.length || 0), senderUid: '__me__', body,
         createdAt: mockTs(Date.now()), replyTo: quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null }]);
@@ -345,7 +392,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           {/* 내 메시지 좌측: 읽음(✓✓ 페일스카이) + 시각. 읽기 전엔 시각만. */}
           {mine && (!!time || read) && (
             <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
-              {read && <Text style={{ fontFamily: F.sysB, fontSize: fs(11), lineHeight: 14, color: '#C8D9E6' }}>✓</Text>}
+              {read && <Text style={{ fontFamily: F.sysB, fontSize: fs(11), lineHeight: 14, color: '#C8D9E6' }}>✓ 읽음</Text>}
               {!!time && <Text style={[timeStyle, { marginBottom: 0 }]}>{time}</Text>}
             </View>
           )}
@@ -432,6 +479,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         style={{ flex: 1 }}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
+        ListHeaderComponent={friendTyping ? <TypingDots /> : null}
         contentContainerStyle={{ paddingVertical: 12 }}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={15}
@@ -455,6 +503,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         friendName={friendName}
         myUid={myUid}
         bottomPad={BAR_PAD}
+        onTyping={notifyTyping}
       />
       </Reanimated.View>
       {/* 공감 피커 — 자체 오버레이(Modal 호스트 안이라 글로벌 시트 대신, OverlayAlert와 동일 패턴). 바깥 탭/뒤로가기=닫기 */}
