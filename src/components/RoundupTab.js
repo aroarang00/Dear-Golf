@@ -762,6 +762,33 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     })();
   }, [posts, joined, schedules, addSchedule, userProfile?.alarmDefaults, myUid]);
 
+  // 모집 일정에 라운딩 기록이 연결됐는지 — 고아 기록 방지로 자동 삭제에서 제외(reconcile·취소정리 공용 헬퍼).
+  const hasRound = (s) => (diaries || []).some(d => d.scheduleId === s.id || (d.course === s.course && d.date === s.date));
+
+  // 모집 확정 해제·이탈 시 일정 정리(reconcile) — 불변식 강제: "모집 일정은 '확정(closed)+내가 속한' 모집에만 존재".
+  //   ★결원으로 확정이 풀리면(leaveRoundup이 closed:false) 남은 멤버 일정이 고아로 남고 나간 동반자까지 표시되던 버그 보강
+  //   ([[roundup-schedule-sync]] add-only 갭). 확정 해제(또는 내가 빠짐) 시 본인 일정 제거 → 재확정되면 위 자동등록이
+  //   '현재 참여자'로 다시 생성해 고아·나간 동반자 동시 해소. 라운지=친구 전용이라 이탈 경로는 본인 취소 하나뿐(강퇴 폐기).
+  //   ★오삭제 방지 가드: 모집글이 실제 로드됐을 때만(미로드=필터·만료·취소는 손대지 않음, 취소는 알림 정리에 위임),
+  //     기록 연결된 일정은 보존. autoSchedRef 해제로 재확정 시 재등록 허용.
+  useEffect(() => {
+    const toRemove = [];
+    for (const s of schedules) {
+      if (!s.roundupId) continue;
+      const p = posts.find(x => x.id === s.roundupId);
+      if (!p) continue;                       // 모집글 미로드 — 손대지 않음(오삭제 방지)
+      const stillIn = (!!myUid && p.authorUid === myUid) || !!joined[s.roundupId];
+      if (p.closed && stillIn) continue;      // 확정 + 내가 속함 → 정상 유지
+      if (hasRound(s)) continue;              // 기록 연결된 일정은 보존(고아 기록 방지)
+      toRemove.push({ id: s.id, roundupId: s.roundupId });
+    }
+    if (toRemove.length === 0) return;
+    toRemove.forEach(({ id, roundupId }) => {
+      autoSchedRef.current.delete(roundupId); // 재확정 시 재등록 허용
+      removeSchedule(id).catch(e => __DEV__ && console.warn('[RoundupTab] reconcile schedule remove fail', e?.message));
+    });
+  }, [posts, joined, schedules, removeSchedule, myUid, diaries]);
+
   // 모집 취소 정리 — roundupCancelled 알림이 온 모집으로 만들어졌던 본인 일정 자동 제거 (주최자 삭제 대응).
   //  주석 [[roundup-friend-redesign]]: 주최자 취소 시 참여자도 일정에서 빠져야 함. removeSchedule은 멱등(없으면 no-op).
   useEffect(() => {
@@ -769,9 +796,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       notifications.filter(n => n.type === 'roundupCancelled' && n.postId).map(n => n.postId)
     );
     if (cancelledIds.size === 0) return;
-    // 기록 보존 — 이미 라운딩 기록이 연결된 일정은 자동 삭제하지 않음(고아 기록 방지, 정책 결정).
-    const hasRound = (s) => (diaries || []).some(d =>
-      d.scheduleId === s.id || (d.course === s.course && d.date === s.date));
+    // 기록 보존 — 이미 라운딩 기록이 연결된 일정은 자동 삭제하지 않음(hasRound 공용 헬퍼, 고아 기록 방지).
     for (const s of schedules) {
       if (s.roundupId && cancelledIds.has(s.roundupId)) {
         if (hasRound(s)) continue; // 플레이·기록한 라운딩의 일정은 유지
