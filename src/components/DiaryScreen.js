@@ -744,7 +744,8 @@ export function DiaryScreen({ route, navigation }) {
 
         return (
           <>
-            {hallOfFame.length > 0 ? (
+            {/* ★hofHydrated 전엔 렌더 X — 저장값 로드 전 빈 티저가 iOS서 잠깐 새던 깜빡임 방지([[home_empty_state_flash]]) */}
+            {hofHydrated && (hallOfFame.length > 0 ? (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
                     <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
@@ -785,7 +786,7 @@ export function DiaryScreen({ route, navigation }) {
                     </TouchableOpacity>
                   </View>
                 </View>
-              ) : null}
+              ) : null)}
 
               {filtered.length === 0 ? (
                 <View style={dS.emptyWrap}>
