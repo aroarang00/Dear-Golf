@@ -96,14 +96,15 @@ export function FriendInviteCard({ width = 320 }) {
         <Text style={{ fontFamily: F.sys, fontSize: fs(12), lineHeight: fs(12) * 1.5, color: CHARCOAL_SOFT, textAlign: 'center', marginTop: 24 }}>
           라운딩의 모든 순간을 <Text style={{ fontFamily: F.sysSb, color: BURGUNDY }}>더 특별하게</Text>
         </Text>
+        {/* 슬로건 밑 설치 단서 — 글자 밑 허전함 해소(사용자 지시). QR엔 텍스트 빼고 QR만 */}
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: CHARCOAL, letterSpacing: 0.5, textAlign: 'center', marginTop: 12 }}>deargolf.app</Text>
       </View>
 
-      {/* 우하단 QR — 카드는 이미지라 클릭 링크 불가, 탭 안 되는 매체 유입 대비. 흰 패딩으로 크림 위 대비 확보 */}
-      <View style={{ position: 'absolute', right: 16, bottom: 14, alignItems: 'center' }}>
+      {/* 우하단 QR만 — deargolf.app 텍스트는 슬로건 밑으로 이동(사용자 지시) */}
+      <View style={{ position: 'absolute', right: 16, bottom: 14 }}>
         <View style={{ backgroundColor: 'rgba(255,255,255,0.72)', padding: 4, borderRadius: 6 }}>
           <QRCode value="https://deargolf.app" size={42} color={CHARCOAL} backgroundColor="transparent" />
         </View>
-        <Text style={{ fontFamily: F.sysB, fontSize: 8, color: CHARCOAL, marginTop: 3, letterSpacing: 0.3 }}>deargolf.app</Text>
       </View>
     </View>
   );

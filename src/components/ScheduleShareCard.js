@@ -16,6 +16,15 @@ const LINE = '#E8E2D0';
 const SURFACE = '#FFFFFF';
 const PAGE = '#FAF6EC';
 
+// 날씨 문자열 → 이모지 (홈에서 주입한 3일내 예보·사용자 입력 모두 대응)
+const wxIcon = (w) => {
+  if (!w) return '';
+  if (/비|우|소나기|rain/i.test(w)) return '🌧';
+  if (/눈|snow/i.test(w)) return '🌨';
+  if (/흐|구름|cloud/i.test(w)) return '☁️';
+  return '☀️';
+};
+
 function Field({ label, value, align = 'left', tone = 'ink', size = 'md' }) {
   return (
     <View style={[styles.field, align === 'right' && { alignItems: 'flex-end' }]}>
@@ -72,6 +81,13 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
         </View>
 
         <View style={{ marginTop: 16 }}>
+          {/* 코스 위 날씨 — 3일 전부터 당일 예보 표시(사용자 지시). s.weather는 홈에서 주입 */}
+          {s.weather ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 7 }}>
+              <Text style={{ fontSize: fs(13) }}>{wxIcon(s.weather)}</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: BURGUNDY, letterSpacing: 0.3 }}>{s.weather}</Text>
+            </View>
+          ) : null}
           <Field label="COURSE" value={s.course || '-'} tone="accent" size="lg" />
         </View>
 
@@ -82,21 +98,19 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           <Field label="TEE-OFF" value={timeText} align="right" />
         </View>
 
-        {/* D-day · 동반 · 날씨 */}
+        {/* D-day · 동반 (날씨는 코스 위로 이동) */}
         <View style={styles.metaRow}>
           {ddayText ? (
             <View style={styles.ddayPill}>
               <Text style={styles.ddayText}>{ddayText}</Text>
             </View>
           ) : null}
-          <Text style={styles.metaText}>
-            {members > 0 ? `👥 ${members}명` : ''}{members > 0 && s.weather ? '   ·   ' : ''}{s.weather ? `${s.weather}` : ''}
-          </Text>
+          <Text style={styles.metaText}>{members > 0 ? `👥 ${members}명 동반` : ''}</Text>
         </View>
 
         {/* 하단 — 멘트(전체 폭 중앙) + 링크. QR은 우상단으로 옮겨 멘트 공간 확보 */}
         <View style={styles.footer}>
-          <Text style={styles.footerLead}>골프, 동반자, 그리고{'\n'}우리의 빛나는 아카이브</Text>
+          <Text style={styles.footerLead}>라운딩의 모든 순간을{'\n'}더 특별하게</Text>
           <Text style={styles.footerLink}>deargolf.app</Text>
         </View>
       </View>
