@@ -81,6 +81,7 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
   //   실제 텍스트는 textRef(리렌더 안 함)에 두고 setState는 '비었다↔있다' 전환 때만(전송버튼 토글용).
   const [hasText, setHasText] = useState(false);
   const [sending, setSending] = useState(false);
+  const [inputH, setInputH] = useState(46);  // 입력창 높이 — onContentSizeChange로 구동(iOS 멀티라인 자동확장 안 되던 것 해결, [46,120] 클램프)
   const textRef = useRef('');
   const inputRef = useRef(null);
   React.useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }), []);
@@ -97,6 +98,7 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
     inputRef.current?.clear();
     textRef.current = '';
     setHasText(false);
+    setInputH(46);  // 전송 후 입력창 높이 원위치(clear가 onContentSizeChange를 항상 트리거하진 않음)
     setSending(true);
     await onSend(body);  // 실패는 드물고(차단·친구해지) alert가 안내 — 낙관적이라 입력 복구는 생략
     setSending(false);
@@ -132,8 +134,13 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
           placeholder="메시지를 입력하세요"
           placeholderTextColor={DM_PLACE}
           multiline
+          onContentSizeChange={(e) => {
+            // iOS·안드 공통 자동 높이 — 콘텐츠 높이로 구동(iOS는 min/maxHeight만으론 안 늘어남). [46,120] 클램프, 넘으면 내부 스크롤
+            const h = Math.ceil(e.nativeEvent.contentSize.height);
+            setInputH(prev => { const next = Math.min(120, Math.max(46, h)); return next === prev ? prev : next; });
+          }}
           style={{
-            flex: 1, minHeight: 46, maxHeight: 120, fontFamily: F.sys, fontSize: fs(17), lineHeight: 23, color: DM_MINE_TX,
+            flex: 1, height: Math.min(120, Math.max(46, inputH)), fontFamily: F.sys, fontSize: fs(17), lineHeight: 23, color: DM_MINE_TX,
             backgroundColor: DM_FIELD, borderRadius: 22,
             paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
           }}
