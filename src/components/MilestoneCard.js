@@ -154,7 +154,9 @@ export function MilestoneCard({ item, onShare }) {
 
   return (
     <View style={{
-      borderRadius: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: CARD_BORDER,
+      // 공유 캡처(onShare 없음)일 땐 카드 간격용 marginBottom 제거 — ViewShot이 그 여백을 담아
+      // 저장 이미지 하단에 흰 띠가 비치던 것 방지 (명예의전당 카드와 동일 처리)
+      borderRadius: 16, marginBottom: onShare ? 12 : 0, overflow: 'hidden', borderWidth: 1, borderColor: CARD_BORDER,
       ...Platform.select({
         ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 },
         android: { elevation: 6 },
