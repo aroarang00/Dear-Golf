@@ -10,7 +10,7 @@ import { resolvePhotoUri } from '../../utils/photoStorage';
 const { width: SW, height: SH } = Dimensions.get('window');
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
-function VideoItem({ uri, active }) {
+function VideoItem({ uri, active, height }) {
   const player = useVideoPlayer(uri, p => {
     p.loop = false;
   });
@@ -23,7 +23,7 @@ function VideoItem({ uri, active }) {
   return (
     <VideoView
       player={player}
-      style={{ width: SW, height: SW * 1.2 }}
+      style={{ width: SW, height }}
       contentFit="contain"
       nativeControls
       allowsFullscreen
@@ -150,7 +150,9 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
   const curUri = !isVideo && current ? resolvePhotoUri(current.uri || current) : null;
   const curAr = curUri ? arMap[curUri] : null;
   // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 4:5 폴백
-  const mediaH = isVideo ? SW * 1.2 : (curAr ? Math.min(availMax, Math.round(SW / curAr)) : Math.min(availMax, Math.round(SW * 1.25)));
+  // 영상 = 화면 대부분 높이로 크게(현행 SW*1.2가 세로영상을 좁게 보여줘 '줄여서' 보이던 것 해소). contain 유지 + ⛶ 네이티브 풀스크린.
+  const VIDEO_H = Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8));
+  const mediaH = isVideo ? VIDEO_H : (curAr ? Math.min(availMax, Math.round(SW / curAr)) : Math.min(availMax, Math.round(SW * 1.25)));
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -168,7 +170,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
         </View>
         {/* 캡션 표시 중엔 사진을 위(카운터 아래)로 올려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백 해소).
             캡션 숨김(탭)·순수 사진 보기는 가운데 정렬 유지. */}
-        {captionShown && !zoomed ? <View style={{ height: 92 }} /> : null}
+        {captionShown && !zoomed && !isVideo ? <View style={{ height: 92 }} /> : null}
         {/* 확대(zoomed) 중엔 박스를 풀스크린(SH)으로 펼쳐 화면 전체에서 확대되게 — 평상시엔 사진 비율 높이(mediaH, 검은여백·캡션 잘림 해소). */}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0, height: zoomed ? SH : mediaH }}
@@ -178,7 +180,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
           {photos.map((item, i) => (
             <View key={i} style={{ width: SW, height: zoomed ? SH : mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
-                <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} />
+                <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} height={mediaH} />
               ) : (
                 <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
               )}
