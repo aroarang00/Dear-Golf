@@ -21,7 +21,6 @@ import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
 import { GolfLedgerModal } from './GolfLedgerModal';
 import { MyPageModal } from './MyPageModal';
-import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
 import { getTrustGrade } from '../constants/trustGrade';
 import { ROUTES } from '../constants/routes';
@@ -91,8 +90,7 @@ export function DiaryScreen({ route, navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
   const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
-  const [dmOpen, setDmOpen] = useState(false);   // DM 푸시 딥링크(openDmUid) 진입용 — 목록 진입점은 친구 탭으로 이관([[dm-design]])
-  const [dmChat, setDmChat] = useState(null);    // 목록에서 연 대화 상대 { uid, name }
+  const [dmChat, setDmChat] = useState(null);    // DM 푸시 딥링크(openDmUid)로 연 대화방 { uid, name } — 목록 진입점은 친구 탭으로 이관([[dm-design]])
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false); // 핸디 계산 설명
@@ -249,7 +247,6 @@ export function DiaryScreen({ route, navigation }) {
     const uid = route?.params?.openDmUid;
     if (!uid) return;
     setDmChat({ uid, name: friendNameByUid[uid] || '친구', avatar: null });
-    setDmOpen(true);
     navigation.setParams({ openDmUid: undefined });
   }, [route?.params?.openDmUid, friendNameByUid]);
 
@@ -850,16 +847,15 @@ export function DiaryScreen({ route, navigation }) {
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
-      {/* 메시지(DM) — 내 프로필 진입 = 대화 목록(인스타식). 단일 Modal에서 목록↔대화방 전환(Modal 중첩 회피) ([[dm-design]]).
-          transparent + statusBarTranslucent(안드) — 앱의 검증된 키보드 모달(맛집저장·일정·기록)과 동일 조합.
-          키보드 처리는 DMChatScreen 내부 KeyboardAvoidingView(behavior="padding")가 담당(그 모달들과 동일 방식). */}
-      <Modal visible={dmOpen} transparent animationType="slide"
+      {/* 메시지(DM) — 여기선 'DM 푸시 탭 → 대화방 직행' 전용(openDmUid). 목록 진입점은 친구 탭 헤더로 이관([[dm-design]]).
+          푸시 핸들러가 항상 dmChat을 채우므로 대화방만 렌더(목록 분기 불필요).
+          transparent + statusBarTranslucent(안드) = 앱의 검증된 키보드 모달과 동일 조합. 키보드는 DMChatScreen 내부 KAV 담당. */}
+      <Modal visible={!!dmChat} transparent animationType="slide"
         statusBarTranslucent={Platform.OS === 'android'}
-        onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
-        {dmChat ? (
-          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)} />
-        ) : (
-          <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
+        onRequestClose={() => setDmChat(null)}>
+        {dmChat && (
+          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null}
+            onClose={() => setDmChat(null)} />
         )}
       </Modal>
       <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key} onClose={() => setGradeModalOpen(false)} />
