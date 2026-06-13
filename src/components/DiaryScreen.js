@@ -106,11 +106,19 @@ export function DiaryScreen({ route, navigation }) {
   const [showPickSheet, setShowPickSheet] = useState(false);
   // 친구 좋아요 — 친구 닉네임 맵 로드(마운트 1회) + 화면 포커스 시 내 다이어리 재로드(타인발 좋아요 반영).
   //  DiariesContext는 마운트 1회 로드라 친구가 누른 좋아요가 재진입 전까진 안 들어옴 → 포커스 갱신.
+  // MY 탭 복귀마다 전체 재조회하던 것 → 30초 스로틀(캐시 우선). 앱 내 변경은 컨텍스트가 낙관적으로 즉시 반영하므로
+  //   잦은 재포커스 재요청은 로딩 지연·Firestore read 낭비. 30초 지난 재포커스만 백그라운드 갱신([[stability_first_principle]] perf).
+  const diaryFocusReloadRef = useRef(Date.now());  // 마운트 직후 첫 포커스는 스킵(초기 로드는 컨텍스트가 이미 수행)
   useEffect(() => {
     loadMyFriendsEnriched()
       .then(list => { const m = {}; list.forEach(f => { m[f.id] = f.customName || f.name; }); setFriendNameByUid(m); })
       .catch(() => {});
-    const unsub = navigation?.addListener?.('focus', () => { reloadDiaries(); });
+    const unsub = navigation?.addListener?.('focus', () => {
+      const now = Date.now();
+      if (now - diaryFocusReloadRef.current < 30000) return;  // 최근 갱신 — 캐시 유지(재요청 스킵)
+      diaryFocusReloadRef.current = now;
+      reloadDiaries();
+    });
     return unsub;
   }, [navigation, reloadDiaries]);
   // 미기록 라운딩 — 지난 일정(오늘 포함) 중 라운딩 기록이 1:1로 배정되지 않은 것.
