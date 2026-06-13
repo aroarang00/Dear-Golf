@@ -112,9 +112,10 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, 
           )}
           {isMoment ? (
             <>
-              <Text style={dS.detailCourseTxt}>{item.date} {item.day}</Text>
+              {/* 일상은 구장·스코어가 없어 날짜가 사실상 제목 — 본문(fs15 sys)과 위계가 안 갈려 굵고 크게 보강(공유 detailCourseTxt 대신 전용, 2026-06-13) */}
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, letterSpacing: 0.3 }}>{item.date} {item.day}</Text>
               {item.memo ? (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.textPrimary, lineHeight: 24, marginTop: 10 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.textPrimary, lineHeight: 24, marginTop: 12 }}>
                   {item.memo}
                 </Text>
               ) : null}
