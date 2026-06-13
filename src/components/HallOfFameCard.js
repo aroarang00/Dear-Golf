@@ -33,7 +33,9 @@ export function HallOfFameCard({ item, onShare }) {
 
   return (
     <LinearGradient colors={hofGradient(item.type)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={[dS.hofCard, { backgroundColor: 'transparent' }]}>
+      // 공유 캡처(onShare 없음)일 땐 카드 간격용 marginBottom 제거 — ViewShot이 그 여백까지 담아
+      // 저장 이미지 하단에 모달 배경(흰 띠)이 비치던 것 방지
+      style={[dS.hofCard, { backgroundColor: 'transparent' }, !onShare && { marginBottom: 0 }]}>
       {/* 배경 깊이 — 평면 색면을 재질감 있게. 좌상단 부드러운 광원(금속 광택) + 우하단 비네팅(명암 깊이)을
           absolute로 깔아 콘텐츠 아래에만 작용(텍스트 가독성·레이아웃 불변). 사진이 아닌 '재질 강화' 방향 ([[score-brag-card]]) */}
       <LinearGradient pointerEvents="none" colors={['rgba(255,255,255,0.10)', 'transparent']}
