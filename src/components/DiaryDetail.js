@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Image } from 'expo-image'; // 상세 사진 그리드 디스크캐시 — 피드 카드(expo-image)와 캐시 공유로 '한 장씩 뜨는' 지연 제거 ([[image-load-speed]])
 import { showAppAlert } from './AppAlert';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,6 +43,21 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, isFirstSingle, 
   ];
 
   const photosToShow = item.photos || [];
+
+  // 상세 진입 즉시 원격 사진(영상은 포스터)을 병렬 프리페치 → 그리드가 화면에 그려지길 기다리지 않고
+  // 미리 디스크캐시에 적재해 '한 장씩 뜨는' 지연 제거. 로컬(file://)은 이미 디스크에 있어 제외 ([[image-load-speed]]).
+  useEffect(() => {
+    const uris = photosToShow
+      .map((p) => {
+        if (p && typeof p === 'object') {
+          if (p.type === 'video') return p.poster ? resolvePhotoUri(p.poster) : null;
+          return resolvePhotoUri(p.uri);
+        }
+        return resolvePhotoUri(p);
+      })
+      .filter((u) => typeof u === 'string' && /^https?:/.test(u));
+    if (uris.length) Image.prefetch(uris, { cachePolicy: 'memory-disk' });
+  }, [item.id]);
 
   const handleDelete = () => {
     // 삭제는 단일 동작으로 통일 — 기록 + 연결된 개인 일정 함께 삭제(라운지 일정은 보호).
@@ -347,7 +363,7 @@ function GridThumb({ item, src }) {
     return (
       <View style={{ flex: 1 }}>
         {thumb ? (
-          <Image source={{ uri: thumb }} style={dS.photoGridImg} resizeMode="cover" />
+          <Image source={{ uri: thumb }} style={dS.photoGridImg} contentFit="cover" cachePolicy="memory-disk" transition={150} />
         ) : (
           <View style={[dS.photoGridImg, { backgroundColor: '#2A2622' }]} />
         )}
@@ -367,5 +383,5 @@ function GridThumb({ item, src }) {
     );
   }
 
-  return <Image source={{ uri: src }} style={dS.photoGridImg} resizeMode="cover" />;
+  return <Image source={{ uri: src }} style={dS.photoGridImg} contentFit="cover" cachePolicy="memory-disk" transition={150} />;
 }

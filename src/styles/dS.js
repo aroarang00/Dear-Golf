@@ -100,7 +100,7 @@ export const dS = StyleSheet.create({
   photosArea:      { padding: 16 },
   photosLabel:     { fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5 },
   photosGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  photoGridItem:   { width: (SW - 38) / 2, height: (SW - 38) / 2, borderRadius: 10, overflow: 'hidden' },
+  photoGridItem:   { width: (SW - 38) / 2, height: (SW - 38) / 2, borderRadius: 10, overflow: 'hidden', backgroundColor: '#E8E3D8' },
   photoGridImg:    { width: '100%', height: '100%' },
   banner:      { marginHorizontal: 16, marginVertical: 14, backgroundColor: C.butter + '22', borderWidth: 0.5, borderColor: C.butter, borderRadius: 10, padding: 12 },
   bannerTitle: { fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, marginBottom: 2 },
