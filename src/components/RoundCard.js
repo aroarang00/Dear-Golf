@@ -87,10 +87,12 @@ export function RoundCard({ item, width = 320 }) {
         ) : null}
       </View>
 
-      {/* 하단 — 반투명 정보 패널(홈 카드 톤 + 골드 보더). 텍스트를 박스에 담아 입체·가독 */}
-      <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14,
-        backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)',
-        paddingHorizontal: 16, paddingTop: 13, paddingBottom: 14 }}>
+      {/* 하단 정보 — 사진 있을 때만 반투명 박스(홈 카드 톤 + 골드 보더)로 가독성 확보.
+          사진 없으면 차콜 배경 위 텍스트가 이미 또렷 → 박스 생략(있으면 되려 촌스러움, 사용자 지시) */}
+      <View style={[
+        { position: 'absolute', left: 14, right: 14, bottom: 14, paddingTop: 13, paddingBottom: 14, paddingHorizontal: photoUri ? 16 : 4 },
+        photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
+      ]}>
         {/* 골드 헤어라인 */}
         <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 9 }} />
         <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: WHITE, letterSpacing: 0.2 }, SHADOW]}>
