@@ -160,14 +160,18 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   //   살짝 보였음(실측 확인). KC(358)를 써야 입력 바 바닥이 키보드 윗면에 딱 붙음. 컨테이너 paddingBottom = KC ([[dm-design]]).
   const kbLift = useSharedValue(0);
   const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
+  // 키보드와 '동시에' 입력창을 밀어 올림(인스타식). will 이벤트로 키보드 슬라이드 시작과 같이 출발 + 키보드 자체 duration을 써
+  //   같은 속도로 따라 올라감. did 이벤트는 will 미발화(일부 기기) 대비 최종값 보장. e.height=KC(per-device 동적, 윈도우 기준).
   useEffect(() => {
-    const show = KeyboardEvents.addListener('keyboardDidShow', (e) => {
-      kbLift.value = withTiming(Math.round(e?.height || 0), { duration: 200 });
-    });
-    const hide = KeyboardEvents.addListener('keyboardDidHide', () => {
-      kbLift.value = withTiming(0, { duration: 200 });
-    });
-    return () => { show.remove(); hide.remove(); };
+    const onShow = (e) => { kbLift.value = withTiming(Math.round(e?.height || 0), { duration: e?.duration || 220 }); };
+    const onHide = (e) => { kbLift.value = withTiming(0, { duration: e?.duration || 220 }); };
+    const subs = [
+      KeyboardEvents.addListener('keyboardWillShow', onShow),
+      KeyboardEvents.addListener('keyboardDidShow', onShow),
+      KeyboardEvents.addListener('keyboardWillHide', onHide),
+      KeyboardEvents.addListener('keyboardDidHide', onHide),
+    ];
+    return () => subs.forEach((s) => s.remove());
   }, []);
   const [myUid, setMyUid] = useState(null);
   const [convId, setConvId] = useState(null);
