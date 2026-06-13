@@ -23,6 +23,7 @@ import { GolfLedgerModal } from './GolfLedgerModal';
 import { MyPageModal } from './MyPageModal';
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
+import { loadUnreadTotal } from '../utils/dm';
 import { getTrustGrade } from '../constants/trustGrade';
 import { ROUTES } from '../constants/routes';
 import { getMannerGrade } from '../constants/mannerGrade';
@@ -92,6 +93,10 @@ export function DiaryScreen({ route, navigation }) {
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
   const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
   const [dmOpen, setDmOpen] = useState(false);   // 내 프로필 → DM 목록(인스타식) ([[dm-design]])
+  const [dmUnread, setDmUnread] = useState(0);   // 총 안읽음 DM 수 — 💬 진입점 N 뱃지([[dm-design]]). 진입/닫기 시 갱신(라이브 아님, 비용 절약)
+  // 안읽음 합산은 마운트(첫 진입)와 DM 모달 닫힐 때만 1회 로드 — 상시 구독 없이 비용 0에 가깝게([[lounge-realtime]]).
+  //   DM 목록을 열어 읽으면 unread가 0으로 리셋되므로, 닫고 돌아오면 뱃지가 갱신됨.
+  useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
   const [dmChat, setDmChat] = useState(null);    // 목록에서 연 대화 상대 { uid, name }
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
@@ -608,6 +613,13 @@ export function DiaryScreen({ route, navigation }) {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ position: 'absolute', top: -18, right: -12 }}>
               <Text style={{ fontSize: fs(36), textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>💬</Text>
+              {/* 안읽음 N 뱃지 — 점 대신 개수(사용자 결정 2026-06-13). 목록 뱃지(#E5484D)와 색 통일, 크림 테두리로 분리 */}
+              {dmUnread > 0 && (
+                <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, minWidth: 18, height: 18, borderRadius: 9,
+                  paddingHorizontal: 5, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: C.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
           {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}

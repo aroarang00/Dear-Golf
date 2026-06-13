@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
+import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler'; // 행 좌측밀기 삭제(친구카드와 동일 레거시 Swipeable). RN Modal 안이라 자체 RootView 필요
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 
@@ -12,7 +13,7 @@ const DM_PALESKY  = '#C8D9E6';                 // 미리보기·시각 — 채�
 const DM_LINE     = 'rgba(255,255,255,0.08)';  // 다크용 헤어라인·구분선
 const DM_AVATAR   = '#46403B';                 // 친구 아바타 이니셜 배경(대화방과 통일)
 import { getUid } from '../utils/firebase';
-import { subscribeConversations, otherUidOf } from '../utils/dm';
+import { subscribeConversations, otherUidOf, clearConversation } from '../utils/dm';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 import { loadMyFriendsEnriched, loadMyBlockedUids } from '../utils/friends';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -103,14 +104,28 @@ export function DMListScreen({ onClose, onOpenChat }) {
     [convs, blocked, myUid]
   );
 
+  // 좌측밀기 → 삭제(나만 목록에서 숨김). 상대·기록엔 영향 없음, 새 메시지 오면 다시 뜸([[dm-design]]).
+  //   낙관적 제거(즉시 사라짐) + clearedAt 기록. 실패 시 구독 스냅샷이 되살림.
+  const handleDelete = useCallback((conv) => {
+    setConvs(prev => (prev || []).filter(c => c.id !== conv.id));
+    clearConversation(conv.id).catch(e => { if (__DEV__) console.warn('[DMList] clear', e?.message); });
+  }, []);
+  const renderRightActions = (conv) => (
+    <TouchableOpacity activeOpacity={0.8} onPress={() => handleDelete(conv)}
+      style={{ width: 84, backgroundColor: '#B3261E', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>삭제</Text>
+    </TouchableOpacity>
+  );
+
   const renderItem = ({ item }) => {
     const ouid = otherUidOf(item, myUid);
     const name = friendDisplayName(friendMeta, ouid, nameMap[ouid] || '친구');
     const avatar = avatarMap[ouid];
     const unreadN = item.unread?.[myUid] || 0;  // 안읽은 메시지 수(목록 뱃지)
     return (
+      <Swipeable renderRightActions={() => renderRightActions(item)} overshootRight={false} friction={2}>
       <TouchableOpacity activeOpacity={0.7} onPress={() => onOpenChat?.(ouid, name, avatar || null)}
-        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, gap: 12 }}>
+        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, gap: 12, backgroundColor: DM_CANVAS }}>
         {/* 사진 우선 + 이니셜 fallback — 대화방 아바타와 통일(다크 차콜 배경 + 버터골드 이니셜) */}
         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {avatar && /^https?:\/\//.test(avatar) ? (
@@ -136,12 +151,15 @@ export function DMListScreen({ onClose, onOpenChat }) {
           </View>
         </View>
       </TouchableOpacity>
+      </Swipeable>
     );
   };
 
   return (
     // RN Modal(DiaryScreen) 안에선 루트 SafeAreaProvider가 안 닿아 inset이 0이 됨(헤더 상태바 겹침) → 자체 Provider로 재측정.
     //   DMChatScreen과 동일 처리([[dm-design]] iOS safe-area 버그). initialWindowMetrics로 첫 프레임 깜빡임 방지.
+    //   ★GestureHandlerRootView — RN Modal은 별도 윈도라 루트 RootView가 안 닿음. 행 스와이프(Swipeable) 제스처를 받으려면 모달 안에 자체 RootView 필요(안드 특히).
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
     <SafeAreaView style={{ flex: 1, backgroundColor: DM_CANVAS }} edges={['top', 'bottom', 'left', 'right']}>
       {/* 다크 룸이라 상태바 아이콘 밝게 — 언마운트 시 자동복원([[dm-design]] StatusBar 패턴) */}
@@ -168,5 +186,6 @@ export function DMListScreen({ onClose, onOpenChat }) {
       />
     </SafeAreaView>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

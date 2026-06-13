@@ -5,11 +5,21 @@
 //   안 읽음·타이핑은 출시 후(비용 큰 실시간 상태) — 본체는 텍스트 송수신만.
 import {
   collection, query, where, orderBy, limit as fsLimit, getDocs, getDoc,
-  addDoc, setDoc, updateDoc, doc, serverTimestamp, onSnapshot, deleteField,
+  addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp, onSnapshot, deleteField,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
 const CONV = 'conversations';
+
+// '나만 목록에서 지움' 판정 — clearedAt.{내uid} 이후로 새 메시지(lastAt)가 없으면 내 목록에서 숨김.
+//   상대 문서는 공용이라 실제 삭제 불가(규칙 delete:false) → 내 키만 기록하는 방식(읽음·타이핑과 동일 패턴).
+//   숨긴 뒤 새 메시지가 오면 lastAt > clearedAt 이 되어 다시 보임(카톡식). 기록 자체는 보존(명함 💬로 들어가면 그대로).
+function isCleared(conv, uid) {
+  const cl = conv?.clearedAt?.[uid];
+  const clMs = cl?.toMillis ? cl.toMillis() : 0;
+  const laMs = conv?.lastAt?.toMillis ? conv.lastAt.toMillis() : 0;
+  return clMs > 0 && clMs >= laMs;
+}
 
 // 두 uid → 결정적 방 id(정렬 조합). a·b 순서 무관하게 같은 방 ([[data-integrity-principles]] 멱등).
 export function pairId(a, b) {
@@ -70,6 +80,28 @@ export async function sendMessage(friendUid, text, replyTo = null) {
     updatedAt: serverTimestamp(),
   }, { merge: true }).catch((e) => { if (__DEV__) console.warn('[dm] conv meta', e?.message); });
   return msgRef.id;
+}
+
+// 메시지 삭제(언센드) — 본인 메시지만 완전 삭제(양쪽 화면에서 사라짐). 규칙이 senderUid==나만 허용([[dm-design]]).
+//   인용(replyTo)은 보낸 시점 스냅샷이라 원본을 지워도 인용문은 유지(끊기지 않음). 실패는 호출부에서 안내.
+export async function deleteMessage(convId, msgId) {
+  if (!convId || !msgId) throw new Error('dm: delete args');
+  await deleteDoc(doc(db, CONV, convId, 'messages', msgId));
+}
+
+// 대화방 '나만 목록에서 지우기' — clearedAt.{내uid}=서버시간 기록(상대 영향 0, 새 메시지 오면 부활). 규칙은 clearedAt 본인 키만 허용.
+export async function clearConversation(convId) {
+  const uid = await getUid();
+  if (!uid || !convId) return;
+  await updateDoc(doc(db, CONV, convId), { [`clearedAt.${uid}`]: serverTimestamp() });
+}
+
+// 총 안읽음 수 — 내 대화방 unread.{uid} 합산(명함 💬 진입점 뱃지용). 숨긴(cleared) 방은 loadMyConversations에서 이미 제외됨.
+export async function loadUnreadTotal() {
+  const uid = await getUid();
+  if (!uid) return 0;
+  const convs = await loadMyConversations();
+  return convs.reduce((s, c) => s + (c.unread?.[uid] || 0), 0);
 }
 
 // 공감(리액션) — 메시지 reactions 맵에 '내 uid 키'만 set/제거(보안규칙과 1:1 대응, 본문 불변).
@@ -134,7 +166,7 @@ export async function loadMyConversations() {
     orderBy('lastAt', 'desc'),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.lastMessage);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.lastMessage && !isCleared(c, uid));
 }
 
 // 내 대화방 목록 실시간 구독 — 목록 화면 열린 동안만. uid는 호출부에서(getUid는 async).
@@ -146,6 +178,6 @@ export function subscribeConversations(uid, cb) {
     orderBy('lastAt', 'desc'),
   );
   return onSnapshot(q, (snap) => {
-    cb(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.lastMessage));
+    cb(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.lastMessage && !isCleared(c, uid)));
   }, (err) => { if (__DEV__) console.warn('[dm] conversations snapshot', err?.message); });
 }

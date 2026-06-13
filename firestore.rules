@@ -505,6 +505,11 @@ service cloud.firestore {
         && request.auth.uid in resource.data.participantUids
         && changedKeysWithin(['typing'])
         && request.resource.data.get('typing', {}).diff(resource.data.get('typing', {})).affectedKeys().hasOnly([request.auth.uid]);
+      // '나만 목록에서 지우기' — 본인 clearedAt 키만 갱신(상대 영향 0). 멤버십만(읽음·타이핑과 동일, 위조방지=자기 키만).
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.participantUids
+        && changedKeysWithin(['clearedAt'])
+        && request.resource.data.get('clearedAt', {}).diff(resource.data.get('clearedAt', {})).affectedKeys().hasOnly([request.auth.uid]);
       allow delete: if false;
 
       match /messages/{msgId} {

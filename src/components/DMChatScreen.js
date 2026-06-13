@@ -7,7 +7,7 @@ import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controll
 import { useSafeAreaInsets, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
-import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping } from '../utils/dm';
+import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -325,6 +325,23 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     }
   }, [replyTo, friendUid, devPreview]);
 
+  // 메시지 삭제(언센드) — 본인 메시지만. 확인 후 양쪽 화면에서 완전 삭제(실시간 구독이 양쪽 반영). devPreview는 convId 없어 무시.
+  const confirmDeleteMsg = () => {
+    const target = reactTarget;
+    setReactTarget(null);
+    if (!target || !convId) return;
+    setAlert({
+      title: '메시지를 삭제할까요?',
+      message: '나와 상대방 모두에게서\n이 메시지가 사라져요.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: () => {
+          deleteMessage(convId, target.id).catch(e => { if (__DEV__) console.warn('[DMChat] delete', e?.message); });
+        } },
+      ],
+    });
+  };
+
   // 공감 토글 — 같은 이모지 다시 누르면 해제. 실패(차단·친구해지 거부)는 조용히(차단 비노출 정책, 실시간이라 화면 반영도 안 됨)
   const handleReact = async (emoji) => {
     const target = reactTarget;
@@ -532,6 +549,15 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               <Text style={{ fontSize: fs(15) }}>↩️</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>답장</Text>
             </TouchableOpacity>
+            {/* 삭제(언센드) — 내 메시지만. 확인 후 양쪽서 사라짐 ([[dm-design]]) */}
+            {reactTarget.senderUid === myUid && (
+              <TouchableOpacity activeOpacity={0.8} onPress={confirmDeleteMsg}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
+                  borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                <Text style={{ fontSize: fs(15) }}>🗑️</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>삭제</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       )}
