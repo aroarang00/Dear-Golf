@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, Platform } from 'react-native';
+import Svg, { Path } from 'react-native-svg'; // 메시지 말풍선 — 벡터라 iOS·안드 픽셀 동일(꼬리까지 깔끔)
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
@@ -35,15 +36,15 @@ export function FriendsScreen({ navigation }) {
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
             <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.navy }}>Friends</Text>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: 4 }}>
-              <View style={{ minWidth: 34, height: 27, borderRadius: 9, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 }}>
-                {/* 안읽음 없으면 'DM' 라벨, 있으면 숫자 — 말풍선이 항상 차 있어 아이콘이 또렷(사용자 2026-06-13) */}
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(dmUnread > 0 ? 13 : 12), letterSpacing: dmUnread > 0 ? 0 : 0.5, color: '#fff' }}>
-                  {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
-                </Text>
-              </View>
-              {/* 좌하단 꼬리 — 회전 사각형이 박스 아래로 살짝 나와 말풍선 모양 */}
-              <View pointerEvents="none" style={{ position: 'absolute', bottom: -3, left: 8, width: 11, height: 11, backgroundColor: C.navy, transform: [{ rotate: '45deg' }], borderRadius: 2 }} />
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: 4, width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}>
+              {/* 말풍선 — SVG 벡터(좌하단 꼬리 포함). 글리프 이모지 대신이라 안에 텍스트 얹기 가능, 양 플랫폼 동일 렌더 */}
+              <Svg width={34} height={34} viewBox="0 0 24 24" style={{ position: 'absolute' }}>
+                <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill={C.navy} />
+              </Svg>
+              {/* 안읽음 없으면 'DM' 라벨, 있으면 숫자 — 꼬리(하단) 피해 살짝 위로(marginBottom) 중앙 */}
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(dmUnread > 0 ? 12 : 11), letterSpacing: dmUnread > 0 ? 0 : 0.3, color: '#fff', marginBottom: 5 }}>
+                {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
