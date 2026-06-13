@@ -22,7 +22,9 @@ const REASON_OPTIONS = [
 
 const MIN_EVIDENCE = 10; // 근거 텍스트 최소 글자 수 (의도적 마찰)
 
-export function ReportModal({ visible, onClose }) {
+// presetTarget({id,name}) — 대상을 미리 고정(DM 등 상대를 이미 아는 경우 1단계 닉네임 검색 건너뜀, 변경 불가).
+// prefillEvidence — 근거란 초기값(DM 메시지 인용 자동 삽입 등). 둘 다 옵셔널, 없으면 기존 7단계 흐름 그대로.
+export function ReportModal({ visible, onClose, presetTarget = null, prefillEvidence = '' }) {
   const { userProfile } = useContext(UserContext);
   const [remaining, setRemaining] = useState(REPORT_MONTH_LIMIT);
   const [query, setQuery] = useState('');
@@ -40,7 +42,7 @@ export function ReportModal({ visible, onClose }) {
 
   useEffect(() => {
     if (!visible) return;
-    setQuery(''); setTarget(null); setReason(null); setEvidence(''); setAlert(null);
+    setQuery(''); setTarget(presetTarget || null); setReason(null); setEvidence(prefillEvidence || ''); setAlert(null);
     getReportRemainingThisMonth().then(setRemaining);
   }, [visible]);
 
@@ -154,10 +156,13 @@ export function ReportModal({ visible, onClose }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{target.name.charAt(0)}</Text>
                     </View>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, flex: 1 }}>{target.name}</Text>
-                    <TouchableOpacity onPress={() => { setTarget(null); setQuery(''); }}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray,
-                        textDecorationLine: 'underline' }}>변경</Text>
-                    </TouchableOpacity>
+                    {/* presetTarget(DM 등 대상 고정)일 땐 변경 불가 — 그 외엔 변경 버튼 노출 */}
+                    {!presetTarget && (
+                      <TouchableOpacity onPress={() => { setTarget(null); setQuery(''); }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray,
+                          textDecorationLine: 'underline' }}>변경</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ) : (
                   <>

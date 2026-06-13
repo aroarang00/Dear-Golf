@@ -10,7 +10,9 @@ import { getUid } from '../utils/firebase';
 import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
+import { ReportModal } from './ReportModal';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useBlockUser } from '../hooks/useBlockUser';
 
 
 // ⚠️TEMP __DEV__ 키보드 미리보기 — 로그인·친구 없이 Metro에서 DM 키보드 레이아웃만 점검(가짜 대화방). 검증 후 제거.
@@ -215,9 +217,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const lastTypingMsRef = useRef(0);    // 상대 typing 마지막 시각(값 변화 감지용 — Date.now 비교 안 함)
   const myUidRef = useRef(null);        // 구독 콜백에서 내/상대 메시지 판별용(클로저 stale·재구독 방지)
   const typingState = useRef({ last: 0, stop: null });  // 내 typing 디바운스(쓰기 절약)
+  const { block: blockUserFn, remaining: blockRemaining } = useBlockUser(); // 공용 차단 훅(친구 차단과 동일 동작)
+  const [optionsOpen, setOptionsOpen] = useState(false);    // 헤더 ⋯ 옵션 시트(신고·차단)
+  const [reportPrefill, setReportPrefill] = useState(null); // 신고 모달 — null=닫힘, 문자열=열림(근거 프리필=메시지 인용 등)
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
-  // 피커가 떠 있으면 뒤로가기는 피커만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
+  // 피커·옵션시트가 떠 있으면 뒤로가기는 그것만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
+  useAndroidBack(optionsOpen, () => setOptionsOpen(false));
 
   // 키보드가 뜨면 마지막 메시지가 보이게 끝으로 스크롤 (입력영역 띄우기는 keyboard-controller KAV가 처리)
   useEffect(() => {
@@ -340,6 +346,26 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         { text: '삭제', style: 'destructive', onPress: () => {
           deleteMessage(convId, target.id).catch(e => { if (__DEV__) console.warn('[DMChat] delete', e?.message); });
         } },
+      ],
+    });
+  };
+
+  // 신고 — 상대(friendUid) 대상 ReportModal 열기. prefill=근거란 초기값(메시지 신고 시 그 메시지 인용 스냅샷 → 언센드돼도 증거 보존).
+  const openReport = (prefill = '') => { setReactTarget(null); setOptionsOpen(false); if (devPreview || !friendUid) return; setReportPrefill(prefill); };
+  // 차단 — 친구 차단과 동일(공용 훅). 한도 체크 → 확인 → 차단되면 대화 불가라 대화방 닫기. devPreview(가짜 대화방)는 무시.
+  const confirmBlock = () => {
+    setOptionsOpen(false);
+    if (devPreview || !friendUid) return;
+    if (blockRemaining <= 0) {
+      setAlert({ title: '차단 횟수 초과', message: '오늘 차단 가능한 횟수를 초과했어요.\n내일 다시 시도해주세요.', buttons: [{ text: '확인' }] });
+      return;
+    }
+    setAlert({
+      title: `${friendName}님을 차단할까요?`,
+      message: '친구가 끊기고, 이 사람의 글·모집·메시지가\n더 이상 보이지 않아요.\n\n💡 상대방에게는 알림이 가지 않아요.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '차단', style: 'destructive', onPress: async () => { const r = await blockUserFn(friendUid); if (r?.ok) onClose(); } },
       ],
     });
   };
@@ -475,11 +501,10 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: DM_BUTTER }} numberOfLines={1}>{friendName}</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 2 }}>님과 대화 중</Text>
         </View>
-        {onOpenOptions && (
-          <TouchableOpacity onPress={onOpenOptions} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ fontSize: fs(22), color: DM_PALESKY }}>⋯</Text>
-          </TouchableOpacity>
-        )}
+        {/* ⋯ 옵션 — 신고·차단 시트(아래 자체 오버레이). onOpenOptions(외부 위임)가 오면 그걸 우선. */}
+        <TouchableOpacity onPress={() => (onOpenOptions ? onOpenOptions() : setOptionsOpen(true))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={{ fontSize: fs(22), color: DM_PALESKY }}>⋯</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 채팅 리스트 — flex로 남은 공간 채움. 키보드 뜨면 상위 Reanimated.View의 kbPadStyle(키보드높이 패딩)로
@@ -560,9 +585,43 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>삭제</Text>
               </TouchableOpacity>
             )}
+            {/* 신고 — 받은(상대) 메시지만. 그 메시지를 인용해 신고 모달 근거에 프리필(증거 스냅샷 → 언센드돼도 보존) */}
+            {reactTarget.senderUid !== myUid && (
+              <TouchableOpacity activeOpacity={0.8}
+                onPress={() => openReport(`[받은 메시지] "${(reactTarget.body || '').slice(0, 200)}"`)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
+                  borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                <Text style={{ fontSize: fs(15) }}>🚩</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>신고</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       )}
+      {/* ⋯ 옵션 시트 — 신고·차단(바텀 시트, 자체 오버레이=Modal 중첩 회피). 바깥 탭/뒤로가기 닫기 */}
+      {optionsOpen && (
+        <TouchableOpacity activeOpacity={1} onPress={() => setOptionsOpen(false)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: DM_FIELD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 10) + 6 }}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => openReport('')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: fs(17) }}>🚩</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>{friendName}님 신고</Text>
+            </TouchableOpacity>
+            <View style={{ height: 0.5, backgroundColor: 'rgba(0,0,0,0.08)', marginHorizontal: 20 }} />
+            <TouchableOpacity activeOpacity={0.7} onPress={confirmBlock}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: fs(17) }}>🚫</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>{friendName}님 차단</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
+      {/* 신고 모달 — 상대 고정(presetTarget) + 메시지 인용 프리필. ReportModal은 Modal(MyPage 내부서도 검증된 중첩 패턴) */}
+      <ReportModal visible={reportPrefill !== null}
+        onClose={() => setReportPrefill(null)}
+        presetTarget={{ id: friendUid, name: friendName }}
+        prefillEvidence={reportPrefill || ''} />
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>
   );
