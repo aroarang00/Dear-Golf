@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StatusBar } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler'; // 행 좌측밀기 삭제(친구카드와 동일 레거시 Swipeable). RN Modal 안이라 자체 RootView 필요
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -53,7 +53,22 @@ export function DMListScreen({ onClose, onOpenChat }) {
   const [avatarMap, setAvatarMap] = useState({});  // uid → 원격 avatarUrl (사진 우선·이니셜 fallback, 친구리스트와 동일)
   const [friendMeta, setFriendMeta] = useState({});
   const [blocked, setBlocked] = useState([]);  // 차단 uid — 늦게 도착해도 렌더에서 필터(목록 즉시 표시 위해 구독과 분리)
+  const [friendsList, setFriendsList] = useState([]);  // 전체 친구(새 메시지 친구 선택용) — 이미 로드하던 목록 재사용
+  const [composeOpen, setComposeOpen] = useState(false);  // '새 메시지' 친구 선택 오버레이
+  const [composeQuery, setComposeQuery] = useState('');
   useAndroidBack(true, onClose);
+  useAndroidBack(composeOpen, () => setComposeOpen(false));  // 새 메시지 떠 있으면 뒤로가기는 그것만 닫기(나중 등록=우선 소비)
+
+  // 새 메시지 친구 선택 — 차단 제외 + 이름(별명·닉네임·본명) 검색. 탭 즉시 대화방.
+  const composeFiltered = useMemo(() => {
+    const base = friendsList.filter(f => f.id && !blocked.includes(f.id));
+    const q = composeQuery.trim();
+    if (!q) return base;
+    return base.filter(f => {
+      const dn = friendDisplayName(friendMeta, f.id, nameMap[f.id] || f.nickname || f.name || '');
+      return dn?.includes(q) || f.nickname?.includes(q) || f.name?.includes(q) || f.realName?.includes(q);
+    });
+  }, [friendsList, composeQuery, blocked, friendMeta, nameMap]);
 
   // 캐시된 친구 이름·아바타 즉시 표시(다음 진입부터 N번 user 문서 읽기를 안 기다림) — fresh 로드 도착하면 갱신.
   useEffect(() => {
@@ -90,6 +105,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
           });
           setNameMap(m);
           setAvatarMap(av);
+          setFriendsList(friends || []);
           setBlocked(blockedArr || []);
           storage.save(STORAGE_KEYS.dmFriendMeta, { names: m, avatars: av, meta: fd.friendMeta || {} });
         }
@@ -169,7 +185,10 @@ export function DMListScreen({ onClose, onOpenChat }) {
           <Text style={{ fontSize: fs(24), color: DM_BUTTER }}>←</Text>
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: DM_BUTTER }}>메시지</Text>
-        {/* 'DM 알림 받기' 전역 토글 자리 — 출시 후 실연결([[dm-design]] 알림 설정) */}
+        {/* 새 메시지 — 친구 선택해 바로 대화(대화한 적 없는 친구도). 인스타·카톡식 ✏️ */}
+        <TouchableOpacity onPress={() => { setComposeQuery(''); setComposeOpen(true); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={{ fontSize: fs(22), color: DM_BUTTER }}>✏️</Text>
+        </TouchableOpacity>
       </View>
       <FlatList
         data={visibleConvs}
@@ -179,11 +198,57 @@ export function DMListScreen({ onClose, onOpenChat }) {
         ListEmptyComponent={convs !== null ? (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: DM_PALESKY, textAlign: 'center', lineHeight: 22 }}>
-              아직 주고받은 메시지가 없어요{'\n'}친구 프로필에서 대화를 시작해보세요
+              아직 주고받은 메시지가 없어요{'\n'}오른쪽 위 ✏️로 친구에게 먼저 말을 걸어보세요
             </Text>
           </View>
         ) : null}
       />
+      {/* '새 메시지' 친구 선택 — 다크 오버레이(SafeAreaView 안 absolute=중첩 Modal/Provider 회피). 검색 + 탭 즉시 대화방 */}
+      {composeOpen && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: DM_CANVAS }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, backgroundColor: DM_SURFACE, gap: 12 }}>
+            <TouchableOpacity onPress={() => setComposeOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontSize: fs(24), color: DM_BUTTER }}>←</Text>
+            </TouchableOpacity>
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: DM_BUTTER }}>새 메시지</Text>
+          </View>
+          <View style={{ paddingHorizontal: 14, paddingVertical: 10, backgroundColor: DM_SURFACE, borderBottomWidth: 0.5, borderBottomColor: DM_LINE }}>
+            <TextInput value={composeQuery} onChangeText={setComposeQuery}
+              placeholder="친구 이름 검색" placeholderTextColor={'rgba(200,217,230,0.4)'}
+              style={{ fontFamily: F.sys, fontSize: fs(15), color: '#EDE9E1', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }} />
+          </View>
+          <FlatList
+            data={composeFiltered}
+            keyExtractor={(f) => f.id}
+            keyboardShouldPersistTaps="handled"
+            ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: DM_LINE, marginLeft: 72 }} />}
+            renderItem={({ item }) => {
+              const dn = friendDisplayName(friendMeta, item.id, nameMap[item.id] || item.nickname || item.name || '친구');
+              const av = avatarMap[item.id] || item.avatarUri;
+              const hasPhoto = av && /^https?:\/\//.test(av);
+              return (
+                <TouchableOpacity activeOpacity={0.7}
+                  onPress={() => { setComposeOpen(false); setComposeQuery(''); onOpenChat?.(item.id, dn, hasPhoto ? av : null); }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {hasPhoto
+                      ? <Image source={{ uri: av }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+                      : <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter }}>{(dn || '?').charAt(0)}</Text>}
+                  </View>
+                  <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(16), color: DM_BUTTER }} numberOfLines={1}>{dn}</Text>
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={{ alignItems: 'center', paddingVertical: 50 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: DM_PALESKY, textAlign: 'center', lineHeight: 22 }}>
+                  {composeQuery ? '검색 결과가 없어요' : '아직 친구가 없어요\n친구를 추가하면 메시지를 보낼 수 있어요'}
+                </Text>
+              </View>
+            }
+          />
+        </View>
+      )}
     </SafeAreaView>
     </SafeAreaProvider>
     </GestureHandlerRootView>
