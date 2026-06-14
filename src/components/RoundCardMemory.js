@@ -29,11 +29,17 @@ export function RoundCardMemory({ item, width = 320 }) {
 
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
   const playerName = (item.playerName || '').trim();
-  const companionNames = formatNameList(
-    (item.companions || []).map(c => (typeof c === 'string' ? c : (c?.name || ''))),
-    { sep: ', ' }
-  );
-  const memo = (item.memo || '').trim();
+  // WITH 명단 — 내 이름(playerName)도 맨 앞에 포함. companions의 isMe는 빼고(중복 방지) 본인은 playerName으로 통일.
+  //   긴 닉네임은 WITH 줄 numberOfLines=1 + formatNameList(4명+'외 N명')로 말줄임 → 카드 안 늘어남.
+  const _others = (item.companions || [])
+    .filter(c => !(typeof c === 'object' && c?.isMe))
+    .map(c => (typeof c === 'string' ? c : (c?.name || '')))
+    .filter(Boolean);
+  const _self = playerName || (((item.companions || []).find(c => typeof c === 'object' && c?.isMe) || {}).name || '').trim();
+  // 동반자(나 외)가 있을 때만 WITH 줄 표시 — 솔로면 빈 문자열로 줄 자체를 숨김(다른 문구 안 채움, 사용자 2026-06-14)
+  const companionNames = _others.length > 0
+    ? formatNameList([...new Set([_self, ..._others].filter(Boolean))], { sep: ', ' })
+    : '';
   // 특별한 순간 — 홀인원·이글 등은 item.special(워터마크 자리로), 베스트·싱글은 스코어 기반 영예칩(하단)
   const isSingle = typeof item.score === 'number' && item.score <= 79;
   const isBest = item.badge === '베스트';
@@ -94,17 +100,12 @@ export function RoundCardMemory({ item, width = 320 }) {
         {/* 함께한 사람 — 동반자 있을 때만(없으면 본인 이름은 위 메타줄에 이미 표시됨). 솔로 라운딩도 자연스럽게 포괄 */}
         {companionNames ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
-            <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD_DEEP, letterSpacing: 2, marginRight: 8 }, SHADOW]}>WITH</Text>
+            <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD_DEEP, letterSpacing: 1, marginRight: 6 }, SHADOW]}>WITH</Text>
             <Text numberOfLines={1} style={[{ flex: 1, fontFamily: F.sysB, fontSize: fs(14), color: WHITE }, SHADOW]}>{companionNames}</Text>
           </View>
         ) : null}
 
-        {/* 한줄메모 — 한글 인용. ★Lora(F.brand)는 한글 글리프 없어 안드서 가짜 이탤릭으로 '누워' 보임 → Pretendard(F.sys) 정자로(사용자 2026-06-14) */}
-        {memo ? (
-          <Text numberOfLines={2} style={[{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(246,242,233,0.92)', lineHeight: fs(19), marginTop: 7 }, SHADOW]}>
-            "{memo}"
-          </Text>
-        ) : null}
+        {/* 한줄메모 제거(2026-06-14) — 기념카드는 사진 주인공, 정보 최소화(구장·날짜·동반자만) */}
         </View>
       </View>
     </View>

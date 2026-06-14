@@ -5,18 +5,31 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../constants/colors';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { getCountryFlag } from '../constants/data';
-import { formatNameList } from '../utils/nameList';
 
-// 라운딩 자랑 카드 — '모던 화이트(갤러리)' 스타일. 흰 카드 + 사진 + 정제된 골드/차콜 정보.
-//  4종 중 유일한 밝은 카드(다크 매거진·딥그린 스코어·다크 기념과 대비). 빈티지 폴라로이드(Lora 손글씨·세피아)는
-//  디어골프 럭셔리 톤과 안 맞아 폐기 → 미술관 액자처럼 깔끔한 화이트 럭셔리로 전환(사용자 2026-06-14).
-//  타수는 사진에서 빼고 하단 정보로(구장 / 타수 + Dear Golf / 이름·날짜). 동반자 있으면 본인 이름 대신 동반자(중복 회피).
-//  글자색 = 차콜(구장·메타) + 골드 포인트(타수·헤어라인). 너무 튀지 않게 고급스럽게.
+// 라운딩 자랑 카드 — '모던 화이트(갤러리)'. 인스타 피드 퀄리티 목표(2026-06-14 정밀 교정):
+//  A 사진 마운팅(안쪽 헤어라인 + 상/하 미세 음영 = 깊이) · B 편집형 캡션(영문 트래킹 날짜 라벨 → 구장 히어로
+//  → 골드 룰 → 멘트, 타수는 SCORE 스탯으로 우상단) · C 흰 바탕 웜 그라데이션(평면 회피·종이 온기).
+//  4종 중 유일한 밝은 카드(다크 매거진·딥그린 스코어·다크 기념과 대비).
 
-const INK = '#2A2622';                  // 차콜 — 구장명(또렷·고급)
-const INK_SOFT = 'rgba(42,38,34,0.55)'; // 연한 차콜 — 이름·날짜
-const GOLD = '#C9A84C';                 // 골드 포인트 — 타수·헤어라인
-const GOLD_DEEP = '#A9854A';            // 깊은 골드 — Dear Golf 워드마크
+const INK = '#2A2622';                  // 차콜 — 멘트
+const NAVY = '#1A3D52';                 // 구장명 — 네이비(사용자 지시. 원래 라운지색 [[navy-lounge-color]])
+const GOLD = '#C9A84C';                 // 골드 — 타수·룰
+const GOLD_DEEP = '#A9854A';            // 깊은 골드 — SCORE 라벨
+// 브랜드 삼색 미니바(랜딩·초대카드와 동일 톤) — 하단 시그니처
+const MS_YELLOW = '#ECD884';
+const MS_SKY = '#B2CADD';
+const MS_BURGUNDY = '#6B1E2A';
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+// "2026.06.14" → "JUN 14, 2026"(편집형 날짜 라벨). 파싱 실패 시 원본 유지.
+function fmtDate(d) {
+  const p = (d || '').split(/[.\-/]/).map(s => s.trim()).filter(Boolean);
+  if (p.length >= 3) {
+    const mo = parseInt(p[1], 10), da = parseInt(p[2], 10);
+    if (MONTHS[mo - 1] && da) return `${MONTHS[mo - 1]} ${da}, ${p[0]}`;
+  }
+  return d || '';
+}
 
 export function RoundCardPolaroid({ item, width = 320 }) {
   const height = Math.round(width * 1.25);
@@ -25,69 +38,77 @@ export function RoundCardPolaroid({ item, width = 320 }) {
   const photoUri = photoRaw ? resolvePhotoUri(typeof photoRaw === 'object' ? photoRaw.uri : photoRaw) : null;
 
   const hasScore = typeof item.score === 'number';
-  const diff = hasScore && typeof item.par === 'number' ? item.score - item.par : null;
-  const diffLabel = diff == null ? '' : diff > 0 ? `+${diff}` : `${diff}`;
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
-  const playerName = (item.playerName || '').trim();
-  const companionNames = formatNameList(
-    (item.companions || []).map(c => (typeof c === 'string' ? c : (c?.name || ''))),
-    { sep: ', ' }
-  );
-  // 하단 메타 — 동반자 있으면 동반자(본인 이름 빼 중복 회피), 없으면 본인 이름
-  const who = companionNames || playerName;
+  const memo = (item.memo || '').trim();
+  const special = item.special || null; // 홀인원·이글 등 — 사진 좌상단 작은 버건디 배지
+  const dateLabel = fmtDate(item.date);
 
-  const FRAME = Math.round(width * 0.055);   // 흰 테두리(살짝 슬림)
-  const photoH = Math.round(height * 0.62);  // 사진 영역 0.62 유지 — 키우면 하단 동반자 줄이 넘쳐 잘리고, contain 특성상 가로사진 여백도 늘어 역효과. 사진을 크게는 cover(좌우 잘림)만 가능
+  const FRAME = Math.round(width * 0.055);
+  const photoH = Math.round(height * 0.56);  // 편집형 캡션(날짜라벨·룰·멘트3줄) 공간 확보 위해 0.62→0.56
 
   return (
-    <View style={{ width, height, borderRadius: 8, overflow: 'hidden', backgroundColor: '#FCFAF5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+    <View style={{ width, height, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
+      {/* C — 흰 바탕 웜 그라데이션(평면 #FCFAF5 대신 종이 온기) */}
+      <LinearGradient colors={['#FFFDF8', '#F2EBDC']} start={{ x: 0.35, y: 0 }} end={{ x: 0.65, y: 1 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+
       <View style={{ padding: FRAME }}>
-        {/* 사진 영역 — 타수 칩 제거(하단 정보로 이동) */}
-        <View style={{ width: '100%', height: photoH, borderRadius: 3, backgroundColor: '#FCFAF5', overflow: 'hidden' }}>
+        {/* A — 사진 마운팅: 안쪽 헤어라인 + 상/하 미세 음영(깊이·갤러리 프린트 느낌) */}
+        <View style={{ width: '100%', height: photoH, borderRadius: 3, overflow: 'hidden', backgroundColor: '#E7E0D2', borderWidth: 1, borderColor: 'rgba(0,0,0,0.14)' }}>
           {photoUri ? (
-            // contain — 가로 사진도 잘리지 않게 다 담음(중앙). Dear Golf는 사진 비율 따라 반 걸치던 것 → 사진에서 빼고 하단 구장명 줄로(사용자 2026-06-14)
-            <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={false} />
+            <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
           ) : (
             <LinearGradient colors={['#EFEADD', '#E0D8C5']} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.brand, fontSize: fs(22), color: 'rgba(42,38,34,0.35)' }}>Dear Golf</Text>
             </LinearGradient>
           )}
-        </View>
-
-        {/* 하단 정보 — 모던 화이트 갤러리(골드 헤어라인 + 차콜 구장 + 골드 타수 + Dear Golf) */}
-        <View style={{ paddingTop: 13, paddingHorizontal: 2 }}>
-          <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginBottom: 9 }} />
-          {/* 구장명(좌) + Dear Golf(우 서명) — 사진 위에 두면 사진 비율 따라 반 걸쳐서 하단 고정 위치로(사용자 2026-06-14) */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(19), color: INK, letterSpacing: 0.2, marginRight: 8 }}>
-              {flag ? flag + ' ' : ''}{item.course || '라운딩'}
-            </Text>
-            <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: GOLD_DEEP }}>Dear Golf</Text>
-          </View>
-          {/* 타수(좌, 골드) + 날짜(우, diff와 같은 fs12) — 한 줄에 합쳐 줄 수 안 늘리고 사진 크기 유지(사용자 2026-06-14).
-              Dear Golf는 사진 우측 상단. 날짜를 동반자와 다른 줄에 둬 닉네임 길어도 날짜 안 잘림 */}
-          {(hasScore || item.date) ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
-              {hasScore ? (
-                <>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(30), lineHeight: fs(32), color: GOLD }}>{item.score}</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, marginLeft: 3, marginBottom: 3 }}>타</Text>
-                  {diffLabel ? (
-                    <Text style={{ fontFamily: F.en, fontSize: fs(12), color: INK_SOFT, letterSpacing: 0.5, marginLeft: 8, marginBottom: 3 }}>{diffLabel}</Text>
-                  ) : null}
-                </>
-              ) : null}
-              {/* 날짜 — 타수·diff 바로 옆(우측 끝 X). 사용자 2026-06-14 */}
-              {item.date ? (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(42,38,34,0.5)', marginLeft: hasScore ? 10 : 0, marginBottom: 3 }}>{item.date}</Text>
-              ) : null}
+          {/* 상단 음영 — Dear Golf·special 배지 가독용(맨 위에만 살짝, 사진 많이 안 가리게). 사용자 2026-06-14 */}
+          <LinearGradient colors={['rgba(0,0,0,0.34)', 'transparent']} pointerEvents="none"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(photoH * 0.14) }} />
+          {/* 하단 미세 음영 — 마운트 깊이 */}
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.13)']} pointerEvents="none"
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.round(photoH * 0.16) }} />
+          {photoUri ? (
+            <Text style={{ position: 'absolute', top: 8, right: 10, fontFamily: F.brand, fontSize: fs(14), color: '#fff',
+              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 }}>Dear Golf</Text>
+          ) : null}
+          {/* 특별한 순간 — 사진 좌상단 작은 배지. 기존 스타일(투명+골드 테두리·골드 글씨), 사진 위 가독 위해 반투명 바탕+그림자(사용자 2026-06-14) */}
+          {special ? (
+            <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: INK, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3.5 }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(10), color: '#F5E6A8', letterSpacing: 1.5 }}>{special}</Text>
             </View>
           ) : null}
-          {/* 동반자 — 별도 줄(길면 …). 날짜는 위 타수 줄에 있어 영향 없음 */}
-          {who ? (
-            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK_SOFT, marginTop: 7 }}>{who}</Text>
+        </View>
+
+        {/* B — 편집형 캡션: SCORE 스탯(우상단) / 날짜 라벨 → 구장 히어로 → 골드 룰 → 멘트 */}
+        <View style={{ paddingTop: 12, paddingHorizontal: 2 }}>
+          {hasScore ? (
+            <View style={{ position: 'absolute', top: 11, right: 2, alignItems: 'flex-end' }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(9), letterSpacing: 3, color: GOLD_DEEP }}>SCORE</Text>
+              <Text style={{ fontFamily: F.en, fontSize: fs(38), lineHeight: fs(40), color: GOLD, marginTop: 1 }}>{item.score}</Text>
+            </View>
+          ) : null}
+          {dateLabel ? (
+            <Text style={{ fontFamily: F.en, fontSize: fs(11), letterSpacing: 2, color: 'rgba(42,38,34,0.62)' }}>{dateLabel}</Text>
+          ) : null}
+          <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(20), color: NAVY, letterSpacing: 0.2, marginTop: 4, paddingRight: hasScore ? 56 : 0 }}>
+            {flag ? flag + ' ' : ''}{item.course || '라운딩'}
+          </Text>
+          <View style={{ height: 1.5, width: 26, backgroundColor: GOLD, marginTop: 9, marginBottom: 9 }} />
+          {/* 멘트 — 행잉 인용: 여는 따옴표를 왼쪽에 걸고 본문은 그 뒤로 정렬 → 둘째 줄이 첫 줄 본문과 맞게 살짝 밀림. 행간 fs20 */}
+          {memo ? (
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK, lineHeight: fs(20) }}>"</Text>
+              <Text numberOfLines={3} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: INK, lineHeight: fs(20) }}>{memo}"</Text>
+            </View>
           ) : null}
         </View>
+      </View>
+      {/* 브랜드 삼색 미니바 — 하단 시그니처. 사진 폭만큼(좌우 FRAME) 꽉 채워 배치(사용자 2026-06-14) */}
+      <View style={{ position: 'absolute', bottom: FRAME, left: FRAME, right: FRAME, flexDirection: 'row', height: 3, borderRadius: 2, overflow: 'hidden' }}>
+        <View style={{ flex: 1, backgroundColor: MS_YELLOW }} />
+        <View style={{ flex: 1, backgroundColor: MS_SKY }} />
+        <View style={{ flex: 1, backgroundColor: MS_BURGUNDY }} />
       </View>
     </View>
   );

@@ -9,8 +9,8 @@ import { getCountryFlag } from '../constants/data';
 //  언더/버디 홀만 골드 강조(못친 홀 깎지 않음 [[golfer-score-psychology]]). holeScores 없으면 총타수 폴백.
 //  ※ 18홀 표 텍스트는 fs() 최소12 클램프 피해 고정 px(캡처 이미지라 폰트스케일 무관).
 
-const GREEN_TOP = '#22352A';
-const GREEN_BOT = '#15211A';
+const GREEN_TOP = '#33513E'; // 그라데이션 강하게(사용자 2026-06-14) — 위 더 밝은 그린
+const GREEN_BOT = '#0D1510'; // 아래 더 어둡게 — 대비 ↑
 const GOLD = '#E8D9A0';
 const WHITE = '#F0EDE3';
 const BURGUNDY = '#6B1E2A'; // 특별한 순간(홀인원·이글 등) 채움 알약 — 딥그린 배경 위에 버건디+크림 글자로 도드라짐 ([[score-brag-card]])
@@ -59,10 +59,14 @@ export function RoundCardScorecard({ item, width = 320 }) {
 
         {/* 상단 블록 — 헤더(구장·날짜·이름) + 총타수(표 위 강조) + 18홀 표. 표 아래가 너무 남던 것 → 토탈을 표 위로 + space-between 분산 */}
         <View>
-          <View>
-            <Text style={{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 3 }}>SCORECARD</Text>
-            <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(18), color: WHITE, marginTop: 9 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
-            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, marginTop: 5 }}>{playerName ? playerName + '   ·   ' : ''}{item.date}</Text>
+          {/* 헤더 — 좌: SCORECARD·구장·날짜 / 우상단: Dear Golf 워터마크(사용자 2026-06-14) */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 3 }}>SCORECARD</Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(18), color: WHITE, marginTop: 9 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, marginTop: 5 }}>{playerName ? playerName + '   ·   ' : ''}{item.date}</Text>
+            </View>
+            <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: WHITE, marginLeft: 12 }}>Dear Golf</Text>
           </View>
 
           {/* 총타수 — 표 위 왼쪽 정렬(사용자 2026-06-14). 헤더와 간격 늘려 하단 여백 줄임(홀별 표 행간은 유지) */}
@@ -79,7 +83,7 @@ export function RoundCardScorecard({ item, width = 320 }) {
             </View>
           ) : null}
 
-          <View style={{ height: 1, backgroundColor: LINE, marginVertical: 18 }} />
+          <View style={{ height: 1, backgroundColor: LINE, marginTop: 16, marginBottom: 8 }} />
 
           {/* 18홀 표 — OUT(1-9) / IN(10-18). 버디·이글(언더)은 골드 + 밑줄 */}
           {scores ? (
@@ -99,11 +103,6 @@ export function RoundCardScorecard({ item, width = 320 }) {
               </Text>
             </View>
           )}
-        </View>
-
-        {/* 푸터 — Dear Golf만(날씨 제거) */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }}>Dear Golf</Text>
         </View>
       </LinearGradient>
     </View>
