@@ -40,7 +40,7 @@ export function FriendInviteCard({ width = 320 }) {
       {/* 컨텐츠 세로 중앙 정렬 — 미니카드가 중간에 들어가며 상단이 휑하던 것 해소(사용자 지시) */}
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingTop: 18, paddingBottom: 30 }}>
         {/* 헤드라인(한글) — 정체성 멘트 */}
-        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), lineHeight: fs(12) * 1.5, letterSpacing: 0.5, color: CHARCOAL_SOFT, textAlign: 'center' }}>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), lineHeight: fs(11) * 1.55, letterSpacing: 0.5, color: CHARCOAL_SOFT, textAlign: 'center' }}>
           골프, 동반자, 그리고{'\n'}우리의 빛나는 아카이브
         </Text>
         {/* Dear Golf 워드마크 */}

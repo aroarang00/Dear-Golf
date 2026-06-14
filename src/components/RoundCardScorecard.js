@@ -58,19 +58,19 @@ export function RoundCardScorecard({ item, width = 320 }) {
         <View>
           <View>
             <Text style={{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 3 }}>SCORECARD</Text>
-            <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(18), color: WHITE, marginTop: 6 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
-            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, marginTop: 3 }}>{playerName ? playerName + '   ·   ' : ''}{item.date}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(18), color: WHITE, marginTop: 9 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, marginTop: 5 }}>{playerName ? playerName + '   ·   ' : ''}{item.date}</Text>
           </View>
 
-          {/* 총타수 — 표 위 중앙 강조(날씨 제거). 사용자 2026-06-14 */}
+          {/* 총타수 — 표 위 왼쪽 정렬(사용자 2026-06-14). 헤더와 간격 늘려 하단 여백 줄임(홀별 표 행간은 유지) */}
           {totalScore != null ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', marginTop: 16, marginBottom: 2 }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(44), lineHeight: fs(46), color: GOLD }}>{totalScore}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', marginTop: 22, marginBottom: 4 }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: GOLD }}>{totalScore}</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, letterSpacing: 2, marginLeft: 6, marginBottom: 7 }}>TOTAL</Text>
             </View>
           ) : null}
 
-          <View style={{ height: 1, backgroundColor: LINE, marginVertical: 12 }} />
+          <View style={{ height: 1, backgroundColor: LINE, marginVertical: 18 }} />
 
           {/* 18홀 표 — OUT(1-9) / IN(10-18). 버디·이글(언더)은 골드 + 밑줄 */}
           {scores ? (

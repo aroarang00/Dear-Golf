@@ -46,7 +46,12 @@ export function RoundCardPolaroid({ item, width = 320 }) {
         {/* 사진 영역 — 타수 칩 제거(하단 정보로 이동) */}
         <View style={{ width: '100%', height: photoH, borderRadius: 3, backgroundColor: '#EEE9DC', overflow: 'hidden' }}>
           {photoUri ? (
-            <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
+            <>
+              <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
+              {/* Dear Golf 워터마크 — 사진 우측 상단(흰색 + 그림자로 사진 위 가독). 사용자 2026-06-14 */}
+              <Text style={{ position: 'absolute', top: 9, right: 11, fontFamily: F.brand, fontSize: fs(14), color: '#fff',
+                textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Dear Golf</Text>
+            </>
           ) : (
             <LinearGradient colors={['#EFEADD', '#E0D8C5']} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.brand, fontSize: fs(22), color: 'rgba(42,38,34,0.35)' }}>Dear Golf</Text>
@@ -60,19 +65,16 @@ export function RoundCardPolaroid({ item, width = 320 }) {
           <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(19), color: INK, letterSpacing: 0.2 }}>
             {flag ? flag + ' ' : ''}{item.course || '라운딩'}
           </Text>
-          {/* 타수(좌, 골드) + Dear Golf(우) — 타수 자리에 워드마크 동거 */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8 }}>
-            {hasScore ? (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(30), lineHeight: fs(32), color: GOLD }}>{item.score}</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, marginLeft: 3, marginBottom: 3 }}>타</Text>
-                {diffLabel ? (
-                  <Text style={{ fontFamily: F.en, fontSize: fs(12), color: INK_SOFT, letterSpacing: 0.5, marginLeft: 8, marginBottom: 3 }}>{diffLabel}</Text>
-                ) : null}
-              </View>
-            ) : <View />}
-            <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: GOLD_DEEP, marginBottom: 2 }}>Dear Golf</Text>
-          </View>
+          {/* 타수(좌, 골드) — Dear Golf는 사진 우측 상단으로 이동(사용자 2026-06-14) */}
+          {hasScore ? (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(30), lineHeight: fs(32), color: GOLD }}>{item.score}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, marginLeft: 3, marginBottom: 3 }}>타</Text>
+              {diffLabel ? (
+                <Text style={{ fontFamily: F.en, fontSize: fs(12), color: INK_SOFT, letterSpacing: 0.5, marginLeft: 8, marginBottom: 3 }}>{diffLabel}</Text>
+              ) : null}
+            </View>
+          ) : null}
           {/* 이름·날짜 (동반자 있으면 동반자) */}
           {metaLine ? (
             <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK_SOFT, marginTop: 7 }}>
