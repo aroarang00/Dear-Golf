@@ -13,8 +13,9 @@ import { getCountryFlag } from '../constants/data';
 //  - 플레이어 이름(realName||nickname, DiaryScreen에서 주입) 표시 — "누구의 라운딩"인지 분명히.
 //  - 줄 간격 촘촘하게(횅함 방지). 워터마크 = 상단 ROUND RECAP(Playfair 세리프) + Dear Golf(Lora 이탤릭).
 //  - 좋은 날(베스트·싱글·해외 등)만 골드 액센트 칩, 평범·힘든 날은 중립.
-//  ★사진 없음(차콜 폴백)은 별도 레이아웃 — 풀블리드 사진이 채우던 중앙이 비어 허전하므로, 상단 ROUND RECAP /
-//   중앙 구장명·타수(주인공) / 하단 메타·Dear Golf 서명으로 상·중·하 분산(2026-06-14, 빌드 후 간격 미세조정 예정).
+//  ★사진 없음(차콜 폴백)은 별도 레이아웃 — 풍부한 차콜 그라데이션 + 광원/비네팅으로 사진 같은 질감을 주고,
+//   정보는 하단 패널에 배치(중앙은 그라데이션 여백). special(홀인원·이글 등)은 구장명 위 골드바 위에 크게.
+//   (중앙배열은 그라데이션 느낌이 안 살아 하단 배치로 되돌림 — 사용자 빌드 확인 2026-06-14)
 //  - ViewShot으로 캡처되는 그래픽 — width는 캡처 컨테이너 폭을 받아 4:5 세로 비율로 그림.
 
 const GOLD = '#E8D9A0';
@@ -59,9 +60,11 @@ export function RoundCard({ item, width = 320 }) {
           allowDownscaling={false}
         />
       ) : (
+        // 사진 없음 — 풍부한 차콜 그라데이션(3색 깊이). 아래 분기의 광원·비네팅 레이어와 합쳐 사진 같은 질감
         <LinearGradient
-          colors={['#4A443D', '#2A2622']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          colors={['#46403A', '#2E2A25', '#1A1815']}
+          locations={[0, 0.55, 1]}
+          start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
         />
       )}
@@ -122,44 +125,47 @@ export function RoundCard({ item, width = 320 }) {
           </View>
         </>
       ) : (
-        // ───────────────── 사진 없음 — 상·중·하 분산(중앙이 주인공) ─────────────────
+        // ───────────────── 사진 없음 — 그라데이션 질감 배경 + 하단 정보 패널 ─────────────────
         <>
-          {/* 상단 — ROUND RECAP만(Dear Golf는 하단 서명으로 내림) */}
-          <View style={{ position: 'absolute', top: 16, left: 18, right: 18 }}>
+          {/* 배경 깊이(사진 같은 질감) — 좌상단 광원 + 우하단 비네팅 + 하단 어둡게(패널 안착) */}
+          <LinearGradient pointerEvents="none" colors={['rgba(255,255,255,0.09)', 'transparent']}
+            start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 0.62 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+          <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.32)', 'rgba(0,0,0,0.58)']}
+            locations={[0.32, 0.74, 1]} start={{ x: 0.4, y: 0.2 }} end={{ x: 1, y: 1 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+
+          {/* 상단 — ROUND RECAP(좌) + Dear Golf 워터마크(우상단) */}
+          <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
+            <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
           </View>
 
-          {/* 중앙쪽 — 골드 헤어라인 + 구장명 + 타수(주인공). 정중앙은 과해서 paddingBottom으로 시각 중심을 살짝 위로
-              올림(상단 라벨과 균형, 하단 서명과 여유). 정확한 위치는 빌드 후 미세조정(사용자 지시 2026-06-14) */}
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingBottom: Math.round(height * 0.16) }}>
-            <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 14 }} />
-            <Text numberOfLines={2} style={[{ fontFamily: F.sysB, fontSize: fs(24), color: CHAMPAGNE, letterSpacing: 0.2, textAlign: 'center', lineHeight: fs(30) }, SHADOW]}>
+          {/* 하단 정보 패널 — special(크게)·골드바·구장·메타·타수. 차콜 배경 위라 박스 없이 또렷.
+              하단에 완전히 붙이지 않고 여유를 둠(bottom 32, 사용자 지시 2026-06-14) */}
+          <View style={{ position: 'absolute', left: 20, right: 20, bottom: 32 }}>
+            {/* 특별한 순간(홀인원·이글·싱글·베스트) — 구장명 위, 골드바 위에 크게 강조 */}
+            {accentLabel ? (
+              <Text style={[{ fontFamily: F.en, fontSize: fs(18), color: GOLD, letterSpacing: 3, marginBottom: 9 }, SHADOW]}>{accentLabel}</Text>
+            ) : null}
+            <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 10 }} />
+            <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(22), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
               {flag ? flag + ' ' : ''}{item.course || '라운딩'}
             </Text>
-            {hasScore ? (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 16 }}>
-                <Text style={[{ fontFamily: F.en, fontSize: fs(52), lineHeight: fs(54), color: scoreColor }, SHADOW]}>{item.score}</Text>
-                <Text style={[{ fontFamily: F.sysB, fontSize: fs(16), color: scoreColor, marginLeft: 5, marginTop: 10 }, SHADOW]}>타</Text>
-              </View>
-            ) : null}
-            {hasScore && diffLabel ? (
-              <Text style={[{ fontFamily: F.en, fontSize: fs(14), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginTop: 6 }, SHADOW]}>
-                {diffLabel}   ·   par {item.par}
-              </Text>
-            ) : null}
-            {accentLabel ? (
-              <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 3, paddingHorizontal: 10, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.25)', marginTop: 14 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }}>{accentLabel}</Text>
-              </View>
-            ) : null}
-          </View>
-
-          {/* 하단 — 이름·날짜·날씨 메타(좌) + Dear Golf 서명(우) */}
-          <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <Text numberOfLines={1} style={[{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginRight: 8 }, SHADOW]}>
+            <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 7 }, SHADOW]}>
               {metaLine}
             </Text>
-            <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
+            {hasScore ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
+                <Text style={[{ fontFamily: F.en, fontSize: fs(48), lineHeight: fs(50), color: scoreColor }, SHADOW]}>{item.score}</Text>
+                <Text style={[{ fontFamily: F.sysB, fontSize: fs(15), color: scoreColor, marginLeft: 4, marginBottom: 6 }, SHADOW]}>타</Text>
+                {diffLabel ? (
+                  <Text style={[{ fontFamily: F.en, fontSize: fs(14), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 10, marginBottom: 7 }, SHADOW]}>
+                    {diffLabel}   ·   par {item.par}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         </>
       )}
