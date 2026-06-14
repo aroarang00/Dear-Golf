@@ -80,9 +80,15 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
           <Text style={dS.backBtn}>←</Text>
         </TouchableOpacity>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={[dS.detailHdrNickname, isSpecial && { backgroundColor: '#8B6914' }]}>
-            <Text style={dS.detailHdrNicknameTxt}>{userProfile.nickname}</Text>
-          </View>
+          {/* 카드 공유 — 내 닉네임(상세는 항상 내 기록이라 잉여) 자리로 이동. 배지 줄에서 밀리던 문제 해결(2026-06-15 사용자).
+              라운딩만(일상은 onShare undefined). 다이어리 골드 펄 ([[score-brag-card]]) */}
+          {onShare && (
+            <TouchableOpacity onPress={() => onShare(item)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+              style={[dS.detailHdrNickname, { backgroundColor: '#8B6914', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+              <Text style={{ fontSize: fs(11) }}>🔗</Text>
+              <Text style={dS.detailHdrNicknameTxt}>카드 공유</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={() => setShowEditModal(true)}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>수정</Text>
           </TouchableOpacity>
@@ -169,16 +175,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
               </View>
             )}
-            {/* 공유 — 칩(버튼) 대신 색 텍스트로(앱에 버튼 스타일이 많아 중복 회피, 사용자 지시). 다이어리 골드 테마색. 내 기록일 때만 ([[score-brag-card]]) */}
-            {onShare && (
-              <TouchableOpacity
-                onPress={() => onShare(item)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ marginLeft: 'auto', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Text style={{ fontSize: fs(12) }}>🔗</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>공유</Text>
-              </TouchableOpacity>
-            )}
+            {/* 공유 버튼은 헤더(닉네임 자리)로 이동 — 배지 늘면 밀리던 문제 해결(2026-06-15) */}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
