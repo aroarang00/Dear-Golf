@@ -22,6 +22,8 @@ const TIME_IMAGES = {
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
     require('../../../assets/home-bg/day1.jpg'),
     require('../../../assets/home-bg/day2.jpg'), // 자연 풍경 + 코스·페어웨이·호수
+    require('../../../assets/home-bg/day3.jpg'), // 화창 — 연못·벙커·숲 (사용자 사진, 2026-06-14 추가)
+    require('../../../assets/home-bg/day4.jpg'), // 화창 — 페어웨이·연못·산·카트 (사용자 사진, 2026-06-14 추가)
     require('../../../assets/home-bg/lateAfternoon3.jpg'), // 대낮 파란하늘 — 노을 아님(늦은오후 풀에서 이동)
   ],
   lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을
@@ -35,6 +37,12 @@ const TIME_IMAGES = {
     require('../../../assets/home-bg/night2.jpg'), // 별 + 나무 실루엣
   ],
 };
+
+// 흐림(cloudy) 전용 사진 — 실제 구름 낀 골프장(회색 하늘). 날씨가 흐림이고 낮 시간대면 시간대 사진 대신 사용
+//   (톤 오버레이로만 표현하던 것 보강, 사용자 사진 2026-06-14). 밤엔 낮 흐림 사진이 안 어울려 제외. 비(rain)는 사진 없어 톤만(현행).
+const CLOUDY_IMAGES = [
+  require('../../../assets/home-bg/cloudy1.jpg'),
+];
 
 // 날씨별 그라데이션 오버레이 — 위/아래(글씨 영역)는 진하게, 가운데는 옅게.
 //  맑음: 초록 다크톤 / 흐림: 회색 (사진 채도·밝기 죽임) / 비: 더 어두운 청회색
@@ -52,9 +60,12 @@ function timeBucket(d = new Date()) {
   return 'night';                                 // 21~05 진짜 밤
 }
 
-function pickImage() {
-  const arr = TIME_IMAGES[timeBucket()] || TIME_IMAGES.day;
+function pickFrom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function pickImage() {
+  return pickFrom(TIME_IMAGES[timeBucket()] || TIME_IMAGES.day);
 }
 
 // 현재 날씨 (30분 캐시) — 위치 권한 없으면 맑음.
@@ -102,22 +113,25 @@ export function cacheCurrentWx(current) {
 export function HomeBgSlider() {
   const [imageUri, setImageUri] = useState(pickImage);
   const [weather, setWeather] = useState('clear');
-  // 현재 사진의 시간대 — 같은 시간대면 사진을 그대로 둔다.
+  // 현재 표시 사진의 '카테고리'(시간대 morning/day/lateAfternoon/night 또는 흐림 'cloudy') — 같은 카테고리면 사진 유지.
   // (매 포그라운드 복귀마다 랜덤 재추출하면 안드 <Image> 크로스페이드로 두 사진이 겹쳐 보임)
-  const bucketRef = useRef(timeBucket());
+  const catRef = useRef(timeBucket());
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
-      // 시간대(아침/낮/노을/밤)가 실제로 바뀌었을 때만 사진 교체 — 불필요한 깜빡임 제거
       const b = timeBucket();
-      if (b !== bucketRef.current) {
-        bucketRef.current = b;
-        setImageUri(pickImage());
-      }
       const w = await getCurrentWxClass();
       if (cancelled) return;
-      setWeather(w === 'rain' ? 'rain' : w === 'cloudy' ? 'cloudy' : 'clear');
+      const tone = w === 'rain' ? 'rain' : w === 'cloudy' ? 'cloudy' : 'clear';
+      setWeather(tone);
+      // 흐림이고 낮 시간대면 실제 흐림 사진, 아니면 시간대 사진. 카테고리(시간대/흐림)가 바뀔 때만 교체(깜빡임 제거)
+      const useCloudy = tone === 'cloudy' && b !== 'night';
+      const cat = useCloudy ? 'cloudy' : b;
+      if (cat !== catRef.current) {
+        catRef.current = cat;
+        setImageUri(useCloudy ? pickFrom(CLOUDY_IMAGES) : pickFrom(TIME_IMAGES[b] || TIME_IMAGES.day));
+      }
     };
     refresh();
     // 앱이 포그라운드로 돌아올 때마다 — 현재 시간대·날씨로 갱신
