@@ -37,7 +37,7 @@ export function RoundCardPolaroid({ item, width = 320 }) {
   const who = companionNames || playerName;
 
   const FRAME = Math.round(width * 0.055);   // 흰 테두리(살짝 슬림)
-  const photoH = Math.round(height * 0.62);  // 사진 영역 — 날짜를 타수 줄로 옮겨 줄 수 안 늘려 사진 크기 복원(2026-06-14)
+  const photoH = Math.round(height * 0.62);  // 사진 영역 0.62 유지 — 키우면 하단 동반자 줄이 넘쳐 잘리고, contain 특성상 가로사진 여백도 늘어 역효과. 사진을 크게는 cover(좌우 잘림)만 가능
 
   return (
     <View style={{ width, height, borderRadius: 8, overflow: 'hidden', backgroundColor: '#FCFAF5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
@@ -46,8 +46,9 @@ export function RoundCardPolaroid({ item, width = 320 }) {
         <View style={{ width: '100%', height: photoH, borderRadius: 3, backgroundColor: '#FCFAF5', overflow: 'hidden' }}>
           {photoUri ? (
             <>
-              {/* contain — 폴라로이드만 가로 사진도 잘리지 않게 다 담음(사용자 2026-06-14). 위아래 흰 여백은 폴라로이드 톤과 어울림 */}
-              <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={false} />
+              {/* contain — 가로 사진도 잘리지 않게 다 담되 contentPosition top으로 사진을 위쪽 정렬 → Dear Golf 워터마크가
+                  항상 사진 위에 오게(여백 위가 아니라). 아래 여백은 흰 하단 정보와 자연스럽게 이어짐(사용자 2026-06-14) */}
+              <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" contentPosition="top" cachePolicy="memory-disk" allowDownscaling={false} />
               {/* Dear Golf 워터마크 — 사진 우측 상단. 작게(반쯤 걸치던 것 줄임) + 반투명 칩으로 흰 여백서도 가독(사용자 2026-06-14) */}
               <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(20,18,16,0.4)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
                 <Text style={{ fontFamily: F.brand, fontSize: fs(11), color: '#fff' }}>Dear Golf</Text>
