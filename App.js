@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -46,7 +46,7 @@ try {
   console.warn('[Sentry] init skipped:', e?.message);
 }
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import * as SystemUI from 'expo-system-ui';
 import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
@@ -87,6 +87,25 @@ import { ROUTES } from './src/constants/routes';
 
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
+
+// 안드 edge-to-edge 첫 프레임 보정 게이트 ([[android_edge_to_edge]] 증상③).
+//  화면(Tab scene)이 첫 마운트 때 상태바 inset(top)이 아직 0인 채로 그려져 상태바만큼 아래로 밀리고,
+//  그 위 빈칸에 루트 배경(paleSky)이 '띠'로 비친다. 네비게이션으로 화면이 재마운트되면 측정된 inset으로
+//  정상 배치(=풀블리드)되던 자가치유(사용자 실측 확정)를, 사용자가 보기 전에 미리 끝내는 방식.
+//  → top inset이 측정(>0)된 뒤에만 자식(NavigationContainer)을 마운트. 그동안은 SplashOverlay가 덮고 있어 깜빡임 없음.
+//  iOS는 edge-to-edge 강제 이슈가 없어 즉시 통과. 일부 기기/상황에서 0이 지속될 수 있으니 600ms 폴백.
+function InsetGate({ children }) {
+  const insets = useSafeAreaInsets();
+  const [ready, setReady] = useState(Platform.OS !== 'android');
+  useEffect(() => {
+    if (ready) return;
+    if (insets.top > 0) { setReady(true); return; }
+    const t = setTimeout(() => setReady(true), 600);
+    return () => clearTimeout(t);
+  }, [ready, insets.top]);
+  if (!ready) return null;
+  return children;
+}
 
 function App() {
   const [userProfile, setUserProfile] = useState(USER_PROFILE_INIT);
@@ -401,7 +420,7 @@ function App() {
   if (!profileLoaded || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paleSky }}>
-        <SplashContent />
+        <SplashContent fadeIn />
       </View>
     );
   }
@@ -438,6 +457,7 @@ function App() {
     <SchedulesProvider>
     <DiariesProvider>
     <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge }}>
+    <InsetGate>
     <NavigationContainer
       ref={navigationRef}
       onReady={() => sentryNavigationIntegration?.registerNavigationContainer?.(navigationRef)}
@@ -499,6 +519,7 @@ function App() {
         );
       })()}
     </NavigationContainer>
+    </InsetGate>
     </FriendBadgeContext.Provider>
     </DiariesProvider>
     </SchedulesProvider>
