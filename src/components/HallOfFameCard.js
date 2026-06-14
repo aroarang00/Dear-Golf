@@ -47,10 +47,13 @@ export function HallOfFameCard({ item, onShare }) {
       {/* 상단 하이라이트 라인 — 광택감 */}
       <View style={{ height: 1, backgroundColor: accentColor + '66' }} />
       <View style={dS.hofHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={[dS.hofType, { color: accentColor, fontSize: fs(22), letterSpacing: 6,
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          {/* 타입 라벨 — letterSpacing 6이라 긴 'HOLE IN ONE'은 폭을 많이 먹음. numberOfLines+adjustsFontSizeToFit로
+              좌측 영역 안에 안전히 맞춰 우측 Dear Golf와 붙지 않게(카드 폭 고정과 함께 폰 무관 일관, 2026-06-14). */}
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
+            style={[dS.hofType, { color: accentColor, fontSize: fs(22), letterSpacing: 6,
             textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 }]}>{typeLabel}</Text>
-          <Text style={[dS.hofDate, { color: 'rgba(255,255,255,0.78)', fontSize: fs(11) }]}>{item.date} · {item.course}</Text>
+          <Text numberOfLines={1} style={[dS.hofDate, { color: 'rgba(255,255,255,0.78)', fontSize: fs(11) }]}>{item.date} · {item.course}</Text>
         </View>
         {onShare && (
           <TouchableOpacity onPress={onShare} activeOpacity={0.7}
@@ -62,12 +65,13 @@ export function HallOfFameCard({ item, onShare }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: accentColor }}>공유</Text>
           </TouchableOpacity>
         )}
-        {/* 공유 이미지(onShare 없음)일 때만 카드 안에 Dear Golf 브랜드 마크 — 카드 배경 위라 항상 또렷, 투명배경 영향 X.
-            헤더가 alignItems:center라 그냥 두면 2줄 블록 중앙으로 처져 보임 → typeLabel 첫 줄에 맞춰 상단 정렬. */}
+        {/* 공유 이미지(onShare 없음)일 때만 Dear Golf 브랜드 마크 — 우상단 코너에 작게(골드점 제거).
+            typeLabel 첫 줄에 맞춰 상단 정렬. 글씨를 줄여 좌측 타입 라벨과 여유 확보(붙음 방지, 2026-06-14). */}
         {!onShare && (
-          <Text style={{ fontFamily: F.brand, fontSize: fs(13), color: accentColor, marginRight: 10, alignSelf: 'flex-start', marginTop: 5 }}>Dear Golf</Text>
+          <Text style={{ fontFamily: F.brand, fontSize: fs(11), color: accentColor, alignSelf: 'flex-start', marginTop: 3 }}>Dear Golf</Text>
         )}
-        <View style={[dS.hofGoldDot, { backgroundColor: accentColor }, !onShare && { alignSelf: 'flex-start', marginTop: 6 }]} />
+        {/* 골드 점 — 앱 내 목록(onShare)에서만 장식. 공유 카드는 Dear Golf만 깔끔히 두려고 제거. */}
+        {onShare && <View style={[dS.hofGoldDot, { backgroundColor: accentColor }]} />}
       </View>
       <View style={dS.hofGrid}>
         {(isRound

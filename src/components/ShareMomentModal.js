@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
@@ -16,9 +16,10 @@ import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
 
-// 캡처 영역 너비 고정 — ViewShot이 화면 너비를 못 잡으면 셀(47%) 비율이 깨져 박스에 공간이 생기고
-// 텍스트가 잘림. ScrollView 좌우 padding 20씩이라 화면폭 - 40으로 고정.
-const CARD_WIDTH = Dimensions.get('window').width - 40;
+// 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
+// 달라져, 같은 카드도 좁은 폰에선 라벨이 서로 붙는 등 레이아웃이 어긋났음(앱의 얼굴인 공유 이미지 완성도 문제, 2026-06-14).
+// 고정하면 어떤 폰에서 만들어도 동일한 카드·동일한 공유 이미지가 나온다. 대부분 폰(≥360dp)에서 미리보기도 화면에 들어감.
+const CARD_WIDTH = 320;
 
 // 공유 옵션 — ①바로 공유(OS 공유 시트로 카톡·인스타 직행, expo-sharing) ②갤러리 저장(폴백·보관).
 // OS 공유 시트는 카카오 SDK 직접 공유([[share-moment]] 보류)와 별개라 출시 전 사용 가능. 인스타는 제외.
@@ -139,8 +140,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
 
             {/* 공유될 카드 — 명예의 전당 카드 + Dear Golf 워터마크. ViewShot으로 감싸 캡처 영역 지정 */}
             {isRound ? (
-              // 라운딩 카드 3종 캐러셀 — 가로 스와이프로 스타일 선택, 선택된 카드만 캡처/공유
-              <View style={{ width: CARD_WIDTH }}>
+              // 라운딩 카드 캐러셀 — 가로 스와이프로 스타일 선택, 선택된 카드만 캡처/공유
+              <View style={{ width: CARD_WIDTH, alignSelf: 'center' }}>
                 <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
                   onMomentumScrollEnd={(e) => setRoundStyleIdx(Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH))}>
                   {ROUND_CARDS.map((Comp, i) => (
@@ -162,7 +163,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 </Text>
               </View>
             ) : (
-              <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
+              <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH, alignSelf: 'center' }}>
                 {/* 배경 투명 — 카드만 깔끔하게 저장. Dear Golf 마크는 카드 안. width 고정으로 캡처 비율 안정 */}
                 <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
                   {isInvite
