@@ -42,9 +42,9 @@ export function RoundCardMemory({ item, width = 320 }) {
         <LinearGradient colors={['#4A443D', '#2A2622']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
       )}
 
-      {/* 상단 살짝 어둡게(라벨 가독) + 하단 깊은 그라데이션(패널 안착) — 메모 줄까지 들어가 매거진보다 살짝 높게 */}
-      <LinearGradient colors={['rgba(0,0,0,0.45)', 'transparent']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.28) }} />
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)']} locations={[0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.66) }} />
+      {/* 상단/하단 그라데이션 — 사진 위주로 슬림하게(정보 최소화와 함께, 사용자 2026-06-14) */}
+      <LinearGradient colors={['rgba(0,0,0,0.42)', 'transparent']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.20) }} />
+      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)']} locations={[0.32, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.52) }} />
       {/* 얇은 내부 프레임 — 럭셔리 액자 느낌 */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }} />
 
@@ -60,13 +60,13 @@ export function RoundCardMemory({ item, width = 320 }) {
         photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
       ]}>
         {/* 골드 헤어라인 */}
-        <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 9 }} />
+        <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 7 }} />
         <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}
         </Text>
-        {/* 이름 · 날짜 · 날씨 — 골드 한 줄 */}
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 6 }, SHADOW]}>
-          {playerName ? playerName + '   ·   ' : ''}{item.date}{item.weather ? '   ·   ' + item.weather : ''}
+        {/* 날짜만 — 사진 위주로 정보 최소화(이름·날씨 제거, 동반자가 들어가므로). 사용자 2026-06-14 */}
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 5 }, SHADOW]}>
+          {item.date || ''}
         </Text>
 
         {/* 함께한 사람 — 동반자 있을 때만(없으면 본인 이름은 위 메타줄에 이미 표시됨). 솔로 라운딩도 자연스럽게 포괄 */}

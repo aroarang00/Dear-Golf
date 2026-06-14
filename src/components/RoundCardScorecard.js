@@ -37,7 +37,8 @@ export function RoundCardScorecard({ item, width = 320 }) {
         const under = isScore && scores && typeof parOf(i) === 'number' && typeof scores[i] === 'number' && scores[i] < parOf(i);
         return (
           <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: F.en, fontSize: 12,
-            color: label === 'HOLE' ? WHITE : isScore ? (under ? GOLD : WHITE) : MUTE }}>
+            color: label === 'HOLE' ? WHITE : isScore ? (under ? GOLD : WHITE) : MUTE,
+            textDecorationLine: under ? 'underline' : 'none', textDecorationColor: GOLD }}>
             {label === 'HOLE' ? (i + 1) : label === 'PAR' ? (parOf(i) ?? '·') : (scores ? (scores[i] ?? '·') : '·')}
           </Text>
         );
@@ -50,49 +51,49 @@ export function RoundCardScorecard({ item, width = 320 }) {
 
   return (
     <View style={{ width, height, borderRadius: 16, overflow: 'hidden' }}>
-      <LinearGradient colors={[GREEN_TOP, GREEN_BOT]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 18 }}>
+      <LinearGradient colors={[GREEN_TOP, GREEN_BOT]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 18, justifyContent: 'space-between' }}>
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: LINE }} />
 
-        {/* 헤더 — 구장·날짜·이름 + 총타수 */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, paddingRight: 10 }}>
+        {/* 상단 블록 — 헤더(구장·날짜·이름) + 총타수(표 위 강조) + 18홀 표. 표 아래가 너무 남던 것 → 토탈을 표 위로 + space-between 분산 */}
+        <View>
+          <View>
             <Text style={{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 3 }}>SCORECARD</Text>
             <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(18), color: WHITE, marginTop: 6 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
             <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, marginTop: 3 }}>{playerName ? playerName + '   ·   ' : ''}{item.date}</Text>
           </View>
+
+          {/* 총타수 — 표 위 중앙 강조(날씨 제거). 사용자 2026-06-14 */}
           {totalScore != null ? (
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(42), lineHeight: fs(44), color: GOLD }}>{totalScore}</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: 9, color: MUTE, letterSpacing: 1.5 }}>TOTAL</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', marginTop: 16, marginBottom: 2 }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(44), lineHeight: fs(46), color: GOLD }}>{totalScore}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, letterSpacing: 2, marginLeft: 6, marginBottom: 7 }}>TOTAL</Text>
             </View>
           ) : null}
+
+          <View style={{ height: 1, backgroundColor: LINE, marginVertical: 12 }} />
+
+          {/* 18홀 표 — OUT(1-9) / IN(10-18). 버디·이글(언더)은 골드 + 밑줄 */}
+          {scores ? (
+            <View>
+              <Row label="HOLE" from={0} to={9} />
+              <Row label="PAR" from={0} to={9} />
+              <Row label="SCORE" from={0} to={9} />
+              <View style={{ height: 1, backgroundColor: LINE, marginVertical: 7 }} />
+              <Row label="HOLE" from={9} to={18} />
+              <Row label="PAR" from={9} to={18} />
+              <Row label="SCORE" from={9} to={18} />
+            </View>
+          ) : (
+            <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: MUTE, textAlign: 'center', lineHeight: 20 }}>
+                홀별 스코어가 없어요{'\n'}스코어카드를 입력하면 표로 보여드려요
+              </Text>
+            </View>
+          )}
         </View>
 
-        <View style={{ height: 1, backgroundColor: LINE, marginVertical: 14 }} />
-
-        {/* 18홀 표 — OUT(1-9) / IN(10-18) */}
-        {scores ? (
-          <View>
-            <Row label="HOLE" from={0} to={9} />
-            <Row label="PAR" from={0} to={9} />
-            <Row label="SCORE" from={0} to={9} />
-            <View style={{ height: 1, backgroundColor: LINE, marginVertical: 7 }} />
-            <Row label="HOLE" from={9} to={18} />
-            <Row label="PAR" from={9} to={18} />
-            <Row label="SCORE" from={9} to={18} />
-          </View>
-        ) : (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: MUTE, textAlign: 'center', lineHeight: 20 }}>
-              홀별 스코어가 없어요{'\n'}스코어카드를 입력하면 표로 보여드려요
-            </Text>
-          </View>
-        )}
-
-        <View style={{ flex: 1 }} />
-        {/* 푸터 */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: MUTE }}>{item.weather || ''}</Text>
+        {/* 푸터 — Dear Golf만(날씨 제거) */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
           <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }}>Dear Golf</Text>
         </View>
       </LinearGradient>

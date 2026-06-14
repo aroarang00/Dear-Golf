@@ -5,14 +5,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../constants/colors';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { getCountryFlag } from '../constants/data';
+import { formatNameList } from '../utils/nameList';
 
-// 라운딩 자랑 카드 — '폴라로이드' 스타일. 흰 프레임 + 사진 + 하단 두꺼운 여백 캡션(Lora 이탤릭, 감성 결).
-//  사진이 주인공이라 그날 분위기·일상 결에 어울림. 사진 없으면 크림 그라데이션 폴백.
-//  스코어는 사진 위 작은 골드 칩(과하지 않게). 매거진·빅스코어와 다른 '감성' 카드 ([[score-brag-card]]).
+// 라운딩 자랑 카드 — '모던 화이트(갤러리)' 스타일. 흰 카드 + 사진 + 정제된 골드/차콜 정보.
+//  4종 중 유일한 밝은 카드(다크 매거진·딥그린 스코어·다크 기념과 대비). 빈티지 폴라로이드(Lora 손글씨·세피아)는
+//  디어골프 럭셔리 톤과 안 맞아 폐기 → 미술관 액자처럼 깔끔한 화이트 럭셔리로 전환(사용자 2026-06-14).
+//  타수는 사진에서 빼고 하단 정보로(구장 / 타수 + Dear Golf / 이름·날짜). 동반자 있으면 본인 이름 대신 동반자(중복 회피).
+//  글자색 = 차콜(구장·메타) + 골드 포인트(타수·헤어라인). 너무 튀지 않게 고급스럽게.
 
-const INK = '#3D3935';
-const BURGUNDY = '#6B1E2A';
-const GOLD = '#E8D9A0';
+const INK = '#2A2622';                  // 차콜 — 구장명(또렷·고급)
+const INK_SOFT = 'rgba(42,38,34,0.55)'; // 연한 차콜 — 이름·날짜
+const GOLD = '#C9A84C';                 // 골드 포인트 — 타수·헤어라인
+const GOLD_DEEP = '#A9854A';            // 깊은 골드 — Dear Golf 워드마크
 
 export function RoundCardPolaroid({ item, width = 320 }) {
   const height = Math.round(width * 1.25);
@@ -25,41 +29,56 @@ export function RoundCardPolaroid({ item, width = 320 }) {
   const diffLabel = diff == null ? '' : diff > 0 ? `+${diff}` : `${diff}`;
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
   const playerName = (item.playerName || '').trim();
+  const companionNames = formatNameList(
+    (item.companions || []).map(c => (typeof c === 'string' ? c : (c?.name || ''))),
+    { sep: ', ' }
+  );
+  // 하단 메타 — 동반자 있으면 동반자(본인 이름 빼 중복 회피), 없으면 본인 이름
+  const who = companionNames || playerName;
+  const metaLine = `${who ? who + '   ·   ' : ''}${item.date || ''}`;
 
-  const FRAME = Math.round(width * 0.06);          // 폴라로이드 흰 테두리
-  const photoH = Math.round(height * 0.6);         // 사진 영역
+  const FRAME = Math.round(width * 0.055);   // 흰 테두리(살짝 슬림)
+  const photoH = Math.round(height * 0.62);  // 사진 영역
 
   return (
-    <View style={{ width, height, borderRadius: 6, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
+    <View style={{ width, height, borderRadius: 8, overflow: 'hidden', backgroundColor: '#FCFAF5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
       <View style={{ padding: FRAME }}>
-        {/* 사진 영역 */}
-        <View style={{ width: '100%', height: photoH, backgroundColor: '#EEE9DC', overflow: 'hidden' }}>
+        {/* 사진 영역 — 타수 칩 제거(하단 정보로 이동) */}
+        <View style={{ width: '100%', height: photoH, borderRadius: 3, backgroundColor: '#EEE9DC', overflow: 'hidden' }}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
           ) : (
-            <LinearGradient colors={['#E8E2D0', '#D7CFB8']} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: F.brand, fontSize: fs(22), color: 'rgba(61,57,53,0.4)' }}>Dear Golf</Text>
+            <LinearGradient colors={['#EFEADD', '#E0D8C5']} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: F.brand, fontSize: fs(22), color: 'rgba(42,38,34,0.35)' }}>Dear Golf</Text>
             </LinearGradient>
           )}
-          {hasScore ? (
-            // 사진 위 우상단 스코어 칩 — 과하지 않게
-            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(20,18,16,0.62)', borderRadius: 11, paddingHorizontal: 10, paddingVertical: 4 }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: GOLD }}>{item.score}타</Text>
-            </View>
-          ) : null}
         </View>
 
-        {/* 하단 캡션 여백 — 폴라로이드 손글씨 결(Lora 이탤릭) */}
-        <View style={{ paddingTop: Math.round(FRAME * 0.8), paddingHorizontal: 2 }}>
-          <Text numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(20), color: INK }}>
+        {/* 하단 정보 — 모던 화이트 갤러리(골드 헤어라인 + 차콜 구장 + 골드 타수 + Dear Golf) */}
+        <View style={{ paddingTop: 13, paddingHorizontal: 2 }}>
+          <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginBottom: 9 }} />
+          <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(19), color: INK, letterSpacing: 0.2 }}>
             {flag ? flag + ' ' : ''}{item.course || '라운딩'}
           </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-            <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(61,57,53,0.7)', flex: 1 }}>
-              {playerName ? playerName + '   ·   ' : ''}{item.date}{diffLabel ? '   ·   ' + diffLabel : ''}
-            </Text>
-            <Text style={{ fontFamily: F.brand, fontSize: fs(13), color: BURGUNDY, marginLeft: 8 }}>Dear Golf</Text>
+          {/* 타수(좌, 골드) + Dear Golf(우) — 타수 자리에 워드마크 동거 */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8 }}>
+            {hasScore ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(30), lineHeight: fs(32), color: GOLD }}>{item.score}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, marginLeft: 3, marginBottom: 3 }}>타</Text>
+                {diffLabel ? (
+                  <Text style={{ fontFamily: F.en, fontSize: fs(12), color: INK_SOFT, letterSpacing: 0.5, marginLeft: 8, marginBottom: 3 }}>{diffLabel}</Text>
+                ) : null}
+              </View>
+            ) : <View />}
+            <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: GOLD_DEEP, marginBottom: 2 }}>Dear Golf</Text>
           </View>
+          {/* 이름·날짜 (동반자 있으면 동반자) */}
+          {metaLine ? (
+            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK_SOFT, marginTop: 7 }}>
+              {metaLine}
+            </Text>
+          ) : null}
         </View>
       </View>
     </View>

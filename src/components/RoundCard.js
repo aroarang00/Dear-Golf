@@ -78,45 +78,45 @@ export function RoundCard({ item, width = 320 }) {
       {photoUri ? (
         // ───────────────── 사진 있음 — 풀블리드 + 하단 정보 패널(현행) ─────────────────
         <>
-          {/* 상단 살짝 어둡게(라벨 가독) + 하단 깊은 그라데이션(패널 안착감) */}
+          {/* 상단/하단 그라데이션 — 사진 위주로 슬림하게(가림 최소화, 사용자 2026-06-14) */}
           <LinearGradient
-            colors={['rgba(0,0,0,0.45)', 'transparent']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.28) }}
+            colors={['rgba(0,0,0,0.42)', 'transparent']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.20) }}
           />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.55)']}
             locations={[0.35, 1]}
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.62) }}
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.46) }}
           />
 
-          {/* 상단 — ROUND RECAP(좌, 세리프) + Dear Golf 워터마크(우) */}
-          <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
-            <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
+          {/* 상단 — ROUND RECAP(좌) + Dear Golf 워터마크(우) */}
+          <View style={{ position: 'absolute', top: 15, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
+            <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
           </View>
 
-          {/* 하단 정보 — 반투명 박스(홈 카드 톤 + 골드 보더)로 가독성 확보 */}
-          <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, paddingTop: 13, paddingBottom: 14, paddingHorizontal: 16,
-            backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' }}>
-            <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 9 }} />
-            <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
+          {/* 하단 정보 — 반투명 박스 슬림(패널 줄여 사진 노출 ↑) */}
+          <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12, paddingTop: 10, paddingBottom: 11, paddingHorizontal: 14,
+            backgroundColor: 'rgba(18,16,14,0.46)', borderRadius: 13, borderWidth: 1, borderColor: 'rgba(201,168,76,0.42)' }}>
+            <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: 7 }} />
+            <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(19), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
               {flag ? flag + ' ' : ''}{item.course || '라운딩'}
             </Text>
-            <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 6 }, SHADOW]}>
+            <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 5 }, SHADOW]}>
               {metaLine}
             </Text>
             {hasScore ? (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 6 }}>
-                <Text style={[{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: scoreColor }, SHADOW]}>{item.score}</Text>
-                <Text style={[{ fontFamily: F.sysB, fontSize: fs(15), color: scoreColor, marginLeft: 4, marginBottom: 6 }, SHADOW]}>타</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
+                <Text style={[{ fontFamily: F.en, fontSize: fs(40), lineHeight: fs(42), color: scoreColor }, SHADOW]}>{item.score}</Text>
+                <Text style={[{ fontFamily: F.sysB, fontSize: fs(14), color: scoreColor, marginLeft: 4, marginBottom: 5 }, SHADOW]}>타</Text>
                 {diffLabel ? (
-                  <Text style={[{ fontFamily: F.en, fontSize: fs(14), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 10, marginBottom: 7 }, SHADOW]}>
+                  <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 9, marginBottom: 6 }, SHADOW]}>
                     {diffLabel}   ·   par {item.par}
                   </Text>
                 ) : null}
                 <View style={{ flex: 1 }} />
                 {accentLabel ? (
-                  <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.28)', marginBottom: 5 }}>
+                  <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.28)', marginBottom: 4 }}>
                     <Text style={{ fontFamily: F.en, fontSize: fs(10), color: GOLD, letterSpacing: 2 }}>{accentLabel}</Text>
                   </View>
                 ) : null}
