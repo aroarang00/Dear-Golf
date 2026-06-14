@@ -35,10 +35,9 @@ export function RoundCardPolaroid({ item, width = 320 }) {
   );
   // 하단 메타 — 동반자 있으면 동반자(본인 이름 빼 중복 회피), 없으면 본인 이름
   const who = companionNames || playerName;
-  const metaLine = `${who ? who + '   ·   ' : ''}${item.date || ''}`;
 
   const FRAME = Math.round(width * 0.055);   // 흰 테두리(살짝 슬림)
-  const photoH = Math.round(height * 0.62);  // 사진 영역
+  const photoH = Math.round(height * 0.58);  // 사진 영역 — 하단 동반자/날짜 두 줄 공간 확보 위해 약간 축소(2026-06-14)
 
   return (
     <View style={{ width, height, borderRadius: 8, overflow: 'hidden', backgroundColor: '#FCFAF5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
@@ -77,11 +76,13 @@ export function RoundCardPolaroid({ item, width = 320 }) {
               ) : null}
             </View>
           ) : null}
-          {/* 이름·날짜 (동반자 있으면 동반자) */}
-          {metaLine ? (
-            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK_SOFT, marginTop: 7 }}>
-              {metaLine}
-            </Text>
+          {/* 동반자(한 줄, 길면 …) + 날짜(아래 별도 줄) — 닉네임이 길어도 날짜가 항상 명확히 보이게 두 줄 분리.
+              한 줄에 점(·)으로 욱여넣어 날짜 잘리거나 애매하던 것 해결(사용자 2026-06-14) */}
+          {who ? (
+            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK_SOFT, marginTop: 7 }}>{who}</Text>
+          ) : null}
+          {item.date ? (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(42,38,34,0.5)', marginTop: who ? 3 : 7 }}>{item.date}</Text>
           ) : null}
         </View>
       </View>
