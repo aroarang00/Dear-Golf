@@ -88,6 +88,10 @@ import { ROUTES } from './src/constants/routes';
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
 
+// ★TEMP_DEV — __DEV__ 전용 로그인 우회. 카카오 없이 메인 탭 직행(로딩 흔들림·상단 띠·카드 핫리로드 디버깅용).
+//   프로덕션 빌드(__DEV__=false)에선 항상 false라 완전 무시됨 — 안전. 디버깅 끝나면 이 줄 제거 ([[android_edge_to_edge]]).
+const DEV_BYPASS_LOGIN = __DEV__ && true;
+
 // 안드 edge-to-edge 첫 프레임 보정 게이트 ([[android_edge_to_edge]] 증상③).
 //  화면(Tab scene)이 첫 마운트 때 상태바 inset(top)이 아직 0인 채로 그려져 상태바만큼 아래로 밀리고,
 //  그 위 빈칸에 루트 배경(paleSky)이 '띠'로 비친다. 네비게이션으로 화면이 재마운트되면 측정된 inset으로
@@ -179,6 +183,13 @@ function App() {
 
   useEffect(() => {
     (async () => {
+      // ★TEMP_DEV — 카카오 로그인 우회: 가짜 프로필로 온보딩 건너뛰고 메인 탭 직행(프로덕션 무시)
+      if (DEV_BYPASS_LOGIN) {
+        setUserProfile({ ...USER_PROFILE_INIT, onboardingDone: true, nickname: '개발자', kakaoLinked: true });
+        setShowOnboarding(false);
+        setProfileLoaded(true);
+        return;
+      }
       const loaded = await storage.load(STORAGE_KEYS.profile, null);
       if (loaded) {
         // 데이터 마이그레이션 — 옛 profile에 없는 새 필드(예: falseReportCount)를 default로 채움.
