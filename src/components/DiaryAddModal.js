@@ -23,13 +23,16 @@ import { CropEditorModal } from './common/CropEditorModal';
 import { PhotoEditModal } from './PhotoEditModal';
 import { OverlayAlert } from './common/OverlayAlert';
 
-const COST_ITEMS = [
-  ['green', '그린피'],
-  ['caddie', '캐디피'],
-  ['cart', '카트피'],
-  ['meal', '식사비'],
-  ['etc', '기타'],
-];
+// 비용 입력 — 결제 방식대로 3묶음: 골프장 결제(카드, 그린피+카트비) / 캐디피(현금) / 기타(식사·내기 등).
+// 골프장 결제는 보통 한 줄, '세부'를 펼치면 그린피·카트비 따로. 사용자 2026-06-15 ([[golf-ledger]])
+const costRowS = { flexDirection: 'row', alignItems: 'center', marginBottom: 10 };
+const costLabelS = { fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, width: 72 };
+const costInputS = {
+  flex: 1, backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8,
+  paddingHorizontal: 12, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, textAlign: 'right',
+};
+const costWonS = { fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginLeft: 8 };
+const costHintS = { fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 5, marginBottom: 13, marginLeft: 2 };
 
 // 다이어리 사진·영상 첨부 한도 (저장 공간·로딩 성능·UX 균형)
 const MAX_PHOTOS = 10;
@@ -68,7 +71,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
   const [showCost, setShowCost] = useState(false);
-  const [costs, setCosts] = useState({ green: '', caddie: '', cart: '', meal: '', etc: '' });
+  const [showCourseDetail, setShowCourseDetail] = useState(false); // 골프장 결제 그린피·카트비 세부 펼침
+  const [costs, setCosts] = useState({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '' });
   const [weather, setWeather] = useState('맑음');
   const [memo, setMemo] = useState('');
   const [birdieCount, setBirdieCount] = useState(0);
@@ -281,7 +285,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setScoreCardOption('later');
     setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScFailed(false);
-    setShowCost(false); setCosts({ green: '', caddie: '', cart: '', meal: '', etc: '' });
+    setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '' });
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
@@ -338,13 +342,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setCountry(initial.country || '');
       setKind(initial.kind === 'moment' ? 'moment' : 'round');
       if (initial.cost) {
+        const c = initial.cost;
+        const hasDetail = !!(c.green || c.cart || c.onsite); // 옛/세부 기록 → 그린피·카트비·그늘집 펼쳐서 표시
+        const etcSum = (c.etc || 0) + (c.meal || 0); // 옛 식사비는 기타로 합산(필드 폐지)
         setCosts({
-          green: initial.cost.green ? String(initial.cost.green) : '',
-          caddie: initial.cost.caddie ? String(initial.cost.caddie) : '',
-          cart: initial.cost.cart ? String(initial.cost.cart) : '',
-          meal: initial.cost.meal ? String(initial.cost.meal) : '',
-          etc: initial.cost.etc ? String(initial.cost.etc) : '',
+          field: c.field ? String(c.field) : '',
+          green: c.green ? String(c.green) : '',
+          cart: c.cart ? String(c.cart) : '',
+          onsite: c.onsite ? String(c.onsite) : '',
+          caddie: c.caddie ? String(c.caddie) : '',
+          etc: etcSum ? String(etcSum) : '',
         });
+        setShowCourseDetail(hasDetail);
         setShowCost(true);
       }
     } else {
@@ -385,7 +394,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     ? ((!!memo.trim() || addPhotos.length > 0) && !photoBusy) // 일상: 글만/사진만이라도 OK
     : (!!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim() && !photoBusy);
 
-  const costTotal = COST_ITEMS.reduce((sum, [k]) => sum + (parseInt(costs[k]) || 0), 0);
+  const num = (v) => parseInt(v) || 0;
+  const courseAmt = showCourseDetail ? (num(costs.green) + num(costs.cart) + num(costs.onsite)) : num(costs.field); // 골프장 결제(그린피+카트+그늘집)
+  const costTotal = courseAmt + num(costs.caddie) + num(costs.etc);
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   // 공개범위 복수선택 — 친구전체·나만보기는 단독, 그룹은 복수 토글(여러 그룹 동시 공개) ([[friend_groups]])
@@ -470,11 +481,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       tags: selectedTags,
       detailMemo,
       cost: costTotal > 0 ? {
-        green: parseInt(costs.green) || 0,
-        caddie: parseInt(costs.caddie) || 0,
-        cart: parseInt(costs.cart) || 0,
-        meal: parseInt(costs.meal) || 0,
-        etc: parseInt(costs.etc) || 0,
+        // 골프장 결제: 세부 펼쳤으면 그린피·카트비로, 아니면 묶음(field)으로 저장
+        ...(showCourseDetail
+          ? { green: num(costs.green), cart: num(costs.cart), onsite: num(costs.onsite) }
+          : { field: num(costs.field) }),
+        caddie: num(costs.caddie),
+        etc: num(costs.etc),
         total: costTotal,
       } : null,
       companions: [
@@ -898,31 +910,76 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   marginTop: 8, backgroundColor: C.bgSecondary,
                   borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, padding: 14,
                 }}>
-                  {COST_ITEMS.map(([key, label]) => (
-                    <View key={key} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, width: 64 }}>{label}</Text>
+                  {/* ① 골프장 결제 — 카드 묶음(그린피+카트비). 보통 한 줄, '세부'는 박스 아래에서 펼침 */}
+                  <View style={{ ...costRowS, marginBottom: 0 }}>
+                    <Text style={costLabelS}>골프장 결제</Text>
+                    {showCourseDetail ? (
+                      <Text style={{ flex: 1, textAlign: 'right', fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary, paddingVertical: 8 }}>
+                        {won(num(costs.green) + num(costs.cart) + num(costs.onsite))}
+                      </Text>
+                    ) : (
                       <TextInput
-                        style={{
-                          flex: 1, backgroundColor: C.bgPrimary,
-                          borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8,
-                          paddingHorizontal: 12, paddingVertical: 8,
-                          fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, textAlign: 'right',
-                        }}
-                        placeholder="0"
-                        placeholderTextColor={C.warmGrayLight}
-                        keyboardType="numeric"
-                        value={costs[key]}
-                        onChangeText={(t) => setCosts(prev => ({ ...prev, [key]: t.replace(/[^0-9]/g, '') }))}
+                        style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                        value={costs.field}
+                        onChangeText={(t) => setCosts(prev => ({ ...prev, field: t.replace(/[^0-9]/g, '') }))}
                       />
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginLeft: 8 }}>원</Text>
+                    )}
+                    <Text style={costWonS}>원</Text>
+                  </View>
+                  {/* 안내 + 세부 토글 — 박스 아래 줄(안내는 왼쪽, 세부는 오른쪽) */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, marginBottom: 13, marginLeft: 2 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>
+                      {showCourseDetail ? '그린피·카트비 따로 입력 중' : '그린피·카트비 함께 결제'}
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowCourseDetail(v => !v)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A9854A' }}>{showCourseDetail ? '세부 닫기 ▴' : '세부 입력 ▾'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {showCourseDetail && (
+                    <View style={{ marginLeft: 12, marginBottom: 13 }}>
+                      <View style={costRowS}>
+                        <Text style={{ ...costLabelS, width: 60, fontSize: fs(12) }}>그린피</Text>
+                        <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                          value={costs.green} onChangeText={(t) => setCosts(prev => ({ ...prev, green: t.replace(/[^0-9]/g, '') }))} />
+                        <Text style={costWonS}>원</Text>
+                      </View>
+                      <View style={costRowS}>
+                        <Text style={{ ...costLabelS, width: 60, fontSize: fs(12) }}>카트비</Text>
+                        <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                          value={costs.cart} onChangeText={(t) => setCosts(prev => ({ ...prev, cart: t.replace(/[^0-9]/g, '') }))} />
+                        <Text style={costWonS}>원</Text>
+                      </View>
+                      <View style={{ ...costRowS, marginBottom: 0 }}>
+                        <Text style={{ ...costLabelS, width: 60, fontSize: fs(12) }}>그늘집</Text>
+                        <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                          value={costs.onsite} onChangeText={(t) => setCosts(prev => ({ ...prev, onsite: t.replace(/[^0-9]/g, '') }))} />
+                        <Text style={costWonS}>원</Text>
+                      </View>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 5, marginLeft: 2 }}>음료·간식 등 골프장 카드 정산분</Text>
                     </View>
-                  ))}
+                  )}
+                  {/* ② 캐디피 — 현금 */}
+                  <View style={{ ...costRowS, marginBottom: 2 }}>
+                    <Text style={costLabelS}>캐디피</Text>
+                    <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                      value={costs.caddie} onChangeText={(t) => setCosts(prev => ({ ...prev, caddie: t.replace(/[^0-9]/g, '') }))} />
+                    <Text style={costWonS}>원</Text>
+                  </View>
+                  <Text style={costHintS}>현금으로 낸 캐디피</Text>
+                  {/* ③ 기타 — 식사·내기 등 */}
+                  <View style={{ ...costRowS, marginBottom: 2 }}>
+                    <Text style={costLabelS}>기타</Text>
+                    <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                      value={costs.etc} onChangeText={(t) => setCosts(prev => ({ ...prev, etc: t.replace(/[^0-9]/g, '') }))} />
+                    <Text style={costWonS}>원</Text>
+                  </View>
+                  <Text style={costHintS}>식사·내기 등</Text>
                   <View style={{
                     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                    borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12, marginTop: 2,
+                    borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12, marginTop: 2, paddingBottom: 2,
                   }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary }}>합계</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.burgundy }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary, lineHeight: fs(22) }}>총 비용</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.burgundy, lineHeight: fs(22) }}>
                       {won(costTotal)}원
                     </Text>
                   </View>

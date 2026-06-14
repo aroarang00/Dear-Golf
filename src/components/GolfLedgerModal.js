@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 
-// 팔레트: 챠콜 / 버터 / 크림
-const COST_LABELS = { green: '그린피', caddie: '캐디피', cart: '카트피', meal: '식사비', etc: '기타' };
-const COST_KEYS = ['green', 'caddie', 'cart', 'meal', 'etc'];
+// 팔레트: 챠콜 / 골드 / 웜크림 — 셰어 카드(폴라로이드·매거진) 결과 통일(2026-06-15 사용자 "더 예쁘게")
+const GOLD = '#C9A84C';        // 골드 — 강조 룰·라벨
+const GOLD_DEEP = '#A9854A';   // 깊은 골드 — 작은 라벨
+// 브랜드 삼색 — 하단 시그니처(랜딩·초대카드·폴라로이드 동일 톤)
+const MS = ['#ECD884', '#B2CADD', '#6B1E2A'];
+// 가계부 표시 — 입력이 세부(그린피·카트비·그늘집)든 묶음(field)이든 항상 3묶음으로 정리(2026-06-15 사용자):
+//  골프장 결제 = field+그린피+카트비+그늘집(카드 정산분 전부) / 캐디피(현금) / 기타 = etc+옛 식사비(meal)
+const bucketsOf = (cost = {}) => ([
+  { label: '골프장 결제', amt: (cost.field || 0) + (cost.green || 0) + (cost.cart || 0) + (cost.onsite || 0) },
+  { label: '캐디피', amt: cost.caddie || 0 },
+  { label: '기타', amt: (cost.etc || 0) + (cost.meal || 0) },
+].filter(b => b.amt > 0));
 
 const won = (n) => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const monthLabel = (m) => {
@@ -62,14 +72,14 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={{ height: '88%', backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }}>
-          {/* 헤더 — 챠콜 배경 + 버터 텍스트 */}
-          <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* 헤더 — 챠콜딥 배경 + 골드 라벨 / 크림 타이틀 */}
+          <View style={{ backgroundColor: C.charcoalDeep, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(245,230,168,0.6)', letterSpacing: 2, marginBottom: 3 }}>나의 골프 지출</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.butter }}>골프 가계부</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: GOLD, letterSpacing: 3, marginBottom: 4 }}>MY GOLF LEDGER</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#F5EFDE' }}>골프 가계부</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(20), color: C.butter }}>✕</Text>
+              <Text style={{ fontSize: fs(20), color: 'rgba(245,239,222,0.85)' }}>✕</Text>
             </TouchableOpacity>
           </View>
 
@@ -82,14 +92,22 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
             </View>
           ) : (
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom }} showsVerticalScrollIndicator={false}>
-              {/* 올해 요약 — 버터 박스 */}
-              <View style={{ backgroundColor: C.butter, borderRadius: 14, padding: 16, marginBottom: 20 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.charcoal, opacity: 0.65, marginBottom: 4 }}>{thisYear}년 총 지출</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(26), color: C.charcoal }}>{won(yearTotal)}원</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, opacity: 0.8, marginTop: 4 }}>
-                  라운딩당 평균 {won(yearAvg)}원
+              {/* 올해 요약 — 웜 크림 그라데이션 히어로 + 골드 룰 + 하단 브랜드 삼색 */}
+              <LinearGradient colors={['#FFFDF8', '#F3EBD9']} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
+                style={{ borderRadius: 16, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)', overflow: 'hidden' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), letterSpacing: 2, color: GOLD_DEEP, marginBottom: 7 }}>{thisYear}년 총 지출</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(28), color: C.charcoalDeep, letterSpacing: 0.3 }}>
+                  {won(yearTotal)}<Text style={{ fontFamily: F.sysSb, fontSize: fs(17) }}>원</Text>
                 </Text>
-              </View>
+                <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginTop: 11, marginBottom: 9 }} />
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>
+                  {yearRounds.length}라운딩 · 라운딩당 평균 {won(yearAvg)}원
+                </Text>
+                {/* 브랜드 삼색 미니바 — 하단 시그니처 */}
+                <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', height: 3 }}>
+                  {MS.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
+                </View>
+              </LinearGradient>
 
               {/* 이번달 / 지난달 / 총 라운딩 */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
@@ -99,9 +117,9 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                     paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center',
                     borderWidth: 0.5, borderColor: C.hairline,
                   }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginBottom: 6 }}>{card.label}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: GOLD_DEEP, letterSpacing: 0.5, marginBottom: 6 }}>{card.label}</Text>
                     <Text numberOfLines={1} adjustsFontSizeToFit
-                      style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
+                      style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoalDeep }}>
                       {won(sumOf(card.list))}원
                     </Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 4 }}>{card.list.length}라운딩</Text>
@@ -118,28 +136,31 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                     <TouchableOpacity onPress={() => toggle(m)} activeOpacity={0.7}
                       style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.bgSecondary,
                         borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
-                      <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: C.charcoal, marginRight: 10 }} />
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>{monthLabel(m)}</Text>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginRight: 8 }}>{won(sumOf(rounds))}원</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{open ? '▴' : '▾'}</Text>
+                      <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: GOLD, marginRight: 10 }} />
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep, flex: 1 }}>{monthLabel(m)}</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginRight: 8 }}>{won(sumOf(rounds))}원</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: GOLD_DEEP }}>{open ? '▴' : '▾'}</Text>
                     </TouchableOpacity>
                     {open && rounds.map(d => (
                       <View key={d.id} style={{ marginTop: 6, marginLeft: 13, backgroundColor: C.bgSecondary,
                         borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }} numberOfLines={1}>
-                            {d.course}
-                          </Text>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginLeft: 8 }}>{won(d.cost.total)}원</Text>
+                        {/* 코스 + 날짜(코스 아래로 올려 눈에 띄게) / 총액(우) — 사용자 2026-06-15 정돈 */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 9 }}>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep }} numberOfLines={1}>{d.course}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{d.date}{d.day ? ` (${d.day})` : ''}</Text>
+                          </View>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginLeft: 8 }}>{won(d.cost.total)}원</Text>
                         </View>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-                          {COST_KEYS.filter(k => (d.cost[k] || 0) > 0).map(k => (
-                            <View key={k} style={{ backgroundColor: C.butter + '55', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
-                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.charcoal }}>{COST_LABELS[k]} {won(d.cost[k])}</Text>
+                          {bucketsOf(d.cost).map(b => (
+                            <View key={b.label} style={{ backgroundColor: '#FBF5E4', borderRadius: 7, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.35)', paddingHorizontal: 8, paddingVertical: 3.5 }}>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.textSecondary }}>
+                                {b.label} <Text style={{ fontFamily: F.sysSb, color: C.charcoalDeep }}>{won(b.amt)}</Text>
+                              </Text>
                             </View>
                           ))}
                         </View>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 6 }}>{d.date}</Text>
                       </View>
                     ))}
                   </View>
