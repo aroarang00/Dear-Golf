@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
@@ -47,14 +47,16 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={asModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ flex: 1 }}>
+          {/* 윗줄(eyebrow) — 친구·라운지 헤더와 동일 컨벤션. 큰 글자만 덜렁 있어 단조롭던 것 보강(2026-06-15 사용자) */}
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: Platform.OS === 'android' ? 2 : 4 }}>나의 라운딩 일정</Text>
           <TouchableOpacity
             ref={plusRef}
             onPress={openUpcoming}
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 14 }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.navy }}>골프 일정</Text>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.navy, marginTop: 3 }}>›</Text>
+            <Text style={{ fontFamily: F.serifKR, fontSize: fs(Platform.OS === 'android' ? 24 : 28), color: C.navy }}>골프 일정</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.navy, marginTop: 3 }}>›</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity
