@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -1481,10 +1482,16 @@ export function GuideScreen({ route, navigation }) {
             color: C.charcoal,
           }}>코스</Text>
         </View>
-        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.7}
-          style={{ backgroundColor: 'transparent', borderRadius: 20, borderWidth: 1.5, borderColor: C.charcoal, paddingHorizontal: 16, paddingVertical: _and ? 4 : 7, flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>내 코스 모아보기</Text>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal, marginLeft: 5 }}>›</Text>
+        {/* 입체 버튼 — 차콜은 별로여서(원복), 도착 화면(CourseLogModal) 헤더 그린(#6B8B5E)으로 통일.
+            그라데이션+그림자로 입체감. 버튼↔도착 화면 색 연결. 2026-06-15 사용자 */}
+        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85}
+          style={{ borderRadius: 21, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+          <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+            style={{ borderRadius: 21, paddingHorizontal: 17, paddingVertical: _and ? 8 : 10, flexDirection: 'row', alignItems: 'center',
+              borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>내 코스 모아보기</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#fff', marginLeft: 5 }}>›</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
       <CourseExploreTab
