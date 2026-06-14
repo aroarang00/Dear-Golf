@@ -96,8 +96,9 @@ export function RoundCard({ item, width = 320 }) {
               special을 좌상단에 올려 특별함을 먼저 보여줌(사용자 2026-06-14, [[score-brag-card]]). */}
           <View style={{ position: 'absolute', top: 15, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             {special ? (
-              <View style={{ borderWidth: 1.5, borderColor: GOLD, borderRadius: 6, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.35)' }}>
-                <Text style={[{ fontFamily: F.en, fontSize: fs(20), color: GOLD, letterSpacing: 3 }, SHADOW]}>{special}</Text>
+              // 사진版 special — 차콜 바탕 + 골드 텍스트(사용자 2026-06-14). no-photo版(골드 테두리 박스)과 다른 결
+              <View style={{ backgroundColor: 'rgba(42,38,34,0.92)', borderRadius: 6, paddingHorizontal: 14, paddingVertical: 8 }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(20), color: GOLD, letterSpacing: 3 }}>{special}</Text>
               </View>
             ) : (
               <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
