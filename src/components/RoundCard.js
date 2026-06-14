@@ -22,8 +22,8 @@ const GOLD = '#E8D9A0';
 const GOLD_DEEP = '#C9A84C';
 const CHAMPAGNE = '#EFE7CC'; // 흰-골드 중간 샴페인 — 구장명에 고급 색감(타수 골드보다 옅어 위계 유지)
 const WHITE = '#F6F2E9'; // 순백 대신 따뜻한 화이트
-const EMERALD = '#0E8C66'; // 특별한 순간(홀인원·이글 등) 채움 박스 — 골드(평범)보다 특별, 사진 위에서도 또렷 ([[score-brag-card]])
-const CREAM = '#F5E6A8';   // 에메랄드/버건디 채움 박스 위 글자
+const BURGUNDY = '#6B1E2A'; // 특별한 순간(홀인원·이글 등) 채움 박스 — 골드(평범)보다 특별, 사진 위에서도 또렷. 에메랄드는 촌스러워 버건디로(사용자 2026-06-14) ([[score-brag-card]])
+const CREAM = '#F5E6A8';   // 버건디 채움 박스 위 글자
 const SHADOW = { textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
 export function RoundCard({ item, width = 320 }) {
@@ -96,7 +96,7 @@ export function RoundCard({ item, width = 320 }) {
               special을 좌상단에 올려 특별함을 먼저 보여줌(사용자 2026-06-14, [[score-brag-card]]). */}
           <View style={{ position: 'absolute', top: 15, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             {special ? (
-              <View style={{ backgroundColor: EMERALD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }}>
+              <View style={{ backgroundColor: BURGUNDY, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }}>
                 <Text style={{ fontFamily: F.en, fontSize: fs(12), color: CREAM, letterSpacing: 2 }}>{special}</Text>
               </View>
             ) : (

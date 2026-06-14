@@ -17,6 +17,8 @@ const GOLD = '#E8D9A0';
 const GOLD_DEEP = '#C9A84C';
 const CHAMPAGNE = '#EFE7CC'; // 흰-골드 중간 샴페인 — 구장명에 고급 색감
 const WHITE = '#F6F2E9';
+const BURGUNDY = '#6B1E2A'; // 특별한 순간 — '그날의 라운딩' 워터마크 자리에 버건디 채움 박스 (매거진과 통일)
+const CREAM = '#F5E6A8';
 const SHADOW = { textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
 export function RoundCardMemory({ item, width = 320 }) {
@@ -32,10 +34,11 @@ export function RoundCardMemory({ item, width = 320 }) {
     { sep: ', ' }
   );
   const memo = (item.memo || '').trim();
-  // 특별한 순간 — 홀인원·이글 등은 item.special, 베스트·싱글은 스코어 기반(기념카드는 스코어 없을 수 있어 옵셔널)
+  // 특별한 순간 — 홀인원·이글 등은 item.special(워터마크 자리로), 베스트·싱글은 스코어 기반 영예칩(하단)
   const isSingle = typeof item.score === 'number' && item.score <= 79;
   const isBest = item.badge === '베스트';
-  const accentLabel = item.special || (isBest ? 'BEST' : isSingle ? 'SINGLE' : null);
+  const special = item.special || null;
+  const sideBadge = isBest ? 'BEST' : isSingle ? 'SINGLE' : null;
 
   return (
     <View style={{ width, height, borderRadius: 16, overflow: 'hidden', backgroundColor: '#2A2622' }}>
@@ -52,45 +55,53 @@ export function RoundCardMemory({ item, width = 320 }) {
       {/* 얇은 내부 프레임 — 럭셔리 액자 느낌 */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }} />
 
-      {/* 상단 — 워터마크(동반 뉘앙스) + Dear Golf */}
+      {/* 상단 — 좌측: special 있으면 '그날의 라운딩' 자리에 버건디 채움 박스(홀인원 등), 없으면 워터마크 / 우측: Dear Golf.
+          special을 워터마크 자리로 올림(사용자 2026-06-14, 매거진과 통일) */}
       <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={[{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD, letterSpacing: 2 }, SHADOW]}>그날의 라운딩</Text>
+        {special ? (
+          <View style={{ backgroundColor: BURGUNDY, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }}>
+            <Text style={{ fontFamily: F.en, fontSize: fs(12), color: CREAM, letterSpacing: 2 }}>{special}</Text>
+          </View>
+        ) : (
+          <Text style={[{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD, letterSpacing: 2 }, SHADOW]}>그날의 라운딩</Text>
+        )}
         <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
       </View>
 
       {/* 하단 — special(있으면 기록박스 밖 위·좌측) + 정보 패널(사진 있을 때만 반투명 박스). 타수 대신 WITH 동반자 + 메모 */}
       <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14 }}>
-        {/* 특별한 순간(홀인원·이글 등) — 기록박스 밖 위·좌측 정렬(사용자 2026-06-14) */}
-        {accentLabel ? (
-          <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 8 }}>
-            <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{accentLabel}</Text>
+        {/* 영예칩(베스트/싱글) — special은 워터마크 자리로 올려 여기선 제외. 스코어 없는 기념카드는 보통 미표시 */}
+        {sideBadge ? (
+          <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 7 }}>
+            <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{sideBadge}</Text>
           </View>
         ) : null}
+        {/* 글씨·박스 위아래 더 컴팩트하게(사용자 2026-06-14) */}
         <View style={[
-          { paddingTop: 13, paddingBottom: 14, paddingHorizontal: photoUri ? 16 : 4 },
+          { paddingTop: 10, paddingBottom: 10, paddingHorizontal: photoUri ? 15 : 4 },
           photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
         ]}>
         {/* 골드 헤어라인 */}
-        <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 7 }} />
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
+        <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: 6 }} />
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(17), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}
         </Text>
         {/* 날짜만 — 사진 위주로 정보 최소화(이름·날씨 제거, 동반자가 들어가므로). 사용자 2026-06-14 */}
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 5 }, SHADOW]}>
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(11), color: GOLD, letterSpacing: 0.3, marginTop: 4 }, SHADOW]}>
           {item.date || ''}
         </Text>
 
         {/* 함께한 사람 — 동반자 있을 때만(없으면 본인 이름은 위 메타줄에 이미 표시됨). 솔로 라운딩도 자연스럽게 포괄 */}
         {companionNames ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
             <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD_DEEP, letterSpacing: 2, marginRight: 8 }, SHADOW]}>WITH</Text>
-            <Text numberOfLines={1} style={[{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: WHITE }, SHADOW]}>{companionNames}</Text>
+            <Text numberOfLines={1} style={[{ flex: 1, fontFamily: F.sysB, fontSize: fs(14), color: WHITE }, SHADOW]}>{companionNames}</Text>
           </View>
         ) : null}
 
-        {/* 한줄메모 — 감성 인용(Lora 이탤릭). 없으면 줄 생략 */}
+        {/* 한줄메모 — 한글 인용. ★Lora(F.brand)는 한글 글리프 없어 안드서 가짜 이탤릭으로 '누워' 보임 → Pretendard(F.sys) 정자로(사용자 2026-06-14) */}
         {memo ? (
-          <Text numberOfLines={2} style={[{ fontFamily: F.brand, fontSize: fs(14), color: 'rgba(246,242,233,0.92)', lineHeight: fs(20), marginTop: 8 }, SHADOW]}>
+          <Text numberOfLines={2} style={[{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(246,242,233,0.92)', lineHeight: fs(19), marginTop: 7 }, SHADOW]}>
             "{memo}"
           </Text>
         ) : null}
