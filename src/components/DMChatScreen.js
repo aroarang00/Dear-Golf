@@ -223,6 +223,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [reactTarget, setReactTarget] = useState(null);  // 공감 피커 대상 메시지(길게누르기)
   const [replyTo, setReplyTo] = useState(null);  // 답장(인용) 대상 메시지 — 입력창 위 미리보기 바
   const [otherReadMs, setOtherReadMs] = useState(0);  // 상대가 이 방을 마지막으로 본 시각(ms) — 내 말풍선 읽음(✓) 판정
+  const [myClearedMs, setMyClearedMs] = useState(0);  // 내가 '목록에서 지운' 시각(ms) — 그 이전 메시지는 내 화면에서 숨김(카톡식, 상대는 보존)
   const [friendTyping, setFriendTyping] = useState(false);  // 상대 입력 중 — 말풍선 점 표시
   const listRef = useRef(null);
   const inputRef = useRef(null);
@@ -279,6 +280,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     const unsub = subscribeConversation(convId, (conv) => {
       const ts = conv?.lastRead?.[friendUid];
       setOtherReadMs(ts?.toMillis ? ts.toMillis() : 0);
+      // 내가 목록에서 지운 시각 — 이 이후 메시지만 내 화면에 표시(카톡식: 지우면 그 전 대화는 내게서 사라짐, 상대는 보존). 사용자 2026-06-14
+      const cl = conv?.clearedAt?.[myUidRef.current];
+      setMyClearedMs(cl?.toMillis ? cl.toMillis() : 0);
       // 상대 입력 중 — typing.{friendUid} 값이 '갱신'되면 표시(방금 입력). ★Date.now 비교 안 함(기기 시계가 서버보다
       //   앞서면 항상 stale로 처리돼 점이 안 뜨던 버그). 값 변화 감지 + 6초 무갱신 시 자동 숨김. 해제 기록(0) 오면 즉시 숨김.
       const tt = conv?.typing?.[friendUid];
@@ -393,7 +397,15 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     catch (e) { if (__DEV__) console.warn('[DMChat] react', e?.message); }
   };
 
-  const list = messages || [];
+  // 카톡식 — '목록에서 지우기'(clearedAt) 이후 메시지만 내 화면에 표시. 그 전 대화는 숨김(메시지는 상대 위해 서버 보존, 내 화면만 필터). 사용자 2026-06-14
+  const list = useMemo(() => {
+    const all = messages || [];
+    if (!myClearedMs) return all;
+    return all.filter(m => {
+      const ms = m.createdAt?.toMillis ? m.createdAt.toMillis() : 0;
+      return ms > myClearedMs;
+    });
+  }, [messages, myClearedMs]);
   // 인버티드 FlatList용 — 최신이 index 0(시각적 바닥). 새 메시지가 바닥에 자동으로 쌓여 끌어올릴 필요 없음 + 메시지 적어도 입력창 바로 위에 붙음(카톡식 아래고정).
   const rlist = useMemo(() => list.slice().reverse(), [list]);
   // ★입력 지연 방지 — renderItem을 useCallback으로 안정화. 안 하면 매 글자(setText) 리렌더마다 renderItem 참조가
