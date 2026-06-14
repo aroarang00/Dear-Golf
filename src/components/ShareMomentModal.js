@@ -178,12 +178,12 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 </View>
               </ViewShot>
             )}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8, lineHeight: 17, textAlign: 'center' }}>
               {(isRoundup || isSchedule || isInvite) && onShareLink
-                ? '카드 이미지로 공유돼요. 클릭 가능한 링크는 ‘링크와 함께 공유’를 눌러주세요.'
+                ? '카드 이미지로 공유돼요.\n클릭 가능한 링크는 ‘링크와 함께 공유’를 눌러주세요.'
                 : (isRoundup || isSchedule || isInvite || isRound)
-                  ? '카드 이미지로 공유돼요. Dear Golf 마크가 들어가요.'
-                  : '투명 배경 PNG로 저장돼요. 카드에 Dear Golf 마크가 들어가요.'}
+                  ? '카드 이미지로 공유돼요.\nDear Golf 마크가 들어가요.'
+                  : '투명 배경 PNG로 저장돼요.\n카드에 Dear Golf 마크가 들어가요.'}
             </Text>
 
             {/* 공유 옵션 */}
