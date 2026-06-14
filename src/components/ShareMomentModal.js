@@ -9,6 +9,7 @@ import { HallOfFameCard } from './HallOfFameCard';
 import { MilestoneCard } from './MilestoneCard';
 import { RoundCard } from './RoundCard';
 import { RoundCardScorecard } from './RoundCardScorecard';
+import { RoundCardMemory } from './RoundCardMemory';
 import { RoundCardPolaroid } from './RoundCardPolaroid';
 import { RoundupShareCard } from './RoundupShareCard';
 import { ScheduleShareCard } from './ScheduleShareCard';
@@ -21,9 +22,10 @@ const CARD_WIDTH = Dimensions.get('window').width - 40;
 
 // 공유 옵션 — ①바로 공유(OS 공유 시트로 카톡·인스타 직행, expo-sharing) ②갤러리 저장(폴백·보관).
 // OS 공유 시트는 카카오 SDK 직접 공유([[share-moment]] 보류)와 별개라 출시 전 사용 가능. 인스타는 제외.
-// 라운딩 자랑 카드 3종 — 캐러셀로 골라 공유(매거진/스코어카드/폴라로이드). 배경색 다르게 구분 ([[score-brag-card]])
-const ROUND_CARDS = [RoundCard, RoundCardScorecard, RoundCardPolaroid];
-const ROUND_NAMES = ['매거진', '스코어카드', '폴라로이드'];
+// 라운딩 자랑 카드 4종 — 캐러셀로 골라 공유. 스코어 있는 것(매거진·스코어카드) + 스코어 없는 기념용(기념·폴라로이드).
+//  배경·결을 다르게 구분([[score-brag-card]]). 빅스코어(RoundCardBig)는 매거진과 결이 겹쳐 미등록(파일 보존).
+const ROUND_CARDS = [RoundCard, RoundCardScorecard, RoundCardMemory, RoundCardPolaroid];
+const ROUND_NAMES = ['매거진', '스코어카드', '기념', '폴라로이드'];
 
 const OPTIONS = [
   { key: 'share', icon: '📤', label: '공유하기', primary: true },
@@ -36,8 +38,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef(null);
-  const roundRefs = useRef([]);                          // 라운딩 카드 3종 캐러셀 — 각 ViewShot ref
-  const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 폴라로이드)
+  const roundRefs = useRef([]);                          // 라운딩 카드 4종 캐러셀 — 각 ViewShot ref
+  const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 기념/3 폴라로이드)
   const isRound = moment?.shareKind === 'round';
   const isRoundup = moment?.shareKind === 'roundup';
   const isSchedule = moment?.shareKind === 'schedule';
