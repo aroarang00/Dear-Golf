@@ -300,7 +300,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const hideStranger = !ROUNDUP_PUBLIC_ENABLED || !!userProfile?.hideStrangerRoundups;
   const [view, setView] = useState(hideStranger ? 'friend' : 'all');  // all | friend | mine | watch
   const [regionFilter, setRegionFilter] = useState('all'); // 전체 탭 지역 칩 (all 외엔 capital/gangwon/chungcheong/jeolla/gyeongsang/jeju)
-  // 정렬 — 'recent'(최신순, 기본) | 'soon'(마감임박순=티오프 가까운 순). 토글 UI는 __DEV__에서만 노출(보류 기능, 출시 시 게이트 해제) ([[roundup-sort-filter]])
+  // 정렬 — 'recent'(최신순, 기본) | 'soon'(마감임박순=티오프 가까운 순). 토글 UI는 카드 충분(4개+, showSort)할 때 노출(2026-06-15 정식 노출) ([[roundup-sort-filter]])
   const [sortMode, setSortMode] = useState('recent');
 
   // 토글이 켜진 상태에서 view가 'all'이면 자동으로 'friend'로 전환
