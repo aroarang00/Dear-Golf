@@ -45,15 +45,8 @@ export function RoundCardPolaroid({ item, width = 320 }) {
         {/* 사진 영역 — 타수 칩 제거(하단 정보로 이동) */}
         <View style={{ width: '100%', height: photoH, borderRadius: 3, backgroundColor: '#FCFAF5', overflow: 'hidden' }}>
           {photoUri ? (
-            <>
-              {/* contain — 가로 사진도 잘리지 않게 다 담되 contentPosition top으로 사진을 위쪽 정렬 → Dear Golf 워터마크가
-                  항상 사진 위에 오게(여백 위가 아니라). 아래 여백은 흰 하단 정보와 자연스럽게 이어짐(사용자 2026-06-14) */}
-              <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" contentPosition="top" cachePolicy="memory-disk" allowDownscaling={false} />
-              {/* Dear Golf 워터마크 — 사진 우측 상단. 작게(반쯤 걸치던 것 줄임) + 반투명 칩으로 흰 여백서도 가독(사용자 2026-06-14) */}
-              <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(20,18,16,0.4)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.brand, fontSize: fs(11), color: '#fff' }}>Dear Golf</Text>
-              </View>
-            </>
+            // contain — 가로 사진도 잘리지 않게 다 담음(중앙). Dear Golf는 사진 비율 따라 반 걸치던 것 → 사진에서 빼고 하단 구장명 줄로(사용자 2026-06-14)
+            <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={false} />
           ) : (
             <LinearGradient colors={['#EFEADD', '#E0D8C5']} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.brand, fontSize: fs(22), color: 'rgba(42,38,34,0.35)' }}>Dear Golf</Text>
@@ -64,9 +57,13 @@ export function RoundCardPolaroid({ item, width = 320 }) {
         {/* 하단 정보 — 모던 화이트 갤러리(골드 헤어라인 + 차콜 구장 + 골드 타수 + Dear Golf) */}
         <View style={{ paddingTop: 13, paddingHorizontal: 2 }}>
           <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginBottom: 9 }} />
-          <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(19), color: INK, letterSpacing: 0.2 }}>
-            {flag ? flag + ' ' : ''}{item.course || '라운딩'}
-          </Text>
+          {/* 구장명(좌) + Dear Golf(우 서명) — 사진 위에 두면 사진 비율 따라 반 걸쳐서 하단 고정 위치로(사용자 2026-06-14) */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(19), color: INK, letterSpacing: 0.2, marginRight: 8 }}>
+              {flag ? flag + ' ' : ''}{item.course || '라운딩'}
+            </Text>
+            <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: GOLD_DEEP }}>Dear Golf</Text>
+          </View>
           {/* 타수(좌, 골드) + 날짜(우, diff와 같은 fs12) — 한 줄에 합쳐 줄 수 안 늘리고 사진 크기 유지(사용자 2026-06-14).
               Dear Golf는 사진 우측 상단. 날짜를 동반자와 다른 줄에 둬 닉네임 길어도 날짜 안 잘림 */}
           {(hasScore || item.date) ? (
