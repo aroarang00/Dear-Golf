@@ -40,12 +40,12 @@ export function FriendInviteCard({ width = 320 }) {
       {/* 컨텐츠 세로 중앙 정렬 — 미니카드가 중간에 들어가며 상단이 휑하던 것 해소(사용자 지시) */}
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingTop: 18, paddingBottom: 30 }}>
         {/* 헤드라인(한글) — 정체성 멘트 */}
-        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), lineHeight: fs(13) * 1.5, letterSpacing: 0.5, color: CHARCOAL_SOFT, textAlign: 'center' }}>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), lineHeight: fs(12) * 1.5, letterSpacing: 0.5, color: CHARCOAL_SOFT, textAlign: 'center' }}>
           골프, 동반자, 그리고{'\n'}우리의 빛나는 아카이브
         </Text>
         {/* Dear Golf 워드마크 */}
         {/* lineHeight 제거 + allowFontScaling false — Lora 이탤릭 g·f 디센더 잘림 방지(스플래시와 동일 처리) */}
-        <Text allowFontScaling={false} numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(40), color: CHARCOAL, marginTop: 12, paddingVertical: 4 }}>
+        <Text allowFontScaling={false} numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(40), color: CHARCOAL, marginTop: 6, paddingVertical: 4 }}>
           Dear Golf
         </Text>
         {/* 영문 부제 */}
@@ -101,8 +101,8 @@ export function FriendInviteCard({ width = 320 }) {
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: CHARCOAL, letterSpacing: 0.5, textAlign: 'center', marginTop: 12 }}>deargolf.app</Text>
       </View>
 
-      {/* 우하단 QR만 — deargolf.app 텍스트는 슬로건 밑으로 이동(사용자 지시) */}
-      <View style={{ position: 'absolute', right: 16, bottom: 14 }}>
+      {/* 우상단 QR — 하단 슬로건/deargolf.app과 붙던 것 분리(사용자 2026-06-14). deargolf.app 텍스트는 하단 유지 */}
+      <View style={{ position: 'absolute', right: 16, top: 14 }}>
         <View style={{ backgroundColor: 'rgba(255,255,255,0.72)', padding: 4, borderRadius: 6 }}>
           <QRCode value="https://deargolf.app" size={42} color={CHARCOAL} backgroundColor="transparent" />
         </View>
