@@ -11,9 +11,9 @@ const PHOTO = 'https://firebasestorage.googleapis.com/v0/b/dear-golf.firebasesto
 
 // 홀인원 + 사진 + 18홀 + 메모 + 동반자 — 모든 카드 요소 한 번에 검증
 const SAMPLE = {
-  photos: [], // 사진 없음 — 매거진·기념 no-photo 케이스 확인용(원복 시 [PHOTO])
-  special: null,
-  score: 92, par: 72, // 싱글 아님(보통 케이스) — 기념카드 SINGLE 배지 안 뜨게
+  photos: [PHOTO], // 사진 있는 버전 확인용(no-photo 보려면 [])
+  special: 'HOLE IN ONE',
+  score: 92, par: 72,
   course: '라비에벨CC 올드코스',
   date: '2026.06.14', day: '일', weather: '맑음',
   playerName: '홍길동',

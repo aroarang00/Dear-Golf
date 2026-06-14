@@ -86,22 +86,22 @@ export function RoundCardMemory({ item, width = 320 }) {
         ) : null}
         {/* 글씨·박스 위아래 더 컴팩트하게(사용자 2026-06-14) */}
         <View style={[
-          { paddingTop: 10, paddingBottom: 10, paddingHorizontal: photoUri ? 15 : 4 },
+          { paddingTop: photoUri ? 8 : 10, paddingBottom: photoUri ? 8 : 10, paddingHorizontal: photoUri ? 15 : 4 },
           photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
         ]}>
         {/* 골드 헤어라인 */}
-        <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: 9 }} />
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(22), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
+        <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: photoUri ? 4 : 9 }} />
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: photoUri ? fs(18) : fs(22), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}
         </Text>
         {/* 날짜만 — 사진 위주로 정보 최소화(이름·날씨 제거, 동반자가 들어가므로). 사용자 2026-06-14 */}
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(11), color: GOLD, letterSpacing: 0.3, marginTop: 7 }, SHADOW]}>
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(11), color: GOLD, letterSpacing: 0.3, marginTop: photoUri ? 3 : 7 }, SHADOW]}>
           {item.date || ''}
         </Text>
 
         {/* 함께한 사람 — 동반자 있을 때만(없으면 본인 이름은 위 메타줄에 이미 표시됨). 솔로 라운딩도 자연스럽게 포괄 */}
         {companionNames ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: photoUri ? 5 : 10 }}>
             <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD_DEEP, letterSpacing: 1, marginRight: 6 }, SHADOW]}>WITH</Text>
             <Text numberOfLines={1} style={[{ flex: 1, fontFamily: F.sysB, fontSize: fs(14), color: WHITE }, SHADOW]}>{companionNames}</Text>
           </View>
