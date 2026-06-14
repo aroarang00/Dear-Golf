@@ -44,13 +44,15 @@ export function RoundCardPolaroid({ item, width = 320 }) {
     <View style={{ width, height, borderRadius: 8, overflow: 'hidden', backgroundColor: '#FCFAF5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
       <View style={{ padding: FRAME }}>
         {/* 사진 영역 — 타수 칩 제거(하단 정보로 이동) */}
-        <View style={{ width: '100%', height: photoH, borderRadius: 3, backgroundColor: '#EEE9DC', overflow: 'hidden' }}>
+        <View style={{ width: '100%', height: photoH, borderRadius: 3, backgroundColor: '#FCFAF5', overflow: 'hidden' }}>
           {photoUri ? (
             <>
-              <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
-              {/* Dear Golf 워터마크 — 사진 우측 상단(흰색 + 그림자로 사진 위 가독). 사용자 2026-06-14 */}
-              <Text style={{ position: 'absolute', top: 9, right: 11, fontFamily: F.brand, fontSize: fs(14), color: '#fff',
-                textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>Dear Golf</Text>
+              {/* contain — 폴라로이드만 가로 사진도 잘리지 않게 다 담음(사용자 2026-06-14). 위아래 흰 여백은 폴라로이드 톤과 어울림 */}
+              <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={false} />
+              {/* Dear Golf 워터마크 — 사진 우측 상단. contain 흰 여백 위에서도 보이게 반투명 칩 */}
+              <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(20,18,16,0.42)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3 }}>
+                <Text style={{ fontFamily: F.brand, fontSize: fs(13), color: '#fff' }}>Dear Golf</Text>
+              </View>
             </>
           ) : (
             <LinearGradient colors={['#EFEADD', '#E0D8C5']} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
