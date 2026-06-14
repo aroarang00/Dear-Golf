@@ -48,6 +48,7 @@ try {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
+import * as SystemUI from 'expo-system-ui';
 import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
 import { PlayfairDisplay_700Bold, PlayfairDisplay_700Bold_Italic } from '@expo-google-fonts/playfair-display';
 import { C, F, fs } from './src/constants/colors';
@@ -314,6 +315,13 @@ function App() {
     userProfile.avgScore,
     userProfile.totalRounds,
   ]);
+
+  // 안드 edge-to-edge 루트 배경 — 시스템바(상태바·네비바) 뒤까지 brand 배경(paleSky)으로 칠해
+  //   로딩·화면 전환 시 검은 영역이 노출(로딩 풀스크린 안 됨)되던 것 방지 (2026-06-14, [[android_edge_to_edge]]).
+  //   splash.backgroundColor는 네이티브 런치 스크린만 칠함 → JS 전환 후 루트 뷰 배경은 별도 설정 필요.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(C.paleSky).catch(() => {});
+  }, []);
 
   // 로딩 화면이 너무 빨리 사라지지 않게 — 최소 1.6초는 브랜드 화면을 보여준다
   useEffect(() => {
