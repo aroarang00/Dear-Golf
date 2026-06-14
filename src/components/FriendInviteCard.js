@@ -38,18 +38,18 @@ export function FriendInviteCard({ width = 320 }) {
       <LinearGradient colors={['rgba(251,244,217,0)', 'rgba(251,244,217,0.9)']} start={{ x: 0.5, y: 0.5 }} end={{ x: 0.5, y: 1 }} style={ABS_FILL} />
 
       {/* 컨텐츠 세로 중앙 정렬 — 미니카드가 중간에 들어가며 상단이 휑하던 것 해소(사용자 지시) */}
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingTop: 18, paddingBottom: 30 }}>
-        {/* 헤드라인(한글) — 정체성 멘트 */}
-        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), lineHeight: fs(11) * 1.55, letterSpacing: 0.5, color: CHARCOAL_SOFT, textAlign: 'center' }}>
-          골프, 동반자, 그리고{'\n'}우리의 빛나는 아카이브
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingTop: 32, paddingBottom: 24 }}>
+        {/* 헤드라인(한글) — 정체성 멘트. 행간 조여 한 덩어리로(사용자 2026-06-14) */}
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), letterSpacing: 0.5, color: CHARCOAL_SOFT, textAlign: 'center' }}>
+          우리의 빛나는 아카이브
         </Text>
-        {/* Dear Golf 워드마크 */}
+        {/* Dear Golf 워드마크 — 헤드라인에 더 붙임(marginTop 6→2). g·f 디센더는 아래라 위 간격과 무관(paddingVertical 4가 보호) */}
         {/* lineHeight 제거 + allowFontScaling false — Lora 이탤릭 g·f 디센더 잘림 방지(스플래시와 동일 처리) */}
-        <Text allowFontScaling={false} numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(40), color: CHARCOAL, marginTop: 6, paddingVertical: 4 }}>
+        <Text allowFontScaling={false} numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(40), color: CHARCOAL, marginTop: -4, paddingVertical: 4 }}>
           Dear Golf
         </Text>
         {/* 영문 부제 */}
-        <Text style={{ fontFamily: F.sysM, fontSize: 11, letterSpacing: 2.5, color: BURGUNDY, opacity: 0.82, marginTop: 8 }}>
+        <Text style={{ fontFamily: F.sysM, fontSize: 12, letterSpacing: 2.5, color: BURGUNDY, opacity: 0.82, marginTop: 8 }}>
           For Your Ultimate Golf Life
         </Text>
         {/* 미니스트라이프 */}
