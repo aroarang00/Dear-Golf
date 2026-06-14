@@ -442,7 +442,8 @@ function App() {
       ref={navigationRef}
       onReady={() => sentryNavigationIntegration?.registerNavigationContainer?.(navigationRef)}
     >
-      <Tab.Navigator tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Navigator tabBar={props => <TabBar {...props} />}
+        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' } }} backBehavior="history">
         <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
         <Tab.Screen name={ROUTES.LOUNGE} component={LoungeScreen} />
         <Tab.Screen name={ROUTES.MY} component={DiaryScreen} />
