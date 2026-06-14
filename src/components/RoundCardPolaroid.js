@@ -89,7 +89,7 @@ export function RoundCardPolaroid({ item, width = 320 }) {
             </View>
           ) : null}
           {dateLabel ? (
-            <Text style={{ fontFamily: F.en, fontSize: fs(11), letterSpacing: 2, color: 'rgba(42,38,34,0.62)' }}>{dateLabel}</Text>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), letterSpacing: 1, color: 'rgba(42,38,34,0.8)' }}>{dateLabel}</Text>
           ) : null}
           <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(20), color: NAVY, letterSpacing: 0.2, marginTop: 4, paddingRight: hasScore ? 56 : 0 }}>
             {flag ? flag + ' ' : ''}{item.course || '라운딩'}
