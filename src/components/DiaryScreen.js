@@ -817,7 +817,8 @@ export function DiaryScreen({ route, navigation }) {
                       ? <MilestoneCard key={item.id} item={item} onShare={() => setShareMoment(item)} />
                       : <HallOfFameCard key={item.id} item={item} onShare={() => setShareMoment(item)} />
                   ))}
-                  <View style={{ height: 8 }} />
+                  {/* 카드↔피드 간격 스페이서는 펼쳤을 때만 — 접힘 상태엔 카드가 없어 피드와 과한 공백(2026-06-15 안드 사용자) */}
+                  {hofExpanded && <View style={{ height: 8 }} />}
                 </View>
               ) : !hofTeaserDismissed ? (
                 /* 특별한 기록이 없을 때 — 명예의 전당 잠금 티저 ('다시 보지 않기' 전까지) */
