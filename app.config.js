@@ -21,6 +21,13 @@ module.exports = {
       //   이미지(splash-icon.png) 제거 = 단색만 표시(사용자 확정 2026-06-11). 색 바꿀 땐 SplashOverlay/paleSky도 같이.
       backgroundColor: '#C8D9E6',
     },
+    // 안드 상태바 — 투명+translucent. ★불투명 paleSky 상태바가 화면 상단 '띠'로 보이고 safe-area inset.top을
+    //   0으로 죽이던 근본 원인(dev 실측 확인 2026-06-14, [[android_edge_to_edge]]). 투명 전환 시 콘텐츠가 상태바
+    //   밑까지 풀블리드 + inset.top이 상태바 높이(약 36)로 정상 보고 → SafeAreaView 패딩 정상. App.js 런타임 보강도 병행.
+    androidStatusBar: {
+      translucent: true,
+      backgroundColor: '#00000000',
+    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'app.deargolf',

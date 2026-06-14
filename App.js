@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform, Dimensions, StatusBar as RNStatusBar } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -80,6 +80,7 @@ import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
+import { DevCardPreview } from './src/components/DevCardPreview'; // ★TEMP_DEV — 카드 미리보기
 import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { subscribeMyNotifications, markNotificationRead } from './src/utils/roundupNotifications';
@@ -98,6 +99,24 @@ const DEV_BYPASS_LOGIN = __DEV__ && true;
 //  정상 배치(=풀블리드)되던 자가치유(사용자 실측 확정)를, 사용자가 보기 전에 미리 끝내는 방식.
 //  → top inset이 측정(>0)된 뒤에만 자식(NavigationContainer)을 마운트. 그동안은 SplashOverlay가 덮고 있어 깜빡임 없음.
 //  iOS는 edge-to-edge 강제 이슈가 없어 즉시 통과. 일부 기기/상황에서 0이 지속될 수 있으니 600ms 폴백.
+// ★TEMP_DEV — 상단 띠 진단용 inset/높이 실측 표시. 디버깅 끝나면 제거.
+function DevInsetDebug() {
+  const insets = useSafeAreaInsets();
+  const win = Dimensions.get('window');
+  const scr = Dimensions.get('screen');
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: '42%', left: 0, right: 0, alignItems: 'center', zIndex: 99999 }}>
+      <View style={{ backgroundColor: 'rgba(220,0,0,0.9)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
+        <Text style={{ color: '#fff', fontSize: 13, fontFamily: F.sysB, textAlign: 'center' }}>
+          inset top:{insets.top} bot:{insets.bottom}{'\n'}
+          win h:{Math.round(win.height)}  scr h:{Math.round(scr.height)}{'\n'}
+          RNStatusBar.h:{RNStatusBar.currentHeight ?? '—'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function InsetGate({ children }) {
   const insets = useSafeAreaInsets();
   const [ready, setReady] = useState(Platform.OS !== 'android');
@@ -351,6 +370,11 @@ function App() {
   //   splash.backgroundColor는 네이티브 런치 스크린만 칠함 → JS 전환 후 루트 뷰 배경은 별도 설정 필요.
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(C.paleSky).catch(() => {});
+    // ★띠 진단/수정 시도 — 불투명 paleSky 상태바가 띠로 보임 + inset.top=0. 투명+translucent로 전환해 풀블리드+inset 정상화 시도.
+    if (Platform.OS === 'android') {
+      try { RNStatusBar.setTranslucent(true); } catch (e) {}
+      try { RNStatusBar.setBackgroundColor('transparent', false); } catch (e) {}
+    }
   }, []);
 
   // 로딩 화면이 너무 빨리 사라지지 않게 — 최소 1.6초는 브랜드 화면을 보여준다
@@ -535,12 +559,14 @@ function App() {
     </DiariesProvider>
     </SchedulesProvider>
     </UserContext.Provider>
+    {DEV_BYPASS_LOGIN && <DevInsetDebug />}
     </SafeAreaProvider>
     </KeyboardProvider>
     {/* 로딩 오버레이는 KeyboardProvider 밖(GestureHandlerRootView 직속)에 둔다 — 안에 두면 keyboard-controller가
         첫 마운트에 영역 높이를 측정하는 동안 absolute(bottom:0) 뷰의 center가 위→아래로 밀려, 로딩화면이
         살짝 내려오던 점프가 생김(2026-06-14 수정). 정적 로딩 View와 같은 위치 기준으로 맞춰 이음새 제거. */}
     <SplashOverlay appReady={appReady} />
+    {DEV_BYPASS_LOGIN && <DevCardPreview />}
     </GestureHandlerRootView>
   );
 }
