@@ -45,6 +45,7 @@ export function RoundCardMemory({ item, width = 320 }) {
   const isBest = item.badge === '베스트';
   const special = item.special || null;
   const sideBadge = isBest ? 'BEST' : isSingle ? 'SINGLE' : null;
+  const memo = (item.memo || '').trim(); // 한줄메모 — 사진 없을 때만 하단에(허전함 보완)
 
   return (
     <View style={{ width, height, borderRadius: 16, overflow: 'hidden', backgroundColor: '#2A2622' }}>
@@ -52,7 +53,8 @@ export function RoundCardMemory({ item, width = 320 }) {
       {photoUri ? (
         <Image source={{ uri: photoUri }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
       ) : (
-        <LinearGradient colors={['#4A443D', '#2A2622']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        // 사진 없을 때 네이비 그라데이션 — 매거진(차콜)과 구분되는 기념카드 정체성(사용자 2026-06-14, 라운지색이지만 차별화용). 골드·샴페인 글자와 어울림
+        <LinearGradient colors={['#27506B', '#11212F']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
       )}
 
       {/* 상단/하단 그라데이션 — 사진 위주로 슬림하게(정보 최소화와 함께, 사용자 2026-06-14) */}
@@ -88,24 +90,29 @@ export function RoundCardMemory({ item, width = 320 }) {
           photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
         ]}>
         {/* 골드 헤어라인 */}
-        <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: 6 }} />
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(17), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
+        <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: 9 }} />
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(22), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}
         </Text>
         {/* 날짜만 — 사진 위주로 정보 최소화(이름·날씨 제거, 동반자가 들어가므로). 사용자 2026-06-14 */}
-        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(11), color: GOLD, letterSpacing: 0.3, marginTop: 4 }, SHADOW]}>
+        <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(11), color: GOLD, letterSpacing: 0.3, marginTop: 7 }, SHADOW]}>
           {item.date || ''}
         </Text>
 
         {/* 함께한 사람 — 동반자 있을 때만(없으면 본인 이름은 위 메타줄에 이미 표시됨). 솔로 라운딩도 자연스럽게 포괄 */}
         {companionNames ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
             <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD_DEEP, letterSpacing: 1, marginRight: 6 }, SHADOW]}>WITH</Text>
             <Text numberOfLines={1} style={[{ flex: 1, fontFamily: F.sysB, fontSize: fs(14), color: WHITE }, SHADOW]}>{companionNames}</Text>
           </View>
         ) : null}
 
-        {/* 한줄메모 제거(2026-06-14) — 기념카드는 사진 주인공, 정보 최소화(구장·날짜·동반자만) */}
+        {/* 한줄메모 — 사진 없을 때만(허전함 보완). 멘트만 박스처리(은은한 골드 테두리)+행간 여유. 사진 있으면 생략(사용자 2026-06-14) */}
+        {!photoUri && memo ? (
+          <View style={{ marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(201,168,76,0.38)', backgroundColor: 'rgba(0,0,0,0.22)' }}>
+            <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(246,242,233,0.9)', lineHeight: fs(20) }}>"{memo}"</Text>
+          </View>
+        ) : null}
         </View>
       </View>
     </View>

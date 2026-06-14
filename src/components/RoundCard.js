@@ -127,7 +127,7 @@ export function RoundCard({ item, width = 320 }) {
                   <Text style={[{ fontFamily: F.sysB, fontSize: fs(13), color: scoreColor, marginLeft: 4, marginBottom: 4 }, SHADOW]}>타</Text>
                   {diffLabel ? (
                     <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 8, marginBottom: 5 }, SHADOW]}>
-                      {diffLabel}   ·   par {item.par}
+                      {diffLabel}
                     </Text>
                   ) : null}
                 </View>
@@ -146,18 +146,23 @@ export function RoundCard({ item, width = 320 }) {
             locations={[0.32, 0.74, 1]} start={{ x: 0.4, y: 0.2 }} end={{ x: 1, y: 1 }}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
 
-          {/* 상단 — ROUND RECAP(좌) + Dear Golf 워터마크(우상단) */}
-          <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
-            <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
+          {/* 상단 — special 있으면 ROUND RECAP 자리에 골드 박스(크게), 없으면 ROUND RECAP. Dear Golf는 하단으로(사용자 2026-06-14) */}
+          <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row' }}>
+            {special ? (
+              <View style={{ borderWidth: 1.5, borderColor: GOLD, borderRadius: 6, paddingHorizontal: 15, paddingVertical: 9, backgroundColor: 'rgba(0,0,0,0.25)' }}>
+                <Text style={[{ fontFamily: F.en, fontSize: fs(19), color: GOLD, letterSpacing: 3 }, SHADOW]}>{special}</Text>
+              </View>
+            ) : (
+              <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
+            )}
           </View>
 
           {/* 하단 정보 패널 — special(크게)·골드바·구장·메타·타수. 차콜 배경 위라 박스 없이 또렷.
               하단에 완전히 붙이지 않고 여유를 둠(bottom 32, 사용자 지시 2026-06-14) */}
           <View style={{ position: 'absolute', left: 20, right: 20, bottom: 32 }}>
-            {/* 특별한 순간(홀인원·이글·싱글·베스트) — 구장명 위, 골드바 위에 크게 강조 */}
-            {accentLabel ? (
-              <Text style={[{ fontFamily: F.en, fontSize: fs(18), color: GOLD, letterSpacing: 3, marginBottom: 9 }, SHADOW]}>{accentLabel}</Text>
+            {/* 영예칩(베스트/싱글) — special은 상단 ROUND RECAP 자리로 올려 여기선 BEST/SINGLE만(중복 방지) */}
+            {sideBadge ? (
+              <Text style={[{ fontFamily: F.en, fontSize: fs(18), color: GOLD, letterSpacing: 3, marginBottom: 9 }, SHADOW]}>{sideBadge}</Text>
             ) : null}
             <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 10 }} />
             <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(22), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
@@ -172,12 +177,14 @@ export function RoundCard({ item, width = 320 }) {
                 <Text style={[{ fontFamily: F.sysB, fontSize: fs(15), color: scoreColor, marginLeft: 4, marginBottom: 6 }, SHADOW]}>타</Text>
                 {diffLabel ? (
                   <Text style={[{ fontFamily: F.en, fontSize: fs(14), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 10, marginBottom: 7 }, SHADOW]}>
-                    {diffLabel}   ·   par {item.par}
+                    {diffLabel}
                   </Text>
                 ) : null}
               </View>
             ) : null}
           </View>
+          {/* Dear Golf — 하단 우측(상단에서 이동, 사용자 2026-06-14) */}
+          <Text style={[{ position: 'absolute', bottom: 16, right: 20, fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
         </>
       )}
     </View>

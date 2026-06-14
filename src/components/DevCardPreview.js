@@ -11,14 +11,14 @@ const PHOTO = 'https://firebasestorage.googleapis.com/v0/b/dear-golf.firebasesto
 
 // 홀인원 + 사진 + 18홀 + 메모 + 동반자 — 모든 카드 요소 한 번에 검증
 const SAMPLE = {
-  photos: [PHOTO],
+  photos: [], // 사진 없음 — 매거진·기념 no-photo 케이스 확인용(원복 시 [PHOTO])
   special: null,
-  score: 76, par: 72,
+  score: 92, par: 72, // 싱글 아님(보통 케이스) — 기념카드 SINGLE 배지 안 뜨게
   course: '라비에벨CC 올드코스',
   date: '2026.06.14', day: '일', weather: '맑음',
   playerName: '홍길동',
   companions: [{ name: '홍길동', isMe: true }, { name: '김철수' }, { name: '이영희' }, { name: '박민수' }],
-  memo: '오늘 날씨도 좋고 정말 즐거운 라운딩이었다. 다음에 또 오자',
+  memo: '날씨도 좋고 최고였다',
   holeScores: [4, 5, 3, 4, 4, 5, 4, 3, 4, 4, 4, 5, 3, 4, 4, 4, 3, 4],
   holePars: [4, 5, 3, 4, 4, 5, 4, 3, 4, 4, 4, 5, 3, 4, 4, 4, 3, 4],
   starRating: 5, overseas: false,
