@@ -95,33 +95,34 @@ export function RoundCard({ item, width = 320 }) {
             <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
           </View>
 
-          {/* 하단 정보 — 반투명 박스 슬림(패널 줄여 사진 노출 ↑) */}
-          <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12, paddingTop: 10, paddingBottom: 11, paddingHorizontal: 14,
-            backgroundColor: 'rgba(18,16,14,0.46)', borderRadius: 13, borderWidth: 1, borderColor: 'rgba(201,168,76,0.42)' }}>
-            <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: 7 }} />
-            <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(19), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
-              {flag ? flag + ' ' : ''}{item.course || '라운딩'}
-            </Text>
-            <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, letterSpacing: 0.3, marginTop: 5 }, SHADOW]}>
-              {metaLine}
-            </Text>
-            {hasScore ? (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
-                <Text style={[{ fontFamily: F.en, fontSize: fs(40), lineHeight: fs(42), color: scoreColor }, SHADOW]}>{item.score}</Text>
-                <Text style={[{ fontFamily: F.sysB, fontSize: fs(14), color: scoreColor, marginLeft: 4, marginBottom: 5 }, SHADOW]}>타</Text>
-                {diffLabel ? (
-                  <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 9, marginBottom: 6 }, SHADOW]}>
-                    {diffLabel}   ·   par {item.par}
-                  </Text>
-                ) : null}
-                <View style={{ flex: 1 }} />
-                {accentLabel ? (
-                  <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.28)', marginBottom: 4 }}>
-                    <Text style={{ fontFamily: F.en, fontSize: fs(10), color: GOLD, letterSpacing: 2 }}>{accentLabel}</Text>
-                  </View>
-                ) : null}
+          {/* 하단 — special(있으면 박스 밖 위·좌측 정렬) + 정보 박스. 글자 더 슬림하게 줄여 사진 부각(사용자 2026-06-14) */}
+          <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12 }}>
+            {accentLabel ? (
+              <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 8 }}>
+                <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{accentLabel}</Text>
               </View>
             ) : null}
+            <View style={{ paddingTop: 9, paddingBottom: 10, paddingHorizontal: 13,
+              backgroundColor: 'rgba(18,16,14,0.46)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(201,168,76,0.42)' }}>
+              <View style={{ height: 1.5, width: 28, backgroundColor: GOLD_DEEP, marginBottom: 6 }} />
+              <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(17), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
+                {flag ? flag + ' ' : ''}{item.course || '라운딩'}
+              </Text>
+              <Text numberOfLines={1} style={[{ fontFamily: F.sysM, fontSize: fs(11), color: GOLD, letterSpacing: 0.3, marginTop: 4 }, SHADOW]}>
+                {metaLine}
+              </Text>
+              {hasScore ? (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
+                  <Text style={[{ fontFamily: F.en, fontSize: fs(34), lineHeight: fs(36), color: scoreColor }, SHADOW]}>{item.score}</Text>
+                  <Text style={[{ fontFamily: F.sysB, fontSize: fs(13), color: scoreColor, marginLeft: 4, marginBottom: 4 }, SHADOW]}>타</Text>
+                  {diffLabel ? (
+                    <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: 'rgba(246,242,233,0.9)', letterSpacing: 1, marginLeft: 8, marginBottom: 5 }, SHADOW]}>
+                      {diffLabel}   ·   par {item.par}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
           </View>
         </>
       ) : (

@@ -48,9 +48,9 @@ export function RoundCardPolaroid({ item, width = 320 }) {
             <>
               {/* contain — 폴라로이드만 가로 사진도 잘리지 않게 다 담음(사용자 2026-06-14). 위아래 흰 여백은 폴라로이드 톤과 어울림 */}
               <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={false} />
-              {/* Dear Golf 워터마크 — 사진 우측 상단. contain 흰 여백 위에서도 보이게 반투명 칩 */}
-              <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(20,18,16,0.42)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3 }}>
-                <Text style={{ fontFamily: F.brand, fontSize: fs(13), color: '#fff' }}>Dear Golf</Text>
+              {/* Dear Golf 워터마크 — 사진 우측 상단. 작게(반쯤 걸치던 것 줄임) + 반투명 칩으로 흰 여백서도 가독(사용자 2026-06-14) */}
+              <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(20,18,16,0.4)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <Text style={{ fontFamily: F.brand, fontSize: fs(11), color: '#fff' }}>Dear Golf</Text>
               </View>
             </>
           ) : (
@@ -69,18 +69,19 @@ export function RoundCardPolaroid({ item, width = 320 }) {
           {/* 타수(좌, 골드) + 날짜(우, diff와 같은 fs12) — 한 줄에 합쳐 줄 수 안 늘리고 사진 크기 유지(사용자 2026-06-14).
               Dear Golf는 사진 우측 상단. 날짜를 동반자와 다른 줄에 둬 닉네임 길어도 날짜 안 잘림 */}
           {(hasScore || item.date) ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
               {hasScore ? (
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                <>
                   <Text style={{ fontFamily: F.en, fontSize: fs(30), lineHeight: fs(32), color: GOLD }}>{item.score}</Text>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, marginLeft: 3, marginBottom: 3 }}>타</Text>
                   {diffLabel ? (
                     <Text style={{ fontFamily: F.en, fontSize: fs(12), color: INK_SOFT, letterSpacing: 0.5, marginLeft: 8, marginBottom: 3 }}>{diffLabel}</Text>
                   ) : null}
-                </View>
-              ) : <View />}
+                </>
+              ) : null}
+              {/* 날짜 — 타수·diff 바로 옆(우측 끝 X). 사용자 2026-06-14 */}
               {item.date ? (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(42,38,34,0.5)', marginBottom: 3 }}>{item.date}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(42,38,34,0.5)', marginLeft: hasScore ? 10 : 0, marginBottom: 3 }}>{item.date}</Text>
               ) : null}
             </View>
           ) : null}
