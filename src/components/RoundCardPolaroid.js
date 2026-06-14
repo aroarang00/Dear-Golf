@@ -37,7 +37,7 @@ export function RoundCardPolaroid({ item, width = 320 }) {
   const who = companionNames || playerName;
 
   const FRAME = Math.round(width * 0.055);   // 흰 테두리(살짝 슬림)
-  const photoH = Math.round(height * 0.58);  // 사진 영역 — 하단 동반자/날짜 두 줄 공간 확보 위해 약간 축소(2026-06-14)
+  const photoH = Math.round(height * 0.62);  // 사진 영역 — 날짜를 타수 줄로 옮겨 줄 수 안 늘려 사진 크기 복원(2026-06-14)
 
   return (
     <View style={{ width, height, borderRadius: 8, overflow: 'hidden', backgroundColor: '#FCFAF5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
@@ -66,23 +66,27 @@ export function RoundCardPolaroid({ item, width = 320 }) {
           <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(19), color: INK, letterSpacing: 0.2 }}>
             {flag ? flag + ' ' : ''}{item.course || '라운딩'}
           </Text>
-          {/* 타수(좌, 골드) — Dear Golf는 사진 우측 상단으로 이동(사용자 2026-06-14) */}
-          {hasScore ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(30), lineHeight: fs(32), color: GOLD }}>{item.score}</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, marginLeft: 3, marginBottom: 3 }}>타</Text>
-              {diffLabel ? (
-                <Text style={{ fontFamily: F.en, fontSize: fs(12), color: INK_SOFT, letterSpacing: 0.5, marginLeft: 8, marginBottom: 3 }}>{diffLabel}</Text>
+          {/* 타수(좌, 골드) + 날짜(우, diff와 같은 fs12) — 한 줄에 합쳐 줄 수 안 늘리고 사진 크기 유지(사용자 2026-06-14).
+              Dear Golf는 사진 우측 상단. 날짜를 동반자와 다른 줄에 둬 닉네임 길어도 날짜 안 잘림 */}
+          {(hasScore || item.date) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8 }}>
+              {hasScore ? (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(30), lineHeight: fs(32), color: GOLD }}>{item.score}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, marginLeft: 3, marginBottom: 3 }}>타</Text>
+                  {diffLabel ? (
+                    <Text style={{ fontFamily: F.en, fontSize: fs(12), color: INK_SOFT, letterSpacing: 0.5, marginLeft: 8, marginBottom: 3 }}>{diffLabel}</Text>
+                  ) : null}
+                </View>
+              ) : <View />}
+              {item.date ? (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(42,38,34,0.5)', marginBottom: 3 }}>{item.date}</Text>
               ) : null}
             </View>
           ) : null}
-          {/* 동반자(한 줄, 길면 …) + 날짜(아래 별도 줄) — 닉네임이 길어도 날짜가 항상 명확히 보이게 두 줄 분리.
-              한 줄에 점(·)으로 욱여넣어 날짜 잘리거나 애매하던 것 해결(사용자 2026-06-14) */}
+          {/* 동반자 — 별도 줄(길면 …). 날짜는 위 타수 줄에 있어 영향 없음 */}
           {who ? (
             <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK_SOFT, marginTop: 7 }}>{who}</Text>
-          ) : null}
-          {item.date ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(42,38,34,0.5)', marginTop: who ? 3 : 7 }}>{item.date}</Text>
           ) : null}
         </View>
       </View>

@@ -662,17 +662,17 @@ export function DiaryScreen({ route, navigation }) {
             {/* 흐린 트랙 메달 줄 — 이름 아래(옛 라베 자리). 탭하면 마일스톤 안내. 미달성이면 '모으는 중'. ([[milestone_badges]])
                 트랙별 최고 메달만 흐리게(라운딩·구장). TEMP 10이면 10도 표시(미리보기). */}
             <TouchableOpacity onPress={() => setMilestoneInfoOpen(true)} activeOpacity={0.7}
-              style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7, marginLeft: 12 }}>
+              style={{ alignSelf: 'stretch', marginTop: 7, marginLeft: 12, marginRight: -60 }}>
               {(medals.rounds != null || medals.courses != null) ? (
-                // 마일스톤 = 명예 표시 — 흐린 회색이라 안 보인다는 피드백으로 키우고(fs12) 메달 골드(#8B6914)로 구분(2026-06-13)
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#8B6914' }}>
+                // 마일스톤 = 명예 표시(골드 #8B6914). 점(·)·ⓘ 제거 + 한 줄(numberOfLines 1)로 정리 — 탭하면 안내 모달(사용자 2026-06-14).
+                //   영역이 좁아 두 줄로 갈라지던 것 → 멘트 줄과 동일하게 marginRight 음수로 폭 확보(우상단 버튼은 위쪽이라 안 겹침).
+                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#8B6914' }}>
                   {[medals.rounds != null ? `🏅 라운딩 ${medals.rounds}` : null,
-                    medals.courses != null ? `🏅 구장 ${medals.courses}` : null].filter(Boolean).join('   ·   ')}
+                    medals.courses != null ? `🏅 구장 ${medals.courses}` : null].filter(Boolean).join('   ')}
                 </Text>
               ) : (
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGrayLight }}>🏅 마일스톤 모으는 중</Text>
+                <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGrayLight }}>🏅 마일스톤 모으는 중</Text>
               )}
-              <Text style={{ fontSize: fs(10), color: C.warmGrayLight }}>ⓘ</Text>
             </TouchableOpacity>
             {/* 멘트(상태 메시지) — 표시 전용. 편집은 마이페이지 내 정보에서.
                 lineHeight 넉넉히(이모지 윗부분 잘림 방지) */}
