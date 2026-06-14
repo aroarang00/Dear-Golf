@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -636,7 +637,7 @@ export function DiaryScreen({ route, navigation }) {
             <Text style={{ fontSize: fs(24) }}>⚙️</Text>
           </TouchableOpacity>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, paddingRight: 80 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 80 }}>
           {/* 아바타 — 탭하면 사진 변경 액션시트 */}
           <View>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
@@ -659,28 +660,30 @@ export function DiaryScreen({ route, navigation }) {
           <View style={{ flex: 1 }}>
             {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{myName}</Text>
-            {/* 흐린 트랙 메달 줄 — 이름 아래(옛 라베 자리). 탭하면 마일스톤 안내. 미달성이면 '모으는 중'. ([[milestone_badges]])
-                트랙별 최고 메달만 흐리게(라운딩·구장). TEMP 10이면 10도 표시(미리보기). */}
+            {/* 멘트(상태 메시지) — 이름 아래 line 2로 올림(마일스톤 칩과 위치 스왑, 2026-06-14). 한 줄·인용·연한 톤.
+                버튼(💰·⚙️)보다 아래라 우측 여백 되찾아(marginRight 음수) 폭 확보 */}
+            <Text numberOfLines={1} style={{ fontFamily: myStatus ? F.sysM : F.sys, fontSize: fs(13),
+              color: myStatus ? 'rgba(61,57,53,0.7)' : C.warmGray, marginTop: 7, marginLeft: 12, marginRight: -64, lineHeight: 22 }}>
+              {myStatus ? `"${myStatus}"` : '마이페이지에서 한마디를 남겨보세요'}
+            </Text>
+            {/* 마일스톤 — line 3(버튼 아래)로 내려 칩이 💰와 안 겹치게(스왑). 획득 훈장 느낌 골드 배지, 탭→안내 ([[milestone_badges]]) */}
             <TouchableOpacity onPress={() => setMilestoneInfoOpen(true)} activeOpacity={0.7}
-              style={{ alignSelf: 'stretch', marginTop: 7, marginLeft: 12, marginRight: -60 }}>
+              style={{ alignSelf: 'stretch', marginTop: 9, marginLeft: 12, marginRight: -60 }}>
               {(medals.rounds != null || medals.courses != null) ? (
-                // 마일스톤 = 명예 표시(골드 #8B6914). 점(·)·ⓘ 제거 + 한 줄(numberOfLines 1)로 정리 — 탭하면 안내 모달(사용자 2026-06-14).
-                //   영역이 좁아 두 줄로 갈라지던 것 → 멘트 줄과 동일하게 marginRight 음수로 폭 확보(우상단 버튼은 위쪽이라 안 겹침).
-                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#8B6914' }}>
-                  {[medals.rounds != null ? `🏅 라운딩 ${medals.rounds}` : null,
-                    medals.courses != null ? `🏅 구장 ${medals.courses}` : null].filter(Boolean).join('   ')}
-                </Text>
+                <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap' }}>
+                  {[medals.rounds != null ? `라운딩 ${medals.rounds}` : null,
+                    medals.courses != null ? `구장 ${medals.courses}` : null].filter(Boolean).map((label, i) => (
+                    <LinearGradient key={i} colors={['#FCF5DC', '#F3E6B6']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 2, borderWidth: 0.5, borderColor: '#D8BE74', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: fs(10) }}>🏅</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#7A5A0F' }}>{label}</Text>
+                    </LinearGradient>
+                  ))}
+                </View>
               ) : (
                 <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGrayLight }}>🏅 마일스톤 모으는 중</Text>
               )}
             </TouchableOpacity>
-            {/* 멘트(상태 메시지) — 표시 전용. 편집은 마이페이지 내 정보에서.
-                lineHeight 넉넉히(이모지 윗부분 잘림 방지) */}
-            {/* 멘트 — 한 줄 고정. 버튼(💰·⚙️)보다 아래라 우측 여백을 되찾아(marginRight 음수) 폭 확보 */}
-            <Text numberOfLines={1} style={{ fontFamily: myStatus ? F.sysM : F.sys, fontSize: fs(13),
-              color: myStatus ? C.charcoal : C.warmGray, marginTop: 7, marginLeft: 12, marginRight: -64, lineHeight: 22 }}>
-              {myStatus || '마이페이지에서 한마디를 남겨보세요'}
-            </Text>
           </View>
         </View>
       </View>
