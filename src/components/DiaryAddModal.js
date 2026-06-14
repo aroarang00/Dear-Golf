@@ -36,7 +36,7 @@ const MAX_PHOTOS = 10;
 const MAX_VIDEO_SEC = 30; // 동영상 최대 길이(초) — 과도한 업로드 용량 방지. Storage 규칙(영상 100MB)보다 앞단 차단.
 
 // '더 기록하기' 예시 칩 — 누르면 입력칸에 항목이 삽입돼 글쓰기 시작점이 된다
-const GUIDE_CHIPS = ['MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
+const GUIDE_CHIPS = ['어느 코스', 'MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
 
 export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const insets = useSafeAreaInsets();

@@ -53,7 +53,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 14 }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.navy }}>일정</Text>
+            <Text style={{ fontFamily: F.serifKR, fontSize: fs(28), color: C.navy }}>골프 일정</Text>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.navy, marginTop: 3 }}>›</Text>
           </TouchableOpacity>
         </View>
