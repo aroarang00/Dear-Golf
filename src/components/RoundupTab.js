@@ -1640,8 +1640,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ backgroundColor: C.burgundy, borderRadius: 18, paddingHorizontal: 15, paddingVertical: _and ? 6 : 9,
               flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter, includeFontPadding: false, textAlignVertical: 'center' }}>+</Text>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter, includeFontPadding: false, textAlignVertical: 'center' }}>모집글</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter, includeFontPadding: false, textAlignVertical: 'center' }}>+</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.butter, includeFontPadding: false, textAlignVertical: 'center' }}>모집글</Text>
           </TouchableOpacity>
           {/* 알림함 */}
           <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
