@@ -300,6 +300,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const hideStranger = !ROUNDUP_PUBLIC_ENABLED || !!userProfile?.hideStrangerRoundups;
   const [view, setView] = useState(hideStranger ? 'friend' : 'all');  // all | friend | mine | watch
   const [regionFilter, setRegionFilter] = useState('all'); // 전체 탭 지역 칩 (all 외엔 capital/gangwon/chungcheong/jeolla/gyeongsang/jeju)
+  // 정렬 — 'recent'(최신순, 기본) | 'soon'(마감임박순=티오프 가까운 순). 토글 UI는 __DEV__에서만 노출(보류 기능, 출시 시 게이트 해제) ([[roundup-sort-filter]])
+  const [sortMode, setSortMode] = useState('recent');
 
   // 토글이 켜진 상태에서 view가 'all'이면 자동으로 'friend'로 전환
   useEffect(() => {
@@ -865,6 +867,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     : view === 'watch' ? watchTab : view === 'match' ? matchTab : allTab;
   // Firestore createdAt(Timestamp) 우선, 더미 호환 위해 ts fallback
   const tsOf = (p) => (p.createdAt?.toMillis?.() ?? p.ts ?? 0);
+  // 마감임박순용 티오프 일시(ms). 오픈형(날짜 미정)은 맨 뒤로(Infinity). isInVisibleWindow와 동일 산식.
+  const teeOffMs = (p) => {
+    if (!p.date) return Infinity;
+    const [y, m, d] = p.date.split('.').map(Number);
+    const [hh, mm] = (p.time || '07:00').split(':').map(Number);
+    const t = new Date(y, m - 1, d, hh, mm).getTime();
+    return Number.isNaN(t) ? Infinity : t;
+  };
   // '내 참여' 뷰에서 아직 응답 안 한 친구지정 초대장은 항상 맨 위로 고정 — 사적 초대라 놓치지 않게 ([[roundup-invitation]]).
   //   showInvite(렌더 분기)와 동일 조건. 수락(joined)·신청(applied)하면 false가 돼 일반 최신순으로 내려감(노이즈 X).
   const isPendingInvite = (p) =>
@@ -876,7 +886,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     const ia = isPendingInvite(a) ? 1 : 0;
     const ib = isPendingInvite(b) ? 1 : 0;
     if (ia !== ib) return ib - ia;     // 초대장 먼저
-    return tsOf(b) - tsOf(a);          // 그 안에서 최신순
+    if (sortMode === 'soon') return teeOffMs(a) - teeOffMs(b); // 마감임박순(티오프 가까운 순), 오픈형 뒤
+    return tsOf(b) - tsOf(a);          // 최신순(기본)
   });
   // 소도시 예외 — 전체/친구 탭에서 보이는 모집글이 3개 이하면 조건 완화 안내
   const showSparseHint = (view === 'all' || view === 'friend') && list.length > 0 && list.length <= 3;
@@ -1663,6 +1674,22 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
         contentContainerStyle={{ paddingBottom: 32 }}>
+      {/* 정렬 토글 — ⚠️__DEV__ 전용(보류 기능). 출시 시 게이트 해제만 하면 노출 ([[roundup-sort-filter]]).
+          저볼륨 친구공개에선 정렬이 과해 프로덕션 미노출, 기본 최신순 유지 */}
+      {__DEV__ && (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: _and ? 5 : 7 }}>
+          {[['recent', '최신순'], ['soon', '마감임박순']].map(([k, l]) => {
+            const on = sortMode === k;
+            return (
+              <TouchableOpacity key={k} onPress={() => setSortMode(k)} activeOpacity={0.8}
+                style={{ paddingHorizontal: 10, paddingVertical: _and ? 4 : 5, borderRadius: 13,
+                  backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(11), color: on ? C.butter : C.warmGray }}>{l}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
       {/* 전체 탭 — 지역 칩 필터 (수도권/강원/충청/전라/경상/제주) */}
       {view === 'all' && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
