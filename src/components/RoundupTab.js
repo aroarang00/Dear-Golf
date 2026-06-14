@@ -892,6 +892,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 소도시 예외 — 전체/친구 탭에서 보이는 모집글이 3개 이하면 조건 완화 안내
   const showSparseHint = (view === 'all' || view === 'friend') && list.length > 0 && list.length <= 3;
 
+  // 목록 안내 라벨 — 전체공개 꺼진 동안엔 친구 모집뿐이라 'friend' 라벨은 대비대상 없어 잉여→숨김(코드 보존, 부활 시 복귀).
+  //   '맞춤'은 부분집합이라 유지, '전체공개'는 ROUNDUP_PUBLIC_ENABLED 부활 시만 ([[roundup-public-disabled]]). 사용자 2026-06-15
+  const browseLabel = view === 'match' ? '내 조건에 맞는 모집이에요'
+    : view === 'friend' ? (hideStranger ? null : '친구가 올린 모집글이에요')
+    : '전체공개 모집글이에요';
+  // 정렬 토글은 카드가 충분(4개+)할 때만 노출 — 저볼륨엔 정렬이 무의미·휑함([[roundup-sort-filter]] 보류 근거).
+  //   임계치로 '모집 수 증가' 트리거를 자동 판단. sparseHint(≤3)와 상보적으로 갈림. 사용자 2026-06-15
+  const showSort = list.length > 3;
+
   // 맞춤 모집 조건 저장
   const saveRoundupMatch = (cfg) => {
     const next = { ...userProfile, roundupMatch: cfg };
@@ -1674,22 +1683,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
         contentContainerStyle={{ paddingBottom: 32 }}>
-      {/* 정렬 토글 — ⚠️__DEV__ 전용(보류 기능). 출시 시 게이트 해제만 하면 노출 ([[roundup-sort-filter]]).
-          저볼륨 친구공개에선 정렬이 과해 프로덕션 미노출, 기본 최신순 유지 */}
-      {__DEV__ && (
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: _and ? 5 : 7 }}>
-          {[['recent', '최신순'], ['soon', '마감임박순']].map(([k, l]) => {
-            const on = sortMode === k;
-            return (
-              <TouchableOpacity key={k} onPress={() => setSortMode(k)} activeOpacity={0.8}
-                style={{ paddingHorizontal: 10, paddingVertical: _and ? 4 : 5, borderRadius: 13,
-                  backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
-                <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(11), color: on ? C.butter : C.warmGray }}>{l}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
       {/* 전체 탭 — 지역 칩 필터 (수도권/강원/충청/전라/경상/제주) */}
       {view === 'all' && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -1745,13 +1738,28 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         )
       )}
 
-      {/* 안내 텍스트 — 모집글 작성 버튼은 헤더로 이동 */}
-      {view !== 'mine' && view !== 'watch' && (
-        <View style={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 2 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
-            {view === 'match' ? '내 조건에 맞는 모집이에요'
-              : view === 'friend' ? '친구가 올린 모집글이에요' : '전체공개 모집글이에요'}
-          </Text>
+      {/* 안내 텍스트(+우측 정렬 토글) — 라벨/정렬 둘 다 없으면 줄 자체 미렌더 */}
+      {view !== 'mine' && view !== 'watch' && (browseLabel || showSort) && (
+        <View style={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          {browseLabel
+            ? <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>{browseLabel}</Text>
+            : <View />}
+          {/* 정렬 — 알약 대신 텍스트 토글(켜진 쪽만 진하게). 카드 4개+일 때만(showSort) ([[roundup-sort-filter]]) */}
+          {showSort && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+              {[['recent', '최신순'], ['soon', '마감임박순']].map(([k, l], i) => {
+                const on = sortMode === k;
+                return (
+                  <React.Fragment key={k}>
+                    {i > 0 && <Text style={{ fontSize: fs(10), color: C.hairline }}>|</Text>}
+                    <TouchableOpacity onPress={() => setSortMode(k)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                      <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(11), color: on ? C.charcoal : C.warmGrayLight }}>{l}</Text>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          )}
         </View>
       )}
 
