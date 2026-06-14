@@ -29,6 +29,7 @@ import { buildFoodMapUrl, NAVER_MAP_HEADERS, cityTokenOf, regionOf, naverSearchU
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
 import { getCourseComments, addCourseComment, toggleCommentLike, deleteCourseComment, updateCourseComment } from '../utils/courseComments';
+import { getCourseRatings, setMyCourseRating } from '../utils/courseRatings';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { createContentReport, hasReportedContent } from '../utils/contentReports';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
@@ -52,6 +53,10 @@ export function GuideScreen({ route, navigation }) {
   const [commentInput, setCommentInput] = useState('');
   const [editingCommentId, setEditingCommentId] = useState(null); // 내 코멘트 수정 중 id
   const [showAllComments, setShowAllComments] = useState(false); // 골퍼 코멘트 — 상위 10개 + 더보기
+  // 코스 평점 ([[project_course_rating]]) — 3카테고리 별5점, 1인1평가 커뮤니티 집계
+  const [rating, setRating] = useState({ count: 0, avg: { mgmt: 0, pace: 0, value: 0 }, overall: 0, mine: null });
+  const [showRatingInput, setShowRatingInput] = useState(false);
+  const [ratingDraft, setRatingDraft] = useState({ mgmt: 0, pace: 0, value: 0 });
   const [commentSort, setCommentSort] = useState('recent'); // 'recent'(최신순 기본) | 'likes'(좋아요순)
   const [myCommentsOnly, setMyCommentsOnly] = useState(false); // 내 코멘트만 보기 필터 (글 많아질 때 내 글 찾기)
   const [search, setSearch] = useState('');
@@ -452,6 +457,34 @@ export function GuideScreen({ route, navigation }) {
     return () => { cancelled = true; };
   }, [selected, previewCourse?.kakaoId, userCoursesList, userCoursesHydrated]);
 
+  // 코스 평점 로드 — 코스 바뀌면 재집계 ([[project_course_rating]])
+  useEffect(() => {
+    if (!selected) return;
+    const key = commentKeyFor(selected);
+    if (!key) { setRating({ count: 0, avg: { mgmt: 0, pace: 0, value: 0 }, overall: 0, mine: null }); return; }
+    let cancelled = false;
+    (async () => {
+      const r = await getCourseRatings(key);
+      if (!cancelled) setRating(r);
+    })();
+    return () => { cancelled = true; };
+  }, [selected, previewCourse?.kakaoId]);
+
+  // 내 평점 저장/수정 — 3카테고리 모두 별점 후 저장
+  const submitRating = async () => {
+    const key = commentKeyFor(selected);
+    if (!key) { showAppAlert('코스 평점', '이 골프장에는 평점을 남길 수 없어요.'); return; }
+    const d = ratingDraft;
+    if (![d.mgmt, d.pace, d.value].every(n => n >= 1 && n <= 5)) {
+      showAppAlert('코스 평점', '세 항목 모두 별점을 매겨주세요.'); return;
+    }
+    const ok = await setMyCourseRating(key, d);
+    if (!ok) { showAppAlert('저장 실패', '네트워크 상태를 확인하고 다시 시도해주세요.'); return; }
+    setShowRatingInput(false);
+    const r = await getCourseRatings(key);
+    setRating(r);
+  };
+
   // 좋아요 토글 — 낙관적 업데이트 후 Firestore 반영, 실패 시 롤백
   const toggleLike = async (cm) => {
     const wasLiked = cm.likedByMe;
@@ -669,6 +702,17 @@ export function GuideScreen({ route, navigation }) {
                 );
               })()}
             </View>
+            {/* 골퍼평점 — 구장명 우측(종합 평균). 화면 끝에서 띄우고(marginRight) 크게. 상세·입력은 아래 패널 ([[project_course_rating]]) */}
+            {rating.count > 0 ? (
+              <View style={{ alignItems: 'flex-end', paddingTop: 2, marginRight: 8 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginBottom: 3 }}>골퍼평점</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ color: '#E0A800', fontSize: fs(22) }}>★</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(25), color: C.charcoal }}>{rating.overall.toFixed(1)}</Text>
+                </View>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }}>5점 만점</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -756,7 +800,7 @@ export function GuideScreen({ route, navigation }) {
                       backgroundColor: C.bgSecondary,
                       borderWidth: 1, borderColor: C.hairline, borderStyle: 'dashed',
                       borderRadius: 10,
-                      paddingHorizontal: 14, paddingVertical: 16, marginBottom: 22,
+                      paddingHorizontal: 14, paddingVertical: 16, marginBottom: _and ? 14 : 22,
                       alignItems: 'center',
                     }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center' }}>
@@ -773,7 +817,7 @@ export function GuideScreen({ route, navigation }) {
                     backgroundColor: '#fff',
                     borderLeftWidth: 4, borderLeftColor: C.burgundy,
                     borderRadius: 10,
-                    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 22,
+                    paddingHorizontal: 14, paddingVertical: 12, marginBottom: _and ? 14 : 22,
                   }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#3D3935', lineHeight: 21 }}>
                       {memo}
@@ -787,8 +831,8 @@ export function GuideScreen({ route, navigation }) {
                 );
               })()}
 
-              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 (한줄메모 아래로 이동, 2026-06-01) */}
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 26 }}>
+              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 (한줄메모 아래로 이동, 2026-06-01). 안드는 아래 패널과 갭 과해 좁힘([[feedback_cross_platform_check]]) */}
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: _and ? 10 : 26 }}>
                 <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
                   style={{
                     flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
@@ -813,8 +857,70 @@ export function GuideScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
 
-              {/* 골퍼 코멘트 — 위 섹션과 따뜻한 톤 배경으로 구분(테두리 박스 X — 답답함 회피). */}
-              <View style={gS.commentPanel}>
+              {/* 코스 평점 — 흰 카드 박스로 띄움(골퍼코멘트 풀폭 따뜻한 패널과 구분, 눈에 확). 사용자 2026-06-14 ([[project_course_rating]]) */}
+              <View style={[{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: C.hairline, padding: 16, marginTop: _and ? 10 : 18, marginBottom: 18 },
+                Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10 }, android: { elevation: 6 } })]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <Text style={{ fontSize: fs(19) }}>⭐</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, letterSpacing: 0.3 }}>코스 평점</Text>
+                  </View>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
+                    {rating.count > 0 ? `골퍼 ${rating.count}명 참여` : '아직 평가 없음'}
+                  </Text>
+                </View>
+
+                {rating.count > 0 ? (
+                  <>
+                    {[['코스관리', 'mgmt'], ['경기진행', 'pace'], ['가성비', 'value']].map(([label, k]) => (
+                      <View key={k} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <Text style={{ width: 52, fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>{label}</Text>
+                        <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.07)', overflow: 'hidden', marginHorizontal: 8 }}>
+                          <View style={{ width: `${(rating.avg[k] / 5) * 100}%`, height: '100%', borderRadius: 3, backgroundColor: C.burgundy }} />
+                        </View>
+                        <Text style={{ width: 26, textAlign: 'right', fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>{rating.avg[k].toFixed(1)}</Text>
+                      </View>
+                    ))}
+                  </>
+                ) : (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 12, lineHeight: 18 }}>
+                    첫 평가를 남겨 다른 골퍼에게 도움을 주세요
+                  </Text>
+                )}
+
+                {!showRatingInput ? (
+                  <TouchableOpacity onPress={() => { setRatingDraft(rating.mine || { mgmt: 0, pace: 0, value: 0 }); setShowRatingInput(true); }}
+                    style={{ marginTop: 6, borderWidth: 1, borderColor: C.burgundy, borderRadius: 9, paddingVertical: 10, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>{rating.mine ? '내 평가 수정' : '내 평가 남기기'}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.hairline }}>
+                    {[['코스관리', 'mgmt'], ['경기진행', 'pace'], ['가성비(그린비 대비)', 'value']].map(([label, k]) => (
+                      <View key={k} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{label}</Text>
+                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <TouchableOpacity key={n} onPress={() => setRatingDraft(d => ({ ...d, [k]: n }))} hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}>
+                              <Text style={{ fontSize: fs(24), color: n <= ratingDraft[k] ? '#E0A800' : 'rgba(0,0,0,0.16)' }}>★</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                      <TouchableOpacity onPress={() => setShowRatingInput(false)} style={{ flex: 1, borderWidth: 1, borderColor: C.hairline, borderRadius: 9, paddingVertical: 10, alignItems: 'center' }}>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>취소</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={submitRating} style={{ flex: 2, backgroundColor: C.burgundy, borderRadius: 9, paddingVertical: 10, alignItems: 'center' }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>저장</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* 골퍼 코멘트 — 위 코스 평점 패널과 배경 연속(marginTop 0). 버터 바가 섹션 구분 */}
+              <View style={[gS.commentPanel, { marginTop: 0 }]}>
               {/* 게시판 시작 — 버터색 단색 바(전폭). 패널 패딩 상쇄해 화면 끝까지 ([[project_golfer_comments_board]]) */}
               <View style={{ height: 3, backgroundColor: C.butter, marginHorizontal: -16, marginTop: -16, marginBottom: 14 }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>

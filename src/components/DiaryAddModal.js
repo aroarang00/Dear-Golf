@@ -793,7 +793,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     value={specialMemo} onChangeText={setSpecialMemo} />
                 </View>
               )}
-              <Text style={mS.bigLabel}>코스 별점 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (이 골프장이 얼마나 좋았나요?)</Text></Text>
+              <Text style={mS.bigLabel}>이번 라운딩 만족도 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (이번 라운딩은 어떠셨나요?)</Text></Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 {[1, 2, 3, 4, 5].map(i => (
                   <TouchableOpacity key={i} onPress={() => setStarRating(i)} activeOpacity={0.6}>

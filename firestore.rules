@@ -317,6 +317,26 @@ service cloud.firestore {
         && resource.data.authorUid == request.auth.uid;
     }
 
+    // ===== courseRatings — 코스 평점 ([[project_course_rating]]) =====
+    //  Doc ID = {courseId}_{uid} (deterministic, 1인 1코스 1평가). mgmt/pace/value 각 1~5 별점.
+    match /courseRatings/{ratingId} {
+      function validScores() {
+        return request.resource.data.mgmt is int && request.resource.data.mgmt >= 1 && request.resource.data.mgmt <= 5
+          && request.resource.data.pace is int && request.resource.data.pace >= 1 && request.resource.data.pace <= 5
+          && request.resource.data.value is int && request.resource.data.value >= 1 && request.resource.data.value <= 5;
+      }
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && ratingId == request.resource.data.courseId + '_' + request.auth.uid
+        && validScores();
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && validScores();
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
     // ===== mannerEvaluations — 매너 평가 ([[manner-evaluation-policy]]) =====
     //  Doc ID = {roundupId}_{evaluatorUid}_{targetUid} (deterministic, 1인 1대상 1모집 1회)
     //  rating: 'good' | 'bad' (neutral=무평가는 doc 자체가 없음)
