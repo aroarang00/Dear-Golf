@@ -13,6 +13,8 @@ const GREEN_TOP = '#22352A';
 const GREEN_BOT = '#15211A';
 const GOLD = '#E8D9A0';
 const WHITE = '#F0EDE3';
+const BURGUNDY = '#6B1E2A'; // 특별한 순간(홀인원·이글 등) 채움 알약 — 딥그린 배경 위에 버건디+크림 글자로 도드라짐 ([[score-brag-card]])
+const CREAM = '#F5E6A8';
 const MUTE = 'rgba(240,237,227,0.55)';
 const LINE = 'rgba(201,168,76,0.28)';
 
@@ -21,6 +23,7 @@ export function RoundCardScorecard({ item, width = 320 }) {
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
   const playerName = (item.playerName || '').trim();
   const hasScore = typeof item.score === 'number';
+  const special = item.special || null; // 홀인원·이글 등 — 총타수 옆 버건디 알약
 
   const scores = Array.isArray(item.holeScores) && item.holeScores.length === 18 ? item.holeScores : null;
   const pars = Array.isArray(item.holePars) && item.holePars.length === 18 ? item.holePars : null;
@@ -67,6 +70,12 @@ export function RoundCardScorecard({ item, width = 320 }) {
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', marginTop: 22, marginBottom: 4 }}>
               <Text style={{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: GOLD }}>{totalScore}</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, letterSpacing: 2, marginLeft: 6, marginBottom: 7 }}>TOTAL</Text>
+              {/* 특별한 순간 — 타수 옆 버건디 알약(딥그린 위 도드라짐). 버건디 글자는 배경과 둘 다 어두워 안 보여서 채움+크림 글자 */}
+              {special ? (
+                <View style={{ backgroundColor: BURGUNDY, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 10, marginBottom: 8 }}>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(12), color: CREAM, letterSpacing: 2 }}>{special}</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
 

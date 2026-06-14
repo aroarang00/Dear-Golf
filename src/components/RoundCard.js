@@ -22,6 +22,8 @@ const GOLD = '#E8D9A0';
 const GOLD_DEEP = '#C9A84C';
 const CHAMPAGNE = '#EFE7CC'; // 흰-골드 중간 샴페인 — 구장명에 고급 색감(타수 골드보다 옅어 위계 유지)
 const WHITE = '#F6F2E9'; // 순백 대신 따뜻한 화이트
+const EMERALD = '#0E8C66'; // 특별한 순간(홀인원·이글 등) 채움 박스 — 골드(평범)보다 특별, 사진 위에서도 또렷 ([[score-brag-card]])
+const CREAM = '#F5E6A8';   // 에메랄드/버건디 채움 박스 위 글자
 const SHADOW = { textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
 export function RoundCard({ item, width = 320 }) {
@@ -39,7 +41,8 @@ export function RoundCard({ item, width = 320 }) {
   const isSingle = hasScore && item.score <= 79;
   const isBest = item.badge === '베스트';
   const special = item.special || null;
-  const accentLabel = special || (isBest ? 'BEST' : isSingle ? 'SINGLE' : null);
+  const sideBadge = isBest ? 'BEST' : isSingle ? 'SINGLE' : null; // special 외 영예칩(베스트/싱글)
+  const accentLabel = special || sideBadge;
   // 타수 색 — 점수로 색을 깎으면(흰·무채) 기록에 연연하는 주 사용자층(80~100타) 자존심을 상하게 함.
   //   타수는 점수와 무관하게 항상 골드로 강조(평범한 흰색 폐기). 싱글·베스트의 영예는 SINGLE/BEST 칩으로 구분 ([[golfer-score-psychology]])
   const scoreColor = GOLD;
@@ -89,17 +92,24 @@ export function RoundCard({ item, width = 320 }) {
             style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.46) }}
           />
 
-          {/* 상단 — ROUND RECAP(좌) + Dear Golf 워터마크(우) */}
+          {/* 상단 — 좌측: special 있으면 에메랄드 채움 박스(홀인원 등), 없으면 ROUND RECAP / 우측: Dear Golf 워터마크.
+              special을 좌상단에 올려 특별함을 먼저 보여줌(사용자 2026-06-14, [[score-brag-card]]). */}
           <View style={{ position: 'absolute', top: 15, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
+            {special ? (
+              <View style={{ backgroundColor: EMERALD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(12), color: CREAM, letterSpacing: 2 }}>{special}</Text>
+              </View>
+            ) : (
+              <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
+            )}
             <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
           </View>
 
-          {/* 하단 — special(있으면 박스 밖 위·좌측 정렬) + 정보 박스. 글자 더 슬림하게 줄여 사진 부각(사용자 2026-06-14) */}
+          {/* 하단 — 영예칩(베스트/싱글, 골드 테두리) + 정보 박스. special은 좌상단으로 올려 여기선 중복 표시 안 함. */}
           <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12 }}>
-            {accentLabel ? (
+            {sideBadge ? (
               <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 8 }}>
-                <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{accentLabel}</Text>
+                <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{sideBadge}</Text>
               </View>
             ) : null}
             <View style={{ paddingTop: 9, paddingBottom: 10, paddingHorizontal: 13,
