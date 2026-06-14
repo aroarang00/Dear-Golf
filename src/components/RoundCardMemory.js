@@ -32,6 +32,10 @@ export function RoundCardMemory({ item, width = 320 }) {
     { sep: ', ' }
   );
   const memo = (item.memo || '').trim();
+  // 특별한 순간 — 홀인원·이글 등은 item.special, 베스트·싱글은 스코어 기반(기념카드는 스코어 없을 수 있어 옵셔널)
+  const isSingle = typeof item.score === 'number' && item.score <= 79;
+  const isBest = item.badge === '베스트';
+  const accentLabel = item.special || (isBest ? 'BEST' : isSingle ? 'SINGLE' : null);
 
   return (
     <View style={{ width, height, borderRadius: 16, overflow: 'hidden', backgroundColor: '#2A2622' }}>
@@ -54,11 +58,18 @@ export function RoundCardMemory({ item, width = 320 }) {
         <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
       </View>
 
-      {/* 하단 정보 패널 — 사진 있을 때만 반투명 박스(가독). 타수 대신 WITH 동반자 + 메모 인용 */}
-      <View style={[
-        { position: 'absolute', left: 14, right: 14, bottom: 14, paddingTop: 13, paddingBottom: 14, paddingHorizontal: photoUri ? 16 : 4 },
-        photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
-      ]}>
+      {/* 하단 — special(있으면 기록박스 밖 위·좌측) + 정보 패널(사진 있을 때만 반투명 박스). 타수 대신 WITH 동반자 + 메모 */}
+      <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14 }}>
+        {/* 특별한 순간(홀인원·이글 등) — 기록박스 밖 위·좌측 정렬(사용자 2026-06-14) */}
+        {accentLabel ? (
+          <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 8 }}>
+            <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{accentLabel}</Text>
+          </View>
+        ) : null}
+        <View style={[
+          { paddingTop: 13, paddingBottom: 14, paddingHorizontal: photoUri ? 16 : 4 },
+          photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
+        ]}>
         {/* 골드 헤어라인 */}
         <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 7 }} />
         <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(20), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
@@ -83,6 +94,7 @@ export function RoundCardMemory({ item, width = 320 }) {
             "{memo}"
           </Text>
         ) : null}
+        </View>
       </View>
     </View>
   );
