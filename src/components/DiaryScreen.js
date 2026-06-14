@@ -601,14 +601,16 @@ export function DiaryScreen({ route, navigation }) {
     return list;
   })();
   const avgScore = myHandicap; // DiaryCard 색상 비교용(통계 핸디로 통일)
-  // 필터 바를 sticky로 띄울 조건 — 로딩·빈 상태엔 필터 없음(인덱스 고정 위해 그 땐 null + sticky 미적용)
+  // 필터 바 표시 조건 — 로딩·빈 상태엔 필터 내용만 숨김(인덱스 2 자리는 빈 View로 유지).
+  //   ★sticky는 항상 [2] 고정 — undefined↔[2]로 토글하면 newArch(Fabric) ScrollView가 런타임 변경을 즉시 반영 못 해
+  //     탭을 전환했다 돌아와야 sticky가 먹던 버그(2026-06-14 수정). 자리만 유지하면 토글 없이 안정적으로 고정.
   const canShowFilter = diariesHydrated && diaries.length > 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       {/* 전체 스크롤(인스타식) — 명함·통계·필터·카드를 한 ScrollView에 담아 함께 스크롤. 명함·통계·💰⚙️💬는
           위로 밀려 사라지고, 필터 줄(인덱스 2)만 stickyHeaderIndices로 상단 고정(사용자 결정 2026-06-13).
-          ★sticky 인덱스 안정 위해 자식 순서 고정: [명함0·통계1·필터2(또는 null)·피드3]. 검색은 필터와 한 묶음(인덱스 유지). */}
+          ★sticky 인덱스 안정 위해 자식 순서 고정: [명함0·통계1·필터2(빈 상태엔 빈 View)·피드3]. 검색은 필터와 한 묶음(인덱스 유지). */}
       <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }}
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
         onScroll={(e) => {
@@ -619,7 +621,7 @@ export function DiaryScreen({ route, navigation }) {
           }
         }}
         scrollEventThrottle={16}
-        stickyHeaderIndices={canShowFilter ? [2] : undefined}>
+        stickyHeaderIndices={[2]}>
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
         <View style={{ position: 'absolute', top: 14, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
@@ -712,7 +714,7 @@ export function DiaryScreen({ route, navigation }) {
       </View>
 
       {/* 인덱스 2 — ★sticky 필터 바(필터 칩 + 🔍 + 검색입력 한 묶음). 위에 딱 붙도록 배경 불투명(C.bgPrimary)으로
-          아래 카드가 비쳐 보이지 않게, 하단 구분선은 dS.filterRow 자체 borderBottom. 로딩·빈 상태엔 null(인덱스 고정·sticky 미적용). */}
+          아래 카드가 비쳐 보이지 않게, 하단 구분선은 dS.filterRow 자체 borderBottom. 로딩·빈 상태엔 빈 View(인덱스 2 자리 유지·sticky 항상 적용). */}
       {canShowFilter ? (
         <View style={{ backgroundColor: C.bgPrimary }}>
           <View style={dS.filterRow}>
@@ -747,7 +749,10 @@ export function DiaryScreen({ route, navigation }) {
             </View>
           )}
         </View>
-      ) : null}
+      ) : (
+        // 빈/로딩 상태 — 인덱스 2 자리를 빈 View로 유지(개수·인덱스 고정). sticky는 항상 [2]라 데이터 들어오면 같은 자리에 필터가 채워지며 바로 고정됨
+        <View />
+      )}
 
       {/* 인덱스 3 — 피드 본문(로딩 / 빈 상태 / 명예의전당 + 카드). 필터·검색은 위 sticky 인덱스2로 분리됨 */}
       {(() => {

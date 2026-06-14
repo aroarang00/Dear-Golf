@@ -495,8 +495,11 @@ function App() {
     </SchedulesProvider>
     </UserContext.Provider>
     </SafeAreaProvider>
-    <SplashOverlay appReady={appReady} />
     </KeyboardProvider>
+    {/* 로딩 오버레이는 KeyboardProvider 밖(GestureHandlerRootView 직속)에 둔다 — 안에 두면 keyboard-controller가
+        첫 마운트에 영역 높이를 측정하는 동안 absolute(bottom:0) 뷰의 center가 위→아래로 밀려, 로딩화면이
+        살짝 내려오던 점프가 생김(2026-06-14 수정). 정적 로딩 View와 같은 위치 기준으로 맞춰 이음새 제거. */}
+    <SplashOverlay appReady={appReady} />
     </GestureHandlerRootView>
   );
 }
