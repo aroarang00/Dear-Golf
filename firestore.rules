@@ -472,7 +472,10 @@ service cloud.firestore {
           ? request.resource.data.participantUids[1]
           : request.resource.data.participantUids[0];
       }
-      allow read: if isSignedIn() && request.auth.uid in resource.data.participantUids;
+      //  resource == null: 아직 없는 대화방(결정적 pairId)의 존재 확인 get 허용 — 대화 없는 친구 첫 진입 시
+      //  ensureConversation의 getDoc이 막혀 convId 설정 실패→"불러오는 중" 무한 로딩되던 버그 수정(2026-06-14).
+      //  다른 결정적 ID 컬렉션(friendships·roundupApplications 등)과 동일 패턴. 실재 문서는 참여자만 read.
+      allow read: if isSignedIn() && (resource == null || request.auth.uid in resource.data.participantUids);
       allow create: if isSignedIn()
         && request.auth.uid in request.resource.data.participantUids
         && request.resource.data.participantUids.size() == 2
