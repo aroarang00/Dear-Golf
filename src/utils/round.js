@@ -1,6 +1,6 @@
 import {
   collection, query, where, orderBy, getDocs,
-  addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+  addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
   arrayUnion, arrayRemove, writeBatch,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
