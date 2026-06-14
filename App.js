@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform, Dimensions, StatusBar as RNStatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -99,24 +99,6 @@ const DEV_BYPASS_LOGIN = __DEV__ && true;
 //  정상 배치(=풀블리드)되던 자가치유(사용자 실측 확정)를, 사용자가 보기 전에 미리 끝내는 방식.
 //  → top inset이 측정(>0)된 뒤에만 자식(NavigationContainer)을 마운트. 그동안은 SplashOverlay가 덮고 있어 깜빡임 없음.
 //  iOS는 edge-to-edge 강제 이슈가 없어 즉시 통과. 일부 기기/상황에서 0이 지속될 수 있으니 600ms 폴백.
-// ★TEMP_DEV — 상단 띠 진단용 inset/높이 실측 표시. 디버깅 끝나면 제거.
-function DevInsetDebug() {
-  const insets = useSafeAreaInsets();
-  const win = Dimensions.get('window');
-  const scr = Dimensions.get('screen');
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: '42%', left: 0, right: 0, alignItems: 'center', zIndex: 99999 }}>
-      <View style={{ backgroundColor: 'rgba(220,0,0,0.9)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
-        <Text style={{ color: '#fff', fontSize: 13, fontFamily: F.sysB, textAlign: 'center' }}>
-          inset top:{insets.top} bot:{insets.bottom}{'\n'}
-          win h:{Math.round(win.height)}  scr h:{Math.round(scr.height)}{'\n'}
-          RNStatusBar.h:{RNStatusBar.currentHeight ?? '—'}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 function InsetGate({ children }) {
   const insets = useSafeAreaInsets();
   const [ready, setReady] = useState(Platform.OS !== 'android');
@@ -559,7 +541,6 @@ function App() {
     </DiariesProvider>
     </SchedulesProvider>
     </UserContext.Provider>
-    {DEV_BYPASS_LOGIN && <DevInsetDebug />}
     </SafeAreaProvider>
     </KeyboardProvider>
     {/* 로딩 오버레이는 KeyboardProvider 밖(GestureHandlerRootView 직속)에 둔다 — 안에 두면 keyboard-controller가
