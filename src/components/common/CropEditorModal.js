@@ -24,7 +24,8 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
   const frameH = frameW * cfg.ratio;
   const isAvatar = aspect === 'avatar';
 
-  const [imgSize, setImgSize] = useState(null); // 원본 { w, h }(픽셀)
+  const [imgSize, setImgSize] = useState(null); // 작업본 { w, h }(픽셀, EXIF 적용 후)
+  const [workUri, setWorkUri] = useState(null); // EXIF 정규화한 작업본 uri — 표시·crop 좌표계 일치용
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
   // 프레임 위치는 화면상수(SH) 대신 실측 컨테이너 크기로 — 안드 상태바 차이로 인한 수직 어긋남(크롭 오차) 방지
@@ -49,10 +50,22 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
   useEffect(() => {
     if (!visible || !uri) return;
     setImgSize(null);
+    setWorkUri(null);
     setSaveErr(false);
     scale.value = 1; savedScale.value = 1;
     tx.value = 0; ty.value = 0; savedTx.value = 0; savedTy.value = 0;
-    Image.getSize(uri, (w, h) => setImgSize({ w, h }), () => setImgSize(null));
+    // EXIF 정규화 — 안드 Image.getSize가 EXIF 회전을 무시한 raw 크기를 줘서, 표시(회전 적용)와 crop 좌표계가
+    //   어긋나 '선택은 맞는데 저장은 엉뚱'하던 버그 수정(2026-06-14). manipulateAsync가 EXIF orientation을
+    //   적용한 작업본을 만들어 표시·크기측정·crop을 모두 같은 좌표계로 통일. 실패 시 원본+Image.getSize 폴백.
+    let alive = true;
+    ImageManipulator.manipulateAsync(uri, [], { compress: 1, format: ImageManipulator.SaveFormat.JPEG })
+      .then(r => { if (alive) { setWorkUri(r.uri); setImgSize({ w: r.width, h: r.height }); } })
+      .catch(() => {
+        if (!alive) return;
+        setWorkUri(uri);
+        Image.getSize(uri, (w, h) => { if (alive) setImgSize({ w, h }); }, () => { if (alive) setImgSize(null); });
+      });
+    return () => { alive = false; };
   }, [visible, uri]);
 
   useEffect(() => { sdw.value = dw0; sdh.value = dh0; }, [dw0, dh0]);
@@ -88,7 +101,7 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
   }));
 
   const handleSave = async () => {
-    if (!uri || !imgSize || saving) return;
+    if (!workUri || !imgSize || saving) return;
     setSaving(true);
     setSaveErr(false);
     try {
@@ -114,10 +127,10 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
       // renderAsync가 간헐적으로 실패(expo-image-manipulator)해 1회 재시도.
       let result;
       try {
-        result = await ImageManipulator.manipulateAsync(uri, actions, opts);
+        result = await ImageManipulator.manipulateAsync(workUri, actions, opts);
       } catch (e1) {
         if (__DEV__) console.warn('[CropEditor] 1차 실패 → 재시도', e1?.message);
-        result = await ImageManipulator.manipulateAsync(uri, actions, opts);
+        result = await ImageManipulator.manipulateAsync(workUri, actions, opts);
       }
       onSave && onSave(result.uri);
     } catch (e) {
@@ -149,7 +162,7 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
             <GestureDetector gesture={gesture}>
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <Animated.Image
-                  source={{ uri }}
+                  source={{ uri: workUri }}
                   style={[{ width: dw0, height: dh0 }, animStyle]}
                   resizeMode="cover"
                 />
