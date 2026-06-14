@@ -552,12 +552,16 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             </TouchableOpacity>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>모집 상세</Text>
             <View style={{ flex: 1 }} />
-            {/* 공유 — 칩(버튼) 대신 색 텍스트로(앱에 버튼 스타일 많아 중복 회피, 사용자 지시). 라운지색 네이비로 진하게·크게 ([[navy-lounge-color]]) */}
-            <TouchableOpacity onPress={() => setShareCardOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontSize: fs(15) }}>🔗</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.navy }}>공유</Text>
-            </TouchableOpacity>
+            {/* 공유 — 칩(버튼) 대신 색 텍스트로(앱에 버튼 스타일 많아 중복 회피, 사용자 지시). 라운지색 네이비로 진하게·크게 ([[navy-lounge-color]]).
+                ★친구지정(scope='select')은 숨김 — audienceUids로 잠겨 외부 공유해도 지정 안 된 사람은 참여 불가(무의미).
+                  지정 친구는 인앱 '내 참여' 탭 초대카드로 참여. 전체공개·친구공개만 공유(설치 홍보). 사용자 2026-06-14 */}
+            {post.scope !== 'select' && (
+              <TouchableOpacity onPress={() => setShareCardOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: fs(15) }}>🔗</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.navy }}>공유</Text>
+              </TouchableOpacity>
+            )}
             {!isMine && onToggleBookmark && (
               <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontSize: fs(22), color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
