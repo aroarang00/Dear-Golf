@@ -75,7 +75,7 @@ export function RoundCardPolaroid({ item, width = 320 }) {
           {/* 특별한 순간 — 사진 좌상단 작은 배지. 기존 스타일(투명+골드 테두리·골드 글씨), 사진 위 가독 위해 반투명 바탕+그림자(사용자 2026-06-14) */}
           {special ? (
             <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: INK, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 3.5 }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(10), color: '#F5E6A8', letterSpacing: 1.5 }}>{special}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#F5E6A8', letterSpacing: 1 }}>{special}</Text>
             </View>
           ) : null}
         </View>

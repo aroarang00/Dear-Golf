@@ -68,7 +68,7 @@ export function RoundCardMemory({ item, width = 320 }) {
       <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         {special ? (
           <View style={{ backgroundColor: BURGUNDY, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(12), color: CREAM, letterSpacing: 2 }}>{special}</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: CREAM, letterSpacing: 1 }}>{special}</Text>
           </View>
         ) : (
           <Text style={[{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD, letterSpacing: 2 }, SHADOW]}>그날의 라운딩</Text>

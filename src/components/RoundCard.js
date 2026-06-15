@@ -97,8 +97,8 @@ export function RoundCard({ item, width = 320 }) {
           <View style={{ position: 'absolute', top: 15, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             {special ? (
               // 사진版 special — 차콜 바탕 + 골드 텍스트(사용자 2026-06-14). no-photo版(골드 테두리 박스)과 다른 결
-              <View style={{ backgroundColor: 'rgba(42,38,34,0.92)', borderRadius: 6, paddingHorizontal: 14, paddingVertical: 8 }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(20), color: GOLD, letterSpacing: 3 }}>{special}</Text>
+              <View style={{ backgroundColor: 'rgba(42,38,34,0.92)', borderRadius: 5, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: GOLD, letterSpacing: 1.5 }}>{special}</Text>
               </View>
             ) : (
               <Text style={[{ fontFamily: F.en, fontSize: fs(12), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
@@ -150,8 +150,8 @@ export function RoundCard({ item, width = 320 }) {
           {/* 상단 — special 있으면 ROUND RECAP 자리에 골드 박스(크게), 없으면 ROUND RECAP. Dear Golf는 하단으로(사용자 2026-06-14) */}
           <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row' }}>
             {special ? (
-              <View style={{ borderWidth: 1.5, borderColor: GOLD, borderRadius: 6, paddingHorizontal: 15, paddingVertical: 9, backgroundColor: 'rgba(0,0,0,0.25)' }}>
-                <Text style={[{ fontFamily: F.en, fontSize: fs(19), color: GOLD, letterSpacing: 3 }, SHADOW]}>{special}</Text>
+              <View style={{ borderWidth: 1.5, borderColor: GOLD, borderRadius: 5, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: 'rgba(0,0,0,0.25)' }}>
+                <Text style={[{ fontFamily: F.sysB, fontSize: fs(19), color: GOLD, letterSpacing: 1.5 }, SHADOW]}>{special}</Text>
               </View>
             ) : (
               <Text style={[{ fontFamily: F.en, fontSize: fs(13), color: GOLD, letterSpacing: 3 }, SHADOW]}>ROUND RECAP</Text>
