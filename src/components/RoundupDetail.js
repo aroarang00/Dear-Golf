@@ -580,10 +580,12 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 친구지정(select)은 호스트만 '초대 보내기' — audienceUids 지정 친구는 앱·계정 보유라 딥링크 카카오 초대가 깔끔(탭→앱→초대카드→수락).
                   비지정자에게 새도 Firestore 규칙이 참여 차단(무해). 그 외(친구공개·전체공개)는 누구나 '공유'(설치 홍보). ([[invite-deeplink-system]]) */}
             {(post.scope !== 'select' || isMine) && (
-              <TouchableOpacity onPress={() => setShareCardOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ fontSize: fs(15) }}>{post.scope === 'select' ? '✉️' : '🔗'}</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.navy }}>{post.scope === 'select' ? '초대 보내기' : '공유'}</Text>
+              <TouchableOpacity onPress={() => setShareCardOpen(true)} activeOpacity={0.85}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.navy,
+                  borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 }}>
+                <Text style={{ fontSize: fs(14) }}>{post.scope === 'select' ? '✉️' : '🔗'}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }}>{post.scope === 'select' ? '초대 보내기' : '공유'}</Text>
               </TouchableOpacity>
             )}
             {!isMine && onToggleBookmark && (
