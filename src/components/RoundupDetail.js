@@ -14,6 +14,7 @@ import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { RoundupComments } from './RoundupComments';
+import { anonNick } from '../utils/anonNick';
 import { shareRoundup, shareRoundupKakao } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
 
@@ -74,6 +75,12 @@ function SlotRow({ slot, idx, onPress, handicap }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>주최자</Text>
           </View>
         )}
+        {slot.anonSelf && (
+          // 본인이 익명 참여 중 — 다른 사람에겐 랜덤닉으로 보인다는 인지 뱃지 ([[roundup-anonymous-participation]])
+          <View style={{ backgroundColor: C.warmGrayLight, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.warmGray }}>익명 참여 중</Text>
+          </View>
+        )}
       </View>
       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F' }}>참여 확정</Text>
     </View>
@@ -109,12 +116,21 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta 
       const uid = uids[i];
       const host = uid ? uid === post.authorUid : i === 0;
       const isSelf = !!uid && uid === myUid;
-      const fallback = host ? hostName
-        : (nameMap[uid] || (isSelf ? (myName || '동반자') : '동반자'));
-      // 내가 정한 별명 우선(owner-only) — 본인(나)은 제외 ([[friend_groups]])
-      const base = (uid && !isSelf) ? friendDisplayName(friendMeta, uid, fallback) : fallback;
+      // 익명 참여 — 호스트(주최자)는 항상 실명, 그 외(본인 포함)는 랜덤닉으로 마스킹 ([[roundup-anonymous-participation]])
+      const viewerIsHost = !!myUid && post.authorUid === myUid;
+      const anon = !host && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(uid);
+      const masked = anon && !viewerIsHost;
+      let base;
+      if (host) {
+        base = hostName;
+      } else if (masked) {
+        base = anonNick(uid, post.id);            // 랜덤닉(저장X·결정적) — 일반 닉처럼 묻힘
+      } else {
+        const fallback = nameMap[uid] || (isSelf ? (myName || '동반자') : '동반자');
+        base = (uid && !isSelf) ? friendDisplayName(friendMeta, uid, fallback) : fallback;   // 내 별명 우선(owner-only) — 익명·본인 제외 ([[friend_groups]])
+      }
       const name = isSelf ? `${base}(나)` : base;   // 참여자 현황에서만 본인 표시
-      return { name, host, uid };
+      return { name, host, uid, masked, anonSelf: masked && isSelf };   // masked: 신원 노출(프로필시트·핸디) 차단 / anonSelf: 본인 익명 뱃지
     });
   }
   const names = pickNames(post.id, filled);
@@ -717,9 +733,10 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 // 본인 슬롯(uid===myUid 또는 라벨 '나')은 액션시트 X — 자기 차단·신고·친구신청 방지.
                 // id는 uid 우선(친구상태 매칭·isMe 판정용), 없으면 이름 fallback(옛 더미).
                 const isSelfSlot = (s.uid && s.uid === myUid) || s.name === '나';
+                // 익명 마스킹된 슬롯은 프로필 시트(신고/차단/친구신청)·핸디 노출 X — 신원 유추 차단 ([[roundup-anonymous-participation]])
                 return (
-                  <SlotRow key={i} slot={s} idx={i} handicap={hcOf(s.uid)}
-                    onPress={(s.name && !isSelfSlot)
+                  <SlotRow key={i} slot={s} idx={i} handicap={s.masked ? null : hcOf(s.uid)}
+                    onPress={(s.name && !isSelfSlot && !s.masked)
                       ? () => setActionTarget({ id: s.uid || s.name, name: s.name, role: s.host ? 'host' : 'participant' })
                       : null} />
                 );
@@ -781,6 +798,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               total={commentTotal}
               joined={joined}
               myUid={myUid}
+              nameMap={participantNames}
               inputRef={commentInputNode}
               onInputFocus={scrollCommentIntoView}
               onAdd={onAddComment}

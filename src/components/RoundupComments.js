@@ -6,6 +6,17 @@ import { UserContext } from '../contexts/UserContext';
 import { canAccessComments, isCommentClosed, sortComments, createComment, canDeleteComment, COMMENT_MAX_TOTAL } from '../utils/comments';
 import { createContentReport } from '../utils/contentReports';
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
+import { anonNick } from '../utils/anonNick';
+
+// 댓글 작성자 표시 이름 — 익명 참여자면 랜덤닉(호스트는 nameMap으로 실명). 현재 anonymousUids 기준이라
+//   '나중에 익명 토글'한 경우도 옛 댓글까지 가려진다 ([[roundup-anonymous-participation]]).
+function commentAuthor(comment, post, viewerUid, nameMap) {
+  const anon = Array.isArray(post?.anonymousUids) && post.anonymousUids.includes(comment.authorUid);
+  if (!anon) return comment.authorName || '동반자';
+  const viewerIsHost = !!viewerUid && post?.authorUid === viewerUid;
+  if (viewerIsHost) return (nameMap && nameMap[comment.authorUid]) || comment.authorName || '동반자';
+  return anonNick(comment.authorUid, post?.id);
+}
 
 // 라운지 모집 댓글 영역 ([[roundup-comments-policy]]).
 // - 참여 확정자만 작성·열람
@@ -16,7 +27,7 @@ import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
 const COMMENT_MAX = 300;
 
-function CommentRow({ comment, onPress }) {
+function CommentRow({ comment, onPress, authorName }) {
   const dateLabel = useMemo(() => formatRelative(comment.createdAt), [comment.createdAt]);
   return (
     <TouchableOpacity activeOpacity={0.6} onPress={() => onPress(comment)}
@@ -28,7 +39,7 @@ function CommentRow({ comment, onPress }) {
           </View>
         )}
         <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
-          {comment.authorName || '동반자'}
+          {authorName || comment.authorName || '동반자'}
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>· {dateLabel}</Text>
       </View>
@@ -105,7 +116,7 @@ function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete,
   );
 }
 
-export function RoundupComments({ post, comments, total = 0, joined, myUid, inputRef, onInputFocus, onAdd, onDelete, onPin, onLoadOlder }) {
+export function RoundupComments({ post, comments, total = 0, joined, myUid, nameMap = {}, inputRef, onInputFocus, onAdd, onDelete, onPin, onLoadOlder }) {
   const { userProfile } = useContext(UserContext);
   const [body, setBody] = useState('');
   const [error, setError] = useState(null);
@@ -124,7 +135,10 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, inpu
 
   const submit = () => {
     setError(null);
-    const r = createComment(post.id, { uid: myId, name: myName }, body);
+    // 익명 참여 중이면 작성자명을 랜덤닉으로 저장 — 월드리더블 댓글 문서에 실명 비저장(authorUid는 그대로=신고·책임성).
+    const anonMe = Array.isArray(post?.anonymousUids) && post.anonymousUids.includes(myUid || myId);
+    const writeName = anonMe ? anonNick(myUid || myId, post.id) : myName;
+    const r = createComment(post.id, { uid: myId, name: writeName }, body);
     if (!r.ok) {
       if (r.reason === 'profanity') setError(PROFANITY_BLOCK_MESSAGE);
       else if (r.reason === 'empty') setError('댓글을 입력해주세요');
@@ -189,7 +203,8 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, inpu
               </View>
             ) : (
               sorted.map(c => (
-                <CommentRow key={c.id} comment={c} onPress={setActionComment} />
+                <CommentRow key={c.id} comment={c} onPress={setActionComment}
+                  authorName={commentAuthor(c, post, myUid, nameMap)} />
               ))
             )}
 

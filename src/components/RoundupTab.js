@@ -40,6 +40,7 @@ import { getUid, auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { shareInvite } from '../utils/invite';
 import { loadFriendData, groupColor, groupName, friendDisplayName, ownerVisibilityLabel, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
+import { anonNick, displayParticipantName } from '../utils/anonNick';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
@@ -767,10 +768,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       // 동반자 이름 — ★별명(owner-only) 저장 금지(이 companions가 기록=친구공개로 전파됨). 닉네임으로 저장,
       //   별명 표시는 화면(라운지 카드·상세)서 friendUid로 resolve. friendUid는 동봉(표시 resolve·매칭용) ([[friend_groups]])
       const nameOf = (u) => participantNames[u] || friends.find(f => f.id === u)?.name || '동반자';
+      // 익명 참여자(p.anonymousUids)는 랜덤닉 + friendUid 끊기 — 이 동반자가 친구공개 기록으로 전파돼도 신원 안 새게.
+      //   호스트(p.authorUid===myUid)가 보는 경우는 실명 유지. 호스트 자신은 익명 대상 아님 ([[roundup-anonymous-participation]])
+      const viewerIsHost = !!myUid && p.authorUid === myUid;
+      const isAnonU = (u) => !viewerIsHost && Array.isArray(p.anonymousUids) && p.anonymousUids.includes(u);
       const companions = [];
       if (p.authorUid && p.authorUid !== myUid) companions.push({ name: p.authorName || nameOf(p.authorUid), friendUid: p.authorUid });
       (p.participantUids || []).forEach(u => {
-        if (u && u !== myUid && u !== p.authorUid) companions.push({ name: nameOf(u), friendUid: u });
+        if (u && u !== myUid && u !== p.authorUid) {
+          if (isAnonU(u)) companions.push({ name: anonNick(u, p.id), friendUid: null });
+          else companions.push({ name: nameOf(u), friendUid: u });
+        }
       });
       if (p.teams <= 1 && Array.isArray(p.companions)) {
         p.companions.forEach(c => {
@@ -2049,7 +2057,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             const targetUids = evalPost.mannerEvalForHost
               ? [evalPost.authorUid].filter(u => u && u !== myUid)
               : (evalPost.participantUids || []).filter(u => u && u !== myUid);
-            const participants = targetUids.map(uid => ({ id: uid, name: participantNames[uid] || '동반자' }));
+            // 익명 참여자는 랜덤닉으로(호스트가 평가자면 실명). 현재 친구모집은 평가 감춰져 무관하나 방어적 마스킹 ([[roundup-anonymous-participation]])
+            const participants = targetUids.map(uid => ({ id: uid, name: displayParticipantName(evalPost, uid, participantNames[uid] || '동반자', myUid) }));
             return (
               <MannerEvaluationModal
                 visible={!!evaluatingPostId}
