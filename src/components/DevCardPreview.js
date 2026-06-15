@@ -9,11 +9,11 @@ import { RoundCardPolaroid } from './RoundCardPolaroid';
 
 const PHOTO = 'https://firebasestorage.googleapis.com/v0/b/dear-golf.firebasestorage.app/o/rounds%2FicHIqbVm8VWfu1y5DfAj5ylkCmj2%2Fm_1780985108529_0_1p7a4l.jpg?alt=media&token=b85dc63e-df5c-4541-9328-6e9770a94c73';
 
-// 홀인원 + 사진 + 18홀 + 메모 + 동반자 — 모든 카드 요소 한 번에 검증
+// 홀인원 + 싱글(71) + 사진 + 18홀 + 메모 + 동반자 — 모든 카드 요소 한 번에 검증
 const SAMPLE = {
   photos: [PHOTO], // 사진 있는 버전 확인용(no-photo 보려면 [])
   special: 'HOLE IN ONE',
-  score: 92, par: 72,
+  score: 71, par: 72, // 싱글(≤79) — SINGLE 칩 표시 확인용(holeScores 합 71과 일치)
   course: '라비에벨CC 올드코스',
   date: '2026.06.14', day: '일', weather: '맑음',
   playerName: '홍길동',
