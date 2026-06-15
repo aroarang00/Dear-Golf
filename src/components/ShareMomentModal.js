@@ -15,6 +15,8 @@ import { RoundupShareCard } from './RoundupShareCard';
 import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
+import { uploadShareCardImage } from '../utils/roundMedia';
+import { getUid } from '../utils/firebase';
 
 // 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
 // 달라져, 같은 카드도 좁은 폰에선 라벨이 서로 붙는 등 레이아웃이 어긋났음(앱의 얼굴인 공유 이미지 완성도 문제, 2026-06-14).
@@ -115,6 +117,25 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
     }
   };
 
+  // 카카오 공유 — 실제 카드를 캡처·업로드해서 그 URL로 카카오 피드카드를 보낸다(고정 hero.jpg 대신 진짜 초대장).
+  //   업로드 실패하면 url 없이 진행 → invite.js가 hero.jpg 폴백. onShareKakao(imageUrl)로 전달.
+  const handleShareKakao = async () => {
+    if (!onShareKakao || sharing || saving) return;
+    setSharing(true);
+    try {
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1 });
+      const uid = await getUid();
+      const imageUrl = await uploadShareCardImage(uid, uri); // 실패 시 null
+      onShareKakao(imageUrl || undefined);
+    } catch (e) {
+      if (e?.message && !/cancel/i.test(e.message)) {
+        setAlert({ title: '공유에 실패했어요', message: e.message, buttons: [{ text: '확인' }] });
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const handleOption = (key) => {
     if (key === 'share') handleShare();
     else if (key === 'save') handleSave();
@@ -190,11 +211,11 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
             <View style={{ gap: 10, marginTop: 22 }}>
               {/* 카카오톡 — 이미지+버튼 피드 카드(버튼이 클릭되는 딥링크). 모집/초대 공유 1순위. 카카오 노란 버튼 */}
               {onShareKakao && (
-                <TouchableOpacity activeOpacity={0.85} onPress={() => onShareKakao()} disabled={sharing || saving}
+                <TouchableOpacity activeOpacity={0.85} onPress={handleShareKakao} disabled={sharing || saving}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                     backgroundColor: '#FEE500', borderRadius: 12, paddingVertical: 14, opacity: (sharing || saving) ? 0.5 : 1 }}>
                   <Text style={{ fontSize: fs(16) }}>💬</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C1E1E' }}>카카오톡으로 공유</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C1E1E' }}>{sharing ? '카드 준비 중…' : '카카오톡으로 공유'}</Text>
                 </TouchableOpacity>
               )}
               {OPTIONS.map(o => {

@@ -47,7 +47,8 @@ export async function shareRoundup(post) {
 // 카카오톡 공유 — 이미지+버튼 피드 카드(콘솔 템플릿 없이 코드로 구성). 버튼/카드 링크 = 모집 딥링크.
 //   친구지정(select)은 '개인 초대' 톤. 카카오 불가(미설치·구버전 빌드)면 OS 공유시트 평문으로 폴백.
 //   ※ 딥링크 활성화엔 deargolf.app well-known 배포 + 딥링크 포함 빌드 필요(Phase 2/재빌드). ([[invite-deeplink-system]])
-export async function shareRoundupKakao(post) {
+// imageUrl: 캡처·업로드한 실제 초대장 카드 이미지(있으면 그걸, 없으면 고정 hero.jpg 폴백).
+export async function shareRoundupKakao(post, imageUrl) {
   if (!post) return false;
   const url = buildRoundupUrl(post.id, post.authorUid);
   const isInvite = post.scope === 'select'; // 친구지정 = 개인 초대
@@ -63,7 +64,7 @@ export async function shareRoundupKakao(post) {
         content: {
           title: isInvite ? '⛳ 라운딩에 초대합니다' : '⛳ 라운딩 동반자 모집',
           description: desc,
-          imageUrl: 'https://deargolf.app/hero.jpg',
+          imageUrl: imageUrl || 'https://deargolf.app/hero.jpg',
           link: { webUrl: url, mobileWebUrl: url },
         },
         buttons: [

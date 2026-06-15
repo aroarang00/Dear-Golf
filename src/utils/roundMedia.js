@@ -69,3 +69,21 @@ async function uploadVideoPoster(uid, localVideoUri, i) {
     return null;
   }
 }
+
+// 공유 카드(초대장 등) 캡처 이미지를 Storage에 올려 공개 URL 반환 — 카카오 피드 템플릿 imageUrl용
+//   (카카오 서버가 가져갈 수 있게 원격 URL 필요). getDownloadURL 토큰 URL은 공개. 실패 시 null → 호출부에서 hero.jpg 폴백.
+//   ※ 공유마다 1장씩 쌓임(orphan) — 출시 전 정리(TTL/CF) 또는 모집 생성 시 1회 생성·재사용으로 최적화 TODO. [[invite-deeplink-system]]
+export async function uploadShareCardImage(uid, localUri) {
+  if (!uid || !localUri) return null;
+  try {
+    const res = await fetch(localUri);
+    const blob = await res.blob();
+    const name = `sharecard_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`;
+    const storageRef = ref(storage, `rounds/${uid}/${name}`);
+    await uploadBytes(storageRef, blob, { contentType: 'image/png' });
+    return await getDownloadURL(storageRef);
+  } catch (e) {
+    if (__DEV__) console.warn('[roundMedia] 공유카드 업로드 실패, hero 폴백', e?.message);
+    return null;
+  }
+}
