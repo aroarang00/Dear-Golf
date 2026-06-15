@@ -6,9 +6,9 @@ import { getCountryFlag } from '../constants/data';
 
 // 라운딩 자랑 카드 — '홀별 스코어카드' 스타일. OCR로 입력된 18홀 holeScores를 표로.
 //  ★3색 구분(사용자 지시): 매거진(다크 사진)·폴라로이드(흰)와 다른 '딥그린' 배경. 골프장 그린 톤(라운지 네이비 회피 [[navy-lounge-color]]).
-//  언더/버디 홀만 골드 강조(못친 홀 깎지 않음 [[golfer-score-psychology]]). holeScores 없으면 총타수 폴백.
+//  언더(버디·이글)=원 강조, 보기·더블+=살짝 흐린 숫자(좁은 칸이라 마크 대신 톤으로 조용히, 못친 홀 깎는 톤 X [[golfer-score-psychology]]). holeScores 없으면 총타수 폴백.
 //  ※ 18홀 표 텍스트는 fs() 최소12 클램프 피해 고정 px(캡처 이미지라 폰트스케일 무관).
-//  ※ 표 숫자 폰트 = F.sysSb(Pretendard SemiBold) — Playfair는 작은 그리드에서 가독성 떨어져 전환(사용자 2026-06-15). 큰 TOTAL은 F.en 유지.
+//  ※ 표 숫자 폰트 = F.sysB(Pretendard Bold) — Playfair는 작은 그리드에서 가독성 떨어져 전환, SemiBold는 약해 Bold로(사용자 2026-06-15). 큰 TOTAL은 F.en 유지.
 
 const GREEN_TOP = '#33513E'; // 그라데이션 강하게(사용자 2026-06-14) — 위 더 밝은 그린
 const GREEN_BOT = '#0D1510'; // 아래 더 어둡게 — 대비 ↑
@@ -18,6 +18,7 @@ const BURGUNDY = '#6B1E2A'; // 특별한 순간(홀인원·이글 등) 채움 �
 const CREAM = '#F5E6A8';
 const MUTE = 'rgba(240,237,227,0.55)';
 const LINE = 'rgba(201,168,76,0.28)';
+const FADED = 'rgba(240,237,227,0.5)'; // 오버파(보기·더블+) 숫자 — 살짝 흐리게(마크 대신 톤으로 de-emphasize, 사용자 2026-06-15). 빨강·경고 톤 회피 [[golfer-score-psychology]]
 
 export function RoundCardScorecard({ item, width = 320 }) {
   const height = Math.round(width * 1.25);
@@ -36,9 +37,10 @@ export function RoundCardScorecard({ item, width = 320 }) {
   const isBest = item.badge === '베스트';
   const honor = isBest ? 'BEST' : isSingle ? 'SINGLE' : null;
 
-  // 홀별 결과 등급 — 실제 타수는 그대로 두고 '언더의 영예'만 모양·색으로(오버는 안 깎음 [[golfer-score-psychology]]).
-  //   par=숫자 위 점 / 버디(−1)=버건디 원 / 이글(−2)=골드 원 / 홀인원(1타)·알바트로스(−3↓)=골드 원+버건디 링(동그라미 강조).
-  //   par 미인식 홀은 등급 판정 불가 → 평범 표시(홀인원만 1타로 판정 가능). 사용자 2026-06-15
+  // 홀별 결과 등급 — 실제 타수는 그대로 두고 정식 골프 표기로(언더=원/오버=네모, 빨강 없이 중립 [[golfer-score-psychology]]).
+  //   par=연골드 빈 원 / 버디(−1)=버건디 원 / 이글(−2)=골드 원 / 홀인원(1타)·알바트로스(−3↓)=골드 원+버건디 링.
+  //   보기(+1)·더블보기 이상(+2↑)=살짝 흐린 숫자(좁은 칸이라 밑줄/네모 대신 톤으로, 사용자 2026-06-15).
+  //   par 미인식 홀은 등급 판정 불가 → 평범 숫자(홀인원만 1타로 판정 가능).
   const scoreTier = (i) => {
     const v = scores ? scores[i] : null;
     if (typeof v !== 'number') return 'none';
@@ -48,7 +50,9 @@ export function RoundCardScorecard({ item, width = 320 }) {
     if (d === -2) return 'eagle';
     if (d === -1) return 'birdie';
     if (d === 0) return 'par';
-    return 'over';                                          // 보기+ — 강조 X
+    if (d === 1) return 'bogey';                            // 보기 — 흐린 숫자
+    if (d != null && d >= 2) return 'dbogey';               // 더블보기+ — 흐린 숫자
+    return 'over';                                          // par 미인식 — 평범 숫자
   };
 
   const Row = ({ label, from, to }) => (
@@ -60,7 +64,8 @@ export function RoundCardScorecard({ item, width = 320 }) {
           const v = scores ? scores[i] : null;
           const t = scoreTier(i);
           const showCircle = t === 'par' || t === 'birdie' || t === 'eagle' || t === 'ace';
-          // 파=연골드 아웃라인(빈 원) / 버디=버건디 채움 / 이글=골드 채움 / 홀인원·알바트로스=골드 채움+버건디 링
+          // 파=연골드 아웃라인(빈 원) / 버디=버건디 채움 / 이글=골드 채움 / 홀인원·알바트로스=골드 채움+버건디 링 / 보기·더블보기+=살짝 흐린 숫자(좁은 칸이라 마크 대신 톤으로 조용히 de-emphasize)
+          const over = t === 'bogey' || t === 'dbogey';
           let bg = 'transparent', bw = 0, bc = 'transparent', tc = WHITE;
           if (t === 'birdie') { bg = BURGUNDY; tc = CREAM; }
           else if (t === 'eagle') { bg = GOLD; tc = GREEN_BOT; }
@@ -71,21 +76,21 @@ export function RoundCardScorecard({ item, width = 320 }) {
               {showCircle ? (
                 <View style={{ width: 19, height: 19, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: bg, borderWidth: bw, borderColor: bc }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: 11, color: tc }}>{v}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: 11, color: tc }}>{v}</Text>
                 </View>
               ) : (
-                <Text style={{ fontFamily: F.sysSb, fontSize: 13, color: WHITE }}>{typeof v === 'number' ? v : '·'}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: 13, color: over ? FADED : WHITE }}>{typeof v === 'number' ? v : '·'}</Text>
               )}
             </View>
           );
         }
         return (
-          <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: F.sysSb, fontSize: 13, color: label === 'HOLE' ? WHITE : MUTE }}>
+          <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: F.sysB, fontSize: 13, color: label === 'HOLE' ? WHITE : MUTE }}>
             {label === 'HOLE' ? (i + 1) : (parOf(i) ?? '·')}
           </Text>
         );
       })}
-      <Text style={{ width: 32, textAlign: 'right', fontFamily: F.sysSb, fontSize: 13, color: label === 'SCORE' ? GOLD : MUTE }}>
+      <Text style={{ width: 32, textAlign: 'right', fontFamily: F.sysB, fontSize: 13, color: label === 'SCORE' ? GOLD : MUTE }}>
         {label === 'HOLE' ? (from === 0 ? 'OUT' : 'IN') : label === 'PAR' ? (pars ? sum(pars, from, to) : '·') : (scores ? sum(scores, from, to) : '·')}
       </Text>
     </View>
