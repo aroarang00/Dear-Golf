@@ -849,7 +849,8 @@ export function DiaryScreen({ route, navigation }) {
                     return (
                     <View key={item.id} style={dS.tlNode}>
                       {idx < arr.length - 1 && <View style={dS.tlLine} />}
-                      <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial]} />
+                      {/* 일상 점은 paleSky(카드 오른쪽 띠·친구 피드 점과 통일). 베스트/버디/특별은 라운딩 전용이라 충돌 없음 ([[moment-feed-extension]]) */}
+                      <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial, item.kind === 'moment' && { backgroundColor: C.paleSky, borderWidth: 0 }]} />
                       <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={(it) => setSelected(it)} />
                     </View>
                     );

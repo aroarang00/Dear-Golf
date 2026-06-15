@@ -194,10 +194,10 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
             )}
             renderItem={({ item, index: idx }) => (
               <View style={{ paddingHorizontal: 16 }}>
-                {/* MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터, 특별 카드만 골드 ([[friend-feed-design]]) */}
+                {/* MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터, 특별 카드만 골드, 일상은 paleSky(카드 오른쪽 띠와 통일) ([[friend-feed-design]]·[[moment-feed-extension]]) */}
                 <View style={dS.tlNode}>
                   {idx < ((friend.feed || []).length - 1) && <View style={dS.tlLine} />}
-                  <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: C.butter, borderWidth: 0 }]} />
+                  <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: item.kind === 'moment' ? C.paleSky : C.butter, borderWidth: 0 }]} />
                   <DiaryCard
                     item={item} variant="friend" myUid={myUid}
                     onReport={setReportItem}

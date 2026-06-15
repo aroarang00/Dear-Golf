@@ -39,8 +39,10 @@ export const dS = StyleSheet.create({
   tlDotBirdie: { backgroundColor: C.butter, borderColor: C.charcoal },
   tlDotSpecial:{ backgroundColor: '#C9A84C', borderColor: '#C9A84C', width: 12, height: 12, left: 1 },
   // elevation: 안드 입체감 — 옅은 크림 배경(#FAF6EC)서 흰 카드가 안 떨어져 보이는 문제 해소. 자기 그림자는 overflow:hidden에 안 잘림.
-  //   iOS는 overflow:hidden이 자기 shadow*를 클리핑 → 안 보임. iOS 입체감은 래퍼 뷰 필요(추후).
+  //   iOS는 overflow:hidden이 자기 shadow*를 클리핑 → cardShadow 래퍼가 그림자 담당(아래).
   card:        { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: '#E8E2D0', elevation: 2, shadowColor: '#8B8680' },
+  // iOS 입체감 래퍼 — 라운지 카드(RoundupTab:84)와 같은 값으로 통일. Android는 card.elevation이 처리(래퍼엔 elevation 미포함=중복 방지).
+  cardShadow:  { borderRadius: 14, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 },
   cardSpecial:     { backgroundColor: '#F5F0E4', borderColor: '#C9A84C', borderWidth: 1 },
   cardSpecialLine: { height: 2, backgroundColor: '#C9A84C' },
   specialBadge:    { position: 'absolute', top: 9, left: 10, backgroundColor: 'rgba(201,168,76,0.9)', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3 },

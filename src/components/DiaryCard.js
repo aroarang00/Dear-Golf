@@ -21,10 +21,13 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
 
   // 친구 피드 카드 — 길게 누르면 신고 액션시트 ([[content-report-policy]]·[[diary-profanity-policy]]).
   //   onReport 미연결이면 그대로 통과. 일상·라운드 4갈래 모두 같은 래퍼로 감싼다(탭은 내부 사진/좋아요가 처리).
-  const wrapFriend = (children) =>
-    onReport ? (
-      <Pressable onLongPress={() => onReport(item)} delayLongPress={350}>{children}</Pressable>
-    ) : children;
+  const wrapFriend = (children) => {
+    // cardShadow: iOS 입체감 래퍼(카드 overflow:hidden 회피). 친구 4갈래 공통 통과 지점.
+    const shadowed = <View style={dS.cardShadow}>{children}</View>;
+    return onReport ? (
+      <Pressable onLongPress={() => onReport(item)} delayLongPress={350}>{shadowed}</Pressable>
+    ) : shadowed;
+  };
 
   // 좋아요 상태 — 친구 변형에서만 의미. (훅은 항상 호출)
   const likedInit = !!(myUid && (item.likes || []).includes(myUid));
@@ -261,6 +264,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       // 내 피드 사진 일상 — 날짜를 아래 바의 '더보기' 옆에 표시(사진 위 오버레이 없음)
       return (
         <>
+        <View style={dS.cardShadow}>
         <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
           {photoEl(false)}
           {/* 날짜·더보기·좋아요 한 줄 — 친구 일상 사진카드와 동일(좋아요를 바 안 우측으로). '한 줄 아래' 해소. 더보기는 좌측이라 FAB와 안 겹침 */}
@@ -281,6 +285,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
             </View>
           )}
         </TouchableOpacity>
+        </View>
         {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
         </>
       );
@@ -306,9 +311,11 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     }
     return (
       <>
+      <View style={dS.cardShadow}>
       <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
         {textBody}
       </TouchableOpacity>
+      </View>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
       </>
     );
@@ -399,6 +406,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   if (hasPhoto) {
     return (
       <>
+      <View style={dS.cardShadow}>
       <TouchableOpacity style={[dS.card, highlight && dS.cardSpecial]} activeOpacity={0.88} onPress={() => onPress(item)}>
         {highlight && <View style={dS.cardSpecialLine} />}
         {photoHero(() => onPress(item))}
@@ -413,6 +421,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         </View>
         {expanded && body}
       </TouchableOpacity>
+      </View>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
       </>
     );
@@ -420,6 +429,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
 
   return (
     <>
+    <View style={dS.cardShadow}>
     <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]} activeOpacity={0.88} onPress={() => onPress(item)}>
       {highlight && <View style={dS.cardSpecialLine} />}
       {isSpecial && (
@@ -436,6 +446,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       )}
       {body}
     </TouchableOpacity>
+    </View>
     {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
     </>
   );
