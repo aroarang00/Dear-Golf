@@ -126,7 +126,7 @@ export function RoundCardScorecard({ item, width = 320 }) {
               {/* 영예칩(싱글 ≤79 / 베스트) — 이름 아래(스코어 옆은 special 전용). 골드 채움+딥그린 글자 메달 느낌 ([[golfer-score-psychology]]) */}
               {honor ? (
                 <View style={{ alignSelf: 'flex-start', backgroundColor: GOLD, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 3, marginTop: 9 }}>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(12), color: GREEN_BOT, letterSpacing: 2 }}>{honor}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GREEN_BOT, letterSpacing: 1.5 }}>{honor}</Text>
                 </View>
               ) : null}
             </View>
