@@ -34,7 +34,7 @@ const OPTIONS = [
 ];
 
 // 특별한 순간 공유 — 카드 미리보기(워터마크 포함) + 갤러리 저장.
-export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
+export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShareKakao }) {
   const [alert, setAlert] = useState(null);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -188,6 +188,15 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
 
             {/* 공유 옵션 */}
             <View style={{ gap: 10, marginTop: 22 }}>
+              {/* 카카오톡 — 이미지+버튼 피드 카드(버튼이 클릭되는 딥링크). 모집/초대 공유 1순위. 카카오 노란 버튼 */}
+              {onShareKakao && (
+                <TouchableOpacity activeOpacity={0.85} onPress={() => onShareKakao()} disabled={sharing || saving}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    backgroundColor: '#FEE500', borderRadius: 12, paddingVertical: 14, opacity: (sharing || saving) ? 0.5 : 1 }}>
+                  <Text style={{ fontSize: fs(16) }}>💬</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C1E1E' }}>카카오톡으로 공유</Text>
+                </TouchableOpacity>
+              )}
               {OPTIONS.map(o => {
                 const busy = o.key === 'share' ? sharing : saving;
                 const disabled = sharing || saving;

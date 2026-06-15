@@ -1,4 +1,6 @@
 import { Share } from 'react-native';
+import { shareFeedTemplate } from '@react-native-kakao/share';
+import { buildRoundupUrl } from './links';
 
 // 친구/모임 초대 — 골프 모임 단톡방에 통째로 붙여넣기 좋은 공용 초대.
 // 친구 화면 헤더와 라운지 빈 상태가 같은 문구를 쓰도록 한 곳에 둔다 ([[lounge-positioning]] 공존·흡수).
@@ -36,8 +38,44 @@ export async function shareRoundup(post) {
     `${head}\n` +
     `👥 ${isTeam ? `단체 ${post.teams}팀 · 총 ${cap}명` : `${cap}명`}${left > 0 ? ` · 남은 자리 ${left}` : ''}\n\n` +
     '디어골프에서 친구 맺고 함께해요\n' +
-    INVITE_LINK;
+    buildRoundupUrl(post.id); // 모집글별 딥링크(/r/{id}) — 앱 있으면 앱이 가로채 상세, 없으면 웹 안내→설치 ([[invite-deeplink-system]])
   try {
     await Share.share({ message });
   } catch (e) { /* 사용자 취소 — 무시 */ }
+}
+
+// 카카오톡 공유 — 이미지+버튼 피드 카드(콘솔 템플릿 없이 코드로 구성). 버튼/카드 링크 = 모집 딥링크.
+//   친구지정(select)은 '개인 초대' 톤. 카카오 불가(미설치·구버전 빌드)면 OS 공유시트 평문으로 폴백.
+//   ※ 딥링크 활성화엔 deargolf.app well-known 배포 + 딥링크 포함 빌드 필요(Phase 2/재빌드). ([[invite-deeplink-system]])
+export async function shareRoundupKakao(post) {
+  if (!post) return false;
+  const url = buildRoundupUrl(post.id);
+  const isInvite = post.scope === 'select'; // 친구지정 = 개인 초대
+  const isTeam = (post.teams || 1) > 1;
+  const cap = post.capacity || (isTeam ? post.teams * 4 : 4);
+  const head = post.type === 'fixed'
+    ? `${post.course || ''} · ${post.date || ''}${post.day ? ` (${post.day})` : ''} ${post.time || ''}`.trim()
+    : '장소·날짜는 동반자와 함께 정해요';
+  const desc = `${head}\n${isTeam ? `단체 ${post.teams}팀 · 총 ${cap}명` : `${cap}명 모집`}`;
+  try {
+    await shareFeedTemplate({
+      template: {
+        content: {
+          title: isInvite ? '⛳ 라운딩에 초대합니다' : '⛳ 라운딩 동반자 모집',
+          description: desc,
+          imageUrl: 'https://deargolf.app/hero.jpg',
+          link: { webUrl: url, mobileWebUrl: url },
+        },
+        buttons: [
+          { title: isInvite ? '초대 확인하기' : '모집 보기', link: { webUrl: url, mobileWebUrl: url } },
+        ],
+      },
+      useWebBrowserIfKakaoTalkNotAvailable: true,
+    });
+    return true;
+  } catch (e) {
+    if (__DEV__) console.warn('[shareRoundupKakao] 실패, 평문 폴백', e?.message);
+    await shareRoundup(post); // 카카오 불가 → OS 공유시트 평문(딥링크 포함)
+    return false;
+  }
 }
