@@ -1205,10 +1205,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         ? '친구 대상 모집이라 바로 참여가 확정돼요.'
         : '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
       // 익명 참여 — 명단·댓글에 닉네임 대신 임의 닉으로(호스트에겐 이름 보임). 친구공개·친구지정만 ([[roundup-anonymous-participation]])
-      note: instant ? '익명으로 참여하면 명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고, 라운딩 당일엔 자연스럽게 만나요.' : undefined,
+      note: instant ? '익명으로 참여하면\n명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고\n라운딩 당일엔 자연스럽게 만나요.' : undefined,
       buttons: instant ? [
         { text: '참여하기', onPress: () => doJoin(false) },
-        { text: '익명으로 참여', onPress: () => doJoin(true) },
+        { text: '익명으로 참여', style: 'secondary', onPress: () => doJoin(true) },
         { text: '취소', style: 'cancel' },
       ] : [
         { text: '취소', style: 'cancel' },
@@ -1263,10 +1263,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     setAlert({
       title: '대기 신청할까요?',
       message: '자리가 나면 순서대로 참여 기회를 안내해 드려요.',
-      note: canAnon ? '익명으로 신청하면 명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고, 승격되면 그대로 이어져요.' : undefined,
+      note: canAnon ? '익명으로 신청하면\n명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고\n승격되면 그대로 이어져요.' : undefined,
       buttons: canAnon ? [
         { text: '대기 신청', onPress: () => handleWaitlist(id, false) },
-        { text: '익명으로 대기', onPress: () => handleWaitlist(id, true) },
+        { text: '익명으로 대기', style: 'secondary', onPress: () => handleWaitlist(id, true) },
         { text: '취소', style: 'cancel' },
       ] : [
         { text: '취소', style: 'cancel' },

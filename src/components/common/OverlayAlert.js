@@ -17,9 +17,11 @@ export function OverlayAlert({ data, onClose }) {
   const buttons = data.buttons && data.buttons.length ? data.buttons : [{ text: '확인' }];
   const inRow = buttons.length <= 2;
   const btnStyle = (b) => {
-    if (b.style === 'destructive') return { bg: C.burgundy, fg: C.butter, border: false };
-    if (b.style === 'cancel') return { bg: C.bgSecondary, fg: C.warmGray, border: true };
-    return { bg: C.charcoal, fg: C.butter, border: false };
+    if (b.style === 'destructive') return { bg: C.burgundy, fg: C.butter, borderColor: null, borderWidth: 0 };
+    if (b.style === 'cancel') return { bg: C.bgSecondary, fg: C.warmGray, borderColor: C.hairline, borderWidth: 0.5 };
+    // 2차 액션 — 1차(채움)와 색으로 구분되게 아웃라인(흰 배경+진한 테두리·글씨). 예: '익명으로 참여'
+    if (b.style === 'secondary') return { bg: C.bgPrimary, fg: C.charcoal, borderColor: C.charcoal, borderWidth: 1.2 };
+    return { bg: C.charcoal, fg: C.butter, borderColor: null, borderWidth: 0 };
   };
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -32,7 +34,7 @@ export function OverlayAlert({ data, onClose }) {
           </Text>
         )}
         {!!data.message && (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20, marginBottom: data.highlight || data.note ? 14 : 20 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: data.highlight || data.note ? 14 : 20 }}>
             {data.message}
           </Text>
         )}
@@ -48,7 +50,7 @@ export function OverlayAlert({ data, onClose }) {
           </View>
         )}
         {!!data.note && (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, textAlign: 'center', lineHeight: 18, marginBottom: 20 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 20 }}>
             {data.note}
           </Text>
         )}
@@ -58,9 +60,9 @@ export function OverlayAlert({ data, onClose }) {
             return (
               <TouchableOpacity key={i} activeOpacity={0.85}
                 onPress={() => { onClose(); b.onPress && b.onPress(); }}
-                style={{ flex: inRow ? 1 : undefined, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
-                  backgroundColor: s.bg, borderWidth: s.border ? 0.5 : 0, borderColor: C.hairline }}>
-                <Text style={{ fontFamily: b.style === 'cancel' ? F.sys : F.sysSb, fontSize: fs(14), color: s.fg }}>
+                style={{ flex: inRow ? 1 : undefined, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
+                  backgroundColor: s.bg, borderWidth: s.borderWidth || 0, borderColor: s.borderColor || C.hairline }}>
+                <Text style={{ fontFamily: b.style === 'cancel' ? F.sys : F.sysB, fontSize: fs(15), color: s.fg }}>
                   {b.text}
                 </Text>
               </TouchableOpacity>
