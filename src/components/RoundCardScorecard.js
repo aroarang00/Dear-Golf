@@ -69,6 +69,12 @@ export function RoundCardScorecard({ item, width = 320 }) {
               <Text style={{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 3 }}>SCORECARD</Text>
               <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(22), color: WHITE, marginTop: 9 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
               <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, marginTop: 5 }}>{playerName ? playerName + '   ·   ' : ''}{item.date}</Text>
+              {/* 영예칩(싱글 ≤79 / 베스트) — 이름 아래(스코어 옆은 special 전용). 골드 채움+딥그린 글자 메달 느낌 ([[golfer-score-psychology]]) */}
+              {honor ? (
+                <View style={{ alignSelf: 'flex-start', backgroundColor: GOLD, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 3, marginTop: 9 }}>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(12), color: GREEN_BOT, letterSpacing: 2 }}>{honor}</Text>
+                </View>
+              ) : null}
             </View>
             <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: WHITE, marginLeft: 12 }}>Dear Golf</Text>
           </View>
@@ -78,13 +84,7 @@ export function RoundCardScorecard({ item, width = 320 }) {
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', marginTop: 46, marginBottom: 4 }}>
               <Text style={{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: GOLD }}>{totalScore}</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, letterSpacing: 2, marginLeft: 6, marginBottom: 7 }}>TOTAL</Text>
-              {/* 영예칩(싱글 ≤79 / 베스트) — 골드 채움+딥그린 글자(메달 느낌). 잘 친 스코어는 띄워줌 ([[golfer-score-psychology]]) */}
-              {honor ? (
-                <View style={{ backgroundColor: GOLD, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 10, marginBottom: 8 }}>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(12), color: GREEN_BOT, letterSpacing: 2 }}>{honor}</Text>
-                </View>
-              ) : null}
-              {/* 특별한 순간 — 타수 옆 버건디 알약(딥그린 위 도드라짐). 버건디 글자는 배경과 둘 다 어두워 안 보여서 채움+크림 글자 */}
+              {/* 특별한 순간(홀인원·이글) — 타수 옆 버건디 알약 고정. 싱글/베스트는 헤더 이름 아래로 옮김(스코어 옆 중복 회피, 사용자 2026-06-15) */}
               {special ? (
                 <View style={{ backgroundColor: BURGUNDY, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 10, marginBottom: 8 }}>
                   <Text style={{ fontFamily: F.en, fontSize: fs(12), color: CREAM, letterSpacing: 2 }}>{special}</Text>
