@@ -73,8 +73,10 @@ export async function recognizeScorecard(uri) {
     const callable = httpsCallable(functions, 'recognizeScorecard');
     const res = await callable({ imageBase64: img.base64, format: 'jpg' });
     const fields = res?.data?.fields || [];   // [{ text, confidence, vertices }]
+    if (__DEV__) console.log('[ocr-debug] fields(' + fields.length + '):', (fields || []).map(f => (f.text || '').trim()).filter(Boolean).join(' | '));
     const toks = tokenize(fields);
     const { rows, pars } = parseTokens(toks);
+    if (__DEV__) console.log('[ocr-debug] result:', JSON.stringify((rows || []).map(r => ({ label: r.label, total: r.total, holes: r.holes }))));
     // PAR 행을 못 찾으면(요약 카드 등) 홀별 타수를 만들 수 없음 → 부드러운 안내
     if (!rows.length) {
       return {
@@ -166,7 +168,8 @@ function parseTokens(toks) {
   const classified = clusterRows(toks).map(r => {
     const items = r.items.slice().sort((a, b) => a.cx - b.cx);
     const labelText = items.filter(t => t.kind === 'text').map(t => t.text).join(' ');
-    const nums = items.filter(t => t.kind === 'num').map(t => t.n);
+    const numItems = items.filter(t => t.kind === 'num').map(t => ({ n: t.n, cx: t.cx })); // x좌표 유지 — 컬럼 정렬용
+    const nums = numItems.map(it => it.n);
     // 1..9 순차면 헤더(HOLE) 행
     const isSeq = nums.length >= 8 && nums.slice(0, 8).every((n, k) => n === k + 1);
     let type = 'other';
@@ -175,8 +178,9 @@ function parseTokens(toks) {
     else if (/[가-힣]/.test(labelText) && nums.length >= 7) type = 'player';
     else if (!labelText && nums.length >= 9 && !isSeq) type = 'player';   // 이름 인식 실패 폴백
     const name = labelText.replace(/SMART|SCORE/gi, '').trim();
-    return { cy: r.cy, name, nums, type };
+    return { cy: r.cy, name, nums, numItems, type };
   });
+  if (__DEV__) console.log('[ocr-debug] classified:', JSON.stringify(classified.map(r => ({ type: r.type, label: r.name, nums: r.nums }))));
 
   const parRows = classified.filter(r => r.type === 'par').sort((a, b) => a.cy - b.cy);
   if (!parRows.length) return { rows: [], pars: null };
@@ -187,24 +191,44 @@ function parseTokens(toks) {
 
   const players = classified.filter(r => r.type === 'player');
   const ph0 = parHoleVals(parRows[0]);
+
+  // PAR 행 홀 컬럼(값 3~6 + x좌표). 소계(36/72 등)는 값>6라 자동 제외.
+  const parCols = (pr) => pr.numItems.filter(it => it.n >= 3 && it.n <= 6).slice(0, 9);
+  // 플레이어 숫자를 PAR 컬럼 x에 정렬 — 누락 셀(나비 가린 버디 등)=null, 마지막 홀 우측 숫자=소계로 분리.
+  //   ★스마트스코어 버디(-1)가 노란 나비 아이콘에 가려 CLOVA가 그 칸을 못 읽음 → 한 칸씩 밀려 소계(44)가 홀로 끼던 버그 수정 ([[project_scorecard_ocr]]).
+  const alignRow = (numItems, cols) => {
+    if (!cols.length) return { holes: [], sub: undefined };
+    const span = cols.length >= 2 ? (cols[cols.length - 1].cx - cols[0].cx) / (cols.length - 1) : 40;
+    const tol = span * 0.55, lastX = cols[cols.length - 1].cx;
+    const holes = new Array(cols.length).fill(null);
+    const subs = [];
+    for (const it of numItems) {
+      if (it.cx > lastX + span * 0.7) { subs.push(it.n); continue; }  // 마지막 홀 우측 = 소계/총계
+      let best = -1, bd = Infinity;
+      cols.forEach((c, ci) => { const d = Math.abs(it.cx - c.cx); if (d < bd) { bd = d; best = ci; } });
+      if (best >= 0 && bd <= tol && holes[best] == null) holes[best] = it.n; else subs.push(it.n);
+    }
+    return { holes, sub: subs.find(Number.isFinite) };  // 첫 소계(좌측) = 블록 소계
+  };
+
   let parFront = [], parBack = [];
-  const normalized = [];   // { name, relF[9], relB[9], subF, subB }
+  const normalized = [];   // { name, relF[9], relB[9], subF, subB } (relF/relB에 null 가능=누락)
 
   if (parRows.length >= 2) {
-    // 2블록 — PAR 행 2개(전·후반), 플레이어도 블록별 행 (동반자·서원힐스)
-    parFront = ph0.slice(0, 9);
-    parBack = parHoleVals(parRows[1]).slice(0, 9);
+    // 2블록 — PAR 행 2개(전·후반). 플레이어 숫자는 x좌표로 컬럼 정렬(누락 버디 칸=null).
+    const colF = parCols(parRows[0]), colB = parCols(parRows[1]);
+    parFront = colF.map(c => c.n);
+    parBack = colB.map(c => c.n);
     const frontCy = parRows[0].cy, backCy = parRows[1].cy;
     const fps = players.filter(p => p.cy > frontCy && p.cy < backCy).sort((a, b) => a.cy - b.cy);
     const bps = players.filter(p => p.cy > backCy).sort((a, b) => a.cy - b.cy);
     const cnt = Math.max(fps.length, bps.length);
     for (let i = 0; i < cnt; i++) {
+      const af = fps[i] ? alignRow(fps[i].numItems, colF) : { holes: [], sub: undefined };
+      const ab = bps[i] ? alignRow(bps[i].numItems, colB) : { holes: [], sub: undefined };
       normalized.push({
         name: (fps[i] && fps[i].name) || (bps[i] && bps[i].name) || `${i + 1}번째 줄`,
-        relF: fps[i] ? fps[i].nums.slice(0, 9) : [],
-        relB: bps[i] ? bps[i].nums.slice(0, 9) : [],
-        subF: fps[i] ? fps[i].nums[9] : undefined,
-        subB: bps[i] ? bps[i].nums[9] : undefined,
+        relF: af.holes, relB: ab.holes, subF: af.sub, subB: ab.sub,
       });
     }
   } else if (ph0.length >= 16) {
@@ -245,14 +269,27 @@ function parseTokens(toks) {
     return (parSum && holeSum >= parSum * 0.7) ? 'actual' : 'relative';  // 폴백: 값 크기
   };
 
+  // 상대모드 블록에 누락 셀이 정확히 1개면 (소계−par합−읽은합)으로 복원 — 나비에 가린 버디 등 되살림.
+  const recoverBlock = (rel, parArr, sub, mode) => {
+    const r = rel.slice();
+    if (mode !== 'relative' || !Number.isFinite(sub)) return r;
+    const miss = r.map((v, i) => (Number.isFinite(v) ? -1 : i)).filter(i => i >= 0);
+    if (miss.length !== 1) return r;
+    const parSum = parArr.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    const known = r.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    r[miss[0]] = (sub - parSum) - known;
+    return r;
+  };
   const out = normalized.map(pl => {
     const modeF = decideMode(pl.relF, parFront, pl.subF);
     const modeB = pl.relB.length ? decideMode(pl.relB, parBack, pl.subB) : modeF;
+    const relF = recoverBlock(pl.relF, parFront, pl.subF, modeF);
+    const relB = recoverBlock(pl.relB, parBack, pl.subB, modeB);
     const holes = [];
     for (let h = 0; h < 18; h++) {
       const par = pars18[h];
       const front = h < 9;
-      const val = front ? pl.relF[h] : pl.relB[h - 9];
+      const val = front ? relF[h] : relB[h - 9];
       const mode = front ? modeF : modeB;
       if (!Number.isFinite(val)) { holes.push(null); continue; }
       holes.push(mode === 'actual' ? val : (Number.isFinite(par) ? par + val : null));

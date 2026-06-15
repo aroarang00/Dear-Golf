@@ -272,16 +272,57 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
                 </View>
               </View>
             );
+            // 홀별 골프식 표기 — 공유 스코어카드와 동일 규칙(파=연골드 빈 원/버디=버건디 채움/이글=골드 채움/홀인원·알바트로스=골드+버건디 링).
+            //   흰 표 바탕에 맞춰 색 조정. par 없으면 평범 표시. [[golfer-score-psychology]]
+            const tierOf = (i) => {
+              const v = hs[i];
+              if (!Number.isFinite(v)) return 'none';
+              const p = hp?.[i];
+              const d = Number.isFinite(p) ? v - p : null;
+              if (v === 1 || (d != null && d <= -3)) return 'ace';
+              if (d === -2) return 'eagle';
+              if (d === -1) return 'birdie';
+              if (d === 0) return 'par';
+              return 'over';
+            };
+            const scoreCell = (i) => {
+              const v = hs[i];
+              const t = tierOf(i);
+              const circ = t === 'par' || t === 'birdie' || t === 'eagle' || t === 'ace';
+              let bg = 'transparent', bw = 0, bc = 'transparent', tcol = C.textPrimary;
+              if (t === 'birdie') { bg = '#6B1E2A'; tcol = '#fff'; }
+              else if (t === 'eagle') { bg = '#C9A84C'; tcol = '#3D2A00'; }
+              else if (t === 'ace') { bg = '#C9A84C'; tcol = '#3D2A00'; bw = 1.5; bc = '#6B1E2A'; }
+              else if (t === 'par') { bw = 1.2; bc = 'rgba(201,168,76,0.55)'; }
+              return (
+                <View key={i} style={cellBox}>
+                  {circ ? (
+                    <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: bw, borderColor: bc }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: tcol }}>{Number.isFinite(v) ? v : '-'}</Text>
+                    </View>
+                  ) : (
+                    <Text style={scoreTxt}>{Number.isFinite(v) ? v : '-'}</Text>
+                  )}
+                </View>
+              );
+            };
+            const scoreRow = (start, total) => (
+              <View style={{ flexDirection: 'row', backgroundColor: 'rgba(107,30,42,0.06)' }}>
+                <View style={[sideBox, { borderRightWidth: 0.5 }]}><Text style={labelTxt}>타수</Text></View>
+                {Array.from({ length: 9 }, (_, k) => scoreCell(start + k))}
+                <View style={sideBox}><Text style={{ ...scoreTxt, color: C.burgundy }}>{total}</Text></View>
+              </View>
+            );
             return (
               <View style={{ marginTop: 16 }}>
                 <Text style={[dS.companionLabel, { marginTop: 0, marginBottom: 10 }]}>홀별 스코어</Text>
                 <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8, overflow: 'hidden' }}>
                   {row('홀', nums(0), 'T', { header: true })}
                   {hasPar && row('par', pars(0), parFront, { muted: true })}
-                  {row('타수', scores(0), front, { tint: true })}
+                  {scoreRow(0, front)}
                   {row('홀', nums(9), 'T', { header: true, topBorder: true })}
                   {hasPar && row('par', pars(9), parBack, { muted: true })}
-                  {row('타수', scores(9), back, { tint: true })}
+                  {scoreRow(9, back)}
                 </View>
               </View>
             );

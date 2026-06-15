@@ -58,16 +58,19 @@ export function RoundCardScorecard({ item, width = 320 }) {
         if (label === 'SCORE') {
           const v = scores ? scores[i] : null;
           const t = scoreTier(i);
-          const circle = t === 'birdie' || t === 'eagle' || t === 'ace';
-          const gold = t === 'eagle' || t === 'ace';
+          const showCircle = t === 'par' || t === 'birdie' || t === 'eagle' || t === 'ace';
+          // 파=연골드 아웃라인(빈 원) / 버디=버건디 채움 / 이글=골드 채움 / 홀인원·알바트로스=골드 채움+버건디 링
+          let bg = 'transparent', bw = 0, bc = 'transparent', tc = WHITE;
+          if (t === 'birdie') { bg = BURGUNDY; tc = CREAM; }
+          else if (t === 'eagle') { bg = GOLD; tc = GREEN_BOT; }
+          else if (t === 'ace') { bg = GOLD; tc = GREEN_BOT; bw = 1.5; bc = BURGUNDY; }
+          else if (t === 'par') { bw = 1.2; bc = 'rgba(232,217,160,0.5)'; } // 연골드 빈 원
           return (
             <View key={i} style={{ flex: 1, height: 20, alignItems: 'center', justifyContent: 'center' }}>
-              {t === 'par' && <View style={{ position: 'absolute', top: 0, width: 3, height: 3, borderRadius: 2, backgroundColor: MUTE }} />}
-              {circle ? (
+              {showCircle ? (
                 <View style={{ width: 19, height: 19, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: gold ? GOLD : BURGUNDY,
-                  borderWidth: t === 'ace' ? 1.5 : 0, borderColor: BURGUNDY }}>
-                  <Text style={{ fontFamily: F.en, fontSize: 10, color: gold ? GREEN_BOT : CREAM }}>{v}</Text>
+                  backgroundColor: bg, borderWidth: bw, borderColor: bc }}>
+                  <Text style={{ fontFamily: F.en, fontSize: 10, color: tc }}>{v}</Text>
                 </View>
               ) : (
                 <Text style={{ fontFamily: F.en, fontSize: 12, color: WHITE }}>{typeof v === 'number' ? v : '·'}</Text>
