@@ -27,7 +27,7 @@ export function HallOfFameCard({ item, onShare }) {
   const isFirstSingle = item.type === '퍼스트 싱글';
   const isLifeBest = item.type === '라이프 베스트';
   const isRound = isFirstSingle || isLifeBest; // 라운드 단위 성취 — 홀 정보 없음
-  const accentColor = isLifeBest ? '#A8D4B4' : '#B8985C';  // 차분한 앤틱 골드 (쨍한 #C9A84C → 고급감)
+  const accentColor = isLifeBest ? '#9FDDB2' : '#C9A84C';  // 선명한 브랜드 골드/그린 (채도 ↑, 사진급 또렷한 톤)
   // 카드 타입 표기 — 홀인원·이글·알바와 통일되게 영문으로
   const typeLabel = isFirstSingle ? 'FIRST SINGLE' : isLifeBest ? 'LIFE BEST' : item.type;
 
@@ -48,12 +48,12 @@ export function HallOfFameCard({ item, onShare }) {
       <View style={{ height: 1, backgroundColor: accentColor + '66' }} />
       <View style={dS.hofHeader}>
         <View style={{ flex: 1, paddingRight: 10 }}>
-          {/* 타입 라벨 — letterSpacing 6이라 긴 'HOLE IN ONE'은 폭을 많이 먹음. numberOfLines+adjustsFontSizeToFit로
-              좌측 영역 안에 안전히 맞춰 우측 Dear Golf와 붙지 않게(카드 폭 고정과 함께 폰 무관 일관, 2026-06-14). */}
+          {/* 타입 라벨 — 산세리프 Bold라 자간은 2.5로 적당히(과한 letterSpacing은 산세리프서 벌어져 보임). 긴 'HOLE IN ONE'은
+              numberOfLines+adjustsFontSizeToFit로 좌측 영역 안에 안전히 맞춰 우측 Dear Golf와 붙지 않게(카드 폭 고정과 함께 폰 무관 일관). */}
           <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
-            style={[dS.hofType, { color: accentColor, fontSize: fs(22), letterSpacing: 6,
-            textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 }]}>{typeLabel}</Text>
-          <Text numberOfLines={1} style={[dS.hofDate, { color: 'rgba(255,255,255,0.78)', fontSize: fs(11) }]}>{item.date} · {item.course}</Text>
+            style={[dS.hofType, { fontFamily: F.sysB, color: accentColor, fontSize: fs(22), letterSpacing: 2.5,
+            textShadowColor: 'rgba(0,0,0,0.45)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }]}>{typeLabel}</Text>
+          <Text numberOfLines={1} style={[dS.hofDate, { color: 'rgba(255,255,255,0.92)', fontSize: fs(11) }]}>{item.date} · {item.course}</Text>
         </View>
         {onShare && (
           <TouchableOpacity onPress={onShare} activeOpacity={0.7}
@@ -90,16 +90,16 @@ export function HallOfFameCard({ item, onShare }) {
           <View key={i} style={[dS.hofCell, { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
             borderTopColor: 'rgba(255,255,255,0.2)', borderLeftColor: 'rgba(255,255,255,0.09)',
             borderRightColor: 'rgba(0,0,0,0.16)', borderBottomColor: 'rgba(0,0,0,0.2)' }]}>
-            <Text style={[dS.hofCellLabel, { color: accentColor + 'AA' }]}>{cell.label}</Text>
+            <Text style={[dS.hofCellLabel, { color: accentColor + 'CC' }]}>{cell.label}</Text>
             {cell.big
               ? <Text style={[dS.hofCellBig, { color: accentColor }]}>{cell.value}</Text>
-              : <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[dS.hofCellVal, { color: 'rgba(255,255,255,0.9)' }]}>{cell.value}</Text>
+              : <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[dS.hofCellVal, { color: '#FFFFFF' }]}>{cell.value}</Text>
             }
           </View>
         ))}
       </View>
       <View style={[dS.hofDivider, { backgroundColor: accentColor + '22' }]} />
-      <Text style={[dS.hofMemo, { color: 'rgba(255,255,255,0.65)' }]}>"{item.memo}"</Text>
+      <Text style={[dS.hofMemo, { color: 'rgba(255,255,255,0.85)' }]}>"{item.memo}"</Text>
       <View style={{ height: 1, backgroundColor: accentColor + '44' }} />
     </LinearGradient>
   );

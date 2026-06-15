@@ -79,7 +79,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
         return;
       }
       // 카드 + 워터마크 영역을 캡처해서 PNG로 저장
-      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1 });
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 3 });
       await MediaLibrary.saveToLibraryAsync(uri);
       setAlert({
         title: '갤러리에 저장됐어요',
@@ -102,7 +102,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
     if (sharing || saving) return;
     setSharing(true);
     try {
-      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1 });
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 3 });
       const available = await Sharing.isAvailableAsync();
       if (available) {
         await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: isRound ? '라운딩 카드 공유' : '특별한 순간 공유' });
@@ -127,7 +127,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
     try {
       // 카카오는 가로(2:1) 카드로 — 세로 카드는 카카오 피드에서 하단이 짤리므로. 그 외(일정·초대)는 기존 카드.
       const target = isRoundup ? wideCardRef : (isRound ? roundRefs.current[roundStyleIdx] : cardRef);
-      const uri = await captureRef(target, { format: 'png', quality: 1 });
+      const uri = await captureRef(target, { format: 'png', quality: 1, pixelRatio: 3 });
       const uid = await getUid();
       const imageUrl = await uploadShareCardImage(uid, uri); // 실패 시 null
       onShareKakao(imageUrl || undefined);
