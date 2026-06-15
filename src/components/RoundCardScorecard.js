@@ -30,6 +30,10 @@ export function RoundCardScorecard({ item, width = 320 }) {
   const parOf = (i) => (pars ? pars[i] : null);
   const sum = (arr, a, b) => arr.slice(a, b).reduce((s, n) => s + (typeof n === 'number' ? n : 0), 0);
   const totalScore = hasScore ? item.score : (scores ? sum(scores, 0, 18) : null);
+  // 영예 표시 — 싱글(≤79)·베스트. special(홀인원·이글)과 별개로 함께 노출 가능 ([[score-brag-card]] [[golfer-score-psychology]])
+  const isSingle = typeof totalScore === 'number' && totalScore <= 79;
+  const isBest = item.badge === '베스트';
+  const honor = isBest ? 'BEST' : isSingle ? 'SINGLE' : null;
 
   const Row = ({ label, from, to }) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
@@ -63,17 +67,23 @@ export function RoundCardScorecard({ item, width = 320 }) {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 3 }}>SCORECARD</Text>
-              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(18), color: WHITE, marginTop: 9 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(22), color: WHITE, marginTop: 9 }}>{flag ? flag + ' ' : ''}{item.course || '라운딩'}</Text>
               <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: GOLD, marginTop: 5 }}>{playerName ? playerName + '   ·   ' : ''}{item.date}</Text>
             </View>
             <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: WHITE, marginLeft: 12 }}>Dear Golf</Text>
           </View>
 
-          {/* 총타수 — 표 위 왼쪽 정렬(사용자 2026-06-14). 헤더와 간격 늘려 하단 여백 줄임(홀별 표 행간은 유지) */}
+          {/* 총타수 — 표 위 왼쪽 정렬(사용자 2026-06-14). 헤더와 간격 더 늘려 총타수+표를 아래로 내림 → 하단 여백 축소(2026-06-15 사용자, 공유 캡처서 바닥 비어보임) */}
           {totalScore != null ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', marginTop: 22, marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', marginTop: 46, marginBottom: 4 }}>
               <Text style={{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: GOLD }}>{totalScore}</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, letterSpacing: 2, marginLeft: 6, marginBottom: 7 }}>TOTAL</Text>
+              {/* 영예칩(싱글 ≤79 / 베스트) — 골드 채움+딥그린 글자(메달 느낌). 잘 친 스코어는 띄워줌 ([[golfer-score-psychology]]) */}
+              {honor ? (
+                <View style={{ backgroundColor: GOLD, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 10, marginBottom: 8 }}>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(12), color: GREEN_BOT, letterSpacing: 2 }}>{honor}</Text>
+                </View>
+              ) : null}
               {/* 특별한 순간 — 타수 옆 버건디 알약(딥그린 위 도드라짐). 버건디 글자는 배경과 둘 다 어두워 안 보여서 채움+크림 글자 */}
               {special ? (
                 <View style={{ backgroundColor: BURGUNDY, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 10, marginBottom: 8 }}>
