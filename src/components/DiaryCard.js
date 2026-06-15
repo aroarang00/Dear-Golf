@@ -77,7 +77,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   else lineColor = '#8B8680';
   const memoBorderColor = isSpecial ? '#C9A84C' : lineColor;
 
-  // 스코어 줄 — 타수·차이·par + 싱글/특별/버디 배지
+  // 스코어 줄 — 타수·차이·par + 싱글/버디 배지. 특별(홀인원·알바·이글) 뱃지는 사진 코너(specialBadge)·무사진 배너(specialNoPhoto)에
+  //   이미 떠 있어 여기선 생략 — 싱글·특별·버디 3개가 겹쳐 줄바꿈되며 카드가 길어지던 중복 제거(2026-06-15)
   const scoreLine = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
       {hasScore ? (
@@ -92,11 +93,6 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       {isSingle && (
         <View style={{ backgroundColor: '#C9A84C', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3, minWidth: 52, alignItems: 'center', alignSelf: 'center' }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
-        </View>
-      )}
-      {item.special && (
-        <View style={{ backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'center' }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8' }}>{item.special}</Text>
         </View>
       )}
       {!isFriend && item.birdieCount > 0 && (
@@ -430,8 +426,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
       {highlight && <View style={dS.cardSpecialLine} />}
       {isSpecial && (
         <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>
-          <Text style={dS.specialNoPhotoTxt}>{item.special}</Text>
-          {item.specialHole && <Text style={dS.specialNoPhotoSub}>{item.specialHole}번홀</Text>}
+          {/* 제목(HOLE IN ONE 등)을 친구 카드와 동일하게 크게(fs28) — 홀번호(번홀)는 생략, 상세에서 확인(2026-06-15 사용자) */}
+          <Text style={[dS.specialNoPhotoTxt, { fontSize: fs(28), letterSpacing: 3 }]}>{item.special}</Text>
         </View>
       )}
       {isFirstSingle && !isSpecial && (

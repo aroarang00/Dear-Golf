@@ -148,35 +148,30 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
             <Text style={[dS.detailScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
             <Text style={[dS.detailScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
             <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
-            {isSingle && (
-              <View style={{
-                backgroundColor: '#C9A84C',
-                borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
-                minWidth: 52, alignItems: 'center', alignSelf: 'center',
-              }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
-              </View>
-            )}
-            {item.special && (
-              <View style={{
-                backgroundColor: item.special === 'HOLE IN ONE' ? '#2A2622' : '#6B1E2A',
-                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-                alignSelf: 'center',
-              }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: item.special === 'HOLE IN ONE' ? '#C9A84C' : '#F5E6A8' }}>{item.special}</Text>
-              </View>
-            )}
-            {item.birdieCount > 0 && (
-              <View style={{
-                backgroundColor: '#3D3935',
-                borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-                alignSelf: 'center',
-              }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
-              </View>
-            )}
-            {/* 공유 버튼은 헤더(닉네임 자리)로 이동 — 배지 늘면 밀리던 문제 해결(2026-06-15) */}
           </View>
+          {/* 성취 배지 — fs48 큰 점수와 같은 줄에 두면 baseline 줄바꿈으로 어정쩡하게 떨어져, 점수 아래 전용 줄로 분리(깔끔히 한 줄).
+              특별(홀인원·알바·이글) 뱃지는 상단 specialBanner에 이미 크게 표시돼 여기선 생략(중복 제거, 2026-06-15) */}
+          {(isSingle || item.birdieCount > 0) && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              {isSingle && (
+                <View style={{
+                  backgroundColor: '#C9A84C',
+                  borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
+                  minWidth: 52, alignItems: 'center',
+                }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
+                </View>
+              )}
+              {item.birdieCount > 0 && (
+                <View style={{
+                  backgroundColor: '#3D3935',
+                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
+                }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
+                </View>
+              )}
+            </View>
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
             {item.overseas && item.country ? (
