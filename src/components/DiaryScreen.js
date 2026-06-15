@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
@@ -607,8 +607,9 @@ export function DiaryScreen({ route, navigation }) {
   //     탭을 전환했다 돌아와야 sticky가 먹던 버그(2026-06-14 수정). 자리만 유지하면 토글 없이 안정적으로 고정.
   const canShowFilter = diariesHydrated && diaries.length > 0;
 
+  // 루트 inset은 View+paddingTop(useSafeAreaInsets)으로 — SafeAreaView 컴포넌트는 탭 포커스 시 top inset을 늦게 적용해 콘텐츠가 '툭' 떨어지던 버그(2026-06-15)
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+    <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
       {/* 전체 스크롤(인스타식) — 명함·통계·필터·카드를 한 ScrollView에 담아 함께 스크롤. 명함·통계·💰⚙️💬는
           위로 밀려 사라지고, 필터 줄(인덱스 2)만 stickyHeaderIndices로 상단 고정(사용자 결정 2026-06-13).
           ★sticky 인덱스 안정 위해 자식 순서 고정: [명함0·통계1·필터2(빈 상태엔 빈 View)·피드3]. 검색은 필터와 한 묶음(인덱스 유지). */}
@@ -966,6 +967,6 @@ export function DiaryScreen({ route, navigation }) {
           const persisted = await persistPhoto(croppedUri); // 크롭에디터가 이미 600px·압축 출력
           if (persisted) persistProfile({ avatarUri: persisted });
         }} />
-    </SafeAreaView>
+    </View>
   );
 }

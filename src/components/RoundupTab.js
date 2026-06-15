@@ -4,7 +4,7 @@ import { Modal, View, ScrollView, RefreshControl, Text, TouchableOpacity, Platfo
 // Android는 같은 px 패딩에도 카드 박스가 시각적으로 더 커 보임(폰트 metrics 차이 누적).
 // 라운지 카드 한정 안드 컴팩트 보정 — 다른 화면은 검증 후 단계 확장.
 const _and = Platform.OS === 'android';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { RoundupCreateModal } from './RoundupCreateModal';
 import { InvitationCard } from './InvitationCard';
@@ -271,6 +271,7 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
 }
 
 export function RoundupTab({ visible, onClose, asScreen = false, navigation, route }) {
+  const insets = useSafeAreaInsets(); // asScreen(라운지 탭) 루트는 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=점프 방지, 2026-06-15). 모달 분기는 SafeAreaView 유지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, editSchedule, removeSchedule } = useContext(SchedulesContext);
   const { diaries } = useContext(DiariesContext); // 취소 정리 시 '기록 연결된 일정' 보호용
@@ -2148,9 +2149,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
   if (asScreen) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         {body}
-      </SafeAreaView>
+      </View>
     );
   }
   return (

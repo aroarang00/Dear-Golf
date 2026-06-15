@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardA
 import { LinearGradient } from 'expo-linear-gradient';
 import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -37,6 +37,7 @@ import { RestaurantSaveModal } from './RestaurantSaveModal';
 import { CourseLogModal } from './CourseLogModal';
 
 export function GuideScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
   const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
@@ -609,7 +610,7 @@ export function GuideScreen({ route, navigation }) {
   //   selected가 잡히면 바로 아래 상세 렌더로 넘어가므로 selected 없을 때만.
   if (openingCourse && !selected) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
           <TouchableOpacity onPress={() => { setOpeningCourse(false); setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -619,7 +620,7 @@ export function GuideScreen({ route, navigation }) {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Spinner size={32} color={C.burgundy} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -628,7 +629,7 @@ export function GuideScreen({ route, navigation }) {
     if (!c) {
       // userCoursesList 로딩 race — 헤더+스피너로 placeholder
       return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+        <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
           <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
             <TouchableOpacity onPress={() => { setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -638,7 +639,7 @@ export function GuideScreen({ route, navigation }) {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Spinner size={32} color={C.burgundy} />
           </View>
-        </SafeAreaView>
+        </View>
       );
     }
     const isUserCourse = c._source === 'user';
@@ -674,7 +675,7 @@ export function GuideScreen({ route, navigation }) {
     const visitCount = myDiaries.length + unrecordedSched.length;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
           <TouchableOpacity onPress={() => { setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -1472,13 +1473,13 @@ export function GuideScreen({ route, navigation }) {
           onClose={() => { setSaveModalVisible(false); setSaveModalSeed(null); }}
           onSave={handleSaveRestaurant}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
   const hasCourses = chipCourses.length > 0;
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
+    <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 7, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(61,57,53,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>골퍼들의 코스 이야기</Text>
@@ -1509,6 +1510,6 @@ export function GuideScreen({ route, navigation }) {
         onClose={() => setShowCourseLog(false)}
         navigation={navigation}
       />
-    </SafeAreaView>
+    </View>
   );
 }
