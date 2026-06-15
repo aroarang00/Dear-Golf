@@ -10,7 +10,7 @@ import { resolvePhotoUri } from '../../utils/photoStorage';
 const { width: SW, height: SH } = Dimensions.get('window');
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
-function VideoItem({ uri, poster, active, height, onRatio }) {
+function VideoItem({ uri, poster, active, width, height, onRatio, onZoomChange }) {
   const player = useVideoPlayer(uri, p => {
     p.loop = false;
     p.timeUpdateEventInterval = 0.2; // timeUpdate 이벤트 활성화 — 첫 프레임 렌더 감지용
@@ -20,34 +20,112 @@ function VideoItem({ uri, poster, active, height, onRatio }) {
   //    playing 신호에 걷으면 프레임 그려지기 직전이라 까만 깜빡임이 생김(사용자 2026-06-15). 한 번 걷으면 다시 안 띄움. [[video-poster-thumbnail]]
   const [started, setStarted] = useState(false);
 
+  // 핀치 줌/팬 — 사진(PinchableImage)과 동일 패턴. 단 동영상은 네이티브 재생 컨트롤과 충돌 않게
+  //   핀치(확대)+팬(이동)만 두고 단일탭/더블탭은 네이티브 컨트롤(재생·일시정지)에 양보. (사용자 2026-06-15)
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const savedTx = useSharedValue(0);
+  const savedTy = useSharedValue(0);
+  const zoomedSV = useSharedValue(0);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const notify = (z) => { setIsZoomed(z); onZoomChange && onZoomChange(z); };
+  const hardReset = () => {
+    scale.value = 1; savedScale.value = 1;
+    tx.value = 0; ty.value = 0; savedTx.value = 0; savedTy.value = 0; zoomedSV.value = 0;
+  };
+
   useEffect(() => {
+    if (started) return; // 첫 프레임 그려진 뒤엔 리스너 불필요 — 초당 5회 timeUpdate 부하 제거(렉 완화)
     const sub = player.addListener('timeUpdate', ({ currentTime }) => {
       if (currentTime > 0) setStarted(true);
     });
     return () => sub.remove();
-  }, [player]);
+  }, [player, started]);
 
   useEffect(() => {
     if (active) player.play();
     else player.pause();
   }, [active, player]);
 
+  // 다른 슬라이드로 넘어가 비활성화되면 확대·이동 초기화
+  useEffect(() => {
+    if (!active) { hardReset(); if (isZoomed) notify(false); }
+  }, [active]);
+
+  const clampPan = () => {
+    'worklet';
+    const maxX = (width * (scale.value - 1)) / 2;
+    const maxY = (height * (scale.value - 1)) / 2;
+    tx.value = Math.min(maxX, Math.max(-maxX, tx.value));
+    ty.value = Math.min(maxY, Math.max(-maxY, ty.value));
+  };
+
+  const pinch = Gesture.Pinch()
+    .onUpdate(e => {
+      scale.value = Math.min(4, Math.max(1, savedScale.value * e.scale));
+      if (scale.value > 1.02 && zoomedSV.value === 0) { zoomedSV.value = 1; runOnJS(notify)(true); }
+      clampPan();
+    })
+    .onEnd(() => {
+      if (scale.value < 1.05) {
+        scale.value = withSpring(1); savedScale.value = 1;
+        tx.value = withSpring(0); ty.value = withSpring(0); savedTx.value = 0; savedTy.value = 0;
+        zoomedSV.value = 0;
+        runOnJS(notify)(false);
+      } else {
+        savedScale.value = scale.value; zoomedSV.value = 1; runOnJS(notify)(true);
+      }
+    });
+
+  // pan은 확대된 상태에서만 — 평상시 가로 페이저 스와이프·네이티브 컨트롤 보존
+  const pan = Gesture.Pan()
+    .enabled(isZoomed)
+    .onUpdate(e => { tx.value = savedTx.value + e.translationX; ty.value = savedTy.value + e.translationY; clampPan(); })
+    .onEnd(() => { savedTx.value = tx.value; savedTy.value = ty.value; });
+
+  const composed = Gesture.Simultaneous(pan, pinch);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
+  }));
+
   return (
-    <View style={{ width: SW, height }}>
-      <VideoView
-        player={player}
-        style={{ width: SW, height }}
-        contentFit="contain"
-        nativeControls
-        allowsFullscreen
-        allowsPictureInPicture
-      />
-      {!started && poster ? (
-        <Image source={{ uri: poster }} pointerEvents="none"
-          style={{ position: 'absolute', top: 0, left: 0, width: SW, height }}
+    <GestureDetector gesture={composed}>
+      <Animated.View style={[{ width: SW, height }, animStyle]}>
+        <VideoView
+          player={player}
+          style={{ width: SW, height }}
+          contentFit="contain"
+          nativeControls
+          allowsFullscreen
+          allowsPictureInPicture
+        />
+        {!started && poster ? (
+          <Image source={{ uri: poster }} pointerEvents="none"
+            style={{ position: 'absolute', top: 0, left: 0, width: SW, height }}
+            contentFit="contain" cachePolicy="memory-disk"
+            onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(poster, w / h); }} />
+        ) : null}
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
+// 비활성(지금 보고 있지 않은) 영상 슬라이드 — 플레이어 없이 포스터+▶만.
+//   여러 영상이 동시에 useVideoPlayer로 플레이어를 만들면 무거워 렉이 생기므로, 현재 슬라이드(i===idx)만
+//   VideoItem으로 실제 재생하고 나머지는 이걸로 가볍게 표시. 스와이프로 도달하면 그때 VideoItem이 마운트됨.
+function VideoPoster({ poster, height, onRatio }) {
+  return (
+    <View style={{ width: SW, height, alignItems: 'center', justifyContent: 'center' }}>
+      {poster ? (
+        <Image source={{ uri: poster }} style={{ position: 'absolute', top: 0, left: 0, width: SW, height }}
           contentFit="contain" cachePolicy="memory-disk"
           onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(poster, w / h); }} />
       ) : null}
+      <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: '#fff', fontSize: fs(20), marginLeft: 3 }}>▶</Text>
+      </View>
     </View>
   );
 }
@@ -203,7 +281,11 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
           {photos.map((item, i) => (
             <View key={i} style={{ width: SW, height: zoomed ? SH : mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
-                <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active={i === idx} height={mediaH} onRatio={handleRatio} />
+                i === idx ? (
+                  <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active width={SW} height={mediaH} onRatio={handleRatio} onZoomChange={setZoomed} />
+                ) : (
+                  <VideoPoster poster={item.poster ? resolvePhotoUri(item.poster) : null} height={mediaH} onRatio={handleRatio} />
+                )
               ) : (
                 <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
               )}
