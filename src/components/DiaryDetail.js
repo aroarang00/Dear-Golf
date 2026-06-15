@@ -73,8 +73,10 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
   };
 
 
+  // 하단 edge 제외 — 이 화면은 탭바 위에 얹히는 탭 콘텐츠라, 하단 inset을 넣으면 탭바와 사이에 빈 띠(벽)가 생김.
+  // HomeScreen·GuideScreen 등 탭 콘텐츠와 동일하게 top/left/right만(2026-06-15 안드·iOS 공통 증상)
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isSpecial ? '#F5F0E4' : C.bgPrimary }} edges={['top', 'left', 'right']}>
       <View style={[dS.detailHdr, isSpecial && { borderBottomColor: '#C9A84C44' }]}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={dS.backBtn}>←</Text>
