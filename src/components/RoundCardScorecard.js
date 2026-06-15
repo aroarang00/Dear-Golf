@@ -38,7 +38,7 @@ export function RoundCardScorecard({ item, width = 320 }) {
   const honor = isBest ? 'BEST' : isSingle ? 'SINGLE' : null;
 
   // 홀별 결과 등급 — 실제 타수는 그대로 두고 골프식 표기(언더=원 강조, 빨강 없이 중립 [[golfer-score-psychology]]).
-  //   par=연골드 빈 원 / 버디(−1)=버건디 원 / 이글(−2)=골드 원 / 홀인원(1타)·알바트로스(−3↓)=골드 원+버건디 링.
+  //   par=연골드 빈 원 / 버디(−1)=버건디 원 / 이글(−2)=골드 원 / 홀인원(1타)·알바트로스(−3↓)=골드 과녁(겹원, 딥그린에 버건디·흰 링 약해 전환, 사용자 2026-06-15).
   //   보기(+1)=숫자 하단 짧은 밑줄 / 더블보기 이상(+2↑)=표시 없음(흐림은 안 보여 밑줄로 되돌림, 사용자 2026-06-15).
   //   par 미인식 홀은 등급 판정 불가 → 평범 숫자(홀인원만 1타로 판정 가능).
   const scoreTier = (i) => {
@@ -63,16 +63,25 @@ export function RoundCardScorecard({ item, width = 320 }) {
         if (label === 'SCORE') {
           const v = scores ? scores[i] : null;
           const t = scoreTier(i);
-          const showCircle = t === 'par' || t === 'birdie' || t === 'eagle' || t === 'ace';
-          // 파=연골드 아웃라인(빈 원) / 버디=버건디 채움 / 이글=골드 채움 / 홀인원·알바트로스=골드 채움+버건디 링 / 보기=숫자 하단 짧은 밑줄 / 더블보기+=표시 없음
+          const showCircle = t === 'par' || t === 'birdie' || t === 'eagle';
+          // 파=연골드 빈 원 / 버디=버건디 채움 / 이글=골드 채움 / 홀인원·알바트로스=골드 과녁(겹원)으로 가장 도드라지게 / 보기=짧은 밑줄 / 더블보기+=표시 없음
           let bg = 'transparent', bw = 0, bc = 'transparent', tc = WHITE;
           if (t === 'birdie') { bg = BURGUNDY; tc = CREAM; }
           else if (t === 'eagle') { bg = GOLD; tc = GREEN_BOT; }
-          else if (t === 'ace') { bg = GOLD; tc = GREEN_BOT; bw = 1.5; bc = BURGUNDY; }
           else if (t === 'par') { bw = 1.2; bc = 'rgba(232,217,160,0.5)'; } // 연골드 빈 원
           return (
             <View key={i} style={{ flex: 1, height: 20, alignItems: 'center', justifyContent: 'center' }}>
-              {showCircle ? (
+              {t === 'ace' ? (
+                // 홀인원·알바트로스 — 가장 특별. 골드 '과녁(겹원)' = 바깥 골드 링 + 어두운 간격 + 안쪽 골드 채움.
+                //   흰 헤일로는 골드와 둘 다 밝아 약했음 → 겹원 모양으로 딥그린 위에서 확실히 도드라지게(사용자 2026-06-15).
+                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: GOLD,
+                  alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 13, height: 13, borderRadius: 7, backgroundColor: GOLD,
+                    alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: 9, color: GREEN_BOT }}>{v}</Text>
+                  </View>
+                </View>
+              ) : showCircle ? (
                 <View style={{ width: 19, height: 19, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: bg, borderWidth: bw, borderColor: bc }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: 11, color: tc }}>{v}</Text>
