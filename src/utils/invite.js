@@ -61,7 +61,7 @@ export async function shareRoundupKakao(post, imageUrl) {
   const content = {
     title: isInvite ? '💌 라운딩에 초대합니다' : '🏌️ 라운딩 동반자 모집',
     description: desc,
-    imageUrl: imageUrl || 'https://deargolf.app/hero.jpg',
+    imageUrl: imageUrl || 'https://deargolf.app/hero-invite.jpg', // 폴백도 워터마크 버전(브랜딩 유지)
     link: { webUrl: url, mobileWebUrl: url },
   };
   try {
