@@ -833,8 +833,8 @@ export function GuideScreen({ route, navigation }) {
                 );
               })()}
 
-              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 (한줄메모 아래로 이동, 2026-06-01). 안드는 아래 패널과 갭 과해 좁힘([[feedback_cross_platform_check]]) */}
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: _and ? 10 : 26 }}>
+              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 (한줄메모 아래로 이동, 2026-06-01). 아래 코스평점 패널과 갭 과해 안드·iOS 동일하게 좁힘(iOS도 적용, 2026-06-16 [[feedback_cross_platform_check]]) */}
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
                 <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
                   style={{
                     flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
@@ -860,7 +860,7 @@ export function GuideScreen({ route, navigation }) {
               </View>
 
               {/* 코스 평점 — 흰 카드 박스로 띄움(골퍼코멘트 풀폭 따뜻한 패널과 구분, 눈에 확). 사용자 2026-06-14 ([[project_course_rating]]) */}
-              <View style={[{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: C.hairline, padding: 16, marginTop: _and ? 10 : 18, marginBottom: 18 },
+              <View style={[{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: C.hairline, padding: 16, marginTop: 10, marginBottom: 18 },
                 Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10 }, android: { elevation: 6 } })]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
