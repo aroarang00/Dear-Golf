@@ -10,10 +10,22 @@ import { resolvePhotoUri } from '../../utils/photoStorage';
 const { width: SW, height: SH } = Dimensions.get('window');
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
-function VideoItem({ uri, active, height }) {
+function VideoItem({ uri, poster, active, height, onRatio }) {
   const player = useVideoPlayer(uri, p => {
     p.loop = false;
+    p.timeUpdateEventInterval = 0.2; // timeUpdate 이벤트 활성화 — 첫 프레임 렌더 감지용
   });
+  // 원본 영상은 버퍼링이 길어 첫 프레임 전 까만 화면 → 포스터(첫프레임 jpg)를 덮어 체감 지연 제거.
+  //   ★재생 위치가 실제로 진행되면(currentTime>0 = 첫 프레임이 그려진 뒤) 포스터를 걷는다 —
+  //    playing 신호에 걷으면 프레임 그려지기 직전이라 까만 깜빡임이 생김(사용자 2026-06-15). 한 번 걷으면 다시 안 띄움. [[video-poster-thumbnail]]
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const sub = player.addListener('timeUpdate', ({ currentTime }) => {
+      if (currentTime > 0) setStarted(true);
+    });
+    return () => sub.remove();
+  }, [player]);
 
   useEffect(() => {
     if (active) player.play();
@@ -21,14 +33,22 @@ function VideoItem({ uri, active, height }) {
   }, [active, player]);
 
   return (
-    <VideoView
-      player={player}
-      style={{ width: SW, height }}
-      contentFit="contain"
-      nativeControls
-      allowsFullscreen
-      allowsPictureInPicture
-    />
+    <View style={{ width: SW, height }}>
+      <VideoView
+        player={player}
+        style={{ width: SW, height }}
+        contentFit="contain"
+        nativeControls
+        allowsFullscreen
+        allowsPictureInPicture
+      />
+      {!started && poster ? (
+        <Image source={{ uri: poster }} pointerEvents="none"
+          style={{ position: 'absolute', top: 0, left: 0, width: SW, height }}
+          contentFit="contain" cachePolicy="memory-disk"
+          onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(poster, w / h); }} />
+      ) : null}
+    </View>
   );
 }
 
@@ -134,9 +154,9 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
   useEffect(() => {
     // 캐시된 비율만 즉시 반영 — 새 비율은 각 이미지 onLoad(handleRatio)로 도착(옛 Image.getSize 별도 다운로드 제거)
     photos.forEach(p => {
-      if (p?.type === 'video') return;
-      const u = resolvePhotoUri(p.uri || p);
-      if (_arCache.has(u)) setArMap(m => (m[u] ? m : { ...m, [u]: _arCache.get(u) }));
+      // 영상은 포스터 uri로 비율 캐시(없으면 스킵), 사진은 자기 uri로.
+      const u = p?.type === 'video' ? (p.poster ? resolvePhotoUri(p.poster) : null) : resolvePhotoUri(p.uri || p);
+      if (u && _arCache.has(u)) setArMap(m => (m[u] ? m : { ...m, [u]: _arCache.get(u) }));
     });
   }, [photos]);
   const handleRatio = (u, ar) => {
@@ -148,11 +168,14 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
   // 사진 영역 최대 높이 — 캡션 보일 땐 화면 절반(아래 글 공간 확보), 순수 보기는 크게.
   const availMax = captionShown ? SH * 0.5 : SH * 0.84;
   const curUri = !isVideo && current ? resolvePhotoUri(current.uri || current) : null;
-  const curAr = curUri ? arMap[curUri] : null;
-  // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 4:5 폴백
-  // 영상 = 화면 대부분 높이로 크게(현행 SW*1.2가 세로영상을 좁게 보여줘 '줄여서' 보이던 것 해소). contain 유지 + ⛶ 네이티브 풀스크린.
+  // 영상도 포스터(첫프레임) 비율로 박스 높이를 맞춰 검은 여백 제거(A안, 사용자 2026-06-15). 포스터 없는 옛 영상은 VIDEO_H 폴백.
+  const curPosterUri = isVideo && current?.poster ? resolvePhotoUri(current.poster) : null;
+  const curAr = isVideo ? (curPosterUri ? arMap[curPosterUri] : null) : (curUri ? arMap[curUri] : null);
+  // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 영상=VIDEO_H, 사진=4:5 폴백.
   const VIDEO_H = Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8));
-  const mediaH = isVideo ? VIDEO_H : (curAr ? Math.min(availMax, Math.round(SW / curAr)) : Math.min(availMax, Math.round(SW * 1.25)));
+  const mediaH = curAr
+    ? Math.min(availMax, Math.round(SW / curAr))
+    : (isVideo ? VIDEO_H : Math.min(availMax, Math.round(SW * 1.25)));
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -180,7 +203,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
           {photos.map((item, i) => (
             <View key={i} style={{ width: SW, height: zoomed ? SH : mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
-                <VideoItem uri={resolvePhotoUri(item.uri)} active={i === idx} height={mediaH} />
+                <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active={i === idx} height={mediaH} onRatio={handleRatio} />
               ) : (
                 <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
               )}
