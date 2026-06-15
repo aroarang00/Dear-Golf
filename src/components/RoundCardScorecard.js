@@ -8,6 +8,7 @@ import { getCountryFlag } from '../constants/data';
 //  ★3색 구분(사용자 지시): 매거진(다크 사진)·폴라로이드(흰)와 다른 '딥그린' 배경. 골프장 그린 톤(라운지 네이비 회피 [[navy-lounge-color]]).
 //  언더/버디 홀만 골드 강조(못친 홀 깎지 않음 [[golfer-score-psychology]]). holeScores 없으면 총타수 폴백.
 //  ※ 18홀 표 텍스트는 fs() 최소12 클램프 피해 고정 px(캡처 이미지라 폰트스케일 무관).
+//  ※ 표 숫자 폰트 = F.sysSb(Pretendard SemiBold) — Playfair는 작은 그리드에서 가독성 떨어져 전환(사용자 2026-06-15). 큰 TOTAL은 F.en 유지.
 
 const GREEN_TOP = '#33513E'; // 그라데이션 강하게(사용자 2026-06-14) — 위 더 밝은 그린
 const GREEN_BOT = '#0D1510'; // 아래 더 어둡게 — 대비 ↑
@@ -70,21 +71,21 @@ export function RoundCardScorecard({ item, width = 320 }) {
               {showCircle ? (
                 <View style={{ width: 19, height: 19, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: bg, borderWidth: bw, borderColor: bc }}>
-                  <Text style={{ fontFamily: F.en, fontSize: 10, color: tc }}>{v}</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: 11, color: tc }}>{v}</Text>
                 </View>
               ) : (
-                <Text style={{ fontFamily: F.en, fontSize: 12, color: WHITE }}>{typeof v === 'number' ? v : '·'}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: 13, color: WHITE }}>{typeof v === 'number' ? v : '·'}</Text>
               )}
             </View>
           );
         }
         return (
-          <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: F.en, fontSize: 12, color: label === 'HOLE' ? WHITE : MUTE }}>
+          <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: F.sysSb, fontSize: 13, color: label === 'HOLE' ? WHITE : MUTE }}>
             {label === 'HOLE' ? (i + 1) : (parOf(i) ?? '·')}
           </Text>
         );
       })}
-      <Text style={{ width: 32, textAlign: 'right', fontFamily: F.en, fontSize: 12, color: label === 'SCORE' ? GOLD : MUTE }}>
+      <Text style={{ width: 32, textAlign: 'right', fontFamily: F.sysSb, fontSize: 13, color: label === 'SCORE' ? GOLD : MUTE }}>
         {label === 'HOLE' ? (from === 0 ? 'OUT' : 'IN') : label === 'PAR' ? (pars ? sum(pars, from, to) : '·') : (scores ? sum(scores, from, to) : '·')}
       </Text>
     </View>
@@ -113,9 +114,10 @@ export function RoundCardScorecard({ item, width = 320 }) {
             <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: WHITE, marginLeft: 12 }}>Dear Golf</Text>
           </View>
 
-          {/* 총타수 — 표 위 왼쪽 정렬(사용자 2026-06-14). 헤더와 간격 더 늘려 총타수+표를 아래로 내림 → 하단 여백 축소(2026-06-15 사용자, 공유 캡처서 바닥 비어보임) */}
+          {/* 총타수 — 표 위 왼쪽 정렬(사용자 2026-06-14). 헤더와 간격 더 늘려 총타수+표를 아래로 내림 → 하단 여백 축소(2026-06-15 사용자, 공유 캡처서 바닥 비어보임).
+              ★영예칩(SINGLE·BEST) 있으면 칩 높이만큼 상단이 길어져 18홀 표 바닥이 잘림 → 칩 있을 때 위 여백 축소로 보정(2026-06-15) */}
           {totalScore != null ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', marginTop: 46, marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', marginTop: honor ? 14 : 46, marginBottom: 4 }}>
               <Text style={{ fontFamily: F.en, fontSize: fs(46), lineHeight: fs(48), color: GOLD }}>{totalScore}</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD, letterSpacing: 2, marginLeft: 6, marginBottom: 7 }}>TOTAL</Text>
               {/* 특별한 순간(홀인원·이글) — 타수 옆 버건디 알약 고정. 싱글/베스트는 헤더 이름 아래로 옮김(스코어 옆 중복 회피, 사용자 2026-06-15) */}
