@@ -9,13 +9,18 @@ const GOLD = '#C9A84C';        // 골드 — 강조 룰·라벨
 const GOLD_DEEP = '#A9854A';   // 깊은 골드 — 작은 라벨
 // 브랜드 삼색 — 하단 시그니처(랜딩·초대카드·폴라로이드 동일 톤)
 const MS = ['#ECD884', '#B2CADD', '#6B1E2A'];
-// 가계부 표시 — 입력이 세부(그린피·카트비·그늘집)든 묶음(field)이든 항상 3묶음으로 정리(2026-06-15 사용자):
-//  골프장 결제 = field+그린피+카트비+그늘집(카드 정산분 전부) / 캐디피(현금) / 기타 = etc+옛 식사비(meal)
-const bucketsOf = (cost = {}) => ([
-  { label: '골프장 결제', amt: (cost.field || 0) + (cost.green || 0) + (cost.cart || 0) + (cost.onsite || 0) },
-  { label: '캐디피', amt: cost.caddie || 0 },
-  { label: '기타', amt: (cost.etc || 0) + (cost.meal || 0) },
-].filter(b => b.amt > 0));
+// 가계부 표시 — 입력이 세부(그린피·카트비·그늘집)든 묶음(field)이든 항상 묶음으로 정리(2026-06-15 사용자):
+//  골프장 결제 = field+그린피+카트비+그늘집(카드 정산분 전부) / 캐디피(현금) / 기타 = etc+옛 식사비(meal) / 내기(손익 ±)
+//  내기는 음수=딴 돈(총액 차감)이라 0이 아니면 음수도 표시(다른 항목은 양수만) ([[ledger-bet-pnl]])
+const bucketsOf = (cost = {}) => {
+  const arr = [
+    { label: '골프장 결제', amt: (cost.field || 0) + (cost.green || 0) + (cost.cart || 0) + (cost.onsite || 0) },
+    { label: '캐디피', amt: cost.caddie || 0 },
+    { label: '기타', amt: (cost.etc || 0) + (cost.meal || 0) },
+  ].filter(b => b.amt > 0);
+  if (cost.bet) arr.push({ label: '내기', amt: cost.bet }); // 부호 그대로(−=딴 돈) won()이 -50,000 표시
+  return arr;
+};
 
 const won = (n) => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const monthLabel = (m) => {

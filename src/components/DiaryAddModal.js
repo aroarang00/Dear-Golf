@@ -23,7 +23,7 @@ import { CropEditorModal } from './common/CropEditorModal';
 import { PhotoEditModal } from './PhotoEditModal';
 import { OverlayAlert } from './common/OverlayAlert';
 
-// 비용 입력 — 결제 방식대로 3묶음: 골프장 결제(카드, 그린피+카트비) / 캐디피(현금) / 기타(식사·내기 등).
+// 비용 입력 — 결제 방식대로: 골프장 결제(카드, 그린피+카트비) / 캐디피(현금) / 기타(식사 등) / 내기(손익 ±, [[ledger-bet-pnl]]).
 // 골프장 결제는 보통 한 줄, '세부'를 펼치면 그린피·카트비 따로. 사용자 2026-06-15 ([[golf-ledger]])
 const costRowS = { flexDirection: 'row', alignItems: 'center', marginBottom: 10 };
 const costLabelS = { fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, width: 72 };
@@ -72,7 +72,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [scBusy, setScBusy] = useState(false);
   const [showCost, setShowCost] = useState(false);
   const [showCourseDetail, setShowCourseDetail] = useState(false); // 골프장 결제 그린피·카트비 세부 펼침
-  const [costs, setCosts] = useState({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '' });
+  const [costs, setCosts] = useState({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' });
+  const [betWon, setBetWon] = useState(false); // 내기 방향 — false=잃었어요(+지출) / true=땄어요(−차감) ([[ledger-bet-pnl]])
   const [weather, setWeather] = useState('맑음');
   const [memo, setMemo] = useState('');
   const [birdieCount, setBirdieCount] = useState(0);
@@ -285,7 +286,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setScoreCardOption('later');
     setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScFailed(false);
-    setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '' });
+    setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
@@ -345,6 +346,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         const c = initial.cost;
         const hasDetail = !!(c.green || c.cart || c.onsite); // 옛/세부 기록 → 그린피·카트비·그늘집 펼쳐서 표시
         const etcSum = (c.etc || 0) + (c.meal || 0); // 옛 식사비는 기타로 합산(필드 폐지)
+        const betSigned = c.bet || 0; // 내기 손익(부호) — 음수=땄음, 양수=잃음 ([[ledger-bet-pnl]])
         setCosts({
           field: c.field ? String(c.field) : '',
           green: c.green ? String(c.green) : '',
@@ -352,7 +354,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           onsite: c.onsite ? String(c.onsite) : '',
           caddie: c.caddie ? String(c.caddie) : '',
           etc: etcSum ? String(etcSum) : '',
+          bet: betSigned ? String(Math.abs(betSigned)) : '',
         });
+        setBetWon(betSigned < 0);
         setShowCourseDetail(hasDetail);
         setShowCost(true);
       }
@@ -396,7 +400,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   const num = (v) => parseInt(v) || 0;
   const courseAmt = showCourseDetail ? (num(costs.green) + num(costs.cart) + num(costs.onsite)) : num(costs.field); // 골프장 결제(그린피+카트+그늘집)
-  const costTotal = courseAmt + num(costs.caddie) + num(costs.etc);
+  const betSigned = (betWon ? -1 : 1) * num(costs.bet); // 내기 — 땄으면 음수(총액 차감), 잃으면 양수 ([[ledger-bet-pnl]])
+  const costTotal = courseAmt + num(costs.caddie) + num(costs.etc) + betSigned; // 내기 차감으로 0·음수 가능
+  // 입력 항목이 하나라도 있으면 저장 — 크게 딴 날(총액 0·음수)도 기록되게(총액>0 가드 폐지) ([[ledger-bet-pnl]])
+  const anyCost = courseAmt > 0 || num(costs.caddie) > 0 || num(costs.etc) > 0 || num(costs.bet) > 0;
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   // 공개범위 복수선택 — 친구전체·나만보기는 단독, 그룹은 복수 토글(여러 그룹 동시 공개) ([[friend_groups]])
@@ -480,13 +487,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       starRating,
       tags: selectedTags,
       detailMemo,
-      cost: costTotal > 0 ? {
+      cost: anyCost ? {
         // 골프장 결제: 세부 펼쳤으면 그린피·카트비로, 아니면 묶음(field)으로 저장
         ...(showCourseDetail
           ? { green: num(costs.green), cart: num(costs.cart), onsite: num(costs.onsite) }
           : { field: num(costs.field) }),
         caddie: num(costs.caddie),
         etc: num(costs.etc),
+        ...(num(costs.bet) > 0 ? { bet: betSigned } : {}), // 내기 손익(부호) — 입력했을 때만 ([[ledger-bet-pnl]])
         total: costTotal,
       } : null,
       companions: [
@@ -966,14 +974,33 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     <Text style={costWonS}>원</Text>
                   </View>
                   <Text style={costHintS}>현금으로 낸 캐디피</Text>
-                  {/* ③ 기타 — 식사·내기 등 */}
+                  {/* ③ 기타 — 식사 등 (내기는 손익이라 아래 별도 줄로 분리) */}
                   <View style={{ ...costRowS, marginBottom: 2 }}>
                     <Text style={costLabelS}>기타</Text>
                     <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                       value={costs.etc} onChangeText={(t) => setCosts(prev => ({ ...prev, etc: t.replace(/[^0-9]/g, '') }))} />
                     <Text style={costWonS}>원</Text>
                   </View>
-                  <Text style={costHintS}>식사·내기 등</Text>
+                  <Text style={costHintS}>식사 등</Text>
+                  {/* ④ 내기 — 손익. 잃었으면 지출(+), 땄으면 총액에서 차감(−). 키보드 마이너스 대신 방향 토글 ([[ledger-bet-pnl]]) */}
+                  <View style={{ ...costRowS, marginBottom: 2 }}>
+                    <Text style={costLabelS}>내기</Text>
+                    <View style={{ flexDirection: 'row', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 7, overflow: 'hidden', marginRight: 8 }}>
+                      {[['잃었어요', false], ['땄어요', true]].map(([label, w]) => {
+                        const on = betWon === w;
+                        return (
+                          <TouchableOpacity key={label} onPress={() => setBetWon(w)} activeOpacity={0.7}
+                            style={{ paddingHorizontal: 8, paddingVertical: 7, backgroundColor: on ? (w ? '#2E7D5B' : C.burgundy) : 'transparent' }}>
+                            <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(11), color: on ? '#fff' : C.warmGray }}>{label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                      value={costs.bet} onChangeText={(t) => setCosts(prev => ({ ...prev, bet: t.replace(/[^0-9]/g, '') }))} />
+                    <Text style={costWonS}>원</Text>
+                  </View>
+                  <Text style={costHintS}>{betWon ? '딴 돈은 총 비용에서 빠져요' : '잃은 돈은 총 비용에 더해져요'}</Text>
                   <View style={{
                     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
                     borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12, marginTop: 2, paddingBottom: 2,
