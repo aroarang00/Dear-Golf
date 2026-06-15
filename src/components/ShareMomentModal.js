@@ -12,6 +12,7 @@ import { RoundCardScorecard } from './RoundCardScorecard';
 import { RoundCardMemory } from './RoundCardMemory';
 import { RoundCardPolaroid } from './RoundCardPolaroid';
 import { RoundupShareCard } from './RoundupShareCard';
+import { RoundupShareCardWide } from './RoundupShareCardWide';
 import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -41,6 +42,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef(null);
+  const wideCardRef = useRef(null);                      // 카카오 전송용 가로(2:1) 카드 — 화면 밖 렌더, 카카오 공유 시만 캡처
   const roundRefs = useRef([]);                          // 라운딩 카드 4종 캐러셀 — 각 ViewShot ref
   const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 기념/3 폴라로이드)
   const isRound = moment?.shareKind === 'round';
@@ -123,7 +125,9 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
     if (!onShareKakao || sharing || saving) return;
     setSharing(true);
     try {
-      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1 });
+      // 카카오는 가로(2:1) 카드로 — 세로 카드는 카카오 피드에서 하단이 짤리므로. 그 외(일정·초대)는 기존 카드.
+      const target = isRoundup ? wideCardRef : (isRound ? roundRefs.current[roundStyleIdx] : cardRef);
+      const uri = await captureRef(target, { format: 'png', quality: 1 });
       const uid = await getUid();
       const imageUrl = await uploadShareCardImage(uid, uri); // 실패 시 null
       onShareKakao(imageUrl || undefined);
@@ -199,6 +203,18 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
                 </View>
               </ViewShot>
             )}
+            {/* 카카오 전송용 가로(2:1) 카드 — 카카오 피드가 세로 카드 하단을 잘라서 가로 전용.
+                온스크린 렌더라야 캡처가 안정적(off-screen 캡처는 안드에서 깨짐). 미리보기 겸 캡처 대상 ([[invite-deeplink-system]]) */}
+            {isRoundup ? (
+              <View style={{ alignItems: 'center', marginTop: 16 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: C.warmGray, letterSpacing: 1, marginBottom: 7 }}>카카오톡 공유 카드</Text>
+                <ViewShot ref={wideCardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
+                  <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
+                    <RoundupShareCardWide post={moment} width={CARD_WIDTH} />
+                  </View>
+                </ViewShot>
+              </View>
+            ) : null}
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8, lineHeight: 17, textAlign: 'center' }}>
               {(isRoundup || isSchedule || isInvite) && onShareLink
                 ? '카드 이미지로 공유돼요.\n클릭 가능한 링크는 ‘링크와 함께 공유’를 눌러주세요.'

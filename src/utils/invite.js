@@ -58,15 +58,17 @@ export async function shareRoundupKakao(post, imageUrl) {
     ? `${post.course || ''} · ${post.date || ''}${post.day ? ` (${post.day})` : ''} ${post.time || ''}`.trim()
     : '장소·날짜는 동반자와 함께 정해요';
   const desc = `${head}\n${isTeam ? `단체 ${post.teams}팀 · 총 ${cap}명` : `${cap}명 모집`}`;
+  // 실제 카드 이미지면 구장·날짜·인원이 카드에 다 있어 설명 텍스트 생략(이미지 아래 중복 제거). hero 폴백일 때만 설명.
+  const content = {
+    title: isInvite ? '⛳ 라운딩에 초대합니다' : '⛳ 라운딩 동반자 모집',
+    imageUrl: imageUrl || 'https://deargolf.app/hero.jpg',
+    link: { webUrl: url, mobileWebUrl: url },
+  };
+  if (!imageUrl) content.description = desc;
   try {
     await shareFeedTemplate({
       template: {
-        content: {
-          title: isInvite ? '⛳ 라운딩에 초대합니다' : '⛳ 라운딩 동반자 모집',
-          description: desc,
-          imageUrl: imageUrl || 'https://deargolf.app/hero.jpg',
-          link: { webUrl: url, mobileWebUrl: url },
-        },
+        content,
         buttons: [
           { title: isInvite ? '초대 확인하기' : '모집 보기', link: { webUrl: url, mobileWebUrl: url } },
         ],
