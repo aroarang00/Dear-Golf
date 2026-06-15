@@ -1125,9 +1125,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
   // 참여 신청 — 확인 후 신청 (주최자 수락 대기)
   // 참여 처리 — 전체공개는 applications에 pending 저장(수락 대기), 친구공개·친구지정은 joinRoundup 즉시 확정
-  const performJoinOrApply = async (id) => {
+  const performJoinOrApply = async (id, opts = {}) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
+    const anonymous = !!opts.anonymous;
     try {
       if (post.scope === 'all') {
         await applyToRoundup(id, post.authorUid, userProfile?.nickname || '');
@@ -1144,10 +1145,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         return { ok: true };
       }
       // 친구공개·친구지정 — 바로 참여 확정 + 모집글 인원 +1
-      await joinRoundup(id);
+      await joinRoundup(id, { anonymous });
       setJoined(prev => ({ ...prev, [id]: true }));
-      // 단체·개별 모두 joined +1 — 카드 정원이 joined 기반이라 통일 (joinRoundup도 joined만 증가)
-      setPosts(prev => prev.map(p => (p.id === id ? { ...p, joined: (p.joined || 0) + 1 } : p)));
+      // 단체·개별 모두 joined +1 — 카드 정원이 joined 기반이라 통일 (joinRoundup도 joined만 증가).
+      //   익명 참여면 anonymousUids에도 본인 낙관 반영 → 명단 즉시 마스킹(리페치 없이).
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        const next = { ...p, joined: (p.joined || 0) + 1 };
+        if (anonymous && myUid) next.anonymousUids = [...(Array.isArray(p.anonymousUids) ? p.anonymousUids : []), myUid];
+        return next;
+      }));
       // 친구공개·친구지정 — 주최자에게 참여 확정 알림
       createNotification({
         type: 'confirmed',
@@ -1177,44 +1184,54 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     const post = posts.find(p => p.id === id);
     if (!post) return;
     const instant = post.scope !== 'all';
+    // 카드(비모달) 경로 — 실패 시 여기서 직접 alert (모달 경로는 RoundupDetail이 자체 표시)
+    const doJoin = async (anonymous) => {
+      const r = await performJoinOrApply(id, { anonymous });
+      if (r && r.ok === false) {
+        setAlert(r.reason === 'full' ? {
+          title: '아쉽지만 정원이 찼어요',
+          message: '방금 모집이 마감됐어요. 다음 기회를 노려주세요.',
+          buttons: [{ text: '확인' }],
+        } : {
+          title: '참여 처리에 실패했어요',
+          message: __DEV__ && r.message ? r.message : '잠시 후 다시 시도해 주세요.',
+          buttons: [{ text: '확인' }],
+        });
+      }
+    };
     setAlert({
       title: instant ? '이 라운딩에 참여할까요?' : '이 라운딩에 참여 신청할까요?',
       message: instant
         ? '친구 대상 모집이라 바로 참여가 확정돼요.'
         : '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
-      buttons: [
+      // 익명 참여 — 명단·댓글에 닉네임 대신 임의 닉으로(호스트에겐 이름 보임). 친구공개·친구지정만 ([[roundup-anonymous-participation]])
+      note: instant ? '익명으로 참여하면 명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고, 라운딩 당일엔 자연스럽게 만나요.' : undefined,
+      buttons: instant ? [
+        { text: '참여하기', onPress: () => doJoin(false) },
+        { text: '익명으로 참여', onPress: () => doJoin(true) },
         { text: '취소', style: 'cancel' },
-        { text: instant ? '참여하기' : '참여 신청', onPress: async () => {
-          // 카드(비모달) 경로 — 실패 시 여기서 직접 alert (모달 경로는 RoundupDetail이 자체 표시)
-          const r = await performJoinOrApply(id);
-          if (r && r.ok === false) {
-            setAlert(r.reason === 'full' ? {
-              title: '아쉽지만 정원이 찼어요',
-              message: '방금 모집이 마감됐어요. 다음 기회를 노려주세요.',
-              buttons: [{ text: '확인' }],
-            } : {
-              title: '참여 처리에 실패했어요',
-              message: __DEV__ && r.message ? r.message : '잠시 후 다시 시도해 주세요.',
-              buttons: [{ text: '확인' }],
-            });
-          }
-        } },
+      ] : [
+        { text: '취소', style: 'cancel' },
+        { text: '참여 신청', onPress: () => doJoin(false) },
       ],
     });
   };
 
-  // 대기 신청 — waitlistUids에 내 uid 추가, 번호는 새 길이 (1-based)
-  const handleWaitlist = async (id) => {
+  // 대기 신청 — waitlistUids에 내 uid 추가, 번호는 새 길이 (1-based).
+  //   anonymous면 anonymousUids에도 추가 → 승격 시 그대로 승계 ([[roundup-anonymous-participation]]).
+  const handleWaitlist = async (id, anonymous = false) => {
     if (!myUid) return;
     try {
-      await joinWaitlist(id);
+      await joinWaitlist(id, { anonymous });
       let myIdx = 1;
       setPosts(prev => prev.map(p => {
         if (p.id !== id) return p;
         const cur = Array.isArray(p.waitlistUids) ? p.waitlistUids : [];
         const next = cur.includes(myUid) ? cur : [...cur, myUid];
         myIdx = next.indexOf(myUid) + 1;
-        return { ...p, waitlistUids: next };
+        const patched = { ...p, waitlistUids: next };
+        if (anonymous) patched.anonymousUids = [...(Array.isArray(p.anonymousUids) ? p.anonymousUids : []), myUid];
+        return patched;
       }));
       setWaitlist(prev => ({ ...prev, [id]: myIdx }));
       // 주최자에게 대기 신청 알림 — 타입·푸시문구·토글('대기 신청')은 이미 준비돼 있었는데 발송만 누락돼 있었음
@@ -1236,6 +1253,26 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         buttons: [{ text: '확인' }],
       });
     }
+  };
+
+  // 대기 신청 확인창 — 참여와 동일하게 익명 옵션 제공(승격 시 승계). 친구공개·친구지정만 익명.
+  const confirmWaitlist = (id) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    const canAnon = post.scope !== 'all';
+    setAlert({
+      title: '대기 신청할까요?',
+      message: '자리가 나면 순서대로 참여 기회를 안내해 드려요.',
+      note: canAnon ? '익명으로 신청하면 명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고, 승격되면 그대로 이어져요.' : undefined,
+      buttons: canAnon ? [
+        { text: '대기 신청', onPress: () => handleWaitlist(id, false) },
+        { text: '익명으로 대기', onPress: () => handleWaitlist(id, true) },
+        { text: '취소', style: 'cancel' },
+      ] : [
+        { text: '취소', style: 'cancel' },
+        { text: '대기 신청', onPress: () => handleWaitlist(id, false) },
+      ],
+    });
   };
 
   // 참여 취소 — 시스템 매너점수 차감 없음 (2026-05-25 단순화, [[roundup-penalty-policy]]).
@@ -1952,7 +1989,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
               <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} friendMeta={friendMeta} friendNames={friendNameMap} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
                 isBookmarked={!!bookmarks[p.id]}
                 onApply={() => confirmApply(p.id)}
-                onWaitlist={() => handleWaitlist(p.id)}
+                onWaitlist={() => confirmWaitlist(p.id)}
                 onCancel={() => cancelParticipation(p.id)}
                 onGradePress={(key) => setGradeModalKey(key)}
                 onOpenDetail={() => setDetailId(p.id)}
@@ -2031,8 +2068,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         commentTotal={detailId ? (commentsTotal[detailId] || 0) : 0}
         onLoadOlderComments={() => detailId && handleLoadOlderComments(detailId)}
         onClose={() => setDetailId(null)}
-        onApply={() => detailId ? performJoinOrApply(detailId) : undefined}
-        onWaitlist={() => detailId && handleWaitlist(detailId)}
+        onApply={(anonymous) => detailId ? performJoinOrApply(detailId, { anonymous: !!anonymous }) : undefined}
+        onWaitlist={() => detailId && confirmWaitlist(detailId)}
         onCancel={() => detailId && performCancel(detailId)}
         onCancelWait={() => detailId && cancelWaitlist(detailId)}
         onDelete={(soft) => detailId && handleDelete(detailId, soft)}

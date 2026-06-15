@@ -222,25 +222,32 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
     const instant = post.scope !== 'all';
+    // 결과를 받아 실패 시 자체 OverlayAlert로 표시 — 부모(RoundupTab) alert는
+    // 이 Detail Modal 뒤로 가려져 '상세를 닫아야 보이는' 문제가 있었음.
+    const doJoin = async (anonymous) => {
+      const r = await onApply?.(anonymous);
+      if (r && r.ok === false) {
+        setAlert({
+          title: '참여 처리에 실패했어요',
+          message: __DEV__ && r.message ? r.message : '잠시 후 다시 시도해 주세요.',
+          buttons: [{ text: '확인' }],
+        });
+      }
+    };
     setAlert({
       title: instant ? '이 라운딩에 참여할까요?' : '이 라운딩에 참여 신청할까요?',
       message: instant
         ? '친구 대상 모집이라 바로 참여가 확정돼요.'
         : '주최자에게 신청이 전달되고, 주최자가 수락하면 참여가 확정돼요.',
-      buttons: [
+      // 익명 참여 — 명단·댓글에 닉네임 대신 임의 닉으로(호스트에겐 이름 보임). 친구공개·친구지정만 ([[roundup-anonymous-participation]])
+      note: instant ? '익명으로 참여하면 명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고, 라운딩 당일엔 자연스럽게 만나요.' : undefined,
+      buttons: instant ? [
+        { text: '참여하기', onPress: () => doJoin(false) },
+        { text: '익명으로 참여', onPress: () => doJoin(true) },
         { text: '취소', style: 'cancel' },
-        { text: instant ? '참여하기' : '참여 신청', onPress: async () => {
-          // 결과를 받아 실패 시 자체 OverlayAlert로 표시 — 부모(RoundupTab) alert는
-          // 이 Detail Modal 뒤로 가려져 '상세를 닫아야 보이는' 문제가 있었음.
-          const r = await onApply?.();
-          if (r && r.ok === false) {
-            setAlert({
-              title: '참여 처리에 실패했어요',
-              message: __DEV__ && r.message ? r.message : '잠시 후 다시 시도해 주세요.',
-              buttons: [{ text: '확인' }],
-            });
-          }
-        } },
+      ] : [
+        { text: '취소', style: 'cancel' },
+        { text: '참여 신청', onPress: () => doJoin(false) },
       ],
     });
   };
