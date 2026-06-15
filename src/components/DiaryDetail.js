@@ -272,9 +272,9 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
                 </View>
               </View>
             );
-            // 홀별 골프식 표기 — 공유 스코어카드와 동일 규칙(파=연골드 빈 원/버디=버건디 채움/이글=골드 채움/홀인원·알바트로스=골드+버건디 링/보기·더블+=살짝 흐린 숫자).
+            // 홀별 골프식 표기 — 공유 스코어카드와 동일 규칙(파=연골드 빈 원/버디=버건디 채움/이글=골드 채움/홀인원·알바트로스=골드+버건디 링/보기=숫자 하단 짧은 밑줄/더블+=표시 없음).
             //   흰 표 바탕에 맞춰 색 조정(빨강 X). par 없으면 평범 표시. [[golfer-score-psychology]]
-            const FADED = 'rgba(60,56,50,0.45)'; // 오버파(보기·더블+) 숫자 — 살짝 흐리게(마크 대신 톤으로 de-emphasize)
+            const UNDER = 'rgba(60,56,50,0.65)'; // 보기 밑줄 — 중립 그레이(흐림은 안 보여 밑줄로 되돌림, 사용자 2026-06-15)
             const tierOf = (i) => {
               const v = hs[i];
               if (!Number.isFinite(v)) return 'none';
@@ -292,7 +292,6 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
               const v = hs[i];
               const t = tierOf(i);
               const circ = t === 'par' || t === 'birdie' || t === 'eagle' || t === 'ace';
-              const over = t === 'bogey' || t === 'dbogey';
               let bg = 'transparent', bw = 0, bc = 'transparent', tcol = C.textPrimary;
               if (t === 'birdie') { bg = '#6B1E2A'; tcol = '#fff'; }
               else if (t === 'eagle') { bg = '#C9A84C'; tcol = '#3D2A00'; }
@@ -304,8 +303,14 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
                     <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: bw, borderColor: bc }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: tcol }}>{Number.isFinite(v) ? v : '-'}</Text>
                     </View>
+                  ) : t === 'bogey' ? (
+                    // 보기 — 숫자 아래 짧은 밑줄(더블+는 표시 없음)
+                    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={scoreTxt}>{Number.isFinite(v) ? v : '-'}</Text>
+                      <View style={{ height: 1.6, width: 5, backgroundColor: UNDER, borderRadius: 1, marginTop: 1 }} />
+                    </View>
                   ) : (
-                    <Text style={[scoreTxt, over && { color: FADED }]}>{Number.isFinite(v) ? v : '-'}</Text>
+                    <Text style={scoreTxt}>{Number.isFinite(v) ? v : '-'}</Text>
                   )}
                 </View>
               );
