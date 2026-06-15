@@ -1263,9 +1263,15 @@ export function GuideScreen({ route, navigation }) {
                 {/* ① 내가 저장한 맛집 — 골프장별 저장 목록 (없으면 섹션 숨김) */}
                 {savedFood.length > 0 && (
                   <>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, letterSpacing: 0, marginTop: 18, marginBottom: 8 }}>
-                      내가 저장한 맛집 · {savedFood.length}
-                    </Text>
+                    {/* 내 저장 맛집 — 골든 카드와 같은 톤으로 헤더 강조(추천·주변의 회색 헤더와 확실히 구분, 사용자 2026-06-15) */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, marginBottom: 10 }}>
+                      <Text style={{ fontSize: fs(14), color: '#C9A84C' }}>★</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#5A4A00' }}>내가 저장한 맛집</Text>
+                      <View style={{ backgroundColor: '#F5E6A8', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 1 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#5A4A00' }}>{savedFood.length}</Text>
+                      </View>
+                      <View style={{ flex: 1, height: 1, backgroundColor: '#C9A84C44', marginLeft: 4 }} />
+                    </View>
                     {savedFood.map(r => (
                       <TouchableOpacity key={r.id}
                         onPress={() => openRestaurantPlace(r)}
