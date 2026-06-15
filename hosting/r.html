@@ -11,28 +11,49 @@
   <meta property="og:image" content="https://deargolf.app/hero-invite.jpg" />
   <meta property="og:type" content="website" />
   <style>
-    :root{ --ink:#23201C; --cream:#F5EFDE; --gold:#C9A84C; --green:#2E4636; --burgundy:#6B1E2A; --line:rgba(201,168,76,.35); }
+    /* 라운지 네이비 + 골드, 입체 톤 — 격식 초대장(InvitationCard formal)과 통일. 그림자·그라데이션·광택으로 평면감 제거 (사용자 2026-06-15) */
+    :root{
+      --cream:#ECE6DA; --gold:#E6C677; --gold-dk:#A9854A; --gold-lt:#F4E2A8;
+      --navy1:#2A5C79; --navy2:#1A3D52; --navy3:#0F2331;
+      --line:rgba(230,198,119,.42);
+    }
     *{ box-sizing:border-box; margin:0; padding:0; }
     html,body{ height:100%; }
     body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
-      background:linear-gradient(160deg,#33513E 0%,#1A2A20 60%,#12100D 100%); color:var(--cream);
+      background:
+        radial-gradient(130% 90% at 50% -18%, rgba(86,128,154,.55) 0%, rgba(86,128,154,0) 50%),
+        radial-gradient(120% 75% at 50% 118%, rgba(6,16,24,.65) 0%, rgba(6,16,24,0) 56%),
+        linear-gradient(160deg, var(--navy1) 0%, var(--navy2) 52%, var(--navy3) 100%);
+      background-attachment:fixed;
+      color:var(--cream);
       min-height:100%; display:flex; align-items:center; justify-content:center; padding:28px 20px; }
-    .wrap{ width:100%; max-width:380px; text-align:center; }
-    .slogan{ font-size:13px; letter-spacing:.5px; color:rgba(245,239,222,.7); margin-bottom:8px; }
-    .brand{ font-family:Georgia,"Times New Roman",serif; font-size:38px; font-style:italic; letter-spacing:.5px; margin-bottom:4px; }
-    .rule{ width:30px; height:2px; background:var(--gold); margin:18px auto 22px; }
-    .card{ background:rgba(245,239,222,.06); border:1px solid var(--line); border-radius:18px; padding:26px 22px; }
-    .badge{ font-size:34px; }
-    .title{ font-size:20px; font-weight:700; margin:12px 0 8px; }
-    .desc{ font-size:14px; line-height:1.6; color:rgba(245,239,222,.8); }
-    .btns{ margin-top:24px; display:flex; flex-direction:column; gap:10px; }
-    a.btn{ display:block; text-decoration:none; border-radius:12px; padding:14px; font-size:15px; font-weight:700; }
-    .btn-primary{ background:var(--gold); color:#1A2A20; }
-    .btn-store{ background:rgba(245,239,222,.1); color:var(--cream); border:1px solid var(--line); }
-    .open{ margin-top:16px; }
+    .wrap{ width:100%; max-width:382px; text-align:center; }
+    .slogan{ font-size:13px; letter-spacing:.5px; color:rgba(236,230,218,.68); text-shadow:0 1px 3px rgba(0,0,0,.35); margin-bottom:9px; }
+    .brand{ font-family:Georgia,"Times New Roman",serif; font-size:39px; font-style:italic; letter-spacing:.5px; color:var(--gold); text-shadow:0 2px 10px rgba(0,0,0,.4); margin-bottom:4px; }
+    /* 마스트헤드 — 골드 다이아몬드 문장(격식 초대장 모티브) */
+    .crest{ display:flex; align-items:center; justify-content:center; gap:11px; margin:18px 0 22px; }
+    .crest .cl{ width:34px; height:1px; }
+    .crest .cl.l{ background:linear-gradient(90deg, transparent, var(--gold-dk)); }
+    .crest .cl.r{ background:linear-gradient(90deg, var(--gold-dk), transparent); }
+    .crest .cd{ width:8px; height:8px; background:var(--gold); transform:rotate(45deg); box-shadow:0 0 10px rgba(230,198,119,.55); }
+    .card{
+      background:linear-gradient(157deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.045) 46%, rgba(255,255,255,.02) 100%);
+      border:1px solid var(--line); border-radius:18px; padding:30px 24px;
+      box-shadow:0 28px 64px rgba(0,0,0,.46), 0 6px 18px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.14); }
+    .badge{ font-size:34px; filter:drop-shadow(0 4px 8px rgba(0,0,0,.4)); }
+    .title{ font-size:20px; font-weight:700; color:var(--gold); text-shadow:0 1px 5px rgba(0,0,0,.32); margin:14px 0 8px; }
+    .desc{ font-size:14px; line-height:1.6; color:rgba(236,230,218,.82); }
+    .btns{ margin-top:24px; display:flex; flex-direction:column; gap:11px; }
+    a.btn{ display:block; text-decoration:none; border-radius:12px; padding:15px; font-size:15px; font-weight:700; }
+    .btn-primary{ background:linear-gradient(180deg, var(--gold-lt) 0%, #DAB76B 48%, #B68F49 100%); color:#16303F;
+      border:1px solid rgba(124,92,40,.55); text-shadow:0 1px 0 rgba(255,255,255,.28);
+      box-shadow:0 12px 26px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.58), inset 0 -2px 3px rgba(124,92,40,.35); }
+    .btn-store{ background:rgba(236,230,218,.08); color:var(--cream); border:1px solid rgba(230,198,119,.26);
+      box-shadow:0 8px 18px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.08); }
+    .open{ margin-top:18px; }
     .open a{ color:var(--gold); font-size:13px; text-decoration:underline; }
-    .foot{ margin-top:26px; font-size:12px; color:rgba(245,239,222,.45); }
-    .stripe{ display:flex; height:3px; width:64px; margin:22px auto 0; border-radius:2px; overflow:hidden; }
+    .foot{ margin-top:26px; font-size:12px; color:rgba(236,230,218,.45); }
+    .stripe{ display:flex; height:3px; width:64px; margin:22px auto 0; border-radius:2px; overflow:hidden; box-shadow:0 2px 7px rgba(0,0,0,.35); }
     .stripe i{ flex:1; }
   </style>
 </head>
@@ -40,9 +61,8 @@
   <div class="wrap">
     <div class="slogan">라운딩의 모든 순간을 더 특별하게</div>
     <div class="brand">Dear Golf</div>
-    <div class="rule"></div>
+    <div class="crest"><i class="cl l"></i><i class="cd"></i><i class="cl r"></i></div>
     <div class="card">
-      <div class="badge">💌</div>
       <div class="title">라운딩에 초대합니다</div>
       <div class="desc">좋은 동반자와 함께할 그날의 라운드를<br/>디어골프 앱에서 확인하세요.</div>
       <div class="btns">
