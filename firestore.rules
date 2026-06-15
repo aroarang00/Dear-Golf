@@ -193,7 +193,9 @@ service cloud.firestore {
         resource.data.authorUid == request.auth.uid
         || (
           resource.data.authorUid != request.auth.uid
-          && changedKeysWithin(['participantUids', 'waitlistUids', 'joined', 'teamJoined', 'closed', 'updatedAt'])
+          // anonymousUids: 익명 참여 토글(자기 uid만 add/remove) — 표시 마스킹용. selfMembershipToggled로 self-only는
+          //   participantUids/waitlistUids 토글에 의존(남의 익명여부 조작 완전차단은 규칙만으론 불가 → CF 이관 권장 [[data-integrity-principles]]).
+          && changedKeysWithin(['participantUids', 'waitlistUids', 'joined', 'teamJoined', 'closed', 'anonymousUids', 'updatedAt'])
           && (selfMembershipToggled('participantUids') || selfMembershipToggled('waitlistUids'))
           && (resource.data.closed == request.resource.data.closed || request.resource.data.closed == false)
         )

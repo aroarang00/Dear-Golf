@@ -109,6 +109,8 @@ export async function createRoundup(data) {
     teamJoined: Array.isArray(data.teamJoined) ? data.teamJoined : [1],
     participantUids: [uid], // 주최자도 참여자에 포함
     waitlistUids: [],
+    anonymousUids: [], // 익명 참여자 uid — 표시만 랜덤닉, 내부 신원·책임성은 그대로 ([[roundup-anonymous-participation]]). 호스트는 익명 불가
+
     scope: data.scope || 'all',
     // 친구지정(select) — selectMode·selectedUids는 원래 선택(수정 복원용), audienceUids는 해석된 실제 수신자
     //   ([[roundup-visibility-design]] 2026-06-01). select 아닐 땐 null/빈배열.
@@ -156,10 +158,13 @@ export async function deleteRoundup(postId) {
 // 트랜잭션으로 정원을 서버에서 강제 — 선착순. 정원 1자리에 동시 수락이 몰려도 capacity 초과 차단
 //   ([[data-integrity-principles]]). joined는 개별·팀 모두 증가하므로 capacity(개별=members+1, 팀=teams*4)와 직접 비교.
 //   throw 'full'(정원 참/마감) / 'not-found'. 이미 참여자면 멱등(아무 변경 없이 성공).
-export async function joinRoundup(postId) {
+// opts.anonymous=true 면 anonymousUids에도 본인 추가 → 명단·댓글·동반자 표시에서 랜덤닉(호스트만 실명).
+//   내부 participantUids는 실 uid 그대로라 신뢰·매너·노쇼 추적 정상 ([[roundup-anonymous-participation]]).
+export async function joinRoundup(postId, opts = {}) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!postId) throw new Error('postId required');
+  const anonymous = !!opts.anonymous;
   const ref = doc(db, COLLECTION, postId);
   return await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
@@ -169,11 +174,13 @@ export async function joinRoundup(postId) {
     if (participants.includes(uid)) return; // 멱등 — 이미 확정된 참여자
     if (d.closed) throw new Error('full');   // 주최자 확정/마감
     if ((d.joined || 0) >= (d.capacity || 4)) throw new Error('full'); // 선착순 정원 초과 차단
-    tx.update(ref, {
+    const update = {
       participantUids: arrayUnion(uid),
       joined: increment(1),
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (anonymous) update.anonymousUids = arrayUnion(uid);
+    tx.update(ref, update);
   });
 }
 
@@ -188,31 +195,38 @@ export async function leaveRoundup(postId) {
   return await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) throw new Error('not-found');
-    const participants = Array.isArray(snap.data().participantUids) ? snap.data().participantUids : [];
+    const d = snap.data();
+    const participants = Array.isArray(d.participantUids) ? d.participantUids : [];
     if (!participants.includes(uid)) return; // 이미 빠진 상태 — 멱등(아무 변경 없이 성공)
     // closed:false — 결원 발생 시 확정 해제 (이미 false면 diff에 안 잡혀 무해). [[roundup-penalty-policy]] §4
-    tx.update(ref, {
+    const update = {
       participantUids: arrayRemove(uid),
       joined: increment(-1),
       closed: false,
       updatedAt: serverTimestamp(),
-    });
+    };
+    // 익명 참여였으면 anonymousUids에서도 정리(있을 때만 — 불필요한 필드 변경/규칙거부 회피)
+    const anonList = Array.isArray(d.anonymousUids) ? d.anonymousUids : [];
+    if (anonList.includes(uid)) update.anonymousUids = arrayRemove(uid);
+    tx.update(ref, update);
   });
 }
 
-// 대기 신청
-export async function joinWaitlist(postId) {
+// 대기 신청 — opts.anonymous면 anonymousUids에도 추가. 승격 시 그대로 승계(별도로 다시 안 물음 [[roundup-anonymous-participation]]).
+export async function joinWaitlist(postId, opts = {}) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
-  await updateDoc(ref, {
+  const update = {
     waitlistUids: arrayUnion(uid),
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (opts.anonymous) update.anonymousUids = arrayUnion(uid);
+  await updateDoc(ref, update);
 }
 
-// 대기 취소
+// 대기 취소 — 익명이었으면 anonymousUids도 정리(미포함이면 no-op).
 export async function leaveWaitlist(postId) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
@@ -220,6 +234,7 @@ export async function leaveWaitlist(postId) {
   const ref = doc(db, COLLECTION, postId);
   await updateDoc(ref, {
     waitlistUids: arrayRemove(uid),
+    anonymousUids: arrayRemove(uid),
     updatedAt: serverTimestamp(),
   });
 }
