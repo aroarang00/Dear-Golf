@@ -240,8 +240,8 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
-      {/* 1. 검색창 */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }}>
+      {/* 1. 검색창 — 아래 지역탭과의 간격을 탭↔섹션헤더 간격과 대칭으로(검색박스 멀고 헤더에 바짝 붙던 불균형 해소, 안드·iOS 동일) */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
         <View style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -286,7 +286,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       {/* 2. 지역 퀵탭 */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 2, gap: 8 }}
-        style={{ maxHeight: _and ? 36 : 40, marginBottom: _and ? 2 : 4 }}>
+        style={{ maxHeight: _and ? 36 : 40, marginBottom: 8 }}>
         {REGIONS.map(r => {
           const on = region === r;
           return (
