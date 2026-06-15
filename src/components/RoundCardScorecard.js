@@ -35,18 +35,49 @@ export function RoundCardScorecard({ item, width = 320 }) {
   const isBest = item.badge === '베스트';
   const honor = isBest ? 'BEST' : isSingle ? 'SINGLE' : null;
 
+  // 홀별 결과 등급 — 실제 타수는 그대로 두고 '언더의 영예'만 모양·색으로(오버는 안 깎음 [[golfer-score-psychology]]).
+  //   par=숫자 위 점 / 버디(−1)=버건디 원 / 이글(−2)=골드 원 / 홀인원(1타)·알바트로스(−3↓)=골드 원+버건디 링(동그라미 강조).
+  //   par 미인식 홀은 등급 판정 불가 → 평범 표시(홀인원만 1타로 판정 가능). 사용자 2026-06-15
+  const scoreTier = (i) => {
+    const v = scores ? scores[i] : null;
+    if (typeof v !== 'number') return 'none';
+    const p = parOf(i);
+    const d = (typeof p === 'number') ? v - p : null;
+    if (v === 1 || (d != null && d <= -3)) return 'ace';   // 홀인원·알바트로스
+    if (d === -2) return 'eagle';
+    if (d === -1) return 'birdie';
+    if (d === 0) return 'par';
+    return 'over';                                          // 보기+ — 강조 X
+  };
+
   const Row = ({ label, from, to }) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
       <Text style={{ width: 38, fontFamily: F.sysB, fontSize: 8, color: MUTE, letterSpacing: 1 }}>{label}</Text>
       {Array.from({ length: to - from }).map((_, k) => {
         const i = from + k;
-        const isScore = label === 'SCORE';
-        const under = isScore && scores && typeof parOf(i) === 'number' && typeof scores[i] === 'number' && scores[i] < parOf(i);
+        if (label === 'SCORE') {
+          const v = scores ? scores[i] : null;
+          const t = scoreTier(i);
+          const circle = t === 'birdie' || t === 'eagle' || t === 'ace';
+          const gold = t === 'eagle' || t === 'ace';
+          return (
+            <View key={i} style={{ flex: 1, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+              {t === 'par' && <View style={{ position: 'absolute', top: 0, width: 3, height: 3, borderRadius: 2, backgroundColor: MUTE }} />}
+              {circle ? (
+                <View style={{ width: 19, height: 19, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: gold ? GOLD : BURGUNDY,
+                  borderWidth: t === 'ace' ? 1.5 : 0, borderColor: BURGUNDY }}>
+                  <Text style={{ fontFamily: F.en, fontSize: 10, color: gold ? GREEN_BOT : CREAM }}>{v}</Text>
+                </View>
+              ) : (
+                <Text style={{ fontFamily: F.en, fontSize: 12, color: WHITE }}>{typeof v === 'number' ? v : '·'}</Text>
+              )}
+            </View>
+          );
+        }
         return (
-          <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: F.en, fontSize: 12,
-            color: label === 'HOLE' ? WHITE : isScore ? (under ? GOLD : WHITE) : MUTE,
-            textDecorationLine: under ? 'underline' : 'none', textDecorationColor: GOLD }}>
-            {label === 'HOLE' ? (i + 1) : label === 'PAR' ? (parOf(i) ?? '·') : (scores ? (scores[i] ?? '·') : '·')}
+          <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: F.en, fontSize: 12, color: label === 'HOLE' ? WHITE : MUTE }}>
+            {label === 'HOLE' ? (i + 1) : (parOf(i) ?? '·')}
           </Text>
         );
       })}

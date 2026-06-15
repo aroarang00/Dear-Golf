@@ -19,7 +19,8 @@ const SAMPLE = {
   playerName: '홍길동',
   companions: [{ name: '홍길동', isMe: true }, { name: '김철수' }, { name: '이영희' }, { name: '박민수' }],
   memo: '날씨도 좋고 최고였다',
-  holeScores: [4, 5, 3, 4, 4, 5, 4, 3, 4, 4, 4, 5, 3, 4, 4, 4, 3, 4],
+  // 버디·이글·홀인원·파·보기·더블 섞어 모든 표기 확인용(합 71 유지). idx2=홀인원(par3·1타), idx5=이글(par5·3), idx0·9=버디
+  holeScores: [3, 5, 1, 5, 4, 3, 5, 3, 4, 3, 4, 5, 4, 4, 5, 4, 3, 6],
   holePars: [4, 5, 3, 4, 4, 5, 4, 3, 4, 4, 4, 5, 3, 4, 4, 4, 3, 4],
   starRating: 5, overseas: false,
 };
