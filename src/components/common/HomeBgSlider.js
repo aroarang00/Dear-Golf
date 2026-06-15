@@ -24,7 +24,7 @@ const TIME_IMAGES = {
     require('../../../assets/home-bg/day2.jpg'), // 자연 풍경 + 코스·페어웨이·호수
     require('../../../assets/home-bg/day3.jpg'), // 화창 — 연못·벙커·숲 (사용자 사진, 2026-06-14 추가)
     require('../../../assets/home-bg/day4.jpg'), // 화창 — 페어웨이·연못·산·카트 (사용자 사진, 2026-06-14 추가)
-    require('../../../assets/home-bg/lateAfternoon3.jpg'), // 대낮 파란하늘 — 노을 아님(늦은오후 풀에서 이동)
+    // lateAfternoon3 제외(2026-06-15) — 갈색 마른 러프+노을빛 톤이라 '맑은 오전'과 안 맞고 정돈감 부족(사용자 [[home-bg-curation]]). 파일은 보존
   ],
   lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을
     require('../../../assets/home-bg/lateAfternoon1.jpg'),
