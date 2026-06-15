@@ -22,8 +22,9 @@
 - **일정(schedules)**: `companions: [{ name, friendUid? }]`
   - 친구 선택 → `{name, friendUid}`, 자유 입력 → `{name}` (ScheduleModal에서 캡처)
   - 동반자 doc은 **작성자(ownerUid) 일정에만** 저장됨. 동반자 계정엔 전파 X.
-- **라운딩 기록(rounds)**: `companions: [{ name, isMe }]`
-  - **friendUid 없음** (DiaryAddModal은 이름만). ← 일정과 비대칭, 설계에서 메워야.
+- **라운딩 기록(rounds)**: `companions: [{ name, isMe, friendUid? }]`
+  - ✅ **friendUid 캡처됨** (Phase A, 2026-06-16 `176459b`). DiaryAddModal '친구에서 선택' → friendUid 저장.
+    일정과 대칭 완료. DiaryDetail은 friendUid→별명(friendMeta) 해석으로 표시.
 - **모집 확정 → 일정**: 작성자/참여자 각 클라가 자기 일정 1회 생성(생성만, 갱신 없음).
   멱등 가드 추가됨(roundupId). 동반자 일정 전파는 **미구현**.
 - **전파/자동완성**: 전부 미구현. round-score-autofill(한 명 입력→전원 자동완성)은 Phase 3 예정.
@@ -138,6 +139,10 @@
 
 사용자 요청="친구끼리 스코어 공유"(= L2 5-2 = Phase C). 코드 실측 결과 전제 전무
 (rounds friendUid 없음 · 전파 CF 없음 · uid 안정화 미완). 건너뛰기 불가라 **Phase A부터** 합의.
+
+**✅ Phase A 완료 (2026-06-16, `176459b`)** — 캡처+표시 라벨, 전파 X:
+   친구선택 friendUid 캡처(DiaryAddModal)·상세 별명 표시·friendMeta 신선도 수정 완료, 기기 검증됨.
+   다음 착수 = Phase B(uid 안정화 검증 선행 → CF 일정 전파).
 
 **Phase A 확정 범위 (캡처+표시 라벨만, 전파 X):**
 1. DiaryAddModal 동반자 입력에 친구 선택 추가(ScheduleModal·FriendSelectModal 패턴 재사용)
