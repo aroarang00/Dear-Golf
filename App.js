@@ -26,7 +26,11 @@ try {
   });
   Sentry.init({
     dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN, // DSN 없으면 비활성 (dev·미설정 환경 안전)
+    // dev(개발 클라)에선 OFF — Expo Dev Launcher 자체 크래시(NullPointerException 등) 개발 노이즈가
+    //   테스트할 때마다 메일 폭탄이 됨(2026-06-15 사장님 테스트폰 SM-A175N). 프로덕션 에러만 받는다.
+    //   preview·production 빌드는 __DEV__=false라 그대로 보고됨. DSN 없으면 어차피 비활성.
+    enabled: !__DEV__ && !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+    environment: __DEV__ ? 'development' : 'production', // 대시보드 필터·구분용
     sendDefaultPii: false,                          // IP·기기 식별자 등 PII 미전송
     integrations: [sentryNavigationIntegration],
     // 성능 추적 OFF — tracesSampleRate 1.0(전 트랜잭션·내비 100% 계측)이 안드서 전환·상호작용마다
