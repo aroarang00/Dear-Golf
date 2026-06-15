@@ -73,10 +73,8 @@ export async function recognizeScorecard(uri) {
     const callable = httpsCallable(functions, 'recognizeScorecard');
     const res = await callable({ imageBase64: img.base64, format: 'jpg' });
     const fields = res?.data?.fields || [];   // [{ text, confidence, vertices }]
-    if (__DEV__) console.log('[ocr-debug] fields(' + fields.length + '):', (fields || []).map(f => (f.text || '').trim()).filter(Boolean).join(' | '));
     const toks = tokenize(fields);
     const { rows, pars } = parseTokens(toks);
-    if (__DEV__) console.log('[ocr-debug] result:', JSON.stringify((rows || []).map(r => ({ label: r.label, total: r.total, holes: r.holes }))));
     // PAR 행을 못 찾으면(요약 카드 등) 홀별 타수를 만들 수 없음 → 부드러운 안내
     if (!rows.length) {
       return {
@@ -180,7 +178,6 @@ function parseTokens(toks) {
     const name = labelText.replace(/SMART|SCORE/gi, '').trim();
     return { cy: r.cy, name, nums, numItems, type };
   });
-  if (__DEV__) console.log('[ocr-debug] classified:', JSON.stringify(classified.map(r => ({ type: r.type, label: r.name, nums: r.nums }))));
 
   const parRows = classified.filter(r => r.type === 'par').sort((a, b) => a.cy - b.cy);
   if (!parRows.length) return { rows: [], pars: null };
