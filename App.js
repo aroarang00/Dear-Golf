@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 // 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
@@ -89,6 +89,7 @@ import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { subscribeMyNotifications, markNotificationRead } from './src/utils/roundupNotifications';
 import { ROUTES } from './src/constants/routes';
+import { parseDeepLink } from './src/utils/links';
 
 const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -404,6 +405,23 @@ function App() {
     });
     // 앱 실행 중 알림 탭
     const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    return () => sub.remove();
+  }, []);
+
+  // 딥링크 수신 — deargolf.app/r/{postId}(Universal/App Links) 또는 deargolf://r/{postId} → 라운지 모집 상세.
+  //   푸시 handleResponse와 동일하게 navigationRef로 라우팅. openPostId는 목록에 없어도 RoundupTab이 fetch해 상세를 연다(RoundupTab:505).
+  //   Firestore read 규칙이 권한을 거르므로(친구지정=audienceUids 등) 비권한 글은 상세가 안 열림 — 보안 모델과 일치. ([[invite-deeplink-system]])
+  useEffect(() => {
+    const route = (url) => {
+      if (!url || !navigationRef.isReady()) return;
+      const parsed = parseDeepLink(url);
+      if (parsed?.type === 'roundup' && parsed.postId) {
+        navigationRef.navigate(ROUTES.LOUNGE, { openPostId: parsed.postId });
+      }
+    };
+    // 종료 상태에서 링크로 실행된 경우 — 네비게이션 준비 시간 확보(푸시와 동일 패턴)
+    Linking.getInitialURL().then(url => { if (url) setTimeout(() => route(url), 500); }).catch(() => {});
+    const sub = Linking.addEventListener('url', ({ url }) => route(url)); // 앱 실행 중 링크 진입
     return () => sub.remove();
   }, []);
 

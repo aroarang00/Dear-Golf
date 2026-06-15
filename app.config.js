@@ -32,6 +32,8 @@ module.exports = {
       supportsTablet: true,
       bundleIdentifier: 'app.deargolf',
       buildNumber: '1',
+      // 딥링크 — Universal Links(deargolf.app/r/* 등). 활성화엔 deargolf.app에 apple-app-site-association 호스팅 필요(Phase 2). ([[invite-deeplink-system]])
+      associatedDomains: ['applinks:deargolf.app'],
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
@@ -55,6 +57,15 @@ module.exports = {
       // Phase 2 Firebase 연동 시 사용자 데이터는 Firestore + 카카오 sub 매핑으로 복원이 정석
       // ([[data-migration]]·[[account-deletion]] 정책과 일관).
       allowBackup: false,
+      // 딥링크 — Android App Links(autoVerify). deargolf.app/r/* → 앱으로. 활성화엔 /.well-known/assetlinks.json 호스팅 필요(Phase 2). ([[invite-deeplink-system]])
+      intentFilters: [
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          data: [{ scheme: 'https', host: 'deargolf.app', pathPrefix: '/r' }],
+          category: ['BROWSABLE', 'DEFAULT'],
+        },
+      ],
     },
     web: {
       favicon: './assets/favicon.png',
