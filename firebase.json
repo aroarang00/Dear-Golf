@@ -17,8 +17,15 @@
   "hosting": {
     "public": "hosting",
     "cleanUrls": true,
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": ["firebase.json", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "/r/**", "destination": "/r.html" }
+    ],
     "headers": [
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      },
       {
         "source": "/@(legal|privacy)",
         "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]

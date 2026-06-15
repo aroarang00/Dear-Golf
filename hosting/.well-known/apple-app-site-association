@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["6D4SWU79T4.app.deargolf"],
+        "components": [
+          { "/": "/r/*", "comment": "라운지 모집 딥링크" }
+        ]
+      }
+    ]
+  }
+}

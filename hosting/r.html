@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>디어골프 — 라운딩 초대</title>
+  <meta name="description" content="디어골프에서 라운딩 모집을 확인하고 함께하세요." />
+  <!-- 공유 미리보기(카톡 등) — 모집 상세는 친구공개라 비노출, 브랜드 카드만 -->
+  <meta property="og:title" content="디어골프 — 라운딩 초대" />
+  <meta property="og:description" content="앱에서 모집을 확인하고 함께하세요. 라운딩의 모든 순간을 더 특별하게." />
+  <meta property="og:image" content="https://deargolf.app/hero.jpg" />
+  <meta property="og:type" content="website" />
+  <style>
+    :root{ --ink:#23201C; --cream:#F5EFDE; --gold:#C9A84C; --green:#2E4636; --burgundy:#6B1E2A; --line:rgba(201,168,76,.35); }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    html,body{ height:100%; }
+    body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+      background:linear-gradient(160deg,#33513E 0%,#1A2A20 60%,#12100D 100%); color:var(--cream);
+      min-height:100%; display:flex; align-items:center; justify-content:center; padding:28px 20px; }
+    .wrap{ width:100%; max-width:380px; text-align:center; }
+    .slogan{ font-size:13px; letter-spacing:.5px; color:rgba(245,239,222,.7); margin-bottom:8px; }
+    .brand{ font-family:Georgia,"Times New Roman",serif; font-size:38px; font-style:italic; letter-spacing:.5px; margin-bottom:4px; }
+    .rule{ width:30px; height:2px; background:var(--gold); margin:18px auto 22px; }
+    .card{ background:rgba(245,239,222,.06); border:1px solid var(--line); border-radius:18px; padding:26px 22px; }
+    .badge{ font-size:34px; }
+    .title{ font-size:20px; font-weight:700; margin:12px 0 8px; }
+    .desc{ font-size:14px; line-height:1.6; color:rgba(245,239,222,.8); }
+    .btns{ margin-top:24px; display:flex; flex-direction:column; gap:10px; }
+    a.btn{ display:block; text-decoration:none; border-radius:12px; padding:14px; font-size:15px; font-weight:700; }
+    .btn-primary{ background:var(--gold); color:#1A2A20; }
+    .btn-store{ background:rgba(245,239,222,.1); color:var(--cream); border:1px solid var(--line); }
+    .open{ margin-top:16px; }
+    .open a{ color:var(--gold); font-size:13px; text-decoration:underline; }
+    .foot{ margin-top:26px; font-size:12px; color:rgba(245,239,222,.45); }
+    .stripe{ display:flex; height:3px; width:64px; margin:22px auto 0; border-radius:2px; overflow:hidden; }
+    .stripe i{ flex:1; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="slogan">라운딩의 모든 순간을 더 특별하게</div>
+    <div class="brand">Dear Golf</div>
+    <div class="rule"></div>
+    <div class="card">
+      <div class="badge">⛳</div>
+      <div class="title">라운딩 초대가 도착했어요</div>
+      <div class="desc">디어골프 앱에서 모집을 확인하고<br/>동반자와 함께하세요.</div>
+      <div class="btns">
+        <a class="btn btn-primary" id="openApp" href="#">앱에서 열기</a>
+        <a class="btn btn-store" href="https://apps.apple.com/app/id6770383793">App Store에서 받기</a>
+        <a class="btn btn-store" href="https://play.google.com/store/apps/details?id=app.deargolf">Google Play에서 받기</a>
+      </div>
+    </div>
+    <div class="stripe"><i style="background:#ECD884"></i><i style="background:#B2CADD"></i><i style="background:#6B1E2A"></i></div>
+    <div class="foot">deargolf.app</div>
+  </div>
+  <script>
+    // 경로에서 모집 id 추출 (/r/{postId}) — 앱 스킴으로 열기 시도에만 사용. 모집 상세는 비노출.
+    (function () {
+      var m = location.pathname.match(/\/r\/([^\/?#]+)/);
+      var id = m ? m[1] : '';
+      var openBtn = document.getElementById('openApp');
+      // 앱 설치돼 있으면 Universal/App Links가 이 페이지 전에 앱을 가로채므로, 여기 도달=대개 미설치.
+      // 그래도 '앱에서 열기'는 스킴으로 한 번 더 시도(설치됐는데 링크검증 안 된 경우 커버).
+      openBtn.setAttribute('href', 'deargolf://r/' + id);
+    })();
+  </script>
+</body>
+</html>
