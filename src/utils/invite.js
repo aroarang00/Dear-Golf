@@ -38,7 +38,7 @@ export async function shareRoundup(post) {
     `${head}\n` +
     `👥 ${isTeam ? `단체 ${post.teams}팀 · 총 ${cap}명` : `${cap}명`}${left > 0 ? ` · 남은 자리 ${left}` : ''}\n\n` +
     '디어골프에서 친구 맺고 함께해요\n' +
-    buildRoundupUrl(post.id); // 모집글별 딥링크(/r/{id}) — 앱 있으면 앱이 가로채 상세, 없으면 웹 안내→설치 ([[invite-deeplink-system]])
+    buildRoundupUrl(post.id, post.authorUid); // 모집글별 딥링크(/r/{id}?h=주최자) — 앱 있으면 상세, 비친구면 친구맺기 안내 ([[invite-deeplink-system]])
   try {
     await Share.share({ message });
   } catch (e) { /* 사용자 취소 — 무시 */ }
@@ -49,7 +49,7 @@ export async function shareRoundup(post) {
 //   ※ 딥링크 활성화엔 deargolf.app well-known 배포 + 딥링크 포함 빌드 필요(Phase 2/재빌드). ([[invite-deeplink-system]])
 export async function shareRoundupKakao(post) {
   if (!post) return false;
-  const url = buildRoundupUrl(post.id);
+  const url = buildRoundupUrl(post.id, post.authorUid);
   const isInvite = post.scope === 'select'; // 친구지정 = 개인 초대
   const isTeam = (post.teams || 1) > 1;
   const cap = post.capacity || (isTeam ? post.teams * 4 : 4);

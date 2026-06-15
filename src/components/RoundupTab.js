@@ -25,7 +25,7 @@ import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
-import { blockUid as fsBlockUid, loadMyFriends, unfriend } from '../utils/friends';
+import { blockUid as fsBlockUid, loadMyFriends, unfriend, sendFriendRequest, isFriend } from '../utils/friends';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
@@ -451,6 +451,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   };
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
+  const pendingHostRef = useRef(null);                        // 딥링크가 실어준 주최자 uid — 비친구라 글 읽기 막힐 때 '친구 맺기' 안내용 ([[roundup-friend-redesign]])
   // 모집 상세 실시간 — 상세가 열려 있는 동안 그 모집글 1건만 onSnapshot 구독.
   //   동반자 참여·취소·정원 충족·확정이 보고 있는 중 즉시 반영. 닫으면 해제(비용·생명주기 통제).
   //   리스트 전체는 비실시간 유지(탭 재진입/새로고침). 상세만 점진 실시간화 ([[lounge-realtime]]).
@@ -459,6 +460,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!detailId) return;
     const unsub = onSnapshot(doc(db, 'roundups', detailId), (snap) => {
       if (!snap.exists()) return; // 삭제·주최자취소는 기존 알림/동선에 위임 (여기선 화면 강제 종료 X)
+      pendingHostRef.current = null; // 읽기 성공 = 권한 있음(친구) → 친구 맺기 안내 불필요
       const fresh = { id: snap.id, ...snap.data() };
       setPosts(prev => {
         const idx = prev.findIndex(p => p.id === fresh.id);
@@ -497,7 +499,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             if (Object.keys(add).length) setParticipantNames(p2 => ({ ...p2, ...add }));
           });
       }
-    }, (err) => { if (__DEV__) console.warn('[RoundupTab] detail snapshot', err?.message); });
+    }, (err) => {
+      if (__DEV__) console.warn('[RoundupTab] detail snapshot', err?.message);
+      // 읽기 거부(대개 친구공개/지정 글에 주최자와 비친구로 진입) — 딥링크가 준 주최자 uid 있으면 '친구 맺기' 안내.
+      //   상세를 못 여니 닫고 라운지에 머문다. 막다른 침묵 대신 명시적 동선 제공 ([[roundup-friend-redesign]]).
+      const host = pendingHostRef.current;
+      pendingHostRef.current = null;
+      setDetailId(null);
+      if (host) promptFriendGate(host);
+    });
     return () => unsub();
   }, [detailId, myUid]);
 
@@ -507,8 +517,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   useEffect(() => {
     const pid = route?.params?.openPostId;
     if (!pid) return;
+    pendingHostRef.current = route?.params?.openPostHost || null; // 딥링크 주최자 uid(있으면) — 비친구 안내용
     setDetailId(pid);
-    navigation?.setParams?.({ openPostId: undefined });
+    navigation?.setParams?.({ openPostId: undefined, openPostHost: undefined });
   }, [route?.params?.openPostId]);
   // 친구지정 초대(invite) 푸시 탭 — '내 참여(mine)' view로 전환해 초대장 카드를 보게 한다 ([[roundup-invitation]]).
   //   초대장은 view==='mine' 게이트로만 렌더되고 mineTab이 초대 수신글을 포함하므로 view만 바꾸면 노출된다.
@@ -696,6 +707,35 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       buttons: [
         { text: '취소', style: 'cancel' },
         { text: '거절', style: 'destructive', onPress: () => suppressInvite(id) },
+      ],
+    });
+  };
+
+  // 딥링크로 친구공개/지정 모집에 왔는데 글 읽기가 막힌 경우(대개 주최자와 비친구) — '친구 맺기' 안내.
+  //   글을 못 읽어 주최자를 모르므로 링크가 실어준 hostUid 사용(users 문서는 로그인 시 읽기 가능 → 이름 표시·친구신청).
+  //   친구공개는 주최자 친구만 참여 가능([[roundup-public-disabled]]) → 막다른 침묵 대신 친구 추가 동선 제공 ([[roundup-friend-redesign]]).
+  const doSendHostFriendReq = async (hostUid, hostName) => {
+    try {
+      await sendFriendRequest(hostUid, userProfile?.nickname || '');
+      setAlert({ title: '친구 신청을 보냈어요', message: `${hostName}님이 수락하면\n모집을 보고 참여할 수 있어요.`, buttons: [{ text: '확인' }] });
+    } catch (e) {
+      setAlert({ title: '친구 신청 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
+    }
+  };
+  const promptFriendGate = async (hostUid) => {
+    if (!hostUid || hostUid === myUid) return;
+    try { if (await isFriend(hostUid)) return; } catch (e) { /* 조회 실패 시 안내는 띄움 */ }
+    let hostName = '주최자';
+    try {
+      const s = await getDoc(doc(db, 'users', hostUid));
+      if (s.exists()) hostName = s.data().nickname || hostName;
+    } catch (e) { /* 이름 못 가져오면 기본값 */ }
+    setAlert({
+      title: '친구 맺고 참여하기',
+      message: `${hostName}님의 친구 공개 모집이에요.\n주최자와 친구를 맺으면\n모집을 보고 참여할 수 있어요.`,
+      buttons: [
+        { text: '닫기', style: 'cancel' },
+        { text: '친구 추가', onPress: () => doSendHostFriendReq(hostUid, hostName) },
       ],
     });
   };

@@ -416,7 +416,8 @@ function App() {
       if (!url || !navigationRef.isReady()) return;
       const parsed = parseDeepLink(url);
       if (parsed?.type === 'roundup' && parsed.postId) {
-        navigationRef.navigate(ROUTES.LOUNGE, { openPostId: parsed.postId });
+        // openPostHost = 주최자 uid(있으면) — 비친구라 글 읽기 막힐 때 '친구 맺기' 안내에 사용 ([[roundup-friend-redesign]])
+        navigationRef.navigate(ROUTES.LOUNGE, { openPostId: parsed.postId, openPostHost: parsed.hostUid || undefined });
       }
     };
     // 종료 상태에서 링크로 실행된 경우 — 네비게이션 준비 시간 확보(푸시와 동일 패턴)
