@@ -212,10 +212,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   //  · 글만 일상 = 무사진 라운딩 카드와 높이 맞춤: 날짜+글 붙이고 더보기는 날짜 옆(인라인)
   if (item.kind === 'moment') {
     const momentTextStyle = { fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21 };
-    // 일상 색 구분 — 옅은 버터 바탕 + 왼쪽 골드 띠 (페이지 크림·라운딩 흰색 둘 다와 구분).
-    const MOMENT_BG = '#FBF3D6';
-    const MOMENT_BAR = '#C9A84C'; // 골드 — 옅은 버터 바탕 위 대비 확보
-    const momentCard = [dS.card, { backgroundColor: MOMENT_BG, borderLeftWidth: 3, borderLeftColor: MOMENT_BAR }];
+    // 일상 구분 — 흰 바탕(라운딩 기록과 통일). 라운딩은 '왼쪽' 띠, 일상은 '오른쪽' 띠 → 자리로 구분(색 절제, 빈티지 인상 제거).
+    const momentCard = [dS.card, { borderRightWidth: 3, borderRightColor: C.paleSky }];
     if (hasPhoto) {
       // withDate=true → 사진 위 날짜 그라데이션(친구 카드). 내 카드는 날짜를 아래 더보기 줄로 옮김(false).
       const photoEl = (withDate) => (
@@ -242,7 +240,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           <View style={momentCard}>
             {photoEl(false)}
             {/* 날짜·더보기·좋아요 한 줄 — 별도 좋아요 줄 제거(라운딩 사진카드와 통일, 카드 안 길어지게) ([[friend_feed_design]]) */}
-            <View style={[dS.toggleBtn, { backgroundColor: MOMENT_BG, flexDirection: 'row',
+            <View style={[dS.toggleBtn, { flexDirection: 'row',
               alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
               <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
               {item.memo ? (
@@ -266,7 +264,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
           {photoEl(false)}
           {/* 날짜·더보기·좋아요 한 줄 — 친구 일상 사진카드와 동일(좋아요를 바 안 우측으로). '한 줄 아래' 해소. 더보기는 좌측이라 FAB와 안 겹침 */}
-          <View style={[dS.toggleBtn, { backgroundColor: MOMENT_BG, flexDirection: 'row',
+          <View style={[dS.toggleBtn, { flexDirection: 'row',
             alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
             <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
             {item.memo ? (

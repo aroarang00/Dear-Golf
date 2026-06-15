@@ -38,7 +38,9 @@ export const dS = StyleSheet.create({
   tlDotBest:   { backgroundColor: C.burgundy, borderColor: C.burgundy },
   tlDotBirdie: { backgroundColor: C.butter, borderColor: C.charcoal },
   tlDotSpecial:{ backgroundColor: '#C9A84C', borderColor: '#C9A84C', width: 12, height: 12, left: 1 },
-  card:        { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: '#E8E2D0' },
+  // elevation: 안드 입체감 — 옅은 크림 배경(#FAF6EC)서 흰 카드가 안 떨어져 보이는 문제 해소. 자기 그림자는 overflow:hidden에 안 잘림.
+  //   iOS는 overflow:hidden이 자기 shadow*를 클리핑 → 안 보임. iOS 입체감은 래퍼 뷰 필요(추후).
+  card:        { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: '#E8E2D0', elevation: 2, shadowColor: '#8B8680' },
   cardSpecial:     { backgroundColor: '#F5F0E4', borderColor: '#C9A84C', borderWidth: 1 },
   cardSpecialLine: { height: 2, backgroundColor: '#C9A84C' },
   specialBadge:    { position: 'absolute', top: 9, left: 10, backgroundColor: 'rgba(201,168,76,0.9)', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3 },
