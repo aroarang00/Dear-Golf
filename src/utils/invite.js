@@ -52,19 +52,18 @@ export async function shareRoundupKakao(post, imageUrl) {
   if (!post) return false;
   const url = buildRoundupUrl(post.id, post.authorUid);
   const isInvite = post.scope === 'select'; // 친구지정 = 개인 초대
-  const isTeam = (post.teams || 1) > 1;
-  const cap = post.capacity || (isTeam ? post.teams * 4 : 4);
-  const head = post.type === 'fixed'
-    ? `${post.course || ''} · ${post.date || ''}${post.day ? ` (${post.day})` : ''} ${post.time || ''}`.trim()
+  // 카카오 피드 카드의 이미지 아래 텍스트(설명). 구장명 · 날짜 · 시간을 한 줄에 붙이면 카카오가 말줄임(…)하므로
+  //   구장명 / 날짜·시간을 줄로 나눠 짧게 둔다 — 잘리지 않고 또렷하게 ([[invite-deeplink-system]], 사용자 2026-06-15).
+  const dateTime = `${post.date || ''}${post.day ? ` (${post.day})` : ''}${post.time ? ` · ${post.time}` : ''}`.trim();
+  const desc = post.type === 'fixed'
+    ? `${post.course || ''}\n${dateTime}`
     : '장소·날짜는 동반자와 함께 정해요';
-  const desc = `${head}\n${isTeam ? `단체 ${post.teams}팀 · 총 ${cap}명` : `${cap}명 모집`}`;
-  // 실제 카드 이미지면 구장·날짜·인원이 카드에 다 있어 설명 텍스트 생략(이미지 아래 중복 제거). hero 폴백일 때만 설명.
   const content = {
-    title: isInvite ? '⛳ 라운딩에 초대합니다' : '⛳ 라운딩 동반자 모집',
+    title: isInvite ? '💌 라운딩에 초대합니다' : '🏌️ 라운딩 동반자 모집',
+    description: desc,
     imageUrl: imageUrl || 'https://deargolf.app/hero.jpg',
     link: { webUrl: url, mobileWebUrl: url },
   };
-  if (!imageUrl) content.description = desc;
   try {
     await shareFeedTemplate({
       template: {
