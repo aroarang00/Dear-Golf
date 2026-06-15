@@ -1262,9 +1262,9 @@ export function GuideScreen({ route, navigation }) {
 
                 {/* ① 내가 저장한 맛집 — 골프장별 저장 목록 (없으면 섹션 숨김) */}
                 {savedFood.length > 0 && (
-                  <>
-                    {/* 내 저장 맛집 — 골든 카드와 같은 톤으로 헤더 강조(추천·주변의 회색 헤더와 확실히 구분, 사용자 2026-06-15) */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, marginBottom: 10 }}>
+                  <View style={{ marginTop: 18, backgroundColor: 'rgba(201,168,76,0.07)', borderWidth: 1, borderColor: '#C9A84C40', borderRadius: 14, padding: 12 }}>
+                    {/* 연한 골드 박스로 섹션 통째 감싸 추천·주변과 확실히 구분(사용자 2026-06-15) */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                       <Text style={{ fontSize: fs(14), color: '#C9A84C' }}>★</Text>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#5A4A00' }}>내가 저장한 맛집</Text>
                       <View style={{ backgroundColor: '#F5E6A8', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 1 }}>
@@ -1312,7 +1312,7 @@ export function GuideScreen({ route, navigation }) {
                         </View>
                       </TouchableOpacity>
                     ))}
-                  </>
+                  </View>
                 )}
 
                 {/* ② 골퍼 추천 맛집 — 카카오 로컬 반경 3km 음식점 */}
