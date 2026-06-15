@@ -98,7 +98,11 @@ export function DiaryScreen({ route, navigation }) {
   const [milestoneInfoOpen, setMilestoneInfoOpen] = useState(false); // 마일스톤 안내 ([[milestone_badges]])
   const [friendGroups, setFriendGroups] = useState(DEFAULT_FRIEND_GROUPS); // 내 카드 owner 그룹 색라벨용 ([[friend_groups]])
   const [friendMeta, setFriendMeta] = useState({}); // 내가 지정한 별명(customName) — 동반자 이름 표시 resolve용 ([[friend_groups]])
-  useEffect(() => { loadFriendData().then(fd => { setFriendGroups(fd.friendGroups); setFriendMeta(fd.friendMeta || {}); }).catch(() => {}); }, []);
+  // 별명/그룹 갱신 — 마운트 1회론 이번 세션에 추가/변경된 친구 별명을 못 잡음(탭 keep-alive=재마운트 X) → 동반자가 닉네임으로 폴백. 저장 직후·포커스 시 갱신([[companion-design]] Phase A)
+  const refreshFriendData = React.useCallback(() => {
+    loadFriendData().then(fd => { setFriendGroups(fd.friendGroups); setFriendMeta(fd.friendMeta || {}); }).catch(() => {});
+  }, []);
+  useEffect(() => { refreshFriendData(); }, [refreshFriendData]);
   const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
@@ -115,13 +119,14 @@ export function DiaryScreen({ route, navigation }) {
       .then(list => { const m = {}; list.forEach(f => { m[f.id] = f.customName || f.name; }); setFriendNameByUid(m); })
       .catch(() => {});
     const unsub = navigation?.addListener?.('focus', () => {
+      refreshFriendData(); // 별명·그룹은 매 포커스 갱신(가벼움) — 동반자 별명 표시 신선도
       const now = Date.now();
       if (now - diaryFocusReloadRef.current < 30000) return;  // 최근 갱신 — 캐시 유지(재요청 스킵)
       diaryFocusReloadRef.current = now;
       reloadDiaries();
     });
     return unsub;
-  }, [navigation, reloadDiaries]);
+  }, [navigation, reloadDiaries, refreshFriendData]);
   // 미기록 라운딩 — 지난 일정(오늘 포함) 중 라운딩 기록이 1:1로 배정되지 않은 것.
   //  · 같은 날 같은 구장 2건(36홀·더블)도 각각 일정-기록 1:1로 매칭(정책: 2건 따로 지원)
   //  · 기록의 scheduleId가 가리키던 일정이 삭제(dangling)됐어도 course+date로 다시 이어 '이미 기록인데 미기록으로 떠 중복 기록'을 방지
@@ -345,6 +350,7 @@ export function DiaryScreen({ route, navigation }) {
         overseas: !!data.overseas,
         country: data.country || '',
       });
+      refreshFriendData(); // 방금 추가한 친구 동반자 별명을 상세에서 바로 잡도록 갱신([[companion-design]] Phase A)
       // 일상(모멘트)은 명예의전당·첫싱글 대상 아님 — score:null이라 가드 없으면 첫싱글(≤79) 오발동([[moment-feed-extension]])
       if (data.kind !== 'moment') {
         setHallOfFame(prev => {

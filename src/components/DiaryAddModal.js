@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
+import { loadMyFriendsEnriched } from '../utils/friends';   // 동반자 친구 선택용([[companion-design]] Phase A)
+import { FriendSelectModal } from './FriendSelectModal';
 import { Spinner } from './common/Spinner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -143,8 +145,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       { text: '취소', style: 'cancel' },
     ] });
   };
-  const [companions, setCompanions] = useState([]);
+  const [companions, setCompanions] = useState([]); // [{ name, friendUid? }] — 친구 선택 시 friendUid 보존([[companion-design]] Phase A)
   const [companionInput, setCompanionInput] = useState('');
+  const [friends, setFriends] = useState([]);                 // 동반자 친구 선택 목록
+  const [showCompanionPicker, setShowCompanionPicker] = useState(false);
 
   const pickPhoto = async () => {
     const remaining = MAX_PHOTOS - addPhotos.length;
@@ -231,13 +235,23 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setScReview(false);
   };
 
-  // 동반자 추가 — 공백·쉼표로 여러 명 한 번에 입력 가능 (최대 3명)
+  // 동반자 추가 — 공백·쉼표로 여러 명 한 번에 입력 가능 (최대 3명). 자유 입력은 {name}만(친구 아님)
   const handleAddCompanions = () => {
     if (companions.length >= 3) return;
     const names = companionInput.trim().split(/[\s,]+/).filter(Boolean);
     if (!names.length) return;
-    setCompanions(prev => [...prev, ...names].slice(0, 3));
+    setCompanions(prev => [...prev, ...names.map(name => ({ name }))].slice(0, 3));
     setCompanionInput('');
+  };
+  // 친구에서 선택 — friendUid 보존. 자유 입력 중 같은 이름은 친구로 대체(중복 방지), 최대 3명 ([[companion-design]] Phase A)
+  const onPickCompanionFriends = ({ selectedUids }) => {
+    const fromFriends = (selectedUids || []).map(uid => {
+      const fr = friends.find(f => f.id === uid);
+      return { name: fr?.name || '친구', friendUid: uid };
+    });
+    const pickedNames = new Set(fromFriends.map(c => c.name));
+    const freeText = companions.filter(c => !c.friendUid && !pickedNames.has(c.name));
+    setCompanions([...fromFriends, ...freeText].slice(0, 3));
   };
 
   const DAYS = WEEKDAYS;
@@ -299,6 +313,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   useEffect(() => {
     if (!visible) return;
     loadFriendData().then(setFriendData).catch(() => {}); // 공개범위 그룹 선택·해석용 ([[friend_groups]])
+    loadMyFriendsEnriched().then(f => setFriends(f || [])).catch(() => {}); // 동반자 친구 선택용([[companion-design]] Phase A)
     if (isEdit && initial) {
       setCourseSearch(initial.course || '');
       setSelectedCourse(initial.course || '');
@@ -335,8 +350,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       }
       setCompanions(
         (initial.companions || [])
-          .filter(c => !c.isMe)
-          .map(c => c.name)
+          .filter(c => !(typeof c === 'object' && c.isMe))
+          .map(c => (typeof c === 'string' ? { name: c } : { name: c.name, ...(c.friendUid ? { friendUid: c.friendUid } : {}) }))
+          .filter(c => c.name)
       );
       setCompanionInput('');
       setOverseas(!!initial.overseas);
@@ -376,13 +392,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (initial?.courseId) {
         findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
       }
-      // 일정(모집확정 포함)에 담긴 동반자를 기록 작성 시 미리 채움 — 이름만(라운드는 name 기준), 본인 제외·최대 3명
+      // 일정(모집확정 포함)에 담긴 동반자를 기록 작성 시 미리 채움 — friendUid 보존(일정엔 친구 동반자가 friendUid로 담김), 본인 제외·최대 3명
       if (Array.isArray(initial?.companions) && initial.companions.length) {
         setCompanions(
           initial.companions
             .filter(c => !(typeof c === 'object' && c.isMe))
-            .map(c => (typeof c === 'string' ? c : c?.name))
-            .filter(Boolean)
+            .map(c => (typeof c === 'string' ? { name: c } : { name: c?.name, ...(c?.friendUid ? { friendUid: c.friendUid } : {}) }))
+            .filter(c => c.name)
             .slice(0, 3)
         );
       }
@@ -499,10 +515,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       } : null,
       companions: [
         { name: userProfile.nickname, isMe: true },
-        // 저장 시 입력칸에 남은 이름도 자동 반영 — '추가' 미클릭으로 유실되던 문제 방지 (최대 3명)
-        ...[...companions, ...companionInput.trim().split(/[\s,]+/).filter(Boolean)]
+        // 저장 시 입력칸에 남은 이름도 자동 반영 — '추가' 미클릭으로 유실되던 문제 방지 (최대 3명). friendUid 보존([[companion-design]] Phase A)
+        ...[...companions, ...companionInput.trim().split(/[\s,]+/).filter(Boolean).map(name => ({ name }))]
           .slice(0, 3)
-          .map(name => ({ name, isMe: false })),
+          .map(c => ({ name: c.name, isMe: false, ...(c.friendUid ? { friendUid: c.friendUid } : {}) })),
       ],
       courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
       courseLoc: selectedCourseObj?.loc || (initial && initial.courseLoc) || null, // 코스 주소 동봉 — 지역탭 분류용([[region-classification]])
@@ -732,6 +748,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.butter }}>추가</Text>
                 </TouchableOpacity>
               </View>
+              {/* 친구에서 선택 — friendUid 보존(동반자 통계·향후 스코어 공유 전제) ([[companion-design]] Phase A) */}
+              <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.7}
+                style={{ marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>👥 친구에서 선택</Text>
+                {friends.length === 0 && (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>(친구를 추가하면 골라서 넣을 수 있어요)</Text>
+                )}
+              </TouchableOpacity>
               {companions.length === 0 && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 8 }}>
                   이름을 입력하면 저장할 때 자동으로 반영돼요. 공백으로 띄우면 여러 명도 한 번에 (최대 3명)
@@ -739,7 +763,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               )}
               {companions.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {companions.map((name, i) => (
+                  {companions.map((c, i) => (
                     <TouchableOpacity key={i}
                       style={{
                         flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -748,7 +772,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         paddingHorizontal: 10, paddingVertical: 5,
                       }}
                       onPress={() => setCompanions(prev => prev.filter((_, idx) => idx !== i))}>
-                      <Text style={{ fontSize: fs(12), color: C.butter }}>{name}</Text>
+                      {/* 친구 동반자는 화면에서만 별명 우선 표시(저장은 닉네임) ([[friend_groups]]) */}
+                      <Text style={{ fontSize: fs(12), color: C.butter }}>{c.friendUid ? '👤 ' : ''}{c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name}</Text>
                       <Text style={{ fontSize: fs(10), color: 'rgba(245,230,168,0.5)' }}>✕</Text>
                     </TouchableOpacity>
                   ))}
@@ -1144,6 +1169,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             });
             setEditorIndex(null);
           }} />
+        {/* 동반자 친구 선택 — 본명 마스킹 표시, 다중선택. friendUid 캡처([[companion-design]] Phase A) */}
+        <FriendSelectModal
+          visible={showCompanionPicker}
+          mode="companion"
+          friends={friends}
+          initial={{ selectedUids: companions.filter(c => c.friendUid).map(c => c.friendUid) }}
+          onClose={() => setShowCompanionPicker(false)}
+          onConfirm={onPickCompanionFriends}
+        />
     </Modal>
   );
 }
