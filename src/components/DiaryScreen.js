@@ -17,6 +17,7 @@ import { HallOfFameCard } from './HallOfFameCard';
 import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals, SHAREABLE_MILESTONE_MIN } from './MilestoneCard';
 import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';
+import { ScoreShareInbox } from './ScoreShareInbox';   // 동반자 스코어 공유 수신([[companion-design]] §11 Phase C)
 import { DiaryCard } from './DiaryCard';
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
@@ -763,6 +764,9 @@ export function DiaryScreen({ route, navigation }) {
         // 빈/로딩 상태 — 인덱스 2 자리를 빈 View로 유지(개수·인덱스 고정). sticky는 항상 [2]라 데이터 들어오면 같은 자리에 필터가 채워지며 바로 고정됨
         <View />
       )}
+
+      {/* 동반자 스코어 공유 수신 배너 — 인덱스 2(필터) 뒤의 새 자식이라 sticky [2] 불변. 내부 null이면 자리만 차지(높이 0). */}
+      <ScoreShareInbox nickname={userProfile.nickname || userProfile.realName || ''} onDerived={reloadDiaries} />
 
       {/* 인덱스 3 — 피드 본문(로딩 / 빈 상태 / 명예의전당 + 카드). 필터·검색은 위 sticky 인덱스2로 분리됨 */}
       {(() => {
