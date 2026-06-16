@@ -55,12 +55,13 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
   const recPins = validPos(nearby).slice(0, 12);   // 추천 맛집 — 주황 (정적지도와 동일 상한)
   const savedPins = validPos(saved).slice(0, 10);   // 저장 맛집 — 노랑
 
-  // 초기 화면 — 골프장 중심 + 반경 약 3km. 리셋 버튼이 되돌릴 목표 지점이기도 함.
+  // 초기 화면 — 골프장 중심. 리셋 버튼이 되돌릴 목표 지점이기도 함.
+  //   0.06(≈3km 반경)은 너무 넓어 핀이 가운데로 몰려 보였음 → 0.04로 당겨 핀을 퍼뜨림(사용자 2026-06-17, 안드·iOS 공통).
   const HOME_REGION = {
     latitude: courseCoord.y,
     longitude: courseCoord.x,
-    latitudeDelta: 0.06,   // 반경 약 3km가 보이는 수준 (정적지도 level 12 대응)
-    longitudeDelta: 0.06,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
   };
 
   // 현재 화면이 초기 위치/배율에서 의미 있게 벗어났는지 판정 → 리셋 버튼 노출 여부.
