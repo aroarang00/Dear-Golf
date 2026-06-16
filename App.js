@@ -428,16 +428,21 @@ function App() {
   //   푸시 handleResponse와 동일하게 navigationRef로 라우팅. openPostId는 목록에 없어도 RoundupTab이 fetch해 상세를 연다(RoundupTab:505).
   //   Firestore read 규칙이 권한을 거르므로(친구지정=audienceUids 등) 비권한 글은 상세가 안 열림 — 보안 모델과 일치. ([[invite-deeplink-system]])
   useEffect(() => {
-    const route = (url) => {
-      if (!url || !navigationRef.isReady()) return;
+    const route = (url, attempt = 0) => {
+      if (!url) return;
+      // 콜드스타트 — 앱이 완전 종료 상태서 링크로 켜지면 네비가 아직 준비 안 됐을 수 있어, 준비될 때까지 재시도(최대 ~5s)
+      if (!navigationRef.isReady()) {
+        if (attempt < 20) setTimeout(() => route(url, attempt + 1), 250);
+        return;
+      }
       const parsed = parseDeepLink(url);
       if (parsed?.type === 'roundup' && parsed.postId) {
         // openPostHost = 주최자 uid(있으면) — 비친구라 글 읽기 막힐 때 '친구 맺기' 안내에 사용 ([[roundup-friend-redesign]])
         navigationRef.navigate(ROUTES.LOUNGE, { openPostId: parsed.postId, openPostHost: parsed.hostUid || undefined });
       }
     };
-    // 종료 상태에서 링크로 실행된 경우 — 네비게이션 준비 시간 확보(푸시와 동일 패턴)
-    Linking.getInitialURL().then(url => { if (url) setTimeout(() => route(url), 500); }).catch(() => {});
+    // 종료 상태에서 링크로 실행된 경우 — route가 네비 준비될 때까지 재시도(고정 지연 대신, 콜드스타트 유실 방지)
+    Linking.getInitialURL().then(url => { if (url) route(url); }).catch(() => {});
     const sub = Linking.addEventListener('url', ({ url }) => route(url)); // 앱 실행 중 링크 진입
     return () => sub.remove();
   }, []);

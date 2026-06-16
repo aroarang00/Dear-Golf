@@ -15,8 +15,7 @@ import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { RoundupComments } from './RoundupComments';
 import { anonNick } from '../utils/anonNick';
-import { shareRoundup, shareRoundupKakao } from '../utils/invite';
-import { ShareMomentModal } from './ShareMomentModal';
+import { shareRoundup } from '../utils/invite';
 
 // 참여자 아바타 색상
 const AV = [
@@ -144,7 +143,6 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta 
 export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [alert, setAlert] = useState(null);
-  const [shareCardOpen, setShareCardOpen] = useState(false); // 모집 초대장 카드 공유 모달
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
   // z-index 이슈로 부모(RoundupTab)의 모달이 이 Modal 뒤로 가려져서, 등급/차단 확인 모달은 여기서 자체 렌더링.
   const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
@@ -581,7 +579,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 친구지정(select)은 호스트만 '초대 보내기' — audienceUids 지정 친구는 앱·계정 보유라 딥링크 카카오 초대가 깔끔(탭→앱→초대카드→수락).
                   비지정자에게 새도 Firestore 규칙이 참여 차단(무해). 그 외(친구공개·전체공개)는 누구나 '공유'(설치 홍보). ([[invite-deeplink-system]]) */}
             {(post.scope !== 'select' || isMine) && (
-              <TouchableOpacity onPress={() => setShareCardOpen(true)} activeOpacity={0.85}
+              <TouchableOpacity onPress={() => shareRoundup(post)} activeOpacity={0.85}
                 hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.navy,
                   borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 }}>
@@ -844,14 +842,8 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 ],
               });
             }} />
-          {/* 모집 초대장 카드 공유 — 이미지(바로공유/저장) + 평문 링크(설치 funnel) ([[score-brag-card]] 인프라 재사용) */}
-          <ShareMomentModal
-            moment={shareCardOpen ? { ...post, shareKind: 'roundup' } : null}
-            visible={shareCardOpen}
-            onClose={() => setShareCardOpen(false)}
-            onShareKakao={(imageUrl) => { shareRoundupKakao(post, imageUrl); setShareCardOpen(false); }}
-            onShareLink={() => { setShareCardOpen(false); setTimeout(() => shareRoundup(post), 350); }}
-          />
+          {/* 모집 공유 = 평문 링크 직접(shareRoundup) — 카톡서 OG 카드 미리보기(og-card)+App Links 직행.
+              안 되던 카카오 execParams 커스텀 카드 모달은 폐기 (사용자 2026-06-16, [[invite-deeplink-system]]) */}
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>
