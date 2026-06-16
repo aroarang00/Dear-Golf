@@ -181,13 +181,13 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
             )}
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8, lineHeight: 17, textAlign: 'center' }}>
               {(isRoundup || isSchedule || isInvite) && onShareLink
-                ? '‘공유하기’는 카드 이미지만 전송돼요(링크 없음).\n받는 분이 바로 열어볼 수 있게 ‘링크와 함께 공유’로 보내주세요.'
+                ? '‘공유하기’는 카드 이미지만 전송돼요(링크 없음).\n받는 분이 바로 열어볼 수 있게 ‘링크 공유’도 함께 보내주세요.'
                 : (isRoundup || isSchedule || isInvite || isRound)
                   ? '카드 이미지로 공유돼요.\nDear Golf 마크가 들어가요.'
                   : '투명 배경 PNG로 저장돼요.\n카드에 Dear Golf 마크가 들어가요.'}
             </Text>
 
-            {/* 공유 옵션 — 버튼별 색으로 역할 구분: 공유하기(차콜·이미지만) / 이미지 저장(버터·보관) / 링크와 함께 공유(네이비·연결).
+            {/* 공유 옵션 — 버튼별 색으로 역할 구분: 공유하기(차콜·이미지만) / 이미지 저장(버터·보관) / 링크 공유(네이비·링크만).
                 카카오톡 공유는 딥링크 미연동으로 철회 보류([[invite-deeplink-system]], 사용자 2026-06-16). */}
             <View style={{ gap: 10, marginTop: 22 }}>
               {OPTIONS.map(o => {
@@ -208,7 +208,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                   </TouchableOpacity>
                 );
               })}
-              {/* 링크와 함께 공유 — 클릭 가능한 링크 포함 평문 공유(받는 분이 바로 열람·설치 funnel). 네이비로 강조 */}
+              {/* 링크 공유 — 클릭 가능한 링크 평문 공유(이미지 없이 링크만). '링크와 함께'는 이미지도 같이 가는 듯한
+                  오해를 줘 '링크 공유'로 단순화(사용자 2026-06-16). 네이비로 강조(받는 분 바로 열람·설치 funnel). */}
               {onShareLink && (
                 <TouchableOpacity activeOpacity={0.85}
                   onPress={() => { onShareLink(); }}
@@ -217,7 +218,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                     backgroundColor: C.navy, borderRadius: 12, paddingVertical: 14,
                     opacity: (sharing || saving) ? 0.5 : 1 }}>
                   <Text style={{ fontSize: fs(16) }}>🔗</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>링크와 함께 공유</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>링크 공유</Text>
                 </TouchableOpacity>
               )}
             </View>

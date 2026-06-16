@@ -14,7 +14,7 @@ export function FriendsScreen({ navigation }) {
   // 친구 첫 진입 1회 안내는 FriendsTab 상단 인라인 카드로 이관(접이식, friendCoachDone 재사용) ([[friend_groups]])
   const openFinderRef = useRef(null); // FriendsTab의 친구 찾기(finder)를 헤더 버튼에서 열기 위한 핸들
 
-  // 친구 초대 — 비사용자에게 나가는 cold-acquisition 카드(랜딩 톤·올인원 차별화). 평문 링크는 카드 모달의 '링크와 함께 공유'로 유지 ([[invite-deeplink-system]])
+  // 친구 초대 — 비사용자에게 나가는 cold-acquisition 카드(랜딩 톤·올인원 차별화). 평문 링크는 카드 모달의 '링크 공유'로 유지 ([[invite-deeplink-system]])
   const [inviteOpen, setInviteOpen] = useState(false);
   const handleInvite = () => setInviteOpen(true);
 
