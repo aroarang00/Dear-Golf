@@ -45,6 +45,13 @@ module.exports = {
       },
       edgeToEdgeEnabled: true,
       package: 'app.deargolf',
+      // react-native-maps(맛집 인터랙티브 지도) — 안드는 Maps SDK for Android 키 필요(iOS는 Apple Maps라 불필요).
+      //   ★키 발급(GCP Maps SDK for Android) + EXPO_PUBLIC_GOOGLE_MAPS_API_KEY EAS 등록 필요. 없으면 안드 지도 빈 화면. ([[food-map-interactive]])
+      config: {
+        googleMaps: {
+          apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+        },
+      },
       // FCM 푸시 — 안드 네이티브 빌드에 Firebase 설정 포함(없으면 푸시 토큰 미발급). [[android-fcm-push]]
       googleServicesFile: './google-services.json',
       permissions: [

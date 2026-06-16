@@ -26,7 +26,8 @@ import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword } from '../utils/kakao';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { isRoundDiary } from '../utils/diaryKind';
-import { buildFoodMapUrl, NAVER_MAP_HEADERS, cityTokenOf, regionOf, naverSearchUrl } from '../utils/naverMap';
+import { cityTokenOf, regionOf, naverSearchUrl } from '../utils/naverMap';
+import { FoodMapView } from './FoodMapView';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
 import { getCourseComments, addCourseComment, toggleCommentLike, deleteCourseComment, updateCourseComment } from '../utils/courseComments';
@@ -1144,25 +1145,24 @@ export function GuideScreen({ route, navigation }) {
             // 골퍼 추천 맛집 — 추천수(하트) 내림차순 정렬
             const recCountOf = (r) => seedRecCount(r.kakaoId) + (foodRecs[r.kakaoId] ? 1 : 0);
             const recSorted = [...nearbyFood].sort((a, b) => recCountOf(b) - recCountOf(a));
-            // 네이버 정적 지도 URL — 골프장(큰 핀) + 골퍼 추천 맛집(주황 핀) + 저장 맛집(노란 핀)
+            // 인터랙티브 지도 마커 — 골프장(버건디) + 골퍼 추천 맛집(주황) + 저장 맛집(노랑)
             // 저장한 추천 맛집은 노란 핀으로만 표시 — 주황 목록에서 제외
-            const mapW = Math.round(Dimensions.get('window').width);
             const savedKeySet = new Set(savedFood.map(s => s.kakaoId || s.name));
             const mapNearby = nearbyFood.filter(r => !savedKeySet.has(r.kakaoId || r.name));
-            const mapUrl = buildFoodMapUrl(courseCoord, mapNearby, savedFood, { w: mapW, h: 210 });
             // 네이버 지도(스마트플레이스)에서 골프장 주변 맛집 검색
             const openNaverPlaces = () => Linking.openURL(naverSearchUrl(c.name, c.loc, '맛집'));
 
             return (
               <View>
-                {/* 네이버 정적 지도 — 골프장 중심 + 주변 맛집(반경 3km) 마커 */}
+                {/* 맛집 인터랙티브 지도 — 골프장 중심 + 주변 맛집(반경 3km) 마커, 팬·줌·마커 탭 ([[food-map-interactive]]) */}
                 <View style={{ height: 210, position: 'relative', backgroundColor: C.bgSecondary }}>
-                  {mapUrl ? (
-                    <Image
-                      source={{ uri: mapUrl, headers: NAVER_MAP_HEADERS }}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="cover"
-                      onError={(e) => console.warn('[naver map]', e?.nativeEvent?.error)}
+                  {courseCoord && Number.isFinite(courseCoord.x) && Number.isFinite(courseCoord.y) ? (
+                    <FoodMapView
+                      courseCoord={courseCoord}
+                      courseName={c.name}
+                      nearby={mapNearby}
+                      saved={savedFood}
+                      height={210}
                     />
                   ) : (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
