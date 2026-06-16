@@ -1163,6 +1163,7 @@ export function GuideScreen({ route, navigation }) {
                       nearby={mapNearby}
                       saved={savedFood}
                       height={210}
+                      onMarkerPress={openRestaurantPlace}
                     />
                   ) : (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

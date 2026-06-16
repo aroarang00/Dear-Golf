@@ -9,7 +9,8 @@ import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 //   ⚠️ 안드는 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY(GCP Maps SDK for Android) 필요 — 없으면 빈 지도.
 const validPos = (arr) => (arr || []).filter((s) => Number.isFinite(s?.x) && Number.isFinite(s?.y));
 
-export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], height = 210 }) {
+// onMarkerPress(item) — 맛집 마커의 말풍선(이름·거리)을 탭하면 호출. 호출부에서 네이버 지도 등으로 연결.
+export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], height = 210, onMarkerPress }) {
   // 골프장 좌표 없으면 호출부가 폴백 처리 (정적 안내)
   if (!courseCoord || !Number.isFinite(courseCoord.x) || !Number.isFinite(courseCoord.y)) {
     return null;
@@ -43,7 +44,8 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           key={`rec-${r.kakaoId || r.name || i}`}
           coordinate={{ latitude: r.y, longitude: r.x }}
           title={r.name || '맛집'}
-          description={`추천 맛집${Number.isFinite(r.distance) ? ` · ${Math.round(r.distance)}m` : ''}`}
+          description={`추천 맛집${Number.isFinite(r.distance) ? ` · ${Math.round(r.distance)}m` : ''} · 탭하면 지도에서 보기`}
+          onCalloutPress={() => onMarkerPress?.(r)}
           tracksViewChanges={false}
         >
           <View style={[st.pin, st.recPin]}><Text style={st.pinTxt}>📍</Text></View>
@@ -56,7 +58,8 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           key={`saved-${sv.kakaoId || sv.name || i}`}
           coordinate={{ latitude: sv.y, longitude: sv.x }}
           title={sv.name || '저장한 맛집'}
-          description={`⭐ 저장한 맛집${sv.memo ? ` · ${sv.memo}` : ''}`}
+          description={`⭐ 저장한 맛집${sv.memo ? ` · ${sv.memo}` : ''} · 탭하면 지도에서 보기`}
+          onCalloutPress={() => onMarkerPress?.(sv)}
           tracksViewChanges={false}
         >
           <View style={[st.pin, st.savedPin]}><Text style={st.pinTxt}>⭐</Text></View>
