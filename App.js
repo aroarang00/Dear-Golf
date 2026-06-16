@@ -63,12 +63,14 @@ import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLi
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { syncUserCoursesFromFirestore } from './src/utils/userCourses';
 import { setupPushNotifications } from './src/utils/pushTokens';
-import { db, getUid } from './src/utils/firebase';
+import { db, getUid, auth } from './src/utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { fetchKakaoProfileImage } from './src/utils/kakaoAuth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
 import { FriendBadgeContext } from './src/contexts/FriendBadgeContext';
+import { CurrentUidContext } from './src/contexts/CurrentUidContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { DiariesProvider } from './src/contexts/DiariesContext';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
@@ -126,6 +128,20 @@ function App() {
   const [consentDone, setConsentDone] = useState(false); // 약관 동의 완료
   const [consentData, setConsentData] = useState(null);  // 약관 동의 결과 (legalVersion·agreedAt·marketing 등)
   const [profileLoaded, setProfileLoaded] = useState(false);
+  // 단일 uid 소스 — onAuthStateChanged를 여기서 한 번 구독해 authUid로 노출(CurrentUidContext).
+  //   uid가 바뀌면(익명→카카오 settle·재설치 시나리오 ②) 아래 Firestore 동기화 useEffect들이
+  //   authUid 의존성으로 자동 재실행되어 새 계정 데이터로 갱신된다([[uid-stabilization-plan]]).
+  const [authUid, setAuthUid] = useState(() => auth.currentUser?.uid || null);
+  useEffect(() => {
+    let prev = auth.currentUser?.uid || null;
+    const unsub = onAuthStateChanged(auth, (user) => {
+      const next = user?.uid || null;
+      if (next === prev) return;   // 같은 uid 중복 갱신 방지(DiariesContext 패턴)
+      prev = next;
+      setAuthUid(next);
+    });
+    return unsub;
+  }, []);
   const [minSplashDone, setMinSplashDone] = useState(false); // 로딩 화면 최소 표시 시간
   const [firstSingleAlert, setFirstSingleAlert] = useState(false);
   const [bestAlert, setBestAlert] = useState(false);
@@ -228,7 +244,7 @@ function App() {
   // Firestore가 source of truth (멀티기기). 액션은 write-through로 양쪽 동시 반영.
   // 한도 카운터(친구 신청/강퇴/신고)는 max 머지로 우회 차단.
   useEffect(() => {
-    if (!profileLoaded) return;
+    if (!profileLoaded || !authUid) return;   // uid 확정 후 동기화 — uid 바뀌면 새 계정으로 재실행
     let cancelled = false;
     (async () => {
       try {
@@ -293,12 +309,12 @@ function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [profileLoaded]);
+  }, [profileLoaded, authUid]);
 
   // 사용자 설정 + 닉네임/변경이력 — Firestore write-through (500ms debounce).
   // 멀티기기 동기화. 그 외 필드(blockedUsers·hostedCount 등)는 별도 처리.
   useEffect(() => {
-    if (!profileLoaded) return;
+    if (!profileLoaded || !authUid) return;
     const t = setTimeout(async () => {
       try {
         const uid = await getUid();
@@ -334,6 +350,7 @@ function App() {
     return () => clearTimeout(t);
   }, [
     profileLoaded,
+    authUid,
     userProfile.alarmDefaults,
     userProfile.alarmPromptDisabled,
     userProfile.roundupMatch,
@@ -493,6 +510,7 @@ function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <KeyboardProvider>
     <SafeAreaProvider>
+    <CurrentUidContext.Provider value={authUid}>
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
     <DiariesProvider>
@@ -564,6 +582,7 @@ function App() {
     </DiariesProvider>
     </SchedulesProvider>
     </UserContext.Provider>
+    </CurrentUidContext.Provider>
     </SafeAreaProvider>
     </KeyboardProvider>
     {/* 로딩 오버레이는 KeyboardProvider 밖(GestureHandlerRootView 직속)에 둔다 — 안에 두면 keyboard-controller가
