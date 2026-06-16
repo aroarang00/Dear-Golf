@@ -827,7 +827,7 @@ export function HomeScreen({ navigation, route }) {
         moment={scheduleShareTarget ? { ...scheduleShareTarget, shareKind: 'schedule' } : null}
         visible={!!scheduleShareTarget}
         onClose={() => setScheduleShareTarget(null)}
-        onShareLink={() => { shareScheduleText(scheduleShareTarget); setScheduleShareTarget(null); }}
+        onShareLink={() => { const t = scheduleShareTarget; setScheduleShareTarget(null); setTimeout(() => shareScheduleText(t), 350); }}
       />
 
       {/* 예정 라운딩 목록 — 라벨 위쪽 팝업 (카드 5개를 넘는 일정도 한눈에) */}

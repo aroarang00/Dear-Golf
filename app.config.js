@@ -36,6 +36,10 @@ module.exports = {
       associatedDomains: ['applinks:deargolf.app'],
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        // 카카오 SDK가 카카오톡 앱을 열려면(공유 shareFeedTemplate·로그인) 이 스킴들을 조회 허용해야 함.
+        //   누락 시 iOS에서 canOpenURL(kakaotalk://)이 false → 카톡 앱 못 열고 웹 폴백(빈 화면)으로 떨어짐.
+        //   (@react-native-kakao/core가 자동 추가 안 해 수동 등록 — 2026-06-16 iOS 첫 빌드서 빈 화면 확인) ([[kakao-friend-api-design]])
+        LSApplicationQueriesSchemes: ['kakaokompassauth', 'kakaolink', 'kakaoplus', 'kakaotalk', 'kakaostory'],
       },
     },
     android: {

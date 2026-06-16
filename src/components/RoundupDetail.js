@@ -848,7 +848,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             visible={shareCardOpen}
             onClose={() => setShareCardOpen(false)}
             onShareKakao={(imageUrl) => { shareRoundupKakao(post, imageUrl); setShareCardOpen(false); }}
-            onShareLink={() => { shareRoundup(post); setShareCardOpen(false); }}
+            onShareLink={() => { setShareCardOpen(false); setTimeout(() => shareRoundup(post), 350); }}
           />
         </SafeAreaView>
       </SafeAreaProvider>

@@ -83,7 +83,7 @@ export function FriendsScreen({ navigation }) {
         moment={inviteOpen ? { shareKind: 'invite' } : null}
         visible={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        onShareLink={() => { shareInvite(); setInviteOpen(false); }}
+        onShareLink={() => { setInviteOpen(false); setTimeout(() => shareInvite(), 350); }}
       />
     </SafeAreaView>
   );
