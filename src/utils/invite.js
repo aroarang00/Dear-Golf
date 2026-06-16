@@ -58,12 +58,14 @@ export async function shareRoundupKakao(post, imageUrl) {
   const desc = post.type === 'fixed'
     ? `${post.course || ''}\n${dateTime}`
     : '장소·날짜는 동반자와 함께 정해요';
-  // 앱 실행 파라미터 — 앱 설치 시 카카오톡이 인앱 브라우저(webUrl) 대신 앱을 직접 연다.
-  //   카카오 피드 카드 링크는 카톡 인앱 브라우저 경유라 안드 App Links를 우회(클릭 무반응)하던 문제 해결.
-  //   카카오톡이 앱을 `{스킴}://kakaolink?postId=&h=`로 실행 → App.js Linking 수신 → parseDeepLink가 postId 추출. ([[invite-deeplink-system]])
+  // 앱 실행 파라미터 — 안드만 사용. 카카오톡이 앱을 `kakao{앱키}://kakaolink?postId=&h=`로 직접 실행
+  //   → MainActivity 인텐트필터(app.config forwardKakaoLinkIntentFilterToMainActivity) 수신
+  //   → RN Linking → App.js parseDeepLink(postId 추출) → 라운지 상세. 인텐트필터 없으면 무반응이었음(2026-06-16 수정).
+  //   ※ iOS는 execParams 제외 — 카톡 iOS execParams 핸드오프가 불안정('여러번 터치·멈춤')이라
+  //     associatedDomains(Universal Link)로 webUrl이 앱을 열게 둔다(카드는 r.html 폴백). ([[invite-deeplink-system]])
   const execParams = { postId: String(post.id) };
   if (post.authorUid) execParams.h = String(post.authorUid);
-  const link = { webUrl: url, mobileWebUrl: url, androidExecutionParams: execParams, iosExecutionParams: execParams };
+  const link = { webUrl: url, mobileWebUrl: url, androidExecutionParams: execParams };
   const content = {
     title: isInvite ? '💌 라운딩에 초대합니다' : '🏌️ 라운딩 동반자 모집',
     description: desc,

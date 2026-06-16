@@ -151,6 +151,10 @@ module.exports = {
           // AuthCodeHandlerActivity 등록. 없으면 동의 후 '계속하기'에서 콜백 유실 → 멈춤. ([[kakao-friend-api-design]])
           android: {
             authCodeHandlerActivity: true,
+            // 카카오 공유 카드의 실행 파라미터(androidExecutionParams)를 받는 kakao{key}://kakaolink
+            //   인텐트 필터를 MainActivity에 추가. 없으면 카톡에서 카드 링크 탭 시 받을 핸들러가 없어 무반응.
+            //   수신 → RN Linking → App.js parseDeepLink(postId 추출) → 라운지 상세. ([[invite-deeplink-system]])
+            forwardKakaoLinkIntentFilterToMainActivity: true,
           },
         },
       ],
