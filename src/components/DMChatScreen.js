@@ -9,6 +9,7 @@ import { C, F, fs } from '../constants/colors';
 import { getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
+import { LinkText } from './common/LinkText';
 import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -489,7 +490,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 </View>
               )}
               {/* 본문 fs(17)·미디엄 — 가독성([[avoid-small-text]]). 얇아 보인다는 피드백으로 F.sys→F.sysM. 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX }}>{item.body}</Text>
+              <LinkText style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX }}
+                linkColor={mine ? '#13518F' : '#0E4C94'}>{item.body}</LinkText>
             </TouchableOpacity>
             {/* 공감 표시 — 인스타식 말풍선 하단 안쪽 모서리에 살짝 겹친 알약 */}
             {(() => {

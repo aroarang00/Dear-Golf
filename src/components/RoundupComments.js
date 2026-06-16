@@ -8,6 +8,7 @@ import { createContentReport } from '../utils/contentReports';
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { anonNick } from '../utils/anonNick';
 import { friendDisplayName } from '../utils/friendGroups';
+import { LinkText } from './common/LinkText';
 
 // 댓글 작성자 표시 이름 — 익명 참여자면 랜덤닉(호스트는 nameMap으로 실명). 현재 anonymousUids 기준이라
 //   '나중에 익명 토글'한 경우도 옛 댓글까지 가려진다 ([[roundup-anonymous-participation]]).
@@ -52,7 +53,7 @@ function CommentRow({ comment, onPress, authorName }) {
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>· {dateLabel}</Text>
       </View>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>{comment.body}</Text>
+      <LinkText style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, lineHeight: 19 }}>{comment.body}</LinkText>
     </TouchableOpacity>
   );
 }
