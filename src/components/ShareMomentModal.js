@@ -129,7 +129,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
       const target = isRoundup ? wideCardRef : (isRound ? roundRefs.current[roundStyleIdx] : cardRef);
       const uri = await captureRef(target, { format: 'png', quality: 1, pixelRatio: 3 });
       const uid = await getUid();
-      const imageUrl = await uploadShareCardImage(uid, uri); // 실패 시 null
+      const imageUrl = await uploadShareCardImage(uid, uri, moment?.id); // 실패 시 null. moment.id로 결정적 경로 → 재공유 시 덮어써 누적 방지
       onShareKakao(imageUrl || undefined);
     } catch (e) {
       if (e?.message && !/cancel/i.test(e.message)) {
