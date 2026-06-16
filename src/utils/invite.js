@@ -58,18 +58,24 @@ export async function shareRoundupKakao(post, imageUrl) {
   const desc = post.type === 'fixed'
     ? `${post.course || ''}\n${dateTime}`
     : '장소·날짜는 동반자와 함께 정해요';
+  // 앱 실행 파라미터 — 앱 설치 시 카카오톡이 인앱 브라우저(webUrl) 대신 앱을 직접 연다.
+  //   카카오 피드 카드 링크는 카톡 인앱 브라우저 경유라 안드 App Links를 우회(클릭 무반응)하던 문제 해결.
+  //   카카오톡이 앱을 `{스킴}://kakaolink?postId=&h=`로 실행 → App.js Linking 수신 → parseDeepLink가 postId 추출. ([[invite-deeplink-system]])
+  const execParams = { postId: String(post.id) };
+  if (post.authorUid) execParams.h = String(post.authorUid);
+  const link = { webUrl: url, mobileWebUrl: url, androidExecutionParams: execParams, iosExecutionParams: execParams };
   const content = {
     title: isInvite ? '💌 라운딩에 초대합니다' : '🏌️ 라운딩 동반자 모집',
     description: desc,
     imageUrl: imageUrl || 'https://deargolf.app/hero-invite.jpg', // 폴백도 워터마크 버전(브랜딩 유지)
-    link: { webUrl: url, mobileWebUrl: url },
+    link,
   };
   try {
     await shareFeedTemplate({
       template: {
         content,
         buttons: [
-          { title: isInvite ? '초대 확인하기' : '모집 보기', link: { webUrl: url, mobileWebUrl: url } },
+          { title: isInvite ? '초대 확인하기' : '모집 보기', link },
         ],
       },
       useWebBrowserIfKakaoTalkNotAvailable: true,

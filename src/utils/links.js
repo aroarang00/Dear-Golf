@@ -18,8 +18,15 @@ export function buildRoundupUrl(postId, hostUid) {
 //   반환: { type:'roundup', postId, hostUid|null } | null  (매칭 안 되면 null → 호출측에서 무시)
 export function parseDeepLink(url) {
   if (!url || typeof url !== 'string') return null;
+  // 1) 경로형 — https://deargolf.app/r/{id} · deargolf://r/{id} (웹/스킴 딥링크, App Links)
   const m = url.match(/(?:deargolf\.app\/|deargolf:\/+)r\/([^/?#]+)/i);
-  if (!(m && m[1])) return null;
+  let postId = m && m[1] ? decodeURIComponent(m[1]) : null;
+  // 2) 카카오 execParams형 — {스킴}://kakaolink?postId={id}&h={host} (카드 링크가 앱 직접 실행 시)
+  if (!postId) {
+    const pm = url.match(/[?&]postId=([^&#]+)/);
+    if (pm) postId = decodeURIComponent(pm[1]);
+  }
+  if (!postId) return null;
   const hm = url.match(/[?&]h=([^&#]+)/);
-  return { type: 'roundup', postId: decodeURIComponent(m[1]), hostUid: hm ? decodeURIComponent(hm[1]) : null };
+  return { type: 'roundup', postId, hostUid: hm ? decodeURIComponent(hm[1]) : null };
 }
