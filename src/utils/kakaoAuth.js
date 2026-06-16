@@ -4,6 +4,8 @@ import { getFriends } from '@react-native-kakao/social';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { auth, authReady } from './firebase';
 import { storage, STORAGE_KEYS } from './storage';
+import { ensureUserDoc } from './userDoc';
+import { checkBannedByKakaoSub } from './account';
 
 // 카카오 네이티브 SDK 초기화 — 모듈 로드 시 1회. nativeAppKey는 .env/EAS env에서 주입(app.config.js 플러그인과 동일 키).
 initializeKakaoSDK(process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY);
@@ -105,6 +107,28 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
     console.warn('[kakao-firebase] link 실패', e?.code || e?.message);
     return { ok: false, error: e?.code || e?.message || 'link-failed' };
   }
+}
+
+// 앱 내 카카오 연동 — 익명 사용자가 소셜 액션(친구·라운지) 진입 시 게이트에서 호출하는 공용 흐름.
+//   login → 정지계정 차단 → Firebase 연동(link 또는 sign-in) → users 문서 보장.
+//   KakaoReconnectBanner.handleReconnect의 4단계를 공용화 — 소셜 게이트 진입점들이 재사용([[anonymous-user-policy]]).
+//   반환: { ok:true, uid, mode, nickname } | { ok:false, banned?:true } | { ok:false, error }
+export async function connectKakaoAccount() {
+  const result = await loginWithKakao();
+  if (!result || result.ok === false) return { ok: false, error: result?.error || 'login-failed' };
+  // 정지 계정 차단 ([[account-deletion]]) — 재설치로 우회 못 하도록 kakaoSub 기준
+  if (result.kakaoId) {
+    const ban = await checkBannedByKakaoSub(result.kakaoId);
+    if (ban.banned) return { ok: false, banned: true };
+  }
+  const link = await linkOrSignInWithKakao(result.idToken);
+  if (!link.ok) return { ok: false, error: link.error };
+  await ensureUserDoc(link.uid, {
+    kakaoId: result.kakaoId,
+    nickname: result.nickname,
+    profileImageUrl: result.profileImageUrl,
+  });
+  return { ok: true, uid: link.uid, mode: link.mode, nickname: result.nickname };
 }
 
 // 카카오 친구 목록 — '앱 사용 친구(=Dear Golf 가입자)'만 반환.

@@ -26,6 +26,7 @@ import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
 import { blockUid as fsBlockUid, loadMyFriends, unfriend, sendFriendRequest, isFriend } from '../utils/friends';
+import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
@@ -724,6 +725,24 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       setAlert({ title: '친구 신청 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
     }
   };
+  // 익명(카카오 미연동) 사용자가 소셜 액션 → 카카오 연동 게이트([[anonymous-user-policy]]).
+  //   친구·라운지는 안정적 신원(카카오 sub) 전제(매너·노쇼 패널티 우회 차단)라, 연동 전엔 친구신청을 막고 연동을 유도한다.
+  //   영구 차단이 아니라 연동하면 바로 이어서 신청. 앱 미설치자(스토어 다운로드)와 다른 층위 — 이 사람은 이미 앱 안.
+  const gateSocialThenSend = (hostUid, hostName) => {
+    setAlert({
+      title: '카카오 연동이 필요해요',
+      message: '친구·라운지는 카카오 연동 후\n이용할 수 있어요.\n연동하면 바로 친구 신청을 보낼게요.',
+      buttons: [
+        { text: '닫기', style: 'cancel' },
+        { text: '카카오 연동하기', onPress: async () => {
+            const r = await connectKakaoAccount();
+            if (r?.banned) { setAlert({ title: '이용이 제한된 계정이에요', message: '이 카카오 계정은\nDear Golf 이용이 제한되었어요.', buttons: [{ text: '확인' }] }); return; }
+            if (!r?.ok) { setAlert({ title: '카카오 연동 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] }); return; }
+            doSendHostFriendReq(hostUid, hostName); // 연동 완료 → sendFriendRequest는 getUid()로 새 uid 사용
+          } },
+      ],
+    });
+  };
   const promptFriendGate = async (hostUid) => {
     if (!hostUid || hostUid === myUid) return;
     try { if (await isFriend(hostUid)) return; } catch (e) { /* 조회 실패 시 안내는 띄움 */ }
@@ -737,7 +756,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       message: `${hostName}님의 친구 공개 모집이에요.\n주최자와 친구를 맺으면\n모집을 보고 참여할 수 있어요.`,
       buttons: [
         { text: '닫기', style: 'cancel' },
-        { text: '친구 추가', onPress: () => doSendHostFriendReq(hostUid, hostName) },
+        { text: '친구 추가', onPress: () => {
+            // 익명이면 anon uid로 친구신청되지 않도록 카카오 연동 게이트로([[anonymous-user-policy]])
+            if (auth.currentUser?.isAnonymous) gateSocialThenSend(hostUid, hostName);
+            else doSendHostFriendReq(hostUid, hostName);
+          } },
       ],
     });
   };
