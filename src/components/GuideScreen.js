@@ -1201,8 +1201,8 @@ export function GuideScreen({ route, navigation }) {
                     flexDirection: 'row', gap: 8,
                   }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.charcoal }}>⛳ 골프장</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.charcoal }}>🟠 추천 맛집</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.charcoal }}>🟡 저장 맛집</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.charcoal }}>📍 추천 맛집</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.charcoal }}>⭐ 저장 맛집</Text>
                   </View>
                   {/* 우하단 네이버 지도 앱 열기 — 해당 골프장 위치 기준 */}
                   <TouchableOpacity

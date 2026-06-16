@@ -75,8 +75,10 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           description={`추천 맛집${Number.isFinite(r.distance) ? ` · ${Math.round(r.distance)}m` : ''} · 탭하면 지도에서 보기`}
           onCalloutPress={() => onMarkerPress?.(r)}
           tracksViewChanges={tracksMarkers}
+          anchor={{ x: 0.5, y: 1 }}
         >
-          <View style={[st.pin, st.recPin]}><Text style={st.pinTxt}>📍</Text></View>
+          {/* 동그라미 없이 핀 모양만 — 앵커 바닥=좌표에 핀 끝 (사용자 2026-06-16) */}
+          <Text style={st.mapPin}>📍</Text>
         </Marker>
       ))}
 
@@ -90,7 +92,8 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           onCalloutPress={() => onMarkerPress?.(sv)}
           tracksViewChanges={tracksMarkers}
         >
-          <View style={[st.pin, st.savedPin]}><Text style={st.pinTxt}>⭐</Text></View>
+          {/* 동그라미 없이 별표만 (사용자 2026-06-16) */}
+          <Text style={st.mapStar}>⭐</Text>
         </Marker>
       ))}
     </MapView>
@@ -104,9 +107,9 @@ const st = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#fff',
   },
   coursePin: { backgroundColor: '#6B1E2A', width: 34, height: 34, borderRadius: 17 }, // 골프장 버건디(정적지도 핀 색 유지)
-  recPin: { backgroundColor: '#FF7A00' },   // 추천 주황
-  savedPin: { backgroundColor: '#FFCC00' }, // 저장 노랑
   pinTxt: { fontSize: 14 },
+  mapPin: { fontSize: 34 },    // 추천 맛집 — 동그라미 없이 핀 이모지
+  mapStar: { fontSize: 30 },   // 저장 맛집 — 동그라미 없이 별표
   // 안드 키 없을 때 폴백 — 의도된 안내 화면(빈 회색 박스 방지)
   fallback: {
     width: '100%',

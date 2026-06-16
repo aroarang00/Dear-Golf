@@ -216,6 +216,8 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   //  · 글만 일상 = 무사진 라운딩 카드와 높이 맞춤: 날짜+글 붙이고 더보기는 날짜 옆(인라인)
   if (item.kind === 'moment') {
     const momentTextStyle = { fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21 };
+    // 글만 일상 — 사진이 없어 본문이 주인공이라 더 크게 (사용자 2026-06-16)
+    const momentTextOnlyStyle = { fontFamily: F.sys, fontSize: fs(16), color: C.textPrimary, lineHeight: 24 };
     // 일상 구분 — 흰 바탕(라운딩 기록과 통일). 라운딩은 '왼쪽' 띠, 일상은 '오른쪽' 띠 → 자리로 구분(색 절제, 빈티지 인상 제거).
     const momentCard = [dS.card, { borderRightWidth: 3, borderRightColor: C.paleSky }];
     if (hasPhoto) {
@@ -244,7 +246,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           <View style={momentCard}>
             {photoEl(false)}
             {/* 날짜·더보기·좋아요 한 줄 — 별도 좋아요 줄 제거(라운딩 사진카드와 통일, 카드 안 길어지게) ([[friend_feed_design]]) */}
-            <View style={[dS.toggleBtn, { flexDirection: 'row',
+            <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
               alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
               <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
               {item.memo ? (
@@ -269,7 +271,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
           {photoEl(false)}
           {/* 날짜·더보기·좋아요 한 줄 — 친구 일상 사진카드와 동일(좋아요를 바 안 우측으로). '한 줄 아래' 해소. 더보기는 좌측이라 FAB와 안 겹침 */}
-          <View style={[dS.toggleBtn, { flexDirection: 'row',
+          <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
             alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
             <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
             {item.memo ? (
@@ -294,7 +296,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     // 글만 일상 — 날짜+글 붙이고 더보기 인라인(날짜 옆). 무사진 라운딩 카드와 높이 통일.
     const textBody = (
       <View style={dS.cardBody}>
-        <ExpandableMemo text={item.memo} style={momentTextStyle} lines={5}
+        <ExpandableMemo text={item.memo} style={momentTextOnlyStyle} lines={5}
           dateNode={<Text style={dS.cardDate}>{item.date} {item.day}</Text>}
           rightNode={!isFriend ? ownerLabelTopRight : null} />
         {!isFriend && mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
