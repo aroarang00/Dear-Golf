@@ -215,7 +215,10 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   //  · 사진 일상 = 라운딩 사진카드와 동일: 사진(날짜 오버레이) + 더보기 토글 + 펼침(글)
   //  · 글만 일상 = 무사진 라운딩 카드와 높이 맞춤: 날짜+글 붙이고 더보기는 날짜 옆(인라인)
   if (item.kind === 'moment') {
-    const momentTextStyle = { fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary, lineHeight: 21 };
+    const momentTextStyle = { fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 23 };
+    // 사진 일상 카드의 하단 날짜 — 기존 dS.cardDate(fs10·warmGray)가 너무 작고 흐려 가독성↑(사용자 2026-06-17).
+    //   '더보기/기록보기' 토글(dS.toggleBtnTxt)은 그대로 유지.
+    const momentDateStyle = { fontFamily: F.sysM, fontSize: fs(12.5), color: C.textSecondary };
     // 글만 일상 — 사진이 없어 본문이 주인공이라 더 크게 (사용자 2026-06-16)
     const momentTextOnlyStyle = { fontFamily: F.sys, fontSize: fs(16), color: C.textPrimary, lineHeight: 24 };
     // 일상 구분 — 흰 바탕(라운딩 기록과 통일). 라운딩은 '왼쪽' 띠, 일상은 '오른쪽' 띠 → 자리로 구분(색 절제, 빈티지 인상 제거).
@@ -248,7 +251,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
             {/* 날짜·더보기·좋아요 한 줄 — 별도 좋아요 줄 제거(라운딩 사진카드와 통일, 카드 안 길어지게) ([[friend_feed_design]]) */}
             <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
               alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
-              <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
+              <Text style={momentDateStyle}>{item.date} {item.day}</Text>
               {item.memo ? (
                 <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
@@ -273,7 +276,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           {/* 날짜·더보기·좋아요 한 줄 — 친구 일상 사진카드와 동일(좋아요를 바 안 우측으로). '한 줄 아래' 해소. 더보기는 좌측이라 FAB와 안 겹침 */}
           <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
             alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
-            <Text style={[dS.cardDate, { marginBottom: 0 }]}>{item.date} {item.day}</Text>
+            <Text style={momentDateStyle}>{item.date} {item.day}</Text>
             {item.memo ? (
               <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
