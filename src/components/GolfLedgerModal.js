@@ -25,8 +25,6 @@ const bucketsOf = (cost = {}) => {
 
 // 순수 지출 = 저장된 total에서 내기(부호)를 뺀 값. total은 지출+betSigned로 저장돼 있어 total−bet=지출. (마이그레이션 불필요)
 const spendOf = (d) => ((d?.cost?.total || 0) - (d?.cost?.bet || 0));
-// 내기 순손익(이득=양수) = −Σbet. bet 음수=땄음이라 부호 뒤집어 양수가 '딴 돈'.
-const netBetOf = (list) => -(list || []).reduce((s, d) => s + (d?.cost?.bet || 0), 0);
 
 const won = (n) => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const monthLabel = (m) => {
@@ -64,7 +62,6 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
   // 지출 평균은 '지출이 있는' 라운딩 기준(내기만 있는 0원 라운딩은 평균 왜곡 방지로 제외)
   const yearSpendRounds = yearRounds.filter(d => spendOf(d) > 0);
   const yearAvg = yearSpendRounds.length ? Math.round(yearTotal / yearSpendRounds.length) : 0;
-  const yearNetBet = netBetOf(yearRounds); // 올해 내기 순손익(양수=딴 돈)
 
   const cards = [
     { label: '이번달', list: byMonth[thisMonthKey] || [] },
@@ -126,16 +123,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>
                   {yearSpendRounds.length}라운딩 · 라운딩당 평균 {won(yearAvg)}원
                 </Text>
-                {/* 내기 정산 — 총 지출과 별도 칸(테스터 요청). 올해 내기 입력이 있을 때만 노출 */}
-                {yearRounds.some(d => d.cost.bet) && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: 'rgba(201,168,76,0.35)' }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: GOLD_DEEP, letterSpacing: 0.5 }}>올해 내기 정산</Text>
-                    <View style={{ flex: 1 }} />
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: yearNetBet >= 0 ? WIN : LOSS }}>
-                      {yearNetBet >= 0 ? '+' : '−'}{won(Math.abs(yearNetBet))}원
-                    </Text>
-                  </View>
-                )}
+                {/* ★올해 내기 정산(net 합계)은 제거 — 내기는 합계 미포함 + 라운딩별 개별 손익만 표시(사용자 2026-06-17) */}
                 {/* 브랜드 삼색 미니바 — 하단 시그니처 */}
                 <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', height: 3 }}>
                   {MS.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
@@ -241,10 +229,10 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
 
               <View style={{ height: 1, backgroundColor: C.hairline, marginVertical: 14 }} />
 
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoalDeep }}>내기는 따로 정산해요</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoalDeep }}>내기는 따로 표시해요</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 19 }}>
                 내기는 쓴 돈이 아니라 손익이라{'\n'}총 지출에는 넣지 않아요.{'\n'}
-                딴 날은 <Text style={{ fontFamily: F.sysB, color: WIN }}>+</Text>, 잃은 날은 <Text style={{ fontFamily: F.sysB, color: LOSS }}>−</Text>로{'\n'}'내기 정산'에 따로 모아 보여줘요.
+                라운딩마다 딴 날은 <Text style={{ fontFamily: F.sysB, color: WIN }}>+</Text>, 잃은 날은 <Text style={{ fontFamily: F.sysB, color: LOSS }}>−</Text>로{'\n'}그 라운딩에만 따로 보여줘요.
               </Text>
             </View>
             <TouchableOpacity onPress={() => setInfoOpen(false)} activeOpacity={0.7}
