@@ -167,6 +167,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         selectionLimit: remaining,
         quality: 0.8,
         videoMaxDuration: MAX_VIDEO_SEC, // iOS는 선택 단계에서 제한 (안드는 아래 duration 재검증)
+        // iOS 영상 export 720p — AVFoundation이 faststart(moov 앞으로)로 내보내 재생이 즉시 시작되고 용량도 크게↓.
+        //   ★iOS 전용 효과(안드는 picker가 변환 안 해 무시) → 안드 faststart는 업로드 Cloud Function 리먹스로 다음 빌드 처리. [[video-playback-faststart]]
+        videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
       });
       if (!result.canceled) {
       // 길이 초과 영상 제외 — duration은 ms. 안드는 videoMaxDuration이 안 먹을 수 있어 여기서 한 번 더 거른다.

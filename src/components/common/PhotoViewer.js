@@ -251,9 +251,13 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
   const curAr = isVideo ? (curPosterUri ? arMap[curPosterUri] : null) : (curUri ? arMap[curUri] : null);
   // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 영상=VIDEO_H, 사진=4:5 폴백.
   const VIDEO_H = Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8));
+  // 캡션 보일 땐 영상도 availMax(화면 절반)로 cap — 비율 측정 전/포스터 없는 영상이 VIDEO_H(화면 80%)로
+  //   잡혀 글을 밀어내던 문제 해소. 순수 보기(캡션 숨김)에선 영상은 크게(VIDEO_H) 유지. (사용자 2026-06-16)
   const mediaH = curAr
     ? Math.min(availMax, Math.round(SW / curAr))
-    : (isVideo ? VIDEO_H : Math.min(availMax, Math.round(SW * 1.25)));
+    : (isVideo
+        ? (captionShown ? Math.min(availMax, Math.round(SW * 1.25)) : VIDEO_H)
+        : Math.min(availMax, Math.round(SW * 1.25)));
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -269,9 +273,10 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
           </Text>
         </View>
-        {/* 캡션 표시 중엔 사진을 위(카운터 아래)로 올려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백 해소).
-            캡션 숨김(탭)·순수 사진 보기는 가운데 정렬 유지. */}
-        {captionShown && !zoomed && !isVideo ? <View style={{ height: 92 }} /> : null}
+        {/* 캡션 표시 중엔 미디어를 카운터 아래로 내려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백 해소).
+            ★영상도 동일 적용 — !isVideo면 영상만 스페이서가 빠져 화면 맨 위로 과하게 붙던 버그(사용자 2026-06-16).
+            캡션 숨김(탭)·순수 보기는 가운데 정렬 유지. */}
+        {captionShown && !zoomed ? <View style={{ height: 92 }} /> : null}
         {/* 확대(zoomed) 중엔 박스를 풀스크린(SH)으로 펼쳐 화면 전체에서 확대되게 — 평상시엔 사진 비율 높이(mediaH, 검은여백·캡션 잘림 해소). */}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0, height: zoomed ? SH : mediaH }}

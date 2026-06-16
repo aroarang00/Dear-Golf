@@ -12,12 +12,9 @@ import { RoundCardScorecard } from './RoundCardScorecard';
 import { RoundCardMemory } from './RoundCardMemory';
 import { RoundCardPolaroid } from './RoundCardPolaroid';
 import { RoundupShareCard } from './RoundupShareCard';
-import { RoundupShareCardWide } from './RoundupShareCardWide';
 import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
-import { uploadShareCardImage } from '../utils/roundMedia';
-import { getUid } from '../utils/firebase';
 
 // 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
 // 달라져, 같은 카드도 좁은 폰에선 라벨이 서로 붙는 등 레이아웃이 어긋났음(앱의 얼굴인 공유 이미지 완성도 문제, 2026-06-14).
@@ -31,18 +28,18 @@ const CARD_WIDTH = 320;
 const ROUND_CARDS = [RoundCard, RoundCardScorecard, RoundCardMemory, RoundCardPolaroid];
 const ROUND_NAMES = ['매거진', '스코어카드', '기념', '폴라로이드'];
 
+// 버튼별 색으로 역할을 구분 — 공유하기(차콜·이미지 전송) / 이미지 저장(버터·로컬 보관). 링크 버튼은 아래 별도(네이비).
 const OPTIONS = [
-  { key: 'share', icon: '📤', label: '공유하기', primary: true },
-  { key: 'save', icon: '🖼', label: '이미지 저장' },
+  { key: 'share', icon: '📤', label: '공유하기', bg: C.charcoal, fg: '#fff', border: false },
+  { key: 'save', icon: '🖼', label: '이미지 저장', bg: C.butter, fg: C.charcoal, border: false },
 ];
 
 // 특별한 순간 공유 — 카드 미리보기(워터마크 포함) + 갤러리 저장.
-export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShareKakao }) {
+export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const [alert, setAlert] = useState(null);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef(null);
-  const wideCardRef = useRef(null);                      // 카카오 전송용 가로(2:1) 카드 — 화면 밖 렌더, 카카오 공유 시만 캡처
   const roundRefs = useRef([]);                          // 라운딩 카드 4종 캐러셀 — 각 ViewShot ref
   const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 기념/3 폴라로이드)
   const isRound = moment?.shareKind === 'round';
@@ -119,27 +116,6 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
     }
   };
 
-  // 카카오 공유 — 실제 카드를 캡처·업로드해서 그 URL로 카카오 피드카드를 보낸다(고정 hero.jpg 대신 진짜 초대장).
-  //   업로드 실패하면 url 없이 진행 → invite.js가 hero.jpg 폴백. onShareKakao(imageUrl)로 전달.
-  const handleShareKakao = async () => {
-    if (!onShareKakao || sharing || saving) return;
-    setSharing(true);
-    try {
-      // 카카오는 가로(2:1) 카드로 — 세로 카드는 카카오 피드에서 하단이 짤리므로. 그 외(일정·초대)는 기존 카드.
-      const target = isRoundup ? wideCardRef : (isRound ? roundRefs.current[roundStyleIdx] : cardRef);
-      const uri = await captureRef(target, { format: 'png', quality: 1, pixelRatio: 3 });
-      const uid = await getUid();
-      const imageUrl = await uploadShareCardImage(uid, uri, moment?.id); // 실패 시 null. moment.id로 결정적 경로 → 재공유 시 덮어써 누적 방지
-      onShareKakao(imageUrl || undefined);
-    } catch (e) {
-      if (e?.message && !/cancel/i.test(e.message)) {
-        setAlert({ title: '공유에 실패했어요', message: e.message, buttons: [{ text: '확인' }] });
-      }
-    } finally {
-      setSharing(false);
-    }
-  };
-
   const handleOption = (key) => {
     if (key === 'share') handleShare();
     else if (key === 'save') handleSave();
@@ -203,37 +179,17 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
                 </View>
               </ViewShot>
             )}
-            {/* 카카오 전송용 가로(2:1) 카드 — 카카오 피드가 세로 카드 하단을 잘라서 가로 전용.
-                온스크린 렌더라야 캡처가 안정적(off-screen 캡처는 안드에서 깨짐). 미리보기 겸 캡처 대상 ([[invite-deeplink-system]]) */}
-            {isRoundup ? (
-              <View style={{ alignItems: 'center', marginTop: 16 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: C.warmGray, letterSpacing: 1, marginBottom: 7 }}>카카오톡 공유 카드</Text>
-                <ViewShot ref={wideCardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
-                  <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
-                    <RoundupShareCardWide post={moment} width={CARD_WIDTH} />
-                  </View>
-                </ViewShot>
-              </View>
-            ) : null}
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8, lineHeight: 17, textAlign: 'center' }}>
               {(isRoundup || isSchedule || isInvite) && onShareLink
-                ? '카드 이미지로 공유돼요.\n클릭 가능한 링크는 ‘링크와 함께 공유’를 눌러주세요.'
+                ? '‘공유하기’는 카드 이미지만 전송돼요(링크 없음).\n받는 분이 바로 열어볼 수 있게 ‘링크와 함께 공유’로 보내주세요.'
                 : (isRoundup || isSchedule || isInvite || isRound)
                   ? '카드 이미지로 공유돼요.\nDear Golf 마크가 들어가요.'
                   : '투명 배경 PNG로 저장돼요.\n카드에 Dear Golf 마크가 들어가요.'}
             </Text>
 
-            {/* 공유 옵션 */}
+            {/* 공유 옵션 — 버튼별 색으로 역할 구분: 공유하기(차콜·이미지만) / 이미지 저장(버터·보관) / 링크와 함께 공유(네이비·연결).
+                카카오톡 공유는 딥링크 미연동으로 철회 보류([[invite-deeplink-system]], 사용자 2026-06-16). */}
             <View style={{ gap: 10, marginTop: 22 }}>
-              {/* 카카오톡 — 이미지+버튼 피드 카드(버튼이 클릭되는 딥링크). 모집/초대 공유 1순위. 카카오 노란 버튼 */}
-              {onShareKakao && (
-                <TouchableOpacity activeOpacity={0.85} onPress={handleShareKakao} disabled={sharing || saving}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    backgroundColor: '#FEE500', borderRadius: 12, paddingVertical: 14, opacity: (sharing || saving) ? 0.5 : 1 }}>
-                  <Text style={{ fontSize: fs(16) }}>💬</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C1E1E' }}>{sharing ? '카드 준비 중…' : '카카오톡으로 공유'}</Text>
-                </TouchableOpacity>
-              )}
               {OPTIONS.map(o => {
                 const busy = o.key === 'share' ? sharing : saving;
                 const disabled = sharing || saving;
@@ -242,26 +198,26 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink, onShar
                     onPress={() => handleOption(o.key)}
                     disabled={disabled}
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      backgroundColor: o.primary ? C.charcoal : C.bgSecondary, borderRadius: 12, paddingVertical: 14,
-                      borderWidth: o.primary ? 0 : 1, borderColor: C.hairline,
+                      backgroundColor: o.bg, borderRadius: 12, paddingVertical: 14,
+                      borderWidth: o.border ? 1 : 0, borderColor: C.hairline,
                       opacity: disabled ? 0.5 : 1 }}>
                     <Text style={{ fontSize: fs(16) }}>{o.icon}</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: o.primary ? '#fff' : C.charcoal }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: o.fg }}>
                       {busy ? (o.key === 'share' ? '공유 준비 중...' : '저장 중...') : o.label}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-              {/* 모집 — 클릭 가능한 설치 링크가 담긴 평문 공유(설치 유도 funnel 보존) */}
+              {/* 링크와 함께 공유 — 클릭 가능한 링크 포함 평문 공유(받는 분이 바로 열람·설치 funnel). 네이비로 강조 */}
               {onShareLink && (
                 <TouchableOpacity activeOpacity={0.85}
                   onPress={() => { onShareLink(); }}
                   disabled={sharing || saving}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    backgroundColor: C.bgSecondary, borderRadius: 12, paddingVertical: 14,
-                    borderWidth: 1, borderColor: C.hairline, opacity: (sharing || saving) ? 0.5 : 1 }}>
+                    backgroundColor: C.navy, borderRadius: 12, paddingVertical: 14,
+                    opacity: (sharing || saving) ? 0.5 : 1 }}>
                   <Text style={{ fontSize: fs(16) }}>🔗</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>링크와 함께 공유</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>링크와 함께 공유</Text>
                 </TouchableOpacity>
               )}
             </View>
