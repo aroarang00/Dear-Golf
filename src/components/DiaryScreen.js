@@ -128,11 +128,12 @@ export function DiaryScreen({ route, navigation }) {
     });
     return unsub;
   }, [navigation, reloadDiaries, refreshFriendData]);
-  // 미기록 라운딩 — 지난 일정(오늘 포함) 중 라운딩 기록이 1:1로 배정되지 않은 것.
+  // 미기록 라운딩 — 지난 일정(오늘은 티오프+4h 경과분만) 중 라운딩 기록이 1:1로 배정되지 않은 것.
   //  · 같은 날 같은 구장 2건(36홀·더블)도 각각 일정-기록 1:1로 매칭(정책: 2건 따로 지원)
   //  · 기록의 scheduleId가 가리키던 일정이 삭제(dangling)됐어도 course+date로 다시 이어 '이미 기록인데 미기록으로 떠 중복 기록'을 방지
   const unrecordedRounds = React.useMemo(() => {
-    const t = new Date(); t.setHours(0, 0, 0, 0); const todayMid = t.getTime();
+    const t = new Date(); const now = t.getTime(); t.setHours(0, 0, 0, 0); const todayMid = t.getTime();
+    const ROUND_END_MS = 4 * 60 * 60 * 1000; // 티오프+4h = 라운딩 종료 기준(홈 종료카드와 동일, [[home-round-ended-threshold]])
     const existingIds = new Set((schedules || []).map(s => s.id));
     const usedRounds = new Set();        // 이미 어떤 일정에 배정된 기록 id (1:1 보장)
     const recordedSchedIds = new Set();  // 기록이 직접 연결된 일정 id
@@ -145,13 +146,20 @@ export function DiaryScreen({ route, navigation }) {
       }
     }
 
-    // 후보: 국내·지난(오늘 포함)·유효 날짜·아직 직접 연결 안 된 일정
+    // 후보: 국내·유효 날짜·아직 직접 연결 안 된 일정 중 — 지난 날짜는 항상, 오늘은 티오프+4h 경과분만.
+    //   (티오프 전·라운딩 중인 오늘 일정을 '기록하라' 권하지 않도록. 미래 날짜는 제외. 사용자 2026-06-17)
     const candidates = (schedules || []).filter(s => {
       if (s.overseas || !s.date) return false; // 해외는 해외 흐름에서 별도
+      if (recordedSchedIds.has(s.id)) return false;
       const [y, m, d] = s.date.split('.').map(Number);
       if (!y || !m || !d) return false;
       const sd = new Date(y, m - 1, d).getTime(); // 로컬 자정 — todayMid와 같은 기준(타임존 일치)
-      return sd <= todayMid && !recordedSchedIds.has(s.id);
+      if (sd < todayMid) return true;   // 지난 날짜 — 이미 끝남, 항상 표시
+      if (sd > todayMid) return false;  // 미래 날짜 — 아직 라운딩 전
+      // 오늘 날짜 — 티오프+4h(라운딩 종료 무렵) 지난 것만. time 없으면 08:00 기준(→정오 이후).
+      const [hh, mm] = (s.time || '08:00').split(':').map(Number);
+      const teeOff = new Date(y, m - 1, d, hh || 0, mm || 0).getTime();
+      return now >= teeOff + ROUND_END_MS;
     }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
     // 2차: 후보를 무연결/끊긴(dangling) 기록과 course+date로 1:1 매칭 — 매칭되면 기록된 것으로 간주
