@@ -21,6 +21,8 @@ import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils/scorecardOcr';
 import { ScorecardReviewModal } from './ScorecardReviewModal';
+import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
+import { getUid } from '../utils/firebase';
 import { CropEditorModal } from './common/CropEditorModal';
 import { PhotoEditModal } from './PhotoEditModal';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -148,6 +150,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [companions, setCompanions] = useState([]); // [{ name, friendUid? }] — 친구 선택 시 friendUid 보존([[companion-design]] Phase A)
   const [companionInput, setCompanionInput] = useState('');
   const [friends, setFriends] = useState([]);                 // 동반자 친구 선택 목록
+  const [shareScores, setShareScores] = useState(false);      // 동반자에게 스코어 공유(OCR 전체 행) opt-in ([[companion-design]] §11)
   const [showCompanionPicker, setShowCompanionPicker] = useState(false);
 
   const pickPhoto = async () => {
@@ -308,7 +311,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
     setPrivacy(['friends']);
-    setCompanions([]); setCompanionInput('');
+    setCompanions([]); setCompanionInput(''); setShareScores(false);
     setOverseas(false); setCountry('');
     setKind('round');
   };
@@ -535,6 +538,29 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       onSave('diary-edit', { id: initial.id, ...payload });
     } else {
       onSave('diary', payload);
+    }
+    // 동반자에게 스코어 공유 — OCR 전체 행(scRows)을 친구 동반자에게. 수신자가 자기 행 골라 본인 기록에 파생.
+    //   best-effort(fire-and-forget) — 라운딩 저장 자체는 위에서 끝났으므로 공유 실패가 저장을 막지 않음. ([[companion-design]] §11)
+    if (shareScores && Array.isArray(scRows) && scRows.length >= 2) {
+      const audienceUids = companions.filter(c => c.friendUid).map(c => c.friendUid);
+      if (audienceUids.length) {
+        (async () => {
+          try {
+            const uid = await getUid();
+            await createScoreShare({
+              authorUid: uid,
+              authorName: userProfile.nickname || userProfile.realName || '',
+              round: {
+                course: finalCourse, date: formatDate(date), day: formatDay(date),
+                courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
+                ...(initial?.scheduleId ? { scheduleId: initial.scheduleId } : {}),
+              },
+              rows: scRows,
+              audienceUids,
+            });
+          } catch (e) { if (__DEV__) console.warn('[scoreShare] create fail', e?.message); }
+        })();
+      }
     }
     reset(); onClose();
   };
@@ -786,6 +812,26 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     </Text>
                   )}
                 </View>
+              )}
+              {/* 동반자에게 스코어 공유 — OCR로 여러 명 행이 잡혔고(scRows≥2) 친구 동반자가 있을 때만.
+                  체크 시 저장하며 친구 동반자에게 카드 전송 → 각자 자기 행 골라 본인 기록에 추가 ([[companion-design]] §11) */}
+              {Array.isArray(scRows) && scRows.length >= 2 && companions.some(c => c.friendUid) && (
+                <TouchableOpacity onPress={() => setShareScores(s => !s)} activeOpacity={0.75}
+                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 10,
+                    backgroundColor: shareScores ? (C.burgundy + '0E') : C.bgSecondary, borderRadius: 11,
+                    borderWidth: 1, borderColor: shareScores ? C.burgundy : C.hairline, padding: 12 }}>
+                  <Text style={{ fontSize: fs(16), color: shareScores ? C.burgundy : C.warmGrayLight, marginTop: -1 }}>
+                    {shareScores ? '☑' : '☐'}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: shareScores ? C.burgundy : C.charcoal }}>
+                      동반자에게 스코어 공유
+                    </Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 16 }}>
+                      친구 동반자에게 이 스코어카드를 보내요.{'\n'}각자 자기 점수를 골라 본인 기록에 바로 추가할 수 있어요.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               )}
               <Text style={mS.bigLabel}>날씨</Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
