@@ -16,16 +16,7 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 import { useBlockUser } from '../hooks/useBlockUser';
 
 
-// ⚠️TEMP __DEV__ 키보드 미리보기 — 로그인·친구 없이 Metro에서 DM 키보드 레이아웃만 점검(가짜 대화방). 검증 후 제거.
-//   DMChatScreen에 devPreview prop을 주면 네트워크(uid·대화방·구독·전송) 전부 건너뛰고, 입력창/키보드만 실제 Modal 환경 그대로 테스트.
-const mockTs = (ms) => ({ toMillis: () => ms });
-const DEV_PREVIEW_MESSAGES = [
-  { id: 'dev1', senderUid: '__friend__', body: '키보드 테스트용 가짜 대화예요.', createdAt: mockTs(1700000000000) },
-  { id: 'dev2', senderUid: '__me__', body: '아래 입력창을 눌러 키보드를 올려보세요.', createdAt: mockTs(1700000600000) },
-  { id: 'dev3', senderUid: '__friend__', body: '입력창이 키보드 바로 위에 붙으면 정상이에요.', createdAt: mockTs(1700001200000) },
-];
-
-const WD = ['일', '월', '화', '수', '목', '금', '토'];
+const WD =['일', '월', '화', '수', '목', '금', '토'];
 // DM 다크 룸 + 브랜드 색 말풍선 (사용자 상세 스펙 2026-06-11 [[dm-design]]):
 //   다크 차콜 캔버스 위에 라이트 브랜드 말풍선 — 받은=페일스카이, 보낸=버터, 입력=크림. 헤더 포인트=버터/페일스카이.
 const DM_CANVAS   = '#2A2622';                 // 대화 배경 — 다크 '방' 바닥(라이트 말풍선이 또렷이 뜸)
@@ -192,7 +183,7 @@ function TypingDots() {
   );
 }
 
-function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions, devPreview = false }) {
+function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
   const insets = useSafeAreaInsets();
   const BAR_PAD = 8;  // 입력 바 내부 하단 숨틈(항상)
   // 닫힘 시 컨테이너 하단 패딩 — 합치면 옛 DM_BOTTOM_PAD(10+insets.bottom) 유지(닫힘 상태 픽셀 동일)
@@ -251,7 +242,6 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
 
   // 내 uid + 대화방 보장(메시지 0건이라도 방은 존재)
   useEffect(() => {
-    if (devPreview) { setMyUid('__me__'); setMessages(DEV_PREVIEW_MESSAGES); return; }  // ⚠️TEMP 키보드 미리보기 — 네트워크 건너뜀
     let alive = true;
     (async () => {
       try {
@@ -331,11 +321,6 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     const quote = replyTo;  // 전송 시점 인용 캡처 — 실패 시 함께 복구
     setReplyTo(null);
     stopTyping();  // 전송하면 입력 중 해제
-    if (devPreview) {  // ⚠️TEMP 키보드 미리보기 — 서버 없이 로컬 append만
-      setMessages((prev) => [...(prev || []), { id: 'dev-s-' + (prev?.length || 0), senderUid: '__me__', body,
-        createdAt: mockTs(Date.now()), replyTo: quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null }]);
-      return true;
-    }
     try {
       await sendMessage(friendUid, body, quote ? { msgId: quote.id, body: quote.body, senderUid: quote.senderUid } : null);
       return true;
@@ -350,9 +335,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       });
       return false;
     }
-  }, [replyTo, friendUid, devPreview]);
+  }, [replyTo, friendUid]);
 
-  // 메시지 삭제(언센드) — 본인 메시지만. 확인 후 양쪽 화면에서 완전 삭제(실시간 구독이 양쪽 반영). devPreview는 convId 없어 무시.
+  // 메시지 삭제(언센드) — 본인 메시지만. 확인 후 양쪽 화면에서 완전 삭제(실시간 구독이 양쪽 반영).
   const confirmDeleteMsg = () => {
     const target = reactTarget;
     setReactTarget(null);
@@ -370,11 +355,11 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   };
 
   // 신고 — 상대(friendUid) 대상 ReportModal 열기. prefill=근거란 초기값(메시지 신고 시 그 메시지 인용 스냅샷 → 언센드돼도 증거 보존).
-  const openReport = (prefill = '') => { setReactTarget(null); setOptionsOpen(false); if (devPreview || !friendUid) return; setReportPrefill(prefill); };
-  // 차단 — 친구 차단과 동일(공용 훅). 한도 체크 → 확인 → 차단되면 대화 불가라 대화방 닫기. devPreview(가짜 대화방)는 무시.
+  const openReport = (prefill = '') => { setReactTarget(null); setOptionsOpen(false); if (!friendUid) return; setReportPrefill(prefill); };
+  // 차단 — 친구 차단과 동일(공용 훅). 한도 체크 → 확인 → 차단되면 대화 불가라 대화방 닫기.
   const confirmBlock = () => {
     setOptionsOpen(false);
-    if (devPreview || !friendUid) return;
+    if (!friendUid) return;
     if (blockRemaining <= 0) {
       setAlert({ title: '차단 횟수 초과', message: '오늘 차단 가능한 횟수를 초과했어요.\n내일 다시 시도해주세요.', buttons: [{ text: '확인' }] });
       return;
