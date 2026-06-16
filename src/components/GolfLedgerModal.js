@@ -9,18 +9,24 @@ const GOLD = '#C9A84C';        // 골드 — 강조 룰·라벨
 const GOLD_DEEP = '#A9854A';   // 깊은 골드 — 작은 라벨
 // 브랜드 삼색 — 하단 시그니처(랜딩·초대카드·폴라로이드 동일 톤)
 const MS = ['#ECD884', '#B2CADD', '#6B1E2A'];
+// 내기 손익 색 — 땄으면(이득) 초록, 잃으면(손실) 버건디. 총 지출과 별도 '정산'으로 분리(테스터 요청 2026-06-17 [[ledger-bet-pnl]])
+const WIN = '#3F7A4E';   // 딴 돈(이득)
+const LOSS = '#9B3A3A';  // 잃은 돈(손실)
 // 가계부 표시 — 입력이 세부(그린피·카트비·그늘집)든 묶음(field)이든 항상 묶음으로 정리(2026-06-15 사용자):
-//  골프장 결제 = field+그린피+카트비+그늘집(카드 정산분 전부) / 캐디피(현금) / 기타 = etc+옛 식사비(meal) / 내기(손익 ±)
-//  내기는 음수=딴 돈(총액 차감)이라 0이 아니면 음수도 표시(다른 항목은 양수만) ([[ledger-bet-pnl]])
+//  골프장 결제 = field+그린피+카트비+그늘집(카드 정산분 전부) / 캐디피(현금) / 기타 = etc+옛 식사비(meal).
+//  ★내기는 버킷(지출)에서 제외 — 총합산에 안 들어가고 아래 '내기 정산' 줄로 별도 표시(테스터 요청).
 const bucketsOf = (cost = {}) => {
-  const arr = [
+  return [
     { label: '골프장 결제', amt: (cost.field || 0) + (cost.green || 0) + (cost.cart || 0) + (cost.onsite || 0) },
     { label: '캐디피', amt: cost.caddie || 0 },
     { label: '기타', amt: (cost.etc || 0) + (cost.meal || 0) },
   ].filter(b => b.amt > 0);
-  if (cost.bet) arr.push({ label: '내기', amt: cost.bet }); // 부호 그대로(−=딴 돈) won()이 -50,000 표시
-  return arr;
 };
+
+// 순수 지출 = 저장된 total에서 내기(부호)를 뺀 값. total은 지출+betSigned로 저장돼 있어 total−bet=지출. (마이그레이션 불필요)
+const spendOf = (d) => ((d?.cost?.total || 0) - (d?.cost?.bet || 0));
+// 내기 순손익(이득=양수) = −Σbet. bet 음수=땄음이라 부호 뒤집어 양수가 '딴 돈'.
+const netBetOf = (list) => -(list || []).reduce((s, d) => s + (d?.cost?.bet || 0), 0);
 
 const won = (n) => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const monthLabel = (m) => {
@@ -30,9 +36,9 @@ const monthLabel = (m) => {
 
 export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
   const insets = useSafeAreaInsets();
-  // 비용이 기록된 라운딩만 (최신순)
+  // 비용 또는 내기가 기록된 라운딩만 (최신순). 크게 딴 날(지출 0·내기만)도 정산에 잡히도록 bet도 포함.
   const costRounds = (diaries || [])
-    .filter(d => d && d.cost && (d.cost.total || 0) > 0)
+    .filter(d => d && d.cost && (spendOf(d) > 0 || d.cost.bet))
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   // 월별 그룹
@@ -51,10 +57,14 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
   const lastMonthKey = `${lm.getFullYear()}.${pad(lm.getMonth() + 1)}`;
   const thisYear = String(now.getFullYear());
 
-  const sumOf = (list) => (list || []).reduce((s, d) => s + (d.cost.total || 0), 0);
+  // ★합계는 '지출'(spendOf)만 — 내기는 총합산에서 제외(테스터 요청). 내기는 netBetOf로 별도 정산.
+  const sumOf = (list) => (list || []).reduce((s, d) => s + spendOf(d), 0);
   const yearRounds = costRounds.filter(d => (d.date || '').startsWith(thisYear));
   const yearTotal = sumOf(yearRounds);
-  const yearAvg = yearRounds.length ? Math.round(yearTotal / yearRounds.length) : 0;
+  // 지출 평균은 '지출이 있는' 라운딩 기준(내기만 있는 0원 라운딩은 평균 왜곡 방지로 제외)
+  const yearSpendRounds = yearRounds.filter(d => spendOf(d) > 0);
+  const yearAvg = yearSpendRounds.length ? Math.round(yearTotal / yearSpendRounds.length) : 0;
+  const yearNetBet = netBetOf(yearRounds); // 올해 내기 순손익(양수=딴 돈)
 
   const cards = [
     { label: '이번달', list: byMonth[thisMonthKey] || [] },
@@ -106,8 +116,18 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                 </Text>
                 <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginTop: 11, marginBottom: 9 }} />
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>
-                  {yearRounds.length}라운딩 · 라운딩당 평균 {won(yearAvg)}원
+                  {yearSpendRounds.length}라운딩 · 라운딩당 평균 {won(yearAvg)}원
                 </Text>
+                {/* 내기 정산 — 총 지출과 별도 칸(테스터 요청). 올해 내기 입력이 있을 때만 노출 */}
+                {yearRounds.some(d => d.cost.bet) && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: 'rgba(201,168,76,0.35)' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: GOLD_DEEP, letterSpacing: 0.5 }}>올해 내기 정산</Text>
+                    <View style={{ flex: 1 }} />
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: yearNetBet >= 0 ? WIN : LOSS }}>
+                      {yearNetBet >= 0 ? '+' : '−'}{won(Math.abs(yearNetBet))}원
+                    </Text>
+                  </View>
+                )}
                 {/* 브랜드 삼색 미니바 — 하단 시그니처 */}
                 <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', height: 3 }}>
                   {MS.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
@@ -155,7 +175,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep }} numberOfLines={1}>{d.course}</Text>
                             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{d.date}{d.day ? ` (${d.day})` : ''}</Text>
                           </View>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginLeft: 8 }}>{won(d.cost.total)}원</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginLeft: 8 }}>{won(spendOf(d))}원</Text>
                         </View>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
                           {bucketsOf(d.cost).map(b => (
@@ -166,6 +186,18 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                             </View>
                           ))}
                         </View>
+                        {/* 내기 정산 — 지출(버킷)과 분리해 손익 줄로. 땄으면 초록(+)·잃으면 버건디(−). 입력했을 때만 */}
+                        {!!d.cost.bet && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: d.cost.bet < 0 ? WIN : LOSS }}>
+                              내기 {d.cost.bet < 0 ? '땄어요' : '잃었어요'}
+                            </Text>
+                            <View style={{ flex: 1 }} />
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: d.cost.bet < 0 ? WIN : LOSS }}>
+                              {d.cost.bet < 0 ? '+' : '−'}{won(Math.abs(d.cost.bet))}원
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     ))}
                   </View>
