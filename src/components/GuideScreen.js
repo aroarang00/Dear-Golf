@@ -750,19 +750,18 @@ export function GuideScreen({ route, navigation }) {
         <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingVertical: 12 }}>
           <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
             {[
-              ['course', '⛳', '코스 · 코멘트'],
-              ['food',   '🍴', '맛집 · 주변'],
-            ].map(([k, icon, l]) => {
+              ['course', '코스 & 코멘트'],
+              ['food',   '맛집 & 주변'],
+            ].map(([k, l]) => {
               const on = innerTab === k;
               return (
                 <TouchableOpacity key={k}
                   activeOpacity={0.7}
                   style={[
-                    { flex: 1, flexDirection: 'row', paddingVertical: 9, borderRadius: 8, alignItems: 'center', justifyContent: 'center', gap: 5 },
+                    { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
                     on && { backgroundColor: C.charcoal },
                   ]}
                   onPress={() => setInnerTab(k)}>
-                  <Text style={{ fontSize: fs(13), opacity: on ? 1 : 0.7 }}>{icon}</Text>
                   <Text style={{
                     fontFamily: on ? F.sysB : F.sysM,
                     fontSize: fs(13),

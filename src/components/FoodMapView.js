@@ -103,7 +103,7 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           key={`rec-${r.kakaoId || r.name || i}`}
           coordinate={{ latitude: r.y, longitude: r.x }}
           title={r.name || '맛집'}
-          description={`추천 맛집${Number.isFinite(r.distance) ? ` · ${Math.round(r.distance)}m` : ''} · 탭하면 지도에서 보기`}
+          description={`추천 맛집${Number.isFinite(r.distance) ? ` · ${Math.round(r.distance)}m` : ''}`}
           onCalloutPress={() => onMarkerPress?.(r)}
           tracksViewChanges={tracksMarkers}
           anchor={{ x: 0.5, y: 1 }}
@@ -119,7 +119,7 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           key={`saved-${sv.kakaoId || sv.name || i}`}
           coordinate={{ latitude: sv.y, longitude: sv.x }}
           title={sv.name || '저장한 맛집'}
-          description={`⭐ 저장한 맛집${sv.memo ? ` · ${sv.memo}` : ''} · 탭하면 지도에서 보기`}
+          description={`⭐ 저장한 맛집${sv.memo ? ` · ${sv.memo}` : ''}`}
           onCalloutPress={() => onMarkerPress?.(sv)}
           tracksViewChanges={tracksMarkers}
         >
