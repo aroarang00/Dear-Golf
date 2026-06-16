@@ -24,7 +24,8 @@ import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from
 import { useBlockUser } from '../hooks/useBlockUser';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds, recomputeMyGroupAudiences } from '../utils/round';
-import { db, getUid } from '../utils/firebase';
+import { db, getUid, auth } from '../utils/firebase';
+import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 
@@ -194,12 +195,29 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const [searchOpen, setSearchOpen] = useState(false);   // 검색 입력 펼침 — 평소엔 🔍 아이콘만(자리 절약). 숨긴 친구는 ⚙ 관리 시트로 이동
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
+  // 익명(카카오 미연동) → 친구 기능 진입 시 카카오 연동 게이트 ([[anonymous-user-policy]]).
+  //   FriendFinder는 RN Modal이라 그 안에서 전역 showAppAlert가 가려짐 → finder 여는 시점(모달 열리기 전)에 게이트.
+  //   연동하면 onProceed로 바로 이어서 진행. 영구 차단 아님.
+  const requireKakaoLink = (onProceed) => {
+    showAppAlert('카카오 연동이 필요해요', '친구 기능은 카카오 연동 후\n이용할 수 있어요.\n연동하면 바로 이어서 진행할게요.', [
+      { text: '닫기', style: 'cancel' },
+      { text: '카카오 연동하기', onPress: async () => {
+          const r = await connectKakaoAccount();
+          if (r?.banned) { showAppAlert('이용이 제한된 계정이에요', '이 카카오 계정은\nDear Golf 이용이 제한되었어요.'); return; }
+          if (!r?.ok) { showAppAlert('카카오 연동 실패', '잠시 후 다시 시도해주세요.'); return; }
+          onProceed?.();
+        } },
+    ]);
+  };
+  const gateIfAnon = (onProceed) => { if (auth.currentUser?.isAnonymous) { requireKakaoLink(onProceed); return true; } return false; };
+  // 친구 찾기 열기 — 익명이면 게이트 먼저(연동 후 자동으로 열림)
+  const openFinder = (tab) => { if (!gateIfAnon(() => setFinder(tab))) setFinder(tab); };
   const [groupManageOpen, setGroupManageOpen] = useState(false);   // 친구 그룹 관리 모달 — 친구탭 헤더 톱니에서 직접 진입 ([[friend_groups]])
   const [quickFriend, setQuickFriend] = useState(null);   // 카드 길게누르기 빠른 액션(그룹 지정) 대상 친구. 즐겨찾기·숨기기는 스와이프 ([[friend_card_gestures]])
   const [guideDone, setGuideDone] = useState(true);   // 친구 1회 안내 카드 — 로드 전 숨김(깜빡임 방지). friendCoachDone 재사용(MyPage 리셋 연동)
   useEffect(() => { storage.load(STORAGE_KEYS.friendCoachDone, false).then(v => setGuideDone(!!v)).catch(() => {}); }, []);
   // 친구 화면 파란 헤더의 '친구 찾기' 버튼이 이 finder를 열도록 핸들 노출 (진입점을 헤더로 드러냄)
-  useEffect(() => { if (openFinderRef) openFinderRef.current = setFinder; }, [openFinderRef]);
+  useEffect(() => { if (openFinderRef) openFinderRef.current = openFinder; }, [openFinderRef]);
   const listScrollRef = useRef(null);
   const [reloadKey, setReloadKey] = useState(0);   // 탭 재진입 시 친구·신청 목록 재조회 트리거 (수락·신청 반영)
 
@@ -638,7 +656,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       <View style={{ paddingHorizontal: 16 }}>
         {/* 받은 친구 신청 배너 — 있을 때만. 검색창 아래 고정(스크롤로 묻히지 않게) */}
         {receivedRequests.length > 0 && (
-          <TouchableOpacity onPress={() => setFinder('received')} activeOpacity={0.8}
+          <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: _and ? 9 : 12,
               backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
             <Text style={{ fontSize: fs(15) }}>📬</Text>
@@ -736,7 +754,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
                   ))}
                 </View>
                 <TouchableOpacity activeOpacity={0.85}
-                  onPress={() => setFinder('kakao')}
+                  onPress={() => openFinder('kakao')}
                   style={{ marginTop: _and ? 12 : 18, backgroundColor: C.navy, borderRadius: 12, paddingVertical: _and ? 9 : 13, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.bgPrimary }}>친구 찾기</Text>
                 </TouchableOpacity>

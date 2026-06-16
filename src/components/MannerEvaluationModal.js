@@ -4,6 +4,8 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
 import { submitEvaluation } from '../utils/mannerEvaluations';
+import { auth } from '../utils/firebase';
+import { connectKakaoAccount } from '../utils/kakaoAuth';
 
 // 라운지 모집 매너 평가 ([[manner-evaluation-policy]]).
 // 라운딩 종료 추정 시각(티오프+5h) 기준 48h 윈도우. 강제성 없음 — 무평가 = 보통 자동 처리.
@@ -34,7 +36,25 @@ export function MannerEvaluationModal({ visible, post, participants = [], onClos
   const evaluatedCount = Object.keys(picks).length;
   const totalCount = participants.length;
 
+  // 익명(카카오 미연동) → 카카오 연동 게이트(매너 평가는 소셜 액션) ([[anonymous-user-policy]])
+  const requireKakaoLink = (onProceed) => {
+    setAlert({
+      title: '카카오 연동이 필요해요',
+      message: '매너 평가는 카카오 연동 후\n이용할 수 있어요.\n연동하면 바로 이어서 진행할게요.',
+      buttons: [
+        { text: '닫기', style: 'cancel' },
+        { text: '카카오 연동하기', onPress: async () => {
+            const r = await connectKakaoAccount();
+            if (r?.banned) { setAlert({ title: '이용이 제한된 계정이에요', message: '이 카카오 계정은\nDear Golf 이용이 제한되었어요.', buttons: [{ text: '확인' }] }); return; }
+            if (!r?.ok) { setAlert({ title: '카카오 연동 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] }); return; }
+            onProceed?.();
+          } },
+      ],
+    });
+  };
+
   const doSubmit = async () => {
+    if (auth.currentUser?.isAnonymous) { requireKakaoLink(() => doSubmit()); return; }
     // 'good'/'bad'만 Firestore 작성 ('normal' 또는 무평가는 doc 안 만듦 = 자동 보통, 정책 §3).
     const entries = Object.entries(picks).filter(([, r]) => r === 'good' || r === 'bad');
     if (post?.id && entries.length > 0) {

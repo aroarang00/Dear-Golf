@@ -6,7 +6,8 @@ import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { getUid } from '../utils/firebase';
+import { getUid, auth } from '../utils/firebase';
+import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
@@ -316,8 +317,27 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     return () => setActiveDmPair(null);
   }, [convId]);
 
+  // 익명(카카오 미연동) → 카카오 연동 게이트(DM도 소셜 액션) ([[anonymous-user-policy]])
+  //   DM은 친구끼리만이라 익명은 사실상 도달 불가하지만, 능동 소셜 액션이라 방어적으로 게이트.
+  const requireKakaoLink = (onProceed) => {
+    setAlert({
+      title: '카카오 연동이 필요해요',
+      message: 'DM은 카카오 연동 후\n이용할 수 있어요.\n연동하면 바로 이어서 보낼게요.',
+      buttons: [
+        { text: '닫기', style: 'cancel' },
+        { text: '카카오 연동하기', onPress: async () => {
+            const r = await connectKakaoAccount();
+            if (r?.banned) { setAlert({ title: '이용이 제한된 계정이에요', message: '이 카카오 계정은\nDear Golf 이용이 제한되었어요.', buttons: [{ text: '확인' }] }); return; }
+            if (!r?.ok) { setAlert({ title: '카카오 연동 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] }); return; }
+            onProceed?.();
+          } },
+      ],
+    });
+  };
+
   // 전송 — DMInputBar가 body를 넘겨줌. true/false 반환(false면 입력바가 입력 복구). 인용은 replyTo로.
   const handleSend = useCallback(async (body) => {
+    if (auth.currentUser?.isAnonymous) { requireKakaoLink(() => handleSend(body)); return false; }
     const quote = replyTo;  // 전송 시점 인용 캡처 — 실패 시 함께 복구
     setReplyTo(null);
     stopTyping();  // 전송하면 입력 중 해제

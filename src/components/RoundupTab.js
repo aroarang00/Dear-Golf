@@ -725,23 +725,28 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       setAlert({ title: '친구 신청 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
     }
   };
-  // 익명(카카오 미연동) 사용자가 소셜 액션 → 카카오 연동 게이트([[anonymous-user-policy]]).
-  //   친구·라운지는 안정적 신원(카카오 sub) 전제(매너·노쇼 패널티 우회 차단)라, 연동 전엔 친구신청을 막고 연동을 유도한다.
-  //   영구 차단이 아니라 연동하면 바로 이어서 신청. 앱 미설치자(스토어 다운로드)와 다른 층위 — 이 사람은 이미 앱 안.
-  const gateSocialThenSend = (hostUid, hostName) => {
+  // 익명(카카오 미연동) 사용자가 소셜 액션 진입 → 카카오 연동 게이트([[anonymous-user-policy]]).
+  //   친구·라운지·매너는 안정적 신원(카카오 sub) 전제(노쇼·매너 패널티 우회 차단)라 연동 전 차단.
+  //   영구 차단이 아니라 연동하면 onProceed로 바로 이어서 진행. 앱 미설치자(스토어 다운로드)와 다른 층위 — 이 사람은 이미 앱 안.
+  const requireKakaoLink = (onProceed) => {
     setAlert({
       title: '카카오 연동이 필요해요',
-      message: '친구·라운지는 카카오 연동 후\n이용할 수 있어요.\n연동하면 바로 친구 신청을 보낼게요.',
+      message: '친구·라운지·매너 기능은\n카카오 연동 후 이용할 수 있어요.\n연동하면 바로 이어서 진행할게요.',
       buttons: [
         { text: '닫기', style: 'cancel' },
         { text: '카카오 연동하기', onPress: async () => {
             const r = await connectKakaoAccount();
             if (r?.banned) { setAlert({ title: '이용이 제한된 계정이에요', message: '이 카카오 계정은\nDear Golf 이용이 제한되었어요.', buttons: [{ text: '확인' }] }); return; }
             if (!r?.ok) { setAlert({ title: '카카오 연동 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] }); return; }
-            doSendHostFriendReq(hostUid, hostName); // 연동 완료 → sendFriendRequest는 getUid()로 새 uid 사용
+            onProceed?.(); // 연동 완료 → 원래 액션 재실행(util은 getUid()로 새 uid 사용)
           } },
       ],
     });
+  };
+  // 익명이면 게이트를 띄우고 true 반환(호출부는 즉시 return). 비익명이면 false(정상 진행).
+  const gateIfAnon = (onProceed) => {
+    if (auth.currentUser?.isAnonymous) { requireKakaoLink(onProceed); return true; }
+    return false;
   };
   const promptFriendGate = async (hostUid) => {
     if (!hostUid || hostUid === myUid) return;
@@ -758,8 +763,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         { text: '닫기', style: 'cancel' },
         { text: '친구 추가', onPress: () => {
             // 익명이면 anon uid로 친구신청되지 않도록 카카오 연동 게이트로([[anonymous-user-policy]])
-            if (auth.currentUser?.isAnonymous) gateSocialThenSend(hostUid, hostName);
-            else doSendHostFriendReq(hostUid, hostName);
+            if (!gateIfAnon(() => doSendHostFriendReq(hostUid, hostName))) doSendHostFriendReq(hostUid, hostName);
           } },
       ],
     });
@@ -1106,6 +1110,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
   // 모집글 작성 진입 — 정지 상태 차단 (패널티 동의서 §5 / 콘텐츠 정책 §7)
   const tryOpenCreate = () => {
+    // 익명 → 카카오 연동 게이트(모집 작성은 소셜 액션) ([[anonymous-user-policy]])
+    if (gateIfAnon(() => tryOpenCreate())) return;
     // 영구 모집 박탈
     if (userProfile?.isRecruitRestrictedPermanent) {
       setAlert({
@@ -1207,6 +1213,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const confirmApply = (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
+    // 익명 → 카카오 연동 게이트(라운지 참여는 소셜 액션) ([[anonymous-user-policy]])
+    if (gateIfAnon(() => confirmApply(id))) return;
     const instant = post.scope !== 'all';
     // 카드(비모달) 경로 — 실패 시 여기서 직접 alert (모달 경로는 RoundupDetail이 자체 표시)
     const doJoin = async (anonymous) => {
@@ -1245,6 +1253,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   //   anonymous면 anonymousUids에도 추가 → 승격 시 그대로 승계 ([[roundup-anonymous-participation]]).
   const handleWaitlist = async (id, anonymous = false) => {
     if (!myUid) return;
+    // 익명 → 카카오 연동 게이트(대기 신청도 소셜 액션) ([[anonymous-user-policy]])
+    if (gateIfAnon(() => handleWaitlist(id, anonymous))) return;
     try {
       await joinWaitlist(id, { anonymous });
       let myIdx = 1;
@@ -1480,6 +1490,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   //  비속어/권한 사전검증은 RoundupComments·utils, 최종 저장은 Firestore. 쓰기 후 재로드로 정합성 보장.
   //  알림(comment 타입 주최자+참여자 발송)은 Phase 2 Cloud Function — 현재 단계 X.
   const handleAddComment = async (postId, comment) => {
+    // 익명 → 카카오 연동 게이트(댓글도 소셜 액션) ([[anonymous-user-policy]])
+    if (gateIfAnon(() => handleAddComment(postId, comment))) return;
     // 총 300개 작성 한도 — 도달 시 작성 차단 (클라 측, 친구 범위라 충분)
     if ((commentsTotal[postId] || 0) >= COMMENT_MAX_TOTAL) {
       setAlert({ title: '댓글이 가득 찼어요', message: `댓글은 최대 ${COMMENT_MAX_TOTAL}개까지 작성할 수 있어요.`, buttons: [{ text: '확인' }] });
