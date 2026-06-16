@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardA
 import { LinearGradient } from 'expo-linear-gradient';
 import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
+import { auth } from '../utils/firebase';
+import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserContext } from '../contexts/UserContext';
@@ -473,8 +475,24 @@ export function GuideScreen({ route, navigation }) {
     return () => { cancelled = true; };
   }, [selected, previewCourse?.kakaoId]);
 
+  // 익명(카카오 미연동) → 카카오 연동 게이트. 공개 게시판(코멘트·별점)은 책임성·별점 1인1평가 우회
+  //   방지를 위해 쓰기만 연동 후 허용(읽기는 익명 OK). ([[anonymous-user-policy]] · [[golfer-comments-board]] · [[course-rating]])
+  const requireKakaoLink = (onProceed) => {
+    showAppAlert('카카오 연동이 필요해요', '코스 평점·코멘트는 카카오 연동 후\n남길 수 있어요.\n연동하면 바로 이어서 진행할게요.', [
+      { text: '닫기', style: 'cancel' },
+      { text: '카카오 연동하기', onPress: async () => {
+          const r = await connectKakaoAccount();
+          if (r?.banned) { showAppAlert('이용이 제한된 계정이에요', '이 카카오 계정은\nDear Golf 이용이 제한되었어요.'); return; }
+          if (!r?.ok) { showAppAlert('카카오 연동 실패', '잠시 후 다시 시도해주세요.'); return; }
+          onProceed?.();
+        } },
+    ]);
+  };
+  const gateIfAnon = (onProceed) => { if (auth.currentUser?.isAnonymous) { requireKakaoLink(onProceed); return true; } return false; };
+
   // 내 평점 저장/수정 — 3카테고리 모두 별점 후 저장
   const submitRating = async () => {
+    if (gateIfAnon(() => submitRating())) return;
     const key = commentKeyFor(selected);
     if (!key) { showAppAlert('코스 평점', '이 골프장에는 평점을 남길 수 없어요.'); return; }
     const d = ratingDraft;
@@ -490,6 +508,7 @@ export function GuideScreen({ route, navigation }) {
 
   // 좋아요 토글 — 낙관적 업데이트 후 Firestore 반영, 실패 시 롤백
   const toggleLike = async (cm) => {
+    if (gateIfAnon(() => toggleLike(cm))) return;
     const wasLiked = cm.likedByMe;
     setComments(prev => prev.map(c => c.id === cm.id
       ? { ...c, likedByMe: !wasLiked, likes: c.likes + (wasLiked ? -1 : 1) }
@@ -566,6 +585,7 @@ export function GuideScreen({ route, navigation }) {
 
   // 코멘트 작성 — Firestore에 저장(전체 유저 공유)
   const submitComment = async () => {
+    if (gateIfAnon(() => submitComment())) return;
     const txt = commentInput.trim();
     if (!txt || !selected) return;
     // 비속어 필터 — 라운지 댓글과 동일 정책([[roundup-comments-policy]] §5). 신규·수정 모두 적용.
