@@ -16,6 +16,7 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { RoundupComments } from './RoundupComments';
 import { anonNick } from '../utils/anonNick';
 import { shareRoundup } from '../utils/invite';
+import { ShareMomentModal } from './ShareMomentModal';
 
 // 참여자 아바타 색상
 const AV = [
@@ -155,6 +156,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const commentInputNode = useRef(null);
   const kbHeightRef = useRef(0);
   const [kbHeight, setKbHeight] = useState(0);
+  const [shareCardOpen, setShareCardOpen] = useState(false); // 모집 공유 — 이미지/링크 선택 모달(ShareMomentModal)
   // 안드(엣지투엣지): 키보드가 창을 리사이즈하지 않고 콘텐츠 위로 떠서 댓글 입력칸이 가려짐.
   // 포커스된 입력칸을 키보드 위로 직접 스크롤. (iOS는 automaticallyAdjustKeyboardInsets가 처리)
   const scrollCommentIntoView = () => {
@@ -579,7 +581,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 친구지정(select)은 호스트만 '초대 보내기' — audienceUids 지정 친구는 앱·계정 보유라 딥링크 카카오 초대가 깔끔(탭→앱→초대카드→수락).
                   비지정자에게 새도 Firestore 규칙이 참여 차단(무해). 그 외(친구공개·전체공개)는 누구나 '공유'(설치 홍보). ([[invite-deeplink-system]]) */}
             {(post.scope !== 'select' || isMine) && (
-              <TouchableOpacity onPress={() => shareRoundup(post)} activeOpacity={0.85}
+              <TouchableOpacity onPress={() => setShareCardOpen(true)} activeOpacity={0.85}
                 hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.navy,
                   borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 }}>
@@ -842,8 +844,15 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 ],
               });
             }} />
-          {/* 모집 공유 = 평문 링크 직접(shareRoundup) — 카톡서 OG 카드 미리보기(og-card)+App Links 직행.
-              안 되던 카카오 execParams 커스텀 카드 모달은 폐기 (사용자 2026-06-16, [[invite-deeplink-system]]) */}
+          {/* 모집 공유 — 이미지(모집 카드)/이미지 저장/링크 공유 선택 모달. 카카오 버튼은 ShareMomentModal에서
+              글로벌 제거됨(딥링크 미연동 철회). 링크 공유는 평문 직행(shareRoundup, 카톡 OG 카드+App Links).
+              ※ 4e70d49에서 카카오 빼며 통째로 제거됐던 선택 화면을 카카오 없이 복원 (사용자 2026-06-17, [[invite-deeplink-system]]) */}
+          <ShareMomentModal
+            moment={shareCardOpen ? { ...post, shareKind: 'roundup' } : null}
+            visible={shareCardOpen}
+            onClose={() => setShareCardOpen(false)}
+            onShareLink={() => { setShareCardOpen(false); setTimeout(() => shareRoundup(post), 350); }}
+          />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>
