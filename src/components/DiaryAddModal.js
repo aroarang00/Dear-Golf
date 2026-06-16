@@ -30,9 +30,11 @@ import { OverlayAlert } from './common/OverlayAlert';
 // 비용 입력 — 결제 방식대로: 골프장 결제(카드, 그린피+카트비) / 캐디피(현금) / 기타(식사 등) / 내기(손익 ±, [[ledger-bet-pnl]]).
 // 골프장 결제는 보통 한 줄, '세부'를 펼치면 그린피·카트비 따로. 사용자 2026-06-15 ([[golf-ledger]])
 const costRowS = { flexDirection: 'row', alignItems: 'center', marginBottom: 10 };
-const costLabelS = { fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, width: 72 };
+// 라벨은 남는 폭을 차지(flex:1) — 입력칸을 고정폭으로 줄여 '골프장 결제' 등 라벨이 눌리지 않게 (사용자 2026-06-17).
+const costLabelS = { fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, flex: 1, paddingRight: 8 };
+// 금액 입력칸 — 고정폭. 백만원대(7자리)까지 우측정렬로 넉넉. 예전 flex:1은 라벨을 좁혀 답답했음.
 const costInputS = {
-  flex: 1, backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8,
+  width: 120, backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8,
   paddingHorizontal: 12, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, textAlign: 'right',
 };
 const costWonS = { fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginLeft: 8 };
@@ -996,7 +998,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   <View style={{ ...costRowS, marginBottom: 0 }}>
                     <Text style={costLabelS}>골프장 결제</Text>
                     {showCourseDetail ? (
-                      <Text style={{ flex: 1, textAlign: 'right', fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary, paddingVertical: 8 }}>
+                      <Text style={{ width: 120, textAlign: 'right', fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary, paddingVertical: 8 }}>
                         {won(num(costs.green) + num(costs.cart) + num(costs.onsite))}
                       </Text>
                     ) : (
@@ -1020,19 +1022,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   {showCourseDetail && (
                     <View style={{ marginLeft: 12, marginBottom: 13 }}>
                       <View style={costRowS}>
-                        <Text style={{ ...costLabelS, width: 60, fontSize: fs(12) }}>그린피</Text>
+                        <Text style={{ ...costLabelS, fontSize: fs(12) }}>그린피</Text>
                         <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                           value={costs.green} onChangeText={(t) => setCosts(prev => ({ ...prev, green: t.replace(/[^0-9]/g, '') }))} />
                         <Text style={costWonS}>원</Text>
                       </View>
                       <View style={costRowS}>
-                        <Text style={{ ...costLabelS, width: 60, fontSize: fs(12) }}>카트비</Text>
+                        <Text style={{ ...costLabelS, fontSize: fs(12) }}>카트비</Text>
                         <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                           value={costs.cart} onChangeText={(t) => setCosts(prev => ({ ...prev, cart: t.replace(/[^0-9]/g, '') }))} />
                         <Text style={costWonS}>원</Text>
                       </View>
                       <View style={{ ...costRowS, marginBottom: 0 }}>
-                        <Text style={{ ...costLabelS, width: 60, fontSize: fs(12) }}>그늘집</Text>
+                        <Text style={{ ...costLabelS, fontSize: fs(12) }}>그늘집</Text>
                         <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                           value={costs.onsite} onChangeText={(t) => setCosts(prev => ({ ...prev, onsite: t.replace(/[^0-9]/g, '') }))} />
                         <Text style={costWonS}>원</Text>
