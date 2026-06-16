@@ -83,7 +83,7 @@ export async function getTop100Courses() {
 const TOP100_CURATION = {
   12: { mode: 'resort', prefixes: ['파인비치'] },     // 파인비치 골프링크스 — 오시아노·파인·비치 9홀(구장단위)
   21: { mode: 'course', prefixes: ['72하늘'] },        // 클럽72 — 하늘코스만 100대(레이크·클래식·오션 제외)
-  22: { mode: 'resort', prefixes: ['소노펠리체'] },   // 소노펠리체 CC — 비발디파크·델피노 (★사용자 확인 대기)
+  22: { mode: 'course', prefixes: ['소노펠리체비발디파크east'] }, // 소노펠리체 CC — EAST(비발디파크 홍천)만 100대(WEST·마운틴·델피노 제외)
   45: { mode: 'resort', prefixes: ['휘닉스평창'] },   // 휘닉스 평창 CC — 휘닉스CC
   78: { mode: 'resort', prefixes: ['무주덕유산'] },   // 덕유산 CC — 무주덕유산CC
 };
