@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { F, fs } from '../constants/colors';
@@ -18,6 +18,16 @@ const validPos = (arr) => (arr || []).filter((s) => Number.isFinite(s?.x) && Num
 
 // onMarkerPress(item) — 맛집 마커의 말풍선(이름·거리)을 탭하면 호출. 호출부에서 네이버 지도 등으로 연결.
 export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], height = 210, onMarkerPress }) {
+  // 안드: 커스텀 마커 View는 tracksViewChanges=true로 최소 1프레임 비트맵 스냅샷돼야 보인다.
+  //   처음부터 false면 빈 마커로 안 뜨는 react-native-maps 안드 버그 → 잠깐 true 후 false(성능 회복).
+  //   마커 셋이 바뀌면(주변맛집 async 로드·코스 변경) 다시 true→false. (hook은 early return 위에 무조건 호출)
+  const [tracksMarkers, setTracksMarkers] = useState(true);
+  useEffect(() => {
+    setTracksMarkers(true);
+    const t = setTimeout(() => setTracksMarkers(false), 1500);
+    return () => clearTimeout(t);
+  }, [nearby?.length, saved?.length, courseCoord?.x, courseCoord?.y]);
+
   // 골프장 좌표 없으면 호출부가 폴백 처리 (정적 안내)
   if (!courseCoord || !Number.isFinite(courseCoord.x) || !Number.isFinite(courseCoord.y)) {
     return null;
@@ -51,7 +61,7 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
       <Marker
         coordinate={{ latitude: courseCoord.y, longitude: courseCoord.x }}
         title={courseName || '골프장'}
-        tracksViewChanges={false}
+        tracksViewChanges={tracksMarkers}
       >
         <View style={[st.pin, st.coursePin]}><Text style={st.pinTxt}>⛳</Text></View>
       </Marker>
@@ -64,7 +74,7 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           title={r.name || '맛집'}
           description={`추천 맛집${Number.isFinite(r.distance) ? ` · ${Math.round(r.distance)}m` : ''} · 탭하면 지도에서 보기`}
           onCalloutPress={() => onMarkerPress?.(r)}
-          tracksViewChanges={false}
+          tracksViewChanges={tracksMarkers}
         >
           <View style={[st.pin, st.recPin]}><Text style={st.pinTxt}>📍</Text></View>
         </Marker>
@@ -78,7 +88,7 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
           title={sv.name || '저장한 맛집'}
           description={`⭐ 저장한 맛집${sv.memo ? ` · ${sv.memo}` : ''} · 탭하면 지도에서 보기`}
           onCalloutPress={() => onMarkerPress?.(sv)}
-          tracksViewChanges={false}
+          tracksViewChanges={tracksMarkers}
         >
           <View style={[st.pin, st.savedPin]}><Text style={st.pinTxt}>⭐</Text></View>
         </Marker>
