@@ -29,16 +29,11 @@ export const milestoneDecoLevel = (category, value) => {
 // 멱등 등재용 안정 id — 같은 마일스톤은 항상 같은 id (중복 등재 방지)
 export const milestoneId = (category, value) => `hof_ms_${category}_${value}`;
 
-// ⚠️⚠️ TEMP(2026-06-09) — 마일스톤 메달 '배지' 표시 위치 확인용 임시 10 임계값.
-//   사용자가 라운딩 10회·구장 10회로 배지가 어디에 붙는지 보려고 요청. **확인 후 이 블록 통째 삭제 +
-//   topMilestone의 badgeThresholdsFor → MILESTONE_DEFS 원복 할 것!** (배지에만 적용, hallOfFame 백필엔
-//   미적용이라 영구 기록 잔여물 없음 — reachedMilestones는 그대로 50/30 임계값 사용.)
-const TEMP_PREVIEW_10 = true;
-const badgeThresholdsFor = (category) =>
-  (TEMP_PREVIEW_10 ? [10, ...MILESTONE_DEFS[category].thresholds] : MILESTONE_DEFS[category].thresholds);
+// 명함 배지용 임계값 — 실 마일스톤 임계값(MILESTONE_DEFS) 그대로 사용.
+const badgeThresholdsFor = (category) => MILESTONE_DEFS[category].thresholds;
 
 // 누적 카운트 → 도달한 마일스톤 목록. 백필(이미 넘긴 단계도 모두 포함)에 그대로 쓴다.
-//   thresholdsFor 주입 가능(기본=실 임계값). 배지 미리보기(TEMP)는 별도 임계값을 넘겨 hallOfFame 오염 방지.
+//   thresholdsFor 주입 가능(기본=실 임계값). 배지는 badgeThresholdsFor를 넘겨 hallOfFame 백필과 분리.
 export function reachedMilestones(counts, thresholdsFor = (category) => MILESTONE_DEFS[category].thresholds) {
   const out = [];
   Object.keys(MILESTONE_DEFS).forEach((category) => {
@@ -51,7 +46,7 @@ export function reachedMilestones(counts, thresholdsFor = (category) => MILESTON
 }
 
 // 명함 배지용 — 도달한 마일스톤 중 가장 큰 1개(value 내림차순, 동률이면 라운딩 우선). 없으면 null.
-//   배지는 badgeThresholdsFor 사용(TEMP 10 포함). hallOfFame 백필(reachedMilestones 기본 호출)과 분리.
+//   배지는 badgeThresholdsFor 사용. hallOfFame 백필(reachedMilestones 기본 호출)과 분리.
 export function topMilestone(counts) {
   const reached = reachedMilestones(counts, badgeThresholdsFor);
   if (!reached.length) return null;
@@ -68,8 +63,7 @@ export function milestoneBadge(ms) {
 }
 
 // 트랙별 최고 달성 메달 value — 명함 '흐린 메달 줄'용. { rounds: value|null, courses: value|null }.
-//   배지 임계값(badgeThresholdsFor, TEMP 포함) 기준 → TEMP_PREVIEW_10이면 10도 잡힘(미리보기).
-//   TEMP 제거 시 자동으로 실 임계값(라운딩 30·구장 30부터)으로 복귀.
+//   배지 임계값(badgeThresholdsFor=실 임계값) 기준 — 라운딩 30·구장 30부터 잡힘.
 export function trackTopMedals(counts) {
   const out = {};
   Object.keys(MILESTONE_DEFS).forEach((category) => {

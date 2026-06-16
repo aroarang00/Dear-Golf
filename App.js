@@ -86,7 +86,6 @@ import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
-import { DevCardPreview } from './src/components/DevCardPreview'; // ★TEMP_DEV — 카드 미리보기
 import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { subscribeMyNotifications, markNotificationRead } from './src/utils/roundupNotifications';
@@ -589,7 +588,6 @@ function App() {
         첫 마운트에 영역 높이를 측정하는 동안 absolute(bottom:0) 뷰의 center가 위→아래로 밀려, 로딩화면이
         살짝 내려오던 점프가 생김(2026-06-14 수정). 정적 로딩 View와 같은 위치 기준으로 맞춰 이음새 제거. */}
     <SplashOverlay appReady={appReady} />
-    {DEV_BYPASS_LOGIN && <DevCardPreview />}
     </GestureHandlerRootView>
   );
 }
