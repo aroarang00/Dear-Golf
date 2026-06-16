@@ -77,7 +77,7 @@ export const dS = StyleSheet.create({
   photoCount:         { position: 'absolute', bottom: 8, right: 10, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   photoCountTxt:      { fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.9)' },
   cardBody:    { padding: 12 },
-  cardDate:    { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginBottom: 4 },
+  cardDate:    { fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginBottom: 4 },
   cardCourse:  { fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, marginBottom: 8 },
   cardScore:   { fontFamily: F.en, fontSize: fs(24), color: C.charcoal, lineHeight: 28 },
   cardScoreUnit: { fontFamily: F.sys, fontSize: fs(14), color: C.charcoal },
