@@ -109,6 +109,40 @@ service cloud.firestore {
         && resource.data.ownerUid == request.auth.uid;
     }
 
+    // ===== roundScoreShares — 동반자 스코어 공유 (Phase C, docs/companion-design.md §11) =====
+    //  한 명이 라운딩 스코어(OCR 카드/총타)를 공유 → 수신자(동반자 friendUid)가 카드에서 '자기 행'을 골라
+    //  본인 rounds에 파생. ★자기파생: 파생은 rounds에 ownerUid==본인으로 setDoc(결정적 ID {shareId}_{uid}) →
+    //    기존 rounds 규칙 그대로 통과 + 멱등(중복 방지). cross-user 쓰기 0이라 CF 불필요(모집→일정 자동추가와 동일 패턴).
+    //  문서 = 임시(공유 후 TTL 클린업 — 후속 CF). rows는 이름 라벨 힌트 포함하나, 영구 저장은 각자 '자기 행'만(PIPA).
+    //  필드: { authorUid, course, courseId?, courseLoc?, date, day?, time?, pars:[18]|null,
+    //         rows:[{idx,label,holes:[18]|null,total}], audienceUids:[friendUid], respondedUids:[uid],
+    //         scheduleId?|roundupId?, createdAt, expiresAt }
+    //  respondedUids = 수락(파생)·거절 모두 자기 uid 추가 → 응답하면 카드 안 뜸(재노출 방지, 수락/거절 구분은 파생 round 존재로).
+    //  클라이언트 쿼리: where('audienceUids','array-contains', 내uid)  (응답완료 필터는 클라서 respondedUids로)
+    match /roundScoreShares/{shareId} {
+      allow read: if isSignedIn() && (
+        resource.data.authorUid == request.auth.uid
+        || request.auth.uid in resource.data.audienceUids
+      );
+      // 생성: 본인이 author. audience/rows는 리스트, responded는 빈 배열로 시작(self-toggle 전제).
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.audienceUids is list
+        && request.resource.data.respondedUids == []
+        && request.resource.data.rows is list
+        && request.resource.data.course is string
+        && request.resource.data.date is string;
+      // 수신자 응답: respondedUids에 '자기 uid'만 토글. rows·audience 등 불변(말풍선 위조·남행 변조 차단).
+      //   ※ 남의 uid를 건드리지 않음까지의 완전 보장은 규칙만으론 불가(roundups participantUids와 동일 한계) →
+      //     영향이 작아(카드 노출 토글) v1 허용, CF 하드닝은 후속 ([[data-integrity-principles]]).
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.audienceUids
+        && changedKeysWithin(['respondedUids', 'updatedAt'])
+        && selfMembershipToggled('respondedUids');
+      // 삭제: author만 (TTL 만료 정리는 후속 Cloud Function).
+      allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
     // ===== friendships — 친구 관계. 문서 ID = pairId(uidA, uidB) =====
     // { users:[uidA,uidB], requesterUid, recipientUid, status:'pending'|'accepted' }
     match /friendships/{fid} {
