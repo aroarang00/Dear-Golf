@@ -72,6 +72,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
     { label: '총 라운딩', list: costRounds },
   ];
 
+  const [infoOpen, setInfoOpen] = useState(false); // 가계부 안내 모달
   // 접기/펼치기 — 기본은 이번달만 펼침 (expanded === null이면 이번달만 열림)
   const [expanded, setExpanded] = useState(null);
   const isOpen = (m) => (expanded ? !!expanded[m] : m === thisMonthKey);
@@ -91,7 +92,14 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
           <View style={{ backgroundColor: C.charcoalDeep, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View>
               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: GOLD, letterSpacing: 3, marginBottom: 4 }}>MY GOLF LEDGER</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#F5EFDE' }}>골프 가계부</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#F5EFDE' }}>골프 가계부</Text>
+                {/* 안내 — 일정·라운지 헤더와 같은 원형 느낌표(라운지 헤더 스타일 참조) */}
+                <TouchableOpacity onPress={() => setInfoOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.en, fontSize: fs(14), color: GOLD, lineHeight: 17 }}>!</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(20), color: 'rgba(245,239,222,0.85)' }}>✕</Text>
@@ -208,6 +216,44 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
           )}
         </View>
       </View>
+
+      {/* 가계부 안내 — 기록 위치·합산·내기 별도 정산 설명. 가계부 톤(차콜딥+골드). 빌드로만 확인되니 줄정리 깔끔히. */}
+      <Modal visible={infoOpen} transparent animationType="fade" onRequestClose={() => setInfoOpen(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 30 }}
+          activeOpacity={1} onPress={() => setInfoOpen(false)}>
+          <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
+            <View style={{ backgroundColor: C.charcoalDeep, paddingVertical: 16, paddingHorizontal: 20 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: GOLD, letterSpacing: 2, marginBottom: 4 }}>가계부 안내</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#F5EFDE' }}>이렇게 쓰면 돼요</Text>
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingVertical: 18 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoalDeep }}>어디서 기록하나요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 19 }}>
+                라운딩 기록을 남길 때 '비용' 항목에서{'\n'}그린피·카트비·캐디피·기타를 입력해요.
+              </Text>
+
+              <View style={{ height: 1, backgroundColor: C.hairline, marginVertical: 14 }} />
+
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoalDeep }}>어떻게 합산되나요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 19 }}>
+                입력한 지출은 자동으로 모여{'\n'}이번달·지난달·올해 총 지출과{'\n'}라운딩당 평균을 보여드려요.
+              </Text>
+
+              <View style={{ height: 1, backgroundColor: C.hairline, marginVertical: 14 }} />
+
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoalDeep }}>내기는 따로 정산해요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 19 }}>
+                내기는 쓴 돈이 아니라 손익이라{'\n'}총 지출에는 넣지 않아요.{'\n'}
+                딴 날은 <Text style={{ fontFamily: F.sysB, color: WIN }}>+</Text>, 잃은 날은 <Text style={{ fontFamily: F.sysB, color: LOSS }}>−</Text>로{'\n'}'내기 정산'에 따로 모아 보여줘요.
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setInfoOpen(false)} activeOpacity={0.7}
+              style={{ paddingVertical: 13, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, textAlign: 'center' }}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </Modal>
   );
 }
