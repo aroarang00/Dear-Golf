@@ -123,7 +123,8 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta 
       const masked = anon && !viewerIsHost;
       let base;
       if (host) {
-        base = hostName;
+        // 주최자도 내가 정한 별명 우선(owner-only) — 카드 타이틀과 일치. 본인·폴백은 닉네임 ([[friend_groups]])
+        base = isSelf ? hostName : friendDisplayName(friendMeta, uid, hostName);
       } else if (masked) {
         base = anonNick(uid, post.id);            // 랜덤닉(저장X·결정적) — 일반 닉처럼 묻힘
       } else {
@@ -809,6 +810,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               joined={joined}
               myUid={myUid}
               nameMap={participantNames}
+              friendMeta={friendMeta}
               inputRef={commentInputNode}
               onInputFocus={scrollCommentIntoView}
               onAdd={onAddComment}
