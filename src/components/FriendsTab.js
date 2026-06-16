@@ -25,6 +25,7 @@ import { useBlockUser } from '../hooks/useBlockUser';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds, recomputeMyGroupAudiences } from '../utils/round';
 import { db, getUid } from '../utils/firebase';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 // 친구 찾기에서 받은 후보(간단 필드) → 친구 목록 객체로 변환
@@ -202,6 +203,24 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const listScrollRef = useRef(null);
   const [reloadKey, setReloadKey] = useState(0);   // 탭 재진입 시 친구·신청 목록 재조회 트리거 (수락·신청 반영)
 
+  // uid 안정화([[uid-stabilization-plan]] 2단계) — 단일 uid 소스 구독.
+  //   재설치·익명↔카카오 settle로 uid가 바뀌면(시나리오 ②) 아래 로드 effect가 currentUid 의존성으로
+  //   재실행되어 새 계정 친구·신청으로 자동 교체된다.
+  const currentUid = useCurrentUid();
+  const prevUidRef = useRef(currentUid);
+  // uid가 바뀐 순간 옛 계정 데이터를 즉시 비운다 — 새 목록 로드 전까지 옛 친구가 잔존하지 않게
+  //   (DiariesContext의 setHydrated(false) 정신). 마운트(prev===cur) 시엔 비우지 않음.
+  useEffect(() => {
+    if (prevUidRef.current === currentUid) return;
+    prevUidRef.current = currentUid;
+    setFriends([]);
+    setReceivedRequests([]);
+    setSentRequests([]);
+    setFavorites({});
+    setHidden({});
+    setFriendsLoaded(false);
+  }, [currentUid]);
+
   // Phase 3-F2 — 마운트 시 내 users/{uid} 문서 ensure + 친구·신청 목록 Firestore 로드.
   // users/{uid}.nickname은 다른 사용자가 내 이름을 조회하는 단일 소스. F4에서 MyPage 편집 시 동기화.
   useEffect(() => {
@@ -311,7 +330,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [userProfile?.nickname, reloadKey]);
+  }, [userProfile?.nickname, reloadKey, currentUid]);
 
   // 친구 탭 재방문 시 — 검색·프로필·찾기 닫고 목록 맨 위로 + 친구·신청 재조회
   useEffect(() => {
