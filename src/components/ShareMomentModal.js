@@ -198,7 +198,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                     onPress={() => handleOption(o.key)}
                     disabled={disabled}
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      backgroundColor: o.bg, borderRadius: 12, paddingVertical: 14,
+                      backgroundColor: o.bg, borderRadius: 12, height: 48,
                       borderWidth: o.border ? 1 : 0, borderColor: C.hairline,
                       opacity: disabled ? 0.5 : 1 }}>
                     <Text style={{ fontSize: fs(16) }}>{o.icon}</Text>
@@ -215,7 +215,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                   onPress={() => { onShareLink(); }}
                   disabled={sharing || saving}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    backgroundColor: C.navy, borderRadius: 12, paddingVertical: 14,
+                    backgroundColor: C.navy, borderRadius: 12, height: 48,
                     opacity: (sharing || saving) ? 0.5 : 1 }}>
                   <Text style={{ fontSize: fs(16) }}>🔗</Text>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>링크 공유</Text>
