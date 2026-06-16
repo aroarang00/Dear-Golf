@@ -28,13 +28,21 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
   //   마커 셋이 바뀌면(주변맛집 async 로드·코스 변경) 다시 true→false. (hook은 early return 위에 무조건 호출)
   const [tracksMarkers, setTracksMarkers] = useState(true);
   const mapRef = useRef(null);
+  // 자동맞춤(fitToCoordinates)이 끝난 실제 region — 리셋 버튼 '원위치' 기준점.
+  const homeRef = useRef(null);
+  // 프로그래매틱 fit/animate 진행 중 표시 — 그 결과로 들어오는 region 변화는 '사용자 이동'으로 보지 않음.
+  const fittingRef = useRef(false);
+  // 자동맞춤 함수 참조 — 폴백 early return 시엔 미할당(null)이라 effect에서 안전하게 no-op.
+  const fitRef = useRef(null);
   // 사용자가 줌·팬으로 초기 위치/배율에서 벗어났는지. 벗어났을 때만 좌하단 리셋 버튼 노출(평소엔 깔끔).
   const [moved, setMoved] = useState(false);
   useEffect(() => {
     setTracksMarkers(true);
     setMoved(false); // 코스가 바뀌면 새 중심이 기준이 되므로 리셋 버튼 숨김
     const t = setTimeout(() => setTracksMarkers(false), 1500);
-    return () => clearTimeout(t);
+    // 마커 데이터가 바뀌면 새 핀 묶음에 맞춰 다시 자동맞춤(지도 준비 전이면 onMapReady가 처리)
+    const f = setTimeout(() => fitRef.current?.(), 300);
+    return () => { clearTimeout(t); clearTimeout(f); };
   }, [nearby?.length, saved?.length, courseCoord?.x, courseCoord?.y]);
 
   // 골프장 좌표 없으면 호출부가 폴백 처리 (정적 안내)
@@ -55,26 +63,50 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
   const recPins = validPos(nearby).slice(0, 12);   // 추천 맛집 — 주황 (정적지도와 동일 상한)
   const savedPins = validPos(saved).slice(0, 10);   // 저장 맛집 — 노랑
 
-  // 초기 화면 — 골프장 중심. 리셋 버튼이 되돌릴 목표 지점이기도 함.
-  //   0.06(≈3km 반경)은 너무 넓어 핀이 가운데로 몰려 보였음 → 0.04로 당겨 핀을 퍼뜨림(사용자 2026-06-17, 안드·iOS 공통).
-  const HOME_REGION = {
+  // 폴백 줌 — 맛집 핀이 1개도 없을 때(골프장만)의 초기 화면. 핀이 2개 이상이면 자동맞춤이 우선.
+  //   0.04 ≈ 화면 폭 약 4.4km. 핀이 있으면 fitToPins가 핀 묶음에 맞춰 더 당겨준다.
+  const FALLBACK_REGION = {
     latitude: courseCoord.y,
     longitude: courseCoord.x,
     latitudeDelta: 0.04,
     longitudeDelta: 0.04,
   };
 
-  // 현재 화면이 초기 위치/배율에서 의미 있게 벗어났는지 판정 → 리셋 버튼 노출 여부.
+  // 골프장 + 추천/저장 맛집 핀의 모든 좌표 — 자동맞춤(fitToCoordinates) 대상.
+  const allCoords = [
+    { latitude: courseCoord.y, longitude: courseCoord.x },
+    ...recPins.map((r) => ({ latitude: r.y, longitude: r.x })),
+    ...savedPins.map((s) => ({ latitude: s.y, longitude: s.x })),
+  ];
+
+  // 핀 전체가 화면을 꽉 채우도록 줌/중심 자동 계산. 핀이 실제로 한곳에 몰려 있어도
+  //   가장자리 여백(edgePadding)만큼 띄워 최대한 퍼뜨려 보여준다. 핀 1개뿐이면 폴백 줌으로.
+  const fitToPins = () => {
+    if (!mapRef.current) return;
+    fittingRef.current = true; // 이 region 변화는 사용자 이동이 아님 — 리셋 버튼 안 띄움
+    if (allCoords.length >= 2) {
+      mapRef.current.fitToCoordinates(allCoords, {
+        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        animated: true,
+      });
+    } else {
+      mapRef.current.animateToRegion(FALLBACK_REGION, 350);
+    }
+  };
+  fitRef.current = fitToPins; // effect에서 안전 호출용
+
+  // 현재 화면이 자동맞춤 기준(homeRef)에서 의미 있게 벗어났는지 판정 → 리셋 버튼 노출 여부.
   //   온갖 미세 흔들림에 버튼이 깜빡이지 않도록 중심 0.004°(약 400m)·배율 25% 임계치.
   const isAwayFromHome = (r) => {
-    if (!r) return false;
-    const dCenter = Math.abs(r.latitude - HOME_REGION.latitude) + Math.abs(r.longitude - HOME_REGION.longitude);
-    const dZoom = Math.abs(r.latitudeDelta - HOME_REGION.latitudeDelta) / HOME_REGION.latitudeDelta;
+    const home = homeRef.current;
+    if (!r || !home) return false;
+    const dCenter = Math.abs(r.latitude - home.latitude) + Math.abs(r.longitude - home.longitude);
+    const dZoom = Math.abs(r.latitudeDelta - home.latitudeDelta) / home.latitudeDelta;
     return dCenter > 0.004 || dZoom > 0.25;
   };
 
   const recenter = () => {
-    mapRef.current?.animateToRegion(HOME_REGION, 350);
+    fitToPins();
     setMoved(false);
   };
 
@@ -86,8 +118,18 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
       provider={PROVIDER_DEFAULT}
       minZoomLevel={MIN_ZOOM}
       maxZoomLevel={MAX_ZOOM}
-      onRegionChangeComplete={(r) => setMoved(isAwayFromHome(r))}
-      initialRegion={HOME_REGION}
+      onMapReady={fitToPins}
+      onRegionChangeComplete={(r) => {
+        // 자동맞춤/원위치로 들어온 region 변화는 사용자 이동이 아님 → 그 결과를 리셋 기준으로 저장만.
+        if (fittingRef.current) {
+          fittingRef.current = false;
+          homeRef.current = r;
+          setMoved(false);
+          return;
+        }
+        setMoved(isAwayFromHome(r));
+      }}
+      initialRegion={FALLBACK_REGION}
     >
       {/* 골프장 — 버건디 큰 핀 */}
       <Marker
