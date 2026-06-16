@@ -13,6 +13,7 @@ const DM_PALESKY  = '#C8D9E6';                 // 미리보기·시각 — 채�
 const DM_LINE     = 'rgba(255,255,255,0.08)';  // 다크용 헤어라인·구분선
 const DM_AVATAR   = '#46403B';                 // 친구 아바타 이니셜 배경(대화방과 통일)
 import { getUid } from '../utils/firebase';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { subscribeConversations, otherUidOf, clearConversation } from '../utils/dm';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 import { loadMyFriendsEnriched, loadMyBlockedUids } from '../utils/friends';
@@ -48,6 +49,7 @@ function fmtTime(ts) {
 //   헤더에 'DM 알림 받기' 전역 토글 자리(출시 후 실연결).
 export function DMListScreen({ onClose, onOpenChat }) {
   const [myUid, setMyUid] = useState(null);
+  const currentUid = useCurrentUid();   // uid 안정화([[uid-stabilization-plan]] 3단계) — uid 변경 시 대화목록 재구독
   const [convs, setConvs] = useState(null);    // null = 로딩 중
   const [nameMap, setNameMap] = useState({});  // uid → nickname
   const [avatarMap, setAvatarMap] = useState({});  // uid → 원격 avatarUrl (사진 우선·이니셜 fallback, 친구리스트와 동일)
@@ -109,7 +111,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
       } catch (e) { if (__DEV__) console.warn('[DMList] friends', e?.message); }
     })();
     return () => { alive = false; unsub(); };
-  }, []);
+  }, [currentUid]);   // uid 바뀌면 옛 구독 해제 후 새 계정으로 재구독(stale 대화목록 방지)
 
   // 차단 상대 대화 숨김 — blocked가 늦게 와도 렌더에서 적용(목록 표시를 막지 않음). 차단은 드물어 잠깐 보일 수 있으나 도착 즉시 필터.
   const visibleConvs = useMemo(

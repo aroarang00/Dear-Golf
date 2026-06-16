@@ -7,6 +7,7 @@ import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controll
 import { useSafeAreaInsets, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { getUid } from '../utils/firebase';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -217,6 +218,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     return () => subs.forEach((s) => s.remove());
   }, []);
   const [myUid, setMyUid] = useState(null);
+  const currentUid = useCurrentUid();   // uid 안정화([[uid-stabilization-plan]] 3단계) — uid 변경 시 내 uid·대화방 재확정
   const [convId, setConvId] = useState(null);
   const [messages, setMessages] = useState(null);  // null = 로딩 중
   const [alert, setAlert] = useState(null);  // 전송 실패 안내 — Modal 안이라 글로벌 alert 대신 자체 오버레이
@@ -259,7 +261,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       } catch (e) { if (__DEV__) console.warn('[DMChat] ensure', e?.message); }
     })();
     return () => { alive = false; };
-  }, [friendUid]);
+  }, [friendUid, currentUid]);   // uid 바뀌면 새 계정 기준으로 myUid·convId 재확정(stale 발신자 방지)
 
   // 대화방 열린 동안만 메시지 실시간 구독 (닫으면 cleanup에서 unsub)
   useEffect(() => {
