@@ -137,8 +137,9 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
         <Text style={dS.cardDate}>{item.date} {item.day}</Text>
         {!hasPhoto ? ownerLabelTopRight : null}
       </View>
-      {/* 구장명 줄 — 좋아요는 카드 하단 우측으로 이동(친구 피드와 위치 통일, 2026-06-13) */}
-      <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }]} numberOfLines={1}>{item.course}</Text>
+      {/* 구장명 줄 — 좋아요는 카드 하단 우측으로 이동(친구 피드와 위치 통일, 2026-06-13).
+          멘트(F.sys)와 굵기가 같아 구분이 약해 Medium으로 한 단계 진하게(피드 한정, 2026-06-16) */}
+      <Text style={[dS.cardCourse, { fontFamily: F.sysM }, isSpecial && { color: '#8B6914' }]} numberOfLines={1}>{item.course}</Text>
       {scoreLine}
       {memoBlock}
       {/* 하단 줄 — 좌: 태그(스크롤) / 우: 좋아요(친구 피드와 같은 라인·우측). 사진 카드 좋아요는 토글줄서 따로 표시(!hasPhoto) */}
@@ -355,7 +356,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
           {/* 좌 — 구장 · 별점 · 한줄메모 */}
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={dS.cardDate}>{item.date} {item.day}</Text>
-            <Text style={[dS.cardCourse, isSpecial && { color: '#8B6914' }, { marginBottom: 6 }]} numberOfLines={1}>{item.course}</Text>
+            <Text style={[dS.cardCourse, { fontFamily: F.sysM }, isSpecial && { color: '#8B6914' }, { marginBottom: 6 }]} numberOfLines={1}>{item.course}</Text>
             {ratingStars}
             {item.memo ? (
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
