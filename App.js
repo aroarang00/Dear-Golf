@@ -159,9 +159,9 @@ function App() {
   }, []);
   // 받은 친구신청 실시간 구독 ([[lounge-realtime]] ② 친구신청) — 앱 켜둔 중에도 신청 도착·수락 시 뱃지 즉시 갱신.
   //   friendships: recipientUid==me && status=='pending'. 수락하면 pending에서 빠져 size 감소 → 자동 해제.
-  //   kakaoLinked 변동(익명↔카카오) 시 재구독 — getUid가 안정 uid를 반환하도록 ([[auth-relink-and-seed-cleanup]]).
+  //   uid 변동(익명↔카카오 settle·재설치 시나리오 ②) 시 authUid 의존성으로 재구독 ([[uid-stabilization-plan]]).
   useEffect(() => {
-    if (showOnboarding || !profileLoaded) return;
+    if (showOnboarding || !profileLoaded || !authUid) return;
     let unsub = null, cancelled = false;
     (async () => {
       const uid = await getUid();
@@ -176,18 +176,18 @@ function App() {
         err => { if (__DEV__) console.warn('[App] friend req listener', err?.message); });
     })();
     return () => { cancelled = true; if (unsub) unsub(); };
-  }, [showOnboarding, profileLoaded, userProfile.kakaoLinked]);
+  }, [showOnboarding, profileLoaded, authUid]);
 
   // 라운딩 일정 알림(scheduleNotice) — 주최자의 '동반자에게 일정 알리기'를 수신자가 앱 어디서나 확인.
   //   실시간 구독([[lounge-realtime]]) — 앱 켜둔 중에도 주최자가 알리면 즉시 팝업. 본인 수신분만·최신 50건 좁게.
-  //   kakaoLinked 변동(익명↔카카오) 시 재구독 — getUid가 안정 uid를 반환하도록 ([[auth-relink-and-seed-cleanup]]).
+  //   uid 변동(익명↔카카오 settle·재설치 시나리오 ②) 시 authUid 의존성으로 재구독 ([[uid-stabilization-plan]]).
   const [scheduleNotices, setScheduleNotices] = useState([]);
   useEffect(() => {
-    if (showOnboarding || !profileLoaded) return;
+    if (showOnboarding || !profileLoaded || !authUid) return;
     return subscribeMyNotifications(list => {
       setScheduleNotices(list.filter(n => n.type === 'scheduleNotice' && !n.read));
     });
-  }, [showOnboarding, profileLoaded, userProfile.kakaoLinked]);
+  }, [showOnboarding, profileLoaded, authUid]);
 
   // 번들 폰트 — Pretendard 정적 굵기 4종(한글 본문) + Lora Italic("Dear Golf" 워드마크)
   //   + Playfair Display Bold (영문·숫자 표시용 — Georgia 대체, OS 간 일관)
