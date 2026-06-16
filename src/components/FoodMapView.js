@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { F, fs } from '../constants/colors';
+
+// 줌 범위 제한 — 과도한 확대/축소로 미니맵이 '깨진 것처럼' 보이는 상태를 애초에 차단.
+//   minZoomLevel=10(시/군 수준)~maxZoomLevel=17(건물 수준). 골프장+반경 3km 맛집을 보기에 충분한 범위.
+const MIN_ZOOM = 10;
+const MAX_ZOOM = 17;
 
 // 안드는 구글맵 키(Maps SDK for Android) 없이 MapView를 올리면 네이티브 크래시가 난다.
 //   빌드 시점에 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY가 비어 있으면 지도를 띄우지 않고 폴백으로 떨어뜨려 앱을 보호한다.
@@ -22,8 +27,12 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
   //   처음부터 false면 빈 마커로 안 뜨는 react-native-maps 안드 버그 → 잠깐 true 후 false(성능 회복).
   //   마커 셋이 바뀌면(주변맛집 async 로드·코스 변경) 다시 true→false. (hook은 early return 위에 무조건 호출)
   const [tracksMarkers, setTracksMarkers] = useState(true);
+  const mapRef = useRef(null);
+  // 사용자가 줌·팬으로 초기 위치/배율에서 벗어났는지. 벗어났을 때만 좌하단 리셋 버튼 노출(평소엔 깔끔).
+  const [moved, setMoved] = useState(false);
   useEffect(() => {
     setTracksMarkers(true);
+    setMoved(false); // 코스가 바뀌면 새 중심이 기준이 되므로 리셋 버튼 숨김
     const t = setTimeout(() => setTracksMarkers(false), 1500);
     return () => clearTimeout(t);
   }, [nearby?.length, saved?.length, courseCoord?.x, courseCoord?.y]);
@@ -46,16 +55,38 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
   const recPins = validPos(nearby).slice(0, 12);   // 추천 맛집 — 주황 (정적지도와 동일 상한)
   const savedPins = validPos(saved).slice(0, 10);   // 저장 맛집 — 노랑
 
+  // 초기 화면 — 골프장 중심 + 반경 약 3km. 리셋 버튼이 되돌릴 목표 지점이기도 함.
+  const HOME_REGION = {
+    latitude: courseCoord.y,
+    longitude: courseCoord.x,
+    latitudeDelta: 0.06,   // 반경 약 3km가 보이는 수준 (정적지도 level 12 대응)
+    longitudeDelta: 0.06,
+  };
+
+  // 현재 화면이 초기 위치/배율에서 의미 있게 벗어났는지 판정 → 리셋 버튼 노출 여부.
+  //   온갖 미세 흔들림에 버튼이 깜빡이지 않도록 중심 0.004°(약 400m)·배율 25% 임계치.
+  const isAwayFromHome = (r) => {
+    if (!r) return false;
+    const dCenter = Math.abs(r.latitude - HOME_REGION.latitude) + Math.abs(r.longitude - HOME_REGION.longitude);
+    const dZoom = Math.abs(r.latitudeDelta - HOME_REGION.latitudeDelta) / HOME_REGION.latitudeDelta;
+    return dCenter > 0.004 || dZoom > 0.25;
+  };
+
+  const recenter = () => {
+    mapRef.current?.animateToRegion(HOME_REGION, 350);
+    setMoved(false);
+  };
+
   return (
+    <View style={{ width: '100%', height, position: 'relative' }}>
     <MapView
+      ref={mapRef}
       style={{ width: '100%', height }}
       provider={PROVIDER_DEFAULT}
-      initialRegion={{
-        latitude: courseCoord.y,
-        longitude: courseCoord.x,
-        latitudeDelta: 0.06,   // 반경 약 3km가 보이는 수준 (정적지도 level 12 대응)
-        longitudeDelta: 0.06,
-      }}
+      minZoomLevel={MIN_ZOOM}
+      maxZoomLevel={MAX_ZOOM}
+      onRegionChangeComplete={(r) => setMoved(isAwayFromHome(r))}
+      initialRegion={HOME_REGION}
     >
       {/* 골프장 — 버건디 큰 핀 */}
       <Marker
@@ -97,6 +128,21 @@ export function FoodMapView({ courseCoord, courseName, nearby = [], saved = [], 
         </Marker>
       ))}
     </MapView>
+
+    {/* 좌하단 리셋 — 지도를 움직였을 때만 노출. 탭하면 골프장 중심·기본 배율로 부드럽게 복귀.
+        (우하단 '네이버지도' 버튼과 반대쪽 코너라 겹치지 않음) */}
+    {moved && (
+      <TouchableOpacity
+        onPress={recenter}
+        activeOpacity={0.8}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        style={st.resetBtn}
+      >
+        <Text style={st.resetIcon}>↺</Text>
+        <Text style={st.resetTxt}>원위치</Text>
+      </TouchableOpacity>
+    )}
+    </View>
   );
 }
 
@@ -110,6 +156,17 @@ const st = StyleSheet.create({
   pinTxt: { fontSize: 14 },
   mapPin: { fontSize: 34 },    // 추천 맛집 — 동그라미 없이 핀 이모지
   mapStar: { fontSize: 30 },   // 저장 맛집 — 동그라미 없이 별표
+  // 좌하단 리셋 버튼 — 흰 배경 캡슐(네이버 초록 버튼과 톤 분리, 보조 액션 인상)
+  resetBtn: {
+    position: 'absolute', bottom: 8, left: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2,
+  },
+  resetIcon: { fontSize: fs(13), color: '#3A3A3A', fontFamily: F.sysSb },
+  resetTxt: { fontSize: fs(11), color: '#3A3A3A', fontFamily: F.sysSb },
   // 안드 키 없을 때 폴백 — 의도된 안내 화면(빈 회색 박스 방지)
   fallback: {
     width: '100%',
