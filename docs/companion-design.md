@@ -154,4 +154,61 @@
 
 ---
 
-_작성 시점: 정합성 정리 직후. 구현은 본 노트 합의 → Phase A부터._
+## 11. Phase C 스코어 공유 — v1 확정 스펙 (2026-06-16 사용자 합의)
+
+합의 조합: **A=자기파생(CF 없음) / B=OCR 카드 공유+수신자 본인행 선택 / C=프리필+수락제 /
+D=기록 상세부터 / E=마스킹+임시문서**.
+
+### 11-1. 핵심 통찰 — "픽 유어 로우"
+OCR(`scorecardOcr.js`)은 행을 **이름 라벨과 함께** 파싱하고, 앱엔 이미 "여러 행이면 본인 행 선택"
+UX가 있다(혼자 쓸 때 내 그룹 카드 찍고 내 행만 저장, 남 이름·점수 저장 X = PIPA). 이걸 공유로 확장:
+- 입력자는 카드 OCR 후 **그냥 공유**(행↔동반자 매핑 불필요).
+- 수신자는 카드 행들(이름 힌트)에서 **자기 행을 직접 선택** → 본인 기록에 그 행(홀별)만 파생.
+- 효과: 입력자 매핑 부담 0 · **OCR 이름 정확도 무관**(본인이 자기 행 확인) · 기존 UX/코드 재사용 = 저위험.
+
+### 11-2. 왜 CF 불필요 (자기파생)
+Q1(모집 확정→일정 자동추가)과 동일 패턴: 공유 문서 1건 + **각 수신자 클라가 "자기 것만" 파생**.
+cross-user 쓰기 0이라 §4의 "CF only" 요구에 해당 없음. 수신자 발견도 클라 쿼리
+(`roundScoreShares where audienceUids array-contains myUid`, invite 카드와 동일). 푸시 알림만
+선택적으로 CF(onCreate) 후속.
+
+### 11-3. 데이터 모델
+**`roundScoreShares/{shareId}`** (임시·접근제한):
+```
+{ authorUid, createdAt, expiresAt,            // expiresAt: N일 후 TTL/클린업 삭제
+  course, courseId, courseLoc, date, day, time?,
+  scheduleId?|roundupId?,                      // 연결(있으면)
+  pars: number[18]|null,
+  rows: [{ idx, label, holes:number[18]|null, total }],  // OCR/수동 전 행. label=이름 힌트(영구저장 X)
+  audienceUids: [friendUid...],                // 이 라운딩 동반자(실유저)만 — 수신 가능자
+  acceptedUids: [uid...] }                      // 자기행 파생 완료자(arrayUnion 본인만). 전원 차면 삭제 가능
+```
+**수신자 파생 → 본인 `rounds`** (멱등키 `sourceShareId:recipUid`, setDoc 결정적 ID):
+```
+{ ownerUid:recipUid, date, day, course, courseId, courseLoc,
+  holeScores: 선택행.holes, holePars: pars, score: 선택행.total, birdieCount,
+  companions:[...본인기준], sourceShareId, visibility 기본 } // 남의 행·이름은 영구 저장 X
+```
+
+### 11-4. Firestore rules (스케치 — 배포는 uid E2E 후)
+- `roundScoreShares` create: `auth.uid == authorUid` (실유저).
+- read: `auth.uid == authorUid || auth.uid in resource.data.audienceUids`. (resource==null 가드 [[project_firestore_resource_null_pattern]])
+- update: 수신자는 **acceptedUids에 본인 uid arrayUnion만** 허용(행 수정 금지), author는 메타 불변.
+- delete: author, 또는 TTL 클린업.
+- 파생 `rounds`: 기존 본인 rounds 규칙(ownerUid==auth.uid) 그대로 — cross-user 쓰기 없음.
+
+### 11-5. PIPA / 마스킹 (E)
+- 공유 문서는 **동의(입력자 공유)** 하에 그룹 행을 임시 보관, **접근=동반자 friendUid만**, **N일 후 자동 삭제**.
+- **영구 저장은 각자 자기 행만** 본인 기록에. 이름 라벨·남의 행은 어디에도 영구 저장 X(현행 OCR 원칙 유지).
+- 익명 참여자: audience=실유저 friendUid라 애초에 수신 대상 아님 + 행 label에 호스트-박제 실명이
+  실리지 않게 마스킹(§ 23행 누출 재점검 항목 준수).
+
+### 11-6. 선행조건 / 시퀀싱
+1. **uid 안정화 E2E(빌드+2계정 프레시설치) 검증** — 전제. (현재 빌드가 검증 수단)
+2. 통과 후 v1 구현: 모델+rules → 입력자 '동반자에 공유' 진입(기록 상세) → 공유문서 생성 →
+   수신자 in-app 발견 카드 → 본인 행 선택 → 멱등 파생. → 정적점검→에뮬레이터→2계정 E2E([[feedback_verify_before_deploy]]).
+3. 푸시 알림·OCR 행 자동매핑·일정 전파(Phase B)는 후속.
+
+---
+
+_작성 시점: 정합성 정리 직후. 구현은 본 노트 합의 → Phase A부터. Phase C v1 스펙 §11 (2026-06-16 합의)._
