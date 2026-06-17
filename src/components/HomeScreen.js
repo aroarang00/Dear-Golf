@@ -474,21 +474,18 @@ export function HomeScreen({ navigation, route }) {
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
           <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
-          {/* 타이틀 줄 — 좌: Dear Golf + 날씨 / 우: DM 💬. 같은 줄 우측 정렬이라 세로 위치가 타이틀에 자동 정렬되고
-              가로도 헤더 콘텐츠 우측 끝(여백 22)에 들어가 위치가 안정적(절대좌표 매직넘버 회피). */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
-              <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
-              </TouchableOpacity>
-            </View>
-            {/* DM(메시지) — 홈 우상단 진입(친구 탭서 이관·일원화, 2026-06-17). 크게(fs42). 안읽음 뱃지는 말풍선 우상단 어깨에 바짝. */}
+          {/* 타이틀 줄 — Dear Golf + 날씨 + DM 💬. 💬는 날씨 아이콘 우상단에 살짝 띄워(브랜드가 말하는 말풍선 느낌),
+              너무 붙지 않게 간격(marginLeft)·위로 올림(marginTop 음수). 사용자 위치 지정 2026-06-17. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
+            <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
+              <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginRight: 2 }}>
-              <Text style={{ fontSize: fs(42), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginLeft: 14, marginTop: -12 }}>
+              <Text style={{ fontSize: fs(34), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
               {dmUnread > 0 && (
-                <View pointerEvents="none" style={{ position: 'absolute', top: 4, right: 4, minWidth: 18, height: 18, borderRadius: 9,
+                <View pointerEvents="none" style={{ position: 'absolute', top: 1, right: 1, minWidth: 17, height: 17, borderRadius: 8.5,
                   paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
                 </View>
@@ -632,6 +629,10 @@ export function HomeScreen({ navigation, route }) {
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🍴 주변 맛집</Text>
                     </TouchableOpacity>
                   </View>
+                  {/* 뒤풀이 — 카드 안 버튼(탭하면 팝업). 종료 카드라 항상 노출 ([[afterround-meal-decision]]) */}
+                  <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                    <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active />
+                  </View>
                 </>
               ) : (
                 <>
@@ -657,14 +658,16 @@ export function HomeScreen({ navigation, route }) {
                       <Text style={{ fontSize: Platform.OS === 'android' ? fs(28) : fs(32), marginBottom: Platform.OS === 'android' ? 4 : 6 }}>🌤  🚗</Text>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>탭하여 확인하기 →</Text>
                     </TouchableOpacity>
+                    {/* 뒤풀이 — 오늘(D-0) 라운딩이면 카드 안 버튼(탭하면 팝업) ([[afterround-meal-decision]]) */}
+                    {freshDDay(next) === 0 && (
+                      <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                        <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active />
+                      </View>
+                    )}
                   </View>
                 </>
               )}
             </View>
-
-            {/* 뒤풀이 결정 — 오늘/종료 라운딩일 때만 카드 아래 한 줄(+홈 위 시트) ([[afterround-meal-decision]]) */}
-            <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname}
-              active={!!next && (roundEnded || freshDDay(next) === 0)} />
 
             {upcomingSchedules.slice(1, 5).map((s, i) => {
               const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;
