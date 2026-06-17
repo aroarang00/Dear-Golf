@@ -38,7 +38,7 @@ const costInputS = {
   paddingHorizontal: 12, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, textAlign: 'right',
 };
 const costWonS = { fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginLeft: 8 };
-const costHintS = { fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 5, marginBottom: 13, marginLeft: 2 };
+const costHintS = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 5, marginBottom: 13, marginLeft: 2 };
 
 // 다이어리 사진·영상 첨부 한도 (저장 공간·로딩 성능·UX 균형)
 const MAX_PHOTOS = 10;
@@ -432,7 +432,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const num = (v) => parseInt(v) || 0;
   const courseAmt = showCourseDetail ? (num(costs.green) + num(costs.cart) + num(costs.onsite)) : num(costs.field); // 골프장 결제(그린피+카트+그늘집)
   const betSigned = (betWon ? -1 : 1) * num(costs.bet); // 내기 — 땄으면 음수(총액 차감), 잃으면 양수 ([[ledger-bet-pnl]])
-  const costTotal = courseAmt + num(costs.caddie) + num(costs.etc) + betSigned; // 내기 차감으로 0·음수 가능
+  const costTotal = courseAmt + num(costs.caddie) + num(costs.etc) + betSigned; // 저장용 — 내기 포함(보기서 total−bet으로 분리, 마이그레이션 불필요 [[ledger-bet-pnl]])
+  const costSpend = courseAmt + num(costs.caddie) + num(costs.etc); // 표시용 '총 비용' — 내기 제외(정산 분리, 입력↔보기 일관)
   // 입력 항목이 하나라도 있으면 저장 — 크게 딴 날(총액 0·음수)도 기록되게(총액>0 가드 폐지) ([[ledger-bet-pnl]])
   const anyCost = courseAmt > 0 || num(costs.caddie) > 0 || num(costs.etc) > 0 || num(costs.bet) > 0;
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -1019,7 +1020,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </View>
                   {/* 안내 + 세부 토글 — 박스 아래 줄(안내는 왼쪽, 세부는 오른쪽) */}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, marginBottom: 13, marginLeft: 2 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
                       {showCourseDetail ? '그린피·카트비 따로 입력 중' : '그린피·카트비 함께 결제'}
                     </Text>
                     <TouchableOpacity onPress={() => setShowCourseDetail(v => !v)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}>
@@ -1046,7 +1047,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                           value={costs.onsite} onChangeText={(t) => setCosts(prev => ({ ...prev, onsite: t.replace(/[^0-9]/g, '') }))} />
                         <Text style={costWonS}>원</Text>
                       </View>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 5, marginLeft: 2 }}>음료·간식 등 골프장 카드 정산분</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 5, marginLeft: 2 }}>음료·간식 등 골프장 카드 정산분</Text>
                     </View>
                   )}
                   {/* ② 캐디피 — 현금 */}
@@ -1083,14 +1084,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       value={costs.bet} onChangeText={(t) => setCosts(prev => ({ ...prev, bet: t.replace(/[^0-9]/g, '') }))} />
                     <Text style={costWonS}>원</Text>
                   </View>
-                  <Text style={costHintS}>{betWon ? '딴 돈은 총 비용에서 빠져요' : '잃은 돈은 총 비용에 더해져요'}</Text>
+                  <Text style={costHintS}>내기는 총 비용에 넣지 않고{'\n'}가계부에서 따로 보여줘요</Text>
                   <View style={{
                     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
                     borderTopWidth: 0.5, borderTopColor: C.hairline, paddingTop: 12, marginTop: 2, paddingBottom: 2,
                   }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary, lineHeight: fs(22) }}>총 비용</Text>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.burgundy, lineHeight: fs(22) }}>
-                      {won(costTotal)}원
+                      {won(costSpend)}원
                     </Text>
                   </View>
                 </View>
