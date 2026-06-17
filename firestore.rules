@@ -184,6 +184,36 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.initiatorUid == request.auth.uid;
     }
 
+    // ===== mealSuggestions — 라운딩 후 뒤풀이(식사) 장소 결정 ([[afterround-meal-decision]]) =====
+    //  총대 한 명(author)이 주변 맛집 골라 제안(결정적 ID meal_{scheduleId}) → 동반자(audience) 👍 동의 → author 결정.
+    //  cross-user 데이터 쓰기 0(동의=agreedUids 자기 토글, 푸시만 CF). 그날만 사는 ephemeral(TTL). 채팅 아님.
+    //  필드: { authorUid, authorName, scheduleId, course, courseId?, courseLoc?, date,
+    //         place:{name,x,y,kakaoId,loc}, note, audienceUids:[friendUid], agreedUids:[uid], decided, decidedBy, ..., expiresAt }
+    //  쿼리: where('audienceUids','array-contains', 내uid)
+    match /mealSuggestions/{id} {
+      allow read: if isSignedIn() && (
+        resource == null
+        || request.auth.uid == resource.data.authorUid
+        || request.auth.uid in resource.data.audienceUids
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.agreedUids == []
+        && request.resource.data.decided == false
+        && request.resource.data.audienceUids is list;
+      // 장소 교체·메모·결정 — author 전체 수정. proposeMeal 재호출(전체 덮어쓰기)도 update로 들어와 여기서 허용(authorUid 불변 전제).
+      allow update: if isSignedIn()
+        && resource.data.authorUid == request.auth.uid
+        && request.resource.data.authorUid == request.auth.uid;
+      // 동의 — 동의자(audience)가 agreedUids에 자기 uid만 토글.
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.audienceUids
+        && changedKeysWithin(['agreedUids', 'updatedAt'])
+        && selfMembershipToggled('agreedUids');
+      // 삭제: author만 (TTL 정리는 후속 CF).
+      allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
     // ===== friendships — 친구 관계. 문서 ID = pairId(uidA, uidB) =====
     // { users:[uidA,uidB], requesterUid, recipientUid, status:'pending'|'accepted' }
     match /friendships/{fid} {
