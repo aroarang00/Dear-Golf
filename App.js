@@ -98,7 +98,7 @@ export const navigationRef = createNavigationContainerRef();
 
 // ★TEMP_DEV — __DEV__ 전용 로그인 우회. 카카오 없이 메인 탭 직행(로딩 흔들림·상단 띠·카드 핫리로드 디버깅용).
 //   프로덕션 빌드(__DEV__=false)에선 항상 false라 완전 무시됨 — 안전. 디버깅 끝나면 이 줄 제거 ([[android_edge_to_edge]]).
-const DEV_BYPASS_LOGIN = __DEV__ && true;
+const DEV_BYPASS_LOGIN = __DEV__ && false;
 
 // 안드 edge-to-edge 첫 프레임 보정 게이트 ([[android_edge_to_edge]] 증상③).
 //  화면(Tab scene)이 첫 마운트 때 상태바 inset(top)이 아직 0인 채로 그려져 상태바만큼 아래로 밀리고,
