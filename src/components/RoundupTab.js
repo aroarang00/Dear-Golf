@@ -1892,18 +1892,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         </View>
       )}
 
-      {/* 내 참여 탭 — 내가 주최한 모집이 있을 때만 '내 주최 | 참여' 분류 토글(정렬 토글과 동일 스타일) ([[roundup-sort-filter]]) */}
+      {/* 내 참여 탭 — 내가 주최한 모집이 있을 때만 '내 주최 | 참여' 분류. 좌측 정렬 세그먼트(선택 쪽 채움)로 구분 명확 ([[roundup-sort-filter]]) */}
       {view === 'mine' && showMineToggle && (
-        <View style={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 7 }}>
-          {[['host', '내 주최'], ['join', '참여']].map(([k, l], i) => {
+        <View style={{ paddingHorizontal: 16, paddingTop: _and ? 6 : 8, paddingBottom: 2, flexDirection: 'row', gap: 6 }}>
+          {[['host', '내 주최'], ['join', '참여']].map(([k, l]) => {
             const on = mineFilter === k;
             return (
-              <React.Fragment key={k}>
-                {i > 0 && <Text style={{ fontSize: fs(10), color: C.hairline }}>|</Text>}
-                <TouchableOpacity onPress={() => setMineFilter(k)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-                  <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(11), color: on ? C.charcoal : C.warmGrayLight }}>{l}</Text>
-                </TouchableOpacity>
-              </React.Fragment>
+              <TouchableOpacity key={k} onPress={() => setMineFilter(k)} activeOpacity={0.7}
+                style={{ paddingHorizontal: 14, paddingVertical: _and ? 5 : 6, borderRadius: 14,
+                  backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: on ? 0 : 0.5, borderColor: C.hairline }}>
+                <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(12), color: on ? C.butter : C.warmGray }}>{l}</Text>
+              </TouchableOpacity>
             );
           })}
         </View>
