@@ -656,12 +656,6 @@ export function HomeScreen({ navigation, route }) {
                       <Text style={{ fontSize: Platform.OS === 'android' ? fs(28) : fs(32), marginBottom: Platform.OS === 'android' ? 4 : 6 }}>🌤  🚗</Text>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>탭하여 확인하기 →</Text>
                     </TouchableOpacity>
-                    {/* 뒤풀이 — 오늘(D-0) 라운딩이면 카드 안 버튼(탭하면 팝업) ([[afterround-meal-decision]]) */}
-                    {freshDDay(next) === 0 && (
-                      <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                        <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active />
-                      </View>
-                    )}
                   </View>
                 </>
               )}
