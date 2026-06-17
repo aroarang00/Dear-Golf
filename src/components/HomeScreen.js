@@ -517,16 +517,14 @@ export function HomeScreen({ navigation, route }) {
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -56, marginRight: -6 }}>
               {/* DM 커스텀 버튼 — 디데이 박스식 반투명 버터 오버레이 동그라미 + 버건디/버터 'M' 모노그램(Playfair). 사용자 2026-06-17 */}
-              <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(245,230,168,0.18)',
+              <View style={{ width: 38, height: 38, borderRadius: 19,
+                backgroundColor: dmUnread > 0 ? C.burgundy : 'rgba(245,230,168,0.18)',
                 borderWidth: 1.5, borderColor: C.butter, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(25), lineHeight: fs(25), color: C.butter, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false, marginTop: -3 }}>M</Text>
+                {/* 안읽음 있으면 숫자, 없으면 'DM' — 동그라미 자체가 안읽음 표시(별도 코너 뱃지 제거) */}
+                <Text style={{ fontFamily: F.brand, fontSize: fs(dmUnread > 0 ? 20 : 16), lineHeight: fs(dmUnread > 0 ? 20 : 16), color: C.butter, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false, letterSpacing: 0.3, marginTop: -1 }}>
+                  {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
+                </Text>
               </View>
-              {dmUnread > 0 && (
-                <View pointerEvents="none" style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 8.5,
-                  paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
-                </View>
-              )}
             </TouchableOpacity>
           </View>
           <Text style={homeS.hdrGreeting}>
