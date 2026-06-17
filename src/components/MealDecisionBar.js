@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, Ac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
+import { getSavedRestaurants } from '../utils/savedRestaurants';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { searchGolfCourses } from '../utils/golfCourses';
 import {
@@ -69,7 +70,14 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
     try {
       const cc = coord || await resolveCoord(schedule);
       if (!coord) setCoord(cc);
-      if (cc) setList(await searchNearbyRestaurants(cc.y, cc.x, 3000));
+      // 저장 맛집(코스별)은 최상단 + 표식, 주변 검색결과에서 중복 제거 — 단골/미리 점찍은 곳 먼저 보이게.
+      const [saved, nearby] = await Promise.all([
+        getSavedRestaurants(schedule?.course).catch(() => []),
+        cc ? searchNearbyRestaurants(cc.y, cc.x, 3000).catch(() => []) : Promise.resolve([]),
+      ]);
+      const savedMarked = (saved || []).map(s => ({ ...s, _saved: true }));
+      const savedKeys = new Set((saved || []).map(s => s.kakaoId || s.name));
+      setList([...savedMarked, ...nearby.filter(r => !savedKeys.has(r.kakaoId || r.name))]);
     } catch { /* noop */ }
     finally { setLoading(false); }
   };
@@ -208,7 +216,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
                     list.map((r) => (
                       <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r.name}</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
                             {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}{r.loc ? ` · ${r.loc}` : ''}
                           </Text>

@@ -610,27 +610,7 @@ export function HomeScreen({ navigation, route }) {
                       style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🚗 귀가 교통</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        const id = resolveCourseLogId(next);
-                        if (id) { navigation.navigate(ROUTES.COURSE, { openCourseId: id, openCourseTab: 'food' }); return; }
-                        // id 없는 코스(카카오 검색·직접입력 등) — 구장 ›와 동일하게 이름으로 코스탭 열되 '맛집' 탭으로.
-                        //   GuideScreen이 카카오 검색→상세를 열고 openCourseTab='food'면 맛집 탭을 띄운다(앱 내 통일).
-                        if (next.course) {
-                          navigation.navigate(ROUTES.COURSE, {
-                            openCourseName: next.course,
-                            openCourseKakaoId: next.courseKakaoId || null,
-                            openCourseTab: 'food',
-                          });
-                        }
-                      }}
-                      activeOpacity={0.8}
-                      style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🍴 주변 맛집</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {/* 뒤풀이 — 카드 안 버튼(탭하면 팝업). 종료 카드라 항상 노출 ([[afterround-meal-decision]]) */}
-                  <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                    {/* 주변 맛집 → 뒤풀이로 교체(줄 추가 시 카드 잘림). 뒤풀이 팝업이 맛집 검색·결정·길찾기 다 포함 ([[afterround-meal-decision]]) */}
                     <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active />
                   </View>
                 </>
