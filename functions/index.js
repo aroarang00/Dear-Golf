@@ -157,6 +157,27 @@ exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', as
   }));
 });
 
+// 뒤풀이 제안 생성 시 동반자(audience)에게 푸시 — 홈 카드/시트가 인앱 담당, 푸시만(라운딩 후 결정 알림). ([[afterround-meal-decision]])
+//   장소 교체(re-propose)는 setDoc 덮어쓰기=update라 onCreate 미발동 → 최초 제안만 푸시(교체 재알림은 후속).
+exports.onMealSuggestionCreated = onDocumentCreated('mealSuggestions/{id}', async (event) => {
+  const m = event.data?.data();
+  if (!m || !m.authorUid || !Array.isArray(m.audienceUids)) return;
+  const targets = m.audienceUids.filter(u => u && u !== m.authorUid);
+  if (!targets.length) return;
+  const placeName = m.place?.name || '식당';
+  const body = `${m.authorName ? m.authorName + '님이 ' : ''}뒤풀이로 '${placeName}'을 제안했어요${m.course ? ` — ${m.course}` : ''}`;
+  await Promise.all(targets.map(async (uid) => {
+    try {
+      const snap = await db.doc(`users/${uid}`).get();
+      if (!snap.exists) return;
+      const u = snap.data();
+      if (u.settings?.notifyPrefs?.mealSuggestion === false) return;
+      if (!u.pushToken) return;
+      await sendExpoPush(u.pushToken, '뒤풀이 제안', body, { type: 'mealSuggestion', mealId: event.params.id });
+    } catch (e) { logger.warn('[meal] push fail', e?.message); }
+  }));
+});
+
 // 푸시 제목·본문 — 인앱 알림함(RoundupNotifications.js notiText)과 타입·톤 일치.
 // 누락 타입은 default로 빠지므로, 새 알림 타입 추가 시 양쪽 모두 갱신할 것.
 function titleFor(type) {
