@@ -305,6 +305,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const [regionFilter, setRegionFilter] = useState('all'); // 전체 탭 지역 칩 (all 외엔 capital/gangwon/chungcheong/jeolla/gyeongsang/jeju)
   // 정렬 — 'recent'(최신순, 기본) | 'soon'(마감임박순=티오프 가까운 순). 토글 UI는 카드 충분(4개+, showSort)할 때 노출(2026-06-15 정식 노출) ([[roundup-sort-filter]])
   const [sortMode, setSortMode] = useState('recent');
+  // 내 참여 탭 분류 — 'join'(참여, 기본) | 'host'(내 주최). 내가 주최한 모집이 있을 때만 토글 노출(참여만 있으면 숨김) ([[roundup-sort-filter]])
+  const [mineFilter, setMineFilter] = useState('join');
 
   // 토글이 켜진 상태에서 view가 'all'이면 자동으로 'friend'로 전환
   useEffect(() => {
@@ -934,12 +936,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     const amSelectRecipient = p.scope === 'select' && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
     return amSelectRecipient && !hidden[p.id];
   });
+  // 내 주최 vs 참여 분리 — 주최(authorUid==me) / 그 외(참여·신청·대기·초대 수신).
+  //   주최한 모집이 있을 때만 mine 탭에 '내 주최|참여' 토글 노출(참여만 있으면 숨김, 사용자 2026-06-18).
+  const hostMine = mineTab.filter(p => !!myUid && p.authorUid === myUid);
+  const joinMine = mineTab.filter(p => !(!!myUid && p.authorUid === myUid));
+  const showMineToggle = hostMine.length > 0;
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
   const matchTab = visiblePosts.filter(p => !(!!myUid && p.authorUid === myUid) && matchesRoundup(p, userProfile.roundupMatch));
   const matchCount = matchTab.length;
   const hasMatch = hasRoundupMatch(userProfile.roundupMatch);
-  const tabList = view === 'friend' ? friendTab : view === 'mine' ? mineTab
+  const tabList = view === 'friend' ? friendTab
+    : view === 'mine' ? (showMineToggle ? (mineFilter === 'host' ? hostMine : joinMine) : mineTab)
     : view === 'watch' ? watchTab : view === 'match' ? matchTab : allTab;
   // Firestore createdAt(Timestamp) 우선, 더미 호환 위해 ts fallback
   const tsOf = (p) => (p.createdAt?.toMillis?.() ?? p.ts ?? 0);
@@ -1881,6 +1889,23 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
               })}
             </View>
           )}
+        </View>
+      )}
+
+      {/* 내 참여 탭 — 내가 주최한 모집이 있을 때만 '내 주최 | 참여' 분류 토글(정렬 토글과 동일 스타일) ([[roundup-sort-filter]]) */}
+      {view === 'mine' && showMineToggle && (
+        <View style={{ paddingHorizontal: 16, paddingTop: _and ? 4 : 6, paddingBottom: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 7 }}>
+          {[['host', '내 주최'], ['join', '참여']].map(([k, l], i) => {
+            const on = mineFilter === k;
+            return (
+              <React.Fragment key={k}>
+                {i > 0 && <Text style={{ fontSize: fs(10), color: C.hairline }}>|</Text>}
+                <TouchableOpacity onPress={() => setMineFilter(k)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                  <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(11), color: on ? C.charcoal : C.warmGrayLight }}>{l}</Text>
+                </TouchableOpacity>
+              </React.Fragment>
+            );
+          })}
         </View>
       )}
 
