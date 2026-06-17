@@ -44,8 +44,9 @@ export async function createNotification(data) {
     postId: data.postId || null,
     postTitle: data.postTitle || '',
     status: data.status || null,
-    // scheduleDate — 취소 알림 등에서 날짜 식별용(확정형). 없으면 생략. create 규칙은 필드 제한 없음.
+    // scheduleDate/Time — 취소·변경 알림 등에서 날짜·시간 식별용(확정형). 없으면 생략. create 규칙은 필드 제한 없음.
     ...(data.scheduleDate ? { scheduleDate: data.scheduleDate } : {}),
+    ...(data.scheduleTime ? { scheduleTime: data.scheduleTime } : {}),
     read: false,
     createdAt: serverTimestamp(),
   };

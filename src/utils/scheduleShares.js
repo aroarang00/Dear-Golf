@@ -3,6 +3,7 @@ import {
   setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { createNotification } from './roundupNotifications';
 
 // =============================================================
 // scheduleGroups/{groupId} — 일정 동반자 전파 (Phase B, docs/companion-design.md §5-1, [[schedule-propagation-spec]])
@@ -141,4 +142,22 @@ export async function getScheduleGroup(groupId) {
   if (!groupId) return null;
   const snap = await getDoc(doc(db, COLLECTION, groupId));
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+// 전파 일정 수정/삭제 시 그룹 멤버에게 알림(나 제외) — roundupNotifications 생성 → onNotificationCreated가 푸시.
+//   type='scheduleChanged'|'scheduleCancelled'. course/date/time은 호출부가 '변경 후' 값을 넘김(스냅샷 아님).
+//   v1=재알림 모델(데이터 자동 동기화 X) — 멤버는 알림 받고 본인 일정을 직접 갱신/삭제 ([[schedule-propagation-spec]]).
+export async function notifyScheduleGroupMembers({ group, myUid, type, actorName, course, date, time }) {
+  const members = (group?.memberUids || []).filter(u => u && u !== myUid);
+  if (!members.length) return 0;
+  await Promise.all(members.map(rid => createNotification({
+    type,
+    recipientUid: rid,
+    actorName: actorName || '',
+    postId: group.id,
+    postTitle: course || group.course || '',
+    scheduleDate: date || group.date || '',
+    scheduleTime: time || group.time || '',
+  }).catch(e => __DEV__ && console.warn('[scheduleGroup notify]', rid, e?.message))));
+  return members.length;
 }

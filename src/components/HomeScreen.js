@@ -33,7 +33,7 @@ import { DMChatScreen } from './DMChatScreen';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { shareScheduleToFriends } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers } from '../utils/scheduleShares';
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 
@@ -429,6 +429,21 @@ export function HomeScreen({ navigation, route }) {
         return;
       }
       getUserCourses().then(list => setUserCoursesList(list || []));
+      // 전파 일정(groupId)이고 핵심 정보(날짜·시간·코스) 변경 시 → 동반자 알림 여부 prompt(알림 기본). ([[schedule-propagation-spec]])
+      const oldS = editScheduleTarget;
+      const material = oldS?.groupId && (oldS.date !== data.date || oldS.time !== data.time || oldS.course !== data.course);
+      if (material && currentUid) {
+        Alert.alert('동반자에게 알릴까요?', '변경된 일정을 함께하는 동반자에게 알려요.', [
+          { text: '조용히 저장', style: 'cancel' },
+          { text: '알리고 저장', onPress: async () => {
+              try {
+                const group = await getScheduleGroup(oldS.groupId);
+                await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleChanged',
+                  actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time });
+              } catch (e) { if (__DEV__) console.warn('[home] notify changed', e?.message); }
+            } },
+        ]);
+      }
       // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
       getAlarmTypes(data.id).then(types => {
         if (types && types.length) {
@@ -858,6 +873,14 @@ export function HomeScreen({ navigation, route }) {
           if (s) {
             try { await removeSchedule(s.id); } catch (e) { console.warn('[home] schedule remove failed:', e?.message); }
             cancelRoundAlarms(s.id); // 캘린더 제거는 removeSchedule이 일괄 처리
+            // 전파 일정(groupId) 취소 → 동반자에게 알림(취소는 함께한 사람이 꼭 알아야 함). ([[schedule-propagation-spec]])
+            if (s.groupId && currentUid) {
+              try {
+                const group = await getScheduleGroup(s.groupId);
+                await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleCancelled',
+                  actorName: userProfile?.nickname || '', course: s.course, date: s.date, time: s.time });
+              } catch (e) { if (__DEV__) console.warn('[home] notify cancel', e?.message); }
+            }
           }
           setShowScheduleModal(false);
         }}
