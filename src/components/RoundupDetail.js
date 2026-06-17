@@ -779,7 +779,10 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             {isMine && (() => {
               const others = (Array.isArray(post.participantUids) ? post.participantUids : []).filter(u => u && u !== myUid);
               if (others.length === 0) return null;
-              const enabled = isClosed;  // 주최자가 모집을 확정해야 일정 알림 가능
+              // ★post.closed(실제 확정)로 판정 — isClosed(=closed||allFull)는 '만석'도 포함이라
+              //   만석만으로 활성되면, 자동 일정 등록(RoundupTab: post.closed 기준)은 안 되는데
+              //   일정 알림만 가는 불일치 발생(확정 착각). 두 기능 모두 '주최자 확정' 기준으로 통일.
+              const enabled = !!post.closed;  // 주최자가 모집을 확정(closed)해야 일정 알림 가능
               return (
                 <>
                   <TouchableOpacity onPress={enabled ? handleNotifySchedule : undefined} disabled={!enabled} activeOpacity={0.85}
