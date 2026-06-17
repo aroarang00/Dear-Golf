@@ -116,6 +116,47 @@ exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/
   }
 });
 
+// 일정 전파 초대 생성 시 audience(초대받은 친구)에게 푸시 — 홈 배너가 인앱 담당, 푸시만(알림함 미오염, DM과 동일 패턴).
+//   audienceUids 다수라 병렬 발송. 본인·토큰없음·토글 OFF는 건너뜀. ([[schedule-propagation-spec]])
+exports.onScheduleGroupCreated = onDocumentCreated('scheduleGroups/{groupId}', async (event) => {
+  const g = event.data?.data();
+  if (!g || !g.initiatorUid || !Array.isArray(g.audienceUids)) return;
+  const targets = g.audienceUids.filter(u => u && u !== g.initiatorUid);
+  if (!targets.length) return;
+  const courseT = g.course ? `'${g.course}'` : '라운딩';
+  const body = `${g.initiatorName ? g.initiatorName + '님이 ' : ''}${courseT} 일정에 초대했어요${g.date ? ` — ${g.date}` : ''}`;
+  await Promise.all(targets.map(async (uid) => {
+    try {
+      const snap = await db.doc(`users/${uid}`).get();
+      if (!snap.exists) return;
+      const u = snap.data();
+      if (u.settings?.notifyPrefs?.scheduleInvite === false) return;
+      if (!u.pushToken) return;
+      await sendExpoPush(u.pushToken, '일정 초대', body, { type: 'scheduleInvite', groupId: event.params.groupId });
+    } catch (e) { logger.warn('[scheduleInvite] push fail', e?.message); }
+  }));
+});
+
+// 스코어 공유 생성 시 audience(동반자)에게 푸시 — MY 배너가 인앱 담당, 푸시로 발견성 보강(사용자 요청 2026-06-17).
+exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', async (event) => {
+  const s = event.data?.data();
+  if (!s || !s.authorUid || !Array.isArray(s.audienceUids)) return;
+  const targets = s.audienceUids.filter(u => u && u !== s.authorUid);
+  if (!targets.length) return;
+  const courseT = s.course ? `'${s.course}'` : '라운딩';
+  const body = `${s.authorName ? s.authorName + '님이 ' : ''}${courseT} 스코어를 공유했어요 — 내 점수를 추가해보세요`;
+  await Promise.all(targets.map(async (uid) => {
+    try {
+      const snap = await db.doc(`users/${uid}`).get();
+      if (!snap.exists) return;
+      const u = snap.data();
+      if (u.settings?.notifyPrefs?.scoreShare === false) return;
+      if (!u.pushToken) return;
+      await sendExpoPush(u.pushToken, '스코어 공유', body, { type: 'scoreShare', shareId: event.params.shareId });
+    } catch (e) { logger.warn('[scoreShare] push fail', e?.message); }
+  }));
+});
+
 // 푸시 제목·본문 — 인앱 알림함(RoundupNotifications.js notiText)과 타입·톤 일치.
 // 누락 타입은 default로 빠지므로, 새 알림 타입 추가 시 양쪽 모두 갱신할 것.
 function titleFor(type) {
