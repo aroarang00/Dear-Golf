@@ -1,0 +1,150 @@
+import {
+  collection, query, where, getDocs, onSnapshot,
+  setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion,
+} from 'firebase/firestore';
+import { db } from './firebase';
+
+// =============================================================
+// scheduleGroups/{groupId} — 일정 동반자 전파 (Phase B, docs/companion-design.md §5-1, [[schedule-propagation-spec]])
+//
+// 한 명이 본인 일정을 친구 동반자에게 공유(초대) → 수신자가 수락하면 '자기 일정'에 자기파생.
+// ★자기파생: 파생은 수신자 schedules에 ownerUid==본인으로 setDoc(결정적 ID {groupId}_{uid}) →
+//   기존 schedules 규칙 그대로 통과 + 멱등(중복 방지). cross-user 쓰기 0 = CF 불필요(roundScoreShares와 동일).
+// 호스트 개념 없음: initiatorUid는 멱등 시드(출처 태그)일 뿐 권한 아님 — 멤버 전원 동등하게 수정/삭제.
+// ★전파 일정 구분 표식 = schedule.groupId (friendUid 아님 — friendUid는 라벨/매칭 전용). 수정/삭제 시 멤버 알림은 Stage 4.
+//
+// 보안 규칙 (firestore.rules):
+//  - read   : me in memberUids OR me in audienceUids  (resource==null 가드 — 결정적 ID 존재확인용)
+//  - create : initiatorUid==me, memberUids==[me], declinedUids==[]
+//  - update : initiator가 audienceUids 추가 / 수신자가 memberUids·declinedUids 본인 토글
+//  - delete : initiator (TTL 정리는 후속 CF)
+//  - 쿼리   : where('audienceUids','array-contains', 내uid)  (수락/거절 필터는 클라서 member/declined로)
+// =============================================================
+
+const COLLECTION = 'scheduleGroups';
+
+// 결정적 groupId — 최초 공유자 uid + 그 일정 id. 같은 일정 재공유 시 같은 그룹(멱등).
+export function scheduleGroupId(initiatorUid, sourceScheduleId) {
+  return `${initiatorUid}_${sourceScheduleId}`;
+}
+
+// 일정 공유(초대) — 그룹 문서 생성(없으면) 또는 audienceUids 추가(있으면, 친구 더 초대).
+//   schedule=공유할 내 일정 객체(본인 소유), friendUids=초대할 친구 uid 배열.
+//   반환=groupId(호출부에서 내 일정에 groupId 스탬프 → 전파 일정으로 표식).
+export async function shareScheduleToFriends({ schedule, initiatorUid, initiatorName, friendUids }) {
+  if (!schedule?.id || !initiatorUid) return null;
+  const aud = [...new Set((friendUids || []).filter(u => u && u !== initiatorUid))];
+  if (!aud.length) return null;
+  const groupId = scheduleGroupId(initiatorUid, schedule.id);
+  const ref = doc(db, COLLECTION, groupId);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    await updateDoc(ref, { audienceUids: arrayUnion(...aud), updatedAt: serverTimestamp() });
+  } else {
+    await setDoc(ref, {
+      initiatorUid,
+      initiatorName: initiatorName || '',
+      sourceScheduleId: schedule.id,
+      course: schedule.course || '',
+      courseId: schedule.courseId || null,
+      courseLoc: schedule.courseLoc || null,
+      courseLogId: schedule.courseLogId || null,
+      courseKakaoId: schedule.courseKakaoId || null,
+      date: schedule.date || '',
+      day: schedule.day || '',
+      time: schedule.time || '',
+      members: typeof schedule.members === 'number' ? schedule.members : 4,
+      audienceUids: aud,
+      memberUids: [initiatorUid],   // 최초 공유자는 바로 멤버
+      declinedUids: [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+  return groupId;
+}
+
+// 내게 온 일정 초대 구독 — audienceUids에 내 uid, 아직 수락(memberUids)/거절(declinedUids) 안 한 것만. 최신순(클라 정렬).
+//  반환 = unsubscribe 함수.
+export function subscribeIncomingScheduleInvites(uid, cb) {
+  if (!uid) { cb([]); return () => {}; }
+  const q = query(collection(db, COLLECTION), where('audienceUids', 'array-contains', uid));
+  return onSnapshot(q, (snap) => {
+    cb(filterPending(snap, uid));
+  }, (e) => { if (__DEV__) console.warn('[scheduleShare] subscribe fail', e?.message); cb([]); });
+}
+
+// 1회 조회 버전(폴백/초기 로드).
+export async function loadIncomingScheduleInvites(uid) {
+  if (!uid) return [];
+  const q = query(collection(db, COLLECTION), where('audienceUids', 'array-contains', uid));
+  const snap = await getDocs(q);
+  return filterPending(snap, uid);
+}
+
+// 미응답(수락·거절 안 한) 초대만 추려 최신순. 본인이 보낸 그룹은 제외.
+function filterPending(snap, uid) {
+  const list = [];
+  snap.forEach(d => {
+    const data = d.data();
+    if (data.initiatorUid === uid) return;
+    if ((data.memberUids || []).includes(uid)) return;
+    if ((data.declinedUids || []).includes(uid)) return;
+    list.push({ id: d.id, ...data });
+  });
+  list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  return list;
+}
+
+// 그룹 → 내 schedules 파생 payload(프리필). 호출부에서 setDoc/캘린더 동기화에 사용.
+export function buildDerivedSchedule(group, uid) {
+  return {
+    ownerUid: uid,
+    course: group.course || '',
+    courseId: group.courseId || null,
+    courseLoc: group.courseLoc || null,
+    courseLogId: group.courseLogId || null,
+    courseKakaoId: group.courseKakaoId || null,
+    date: group.date || '',
+    day: group.day || '',
+    time: group.time || '',
+    members: typeof group.members === 'number' ? group.members : 4,
+    // 초대한 사람을 동반자 라벨로(이름+friendUid). 나머지 멤버는 그룹에서 해석(UI).
+    companions: group.initiatorUid ? [{ name: group.initiatorName || '', friendUid: group.initiatorUid }] : [],
+    groupId: group.id,                       // ★전파 일정 표식
+    sourceScheduleId: group.sourceScheduleId || null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+// 수락(새 일정 생성 경로) — 본인 schedules에 멱등 자기파생(setDoc 결정적 ID {groupId}_{uid}) + memberUids에 본인 추가.
+//   derived = buildDerivedSchedule 결과. 반환 = 생성된 schedule 문서 id(호출부서 캘린더 동기화·context 반영).
+//   ※ 같은 course+date 일정을 이미 보유하면 이 경로 대신 joinScheduleGroup(중복 방지) — 분기는 호출부(SchedulesContext 접근).
+export async function acceptScheduleInvite(group, uid, derived) {
+  if (!group?.id || !uid) return null;
+  const schedId = `${group.id}_${uid}`;
+  await setDoc(doc(db, 'schedules', schedId), { ...derived, ownerUid: uid }); // ownerUid==uid → schedules 규칙 통과, setDoc=멱등
+  await joinScheduleGroup(group.id, uid);
+  return schedId;
+}
+
+// 그룹 멤버 합류만 — 이미 같은 일정을 보유한 수신자가 기존 일정에 groupId만 스탬프할 때(중복 방지 경로).
+//   schedule 스탬프(editSchedule)는 호출부에서, 여기선 그룹 memberUids에 본인 추가만.
+export async function joinScheduleGroup(groupId, uid) {
+  if (!groupId || !uid) return;
+  await updateDoc(doc(db, COLLECTION, groupId), { memberUids: arrayUnion(uid), updatedAt: serverTimestamp() });
+}
+
+// 거절 — 파생 없이 declinedUids에 본인만 추가(카드 재노출 방지). 사적·호스트 미통지([[roundup-invitation]] 정책 재사용).
+export async function declineScheduleInvite(groupId, uid) {
+  if (!groupId || !uid) return;
+  await updateDoc(doc(db, COLLECTION, groupId), { declinedUids: arrayUnion(uid), updatedAt: serverTimestamp() });
+}
+
+// 그룹 1건 조회 — 전파 일정 수정/삭제 시 멤버 목록(알림 대상) 확보용(Stage 4).
+export async function getScheduleGroup(groupId) {
+  if (!groupId) return null;
+  const snap = await getDoc(doc(db, COLLECTION, groupId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}

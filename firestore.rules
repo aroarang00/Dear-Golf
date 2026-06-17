@@ -143,6 +143,47 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
     }
 
+    // ===== scheduleGroups — 일정 동반자 전파 (Phase B, [[schedule-propagation-spec]]) =====
+    //  한 명이 본인 일정을 친구에게 공유(초대) → 수신자 수락 시 본인 schedules에 자기파생(결정적 ID {groupId}_{uid}).
+    //  cross-user 쓰기 0 = CF 불필요(roundScoreShares와 동일 패턴). 호스트 없음(initiatorUid=멱등 시드, 권한 아님).
+    //  필드: { initiatorUid, initiatorName, sourceScheduleId, course, courseId?, courseLoc?, date, day?, time?,
+    //         members, audienceUids:[friendUid], memberUids:[uid], declinedUids:[uid], createdAt, updatedAt }
+    //  memberUids=수락자(알림 대상·중복방지), declinedUids=거절자(카드 재노출 방지). 둘 다 create 시 초기화(셀프토글 전제).
+    //  쿼리: where('audienceUids','array-contains', 내uid)  (수락/거절 필터는 클라서 member/declined로)
+    match /scheduleGroups/{groupId} {
+      //  resource == null: 아직 없는 그룹(결정적 ID)의 존재 확인 get 허용 — shareScheduleToFriends가
+      //  생성 전 getDoc으로 기존 그룹 여부를 보므로(다른 결정적 ID 컬렉션과 동일 패턴).
+      allow read: if isSignedIn() && (
+        resource == null
+        || request.auth.uid in resource.data.memberUids
+        || request.auth.uid in resource.data.audienceUids
+      );
+      // 생성: 본인이 initiator. memberUids=[본인], declinedUids=[] 로 시작(셀프토글 전제), audience는 리스트.
+      allow create: if isSignedIn()
+        && request.resource.data.initiatorUid == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid]
+        && request.resource.data.declinedUids == []
+        && request.resource.data.audienceUids is list
+        && request.resource.data.course is string
+        && request.resource.data.date is string;
+      // 초대 추가 — initiator가 audienceUids만 갱신(친구 더 초대).
+      allow update: if isSignedIn()
+        && resource.data.initiatorUid == request.auth.uid
+        && changedKeysWithin(['audienceUids', 'updatedAt']);
+      // 수락 — 수신자(audience)가 memberUids에 '자기 uid'만 토글. 남 변조 완전차단은 규칙만으론 불가(roundScoreShares와 동일 한계, v1 허용).
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.audienceUids
+        && changedKeysWithin(['memberUids', 'updatedAt'])
+        && selfMembershipToggled('memberUids');
+      // 거절 — 수신자(audience)가 declinedUids에 '자기 uid'만 토글.
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.audienceUids
+        && changedKeysWithin(['declinedUids', 'updatedAt'])
+        && selfMembershipToggled('declinedUids');
+      // 삭제: initiator만 (TTL 정리는 후속 CF).
+      allow delete: if isSignedIn() && resource.data.initiatorUid == request.auth.uid;
+    }
+
     // ===== friendships — 친구 관계. 문서 ID = pairId(uidA, uidB) =====
     // { users:[uidA,uidB], requesterUid, recipientUid, status:'pending'|'accepted' }
     match /friendships/{fid} {
