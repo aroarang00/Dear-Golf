@@ -36,6 +36,7 @@ import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers } from '../utils/scheduleShares';
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
+import { MealDecisionBar } from './MealDecisionBar';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -660,6 +661,10 @@ export function HomeScreen({ navigation, route }) {
                 </>
               )}
             </View>
+
+            {/* 뒤풀이 결정 — 오늘/종료 라운딩일 때만 카드 아래 한 줄(+홈 위 시트) ([[afterround-meal-decision]]) */}
+            <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname}
+              active={!!next && (roundEnded || freshDDay(next) === 0)} />
 
             {upcomingSchedules.slice(1, 5).map((s, i) => {
               const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;

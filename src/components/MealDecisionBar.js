@@ -1,0 +1,252 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { C, F, fs } from '../constants/colors';
+import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
+import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
+import { searchGolfCourses } from '../utils/golfCourses';
+import {
+  proposeMeal, toggleAgreeMeal, decideMeal,
+  subscribeMealForSchedule, subscribeIncomingMeals,
+} from '../utils/mealSuggestions';
+
+// 라운딩 코스 좌표 해석 — courseId(userCourses) 우선, 없으면 이름으로 골프장 검색. 주변 맛집 검색용.
+async function resolveCoord(schedule) {
+  try {
+    if (schedule?.courseId) {
+      const c = await findUserCourseById(schedule.courseId);
+      if (c) {
+        const withCoord = (Number.isFinite(c.x) && Number.isFinite(c.y)) ? c : await ensureCourseCoord(c);
+        if (withCoord && Number.isFinite(withCoord.x)) return { x: withCoord.x, y: withCoord.y };
+      }
+    }
+    if (schedule?.course) {
+      const results = await searchGolfCourses(schedule.course);
+      if (results?.[0] && Number.isFinite(results[0].x)) return { x: results[0].x, y: results[0].y };
+    }
+  } catch { /* 좌표 못 구하면 검색만 비활성 */ }
+  return null;
+}
+
+// 뒤풀이 결정 바 — 홈 라운딩 카드의 한 줄 상태 + 홈 위 시트(검색·제안·동의·결정·길찾기). ([[afterround-meal-decision]])
+//  active=오늘/종료 라운딩일 때만 노출. 총대 1명 제안 → 동반자 👍 → 총대 결정 → 네이버·티맵 길찾기.
+//  단일 문서 meal_{scheduleId}(작성자). 동반자는 audienceUids로 발견(같은 라운딩 date+course 매칭).
+export function MealDecisionBar({ schedule, uid, nickname, active }) {
+  const insets = useSafeAreaInsets();
+  const [mine, setMine] = useState(null);        // 내가 작성자인 라운딩의 제안(meal_{scheduleId})
+  const [incoming, setIncoming] = useState([]);  // 동반자로 받은 제안
+  const [open, setOpen] = useState(false);
+  const [coord, setCoord] = useState(null);
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [kw, setKw] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const schedId = schedule?.id;
+  useEffect(() => {
+    if (!active || !schedId) { setMine(null); return; }
+    return subscribeMealForSchedule(schedId, setMine);
+  }, [active, schedId]);
+  useEffect(() => {
+    if (!active || !uid) { setIncoming([]); return; }
+    return subscribeIncomingMeals(uid, setIncoming);
+  }, [active, uid]);
+
+  const meal = mine || incoming.find(m => m.date === schedule?.date && m.course === schedule?.course) || null;
+  const isAuthor = !!meal && meal.authorUid === uid;
+  const agreedN = meal?.agreedUids?.length || 0;
+  const iAgreed = !!meal && (meal.agreedUids || []).includes(uid);
+  const place = meal?.place;
+
+  // 제안 대상 = 그 라운딩의 친구 동반자(friendUid). 없으면 제안해도 받을 사람이 없음.
+  const audienceUids = useMemo(
+    () => [...new Set((schedule?.companions || []).map(c => c?.friendUid).filter(Boolean))],
+    [schedule],
+  );
+
+  const openSheet = async () => {
+    setOpen(true); setKw('');
+    if (!coord && schedule) {
+      setLoading(true);
+      try {
+        const cc = await resolveCoord(schedule);
+        setCoord(cc);
+        if (cc) setList(await searchNearbyRestaurants(cc.y, cc.x, 3000));
+      } catch { /* noop */ }
+      finally { setLoading(false); }
+    }
+  };
+
+  // 키워드 검색(디바운스) — 빈 값이면 주변 리스트 유지
+  useEffect(() => {
+    if (!open) return;
+    const q = kw.trim();
+    if (!q) return;
+    const t = setTimeout(async () => {
+      try { setList(await searchRestaurantsByKeyword(q, coord?.y, coord?.x)); } catch { /* noop */ }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [kw, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const propose = async (pl) => {
+    if (busy || !uid || !pl?.name) return;
+    setBusy(true);
+    try {
+      await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: '', audienceUids });
+      setKw('');
+    } catch (e) { if (__DEV__) console.warn('[meal] propose', e?.message); }
+    finally { setBusy(false); }
+  };
+  const agree = async () => {
+    if (busy || !meal || !uid) return;
+    setBusy(true);
+    try { await toggleAgreeMeal(meal.id, uid, !iAgreed); } catch { /* noop */ } finally { setBusy(false); }
+  };
+  const decide = async () => {
+    if (busy || !meal || !uid) return;
+    setBusy(true);
+    try { await decideMeal(meal.id, uid); } catch { /* noop */ } finally { setBusy(false); }
+  };
+
+  const openNav = (provider) => {
+    if (!place || !Number.isFinite(place.x) || !Number.isFinite(place.y)) return;
+    const name = encodeURIComponent(place.name || '식당');
+    if (provider === 'tmap') {
+      Linking.openURL(`tmap://route?goalx=${place.x}&goaly=${place.y}&goalname=${name}`).catch(() => Linking.openURL('https://tmap.life'));
+    } else {
+      Linking.openURL(`nmap://route/car?dlat=${place.y}&dlng=${place.x}&dname=${name}&appname=app.deargolf`).catch(() => Linking.openURL('https://map.naver.com/'));
+    }
+  };
+
+  if (!active) return null;
+
+  return (
+    <View style={{ marginHorizontal: 22, marginTop: 8 }}>
+      {/* 카드 상태 한 줄 */}
+      {!meal ? (
+        <TouchableOpacity onPress={openSheet} activeOpacity={0.85}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)',
+            borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+          <Text style={{ fontSize: fs(14) }}>🍴</Text>
+          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)' }}>뒤풀이 장소 정하기</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.55)' }}>›</Text>
+        </TouchableOpacity>
+      ) : meal.decided ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245,230,168,0.14)',
+          borderRadius: 10, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', paddingHorizontal: 12, paddingVertical: 9 }}>
+          <Text style={{ fontSize: fs(14) }}>🍴</Text>
+          <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(12.5), color: C.butter }} numberOfLines={1}>{place?.name} 결정</Text>
+          <TouchableOpacity onPress={() => openNav('naver')} activeOpacity={0.8}
+            style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)' }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#fff' }}>네이버</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => openNav('tmap')} activeOpacity={0.8}
+            style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)' }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#fff' }}>티맵</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity onPress={openSheet} activeOpacity={0.85}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)',
+            borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+          <Text style={{ fontSize: fs(14) }}>🍴</Text>
+          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)' }} numberOfLines={1}>
+            {place?.name} · 동의 {agreedN}{iAgreed ? ' (나 포함)' : ''}
+          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.55)' }}>›</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* 홈 위 시트 — 검색·제안·동의·결정 */}
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)} />
+          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+            paddingBottom: 20 + insets.bottom, maxHeight: '82%' }}>
+            <View style={{ alignItems: 'center', paddingTop: 8 }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
+            </View>
+            <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>🍴 오늘 뒤풀이</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
+                {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}
+              </Text>
+            </View>
+
+            {/* 현재 제안 상태(있으면) */}
+            {meal && !meal.decided && (
+              <View style={{ marginHorizontal: 18, marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: C.bgSecondary,
+                borderWidth: 0.5, borderColor: C.hairline }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>
+                  제안: {place?.name} <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>· 동의 {agreedN}</Text>
+                </Text>
+                {!!meal.note && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>💬 {meal.note}</Text>}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  {!isAuthor && (
+                    <TouchableOpacity onPress={agree} disabled={busy} activeOpacity={0.85}
+                      style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+                        backgroundColor: iAgreed ? C.bgSecondary : C.burgundy, borderWidth: iAgreed ? 1 : 0, borderColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: iAgreed ? C.warmGray : C.butter }}>{iAgreed ? '동의 취소' : '👍 동의'}</Text>
+                    </TouchableOpacity>
+                  )}
+                  {isAuthor && (
+                    <TouchableOpacity onPress={decide} disabled={busy} activeOpacity={0.85}
+                      style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>여기로 결정</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {isAuthor && (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8 }}>
+                    아래에서 다른 곳을 고르면 제안이 바뀌어요(동의는 초기화).
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* 받을 동반자 없으면 안내 */}
+            {audienceUids.length === 0 && !meal && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 18, marginBottom: 6 }}>
+                이 라운딩에 친구 동반자가 없어요. 일정 동반자에 친구를 넣으면 함께 정할 수 있어요.
+              </Text>
+            )}
+
+            {/* 검색 */}
+            <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
+              <TextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
+                style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+                  fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+            </View>
+
+            {/* 맛집 리스트 → 제안하기 */}
+            <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 6 }} keyboardShouldPersistTaps="handled">
+              {loading ? (
+                <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
+              ) : list.length === 0 ? (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 24, textAlign: 'center' }}>
+                  {coord ? '주변 식당을 찾지 못했어요 — 이름으로 검색해보세요' : '코스 위치를 찾지 못해 검색만 가능해요'}
+                </Text>
+              ) : (
+                list.map((r) => (
+                  <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11,
+                    borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r.name}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
+                        {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
+                      style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>제안</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
