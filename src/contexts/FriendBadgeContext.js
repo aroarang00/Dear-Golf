@@ -8,4 +8,6 @@ export const FriendBadgeContext = createContext({
   friendReqCount: 0,
   setFriendReqCount: () => {},
   refreshFriendBadge: () => {},
+  // 홈 탭 뱃지 — 받은 일정 전파 초대 수(어느 탭에서든 보이게). 홈 배너와 별개 신호 ([[schedule-propagation-spec]])
+  scheduleInviteCount: 0,
 });

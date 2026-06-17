@@ -70,6 +70,7 @@ import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, onSnaps
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
 import { FriendBadgeContext } from './src/contexts/FriendBadgeContext';
+import { subscribeIncomingScheduleInvites } from './src/utils/scheduleShares';
 import { CurrentUidContext } from './src/contexts/CurrentUidContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { DiariesProvider } from './src/contexts/DiariesContext';
@@ -147,6 +148,8 @@ function App() {
 
   // 친구 탭 탭바 뱃지 — 받은 친구신청 수. 친구신청 알림은 라운지 알림함에서 분리, 친구 탭에서만 표시.
   const [friendReqCount, setFriendReqCount] = useState(0);
+  // 홈 탭 뱃지 — 받은 일정 전파 초대 수(어느 탭에서든 보이게). 홈 배너와 별개 신호 ([[schedule-propagation-spec]])
+  const [scheduleInviteCount, setScheduleInviteCount] = useState(0);
   // 수동 갱신 폴백(컨텍스트 제공) — 리스너 붙기 전/오류 시 1회 조회용.
   const refreshFriendBadge = useCallback(async () => {
     try {
@@ -173,6 +176,19 @@ function App() {
       unsub = onSnapshot(q,
         snap => setFriendReqCount(snap.size),
         err => { if (__DEV__) console.warn('[App] friend req listener', err?.message); });
+    })();
+    return () => { cancelled = true; if (unsub) unsub(); };
+  }, [showOnboarding, profileLoaded, authUid]);
+
+  // 일정 전파 초대 뱃지 — 받은 초대(audienceUids array-contains me, 미수락·미거절) 수를 홈 탭에 표시.
+  //   어느 탭에 있어도 보이게(푸시 놓쳐도 인지). 수락/거절하면 실시간 감소. uid 변동 시 재구독 ([[schedule-propagation-spec]])
+  useEffect(() => {
+    if (showOnboarding || !profileLoaded || !authUid) return;
+    let unsub = null, cancelled = false;
+    (async () => {
+      const uid = await getUid();
+      if (!uid || cancelled) return;
+      unsub = subscribeIncomingScheduleInvites(uid, list => setScheduleInviteCount(Array.isArray(list) ? list.length : 0));
     })();
     return () => { cancelled = true; if (unsub) unsub(); };
   }, [showOnboarding, profileLoaded, authUid]);
@@ -522,7 +538,7 @@ function App() {
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
     <DiariesProvider>
-    <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge }}>
+    <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge, scheduleInviteCount }}>
     <InsetGate>
     <NavigationContainer
       ref={navigationRef}
