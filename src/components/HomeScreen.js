@@ -517,13 +517,19 @@ export function HomeScreen({ navigation, route }) {
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -56, marginRight: -6 }}>
               {/* DM 커스텀 버튼 — 디데이 박스식 반투명 버터 오버레이 동그라미 + 버건디/버터 'M' 모노그램(Playfair). 사용자 2026-06-17 */}
-              <View style={{ width: 38, height: 38, borderRadius: 19,
-                backgroundColor: dmUnread > 0 ? C.burgundy : 'rgba(245,230,168,0.18)',
-                borderWidth: 1.5, borderColor: C.butter, alignItems: 'center', justifyContent: 'center' }}>
-                {/* 안읽음 있으면 숫자, 없으면 'DM' — 동그라미 자체가 안읽음 표시(별도 코너 뱃지 제거) */}
-                <Text style={{ fontFamily: F.brand, fontSize: fs(dmUnread > 0 ? 20 : 16), lineHeight: fs(dmUnread > 0 ? 20 : 16), color: C.butter, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false, letterSpacing: 0.3, marginTop: -1 }}>
-                  {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
-                </Text>
+              {/* 큰 동그라미 안에 작은 동그라미(간격 좁게) + 안쪽에 'DM'. 안읽음 있으면 안쪽 버건디 채움+숫자 */}
+              <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
+                backgroundColor: 'rgba(245,230,168,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18,
+                  borderWidth: 1.2, borderColor: C.butter,
+                  backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
+                  alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
+                    fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
+                    color: C.butter, letterSpacing: 0.3, includeFontPadding: false, marginTop: dmUnread > 0 ? 0 : -1 }}>
+                    {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           </View>
