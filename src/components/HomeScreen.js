@@ -482,10 +482,10 @@ export function HomeScreen({ navigation, route }) {
               <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginLeft: 14, marginTop: -12 }}>
-              <Text style={{ fontSize: fs(34), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginLeft: 8, marginTop: -56 }}>
+              <Text style={{ fontSize: fs(30), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
               {dmUnread > 0 && (
-                <View pointerEvents="none" style={{ position: 'absolute', top: 1, right: 1, minWidth: 17, height: 17, borderRadius: 8.5,
+                <View pointerEvents="none" style={{ position: 'absolute', top: -2, right: -2, minWidth: 17, height: 17, borderRadius: 8.5,
                   paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
                 </View>
