@@ -6,7 +6,7 @@ import { sheetS } from '../styles/sheetS';
 import { TripleStripe } from './common/TripleStripe';
 import { friendDisplayName } from '../utils/friendGroups';
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -20,12 +20,16 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     { key: 'wx', emoji: '☀️', label: '날씨 확인', onPress: onWeather },
     { key: 'tr', emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },
     { key: 'sh', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
+    // 인앱 일정 전파 — 친구를 골라 초대, 수락 시 그 친구 일정에도 등록(외부 링크 공유와 별개) ([[schedule-propagation-spec]])
+    { key: 'iv', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
     { key: 'ed', emoji: '✏️', label: '일정 수정', onPress: onEdit },
     { key: 'dl', emoji: '🗑️', label: '일정 삭제', onPress: () => setConfirmDelete(true), danger: true },
   ];
   const items = allItems.filter(it => {
     if (isPast && (it.key === 'wx' || it.key === 'tr')) return false;
     if (isOverseas && it.key === 'tr') return false;
+    // 친구 일정 초대 — 핸들러 있을 때만, 지난 일정·라운지연동 일정엔 숨김(라운지는 자체 참여 동선)
+    if (it.key === 'iv' && (!onInviteFriends || isPast || schedule.roundupId)) return false;
     return true;
   });
 

@@ -31,6 +31,10 @@ import { loadFriendData } from '../utils/friendGroups';
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
 import { loadUnreadTotal } from '../utils/dm';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
+import { loadMyFriendsEnriched } from '../utils/friends';
+import { shareScheduleToFriends } from '../utils/scheduleShares';
+import { FriendSelectModal } from './FriendSelectModal';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,6 +43,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
   const { schedules, hydrated, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
+  const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid ([[uid-stabilization-plan]])
   const insets = useSafeAreaInsets();
   const [showAddModal, setShowAddModal] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
@@ -56,6 +61,10 @@ export function HomeScreen({ navigation, route }) {
   const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
   const [upcomingPos, setUpcomingPos] = useState({ x: 0, y: 0 });
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
+  // 친구 일정에 초대(일정 전파) — 대상 일정 + 친구목록 + 모달 ([[schedule-propagation-spec]])
+  const [inviteTarget, setInviteTarget] = useState(null);
+  const [inviteFriends, setInviteFriends] = useState([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [cardSlide, setCardSlide] = useState(0);
   const [now, setNow] = useState(Date.now());
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
@@ -310,6 +319,34 @@ export function HomeScreen({ navigation, route }) {
     // 일정 시트(ScheduleSheetModal)가 D-day를 표시하므로 항상 최신 D-day를 주입
     setSelectedSchedule(schedule ? { ...schedule, dDay: freshDDay(schedule) } : schedule);
     setShowScheduleModal(true);
+  };
+
+  // 친구 일정에 초대(일정 전파 발신) — 친구 선택 → 인앱 초대 발송 + 내 일정에 groupId 스탬프(전파 표식) ([[schedule-propagation-spec]])
+  const handleInviteFriends = async (schedule) => {
+    if (!schedule) return;
+    setShowScheduleModal(false);
+    setInviteTarget(schedule);
+    try { setInviteFriends(await loadMyFriendsEnriched()); } catch { setInviteFriends([]); }
+    setInviteOpen(true);
+  };
+  const submitInviteFriends = async ({ selectedUids } = {}) => {
+    setInviteOpen(false);
+    const schedule = inviteTarget;
+    const uids = (selectedUids || []).filter(Boolean);
+    setInviteTarget(null);
+    if (!schedule || !uids.length) return;
+    if (!currentUid) { Alert.alert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
+    try {
+      const groupId = await shareScheduleToFriends({
+        schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids: uids,
+      });
+      if (!groupId) { Alert.alert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
+      if (!schedule.groupId) await editSchedule(schedule.id, { groupId }); // 전파 일정 표식
+      Alert.alert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
+    } catch (e) {
+      if (__DEV__) console.warn('[home] invite schedule', e?.message);
+      Alert.alert('초대 실패', '잠시 후 다시 시도해주세요.');
+    }
   };
 
   const openCurrentWeather = () => {
@@ -808,6 +845,7 @@ export function HomeScreen({ navigation, route }) {
         onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
         onShare={() => handleShareSchedule(selectedSchedule)}
+        onInviteFriends={() => handleInviteFriends(selectedSchedule)}
         onEdit={() => handleEditSchedule(selectedSchedule)}
         onDelete={async () => {
           // 시트 안에서 이미 confirm 완료 — 바로 remove + 시트 닫음 (별도 AppAlert 띄우지 않음, RN 3중 Modal 충돌 회피)
@@ -913,6 +951,15 @@ export function HomeScreen({ navigation, route }) {
       <HomeTooltip
         visible={showTooltip}
         onClose={() => { setShowTooltip(false); storage.save(STORAGE_KEYS.homeTooltipDone, true); }}
+      />
+
+      {/* 친구 일정에 초대(일정 전파) — 친구 다중선택 → 인앱 초대 발송 ([[schedule-propagation-spec]]) */}
+      <FriendSelectModal
+        visible={inviteOpen}
+        mode="companion"
+        friends={inviteFriends}
+        onClose={() => { setInviteOpen(false); setInviteTarget(null); }}
+        onConfirm={submitInviteFriends}
       />
 
       {/* 메시지(DM) — 홈 우상단 💬 진입 = 대화 목록(인스타식). 단일 Modal서 목록↔대화방 전환([[dm-design]]). */}
