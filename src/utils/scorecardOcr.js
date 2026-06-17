@@ -174,6 +174,9 @@ function parseTokens(toks) {
     if (/HOLE/i.test(labelText) || isSeq) type = 'hole';
     else if (/PAR/i.test(labelText)) type = 'par';
     else if (/[가-힣]/.test(labelText) && nums.length >= 7) type = 'player';
+    // 'SCORE'/'스코어' 라벨 점수행 — 요약형·타앱 카드(이름 없이 SCORE만). 한글/빈라벨 조건에 안 걸려
+    //   'other'로 빠지며 플레이어 행 0개 → 인식 실패하던 버그 수정(2026-06-17, Hole/PAR/SCORE 형식).
+    else if (/SCORE|스코어/i.test(labelText) && nums.length >= 7) type = 'player';
     else if (!labelText && nums.length >= 9 && !isSeq) type = 'player';   // 이름 인식 실패 폴백
     const name = labelText.replace(/SMART|SCORE/gi, '').trim();
     return { cy: r.cy, name, nums, numItems, type };
