@@ -411,6 +411,10 @@ function App() {
         if (type === 'invite') { navigationRef.navigate(ROUTES.LOUNGE, { openView: 'mine' }); return; }
         // DM 푸시 탭 → MY 탭 열고 senderUid와의 대화방 직행(DiaryScreen openDmUid 처리). 안 그러면 기본값 라운지로 잘못 감.
         if (type === 'dm') { navigationRef.navigate(ROUTES.MY, { openDmUid: data.senderUid }); return; }
+        // 일정 전파 초대·뒤풀이 제안 → 홈(수신 배너·라운딩 카드가 홈에 있음) ([[schedule-propagation-spec]], [[afterround-meal-decision]])
+        if (type === 'scheduleInvite' || type === 'mealSuggestion') { navigationRef.navigate(ROUTES.HOME); return; }
+        // 스코어 공유 → MY(ScoreShareInbox 수신 배너가 MY 피드 상단)
+        if (type === 'scoreShare') { navigationRef.navigate(ROUTES.MY); return; }
         const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
         navigationRef.navigate(ROUTES.LOUNGE, openPostId ? { openPostId } : undefined);
       } catch (e) { /* 네비게이션 미준비 */ }
