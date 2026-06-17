@@ -28,6 +28,9 @@ import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlar
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
 import { loadFriendData } from '../utils/friendGroups';
+import { DMListScreen } from './DMListScreen';
+import { DMChatScreen } from './DMChatScreen';
+import { loadUnreadTotal } from '../utils/dm';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -72,6 +75,13 @@ export function HomeScreen({ navigation, route }) {
   };
   const [homeTopComment, setHomeTopComment] = useState(null);
   const [wxEmoji, setWxEmoji] = useState('☀️'); // 헤더 현재 날씨 이모지
+
+  // DM(메시지) — 진입점을 홈 우상단 💬로 일원화(테스터 '친구 탭은 불편' 피드백, 2026-06-17. 옛 친구 탭 💬 제거).
+  //   단일 Modal서 목록↔대화방 전환([[dm-design]]). 안읽음 N 뱃지는 열고/닫을 때 1회 로드(상시구독 X, 비용 절약).
+  const [dmOpen, setDmOpen] = useState(false);
+  const [dmChat, setDmChat] = useState(null);   // { uid, name, avatar } 선택 시 대화방
+  const [dmUnread, setDmUnread] = useState(0);
+  useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
 
@@ -409,6 +419,18 @@ export function HomeScreen({ navigation, route }) {
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
+          {/* DM(메시지) — 홈 우상단 진입(친구 탭서 이관·일원화, 2026-06-17). 발견성 위해 크게(fs44). */}
+          <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ position: 'absolute', top: 8, right: 18, zIndex: 5 }}>
+            <Text style={{ fontSize: fs(44), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
+            {dmUnread > 0 && (
+              <View pointerEvents="none" style={{ position: 'absolute', top: 2, right: 0, minWidth: 19, height: 19, borderRadius: 9.5,
+                paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
@@ -889,6 +911,17 @@ export function HomeScreen({ navigation, route }) {
         visible={showTooltip}
         onClose={() => { setShowTooltip(false); storage.save(STORAGE_KEYS.homeTooltipDone, true); }}
       />
+
+      {/* 메시지(DM) — 홈 우상단 💬 진입 = 대화 목록(인스타식). 단일 Modal서 목록↔대화방 전환([[dm-design]]). */}
+      <Modal visible={dmOpen} transparent animationType="slide"
+        statusBarTranslucent={Platform.OS === 'android'}
+        onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
+        {dmChat ? (
+          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)} />
+        ) : (
+          <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
+        )}
+      </Modal>
 
       {/* 일정 풀스크린 — 홈의 '일정' 라벨 탭 시 캘린더 화면 표시 */}
       <ScheduleScreen
