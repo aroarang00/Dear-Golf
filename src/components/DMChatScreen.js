@@ -260,9 +260,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     if (!convId) return;
     const unsub = subscribeMessages(convId, (msgs) => {
       setMessages(msgs);
-      // 최신 메시지가 상대 것일 때만 읽음 기록 — 내 전송·리액션 변경 땐 불필요한 쓰기·스냅샷 churn 제거(렉 완화). msgs=오래된→최신.
-      const newest = msgs[msgs.length - 1];
-      if (newest && newest.senderUid !== myUidRef.current) markConversationRead(convId);
+      // 읽음 처리는 conversation 구독에서 'unread>0일 때'로 일원화(아래) — 여기서 senderUid로 거르면
+      //   상대 메시지 후 내가 답장해 최신이 '내 것'이 되는 순간 내 안읽음이 안 지워지고 박혀버림
+      //   ('내가 쓴 글이 나에게 새글' 버그, 2026-06-17 실데이터 확인). msgs=오래된→최신.
       requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: false }));  // 인버티드: offset 0 = 최신(바닥). 즉시 점프(스냅샷마다 애니 스크롤=실시간 수신 버벅임 원인)
     });
     return () => unsub();
@@ -272,6 +272,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   useEffect(() => {
     if (!convId) return;
     const unsub = subscribeConversation(convId, (conv) => {
+      // 방을 보고 있는 동안 내 안읽음이 남아 있으면 즉시 0 — 누가 마지막에 말했든 확실히 클리어
+      //   (상대 메시지 후 내가 답장해 최신이 내 것이 돼도 박히지 않음). unread>0일 때만 써서 churn 없음.
+      if ((conv?.unread?.[myUidRef.current] || 0) > 0) markConversationRead(convId);
       const ts = conv?.lastRead?.[friendUid];
       setOtherReadMs(ts?.toMillis ? ts.toMillis() : 0);
       // 내가 목록에서 지운 시각 — 이 이후 메시지만 내 화면에 표시(카톡식: 지우면 그 전 대화는 내게서 사라짐, 상대는 보존). 사용자 2026-06-14
