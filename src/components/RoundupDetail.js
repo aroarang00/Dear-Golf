@@ -479,6 +479,18 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#3C7D4F' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C7D4F' }}>모집 확정 · 참여 확정 ✓</Text>
           </View>
+        ) : allFull ? (
+          // 만석이지만 주최자 미확정 — 참여자에게 '일정 확정 대기중' 명시.
+          //   만석=확정 아님([[roundup-confirm-judgment]]). 확정되면 위 'closed' 분기로 바뀜.
+          <>
+            <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.navy }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.navy }}>참여 확정 ✓ · 확정 대기중</Text>
+            </View>
+            <Text style={hintStyle}>
+              인원은 다 모였어요.{'\n'}주최자가 일정을 확정하면{'\n'}일정에 추가되고 알려드려요
+            </Text>
+          </>
         ) : (
           <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
