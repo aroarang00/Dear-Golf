@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Alert, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState,
+  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -37,6 +37,7 @@ import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers } 
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { MealDecisionBar } from './MealDecisionBar';
+import { showAppAlert } from './AppAlert';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -338,22 +339,22 @@ export function HomeScreen({ navigation, route }) {
     const uids = (selectedUids || []).filter(Boolean);
     setInviteTarget(null);
     if (!schedule || !uids.length) return;
-    if (!currentUid) { Alert.alert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
+    if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
     try {
       const groupId = await shareScheduleToFriends({
         schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids: uids,
       });
-      if (!groupId) { Alert.alert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
+      if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId }); // 전파 일정 표식
-      Alert.alert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
+      showAppAlert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
     } catch (e) {
       if (__DEV__) console.warn('[home] invite schedule', e?.message);
-      Alert.alert('초대 실패', '잠시 후 다시 시도해주세요.');
+      showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
     }
   };
   // 일정 생성 직후 초대 제안 — 친구 동반자가 있을 때만(솔로 일정엔 안 띄움). [보내기]=친구 선택 → 발송. ([[schedule-propagation-spec]])
   const offerInviteAfterCreate = (schedule) => {
-    Alert.alert('친구에게 보낼까요?', '방금 만든 일정을 동반자에게 보내면, 수락 시 그 친구 일정에도 등록돼요.', [
+    showAppAlert('친구에게 보낼까요?', '방금 만든 일정을 동반자에게 보내면, 수락 시 그 친구 일정에도 등록돼요.', [
       { text: '나중에', style: 'cancel' },
       { text: '보내기', onPress: () => handleInviteFriends(schedule) },
     ]);
@@ -446,7 +447,8 @@ export function HomeScreen({ navigation, route }) {
       const oldS = editScheduleTarget;
       const material = oldS?.groupId && (oldS.date !== data.date || oldS.time !== data.time || oldS.course !== data.course);
       if (material && currentUid) {
-        Alert.alert('동반자에게 알릴까요?', '변경된 일정을 함께하는 동반자에게 알려요.', [
+        // 수정 모달이 닫힌 뒤 뜨도록 지연(showAppAlert가 닫히는 모달 위에 겹치면 터치 충돌 — 알려진 이슈)
+        setTimeout(() => showAppAlert('동반자에게 알릴까요?', '변경된 일정을 함께하는 동반자에게 알려요.', [
           { text: '조용히 저장', style: 'cancel' },
           { text: '알리고 저장', onPress: async () => {
               try {
@@ -455,7 +457,7 @@ export function HomeScreen({ navigation, route }) {
                   actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time });
               } catch (e) { if (__DEV__) console.warn('[home] notify changed', e?.message); }
             } },
-        ]);
+        ]), 350);
       }
       // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
       getAlarmTypes(data.id).then(types => {
