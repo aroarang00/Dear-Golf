@@ -7,8 +7,9 @@ export const myS = StyleSheet.create({
   handle:       { width: 32, height: 3, backgroundColor: C.hairline, borderRadius: 2, alignSelf: 'center', margin: 12 },
   profileArea:  { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingVertical: 16 },
   avatar:       { width: 56, height: 56, borderRadius: 28, backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.butter },
-  avatarTxt:    { fontFamily: F.en, fontSize: fs(24), color: '#fff' },
-  // 닉네임은 한글이 들어가므로 영문 전용 F.en 대신 Pretendard Bold 사용
+  // 아바타 이니셜·닉네임은 한글이 들어가므로 영문 전용 F.en 대신 Pretendard Bold
+  //  (F.en=PlayfairDisplay는 한글 글리프 없어 안드서 시스템폰트로 폴백됨 [[avatar-initial-font]])
+  avatarTxt:    { fontFamily: F.sysB, fontSize: fs(24), color: '#fff' },
   nickname:     { fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal },
   realName:     { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 },
   nickInput:    { fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2 },

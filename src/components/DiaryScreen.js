@@ -662,7 +662,7 @@ export function DiaryScreen({ route, navigation }) {
               {userProfile.avatarUri ? (
                 <Image source={{ uri: resolvePhotoUri(userProfile.avatarUri) }} style={{ width: '100%', height: '100%' }} />
               ) : (
-                <Text style={{ fontFamily: F.en, fontSize: fs(32), color: '#fff' }}>{myInitial}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: '#fff' }}>{myInitial}</Text>
               )}
             </TouchableOpacity>
             <View pointerEvents="none" style={{ position: 'absolute', right: -2, bottom: -2,
