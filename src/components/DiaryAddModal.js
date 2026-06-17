@@ -140,6 +140,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       ...(i === 0 ? [] : [{ text: '대표사진으로 지정', onPress: () => setAddPhotos(prev => {
         const n = [...prev]; const [p] = n.splice(i, 1); n.unshift(p); return n;
       }) }]),
+      // 순서 바꾸기 — 앞/뒤로 한 칸씩 이동(드래그 라이브러리 없이). 첫 장이 대표사진.
+      ...(i === 0 ? [] : [{ text: '⬅ 앞으로 이동', onPress: () => setAddPhotos(prev => {
+        const n = [...prev]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n;
+      }) }]),
+      ...(i >= addPhotos.length - 1 ? [] : [{ text: '➡ 뒤로 이동', onPress: () => setAddPhotos(prev => {
+        const n = [...prev]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; return n;
+      }) }]),
       // 영상은 회전·자르기 제외(첫프레임 포스터 기반)
       ...(isVideo ? [] : [
         { text: '회전', onPress: () => setEditorIndex(i) },
