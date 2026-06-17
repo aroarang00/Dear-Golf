@@ -1,6 +1,6 @@
 import {
   collection, query, where, orderBy, getDocs,
-  addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+  addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -73,4 +73,11 @@ export async function updateSchedule(scheduleId, data) {
 export async function deleteSchedule(scheduleId) {
   if (!scheduleId) throw new Error('scheduleId required');
   await deleteDoc(doc(db, COLLECTION, scheduleId));
+}
+
+// 결정적 ID로 일정 setDoc(멱등) — 일정 전파 수락 시 자기파생({groupId}_{uid})에 사용 ([[schedule-propagation-spec]]).
+//   ownerUid는 data에 포함(==본인). 이미 있으면 덮어써 멱등(중복 방지). createdAt 보존 위해 merge.
+export async function setScheduleDoc(scheduleId, data) {
+  if (!scheduleId) throw new Error('scheduleId required');
+  await setDoc(doc(db, COLLECTION, scheduleId), { ...data, updatedAt: serverTimestamp() }, { merge: true });
 }

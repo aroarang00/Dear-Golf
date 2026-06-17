@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { loadMySchedules, createSchedule, updateSchedule, deleteSchedule } from '../utils/schedule';
+import { loadMySchedules, createSchedule, updateSchedule, deleteSchedule, setScheduleDoc } from '../utils/schedule';
 import { syncRoundToCalendar, removeRoundFromCalendar } from '../utils/deviceCalendar';
 import { normalizeSchedules } from '../utils/helpers';
 
@@ -17,6 +17,7 @@ export const SchedulesContext = React.createContext({
   addSchedule: async () => {},
   editSchedule: async () => {},
   removeSchedule: async () => {},
+  addSharedSchedule: async () => {},
   setSchedules: () => {},
 });
 
@@ -74,6 +75,16 @@ export function SchedulesProvider({ children }) {
     removeRoundFromCalendar(id);
   }, []);
 
+  // 일정 전파 수락 — 결정적 ID로 자기파생 일정 setDoc(멱등) + 로컬 즉시 반영 + 캘린더 동기화 ([[schedule-propagation-spec]]).
+  //   createSchedule(addDoc 랜덤ID)와 달리 결정적 ID라야 중복 안 생김(재시도·재수락 멱등).
+  const addSharedSchedule = useCallback(async (schedId, data) => {
+    await setScheduleDoc(schedId, data);
+    const sched = { id: schedId, ...data };
+    setSchedulesRaw(prev => normalizeSchedules([...prev.filter(s => s.id !== schedId), sched]));
+    syncRoundToCalendar(sched);
+    return sched;
+  }, []);
+
   // setSchedules는 호환용. 직접 호출 시 Firestore 동기화 X — 로컬 캐시만 변경됨.
   // 새 코드는 addSchedule/editSchedule/removeSchedule 사용. 옛 호출처는 점진적 마이그레이션 중.
   const setSchedulesCompat = useCallback((updater) => {
@@ -93,6 +104,7 @@ export function SchedulesProvider({ children }) {
       addSchedule,
       editSchedule,
       removeSchedule,
+      addSharedSchedule,
       setSchedules: setSchedulesCompat,
     }}>
       {children}

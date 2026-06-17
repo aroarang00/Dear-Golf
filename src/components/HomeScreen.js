@@ -35,6 +35,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends } from '../utils/scheduleShares';
 import { FriendSelectModal } from './FriendSelectModal';
+import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -504,6 +505,10 @@ export function HomeScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}
+        <ScheduleInviteInbox />
+
         {next ? (
         <>
         <View style={{ flex: 1 }} />

@@ -118,19 +118,13 @@ export function buildDerivedSchedule(group, uid) {
   };
 }
 
-// 수락(새 일정 생성 경로) — 본인 schedules에 멱등 자기파생(setDoc 결정적 ID {groupId}_{uid}) + memberUids에 본인 추가.
-//   derived = buildDerivedSchedule 결과. 반환 = 생성된 schedule 문서 id(호출부서 캘린더 동기화·context 반영).
-//   ※ 같은 course+date 일정을 이미 보유하면 이 경로 대신 joinScheduleGroup(중복 방지) — 분기는 호출부(SchedulesContext 접근).
-export async function acceptScheduleInvite(group, uid, derived) {
-  if (!group?.id || !uid) return null;
-  const schedId = `${group.id}_${uid}`;
-  await setDoc(doc(db, 'schedules', schedId), { ...derived, ownerUid: uid }); // ownerUid==uid → schedules 규칙 통과, setDoc=멱등
-  await joinScheduleGroup(group.id, uid);
-  return schedId;
+// 수락 시 자기파생 일정 문서 ID(결정적·멱등). 실제 setDoc은 SchedulesContext.addSharedSchedule(캘린더 동기화 포함).
+export function derivedScheduleId(groupId, uid) {
+  return `${groupId}_${uid}`;
 }
 
-// 그룹 멤버 합류만 — 이미 같은 일정을 보유한 수신자가 기존 일정에 groupId만 스탬프할 때(중복 방지 경로).
-//   schedule 스탬프(editSchedule)는 호출부에서, 여기선 그룹 memberUids에 본인 추가만.
+// 그룹 멤버 합류 — 수락 시(자기파생 후) 또는 같은 일정 보유로 기존 일정에 groupId만 스탬프할 때(중복 방지 경로).
+//   여기선 그룹 memberUids에 본인 추가만. 일정 doc 쓰기는 호출부(SchedulesContext).
 export async function joinScheduleGroup(groupId, uid) {
   if (!groupId || !uid) return;
   await updateDoc(doc(db, COLLECTION, groupId), { memberUids: arrayUnion(uid), updatedAt: serverTimestamp() });

@@ -1,0 +1,86 @@
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { C, F, fs } from '../constants/colors';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
+import {
+  subscribeIncomingScheduleInvites, buildDerivedSchedule,
+  derivedScheduleId, joinScheduleGroup, declineScheduleInvite,
+} from '../utils/scheduleShares';
+
+// 일정 전파 수신 — 홈 상단 배너([[schedule-propagation-spec]] Stage 3). 친구가 보낸 일정 초대를 수락하면
+//  내 일정에 자기파생(캘린더 동기화). cross-user 쓰기 0. uid=useCurrentUid(단일 소스, 재설치·계정전환 시 재구독).
+export function ScheduleInviteInbox() {
+  const uid = useCurrentUid();
+  const { schedules, addSharedSchedule, editSchedule } = useContext(SchedulesContext);
+  const [invites, setInvites] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!uid) { setInvites([]); return; }
+    const unsub = subscribeIncomingScheduleInvites(uid, setInvites);
+    return unsub;
+  }, [uid]);
+
+  // 같은 라운딩(course+date) 일정을 이미 보유하면 중복 생성 대신 groupId 스탬프만(중복 방지, [[schedule-propagation-spec]] §4).
+  const findExisting = (inv) => (schedules || []).find(s =>
+    s.date === inv.date && (
+      (s.courseId && inv.courseId) ? s.courseId === inv.courseId : s.course === inv.course
+    ),
+  );
+
+  const accept = async (inv) => {
+    if (busy || !uid) return;
+    setBusy(true);
+    try {
+      const existing = findExisting(inv);
+      if (existing) {
+        if (!existing.groupId) await editSchedule(existing.id, { groupId: inv.id, sourceScheduleId: inv.sourceScheduleId || null });
+        await joinScheduleGroup(inv.id, uid);
+      } else {
+        const derived = buildDerivedSchedule(inv, uid);
+        await addSharedSchedule(derivedScheduleId(inv.id, uid), derived); // 멱등 setDoc + 캘린더 동기화 + 로컬 반영
+        await joinScheduleGroup(inv.id, uid);
+      }
+    } catch (e) { if (__DEV__) console.warn('[scheduleInvite] accept fail', e?.message); }
+    finally { setBusy(false); }
+  };
+
+  const decline = async (inv) => {
+    if (busy || !uid) return;
+    setBusy(true);
+    try { await declineScheduleInvite(inv.id, uid); }
+    catch (e) { if (__DEV__) console.warn('[scheduleInvite] decline fail', e?.message); }
+    finally { setBusy(false); }
+  };
+
+  if (!uid || !invites.length) return null;
+  const inv = invites[0];   // 가장 최근 1건씩 — 처리하면 다음 것이 올라옴
+
+  return (
+    <View style={{ marginHorizontal: 20, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.12)',
+      borderRadius: 14, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', padding: 14 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <Text style={{ fontSize: fs(16) }}>🗓️</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
+          {inv.initiatorName || '친구'}님이 일정에 초대했어요{invites.length > 1 ? ` 외 ${invites.length - 1}건` : ''}
+        </Text>
+      </View>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.78)', marginBottom: 12 }} numberOfLines={1}>
+        {inv.course}{inv.date ? ` · ${inv.date}` : ''}{inv.time ? ` · ${inv.time}` : ''}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <TouchableOpacity onPress={() => decline(inv)} disabled={busy} activeOpacity={0.85}
+          style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center',
+            borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.3)', opacity: busy ? 0.5 : 1 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.85)' }}>거절</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => accept(inv)} disabled={busy} activeOpacity={0.85}
+          style={{ flex: 1.6, paddingVertical: 11, borderRadius: 10, alignItems: 'center',
+            backgroundColor: C.butter, opacity: busy ? 0.6 : 1 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{busy ? '처리 중…' : '내 일정에 추가'}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
