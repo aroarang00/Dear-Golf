@@ -419,23 +419,26 @@ export function HomeScreen({ navigation, route }) {
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
-          {/* DM(메시지) — 홈 우상단 진입(친구 탭서 이관·일원화, 2026-06-17). 발견성 위해 크게(fs44). */}
-          <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ position: 'absolute', top: 8, right: 18, zIndex: 5 }}>
-            <Text style={{ fontSize: fs(44), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
-            {dmUnread > 0 && (
-              <View pointerEvents="none" style={{ position: 'absolute', top: 2, right: 0, minWidth: 19, height: 19, borderRadius: 9.5,
-                paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
           <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
-            <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
+          {/* 타이틀 줄 — 좌: Dear Golf + 날씨 / 우: DM 💬. 같은 줄 우측 정렬이라 세로 위치가 타이틀에 자동 정렬되고
+              가로도 헤더 콘텐츠 우측 끝(여백 22)에 들어가 위치가 안정적(절대좌표 매직넘버 회피). */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
+              <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
+              </TouchableOpacity>
+            </View>
+            {/* DM(메시지) — 홈 우상단 진입(친구 탭서 이관·일원화, 2026-06-17). 크게(fs42). 안읽음 뱃지는 말풍선 우상단 어깨에 바짝. */}
+            <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginRight: 2 }}>
+              <Text style={{ fontSize: fs(42), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
+              {dmUnread > 0 && (
+                <View pointerEvents="none" style={{ position: 'absolute', top: 4, right: 4, minWidth: 18, height: 18, borderRadius: 9,
+                  paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
           <Text style={homeS.hdrGreeting}>
