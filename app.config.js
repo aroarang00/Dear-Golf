@@ -147,6 +147,13 @@ module.exports = {
         '@react-native-kakao/core',
         {
           nativeAppKey: process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY,
+          // iOS — 이 'ios' 키가 있어야 플러그인 withIos가 실행돼 ①콜백 스킴(CFBundleURLTypes kakao{key})
+          //   ②AppDelegate handleOpenUrl(카톡 로그인 후 kakao{key}://oauth 복귀를 SDK로 전달)을 등록한다.
+          //   키 자체가 없으면 withIos가 아예 안 돌아 둘 다 누락 → iOS 카톡 로그인이 앱으로 복귀 못 해 '무한 스핀'.
+          //   (2026-06-17 iOS v47 무한스핀 근본원인: ios 키 부재로 콜백 핸들러 미등록) ([[kakao-firebase-auth]])
+          ios: {
+            handleKakaoOpenUrl: true,
+          },
           // 친구목록 등 추가동의(웹뷰 OAuth)의 redirect(kakao{key}://oauth) 콜백을 받는
           // AuthCodeHandlerActivity 등록. 없으면 동의 후 '계속하기'에서 콜백 유실 → 멈춤. ([[kakao-friend-api-design]])
           android: {
