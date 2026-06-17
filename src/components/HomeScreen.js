@@ -476,16 +476,22 @@ export function HomeScreen({ navigation, route }) {
           <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
           {/* 타이틀 줄 — Dear Golf + 날씨 + DM 💬. 💬는 날씨 아이콘 우상단에 살짝 띄워(브랜드가 말하는 말풍선 느낌),
               너무 붙지 않게 간격(marginLeft)·위로 올림(marginTop 음수). 사용자 위치 지정 2026-06-17. */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
-            <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
-              <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
+              <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
+                <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginLeft: 8, marginTop: -56 }}>
-              <Text style={{ fontSize: fs(30), textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>💬</Text>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -56, marginRight: -6 }}>
+              {/* DM 커스텀 버튼 — 디데이 박스식 반투명 버터 오버레이 동그라미 + 버건디/버터 'M' 모노그램(Playfair). 사용자 2026-06-17 */}
+              <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(245,230,168,0.18)',
+                borderWidth: 1.5, borderColor: C.butter, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: F.en, fontSize: fs(25), lineHeight: fs(25), color: C.butter, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false, marginTop: -3 }}>M</Text>
+              </View>
               {dmUnread > 0 && (
-                <View pointerEvents="none" style={{ position: 'absolute', top: -2, right: -2, minWidth: 17, height: 17, borderRadius: 8.5,
+                <View pointerEvents="none" style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 8.5,
                   paddingHorizontal: 4, backgroundColor: '#E5484D', borderWidth: 1.5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>{dmUnread > 99 ? '99+' : dmUnread}</Text>
                 </View>
