@@ -7,6 +7,7 @@ import { ROUTES } from '../constants/routes';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { MyScheduleTab } from './MyScheduleTab';
+import { AppAlertHost } from './AppAlert';
 
 // asModal={true} + visible/onClose 모드로도 사용 가능 (홈에서 풀스크린 모달로 띄울 때).
 // asModal=false면 기존 탭 화면처럼 동작 (navigation 필수).
@@ -194,6 +195,9 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
           내부 제스처(캘린더 월 스와이프)가 동작하려면 여기서 다시 감싸야 함 */}
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>{content}</SafeAreaProvider>
+        {/* 이 모달 안의 AppAlert 호스트 — 삭제 확인 등 showAppAlert가 이 풀스크린 모달 위에
+            정상 노출되도록(루트 호스트는 iOS에서 모달 뒤로 깔림). 모달 닫히면 자동으로 루트 호스트 복귀. */}
+        <AppAlertHost />
       </GestureHandlerRootView>
     </Modal>
   );

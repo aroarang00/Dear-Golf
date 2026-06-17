@@ -9,11 +9,16 @@ import { C, F, fs } from '../constants/colors';
 //  AppAlertHost 를 앱 루트에 한 번 렌더해두면 어디서든 showAppAlert 호출 가능.
 // =============================================================
 
-let _show = null;
+// 호스트 스택 — 기본은 앱 루트 1개. 풀스크린 Modal(예: ScheduleScreen asModal) 안에 호스트를
+//  하나 더 두면, 그 모달이 열린 동안엔 가장 최근(=최상위) 호스트가 alert를 그린다.
+//  iOS에서 '모달 위 또 다른 풀스크린 모달'일 때 루트 alert가 뒤로 깔리던 이슈 해결.
+//  호스트가 1개뿐이면 기존과 동일하게 동작(하위호환).
+let _hosts = [];
 
 export function showAppAlert(title, message, buttons) {
-  if (_show) {
-    _show({
+  const show = _hosts[_hosts.length - 1];
+  if (show) {
+    show({
       title: title || '',
       message: message || '',
       buttons: buttons && buttons.length ? buttons : [{ text: '확인' }],
@@ -24,8 +29,8 @@ export function showAppAlert(title, message, buttons) {
 export function AppAlertHost() {
   const [data, setData] = useState(null);
   useEffect(() => {
-    _show = setData;
-    return () => { _show = null; };
+    _hosts.push(setData);
+    return () => { _hosts = _hosts.filter((h) => h !== setData); };
   }, []);
   const close = useCallback(() => setData(null), []);
 
