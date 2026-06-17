@@ -87,6 +87,20 @@ export async function sendMessage(friendUid, text, replyTo = null) {
 export async function deleteMessage(convId, msgId) {
   if (!convId || !msgId) throw new Error('dm: delete args');
   await deleteDoc(doc(db, CONV, convId, 'messages', msgId));
+  // 마지막 메시지를 지우면 목록 미리보기(lastMessage)에 유령으로 남음 → 남은 최신 메시지로 메타 재계산.
+  //   (오래된 메시지를 지운 경우엔 최신이 그대로라 같은 값으로 덮어써 무해. 남은 메시지 0건이면 빈 미리보기=목록서 숨김.)
+  //   친구해지·차단 상태면 규칙상 이 update는 막히지만 메시지 삭제 자체는 이미 완료됨 → 조용히 무시.
+  try {
+    const snap = await getDocs(query(
+      collection(db, CONV, convId, 'messages'),
+      orderBy('createdAt', 'desc'),
+      fsLimit(1),
+    ));
+    const last = snap.docs[0]?.data();
+    await updateDoc(doc(db, CONV, convId), last
+      ? { lastMessage: last.body || '', lastSenderUid: last.senderUid || null, lastAt: last.createdAt || serverTimestamp(), updatedAt: serverTimestamp() }
+      : { lastMessage: '', lastSenderUid: null, lastAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  } catch (e) { if (__DEV__) console.warn('[dm] delete meta recompute', e?.message); }
 }
 
 // 대화방 '나만 목록에서 지우기' — clearedAt.{내uid}=서버시간 기록(상대 영향 0, 새 메시지 오면 부활). 규칙은 clearedAt 본인 키만 허용.
