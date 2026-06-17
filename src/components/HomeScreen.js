@@ -352,11 +352,28 @@ export function HomeScreen({ navigation, route }) {
       showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
     }
   };
-  // 일정 생성 직후 초대 제안 — 친구 동반자가 있을 때만(솔로 일정엔 안 띄움). [보내기]=친구 선택 → 발송. ([[schedule-propagation-spec]])
+  // 이미 선택한 동반자(친구)에게 일정 바로 발송 — 생성 직후 '보내기' 전용(친구 재선택 X). ([[schedule-propagation-spec]])
+  const inviteCompanionsDirectly = async (schedule) => {
+    const friendUids = [...new Set((schedule?.companions || []).map(c => c?.friendUid).filter(Boolean))];
+    if (!friendUids.length) return;
+    if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
+    try {
+      const groupId = await shareScheduleToFriends({
+        schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids,
+      });
+      if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
+      if (!schedule.groupId) await editSchedule(schedule.id, { groupId });
+      showAppAlert('초대를 보냈어요', `동반자 ${friendUids.length}명에게 일정 초대를 보냈어요.\n수락하면 그 친구 일정에도 등록돼요.`);
+    } catch (e) {
+      if (__DEV__) console.warn('[home] invite companions', e?.message);
+      showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
+    }
+  };
+  // 일정 생성 직후 초대 제안 — 친구 동반자가 있을 때만. [보내기]=이미 고른 동반자에게 바로 발송(재선택 X). ([[schedule-propagation-spec]])
   const offerInviteAfterCreate = (schedule) => {
-    showAppAlert('친구에게 보낼까요?', '방금 만든 일정을 동반자에게 보내면, 수락 시 그 친구 일정에도 등록돼요.', [
+    showAppAlert('동반자에게 보낼까요?', '방금 선택한 동반자에게 이 일정을 보내면, 수락 시 그 친구 일정에도 등록돼요.', [
       { text: '나중에', style: 'cancel' },
-      { text: '보내기', onPress: () => handleInviteFriends(schedule) },
+      { text: '보내기', onPress: () => inviteCompanionsDirectly(schedule) },
     ]);
   };
 
