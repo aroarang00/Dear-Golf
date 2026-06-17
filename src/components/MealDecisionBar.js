@@ -161,6 +161,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>티맵 길찾기</Text>
                   </TouchableOpacity>
                 </View>
+                {/* 총대만 — 결정 후 변경(다른 곳 고르면 결정 풀리고 새 제안으로 덮어씀) */}
+                {isAuthor && (
+                  <TouchableOpacity onPress={() => setPicking(true)} activeOpacity={0.8}
+                    style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>다시 정하기</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
