@@ -439,12 +439,16 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
           ) : (
             // 만석 + 미확정(확정형) — 주최자 명시 확정 버튼. 만석 자체는 자동 확정 X (2026-05-28 정책)
             <>
+              {/* 만석=확정 아님. 주최자가 '눌러야 함'을 인식하도록 버튼 위에 대기 상태 라벨 ([[roundup-confirm-judgment]]) */}
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.navy, textAlign: 'center', marginBottom: _and ? 6 : 8 }}>
+                ⏳ 인원이 다 모였어요 · 모집 확정 대기중
+              </Text>
               <TouchableOpacity activeOpacity={0.85} onPress={confirmFinalize}
                 style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: '#3C7D4F' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>모집 확정하기</Text>
               </TouchableOpacity>
               <Text style={hintStyle}>
-                확정하면 동반자와 본인 일정에 자동 추가돼요.{'\n'}확정 후엔 수정 불가 — 변경은 삭제 후 다시 모집해요.
+‘모집 확정하기’를 눌러 모집을 확정해 주세요.{'\n'}확정하면 동반자와 본인 일정에 자동 추가돼요.{'\n'}확정 후엔 수정 불가 — 변경은 삭제 후 다시 모집해요.
               </Text>
             </>
           )
