@@ -67,6 +67,7 @@ export function HomeScreen({ navigation, route }) {
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [pendingInviteSchedule, setPendingInviteSchedule] = useState(null); // 생성 직후 초대 제안 대상(알람 팝업 뒤)
   const [cardSlide, setCardSlide] = useState(0);
   const [now, setNow] = useState(Date.now());
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
@@ -350,6 +351,13 @@ export function HomeScreen({ navigation, route }) {
       Alert.alert('초대 실패', '잠시 후 다시 시도해주세요.');
     }
   };
+  // 일정 생성 직후 초대 제안 — 친구 동반자가 있을 때만(솔로 일정엔 안 띄움). [보내기]=친구 선택 → 발송. ([[schedule-propagation-spec]])
+  const offerInviteAfterCreate = (schedule) => {
+    Alert.alert('친구에게 보낼까요?', '방금 만든 일정을 동반자에게 보내면, 수락 시 그 친구 일정에도 등록돼요.', [
+      { text: '나중에', style: 'cancel' },
+      { text: '보내기', onPress: () => handleInviteFriends(schedule) },
+    ]);
+  };
 
   const openCurrentWeather = () => {
     const today = new Date();
@@ -409,11 +417,15 @@ export function HomeScreen({ navigation, route }) {
       // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
       getUserCourses().then(list => setUserCoursesList(list || []));
       // (캘린더 추가는 addSchedule이 일괄 처리)
+      // 친구 동반자가 있으면 생성 직후(알람 팝업 뒤) 일정 전파 초대 제안 ([[schedule-propagation-spec]] A안)
+      const hasFriendCompanions = Array.isArray(data.companions) && data.companions.some(c => c?.friendUid);
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
         applyDefaultAlarms(newS, userProfile.alarmDefaults);
+        if (hasFriendCompanions) offerInviteAfterCreate(newS);   // 알람 팝업 없음 → 바로 제안
       } else {
         setPendingAlarmSchedule(newS);
+        if (hasFriendCompanions) setPendingInviteSchedule(newS); // 알람 팝업 닫힌 뒤 제안
       }
     } else if (type === 'schedule-edit') {
       try {
@@ -904,7 +916,15 @@ export function HomeScreen({ navigation, route }) {
       <AlarmSetupModal
         visible={!!pendingAlarmSchedule}
         schedule={pendingAlarmSchedule}
-        onClose={() => setPendingAlarmSchedule(null)}
+        onClose={() => {
+          setPendingAlarmSchedule(null);
+          // 알람 팝업 닫힌 뒤 친구 초대 제안(생성 직후 동선) — 모달 닫힘 후 띄우게 약간 지연 ([[schedule-propagation-spec]])
+          if (pendingInviteSchedule) {
+            const s = pendingInviteSchedule;
+            setPendingInviteSchedule(null);
+            setTimeout(() => offerInviteAfterCreate(s), 350);
+          }
+        }}
       />
 
       {/* 일정 공유 카드 — 이미지(바로공유/저장) + 평문 링크(설치 동선). 시트 닫은 뒤 홈 레벨에서 열림 */}
