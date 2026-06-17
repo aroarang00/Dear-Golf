@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
+import { OverlayAlert } from './common/OverlayAlert';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
@@ -30,6 +31,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const [recentCourses, setRecentCourses] = useState([]); // 최근 검색한 골프장
+  const [overlay, setOverlay] = useState(null); // 모달 안 커스텀 알럿(검증 등) — 네이티브 Alert 대신
   const debounceRef = useRef(null);
   // 해외 라운딩 — 국내/해외 + 도시(날씨 조회용)
   const [overseas, setOverseas] = useState(false);
@@ -207,7 +209,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const handleSave = () => {
     const finalCourse = selected ? selected.name : courseSearch.trim();
     if (!finalCourse) {
-      Alert.alert('골프장을 입력해주세요', '저장하려면 골프장을 먼저 입력하거나 검색해 선택해주세요.');
+      setOverlay({ title: '골프장을 입력해주세요', message: '저장하려면 골프장을 먼저 입력하거나 검색해 선택해주세요.' });
       return;
     }
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -490,6 +492,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               <View style={{ height: 40 }} />
             </KeyboardAwareScrollView>
         </View>
+        {/* 모달 안 커스텀 알럿(검증 등) — 네이티브 Alert 대신 오버레이 View(모달 위 모달 터치충돌 회피) */}
+        <OverlayAlert data={overlay} onClose={() => setOverlay(null)} />
       </View>
       </KeyboardProvider>
       {/* 동반자 친구 선택 — 본명 마스킹 표시, 다중선택 */}
