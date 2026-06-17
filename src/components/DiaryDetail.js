@@ -116,9 +116,9 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
           </View>
         )}
         <View style={[dS.detailInfoArea, (isSpecial || isFirstSingle) && { borderBottomColor: '#C9A84C33' }]}>
-          {/* 공개범위 — 헤더(수정·삭제) 아래 우측, 선택 그룹 전체 표시 ([[friend_groups]]) */}
+          {/* 공개범위 — 스코어 위 좌측 캡션(우측 정렬 시 좌측이 비어 떠 보여 좌측 정렬로). 선택 그룹 전체 표시 ([[friend_groups]]) */}
           {ovd && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', alignItems: 'center', gap: 8, marginTop: -12, marginBottom: 6 }}>
               {ovd.groups && ovd.groups.length
                 ? ovd.groups.map((g, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
