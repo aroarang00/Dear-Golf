@@ -4,6 +4,8 @@ import { Image } from 'expo-image';
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system/legacy';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 
@@ -220,10 +222,12 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
   );
 }
 
-export function PhotoViewer({ photos, startIndex, onClose, caption }) {
+export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = false }) {
   const [idx, setIdx] = useState(startIndex);
   const [zoomed, setZoomed] = useState(false); // 현재 사진 확대 여부 — 확대 중 가로 페이저 잠금
   const [showCaption, setShowCaption] = useState(true); // 글(caption) 표시 — 사진 탭으로 토글
+  const [savedToast, setSavedToast] = useState('');     // 저장 피드백(잠깐 표시)
+  const [savingPhoto, setSavingPhoto] = useState(false);
   const current = photos[idx];
   const isVideo = current?.type === 'video';
 
@@ -259,6 +263,26 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
         ? (captionShown ? Math.min(availMax, Math.round(SW * 1.25)) : VIDEO_H)
         : Math.min(availMax, Math.round(SW * 1.25)));
 
+  // 현재 사진을 갤러리에 저장 — 원격(https) URL이면 캐시로 다운로드 후 저장(saveToLibraryAsync는 로컬 파일만). 이미지 전용.
+  const savePhoto = async () => {
+    if (savingPhoto || isVideo || !curUri) return;
+    setSavingPhoto(true);
+    try {
+      const perm = await MediaLibrary.requestPermissionsAsync();
+      if (!perm.granted) { setSavedToast('갤러리 접근 권한이 필요해요'); setTimeout(() => setSavedToast(''), 1800); return; }
+      let localUri = curUri;
+      if (/^https?:\/\//.test(localUri)) {
+        const dl = await FileSystem.downloadAsync(localUri, FileSystem.cacheDirectory + `dg_${Date.now()}.jpg`);
+        localUri = dl.uri;
+      }
+      await MediaLibrary.saveToLibraryAsync(localUri);
+      setSavedToast('사진 저장됨 ✓'); setTimeout(() => setSavedToast(''), 1500);
+    } catch (e) {
+      if (__DEV__) console.warn('[viewer] save', e?.message);
+      setSavedToast('저장에 실패했어요'); setTimeout(() => setSavedToast(''), 1800);
+    } finally { setSavingPhoto(false); }
+  };
+
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라 핀치 줌이 안 먹는다.
@@ -268,6 +292,22 @@ export function PhotoViewer({ photos, startIndex, onClose, caption }) {
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
+        {/* 저장 — 허용된 곳(DM 등)에서 이미지일 때만. 좌상단 알약 */}
+        {allowSave && !isVideo && (
+          <TouchableOpacity onPress={savePhoto} disabled={savingPhoto} activeOpacity={0.8}
+            style={{ position: 'absolute', top: 48, left: 18, zIndex: 10, flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7, opacity: savingPhoto ? 0.6 : 1 }}>
+            <Text style={{ fontSize: fs(14) }}>⬇️</Text>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: '#fff' }}>저장</Text>
+          </TouchableOpacity>
+        )}
+        {!!savedToast && (
+          <View style={{ position: 'absolute', bottom: 64, left: 0, right: 0, alignItems: 'center', zIndex: 20 }} pointerEvents="none">
+            <View style={{ backgroundColor: 'rgba(0,0,0,0.72)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#fff' }}>{savedToast}</Text>
+            </View>
+          </View>
+        )}
         <View style={{ position: 'absolute', top: 56, left: 0, right: 0, alignItems: 'center', zIndex: 5 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}

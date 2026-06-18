@@ -837,7 +837,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         prefillEvidence={reportPrefill || ''} />
       {/* DM 사진 전체화면 — 말풍선 이미지 탭. 자체 Modal(onRequestClose)이라 뒤로가기는 뷰어만 닫음 */}
       {imgViewer && (
-        <PhotoViewer photos={(imgViewer.uris || []).map(u => ({ uri: u }))} startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} />
+        <PhotoViewer photos={(imgViewer.uris || []).map(u => ({ uri: u }))} startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} allowSave />
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>
