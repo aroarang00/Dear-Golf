@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
@@ -7,7 +7,7 @@ import { getSavedRestaurants } from '../utils/savedRestaurants';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { searchGolfCourses } from '../utils/golfCourses';
 import {
-  proposeMeal, toggleAgreeMeal, decideMeal,
+  proposeMeal,
   subscribeMealForSchedule, subscribeIncomingMeals,
 } from '../utils/mealSuggestions';
 import { getScheduleGroup } from '../utils/scheduleShares';
@@ -74,8 +74,6 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
 
   const meal = mine || incoming.find(m => m.date === schedule?.date && m.course === schedule?.course) || null;
   const isAuthor = !!meal && meal.authorUid === uid;
-  const agreedN = meal?.agreedUids?.length || 0;
-  const iAgreed = !!meal && (meal.agreedUids || []).includes(uid);
   const place = meal?.place;
 
   // audience = 전파 일정이면 그룹 멤버(나 제외), 아니면 일정의 친구 동반자(friendUid). 그룹 멤버가 신뢰도 높음.
@@ -114,24 +112,18 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
     return () => clearTimeout(t);
   }, [kw, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 제안 = 결정 — 고르면 바로 확정. 선착순: 이미 누가 정했으면(taken) 안내만(덮어쓰기 X). 총대 본인이면 변경.
   const propose = async (pl) => {
     if (busy || !uid || !pl?.name) return;
     setBusy(true);
     try {
-      await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: '', audienceUids });
+      const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: '', audienceUids });
+      if (r?.taken) {
+        Alert.alert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}뒤풀이 장소를 먼저 정했어요.\n변경은 정한 사람만 할 수 있어요.`);
+      }
       setKw(''); setPicking(false);
     } catch (e) { if (__DEV__) console.warn('[meal] propose', e?.message); }
     finally { setBusy(false); }
-  };
-  const agree = async () => {
-    if (busy || !meal || !uid) return;
-    setBusy(true);
-    try { await toggleAgreeMeal(meal.id, uid, !iAgreed); } catch { /* noop */ } finally { setBusy(false); }
-  };
-  const decide = async () => {
-    if (busy || !meal || !uid) return;
-    setBusy(true);
-    try { await decideMeal(meal.id, uid); } catch { /* noop */ } finally { setBusy(false); }
   };
   const openNav = (provider) => {
     if (!place || !Number.isFinite(place.x) || !Number.isFinite(place.y)) return;
@@ -143,7 +135,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
   if (!active) return null;
 
   // 카드 버튼 라벨 — 귀가교통·맛집 버튼과 동일 톤(반투명·한 줄)
-  const btnLabel = !meal ? '🍴 뒤풀이' : meal.decided ? `🍴 ${place?.name || '결정됨'} ✓` : `🍴 ${place?.name || '정하는 중'}`;
+  const btnLabel = !meal ? '🍴 뒤풀이' : `🍴 ${place?.name || '결정됨'} ✓`;
   const showList = !meal || picking;
 
   return (
@@ -182,41 +174,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>티맵 길찾기</Text>
                   </TouchableOpacity>
                 </View>
-                {/* 총대만 — 결정 후 변경(다른 곳 고르면 결정 풀리고 새 제안으로 덮어씀) */}
+                {/* 총대만 — 식당 사정 등으로 변경(고르면 그 식당으로 덮어씀). 다른 사람은 길찾기만. */}
                 {isAuthor && (
-                  <TouchableOpacity onPress={() => setPicking(true)} activeOpacity={0.8}
+                  <TouchableOpacity onPress={() => setPicking(p => !p)} activeOpacity={0.8}
                     style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>다시 정하기</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>{picking ? '변경 닫기' : '다른 곳으로 변경'}</Text>
                   </TouchableOpacity>
                 )}
-              </View>
-            )}
-
-            {/* 제안 진행 중 — 동의/결정 */}
-            {meal && !meal.decided && (
-              <View style={{ marginHorizontal: 18, marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>
-                  제안: {place?.name} <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>· 동의 {agreedN}</Text>
-                </Text>
-                {!!place?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>{place.loc}</Text>}
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                  {!isAuthor && (
-                    <TouchableOpacity onPress={agree} disabled={busy} activeOpacity={0.85}
-                      style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: iAgreed ? C.bgPrimary : C.burgundy, borderWidth: iAgreed ? 1 : 0, borderColor: C.hairline }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: iAgreed ? C.warmGray : C.butter }}>{iAgreed ? '동의 취소' : '👍 동의'}</Text>
-                    </TouchableOpacity>
-                  )}
-                  {isAuthor && (
-                    <TouchableOpacity onPress={decide} disabled={busy} activeOpacity={0.85}
-                      style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>여기로 결정</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity onPress={() => setPicking(p => !p)} activeOpacity={0.85}
-                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>{picking ? '닫기' : '다른 곳'}</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             )}
 
@@ -256,7 +220,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
                         ) : null}
                         <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
                           style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>제안</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>{meal ? '여기로 변경' : '여기로 정하기'}</Text>
                         </TouchableOpacity>
                       </View>
                     ))

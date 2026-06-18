@@ -196,20 +196,16 @@ service cloud.firestore {
         || request.auth.uid == resource.data.authorUid
         || request.auth.uid in resource.data.audienceUids
       );
+      // 제안 = 결정(단순화 2026-06-18): 먼저 제안한 총대 1명이 식당 고르면 즉시 decided=true(동의 단계 없음).
+      //   선착순 1명만 확정은 클라 트랜잭션이 보장(이미 있으면 덮어쓰기 X). 이후 변경은 총대만(아래 update).
       allow create: if isSignedIn()
         && request.resource.data.authorUid == request.auth.uid
-        && request.resource.data.agreedUids == []
-        && request.resource.data.decided == false
+        && request.resource.data.decided == true
         && request.resource.data.audienceUids is list;
-      // 장소 교체·메모·결정 — author 전체 수정. proposeMeal 재호출(전체 덮어쓰기)도 update로 들어와 여기서 허용(authorUid 불변 전제).
+      // 장소 교체·메모 — 총대(author) 전체 수정. proposeMeal 변경 재호출도 update로 들어와 여기서 허용(authorUid 불변 전제).
       allow update: if isSignedIn()
         && resource.data.authorUid == request.auth.uid
         && request.resource.data.authorUid == request.auth.uid;
-      // 동의 — 동의자(audience)가 agreedUids에 자기 uid만 토글.
-      allow update: if isSignedIn()
-        && request.auth.uid in resource.data.audienceUids
-        && changedKeysWithin(['agreedUids', 'updatedAt'])
-        && selfMembershipToggled('agreedUids');
       // 삭제: author만 (TTL 정리는 후속 CF).
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
     }

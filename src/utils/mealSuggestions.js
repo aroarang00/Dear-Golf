@@ -1,6 +1,6 @@
 import {
   collection, query, where, onSnapshot,
-  setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, Timestamp,
+  setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, Timestamp, runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -30,53 +30,55 @@ export function mealSuggestionId(scheduleId) {
 // 제안(생성) / 장소 교체 — 총대가 식당 골라 제안. 결정적 ID setDoc(전체 덮어쓰기) = 멱등 +
 //   '다른 곳'으로 바꾸면 agreedUids 리셋(이전 동의는 다른 장소에 대한 것이라 초기화). place={name,x,y,kakaoId,loc}.
 //   audienceUids = 그 라운딩 친구 동반자(friendUid) — 호출부서 schedule.companions에서 추출해 전달.
+// 제안 = 결정(단순화 2026-06-18): 먼저 제안한 사람이 총대로 고정되고 그 식당으로 '즉시 결정'.
+//   ★선착순 1명만 — 트랜잭션으로 first-write-wins: 이미 누가 정했으면 {taken:true,by} 반환(덮어쓰기 X).
+//   총대 본인이 다시 제안하면 = 식당 변경(place만 교체). 동의 단계 없음.
+//   ★공유 키 — 전파 일정은 groupId로 모든 참여자가 한 문서에 수렴(사용자별 schedule.id 발산 방지). 없으면 schedule.id 폴백.
 export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids }) {
   if (!authorUid || !schedule?.id || !place?.name) return null;
   const aud = [...new Set((audienceUids || []).filter(u => u && u !== authorUid))];
-  // ★공유 키 — 전파 일정은 사용자마다 schedule.id가 다르므로(파생 id), 같은 라운딩이면 groupId로 한 문서에 수렴.
-  //   groupId 없으면(혼자/비전파) schedule.id 폴백. 모든 참여자가 같은 meal 문서를 읽고/바꾸게 됨.
   const key = schedule.groupId || schedule.id;
   const id = mealSuggestionId(key);
-  await setDoc(doc(db, COLLECTION, id), {
-    authorUid,
-    authorName: authorName || '',
-    scheduleId: key,
-    course: schedule.course || '',
-    courseId: schedule.courseId || null,
-    courseLoc: schedule.courseLoc || null,
-    date: schedule.date || '',
-    place: {
-      name: place.name || '',
-      x: Number.isFinite(place.x) ? place.x : null,
-      y: Number.isFinite(place.y) ? place.y : null,
-      kakaoId: place.kakaoId || null,
-      loc: place.loc || '',
-    },
-    note: note || '',
-    audienceUids: aud,
-    agreedUids: [],
-    decided: false,
-    decidedBy: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    expiresAt: Timestamp.fromMillis(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000),
-  });
-  return id;
-}
-
-// 동의(👍) — 동의자가 agreedUids에 자기 uid만 토글(취소도 동일 호출로 on=false).
-export async function toggleAgreeMeal(id, uid, on) {
-  if (!id || !uid) return;
-  await updateDoc(doc(db, COLLECTION, id), {
-    agreedUids: on ? arrayUnion(uid) : arrayRemove(uid),
-    updatedAt: serverTimestamp(),
-  });
-}
-
-// 결정 — 총대(author)가 '여기로 결정'. decided=true + decidedBy 기록(규칙상 author만).
-export async function decideMeal(id, uid) {
-  if (!id || !uid) return;
-  await updateDoc(doc(db, COLLECTION, id), { decided: true, decidedBy: uid, updatedAt: serverTimestamp() });
+  const ref = doc(db, COLLECTION, id);
+  const placeData = {
+    name: place.name || '',
+    x: Number.isFinite(place.x) ? place.x : null,
+    y: Number.isFinite(place.y) ? place.y : null,
+    kakaoId: place.kakaoId || null,
+    loc: place.loc || '',
+  };
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.authorUid !== authorUid) return { taken: true, by: d.authorName || '' }; // 이미 다른 총대가 정함
+        tx.update(ref, { place: placeData, note: note || '', updatedAt: serverTimestamp() }); // 총대 본인 변경
+        return { id, changed: true };
+      }
+      tx.set(ref, {
+        authorUid,
+        authorName: authorName || '',
+        scheduleId: key,
+        course: schedule.course || '',
+        courseId: schedule.courseId || null,
+        courseLoc: schedule.courseLoc || null,
+        date: schedule.date || '',
+        place: placeData,
+        note: note || '',
+        audienceUids: aud,
+        decided: true,          // 제안=결정
+        decidedBy: authorUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000),
+      });
+      return { id, created: true };
+    });
+  } catch (e) {
+    if (__DEV__) console.warn('[meal] propose tx fail', e?.message);
+    return null;
+  }
 }
 
 // 특정 라운딩(작성자 본인)의 제안 1건 구독 — 총대 화면용(meal_{scheduleId}).
