@@ -627,8 +627,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         {/* 말풍선 — 보낸=우측(버터), 받은=좌측 플러시(페일스카이). 아바타는 위 묶음 헤더로 분리. 시각은 옆에 작게 */}
         <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
           alignItems: 'flex-end', paddingHorizontal: 12,
-          // 발신자 바뀌어 내 그룹이 시작될 때 위 간격↑(받은 메시지는 아바타 헤더가 간격 담당) — 상대↔나 번갈아 보낼 때 붙던 것 해소
-          marginTop: (mine && firstOfGroup) ? 12 : 2, marginBottom: 2, gap: 6 }}>
+          // 발신자 바뀌어 내 그룹이 시작될 때 위 간격↑(받은 메시지는 아바타 헤더가 간격 담당) — 상대↔나 번갈아 보낼 때 붙던 것 해소.
+          //   사진·영상은 크게 보여 연속 시 서로 붙어 보이므로 간격↑(텍스트는 2 유지).
+          marginTop: (mine && firstOfGroup) ? 12 : ((hasImg || video) ? 9 : 2), marginBottom: (hasImg || video) ? 4 : 2, gap: 6 }}>
           {/* 내 메시지 좌측: 읽음(✓✓ 페일스카이) + 시각. 읽기 전엔 시각만. */}
           {mine && (!!time || read) && (
             <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
