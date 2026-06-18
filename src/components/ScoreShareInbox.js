@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
@@ -15,12 +15,24 @@ export function ScoreShareInbox({ nickname, onDerived }) {
   const [active, setActive] = useState(null);   // 응답 중인 공유
   const [selIdx, setSelIdx] = useState(null);    // 선택한 행 idx
   const [busy, setBusy] = useState(false);
+  const glow = useRef(new Animated.Value(0)).current;   // 배너 맥동 글로우(받은 공유 있을 때만)
 
   useEffect(() => {
     if (!uid) { setShares([]); return; }
     const unsub = subscribeIncomingScoreShares(uid, setShares);
     return unsub;
   }, [uid]);
+
+  // 받은 공유가 있을 때만 은은하게 반짝이는 루프 — shadow/border 애니라 useNativeDriver:false.
+  useEffect(() => {
+    if (!shares.length) { glow.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [shares.length]);
 
   const open = (s) => { setActive(s); setSelIdx(null); };
   const close = () => { if (!busy) { setActive(null); setSelIdx(null); } };
@@ -51,22 +63,36 @@ export function ScoreShareInbox({ nickname, onDerived }) {
 
   return (
     <>
-      {/* 배너 — 받은 공유 있을 때 (피드 상단) */}
+      {/* 배너 — 받은 공유 있을 때 (피드 상단). 네이비 글로우 헤일로 + 버터 테두리 맥동 + 스케일로 강하게 '빛나게' */}
       {first && (
-        <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
-          style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 2, backgroundColor: C.navy,
-            borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Text style={{ fontSize: fs(20) }}>📋</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
-              {first.authorName || '동반자'}님이 스코어를 공유했어요
-            </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.75)', marginTop: 2 }} numberOfLines={1}>
-              {first.course}{first.date ? ` · ${first.date}` : ''} · 내 점수 추가하기{shares.length > 1 ? ` 외 ${shares.length - 1}건` : ''}
-            </Text>
-          </View>
-          <Text style={{ fontSize: fs(18), color: C.butter }}>›</Text>
-        </TouchableOpacity>
+        <Animated.View style={{
+          marginHorizontal: 16, marginTop: 14, marginBottom: 4, borderRadius: 16,
+          shadowColor: '#D9AF3C', shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }),
+          shadowRadius: glow.interpolate({ inputRange: [0, 1], outputRange: [16, 34] }),
+          elevation: glow.interpolate({ inputRange: [0, 1], outputRange: [12, 26] }),
+          transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }],
+        }}>
+          <Animated.View style={{
+            borderRadius: 16, borderWidth: 3,
+            borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.7)', 'rgba(245,230,168,1)'] }),
+          }}>
+            <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
+              style={{ backgroundColor: C.navy, borderRadius: 13.5, padding: 14,
+                flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: fs(20) }}>📋</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
+                  {first.authorName || '동반자'}님이 스코어를 공유했어요
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.75)', marginTop: 2 }} numberOfLines={1}>
+                  {first.course}{first.date ? ` · ${first.date}` : ''} · 내 점수 추가하기{shares.length > 1 ? ` 외 ${shares.length - 1}건` : ''}
+                </Text>
+              </View>
+              <Text style={{ fontSize: fs(18), color: C.butter }}>›</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
       )}
 
       {/* 본인 행 선택 모달 */}
