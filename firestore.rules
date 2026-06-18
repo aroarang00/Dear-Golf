@@ -667,7 +667,8 @@ service cloud.firestore {
           && request.resource.data.body is string
           && request.resource.data.body.size() <= 2000
           && (request.resource.data.body.size() > 0
-              || (request.resource.data.get('imageUrl', '') is string && request.resource.data.get('imageUrl', '').size() > 0))
+              || (request.resource.data.get('imageUrl', '') is string && request.resource.data.get('imageUrl', '').size() > 0)
+              || (request.resource.data.get('imageUrls', []) is list && request.resource.data.get('imageUrls', []).size() > 0))
           && replyToValid();
         // 수정은 공감(reactions)만 — 본문·발신자 불변(신고 증거 보전, 몰래 고치기 차단).
         //   참여자가 reactions 맵의 '자기 uid 키'만 추가/변경/제거 가능. 값=짧은 이모지 문자열.

@@ -131,22 +131,49 @@ export async function sendImageMessage(friendUid, imageUri) {
   return sendImageMessageUrl(friendUid, url, true);
 }
 
+// 앨범 전송(모아보내기) — 여러 장을 모두 업로드해 한 메시지에 imageUrls 배열로(카톡식 묶음). owned=true(이 메시지가 N파일 단독소유 → 언센드 시 모두 정리).
+export async function sendImagesMessage(friendUid, uris) {
+  const uid = await getUid();
+  if (!uid || !friendUid || !Array.isArray(uris) || !uris.length) throw new Error('dm: images args');
+  const urls = (await Promise.all(uris.map(u => uploadDmImage(u).catch(() => null)))).filter(Boolean);
+  if (!urls.length) throw new Error('dm: upload failed');
+  const id = pairId(uid, friendUid);
+  const msgRef = await addDoc(collection(db, CONV, id, 'messages'), {
+    senderUid: uid,
+    body: '',
+    imageUrls: urls,
+    imageOwned: true,
+    createdAt: serverTimestamp(),
+  });
+  setDoc(doc(db, CONV, id), {
+    participantUids: [uid, friendUid].sort(),
+    lastMessage: '📷 사진',
+    lastSenderUid: uid,
+    lastAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true }).catch((e) => { if (__DEV__) console.warn('[dm] conv meta(imgs)', e?.message); });
+  return msgRef.id;
+}
+
 // 메시지 삭제(언센드) — 본인 메시지만 완전 삭제(양쪽 화면에서 사라짐). 규칙이 senderUid==나만 허용([[dm-design]]).
 //   인용(replyTo)은 보낸 시점 스냅샷이라 원본을 지워도 인용문은 유지(끊기지 않음). 실패는 호출부에서 안내.
 export async function deleteMessage(convId, msgId) {
   if (!convId || !msgId) throw new Error('dm: delete args');
   // 이미지 메시지면 Storage 파일도 정리(고아 방지) — 단, 이 메시지가 파일을 단독 소유(imageOwned)할 때만.
   //   공유(여러 친구 같은 URL)는 다른 메시지가 같은 파일을 참조하므로 삭제 X. 본인 메시지=본인 dmImages 경로라 삭제 권한 OK.
-  let ownedImageUrl = null;
+  let ownedUrls = [];
   try {
     const ms = await getDoc(doc(db, CONV, convId, 'messages', msgId));
-    if (ms.exists() && ms.data().imageOwned && ms.data().imageUrl) ownedImageUrl = ms.data().imageUrl;
+    if (ms.exists() && ms.data().imageOwned) {
+      const d = ms.data();
+      if (Array.isArray(d.imageUrls)) ownedUrls = d.imageUrls.filter(Boolean);
+      else if (d.imageUrl) ownedUrls = [d.imageUrl];
+    }
   } catch { /* 못 읽어도 메시지 삭제는 진행 */ }
   await deleteDoc(doc(db, CONV, convId, 'messages', msgId));
-  if (ownedImageUrl && /^https?:\/\//.test(ownedImageUrl)) {
-    try { await deleteObject(storageRef(storage, ownedImageUrl)); }
-    catch (e) { if (__DEV__) console.warn('[dm] storage img delete', e?.message); }
-  }
+  await Promise.all(ownedUrls.filter(u => /^https?:\/\//.test(u)).map(u =>
+    deleteObject(storageRef(storage, u)).catch(e => __DEV__ && console.warn('[dm] storage img delete', e?.message)),
+  ));
   // 마지막 메시지를 지우면 목록 미리보기(lastMessage)에 유령으로 남음 → 남은 최신 메시지로 메타 재계산.
   //   (오래된 메시지를 지운 경우엔 최신이 그대로라 같은 값으로 덮어써 무해. 남은 메시지 0건이면 빈 미리보기=목록서 숨김.)
   //   친구해지·차단 상태면 규칙상 이 update는 막히지만 메시지 삭제 자체는 이미 완료됨 → 조용히 무시.
@@ -157,7 +184,7 @@ export async function deleteMessage(convId, msgId) {
       fsLimit(1),
     ));
     const last = snap.docs[0]?.data();
-    const preview = last ? (last.imageUrl ? '📷 사진' : (last.body || '')) : '';
+    const preview = last ? ((last.imageUrl || (Array.isArray(last.imageUrls) && last.imageUrls.length)) ? '📷 사진' : (last.body || '')) : '';
     await updateDoc(doc(db, CONV, convId), last
       ? { lastMessage: preview, lastSenderUid: last.senderUid || null, lastAt: last.createdAt || serverTimestamp(), updatedAt: serverTimestamp() }
       : { lastMessage: '', lastSenderUid: null, lastAt: serverTimestamp(), updatedAt: serverTimestamp() });

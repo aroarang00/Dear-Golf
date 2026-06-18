@@ -11,7 +11,7 @@ import { getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { LinkText } from './common/LinkText';
-import { ensureConversation, sendMessage, sendImageMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
+import { ensureConversation, sendMessage, sendImageMessage, sendImagesMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import * as ImagePicker from 'expo-image-picker';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -188,6 +188,37 @@ function TypingDots() {
         borderRadius: 16, borderTopLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 14 }}>
         {[0, 1, 2].map((i) => <TypingDot key={i} delay={i * 160} />)}
       </View>
+    </View>
+  );
+}
+
+// DM 사진 그리드(앨범) — 1장=정사각 크게, 2장+=2열 격자(최대 4칸, 5장+ 4번째에 +N). 카톡 앨범식.
+//   onPressIndex 있으면 칸 탭=뷰어(해당 index). 없으면(미리보기) 비활성. 컨테이너 폭 210 고정.
+function DmImageGrid({ uris, onPressIndex }) {
+  const c = uris.length;
+  if (c === 1) {
+    return (
+      <TouchableOpacity activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex} onPress={() => onPressIndex?.(0)}>
+        <Image source={{ uri: uris[0] }} style={{ width: 210, height: 210, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.06)' }} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+      </TouchableOpacity>
+    );
+  }
+  const cell = 103;
+  return (
+    <View style={{ width: 210, flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+      {uris.slice(0, 4).map((u, i) => {
+        const more = (i === 3 && c > 4) ? c - 4 : 0;
+        return (
+          <TouchableOpacity key={i} activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex} onPress={() => onPressIndex?.(i)}>
+            <Image source={{ uri: u }} style={{ width: cell, height: cell, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.06)' }} contentFit="cover" cachePolicy="memory-disk" />
+            {more > 0 && (
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontFamily: F.sysB, fontSize: fs(18) }}>+{more}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -377,20 +408,18 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 10, quality: 1 });
-      if (res.canceled || !res.assets?.length) return;
-      // 선택 순서대로 한 장씩 전송. 각 사진은 낙관적 미리보기(즉시 표시)→업로드 완료 시 실제 메시지로 대체. 최대 10장.
-      for (const a of res.assets) {
-        if (!a?.uri) continue;
-        const tempId = `pending_${Date.now()}_${Math.round(Math.random() * 1e6)}`;
-        setPendingImgs(prev => [{ tempId, uri: a.uri }, ...prev]);
-        try {
-          await sendImageMessage(friendUid, a.uri);
-        } catch (e) {
-          if (__DEV__) console.warn('[DMChat] sendImage', e?.message);
-          setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] });
-        } finally {
-          setPendingImgs(prev => prev.filter(p => p.tempId !== tempId));
-        }
+      const uris = (res.canceled ? [] : (res.assets || [])).map(a => a?.uri).filter(Boolean);
+      if (!uris.length) return;
+      // 모아보내기 — 선택한 장들을 한 메시지(앨범)로. 낙관적 미리보기(즉시 그리드 표시)→업로드 완료 시 실제 메시지로 대체. 최대 10장.
+      const tempId = `pending_${Date.now()}_${Math.round(Math.random() * 1e6)}`;
+      setPendingImgs(prev => [{ tempId, uris }, ...prev]);
+      try {
+        await sendImagesMessage(friendUid, uris);
+      } catch (e) {
+        if (__DEV__) console.warn('[DMChat] sendImages', e?.message);
+        setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] });
+      } finally {
+        setPendingImgs(prev => prev.filter(p => p.tempId !== tempId));
       }
     } catch (e) {
       if (__DEV__) console.warn('[DMChat] pickImage', e?.message);
@@ -459,6 +488,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   //   새로 생겨 FlatList가 보이는 말풍선을 전부 다시 그려 입력이 버벅임(안드 특히). list/읽음/상대정보 바뀔 때만 갱신.
   const renderItem = useCallback(({ item, index }) => {
     const mine = item.senderUid === myUid;
+    // 사진 정규화 — imageUrls(앨범) 우선, 없으면 imageUrl(단일·일정공유 카드)을 1장 배열로. 둘 다 없으면 텍스트.
+    const imgs = (Array.isArray(item.imageUrls) && item.imageUrls.length) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
+    const hasImg = imgs.length > 0;
     // 인버티드: index+1 = 시각적 위(더 오래된 이웃). 날짜 구분선·아바타 묶음 판정에 '더 오래된 메시지' 사용.
     const older = index < rlist.length - 1 ? rlist[index + 1] : null;
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
@@ -510,11 +542,10 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <View style={{ maxWidth: '78%' }}>
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
-            <TouchableOpacity activeOpacity={item.imageUrl ? 0.9 : 0.85} delayLongPress={300}
-              onPress={item.imageUrl ? () => setImgViewer(item.imageUrl) : undefined}
+            <TouchableOpacity activeOpacity={hasImg ? 1 : 0.85} delayLongPress={300}
               onLongPress={() => setReactTarget(item)}
-              style={item.imageUrl
-                ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진은 버블 배경 없이 이미지만 깔끔하게
+              style={hasImg
+                ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진은 버블 배경 없이 그리드만 깔끔하게
                 : { backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
                     borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
                     borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
@@ -532,11 +563,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                   </Text>
                 </View>
               )}
-              {/* 사진 메시지 — 탭하면 전체화면(PhotoViewer). 정사각 썸네일(210)로 통일. */}
-              {!!item.imageUrl && (
-                <Image source={{ uri: item.imageUrl }}
-                  style={{ width: 210, height: 210, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.06)' }}
-                  contentFit="cover" cachePolicy="memory-disk" transition={150} />
+              {/* 사진(앨범 그리드) — 칸 탭 시 전체화면(PhotoViewer, 해당 index부터 넘겨보기). */}
+              {hasImg && (
+                <DmImageGrid uris={imgs} onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })} />
               )}
               {/* 본문 fs(17)·미디엄 — 가독성([[avoid-small-text]]). 얇아 보인다는 피드백으로 F.sys→F.sysM. 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
               {!!item.body && (
@@ -609,7 +638,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             {pendingImgs.map(p => (
               <View key={p.tempId} style={{ paddingHorizontal: 14, marginBottom: 8, alignItems: 'flex-end' }}>
                 <View>
-                  <Image source={{ uri: p.uri }} style={{ width: 210, height: 210, borderRadius: 12, opacity: 0.55, backgroundColor: 'rgba(0,0,0,0.06)' }} contentFit="cover" />
+                  <View style={{ opacity: 0.55 }}><DmImageGrid uris={p.uris} /></View>
                   <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
                     <ActivityIndicator color="#fff" />
                   </View>
@@ -732,7 +761,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         prefillEvidence={reportPrefill || ''} />
       {/* DM 사진 전체화면 — 말풍선 이미지 탭. 자체 Modal(onRequestClose)이라 뒤로가기는 뷰어만 닫음 */}
       {imgViewer && (
-        <PhotoViewer photos={[{ uri: imgViewer }]} startIndex={0} onClose={() => setImgViewer(null)} />
+        <PhotoViewer photos={(imgViewer.uris || []).map(u => ({ uri: u }))} startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} />
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>
