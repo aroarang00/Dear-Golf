@@ -58,25 +58,25 @@ export function ScheduleInviteInbox() {
   const inv = invites[0];   // 가장 최근 1건씩 — 처리하면 다음 것이 올라옴
 
   return (
-    <View style={{ marginHorizontal: 20, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.12)',
-      borderRadius: 14, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', padding: 14 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+    <View style={{ marginHorizontal: 20, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.12)',
+      borderRadius: 14, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 14, paddingVertical: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
         <Text style={{ fontSize: fs(16) }}>🗓️</Text>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
           {inv.initiatorName || '친구'}님이 일정에 초대했어요{invites.length > 1 ? ` 외 ${invites.length - 1}건` : ''}
         </Text>
       </View>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.78)', marginBottom: 12 }} numberOfLines={1}>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.78)', marginBottom: 9 }} numberOfLines={1}>
         {inv.course}{inv.date ? ` · ${inv.date}` : ''}{inv.time ? ` · ${inv.time}` : ''}
       </Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <TouchableOpacity onPress={() => decline(inv)} disabled={busy} activeOpacity={0.85}
-          style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center',
+          style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center',
             borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.3)', opacity: busy ? 0.5 : 1 }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.85)' }}>거절</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => accept(inv)} disabled={busy} activeOpacity={0.85}
-          style={{ flex: 1.6, paddingVertical: 11, borderRadius: 10, alignItems: 'center',
+          style={{ flex: 1.6, paddingVertical: 9, borderRadius: 10, alignItems: 'center',
             backgroundColor: C.butter, opacity: busy ? 0.6 : 1 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{busy ? '처리 중…' : '내 일정에 추가'}</Text>
         </TouchableOpacity>

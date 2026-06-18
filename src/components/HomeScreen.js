@@ -526,7 +526,7 @@ export function HomeScreen({ navigation, route }) {
                   alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
                     fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
-                    color: C.butter, letterSpacing: 0.3, includeFontPadding: false, marginTop: dmUnread > 0 ? 0 : -1 }}>
+                    color: C.butter, letterSpacing: 0.3, includeFontPadding: false, marginTop: dmUnread > 0 ? 0 : 1 }}>
                     {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
                   </Text>
                 </View>
