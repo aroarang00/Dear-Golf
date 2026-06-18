@@ -69,10 +69,16 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
                 </View>
               ))}
             </View>
-            {/* 평균·핸디 혼동 방지 안내 */}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 9, lineHeight: 16 }}>
-              평균은 전체 라운딩 평균이에요.{'\n'}핸디는 가장 잘 친 5개의 평균이에요(기록 6개부터, 그 전엔 입력값·평균).
-            </Text>
+            {/* 평균·핸디 혼동 방지 안내 — 연한 박스 + 💡 */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, backgroundColor: C.bgSecondary,
+              borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }}>
+              <Text style={{ fontSize: fs(13) }}>💡</Text>
+              <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, lineHeight: 17 }}>
+                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>평균</Text>은 전체 라운딩 평균,{' '}
+                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>핸디</Text>는 가장 잘 친 5개의 평균이에요.{'\n'}
+                <Text style={{ color: C.warmGrayLight }}>(기록 6개부터 · 그 전엔 입력값·평균)</Text>
+              </Text>
+            </View>
 
             {/* B. 스코어 추세 그래프 */}
             <View style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
