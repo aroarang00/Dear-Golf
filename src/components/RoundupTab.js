@@ -1426,6 +1426,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   };
 
   // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
+  // 호출된 대기자 수락 — 자리가 났을 때 즉시 참여(performJoinOrApply 재사용). 익명은 대기 때 선택분 승계(다시 안 물음).
+  //   CF(onRoundupUpdated)가 참여 확정을 감지하면 waitlistUids·calledWaitlistUid를 서버에서 정리(클라는 규칙상 못 지움).
+  //   막판 동시수락으로 정원 초과 시 'full' 반환 → 상세에서 안내.
+  const acceptWaitlistCall = async (id) => {
+    const p = posts.find(x => x.id === id);
+    const wasAnon = !!(p && myUid && Array.isArray(p.anonymousUids) && p.anonymousUids.includes(myUid));
+    const r = await performJoinOrApply(id, { anonymous: wasAnon });
+    if (r?.ok) setWaitlist(prev => { const n = { ...prev }; delete n[id]; return n; });
+    return r;
+  };
+
   const cancelWaitlist = async (id) => {
     if (!myUid) return;
     try {
@@ -2133,6 +2144,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         onWaitlist={(anonymous) => detailId && handleWaitlist(detailId, !!anonymous)}
         onCancel={() => detailId && performCancel(detailId)}
         onCancelWait={() => detailId && cancelWaitlist(detailId)}
+        onAcceptCall={() => detailId ? acceptWaitlistCall(detailId) : undefined}
         onDelete={(soft) => detailId && handleDelete(detailId, soft)}
         onConfirm={() => detailId && handleConfirmRoundup(detailId)}
         onGradePress={(key) => setGradeModalKey(key)}

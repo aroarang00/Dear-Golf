@@ -141,7 +141,7 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta 
 }
 
 // 라운딩 모집 상세 화면
-export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
+export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onAcceptCall, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [alert, setAlert] = useState(null);
   const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
@@ -220,6 +220,14 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const waitlistTotal = Array.isArray(post.waitlistUids) ? post.waitlistUids.length : (post.waitlistCount || 0);
   // 본인 외 다른 대기자 — 개별 명단/이름으로 노출하지 않고 요약 한 줄로만 표시(가짜 이름·타인 신원 노출 방지).
   const othersWaiting = Math.max(0, waitlistTotal - (waitlistNum ? 1 : 0));
+  // 자리가 났고 내가 호출된 대기자(calledWaitlistUid) — 자율 수락 UI 노출. CF가 호출+12h cutoff 관리 ([[roundup-waitlist-policy]]).
+  const iAmCalled = !!myUid && post?.calledWaitlistUid === myUid;
+  const calledMs = post?.calledAt?.toMillis ? post.calledAt.toMillis()
+    : (typeof post?.calledAt?.seconds === 'number' ? post.calledAt.seconds * 1000 : 0);
+  const calledRemainMs = calledMs ? (calledMs + respondHours * 3600 * 1000 - Date.now()) : 0;
+  const calledRemainTxt = calledRemainMs > 0
+    ? `약 ${Math.ceil(calledRemainMs / 3600000)}시간 내에 참여를 확정해주세요. 응답이 없으면 다음 대기자에게 넘어가요.`
+    : `${respondHours}시간 내에 참여를 확정해주세요. 응답이 없으면 다음 대기자에게 넘어가요.`;
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
@@ -363,6 +371,22 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     buttons: [
       { text: '닫기', style: 'cancel' },
       { text: '대기 취소', style: 'destructive', onPress: onCancelWait },
+    ],
+  });
+  // 호출된 대기자 수락 — 자리가 났을 때 자율 수락(즉시 참여 확정). 익명 여부는 대기 때 선택분 그대로 승계(다시 안 물음).
+  const confirmAcceptCall = () => setAlert({
+    title: '자리가 났어요 — 참여할까요?',
+    message: '바로 참여가 확정돼요. 응답하지 않으면 다음 대기자에게 넘어가요.',
+    buttons: [
+      { text: '닫기', style: 'cancel' },
+      { text: '참여하기', onPress: async () => {
+          const r = await onAcceptCall?.();
+          if (r && !r.ok) setAlert({
+            title: '아쉽게도 자리가 다시 찼어요',
+            message: '먼저 응답한 분이 참여했어요.\n다시 대기 신청할 수 있어요.',
+            buttons: [{ text: '확인' }],
+          });
+        } },
     ],
   });
   // 동반자에게 일정 알리기 — 주최자 전용. 확정 동반자 전원에게 인앱 알림(+배포 시 푸시) 발송.
@@ -541,6 +565,26 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             신청 취소
           </Text>
         </TouchableOpacity>
+      </View>
+    );
+  } else if (iAmCalled) {
+    // 자리가 났고 내가 호출된 대기자 — 자율 수락/거절(12h 내). 수락=즉시 참여(CF가 대기열 정리), 거절=대기 취소.
+    actionBtn = (
+      <View>
+        <View style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: C.burgundy }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>🎉 자리가 났어요!</Text>
+        </View>
+        <Text style={hintStyle}>{calledRemainTxt}</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+          <TouchableOpacity onPress={confirmAcceptCall} activeOpacity={0.85}
+            style={{ flex: 1.6, borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: C.burgundy }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>참여하기</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={confirmCancelWait} activeOpacity={0.85}
+            style={{ flex: 1, borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>거절</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   } else if (waitlistNum) {
@@ -795,7 +839,14 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 <Text style={sectionLabel}>대기자</Text>
                 <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
                   borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
-                  {waitlistNum ? <WaitRow num={waitlistNum} name={userProfile?.nickname || '나'} me /> : null}
+                  {/* 내가 익명으로 대기했으면 내 행도 랜덤닉으로 — '남에겐 이렇게 보인다'를 확인시켜 익명이 안 걸린 줄 오해 방지([[roundup-anonymous-participation]]). */}
+                  {waitlistNum ? (
+                    <WaitRow num={waitlistNum}
+                      name={(!!myUid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(myUid))
+                        ? anonNick(myUid, post.id)
+                        : (userProfile?.nickname || '나')}
+                      me />
+                  ) : null}
                   {othersWaiting > 0 ? (
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray,
                       marginTop: waitlistNum ? (_and ? 6 : 8) : 0,
