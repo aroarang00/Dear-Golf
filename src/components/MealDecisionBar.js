@@ -228,6 +228,64 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     );
   };
 
+  // 식당 고르기 패널 — 변경/추가/최초결정 공용. ★바뀌는 카드 '바로 아래'에 인라인으로 렌더해
+  //   '버튼이 안 먹는 것처럼' 보이던 문제 해결(예전엔 시트 맨 아래에만 떠서 변화가 안 보였음). 사용자 2026-06-19.
+  const renderPicker = () => {
+    const changing = (pickSlot === 1 && meal1) || (pickSlot === 2 && meal2);
+    const title = changing ? '식사 변경' : (pickSlot === 2 ? '식사 2 정하기' : '식사 정하기');
+    return (
+      <View style={{ marginHorizontal: 10, marginBottom: 10, paddingTop: 10, paddingBottom: 6, borderRadius: 12,
+        backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(160,130,30,0.18)' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 6 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>{title}</Text>
+          {decidedCount > 0 && (
+            <TouchableOpacity onPress={() => { setPickSlot(null); setMemo(''); }} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>닫기</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
+        <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
+          <TextInput value={memo} onChangeText={setMemo} placeholder="메모 (선택 · 예: 아침 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
+            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal }} />
+        </View>
+        <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
+          <TextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
+            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+        </View>
+        <View style={{ paddingBottom: 6 }}>
+          {loading ? (
+            <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
+          ) : list.length === 0 ? (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 24, textAlign: 'center', paddingHorizontal: 18 }}>
+              {coord ? '주변 식당을 찾지 못했어요 — 이름으로 검색해보세요' : '코스 위치를 찾지 못해 검색만 가능해요'}
+            </Text>
+          ) : (
+            list.map((r) => (
+              <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
+                    {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}{r.loc ? ` · ${r.loc}` : ''}
+                  </Text>
+                </View>
+                {r.url ? (
+                  <TouchableOpacity onPress={() => Linking.openURL(r.url).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
+                  style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>여기로 정하기</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <>
       {block ? (
@@ -268,9 +326,11 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             </View>
 
             <KeyboardAwareScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bottomOffset={24}>
-              {/* 결정된 식사 칸들 */}
+              {/* 결정된 식사 칸들 — 변경 중이면 그 칸 '바로 아래'에 식당 고르기 패널 인라인(시트 맨 아래가 아니라). */}
               {meal1 && renderMealCard(meal1, 1)}
+              {meal1 && pickSlot === 1 && renderPicker()}
               {meal2 && renderMealCard(meal2, 2)}
+              {meal2 && pickSlot === 2 && renderPicker()}
 
               {/* + 식사 추가 — 첫 식사 있고 둘째 없을 때(고르는 중 아님). 라운딩 전/후 2끼. */}
               {meal1 && !meal2 && pickSlot === null && (
@@ -286,59 +346,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                 </Text>
               )}
 
-              {/* 식당 고르기(picking) — 슬롯1 최초이거나 변경/추가 진행 중 */}
-              {pickSlot !== null && (
-                <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 6 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>
-                      {pickSlot === 2 ? '식사 2 정하기' : (meal1 ? '식사 변경' : '식사 정하기')}
-                    </Text>
-                    {meal1 && (
-                      <TouchableOpacity onPress={() => { setPickSlot(null); setMemo(''); }} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>닫기</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
-                  <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
-                    <TextInput value={memo} onChangeText={setMemo} placeholder="메모 (선택 · 예: 아침 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
-                      style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal }} />
-                  </View>
-                  <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
-                    <TextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
-                      style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
-                  </View>
-                  <View style={{ paddingBottom: 6 }}>
-                    {loading ? (
-                      <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
-                    ) : list.length === 0 ? (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 24, textAlign: 'center', paddingHorizontal: 18 }}>
-                        {coord ? '주변 식당을 찾지 못했어요 — 이름으로 검색해보세요' : '코스 위치를 찾지 못해 검색만 가능해요'}
-                      </Text>
-                    ) : (
-                      list.map((r) => (
-                        <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
-                              {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}{r.loc ? ` · ${r.loc}` : ''}
-                            </Text>
-                          </View>
-                          {r.url ? (
-                            <TouchableOpacity onPress={() => Linking.openURL(r.url).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
-                              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
-                            </TouchableOpacity>
-                          ) : null}
-                          <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
-                            style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
-                            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>여기로 정하기</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ))
-                    )}
-                  </View>
-                </>
-              )}
+              {/* 최초 결정(슬롯1) 또는 슬롯2 추가 — 아직 그 칸이 없을 때만 하단에 표시(이미 정한 칸의 '변경'은 위 카드 인라인). */}
+              {((pickSlot === 1 && !meal1) || (pickSlot === 2 && !meal2)) && renderPicker()}
             </KeyboardAwareScrollView>
           </View>
         </View>
