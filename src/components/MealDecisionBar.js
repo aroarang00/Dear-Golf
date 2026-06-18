@@ -45,7 +45,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
   const [kw, setKw] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const [members, setMembers] = useState([]); // 전파 일정 그룹 참여자(audience 소스 — companions보다 신뢰)
+  const [members, setMembers] = useState([]); // 전파 일정 그룹의 라운딩 인원(수락자+초대받은 전원) — audience 소스(companions보다 신뢰)
   // ★공유 키 — 전파 일정은 groupId로 모든 참여자가 같은 meal 문서에 수렴(사용자별 schedule.id 발산 방지).
   const mealKey = schedule?.groupId || schedule?.id;
   useEffect(() => {
@@ -56,15 +56,21 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
     if (!active || !uid) { setIncoming([]); return; }
     return subscribeIncomingMeals(uid, setIncoming);
   }, [active, uid]);
-  // 전파 일정이면 그룹 멤버를 audience 소스로 — 주최자 schedule.companions가 비어도 실제 참여자 전원에게 제안이 감.
+  // 전파 일정이면 그룹의 '라운딩 인원'을 audience 소스로 — memberUids(수락자)뿐 아니라 audienceUids(초대받은 전원)도 포함.
+  //   아직 일정을 수락하지 않은 동반자에게도 뒤풀이 제안이 가야 하므로(주최자 schedule.companions 누락과도 무관). 자기 제외는 audienceUids 계산에서.
   useEffect(() => {
     if (!active || !schedule?.groupId) { setMembers([]); return; }
     let alive = true;
     getScheduleGroup(schedule.groupId)
-      .then(g => { if (alive) setMembers(g?.memberUids || []); })
+      .then(g => { if (alive) setMembers([
+        ...(Array.isArray(g?.memberUids) ? g.memberUids : []),
+        ...(Array.isArray(g?.audienceUids) ? g.audienceUids : []),
+      ]); })
       .catch(() => {});
     return () => { alive = false; };
   }, [active, schedule?.groupId]);
+  // 일정이 바뀌면(삭제·재생성·다른 라운딩) 캐시된 좌표·식당 리스트 초기화 — 옛 코스의 식당 리스트가 남아 보이던 버그 방지.
+  useEffect(() => { setCoord(null); setList([]); setKw(''); setPicking(false); }, [schedule?.id]);
 
   const meal = mine || incoming.find(m => m.date === schedule?.date && m.course === schedule?.course) || null;
   const isAuthor = !!meal && meal.authorUid === uid;
