@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState,
+  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -94,6 +94,21 @@ export function HomeScreen({ navigation, route }) {
   const [dmOpen, setDmOpen] = useState(false);
   const [dmChat, setDmChat] = useState(null);   // { uid, name, avatar } 선택 시 대화방
   const [dmUnread, setDmUnread] = useState(0);
+  // DM 안읽음 있을 때 버튼이 종처럼 주기적으로 살짝 흔들려 주의를 끔(2.x초마다 1회 burst). 사용자 요청 2026-06-18.
+  const dmShake = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!(dmUnread > 0)) { dmShake.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(dmShake, { toValue: 1, duration: 60, useNativeDriver: true }),
+      Animated.timing(dmShake, { toValue: -1, duration: 110, useNativeDriver: true }),
+      Animated.timing(dmShake, { toValue: 1, duration: 110, useNativeDriver: true }),
+      Animated.timing(dmShake, { toValue: 0, duration: 60, useNativeDriver: true }),
+      Animated.delay(2200),
+    ]));
+    loop.start();
+    return () => { loop.stop(); dmShake.setValue(0); };
+  }, [dmUnread]);
+  const dmRotate = dmShake.interpolate({ inputRange: [-1, 1], outputRange: ['-11deg', '11deg'] });
   useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
@@ -520,8 +535,9 @@ export function HomeScreen({ navigation, route }) {
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: 0 }}>
               {/* DM 커스텀 버튼 — 플로팅 칩(사용자 2026-06-18): 평면 버터 필 + 균일 테두리 + 선명한 드롭섀도로 배경에서 떠 보이게. 글로우/베벨 없음. 안읽음=버건디+숫자 */}
-              <View style={{ width: 44, height: 44, borderRadius: 22,
-                shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 3, elevation: 5 }}>
+              <Animated.View style={{ width: 44, height: 44, borderRadius: 22,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 3, elevation: 5,
+                transform: [{ rotate: dmRotate }] }}>
                 <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
                   backgroundColor: 'rgba(245,230,168,0.14)', alignItems: 'center', justifyContent: 'center' }}>
                   <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
@@ -536,7 +552,7 @@ export function HomeScreen({ navigation, route }) {
                     </Text>
                   </View>
                 </View>
-              </View>
+              </Animated.View>
             </TouchableOpacity>
           </View>
           <Text style={homeS.hdrGreeting}>
