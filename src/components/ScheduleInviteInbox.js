@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -15,12 +15,24 @@ export function ScheduleInviteInbox({ onActiveChange }) {
   const { schedules, addSharedSchedule, editSchedule } = useContext(SchedulesContext);
   const [invites, setInvites] = useState([]);
   const [busy, setBusy] = useState(false);
+  const glow = useRef(new Animated.Value(0)).current;   // 배너 골드 글로우 맥동(초대 있을 때만)
 
   useEffect(() => {
     if (!uid) { setInvites([]); return; }
     const unsub = subscribeIncomingScheduleInvites(uid, setInvites);
     return unsub;
   }, [uid]);
+
+  // 받은 초대가 있을 때만 은은하게 반짝이는 루프 — shadow/border 애니라 useNativeDriver:false.
+  useEffect(() => {
+    if (!invites.length) { glow.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [invites.length]);
 
   // 초대 배너 표시 여부를 부모(홈)에 통지 — 배너가 떠 있는 동안 홈은 아래 한줄메모/코멘트 카드를 숨겨
   //   좁은 화면에서 겹치지 않게 한다(수락/거절하면 다시 노출). 사용자 지정 2026-06-18.
@@ -70,8 +82,19 @@ export function ScheduleInviteInbox({ onActiveChange }) {
   const inv = invites[0];   // 가장 최근 1건씩 — 처리하면 다음 것이 올라옴
 
   return (
-    <View style={{ marginHorizontal: 20, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.12)',
-      borderRadius: 14, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 14, paddingVertical: 10 }}>
+    <Animated.View style={{
+      marginHorizontal: 20, marginTop: 12, borderRadius: 16,
+      // elevation 미사용 — 안드로이드는 elevation 그림자가 색을 무시하고 검게 렌더되므로(shadowColor는 iOS 전용).
+      //   안드에선 버터 테두리 반짝임 + 스케일로 빛나게, iOS는 골드 그림자 후광.
+      shadowColor: '#D9AF3C', shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }),
+      shadowRadius: glow.interpolate({ inputRange: [0, 1], outputRange: [16, 34] }),
+      transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }],
+    }}>
+    <Animated.View style={{ backgroundColor: 'rgba(255,255,255,0.12)',
+      borderRadius: 16, borderWidth: 2,
+      borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.7)', 'rgba(245,230,168,1)'] }),
+      paddingHorizontal: 14, paddingVertical: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
         <Text style={{ fontSize: fs(16) }}>🗓️</Text>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
@@ -93,6 +116,7 @@ export function ScheduleInviteInbox({ onActiveChange }) {
           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{busy ? '처리 중…' : '내 일정에 추가'}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
+    </Animated.View>
   );
 }

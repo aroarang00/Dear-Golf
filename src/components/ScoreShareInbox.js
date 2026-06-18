@@ -67,10 +67,11 @@ export function ScoreShareInbox({ nickname, onDerived }) {
       {first && (
         <Animated.View style={{
           marginHorizontal: 16, marginTop: 14, marginBottom: 4, borderRadius: 16,
+          // elevation 미사용 — 안드로이드는 elevation 그림자가 색을 무시하고 검게 렌더되므로(shadowColor는 iOS 전용).
+          //   안드에선 버터 테두리 반짝임 + 스케일로 빛나게, iOS는 골드 그림자 후광.
           shadowColor: '#D9AF3C', shadowOffset: { width: 0, height: 0 },
           shadowOpacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }),
           shadowRadius: glow.interpolate({ inputRange: [0, 1], outputRange: [16, 34] }),
-          elevation: glow.interpolate({ inputRange: [0, 1], outputRange: [12, 26] }),
           transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }],
         }}>
           <Animated.View style={{
