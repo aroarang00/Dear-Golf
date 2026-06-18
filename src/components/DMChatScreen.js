@@ -214,11 +214,12 @@ function DmImg({ uri, size, radius }) {
 
 // DM 사진 그리드(앨범) — 1장=정사각 크게, 2장+=2열 격자(최대 4칸, 5장+ 4번째에 +N). 카톡 앨범식.
 //   onPressIndex 있으면 칸 탭=뷰어(해당 index). 없으면(미리보기) 비활성. 컨테이너 폭 210 고정.
-function DmImageGrid({ uris, onPressIndex }) {
+function DmImageGrid({ uris, onPressIndex, onLongPress }) {
   const c = uris.length;
   if (c === 1) {
     return (
-      <TouchableOpacity activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex} onPress={() => onPressIndex?.(0)}>
+      <TouchableOpacity activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex && !onLongPress}
+        onPress={() => onPressIndex?.(0)} onLongPress={onLongPress} delayLongPress={300}>
         <DmImg uri={uris[0]} size={210} radius={12} />
       </TouchableOpacity>
     );
@@ -229,7 +230,8 @@ function DmImageGrid({ uris, onPressIndex }) {
       {uris.slice(0, 4).map((u, i) => {
         const more = (i === 3 && c > 4) ? c - 4 : 0;
         return (
-          <TouchableOpacity key={i} activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex} onPress={() => onPressIndex?.(i)}>
+          <TouchableOpacity key={i} activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex && !onLongPress}
+            onPress={() => onPressIndex?.(i)} onLongPress={onLongPress} delayLongPress={300}>
             <DmImg uri={u} size={cell} radius={8} />
             {more > 0 && (
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
@@ -600,7 +602,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               )}
               {/* 사진(앨범 그리드) — 칸 탭 시 전체화면(PhotoViewer, 해당 index부터 넘겨보기). */}
               {hasImg && (
-                <DmImageGrid uris={imgs} onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })} />
+                <DmImageGrid uris={imgs} onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })}
+                  onLongPress={() => setReactTarget(item)} />
               )}
               {/* 본문 fs(17)·미디엄 — 가독성([[avoid-small-text]]). 얇아 보인다는 피드백으로 F.sys→F.sysM. 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
               {!!item.body && (
