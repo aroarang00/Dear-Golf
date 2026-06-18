@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
@@ -11,6 +12,7 @@ import {
 //  파생은 본인 rounds에 멱등 setDoc(util) → onDerived로 DiariesContext 갱신.
 export function ScoreShareInbox({ nickname, onDerived }) {
   const uid = useCurrentUid();
+  const insets = useSafeAreaInsets();   // 모달 하단 버튼이 안드 네비게이션바에 가리지 않게
   const [shares, setShares] = useState([]);
   const [active, setActive] = useState(null);   // 응답 중인 공유
   const [selIdx, setSelIdx] = useState(null);    // 선택한 행 idx
@@ -63,20 +65,16 @@ export function ScoreShareInbox({ nickname, onDerived }) {
 
   return (
     <>
-      {/* 배너 — 받은 공유 있을 때 (피드 상단). 네이비 글로우 헤일로 + 버터 테두리 맥동 + 스케일로 강하게 '빛나게' */}
+      {/* 배너 — 받은 공유 있을 때 (피드 상단). 버터 박스 테두리 + 맥동(테두리 밝기·스케일)로 '빛나게'.
+          ★그림자(후광) 미사용 — iOS에서 골드 shadow가 너무 번져 보였음(사용자 2026-06-19). 양 플랫폼 동일하게 테두리+맥동만. */}
       {first && (
         <Animated.View style={{
           marginHorizontal: 16, marginTop: 14, marginBottom: 4, borderRadius: 16,
-          // elevation 미사용 — 안드로이드는 elevation 그림자가 색을 무시하고 검게 렌더되므로(shadowColor는 iOS 전용).
-          //   안드에선 버터 테두리 반짝임 + 스케일로 빛나게, iOS는 골드 그림자 후광.
-          shadowColor: '#D9AF3C', shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }),
-          shadowRadius: glow.interpolate({ inputRange: [0, 1], outputRange: [16, 34] }),
-          transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }],
+          transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }],
         }}>
           <Animated.View style={{
-            borderRadius: 16, borderWidth: 3,
-            borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.7)', 'rgba(245,230,168,1)'] }),
+            borderRadius: 16, borderWidth: 2,
+            borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.55)', 'rgba(245,230,168,1)'] }),
           }}>
             <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
               style={{ backgroundColor: C.navy, borderRadius: 13.5, padding: 14,
@@ -100,7 +98,7 @@ export function ScoreShareInbox({ nickname, onDerived }) {
       <Modal visible={!!active} transparent animationType="slide" onRequestClose={close}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 28 }}>
+          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: Math.max(28, insets.bottom + 14) }}>
             {active && (
               <>
                 <View style={{ padding: 18, paddingBottom: 10 }}>
