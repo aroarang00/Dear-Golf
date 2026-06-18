@@ -29,28 +29,35 @@ export function ScheduleInviteInbox() {
     ),
   );
 
+  // 낙관적 닫기 — 누르는 즉시 로컬에서 그 초대를 제거해 배너를 닫는다(다음 건이 있으면 올라옴).
+  //   onSnapshot 재발화(서버 왕복 2회)만 기다리면 iOS에서 지연·플리커로 "안 닫힌 것처럼" 보이고,
+  //   중간 쓰기가 조용히 실패하면 영영 안 닫히던 문제 방지. 실패 시 restore()로 복원(스냅샷이 최종 정합).
+  const dismissLocal = (id) => setInvites(prev => prev.filter(i => i.id !== id));
+  const restoreLocal = (inv) => setInvites(prev => (prev.some(i => i.id === inv.id) ? prev : [inv, ...prev]));
+
   const accept = async (inv) => {
     if (busy || !uid) return;
     setBusy(true);
+    dismissLocal(inv.id);
     try {
       const existing = findExisting(inv);
       if (existing) {
         if (!existing.groupId) await editSchedule(existing.id, { groupId: inv.id, sourceScheduleId: inv.sourceScheduleId || null });
-        await joinScheduleGroup(inv.id, uid);
       } else {
         const derived = buildDerivedSchedule(inv, uid);
         await addSharedSchedule(derivedScheduleId(inv.id, uid), derived); // 멱등 setDoc + 캘린더 동기화 + 로컬 반영
-        await joinScheduleGroup(inv.id, uid);
       }
-    } catch (e) { if (__DEV__) console.warn('[scheduleInvite] accept fail', e?.message); }
+      await joinScheduleGroup(inv.id, uid);
+    } catch (e) { if (__DEV__) console.warn('[scheduleInvite] accept fail', e?.message); restoreLocal(inv); }
     finally { setBusy(false); }
   };
 
   const decline = async (inv) => {
     if (busy || !uid) return;
     setBusy(true);
+    dismissLocal(inv.id);
     try { await declineScheduleInvite(inv.id, uid); }
-    catch (e) { if (__DEV__) console.warn('[scheduleInvite] decline fail', e?.message); }
+    catch (e) { if (__DEV__) console.warn('[scheduleInvite] decline fail', e?.message); restoreLocal(inv); }
     finally { setBusy(false); }
   };
 
