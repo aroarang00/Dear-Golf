@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Easing, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
@@ -25,9 +25,10 @@ export function ScoreShareInbox({ nickname, onDerived }) {
     return unsub;
   }, [uid]);
 
-  // 받은 공유가 있을 때만 은은하게 반짝이는 루프 — shadow/border 애니라 useNativeDriver:false.
+  // 받은 공유가 있을 때만 은은하게 반짝이는 루프(안드 전용) — border/scale 애니라 useNativeDriver:false.
+  //   iOS는 맥동 없이 정적 테두리만(후광·번짐 회피, 사용자 2026-06-19).
   useEffect(() => {
-    if (!shares.length) { glow.setValue(0); return; }
+    if (!shares.length || Platform.OS === 'ios') { glow.setValue(0); return; }
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
       Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
@@ -65,17 +66,19 @@ export function ScoreShareInbox({ nickname, onDerived }) {
 
   return (
     <>
-      {/* 배너 — 받은 공유 있을 때 (피드 상단). 버터 박스 테두리 + 맥동(테두리 밝기·스케일)로 '빛나게'.
-          ★그림자(후광) 미사용 — iOS에서 골드 shadow가 너무 번져 보였음(사용자 2026-06-19). 양 플랫폼 동일하게 테두리+맥동만. */}
+      {/* 배너 — 받은 공유 있을 때 (피드 상단). ★플랫폼 분기:
+          - iOS: 정적 버터 테두리만(맥동·스케일·후광 전부 X) — 골드 shadow가 주변까지 노랗게 번지던 문제 회피.
+          - 안드: 버터 테두리 + 맥동(테두리 밝기·스케일). 사용자 2026-06-19. */}
       {first && (
         <Animated.View style={{
           marginHorizontal: 16, marginTop: 14, marginBottom: 4, borderRadius: 16,
-          transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }],
+          ...(Platform.OS === 'ios' ? {} : { transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }] }),
         }}>
           <Animated.View style={{
             borderRadius: 16, borderWidth: 2,
-            // 맥동 최저점도 또렷하게(0.78~1) — 안드에서 테두리가 흐릿하게 보이던 것 보강. 양 플랫폼 동일.
-            borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.78)', 'rgba(245,230,168,1)'] }),
+            borderColor: Platform.OS === 'ios'
+              ? C.butter   // iOS: 정적 테두리(번짐 없음)
+              : glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.78)', 'rgba(245,230,168,1)'] }),
           }}>
             <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
               style={{ backgroundColor: C.navy, borderRadius: 13.5, padding: 14,
