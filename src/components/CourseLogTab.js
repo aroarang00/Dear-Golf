@@ -11,6 +11,9 @@ import { getGolfCourses } from '../utils/golfCourses';
 import { isRoundDiary } from '../utils/diaryKind';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
+import { UserContext } from '../contexts/UserContext';
+import { calcHandicap } from '../utils/handicap';
+import { ScoreStatsScreen } from './ScoreStatsScreen';
 import { dS } from '../styles/dS';
 
 const REGION_STYLE = {
@@ -116,6 +119,8 @@ export function CourseLogTab({ avgRating, navigation }) {
   const { schedules } = React.useContext(SchedulesContext);
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   const { diaries } = React.useContext(DiariesContext);
+  const { userProfile } = React.useContext(UserContext);
+  const [scoreStatsOpen, setScoreStatsOpen] = useState(false);
   const [region, setRegion] = useState('domestic');
   const [countryFilter, setCountryFilter] = useState('전체');
   const [userCourses, setUserCourses] = useState([]);
@@ -124,6 +129,13 @@ export function CourseLogTab({ avgRating, navigation }) {
   const [top100Open, setTop100Open] = useState(false);
   const [manualChecks, setManualChecks] = useState([]); // 사용자가 직접 체크한 100대 코스 rank
   const scrollRef = useRef(null);
+
+  // 내 스코어 요약(배너) — 통계 화면과 동일 집계(라운딩 점수만, 일상·해외무관 score>0)
+  const scoreList = (diaries || []).filter(isRoundDiary).map(d => d.score).filter(s => typeof s === 'number' && s > 0);
+  const sAvg = scoreList.length ? Math.round(scoreList.reduce((a, b) => a + b, 0) / scoreList.length) : null;
+  const sBestArr = [scoreList.length ? Math.min(...scoreList) : null, userProfile?.lifeBest].filter(v => Number.isFinite(v) && v > 0);
+  const sBest = sBestArr.length ? Math.min(...sBestArr) : null;
+  const sHandi = calcHandicap(diaries || [], userProfile?.avgScore);
 
   // 등록 코스·100대·체크 로드 — 다이어리는 DiariesContext가 단일 소스라 별도 로드 X
   useEffect(() => {
@@ -367,6 +379,22 @@ export function CourseLogTab({ avgRating, navigation }) {
           <View style={{ height: 5, borderRadius: 3, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
         </View>
       </TouchableOpacity>
+      {/* 내 스코어 — 요약 한 줄 + › 눌러 통계·추세 전용 화면(100대 배너와 같은 결, 네이비). [[feature-backlog]] ① */}
+      <TouchableOpacity style={[dS.banner, { backgroundColor: C.navy, borderWidth: 0 }]} activeOpacity={0.85}
+        onPress={() => setScoreStatsOpen(true)}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={[dS.bannerTitle, { color: '#fff' }]}>내 스코어</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            {[['평균', sAvg], ['베스트', sBest], ['핸디', sHandi]].map(([l, v]) => (
+              <View key={l} style={{ alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: l === '베스트' ? C.butter : '#fff' }}>{v != null ? v : '-'}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(9.5), color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>{l}</Text>
+              </View>
+            ))}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter, marginLeft: 2 }}>›</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
         {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
           <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>
@@ -528,6 +556,8 @@ export function CourseLogTab({ avgRating, navigation }) {
       </SafeAreaView>
       </SafeAreaProvider>
     </Modal>
+    <ScoreStatsScreen visible={scoreStatsOpen} onClose={() => setScoreStatsOpen(false)}
+      diaries={diaries} schedules={schedules} userProfile={userProfile} />
     </>
   );
 }
