@@ -515,7 +515,7 @@ export function HomeScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: -10 }}>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: 0 }}>
               {/* DM 커스텀 버튼 — 디데이 박스식 반투명 버터 오버레이 동그라미 + 버건디/버터 'M' 모노그램(Playfair). 사용자 2026-06-17 */}
               {/* 큰 동그라미 안에 작은 동그라미(간격 좁게) + 안쪽에 'DM'. 안읽음 있으면 안쪽 버건디 채움+숫자 */}
               <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
