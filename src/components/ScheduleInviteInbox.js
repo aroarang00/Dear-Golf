@@ -10,7 +10,7 @@ import {
 
 // 일정 전파 수신 — 홈 상단 배너([[schedule-propagation-spec]] Stage 3). 친구가 보낸 일정 초대를 수락하면
 //  내 일정에 자기파생(캘린더 동기화). cross-user 쓰기 0. uid=useCurrentUid(단일 소스, 재설치·계정전환 시 재구독).
-export function ScheduleInviteInbox() {
+export function ScheduleInviteInbox({ onActiveChange }) {
   const uid = useCurrentUid();
   const { schedules, addSharedSchedule, editSchedule } = useContext(SchedulesContext);
   const [invites, setInvites] = useState([]);
@@ -21,6 +21,11 @@ export function ScheduleInviteInbox() {
     const unsub = subscribeIncomingScheduleInvites(uid, setInvites);
     return unsub;
   }, [uid]);
+
+  // 초대 배너 표시 여부를 부모(홈)에 통지 — 배너가 떠 있는 동안 홈은 아래 한줄메모/코멘트 카드를 숨겨
+  //   좁은 화면에서 겹치지 않게 한다(수락/거절하면 다시 노출). 사용자 지정 2026-06-18.
+  const active = !!uid && invites.length > 0;
+  useEffect(() => { onActiveChange && onActiveChange(active); }, [active]);
 
   // 같은 라운딩(course+date) 일정을 이미 보유하면 중복 생성 대신 groupId 스탬프만(중복 방지, [[schedule-propagation-spec]] §4).
   const findExisting = (inv) => (schedules || []).find(s =>

@@ -489,6 +489,9 @@ export function HomeScreen({ navigation, route }) {
     }
   };
 
+  // 일정초대 배너가 떠 있는 동안엔 아래 한줄메모/코멘트 카드를 숨겨 좁은 화면 겹침을 막는다(수락/거절 후 복원).
+  const [scheduleInvitePending, setScheduleInvitePending] = useState(false);
+
   // 하단 캘린더 알약 라벨 — 오늘 날짜·요일 노출(진입 유도 + 정보 겸용). 렌더마다 계산이라 자정 넘어가도 갱신.
   const _today = new Date();
   const todayLabel = `${_today.getMonth() + 1}월 ${_today.getDate()}일 (${WEEKDAYS[_today.getDay()]})`;
@@ -563,7 +566,7 @@ export function HomeScreen({ navigation, route }) {
         </View>
 
         {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}
-        <ScheduleInviteInbox />
+        <ScheduleInviteInbox onActiveChange={setScheduleInvitePending} />
 
         {next ? (
         <>
@@ -710,6 +713,8 @@ export function HomeScreen({ navigation, route }) {
 
           </ScrollView>
 
+          {/* 일정초대 배너가 떠 있는 동안엔 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(수락/거절 후 복원). 사용자 지정 2026-06-18. */}
+          {!scheduleInvitePending && (<>
           <View style={{ marginHorizontal: 20, marginVertical: 20 }}>
             <TripleStripe height={1.5} />
           </View>
@@ -842,6 +847,7 @@ export function HomeScreen({ navigation, route }) {
               </View>
             );
           })()}
+          </>)}
           <View style={{ height: 22 }} />
         </View>
         </>
