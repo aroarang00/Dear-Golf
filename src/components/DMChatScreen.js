@@ -220,8 +220,11 @@ function TypingDots() {
 }
 
 // DM 사진 한 칸 — 로드 실패(보관기간 만료·삭제) 시 '만료된 사진' 플레이스홀더. 만료는 정상 동작이라 조용히 대체.
-function DmImg({ uri, size, radius }) {
+//  full=단일 사진(앨범 아님): 실제 비율로 높이를 잡아 세로로 긴 카드(초대장·모집공유)가 하단까지 보이게.
+//   과도한 길이는 클램프(0.6~1.9×). 비율 알기 전엔 정사각으로 시작 → onLoad에서 보정.
+function DmImg({ uri, size, radius, full }) {
   const [err, setErr] = useState(false);
+  const [ratio, setRatio] = useState(null);   // w/h (full 모드 높이 산정용)
   if (err) {
     return (
       <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.12)', alignItems: 'center', justifyContent: 'center' }}>
@@ -230,23 +233,24 @@ function DmImg({ uri, size, radius }) {
       </View>
     );
   }
+  const h = full ? Math.min(size * 1.9, Math.max(size * 0.6, size / (ratio || 1))) : size;
   return (
     <Image source={{ uri }} onError={() => setErr(true)}
-      onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h) primePhotoRatio(uri, w / h); }}
-      style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.06)' }}
+      onLoad={(e) => { const w = e?.source?.width, hh = e?.source?.height; if (w && hh) { primePhotoRatio(uri, w / hh); if (full) setRatio(w / hh); } }}
+      style={{ width: size, height: h, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.06)' }}
       contentFit="cover" cachePolicy="memory-disk" transition={150} />
   );
 }
 
 // DM 사진 그리드(앨범) — 1장=정사각 크게, 2장+=2열 격자(최대 4칸, 5장+ 4번째에 +N). 카톡 앨범식.
 //   onPressIndex 있으면 칸 탭=뷰어(해당 index). 없으면(미리보기) 비활성. 컨테이너 폭 210 고정.
-function DmImageGrid({ uris, onPressIndex, onLongPress }) {
+function DmImageGrid({ uris, onPressIndex, onLongPress, full }) {
   const c = uris.length;
   if (c === 1) {
     return (
       <TouchableOpacity activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex && !onLongPress}
         onPress={() => onPressIndex?.(0)} onLongPress={onLongPress} delayLongPress={300}>
-        <DmImg uri={uris[0]} size={210} radius={12} />
+        <DmImg uri={uris[0]} size={210} radius={12} full={full} />
       </TouchableOpacity>
     );
   }
@@ -663,7 +667,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               )}
               {/* 사진(앨범 그리드) — 칸 탭 시 전체화면(PhotoViewer, 해당 index부터 넘겨보기). */}
               {hasImg && (
-                <DmImageGrid uris={imgs} onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })}
+                <DmImageGrid uris={imgs} full onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })}
                   onLongPress={() => setReactTarget(item)} />
               )}
               {/* 이모지만 보낸 메시지 — 버블 없이 크게(개수 적을수록 큼). 일반 본문은 fs(17)·미디엄(가독성 [[avoid-small-text]]). */}
