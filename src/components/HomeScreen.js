@@ -526,7 +526,9 @@ export function HomeScreen({ navigation, route }) {
                   alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
                     fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
-                    color: C.butter, letterSpacing: 0.3, includeFontPadding: false, marginTop: dmUnread > 0 ? 0 : 1 }}>
+                    color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
+                    /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +1로 내려 센터 맞춤(양쪽 동일 시각). */
+                    marginTop: dmUnread > 0 ? 0 : (Platform.OS === 'ios' ? 1 : -1) }}>
                     {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
                   </Text>
                 </View>
