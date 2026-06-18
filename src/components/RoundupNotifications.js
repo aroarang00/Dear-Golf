@@ -25,7 +25,7 @@ const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, cancel: true, rou
 
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', slotOpen: '🎉', slotPassed: '⌛', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
-  invite: '💌', roundupCancelled: '🚫', scheduleNotice: '📣', friendRequest: '🤝', roundupChanged: '✏️',
+  invite: '💌', roundupCancelled: '🚫', scheduleNotice: '📣', friendRequest: '🤝', roundupChanged: '✏️', roundupFull: '🔔',
   scheduleChanged: '🗓️', scheduleCancelled: '🚫',
   // 시스템 알림 (Cloud Functions)
   kicked: '🚪',
@@ -139,6 +139,8 @@ function notiText(n, friendMeta) {
       return `'${n.postTitle}' 모집이 주최자에 의해 취소됐어요 — 주최자에 대한 매너 평가를 남길 수 있어요`;
     case 'roundupChanged':
       return `'${n.postTitle}' 모집 내용이 변경됐어요 — 날짜·장소·시간을 확인해주세요`;
+    case 'roundupFull':
+      return `'${n.postTitle}' 모집 인원이 다 모였어요 — '모집 확정하기'를 눌러 확정해주세요`;
     case 'scheduleChanged': {
       const when = [n.scheduleDate, n.scheduleTime].filter(Boolean).join(' ');
       return `${who}님이 '${n.postTitle}' 일정을 변경했어요${when ? ` — ${when}` : ' — 확인해주세요'}`;

@@ -75,7 +75,17 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
   // (A) 만석 자동 closed — 제거됨 (2026-06-03).
   //  정책: "만석 자체는 자동 확정 X" (2026-05-28) — 만석이어도 주최자가 명시적으로 "모집 확정하기"를 눌러야 closed.
   //  특히 오픈형(날짜 미정)은 자동 확정되면 안 됨(일정 미정인데 확정·수정잠김 발생). 클라가 allFull→확정버튼으로 처리.
-  //  isFull은 (B)/기타에서 미사용이면 추후 정리 가능.
+
+  // (A2) 만석 전환 알림 — 미만석→만석 순간 주최자에게 '확정하세요' 인앱+푸시(만석=확정 아님이라 놓치기 쉬움 [[roundup-confirm-judgment]]).
+  //   멱등=전환 1회(만석 유지 중엔 before도 만석이라 재발 안 함). 이미 확정/취소면 스킵. onNotificationCreated가 푸시 발송.
+  if (!isFull(before) && isFull(after) && !after.closed && !after.cancelledByHost && after.authorUid) {
+    await createSystemNotification({
+      recipientUid: after.authorUid,
+      type: 'roundupFull',
+      postId,
+      postTitle: after.course || '',
+    });
+  }
 
   // (B0) 호출된 대기자가 참여 확정되면 정리 — calledWaitlistUid 비우고 waitlistUids에서 제거.
   //   안 그러면 같은 사람이 '참여자+대기자'로 중복 잔존하고, calledWaitlistUid가 남아 다음 자리열림
