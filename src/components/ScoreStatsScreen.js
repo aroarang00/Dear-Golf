@@ -69,6 +69,10 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
                 </View>
               ))}
             </View>
+            {/* 평균·핸디 혼동 방지 안내 */}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 9, lineHeight: 16 }}>
+              평균은 전체 라운딩 평균이에요.{'\n'}핸디는 가장 잘 친 5개의 평균이에요(기록 6개부터, 그 전엔 입력값·평균).
+            </Text>
 
             {/* B. 스코어 추세 그래프 */}
             <View style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
