@@ -519,21 +519,22 @@ export function HomeScreen({ navigation, route }) {
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: 0 }}>
-              {/* DM 커스텀 버튼 — 디데이 박스식 반투명 버터 오버레이 동그라미 + 버건디/버터 'M' 모노그램(Playfair). 사용자 2026-06-17 */}
-              {/* 큰 동그라미 안에 작은 동그라미(간격 좁게) + 안쪽에 'DM'. 안읽음 있으면 안쪽 버건디 채움+숫자 */}
-              <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
-                backgroundColor: 'rgba(245,230,168,0.12)', alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18,
-                  borderWidth: 1.2, borderColor: C.butter,
-                  backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
-                  alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
-                    fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
-                    color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
-                    /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +1로 내려 센터 맞춤(양쪽 동일 시각). */
-                    marginTop: dmUnread > 0 ? 0 : (Platform.OS === 'ios' ? 1 : -1) }}>
-                    {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
-                  </Text>
+              {/* DM 커스텀 버튼 — 플로팅 칩(사용자 2026-06-18): 평면 버터 필 + 균일 테두리 + 선명한 드롭섀도로 배경에서 떠 보이게. 글로우/베벨 없음. 안읽음=버건디+숫자 */}
+              <View style={{ width: 44, height: 44, borderRadius: 22,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 3, elevation: 5 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
+                  backgroundColor: 'rgba(245,230,168,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
+                    backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
+                    alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
+                      fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
+                      color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
+                      /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +1로 내려 센터 맞춤(양쪽 동일 시각). */
+                      marginTop: dmUnread > 0 ? 0 : (Platform.OS === 'ios' ? 1 : -1) }}>
+                      {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </TouchableOpacity>
