@@ -1125,7 +1125,12 @@ export function HomeScreen({ navigation, route }) {
         onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
         {dmChat ? (
           <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)}
-            onOpenRoundup={(postId, hostUid) => { setDmChat(null); setDmOpen(false); navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid }); }} />
+            onOpenRoundup={(postId, hostUid, scope) => {
+              setDmChat(null); setDmOpen(false);
+              // 친구지정(select)=내 참여 초대장(openView:'mine'), 그 외(친구모집 등)=모집 상세(openPostId)
+              if (scope === 'select') navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' });
+              else navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid });
+            }} />
         ) : (
           <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
         )}

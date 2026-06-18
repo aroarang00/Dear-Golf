@@ -671,13 +671,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 <DmImageGrid uris={imgs} full onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })}
                   onLongPress={() => setReactTarget(item)} />
               )}
-              {/* 모집 초대 카드 — 카드 아래 '모집 보러 가기'(라운지 상세로 이동해 바로 참여). roundupId 있는 메시지만. */}
+              {/* 모집 초대 카드 — 카드 아래 버튼. 친구지정(select)=내 참여 초대장 / 그 외=모집 상세로 이동(분기는 HomeScreen onOpenRoundup). */}
               {!!item.roundupId && onOpenRoundup && (
-                <TouchableOpacity onPress={() => onOpenRoundup(item.roundupId, item.roundupHost || null)} activeOpacity={0.85}
+                <TouchableOpacity onPress={() => onOpenRoundup(item.roundupId, item.roundupHost || null, item.roundupScope || null)} activeOpacity={0.85}
                   style={{ marginTop: 7, alignSelf: mine ? 'flex-end' : 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
                     backgroundColor: C.navy, borderRadius: 11, paddingHorizontal: 15, paddingVertical: 10 }}>
-                  <Text style={{ fontSize: fs(13) }}>📋</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>모집 보러 가기</Text>
+                  <Text style={{ fontSize: fs(13) }}>{item.roundupScope === 'select' ? '✉️' : '📋'}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>{item.roundupScope === 'select' ? '초대 확인하기' : '모집 보러 가기'}</Text>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>›</Text>
                 </TouchableOpacity>
               )}
