@@ -143,18 +143,10 @@ function TrendChart({ series, avg, bestVal }) {
         {/* y축 가이드(베스트·워스트) */}
         <SvgText x={padL - 6} y={y(minV) + 4} fontSize={fs(10)} fill={C.warmGray} textAnchor="end">{minV}</SvgText>
         <SvgText x={padL - 6} y={y(maxV) + 4} fontSize={fs(10)} fill={C.warmGray} textAnchor="end">{maxV}</SvgText>
-        {/* 평균 점선 — 중립 회색 가이드. 라벨은 '왼쪽'에(오른쪽 끝 데이터 점과 겹쳐 가려지던 문제 수정),
-            평균선이 너무 위면 선 아래로 내려 상단 잘림도 방지. */}
-        {avgY != null && (() => {
-          const above = avgY - 6;
-          const labelY = above < padT + 10 ? avgY + 14 : above;   // 너무 위면 선 아래로
-          return (
-            <>
-              <Line x1={padL} y1={avgY} x2={W - padR} y2={avgY} stroke={C.warmGrayLight} strokeWidth={1} strokeDasharray="4,4" />
-              <SvgText x={padL + 2} y={labelY} fontSize={fs(9.5)} fill={C.warmGray} textAnchor="start">평균 {avg}</SvgText>
-            </>
-          );
-        })()}
+        {/* 평균 점선 — 중립 회색 가이드(값은 차트 아래 범례에 표시, 점/글자 겹침 방지) */}
+        {avgY != null && (
+          <Line x1={padL} y1={avgY} x2={W - padR} y2={avgY} stroke={C.warmGrayLight} strokeWidth={1} strokeDasharray="4,4" />
+        )}
         {/* 추세선 — 네이비(브랜드) */}
         <Polyline points={pts} fill="none" stroke={C.navy} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
         {/* 점 — 베스트는 골드(흰 테두리), 그 외 흰 점+네이비 링 */}
@@ -170,6 +162,19 @@ function TrendChart({ series, avg, bestVal }) {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: padL, paddingRight: padR, marginTop: 2 }}>
         <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{series[0].date}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{series[n - 1].date}</Text>
+      </View>
+      {/* 범례 — 평균선·베스트점 의미를 차트 밖에서 표시(겹침 0) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <View style={{ width: 14, height: 2, backgroundColor: C.warmGrayLight, borderRadius: 1 }} />
+          <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>평균 {avg}</Text>
+        </View>
+        {bestVal != null && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: GOLD, borderWidth: 1.5, borderColor: '#fff' }} />
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>베스트 {bestVal}</Text>
+          </View>
+        )}
       </View>
     </View>
   );
