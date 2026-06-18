@@ -121,6 +121,15 @@ export function HomeScreen({ navigation, route }) {
     }
   }, [route?.params?.openSchedule]);
 
+  // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
+  const [autoOpenMeal, setAutoOpenMeal] = useState(false);
+  useEffect(() => {
+    if (route?.params?.openMeal) {
+      setAutoOpenMeal(true);
+      navigation.setParams({ openMeal: undefined });
+    }
+  }, [route?.params?.openMeal]);
+
   // 1분마다 현재 시각 갱신 — 라운딩 종료(티오프+4h)/자정 전환 감지
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60000);
@@ -674,7 +683,8 @@ export function HomeScreen({ navigation, route }) {
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🚗 귀가 교통</Text>
                     </TouchableOpacity>
                     {/* 주변 맛집 → 뒤풀이로 교체(줄 추가 시 카드 잘림). 뒤풀이 팝업이 맛집 검색·결정·길찾기 다 포함 ([[afterround-meal-decision]]) */}
-                    <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active />
+                    <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active
+                      autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                   </View>
                 </>
               ) : (

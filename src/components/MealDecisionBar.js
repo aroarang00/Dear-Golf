@@ -33,7 +33,7 @@ async function resolveCoord(schedule) {
 // 뒤풀이 결정 — 카드 버튼(귀가교통·맛집 옆) + 팝업. ([[afterround-meal-decision]])
 //  active=오늘/종료 라운딩일 때만 버튼 노출. 탭하면 팝업: 검색·제안 → 동의 → 결정 → 네이버·티맵 길찾기.
 //  총대 1명 제안(meal_{scheduleId} 단일 문서) → 동반자 👍. 동반자는 audienceUids로 발견.
-export function MealDecisionBar({ schedule, uid, nickname, active }) {
+export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened }) {
   const insets = useSafeAreaInsets();
   const [mine, setMine] = useState(null);
   const [incoming, setIncoming] = useState([]);
@@ -101,6 +101,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
     finally { setLoading(false); }
   };
   const openSheet = () => { setOpen(true); setKw(''); setPicking(false); if (!coord) loadNearby(); };
+  // 뒤풀이 푸시 탭으로 진입 시 시트 자동 오픈(푸시→길찾기 한 동선). 한 번 열고 부모 신호 리셋.
+  useEffect(() => {
+    if (autoOpen && active && !open) { openSheet(); onAutoOpened && onAutoOpened(); }
+  }, [autoOpen, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
