@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { createNotification } from './roundupNotifications';
+import { findUserCourseById, ensureCourseCoord } from './userCourses';
 
 // =============================================================
 // scheduleGroups/{groupId} — 일정 동반자 전파 (Phase B, docs/companion-design.md §5-1, [[schedule-propagation-spec]])
@@ -42,6 +43,16 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
   if (snap.exists()) {
     await updateDoc(ref, { audienceUids: arrayUnion(...aud), updatedAt: serverTimestamp() });
   } else {
+    // ★좌표를 미리 풀어 그룹에 저장 — 수신자(다른 계정)는 발신자의 per-user courseId로 좌표를 못 찾으므로
+    //   계정 독립적인 좌표(courseX/Y)를 발신자가 해석해 박아둔다. 실패하면 수신자가 이름으로 폴백([[schedule-propagation-spec]]).
+    let courseX = (typeof schedule.courseX === 'number') ? schedule.courseX : null;
+    let courseY = (typeof schedule.courseY === 'number') ? schedule.courseY : null;
+    if ((courseX == null || courseY == null) && schedule.courseId) {
+      try {
+        const c = await ensureCourseCoord(await findUserCourseById(schedule.courseId));
+        if (c && typeof c.x === 'number' && typeof c.y === 'number') { courseX = c.x; courseY = c.y; }
+      } catch (e) { if (__DEV__) console.warn('[scheduleShare] coord resolve fail', e?.message); }
+    }
     await setDoc(ref, {
       initiatorUid,
       initiatorName: initiatorName || '',
@@ -51,6 +62,7 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
       courseLoc: schedule.courseLoc || null,
       courseLogId: schedule.courseLogId || null,
       courseKakaoId: schedule.courseKakaoId || null,
+      courseX, courseY,
       date: schedule.date || '',
       day: schedule.day || '',
       time: schedule.time || '',
@@ -102,10 +114,15 @@ export function buildDerivedSchedule(group, uid) {
   return {
     ownerUid: uid,
     course: group.course || '',
-    courseId: group.courseId || null,
+    // ★per-user id(courseId·courseLogId)는 발신자 계정 전용이라 수신자 계정에선 무효(findUserCourseById 실패) →
+    //   날씨/코스연결이 깨짐. 계정 독립 식별자만 전파: 좌표(courseX/Y)·kakaoId·이름·주소.
+    //   수신자는 좌표로 날씨, 이름/kakaoId로 자기 계정의 코스를 해석(resolveCourseLogId).
+    courseId: null,
     courseLoc: group.courseLoc || null,
-    courseLogId: group.courseLogId || null,
+    courseLogId: null,
     courseKakaoId: group.courseKakaoId || null,
+    courseX: (typeof group.courseX === 'number') ? group.courseX : null,
+    courseY: (typeof group.courseY === 'number') ? group.courseY : null,
     date: group.date || '',
     day: group.day || '',
     time: group.time || '',
