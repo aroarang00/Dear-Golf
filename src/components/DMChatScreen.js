@@ -72,6 +72,31 @@ function dayKey(ts) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+// 이모지 시퀀스 1개 — 베이스 이모지(+VS16·키캡·스킨톤·ZWJ 결합) 또는 국기(Regional Indicator 2자). 카톡·아이메시지식 '이모지만 크게'.
+//  ★Hermes 호환: \p{Extended_Pictographic} 등 Unicode 속성명은 Hermes 미지원 시 정규식 SyntaxError(모듈 로드 크래시) 위험 → 명시적 코드포인트 범위로 대체.
+//  범위: 1F300–1FAFF(주요 이모지)·2600–27BF(기호/딩뱃 ☀️❤️⛳)·2300–23FF(⏰⌚)·2B00–2BFF(⭐)·2190–21FF(↗️). 스킨톤 1F3FB–1F3FF, VS16 FE0F, 키캡 20E3, ZWJ 200D.
+const EMOJI_RANGE = '\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}\\u{2300}-\\u{23FF}\\u{2B00}-\\u{2BFF}\\u{2190}-\\u{21FF}';
+const EMOJI_SEQ_RE = new RegExp(
+  `(?:[${EMOJI_RANGE}](?:\\uFE0F|\\u20E3|[\\u{1F3FB}-\\u{1F3FF}])?(?:\\u200D[${EMOJI_RANGE}](?:\\uFE0F|[\\u{1F3FB}-\\u{1F3FF}])?)*)|[\\u{1F1E6}-\\u{1F1FF}]{2}`,
+  'gu',
+);
+// 본문이 '이모지만'(공백 제외)인지 — 맞으면 개수 반환, 아니면 null. 숫자·문자가 섞이면 일반 텍스트로 처리(스트립 후 잔여 검사).
+function emojiOnlyCount(text) {
+  const t = (text || '').trim();
+  if (!t || t.length > 80) return 0;                     // 너무 길면(섞인 장문) 일반 처리
+  const matches = t.match(EMOJI_SEQ_RE);
+  if (!matches) return 0;
+  if (t.replace(EMOJI_SEQ_RE, '').replace(/\s+/g, '').length > 0) return 0; // 이모지·공백 외 글자 있으면 일반
+  return matches.length;
+}
+// 이모지 전용 메시지 글자 크기 — 적을수록 크게(1개 최대), 많아질수록 단계적으로 줄임.
+function emojiFontSize(n) {
+  if (n === 1) return fs(44);
+  if (n <= 3) return fs(34);
+  if (n <= 6) return fs(26);
+  return fs(20);
+}
+
 // 입력 바 — ★자체 text 상태로 분리해 타이핑이 부모(메시지 리스트)를 리렌더하지 않게 함(입력 지연 방지).
 //   onSend(body)→true/false(false면 입력 복구). 답장 미리보기·전송 버튼 포함. 포커스는 ref로 노출(공감→답장 동선).
 const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, onPickImage, replyTo, onCancelReply, friendName, myUid, bottomPad, onTyping }, ref) {
@@ -528,6 +553,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     // 사진 정규화 — imageUrls(앨범) 우선, 없으면 imageUrl(단일·일정공유 카드)을 1장 배열로. 둘 다 없으면 텍스트.
     const imgs = (Array.isArray(item.imageUrls) && item.imageUrls.length) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
     const hasImg = imgs.length > 0;
+    // 이모지만 보낸 메시지 — 버블 없이 크게(카톡·아이메시지식). 사진·답장이 있으면 일반 처리.
+    const emojiN = (!hasImg && !item.replyTo) ? emojiOnlyCount(item.body) : 0;
+    const bigEmoji = emojiN > 0;
     // 인버티드: index+1 = 시각적 위(더 오래된 이웃). 날짜 구분선·아바타 묶음 판정에 '더 오래된 메시지' 사용.
     const older = index < rlist.length - 1 ? rlist[index + 1] : null;
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
@@ -579,10 +607,10 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <View style={{ maxWidth: '78%' }}>
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
-            <TouchableOpacity activeOpacity={hasImg ? 1 : 0.85} delayLongPress={300}
+            <TouchableOpacity activeOpacity={(hasImg || bigEmoji) ? 1 : 0.85} delayLongPress={300}
               onLongPress={() => setReactTarget(item)}
-              style={hasImg
-                ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진은 버블 배경 없이 그리드만 깔끔하게
+              style={(hasImg || bigEmoji)
+                ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진·이모지전용은 버블 배경 없이 깔끔하게
                 : { backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
                     borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
                     borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
@@ -605,12 +633,15 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 <DmImageGrid uris={imgs} onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })}
                   onLongPress={() => setReactTarget(item)} />
               )}
-              {/* 본문 fs(17)·미디엄 — 가독성([[avoid-small-text]]). 얇아 보인다는 피드백으로 F.sys→F.sysM. 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
-              {!!item.body && (
+              {/* 이모지만 보낸 메시지 — 버블 없이 크게(개수 적을수록 큼). 일반 본문은 fs(17)·미디엄(가독성 [[avoid-small-text]]). */}
+              {!!item.body && (bigEmoji ? (
+                <Text allowFontScaling={false} style={{ fontSize: emojiFontSize(emojiN), lineHeight: emojiFontSize(emojiN) + 8,
+                  alignSelf: mine ? 'flex-end' : 'flex-start' }}>{item.body}</Text>
+              ) : (
                 <LinkText style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX,
                   marginTop: item.imageUrl ? 6 : 0, marginHorizontal: item.imageUrl ? 6 : 0 }}
                   linkColor={mine ? '#13518F' : '#0E4C94'}>{item.body}</LinkText>
-              )}
+              ))}
             </TouchableOpacity>
             {/* 공감 표시 — 인스타식 말풍선 하단 안쪽 모서리에 살짝 겹친 알약 */}
             {(() => {
