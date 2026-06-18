@@ -46,7 +46,29 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   useAndroidBack(metaOpen, () => setMetaOpen(false));      // 그룹·별명 시트 뒤로가기 → 닫기
   useAndroidBack(groupManageOpen, () => setGroupManageOpen(false)); // 그룹 관리 모달 뒤로가기 → 닫기
   useEffect(() => { getUid().then(setMyUid).catch(() => {}); }, []);
+  // 프로필이 닫히면 내부 오버레이 상태를 리셋 — FriendProfile은 언마운트되지 않고 visible만 토글되므로
+  //   dmOpen 등이 남아 같은 친구를 다시 열 때 닫았던 DM이 그대로 뜨던 버그 방지([[modal-navigation-pattern]]).
+  useEffect(() => {
+    if (!visible) {
+      setDmOpen(false); setOptionsOpen(false); setViewer(null);
+      setReportItem(null); setReportMsg(null); setMetaOpen(false); setGroupManageOpen(false);
+    }
+  }, [visible]);
   if (!friend) return null;
+
+  // 모달 하드웨어 뒤로가기 — 안드 RN Modal의 onRequestClose는 네이티브 다이얼로그가 가로채
+  //   useAndroidBack JS 핸들러보다 우선하므로, 내부 오버레이가 떠 있으면 여기서 그것부터 닫는다
+  //   (안 그러면 DM 위에서 뒤로가기 시 프로필이 통째로 닫혀 목록으로 가버림). 위→아래 z 순서대로.
+  const handleRequestClose = () => {
+    if (viewer) { setViewer(null); return; }
+    if (reportMsg) { setReportMsg(null); return; }
+    if (reportItem) { setReportItem(null); return; }
+    if (groupManageOpen) { setGroupManageOpen(false); return; }
+    if (metaOpen) { setMetaOpen(false); return; }
+    if (optionsOpen) { setOptionsOpen(false); return; }
+    if (dmOpen) { setDmOpen(false); return; }
+    onClose && onClose();
+  };
 
   const handleOption = (fn) => () => { setOptionsOpen(false); fn && fn(); };
   // 그룹·별명 설정 ([[friend_groups]]) — 내 private 메타. 친구에겐 안 보임.
@@ -108,7 +130,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   return (
     <Modal visible={visible} transparent animationType="slide"
       statusBarTranslucent={Platform.OS === 'android'}
-      onRequestClose={onClose}>
+      onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 — 버터. 우측 ⋯ 옵션(알림·숨기기·삭제) */}
