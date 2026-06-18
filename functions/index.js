@@ -165,7 +165,7 @@ exports.onMealSuggestionCreated = onDocumentCreated('mealSuggestions/{id}', asyn
   const targets = m.audienceUids.filter(u => u && u !== m.authorUid);
   if (!targets.length) return;
   const placeName = m.place?.name || '식당';
-  const body = `${m.authorName ? m.authorName + '님이 ' : ''}뒤풀이 장소를 '${placeName}'(으)로 정했어요${m.course ? ` — ${m.course}` : ''}`;
+  const body = `${m.authorName ? m.authorName + '님이 ' : ''}식사 장소를 '${placeName}'(으)로 정했어요${m.course ? ` — ${m.course}` : ''}`;
   await Promise.all(targets.map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
@@ -173,7 +173,7 @@ exports.onMealSuggestionCreated = onDocumentCreated('mealSuggestions/{id}', asyn
       const u = snap.data();
       if (u.settings?.notifyPrefs?.mealSuggestion === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '뒤풀이 결정', body, { type: 'mealSuggestion', mealId: event.params.id });
+      await sendExpoPush(u.pushToken, '함께 식사', body, { type: 'mealSuggestion', mealId: event.params.id });
     } catch (e) { logger.warn('[meal] push fail', e?.message); }
   }));
 });
@@ -190,7 +190,7 @@ exports.onMealSuggestionUpdated = onDocumentUpdated('mealSuggestions/{id}', asyn
   const targets = after.audienceUids.filter(u => u && u !== after.authorUid);
   if (!targets.length) return;
   const placeName = after.place?.name || '식당';
-  const body = `${after.authorName ? after.authorName + '님이 ' : ''}뒤풀이 장소를 '${placeName}'(으)로 바꿨어요${after.course ? ` — ${after.course}` : ''}`;
+  const body = `${after.authorName ? after.authorName + '님이 ' : ''}식사 장소를 '${placeName}'(으)로 바꿨어요${after.course ? ` — ${after.course}` : ''}`;
   await Promise.all(targets.map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
@@ -198,7 +198,7 @@ exports.onMealSuggestionUpdated = onDocumentUpdated('mealSuggestions/{id}', asyn
       const u = snap.data();
       if (u.settings?.notifyPrefs?.mealSuggestion === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '뒤풀이 변경', body, { type: 'mealSuggestion', mealId: event.params.id });
+      await sendExpoPush(u.pushToken, '함께 식사 변경', body, { type: 'mealSuggestion', mealId: event.params.id });
     } catch (e) { logger.warn('[meal] change push fail', e?.message); }
   }));
 });

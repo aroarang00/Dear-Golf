@@ -7,7 +7,7 @@ import { getSavedRestaurants } from '../utils/savedRestaurants';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { searchGolfCourses } from '../utils/golfCourses';
 import {
-  proposeMeal,
+  proposeMeal, updateMealNote,
   subscribeMealForSchedule, subscribeIncomingMeals,
 } from '../utils/mealSuggestions';
 import { getScheduleGroup } from '../utils/scheduleShares';
@@ -30,18 +30,21 @@ async function resolveCoord(schedule) {
   return null;
 }
 
-// 뒤풀이 결정 — 카드 버튼(귀가교통·맛집 옆) + 팝업. ([[afterround-meal-decision]])
-//  active=오늘/종료 라운딩일 때만 버튼 노출. 탭하면 팝업: 검색·제안 → 동의 → 결정 → 네이버·티맵 길찾기.
-//  총대 1명 제안(meal_{scheduleId} 단일 문서) → 동반자 👍. 동반자는 audienceUids로 발견.
-export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1 }) {
+// 함께 식사 — 카드 버튼(귀가교통 옆) + 팝업. ([[afterround-meal-decision]])
+//  D-0 종일 노출(전/후 무관). 총대가 식사 최대 2곳(슬롯 1·2) 선착순 결정, 각 슬롯에 메모(예: "아침 9시까지").
+//  슬롯 데이터=결정적 ID 2개(meal_{key}·meal_{key}_2). 동반자는 audienceUids로 발견·길찾기.
+export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1, block = false }) {
   const insets = useSafeAreaInsets();
-  const [mine, setMine] = useState(null);
-  const [incoming, setIncoming] = useState([]);
+  const [mine1, setMine1] = useState(null);       // 총대 본인 슬롯1 문서
+  const [mine2, setMine2] = useState(null);       // 총대 본인 슬롯2 문서
+  const [incoming, setIncoming] = useState([]);   // 동반자로 받은 제안(양 슬롯)
   const [open, setOpen] = useState(false);
   const [coord, setCoord] = useState(null);
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [picking, setPicking] = useState(false); // '다른 곳 고르기' — 제안 있어도 리스트 보기
+  const [pickSlot, setPickSlot] = useState(null); // 1|2 = 그 슬롯 식당 고르는 중. null = 카드만.
+  const [memo, setMemo] = useState('');           // 고르는 중인 슬롯의 메모 입력
+  const [memoEdit, setMemoEdit] = useState(null); // { slot, text } = 결정된 슬롯 메모만 수정 중
   const [kw, setKw] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -49,15 +52,19 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   // ★공유 키 — 전파 일정은 groupId로 모든 참여자가 같은 meal 문서에 수렴(사용자별 schedule.id 발산 방지).
   const mealKey = schedule?.groupId || schedule?.id;
   useEffect(() => {
-    if (!active || !mealKey) { setMine(null); return; }
-    return subscribeMealForSchedule(mealKey, setMine);
+    if (!active || !mealKey) { setMine1(null); return; }
+    return subscribeMealForSchedule(mealKey, setMine1, 1);
+  }, [active, mealKey]);
+  useEffect(() => {
+    if (!active || !mealKey) { setMine2(null); return; }
+    return subscribeMealForSchedule(mealKey, setMine2, 2);
   }, [active, mealKey]);
   useEffect(() => {
     if (!active || !uid) { setIncoming([]); return; }
     return subscribeIncomingMeals(uid, setIncoming);
   }, [active, uid]);
   // 전파 일정이면 그룹의 '라운딩 인원'을 audience 소스로 — memberUids(수락자)뿐 아니라 audienceUids(초대받은 전원)도 포함.
-  //   아직 일정을 수락하지 않은 동반자에게도 뒤풀이 제안이 가야 하므로(주최자 schedule.companions 누락과도 무관). 자기 제외는 audienceUids 계산에서.
+  //   아직 일정을 수락하지 않은 동반자에게도 제안이 가야 하므로. 자기 제외는 audienceUids 계산에서.
   useEffect(() => {
     if (!active || !schedule?.groupId) { setMembers([]); return; }
     let alive = true;
@@ -69,12 +76,15 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       .catch(() => {});
     return () => { alive = false; };
   }, [active, schedule?.groupId]);
-  // 일정이 바뀌면(삭제·재생성·다른 라운딩) 캐시된 좌표·식당 리스트 초기화 — 옛 코스의 식당 리스트가 남아 보이던 버그 방지.
-  useEffect(() => { setCoord(null); setList([]); setKw(''); setPicking(false); }, [schedule?.id]);
+  // 일정이 바뀌면(삭제·재생성·다른 라운딩) 캐시된 좌표·식당 리스트 초기화 — 옛 코스 식당이 남아 보이던 버그 방지.
+  useEffect(() => { setCoord(null); setList([]); setKw(''); setPickSlot(null); setMemo(''); setMemoEdit(null); }, [schedule?.id]);
 
-  const meal = mine || incoming.find(m => m.date === schedule?.date && m.course === schedule?.course) || null;
-  const isAuthor = !!meal && meal.authorUid === uid;
-  const place = meal?.place;
+  // 슬롯별 식사 — 본인 문서(mine) 우선, 없으면 동반자로 받은 것(date+course+slot 매칭, cross-user 안전).
+  const findIncoming = (s) => incoming.find(m => m.date === schedule?.date && m.course === schedule?.course && (m.slot || 1) === s) || null;
+  const meal1 = mine1 || findIncoming(1);
+  const meal2 = mine2 || findIncoming(2);
+  const decidedCount = (meal1 ? 1 : 0) + (meal2 ? 1 : 0);
+  const isAuthorOf = (m) => !!m && m.authorUid === uid;
 
   // audience = 전파 일정이면 그룹 멤버(나 제외), 아니면 일정의 친구 동반자(friendUid). 그룹 멤버가 신뢰도 높음.
   const audienceUids = useMemo(() => {
@@ -89,7 +99,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     try {
       const cc = coord || await resolveCoord(schedule);
       if (!coord) setCoord(cc);
-      // 저장 맛집(코스별)은 최상단 + 표식, 주변 검색결과에서 중복 제거 — 단골/미리 점찍은 곳 먼저 보이게.
+      // 저장 맛집(코스별)은 최상단 + 표식, 주변 검색결과에서 중복 제거 — 단골/미리 점찍은 곳 먼저.
       const [saved, nearby] = await Promise.all([
         getSavedRestaurants(schedule?.course).catch(() => []),
         cc ? searchNearbyRestaurants(cc.y, cc.x, 3000).catch(() => []) : Promise.resolve([]),
@@ -100,8 +110,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     } catch { /* noop */ }
     finally { setLoading(false); }
   };
-  const openSheet = () => { setOpen(true); setKw(''); setPicking(false); if (!coord) loadNearby(); };
-  // 뒤풀이 푸시 탭으로 진입 시 시트 자동 오픈(푸시→길찾기 한 동선). 한 번 열고 부모 신호 리셋.
+  // 식당 고르기 시작 — 해당 슬롯으로 picking 진입. 변경이면 기존 메모 프리필.
+  const startPick = (slot, existing) => { setPickSlot(slot); setMemo(existing?.note || ''); setKw(''); setMemoEdit(null); };
+  const openSheet = () => { setOpen(true); setKw(''); setMemoEdit(null); setPickSlot(meal1 ? null : 1); setMemo(''); if (!coord) loadNearby(); };
+  // 푸시 탭으로 진입 시 시트 자동 오픈(푸시→길찾기 한 동선). 한 번 열고 부모 신호 리셋.
   useEffect(() => {
     if (autoOpen && active && !open) { openSheet(); onAutoOpened && onAutoOpened(); }
   }, [autoOpen, active]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -116,39 +128,120 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     return () => clearTimeout(t);
   }, [kw, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 제안 = 결정 — 고르면 바로 확정. 선착순: 이미 누가 정했으면(taken) 안내만(덮어쓰기 X). 총대 본인이면 변경.
+  // 제안 = 결정 — 고르면 picking 슬롯에 바로 확정(+메모). 선착순: 이미 누가 정했으면 안내만(덮어쓰기 X). 총대 본인이면 변경.
   const propose = async (pl) => {
+    const slot = pickSlot || 1;
     if (busy || !uid || !pl?.name) return;
     setBusy(true);
     try {
-      const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: '', audienceUids });
+      const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: memo || '', audienceUids, slot });
       if (r?.taken) {
-        Alert.alert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}뒤풀이 장소를 먼저 정했어요.\n변경은 정한 사람만 할 수 있어요.`);
+        Alert.alert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}식사 장소를 먼저 정했어요.\n변경은 정한 사람만 할 수 있어요.`);
+      } else {
+        setKw(''); setPickSlot(null); setMemo('');
       }
-      setKw(''); setPicking(false);
     } catch (e) { if (__DEV__) console.warn('[meal] propose', e?.message); }
     finally { setBusy(false); }
   };
-  const openNav = (provider) => {
-    if (!place || !Number.isFinite(place.x) || !Number.isFinite(place.y)) return;
-    const name = encodeURIComponent(place.name || '식당');
-    if (provider === 'tmap') Linking.openURL(`tmap://route?goalx=${place.x}&goaly=${place.y}&goalname=${name}`).catch(() => Linking.openURL('https://tmap.life'));
-    else Linking.openURL(`nmap://route/car?dlat=${place.y}&dlng=${place.x}&dname=${name}&appname=app.deargolf`).catch(() => Linking.openURL('https://map.naver.com/'));
+  // 메모만 저장(장소 변경 없음) — 총대 전용.
+  const saveMemo = async () => {
+    if (!memoEdit) return;
+    await updateMealNote(mealKey, memoEdit.slot, memoEdit.text);
+    setMemoEdit(null);
+  };
+  const openNav = (pl, provider) => {
+    if (!pl || !Number.isFinite(pl.x) || !Number.isFinite(pl.y)) return;
+    const name = encodeURIComponent(pl.name || '식당');
+    if (provider === 'tmap') Linking.openURL(`tmap://route?goalx=${pl.x}&goaly=${pl.y}&goalname=${name}`).catch(() => Linking.openURL('https://tmap.life'));
+    else Linking.openURL(`nmap://route/car?dlat=${pl.y}&dlng=${pl.x}&dname=${name}&appname=app.deargolf`).catch(() => Linking.openURL('https://map.naver.com/'));
   };
 
   if (!active) return null;
 
-  // 카드 버튼 라벨 — 귀가교통·맛집 버튼과 동일 톤(반투명·한 줄)
-  const btnLabel = !meal ? '🍴 뒤풀이' : `🍴 ${place?.name || '결정됨'} ✓`;
-  const showList = !meal || picking;
+  // 카드 버튼 라벨 — 0곳/1곳(이름)/2곳
+  const btnLabel = decidedCount === 0
+    ? '🍴 함께 식사'
+    : decidedCount === 2
+      ? '🍴 식사 2곳 ✓'
+      : `🍴 ${(meal1 || meal2)?.place?.name || '결정됨'} ✓`;
+  // 박스 모드(홈 D-0 카드) 라벨 — 아이콘·텍스트·› 분리 렌더
+  const blockLabel = decidedCount === 0
+    ? '함께 식사하기'
+    : decidedCount === 2
+      ? '식사 2곳 결정'
+      : `${(meal1 || meal2)?.place?.name || '식사'} 결정`;
+
+  // 결정된 식사 한 칸 — 장소·메모·길찾기 + (총대) 변경·메모수정
+  const renderMealCard = (meal, slot) => {
+    const pl = meal.place;
+    const author = isAuthorOf(meal);
+    const editing = memoEdit?.slot === slot;
+    return (
+      <View key={slot} style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+        {decidedCount === 2 && (
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.warmGray, marginBottom: 4 }}>식사 {slot}</Text>
+        )}
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>📍 {pl?.name} 로 결정</Text>
+        {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
+        {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
+        {editing ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <TextInput value={memoEdit.text} onChangeText={(t) => setMemoEdit(e => ({ ...e, text: t }))}
+              placeholder="메모 (예: 아침 9시까지)" placeholderTextColor={C.warmGrayLight}
+              style={{ flex: 1, backgroundColor: C.bgPrimary, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, borderWidth: 0.5, borderColor: C.hairline }} />
+            <TouchableOpacity onPress={saveMemo} activeOpacity={0.85} style={{ paddingHorizontal: 12, paddingVertical: 9, borderRadius: 9, backgroundColor: C.burgundy }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>저장</Text>
+            </TouchableOpacity>
+          </View>
+        ) : !!meal.note ? (
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, marginTop: 6 }}>💬 {meal.note}</Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          <TouchableOpacity onPress={() => openNav(pl, 'naver')} activeOpacity={0.85} style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: '#2DB400' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>네이버 길찾기</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => openNav(pl, 'tmap')} activeOpacity={0.85} style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: C.charcoal }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>티맵 길찾기</Text>
+          </TouchableOpacity>
+        </View>
+        {/* 총대만 — 변경(장소 다시) / 메모 수정 */}
+        {author && !editing && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TouchableOpacity onPress={() => startPick(slot, meal)} activeOpacity={0.8}
+              style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>다른 곳으로 변경</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setMemoEdit({ slot, text: meal.note || '' })} activeOpacity={0.8}
+              style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>{meal.note ? '메모 수정' : '메모'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <>
-      <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
-        style={{ flex, backgroundColor: meal?.decided ? 'rgba(245,230,168,0.18)' : 'rgba(255,255,255,0.1)',
-          borderRadius: 10, paddingVertical: 9, paddingHorizontal: 8, alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: meal?.decided ? C.butter : '#fff' }} numberOfLines={1}>{btnLabel}</Text>
-      </TouchableOpacity>
+      {block ? (
+        // 박스 모드 — 홈 D-0 카드의 날씨·교통 박스와 동일 톤(전폭 한 줄 박스)
+        <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
+          style={{ flexDirection: 'row', alignItems: 'center',
+            backgroundColor: decidedCount ? 'rgba(245,230,168,0.14)' : 'rgba(255,255,255,0.06)',
+            borderWidth: 0.5, borderColor: decidedCount ? 'rgba(245,230,168,0.3)' : 'rgba(255,255,255,0.14)',
+            borderRadius: 12, paddingHorizontal: 12, paddingVertical: 15 }}>
+          <Text style={{ fontSize: fs(15) }}>🍴</Text>
+          {/* 🍴 바로 옆에 라벨(붙임), 우측 '정하기'와는 marginLeft로 간격 확보 */}
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: decidedCount ? C.butter : '#fff', marginLeft: 5, flex: 1 }} numberOfLines={1}>{blockLabel}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: 'rgba(255,255,255,0.6)', marginLeft: 8 }}>›</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
+          style={{ flex, backgroundColor: decidedCount ? 'rgba(245,230,168,0.18)' : 'rgba(255,255,255,0.1)',
+            borderRadius: 10, paddingVertical: 9, paddingHorizontal: 8, alignItems: 'center' }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: decidedCount ? C.butter : '#fff' }} numberOfLines={1}>{btnLabel}</Text>
+        </TouchableOpacity>
+      )}
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
@@ -159,79 +252,85 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
             </View>
             <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>🍴 오늘 뒤풀이</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>🍴 함께 식사</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}
               </Text>
             </View>
 
-            {/* 결정됨 — 길찾기 */}
-            {meal?.decided && (
-              <View style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>📍 {place?.name} 로 결정</Text>
-                {!!place?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{place.loc}</Text>}
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                  <TouchableOpacity onPress={() => openNav('naver')} activeOpacity={0.85} style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: '#2DB400' }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>네이버 길찾기</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openNav('tmap')} activeOpacity={0.85} style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: C.charcoal }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>티맵 길찾기</Text>
-                  </TouchableOpacity>
-                </View>
-                {/* 총대만 — 식당 사정 등으로 변경(고르면 그 식당으로 덮어씀). 다른 사람은 길찾기만. */}
-                {isAuthor && (
-                  <TouchableOpacity onPress={() => setPicking(p => !p)} activeOpacity={0.8}
-                    style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>{picking ? '변경 닫기' : '다른 곳으로 변경'}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
+            <ScrollView style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled">
+              {/* 결정된 식사 칸들 */}
+              {meal1 && renderMealCard(meal1, 1)}
+              {meal2 && renderMealCard(meal2, 2)}
 
-            {audienceUids.length === 0 && !meal && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 18, marginBottom: 6 }}>
-                이 라운딩에 친구 동반자가 없어요. 일정 동반자에 친구를 넣으면 함께 정할 수 있어요.
-              </Text>
-            )}
+              {/* + 식사 추가 — 첫 식사 있고 둘째 없을 때(고르는 중 아님). 라운딩 전/후 2끼. */}
+              {meal1 && !meal2 && pickSlot === null && (
+                <TouchableOpacity onPress={() => startPick(2, null)} activeOpacity={0.85}
+                  style={{ marginHorizontal: 18, marginBottom: 10, paddingVertical: 11, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: C.hairline }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>+ 식사 추가 (전/후 2끼)</Text>
+                </TouchableOpacity>
+              )}
 
-            {/* 식당 리스트(없을 때 또는 '다른 곳') */}
-            {showList && (
-              <>
-                <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
-                  <TextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
-                    style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
-                </View>
-                <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 6 }} keyboardShouldPersistTaps="handled">
-                  {loading ? (
-                    <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
-                  ) : list.length === 0 ? (
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 24, textAlign: 'center' }}>
-                      {coord ? '주변 식당을 찾지 못했어요 — 이름으로 검색해보세요' : '코스 위치를 찾지 못해 검색만 가능해요'}
+              {audienceUids.length === 0 && !meal1 && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 18, marginBottom: 6 }}>
+                  이 라운딩에 친구 동반자가 없어요. 일정 동반자에 친구를 넣으면 함께 정할 수 있어요.
+                </Text>
+              )}
+
+              {/* 식당 고르기(picking) — 슬롯1 최초이거나 변경/추가 진행 중 */}
+              {pickSlot !== null && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 6 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>
+                      {pickSlot === 2 ? '식사 2 정하기' : (meal1 ? '식사 변경' : '식사 정하기')}
                     </Text>
-                  ) : (
-                    list.map((r) => (
-                      <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
-                            {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}{r.loc ? ` · ${r.loc}` : ''}
-                          </Text>
-                        </View>
-                        {r.url ? (
-                          <TouchableOpacity onPress={() => Linking.openURL(r.url).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
-                            <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
+                    {meal1 && (
+                      <TouchableOpacity onPress={() => { setPickSlot(null); setMemo(''); }} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>닫기</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
+                  <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
+                    <TextInput value={memo} onChangeText={setMemo} placeholder="메모 (선택 · 예: 아침 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
+                      style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal }} />
+                  </View>
+                  <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
+                    <TextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
+                      style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+                  </View>
+                  <View style={{ paddingBottom: 6 }}>
+                    {loading ? (
+                      <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
+                    ) : list.length === 0 ? (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 24, textAlign: 'center', paddingHorizontal: 18 }}>
+                        {coord ? '주변 식당을 찾지 못했어요 — 이름으로 검색해보세요' : '코스 위치를 찾지 못해 검색만 가능해요'}
+                      </Text>
+                    ) : (
+                      list.map((r) => (
+                        <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
+                              {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}{r.loc ? ` · ${r.loc}` : ''}
+                            </Text>
+                          </View>
+                          {r.url ? (
+                            <TouchableOpacity onPress={() => Linking.openURL(r.url).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
+                              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                          <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
+                            style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>여기로 정하기</Text>
                           </TouchableOpacity>
-                        ) : null}
-                        <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
-                          style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>{meal ? '여기로 변경' : '여기로 정하기'}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-              </>
-            )}
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>

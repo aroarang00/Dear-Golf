@@ -23,8 +23,10 @@ import { db } from './firebase';
 const COLLECTION = 'mealSuggestions';
 const TTL_DAYS = 2; // 라운딩 후 결정용 — 2일 뒤 정리(후속 CF). 영구 저장 X.
 
-export function mealSuggestionId(scheduleId) {
-  return `meal_${scheduleId}`;
+// 슬롯 — 한 라운딩에 식사 최대 2곳(전/후 등). slot 1 = `meal_{key}`, slot 2 = `meal_{key}_2`.
+//   규칙이 ID 형식을 강제하지 않아 2번째 문서도 그대로 통과(추가 규칙 X). CF도 문서당 발동(추가 X).
+export function mealSuggestionId(scheduleId, slot = 1) {
+  return slot === 2 ? `meal_${scheduleId}_2` : `meal_${scheduleId}`;
 }
 
 // 제안(생성) / 장소 교체 — 총대가 식당 골라 제안. 결정적 ID setDoc(전체 덮어쓰기) = 멱등 +
@@ -34,11 +36,11 @@ export function mealSuggestionId(scheduleId) {
 //   ★선착순 1명만 — 트랜잭션으로 first-write-wins: 이미 누가 정했으면 {taken:true,by} 반환(덮어쓰기 X).
 //   총대 본인이 다시 제안하면 = 식당 변경(place만 교체). 동의 단계 없음.
 //   ★공유 키 — 전파 일정은 groupId로 모든 참여자가 한 문서에 수렴(사용자별 schedule.id 발산 방지). 없으면 schedule.id 폴백.
-export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids }) {
+export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids, slot = 1 }) {
   if (!authorUid || !schedule?.id || !place?.name) return null;
   const aud = [...new Set((audienceUids || []).filter(u => u && u !== authorUid))];
   const key = schedule.groupId || schedule.id;
-  const id = mealSuggestionId(key);
+  const id = mealSuggestionId(key, slot);
   const ref = doc(db, COLLECTION, id);
   const placeData = {
     name: place.name || '',
@@ -60,6 +62,7 @@ export async function proposeMeal({ authorUid, authorName, schedule, place, note
         authorUid,
         authorName: authorName || '',
         scheduleId: key,
+        slot,                   // 1 또는 2 — 동반자 화면에서 슬롯 구분
         course: schedule.course || '',
         courseId: schedule.courseId || null,
         courseLoc: schedule.courseLoc || null,
@@ -81,12 +84,21 @@ export async function proposeMeal({ authorUid, authorName, schedule, place, note
   }
 }
 
-// 특정 라운딩(작성자 본인)의 제안 1건 구독 — 총대 화면용(meal_{scheduleId}).
-export function subscribeMealForSchedule(scheduleId, cb) {
+// 특정 라운딩(작성자 본인)의 제안 1건 구독 — 총대 화면용. slot으로 1·2 슬롯 각각 구독.
+export function subscribeMealForSchedule(scheduleId, cb, slot = 1) {
   if (!scheduleId) { cb(null); return () => {}; }
-  return onSnapshot(doc(db, COLLECTION, mealSuggestionId(scheduleId)), (snap) => {
+  return onSnapshot(doc(db, COLLECTION, mealSuggestionId(scheduleId, slot)), (snap) => {
     cb(snap.exists() ? { id: snap.id, ...snap.data() } : null);
   }, (e) => { if (__DEV__) console.warn('[meal] sched subscribe fail', e?.message); cb(null); });
+}
+
+// 메모만 수정(장소 변경 없음) — 총대 전용. place 불변이라 변경 푸시(onMealSuggestionUpdated)는 안 감.
+export async function updateMealNote(scheduleId, slot, note) {
+  if (!scheduleId) return false;
+  try {
+    await updateDoc(doc(db, COLLECTION, mealSuggestionId(scheduleId, slot)), { note: note || '', updatedAt: serverTimestamp() });
+    return true;
+  } catch (e) { if (__DEV__) console.warn('[meal] note update fail', e?.message); return false; }
 }
 
 // 내게 온 뒤풀이 제안 구독 — audienceUids에 내 uid, 만료 전. 최신순(클라). 동반자 화면용.
@@ -109,8 +121,8 @@ export function subscribeIncomingMeals(uid, cb) {
 }
 
 // 1회 조회(폴백).
-export async function getMealForSchedule(scheduleId) {
+export async function getMealForSchedule(scheduleId, slot = 1) {
   if (!scheduleId) return null;
-  const snap = await getDoc(doc(db, COLLECTION, mealSuggestionId(scheduleId)));
+  const snap = await getDoc(doc(db, COLLECTION, mealSuggestionId(scheduleId, slot)));
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
