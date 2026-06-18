@@ -194,7 +194,12 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             </TouchableOpacity>
           </View>
         ) : !!meal.note ? (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, marginTop: 6 }}>💬 {meal.note}</Text>
+          // 메모 하이라이트 — 버터색 스티키노트 박스로 부각(카드 위에서 또렷). 📌 + 볼드.
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: 'rgba(245,230,168,0.6)',
+            borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 0.5, borderColor: 'rgba(160,130,30,0.3)' }}>
+            <Text style={{ fontSize: fs(12.5) }}>📌</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginLeft: 6, flex: 1 }} numberOfLines={2}>{meal.note}</Text>
+          </View>
         ) : null}
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
           <TouchableOpacity onPress={() => openNav(pl, 'naver')} activeOpacity={0.85} style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: '#2DB400' }}>
