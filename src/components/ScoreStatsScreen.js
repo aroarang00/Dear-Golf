@@ -74,9 +74,8 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
               borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }}>
               <Text style={{ fontSize: fs(13) }}>💡</Text>
               <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, lineHeight: 17 }}>
-                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>평균</Text>은 전체 라운딩 평균,{' '}
-                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>핸디</Text>는 가장 잘 친 5개의 평균이에요.{'\n'}
-                <Text style={{ color: C.warmGrayLight }}>(기록 6개부터 · 그 전엔 입력값·평균)</Text>
+                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>평균</Text>은 전체 라운딩 평균이에요.{'\n'}
+                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>핸디</Text>는 가장 잘 친 5개의 평균이에요 <Text style={{ color: C.warmGrayLight }}>(기록 6개부터)</Text>
               </Text>
             </View>
 
