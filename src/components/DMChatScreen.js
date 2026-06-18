@@ -375,9 +375,12 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     try {
       const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: false, quality: 1 });
-      if (res.canceled || !res.assets?.[0]?.uri) return;
-      await sendImageMessage(friendUid, res.assets[0].uri);
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 10, quality: 1 });
+      if (res.canceled || !res.assets?.length) return;
+      // 선택 순서대로 한 장씩 전송(각 업로드 완료 시 말풍선 등장). 최대 10장.
+      for (const a of res.assets) {
+        if (a?.uri) await sendImageMessage(friendUid, a.uri);
+      }
     } catch (e) {
       if (__DEV__) console.warn('[DMChat] pickImage', e?.message);
       setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] });

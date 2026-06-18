@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
@@ -38,6 +38,7 @@ const OPTIONS = [
 
 // 특별한 순간 공유 — 카드 미리보기(워터마크 포함) + 갤러리 저장.
 export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
+  const insets = useSafeAreaInsets(); // DM 피커 시트가 안드 네비바에 안 가리도록(absolute 오버레이라 SafeAreaView 패딩 미적용)
   const [alert, setAlert] = useState(null);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -142,7 +143,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
     if (dmSending || !selectedDm.length) return;
     setDmSending(true);
     try {
-      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 3 });
+      // DM용은 pixelRatio 2(표시 210px·뷰어 충분) — 3보다 가볍게 캡처해 업로드 지연 단축. 저장/외부공유는 그대로 3.
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 2 });
       const url = await uploadDmImage(uri);
       const targets = [...selectedDm];
       await Promise.all(targets.map(fid => sendImageMessageUrl(fid, url).catch(e => __DEV__ && console.warn('[dmShare] send fail', fid, e?.message))));
@@ -267,7 +269,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
           {dmPickerOpen && (
             <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
               <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setDmPickerOpen(false)} />
-              <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '72%', paddingBottom: 16 }}>
+              <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '72%', paddingBottom: 16 + insets.bottom }}>
                 <View style={{ alignItems: 'center', paddingTop: 8 }}>
                   <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
                 </View>
@@ -290,7 +292,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                             alignItems: 'center', justifyContent: 'center' }}>
                             {sel && <Text style={{ fontSize: fs(13), color: C.butter }}>✓</Text>}
                           </View>
-                          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{f.name || '친구'}</Text>
+                          {/* 별명(customName, owner-only) 우선 표시 — 없으면 닉네임 ([[friend_groups]]) */}
+                          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{f.customName || f.name || '친구'}</Text>
                         </TouchableOpacity>
                       );
                     })}
