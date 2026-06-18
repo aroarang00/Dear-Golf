@@ -15,6 +15,8 @@ import { RoundupShareCard } from './RoundupShareCard';
 import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
+import { loadMyFriendsEnriched } from '../utils/friends';
+import { uploadDmImage, sendImageMessageUrl } from '../utils/dm';
 
 // 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
 // 달라져, 같은 카드도 좁은 폰에선 라벨이 서로 붙는 등 레이아웃이 어긋났음(앱의 얼굴인 공유 이미지 완성도 문제, 2026-06-14).
@@ -42,6 +44,12 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const cardRef = useRef(null);
   const roundRefs = useRef([]);                          // 라운딩 카드 4종 캐러셀 — 각 ViewShot ref
   const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 기념/3 폴라로이드)
+  // DM 공유 — 친구 다중선택해 카드 이미지를 DM으로 한 번에 전송([[dm-design]] 사진공유)
+  const [dmPickerOpen, setDmPickerOpen] = useState(false);
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [selectedDm, setSelectedDm] = useState([]);      // 선택한 친구 uid 배열
+  const [dmSending, setDmSending] = useState(false);
   const isRound = moment?.shareKind === 'round';
   const isRoundup = moment?.shareKind === 'roundup';
   const isSchedule = moment?.shareKind === 'schedule';
@@ -56,6 +64,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   // (RN Modal에선 onRequestClose가 신뢰되는 back 핸들러 — BackHandler 훅 제거)
   const handleRequestClose = () => {
     if (alert) { setAlert(null); return; }
+    if (dmPickerOpen) { setDmPickerOpen(false); return; }
     onClose();
   };
 
@@ -119,6 +128,29 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const handleOption = (key) => {
     if (key === 'share') handleShare();
     else if (key === 'save') handleSave();
+  };
+
+  // DM 공유 — 친구 목록 로드 후 다중선택 시트 오픈
+  const openDmPicker = async () => {
+    setSelectedDm([]); setDmPickerOpen(true); setFriendsLoading(true);
+    try { setFriends(await loadMyFriendsEnriched()); } catch { setFriends([]); }
+    finally { setFriendsLoading(false); }
+  };
+  const toggleDm = (uid) => setSelectedDm(prev => (prev.includes(uid) ? prev.filter(u => u !== uid) : [...prev, uid]));
+  // 카드 캡처 → 1회 업로드 → 선택한 친구 각 대화방에 같은 URL 전송(업로드 재사용).
+  const sendDm = async () => {
+    if (dmSending || !selectedDm.length) return;
+    setDmSending(true);
+    try {
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 3 });
+      const url = await uploadDmImage(uri);
+      const targets = [...selectedDm];
+      await Promise.all(targets.map(fid => sendImageMessageUrl(fid, url).catch(e => __DEV__ && console.warn('[dmShare] send fail', fid, e?.message))));
+      setDmPickerOpen(false);
+      setAlert({ title: 'DM으로 보냈어요', message: `${targets.length}명에게 카드를 보냈어요.`, buttons: [{ text: '확인', onPress: onClose }] });
+    } catch (e) {
+      setAlert({ title: '전송에 실패했어요', message: e?.message || '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
+    } finally { setDmSending(false); }
   };
 
   return (
@@ -208,6 +240,13 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                   </TouchableOpacity>
                 );
               })}
+              {/* DM으로 보내기 — 친구 다중선택 후 카드 이미지를 인앱 DM으로 한 번에 전송(앱 안에서 끝, 외부 X). 버건디 */}
+              <TouchableOpacity activeOpacity={0.85} onPress={openDmPicker} disabled={sharing || saving}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  backgroundColor: '#6B1E2A', borderRadius: 12, height: 48, opacity: (sharing || saving) ? 0.5 : 1 }}>
+                <Text style={{ fontSize: fs(16) }}>💬</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#F5E6A8' }}>DM으로 보내기</Text>
+              </TouchableOpacity>
               {/* 링크 공유 — 클릭 가능한 링크 평문 공유(이미지 없이 링크만). '링크와 함께'는 이미지도 같이 가는 듯한
                   오해를 줘 '링크 공유'로 단순화(사용자 2026-06-16). 네이비로 강조(받는 분 바로 열람·설치 funnel). */}
               {onShareLink && (
@@ -223,6 +262,52 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
               )}
             </View>
           </ScrollView>
+
+          {/* DM 친구 다중선택 시트 — 카드 이미지를 선택한 친구들에게 한 번에 전송 */}
+          {dmPickerOpen && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+              <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setDmPickerOpen(false)} />
+              <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '72%', paddingBottom: 16 }}>
+                <View style={{ alignItems: 'center', paddingTop: 8 }}>
+                  <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
+                </View>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>친구에게 DM으로 보내기</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 20, paddingBottom: 8 }}>받을 친구를 선택하세요 (여러 명 가능)</Text>
+                {friendsLoading ? (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>불러오는 중…</Text>
+                ) : friends.length === 0 ? (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>아직 친구가 없어요.</Text>
+                ) : (
+                  <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled">
+                    {friends.map(f => {
+                      const sel = selectedDm.includes(f.id);
+                      return (
+                        <TouchableOpacity key={f.id} onPress={() => toggleDm(f.id)} activeOpacity={0.7}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10,
+                            borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                          <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
+                            borderColor: sel ? C.burgundy : C.hairline, backgroundColor: sel ? C.burgundy : 'transparent',
+                            alignItems: 'center', justifyContent: 'center' }}>
+                            {sel && <Text style={{ fontSize: fs(13), color: C.butter }}>✓</Text>}
+                          </View>
+                          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{f.name || '친구'}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+                  <TouchableOpacity onPress={sendDm} disabled={!selectedDm.length || dmSending} activeOpacity={0.85}
+                    style={{ backgroundColor: C.burgundy, borderRadius: 12, height: 48, alignItems: 'center', justifyContent: 'center',
+                      opacity: (!selectedDm.length || dmSending) ? 0.5 : 1 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>
+                      {dmSending ? '보내는 중…' : `보내기${selectedDm.length ? ` (${selectedDm.length})` : ''}`}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
 
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
         </SafeAreaView>

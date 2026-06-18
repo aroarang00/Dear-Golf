@@ -500,10 +500,11 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             <TouchableOpacity activeOpacity={item.imageUrl ? 0.9 : 0.85} delayLongPress={300}
               onPress={item.imageUrl ? () => setImgViewer(item.imageUrl) : undefined}
               onLongPress={() => setReactTarget(item)}
-              style={{ backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG,
-                paddingHorizontal: item.imageUrl ? 4 : 16, paddingVertical: item.imageUrl ? 4 : 12,
-                borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
-                borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
+              style={item.imageUrl
+                ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진은 버블 배경 없이 이미지만 깔끔하게
+                : { backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
+                    borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
+                    borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
               {/* 답장(인용) 블록 — 라이트 말풍선이라 어둡게 반투명. 좌측 액센트+발신자+2줄 요약 */}
               {item.replyTo && (
                 <View style={{ borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(61,57,53,0.3)' : 'rgba(42,61,71,0.3)',
