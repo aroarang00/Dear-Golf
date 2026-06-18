@@ -91,11 +91,14 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
               <Text style={dS.detailHdrNicknameTxt}>카드 공유</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => setShowEditModal(true)}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>수정</Text>
+          {/* 수정=네이비 / 삭제=버건디(위험) — 테두리 박스로 진하게·색 구분(흐려서 잘 안 보이던 것 보강, 사용자 2026-06-19) */}
+          <TouchableOpacity onPress={() => setShowEditModal(true)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8, borderWidth: 1.2, borderColor: C.navy }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.navy }}>수정</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>삭제</Text>
+          <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8, borderWidth: 1.2, borderColor: C.burgundy }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>삭제</Text>
           </TouchableOpacity>
         </View>
       </View>
