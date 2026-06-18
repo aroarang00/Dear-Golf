@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
@@ -51,6 +51,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [selectedDm, setSelectedDm] = useState([]);      // 선택한 친구 uid 배열
   const [dmSending, setDmSending] = useState(false);
+  const [dmSearch, setDmSearch] = useState('');          // 친구 검색(많을 때 빨리 찾기)
   const isRound = moment?.shareKind === 'round';
   const isRoundup = moment?.shareKind === 'roundup';
   const isSchedule = moment?.shareKind === 'schedule';
@@ -133,10 +134,23 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
 
   // DM 공유 — 친구 목록 로드 후 다중선택 시트 오픈
   const openDmPicker = async () => {
-    setSelectedDm([]); setDmPickerOpen(true); setFriendsLoading(true);
+    setSelectedDm([]); setDmSearch(''); setDmPickerOpen(true); setFriendsLoading(true);
     try { setFriends(await loadMyFriendsEnriched()); } catch { setFriends([]); }
     finally { setFriendsLoading(false); }
   };
+  // 표시용 친구 목록 — 검색 필터 + 이 라운딩 동반자 먼저(보통 같이 친 사람에게 보냄), 그 외 이름순.
+  const dmCompUids = new Set((moment?.companions || []).map(c => (typeof c === 'object' ? c?.friendUid : null)).filter(Boolean));
+  const dmList = (() => {
+    const q = dmSearch.trim().toLowerCase();
+    const filtered = q
+      ? friends.filter(f => [(f.customName || ''), (f.name || ''), (f.realName || '')].some(n => n.toLowerCase().includes(q)))
+      : friends;
+    return [...filtered].sort((a, b) => {
+      const ac = dmCompUids.has(a.id) ? 0 : 1; const bc = dmCompUids.has(b.id) ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+      return (a.customName || a.name || '').localeCompare(b.customName || b.name || '', 'ko');
+    });
+  })();
   const toggleDm = (uid) => setSelectedDm(prev => (prev.includes(uid) ? prev.filter(u => u !== uid) : [...prev, uid]));
   // 카드 캡처 → 1회 업로드 → 선택한 친구 각 대화방에 같은 URL 전송(업로드 재사용).
   const sendDm = async () => {
@@ -275,14 +289,24 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 </View>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>친구에게 DM으로 보내기</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 20, paddingBottom: 8 }}>받을 친구를 선택하세요 (여러 명 가능)</Text>
+                {/* 검색 — 친구 많을 때 빠르게 찾기. 이름(별명/닉네임/본명) 부분일치. */}
+                {!friendsLoading && friends.length > 0 && (
+                  <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+                    <TextInput value={dmSearch} onChangeText={setDmSearch} placeholder="친구 이름 검색" placeholderTextColor={C.warmGrayLight}
+                      style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+                  </View>
+                )}
                 {friendsLoading ? (
                   <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>불러오는 중…</Text>
                 ) : friends.length === 0 ? (
                   <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>아직 친구가 없어요.</Text>
+                ) : dmList.length === 0 ? (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>검색 결과가 없어요.</Text>
                 ) : (
                   <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled">
-                    {friends.map(f => {
+                    {dmList.map(f => {
                       const sel = selectedDm.includes(f.id);
+                      const isComp = dmCompUids.has(f.id); // 이 라운딩 동반자 — 상단 정렬 + 칩 표시
                       return (
                         <TouchableOpacity key={f.id} onPress={() => toggleDm(f.id)} activeOpacity={0.7}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10,
@@ -294,6 +318,11 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                           </View>
                           {/* 별명(customName, owner-only) 우선 표시 — 없으면 닉네임 ([[friend_groups]]) */}
                           <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{f.customName || f.name || '친구'}</Text>
+                          {isComp && (
+                            <View style={{ backgroundColor: 'rgba(107,30,42,0.1)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.burgundy }}>동반자</Text>
+                            </View>
+                          )}
                         </TouchableOpacity>
                       );
                     })}
