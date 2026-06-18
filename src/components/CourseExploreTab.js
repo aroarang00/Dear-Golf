@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { showAppAlert } from './AppAlert'; // OS 기본 팝업 대신 앱 디자인 알림(안드 시스템팝업 방지)
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -431,7 +432,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
           title={`🔍 최근 검색${recentCourses.length ? ` ${recentCourses.length}곳` : ''}`}
           right={recentCourses.length ? '지우기' : ''}
           onRightPress={recentCourses.length ? () => {
-            Alert.alert('최근 검색 지우기', '최근 검색한 골프장 목록을 모두 지울까요?', [
+            showAppAlert('최근 검색 지우기', '최근 검색한 골프장 목록을 모두 지울까요?', [
               { text: '취소', style: 'cancel' },
               { text: '지우기', style: 'destructive', onPress: async () => { await clearRecentCourses(); refreshRecent(); } },
             ]);
