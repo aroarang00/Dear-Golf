@@ -324,8 +324,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}{schedule?.time ? ` · ${schedule.time}` : ''}
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 5 }} numberOfLines={2}>
-                식사 장소는 처음 정한 사람만 변경할 수 있어요.
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray, marginTop: 6 }} numberOfLines={2}>
+                💡 식사 장소는 처음 정한 사람만 변경할 수 있어요.
               </Text>
             </View>
 
