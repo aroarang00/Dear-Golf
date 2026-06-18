@@ -13,6 +13,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { LinkText } from './common/LinkText';
 import { ensureConversation, sendMessage, sendImageMessage, sendImagesMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import * as ImagePicker from 'expo-image-picker';
+import { storage } from '../utils/storage';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { ReportModal } from './ReportModal';
@@ -29,6 +30,7 @@ const DM_RECV_BG  = '#C8D9E6';                 // 받은 말풍선 = 페일스�
 const DM_RECV_TX  = '#2A3D47';                 // 받은 말풍선 글씨 — 딥 슬레이트
 const DM_MINE_BG  = '#F5E6A8';                 // 보낸 말풍선 = 버터
 const DM_MINE_TX  = '#3D3935';                 // 보낸 말풍선 글씨 = 차콜
+const HIDDEN_MSGS_KEY = 'dm_hidden_msgs';      // 나만 삭제(숨김)한 메시지 id 로컬 저장 키 — 내 화면에서만 가림
 const DM_FIELD    = '#FAF6EC';                 // 입력 필드 = 크림(둥근 모서리)
 const DM_SEND     = '#6B1E2A';                 // 전송 버튼 = 버건디(원형)
 const DM_BUTTER   = '#F5E6A8';                 // 헤더 ←·이름·전송 아이콘
@@ -192,6 +194,24 @@ function TypingDots() {
   );
 }
 
+// DM 사진 한 칸 — 로드 실패(보관기간 만료·삭제) 시 '만료된 사진' 플레이스홀더. 만료는 정상 동작이라 조용히 대체.
+function DmImg({ uri, size, radius }) {
+  const [err, setErr] = useState(false);
+  if (err) {
+    return (
+      <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: fs(size > 130 ? 26 : 18) }}>🖼️</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(0,0,0,0.45)', marginTop: 4 }}>만료된 사진</Text>
+      </View>
+    );
+  }
+  return (
+    <Image source={{ uri }} onError={() => setErr(true)}
+      style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.06)' }}
+      contentFit="cover" cachePolicy="memory-disk" transition={150} />
+  );
+}
+
 // DM 사진 그리드(앨범) — 1장=정사각 크게, 2장+=2열 격자(최대 4칸, 5장+ 4번째에 +N). 카톡 앨범식.
 //   onPressIndex 있으면 칸 탭=뷰어(해당 index). 없으면(미리보기) 비활성. 컨테이너 폭 210 고정.
 function DmImageGrid({ uris, onPressIndex }) {
@@ -199,7 +219,7 @@ function DmImageGrid({ uris, onPressIndex }) {
   if (c === 1) {
     return (
       <TouchableOpacity activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex} onPress={() => onPressIndex?.(0)}>
-        <Image source={{ uri: uris[0] }} style={{ width: 210, height: 210, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.06)' }} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+        <DmImg uri={uris[0]} size={210} radius={12} />
       </TouchableOpacity>
     );
   }
@@ -210,7 +230,7 @@ function DmImageGrid({ uris, onPressIndex }) {
         const more = (i === 3 && c > 4) ? c - 4 : 0;
         return (
           <TouchableOpacity key={i} activeOpacity={onPressIndex ? 0.9 : 1} disabled={!onPressIndex} onPress={() => onPressIndex?.(i)}>
-            <Image source={{ uri: u }} style={{ width: cell, height: cell, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.06)' }} contentFit="cover" cachePolicy="memory-disk" />
+            <DmImg uri={u} size={cell} radius={8} />
             {more > 0 && (
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: '#fff', fontFamily: F.sysB, fontSize: fs(18) }}>+{more}</Text>
@@ -268,7 +288,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [optionsOpen, setOptionsOpen] = useState(false);    // 헤더 ⋯ 옵션 시트(신고·차단)
   const [reportPrefill, setReportPrefill] = useState(null); // 신고 모달 — null=닫힘, 문자열=열림(근거 프리필=메시지 인용 등)
   const [imgViewer, setImgViewer] = useState(null); // DM 사진 전체화면 — url 문자열(열림)/null(닫힘). 뒤로가기는 PhotoViewer 자체 Modal(onRequestClose)이 처리.
-  const [pendingImgs, setPendingImgs] = useState([]); // 낙관적 미리보기 — 업로드 중 사진을 즉시 보여줌 [{tempId, uri}]. 전송 완료 시 제거(실제 메시지로 대체).
+  const [pendingImgs, setPendingImgs] = useState([]); // 낙관적 미리보기 — 업로드 중 사진을 즉시 보여줌 [{tempId, uris}]. 전송 완료 시 제거(실제 메시지로 대체).
+  const [hiddenMsgs, setHiddenMsgs] = useState(() => new Set()); // 나만 삭제(숨김) — 내 화면에서만 가린 메시지 id(로컬 영속). 상대 화면엔 유지.
+  useEffect(() => { storage.load(HIDDEN_MSGS_KEY, []).then(arr => setHiddenMsgs(new Set(Array.isArray(arr) ? arr : []))).catch(() => {}); }, []);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
   // 피커·옵션시트가 떠 있으면 뒤로가기는 그것만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
@@ -443,6 +465,18 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     });
   };
 
+  // 나만 삭제(숨김) — 내 화면에서만 가림(상대 화면 유지). 로컬 영속. 내 메시지·상대 메시지 모두 가능.
+  const hideMessage = () => {
+    const t = reactTarget;
+    setReactTarget(null);
+    if (!t?.id) return;
+    setHiddenMsgs(prev => {
+      const next = new Set(prev); next.add(t.id);
+      storage.save(HIDDEN_MSGS_KEY, [...next]).catch(() => {});
+      return next;
+    });
+  };
+
   // 신고 — 상대(friendUid) 대상 ReportModal 열기. prefill=근거란 초기값(메시지 신고 시 그 메시지 인용 스냅샷 → 언센드돼도 증거 보존).
   const openReport = (prefill = '') => { setReactTarget(null); setOptionsOpen(false); if (!friendUid) return; setReportPrefill(prefill); };
   // 차단 — 친구 차단과 동일(공용 훅). 한도 체크 → 확인 → 차단되면 대화 불가라 대화방 닫기.
@@ -476,12 +510,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   // 카톡식 — '목록에서 지우기'(clearedAt) 이후 메시지만 내 화면에 표시. 그 전 대화는 숨김(메시지는 상대 위해 서버 보존, 내 화면만 필터). 사용자 2026-06-14
   const list = useMemo(() => {
     const all = messages || [];
-    if (!myClearedMs) return all;
     return all.filter(m => {
+      if (hiddenMsgs.has(m.id)) return false;                 // 나만 삭제(숨김)
+      if (!myClearedMs) return true;
       const ms = m.createdAt?.toMillis ? m.createdAt.toMillis() : 0;
       return ms > myClearedMs;
     });
-  }, [messages, myClearedMs]);
+  }, [messages, myClearedMs, hiddenMsgs]);
   // 인버티드 FlatList용 — 최신이 index 0(시각적 바닥). 새 메시지가 바닥에 자동으로 쌓여 끌어올릴 필요 없음 + 메시지 적어도 입력창 바로 위에 붙음(카톡식 아래고정).
   const rlist = useMemo(() => list.slice().reverse(), [list]);
   // ★입력 지연 방지 — renderItem을 useCallback으로 안정화. 안 하면 매 글자(setText) 리렌더마다 renderItem 참조가
@@ -722,6 +757,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>삭제</Text>
               </TouchableOpacity>
             )}
+            {/* 숨기기(나만 삭제) — 내 화면에서만 가림(상대엔 유지). 내·상대 메시지 모두 가능. */}
+            <TouchableOpacity activeOpacity={0.8} onPress={hideMessage}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+              <Text style={{ fontSize: fs(15) }}>🙈</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>숨기기</Text>
+            </TouchableOpacity>
             {/* 신고 — 받은(상대) 메시지만. 그 메시지를 인용해 신고 모달 근거에 프리필(증거 스냅샷 → 언센드돼도 보존) */}
             {reactTarget.senderUid !== myUid && (
               <TouchableOpacity activeOpacity={0.8}
