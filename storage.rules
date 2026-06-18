@@ -36,10 +36,13 @@ service firebase.storage {
     //  write: 본인만, 이미지 10MB 이하.
     match /dmImages/{uid}/{fileName} {
       allow read: if request.auth != null;
+      //  write = 업로드(이미지·10MB) + 삭제(언센드 시 본인 파일 정리). 삭제는 request.resource==null이라 업로드 조건과 분기.
       allow write: if request.auth != null
                    && request.auth.uid == uid
-                   && request.resource.contentType.matches('image/.*')
-                   && request.resource.size < 10 * 1024 * 1024;
+                   && (
+                     request.resource == null
+                     || (request.resource.contentType.matches('image/.*') && request.resource.size < 10 * 1024 * 1024)
+                   );
     }
 
     // 그 외 모든 경로 차단 (명시적 deny — 실수로 열리는 것 방지)
