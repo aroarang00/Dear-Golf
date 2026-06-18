@@ -160,10 +160,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
 
   // 카드 버튼 라벨 — 0곳/1곳(이름)/2곳
   const btnLabel = decidedCount === 0
-    ? '🍴 함께 식사'
+    ? '🍲 함께 식사'
     : decidedCount === 2
-      ? '🍴 식사 2곳 ✓'
-      : `🍴 ${(meal1 || meal2)?.place?.name || '결정됨'} ✓`;
+      ? '🍲 식사 2곳 ✓'
+      : `🍲 ${(meal1 || meal2)?.place?.name || '결정됨'} ✓`;
   // 박스 모드(홈 D-0 카드) 라벨 — 아이콘·텍스트·› 분리 렌더
   const blockLabel = decidedCount === 0
     ? '함께 식사하기'
@@ -224,16 +224,16 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   return (
     <>
       {block ? (
-        // 박스 모드 — 홈 D-0 카드의 날씨·교통 박스와 동일 톤(전폭 한 줄 박스)
-        <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
-          style={{ flexDirection: 'row', alignItems: 'center',
-            backgroundColor: decidedCount ? 'rgba(245,230,168,0.14)' : 'rgba(255,255,255,0.06)',
-            borderWidth: 0.5, borderColor: decidedCount ? 'rgba(245,230,168,0.3)' : 'rgba(255,255,255,0.14)',
-            borderRadius: 12, paddingHorizontal: 12, paddingVertical: 15 }}>
-          <Text style={{ fontSize: fs(15) }}>🍴</Text>
-          {/* 🍴 바로 옆에 라벨(붙임), 우측 '정하기'와는 marginLeft로 간격 확보 */}
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: decidedCount ? C.butter : '#fff', marginLeft: 5, flex: 1 }} numberOfLines={1}>{blockLabel}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: 'rgba(255,255,255,0.6)', marginLeft: 8 }}>›</Text>
+        // 박스 모드(홈 D-0 카드) — 불투명 솔리드 채움(진짜 버튼) + 그림자. 불투명이라 Android '뿌연 팔각형' 아티팩트 없음([[dm-button]]).
+        //   미결정=버터(브랜드 CTA), 결정=차콜+버터글씨. 상단 하이라이트로 솟은 느낌.
+        <TouchableOpacity onPress={openSheet} activeOpacity={0.85}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11,
+            backgroundColor: decidedCount ? C.charcoal : '#D8CC9E', // 미결정=차분한 버터(강도 낮춤), 결정=차콜
+            borderTopWidth: 1, borderTopColor: decidedCount ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.4)',
+            shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 }}>
+          <Text style={{ fontSize: fs(18), includeFontPadding: false }}>🍲</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: decidedCount ? C.butter : C.charcoal, marginLeft: 6, includeFontPadding: false, flexShrink: 1 }} numberOfLines={1}>{blockLabel}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: decidedCount ? 'rgba(245,230,168,0.55)' : 'rgba(61,57,53,0.5)', marginLeft: 7, includeFontPadding: false }}>›</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
@@ -252,7 +252,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
             </View>
             <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>🍴 함께 식사</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>🍲 함께 식사</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}
               </Text>
