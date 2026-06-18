@@ -16,7 +16,7 @@ import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { uploadDmImage, sendImageMessageUrl } from '../utils/dm';
+import { uploadDmImage, sendImageMessageUrl, ensureConversation } from '../utils/dm';
 
 // 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
 // 달라져, 같은 카드도 좁은 폰에선 라벨이 서로 붙는 등 레이아웃이 어긋났음(앱의 얼굴인 공유 이미지 완성도 문제, 2026-06-14).
@@ -161,7 +161,13 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
       const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 2 });
       const url = await uploadDmImage(uri);
       const targets = [...selectedDm];
-      await Promise.all(targets.map(fid => sendImageMessageUrl(fid, url).catch(e => __DEV__ && console.warn('[dmShare] send fail', fid, e?.message))));
+      // ★대화방을 먼저 보장(ensureConversation) — 메시지 생성 규칙이 members()=대화방 문서를 get()으로 읽어,
+      //   상대와 처음 DM하는 경우(방 미존재) 메시지 create가 거부돼 수신자가 못 받던 버그 수정.
+      //   정상 채팅은 입장 시 ensureConversation을 부르지만 이 공유 경로엔 없었음(첫 대화일 때만 실패=들쭉날쭉).
+      await Promise.all(targets.map(fid =>
+        ensureConversation(fid)
+          .then(() => sendImageMessageUrl(fid, url))
+          .catch(e => __DEV__ && console.warn('[dmShare] send fail', fid, e?.message))));
       setDmPickerOpen(false);
       setAlert({ title: 'DM으로 보냈어요', message: `${targets.length}명에게 카드를 보냈어요.`, buttons: [{ text: '확인', onPress: onClose }] });
     } catch (e) {
@@ -256,13 +262,16 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                   </TouchableOpacity>
                 );
               })}
-              {/* DM으로 보내기 — 친구 다중선택 후 카드 이미지를 인앱 DM으로 한 번에 전송(앱 안에서 끝, 외부 X). 버건디 */}
-              <TouchableOpacity activeOpacity={0.85} onPress={openDmPicker} disabled={sharing || saving}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  backgroundColor: '#6B1E2A', borderRadius: 12, height: 48, opacity: (sharing || saving) ? 0.5 : 1 }}>
-                <Text style={{ fontSize: fs(16) }}>💬</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#F5E6A8' }}>DM으로 보내기</Text>
-              </TouchableOpacity>
+              {/* DM으로 보내기 — 친구 다중선택 후 카드 이미지를 인앱 DM으로 한 번에 전송(앱 안에서 끝, 외부 X). 버건디.
+                  ★친구 초대(isInvite)는 '디어골프 미가입자'에게 보내는 흐름이라 인앱 DM 공유가 무의미 → 숨김(사용자 2026-06-19). */}
+              {!isInvite && (
+                <TouchableOpacity activeOpacity={0.85} onPress={openDmPicker} disabled={sharing || saving}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    backgroundColor: '#6B1E2A', borderRadius: 12, height: 48, opacity: (sharing || saving) ? 0.5 : 1 }}>
+                  <Text style={{ fontSize: fs(16) }}>💬</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#F5E6A8' }}>DM으로 보내기</Text>
+                </TouchableOpacity>
+              )}
               {/* 링크 공유 — 클릭 가능한 링크 평문 공유(이미지 없이 링크만). '링크와 함께'는 이미지도 같이 가는 듯한
                   오해를 줘 '링크 공유'로 단순화(사용자 2026-06-16). 네이비로 강조(받는 분 바로 열람·설치 funnel). */}
               {onShareLink && (
