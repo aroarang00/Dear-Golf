@@ -386,8 +386,11 @@ export function HomeScreen({ navigation, route }) {
     if (!schedule || !uids.length) return;
     if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
     try {
+      // 초대 친구 이름맵 — FriendSelectModal에 넘긴 친구목록(inviteFriends)에서 uid→이름 추출(그룹에 저장)
+      const names = {};
+      (inviteFriends || []).forEach(f => { const id = f.id || f.uid; if (id && uids.includes(id)) names[id] = f.customName || f.name || ''; });
       const groupId = await shareScheduleToFriends({
-        schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids: uids,
+        schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids: uids, names,
       });
       if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId }); // 전파 일정 표식
@@ -403,8 +406,11 @@ export function HomeScreen({ navigation, route }) {
     if (!friendUids.length) return;
     if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
     try {
+      // 동반자 이름맵 — schedule.companions(친구선택 시 이름 보유)에서 추출
+      const names = {};
+      (schedule?.companions || []).forEach(c => { if (c?.friendUid && c?.name) names[c.friendUid] = c.name; });
       const groupId = await shareScheduleToFriends({
-        schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids,
+        schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids, names,
       });
       if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId });

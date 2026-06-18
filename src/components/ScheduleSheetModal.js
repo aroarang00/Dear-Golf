@@ -5,12 +5,37 @@ import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
 import { TripleStripe } from './common/TripleStripe';
 import { friendDisplayName } from '../utils/friendGroups';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
+import { getScheduleGroup } from '../utils/scheduleShares';
+import { loadMyFriendsEnriched } from '../utils/friends';
 
 export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
+  const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [group, setGroup] = useState(null); // 전파 일정 그룹(동반자 이름 보강)
+  const [friendNames, setFriendNames] = useState({}); // uid→닉네임 — friendMeta엔 별명만 있어 닉네임은 친구목록에서 보강
   useEffect(() => { if (!visible) setConfirmDelete(false); }, [visible]); // 시트 닫힐 때 상태 초기화
+  // 전파 일정(groupId)이면 그룹 + 친구 닉네임 맵 로드 — memberUids(수락)·audienceUids(초대중)로 동반자 이름 보강.
+  //   '친구 초대'로 부른 동반자는 schedule.companions엔 없고 audienceUids에만 있어, 그룹 + 닉네임 없이는 '친구'로만 떴음([[schedule-propagation-spec]]).
+  useEffect(() => {
+    if (!visible || !schedule?.groupId) { setGroup(null); setFriendNames({}); return; }
+    let alive = true;
+    getScheduleGroup(schedule.groupId).then(g => {
+      if (!alive) return;
+      setGroup(g);
+      // 그룹에 이름맵(names)이 있으면(신규) 친구목록 조회 생략 = 최적화. 없으면(옛 그룹) 폴백 조회.
+      if (g?.names && Object.keys(g.names).length) { setFriendNames({}); return; }
+      loadMyFriendsEnriched().then(list => {
+        if (!alive) return;
+        const m = {};
+        (list || []).forEach(f => { if (f?.id) m[f.id] = f.customName || f.name || ''; });
+        setFriendNames(m);
+      }).catch(() => {});
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [visible, schedule?.groupId]);
   if (!schedule) return null;
   const dd = schedule.dDay;
   const isPast = dd != null && dd < 0;        // 지난 라운딩 — 날씨·교통 숨김
@@ -44,11 +69,28 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     ? courseNavigable
     : !!(schedule.courseLogId || schedule.courseId);
 
-  // 동반자 닉네임 한 줄 (모집확정·수동입력 일정 공통, 본명 아님).
-  //   내가 정한 별명(customName) 우선 — friendUid로 resolve (MyScheduleTab 리스트와 동일). friendMeta 없으면 닉네임 폴백 ([[friend_groups]])
-  const companionNames = (schedule.companions || [])
-    .map(c => (typeof c === 'string' ? c : friendDisplayName(friendMeta, c?.friendUid, c?.name)))
-    .filter(Boolean);
+  // 동반자 닉네임 한 줄 — 수동 companions + 전파 그룹(수락=정식 / 미수락=초대중). 본인·중복 제외, friendMeta로 이름(별명 우선) 해석 ([[friend_groups]]).
+  const companionNames = (() => {
+    const out = [];
+    const seen = new Set();
+    (schedule.companions || []).forEach(c => {
+      if (typeof c === 'string') { if (c) out.push(c); return; }
+      const nm = friendDisplayName(friendMeta, c?.friendUid, c?.name);
+      if (nm) { out.push(nm); if (c?.friendUid) seen.add(c.friendUid); }
+    });
+    if (group) {
+      const members = group.memberUids || [];
+      [...members, ...(group.audienceUids || [])].forEach(uid => {
+        if (!uid || uid === myUid || seen.has(uid)) return;
+        seen.add(uid);
+        // 별명(친구메타) → 그룹 저장 이름(group.names, 최적화) → 닉네임(친구목록 폴백, 옛 그룹) → 호스트명. 못 찾으면 생략.
+        const cn = (friendMeta?.[uid]?.customName || '').trim();
+        const nm = cn || group.names?.[uid] || friendNames[uid] || (uid === group.initiatorUid ? group.initiatorName : '');
+        if (nm) out.push(members.includes(uid) ? nm : `${nm}(초대중)`);
+      });
+    }
+    return out;
+  })();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -104,8 +146,11 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   </Text>
                 </TouchableOpacity>
                 <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
-                {companionNames.length > 0 && (
-                  <Text style={[sheetS.meta, { marginTop: 4 }]}>👥 {companionNames.join(', ')}</Text>
+                {/* 전파 일정(groupId)이면 그룹 로딩 중에도 줄 자리를 잡아둠 — async로 뒤늦게 떠 dDay가 밀리는 리플로우 방지 */}
+                {(companionNames.length > 0 || (schedule.groupId && !group)) && (
+                  <Text style={[sheetS.meta, { marginTop: 4 }]} numberOfLines={2}>
+                    👥 {companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
+                  </Text>
                 )}
                 {dd != null && (
                   isPast ? (

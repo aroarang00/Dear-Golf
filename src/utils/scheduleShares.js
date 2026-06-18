@@ -33,15 +33,21 @@ export function scheduleGroupId(initiatorUid, sourceScheduleId) {
 // 일정 공유(초대) — 그룹 문서 생성(없으면) 또는 audienceUids 추가(있으면, 친구 더 초대).
 //   schedule=공유할 내 일정 객체(본인 소유), friendUids=초대할 친구 uid 배열.
 //   반환=groupId(호출부에서 내 일정에 groupId 스탬프 → 전파 일정으로 표식).
-export async function shareScheduleToFriends({ schedule, initiatorUid, initiatorName, friendUids }) {
+export async function shareScheduleToFriends({ schedule, initiatorUid, initiatorName, friendUids, names = {} }) {
   if (!schedule?.id || !initiatorUid) return null;
   const aud = [...new Set((friendUids || []).filter(u => u && u !== initiatorUid))];
   if (!aud.length) return null;
+  // 초대 친구 이름맵(uid→이름) — 그룹에 저장해 표시 시 친구목록 조회 없이 이름 사용. 생성 시·나중 초대 모두 보강.
+  const nameEntries = {};
+  aud.forEach(u => { const nm = (names[u] || '').trim(); if (nm) nameEntries[u] = nm; });
   const groupId = scheduleGroupId(initiatorUid, schedule.id);
   const ref = doc(db, COLLECTION, groupId);
   const snap = await getDoc(ref);
   if (snap.exists()) {
-    await updateDoc(ref, { audienceUids: arrayUnion(...aud), updatedAt: serverTimestamp() });
+    // 초대 추가 + 이름맵 보강(dot-notation 머지). 나중에 동반자 등록해도 이름 저장됨.
+    const upd = { audienceUids: arrayUnion(...aud), updatedAt: serverTimestamp() };
+    Object.keys(nameEntries).forEach(u => { upd[`names.${u}`] = nameEntries[u]; });
+    await updateDoc(ref, upd);
   } else {
     // ★좌표를 미리 풀어 그룹에 저장 — 수신자(다른 계정)는 발신자의 per-user courseId로 좌표를 못 찾으므로
     //   계정 독립적인 좌표(courseX/Y)를 발신자가 해석해 박아둔다. 실패하면 수신자가 이름으로 폴백([[schedule-propagation-spec]]).
@@ -67,6 +73,7 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
       day: schedule.day || '',
       time: schedule.time || '',
       members: typeof schedule.members === 'number' ? schedule.members : 4,
+      names: { [initiatorUid]: initiatorName || '', ...nameEntries }, // uid→이름(호스트+초대친구). 표시 시 친구목록 조회 불필요
       audienceUids: aud,
       memberUids: [initiatorUid],   // 최초 공유자는 바로 멤버
       declinedUids: [],
