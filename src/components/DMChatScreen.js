@@ -898,7 +898,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           photos={imgViewer.video
             ? [{ uri: imgViewer.video.uri, type: 'video', poster: imgViewer.video.poster }]
             : (imgViewer.uris || []).map(u => ({ uri: u }))}
-          startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} allowSave={!imgViewer.video} />
+          startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} allowSave />
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>

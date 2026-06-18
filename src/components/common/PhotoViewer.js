@@ -258,6 +258,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
   // 사진 영역 최대 높이 — 캡션 보일 땐 화면 절반(아래 글 공간 확보), 순수 보기는 크게.
   const availMax = captionShown ? SH * 0.5 : SH * 0.84;
   const curUri = !isVideo && current ? resolvePhotoUri(current.uri || current) : null;
+  const curVideoUri = isVideo && current ? resolvePhotoUri(current.uri) : null;   // 영상 저장용 원본 URI
   // 영상도 포스터(첫프레임) 비율로 박스 높이를 맞춰 검은 여백 제거(A안, 사용자 2026-06-15). 포스터 없는 옛 영상은 VIDEO_H 폴백.
   const curPosterUri = isVideo && current?.poster ? resolvePhotoUri(current.poster) : null;
   const curAr = isVideo ? (curPosterUri ? arMap[curPosterUri] : null) : (curUri ? arMap[curUri] : null);
@@ -271,20 +272,23 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
         ? (captionShown ? Math.min(availMax, Math.round(SW * 1.25)) : VIDEO_H)
         : Math.min(availMax, Math.round(SW * 1.25)));
 
-  // 현재 사진을 갤러리에 저장 — 원격(https) URL이면 캐시로 다운로드 후 저장(saveToLibraryAsync는 로컬 파일만). 이미지 전용.
+  // 현재 사진/동영상을 갤러리에 저장 — 원격(https) URL이면 캐시로 다운로드 후 저장(saveToLibraryAsync는 로컬 파일만).
+  //   동영상은 확장자(mp4/mov)를 맞춰 받아야 갤러리가 영상으로 인식. 사진은 jpg.
   const savePhoto = async () => {
-    if (savingPhoto || isVideo || !curUri) return;
+    const srcUri = isVideo ? curVideoUri : curUri;
+    if (savingPhoto || !srcUri) return;
     setSavingPhoto(true);
     try {
       const perm = await MediaLibrary.requestPermissionsAsync();
       if (!perm.granted) { setSavedToast('갤러리 접근 권한이 필요해요'); setTimeout(() => setSavedToast(''), 1800); return; }
-      let localUri = curUri;
+      let localUri = srcUri;
       if (/^https?:\/\//.test(localUri)) {
-        const dl = await FileSystem.downloadAsync(localUri, FileSystem.cacheDirectory + `dg_${Date.now()}.jpg`);
+        const ext = isVideo ? (srcUri.split('?')[0].match(/\.(mp4|mov|m4v)$/i)?.[1]?.toLowerCase() || 'mp4') : 'jpg';
+        const dl = await FileSystem.downloadAsync(localUri, FileSystem.cacheDirectory + `dg_${Date.now()}.${ext}`);
         localUri = dl.uri;
       }
       await MediaLibrary.saveToLibraryAsync(localUri);
-      setSavedToast('사진 저장됨 ✓'); setTimeout(() => setSavedToast(''), 1500);
+      setSavedToast(isVideo ? '동영상 저장됨 ✓' : '사진 저장됨 ✓'); setTimeout(() => setSavedToast(''), 1500);
     } catch (e) {
       if (__DEV__) console.warn('[viewer] save', e?.message);
       setSavedToast('저장에 실패했어요'); setTimeout(() => setSavedToast(''), 1800);
@@ -300,8 +304,8 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
-        {/* 저장 — 허용된 곳(DM 등)에서 이미지일 때만. 좌상단 알약 */}
-        {allowSave && !isVideo && (
+        {/* 저장 — 허용된 곳(DM 등)에서 사진·동영상 모두. 좌상단 알약 */}
+        {allowSave && (curUri || curVideoUri) && (
           <TouchableOpacity onPress={savePhoto} disabled={savingPhoto} activeOpacity={0.8}
             style={{ position: 'absolute', top: 48, left: 18, zIndex: 10, flexDirection: 'row', alignItems: 'center', gap: 5,
               backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7, opacity: savingPhoto ? 0.6 : 1 }}>
