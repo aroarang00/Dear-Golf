@@ -253,6 +253,25 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
       ],
     });
   };
+
+  // 대기 신청 — 참여(confirmApply)와 동일하게 '자체' OverlayAlert로(부모 alert는 이 Detail Modal 뒤로 가려짐).
+  //   익명 선택을 onWaitlist(anonymous)로 부모에 전달. 친구공개·친구지정만 익명 가능 ([[roundup-anonymous-participation]])
+  const confirmWaitlist = () => {
+    const canAnon = post.scope !== 'all';
+    setAlert({
+      title: '대기 신청할까요?',
+      message: '자리가 나면 순서대로 참여 기회를 안내해 드려요.',
+      note: canAnon ? '익명으로 신청하면\n명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고\n승격되면 그대로 이어져요.' : undefined,
+      buttons: canAnon ? [
+        { text: '대기 신청', onPress: () => onWaitlist?.(false) },
+        { text: '익명으로 대기', style: 'secondary', onPress: () => onWaitlist?.(true) },
+        { text: '취소', style: 'cancel' },
+      ] : [
+        { text: '취소', style: 'cancel' },
+        { text: '대기 신청', onPress: () => onWaitlist?.(false) },
+      ],
+    });
+  };
   // 참여 취소 — D-7 단일선 ([[roundup-penalty-policy]] §1).
   // D-7 이전: 자유 취소, 패널티 X. D-7 이내: 취소 가능(법적 권리 보장), 매너 -5 자동 차감.
   // 시스템 차단은 약관규제법 제9조 위험으로 폐기됨. 노쇼는 별도 신고 시스템 ([[noshow-report-system]]).
@@ -567,7 +586,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   } else {
     actionBtn = (
       <View>
-        <TouchableOpacity activeOpacity={0.85} onPress={onWaitlist}
+        <TouchableOpacity activeOpacity={0.85} onPress={confirmWaitlist}
           style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.charcoal }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>

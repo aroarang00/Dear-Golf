@@ -2130,7 +2130,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         onLoadOlderComments={() => detailId && handleLoadOlderComments(detailId)}
         onClose={() => setDetailId(null)}
         onApply={(anonymous) => detailId ? performJoinOrApply(detailId, { anonymous: !!anonymous }) : undefined}
-        onWaitlist={() => detailId && confirmWaitlist(detailId)}
+        onWaitlist={(anonymous) => detailId && handleWaitlist(detailId, !!anonymous)}
         onCancel={() => detailId && performCancel(detailId)}
         onCancelWait={() => detailId && cancelWaitlist(detailId)}
         onDelete={(soft) => detailId && handleDelete(detailId, soft)}
