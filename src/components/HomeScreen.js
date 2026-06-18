@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated,
+  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
@@ -272,6 +272,9 @@ export function HomeScreen({ navigation, route }) {
     .sort((a, b) => parseSchedDate(a) - parseSchedDate(b) || parseSchedTime(a) - parseSchedTime(b));
   const next = upcomingSchedules.length > 0 ? upcomingSchedules[0] : null;
   const roundEnded = !!next && isEndedToday(next);
+  // D-0(당일) — 메인 카드를 전폭으로 키우고 서브카드를 숨김(정보 박스 3개가 다 들어가게, 사용자 2026-06-18)
+  const isD0 = !!next && freshDDay(next) === 0;
+  const { width: winW } = useWindowDimensions();
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
@@ -642,69 +645,87 @@ export function HomeScreen({ navigation, route }) {
           </View>
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-            <View style={homeS.mainCard}>
-              {roundEnded ? (
+            {/* D-0이면 전폭(서브카드 숨김). 높이는 D-N과 동일 고정. D-N이면 기존 고정폭 카드. */}
+            <View style={isD0
+              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: Platform.OS === 'android' ? 13 : 16, height: Platform.OS === 'android' ? 220 : 234 }
+              : homeS.mainCard}>
+              {(freshDDay(next) === 0) ? (
                 <>
-                  {/* 라운딩 종료 카드 — 티오프 + 4시간 경과 */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                    <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>
-                        {isRecorded(next) ? '기록 완료' : '라운딩 종료'}
-                      </Text>
+                  {/* D-0 카드(전폭) — 상단 좌(정보 박스)·우(날씨교통, 박스X 큰 이모지) + 우측하단 나가기 + 하단 함께식사 긴 박스.
+                      티오프+4h는 좌측 박스 내용만 토글([[home-round-ended-threshold]] 2026-06-18 재정의) */}
+                  <View style={{ flexDirection: 'row', gap: 10, flex: 1 }}>
+                    {/* 좌 칼럼 — 정보(구장) 박스 + 함께식사 박스 세로 스택(같은 너비) */}
+                    <View style={{ flex: 1.4 }}>
+                    {/* 좌 — 정보 박스 (전: 구장+시간+D-0 / 후: 종료배지+구장+기록 안내) */}
+                    {roundEnded ? (
+                      <View style={{ flex: 1, paddingTop: 2 }}>
+                        <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
+                        </View>
+                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(18), lineHeight: 23 }]} numberOfLines={2}>{next.course}</Text>
+                        <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
+                        {isRecorded(next) ? (
+                          <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 'auto' }}
+                            onPress={() => { const d = recordedDiary(next); navigation.navigate(ROUTES.MY, d ? { openDiaryId: d.id, returnToHome: true } : {}); }}>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', marginBottom: 3 }}>기록 완료 ✓</Text>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 보기 →</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 'auto' }}
+                            onPress={() => navigation.navigate(ROUTES.MY, {
+                              openAddModal: true, addDate: next.date, addCourse: next.course,
+                              addCourseId: next.courseLogId || next.courseId, addScheduleId: next.id || null,
+                              addCompanions: Array.isArray(next.companions) ? next.companions : null,
+                            })}>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', marginBottom: 3 }}>오늘 라운딩 어떠셨나요?</Text>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={{ flex: 1, paddingTop: 2 }}>
+                        {/* 구장+날짜 탭 → 코스 페이지 */}
+                        <TouchableOpacity activeOpacity={canOpenCourse(next) ? 0.7 : 1} onPress={() => handleCardCoursePress(next)}>
+                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(18), lineHeight: 23 }]} numberOfLines={2}>{next.course}
+                            {canOpenCourse(next) ? <Text style={{ fontSize: fs(12), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
+                          </Text>
+                          <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
+                        </TouchableOpacity>
+                        {/* D-day 탭 → 일정 시트(바텀시트) 복구 */}
+                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
+                          <Text style={[homeS.cardDDay, { fontSize: fs(56), lineHeight: fs(60) }]}>D-{freshDDay(next)}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {/* 함께 식사 — 구장 박스 아래(같은 너비), 2슬롯+메모([[afterround-meal-decision]]) */}
+                    <View style={{ marginTop: 8 }}>
+                      <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active block
+                        autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                     </View>
-                    <View style={{ flex: 1 }} />
-                    {/* 나가기 — 홈에서만 카드 숨김(기록 여부 무관). 서브카드 메인 전환용. 일정·내코스모아보기는 그대로 */}
-                    <TouchableOpacity onPress={() => handleDismissCard(next)} activeOpacity={0.7}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.55)' }}>나가기 ✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={homeS.cardCourse} numberOfLines={1}>{next.course}</Text>
-                  <Text style={[homeS.cardDate, { marginBottom: 12 }]}>{next.date.slice(5)} {next.day} 라운딩</Text>
+                    </View>
 
-                  {/* 기록 완료 / 기록 유도 박스 */}
-                  {isRecorded(next) ? (
-                    <TouchableOpacity activeOpacity={0.85}
-                      onPress={() => {
-                        // 매칭 다이어리 상세로 직행 — 없으면(이론상 X) MY 첫 화면 폴백
-                        // returnToHome: 상세 닫기(안드 뒤로가기)에서 MY 목록 대신 홈으로 복귀
-                        const d = recordedDiary(next);
-                        navigation.navigate(ROUTES.MY, d ? { openDiaryId: d.id, returnToHome: true } : {});
-                      }}
-                      style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 기록 완료 ✓</Text>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 보기 →</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      activeOpacity={0.85}
-                      onPress={() => navigation.navigate(ROUTES.MY, {
-                        openAddModal: true,
-                        addDate: next.date,
-                        addCourse: next.course,
-                        addCourseId: next.courseLogId || next.courseId,
-                        addScheduleId: next.id || null,
-                        // 동반자를 일정 객체에서 직접 전달(pickRoundToRecord와 동일) — scheduleId find 의존 제거([[diary-companion-matching]])
-                        addCompanions: Array.isArray(next.companions) ? next.companions : null,
-                      })}
-                      style={{ backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.3)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>오늘 라운딩 어떠셨나요?</Text>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
-                    </TouchableOpacity>
-                  )}
+                    {/* 좌 칼럼과 날씨·교통 사이 세로 분리선 */}
+                    <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.32)', marginVertical: 2 }} />
 
-                  {/* 귀가 교통 / 주변 맛집 */}
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 'auto' }}>
-                    <TouchableOpacity
-                      onPress={() => { setSelectedSchedule(next); setShowTrafficFull(true); }}
-                      activeOpacity={0.8}
-                      style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🚗 귀가 교통</Text>
-                    </TouchableOpacity>
-                    {/* 주변 맛집 → 뒤풀이로 교체(줄 추가 시 카드 잘림). 뒤풀이 팝업이 맛집 검색·결정·길찾기 다 포함 ([[afterround-meal-decision]]) */}
-                    {/* 폭 동일 — 귀가교통·뒤풀이 둘 다 flex 1(사용자 2026-06-18) */}
-                    <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active flex={1}
-                      autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
+                    {/* 우 — 세로 칼럼: 위 나가기(종료 후) + 아래 날씨·교통(우측 중앙, 박스X 큰 이모지) */}
+                    <View style={{ flex: 1 }}>
+                      {roundEnded && (
+                        <TouchableOpacity onPress={() => handleDismissCard(next)} activeOpacity={0.7}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ alignSelf: 'flex-end' }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>나가기 ✕</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7}
+                        style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        {/* 이모지 2개를 각각 Text로 — 한 Text에 합치면 일부 기기서 둘째(🚗)가 안 그려지던 문제 */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                          <Text style={{ fontSize: Platform.OS === 'android' ? fs(38) : fs(44) }}>🌤️</Text>
+                          <Text style={{ fontSize: Platform.OS === 'android' ? fs(34) : fs(40), marginLeft: 10 }}>🚗</Text>
+                        </View>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginBottom: 3 }}>날씨 · 교통</Text>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.78)' }}>더보기 →</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </>
               ) : (
@@ -736,7 +757,7 @@ export function HomeScreen({ navigation, route }) {
               )}
             </View>
 
-            {upcomingSchedules.slice(1, 5).map((s, i) => {
+            {!isD0 && upcomingSchedules.slice(1, 5).map((s, i) => {
               const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;
               // 카드 전체 = 일정 시트 열기(탭 영역 넓힘 — 가운데·여백·D-n 어디를 찍어도 시트, 발견성↑ 2026-06-13).
               //   구장명만 안쪽 터치로 코스 연결(코스 연결 불가하면 구장명도 시트로 폴백).

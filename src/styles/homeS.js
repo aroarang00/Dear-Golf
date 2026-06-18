@@ -18,6 +18,8 @@ export const homeS = StyleSheet.create({
   bottomArea:      { paddingBottom: 0 },
   secLabel:        { fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },
   mainCard:        { width: isAndroid ? 210 : 232, height: isAndroid ? 220 : 234, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: isAndroid ? 13 : 16 },
+  // D-0 카드 내부 박스(정보·날씨교통·함께식사 공용) — 카드 안에 또렷한 박스로 구분
+  cardBox:         { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 },
   cardCourse:      { fontFamily: F.sysB, fontSize: fs(16), color: '#fff', marginBottom: 4, lineHeight: 21, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, includeFontPadding: false },
   cardDate:        { fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', includeFontPadding: false },
   cardDDay:        { fontFamily: F.en, fontSize: isAndroid ? fs(62) : fs(66), color: C.butter, lineHeight: isAndroid ? 66 : 70, letterSpacing: -1, includeFontPadding: false },
