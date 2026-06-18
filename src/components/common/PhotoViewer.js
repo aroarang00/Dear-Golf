@@ -12,6 +12,14 @@ import { resolvePhotoUri } from '../../utils/photoStorage';
 const { width: SW, height: SH } = Dimensions.get('window');
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
+// 외부에서 비율 미리 심기 — DM 말풍선 등에서 먼저 로드된 사진의 실비율을 뷰어 캐시에 넣어두면
+//   뷰어 열 때 첫 프레임부터 정확한 높이로 그려져 비율 리플로우(버벅임) 제거.
+export function primePhotoRatio(uri, ratio) {
+  if (!uri || !ratio) return;
+  const u = resolvePhotoUri(uri);
+  if (u && !_arCache.has(u)) _arCache.set(u, ratio);
+}
+
 function VideoItem({ uri, poster, active, width, height, onRatio, onZoomChange }) {
   const player = useVideoPlayer(uri, p => {
     p.loop = false;
@@ -215,7 +223,7 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
     <GestureDetector gesture={composed}>
       <Animated.View style={[{ width, height }, animStyle]}>
         {/* expo-image — 피드(FocalImage)와 디스크 캐시 공유 = 전체화면 열기 즉시. onLoad로 실비율 보고(getSize 별도 다운로드 제거) */}
-        <Image source={{ uri }} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk"
+        <Image source={{ uri }} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk" priority="high" recyclingKey={uri}
           onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(uri, w / h); }} />
       </Animated.View>
     </GestureDetector>
@@ -332,7 +340,12 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
                   <VideoPoster poster={item.poster ? resolvePhotoUri(item.poster) : null} height={mediaH} onRatio={handleRatio} />
                 )
               ) : (
-                <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
+                // 윈도잉 — 현재±1만 제스처/reanimated PinchableImage, 나머지는 정적 Image(앨범 마운트 비용↓ 버벅임 완화)
+                Math.abs(i - idx) <= 1 ? (
+                  <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
+                ) : (
+                  <Image source={{ uri: resolvePhotoUri(item.uri || item) }} style={{ width: SW, height: mediaH }} contentFit="contain" cachePolicy="memory-disk" recyclingKey={resolvePhotoUri(item.uri || item)} />
+                )
               )}
             </View>
           ))}

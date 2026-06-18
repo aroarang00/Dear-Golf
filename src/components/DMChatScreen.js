@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
-import { PhotoViewer } from './common/PhotoViewer'; // DM 사진 전체화면 보기
+import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // DM 사진 전체화면 보기 + 실비율 프라임(뷰어 열 때 리플로우 제거)
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
@@ -232,6 +232,7 @@ function DmImg({ uri, size, radius }) {
   }
   return (
     <Image source={{ uri }} onError={() => setErr(true)}
+      onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h) primePhotoRatio(uri, w / h); }}
       style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.06)' }}
       contentFit="cover" cachePolicy="memory-disk" transition={150} />
   );
