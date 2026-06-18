@@ -305,8 +305,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const [regionFilter, setRegionFilter] = useState('all'); // 전체 탭 지역 칩 (all 외엔 capital/gangwon/chungcheong/jeolla/gyeongsang/jeju)
   // 정렬 — 'recent'(최신순, 기본) | 'soon'(마감임박순=티오프 가까운 순). 토글 UI는 카드 충분(4개+, showSort)할 때 노출(2026-06-15 정식 노출) ([[roundup-sort-filter]])
   const [sortMode, setSortMode] = useState('recent');
-  // 내 참여 탭 분류 — 'join'(참여, 기본) | 'host'(내 주최). 내가 주최한 모집이 있을 때만 토글 노출(참여만 있으면 숨김) ([[roundup-sort-filter]])
-  const [mineFilter, setMineFilter] = useState('join');
+  // 내 참여 탭 분류 — 'all'(전체, 기본) | 'host'(내 주최) | 'join'(참여). 내가 주최한 모집이 있을 때만 토글 노출 ([[roundup-sort-filter]])
+  const [mineFilter, setMineFilter] = useState('all');
 
   // 토글이 켜진 상태에서 view가 'all'이면 자동으로 'friend'로 전환
   useEffect(() => {
@@ -952,7 +952,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const matchCount = matchTab.length;
   const hasMatch = hasRoundupMatch(userProfile.roundupMatch);
   const tabList = view === 'friend' ? friendTab
-    : view === 'mine' ? (showMineToggle ? (mineFilter === 'host' ? hostMine : joinMine) : mineTab)
+    : view === 'mine' ? (showMineToggle ? (mineFilter === 'host' ? hostMine : mineFilter === 'join' ? joinMine : mineTab) : mineTab)
     : view === 'watch' ? watchTab : view === 'match' ? matchTab : allTab;
   // Firestore createdAt(Timestamp) 우선, 더미 호환 위해 ts fallback
   const tsOf = (p) => (p.createdAt?.toMillis?.() ?? p.ts ?? 0);
@@ -1911,7 +1911,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       {/* 내 참여 탭 — 내가 주최한 모집이 있을 때만 '내 주최 | 참여' 분류. 우측 정렬 텍스트 토글, 선택=navy·굵게 / 비선택=연회색으로 색 구분 ([[roundup-sort-filter]]) */}
       {view === 'mine' && showMineToggle && (
         <View style={{ paddingLeft: 16, paddingRight: 18, paddingTop: _and ? 4 : 6, paddingBottom: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 9 }}>
-          {[['host', '내 주최'], ['join', '참여']].map(([k, l], i) => {
+          {[['all', '전체'], ['host', '내 주최'], ['join', '참여']].map(([k, l], i) => {
             const on = mineFilter === k;
             return (
               <React.Fragment key={k}>
