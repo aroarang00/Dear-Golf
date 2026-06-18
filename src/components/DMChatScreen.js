@@ -237,6 +237,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [optionsOpen, setOptionsOpen] = useState(false);    // 헤더 ⋯ 옵션 시트(신고·차단)
   const [reportPrefill, setReportPrefill] = useState(null); // 신고 모달 — null=닫힘, 문자열=열림(근거 프리필=메시지 인용 등)
   const [imgViewer, setImgViewer] = useState(null); // DM 사진 전체화면 — url 문자열(열림)/null(닫힘). 뒤로가기는 PhotoViewer 자체 Modal(onRequestClose)이 처리.
+  const [pendingImgs, setPendingImgs] = useState([]); // 낙관적 미리보기 — 업로드 중 사진을 즉시 보여줌 [{tempId, uri}]. 전송 완료 시 제거(실제 메시지로 대체).
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
   // 피커·옵션시트가 떠 있으면 뒤로가기는 그것만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
@@ -377,13 +378,22 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 10, quality: 1 });
       if (res.canceled || !res.assets?.length) return;
-      // 선택 순서대로 한 장씩 전송(각 업로드 완료 시 말풍선 등장). 최대 10장.
+      // 선택 순서대로 한 장씩 전송. 각 사진은 낙관적 미리보기(즉시 표시)→업로드 완료 시 실제 메시지로 대체. 최대 10장.
       for (const a of res.assets) {
-        if (a?.uri) await sendImageMessage(friendUid, a.uri);
+        if (!a?.uri) continue;
+        const tempId = `pending_${Date.now()}_${Math.round(Math.random() * 1e6)}`;
+        setPendingImgs(prev => [{ tempId, uri: a.uri }, ...prev]);
+        try {
+          await sendImageMessage(friendUid, a.uri);
+        } catch (e) {
+          if (__DEV__) console.warn('[DMChat] sendImage', e?.message);
+          setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] });
+        } finally {
+          setPendingImgs(prev => prev.filter(p => p.tempId !== tempId));
+        }
       }
     } catch (e) {
       if (__DEV__) console.warn('[DMChat] pickImage', e?.message);
-      setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] });
     }
   }, [friendUid]);
 
@@ -593,7 +603,22 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         style={{ flex: 1 }}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
-        ListHeaderComponent={friendTyping ? <TypingDots /> : null}
+        ListHeaderComponent={(pendingImgs.length || friendTyping) ? (
+          <View>
+            {/* 낙관적 미리보기 — 업로드 중인 내 사진을 즉시 표시(흐림+스피너). 인버티드 헤더=시각적 바닥(최신 위치). */}
+            {pendingImgs.map(p => (
+              <View key={p.tempId} style={{ paddingHorizontal: 14, marginBottom: 8, alignItems: 'flex-end' }}>
+                <View>
+                  <Image source={{ uri: p.uri }} style={{ width: 210, height: 210, borderRadius: 12, opacity: 0.55, backgroundColor: 'rgba(0,0,0,0.06)' }} contentFit="cover" />
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator color="#fff" />
+                  </View>
+                </View>
+              </View>
+            ))}
+            {friendTyping ? <TypingDots /> : null}
+          </View>
+        ) : null}
         contentContainerStyle={{ paddingVertical: 12 }}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={15}
