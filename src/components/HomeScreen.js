@@ -4,6 +4,7 @@ import {
   Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
 import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
@@ -118,6 +119,15 @@ export function HomeScreen({ navigation, route }) {
     });
     return unsub;
   }, [navigation, dmOpen]);
+  // DM 푸시를 포그라운드(앱 켜둔 상태)에서 받으면 안읽음 뱃지 즉시 갱신 — 상시 onSnapshot 없이 '받은 사람만, 받은 만큼'만 1회 조회([[lounge-realtime]] 비용 원칙).
+  //   CF가 unread를 +1 한 뒤 푸시를 보내므로 이 시점엔 카운트가 이미 맞음. DM 모달 열려있으면(대화 보는 중) 생략 — 닫을 때 위 effect가 갱신. 2026-06-18.
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener((noti) => {
+      if (noti?.request?.content?.data?.type !== 'dm') return;
+      if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [dmOpen]);
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
 
@@ -564,8 +574,8 @@ export function HomeScreen({ navigation, route }) {
                     <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
                       fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
                       color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
-                      /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +1로 내려 센터 맞춤(양쪽 동일 시각). */
-                      marginTop: dmUnread > 0 ? 0 : (Platform.OS === 'ios' ? 1 : -1) }}>
+                      /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +2로 내려 원 안 정중앙에 맞춤(살짝 높던 것 보정). */
+                      marginTop: dmUnread > 0 ? (Platform.OS === 'ios' ? 1 : 0) : (Platform.OS === 'ios' ? 2 : -1) }}>
                       {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
                     </Text>
                   </View>
