@@ -12,6 +12,7 @@ import { RoundCardScorecard } from './RoundCardScorecard';
 import { RoundCardMemory } from './RoundCardMemory';
 import { RoundCardPolaroid } from './RoundCardPolaroid';
 import { RoundupShareCard } from './RoundupShareCard';
+import { RoundupShareCardFormal } from './RoundupShareCardFormal';   // 친구지정 격식 초대장 공유본
 import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -226,7 +227,9 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                     : isSchedule
                       ? <ScheduleShareCard schedule={moment} width={CARD_WIDTH} />
                       : isRoundup
-                        ? <RoundupShareCard post={moment} width={CARD_WIDTH} />
+                        ? (moment.inviteStyle === 'formal'
+                            ? <RoundupShareCardFormal post={moment} width={CARD_WIDTH} />   // 친구지정 격식
+                            : <RoundupShareCard post={moment} width={CARD_WIDTH} />)          // 편안(보딩패스)·일반 공유
                         : moment.kind === 'milestone'
                           ? <MilestoneCard item={moment} />
                           : <HallOfFameCard item={moment} />}
