@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { showAppAlert } from './AppAlert'; // OS 기본 팝업 대신 앱 디자인 알림(안드 시스템팝업 방지)
@@ -74,7 +74,10 @@ function MoreButton({ moreCount, onPress }) {
   );
 }
 
-export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
+// forwardRef — 코스 탭 재탭(tabPress) 시 부모(GuideScreen)가 scrollToTop()을 호출해 목록을 맨 위로 올림.
+export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview }, ref) {
+  const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
+  useImperativeHandle(ref, () => ({ scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) }), []);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -239,7 +242,7 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
   const moreScreen = screen.length - visibleScreen.length;
 
   return (
-    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
+    <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
       {/* 1. 검색창 — 아래 지역탭과의 간격을 탭↔섹션헤더 간격과 대칭으로(검색박스 멀고 헤더에 바짝 붙던 불균형 해소, 안드·iOS 동일) */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
@@ -557,4 +560,4 @@ export function CourseExploreTab({ onSelectCourse, onOpenPreview }) {
       <View style={{ height: 40 }} />
     </ScrollView>
   );
-}
+});

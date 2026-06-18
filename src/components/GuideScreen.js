@@ -93,6 +93,7 @@ export function GuideScreen({ route, navigation }) {
   const [saveModalSeed, setSaveModalSeed] = useState(null);
   const [top100, setTop100] = useState([]); // 100대 코스 — 코스 상세 배지용
   const scrollRefs = useRef({});
+  const exploreRef = useRef(null);   // 코스 목록(CourseExploreTab) 스크롤 톱 복귀용 — 탭 재탭 시 호출
 
   // 100대 코스 목록 — 마운트 시 1회 로드
   useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
@@ -129,6 +130,7 @@ export function GuideScreen({ route, navigation }) {
       setShowAllRest(false);
       setShowAllNearby(false);
       Object.values(scrollRefs.current).forEach(r => r?.scrollTo?.({ y: 0, animated: false }));
+      exploreRef.current?.scrollToTop();   // 코스 목록(랜딩)은 별도 컴포넌트라 위 scrollRefs로 안 잡힘 → 직접 호출
     };
     // 탭 재탭(focused 중) + 탭을 떠날 때(blur) 모두 초기화 — 다른 탭처럼 '나갔다 오면 코스 목록'으로.
     //   ★blur 리셋이 핵심: 코스 상세는 인라인 state라, 안드 뒤로가기로 다른 탭 갔다 돌아오면(focus 복귀=tabPress 아님)
@@ -1528,6 +1530,7 @@ export function GuideScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
       <CourseExploreTab
+        ref={exploreRef}
         onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
         onOpenPreview={handleOpenPreview}
       />
