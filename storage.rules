@@ -33,15 +33,16 @@ service firebase.storage {
 
     // DM 사진 — dmImages/{uid}/{파일명} ([[dm-design]] 사진공유)
     //  read : 로그인 사용자. URL은 conversations/{pair}/messages 문서(멤버만 read)에만 담겨 비멤버는 URL을 못 얻음(rounds와 동일 모델).
-    //  write: 본인만, 이미지 10MB 이하.
+    //  write: 본인만, 이미지 10MB / 동영상 80MB 이하.
     match /dmImages/{uid}/{fileName} {
       allow read: if request.auth != null;
-      //  write = 업로드(이미지·10MB) + 삭제(언센드 시 본인 파일 정리). 삭제는 request.resource==null이라 업로드 조건과 분기.
+      //  write = 업로드(이미지 10MB·동영상 80MB) + 삭제(언센드 시 본인 파일 정리). 삭제는 request.resource==null이라 업로드 조건과 분기.
       allow write: if request.auth != null
                    && request.auth.uid == uid
                    && (
                      request.resource == null
                      || (request.resource.contentType.matches('image/.*') && request.resource.size < 10 * 1024 * 1024)
+                     || (request.resource.contentType.matches('video/.*') && request.resource.size < 80 * 1024 * 1024)
                    );
     }
 

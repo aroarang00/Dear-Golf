@@ -11,6 +11,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'fi
 import { db, getUid, storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
 import { compressImage } from './imageCompress';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 
 const CONV = 'conversations';
 
@@ -155,6 +156,57 @@ export async function sendImagesMessage(friendUid, uris) {
   return msgRef.id;
 }
 
+// DM 동영상 업로드 — 영상 원본 + 첫프레임 포스터(jpg)를 dmImages/{uid}/에 올려 { url, poster } 반환.
+//   포스터는 안드 원격 썸네일 안정화용(roundMedia와 동일 패턴). 실패해도 영상은 전송(poster=null).
+export async function uploadDmVideo(videoUri) {
+  const uid = await getUid();
+  if (!uid || !videoUri) throw new Error('dm: video uri required');
+  if (/^https?:\/\//.test(videoUri)) return { url: videoUri, poster: null };
+  const localUri = resolvePhotoUri(videoUri);
+  const ext = (videoUri.split('?')[0].split('.').pop() || 'mp4').toLowerCase().slice(0, 4);
+  const contentType = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
+  const res = await fetch(localUri);
+  const blob = await res.blob();
+  const vRef = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`);
+  await uploadBytes(vRef, blob, { contentType }); // contentType 명시 — Storage 규칙 video/* 매칭
+  const url = await getDownloadURL(vRef);
+  let poster = null;
+  try {
+    const { uri: thumb } = await VideoThumbnails.getThumbnailAsync(localUri, { time: 0, quality: 0.7 });
+    const cThumb = await compressImage(thumb);
+    const pres = await fetch(cThumb);
+    const pblob = await pres.blob();
+    const pRef = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}_p.jpg`);
+    await uploadBytes(pRef, pblob, { contentType: 'image/jpeg' });
+    poster = await getDownloadURL(pRef);
+  } catch (e) { if (__DEV__) console.warn('[dm] video poster', e?.message); }
+  return { url, poster };
+}
+
+// DM 동영상 메시지 전송 — 업로드 후 videoUrl(+poster) 메시지. owned=true(언센드 시 영상·포스터 파일 정리). lastMessage='🎬 동영상'.
+export async function sendVideoMessage(friendUid, videoUri) {
+  const uid = await getUid();
+  if (!uid || !friendUid || !videoUri) throw new Error('dm: video msg args');
+  const { url, poster } = await uploadDmVideo(videoUri);
+  const id = pairId(uid, friendUid);
+  const msgRef = await addDoc(collection(db, CONV, id, 'messages'), {
+    senderUid: uid,
+    body: '',
+    videoUrl: url,
+    ...(poster ? { poster } : {}),
+    imageOwned: true,
+    createdAt: serverTimestamp(),
+  });
+  setDoc(doc(db, CONV, id), {
+    participantUids: [uid, friendUid].sort(),
+    lastMessage: '🎬 동영상',
+    lastSenderUid: uid,
+    lastAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true }).catch((e) => { if (__DEV__) console.warn('[dm] conv meta(video)', e?.message); });
+  return msgRef.id;
+}
+
 // 메시지 삭제(언센드) — 본인 메시지만 완전 삭제(양쪽 화면에서 사라짐). 규칙이 senderUid==나만 허용([[dm-design]]).
 //   인용(replyTo)은 보낸 시점 스냅샷이라 원본을 지워도 인용문은 유지(끊기지 않음). 실패는 호출부에서 안내.
 export async function deleteMessage(convId, msgId) {
@@ -168,6 +220,8 @@ export async function deleteMessage(convId, msgId) {
       const d = ms.data();
       if (Array.isArray(d.imageUrls)) ownedUrls = d.imageUrls.filter(Boolean);
       else if (d.imageUrl) ownedUrls = [d.imageUrl];
+      if (d.videoUrl) ownedUrls.push(d.videoUrl);  // 동영상 본체
+      if (d.poster) ownedUrls.push(d.poster);      // 동영상 포스터(jpg)
     }
   } catch { /* 못 읽어도 메시지 삭제는 진행 */ }
   await deleteDoc(doc(db, CONV, convId, 'messages', msgId));
@@ -184,7 +238,10 @@ export async function deleteMessage(convId, msgId) {
       fsLimit(1),
     ));
     const last = snap.docs[0]?.data();
-    const preview = last ? ((last.imageUrl || (Array.isArray(last.imageUrls) && last.imageUrls.length)) ? '📷 사진' : (last.body || '')) : '';
+    const preview = last
+      ? (last.videoUrl ? '🎬 동영상'
+         : ((last.imageUrl || (Array.isArray(last.imageUrls) && last.imageUrls.length)) ? '📷 사진' : (last.body || '')))
+      : '';
     await updateDoc(doc(db, CONV, convId), last
       ? { lastMessage: preview, lastSenderUid: last.senderUid || null, lastAt: last.createdAt || serverTimestamp(), updatedAt: serverTimestamp() }
       : { lastMessage: '', lastSenderUid: null, lastAt: serverTimestamp(), updatedAt: serverTimestamp() });

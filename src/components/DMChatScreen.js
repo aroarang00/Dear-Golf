@@ -11,7 +11,7 @@ import { getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { LinkText } from './common/LinkText';
-import { ensureConversation, sendMessage, sendImageMessage, sendImagesMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
+import { ensureConversation, sendMessage, sendImageMessage, sendImagesMessage, sendVideoMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import * as ImagePicker from 'expo-image-picker';
 import { storage } from '../utils/storage';
 import { setActiveDmPair } from '../utils/notifications';
@@ -271,6 +271,22 @@ function DmImageGrid({ uris, onPressIndex, onLongPress }) {
   );
 }
 
+// DM 동영상 — 포스터 썸네일 + ▶ 오버레이. 탭하면 전체화면 재생(PhotoViewer). 포스터 없으면 어두운 박스 폴백.
+function DmVideo({ uri, poster, size, onPress, onLongPress }) {
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress} onLongPress={onLongPress} delayLongPress={300}>
+      {poster
+        ? <DmImg uri={poster} size={size} radius={12} />
+        : <View style={{ width: size, height: size, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)' }} />}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: fs(18), color: '#fff', marginLeft: 3 }}>▶</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
   const insets = useSafeAreaInsets();
   const BAR_PAD = 8;  // 입력 바 내부 하단 숨틈(항상)
@@ -317,6 +333,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [reportPrefill, setReportPrefill] = useState(null); // 신고 모달 — null=닫힘, 문자열=열림(근거 프리필=메시지 인용 등)
   const [imgViewer, setImgViewer] = useState(null); // DM 사진 전체화면 — url 문자열(열림)/null(닫힘). 뒤로가기는 PhotoViewer 자체 Modal(onRequestClose)이 처리.
   const [pendingImgs, setPendingImgs] = useState([]); // 낙관적 미리보기 — 업로드 중 사진을 즉시 보여줌 [{tempId, uris}]. 전송 완료 시 제거(실제 메시지로 대체).
+  const [vidSending, setVidSending] = useState(0);    // 업로드 중인 동영상 수(진행 표시) — 용량 커서 시간 걸림
   const [hiddenMsgs, setHiddenMsgs] = useState(() => new Set()); // 나만 삭제(숨김) — 내 화면에서만 가린 메시지 id(로컬 영속). 상대 화면엔 유지.
   useEffect(() => { storage.load(HIDDEN_MSGS_KEY, []).then(arr => setHiddenMsgs(new Set(Array.isArray(arr) ? arr : []))).catch(() => {}); }, []);
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
@@ -457,20 +474,26 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     try {
       const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 10, quality: 1 });
-      const uris = (res.canceled ? [] : (res.assets || [])).map(a => a?.uri).filter(Boolean);
-      if (!uris.length) return;
-      // 모아보내기 — 선택한 장들을 한 메시지(앨범)로. 낙관적 미리보기(즉시 그리드 표시)→업로드 완료 시 실제 메시지로 대체. 최대 10장.
-      const tempId = `pending_${Date.now()}_${Math.round(Math.random() * 1e6)}`;
-      setPendingImgs(prev => [{ tempId, uris }, ...prev]);
-      try {
-        await sendImagesMessage(friendUid, uris);
-      } catch (e) {
-        if (__DEV__) console.warn('[DMChat] sendImages', e?.message);
-        setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] });
-      } finally {
-        setPendingImgs(prev => prev.filter(p => p.tempId !== tempId));
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: 10, quality: 1, videoMaxDuration: 60 });
+      if (res.canceled) return;
+      const assets = res.assets || [];
+      const imgUris = assets.filter(a => a?.uri && a.type !== 'video').map(a => a.uri);
+      const vidUris = assets.filter(a => a?.uri && a.type === 'video').map(a => a.uri);
+      // 사진 — 모아보내기(앨범). 낙관적 미리보기(즉시 그리드)→업로드 완료 시 실제 메시지로 대체. 최대 10장.
+      if (imgUris.length) {
+        const tempId = `pending_${Date.now()}_${Math.round(Math.random() * 1e6)}`;
+        setPendingImgs(prev => [{ tempId, uris: imgUris }, ...prev]);
+        sendImagesMessage(friendUid, imgUris)
+          .catch(e => { if (__DEV__) console.warn('[DMChat] sendImages', e?.message); setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] }); })
+          .finally(() => setPendingImgs(prev => prev.filter(p => p.tempId !== tempId)));
       }
+      // 동영상 — 각각 전송(용량 커서 업로드 느릴 수 있어 진행 표시). 포스터 자동 생성.
+      vidUris.forEach((v) => {
+        setVidSending(n => n + 1);
+        sendVideoMessage(friendUid, v)
+          .catch(e => { if (__DEV__) console.warn('[DMChat] sendVideo', e?.message); setAlert({ title: '동영상을 보내지 못했어요', message: '용량이 크거나(최대 80MB)\n네트워크 상태를 확인해주세요.', buttons: [{ text: '확인' }] }); })
+          .finally(() => setVidSending(n => Math.max(0, n - 1)));
+      });
     } catch (e) {
       if (__DEV__) console.warn('[DMChat] pickImage', e?.message);
     }
@@ -551,6 +574,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   //   새로 생겨 FlatList가 보이는 말풍선을 전부 다시 그려 입력이 버벅임(안드 특히). list/읽음/상대정보 바뀔 때만 갱신.
   const renderItem = useCallback(({ item, index }) => {
     const mine = item.senderUid === myUid;
+    // 동영상 메시지 — videoUrl(+poster). 사진보다 우선 판정.
+    const video = item.videoUrl ? { uri: item.videoUrl, poster: item.poster || null } : null;
     // 사진 정규화 — imageUrls(앨범) 우선, 없으면 imageUrl(단일·일정공유 카드)을 1장 배열로. 둘 다 없으면 텍스트.
     const imgs = (Array.isArray(item.imageUrls) && item.imageUrls.length) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
     const hasImg = imgs.length > 0;
@@ -597,7 +622,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         )}
         {/* 말풍선 — 보낸=우측(버터), 받은=좌측 플러시(페일스카이). 아바타는 위 묶음 헤더로 분리. 시각은 옆에 작게 */}
         <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
-          alignItems: 'flex-end', paddingHorizontal: 12, marginVertical: 2, gap: 6 }}>
+          alignItems: 'flex-end', paddingHorizontal: 12,
+          // 발신자 바뀌어 내 그룹이 시작될 때 위 간격↑(받은 메시지는 아바타 헤더가 간격 담당) — 상대↔나 번갈아 보낼 때 붙던 것 해소
+          marginTop: (mine && firstOfGroup) ? 12 : 2, marginBottom: 2, gap: 6 }}>
           {/* 내 메시지 좌측: 읽음(✓✓ 페일스카이) + 시각. 읽기 전엔 시각만. */}
           {mine && (!!time || read) && (
             <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
@@ -608,10 +635,10 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <View style={{ maxWidth: '78%' }}>
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
-            <TouchableOpacity activeOpacity={(hasImg || bigEmoji) ? 1 : 0.85} delayLongPress={300}
+            <TouchableOpacity activeOpacity={(hasImg || video || bigEmoji) ? 1 : 0.85} delayLongPress={300}
               onLongPress={() => setReactTarget(item)}
-              style={(hasImg || bigEmoji)
-                ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진·이모지전용은 버블 배경 없이 깔끔하게
+              style={(hasImg || video || bigEmoji)
+                ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진·영상·이모지전용은 버블 배경 없이 깔끔하게
                 : { backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
                     borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
                     borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
@@ -628,6 +655,11 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                     {item.replyTo.body}
                   </Text>
                 </View>
+              )}
+              {/* 동영상 — 포스터 썸네일+▶, 탭 시 전체화면 재생(PhotoViewer). */}
+              {video && (
+                <DmVideo uri={video.uri} poster={video.poster} size={210}
+                  onPress={() => setImgViewer({ video })} onLongPress={() => setReactTarget(item)} />
               )}
               {/* 사진(앨범 그리드) — 칸 탭 시 전체화면(PhotoViewer, 해당 index부터 넘겨보기). */}
               {hasImg && (
@@ -702,7 +734,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         style={{ flex: 1 }}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
-        ListHeaderComponent={(pendingImgs.length || friendTyping) ? (
+        ListHeaderComponent={(pendingImgs.length || vidSending > 0 || friendTyping) ? (
           <View>
             {/* 낙관적 미리보기 — 업로드 중인 내 사진을 즉시 표시(흐림+스피너). 인버티드 헤더=시각적 바닥(최신 위치). */}
             {pendingImgs.map(p => (
@@ -715,6 +747,15 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 </View>
               </View>
             ))}
+            {/* 동영상 업로드 중 — 용량 커서 시간 걸려 진행 표시(포스터 미리보기 없이 한 줄) */}
+            {vidSending > 0 && (
+              <View style={{ paddingHorizontal: 14, marginBottom: 8, alignItems: 'flex-end' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: DM_MINE_BG, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 11 }}>
+                  <ActivityIndicator color={DM_MINE_TX} size="small" />
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: DM_MINE_TX }}>동영상 보내는 중…</Text>
+                </View>
+              </View>
+            )}
             {friendTyping ? <TypingDots /> : null}
           </View>
         ) : null}
@@ -838,7 +879,11 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         prefillEvidence={reportPrefill || ''} />
       {/* DM 사진 전체화면 — 말풍선 이미지 탭. 자체 Modal(onRequestClose)이라 뒤로가기는 뷰어만 닫음 */}
       {imgViewer && (
-        <PhotoViewer photos={(imgViewer.uris || []).map(u => ({ uri: u }))} startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} allowSave />
+        <PhotoViewer
+          photos={imgViewer.video
+            ? [{ uri: imgViewer.video.uri, type: 'video', poster: imgViewer.video.poster }]
+            : (imgViewer.uris || []).map(u => ({ uri: u }))}
+          startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} allowSave={!imgViewer.video} />
       )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>

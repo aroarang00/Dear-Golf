@@ -88,8 +88,14 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
 //   안 읽음·대화방별 음소거는 출시 후([[dm-design]]). 수신자가 방을 열어둔 경우의 중복은 감수(presence 미구현).
 exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/{msgId}', async (event) => {
   const msg = event.data?.data();
-  if (!msg || !msg.senderUid || !msg.body) return;
+  if (!msg || !msg.senderUid) return;
   const senderUid = msg.senderUid;
+  // 미디어 메시지(사진·영상)는 body=''라 미리보기 텍스트로 대체 — 없으면(빈 메시지) 스킵.
+  const hasImage = msg.imageUrl || (Array.isArray(msg.imageUrls) && msg.imageUrls.length);
+  const preview = msg.body
+    ? (msg.body.length > 80 ? `${msg.body.slice(0, 80)}…` : msg.body)
+    : (msg.videoUrl ? '🎬 동영상' : (hasImage ? '📷 사진' : ''));
+  if (!preview) return;
   try {
     const convSnap = await db.doc(`conversations/${event.params.pairId}`).get();
     const participants = convSnap.exists ? (convSnap.data().participantUids || []) : [];
@@ -109,7 +115,6 @@ exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/
     const token = r.pushToken;
     if (!token) return;
     const senderName = (sSnap.exists && sSnap.data().nickname) ? sSnap.data().nickname : '친구';
-    const preview = msg.body.length > 80 ? `${msg.body.slice(0, 80)}…` : msg.body;
     await sendExpoPush(token, senderName, preview, { type: 'dm', pairId: event.params.pairId, senderUid });
   } catch (e) {
     logger.warn('[dm] push fail', e?.message);
