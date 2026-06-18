@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated, useWindowDimensions,
+  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated, Easing, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
@@ -109,6 +109,19 @@ export function HomeScreen({ navigation, route }) {
     return () => { loop.stop(); dmShake.setValue(0); };
   }, [dmUnread]);
   const dmShift = dmShake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] });
+  // 안읽음 0(idle)일 때 DM 버튼이 너무 밋밋(그냥 표식)해 은은하게 숨쉬듯 맥동(호흡 스케일)만.
+  //   안읽음(>0) 생기면 진동(buzz)에 양보 — 루프 정지 + 값 0(스케일1)이라 두 애니가 겹치지 않음.
+  const dmBreathe = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (dmUnread > 0) { dmBreathe.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(dmBreathe, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(dmBreathe, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => { loop.stop(); dmBreathe.setValue(0); };
+  }, [dmUnread]);
+  const dmIdleScale = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
   useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
   // 홈 탭 복귀(focus) 시 안읽음 카운트 재조회 — 마운트·DM모달 닫힘에만 갱신하면, 푸시로 다른 탭에서 DM을 읽었을 때
   //   홈의 dmUnread가 옛 값(>0)으로 남아 안읽음 없는데도 버튼이 흔들리던 버그 방지(+자리 비운 새 DM도 반영). 2026-06-18.
@@ -574,21 +587,24 @@ export function HomeScreen({ navigation, route }) {
                   ★드롭섀도 제거(2026-06-18): 반투명 배경을 그림자가 투과해 iOS/안드 릴리즈에서 'DM 뒤 뿌연 팔각형'
                   아티팩트가 보였음(배경 없는 뷰의 그림자 다각형 근사 + elevation 팔각형). 깔끔함 우선으로 그림자 제거. */}
               <Animated.View style={{ width: 44, height: 44, borderRadius: 22,
+                alignItems: 'center', justifyContent: 'center',
                 transform: [{ translateX: dmShift }] }}>
-                <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
-                  backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
-                    backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
-                    alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
-                      fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
-                      color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
-                      /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +2로 내려 원 안 정중앙에 맞춤(살짝 높던 것 보정). */
-                      marginTop: dmUnread > 0 ? (Platform.OS === 'ios' ? 1 : 0) : (Platform.OS === 'ios' ? 2 : -1) }}>
-                      {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
-                    </Text>
+                <Animated.View style={{ transform: [{ scale: dmIdleScale }] }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
+                    backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
+                      backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
+                      alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
+                        fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
+                        color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
+                        /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +2로 내려 원 안 정중앙에 맞춤(살짝 높던 것 보정). */
+                        marginTop: dmUnread > 0 ? (Platform.OS === 'ios' ? 1 : 0) : (Platform.OS === 'ios' ? 2 : -1) }}>
+                        {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
+                      </Text>
+                    </View>
                   </View>
-                </View>
+                </Animated.View>
               </Animated.View>
             </TouchableOpacity>
           </View>
