@@ -33,11 +33,14 @@ export function mealSuggestionId(scheduleId) {
 export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids }) {
   if (!authorUid || !schedule?.id || !place?.name) return null;
   const aud = [...new Set((audienceUids || []).filter(u => u && u !== authorUid))];
-  const id = mealSuggestionId(schedule.id);
+  // ★공유 키 — 전파 일정은 사용자마다 schedule.id가 다르므로(파생 id), 같은 라운딩이면 groupId로 한 문서에 수렴.
+  //   groupId 없으면(혼자/비전파) schedule.id 폴백. 모든 참여자가 같은 meal 문서를 읽고/바꾸게 됨.
+  const key = schedule.groupId || schedule.id;
+  const id = mealSuggestionId(key);
   await setDoc(doc(db, COLLECTION, id), {
     authorUid,
     authorName: authorName || '',
-    scheduleId: schedule.id,
+    scheduleId: key,
     course: schedule.course || '',
     courseId: schedule.courseId || null,
     courseLoc: schedule.courseLoc || null,

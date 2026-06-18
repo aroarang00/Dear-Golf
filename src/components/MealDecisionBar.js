@@ -10,6 +10,7 @@ import {
   proposeMeal, toggleAgreeMeal, decideMeal,
   subscribeMealForSchedule, subscribeIncomingMeals,
 } from '../utils/mealSuggestions';
+import { getScheduleGroup } from '../utils/scheduleShares';
 
 // 라운딩 코스 좌표 해석 — courseId(userCourses) 우선, 없으면 이름으로 골프장 검색. 주변 맛집 검색용.
 async function resolveCoord(schedule) {
@@ -44,15 +45,26 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
   const [kw, setKw] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const schedId = schedule?.id;
+  const [members, setMembers] = useState([]); // 전파 일정 그룹 참여자(audience 소스 — companions보다 신뢰)
+  // ★공유 키 — 전파 일정은 groupId로 모든 참여자가 같은 meal 문서에 수렴(사용자별 schedule.id 발산 방지).
+  const mealKey = schedule?.groupId || schedule?.id;
   useEffect(() => {
-    if (!active || !schedId) { setMine(null); return; }
-    return subscribeMealForSchedule(schedId, setMine);
-  }, [active, schedId]);
+    if (!active || !mealKey) { setMine(null); return; }
+    return subscribeMealForSchedule(mealKey, setMine);
+  }, [active, mealKey]);
   useEffect(() => {
     if (!active || !uid) { setIncoming([]); return; }
     return subscribeIncomingMeals(uid, setIncoming);
   }, [active, uid]);
+  // 전파 일정이면 그룹 멤버를 audience 소스로 — 주최자 schedule.companions가 비어도 실제 참여자 전원에게 제안이 감.
+  useEffect(() => {
+    if (!active || !schedule?.groupId) { setMembers([]); return; }
+    let alive = true;
+    getScheduleGroup(schedule.groupId)
+      .then(g => { if (alive) setMembers(g?.memberUids || []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [active, schedule?.groupId]);
 
   const meal = mine || incoming.find(m => m.date === schedule?.date && m.course === schedule?.course) || null;
   const isAuthor = !!meal && meal.authorUid === uid;
@@ -60,10 +72,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active }) {
   const iAgreed = !!meal && (meal.agreedUids || []).includes(uid);
   const place = meal?.place;
 
-  const audienceUids = useMemo(
-    () => [...new Set((schedule?.companions || []).map(c => c?.friendUid).filter(Boolean))],
-    [schedule],
-  );
+  // audience = 전파 일정이면 그룹 멤버(나 제외), 아니면 일정의 친구 동반자(friendUid). 그룹 멤버가 신뢰도 높음.
+  const audienceUids = useMemo(() => {
+    if (schedule?.groupId && members.length) {
+      return [...new Set(members.filter(u => u && u !== uid))];
+    }
+    return [...new Set((schedule?.companions || []).map(c => c?.friendUid).filter(Boolean))];
+  }, [schedule, members, uid]);
 
   const loadNearby = async () => {
     setLoading(true);
