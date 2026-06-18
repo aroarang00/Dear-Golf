@@ -533,9 +533,10 @@ export function HomeScreen({ navigation, route }) {
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: 0 }}>
-              {/* DM 커스텀 버튼 — 플로팅 칩(사용자 2026-06-18): 평면 버터 필 + 균일 테두리 + 선명한 드롭섀도로 배경에서 떠 보이게. 글로우/베벨 없음. 안읽음=버건디+숫자 */}
+              {/* DM 커스텀 버튼 — 반투명 버터 동그라미 + 균일 테두리. 안읽음=버건디+숫자. 안읽음 시 좌우 진동.
+                  ★드롭섀도 제거(2026-06-18): 반투명 배경을 그림자가 투과해 iOS/안드 릴리즈에서 'DM 뒤 뿌연 팔각형'
+                  아티팩트가 보였음(배경 없는 뷰의 그림자 다각형 근사 + elevation 팔각형). 깔끔함 우선으로 그림자 제거. */}
               <Animated.View style={{ width: 44, height: 44, borderRadius: 22,
-                shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 3, elevation: 5,
                 transform: [{ translateX: dmShift }] }}>
                 <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
                   backgroundColor: 'rgba(245,230,168,0.14)', alignItems: 'center', justifyContent: 'center' }}>
