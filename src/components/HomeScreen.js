@@ -668,7 +668,7 @@ export function HomeScreen({ navigation, route }) {
                         <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
                         </View>
-                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(18), lineHeight: 23 }]} numberOfLines={2}>{next.course}</Text>
+                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(18), lineHeight: 23 }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{next.course}</Text>
                         <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         {isRecorded(next) ? (
                           <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 'auto' }}
@@ -692,13 +692,13 @@ export function HomeScreen({ navigation, route }) {
                       <View style={{ flex: 1, paddingTop: 2 }}>
                         {/* 구장+날짜 탭 → 코스 페이지 */}
                         <TouchableOpacity activeOpacity={canOpenCourse(next) ? 0.7 : 1} onPress={() => handleCardCoursePress(next)}>
-                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(18), lineHeight: 23 }]} numberOfLines={2}>{next.course}
+                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(18), lineHeight: 23 }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{next.course}
                             {canOpenCourse(next) ? <Text style={{ fontSize: fs(12), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         </TouchableOpacity>
                         {/* D-day 탭 → 일정 시트(바텀시트) 복구 */}
-                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
+                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: 12, alignSelf: 'flex-start' }}>
                           <Text style={[homeS.cardDDay, { fontSize: fs(56), lineHeight: fs(60) }]}>D-{freshDDay(next)}</Text>
                         </TouchableOpacity>
                       </View>

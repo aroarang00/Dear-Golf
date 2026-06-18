@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
 import { getSavedRestaurants } from '../utils/savedRestaurants';
@@ -77,7 +78,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     return () => { alive = false; };
   }, [active, schedule?.groupId]);
   // 일정이 바뀌면(삭제·재생성·다른 라운딩) 캐시된 좌표·식당 리스트 초기화 — 옛 코스 식당이 남아 보이던 버그 방지.
-  useEffect(() => { setCoord(null); setList([]); setKw(''); setPickSlot(null); setMemo(''); setMemoEdit(null); }, [schedule?.id]);
+  // 일정 바뀜 또는 같은 일정의 구장만 변경(같은 id) 시 캐시 좌표·맛집 리스트 초기화 — 옛 구장 주변 맛집이 남아 보이던 버그 방지.
+  useEffect(() => { setCoord(null); setList([]); setKw(''); setPickSlot(null); setMemo(''); setMemoEdit(null); }, [schedule?.id, schedule?.courseId, schedule?.course]);
 
   // 슬롯별 식사 — 본인 문서(mine) 우선, 없으면 동반자로 받은 것(date+course+slot 매칭, cross-user 안전).
   const findIncoming = (s) => incoming.find(m => m.date === schedule?.date && m.course === schedule?.course && (m.slot || 1) === s) || null;
@@ -249,6 +251,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       )}
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        {/* KeyboardProvider — RN Modal은 별도 네이티브 윈도우라 모달 안 키보드 회피는 자체 Provider 필요(ScheduleModal과 동일) */}
+        <KeyboardProvider>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)} />
           <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20,
@@ -263,7 +267,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               </Text>
             </View>
 
-            <ScrollView style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bottomOffset={24}>
               {/* 결정된 식사 칸들 */}
               {meal1 && renderMealCard(meal1, 1)}
               {meal2 && renderMealCard(meal2, 2)}
@@ -335,9 +339,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                   </View>
                 </>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </View>
         </View>
+        </KeyboardProvider>
       </Modal>
     </>
   );
