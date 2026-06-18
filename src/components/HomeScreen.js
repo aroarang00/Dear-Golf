@@ -679,12 +679,12 @@ export function HomeScreen({ navigation, route }) {
                     <TouchableOpacity
                       onPress={() => { setSelectedSchedule(next); setShowTrafficFull(true); }}
                       activeOpacity={0.8}
-                      style={{ flex: 1.15, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
+                      style={{ flex: 0.9, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#fff' }}>🚗 귀가 교통</Text>
                     </TouchableOpacity>
                     {/* 주변 맛집 → 뒤풀이로 교체(줄 추가 시 카드 잘림). 뒤풀이 팝업이 맛집 검색·결정·길찾기 다 포함 ([[afterround-meal-decision]]) */}
-                    {/* 폭 비율 — 귀가교통 1.15 : 뒤풀이 0.85(귀가교통 살짝 넓게, 사용자 2026-06-18) */}
-                    <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active flex={0.85}
+                    {/* 폭 비율 — 귀가교통 0.9 : 뒤풀이 1.0(뒤풀이 조금 더 넓게, 사용자 2026-06-18) */}
+                    <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active flex={1}
                       autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                   </View>
                 </>
