@@ -5,6 +5,7 @@ import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard
 import { C, F, fs } from '../constants/colors';
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
 import { getSavedRestaurants } from '../utils/savedRestaurants';
+import { naverSearchUrl } from '../utils/naverMap';   // 식당 '상세'를 네이버로(맛집 더보기와 통일)
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { searchGolfCourses } from '../utils/golfCourses';
 import {
@@ -215,12 +216,12 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         {author && !editing && (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
             <TouchableOpacity onPress={() => startPick(slot, meal)} activeOpacity={0.8}
-              style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>다른 곳으로 변경</Text>
+              style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.2, borderColor: C.burgundy }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>다른 곳으로 변경</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setMemoEdit({ slot, text: meal.note || '' })} activeOpacity={0.8}
-              style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>{meal.note ? '메모 수정' : '메모'}</Text>
+              style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.2, borderColor: C.navy }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.navy }}>{meal.note ? '메모 수정' : '메모'}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -238,11 +239,11 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(160,130,30,0.18)' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 6 }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>{title}</Text>
-          {decidedCount > 0 && (
-            <TouchableOpacity onPress={() => { setPickSlot(null); setMemo(''); }} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>닫기</Text>
-            </TouchableOpacity>
-          )}
+          {/* 항상 취소 가능 — 이미 정한 게 있으면 카드로 돌아가고(닫기), 첫 결정 중이면 시트를 닫음(취소). */}
+          <TouchableOpacity onPress={() => { setPickSlot(null); setMemo(''); setKw(''); if (decidedCount === 0) setOpen(false); }}
+            activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>{decidedCount > 0 ? '닫기' : '취소'}</Text>
+          </TouchableOpacity>
         </View>
         {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
         <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
@@ -265,15 +266,15 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
+                  {/* 주소(loc)는 어차피 잘려 의미 적고 '상세'로 충분 → 종류·거리만 표기. */}
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
-                    {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}{r.loc ? ` · ${r.loc}` : ''}
+                    {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}
                   </Text>
                 </View>
-                {r.url ? (
-                  <TouchableOpacity onPress={() => Linking.openURL(r.url).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
-                    <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
-                  </TouchableOpacity>
-                ) : null}
+                {/* 상세 — 네이버 지도 검색(맛집 더보기와 통일). 카카오 url 대신 이름+지역으로 네이버 검색. */}
+                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(r.name, r.loc)).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
                   style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>여기로 정하기</Text>
@@ -321,7 +322,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>🍲 함께 식사</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
-                {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}
+                {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}{schedule?.time ? ` · ${schedule.time}` : ''}
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 5 }} numberOfLines={2}>
+                식사 장소는 처음 정한 사람만 변경할 수 있어요.
               </Text>
             </View>
 
