@@ -143,15 +143,15 @@ function TrendChart({ series, avg, bestVal }) {
         {/* y축 가이드(베스트·워스트) */}
         <SvgText x={padL - 6} y={y(minV) + 4} fontSize={fs(10)} fill={C.warmGray} textAnchor="end">{minV}</SvgText>
         <SvgText x={padL - 6} y={y(maxV) + 4} fontSize={fs(10)} fill={C.warmGray} textAnchor="end">{maxV}</SvgText>
-        {/* 평균 점선 — 중립 회색 가이드. 라벨은 상/하단에 안 잘리게 클램프(평균선이 위쪽이면 선 아래로). */}
+        {/* 평균 점선 — 중립 회색 가이드. 라벨은 '왼쪽'에(오른쪽 끝 데이터 점과 겹쳐 가려지던 문제 수정),
+            평균선이 너무 위면 선 아래로 내려 상단 잘림도 방지. */}
         {avgY != null && (() => {
-          const labelAbove = avgY - 5;
-          const clamped = Math.max(padT + 10, Math.min(padT + chartH - 3, labelAbove));
-          const labelY = labelAbove < padT + 10 ? avgY + 13 : clamped;   // 너무 위면 선 아래로
+          const above = avgY - 6;
+          const labelY = above < padT + 10 ? avgY + 14 : above;   // 너무 위면 선 아래로
           return (
             <>
               <Line x1={padL} y1={avgY} x2={W - padR} y2={avgY} stroke={C.warmGrayLight} strokeWidth={1} strokeDasharray="4,4" />
-              <SvgText x={W - padR} y={labelY} fontSize={fs(9.5)} fill={C.warmGray} textAnchor="end">평균 {avg}</SvgText>
+              <SvgText x={padL + 2} y={labelY} fontSize={fs(9.5)} fill={C.warmGray} textAnchor="start">평균 {avg}</SvgText>
             </>
           );
         })()}
