@@ -539,7 +539,7 @@ export function HomeScreen({ navigation, route }) {
               <Animated.View style={{ width: 44, height: 44, borderRadius: 22,
                 transform: [{ translateX: dmShift }] }}>
                 <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
-                  backgroundColor: 'rgba(245,230,168,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+                  backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                   <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
                     backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
                     alignItems: 'center', justifyContent: 'center' }}>
