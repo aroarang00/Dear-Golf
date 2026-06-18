@@ -97,6 +97,10 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 4 }}>위로 갈수록 좋은 스코어예요</Text>
 
             <TrendChart series={series} avg={avg} bestVal={bestVal} />
+
+            {/* C. 홀 분석 — 파·버디·보기 비율 도넛 */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>홀 분석</Text>
+            <HoleBreakdown diaries={diaries} />
           </ScrollView>
         </SafeAreaView>
       </SafeAreaProvider>
@@ -176,6 +180,96 @@ function TrendChart({ series, avg, bestVal }) {
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+// 홀 분석 도넛 — holeScores vs holePars로 버디↓/파/보기/더블+ 비율. 홀별 입력 있는 라운드만 집계.
+const HB = { birdie: '#6B1E2A', par: '#6B8B5E', bogey: '#C8D9E6', dbl: '#B8B3AB' };
+function HoleBreakdown({ diaries }) {
+  const stat = useMemo(() => {
+    let birdie = 0, par = 0, bogey = 0, dbl = 0, holes = 0, rounds = 0;
+    roundsOnly(diaries || []).forEach(d => {
+      const hs = d.holeScores, hp = d.holePars;
+      if (!Array.isArray(hs) || !Array.isArray(hp)) return;
+      let used = false;
+      for (let i = 0; i < hs.length; i++) {
+        const s = hs[i], p = hp[i];
+        if (!Number.isFinite(s) || !Number.isFinite(p) || s <= 0 || p <= 0) continue;
+        const diff = s - p; holes++; used = true;
+        if (diff <= -1) birdie++; else if (diff === 0) par++; else if (diff === 1) bogey++; else dbl++;
+      }
+      if (used) rounds++;
+    });
+    return { birdie, par, bogey, dbl, holes, rounds };
+  }, [diaries]);
+
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 };
+
+  if (stat.holes === 0) {
+    return (
+      <View style={[card, { alignItems: 'center' }]}>
+        <Text style={{ fontSize: fs(26) }}>🍩</Text>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
+          홀별 점수를 입력한 라운드가 없어요.{'\n'}기록할 때 홀별 점수를 넣으면 분석돼요.
+        </Text>
+      </View>
+    );
+  }
+
+  const segs = [
+    ['버디↓', stat.birdie, HB.birdie],
+    ['파', stat.par, HB.par],
+    ['보기', stat.bogey, HB.bogey],
+    ['더블+', stat.dbl, HB.dbl],
+  ];
+  const total = stat.holes;
+  const SIZE = 124, stroke = 18, R = (SIZE - stroke) / 2, CIRC = 2 * Math.PI * R, cx = SIZE / 2, cy = SIZE / 2;
+  const parPct = Math.round((stat.par / total) * 100);
+  let offset = 0;
+
+  return (
+    <View style={card}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+      {/* 도넛 */}
+      <View style={{ width: SIZE, height: SIZE }}>
+        <Svg width={SIZE} height={SIZE}>
+          {segs.map(([label, count, color]) => {
+            if (!count) return null;
+            const len = (count / total) * CIRC;
+            const el = (
+              <Circle key={label} cx={cx} cy={cy} r={R} fill="none" stroke={color} strokeWidth={stroke}
+                strokeDasharray={`${len} ${CIRC - len}`} strokeDashoffset={-offset}
+                transform={`rotate(-90 ${cx} ${cy})`} />
+            );
+            offset += len;
+            return el;
+          })}
+        </Svg>
+        {/* 중앙 — 파 비율 */}
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal }}>{parPct}%</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1 }}>파</Text>
+        </View>
+      </View>
+
+      {/* 범례 */}
+      <View style={{ flex: 1, gap: 9 }}>
+        {segs.map(([label, count, color]) => (
+          <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: color }} />
+            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal }}>{label}</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.charcoal }}>{Math.round((count / total) * 100)}%</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, width: 38, textAlign: 'right' }}>{count}홀</Text>
+          </View>
+        ))}
+      </View>
+
+      </View>
+      {/* 기준 라운드 수 */}
+      <Text style={{ fontFamily: F.sys, fontSize: fs(9.5), color: C.warmGrayLight, textAlign: 'right', marginTop: 10 }}>
+        {stat.rounds}개 라운드 · 홀별 입력 기준
+      </Text>
     </View>
   );
 }
