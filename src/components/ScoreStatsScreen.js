@@ -53,7 +53,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>내 스코어</Text>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}>
             {/* A. 요약 스탯바 */}
             <View style={{ flexDirection: 'row', backgroundColor: C.navy, borderRadius: 16, paddingVertical: 18 }}>
               {[
@@ -106,15 +106,19 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
 
 // 추세 라인차트 — 낮은 점수(좋음)가 위로 가게 y 반전. 베스트 점 골드, 평균 점선.
 function TrendChart({ series, avg, bestVal }) {
-  const W = Dimensions.get('window').width - 32;  // ScrollView padding 16*2
-  const H = 210;
-  const padL = 30, padR = 14, padT = 16, padB = 26;
+  const CARD_PAD = 12;
+  const W = Dimensions.get('window').width - 32 - CARD_PAD * 2;  // ScrollView 16*2 + 카드 패딩
+  const H = 200;
+  const padL = 30, padR = 14, padT = 16, padB = 24;
   const chartW = Math.max(1, W - padL - padR);
   const chartH = H - padT - padB;
+  const GOLD = '#C9A84C';   // 100대 배너와 같은 골드 — 화면 골드 톤 통일(베스트 강조)
+  // 카드 — 스탯바·안내 박스와 같은 결(연한 배경 + 라운드 + 헤어라인)로 통일
+  const card = { marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline };
 
   if (!series || series.length < 2) {
     return (
-      <View style={{ height: H, borderRadius: 14, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
+      <View style={[card, { height: 180, alignItems: 'center', justifyContent: 'center' }]}>
         <Text style={{ fontSize: fs(30) }}>📈</Text>
         <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray, marginTop: 10, textAlign: 'center', paddingHorizontal: 24, lineHeight: 19 }}>
           라운딩 2회 이상 기록하면{'\n'}스코어 추세가 보여요
@@ -134,33 +138,33 @@ function TrendChart({ series, avg, bestVal }) {
   const avgY = avg != null ? y(Math.min(maxV, Math.max(minV, avg))) : null;
 
   return (
-    <View style={{ marginTop: 10 }}>
+    <View style={[card, { paddingHorizontal: CARD_PAD, paddingVertical: CARD_PAD }]}>
       <Svg width={W} height={H}>
         {/* y축 가이드(베스트·워스트) */}
-        <SvgText x={padL - 6} y={y(minV) + 4} fontSize={fs(10)} fill={C.warmGrayLight} textAnchor="end">{minV}</SvgText>
-        <SvgText x={padL - 6} y={y(maxV) + 4} fontSize={fs(10)} fill={C.warmGrayLight} textAnchor="end">{maxV}</SvgText>
-        {/* 평균 점선 */}
+        <SvgText x={padL - 6} y={y(minV) + 4} fontSize={fs(10)} fill={C.warmGray} textAnchor="end">{minV}</SvgText>
+        <SvgText x={padL - 6} y={y(maxV) + 4} fontSize={fs(10)} fill={C.warmGray} textAnchor="end">{maxV}</SvgText>
+        {/* 평균 점선 — 중립 회색 가이드 */}
         {avgY != null && (
           <>
             <Line x1={padL} y1={avgY} x2={W - padR} y2={avgY} stroke={C.warmGrayLight} strokeWidth={1} strokeDasharray="4,4" />
             <SvgText x={W - padR} y={avgY - 5} fontSize={fs(9.5)} fill={C.warmGray} textAnchor="end">평균 {avg}</SvgText>
           </>
         )}
-        {/* 추세선 */}
-        <Polyline points={pts} fill="none" stroke={C.navy} strokeWidth={2} />
-        {/* 점 — 베스트는 골드 강조 */}
+        {/* 추세선 — 네이비(브랜드) */}
+        <Polyline points={pts} fill="none" stroke={C.navy} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        {/* 점 — 베스트는 골드(흰 테두리), 그 외 흰 점+네이비 링 */}
         {series.map((s, i) => {
           const isBest = bestVal != null && s.score === bestVal;
           return (
-            <Circle key={i} cx={x(i)} cy={y(s.score)} r={isBest ? 5 : 3.5}
-              fill={isBest ? '#E0A800' : '#fff'} stroke={isBest ? '#E0A800' : C.navy} strokeWidth={2} />
+            <Circle key={i} cx={x(i)} cy={y(s.score)} r={isBest ? 5.5 : 3.5}
+              fill={isBest ? GOLD : '#fff'} stroke={isBest ? '#fff' : C.navy} strokeWidth={isBest ? 1.5 : 2} />
           );
         })}
       </Svg>
-      {/* x축 — 처음/끝 날짜 */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: padL, marginTop: 2 }}>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>{series[0].date}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight }}>{series[n - 1].date}</Text>
+      {/* x축 — 처음/끝 날짜 (차트 점 위치에 맞춰 정렬) */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: padL, paddingRight: padR, marginTop: 2 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{series[0].date}</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{series[n - 1].date}</Text>
       </View>
     </View>
   );
