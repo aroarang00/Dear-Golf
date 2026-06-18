@@ -1124,7 +1124,8 @@ export function HomeScreen({ navigation, route }) {
         statusBarTranslucent={Platform.OS === 'android'}
         onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
         {dmChat ? (
-          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)} />
+          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)}
+            onOpenRoundup={(postId, hostUid) => { setDmChat(null); setDmOpen(false); navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid }); }} />
         ) : (
           <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
         )}

@@ -291,7 +291,7 @@ function DmVideo({ uri, poster, size, onPress, onLongPress }) {
   );
 }
 
-function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions }) {
+function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null, onClose, onOpenOptions, onOpenRoundup }) {
   const insets = useSafeAreaInsets();
   const BAR_PAD = 8;  // 입력 바 내부 하단 숨틈(항상)
   // 닫힘 시 컨테이너 하단 패딩 — 합치면 옛 DM_BOTTOM_PAD(10+insets.bottom) 유지(닫힘 상태 픽셀 동일)
@@ -670,6 +670,16 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               {hasImg && (
                 <DmImageGrid uris={imgs} full onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })}
                   onLongPress={() => setReactTarget(item)} />
+              )}
+              {/* 모집 초대 카드 — 카드 아래 '모집 보러 가기'(라운지 상세로 이동해 바로 참여). roundupId 있는 메시지만. */}
+              {!!item.roundupId && onOpenRoundup && (
+                <TouchableOpacity onPress={() => onOpenRoundup(item.roundupId, item.roundupHost || null)} activeOpacity={0.85}
+                  style={{ marginTop: 7, alignSelf: mine ? 'flex-end' : 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
+                    backgroundColor: C.navy, borderRadius: 11, paddingHorizontal: 15, paddingVertical: 10 }}>
+                  <Text style={{ fontSize: fs(13) }}>📋</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>모집 보러 가기</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>›</Text>
+                </TouchableOpacity>
               )}
               {/* 이모지만 보낸 메시지 — 버블 없이 크게(개수 적을수록 큼). 일반 본문은 fs(17)·미디엄(가독성 [[avoid-small-text]]). */}
               {!!item.body && (bigEmoji ? (

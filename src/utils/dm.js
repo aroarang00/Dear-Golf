@@ -106,15 +106,17 @@ export async function uploadDmImage(imageUri, compressOpts = {}) {
 //   이미지 메시지는 body='' (규칙: body 또는 imageUrl 중 하나). lastMessage='📷 사진'.
 //   owned=true면 이 메시지가 Storage 파일을 '단독 소유'(채팅 사진=1파일:1메시지) → 언센드 시 파일 삭제 안전.
 //   공유(여러 친구에 같은 URL)는 owned=false(기본) → 한 메시지 언센드로 파일 지우면 다른 메시지가 깨지므로 삭제 안 함.
-export async function sendImageMessageUrl(friendUid, imageUrl, owned = false) {
+export async function sendImageMessageUrl(friendUid, imageUrl, owned = false, extra = null) {
   const uid = await getUid();
   if (!uid || !friendUid || !imageUrl) throw new Error('dm: image msg args');
   const id = pairId(uid, friendUid);
+  // extra — 모집 초대 카드 전송 시 { roundupId, roundupHost } 등 부가 필드(수신측 '모집 보러 가기' 딥링크용). 규칙은 추가 필드 허용.
   const msgRef = await addDoc(collection(db, CONV, id, 'messages'), {
     senderUid: uid,
     body: '',
     imageUrl,
     ...(owned ? { imageOwned: true } : {}),
+    ...(extra && typeof extra === 'object' ? extra : {}),
     createdAt: serverTimestamp(),
   });
   setDoc(doc(db, CONV, id), {

@@ -163,12 +163,16 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
       const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 4 });
       const url = await uploadDmImage(uri, { quality: 0.95 });
       const targets = [...selectedDm];
+      // 모집 공유(초대)면 roundupId를 메시지에 실어 수신측 DM에 '모집 보러 가기' 버튼 → 라운지 상세로 바로 참여.
+      const roundupMeta = (isRoundup && moment?.id)
+        ? { roundupId: moment.id, ...(moment.authorUid ? { roundupHost: moment.authorUid } : {}) }
+        : null;
       // ★대화방을 먼저 보장(ensureConversation) — 메시지 생성 규칙이 members()=대화방 문서를 get()으로 읽어,
       //   상대와 처음 DM하는 경우(방 미존재) 메시지 create가 거부돼 수신자가 못 받던 버그 수정.
       //   정상 채팅은 입장 시 ensureConversation을 부르지만 이 공유 경로엔 없었음(첫 대화일 때만 실패=들쭉날쭉).
       await Promise.all(targets.map(fid =>
         ensureConversation(fid)
-          .then(() => sendImageMessageUrl(fid, url))
+          .then(() => sendImageMessageUrl(fid, url, false, roundupMeta))
           .catch(e => __DEV__ && console.warn('[dmShare] send fail', fid, e?.message))));
       setDmPickerOpen(false);
       setAlert({ title: 'DM으로 보냈어요', message: `${targets.length}명에게 카드를 보냈어요.`, buttons: [{ text: '확인', onPress: onClose }] });
