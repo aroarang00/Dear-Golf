@@ -33,7 +33,7 @@ async function resolveCoord(schedule) {
 // 뒤풀이 결정 — 카드 버튼(귀가교통·맛집 옆) + 팝업. ([[afterround-meal-decision]])
 //  active=오늘/종료 라운딩일 때만 버튼 노출. 탭하면 팝업: 검색·제안 → 동의 → 결정 → 네이버·티맵 길찾기.
 //  총대 1명 제안(meal_{scheduleId} 단일 문서) → 동반자 👍. 동반자는 audienceUids로 발견.
-export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened }) {
+export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1 }) {
   const insets = useSafeAreaInsets();
   const [mine, setMine] = useState(null);
   const [incoming, setIncoming] = useState([]);
@@ -145,7 +145,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   return (
     <>
       <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
-        style={{ flex: 1, backgroundColor: meal?.decided ? 'rgba(245,230,168,0.18)' : 'rgba(255,255,255,0.1)',
+        style={{ flex, backgroundColor: meal?.decided ? 'rgba(245,230,168,0.18)' : 'rgba(255,255,255,0.1)',
           borderRadius: 10, paddingVertical: 9, paddingHorizontal: 8, alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: meal?.decided ? C.butter : '#fff' }} numberOfLines={1}>{btnLabel}</Text>
       </TouchableOpacity>
