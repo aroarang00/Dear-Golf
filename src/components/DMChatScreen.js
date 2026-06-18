@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
+import { PhotoViewer } from './common/PhotoViewer'; // DM 사진 전체화면 보기
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
@@ -10,7 +11,8 @@ import { getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { LinkText } from './common/LinkText';
-import { ensureConversation, sendMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
+import { ensureConversation, sendMessage, sendImageMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
+import * as ImagePicker from 'expo-image-picker';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
 import { ReportModal } from './ReportModal';
@@ -70,7 +72,7 @@ function dayKey(ts) {
 
 // 입력 바 — ★자체 text 상태로 분리해 타이핑이 부모(메시지 리스트)를 리렌더하지 않게 함(입력 지연 방지).
 //   onSend(body)→true/false(false면 입력 복구). 답장 미리보기·전송 버튼 포함. 포커스는 ref로 노출(공감→답장 동선).
-const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, replyTo, onCancelReply, friendName, myUid, bottomPad, onTyping }, ref) {
+const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, onPickImage, replyTo, onCancelReply, friendName, myUid, bottomPad, onTyping }, ref) {
   // ★언컨트롤드 입력 — value 바인딩 제거. 키 입력마다 setState/리렌더하던 게 안드 입력 지연의 주범이라,
   //   실제 텍스트는 textRef(리렌더 안 함)에 두고 setState는 '비었다↔있다' 전환 때만(전송버튼 토글용).
   const [hasText, setHasText] = useState(false);
@@ -121,6 +123,11 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, rep
       {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]). 크림 필드(둥근 22) */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
         paddingBottom: bottomPad, backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }}>
+        {/* 사진 보내기 — 갤러리 선택 → 즉시 전송(캡션 없음 v1). 입력 좌측. */}
+        <TouchableOpacity onPress={onPickImage} activeOpacity={0.7}
+          style={{ width: 40, height: 46, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: fs(22) }}>📷</Text>
+        </TouchableOpacity>
         <TextInput
           ref={inputRef}
           defaultValue=""
@@ -229,6 +236,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const { block: blockUserFn, remaining: blockRemaining } = useBlockUser(); // 공용 차단 훅(친구 차단과 동일 동작)
   const [optionsOpen, setOptionsOpen] = useState(false);    // 헤더 ⋯ 옵션 시트(신고·차단)
   const [reportPrefill, setReportPrefill] = useState(null); // 신고 모달 — null=닫힘, 문자열=열림(근거 프리필=메시지 인용 등)
+  const [imgViewer, setImgViewer] = useState(null); // DM 사진 전체화면 — url 문자열(열림)/null(닫힘). 뒤로가기는 PhotoViewer 자체 Modal(onRequestClose)이 처리.
   useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
   // 피커·옵션시트가 떠 있으면 뒤로가기는 그것만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
@@ -361,6 +369,21 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     }
   }, [replyTo, friendUid]);
 
+  // 사진 보내기 — 갤러리에서 1장 선택 → 압축·업로드·전송(캡션 없음 v1). 익명은 카카오 연동 게이트.
+  const handlePickImage = useCallback(async () => {
+    if (auth.currentUser?.isAnonymous) { requireKakaoLink(() => handlePickImage()); return; }
+    try {
+      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: false, quality: 1 });
+      if (res.canceled || !res.assets?.[0]?.uri) return;
+      await sendImageMessage(friendUid, res.assets[0].uri);
+    } catch (e) {
+      if (__DEV__) console.warn('[DMChat] pickImage', e?.message);
+      setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] });
+    }
+  }, [friendUid]);
+
   // 메시지 삭제(언센드) — 본인 메시지만. 확인 후 양쪽 화면에서 완전 삭제(실시간 구독이 양쪽 반영).
   const confirmDeleteMsg = () => {
     const target = reactTarget;
@@ -474,8 +497,11 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <View style={{ maxWidth: '78%' }}>
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
-            <TouchableOpacity activeOpacity={0.85} delayLongPress={300} onLongPress={() => setReactTarget(item)}
-              style={{ backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
+            <TouchableOpacity activeOpacity={item.imageUrl ? 0.9 : 0.85} delayLongPress={300}
+              onPress={item.imageUrl ? () => setImgViewer(item.imageUrl) : undefined}
+              onLongPress={() => setReactTarget(item)}
+              style={{ backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG,
+                paddingHorizontal: item.imageUrl ? 4 : 16, paddingVertical: item.imageUrl ? 4 : 12,
                 borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
                 borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
               {/* 답장(인용) 블록 — 라이트 말풍선이라 어둡게 반투명. 좌측 액센트+발신자+2줄 요약 */}
@@ -492,9 +518,18 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                   </Text>
                 </View>
               )}
+              {/* 사진 메시지 — 탭하면 전체화면(PhotoViewer). 정사각 썸네일(210)로 통일. */}
+              {!!item.imageUrl && (
+                <Image source={{ uri: item.imageUrl }}
+                  style={{ width: 210, height: 210, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.06)' }}
+                  contentFit="cover" cachePolicy="memory-disk" transition={150} />
+              )}
               {/* 본문 fs(17)·미디엄 — 가독성([[avoid-small-text]]). 얇아 보인다는 피드백으로 F.sys→F.sysM. 버터 위 차콜·페일스카이 위 슬레이트 글씨 */}
-              <LinkText style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX }}
-                linkColor={mine ? '#13518F' : '#0E4C94'}>{item.body}</LinkText>
+              {!!item.body && (
+                <LinkText style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX,
+                  marginTop: item.imageUrl ? 6 : 0, marginHorizontal: item.imageUrl ? 6 : 0 }}
+                  linkColor={mine ? '#13518F' : '#0E4C94'}>{item.body}</LinkText>
+              )}
             </TouchableOpacity>
             {/* 공감 표시 — 인스타식 말풍선 하단 안쪽 모서리에 살짝 겹친 알약 */}
             {(() => {
@@ -579,6 +614,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       <DMInputBar
         ref={inputRef}
         onSend={handleSend}
+        onPickImage={handlePickImage}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         friendName={friendName}
@@ -665,6 +701,10 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         onClose={() => setReportPrefill(null)}
         presetTarget={{ id: friendUid, name: friendName }}
         prefillEvidence={reportPrefill || ''} />
+      {/* DM 사진 전체화면 — 말풍선 이미지 탭. 자체 Modal(onRequestClose)이라 뒤로가기는 뷰어만 닫음 */}
+      {imgViewer && (
+        <PhotoViewer photos={[{ uri: imgViewer }]} startIndex={0} onClose={() => setImgViewer(null)} />
+      )}
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>
   );

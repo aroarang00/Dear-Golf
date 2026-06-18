@@ -7,7 +7,10 @@ import {
   collection, query, where, orderBy, limit as fsLimit, getDocs, getDoc,
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp, onSnapshot, deleteField,
 } from 'firebase/firestore';
-import { db, getUid } from './firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, getUid, storage } from './firebase';
+import { resolvePhotoUri } from './photoStorage';
+import { compressImage } from './imageCompress';
 
 const CONV = 'conversations';
 
@@ -80,6 +83,49 @@ export async function sendMessage(friendUid, text, replyTo = null) {
     updatedAt: serverTimestamp(),
   }, { merge: true }).catch((e) => { if (__DEV__) console.warn('[dm] conv meta', e?.message); });
   return msgRef.id;
+}
+
+// DM 사진 업로드 — 압축(1200px·80% JPEG, [[image-compression]]) 후 Storage(dmImages/{uid}/…)에 올려 https URL 반환.
+//   이미 원격(http) URL이면 그대로 반환(재업로드 방지). 실패 시 throw(호출부에서 안내).
+export async function uploadDmImage(imageUri) {
+  const uid = await getUid();
+  if (!uid || !imageUri) throw new Error('dm: image uri required');
+  if (/^https?:\/\//.test(imageUri)) return imageUri;
+  const localUri = resolvePhotoUri(imageUri);
+  const compressedUri = await compressImage(localUri);
+  const res = await fetch(compressedUri);
+  const blob = await res.blob();
+  const r = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.jpg`);
+  await uploadBytes(r, blob);
+  return await getDownloadURL(r);
+}
+
+// 이미 업로드된 이미지 URL을 메시지로 전송 — 다중 전송(여러 친구에게 같은 카드)에서 업로드 1회 후 URL 재사용.
+//   이미지 메시지는 body='' (규칙: body 또는 imageUrl 중 하나). lastMessage='📷 사진'.
+export async function sendImageMessageUrl(friendUid, imageUrl) {
+  const uid = await getUid();
+  if (!uid || !friendUid || !imageUrl) throw new Error('dm: image msg args');
+  const id = pairId(uid, friendUid);
+  const msgRef = await addDoc(collection(db, CONV, id, 'messages'), {
+    senderUid: uid,
+    body: '',
+    imageUrl,
+    createdAt: serverTimestamp(),
+  });
+  setDoc(doc(db, CONV, id), {
+    participantUids: [uid, friendUid].sort(),
+    lastMessage: '📷 사진',
+    lastSenderUid: uid,
+    lastAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true }).catch((e) => { if (__DEV__) console.warn('[dm] conv meta(img)', e?.message); });
+  return msgRef.id;
+}
+
+// 단일 전송 — 업로드 후 메시지 생성(채팅 사진 보내기).
+export async function sendImageMessage(friendUid, imageUri) {
+  const url = await uploadDmImage(imageUri);
+  return sendImageMessageUrl(friendUid, url);
 }
 
 // 메시지 삭제(언센드) — 본인 메시지만 완전 삭제(양쪽 화면에서 사라짐). 규칙이 senderUid==나만 허용([[dm-design]]).
