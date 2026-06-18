@@ -157,15 +157,15 @@ exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', as
   }));
 });
 
-// 뒤풀이 제안 생성 시 동반자(audience)에게 푸시 — 홈 카드/시트가 인앱 담당, 푸시만(라운딩 후 결정 알림). ([[afterround-meal-decision]])
-//   장소 교체(re-propose)는 setDoc 덮어쓰기=update라 onCreate 미발동 → 최초 제안만 푸시(교체 재알림은 후속).
+// 뒤풀이 결정 생성 시 동반자(audience)에게 푸시 — 홈 카드/시트가 인앱 담당, 푸시로 알림. ([[afterround-meal-decision]])
+//   제안=결정 단순화(2026-06-18): 최초 제안 = decided. 장소 변경은 update라 아래 onMealSuggestionUpdated가 별도 푸시.
 exports.onMealSuggestionCreated = onDocumentCreated('mealSuggestions/{id}', async (event) => {
   const m = event.data?.data();
   if (!m || !m.authorUid || !Array.isArray(m.audienceUids)) return;
   const targets = m.audienceUids.filter(u => u && u !== m.authorUid);
   if (!targets.length) return;
   const placeName = m.place?.name || '식당';
-  const body = `${m.authorName ? m.authorName + '님이 ' : ''}뒤풀이로 '${placeName}'을 제안했어요${m.course ? ` — ${m.course}` : ''}`;
+  const body = `${m.authorName ? m.authorName + '님이 ' : ''}뒤풀이 장소를 '${placeName}'(으)로 정했어요${m.course ? ` — ${m.course}` : ''}`;
   await Promise.all(targets.map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
@@ -173,8 +173,33 @@ exports.onMealSuggestionCreated = onDocumentCreated('mealSuggestions/{id}', asyn
       const u = snap.data();
       if (u.settings?.notifyPrefs?.mealSuggestion === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '뒤풀이 제안', body, { type: 'mealSuggestion', mealId: event.params.id });
+      await sendExpoPush(u.pushToken, '뒤풀이 결정', body, { type: 'mealSuggestion', mealId: event.params.id });
     } catch (e) { logger.warn('[meal] push fail', e?.message); }
+  }));
+});
+
+// 뒤풀이 장소 변경 시 동반자에게 재푸시 — 총대가 식당을 바꾸면 동반자도 알아야 함(엉뚱한 데로 가는 사고 방지).
+//   place가 실제로 바뀐 경우만(같은 곳/기타 필드 변경엔 푸시 X). type은 동일 'mealSuggestion'(탭하면 홈).
+exports.onMealSuggestionUpdated = onDocumentUpdated('mealSuggestions/{id}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after || !after.authorUid || !Array.isArray(after.audienceUids)) return;
+  const beforeKey = before.place?.kakaoId || before.place?.name || '';
+  const afterKey = after.place?.kakaoId || after.place?.name || '';
+  if (!afterKey || beforeKey === afterKey) return; // 장소 변경 없음 → 푸시 X
+  const targets = after.audienceUids.filter(u => u && u !== after.authorUid);
+  if (!targets.length) return;
+  const placeName = after.place?.name || '식당';
+  const body = `${after.authorName ? after.authorName + '님이 ' : ''}뒤풀이 장소를 '${placeName}'(으)로 바꿨어요${after.course ? ` — ${after.course}` : ''}`;
+  await Promise.all(targets.map(async (uid) => {
+    try {
+      const snap = await db.doc(`users/${uid}`).get();
+      if (!snap.exists) return;
+      const u = snap.data();
+      if (u.settings?.notifyPrefs?.mealSuggestion === false) return;
+      if (!u.pushToken) return;
+      await sendExpoPush(u.pushToken, '뒤풀이 변경', body, { type: 'mealSuggestion', mealId: event.params.id });
+    } catch (e) { logger.warn('[meal] change push fail', e?.message); }
   }));
 });
 
