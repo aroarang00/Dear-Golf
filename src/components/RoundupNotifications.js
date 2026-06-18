@@ -16,12 +16,13 @@ import { friendDisplayName } from '../utils/friendGroups';
 const ROUNDUP_NOTI_TYPES = [
   { key: 'invite',           icon: '💌', label: '라운딩 초대',     sub: '친구가 나를 지정해 모집하면' },
   { key: 'confirmed',        icon: '✅', label: '동반자 참여',     sub: '내 모집에 친구가 참여하면' },
+  { key: 'roundupFull',      icon: '🔔', label: '모집 인원 마감',   sub: '내 모집 인원이 다 차면(확정 안내)' },
   { key: 'cancel',           icon: '❌', label: '동반자 참여 취소', sub: '동반자가 참여를 취소하면' },
   { key: 'roundupCancelled', icon: '🚫', label: '모집 취소',       sub: '참여한 모집이 취소되면' },
   { key: 'waitlist',         icon: '⏳', label: '대기 신청',       sub: '내 모집글에 대기 신청이 들어오면' },
   { key: 'slotOpen',         icon: '🎉', label: '대기 자리 열림',  sub: '대기 중인 모집에 자리가 나면' },
 ];
-const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, cancel: true, roundupCancelled: true, waitlist: true, slotOpen: true };
+const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true, cancel: true, roundupCancelled: true, waitlist: true, slotOpen: true };
 
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', slotOpen: '🎉', slotPassed: '⌛', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
