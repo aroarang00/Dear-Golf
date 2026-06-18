@@ -571,18 +571,18 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     // 자리가 났고 내가 호출된 대기자 — 자율 수락/거절(12h 내). 수락=즉시 참여(CF가 대기열 정리), 거절=대기 취소.
     actionBtn = (
       <View>
-        <View style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: C.burgundy }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>🎉 자리가 났어요!</Text>
+        <View style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', justifyContent: 'center', backgroundColor: C.burgundy }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter, includeFontPadding: false }}>🎉 자리가 났어요!</Text>
         </View>
         <Text style={hintStyle}>{calledRemainTxt}</Text>
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
           <TouchableOpacity onPress={confirmAcceptCall} activeOpacity={0.85}
-            style={{ flex: 1.6, borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>참여하기</Text>
+            style={{ flex: 1.6, borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', justifyContent: 'center', backgroundColor: C.burgundy }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter, includeFontPadding: false }}>참여하기</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={confirmCancelWait} activeOpacity={0.85}
-            style={{ flex: 1, borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>거절</Text>
+            style={{ flex: 1, borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.hairline }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray, includeFontPadding: false }}>거절</Text>
           </TouchableOpacity>
         </View>
       </View>

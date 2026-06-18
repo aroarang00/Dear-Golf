@@ -105,6 +105,35 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
     return; // 자리 채워짐(열림 아님) — 이 이벤트는 정리 전용
   }
 
+  // (B0.5) 호출된 대기자가 거절/이탈 — calledWaitlistUid가 참여자도 대기자도 아니면(leaveWaitlist로 빠짐)
+  //   즉시 다음 대기자 호출(없으면 호출 상태 정리). 클라는 보안규칙상 calledWaitlistUid를 못 지워
+  //   (B)의 !calledWaitlistUid 가드에 막히므로, 서버가 여기서 즉시 인계해 12h cutoff 지연을 없앤다(거절 즉시성).
+  //   가드 정밀: calledUid는 (B)/cutoff에서 항상 waitlist에 남겨두므로, 둘 다 아님 = 호출 본인이 빠진 경우 뿐.
+  if (calledUid
+    && !(Array.isArray(after.participantUids) && after.participantUids.includes(calledUid))
+    && !(Array.isArray(after.waitlistUids) && after.waitlistUids.includes(calledUid))) {
+    const rest = Array.isArray(after.waitlistUids) ? after.waitlistUids : [];
+    const next = rest[0] || null;
+    try {
+      await ref.update({
+        calledWaitlistUid: next || FieldValue.delete(),
+        calledAt: next ? FieldValue.serverTimestamp() : FieldValue.delete(),
+      });
+      if (next) {
+        await createSystemNotification({
+          recipientUid: next,
+          type: 'slotOpen',
+          postId,
+          postTitle: after.course || '',
+          priority: 'important',
+        });
+      }
+    } catch (e) {
+      logger.warn('[roundup] declined-handover fail', e?.message);
+    }
+    return; // 인계/정리 완료
+  }
+
   // (B) 자리 열림 — 참여자 줄어들고 대기자 있으면 1번에게 호출
   const totalBefore = totalCount(before);
   const totalAfter = totalCount(after);
@@ -176,8 +205,8 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
 });
 
 // 매시간 — 대기자 호출 후 12h 응답 없으면 다음 대기자에게 인계.
-// 응답: 참여 확정(participantUids에 calledWaitlistUid 추가됨) → 트리거 (A)에서 close됨
-//      거절(클라이언트가 calledWaitlistUid 비움 + 본인을 waitlistUids에서 제외) → 별도 처리
+// 응답: 참여 확정(participantUids에 calledWaitlistUid 추가됨) → 트리거 (B0)에서 정리
+//      거절(leaveWaitlist로 waitlistUids에서 빠짐) → onRoundupUpdated (B0.5)가 즉시 다음 인계(이 틱은 무응답 전용)
 exports.waitlistCallCutoffTick = onSchedule({ schedule: 'every 60 minutes', timeZone: 'Asia/Seoul' }, async () => {
   const cutoff = Timestamp.fromDate(new Date(Date.now() - WAITLIST_CUTOFF_HOURS * HOUR_MS));
   try {
