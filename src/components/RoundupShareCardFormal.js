@@ -88,7 +88,7 @@ export function RoundupShareCardFormal({ post, width = 320 }) {
 
         {/* 푸터 — 설치 단서 */}
         <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: P.hairline, paddingTop: 14, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: P.mute }}>디어골프에서 친구 맺고 함께해요</Text>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: P.mute }}>라운딩의 모든 순간을 더 특별하게</Text>
           <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: P.body, letterSpacing: 0.5, marginTop: 3 }}>deargolf.app</Text>
         </View>
       </LinearGradient>

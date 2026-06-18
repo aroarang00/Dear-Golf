@@ -116,7 +116,7 @@ export function RoundupShareCard({ post, width = 320 }) {
 
         {/* 푸터 — 설치 단서 */}
         <View style={styles.footer}>
-          <Text style={styles.footerLead}>디어골프에서 친구 맺고 함께해요</Text>
+          <Text style={styles.footerLead}>라운딩의 모든 순간을 더 특별하게</Text>
           <Text style={styles.footerLink}>deargolf.app</Text>
         </View>
       </View>

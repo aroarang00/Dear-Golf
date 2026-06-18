@@ -88,12 +88,13 @@ export async function sendMessage(friendUid, text, replyTo = null) {
 
 // DM 사진 업로드 — 압축(1200px·80% JPEG, [[image-compression]]) 후 Storage(dmImages/{uid}/…)에 올려 https URL 반환.
 //   이미 원격(http) URL이면 그대로 반환(재업로드 방지). 실패 시 throw(호출부에서 안내).
-export async function uploadDmImage(imageUri) {
+export async function uploadDmImage(imageUri, compressOpts = {}) {
   const uid = await getUid();
   if (!uid || !imageUri) throw new Error('dm: image uri required');
   if (/^https?:\/\//.test(imageUri)) return imageUri;
   const localUri = resolvePhotoUri(imageUri);
-  const compressedUri = await compressImage(localUri);
+  // compressOpts — 카드 공유는 텍스트가 많아 고화질(quality↑)로 넘김. 일반 채팅 사진은 기본(1200·0.8) 유지.
+  const compressedUri = await compressImage(localUri, compressOpts);
   const res = await fetch(compressedUri);
   const blob = await res.blob();
   const r = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.jpg`);

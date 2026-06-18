@@ -158,9 +158,10 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
     if (dmSending || !selectedDm.length) return;
     setDmSending(true);
     try {
-      // DM용은 pixelRatio 2(표시 210px·뷰어 충분) — 3보다 가볍게 캡처해 업로드 지연 단축. 저장/외부공유는 그대로 3.
-      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 2 });
-      const url = await uploadDmImage(uri);
+      // ★화질 — pixelRatio 4로 캡처(카드폭 320×4=1280px ≥ 압축 maxWidth 1200)해 compressImage가 '다운스케일'(선명)되게.
+      //   pixelRatio 2(=640px)면 1200으로 '업스케일'되며 텍스트가 뭉개졌음(사용자 2026-06-19). 카드는 텍스트가 많아 quality도 0.9.
+      const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 4 });
+      const url = await uploadDmImage(uri, { quality: 0.9 });
       const targets = [...selectedDm];
       // ★대화방을 먼저 보장(ensureConversation) — 메시지 생성 규칙이 members()=대화방 문서를 get()으로 읽어,
       //   상대와 처음 DM하는 경우(방 미존재) 메시지 create가 거부돼 수신자가 못 받던 버그 수정.
