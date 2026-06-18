@@ -74,7 +74,8 @@ export function ScoreShareInbox({ nickname, onDerived }) {
         }}>
           <Animated.View style={{
             borderRadius: 16, borderWidth: 2,
-            borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.55)', 'rgba(245,230,168,1)'] }),
+            // 맥동 최저점도 또렷하게(0.78~1) — 안드에서 테두리가 흐릿하게 보이던 것 보강. 양 플랫폼 동일.
+            borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.78)', 'rgba(245,230,168,1)'] }),
           }}>
             <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
               style={{ backgroundColor: C.navy, borderRadius: 13.5, padding: 14,
