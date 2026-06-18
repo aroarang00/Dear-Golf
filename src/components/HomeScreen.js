@@ -109,6 +109,15 @@ export function HomeScreen({ navigation, route }) {
   }, [dmUnread]);
   const dmShift = dmShake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] });
   useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
+  // 홈 탭 복귀(focus) 시 안읽음 카운트 재조회 — 마운트·DM모달 닫힘에만 갱신하면, 푸시로 다른 탭에서 DM을 읽었을 때
+  //   홈의 dmUnread가 옛 값(>0)으로 남아 안읽음 없는데도 버튼이 흔들리던 버그 방지(+자리 비운 새 DM도 반영). 2026-06-18.
+  useEffect(() => {
+    if (!navigation?.addListener) return;
+    const unsub = navigation.addListener('focus', () => {
+      if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {});
+    });
+    return unsub;
+  }, [navigation, dmOpen]);
   const cardsScrollRef = useRef(null);
   const upcomingLabelRef = useRef(null); // '예정 라운딩' 라벨 — 목록 팝업 위치 기준
 
