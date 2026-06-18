@@ -113,7 +113,7 @@ export function GuideScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!navigation) return;
-    const unsubscribe = navigation.addListener('tabPress', () => {
+    const resetView = () => {
       setSelected(null);
       setPreviewCourse(null);
       setOpeningCourse(false);
@@ -128,9 +128,14 @@ export function GuideScreen({ route, navigation }) {
       setShowAllGolf(false);
       setShowAllRest(false);
       setShowAllNearby(false);
-      Object.values(scrollRefs.current).forEach(r => r?.scrollTo?.({ y: 0, animated: true }));
-    });
-    return unsubscribe;
+      Object.values(scrollRefs.current).forEach(r => r?.scrollTo?.({ y: 0, animated: false }));
+    };
+    // 탭 재탭(focused 중) + 탭을 떠날 때(blur) 모두 초기화 — 다른 탭처럼 '나갔다 오면 코스 목록'으로.
+    //   ★blur 리셋이 핵심: 코스 상세는 인라인 state라, 안드 뒤로가기로 다른 탭 갔다 돌아오면(focus 복귀=tabPress 아님)
+    //   상세가 그대로 남던 문제(코스만 상태 유지)를 해소. (상세 내 안드 백은 위 useFocusEffect가 검색 유지하며 닫음.)
+    const unsubPress = navigation.addListener('tabPress', resetView);
+    const unsubBlur = navigation.addListener('blur', resetView);
+    return () => { unsubPress(); unsubBlur(); };
   }, [navigation]);
 
   useEffect(() => {
