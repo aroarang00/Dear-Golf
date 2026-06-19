@@ -61,8 +61,11 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
   const members = typeof s.members === 'number' ? s.members : 0;
   // 날씨 안내 멘트 — 날씨가 없고(주입 안 됨) 라운딩이 3일보다 더 남았을 때만(지난 일정엔 안내도 X). 3일 이내면 날씨가 채워짐.
   const showWxNote = !s.weather && (dNum == null || dNum > 3);
-  // 구장명이 길면 코스(세부코스)를 옆이 아니라 아랫줄로 — 긴 이름 말줄임 방지(사용자 2026-06-19)
-  const longCourse = (s.course || '').length >= 9;
+  // 구장명 길이별 '고정' 폰트 — adjustsFontSizeToFit은 모달/transform·flex 안에서 글자를 안 그려버리는 RN 버그가 있어
+  //   자동축소 대신 길이로 결정적 크기 산정(모든 화면서 안전히 보임). 길면 코스(세부코스)는 아랫줄로(말줄임 방지).
+  const courseLen = (s.course || '').length;
+  const courseFs = courseLen >= 16 ? 15 : courseLen >= 13 ? 17 : courseLen >= 10 ? 19 : 21;
+  const longCourse = courseLen >= 9;
 
   return (
     <View style={[styles.card, { width }]}>
@@ -101,8 +104,8 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>COURSE</Text>
             <View style={{ flexDirection: longCourse ? 'column' : 'row', alignItems: longCourse ? 'flex-start' : 'baseline', flexWrap: 'wrap' }}>
-              <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY, fontSize: fs(21) }]}
-                numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>{s.course || '-'}</Text>
+              <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY, fontSize: fs(courseFs) }]}
+                numberOfLines={2}>{s.course || '-'}</Text>
               {!!s.subCourse && (
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: longCourse ? 0 : 8, marginTop: longCourse ? 3 : 0 }}>{s.subCourse}</Text>
               )}
