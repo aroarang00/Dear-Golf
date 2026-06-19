@@ -17,8 +17,12 @@ import { loadRoundup } from '../utils/roundup';
 import { friendDisplayName } from '../utils/friendGroups';   // 별명(customName) 우선 이름 해석
 import { showAppAlert, AppAlertHost } from './AppAlert';      // 앱 커스텀 알럿(시스템 다이얼로그 대신)
 
-// 라운딩 코스 좌표 해석 — courseId(userCourses) 우선, 없으면 이름으로 골프장 검색. 주변 맛집 검색용.
+// 라운딩 코스 좌표 해석 — ①일정에 박힌 좌표(전파·모집은 계정독립 courseX/Y 보유) ②courseId(userCourses) ③이름검색 순.
+//   기존엔 ①을 안 써서 courseId 없는 전파/모집 일정에서 '구장 못 찾음'이 잦았음. 주변 맛집 검색용.
 async function resolveCoord(schedule) {
+  if (Number.isFinite(schedule?.courseX) && Number.isFinite(schedule?.courseY)) {
+    return { x: schedule.courseX, y: schedule.courseY };   // x=경도, y=위도 (카카오 규약)
+  }
   try {
     if (schedule?.courseId) {
       const c = await findUserCourseById(schedule.courseId);
@@ -125,10 +129,15 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       const cc = coord || await resolveCoord(schedule);
       if (!coord) setCoord(cc);
       // 저장 맛집(코스별)은 최상단 + 표식, 주변 검색결과에서 중복 제거 — 단골/미리 점찍은 곳 먼저.
-      const [saved, nearby] = await Promise.all([
-        getSavedRestaurants(schedule?.course).catch(() => []),
-        cc ? searchNearbyRestaurants(cc.y, cc.x, 3000).catch(() => []) : Promise.resolve([]),
-      ]);
+      const saved = await getSavedRestaurants(schedule?.course).catch(() => []);
+      // 반경 점진 확장 — 3km에 결과 적으면(시골 구장) 8km→15km로 넓혀 충분히 모음(최대 20km는 카카오 한도).
+      let nearby = [];
+      if (cc) {
+        for (const r of [3000, 8000, 15000]) {
+          nearby = await searchNearbyRestaurants(cc.y, cc.x, r).catch(() => []);
+          if (nearby.length >= 6) break;
+        }
+      }
       const savedMarked = (saved || []).map(s => ({ ...s, _saved: true }));
       const savedKeys = new Set((saved || []).map(s => s.kakaoId || s.name));
       setList([...savedMarked, ...nearby.filter(r => !savedKeys.has(r.kakaoId || r.name))]);
@@ -244,7 +253,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님이 정함`}
           </Text>
         </View>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>📍 {pl?.name} 로 결정</Text>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{pl?.name}</Text>
         {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
         {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
         {editing ? (
