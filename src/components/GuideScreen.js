@@ -764,8 +764,8 @@ export function GuideScreen({ route, navigation }) {
             {(c._source === 'user' || c._source === 'preview') && (
               <TouchableOpacity onPress={toggleSaveCourse} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={{ fontSize: fs(18), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '♥' : '♡'}</Text>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '저장됨' : '저장'}</Text>
+                <Text style={{ fontSize: fs(16), color: c._source === 'user' ? '#C9A84C' : C.warmGray }}>{c._source === 'user' ? '★' : '☆'}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: c._source === 'user' ? '#A88A2E' : C.warmGray }}>{c._source === 'user' ? '저장됨' : '저장'}</Text>
               </TouchableOpacity>
             )}
           </View>
