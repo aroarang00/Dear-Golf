@@ -104,7 +104,15 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   useEffect(() => { setCoord(null); setList([]); setKw(''); setPickSlot(null); setMemo(''); setMemoEdit(null); }, [schedule?.id, schedule?.courseId, schedule?.course]);
 
   // 슬롯별 식사 — 본인 문서(mine) 우선, 없으면 동반자로 받은 것(date+course+slot 매칭, cross-user 안전).
-  const findIncoming = (s) => incoming.find(m => m.date === schedule?.date && m.course === schedule?.course && (m.slot || 1) === s) || null;
+  // 동반자로 받은 식사 매칭 — ★전파/모집 일정(키 수렴)은 scheduleId(=mealKey)로 '정확' 매칭.
+  //   기존엔 date+course로만 매칭해, 삭제된 옛 일정의 같은 날·구장 식사를 엉뚱하게 끌어오던 버그(사용자 2026-06-19).
+  //   개인 일정(동반자 공유)은 키가 사람마다 달라(수렴 X) date+course 폴백 유지.
+  const findIncoming = (s) => {
+    if (schedule?.groupId || schedule?.roundupId) {
+      return incoming.find(m => m.scheduleId === mealKey && (m.slot || 1) === s) || null;
+    }
+    return incoming.find(m => m.date === schedule?.date && m.course === schedule?.course && (m.slot || 1) === s) || null;
+  };
   const meal1 = mine1 || findIncoming(1);
   const meal2 = mine2 || findIncoming(2);
   const decidedCount = (meal1 ? 1 : 0) + (meal2 ? 1 : 0);
