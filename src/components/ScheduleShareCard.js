@@ -71,18 +71,18 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
       </View>
 
       <View style={styles.body}>
-        <View style={styles.kickerRow}>
-          <Text style={styles.kicker}>ROUND SCHEDULE</Text>
-          {/* 우상단 Dear Golf 아래 QR — 보딩패스 항공권처럼 상단 코너. footer 멘트 공간 확보 위해 여기로(사용자 지시) */}
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.brand}>Dear Golf</Text>
-            <View style={{ marginTop: 3 }}>
-              <QRCode value="https://deargolf.app" size={32} color={INK} backgroundColor="transparent" />
-            </View>
+        {/* 우상단 코너 — 브랜드+QR을 절대배치로 빼 키커 행 높이에서 제외 → 제목↔날씨 밀착(사용자 2026-06-19).
+            QR 블록(≈51px)은 코너에 떠 있고, 좌측 콘텐츠(제목·날씨)는 그 옆/아래로 타이트하게 흐름. 코스명은 QR 아래서 시작. */}
+        <View style={{ position: 'absolute', top: 18, right: 18, alignItems: 'flex-end', zIndex: 2 }}>
+          <Text style={styles.brand}>Dear Golf</Text>
+          <View style={{ marginTop: 3 }}>
+            <QRCode value="https://deargolf.app" size={32} color={INK} backgroundColor="transparent" />
           </View>
         </View>
 
-        <View style={{ marginTop: 4 }}>
+        <Text style={styles.kicker}>ROUND SCHEDULE</Text>
+
+        <View style={{ marginTop: 8 }}>
           {/* ROUND SCHEDULE ↔ COURSE 사이 '고정 높이' 날씨 슬롯 — 날씨 유무에 카드 길이가 안 흔들리게 항상 자리 차지.
               3일 이내(s.weather 주입됨)면 예보, 아니면 '3일 전부터 표시' 안내(지난 일정은 둘 다 없이 빈 슬롯). */}
           <View style={{ height: 30, justifyContent: 'center', marginBottom: 6 }}>
