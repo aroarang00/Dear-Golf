@@ -780,7 +780,7 @@ export function HomeScreen({ navigation, route }) {
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이는 D-N과 동일 고정. D-N이면 기존 고정폭 카드. */}
             <View style={isD0
-              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: Platform.OS === 'android' ? 13 : 16, height: Platform.OS === 'android' ? 230 : 234 }
+              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: Platform.OS === 'android' ? 13 : 16, height: 234 }
               : homeS.mainCard}>
               {(freshDDay(next) === 0) ? (
                 <>
