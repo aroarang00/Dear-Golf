@@ -836,7 +836,8 @@ export function HomeScreen({ navigation, route }) {
                         )}
                       </View>
                     ) : (
-                      <View style={{ flex: 1, paddingTop: 2 }}>
+                      // 안드: flex 빼서 내용을 위로 모음(우측 채워지며 좌측 하단이 허전해 보이던 것 보정). iOS는 flex:1 유지.
+                      <View style={{ flex: Platform.OS === 'android' ? undefined : 1, paddingTop: 2 }}>
                         {/* 구장+날짜 탭 → 코스 페이지 */}
                         <TouchableOpacity activeOpacity={canOpenCourse(next) ? 0.7 : 1} onPress={() => handleCardCoursePress(next)}>
                           <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{next.course}
@@ -844,8 +845,8 @@ export function HomeScreen({ navigation, route }) {
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         </TouchableOpacity>
-                        {/* D-day 탭 → 일정 시트(바텀시트) 복구 */}
-                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: 12, alignSelf: 'flex-start' }}>
+                        {/* D-day 탭 → 일정 시트(바텀시트) 복구. 안드는 위로 모으려 고정 간격, iOS는 auto로 하단 정렬 */}
+                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: Platform.OS === 'android' ? 10 : 'auto', marginBottom: 12, alignSelf: 'flex-start' }}>
                           <Text style={[homeS.cardDDay, { fontSize: fs(56), lineHeight: fs(60) }]}>D-{freshDDay(next)}</Text>
                         </TouchableOpacity>
                       </View>
