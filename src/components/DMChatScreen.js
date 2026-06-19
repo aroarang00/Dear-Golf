@@ -357,8 +357,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   // 다중선택 삭제(카톡식) — 선택 모드 + 선택된 메시지 id. 다중 '나만 삭제(숨김)' 일괄 처리 ([[dm-multiselect-delete]]).
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
-  // 선택 모드 중엔 뒤로가기 = 모드 종료(대화방 유지), 아니면 대화방 닫기
-  useAndroidBack(true, () => { if (selectMode) { setSelectMode(false); setSelectedIds(new Set()); } else { onClose(); } });
+  const [attachOpen, setAttachOpen] = useState(false); // 📷 첨부 선택 시트(카메라 촬영 / 앨범에서 선택)
+  // 뒤로가기 우선순위 — 첨부 시트 > 선택 모드 종료 > 대화방 닫기
+  useAndroidBack(true, () => {
+    if (attachOpen) { setAttachOpen(false); return; }
+    if (selectMode) { setSelectMode(false); setSelectedIds(new Set()); return; }
+    onClose();
+  });
   // 피커·옵션시트가 떠 있으면 뒤로가기는 그것만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
   useAndroidBack(optionsOpen, () => setOptionsOpen(false));
@@ -490,7 +495,26 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     }
   }, [replyTo, friendUid]);
 
-  // 사진 보내기 — 갤러리에서 1장 선택 → 압축·업로드·전송(캡션 없음 v1). 익명은 카카오 연동 게이트.
+  // 사진 낙관적 전송 — 앨범/카메라 공용. 즉시 미리보기 그리드 → 업로드 완료 시 실제 메시지로 대체. 최대 10장.
+  const pushImages = useCallback((imgUris) => {
+    if (!imgUris?.length) return;
+    const tempId = `pending_${Date.now()}_${Math.round(Math.random() * 1e6)}`;
+    setPendingImgs(prev => [{ tempId, uris: imgUris }, ...prev]);
+    sendImagesMessage(friendUid, imgUris)
+      .catch(e => { if (__DEV__) console.warn('[DMChat] sendImages', e?.message); setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] }); })
+      .finally(() => setPendingImgs(prev => prev.filter(p => p.tempId !== tempId)));
+  }, [friendUid]);
+  // 동영상 전송 — 각각(용량 커서 느릴 수 있어 진행 표시). 포스터 자동 생성.
+  const pushVideos = useCallback((vidUris) => {
+    (vidUris || []).forEach((v) => {
+      setVidSending(n => n + 1);
+      sendVideoMessage(friendUid, v)
+        .catch(e => { if (__DEV__) console.warn('[DMChat] sendVideo', e?.message); setAlert({ title: '동영상을 보내지 못했어요', message: '용량이 크거나(최대 80MB)\n네트워크 상태를 확인해주세요.', buttons: [{ text: '확인' }] }); })
+        .finally(() => setVidSending(n => Math.max(0, n - 1)));
+    });
+  }, [friendUid]);
+
+  // 앨범에서 선택 — 사진(모아보내기)+동영상. 익명은 카카오 연동 게이트.
   const handlePickImage = useCallback(async () => {
     if (auth.currentUser?.isAnonymous) { requireKakaoLink(() => handlePickImage()); return; }
     try {
@@ -499,27 +523,29 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: 10, quality: 1, videoMaxDuration: 60 });
       if (res.canceled) return;
       const assets = res.assets || [];
-      const imgUris = assets.filter(a => a?.uri && a.type !== 'video').map(a => a.uri);
-      const vidUris = assets.filter(a => a?.uri && a.type === 'video').map(a => a.uri);
-      // 사진 — 모아보내기(앨범). 낙관적 미리보기(즉시 그리드)→업로드 완료 시 실제 메시지로 대체. 최대 10장.
-      if (imgUris.length) {
-        const tempId = `pending_${Date.now()}_${Math.round(Math.random() * 1e6)}`;
-        setPendingImgs(prev => [{ tempId, uris: imgUris }, ...prev]);
-        sendImagesMessage(friendUid, imgUris)
-          .catch(e => { if (__DEV__) console.warn('[DMChat] sendImages', e?.message); setAlert({ title: '사진을 보내지 못했어요', message: '지금은 이 대화에\n사진을 보낼 수 없어요.', buttons: [{ text: '확인' }] }); })
-          .finally(() => setPendingImgs(prev => prev.filter(p => p.tempId !== tempId)));
-      }
-      // 동영상 — 각각 전송(용량 커서 업로드 느릴 수 있어 진행 표시). 포스터 자동 생성.
-      vidUris.forEach((v) => {
-        setVidSending(n => n + 1);
-        sendVideoMessage(friendUid, v)
-          .catch(e => { if (__DEV__) console.warn('[DMChat] sendVideo', e?.message); setAlert({ title: '동영상을 보내지 못했어요', message: '용량이 크거나(최대 80MB)\n네트워크 상태를 확인해주세요.', buttons: [{ text: '확인' }] }); })
-          .finally(() => setVidSending(n => Math.max(0, n - 1)));
-      });
+      pushImages(assets.filter(a => a?.uri && a.type !== 'video').map(a => a.uri));
+      pushVideos(assets.filter(a => a?.uri && a.type === 'video').map(a => a.uri));
     } catch (e) {
       if (__DEV__) console.warn('[DMChat] pickImage', e?.message);
     }
-  }, [friendUid]);
+  }, [pushImages, pushVideos]);
+
+  // 카메라 촬영 — 즉시 1장 찍어 전송. 권한 거부 시 안내. 익명은 게이트. (권한·기능은 앱에 이미 포함, scorecardOcr와 동일)
+  const handleCaptureCamera = useCallback(async () => {
+    if (auth.currentUser?.isAnonymous) { requireKakaoLink(() => handleCaptureCamera()); return; }
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        setAlert({ title: '카메라 권한이 필요해요', message: '사진을 촬영해 보내려면\n설정에서 카메라 접근을 허용해주세요.', buttons: [{ text: '확인' }] });
+        return;
+      }
+      const res = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
+      if (res.canceled) return;
+      pushImages((res.assets || []).filter(a => a?.uri).map(a => a.uri));
+    } catch (e) {
+      if (__DEV__) console.warn('[DMChat] camera', e?.message);
+    }
+  }, [pushImages]);
 
   // 메시지 삭제(언센드) — 본인 메시지만. 확인 후 양쪽 화면에서 완전 삭제(실시간 구독이 양쪽 반영).
   const confirmDeleteMsg = () => {
@@ -913,7 +939,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       <DMInputBar
         ref={inputRef}
         onSend={handleSend}
-        onPickImage={handlePickImage}
+        onPickImage={() => { Keyboard.dismiss(); setAttachOpen(true); }}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         friendName={friendName}
@@ -1006,6 +1032,25 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
               <Text style={{ fontSize: fs(17) }}>🚫</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>{friendName}님 차단</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
+      {/* 사진 첨부 선택 시트 — 카메라 촬영 / 앨범에서 선택. 자체 오버레이(Modal 중첩 회피, 옵션 시트와 동일 패턴) */}
+      {attachOpen && (
+        <TouchableOpacity activeOpacity={1} onPress={() => setAttachOpen(false)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: DM_FIELD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 10) + 6 }}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => { setAttachOpen(false); handleCaptureCamera(); }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: fs(17) }}>📸</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>카메라 촬영</Text>
+            </TouchableOpacity>
+            <View style={{ height: 0.5, backgroundColor: 'rgba(0,0,0,0.08)', marginHorizontal: 20 }} />
+            <TouchableOpacity activeOpacity={0.7} onPress={() => { setAttachOpen(false); handlePickImage(); }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
+              <Text style={{ fontSize: fs(17) }}>🖼️</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>앨범에서 선택</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
