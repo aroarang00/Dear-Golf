@@ -69,6 +69,8 @@ export function HomeScreen({ navigation, route }) {
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [sheetMealSchedule, setSheetMealSchedule] = useState(null); // 일정 시트 '함께 식사' 대상(triggerless) — 세컨 카드 등 next 아닌 일정용
+  const [sheetMealAutoOpen, setSheetMealAutoOpen] = useState(false);
   const [pendingInviteSchedule, setPendingInviteSchedule] = useState(null); // 생성 직후 초대 제안 대상(알람 팝업 뒤)
   const [cardSlide, setCardSlide] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -667,7 +669,7 @@ export function HomeScreen({ navigation, route }) {
           </View>
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-            {/* D-0이면 전폭(서브카드 숨김). 높이는 D-N과 동일 고정. D-N이면 기존 고정폭 카드. */}
+            {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이는 D-N과 동일 고정. D-N이면 기존 고정폭 카드. */}
             <View style={isD0
               ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: Platform.OS === 'android' ? 13 : 16, height: Platform.OS === 'android' ? 220 : 234 }
               : homeS.mainCard}>
@@ -779,7 +781,7 @@ export function HomeScreen({ navigation, route }) {
               )}
             </View>
 
-            {!isD0 && upcomingSchedules.slice(1, 5).map((s, i) => {
+            {upcomingSchedules.slice(1, 5).map((s, i) => {
               const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;
               // 카드 전체 = 일정 시트 열기(탭 영역 넓힘 — 가운데·여백·D-n 어디를 찍어도 시트, 발견성↑ 2026-06-13).
               //   구장명만 안쪽 터치로 코스 연결(코스 연결 불가하면 구장명도 시트로 폴백).
@@ -987,6 +989,7 @@ export function HomeScreen({ navigation, route }) {
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
         onShare={() => handleShareSchedule(selectedSchedule)}
         onInviteFriends={() => handleInviteFriends(selectedSchedule)}
+        onMeal={() => { setShowScheduleModal(false); setSheetMealSchedule(selectedSchedule); setSheetMealAutoOpen(true); }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
         onDelete={async () => {
           // 시트 안에서 이미 confirm 완료 — 바로 remove + 시트 닫음 (별도 AppAlert 띄우지 않음, RN 3중 Modal 충돌 회피)
@@ -1006,6 +1009,17 @@ export function HomeScreen({ navigation, route }) {
           }
           setShowScheduleModal(false);
         }}
+      />
+
+      {/* 일정 시트 '함께 식사' — 트리거 버튼 없이 시트만(세컨 카드 등 next 아닌 일정에서도 접근). D-0 카드 식사바와 별개([[afterround-meal-decision]]) */}
+      <MealDecisionBar
+        triggerless
+        schedule={sheetMealSchedule}
+        uid={currentUid}
+        nickname={userProfile?.nickname}
+        active={!!sheetMealSchedule}
+        autoOpen={sheetMealAutoOpen}
+        onAutoOpened={() => setSheetMealAutoOpen(false)}
       />
 
       <WeatherTransportPopup
