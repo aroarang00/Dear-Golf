@@ -850,8 +850,9 @@ export function HomeScreen({ navigation, route }) {
                         </TouchableOpacity>
                       </View>
                     )}
-                    {/* 함께 식사 — 구장 박스 아래(같은 너비), 2슬롯+메모([[afterround-meal-decision]]) */}
-                    <View style={{ marginTop: -8, marginRight: 12 }}>
+                    {/* 함께 식사 — 구장 박스 아래(같은 너비). ★위 정보박스가 flex:1이라 marginTop은 흡수돼 무효 →
+                        marginBottom으로 바닥에서 띄워 위로 올림(2슬롯+메모, [[afterround-meal-decision]]) */}
+                    <View style={{ marginRight: 12, marginBottom: 16 }}>
                       <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active block friendMeta={friendMeta}
                         autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                     </View>
