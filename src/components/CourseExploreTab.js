@@ -39,25 +39,29 @@ const distLabel = (m) => {
   return `${(m / 1000).toFixed(1)}km`;
 };
 
-// 공통 섹션 래퍼 — 헤더를 섹션별 단색 컬러 바로 표시 (리스트와 명확히 구분)
-function Section({ title, right, headerBg, titleColor, children, onRightPress }) {
-  const tc = titleColor || C.charcoal;
+// 공통 섹션 래퍼 — 깔끔한 흰 카드(둥근 모서리·얇은 테두리·부드러운 그림자)로 통일.
+//   색색 헤더 바 폐기(사용자 2026-06-20, 세련된 박스화). 아이콘은 title 안 이모지로 구분. headerBg/titleColor는 무시(호환용).
+function Section({ title, right, children, onRightPress }) {
   return (
-    <View style={{ backgroundColor: C.bgPrimary }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: headerBg || C.charcoal, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11, gap: 8 }}>
-        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(15), color: tc, letterSpacing: 0.3 }}>{title}</Text>
-        {right ? (
-          onRightPress ? (
-            <TouchableOpacity onPress={onRightPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.6} style={{ flexShrink: 0 }}>
-              <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11), color: tc, opacity: 0.85, textDecorationLine: 'underline' }}>{right}</Text>
-            </TouchableOpacity>
-          ) : (
-            <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: fs(10), color: tc, opacity: 0.7 }}>{right}</Text>
-          )
-        ) : null}
+    // 바깥 = 그림자(입체감)·둥근 모서리. 안 = overflow:hidden 클립(같은 View에 그림자+overflow면 iOS서 그림자 잘림).
+    <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 14, backgroundColor: C.bgSecondary,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 7, elevation: 4 }}>
+      <View style={{ borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: C.hairline }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          paddingHorizontal: 14, paddingTop: 13, paddingBottom: 9, gap: 8 }}>
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, letterSpacing: 0.3 }}>{title}</Text>
+          {right ? (
+            onRightPress ? (
+              <TouchableOpacity onPress={onRightPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.6} style={{ flexShrink: 0 }}>
+                <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>{right}</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text numberOfLines={1} style={{ flexShrink: 0, fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{right}</Text>
+            )
+          ) : null}
+        </View>
+        <View style={{ paddingBottom: 6 }}>{children}</View>
       </View>
-      {children}
     </View>
   );
 }
