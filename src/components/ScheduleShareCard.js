@@ -61,6 +61,8 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
   const members = typeof s.members === 'number' ? s.members : 0;
   // 날씨 안내 멘트 — 날씨가 없고(주입 안 됨) 라운딩이 3일보다 더 남았을 때만(지난 일정엔 안내도 X). 3일 이내면 날씨가 채워짐.
   const showWxNote = !s.weather && (dNum == null || dNum > 3);
+  // 구장명이 길면 코스(세부코스)를 옆이 아니라 아랫줄로 — 긴 이름 말줄임 방지(사용자 2026-06-19)
+  const longCourse = (s.course || '').length >= 9;
 
   return (
     <View style={[styles.card, { width }]}>
@@ -98,10 +100,10 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           {/* COURSE — 골프장명. 코스(세부코스)가 있으면 이름 옆에 작게 표시(카드에서만) ([[schedule-booker]]) */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>COURSE</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
-              <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY, fontSize: fs(21) }]} numberOfLines={1}>{s.course || '-'}</Text>
+            <View style={{ flexDirection: longCourse ? 'column' : 'row', alignItems: longCourse ? 'flex-start' : 'baseline', flexWrap: 'wrap' }}>
+              <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY, fontSize: fs(21) }]} numberOfLines={2}>{s.course || '-'}</Text>
               {!!s.subCourse && (
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: 8 }}>{s.subCourse}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: longCourse ? 0 : 8, marginTop: longCourse ? 3 : 0 }}>{s.subCourse}</Text>
               )}
             </View>
           </View>
