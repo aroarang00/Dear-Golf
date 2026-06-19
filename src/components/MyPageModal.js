@@ -552,6 +552,10 @@ export function MyPageModal({ visible, onClose }) {
                 {[
                   { key: 'friendRequest', icon: '🤝', label: '친구 신청', sub: '친구 신청을 받으면 알려드려요' },
                   { key: 'dm', icon: '💬', label: '메시지 (DM)', sub: '친구가 보낸 메시지를 알려드려요' },
+                  // 동반자 활동 알림 — CF(scheduleInvite/mealSuggestion/scoreShare)와 key 일치. 끄면 그 푸시 안 옴([[notification-type-wiring]]).
+                  { key: 'scheduleInvite', icon: '🗓️', label: '일정 초대', sub: '친구가 일정에 초대하면 알려드려요' },
+                  { key: 'mealSuggestion', icon: '🍲', label: '함께 식사', sub: '동반자가 식사 장소를 정하면 알려드려요' },
+                  { key: 'scoreShare', icon: '📊', label: '스코어 공유', sub: '동반자가 스코어를 공유하면 알려드려요' },
                   // 라운딩 평가 요청 토글 제거 — 전체공개 비활성으로 매너 평가 시스템 휴면 ([[project_roundup_public_disabled]])
                 ].map((item, i, arr) => {
                   const prefs = userProfile.notifyPrefs || {};
