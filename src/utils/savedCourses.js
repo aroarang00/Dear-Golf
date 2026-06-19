@@ -47,6 +47,13 @@ export async function removeSavedCourse(course) {
   return next;
 }
 
+// 순서 저장(↑/↓ 재정렬) — 전체 배열 덮어쓰기. 반환 = 저장된 목록
+export async function saveSavedCoursesOrder(list) {
+  const next = Array.isArray(list) ? list : [];
+  await storage.save(STORAGE_KEYS.savedCourses, next);
+  return next;
+}
+
 // 토글 — 반환 { saved, list }
 export async function toggleSavedCourse(course) {
   const saved = await isCourseSaved(course);

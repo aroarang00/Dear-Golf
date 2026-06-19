@@ -11,7 +11,7 @@ import { searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, 
 import { searchGolfCourses } from '../utils/golfCourses';
 import { getCurrentLocation, hasLocationPermission } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
-import { getSavedCourses } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트)
+import { getSavedCourses, saveSavedCoursesOrder } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트)
 import { getRecentCourses, addRecentCourse, clearRecentCourses } from '../utils/recentCourses';
 import { getTop100Courses, normalizeCourseName } from '../utils/top100';
 import { naverSearchUrl } from '../utils/naverMap';
@@ -110,6 +110,19 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const [refreshing, setRefreshing] = useState(false); // 당겨서 새로고침 표시 (주변 시설 재시도)
   const [savedExpanded, setSavedExpanded] = useState(false); // 내 저장 골프장 더보기
   const [savedFav, setSavedFav] = useState([]); // 내 저장 골프장(위시리스트) — 코스 상세 ★ 저장분
+  const [favEditMode, setFavEditMode] = useState(false); // 내 저장 골프장 순서 편집(↑/↓)
+
+  // 위시리스트 순서 ↑/↓ — idx와 dir(-1 위/+1 아래) 스왑 후 즉시 저장. 편집 중엔 전체 목록을 보여줘 idx가 곧 전체 인덱스.
+  const moveFav = useCallback((idx, dir) => {
+    setSavedFav(prev => {
+      const j = idx + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      const tmp = next[idx]; next[idx] = next[j]; next[j] = tmp;
+      saveSavedCoursesOrder(next); // 영속(fire-and-forget)
+      return next;
+    });
+  }, []);
 
   const refreshSaved = useCallback(async () => {
     const list = await getUserCourses();
@@ -513,10 +526,12 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         </Section>
       )}
 
-      {/* 4. 내 저장 골프장 — 코스 상세에서 ♡ 저장한 코스(userCourses). 5개 + 더보기, 탭하면 코스 열기.
+      {/* 4. 내 저장 골프장 — 코스 상세에서 저장한 위시리스트(savedCourses). 개수 표시 + ↑/↓ 순서 편집.
           (기존 '주변 연습장'은 카카오 데이터 부정확으로 대체 — 사용자 2026-06-20) */}
       <Section
-        title="⭐ 내 저장 골프장"
+        title={`⭐ 내 저장 골프장${savedFav.length ? ` ${savedFav.length}곳` : ''}`}
+        right={savedFav.length > 1 ? (favEditMode ? '완료' : '순서 편집') : undefined}
+        onRightPress={savedFav.length > 1 ? () => setFavEditMode(v => !v) : undefined}
         headerBg={C.paleSky}
         titleColor={C.navy}>
         {savedFav.length === 0 ? (
@@ -525,8 +540,10 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
           </Text>
         ) : (
           <View style={{ paddingHorizontal: 14 }}>
-            {(savedExpanded ? savedFav : savedFav.slice(0, 5)).map((s, i) => (
-              <TouchableOpacity key={s.kakaoId || `${s.name}_${i}`} onPress={() => onOpenPreview?.(s)} activeOpacity={0.7}
+            {/* 편집 중엔 전체 목록(idx=전체 인덱스라야 ↑/↓ 정확), 평소엔 5개+더보기 */}
+            {((savedExpanded || favEditMode) ? savedFav : savedFav.slice(0, 5)).map((s, i) => (
+              <TouchableOpacity key={s.kakaoId || `${s.name}_${i}`} onPress={() => onOpenPreview?.(s)}
+                activeOpacity={favEditMode ? 1 : 0.7} disabled={favEditMode}
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
@@ -535,10 +552,27 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                     <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>{s.loc}</Text>
                   )}
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGrayLight }}>›</Text>
+                {favEditMode ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <TouchableOpacity onPress={() => moveFav(i, -1)} disabled={i === 0}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} activeOpacity={0.6}
+                      style={{ width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: i === 0 ? 0.3 : 1 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.charcoal }}>↑</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => moveFav(i, 1)} disabled={i === savedFav.length - 1}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} activeOpacity={0.6}
+                      style={{ width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: i === savedFav.length - 1 ? 0.3 : 1 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.charcoal }}>↓</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGrayLight }}>›</Text>
+                )}
               </TouchableOpacity>
             ))}
-            <MoreButton moreCount={Math.max(0, savedFav.length - 5)} onPress={() => setSavedExpanded(true)} />
+            {!favEditMode && <MoreButton moreCount={Math.max(0, savedFav.length - 5)} onPress={() => setSavedExpanded(true)} />}
           </View>
         )}
       </Section>
