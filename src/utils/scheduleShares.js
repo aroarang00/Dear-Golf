@@ -155,11 +155,16 @@ export async function joinScheduleGroup(groupId, uid) {
   await updateDoc(doc(db, COLLECTION, groupId), { memberUids: arrayUnion(uid), updatedAt: serverTimestamp() });
 }
 
-// 그룹 탈퇴 — 전파 일정 삭제 시 본인을 memberUids에서 제거(arrayRemove). 안 하면 삭제 후에도 그룹 알림(수정/취소 푸시)이 계속 옴.
-//   규칙: audience인 본인이 memberUids 자기 토글 — selfMembershipToggled가 추가/제거 양방향 허용([[schedule-propagation-spec]]).
+// 그룹 탈퇴 — 전파 일정 삭제 시 본인을 memberUids에서 제거 + declinedUids에 추가.
+//   ★declinedUids에도 넣어야 — member에서만 빼면 filterPending이 '미응답'으로 보고 초대를 다시 띄움(사용자 2026-06-19).
+//   member 제거=알림 중단, declined 추가=초대 재노출 방지. 둘 다 필요. ([[schedule-propagation-spec]])
 export async function leaveScheduleGroup(groupId, uid) {
   if (!groupId || !uid) return;
-  await updateDoc(doc(db, COLLECTION, groupId), { memberUids: arrayRemove(uid), updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, COLLECTION, groupId), {
+    memberUids: arrayRemove(uid),
+    declinedUids: arrayUnion(uid),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // 거절 — 파생 없이 declinedUids에 본인만 추가(카드 재노출 방지). 사적·호스트 미통지([[roundup-invitation]] 정책 재사용).

@@ -180,13 +180,13 @@ service cloud.firestore {
         && request.auth.uid in resource.data.audienceUids
         && changedKeysWithin(['declinedUids', 'updatedAt'])
         && selfMembershipToggled('declinedUids');
-      // 탈퇴 — memberUids에 있는 본인이 자기 uid만 '제거'(전파 일정 삭제 시 그룹에서 빠짐). initiator·수신자 공통.
-      //   안 빼면 삭제 후에도 그룹 알림(수정/취소 푸시)이 계속 옴. 추가(=재참여)는 수락 규칙이 담당, 여기선 제거만.
+      // 탈퇴(초대받은 일정 삭제) — 본인을 memberUids에서 빼고 declinedUids에 넣음.
+      //   member 제거=알림 중단 / declined 추가=초대 재노출 방지(member에서만 빼면 미응답 취급돼 초대 재노출). 본인 것만.
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.memberUids
-        && changedKeysWithin(['memberUids', 'updatedAt'])
-        && selfMembershipToggled('memberUids')
-        && !(request.auth.uid in request.resource.data.memberUids);
+        && changedKeysWithin(['memberUids', 'declinedUids', 'updatedAt'])
+        && !(request.auth.uid in request.resource.data.memberUids)
+        && (request.auth.uid in request.resource.data.declinedUids);
       // 삭제: initiator만 (TTL 정리는 후속 CF).
       allow delete: if isSignedIn() && resource.data.initiatorUid == request.auth.uid;
     }
