@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
@@ -41,6 +41,18 @@ import { CourseLogModal } from './CourseLogModal';
 
 export function GuideScreen({ route, navigation }) {
   const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
+  // 헤더 '내 코스 모아보기' 버튼 — 맥동(scale) 대신 위아래로 '떠다니는' 실제 이동(translateY)으로 주목 유도(사용자 2026-06-20).
+  //   Animated.View 래퍼 transform이라 안전(LinearGradient를 애니 자식으로 두면 크래시 — 그 패턴은 회피).
+  const courseFloat = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(courseFloat, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(courseFloat, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, []);
+  const courseTranslateY = courseFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -5] });
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
   const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
@@ -1518,9 +1530,11 @@ export function GuideScreen({ route, navigation }) {
           }}>코스</Text>
         </View>
         {/* 입체 버튼 — 차콜은 별로여서(원복), 도착 화면(CourseLogModal) 헤더 그린(#6B8B5E)으로 통일.
-            그라데이션+그림자로 입체감. 버튼↔도착 화면 색 연결. 2026-06-15 사용자 */}
-        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85}
-          style={{ borderRadius: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+            그라데이션+그림자로 입체감. 버튼↔도착 화면 색 연결. 2026-06-15 사용자.
+            + 위아래로 떠다니는 이동(translateY) 추가 — 정적이라 '따로 노는' 느낌 → 움직임으로 생기. (2026-06-20) */}
+        <Animated.View style={{ borderRadius: 14, transform: [{ translateY: courseTranslateY }],
+          shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85} style={{ borderRadius: 14 }}>
           <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
             style={{ borderRadius: 14, paddingHorizontal: 15, paddingVertical: _and ? 7 : 8, flexDirection: 'row', alignItems: 'center',
               borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)' }}>
@@ -1531,6 +1545,7 @@ export function GuideScreen({ route, navigation }) {
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#fff', marginLeft: 6 }}>›</Text>
           </LinearGradient>
         </TouchableOpacity>
+        </Animated.View>
       </View>
       <CourseExploreTab
         ref={exploreRef}
