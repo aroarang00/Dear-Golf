@@ -21,7 +21,7 @@ import {
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getTop100Courses, normalizeCourseName, top100RankOf } from '../utils/top100';
-import { getUserCourses } from '../utils/userCourses';
+import { getUserCourses, addUserCourse, deleteUserCourse } from '../utils/userCourses';
 import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
@@ -198,6 +198,39 @@ export function GuideScreen({ route, navigation }) {
     });
     setSelected(PREVIEW_ID);
     setInnerTab('course');
+  };
+
+  // 코스 저장(♡) 토글 — 미저장(preview)→userCourses 추가 후 그 코스로 전환 / 저장됨→해제(일정·기록 연결 시 차단).
+  //   '내 저장 골프장' 섹션(CourseExploreTab)이 userCourses를 보여줌. 해제는 orphan 방지 위해 연결 없을 때만 ([[course-name-input]]).
+  const toggleSaveCourse = async () => {
+    const cur = getCourseData(selected);
+    if (!cur) return;
+    if (cur._source === 'user') {
+      const linked = (schedules || []).some(s => s.courseId === cur.id) || (diaries || []).some(d => d.courseId === cur.id);
+      if (linked) {
+        showAppAlert('해제할 수 없어요', '이 골프장은 일정·기록에 연결돼 있어요.\n연결을 정리한 뒤 해제할 수 있어요.');
+        return;
+      }
+      showAppAlert('저장 해제할까요?', `'${cur.name}'을(를) 내 저장 골프장에서 뺄게요.`, [
+        { text: '취소', style: 'cancel' },
+        { text: '해제', style: 'destructive', onPress: async () => {
+          try { await deleteUserCourse(cur.id); setUserCoursesList(await getUserCourses()); exploreRef.current?.refresh?.(); setSelected(null); setPreviewCourse(null); }
+          catch (e) { if (__DEV__) console.warn('[course unsave]', e?.message); }
+        } },
+      ]);
+    } else {
+      try {
+        const saved = await addUserCourse({ name: cur.name, loc: cur.loc, x: cur.x, y: cur.y, kakaoId: cur.kakaoId });
+        setUserCoursesList(await getUserCourses());
+        exploreRef.current?.refresh?.();
+        setPreviewCourse(null);
+        if (saved?.id) setSelected(saved.id);
+        showAppAlert('저장했어요', `'${cur.name}'을(를) 내 저장 골프장에 담았어요.`);
+      } catch (e) {
+        if (__DEV__) console.warn('[course save]', e?.message);
+        showAppAlert('저장 실패', '잠시 후 다시 시도해주세요.');
+      }
+    }
   };
 
   // Android 시스템 뒤로가기 — 코스 상세가 열려 있으면 홈으로 가지 않고 상세만 닫는다
@@ -722,10 +755,22 @@ export function GuideScreen({ route, navigation }) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
-          <TouchableOpacity onPress={() => { setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <TouchableOpacity onPress={() => { setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
+            </TouchableOpacity>
+            {/* 저장(♡) — 미저장(preview)이면 저장, 저장됨(user)이면 해제. '내 저장 골프장'에 모임 */}
+            {(c._source === 'user' || c._source === 'preview') && (
+              <TouchableOpacity onPress={toggleSaveCourse} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5,
+                  borderRadius: 16, borderWidth: 1, borderColor: c._source === 'user' ? C.burgundy : C.hairline,
+                  backgroundColor: c._source === 'user' ? '#FBF3D3' : 'transparent' }}>
+                <Text style={{ fontSize: fs(14), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '♥' : '♡'}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '저장됨' : '저장'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal }}

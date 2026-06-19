@@ -77,7 +77,10 @@ function MoreButton({ moreCount, onPress }) {
 // forwardRef — 코스 탭 재탭(tabPress) 시 부모(GuideScreen)가 scrollToTop()을 호출해 목록을 맨 위로 올림.
 export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview }, ref) {
   const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
-  useImperativeHandle(ref, () => ({ scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) }), []);
+  useImperativeHandle(ref, () => ({
+    scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
+    refresh: () => { refreshSaved(); refreshRecent(); }, // 코스 상세에서 저장/해제 후 '내 저장 골프장' 즉시 갱신
+  }), [refreshSaved, refreshRecent]);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -98,6 +101,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const [screenMsg, setScreenMsg] = useState('');
   const [screenExpanded, setScreenExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false); // 당겨서 새로고침 표시 (주변 시설 재시도)
+  const [savedExpanded, setSavedExpanded] = useState(false); // 내 저장 골프장 더보기
 
   const refreshSaved = useCallback(async () => {
     const list = await getUserCourses();
@@ -479,41 +483,32 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         </Section>
       )}
 
-      {/* 4. 내 주변 연습장 */}
+      {/* 4. 내 저장 골프장 — 코스 상세에서 ♡ 저장한 코스(userCourses). 5개 + 더보기, 탭하면 코스 열기.
+          (기존 '주변 연습장'은 카카오 데이터 부정확으로 대체 — 사용자 2026-06-20) */}
       <Section
-        title="🏌️ 내 주변 연습장"
-        right="↻ 새로고침"
-        onRightPress={onRefreshNearby}
+        title="⭐ 내 저장 골프장"
         headerBg={C.paleSky}
         titleColor={C.navy}>
-        {nearbyLoading ? (
-          <View style={{ paddingVertical: 22, alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={C.warmGray} />
-          </View>
-        ) : visibleNearby.length === 0 ? (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
-            {nearbyMsg}
+        {savedCourses.length === 0 ? (
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center', lineHeight: 18 }}>
+            코스 상세에서 ♡ 저장하면{'\n'}여기에 모여요
           </Text>
         ) : (
           <View style={{ paddingHorizontal: 14 }}>
-            {visibleNearby.map(n => (
-              <View key={n.kakaoId}
+            {(savedExpanded ? savedCourses : savedCourses.slice(0, 5)).map(s => (
+              <TouchableOpacity key={s.id || s.kakaoId} onPress={() => onSelectCourse?.(s.id)} activeOpacity={0.7}
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{n.name}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }}>
-                    {distLabel(n.distance) || n.loc}
-                  </Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }} numberOfLines={1}>{s.name}</Text>
+                  {!!s.loc && (
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>{s.loc}</Text>
+                  )}
                 </View>
-                <TouchableOpacity onPress={() => openMap(n)} activeOpacity={0.7}
-                  style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: C.bgSecondary,
-                    borderWidth: 0.5, borderColor: C.hairline }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.charcoal }}>지도 →</Text>
-                </TouchableOpacity>
-              </View>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGrayLight }}>›</Text>
+              </TouchableOpacity>
             ))}
-            <MoreButton moreCount={moreNearby} onPress={() => setNearbyExpanded(true)} />
+            <MoreButton moreCount={Math.max(0, savedCourses.length - 5)} onPress={() => setSavedExpanded(true)} />
           </View>
         )}
       </Section>
