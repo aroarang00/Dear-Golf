@@ -12,6 +12,8 @@ import { formatNameList } from '../utils/nameList';
 import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
+import { ShareMomentModal } from './ShareMomentModal';        // 동반자 공유 — 이미지 카드(홈과 동일)
+import { getScheduleWxSummary } from '../utils/scheduleWx';    // 공유 카드 코스명 위 해당일 날씨 주입
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { showAppAlert } from './AppAlert';
 import { AlarmSetupModal } from './AlarmSetupModal';
@@ -64,6 +66,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [pendingAlarm, setPendingAlarm] = useState(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
+  const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 동반자 공유 — 이미지 카드 대상(홈과 동일)
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
   // 친구 일정에 초대 + 함께 식사 — 홈과 동일 기능을 캘린더에서도(공용 일정 시트에서 진입)
   const [inviteTarget, setInviteTarget] = useState(null);
@@ -368,9 +371,22 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     navigation.navigate(ROUTES.COURSE, { openCourseId: id });
   };
 
-  // 바텀시트 → 동반자에게 공유
-  const handleSheetShare = async () => {
+  // 바텀시트 → 동반자에게 공유: 이미지 카드(ShareMomentModal) — 홈과 동일. 시트 닫고 카드 열기(3중 Modal 회피).
+  //   해당일 날씨를 비동기 주입(코스명 위), 카드의 '링크 공유'가 평문(설치 링크) 담당.
+  const handleSheetShare = () => {
     const s = sheet.schedule;
+    if (!s) return;
+    setSheet(prev => ({ ...prev, visible: false }));
+    const target = { ...s, dDay: computeDDay(s) };
+    setScheduleShareTarget(target);
+    if (!target.weather) {
+      getScheduleWxSummary(target).then(w => {
+        if (w) setScheduleShareTarget(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w } : prev);
+      }).catch(() => {});
+    }
+  };
+  // 카드의 '링크 공유' — 평문(설치 링크 포함). 홈 shareScheduleText와 동일 동선.
+  const shareScheduleText = async (s) => {
     if (!s) return;
     const dd = computeDDay(s);
     const ddText = dd > 0 ? `D-${dd}` : dd === 0 ? 'D-DAY' : '지난 라운딩';
@@ -836,6 +852,14 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onMeal={() => openMealForSchedule(sheet.schedule)}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      {/* 동반자 공유 카드 — 이미지(바로공유/저장) + 평문 링크(설치 동선). 시트 닫은 뒤 열림(홈과 동일) */}
+      <ShareMomentModal
+        moment={scheduleShareTarget ? { ...scheduleShareTarget, shareKind: 'schedule' } : null}
+        visible={!!scheduleShareTarget}
+        onClose={() => setScheduleShareTarget(null)}
+        onShareLink={() => { const t = scheduleShareTarget; setScheduleShareTarget(null); setTimeout(() => shareScheduleText(t), 350); }}
       />
 
       {/* 친구 일정에 초대(일정 전파) — 홈과 동일. 친구 다중선택 → 인앱 초대 발송 ([[schedule-propagation-spec]]) */}
