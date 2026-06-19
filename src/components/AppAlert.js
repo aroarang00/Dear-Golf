@@ -39,6 +39,8 @@ export function AppAlertHost() {
   const inRow = buttons.length <= 2;
 
   const btnStyle = (b) => {
+    // bg/fg 직접 지정 시 우선 — 선택지가 여럿일 때 버튼 색을 달리해 구분(예: 일정 전파 3지선다).
+    if (b.bg || b.fg) return { bg: b.bg || C.charcoal, fg: b.fg || C.butter, border: false };
     if (b.style === 'destructive') return { bg: C.burgundy, fg: C.butter, border: false };
     if (b.style === 'cancel') return { bg: C.bgSecondary, fg: C.warmGray, border: true };
     return { bg: C.charcoal, fg: C.butter, border: false };
