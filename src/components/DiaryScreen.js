@@ -19,6 +19,7 @@ import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';
 import { ScoreShareInbox } from './ScoreShareInbox';   // 동반자 스코어 공유 수신([[companion-design]] §11 Phase C)
 import { DiaryCard } from './DiaryCard';
+import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge) 공용 래퍼
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
 import { GolfLedgerModal } from './GolfLedgerModal';
@@ -809,10 +810,13 @@ export function DiaryScreen({ route, navigation }) {
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 14, lineHeight: 18 }}>
                 스크린·연습장에서의 일상도{'\n'}자유롭게 남겨보세요
               </Text>
-              <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
-                style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 32 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>✏️ 첫 기록 남기기</Text>
-              </TouchableOpacity>
+              {/* 첫 기록 — 신규 유저 핵심 첫 행동. 은은한 맥동(빈 상태에서만 떠 노이즈 X) ([[attention-motion]]) */}
+              <AttentionMotion type="pulse" style={{ marginTop: 18 }}>
+                <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
+                  style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 32 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>✏️ 첫 기록 남기기</Text>
+                </TouchableOpacity>
+              </AttentionMotion>
             </View>
           );
         }
@@ -824,7 +828,14 @@ export function DiaryScreen({ route, navigation }) {
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
                     <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C' }}>{hofExpanded ? '접기' : '펼치기'}</Text>
+                    {/* 접혀 있으면 '펼치기'를 콕콕 nudge — 안에 특별한 순간 카드가 있음을 발견 유도 ([[attention-motion]]) */}
+                    {hofExpanded ? (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C' }}>접기</Text>
+                    ) : (
+                      <AttentionMotion type="nudge" distance={4}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#C9A84C' }}>펼치기</Text>
+                      </AttentionMotion>
+                    )}
                   </TouchableOpacity>
                   {/* 첫 특별한 순간 안내 말풍선 — 카드가 접혀 있어 존재를 모르는 문제(테스터 피드백). 펼치거나 닫으면 다시 안 뜸 */}
                   {!hofExpanded && !hofHintSeen && (

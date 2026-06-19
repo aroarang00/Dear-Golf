@@ -20,6 +20,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ShareMomentModal } from './ShareMomentModal';
 import { ScheduleShareCard } from './ScheduleShareCard';   // 체크인 카드 전용(공유화면 없이 카드만) 뷰어용
+import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge·부유) 공용 래퍼
 import { ScheduleModal } from './ScheduleModal';
 import { HomeIntroModal } from './HomeIntroModal';
 import { ScheduleScreen } from './ScheduleScreen';
@@ -803,15 +804,18 @@ export function HomeScreen({ navigation, route }) {
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 보기 →</Text>
                           </TouchableOpacity>
                         ) : (
-                          <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 16 }}
-                            onPress={() => navigation.navigate(ROUTES.MY, {
-                              openAddModal: true, addDate: next.date, addCourse: next.course,
-                              addCourseId: next.courseLogId || next.courseId, addScheduleId: next.id || null,
-                              addCompanions: Array.isArray(next.companions) ? next.companions : null,
-                            })}>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', marginBottom: 3 }}>오늘 라운딩 어떠셨나요?</Text>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
-                          </TouchableOpacity>
+                          // 종료·미기록 D-0 — 핵심 동선(기록) 유도로 화살표 콕콕 nudge (시간한정이라 노이즈 X) ([[attention-motion]])
+                          <AttentionMotion type="nudge" distance={5} style={{ marginTop: 16, alignSelf: 'flex-start' }}>
+                            <TouchableOpacity activeOpacity={0.85}
+                              onPress={() => navigation.navigate(ROUTES.MY, {
+                                openAddModal: true, addDate: next.date, addCourse: next.course,
+                                addCourseId: next.courseLogId || next.courseId, addScheduleId: next.id || null,
+                                addCompanions: Array.isArray(next.companions) ? next.companions : null,
+                              })}>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', marginBottom: 3 }}>오늘 라운딩 어떠셨나요?</Text>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
+                            </TouchableOpacity>
+                          </AttentionMotion>
                         )}
                       </View>
                     ) : (
