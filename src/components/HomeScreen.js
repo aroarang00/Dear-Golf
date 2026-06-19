@@ -1164,7 +1164,8 @@ export function HomeScreen({ navigation, route }) {
           </TouchableOpacity>
           {/* activeOpacity 1 + 카드 자체 탭은 닫기 막기(배경 탭만 닫힘) */}
           <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-            {checkinCard && <ScheduleShareCard schedule={checkinCard} width={Math.min(winW - 48, 360)} />}
+            {/* 공유 카드와 동일한 320폭 — 폰트가 320 기준 calibrate(adjustsFontSizeToFit)라 좁히면 구장명 잘림 */}
+            {checkinCard && <ScheduleShareCard schedule={checkinCard} width={Math.min(winW - 24, 320)} />}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
