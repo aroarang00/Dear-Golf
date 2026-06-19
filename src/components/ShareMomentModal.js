@@ -17,6 +17,7 @@ import { ScheduleShareCard } from './ScheduleShareCard';
 import { FriendInviteCard } from './FriendInviteCard';
 import { OverlayAlert } from './common/OverlayAlert';
 import { loadMyFriendsEnriched } from '../utils/friends';
+import { loadFriendData, resolveGroupAudience, groupColor } from '../utils/friendGroups';   // 그룹 단위 DM 공유
 import { uploadDmImage, sendImageMessageUrl, ensureConversation } from '../utils/dm';
 
 // 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
@@ -47,6 +48,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const [selectedDm, setSelectedDm] = useState([]);      // 선택한 친구 uid 배열
   const [dmSending, setDmSending] = useState(false);
   const [dmSearch, setDmSearch] = useState('');          // 친구 검색(많을 때 빨리 찾기)
+  const [dmGroups, setDmGroups] = useState([]);          // 친구 그룹 — 그룹 단위 공유(내가 만든 그룹)
+  const [dmGroupMeta, setDmGroupMeta] = useState({});    // uid→{groupIds} (resolveGroupAudience용)
   const isRound = moment?.shareKind === 'round';
   const isRoundup = moment?.shareKind === 'roundup';
   const isSchedule = moment?.shareKind === 'schedule';
@@ -131,7 +134,17 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const openDmPicker = async () => {
     setSelectedDm([]); setDmSearch(''); setDmPickerOpen(true); setFriendsLoading(true);
     try { setFriends(await loadMyFriendsEnriched()); } catch { setFriends([]); }
+    try { const fd = await loadFriendData(); setDmGroups(fd.friendGroups || []); setDmGroupMeta(fd.friendMeta || {}); } catch {}
     finally { setFriendsLoading(false); }
+  };
+  // 그룹 토글 — 그 그룹 멤버(현재 친구목록에 있는) 전원을 한 번에 선택/해제(개별 선택과 혼용 가능).
+  const toggleDmGroup = (groupId) => {
+    const members = resolveGroupAudience(dmGroupMeta, [groupId]).filter(u => friends.some(f => f.id === u));
+    if (!members.length) return;
+    setSelectedDm(prev => {
+      const allSel = members.every(u => prev.includes(u));
+      return allSel ? prev.filter(u => !members.includes(u)) : [...new Set([...prev, ...members])];
+    });
   };
   // 표시용 친구 목록 — 검색 필터 + 이 라운딩 동반자 먼저(보통 같이 친 사람에게 보냄), 그 외 이름순.
   const dmCompUids = new Set((moment?.companions || []).map(c => (typeof c === 'object' ? c?.friendUid : null)).filter(Boolean));
@@ -291,6 +304,28 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                   <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
                     <TextInput value={dmSearch} onChangeText={setDmSearch} placeholder="친구 이름 검색" placeholderTextColor={C.warmGrayLight}
                       style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+                  </View>
+                )}
+                {/* 그룹으로 선택 — 내가 만든 친구 그룹 칩 탭 → 멤버 전원 토글(멤버 있는 그룹만 노출). */}
+                {!friendsLoading && dmGroups.length > 0 && friends.length > 0 && (
+                  <View style={{ marginBottom: 8 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 20, marginBottom: 6 }}>그룹으로 선택</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+                      {dmGroups.map(g => {
+                        const members = resolveGroupAudience(dmGroupMeta, [g.id]).filter(u => friends.some(f => f.id === u));
+                        if (!members.length) return null;
+                        const allSel = members.every(u => selectedDm.includes(u));
+                        return (
+                          <TouchableOpacity key={g.id} onPress={() => toggleDmGroup(g.id)} activeOpacity={0.8}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+                              backgroundColor: allSel ? C.burgundy : C.bgSecondary, borderWidth: allSel ? 0 : 1, borderColor: C.hairline }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: groupColor(dmGroups, g.id) }} />
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: allSel ? C.butter : C.charcoal }} numberOfLines={1}>{g.name}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: allSel ? 'rgba(245,230,168,0.85)' : C.warmGray }}>{members.length}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
                   </View>
                 )}
                 {friendsLoading ? (
