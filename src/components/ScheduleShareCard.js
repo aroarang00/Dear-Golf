@@ -100,8 +100,9 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
               <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: MUTE }}>날씨는 라운딩 3일 전부터 표시돼요</Text>
             ) : null}
           </View>
-          {/* COURSE — 골프장명. 코스(세부코스)가 있으면 이름 옆에 작게 표시(카드에서만) ([[schedule-booker]]) */}
-          <View style={styles.field}>
+          {/* COURSE — 골프장명. 코스(세부코스)가 있으면 이름 옆에 작게 표시(카드에서만) ([[schedule-booker]]).
+              ★flex:1 쓰지 않음 — flex:1(=flexBasis 0%)이 일부 레이아웃(모달/transform)에서 높이 0으로 접혀 구장명이 사라졌음. 내용 높이로. */}
+          <View>
             <Text style={styles.fieldLabel}>COURSE</Text>
             <View style={{ flexDirection: longCourse ? 'column' : 'row', alignItems: longCourse ? 'flex-start' : 'baseline', flexWrap: 'wrap' }}>
               <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY, fontSize: fs(courseFs) }]}
@@ -120,10 +121,12 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           <Field label="TEE-OFF" value={timeText} align="right" />
         </View>
 
-        {/* 예약자 — 프론트 체크인 이름(있을 때만). 법인명·양도명도 그대로 ([[schedule-booker]]) */}
+        {/* 예약자 — 프론트 체크인 이름(있을 때만). 법인명·양도명도 그대로 ([[schedule-booker]]).
+            ★Field(flex:1) 대신 커스텀 — 세로 단독 필드는 flex:1이 일부 레이아웃서 높이 0으로 접혀 안 보였음(COURSE와 동일). */}
         {s.booker ? (
           <View style={{ marginTop: 14 }}>
-            <Field label="예약자 · BOOKED BY" value={s.booker} />
+            <Text style={styles.fieldLabel}>예약자 · BOOKED BY</Text>
+            <Text style={styles.fieldValue} numberOfLines={1}>{s.booker}</Text>
           </View>
         ) : null}
 
