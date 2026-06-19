@@ -804,8 +804,9 @@ export function HomeScreen({ navigation, route }) {
                   {/* D-0 카드(전폭) — 상단 좌(정보 박스)·우(날씨교통, 박스X 큰 이모지) + 우측하단 나가기 + 하단 함께식사 긴 박스.
                       티오프+4h는 좌측 박스 내용만 토글([[home-round-ended-threshold]] 2026-06-18 재정의) */}
                   <View style={{ flexDirection: 'row', gap: 10, flex: 1 }}>
-                    {/* 좌 칼럼 — 정보(구장) 박스 + 함께식사 박스 세로 스택(같은 너비) */}
-                    <View style={{ flex: 1.4 }}>
+                    {/* 좌 칼럼 — 정보(구장) 박스 + 함께식사 박스 세로 스택(같은 너비).
+                        안드는 내용을 세로 중앙 정렬(위로 너무 붙던 것 보정, 우측 날씨·교통과 균형). iOS는 기존 flex 흐름. */}
+                    <View style={{ flex: 1.4, justifyContent: Platform.OS === 'android' ? 'center' : undefined }}>
                     {/* 좌 — 정보 박스 (전: 구장+시간+D-0 / 후: 종료배지+구장+기록 안내) */}
                     {roundEnded ? (
                       <View style={{ flex: 1, paddingTop: 2 }}>
