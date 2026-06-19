@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
@@ -15,6 +15,7 @@ import {
 import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadRoundup } from '../utils/roundup';
 import { friendDisplayName } from '../utils/friendGroups';   // 별명(customName) 우선 이름 해석
+import { showAppAlert, AppAlertHost } from './AppAlert';      // 앱 커스텀 알럿(시스템 다이얼로그 대신)
 
 // 라운딩 코스 좌표 해석 — courseId(userCourses) 우선, 없으면 이름으로 골프장 검색. 주변 맛집 검색용.
 async function resolveCoord(schedule) {
@@ -156,7 +157,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   //   푸시가 도배되던 문제 방지 + 취소 경로 제공(사용자 2026-06-19).
   const propose = (pl) => {
     if (busy || !uid || !pl?.name) return;
-    Alert.alert('식사 장소 정하기', `${pl.name}(으)로 정할게요.\n동반자에게 알림이 가요.`, [
+    showAppAlert('식사 장소 정하기', `${pl.name}(으)로 정할게요.\n동반자에게 알림이 가요.`, [
       { text: '취소', style: 'cancel' },
       { text: '정하기', onPress: () => commitMeal(pl) },
     ]);
@@ -181,7 +182,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       }
       const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: memo || '', audienceUids: aud, slot, hostUid: host });
       if (r?.taken) {
-        Alert.alert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}식사 장소를 먼저 정했어요.\n변경은 정한 사람이나 주최자만 할 수 있어요.`);
+        showAppAlert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}식사 장소를 먼저 정했어요.\n변경은 정한 사람이나 주최자만 할 수 있어요.`);
       } else {
         setKw(''); setPickSlot(null); setMemo('');
       }
@@ -196,7 +197,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   };
   // 식사 결정 취소 — 문서 삭제(조용히, 푸시 X). 작성자/주최자만(canEditMeal). 동반자에겐 알림 안 감(스팸 방지).
   const cancelMeal = (m, slot) => {
-    Alert.alert('식사 취소', `${m?.place?.name || '식사'} 결정을 취소할까요?\n동반자에겐 알림이 가지 않아요.`, [
+    showAppAlert('식사 취소', `${m?.place?.name || '식사'} 결정을 취소할까요?\n동반자에겐 알림이 가지 않아요.`, [
       { text: '닫기', style: 'cancel' },
       { text: '취소하기', style: 'destructive', onPress: async () => {
         try { await deleteMeal(mealKey, slot); } catch (e) { if (__DEV__) console.warn('[meal] cancel', e?.message); }
@@ -430,6 +431,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             </KeyboardAwareScrollView>
           </View>
         </View>
+        {/* 이 시트(Modal) 안의 AppAlert 호스트 — 확인/취소창이 시트 위에 정상 노출(루트 호스트는 모달 뒤로 깔림). 모달 닫히면 자동 복귀. */}
+        <AppAlertHost />
         </KeyboardProvider>
       </Modal>
     </>
