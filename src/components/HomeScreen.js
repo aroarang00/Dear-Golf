@@ -764,13 +764,13 @@ export function HomeScreen({ navigation, route }) {
                         <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(18), lineHeight: 23 }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{next.course}</Text>
                         <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         {isRecorded(next) ? (
-                          <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 'auto' }}
+                          <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 16 }}
                             onPress={() => { const d = recordedDiary(next); navigation.navigate(ROUTES.MY, d ? { openDiaryId: d.id, returnToHome: true } : {}); }}>
                             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', marginBottom: 3 }}>기록 완료 ✓</Text>
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 보기 →</Text>
                           </TouchableOpacity>
                         ) : (
-                          <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 'auto' }}
+                          <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 16 }}
                             onPress={() => navigation.navigate(ROUTES.MY, {
                               openAddModal: true, addDate: next.date, addCourse: next.course,
                               addCourseId: next.courseLogId || next.courseId, addScheduleId: next.id || null,
