@@ -675,7 +675,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               )}
               {/* 코스 (선택) — 골프장 내 세부코스 라벨. 구장 검색·매칭과 무관한 자유 입력. 연결된 일정에 있으면 자동 채움 ([[schedule-booker]]) */}
               <Text style={mS.bigLabel}>코스 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>(선택)</Text></Text>
-              <TextInput style={mS.input} value={subCourse} onChangeText={setSubCourse}
+              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} value={subCourse} onChangeText={setSubCourse}
                 placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
 
               <Text style={mS.bigLabel}>날짜</Text>

@@ -396,7 +396,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
               {/* 코스 (선택) — 골프장 내 세부코스 라벨. 구장 검색·매칭과 무관한 자유 입력. 공유 카드 표시·기록 자동채움 ([[schedule-booker]]) */}
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>코스 (선택)</Text>
-              <TextInput style={mS.input} value={subCourse} onChangeText={setSubCourse}
+              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} value={subCourse} onChangeText={setSubCourse}
                 placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
 
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>날짜</Text>
@@ -531,7 +531,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   </View>
                 );
               })()}
-              <TextInput style={[mS.input, { marginBottom: 0 }]} value={booker} onChangeText={setBooker}
+              <TextInput style={[mS.input, { marginBottom: 0, fontSize: fs(16), fontFamily: F.sysSb }]} value={booker} onChangeText={setBooker}
                 placeholder="예약자 이름 (법인명·양도 등도 입력)" placeholderTextColor={C.warmGrayLight} />
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
                 💡 프론트 체크인 때 보여줄 예약자 이름이에요
