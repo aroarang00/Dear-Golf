@@ -76,13 +76,13 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           {/* 우상단 Dear Golf 아래 QR — 보딩패스 항공권처럼 상단 코너. footer 멘트 공간 확보 위해 여기로(사용자 지시) */}
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.brand}>Dear Golf</Text>
-            <View style={{ marginTop: 6 }}>
-              <QRCode value="https://deargolf.app" size={38} color={INK} backgroundColor="transparent" />
+            <View style={{ marginTop: 3 }}>
+              <QRCode value="https://deargolf.app" size={32} color={INK} backgroundColor="transparent" />
             </View>
           </View>
         </View>
 
-        <View style={{ marginTop: 14 }}>
+        <View style={{ marginTop: 4 }}>
           {/* ROUND SCHEDULE ↔ COURSE 사이 '고정 높이' 날씨 슬롯 — 날씨 유무에 카드 길이가 안 흔들리게 항상 자리 차지.
               3일 이내(s.weather 주입됨)면 예보, 아니면 '3일 전부터 표시' 안내(지난 일정은 둘 다 없이 빈 슬롯). */}
           <View style={{ height: 30, justifyContent: 'center', marginBottom: 6 }}>
