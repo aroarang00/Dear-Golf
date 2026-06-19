@@ -539,7 +539,9 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
             코스 상세에서 저장하면{'\n'}여기에 모여요
           </Text>
         ) : (
-          <View style={{ paddingHorizontal: 14 }}>
+          <View style={{ paddingHorizontal: 14, marginHorizontal: favEditMode ? 8 : 0, marginBottom: favEditMode ? 8 : 0,
+            borderRadius: favEditMode ? 10 : 0, backgroundColor: favEditMode ? 'rgba(122,156,108,0.10)' : 'transparent',
+            borderWidth: favEditMode ? 0.5 : 0, borderColor: favEditMode ? 'rgba(122,156,108,0.35)' : 'transparent' }}>
             {/* 편집 중엔 전체 목록(idx=전체 인덱스라야 ↑/↓ 정확), 평소엔 5개+더보기 */}
             {((savedExpanded || favEditMode) ? savedFav : savedFav.slice(0, 5)).map((s, i) => (
               <TouchableOpacity key={s.kakaoId || `${s.name}_${i}`} onPress={() => onOpenPreview?.(s)}
