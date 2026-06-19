@@ -762,12 +762,10 @@ export function GuideScreen({ route, navigation }) {
             </TouchableOpacity>
             {/* 저장(♡) — 미저장(preview)이면 저장, 저장됨(user)이면 해제. '내 저장 골프장'에 모임 */}
             {(c._source === 'user' || c._source === 'preview') && (
-              <TouchableOpacity onPress={toggleSaveCourse} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5,
-                  borderRadius: 16, borderWidth: 1, borderColor: c._source === 'user' ? C.burgundy : C.hairline,
-                  backgroundColor: c._source === 'user' ? '#FBF3D3' : 'transparent' }}>
-                <Text style={{ fontSize: fs(14), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '♥' : '♡'}</Text>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '저장됨' : '저장'}</Text>
+              <TouchableOpacity onPress={toggleSaveCourse} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ fontSize: fs(18), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '♥' : '♡'}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: c._source === 'user' ? C.burgundy : C.warmGray }}>{c._source === 'user' ? '저장됨' : '저장'}</Text>
               </TouchableOpacity>
             )}
           </View>
