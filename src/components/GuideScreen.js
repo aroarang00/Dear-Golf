@@ -44,14 +44,19 @@ export function GuideScreen({ route, navigation }) {
   // 헤더 '내 코스 모아보기' 버튼 — 맥동(scale) 대신 위아래로 '떠다니는' 실제 이동(translateY)으로 주목 유도(사용자 2026-06-20).
   //   Animated.View 래퍼 transform이라 안전(LinearGradient를 애니 자식으로 두면 크래시 — 그 패턴은 회피).
   const courseFloat = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(courseFloat, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.timing(courseFloat, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, []);
+  // ★useNativeDriver:false — 코스 헤더는 코스 상세 진입 시 언마운트됐다 돌아오는데, 네이티브 드라이버는 리마운트
+  //   뷰에 재부착이 안 돼 '움직이다 멈춤'이 남. JS 드라이버는 값이 계속 돌면 새 뷰도 따라옴(버튼 하나라 성능 무관).
+  //   포커스 복귀 시에도 확실히 재시작하도록 useFocusEffect로 start/stop.
+  useFocusEffect(
+    React.useCallback(() => {
+      const loop = Animated.loop(Animated.sequence([
+        Animated.timing(courseFloat, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: false, isInteraction: false }),
+        Animated.timing(courseFloat, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: false, isInteraction: false }),
+      ]));
+      loop.start();
+      return () => loop.stop();
+    }, [])
+  );
   const courseTranslateX = courseFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -9] }); // 왼쪽으로 살랑이는 이동(사용자 2026-06-20)
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
