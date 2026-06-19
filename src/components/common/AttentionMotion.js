@@ -10,7 +10,7 @@ import { Animated, Easing } from 'react-native';
 //   entrance: 등장 시 살짝 페이드+업(한 번). axis/distance/duration로 미세조정.
 export function AttentionMotion({
   children, type = 'pulse', entrance = false,
-  axis = 'x', distance, duration = 1000, style, enabled = true,
+  axis = 'x', distance, duration = 1000, style, enabled = true, bidir = false,
 }) {
   const v = useRef(new Animated.Value(0)).current;                       // 루프 0↔1
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;    // 등장 0→1
@@ -46,9 +46,13 @@ export function AttentionMotion({
     tf.push({ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) });
   } else if (enabled && type === 'float') {
     const d = distance != null ? distance : -6; // 부호=방향(+ 오른쪽/아래, − 왼쪽/위)
+    // bidir=양쪽 살랑(가운데 기준 ±d), 아니면 한 방향(0→d). 둘 다 rest=0(제자리)에서 시작.
+    const range = bidir
+      ? { inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, d, 0, -d, 0] }
+      : { inputRange: [0, 1], outputRange: [0, d] };
     tf.push(axis === 'y'
-      ? { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) }
-      : { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) });
+      ? { translateY: v.interpolate(range) }
+      : { translateX: v.interpolate(range) });
   } else if (enabled && type === 'nudge') {
     const d = distance != null ? distance : 5;
     tf.push({ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) });

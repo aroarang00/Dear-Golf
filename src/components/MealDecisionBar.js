@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
@@ -384,7 +384,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         // 박스 모드(홈 D-0 카드) — 불투명 솔리드 채움(진짜 버튼) + 그림자. 불투명이라 Android '뿌연 팔각형' 아티팩트 없음([[dm-button]]).
         //   미결정=버터(브랜드 CTA), 결정=차콜+버터글씨. 상단 하이라이트로 솟은 느낌.
         // 결정 전엔 살랑살랑(float)로 주목 유도, 결정되면(✓) 정지 — 코스 헤더 버튼과 같은 톤 ([[attention-motion]])
-        <AttentionMotion type="float" axis="x" distance={7} enabled={decidedCount === 0} style={{ borderRadius: 12 }}>
+        <AttentionMotion type="float" axis="x" distance={7} bidir={Platform.OS === 'ios'} enabled={decidedCount === 0} style={{ borderRadius: 12 }}>
         <TouchableOpacity onPress={openSheet} activeOpacity={0.85}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11,
             backgroundColor: decidedCount ? C.charcoal : '#D8CC9E', // 미결정=차분한 버터(강도 낮춤), 결정=차콜
