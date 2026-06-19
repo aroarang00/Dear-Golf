@@ -19,6 +19,7 @@ import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ShareMomentModal } from './ShareMomentModal';
+import { ScheduleShareCard } from './ScheduleShareCard';   // 체크인 카드 전용(공유화면 없이 카드만) 뷰어용
 import { ScheduleModal } from './ScheduleModal';
 import { HomeIntroModal } from './HomeIntroModal';
 import { ScheduleScreen } from './ScheduleScreen';
@@ -502,6 +503,18 @@ export function HomeScreen({ navigation, route }) {
   };
 
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 일정 공유 카드 모달 대상
+  const [checkinCard, setCheckinCard] = useState(null); // 당일 체크인 — 공유화면 없이 카드만 깔끔히 띄우기
+  // 체크인 카드 — 카드만 전체화면(프론트 체크인용). 해당일 날씨 비동기 주입(코스명 위).
+  const openCheckinCard = (s) => {
+    if (!s) return;
+    const target = { ...s };
+    setCheckinCard(target);
+    if (!target.weather) {
+      getScheduleWxSummary(target).then(w => {
+        if (w) setCheckinCard(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w.summary } : prev);
+      }).catch(() => {});
+    }
+  };
   // 일정 공유 평문(설치 링크 동선) — 카드 모달의 '링크 공유' 옵션에서 사용
   const buildScheduleMsg = (s) => {
     const lines = [
@@ -728,7 +741,7 @@ export function HomeScreen({ navigation, route }) {
           </View>
           {/* 당일 체크인 카드 배너 — 탭하면 공유 카드 전체화면(프론트 체크인용). 보딩패스=체크인 패스 ([[schedule-booker]]) */}
           {checkinActive && (
-            <TouchableOpacity onPress={() => handleShareSchedule(next)} activeOpacity={0.85}
+            <TouchableOpacity onPress={() => openCheckinCard(next)} activeOpacity={0.85}
               style={{ marginHorizontal: 20, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 9,
                 backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.42)',
                 borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
@@ -1140,6 +1153,21 @@ export function HomeScreen({ navigation, route }) {
         onClose={() => setScheduleShareTarget(null)}
         onShareLink={() => { const t = scheduleShareTarget; setScheduleShareTarget(null); setTimeout(() => shareScheduleText(t), 350); }}
       />
+
+      {/* 체크인 카드 뷰어 — 공유화면 없이 카드만 깔끔히 전체화면(프론트 체크인용). 닫기만 ([[schedule-booker]]) */}
+      <Modal visible={!!checkinCard} transparent animationType="fade" onRequestClose={() => setCheckinCard(null)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setCheckinCard(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <TouchableOpacity onPress={() => setCheckinCard(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ position: 'absolute', top: insets.top + 14, right: 22 }}>
+            <Text style={{ fontSize: fs(26), color: 'rgba(255,255,255,0.9)' }}>✕</Text>
+          </TouchableOpacity>
+          {/* activeOpacity 1 + 카드 자체 탭은 닫기 막기(배경 탭만 닫힘) */}
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            {checkinCard && <ScheduleShareCard schedule={checkinCard} width={Math.min(winW - 48, 360)} />}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* 예정 라운딩 목록 — 라벨 위쪽 팝업 (카드 5개를 넘는 일정도 한눈에) */}
       <Modal
