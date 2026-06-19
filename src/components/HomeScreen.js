@@ -834,7 +834,7 @@ export function HomeScreen({ navigation, route }) {
                       </View>
                     )}
                     {/* 함께 식사 — 구장 박스 아래(같은 너비), 2슬롯+메모([[afterround-meal-decision]]) */}
-                    <View style={{ marginTop: 8, marginRight: 12 }}>
+                    <View style={{ marginTop: 2, marginRight: 12 }}>
                       <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active block friendMeta={friendMeta}
                         autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                     </View>
