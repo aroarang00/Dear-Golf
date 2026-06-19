@@ -133,7 +133,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       // 반경 점진 확장 — 3km에 결과 적으면(시골 구장) 8km→15km로 넓혀 충분히 모음(최대 20km는 카카오 한도).
       let nearby = [];
       if (cc) {
-        for (const r of [3000, 8000, 15000]) {
+        for (const r of [3000, 8000, 20000]) {   // 20km = 카카오 반경 최대 — 외진 구장도 최대한 끌어옴
           nearby = await searchNearbyRestaurants(cc.y, cc.x, r).catch(() => []);
           if (nearby.length >= 6) break;
         }
