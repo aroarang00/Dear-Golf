@@ -1520,12 +1520,15 @@ export function GuideScreen({ route, navigation }) {
         {/* 입체 버튼 — 차콜은 별로여서(원복), 도착 화면(CourseLogModal) 헤더 그린(#6B8B5E)으로 통일.
             그라데이션+그림자로 입체감. 버튼↔도착 화면 색 연결. 2026-06-15 사용자 */}
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85}
-          style={{ borderRadius: 21, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+          style={{ borderRadius: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
           <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-            style={{ borderRadius: 21, paddingHorizontal: 17, paddingVertical: _and ? 8 : 10, flexDirection: 'row', alignItems: 'center',
+            style={{ borderRadius: 14, paddingHorizontal: 15, paddingVertical: _and ? 7 : 8, flexDirection: 'row', alignItems: 'center',
               borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>내 코스 모아보기</Text>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#fff', marginLeft: 5 }}>›</Text>
+            <View>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>내 코스 모아보기</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginTop: 1 }}>방문 코스 · 통계 보기</Text>
+            </View>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#fff', marginLeft: 6 }}>›</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
