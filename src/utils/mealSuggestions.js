@@ -52,7 +52,9 @@ export function mealSuggestionId(scheduleId, slot = 1) {
 export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids, slot = 1, hostUid = null }) {
   if (!authorUid || !schedule?.id || !place?.name) return null;
   const aud = [...new Set((audienceUids || []).filter(u => u && u !== authorUid))];
-  const key = schedule.groupId || schedule.id;
+  // ★공유 키 — 전파 일정=groupId / 라운지 모집=roundupId(참여자 전원 같은 키로 수렴) / 그 외=schedule.id.
+  //   roundup은 사람마다 schedule.id가 달라 id로 키 잡으면 참여자끼리 문서가 갈라짐(호스트 오버라이드·단체 식사 불가).
+  const key = schedule.groupId || schedule.roundupId || schedule.id;
   const id = mealSuggestionId(key, slot);
   const ref = doc(db, COLLECTION, id);
   const placeData = {

@@ -53,9 +53,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const [busy, setBusy] = useState(false);
 
   const [hostUid, setHostUid] = useState(null); // 단체모집 주최자 uid — 변경 권한 확장(정한 사람 + 주최자)
+  const [roundupMembers, setRoundupMembers] = useState([]); // 라운지 모집 참여자(participantUids) — audience 소스
   const [members, setMembers] = useState([]); // 전파 일정 그룹의 라운딩 인원(수락자+초대받은 전원) — audience 소스(companions보다 신뢰)
   // ★공유 키 — 전파 일정은 groupId로 모든 참여자가 같은 meal 문서에 수렴(사용자별 schedule.id 발산 방지).
-  const mealKey = schedule?.groupId || schedule?.id;
+  const mealKey = schedule?.groupId || schedule?.roundupId || schedule?.id;
   useEffect(() => {
     if (!active || !mealKey) { setMine1(null); return; }
     return subscribeMealForSchedule(mealKey, setMine1, 1);
@@ -81,11 +82,15 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       .catch(() => {});
     return () => { alive = false; };
   }, [active, schedule?.groupId]);
-  // 단체모집 일정이면 주최자(roundup authorUid) 해석 — 변경 권한을 작성자 + 주최자로 확장([[afterround-meal-decision]], [[roundup-team-flat-roster]]).
+  // 라운지 모집 일정이면 주최자(authorUid)·참여자(participantUids) 해석 — 변경 권한 확장 + audience(참여자 전원).
   useEffect(() => {
-    if (!active || !schedule?.roundupId) { setHostUid(null); return; }
+    if (!active || !schedule?.roundupId) { setHostUid(null); setRoundupMembers([]); return; }
     let alive = true;
-    loadRoundup(schedule.roundupId).then(r => { if (alive) setHostUid(r?.authorUid || null); }).catch(() => {});
+    loadRoundup(schedule.roundupId).then(r => {
+      if (!alive) return;
+      setHostUid(r?.authorUid || null);
+      setRoundupMembers(Array.isArray(r?.participantUids) ? r.participantUids : []);
+    }).catch(() => {});
     return () => { alive = false; };
   }, [active, schedule?.roundupId]);
   // 일정이 바뀌면(삭제·재생성·다른 라운딩) 캐시된 좌표·식당 리스트 초기화 — 옛 코스 식당이 남아 보이던 버그 방지.
@@ -105,8 +110,12 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     if (schedule?.groupId && members.length) {
       return [...new Set(members.filter(u => u && u !== uid))];
     }
+    // 라운지 모집 — 참여자 전원(주최자 포함)이 audience. 친구 동반자가 아니어도 식사 공유·길찾기 받게.
+    if (schedule?.roundupId && roundupMembers.length) {
+      return [...new Set(roundupMembers.filter(u => u && u !== uid))];
+    }
     return [...new Set((schedule?.companions || []).map(c => c?.friendUid).filter(Boolean))];
-  }, [schedule, members, uid]);
+  }, [schedule, members, roundupMembers, uid]);
 
   const loadNearby = async () => {
     setLoading(true);
@@ -148,12 +157,19 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     if (busy || !uid || !pl?.name) return;
     setBusy(true);
     try {
-      // 단체모집인데 주최자(host)가 아직 비동기로 안 풀렸으면 여기서 확정 — null로 저장돼 주최자 오버라이드가 막히는 레이스 방지.
+      // 라운지 모집인데 주최자(host)·참여자(audience)가 아직 비동기로 안 풀렸으면 여기서 확정 —
+      //   null/빈 audience로 저장돼 주최자 오버라이드·참여자 공유가 막히는 레이스 방지.
       let host = hostUid;
-      if (!host && schedule?.roundupId) {
-        try { const r0 = await loadRoundup(schedule.roundupId); host = r0?.authorUid || null; if (host) setHostUid(host); } catch { /* host 못 구하면 author-only로 진행 */ }
+      let aud = audienceUids;
+      if (schedule?.roundupId && (!host || !roundupMembers.length)) {
+        try {
+          const r0 = await loadRoundup(schedule.roundupId);
+          host = host || r0?.authorUid || null; if (host) setHostUid(host);
+          const pm = Array.isArray(r0?.participantUids) ? r0.participantUids : [];
+          if (pm.length) { aud = [...new Set(pm.filter(u => u && u !== uid))]; setRoundupMembers(pm); }
+        } catch { /* 못 구하면 현재 값으로 진행 */ }
       }
-      const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: memo || '', audienceUids, slot, hostUid: host });
+      const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: memo || '', audienceUids: aud, slot, hostUid: host });
       if (r?.taken) {
         Alert.alert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}식사 장소를 먼저 정했어요.\n변경은 정한 사람이나 주최자만 할 수 있어요.`);
       } else {
