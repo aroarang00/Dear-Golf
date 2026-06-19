@@ -26,6 +26,7 @@ import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
+import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { FriendSelectModal } from './FriendSelectModal';
 import { MealDecisionBar } from './MealDecisionBar';
 
@@ -373,7 +374,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (!s) return;
     const dd = computeDDay(s);
     const ddText = dd > 0 ? `D-${dd}` : dd === 0 ? 'D-DAY' : '지난 라운딩';
-    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · ${ddText}\n나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳`;
+    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · ${ddText}\n나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳\n${WEB_BASE}`;
     try { await Share.share({ message: msg }); }
     catch (e) { console.warn('[share schedule]', e?.message); }
   };

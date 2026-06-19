@@ -35,6 +35,7 @@ import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
+import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
 import { deleteMeal } from '../utils/mealSuggestions';     // 고아 정리 — 식사 문서 정리
 import { FriendSelectModal } from './FriendSelectModal';
@@ -494,7 +495,7 @@ export function HomeScreen({ navigation, route }) {
 
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 일정 공유 카드 모달 대상
   // 일정 공유 평문(설치 링크 동선) — 카드 모달의 '링크 공유' 옵션에서 사용
-  const buildScheduleMsg = (s) => `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n\n라운딩의 모든 순간을 더 특별하게\nDear Golf ⛳`;
+  const buildScheduleMsg = (s) => `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n\n라운딩의 모든 순간을 더 특별하게\nDear Golf ⛳\n${WEB_BASE}`;
   const shareScheduleText = async (s) => {
     if (!s) return;
     try { await Share.share({ message: buildScheduleMsg(s) }); }
