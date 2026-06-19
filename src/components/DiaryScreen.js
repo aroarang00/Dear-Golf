@@ -928,8 +928,8 @@ export function DiaryScreen({ route, navigation }) {
             </ScrollView>
             <TouchableOpacity activeOpacity={0.85} onPress={startBlankRecord}
               style={{ marginTop: 14, marginHorizontal: 20, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
-                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>직접 입력하기 →</Text>
+                backgroundColor: '#FBF3D3', borderWidth: 1, borderColor: C.burgundy }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>직접 입력하기 →</Text>
             </TouchableOpacity>
           </View>
         </View>
