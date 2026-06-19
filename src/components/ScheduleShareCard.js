@@ -101,7 +101,8 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>COURSE</Text>
             <View style={{ flexDirection: longCourse ? 'column' : 'row', alignItems: longCourse ? 'flex-start' : 'baseline', flexWrap: 'wrap' }}>
-              <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY, fontSize: fs(21) }]} numberOfLines={2}>{s.course || '-'}</Text>
+              <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY, fontSize: fs(21) }]}
+                numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>{s.course || '-'}</Text>
               {!!s.subCourse && (
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: longCourse ? 0 : 8, marginTop: longCourse ? 3 : 0 }}>{s.subCourse}</Text>
               )}
