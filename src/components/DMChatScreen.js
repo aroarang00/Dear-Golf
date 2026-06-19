@@ -725,27 +725,22 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 : { backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
                     borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
                     borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
-              {/* 답장(인용) 블록 — 라이트 말풍선이라 어둡게 반투명. 좌측 액센트+발신자+요약(사진/영상은 라벨+썸네일) */}
+              {/* 답장(인용) 블록 — 라이트 말풍선이라 어둡게 반투명. 좌측 액센트+발신자+요약(사진/영상은 라벨).
+                  ★썸네일은 안 넣음 — 말풍선은 내용에 맞춰 줄어드는 구조라 row+flex 썸네일을 넣으면 본문 폭이
+                  0으로 무너져 글자가 세로로 깨지고 높이만 커짐(사용자 2026-06-19). 썸네일은 입력바 미리보기에만. */}
               {item.replyTo && (() => {
                 const q = describeQuoted(item.replyTo);
                 return (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
-                    borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(61,57,53,0.3)' : 'rgba(42,61,71,0.3)',
+                  <View style={{ borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(61,57,53,0.3)' : 'rgba(42,61,71,0.3)',
                     backgroundColor: mine ? 'rgba(61,57,53,0.08)' : 'rgba(42,61,71,0.08)',
                     borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, marginBottom: 6 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: mine ? DM_MINE_TX : DM_RECV_TX }}>
-                        {item.replyTo.senderUid === myUid ? '나' : friendName}
-                      </Text>
-                      <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 18,
-                        color: mine ? 'rgba(61,57,53,0.7)' : 'rgba(42,61,71,0.7)', marginTop: 1 }}>
-                        {q.icon ? `${q.icon} ` : ''}{q.label}
-                      </Text>
-                    </View>
-                    {!!q.thumb && (
-                      <Image source={{ uri: q.thumb }} style={{ width: 34, height: 34, borderRadius: 6 }}
-                        contentFit="cover" cachePolicy="memory-disk" recyclingKey={q.thumb} />
-                    )}
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: mine ? DM_MINE_TX : DM_RECV_TX }}>
+                      {item.replyTo.senderUid === myUid ? '나' : friendName}
+                    </Text>
+                    <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 18,
+                      color: mine ? 'rgba(61,57,53,0.7)' : 'rgba(42,61,71,0.7)', marginTop: 1 }}>
+                      {q.icon ? `${q.icon} ` : ''}{q.label}
+                    </Text>
                   </View>
                 );
               })()}
