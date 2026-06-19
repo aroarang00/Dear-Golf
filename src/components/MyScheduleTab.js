@@ -381,7 +381,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     setScheduleShareTarget(target);
     if (!target.weather) {
       getScheduleWxSummary(target).then(w => {
-        if (w) setScheduleShareTarget(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w.summary, weatherText: w.detail } : prev);
+        if (w) setScheduleShareTarget(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w.summary, weatherText: w.detail, weatherIcon: w.icon } : prev);
       }).catch(() => {});
     }
   };

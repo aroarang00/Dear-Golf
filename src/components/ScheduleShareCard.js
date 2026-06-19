@@ -93,7 +93,8 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           <View style={{ height: 30, justifyContent: 'center', marginBottom: 6 }}>
             {s.weather ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: fs(18) }}>{wxIcon(s.weather)}</Text>
+                {/* 실제 예보 아이콘(주입된 weatherIcon=kma) 우선, 없으면 텍스트 기반 폴백 — D-0 카드와 일치 */}
+                <Text style={{ fontSize: fs(18) }}>{s.weatherIcon || wxIcon(s.weather)}</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: BURGUNDY, letterSpacing: 0.3 }}>{s.weather}</Text>
               </View>
             ) : showWxNote ? (

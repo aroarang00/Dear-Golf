@@ -541,7 +541,7 @@ export function HomeScreen({ navigation, route }) {
     setCheckinCard(target);
     if (!target.weather) {
       getScheduleWxSummary(target).then(w => {
-        if (w) setCheckinCard(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w.summary } : prev);
+        if (w) setCheckinCard(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w.summary, weatherIcon: w.icon } : prev);
       }).catch(() => {});
     }
   };
@@ -569,7 +569,7 @@ export function HomeScreen({ navigation, route }) {
     if (!s.weather) {
       getScheduleWxSummary(s).then(w => {
         if (!w) return;
-        setScheduleShareTarget(prev => (prev && prev.date === s.date && prev.course === s.course) ? { ...prev, weather: w.summary, weatherText: w.detail } : prev);
+        setScheduleShareTarget(prev => (prev && prev.date === s.date && prev.course === s.course) ? { ...prev, weather: w.summary, weatherText: w.detail, weatherIcon: w.icon } : prev);
       }).catch(() => {});
     }
   };

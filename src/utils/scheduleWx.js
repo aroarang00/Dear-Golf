@@ -45,13 +45,17 @@ export async function getScheduleWxSummary(schedule) {
     if (idx < 0 || idx > 3) return null; // 3일 밖(또는 매칭 실패) → 미표시
     const day = days[idx];
     const sky = (day.sky || '').trim();
-    const t = Number.isFinite(day.tmax) ? Math.round(day.tmax)
-            : (Number.isFinite(day.tmin) ? Math.round(day.tmin) : null);
-    if (!sky && t == null) return null; // 데이터 없는 폴백 슬롯
+    const lo = Number.isFinite(day.tmin) ? Math.round(day.tmin) : null;
+    const hi = Number.isFinite(day.tmax) ? Math.round(day.tmax) : null;
+    // 온도 — 최저/최고 함께(둘 다 있으면 'lo°/hi°', 하나만 있으면 그것만)
+    const temp = (lo != null && hi != null) ? `${lo}°/${hi}°`
+               : (hi != null ? `${hi}°` : (lo != null ? `${lo}°` : ''));
+    if (!sky && !temp) return null; // 데이터 없는 폴백 슬롯
     const pop = Number.isFinite(day.pop) ? Math.round(day.pop) : null;
-    const summary = t != null ? `${sky} ${t}°`.trim() : sky; // 카드용(간결)
-    const detail = [sky, t != null ? `최고 ${t}°` : null, pop != null ? `강수확률 ${pop}%` : null]
-      .filter(Boolean).join(' · '); // 텍스트 공유용(기온·강수확률)
+    const summary = [sky, temp].filter(Boolean).join(' '); // 카드·D-0용(예: '맑음 18°/24°')
+    const tempDetail = (lo != null && hi != null) ? `최저 ${lo}° · 최고 ${hi}°` : (hi != null ? `최고 ${hi}°` : (lo != null ? `최저 ${lo}°` : null));
+    const detail = [sky, tempDetail, pop != null ? `강수확률 ${pop}%` : null]
+      .filter(Boolean).join(' · '); // 텍스트 공유용(최저/최고·강수확률)
     return { summary, detail, icon: day.icon || null }; // icon=실제 예보 이모지(맑음 ☀️·구름 ⛅·흐림 ☁️·비 🌧 등, kma skyToIcon)
   } catch {
     return null;
