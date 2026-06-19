@@ -45,10 +45,10 @@ export function AttentionMotion({
   if (enabled && type === 'pulse') {
     tf.push({ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) });
   } else if (enabled && type === 'float') {
-    const d = distance != null ? distance : 6;
+    const d = distance != null ? distance : -6; // 부호=방향(+ 오른쪽/아래, − 왼쪽/위)
     tf.push(axis === 'y'
-      ? { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -d] }) }
-      : { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, -d] }) });
+      ? { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) }
+      : { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) });
   } else if (enabled && type === 'nudge') {
     const d = distance != null ? distance : 5;
     tf.push({ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) });
