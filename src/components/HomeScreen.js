@@ -866,24 +866,18 @@ export function HomeScreen({ navigation, route }) {
                           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>나가기 ✕</Text>
                         </TouchableOpacity>
                       )}
-                      {/* 우측 — 큰 이모지만이 아니라 실제 날씨·교통 요약으로 채움(휑함 완화). 탭=상세 팝업 */}
+                      {/* 우측 — 이모지(크게) 아래 날씨/교통 값 세로 스택. 탭 영역 넓고 이모지 큼. 탭=상세 팝업 */}
                       <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7}
-                        style={{ flex: 1, justifyContent: 'center', paddingLeft: 6 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 }}>
-                          <Text style={{ fontSize: fs(34) }}>🌤️</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>{d0Info.wx || '날씨'}</Text>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.6)' }}>예상 날씨</Text>
-                          </View>
+                        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                        <View style={{ alignItems: 'center' }}>
+                          <Text style={{ fontSize: fs(38) }}>🌤️</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.wx || '날씨'}</Text>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 }}>
-                          <Text style={{ fontSize: fs(30) }}>🚗</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>{d0Info.drive ? `약 ${d0Info.drive}분` : '교통'}</Text>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.6)' }}>{d0Info.drive ? '예상 소요' : '출발 시간'}</Text>
-                          </View>
+                        <View style={{ alignItems: 'center' }}>
+                          <Text style={{ fontSize: fs(34) }}>🚗</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.drive ? `약 ${d0Info.drive}분` : '교통'}</Text>
                         </View>
-                        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', alignSelf: 'center' }}>더보기 →</Text>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.82)' }}>더보기 →</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
