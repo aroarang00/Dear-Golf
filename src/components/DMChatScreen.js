@@ -340,7 +340,11 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [vidSending, setVidSending] = useState(0);    // 업로드 중인 동영상 수(진행 표시) — 용량 커서 시간 걸림
   const [hiddenMsgs, setHiddenMsgs] = useState(() => new Set()); // 나만 삭제(숨김) — 내 화면에서만 가린 메시지 id(로컬 영속). 상대 화면엔 유지.
   useEffect(() => { storage.load(HIDDEN_MSGS_KEY, []).then(arr => setHiddenMsgs(new Set(Array.isArray(arr) ? arr : []))).catch(() => {}); }, []);
-  useAndroidBack(true, onClose); // 대화방 열린 동안 안드 뒤로가기 → 닫기
+  // 다중선택 삭제(카톡식) — 선택 모드 + 선택된 메시지 id. 다중 '나만 삭제(숨김)' 일괄 처리 ([[dm-multiselect-delete]]).
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  // 선택 모드 중엔 뒤로가기 = 모드 종료(대화방 유지), 아니면 대화방 닫기
+  useAndroidBack(true, () => { if (selectMode) { setSelectMode(false); setSelectedIds(new Set()); } else { onClose(); } });
   // 피커·옵션시트가 떠 있으면 뒤로가기는 그것만 닫기 — 나중에 등록된 리스너가 먼저 소비(위 화면닫기보다 우선)
   useAndroidBack(!!reactTarget, () => setReactTarget(null));
   useAndroidBack(optionsOpen, () => setOptionsOpen(false));
@@ -532,6 +536,34 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     });
   };
 
+  // 다중선택 — 롱탭 메뉴 '선택'에서 진입(그 메시지 체크). 토글/전체선택/일괄삭제.
+  const enterSelect = (id) => { setReactTarget(null); setSelectedIds(new Set(id ? [id] : [])); setSelectMode(true); };
+  const exitSelect = () => { setSelectMode(false); setSelectedIds(new Set()); };
+  const toggleSelect = (id) => setSelectedIds(prev => {
+    const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
+  });
+  const selectAllMsgs = () => setSelectedIds(new Set((rlist || []).map(m => m.id)));
+  // 선택한 메시지 일괄 '나만 삭제(숨김)' — 기존 hiddenMsgs 배치판. 내 화면에서만 가림(상대 유지), 로컬 영속.
+  const deleteSelected = () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    setAlert({
+      title: `${ids.length}개 메시지를 삭제할까요?`,
+      message: '선택한 메시지가 내 화면에서만 사라져요.\n상대방에게는 그대로 남아요.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: () => {
+          setHiddenMsgs(prev => {
+            const next = new Set(prev); ids.forEach(id => next.add(id));
+            storage.save(HIDDEN_MSGS_KEY, [...next]).catch(() => {});
+            return next;
+          });
+          exitSelect();
+        } },
+      ],
+    });
+  };
+
   // 신고 — 상대(friendUid) 대상 ReportModal 열기. prefill=근거란 초기값(메시지 신고 시 그 메시지 인용 스냅샷 → 언센드돼도 증거 보존).
   const openReport = (prefill = '') => { setReactTarget(null); setOptionsOpen(false); if (!friendUid) return; setReportPrefill(prefill); };
   // 차단 — 친구 차단과 동일(공용 훅). 한도 체크 → 확인 → 차단되면 대화 불가라 대화방 닫기.
@@ -624,8 +656,21 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             </View>
           </View>
         )}
+        {/* 말풍선 행 — 선택 모드면 좌측 체크 동그라미를 앞에 붙이고 행 전체를 탭 토글로(카톡식) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {selectMode && (
+          <TouchableOpacity onPress={() => toggleSelect(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+            style={{ paddingLeft: 12, paddingRight: 2 }}>
+            <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2,
+              borderColor: selectedIds.has(item.id) ? C.paleSky : 'rgba(255,255,255,0.45)',
+              backgroundColor: selectedIds.has(item.id) ? C.paleSky : 'transparent',
+              alignItems: 'center', justifyContent: 'center' }}>
+              {selectedIds.has(item.id) && <Text style={{ color: DM_SURFACE, fontSize: fs(12), fontFamily: F.sysB }}>✓</Text>}
+            </View>
+          </TouchableOpacity>
+        )}
         {/* 말풍선 — 보낸=우측(버터), 받은=좌측 플러시(페일스카이). 아바타는 위 묶음 헤더로 분리. 시각은 옆에 작게 */}
-        <View style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
+        <View style={{ flex: 1, flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start',
           alignItems: 'flex-end', paddingHorizontal: 12,
           // 발신자 바뀌어 내 그룹이 시작될 때 위 간격↑(받은 메시지는 아바타 헤더가 간격 담당) — 상대↔나 번갈아 보낼 때 붙던 것 해소.
           //   사진·영상은 크게 보여 연속 시 서로 붙어 보이므로 간격↑(텍스트는 2 유지).
@@ -641,7 +686,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
             <TouchableOpacity activeOpacity={(hasImg || video || bigEmoji) ? 1 : 0.85} delayLongPress={300}
-              onLongPress={() => setReactTarget(item)}
+              onPress={selectMode ? () => toggleSelect(item.id) : undefined}
+              onLongPress={selectMode ? undefined : () => setReactTarget(item)}
               style={(hasImg || video || bigEmoji)
                 ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진·영상·이모지전용은 버블 배경 없이 깔끔하게
                 : { backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
@@ -664,16 +710,18 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               {/* 동영상 — 포스터 썸네일+▶, 탭 시 전체화면 재생(PhotoViewer). */}
               {video && (
                 <DmVideo uri={video.uri} poster={video.poster} size={210}
-                  onPress={() => setImgViewer({ video })} onLongPress={() => setReactTarget(item)} />
+                  onPress={selectMode ? () => toggleSelect(item.id) : () => setImgViewer({ video })}
+                  onLongPress={selectMode ? undefined : () => setReactTarget(item)} />
               )}
-              {/* 사진(앨범 그리드) — 칸 탭 시 전체화면(PhotoViewer, 해당 index부터 넘겨보기). */}
+              {/* 사진(앨범 그리드) — 칸 탭 시 전체화면(PhotoViewer, 해당 index부터 넘겨보기). 선택 모드면 탭=선택 토글. */}
               {hasImg && (
-                <DmImageGrid uris={imgs} full onPressIndex={(i) => setImgViewer({ uris: imgs, index: i })}
-                  onLongPress={() => setReactTarget(item)} />
+                <DmImageGrid uris={imgs} full
+                  onPressIndex={selectMode ? () => toggleSelect(item.id) : (i) => setImgViewer({ uris: imgs, index: i })}
+                  onLongPress={selectMode ? undefined : () => setReactTarget(item)} />
               )}
               {/* 모집 초대 카드 — 카드 아래 버튼. 친구지정(select)=내 참여 초대장 / 그 외=모집 상세로 이동(분기는 HomeScreen onOpenRoundup). */}
               {!!item.roundupId && onOpenRoundup && (
-                <TouchableOpacity onPress={() => onOpenRoundup(item.roundupId, item.roundupHost || null, item.roundupScope || null)} activeOpacity={0.85}
+                <TouchableOpacity onPress={() => selectMode ? toggleSelect(item.id) : onOpenRoundup(item.roundupId, item.roundupHost || null, item.roundupScope || null)} activeOpacity={0.85}
                   style={{ marginTop: 7, alignSelf: mine ? 'flex-end' : 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
                     backgroundColor: C.navy, borderRadius: 11, paddingHorizontal: 15, paddingVertical: 10 }}>
                   <Text style={{ fontSize: fs(13) }}>{item.roundupScope === 'select' ? '✉️' : '📋'}</Text>
@@ -707,9 +755,10 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           </View>
           {!mine && !!time && <Text style={timeStyle}>{time}</Text>}
         </View>
+        </View>
       </View>
     );
-  }, [rlist, myUid, otherReadMs, friendName, friendAvatarUri]);
+  }, [rlist, myUid, otherReadMs, friendName, friendAvatarUri, selectMode, selectedIds]);
 
   return (
     <View style={{ flex: 1, backgroundColor: DM_SURFACE }}>
@@ -718,7 +767,21 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       {/* 콘텐츠 컨테이너 — 루트 insets로 상단 패딩(중첩 SafeAreaProvider 없이). 키보드 뜨면 kbPadStyle로 하단 패딩(=KC,
           내비바 포함 키보드 윗면 높이)을 직접 줘 입력 바를 키보드 윗면에 딱 붙임(reanimated 자동훅 모달 미부착 대체, [[dm-design]]). */}
       <Reanimated.View style={[{ flex: 1, paddingTop: insets.top }, kbPadStyle]}>
-      {/* 헤더 — 다크 프레임. 키운 상대 아바타(44) + 버터 이름 + 페일스카이 '님과 대화 중'. 별명은 friendName으로 전달 */}
+      {/* 선택 모드 헤더 — 취소 · N개 선택 · 전체선택 (카톡식, [[dm-multiselect-delete]]) */}
+      {selectMode ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 14 }}>
+        <TouchableOpacity onPress={exitSelect} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: DM_BUTTER }}>취소</Text>
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: DM_BUTTER }}>
+          {selectedIds.size > 0 ? `${selectedIds.size}개 선택` : '메시지 선택'}
+        </Text>
+        <TouchableOpacity onPress={selectAllMsgs} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_PALESKY }}>전체선택</Text>
+        </TouchableOpacity>
+      </View>
+      ) : (
+      /* 헤더 — 다크 프레임. 키운 상대 아바타(44) + 버터 이름 + 페일스카이 '님과 대화 중'. 별명은 friendName으로 전달 */
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, gap: 12 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={{ fontSize: fs(27), color: DM_BUTTER }}>←</Text>
@@ -738,6 +801,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <Text style={{ fontSize: fs(22), color: DM_PALESKY }}>⋯</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       {/* 채팅 리스트 — flex로 남은 공간 채움. 키보드 뜨면 상위 Reanimated.View의 kbPadStyle(키보드높이 패딩)로
           전체가 줄어 입력창이 키보드 위로 올라가고 리스트도 그만큼 줄어 메시지가 안 가려짐. */}
@@ -794,7 +858,21 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         )}
       />
       </View>
-      {/* 입력 바 — 분리된 컴포넌트(자체 text 상태)라 타이핑이 위 리스트를 리렌더 안 함(입력 지연 방지) */}
+      {/* 하단 — 선택 모드면 삭제 액션바, 아니면 입력 바. 입력 바는 분리 컴포넌트(타이핑이 리스트 리렌더 안 함). */}
+      {selectMode ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16,
+          paddingTop: 10, paddingBottom: Math.max(insets.bottom, 10), borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_SURFACE }}>
+          <TouchableOpacity onPress={deleteSelected} disabled={selectedIds.size === 0} activeOpacity={0.85}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+              backgroundColor: selectedIds.size === 0 ? 'rgba(179,38,30,0.4)' : '#B3261E',
+              borderRadius: 14, paddingVertical: 14 }}>
+            <Text style={{ fontSize: fs(16) }}>🗑️</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff' }}>
+              삭제{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
       <DMInputBar
         ref={inputRef}
         onSend={handleSend}
@@ -806,6 +884,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         bottomPad={BAR_PAD}
         onTyping={notifyTyping}
       />
+      )}
       </Reanimated.View>
       {/* 공감 피커 — 자체 오버레이(Modal 호스트 안이라 글로벌 시트 대신, OverlayAlert와 동일 패턴). 바깥 탭/뒤로가기=닫기 */}
       {reactTarget && (
@@ -854,6 +933,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
               <Text style={{ fontSize: fs(15) }}>🙈</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>숨기기</Text>
+            </TouchableOpacity>
+            {/* 선택 — 다중선택 모드 진입(이 메시지 체크). 여러 개를 한 번에 '나만 삭제' ([[dm-multiselect-delete]]) */}
+            <TouchableOpacity activeOpacity={0.8} onPress={() => enterSelect(reactTarget.id)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+              <Text style={{ fontSize: fs(15) }}>☑️</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>선택</Text>
             </TouchableOpacity>
             {/* 신고 — 받은(상대) 메시지만. 그 메시지를 인용해 신고 모달 근거에 프리필(증거 스냅샷 → 언센드돼도 보존) */}
             {reactTarget.senderUid !== myUid && (
