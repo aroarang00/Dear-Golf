@@ -59,6 +59,8 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
   const dNum = typeof s.dDay === 'number' ? s.dDay : null;
   const ddayText = dNum == null ? null : dNum === 0 ? 'D-DAY' : dNum > 0 ? `D-${dNum}` : `D+${-dNum}`;
   const members = typeof s.members === 'number' ? s.members : 0;
+  // 날씨 안내 멘트 — 날씨가 없고(주입 안 됨) 라운딩이 3일보다 더 남았을 때만(지난 일정엔 안내도 X). 3일 이내면 날씨가 채워짐.
+  const showWxNote = !s.weather && (dNum == null || dNum > 3);
 
   return (
     <View style={[styles.card, { width }]}>
@@ -80,14 +82,19 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           </View>
         </View>
 
-        <View style={{ marginTop: 16 }}>
-          {/* 코스 위 날씨 — 3일 전부터 당일 예보 표시(사용자 지시). s.weather는 홈에서 주입 */}
-          {s.weather ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 7 }}>
-              <Text style={{ fontSize: fs(13) }}>{wxIcon(s.weather)}</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: BURGUNDY, letterSpacing: 0.3 }}>{s.weather}</Text>
-            </View>
-          ) : null}
+        <View style={{ marginTop: 14 }}>
+          {/* ROUND SCHEDULE ↔ COURSE 사이 '고정 높이' 날씨 슬롯 — 날씨 유무에 카드 길이가 안 흔들리게 항상 자리 차지.
+              3일 이내(s.weather 주입됨)면 예보, 아니면 '3일 전부터 표시' 안내(지난 일정은 둘 다 없이 빈 슬롯). */}
+          <View style={{ height: 20, justifyContent: 'center', marginBottom: 6 }}>
+            {s.weather ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ fontSize: fs(13) }}>{wxIcon(s.weather)}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: BURGUNDY, letterSpacing: 0.3 }}>{s.weather}</Text>
+              </View>
+            ) : showWxNote ? (
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: MUTE }}>날씨는 라운딩 3일 전부터 표시돼요</Text>
+            ) : null}
+          </View>
           <Field label="COURSE" value={s.course || '-'} tone="accent" size="lg" />
         </View>
 
