@@ -31,12 +31,6 @@ const CARD_WIDTH = 320;
 const ROUND_CARDS = [RoundCard, RoundCardScorecard, RoundCardMemory, RoundCardPolaroid];
 const ROUND_NAMES = ['매거진', '스코어카드', '기념', '폴라로이드'];
 
-// 버튼별 색으로 역할을 구분 — 공유하기(차콜·이미지 전송) / 이미지 저장(버터·로컬 보관). 링크 버튼은 아래 별도(네이비).
-const OPTIONS = [
-  { key: 'share', icon: '📤', label: '공유하기', bg: C.charcoal, fg: '#fff', border: false },
-  { key: 'save', icon: '🖼', label: '이미지 저장', bg: C.butter, fg: C.charcoal, border: false },
-];
-
 // 특별한 순간 공유 — 카드 미리보기(워터마크 포함) + 갤러리 저장.
 export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const insets = useSafeAreaInsets(); // DM 피커 시트가 안드 네비바에 안 가리도록(absolute 오버레이라 SafeAreaView 패딩 미적용)
@@ -249,50 +243,36 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                   : '투명 배경 PNG로 저장돼요.\n카드에 Dear Golf 마크가 들어가요.'}
             </Text>
 
-            {/* 공유 옵션 — 버튼별 색으로 역할 구분: 공유하기(차콜·이미지만) / 이미지 저장(버터·보관) / 링크 공유(네이비·링크만).
-                카카오톡 공유는 딥링크 미연동으로 철회 보류([[invite-deeplink-system]], 사용자 2026-06-16). */}
+            {/* 공유 옵션 — 종류별 순서. 링크 공유가 가장 중요(받는 분 바로 열람·설치 funnel)라 링크 있는 종류는 최상단.
+                · 모집/일정(링크+DM): 링크 → 디엠 공유하기 → 카드 이미지 공유하기 → 이미지 저장
+                · 라운딩기록(링크 없음): 공유하기 → 디엠 공유하기 → 이미지 저장
+                · 친구 초대(DM 없음): 공유하기 → 링크 공유 → 이미지 저장
+                카카오톡 공유는 딥링크 미연동으로 보류([[invite-deeplink-system]]). */}
             <View style={{ gap: 10, marginTop: 22 }}>
-              {OPTIONS.map(o => {
-                const busy = o.key === 'share' ? sharing : saving;
+              {(() => {
                 const disabled = sharing || saving;
-                return (
-                  <TouchableOpacity key={o.key} activeOpacity={0.85}
-                    onPress={() => handleOption(o.key)}
+                const btn = (key, icon, label, bg, fg) => (
+                  <TouchableOpacity key={key} activeOpacity={0.85}
+                    onPress={() => { if (key === 'link') onShareLink?.(); else if (key === 'dm') openDmPicker(); else handleOption(key); }}
                     disabled={disabled}
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      backgroundColor: o.bg, borderRadius: 12, height: 48,
-                      borderWidth: o.border ? 1 : 0, borderColor: C.hairline,
-                      opacity: disabled ? 0.5 : 1 }}>
-                    <Text style={{ fontSize: fs(16) }}>{o.icon}</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: o.fg }}>
-                      {busy ? (o.key === 'share' ? '공유 준비 중...' : '저장 중...') : o.label}
-                    </Text>
+                      backgroundColor: bg, borderRadius: 12, height: 48, opacity: disabled ? 0.5 : 1 }}>
+                    <Text style={{ fontSize: fs(16) }}>{icon}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: fg }}>{label}</Text>
                   </TouchableOpacity>
                 );
-              })}
-              {/* DM으로 보내기 — 친구 다중선택 후 카드 이미지를 인앱 DM으로 한 번에 전송(앱 안에서 끝, 외부 X). 버건디.
-                  ★친구 초대(isInvite)는 '디어골프 미가입자'에게 보내는 흐름이라 인앱 DM 공유가 무의미 → 숨김(사용자 2026-06-19). */}
-              {!isInvite && (
-                <TouchableOpacity activeOpacity={0.85} onPress={openDmPicker} disabled={sharing || saving}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    backgroundColor: '#6B1E2A', borderRadius: 12, height: 48, opacity: (sharing || saving) ? 0.5 : 1 }}>
-                  <Text style={{ fontSize: fs(16) }}>💬</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#F5E6A8' }}>DM으로 보내기</Text>
-                </TouchableOpacity>
-              )}
-              {/* 링크 공유 — 클릭 가능한 링크 평문 공유(이미지 없이 링크만). '링크와 함께'는 이미지도 같이 가는 듯한
-                  오해를 줘 '링크 공유'로 단순화(사용자 2026-06-16). 네이비로 강조(받는 분 바로 열람·설치 funnel). */}
-              {onShareLink && (
-                <TouchableOpacity activeOpacity={0.85}
-                  onPress={() => { onShareLink(); }}
-                  disabled={sharing || saving}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    backgroundColor: C.navy, borderRadius: 12, height: 48,
-                    opacity: (sharing || saving) ? 0.5 : 1 }}>
-                  <Text style={{ fontSize: fs(16) }}>🔗</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>링크 공유</Text>
-                </TouchableOpacity>
-              )}
+                const link = onShareLink ? btn('link', '🔗', '링크 공유', C.navy, '#fff') : null;
+                // 라운딩기록은 '디엠으로 보내기'(현행), 모집·일정은 '디엠 공유하기'.
+                const dm = !isInvite ? btn('dm', '💬', isRound ? '디엠으로 보내기' : '디엠 공유하기', '#6B1E2A', '#F5E6A8') : null;
+                // 카드 이미지 공유 — 모집·일정은 명칭을 '카드 이미지 공유하기'로(링크와 구분), 라운딩기록·초대는 '공유하기' 유지.
+                const shareLabel = sharing ? '공유 준비 중...' : ((isRoundup || isSchedule) ? '카드 이미지 공유하기' : '공유하기');
+                const share = btn('share', '📤', shareLabel, C.charcoal, '#fff');
+                const save = btn('save', '🖼', saving ? '저장 중...' : '이미지 저장', C.butter, C.charcoal);
+                const order = isInvite ? [share, link, save]
+                  : isRound ? [share, dm, save]
+                  : [link, dm, share, save];
+                return order;
+              })()}
             </View>
           </ScrollView>
 
