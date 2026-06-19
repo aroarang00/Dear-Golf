@@ -98,9 +98,10 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
           });
         }}
         onRequestOpenDiary={(diary) => {
-          // 기록 있는 일정 카드 탭 → 다이어리 상세 화면 직접 진입 (시트 우회)
+          // 기록 있는 일정 카드 탭 → 다이어리 상세 화면 직접 진입 (시트 우회).
+          // returnToSchedule=true → 상세 닫을 때(안드 뒤로가기·iOS 좌상단 버튼) 일정 캘린더 자동 재오픈 ([[modal-navigation-pattern]]).
           if (asModal) { onClose?.(); }
-          navigation?.navigate?.(ROUTES.MY, { openDiaryId: diary.id });
+          navigation?.navigate?.(ROUTES.MY, { openDiaryId: diary.id, returnToSchedule: asModal === true ? true : undefined });
         }}
       />
 

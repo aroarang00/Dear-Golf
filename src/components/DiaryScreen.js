@@ -254,16 +254,18 @@ export function DiaryScreen({ route, navigation }) {
 
   // 홈 'D-0 기록 보기'로 상세 진입한 경우, 닫을 때(안드 뒤로가기 포함) MY 목록이 아니라 홈으로 복귀
   const detailFromHomeRef = React.useRef(false);
+  const detailFromScheduleRef = React.useRef(false); // 일정 캘린더에서 상세 진입 — 닫을 때 캘린더 재오픈용
   useEffect(() => {
     if (route?.params?.openDiaryId) {
       const target = diaries.find(d => d.id === route.params.openDiaryId);
       if (target) {
         detailFromHomeRef.current = !!route.params.returnToHome;
+        detailFromScheduleRef.current = !!route.params.returnToSchedule;
         setSelected(target);
         // params 초기화 — 안 하면 같은 id로 재진입 시 useEffect가 안 트리거되어
         // MY 첫 화면(다이어리 목록)이 떠버림.
         // diaries가 아직 로딩 안 돼 target이 없을 땐 setParams 안 함 → diaries 변경 후 재시도
-        navigation.setParams({ openDiaryId: undefined, returnToHome: undefined });
+        navigation.setParams({ openDiaryId: undefined, returnToHome: undefined, returnToSchedule: undefined });
       }
     }
   }, [route?.params?.openDiaryId, diaries]);
@@ -291,6 +293,10 @@ export function DiaryScreen({ route, navigation }) {
     if (detailFromHomeRef.current) {
       detailFromHomeRef.current = false;
       navigation.navigate(ROUTES.HOME);
+    } else if (detailFromScheduleRef.current) {
+      // 일정 캘린더에서 들어온 상세 — 닫으면(안드 뒤로가기·iOS 좌상단 버튼) 캘린더 재오픈 ([[modal-navigation-pattern]])
+      detailFromScheduleRef.current = false;
+      navigation.navigate(ROUTES.HOME, { openSchedule: true });
     }
   }, [navigation]);
 
