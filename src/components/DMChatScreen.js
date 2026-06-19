@@ -129,8 +129,17 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, onP
   const canSend = hasText && !sending;
   return (
     <>
-      {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지 + ✕ 취소 */}
-      {replyTo && (
+      {/* 답장(인용) 미리보기 바 — 누구에게·무슨 메시지에 답하는지(사진/영상은 라벨+썸네일) + ✕ 취소.
+          replyTo는 전체 메시지 객체라 사진/영상 정보를 바로 읽음(말풍선 인용은 저장본이라 별도 보강). */}
+      {replyTo && (() => {
+        const rBody = (replyTo.body || '').trim();
+        const isVid = !!replyTo.videoUrl;
+        const isRoundup = !!replyTo.roundupId;
+        const rImg = (Array.isArray(replyTo.imageUrls) && replyTo.imageUrls[0]) || replyTo.imageUrl || null;
+        const thumb = isVid ? (replyTo.poster || null) : (isRoundup ? null : rImg);
+        const icon = rBody ? null : (isVid ? '🎬' : isRoundup ? '✉️' : rImg ? '📷' : null);
+        const label = rBody || (isVid ? '동영상' : isRoundup ? '모집 카드' : rImg ? '사진' : '');
+        return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9,
           borderTopWidth: 0.5, borderTopColor: DM_LINE, backgroundColor: DM_SURFACE }}>
           <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: DM_PALESKY }} />
@@ -139,14 +148,19 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, onP
               {replyTo.senderUid === myUid ? '나' : friendName}님에게 답장
             </Text>
             <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), color: DM_PALESKY, marginTop: 1 }}>
-              {replyTo.body}
+              {icon ? `${icon} ` : ''}{label}
             </Text>
           </View>
+          {!!thumb && (
+            <Image source={{ uri: thumb }} style={{ width: 32, height: 32, borderRadius: 6 }}
+              contentFit="cover" cachePolicy="memory-disk" recyclingKey={thumb} />
+          )}
           <TouchableOpacity onPress={onCancelReply} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(18), color: DM_PALESKY }}>✕</Text>
           </TouchableOpacity>
         </View>
-      )}
+        );
+      })()}
       {/* 입력창 — maxLength 미사용(한글 IME 충돌, [[textinput-maxlength-hangul-bug]]). 크림 필드(둥근 22) */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 10,
         paddingBottom: bottomPad, backgroundColor: DM_SURFACE, borderTopWidth: replyTo ? 0 : 0.5, borderTopColor: DM_LINE, gap: 8 }}>
@@ -606,6 +620,24 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   }, [messages, myClearedMs, hiddenMsgs]);
   // 인버티드 FlatList용 — 최신이 index 0(시각적 바닥). 새 메시지가 바닥에 자동으로 쌓여 끌어올릴 필요 없음 + 메시지 적어도 입력창 바로 위에 붙음(카톡식 아래고정).
   const rlist = useMemo(() => list.slice().reverse(), [list]);
+  // 답장 인용 원본 조회용 맵 — 저장된 replyTo엔 {msgId,body,senderUid}뿐이라 사진/영상은 본문이 빈 값.
+  //   원본을 찾아 종류(사진·영상·카드)와 썸네일을 보강(규칙 변경 없이 표시만).
+  const msgById = useMemo(() => {
+    const m = {}; (messages || []).forEach(x => { if (x?.id) m[x.id] = x; }); return m;
+  }, [messages]);
+  // 인용 대상 묘사 — 본문 있으면 그대로, 빈 본문(사진/영상/카드)이면 원본에서 판별(못 찾으면 사진으로 추정).
+  const describeQuoted = useCallback((reply) => {
+    const body = (reply?.body || '').trim();
+    if (body) return { label: body, icon: null, thumb: null };
+    const o = reply?.msgId ? msgById[reply.msgId] : null;
+    if (o) {
+      if (o.videoUrl) return { label: '동영상', icon: '🎬', thumb: o.poster || null };
+      if (o.roundupId) return { label: o.roundupScope === 'select' ? '초대 카드' : '모집 카드', icon: '✉️', thumb: null };
+      const img = (Array.isArray(o.imageUrls) && o.imageUrls[0]) || o.imageUrl || null;
+      if (img) return { label: '사진', icon: '📷', thumb: img };
+    }
+    return { label: '사진', icon: '📷', thumb: null }; // 원본 못 찾음(오래된 메시지)·빈 본문 → 사진 추정
+  }, [msgById]);
   // ★입력 지연 방지 — renderItem을 useCallback으로 안정화. 안 하면 매 글자(setText) 리렌더마다 renderItem 참조가
   //   새로 생겨 FlatList가 보이는 말풍선을 전부 다시 그려 입력이 버벅임(안드 특히). list/읽음/상대정보 바뀔 때만 갱신.
   const renderItem = useCallback(({ item, index }) => {
@@ -693,20 +725,30 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 : { backgroundColor: mine ? DM_MINE_BG : DM_RECV_BG, paddingHorizontal: 16, paddingVertical: 12,
                     borderTopLeftRadius: mine ? 16 : 4, borderTopRightRadius: mine ? 4 : 16,
                     borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
-              {/* 답장(인용) 블록 — 라이트 말풍선이라 어둡게 반투명. 좌측 액센트+발신자+2줄 요약 */}
-              {item.replyTo && (
-                <View style={{ borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(61,57,53,0.3)' : 'rgba(42,61,71,0.3)',
-                  backgroundColor: mine ? 'rgba(61,57,53,0.08)' : 'rgba(42,61,71,0.08)',
-                  borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, marginBottom: 6 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: mine ? DM_MINE_TX : DM_RECV_TX }}>
-                    {item.replyTo.senderUid === myUid ? '나' : friendName}
-                  </Text>
-                  <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 18,
-                    color: mine ? 'rgba(61,57,53,0.7)' : 'rgba(42,61,71,0.7)', marginTop: 1 }}>
-                    {item.replyTo.body}
-                  </Text>
-                </View>
-              )}
+              {/* 답장(인용) 블록 — 라이트 말풍선이라 어둡게 반투명. 좌측 액센트+발신자+요약(사진/영상은 라벨+썸네일) */}
+              {item.replyTo && (() => {
+                const q = describeQuoted(item.replyTo);
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+                    borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(61,57,53,0.3)' : 'rgba(42,61,71,0.3)',
+                    backgroundColor: mine ? 'rgba(61,57,53,0.08)' : 'rgba(42,61,71,0.08)',
+                    borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, marginBottom: 6 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: mine ? DM_MINE_TX : DM_RECV_TX }}>
+                        {item.replyTo.senderUid === myUid ? '나' : friendName}
+                      </Text>
+                      <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 18,
+                        color: mine ? 'rgba(61,57,53,0.7)' : 'rgba(42,61,71,0.7)', marginTop: 1 }}>
+                        {q.icon ? `${q.icon} ` : ''}{q.label}
+                      </Text>
+                    </View>
+                    {!!q.thumb && (
+                      <Image source={{ uri: q.thumb }} style={{ width: 34, height: 34, borderRadius: 6 }}
+                        contentFit="cover" cachePolicy="memory-disk" recyclingKey={q.thumb} />
+                    )}
+                  </View>
+                );
+              })()}
               {/* 동영상 — 포스터 썸네일+▶, 탭 시 전체화면 재생(PhotoViewer). */}
               {video && (
                 <DmVideo uri={video.uri} poster={video.poster} size={210}
@@ -758,7 +800,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
         </View>
       </View>
     );
-  }, [rlist, myUid, otherReadMs, friendName, friendAvatarUri, selectMode, selectedIds]);
+  }, [rlist, myUid, otherReadMs, friendName, friendAvatarUri, selectMode, selectedIds, describeQuoted]);
 
   return (
     <View style={{ flex: 1, backgroundColor: DM_SURFACE }}>
