@@ -233,11 +233,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     return (
       <View key={slot} style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
         {/* 헤더 — 식사 슬롯(2곳일 때) + 누가 정했는지(별명 우선). 잘 보이게 카드 최상단. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           {decidedCount === 2 && (
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.warmGray }}>식사 {slot}</Text>
+            <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, letterSpacing: 0.3 }}>식사 {slot}</Text>
+            </View>
           )}
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }} numberOfLines={1}>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray }} numberOfLines={1}>
             🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님이 정함`}
           </Text>
         </View>
