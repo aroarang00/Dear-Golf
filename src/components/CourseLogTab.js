@@ -380,7 +380,7 @@ export function CourseLogTab({ avgRating, navigation }) {
         </View>
       </TouchableOpacity>
       {/* 내 스코어 — 요약 한 줄 + › 눌러 통계·추세 전용 화면(100대 배너와 같은 결, 네이비). [[feature-backlog]] ① */}
-      <TouchableOpacity style={[dS.banner, { backgroundColor: C.navy, borderWidth: 0, marginTop: -6 }]} activeOpacity={0.85}
+      <TouchableOpacity style={[dS.banner, { backgroundColor: C.navy, borderWidth: 0, marginTop: -6, paddingHorizontal: 16 }]} activeOpacity={0.85}
         onPress={() => setScoreStatsOpen(true)}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={[dS.bannerTitle, { color: '#fff' }]}>내 스코어</Text>

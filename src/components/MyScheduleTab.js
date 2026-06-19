@@ -646,7 +646,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                 backgroundColor: 'rgba(250,248,243,0.32)',
               }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 14 }}>
-                  첫 라운드를 등록해보세요
+                  이 달 라운딩을 등록해보세요
                 </Text>
                 <TouchableOpacity activeOpacity={0.85}
                   onPress={() => {
