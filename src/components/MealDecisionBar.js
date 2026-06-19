@@ -9,7 +9,7 @@ import { naverSearchUrl } from '../utils/naverMap';   // 식당 '상세'를 네�
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { searchGolfCourses } from '../utils/golfCourses';
 import {
-  proposeMeal, updateMealNote,
+  proposeMeal, updateMealNote, deleteMeal,
   subscribeMealForSchedule, subscribeIncomingMeals,
 } from '../utils/mealSuggestions';
 import { getScheduleGroup } from '../utils/scheduleShares';
@@ -151,8 +151,17 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     return () => clearTimeout(t);
   }, [kw, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 제안 = 결정 — 고르면 picking 슬롯에 바로 확정(+메모). 선착순: 이미 누가 정했으면 안내만(덮어쓰기 X). 총대 본인이면 변경.
-  const propose = async (pl) => {
+  // 식당 선택 → 확인창 거쳐 결정/변경. ★확인 시에만 Firestore 기록(=동반자 푸시) — 둘러보다 실수·이랬다저랬다 연타로
+  //   푸시가 도배되던 문제 방지 + 취소 경로 제공(사용자 2026-06-19).
+  const propose = (pl) => {
+    if (busy || !uid || !pl?.name) return;
+    Alert.alert('식사 장소 정하기', `${pl.name}(으)로 정할게요.\n동반자에게 알림이 가요.`, [
+      { text: '취소', style: 'cancel' },
+      { text: '정하기', onPress: () => commitMeal(pl) },
+    ]);
+  };
+  // 실제 결정/변경 — proposeMeal 기록(생성=결정 / 작성자·주최자 변경). 여기서만 푸시 발생.
+  const commitMeal = async (pl) => {
     const slot = pickSlot || 1;
     if (busy || !uid || !pl?.name) return;
     setBusy(true);
@@ -183,6 +192,15 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     if (!memoEdit) return;
     await updateMealNote(mealKey, memoEdit.slot, memoEdit.text);
     setMemoEdit(null);
+  };
+  // 식사 결정 취소 — 문서 삭제(조용히, 푸시 X). 작성자/주최자만(canEditMeal). 동반자에겐 알림 안 감(스팸 방지).
+  const cancelMeal = (m, slot) => {
+    Alert.alert('식사 취소', `${m?.place?.name || '식사'} 결정을 취소할까요?\n동반자에겐 알림이 가지 않아요.`, [
+      { text: '닫기', style: 'cancel' },
+      { text: '취소하기', style: 'destructive', onPress: async () => {
+        try { await deleteMeal(mealKey, slot); } catch (e) { if (__DEV__) console.warn('[meal] cancel', e?.message); }
+      } },
+    ]);
   };
   const openNav = (pl, provider) => {
     if (!pl || !Number.isFinite(pl.x) || !Number.isFinite(pl.y)) return;
@@ -218,6 +236,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         )}
         <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>📍 {pl?.name} 로 결정</Text>
         {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
+        {/* 누가 정했는지 — 본인이면 '내가', 아니면 이름. 동반자가 누가 골랐는지 알 수 있게. */}
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
+          🍴 {meal.authorUid === uid ? '내가 정함' : `${meal.authorName || '동반자'}님이 정함`}
+        </Text>
         {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
         {editing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
@@ -244,8 +266,9 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>티맵 길찾기</Text>
           </TouchableOpacity>
         </View>
-        {/* 총대만 — 변경(장소 다시) / 메모 수정 */}
+        {/* 총대/주최자만 — 변경(장소 다시) / 메모 수정 / 식사 취소(결정 삭제, 조용히) */}
         {author && !editing && (
+          <>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
             <TouchableOpacity onPress={() => startPick(slot, meal)} activeOpacity={0.8}
               style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.2, borderColor: C.burgundy }}>
@@ -256,6 +279,11 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.navy }}>{meal.note ? '메모 수정' : '메모'}</Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity onPress={() => cancelMeal(meal, slot)} activeOpacity={0.7}
+            style={{ marginTop: 8, alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 10 }}>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, textDecorationLine: 'underline' }}>식사 취소</Text>
+          </TouchableOpacity>
+          </>
         )}
       </View>
     );

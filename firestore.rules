@@ -217,8 +217,10 @@ service cloud.firestore {
           resource.data.authorUid == request.auth.uid
           || resource.data.get('hostUid', '') == request.auth.uid
         );
-      // 삭제: author만 (TTL 정리는 후속 CF).
-      allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+      // 삭제(식사 취소): 작성자 또는 단체모집 주최자(hostUid). 변경 권한과 동일 기준. (TTL 정리는 후속 CF)
+      allow delete: if isSignedIn()
+        && (resource.data.authorUid == request.auth.uid
+            || resource.data.get('hostUid', '') == request.auth.uid);
     }
 
     // ===== friendships — 친구 관계. 문서 ID = pairId(uidA, uidB) =====

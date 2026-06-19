@@ -1,6 +1,6 @@
 import {
   collection, query, where, onSnapshot,
-  setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, Timestamp, runTransaction,
+  setDoc, updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, Timestamp, runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -117,6 +117,16 @@ export async function updateMealNote(scheduleId, slot, note) {
     await updateDoc(doc(db, COLLECTION, mealSuggestionId(scheduleId, slot)), { note: note || '', updatedAt: serverTimestamp() });
     return true;
   } catch (e) { if (__DEV__) console.warn('[meal] note update fail', e?.message); return false; }
+}
+
+// 식사 결정 취소 — 문서 삭제. onDelete CF 없음 = 동반자에게 푸시 안 감(조용한 취소, 스팸 방지).
+//   규칙: 작성자 또는 단체 주최자(hostUid)만 삭제.
+export async function deleteMeal(scheduleId, slot = 1) {
+  if (!scheduleId) return false;
+  try {
+    await deleteDoc(doc(db, COLLECTION, mealSuggestionId(scheduleId, slot)));
+    return true;
+  } catch (e) { if (__DEV__) console.warn('[meal] delete fail', e?.message); return false; }
 }
 
 // 내게 온 뒤풀이 제안 구독 — audienceUids에 내 uid, 만료 전. 최신순(클라). 동반자 화면용.
