@@ -1163,9 +1163,11 @@ export function HomeScreen({ navigation, route }) {
             <Text style={{ fontSize: fs(26), color: 'rgba(255,255,255,0.9)' }}>✕</Text>
           </TouchableOpacity>
           {/* activeOpacity 1 + 카드 자체 탭은 닫기 막기(배경 탭만 닫힘) */}
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-            {/* 공유 카드와 동일한 320폭 — 폰트가 320 기준 calibrate(adjustsFontSizeToFit)라 좁히면 구장명 잘림 */}
-            {checkinCard && <ScheduleShareCard schedule={checkinCard} width={Math.min(winW - 24, 320)} />}
+          {/* 공유 카드와 '똑같이' 320폭으로 렌더(거기서 구장명 정상) → 비율 그대로 transform scale로만 확대.
+              폭을 바꾸면 폰트가 다시 reflow돼 잘리므로, 레이아웃은 320 고정하고 화면에 맞춰 크게 보이게만. */}
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}
+            style={{ transform: [{ scale: Math.min((winW - 24) / 320, 1.35) }] }}>
+            {checkinCard && <ScheduleShareCard schedule={checkinCard} width={320} />}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
