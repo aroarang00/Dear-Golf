@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Share, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Share, Platform, Animated, Easing } from 'react-native';
 
 const _and = Platform.OS === 'android';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
@@ -71,6 +71,17 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [mealAutoOpen, setMealAutoOpen] = useState(false);
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
   const [showCourseLog, setShowCourseLog] = useState(false);
+  // '내 코스 모아보기' 주목 유도 — 은은한 맥동(scale). 통계·방문기록이 여기 있어 탭 유도(사용자 2026-06-19).
+  const coursePulse = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(coursePulse, { toValue: 1, duration: 950, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(coursePulse, { toValue: 0, duration: 950, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, []);
+  const courseScale = coursePulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
   // 내가 지정한 친구 별명(customName) — 동반자 이름 '표시'에만 resolve. 저장된 일정 데이터(companions.name)는
   //   닉네임 그대로(전파·공유는 닉네임, owner-only 표시만 별명) ([[friend_groups]], [[diary-companion-matching]])
   const [friendMeta, setFriendMeta] = useState({});
@@ -578,17 +589,21 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           </View>
         </View>
 
-        {/* 내 코스기록 진입 — 코스 탭 헤더 버튼과 동일 모달. 다이어리 안 쓰는 사용자가 본인 라운딩 기록을 일정 동선에서 찾을 수 있게. */}
+        {/* 내 코스기록 진입 — 코스 탭 헤더 버튼과 동일 모달. 다이어리 안 쓰는 사용자가 본인 라운딩 기록을 일정 동선에서 찾을 수 있게.
+            맥동(scale)+버건디 테두리로 주목 유도 — 방문 코스·통계가 여기 있어 탭 유도. */}
+        <Animated.View style={{ marginHorizontal: 16, marginBottom: _and ? 2 : 4, transform: [{ scale: courseScale }] }}>
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginBottom: _and ? 2 : 4,
-            backgroundColor: C.butter, borderRadius: 12,
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6,
+            backgroundColor: C.butter, borderRadius: 12, borderWidth: 1.5, borderColor: C.burgundy,
             paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
-          <Text style={{ fontSize: fs(14) }}>🏌️</Text>
-          <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
-            내 코스 모아보기
-          </Text>
+          <Text style={{ fontSize: fs(16) }}>🏌️</Text>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>내 코스 모아보기</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.textSecondary, marginLeft: 7 }}>방문 코스 · 통계 보기</Text>
+          </View>
           <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }}>›</Text>
         </TouchableOpacity>
+        </Animated.View>
 
         {/* This month list */}
         <View
