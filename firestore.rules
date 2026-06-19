@@ -167,9 +167,13 @@ service cloud.firestore {
         && request.resource.data.course is string
         && request.resource.data.date is string;
       // 초대 추가 — initiator가 audienceUids + names(uid→이름 맵, 표시용) 갱신(친구 더 초대).
+      //   declinedUids는 '제거만'(재초대=거절/탈퇴자 un-decline) 허용 — 추가(강제 거절)는 차단.
+      //   audience는 줄지 않음(추가만), declined는 늘지 않음(제거만). 둘 다 위조방지 가드.
       allow update: if isSignedIn()
         && resource.data.initiatorUid == request.auth.uid
-        && changedKeysWithin(['audienceUids', 'names', 'updatedAt']);
+        && changedKeysWithin(['audienceUids', 'names', 'declinedUids', 'updatedAt'])
+        && request.resource.data.audienceUids.hasAll(resource.data.audienceUids)
+        && request.resource.data.declinedUids.hasOnly(resource.data.declinedUids);
       // 수락 — 수신자(audience)가 memberUids에 '자기 uid'만 토글. 남 변조 완전차단은 규칙만으론 불가(roundScoreShares와 동일 한계, v1 허용).
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids

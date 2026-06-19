@@ -45,7 +45,9 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
   const snap = await getDoc(ref);
   if (snap.exists()) {
     // 초대 추가 + 이름맵 보강(dot-notation 머지). 나중에 동반자 등록해도 이름 저장됨.
-    const upd = { audienceUids: arrayUnion(...aud), updatedAt: serverTimestamp() };
+    //   ★declinedUids에서도 제거 — 예전에 거절/탈퇴한 사람을 '재초대'하면 다시 초대 카드가 떠야 함.
+    //   (안 풀면 filterPending이 declined로 계속 숨겨 재초대가 영영 안 감. 규칙도 initiator의 declined 제거 허용.)
+    const upd = { audienceUids: arrayUnion(...aud), declinedUids: arrayRemove(...aud), updatedAt: serverTimestamp() };
     Object.keys(nameEntries).forEach(u => { upd[`names.${u}`] = nameEntries[u]; });
     await updateDoc(ref, upd);
   } else {

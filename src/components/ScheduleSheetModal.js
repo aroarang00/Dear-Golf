@@ -84,9 +84,11 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     });
     if (group) {
       const members = group.memberUids || [];
+      const declined = group.declinedUids || []; // 거절·탈퇴자 — 동반자 목록에서 제외(초대중으로 잘못 떠선 안 됨)
       [...members, ...(group.audienceUids || [])].forEach(uid => {
         if (!uid || uid === myUid || seen.has(uid)) return;
         seen.add(uid);
+        if (declined.includes(uid)) return; // 초대 거절했거나 받은 일정을 삭제(탈퇴)한 사람은 표시 안 함
         // 별명(친구메타) → 그룹 저장 이름(group.names, 최적화) → 닉네임(친구목록 폴백, 옛 그룹) → 호스트명. 못 찾으면 생략.
         const cn = (friendMeta?.[uid]?.customName || '').trim();
         const nm = cn || group.names?.[uid] || friendNames[uid] || (uid === group.initiatorUid ? group.initiatorName : '');

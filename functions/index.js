@@ -142,6 +142,39 @@ exports.onScheduleGroupCreated = onDocumentCreated('scheduleGroups/{groupId}', a
   }));
 });
 
+// 일정 전파 — 추가 초대/재초대(업데이트)에도 푸시. onCreate는 최초 생성만 잡으므로, 친구를 나중에 더 부르거나
+//   예전 거절/탈퇴자를 다시 부르면(declinedUids에서 제거=재초대) 새로 'pending'이 된 사람에게만 발송.
+//   (수락·거절 등 다른 업데이트엔 targets=0이라 무발송 — 중복 푸시 방지) ([[schedule-propagation-spec]])
+exports.onScheduleGroupUpdated = onDocumentUpdated('scheduleGroups/{groupId}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after || !after.initiatorUid || !Array.isArray(after.audienceUids)) return;
+  const beforeAud = Array.isArray(before.audienceUids) ? before.audienceUids : [];
+  const beforeDeclined = Array.isArray(before.declinedUids) ? before.declinedUids : [];
+  const afterMembers = Array.isArray(after.memberUids) ? after.memberUids : [];
+  const afterDeclined = Array.isArray(after.declinedUids) ? after.declinedUids : [];
+  // 새로 초대 가능해진 사람 = audience에 있고, 아직 멤버/거절 아니며, (신규 추가 OR 예전 declined에서 풀림=재초대)
+  const targets = after.audienceUids.filter(u =>
+    u && u !== after.initiatorUid &&
+    !afterMembers.includes(u) &&
+    !afterDeclined.includes(u) &&
+    (!beforeAud.includes(u) || beforeDeclined.includes(u))
+  );
+  if (!targets.length) return;
+  const courseT = after.course ? `'${after.course}'` : '라운딩';
+  const body = `${after.initiatorName ? after.initiatorName + '님이 ' : ''}${courseT} 일정에 초대했어요${after.date ? ` — ${after.date}` : ''}`;
+  await Promise.all(targets.map(async (uid) => {
+    try {
+      const snap = await db.doc(`users/${uid}`).get();
+      if (!snap.exists) return;
+      const u = snap.data();
+      if (u.settings?.notifyPrefs?.scheduleInvite === false) return;
+      if (!u.pushToken) return;
+      await sendExpoPush(u.pushToken, '일정 초대', body, { type: 'scheduleInvite', groupId: event.params.groupId });
+    } catch (e) { logger.warn('[scheduleInvite update] push fail', e?.message); }
+  }));
+});
+
 // 스코어 공유 생성 시 audience(동반자)에게 푸시 — MY 배너가 인앱 담당, 푸시로 발견성 보강(사용자 요청 2026-06-17).
 exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', async (event) => {
   const s = event.data?.data();
