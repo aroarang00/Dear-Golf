@@ -52,7 +52,7 @@ export function GuideScreen({ route, navigation }) {
     loop.start();
     return () => loop.stop();
   }, []);
-  const courseTranslateX = courseFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }); // 왼쪽으로 살랑이는 이동(사용자 2026-06-20)
+  const courseTranslateX = courseFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -9] }); // 왼쪽으로 살랑이는 이동(사용자 2026-06-20)
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
   const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
