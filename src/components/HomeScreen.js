@@ -534,6 +534,7 @@ export function HomeScreen({ navigation, route }) {
           courseLoc: data.courseLoc || null, // 코스 주소 — 지역탭 분류용([[region-classification]])
           courseKakaoId: data.courseKakaoId || null, // 코스 가기(프레시설치) 매칭용
           companions: Array.isArray(data.companions) ? data.companions : [], // 동반자
+          booker: data.booker || '',                 // 예약자(체크인 이름)
         });
       } catch (e) {
         console.warn('[home] schedule add failed:', e?.message);
@@ -561,6 +562,7 @@ export function HomeScreen({ navigation, route }) {
           courseLoc: data.courseLoc || null, // 코스 주소 — 지역탭 분류용([[region-classification]])
           courseKakaoId: data.courseKakaoId || null,
           companions: Array.isArray(data.companions) ? data.companions : [],
+          booker: data.booker || '',                 // 예약자(체크인 이름)
         });
       } catch (e) {
         console.warn('[home] schedule edit failed:', e?.message);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
 import { OverlayAlert } from './common/OverlayAlert';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -13,9 +13,11 @@ import { FriendSelectModal } from './FriendSelectModal';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UserContext } from '../contexts/UserContext';
 
 export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const insets = useSafeAreaInsets();
+  const { userProfile } = useContext(UserContext);
   // initial에 id가 있으면 기존 일정 수정, 없으면(날짜만 채워진 경우) 새 일정 추가
   const isEdit = !!(initial && initial.id);
   const [courseSearch, setCourseSearch] = useState('');
@@ -45,6 +47,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [companionInput, setCompanionInput] = useState('');
   const [friends, setFriends] = useState([]);
   const [showCompanionPicker, setShowCompanionPicker] = useState(false);
+  // 예약자 — 프론트 체크인 이름. 자유 입력(법인명·양도·대리예약 등) + 빠른 채우기(나/동반자) ([[schedule-booker]])
+  const [booker, setBooker] = useState('');
 
   const DAYS = WEEKDAYS;
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
@@ -86,6 +90,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
             .filter(c => c && c.name)
         : []);
       setCompanionInput('');
+      setBooker(initial.booker || '');
       setOverseas(!!initial.overseas);
       if (initial.overseas && initial.city) {
         setCityQuery(initial.city);
@@ -184,6 +189,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setDate(new Date()); setHourText('07'); setMinText('00'); setMembers('4');
     setEditingName(false); setEditName('');
     setCompanions([]); setCompanionInput('');
+    setBooker('');
     setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
   };
 
@@ -236,6 +242,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         ...companions,
         ...companionInput.trim().split(/[\s,]+/).filter(Boolean).map(name => ({ name })),
       ],
+      booker: (booker || '').trim(),  // 예약자(체크인 이름) — 선택 입력
       dDay: Math.max(0, dDay),
     };
     if (isEdit) {
@@ -485,6 +492,41 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>(친구를 추가하면 골라서 넣을 수 있어요)</Text>
                 )}
               </TouchableOpacity>
+
+              {/* 예약자 (선택) — 프론트 체크인 이름. 빠른 채우기(나/동반자) + 자유 입력(법인명·양도·대리예약 등) ([[schedule-booker]]) */}
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>예약자 (선택)</Text>
+              {(() => {
+                const chips = [];
+                const seenVal = new Set();
+                const me = (userProfile?.realName || userProfile?.nickname || '').trim();
+                if (me) { chips.push({ label: '나', value: me }); seenVal.add(me); }
+                companions.forEach(c => {
+                  const val = (c?.name || '').trim();
+                  if (!val || seenVal.has(val)) return;
+                  seenVal.add(val);
+                  const label = c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name;
+                  chips.push({ label, value: val });
+                });
+                if (!chips.length) return null;
+                return (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {chips.map((ch, i) => {
+                      const on = booker.trim() === ch.value;
+                      return (
+                        <TouchableOpacity key={i} activeOpacity={0.7} onPress={() => setBooker(ch.value)}
+                          style={[mS.chip, on && mS.chipOn, { paddingHorizontal: 12 }]}>
+                          <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: fs(12) }]}>{ch.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              })()}
+              <TextInput style={[mS.input, { marginBottom: 0 }]} value={booker} onChangeText={setBooker}
+                placeholder="예약자 이름 (법인명·양도 등도 입력)" placeholderTextColor={C.warmGrayLight} />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                💡 프론트 체크인 때 보여줄 예약자 이름이에요
+              </Text>
 
               <TouchableOpacity style={mS.saveBtn} onPress={handleSave}>
                 <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>

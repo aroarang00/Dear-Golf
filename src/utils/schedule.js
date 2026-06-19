@@ -50,6 +50,7 @@ export async function createSchedule(data) {
     time: data.time || '',
     members: typeof data.members === 'number' ? data.members : 4,
     companions: Array.isArray(data.companions) ? data.companions : [], // 동반자 [{name, friendUid?}]
+    booker: data.booker || '',   // 예약자(체크인 이름) — 선택 입력 ([[schedule-booker]])
     roundupId: data.roundupId || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

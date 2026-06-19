@@ -105,6 +105,13 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           <Field label="TEE-OFF" value={timeText} align="right" />
         </View>
 
+        {/* 예약자 — 프론트 체크인 이름(있을 때만). 법인명·양도명도 그대로 ([[schedule-booker]]) */}
+        {s.booker ? (
+          <View style={{ marginTop: 14 }}>
+            <Field label="예약자 · BOOKED BY" value={s.booker} />
+          </View>
+        ) : null}
+
         {/* D-day · 동반 (날씨는 코스 위로 이동) */}
         <View style={styles.metaRow}>
           {ddayText ? (

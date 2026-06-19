@@ -168,6 +168,12 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     👥 {companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
                   </Text>
                 )}
+                {/* 예약자 — 프론트 체크인 이름(있을 때만) ([[schedule-booker]]) */}
+                {!!schedule.booker && (
+                  <Text style={[sheetS.meta, { marginTop: 4 }]} numberOfLines={1}>
+                    📋 예약자 {schedule.booker}
+                  </Text>
+                )}
                 {dd != null && (
                   isPast ? (
                     <Text style={[sheetS.ddayLabel, { marginTop: 12 }]}>지난 라운딩이에요</Text>
