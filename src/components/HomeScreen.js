@@ -312,6 +312,11 @@ export function HomeScreen({ navigation, route }) {
     const [hh, mm] = (s?.time || '08:00').split(':').map(Number);
     return parseSchedDate(s) + (hh || 8) * 3600000 + (mm || 0) * 60000 + 4 * 3600000;
   };
+  // 티오프 시각(ms) — 당일 체크인 카드 배너 노출 창 계산용
+  const teeoffMs = (s) => {
+    const [hh, mm] = (s?.time || '08:00').split(':').map(Number);
+    return parseSchedDate(s) + (hh || 8) * 3600000 + (mm || 0) * 60000;
+  };
   // 오늘 라운딩 종료(티오프+4h) 카드 — 기록해도 사라지지 않고 "기록 완료"로 유지(교통·맛집 동선), 나가기/자정까지.
   const isEndedToday = (s) => freshDDay(s) === 0 && now >= teeoffEndMs(s);
   const isDismissed = (s) => !!(s && s.id && dismissedCards[s.id]);
@@ -322,6 +327,8 @@ export function HomeScreen({ navigation, route }) {
   const roundEnded = !!next && isEndedToday(next);
   // D-0(당일) — 메인 카드를 전폭으로 키우고 서브카드를 숨김(정보 박스 3개가 다 들어가게, 사용자 2026-06-18)
   const isD0 = !!next && freshDDay(next) === 0;
+  // 당일 체크인 카드 배너 — D-0이고 티오프 30분 후까지(프론트 체크인용), 종료(+4h) 전. 탭하면 공유 카드 전체화면 ([[schedule-booker]])
+  const checkinActive = !!next && isD0 && !roundEnded && now < teeoffMs(next) + 30 * 60000;
   const { width: winW } = useWindowDimensions();
 
   const carouselActive = React.useMemo(() => {
@@ -710,6 +717,22 @@ export function HomeScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
           </View>
+          {/* 당일 체크인 카드 배너 — 탭하면 공유 카드 전체화면(프론트 체크인용). 보딩패스=체크인 패스 ([[schedule-booker]]) */}
+          {checkinActive && (
+            <TouchableOpacity onPress={() => handleShareSchedule(next)} activeOpacity={0.85}
+              style={{ marginHorizontal: 20, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 9,
+                backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.42)',
+                borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+              <Text style={{ fontSize: fs(18) }}>🎫</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>오늘 라운딩 · 체크인 카드</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.78)', marginTop: 1 }} numberOfLines={1}>
+                  {next.booker ? `예약자 ${next.booker} · 탭하면 전체화면` : '탭하면 전체화면으로 보여드려요'}
+                </Text>
+              </View>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>›</Text>
+            </TouchableOpacity>
+          )}
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이는 D-N과 동일 고정. D-N이면 기존 고정폭 카드. */}
