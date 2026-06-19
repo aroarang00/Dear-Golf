@@ -13,7 +13,9 @@ import { db } from './firebase';
 import { normalizeCourseName } from './top100';
 import { searchGolfCoursesKakao } from './kakao';
 
-const CACHE_KEY = '@dg_golfcourses_v1';
+// v2: 2026-06-19 마스터 이름 정리(로제비앙GC·스타CC) 후 기기 캐시 강제 무효화.
+//   마스터 데이터(이름 등) 변경 시 이 버전을 올리면 모든 기기가 다음 실행에 새로 받아간다(24h TTL 기다릴 필요 X).
+const CACHE_KEY = '@dg_golfcourses_v2';
 const TTL = 24 * 60 * 60 * 1000; // 하루 (거의 안 바뀌는 마스터 데이터)
 
 let memCache = null;   // [{ kakaoId, name, input, loc, x, y, url }]
