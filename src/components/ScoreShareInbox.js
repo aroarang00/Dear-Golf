@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Easing, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
@@ -25,10 +25,10 @@ export function ScoreShareInbox({ nickname, onDerived }) {
     return unsub;
   }, [uid]);
 
-  // 받은 공유가 있을 때만 은은하게 반짝이는 루프(안드 전용) — border/scale 애니라 useNativeDriver:false.
-  //   iOS는 맥동 없이 정적 테두리만(후광·번짐 회피, 사용자 2026-06-19).
+  // 받은 공유가 있을 때만 은은하게 맥동하는 루프. iOS는 scale(숨쉬기)만, 안드는 border밝기+scale.
+  //   ★iOS도 맥동 재적용(사용자 2026-06-19) — 단 그림자/후광 없이 scale만이라 '노란 번짐' 없음.
   useEffect(() => {
-    if (!shares.length || Platform.OS === 'ios') { glow.setValue(0); return; }
+    if (!shares.length) { glow.setValue(0); return; }
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
       Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
@@ -72,13 +72,12 @@ export function ScoreShareInbox({ nickname, onDerived }) {
       {first && (
         <Animated.View style={{
           marginHorizontal: 16, marginTop: 14, marginBottom: 4, borderRadius: 16,
-          ...(Platform.OS === 'ios' ? {} : { transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }] }),
+          transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }],   // iOS·안드 공통 scale 맥동(후광 X)
         }}>
           <Animated.View style={{
             borderRadius: 16, borderWidth: 2,
-            borderColor: Platform.OS === 'ios'
-              ? C.butter   // iOS: 정적 테두리(번짐 없음)
-              : glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.78)', 'rgba(245,230,168,1)'] }),
+            // 테두리 밝기 맥동 — 그림자가 아니라 테두리 선 자체 밝기라 '빛번짐(후광)' 없음. iOS·안드 공통.
+            borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.78)', 'rgba(245,230,168,1)'] }),
           }}>
             <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
               style={{ backgroundColor: C.navy, borderRadius: 13.5, padding: 14,
