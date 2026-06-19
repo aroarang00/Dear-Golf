@@ -104,6 +104,24 @@ export function matchVisitedTop100(top100List, visitedNames) {
   });
 }
 
+// 단일 골프장명 → 100대 순위(rank) | null. ★큐레이션(다중코스 리조트) 반영 — 코스 상세 '100대 코스 N위' 배지용.
+//   기존 배지는 정규화 완전일치만 써서, master의 코스단위명(예 '소노펠리체CC 비발디파크 EAST'=정규화 '소노펠리체비발디파크east')이
+//   top100 구장명('소노펠리체 CC'=정규화 '소노펠리체')과 안 맞아 배지가 안 떴음. matchVisitedTop100과 동일 규칙으로 통일.
+export function top100RankOf(top100List, courseName) {
+  const v = normalizeCourseName(courseName);
+  if (!v) return null;
+  for (const c of (top100List || [])) {
+    const cur = TOP100_CURATION[c.rank];
+    if (cur) {
+      if (cur.prefixes.some(p => v.startsWith(p))) return c.rank;     // 큐레이션 prefix(코스단위) 매칭
+      if (cur.mode === 'resort' && v === normalizeCourseName(c.name)) return c.rank; // resort만 네이티브 구장명도 인정
+    } else if (v === normalizeCourseName(c.name)) {
+      return c.rank;                                                   // 일반: 정규화 완전일치
+    }
+  }
+  return null;
+}
+
 // 사용자가 100대 코스 목록에서 직접 체크한 순위(rank) 배열 — 로컬 저장
 export async function getManualTop100Checks() {
   const list = await storage.load(STORAGE_KEYS.top100Checks, []);

@@ -20,7 +20,7 @@ import {
   RECOMMENDED_COURSES, WEEKDAYS,
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { getTop100Courses, normalizeCourseName } from '../utils/top100';
+import { getTop100Courses, normalizeCourseName, top100RankOf } from '../utils/top100';
 import { getUserCourses } from '../utils/userCourses';
 import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
@@ -734,8 +734,9 @@ export function GuideScreen({ route, navigation }) {
                 {courseAddress || c.loc}
               </Text>
               {(() => {
-                // 100대 코스 배지 — 골프장명이 top100Courses에 매칭되면 순위 표시
-                const rank = top100.find(t => normalizeCourseName(t.name) === normalizeCourseName(c.name))?.rank;
+                // 100대 코스 배지 — 큐레이션(다중코스 리조트) 반영 매칭. 정규화 완전일치만 쓰면 '소노펠리체 비발디파크 EAST'처럼
+                //   코스단위명이 top100 구장명과 안 맞아 배지가 누락됐음([[course-matching-unification]]).
+                const rank = top100RankOf(top100, c.name);
                 if (!rank) return null;
                 return (
                   <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4,
