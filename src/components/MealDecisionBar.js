@@ -13,6 +13,7 @@ import {
   subscribeMealForSchedule, subscribeIncomingMeals,
 } from '../utils/mealSuggestions';
 import { getScheduleGroup } from '../utils/scheduleShares';
+import { loadRoundup } from '../utils/roundup';
 
 // 라운딩 코스 좌표 해석 — courseId(userCourses) 우선, 없으면 이름으로 골프장 검색. 주변 맛집 검색용.
 async function resolveCoord(schedule) {
@@ -35,7 +36,8 @@ async function resolveCoord(schedule) {
 // 함께 식사 — 카드 버튼(귀가교통 옆) + 팝업. ([[afterround-meal-decision]])
 //  D-0 종일 노출(전/후 무관). 총대가 식사 최대 2곳(슬롯 1·2) 선착순 결정, 각 슬롯에 메모(예: "아침 9시까지").
 //  슬롯 데이터=결정적 ID 2개(meal_{key}·meal_{key}_2). 동반자는 audienceUids로 발견·길찾기.
-export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1, block = false }) {
+// triggerless=true: 트리거 버튼 없이 시트(Modal)만 렌더 — 부모가 autoOpen으로 연다(일정캘린더처럼 일정 시트의 '함께 식사' 행에서 호출).
+export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1, block = false, triggerless = false }) {
   const insets = useSafeAreaInsets();
   const [mine1, setMine1] = useState(null);       // 총대 본인 슬롯1 문서
   const [mine2, setMine2] = useState(null);       // 총대 본인 슬롯2 문서
@@ -50,6 +52,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const [kw, setKw] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const [hostUid, setHostUid] = useState(null); // 단체모집 주최자 uid — 변경 권한 확장(정한 사람 + 주최자)
   const [members, setMembers] = useState([]); // 전파 일정 그룹의 라운딩 인원(수락자+초대받은 전원) — audience 소스(companions보다 신뢰)
   // ★공유 키 — 전파 일정은 groupId로 모든 참여자가 같은 meal 문서에 수렴(사용자별 schedule.id 발산 방지).
   const mealKey = schedule?.groupId || schedule?.id;
@@ -78,6 +81,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       .catch(() => {});
     return () => { alive = false; };
   }, [active, schedule?.groupId]);
+  // 단체모집 일정이면 주최자(roundup authorUid) 해석 — 변경 권한을 작성자 + 주최자로 확장([[afterround-meal-decision]], [[roundup-team-flat-roster]]).
+  useEffect(() => {
+    if (!active || !schedule?.roundupId) { setHostUid(null); return; }
+    let alive = true;
+    loadRoundup(schedule.roundupId).then(r => { if (alive) setHostUid(r?.authorUid || null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [active, schedule?.roundupId]);
   // 일정이 바뀌면(삭제·재생성·다른 라운딩) 캐시된 좌표·식당 리스트 초기화 — 옛 코스 식당이 남아 보이던 버그 방지.
   // 일정 바뀜 또는 같은 일정의 구장만 변경(같은 id) 시 캐시 좌표·맛집 리스트 초기화 — 옛 구장 주변 맛집이 남아 보이던 버그 방지.
   useEffect(() => { setCoord(null); setList([]); setKw(''); setPickSlot(null); setMemo(''); setMemoEdit(null); }, [schedule?.id, schedule?.courseId, schedule?.course]);
@@ -87,7 +97,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const meal1 = mine1 || findIncoming(1);
   const meal2 = mine2 || findIncoming(2);
   const decidedCount = (meal1 ? 1 : 0) + (meal2 ? 1 : 0);
-  const isAuthorOf = (m) => !!m && m.authorUid === uid;
+  // 변경 권한 = 정한 사람(author) 또는 단체모집 주최자(doc.hostUid). 규칙(firestore.rules)과 동일 기준.
+  const canEditMeal = (m) => !!m && (m.authorUid === uid || (!!m.hostUid && m.hostUid === uid));
 
   // audience = 전파 일정이면 그룹 멤버(나 제외), 아니면 일정의 친구 동반자(friendUid). 그룹 멤버가 신뢰도 높음.
   const audienceUids = useMemo(() => {
@@ -137,9 +148,14 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     if (busy || !uid || !pl?.name) return;
     setBusy(true);
     try {
-      const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: memo || '', audienceUids, slot });
+      // 단체모집인데 주최자(host)가 아직 비동기로 안 풀렸으면 여기서 확정 — null로 저장돼 주최자 오버라이드가 막히는 레이스 방지.
+      let host = hostUid;
+      if (!host && schedule?.roundupId) {
+        try { const r0 = await loadRoundup(schedule.roundupId); host = r0?.authorUid || null; if (host) setHostUid(host); } catch { /* host 못 구하면 author-only로 진행 */ }
+      }
+      const r = await proposeMeal({ authorUid: uid, authorName: nickname || '', schedule, place: pl, note: memo || '', audienceUids, slot, hostUid: host });
       if (r?.taken) {
-        Alert.alert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}식사 장소를 먼저 정했어요.\n변경은 정한 사람만 할 수 있어요.`);
+        Alert.alert('이미 정해졌어요', `${r.by ? r.by + '님이 ' : ''}식사 장소를 먼저 정했어요.\n변경은 정한 사람이나 주최자만 할 수 있어요.`);
       } else {
         setKw(''); setPickSlot(null); setMemo('');
       }
@@ -177,7 +193,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   // 결정된 식사 한 칸 — 장소·메모·길찾기 + (총대) 변경·메모수정
   const renderMealCard = (meal, slot) => {
     const pl = meal.place;
-    const author = isAuthorOf(meal);
+    const author = canEditMeal(meal);
     const editing = memoEdit?.slot === slot;
     return (
       <View key={slot} style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
@@ -254,6 +270,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
           <TextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
             style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
         </View>
+        {/* 클럽하우스 원탭 — 구장 식당에서 먹는 흔한 케이스. 구장 좌표로 바로 지정(길찾기=구장). 좌표 없으면 지정만 되고 길찾기 비활성. */}
+        <TouchableOpacity onPress={() => propose({ name: '클럽하우스', loc: schedule?.course || '', x: coord?.x, y: coord?.y })} disabled={busy} activeOpacity={0.85}
+          style={{ marginHorizontal: 18, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+            paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
+          <Text style={{ fontSize: fs(14) }}>🏌️</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>클럽하우스에서 식사</Text>
+        </TouchableOpacity>
         <View style={{ paddingBottom: 6 }}>
           {loading ? (
             <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
@@ -289,7 +312,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
 
   return (
     <>
-      {block ? (
+      {triggerless ? null : block ? (
         // 박스 모드(홈 D-0 카드) — 불투명 솔리드 채움(진짜 버튼) + 그림자. 불투명이라 Android '뿌연 팔각형' 아티팩트 없음([[dm-button]]).
         //   미결정=버터(브랜드 CTA), 결정=차콜+버터글씨. 상단 하이라이트로 솟은 느낌.
         <TouchableOpacity onPress={openSheet} activeOpacity={0.85}
@@ -325,7 +348,9 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                 {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}{schedule?.time ? ` · ${schedule.time}` : ''}
               </Text>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray, marginTop: 6 }} numberOfLines={2}>
-                💡 식사 장소는 처음 정한 사람만 변경할 수 있어요.
+                {(meal1 || meal2)
+                  ? '💡 변경은 정한 사람만 할 수 있어요.'
+                  : '💡 먼저 정하는 분이 식사 장소를 정해요.'}
               </Text>
             </View>
 
@@ -350,8 +375,9 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                 </Text>
               )}
 
-              {/* 최초 결정(슬롯1) 또는 슬롯2 추가 — 아직 그 칸이 없을 때만 하단에 표시(이미 정한 칸의 '변경'은 위 카드 인라인). */}
-              {((pickSlot === 1 && !meal1) || (pickSlot === 2 && !meal2)) && renderPicker()}
+              {/* 최초 결정(슬롯1) 또는 슬롯2 추가. ★슬롯1 미정이면 pickSlot 타이밍과 무관하게 항상 picker 노출 —
+                  시트가 열렸는데 pickSlot이 null로 남아 '안내 문구만' 뜨던 버그 방지(특히 캘린더 autoOpen 경로). */}
+              {((!meal1 && pickSlot !== 2) || (pickSlot === 2 && !meal2)) && renderPicker()}
             </KeyboardAwareScrollView>
           </View>
         </View>

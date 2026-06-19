@@ -22,6 +22,11 @@ import { roundsOnly } from '../utils/diaryKind';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { CourseLogModal } from './CourseLogModal';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
+import { loadMyFriendsEnriched } from '../utils/friends';
+import { shareScheduleToFriends } from '../utils/scheduleShares';
+import { FriendSelectModal } from './FriendSelectModal';
+import { MealDecisionBar } from './MealDecisionBar';
 
 const DAYS = WEEKDAYS;
 
@@ -50,6 +55,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
 export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries = [], navigation, jumpDate, onCloseSchedule }) {
   const { schedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
+  const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid (홈과 동일, [[uid-stabilization-plan]])
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modal, setModal] = useState({ visible: false, initial: null });
@@ -57,12 +63,53 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
+  // 친구 일정에 초대 + 함께 식사 — 홈과 동일 기능을 캘린더에서도(공용 일정 시트에서 진입)
+  const [inviteTarget, setInviteTarget] = useState(null);
+  const [inviteFriends, setInviteFriends] = useState([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [mealSchedule, setMealSchedule] = useState(null);   // 함께 식사 시트 대상(triggerless MealDecisionBar)
+  const [mealAutoOpen, setMealAutoOpen] = useState(false);
   const [picker, setPicker] = useState({ visible: false, year: 0, month: 0 });
   const [showCourseLog, setShowCourseLog] = useState(false);
   // 내가 지정한 친구 별명(customName) — 동반자 이름 '표시'에만 resolve. 저장된 일정 데이터(companions.name)는
   //   닉네임 그대로(전파·공유는 닉네임, owner-only 표시만 별명) ([[friend_groups]], [[diary-companion-matching]])
   const [friendMeta, setFriendMeta] = useState({});
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
+
+  // 친구 일정에 초대(일정 전파) — 홈 HomeScreen과 동일 동선([[schedule-propagation-spec]]). 시트 닫고 친구선택 → 발송.
+  const handleInviteFriends = async (schedule) => {
+    if (!schedule) return;
+    setSheet(prev => ({ ...prev, visible: false }));
+    setInviteTarget(schedule);
+    try { setInviteFriends(await loadMyFriendsEnriched()); } catch { setInviteFriends([]); }
+    setInviteOpen(true);
+  };
+  const submitInviteFriends = async ({ selectedUids } = {}) => {
+    setInviteOpen(false);
+    const schedule = inviteTarget;
+    const uids = (selectedUids || []).filter(Boolean);
+    setInviteTarget(null);
+    if (!schedule || !uids.length) return;
+    if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
+    try {
+      const names = {};
+      (inviteFriends || []).forEach(f => { const id = f.id || f.uid; if (id && uids.includes(id)) names[id] = f.customName || f.name || ''; });
+      const groupId = await shareScheduleToFriends({ schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids: uids, names });
+      if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
+      if (!schedule.groupId) await editSchedule(schedule.id, { groupId }); // 전파 일정 표식
+      showAppAlert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
+    } catch (e) {
+      if (__DEV__) console.warn('[mySchedule] invite', e?.message);
+      showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
+    }
+  };
+  // 함께 식사 — 시트 닫고 화면 레벨 triggerless MealDecisionBar를 autoOpen으로 연다(홈 카드와 동일 기능: 식당 정하기·네이버/티맵).
+  const openMealForSchedule = (schedule) => {
+    if (!schedule) return;
+    setSheet(prev => ({ ...prev, visible: false }));
+    setMealSchedule(schedule);
+    setMealAutoOpen(true);
+  };
 
   // B안 — 그리드 셀 탭 시 monthItems 카드로 스크롤 + 일시 하이라이트
   // ([[home-multi-schedule-same-day]] 일정-다이어리 풀 진입 제거, 캘린더 안에서 정보 확인 완결)
@@ -751,8 +798,30 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onWeather={() => openWxFromSheet('wx')}
         onTraffic={() => openWxFromSheet('tr')}
         onShare={handleSheetShare}
+        onInviteFriends={() => handleInviteFriends(sheet.schedule)}
+        onMeal={() => openMealForSchedule(sheet.schedule)}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      {/* 친구 일정에 초대(일정 전파) — 홈과 동일. 친구 다중선택 → 인앱 초대 발송 ([[schedule-propagation-spec]]) */}
+      <FriendSelectModal
+        visible={inviteOpen}
+        mode="companion"
+        friends={inviteFriends}
+        onClose={() => { setInviteOpen(false); setInviteTarget(null); }}
+        onConfirm={submitInviteFriends}
+      />
+
+      {/* 함께 식사 — 트리거 버튼 없이 시트만(위 '함께 식사' 행에서 autoOpen). 홈 카드와 동일 기능([[afterround-meal-decision]]) */}
+      <MealDecisionBar
+        triggerless
+        schedule={mealSchedule}
+        uid={currentUid}
+        nickname={userProfile?.nickname}
+        active={!!mealSchedule}
+        autoOpen={mealAutoOpen}
+        onAutoOpened={() => setMealAutoOpen(false)}
       />
 
       <WeatherTransportPopup

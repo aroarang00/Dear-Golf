@@ -21,7 +21,19 @@ import { db } from './firebase';
 // =============================================================
 
 const COLLECTION = 'mealSuggestions';
-const TTL_DAYS = 2; // 라운딩 후 결정용 — 2일 뒤 정리(후속 CF). 영구 저장 X.
+const TTL_DAYS = 2; // 날짜 파싱 실패 시 폴백 — 2일 뒤 정리(후속 CF). 영구 저장 X.
+
+// 만료 시점 = 라운딩 날짜 기준(그 다음날 끝까지 유지). 미리(며칠 전) 정해도 라운딩 당일까지 동반자에게 계속 보이게.
+//   기존엔 '생성+2일'이라 사전 결정 시 라운딩 전에 만료돼 동반자 화면에서 사라지던 버그. ([[afterround-meal-decision]])
+function computeExpiresAt(dateStr) {
+  const m = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec((dateStr || '').trim());
+  if (m) {
+    // 라운딩 다음날 23:59까지 — 뒤풀이는 라운딩 후라 당일 늦게까지, +1일 버퍼.
+    const ms = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1, 23, 59, 59).getTime();
+    if (Number.isFinite(ms) && ms > Date.now()) return Timestamp.fromMillis(ms);
+  }
+  return Timestamp.fromMillis(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000);
+}
 
 // 슬롯 — 한 라운딩에 식사 최대 2곳(전/후 등). slot 1 = `meal_{key}`, slot 2 = `meal_{key}_2`.
 //   규칙이 ID 형식을 강제하지 않아 2번째 문서도 그대로 통과(추가 규칙 X). CF도 문서당 발동(추가 X).
@@ -36,7 +48,8 @@ export function mealSuggestionId(scheduleId, slot = 1) {
 //   ★선착순 1명만 — 트랜잭션으로 first-write-wins: 이미 누가 정했으면 {taken:true,by} 반환(덮어쓰기 X).
 //   총대 본인이 다시 제안하면 = 식당 변경(place만 교체). 동의 단계 없음.
 //   ★공유 키 — 전파 일정은 groupId로 모든 참여자가 한 문서에 수렴(사용자별 schedule.id 발산 방지). 없으면 schedule.id 폴백.
-export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids, slot = 1 }) {
+// hostUid = 단체모집 주최자(roundup authorUid). 있으면 변경 권한을 작성자 + 주최자로 확장(호출부서 해석해 전달).
+export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids, slot = 1, hostUid = null }) {
   if (!authorUid || !schedule?.id || !place?.name) return null;
   const aud = [...new Set((audienceUids || []).filter(u => u && u !== authorUid))];
   const key = schedule.groupId || schedule.id;
@@ -54,13 +67,16 @@ export async function proposeMeal({ authorUid, authorName, schedule, place, note
       const snap = await tx.get(ref);
       if (snap.exists()) {
         const d = snap.data();
-        if (d.authorUid !== authorUid) return { taken: true, by: d.authorName || '' }; // 이미 다른 총대가 정함
-        tx.update(ref, { place: placeData, note: note || '', updatedAt: serverTimestamp() }); // 총대 본인 변경
+        // 변경 = 작성자(총대) 또는 단체 주최자(hostUid). 그 외엔 덮어쓰기 X.
+        const canEdit = d.authorUid === authorUid || (d.hostUid && d.hostUid === authorUid);
+        if (!canEdit) return { taken: true, by: d.authorName || '' };
+        tx.update(ref, { place: placeData, note: note || '', updatedAt: serverTimestamp() });
         return { id, changed: true };
       }
       tx.set(ref, {
         authorUid,
         authorName: authorName || '',
+        hostUid: hostUid || null,   // 단체모집 주최자 — 변경 권한 확장용(규칙도 동일 검증)
         scheduleId: key,
         slot,                   // 1 또는 2 — 동반자 화면에서 슬롯 구분
         course: schedule.course || '',
@@ -74,7 +90,7 @@ export async function proposeMeal({ authorUid, authorName, schedule, place, note
         decidedBy: authorUid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        expiresAt: Timestamp.fromMillis(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000),
+        expiresAt: computeExpiresAt(schedule.date),
       });
       return { id, created: true };
     });

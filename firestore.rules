@@ -202,10 +202,14 @@ service cloud.firestore {
         && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.decided == true
         && request.resource.data.audienceUids is list;
-      // 장소 교체·메모 — 총대(author) 전체 수정. proposeMeal 변경 재호출도 update로 들어와 여기서 허용(authorUid 불변 전제).
+      // 장소 교체·메모 — 정한 사람(author) 또는 단체모집 주최자(hostUid). authorUid 불변 전제.
+      //   단체 식사 정책: 식사지정=아무나(선착순 author), 변경=정한 사람 + 주최자 ([[afterround-meal-decision]]).
       allow update: if isSignedIn()
-        && resource.data.authorUid == request.auth.uid
-        && request.resource.data.authorUid == request.auth.uid;
+        && request.resource.data.authorUid == resource.data.authorUid
+        && (
+          resource.data.authorUid == request.auth.uid
+          || resource.data.get('hostUid', '') == request.auth.uid
+        );
       // 삭제: author만 (TTL 정리는 후속 CF).
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
     }

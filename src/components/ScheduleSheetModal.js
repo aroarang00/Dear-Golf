@@ -9,7 +9,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadMyFriendsEnriched } from '../utils/friends';
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
@@ -47,6 +47,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     { key: 'sh', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
     // 인앱 일정 전파 — 친구를 골라 초대, 수락 시 그 친구 일정에도 등록(외부 링크 공유와 별개) ([[schedule-propagation-spec]])
     { key: 'iv', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
+    // 함께 식사 — 식당 정하기/길찾기(홈 카드와 동일 기능, 일정캘린더에서도 접근) ([[afterround-meal-decision]])
+    { key: 'ml', emoji: '🍲', label: '함께 식사', onPress: onMeal },
     { key: 'ed', emoji: '✏️', label: '일정 수정', onPress: onEdit },
     { key: 'dl', emoji: '🗑️', label: '일정 삭제', onPress: () => setConfirmDelete(true), danger: true },
   ];
@@ -55,6 +57,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     if (isOverseas && it.key === 'tr') return false;
     // 친구 일정 초대 — 핸들러 있을 때만, 지난 일정·라운지연동 일정엔 숨김(라운지는 자체 참여 동선)
     if (it.key === 'iv' && (!onInviteFriends || isPast || schedule.roundupId)) return false;
+    // 함께 식사 — 핸들러 있을 때만, 지난 일정엔 숨김(뒤풀이는 당일까지). 라운지연동도 허용(동호회 단체 식사).
+    if (it.key === 'ml' && (!onMeal || isPast)) return false;
     return true;
   });
 
