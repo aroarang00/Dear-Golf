@@ -52,7 +52,7 @@ export function GuideScreen({ route, navigation }) {
     loop.start();
     return () => loop.stop();
   }, []);
-  const courseTranslateY = courseFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -5] });
+  const courseTranslateX = courseFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }); // 왼쪽으로 살랑이는 이동(사용자 2026-06-20)
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
   const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
@@ -1532,7 +1532,7 @@ export function GuideScreen({ route, navigation }) {
         {/* 입체 버튼 — 차콜은 별로여서(원복), 도착 화면(CourseLogModal) 헤더 그린(#6B8B5E)으로 통일.
             그라데이션+그림자로 입체감. 버튼↔도착 화면 색 연결. 2026-06-15 사용자.
             + 위아래로 떠다니는 이동(translateY) 추가 — 정적이라 '따로 노는' 느낌 → 움직임으로 생기. (2026-06-20) */}
-        <Animated.View style={{ borderRadius: 14, transform: [{ translateY: courseTranslateY }],
+        <Animated.View style={{ borderRadius: 14, transform: [{ translateX: courseTranslateX }],
           shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
         <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85} style={{ borderRadius: 14 }}>
           <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
