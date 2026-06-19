@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, Ac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
+import { AttentionMotion } from './common/AttentionMotion'; // '함께 식사하기' 살랑 모션(결정 전만)
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
 import { getSavedRestaurants } from '../utils/savedRestaurants';
 import { naverSearchUrl } from '../utils/naverMap';   // 식당 '상세'를 네이버로(맛집 더보기와 통일)
@@ -382,6 +383,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       {triggerless ? null : block ? (
         // 박스 모드(홈 D-0 카드) — 불투명 솔리드 채움(진짜 버튼) + 그림자. 불투명이라 Android '뿌연 팔각형' 아티팩트 없음([[dm-button]]).
         //   미결정=버터(브랜드 CTA), 결정=차콜+버터글씨. 상단 하이라이트로 솟은 느낌.
+        // 결정 전엔 살랑살랑(float)로 주목 유도, 결정되면(✓) 정지 — 코스 헤더 버튼과 같은 톤 ([[attention-motion]])
+        <AttentionMotion type="float" axis="x" distance={7} enabled={decidedCount === 0} style={{ borderRadius: 12 }}>
         <TouchableOpacity onPress={openSheet} activeOpacity={0.85}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11,
             backgroundColor: decidedCount ? C.charcoal : '#D8CC9E', // 미결정=차분한 버터(강도 낮춤), 결정=차콜
@@ -391,6 +394,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: decidedCount ? C.butter : C.charcoal, marginLeft: 6, includeFontPadding: false, flexShrink: 1 }} numberOfLines={1}>{blockLabel}</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: decidedCount ? 'rgba(245,230,168,0.55)' : 'rgba(61,57,53,0.5)', marginLeft: 7, includeFontPadding: false }}>›</Text>
         </TouchableOpacity>
+        </AttentionMotion>
       ) : (
         <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
           style={{ flex, backgroundColor: decidedCount ? 'rgba(245,230,168,0.18)' : 'rgba(255,255,255,0.1)',

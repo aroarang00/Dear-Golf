@@ -10,19 +10,20 @@ import { Animated, Easing } from 'react-native';
 //   entrance: 등장 시 살짝 페이드+업(한 번). axis/distance/duration로 미세조정.
 export function AttentionMotion({
   children, type = 'pulse', entrance = false,
-  axis = 'x', distance, duration = 1000, style,
+  axis = 'x', distance, duration = 1000, style, enabled = true,
 }) {
   const v = useRef(new Animated.Value(0)).current;                       // 루프 0↔1
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;    // 등장 0→1
 
   // 등장(한 번)
   useEffect(() => {
-    if (!entrance) return;
+    if (!entrance || !enabled) return;
     Animated.timing(intro, { toValue: 1, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: false, isInteraction: false }).start();
-  }, [entrance]);
+  }, [entrance, enabled]);
 
-  // 루프 — 마운트 동안 반복
+  // 루프 — 마운트 동안 반복(enabled일 때만)
   useEffect(() => {
+    if (!enabled) return;
     let anim;
     if (type === 'nudge') {
       anim = Animated.loop(Animated.sequence([
@@ -38,24 +39,24 @@ export function AttentionMotion({
     }
     anim.start();
     return () => anim.stop();
-  }, [type, duration]);
+  }, [type, duration, enabled]);
 
   const tf = [];
-  if (type === 'pulse') {
+  if (enabled && type === 'pulse') {
     tf.push({ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) });
-  } else if (type === 'float') {
+  } else if (enabled && type === 'float') {
     const d = distance != null ? distance : 6;
     tf.push(axis === 'y'
       ? { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -d] }) }
       : { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, -d] }) });
-  } else if (type === 'nudge') {
+  } else if (enabled && type === 'nudge') {
     const d = distance != null ? distance : 5;
     tf.push({ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) });
   }
-  if (entrance) tf.push({ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) });
+  if (enabled && entrance) tf.push({ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) });
 
   return (
-    <Animated.View style={[style, { transform: tf }, entrance && { opacity: intro }]}>
+    <Animated.View style={[style, { transform: tf }, enabled && entrance && { opacity: intro }]}>
       {children}
     </Animated.View>
   );
