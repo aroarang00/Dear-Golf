@@ -34,7 +34,7 @@ import { DMChatScreen } from './DMChatScreen';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { MealDecisionBar } from './MealDecisionBar';
@@ -1000,6 +1000,7 @@ export function HomeScreen({ navigation, route }) {
                 const group = await getScheduleGroup(s.groupId);
                 await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleCancelled',
                   actorName: userProfile?.nickname || '', course: s.course, date: s.date, time: s.time });
+                await leaveScheduleGroup(s.groupId, currentUid); // 그룹 탈퇴 — 안 하면 삭제 후에도 그룹 푸시 계속 옴
               } catch (e) { if (__DEV__) console.warn('[home] notify cancel', e?.message); }
             }
           }

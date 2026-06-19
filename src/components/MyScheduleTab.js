@@ -24,7 +24,7 @@ import { CourseLogModal } from './CourseLogModal';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { shareScheduleToFriends } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
 import { FriendSelectModal } from './FriendSelectModal';
 import { MealDecisionBar } from './MealDecisionBar';
 
@@ -366,6 +366,18 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     catch (e) { console.warn('[share schedule]', e?.message); }
   };
 
+  // 전파 일정(groupId) 삭제 시 — 다른 멤버에게 취소 알림 + 그룹 탈퇴(memberUids에서 본인 제거). 홈 삭제와 동일.
+  //   탈퇴 안 하면 삭제 후에도 그룹 수정/취소 푸시가 계속 옴 ([[schedule-propagation-spec]]).
+  const cleanupGroupOnDelete = async (s) => {
+    if (!s?.groupId || !currentUid) return;
+    try {
+      const group = await getScheduleGroup(s.groupId);
+      await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleCancelled',
+        actorName: userProfile?.nickname || '', course: s.course, date: s.date, time: s.time });
+      await leaveScheduleGroup(s.groupId, currentUid);
+    } catch (e) { if (__DEV__) console.warn('[mySchedule] group cleanup', e?.message); }
+  };
+
   // 일정 삭제 — 상황별 확인. 시트의 삭제 버튼 + 목록 카드 길게누르기 양쪽에서 사용
   const deleteSchedule = (s) => {
     if (!s) return;
@@ -375,6 +387,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       try { await removeSchedule(s.id); }
       catch (e) { console.warn('[mySchedule] remove failed:', e?.message); return; }
       cancelRoundAlarms(s.id); // 일정 삭제 시 예약된 알람도 취소 (캘린더 제거는 removeSchedule이 일괄 처리)
+      await cleanupGroupOnDelete(s); // 전파 일정이면 취소 알림 + 그룹 탈퇴
     };
 
     // 과거 라운딩 + 다이어리 기록 있음 → 다이어리에서 삭제하도록 안내
@@ -409,6 +422,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       try { await removeSchedule(s.id); }
       catch (e) { console.warn('[mySchedule] remove failed:', e?.message); }
       cancelRoundAlarms(s.id); // 캘린더 제거는 removeSchedule이 일괄 처리
+      await cleanupGroupOnDelete(s); // 전파 일정이면 취소 알림 + 그룹 탈퇴 (홈과 동일)
     }
     setSheet({ visible: false, schedule: null });
   };

@@ -1,6 +1,6 @@
 import {
   collection, query, where, getDocs, onSnapshot,
-  setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion,
+  setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { createNotification } from './roundupNotifications';
@@ -153,6 +153,13 @@ export function derivedScheduleId(groupId, uid) {
 export async function joinScheduleGroup(groupId, uid) {
   if (!groupId || !uid) return;
   await updateDoc(doc(db, COLLECTION, groupId), { memberUids: arrayUnion(uid), updatedAt: serverTimestamp() });
+}
+
+// 그룹 탈퇴 — 전파 일정 삭제 시 본인을 memberUids에서 제거(arrayRemove). 안 하면 삭제 후에도 그룹 알림(수정/취소 푸시)이 계속 옴.
+//   규칙: audience인 본인이 memberUids 자기 토글 — selfMembershipToggled가 추가/제거 양방향 허용([[schedule-propagation-spec]]).
+export async function leaveScheduleGroup(groupId, uid) {
+  if (!groupId || !uid) return;
+  await updateDoc(doc(db, COLLECTION, groupId), { memberUids: arrayRemove(uid), updatedAt: serverTimestamp() });
 }
 
 // 거절 — 파생 없이 declinedUids에 본인만 추가(카드 재노출 방지). 사적·호스트 미통지([[roundup-invitation]] 정책 재사용).
