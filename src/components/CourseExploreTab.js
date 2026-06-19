@@ -9,6 +9,7 @@ import { searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, 
 import { searchGolfCourses } from '../utils/golfCourses';
 import { getCurrentLocation, hasLocationPermission } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
+import { getSavedCourses } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트)
 import { getRecentCourses, addRecentCourse, clearRecentCourses } from '../utils/recentCourses';
 import { getTop100Courses, normalizeCourseName } from '../utils/top100';
 import { naverSearchUrl } from '../utils/naverMap';
@@ -79,8 +80,8 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
   useImperativeHandle(ref, () => ({
     scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
-    refresh: () => { refreshSaved(); refreshRecent(); }, // 코스 상세에서 저장/해제 후 '내 저장 골프장' 즉시 갱신
-  }), [refreshSaved, refreshRecent]);
+    refresh: () => { refreshSaved(); refreshRecent(); refreshFav(); }, // 코스 상세에서 저장/해제 후 '내 저장 골프장' 즉시 갱신
+  }), [refreshSaved, refreshRecent, refreshFav]);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -102,10 +103,15 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const [screenExpanded, setScreenExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false); // 당겨서 새로고침 표시 (주변 시설 재시도)
   const [savedExpanded, setSavedExpanded] = useState(false); // 내 저장 골프장 더보기
+  const [savedFav, setSavedFav] = useState([]); // 내 저장 골프장(위시리스트) — 코스 상세 ★ 저장분
 
   const refreshSaved = useCallback(async () => {
     const list = await getUserCourses();
     setSavedCourses(list || []);
+  }, []);
+
+  const refreshFav = useCallback(async () => {
+    setSavedFav(await getSavedCourses()); // 내 저장 골프장(위시리스트)
   }, []);
 
   const refreshRecent = useCallback(async () => {
@@ -113,7 +119,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     setRecentCourses(list || []);
   }, []);
 
-  useEffect(() => { refreshSaved(); refreshRecent(); }, [refreshSaved, refreshRecent]);
+  useEffect(() => { refreshSaved(); refreshRecent(); refreshFav(); }, [refreshSaved, refreshRecent, refreshFav]);
 
   // 100대 코스 목록 로드 (지역 탭 둘러보기용)
   useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
@@ -489,14 +495,14 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         title="⭐ 내 저장 골프장"
         headerBg={C.paleSky}
         titleColor={C.navy}>
-        {savedCourses.length === 0 ? (
+        {savedFav.length === 0 ? (
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center', lineHeight: 18 }}>
-            코스 상세에서 ♡ 저장하면{'\n'}여기에 모여요
+            코스 상세에서 저장하면{'\n'}여기에 모여요
           </Text>
         ) : (
           <View style={{ paddingHorizontal: 14 }}>
-            {(savedExpanded ? savedCourses : savedCourses.slice(0, 5)).map(s => (
-              <TouchableOpacity key={s.id || s.kakaoId} onPress={() => onSelectCourse?.(s.id)} activeOpacity={0.7}
+            {(savedExpanded ? savedFav : savedFav.slice(0, 5)).map((s, i) => (
+              <TouchableOpacity key={s.kakaoId || `${s.name}_${i}`} onPress={() => onOpenPreview?.(s)} activeOpacity={0.7}
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
@@ -508,7 +514,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                 <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGrayLight }}>›</Text>
               </TouchableOpacity>
             ))}
-            <MoreButton moreCount={Math.max(0, savedCourses.length - 5)} onPress={() => setSavedExpanded(true)} />
+            <MoreButton moreCount={Math.max(0, savedFav.length - 5)} onPress={() => setSavedExpanded(true)} />
           </View>
         )}
       </Section>

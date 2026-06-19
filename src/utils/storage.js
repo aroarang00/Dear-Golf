@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   recentCourses:    '@dg_recent_courses',
   courseComments:   '@dg_course_comments',
   savedRestaurants: '@dg_saved_restaurants',
+  savedCourses:     '@dg_saved_courses',     // 내 저장 골프장(위시리스트) — 기록·일정과 무관
   foodRecs:         '@dg_food_recs',
   homeTooltipDone:  '@dg_home_tooltip_done',
   hofTeaserDismissed: '@dg_hof_teaser_dismissed',

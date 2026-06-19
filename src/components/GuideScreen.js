@@ -21,7 +21,8 @@ import {
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getTop100Courses, normalizeCourseName, top100RankOf } from '../utils/top100';
-import { getUserCourses, addUserCourse, deleteUserCourse } from '../utils/userCourses';
+import { getUserCourses } from '../utils/userCourses';
+import { getSavedCourses, toggleSavedCourse } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트) — 기록 무관
 import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
@@ -67,6 +68,7 @@ export function GuideScreen({ route, navigation }) {
   const [favoritesHydrated, setFavoritesHydrated] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [userCoursesHydrated, setUserCoursesHydrated] = useState(false);
+  const [savedFav, setSavedFav] = useState([]); // 내 저장 골프장(위시리스트) — 코스 상세 저장 버튼 상태용
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   const { diaries } = React.useContext(DiariesContext);
   const { schedules } = React.useContext(SchedulesContext);
@@ -114,6 +116,8 @@ export function GuideScreen({ route, navigation }) {
 
   // 100대 코스 목록 — 마운트 시 1회 로드
   useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
+  // 내 저장 골프장(위시리스트) 로드 — 저장 버튼 상태(저장됨/저장)용
+  useEffect(() => { getSavedCourses().then(list => setSavedFav(list || [])); }, []);
 
   const REGIONS = ['전체', '수도권', '충청', '강원', '전라', '경상', '제주'];
   const getRegion = (loc) => {
@@ -200,37 +204,16 @@ export function GuideScreen({ route, navigation }) {
     setInnerTab('course');
   };
 
-  // 코스 저장(♡) 토글 — 미저장(preview)→userCourses 추가 후 그 코스로 전환 / 저장됨→해제(일정·기록 연결 시 차단).
-  //   '내 저장 골프장' 섹션(CourseExploreTab)이 userCourses를 보여줌. 해제는 orphan 방지 위해 연결 없을 때만 ([[course-name-input]]).
+  // 코스 저장 토글 — 위시리스트(savedCourses). ★기록·일정과 무관, 자유 추가/삭제(orphan 걱정 없음).
+  //   '내 저장 골프장' 섹션(CourseExploreTab)이 이 위시리스트를 보여줌 ([[course-name-input]]).
   const toggleSaveCourse = async () => {
     const cur = getCourseData(selected);
-    if (!cur) return;
-    if (cur._source === 'user') {
-      const linked = (schedules || []).some(s => s.courseId === cur.id) || (diaries || []).some(d => d.courseId === cur.id);
-      if (linked) {
-        showAppAlert('해제할 수 없어요', '이 골프장은 일정·기록에 연결돼 있어요.\n연결을 정리한 뒤 해제할 수 있어요.');
-        return;
-      }
-      showAppAlert('저장 해제할까요?', `'${cur.name}'을(를) 내 저장 골프장에서 뺄게요.`, [
-        { text: '취소', style: 'cancel' },
-        { text: '해제', style: 'destructive', onPress: async () => {
-          try { await deleteUserCourse(cur.id); setUserCoursesList(await getUserCourses()); exploreRef.current?.refresh?.(); setSelected(null); setPreviewCourse(null); }
-          catch (e) { if (__DEV__) console.warn('[course unsave]', e?.message); }
-        } },
-      ]);
-    } else {
-      try {
-        const saved = await addUserCourse({ name: cur.name, loc: cur.loc, x: cur.x, y: cur.y, kakaoId: cur.kakaoId });
-        setUserCoursesList(await getUserCourses());
-        exploreRef.current?.refresh?.();
-        setPreviewCourse(null);
-        if (saved?.id) setSelected(saved.id);
-        showAppAlert('저장했어요', `'${cur.name}'을(를) 내 저장 골프장에 담았어요.`);
-      } catch (e) {
-        if (__DEV__) console.warn('[course save]', e?.message);
-        showAppAlert('저장 실패', '잠시 후 다시 시도해주세요.');
-      }
-    }
+    if (!cur?.name) return;
+    try {
+      const { list } = await toggleSavedCourse({ name: cur.name, loc: cur.loc, x: cur.x, y: cur.y, kakaoId: cur.kakaoId });
+      setSavedFav(list);
+      exploreRef.current?.refresh?.();
+    } catch (e) { if (__DEV__) console.warn('[course save toggle]', e?.message); }
   };
 
   // Android 시스템 뒤로가기 — 코스 상세가 열려 있으면 홈으로 가지 않고 상세만 닫는다
@@ -760,14 +743,20 @@ export function GuideScreen({ route, navigation }) {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
             </TouchableOpacity>
-            {/* 저장(♡) — 미저장(preview)이면 저장, 저장됨(user)이면 해제. '내 저장 골프장'에 모임 */}
-            {(c._source === 'user' || c._source === 'preview') && (
-              <TouchableOpacity onPress={toggleSaveCourse} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={{ fontSize: fs(16), color: c._source === 'user' ? '#C9A84C' : C.warmGray }}>{c._source === 'user' ? '★' : '☆'}</Text>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: c._source === 'user' ? '#A88A2E' : C.warmGray }}>{c._source === 'user' ? '저장됨' : '저장'}</Text>
-              </TouchableOpacity>
-            )}
+            {/* 저장 — 위시리스트 토글(기록 무관). 저장됨=진한 버건디 채움 / 미저장=흐린 아웃라인. 별 제거(골퍼평점과 겹침) */}
+            {(() => {
+              const fav = savedFav.some(s => (c.kakaoId && s.kakaoId === c.kakaoId) || s.name === c.name);
+              return (
+                <TouchableOpacity onPress={toggleSaveCourse} activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16,
+                    backgroundColor: fav ? C.burgundy : 'transparent',
+                    borderWidth: 1, borderColor: C.burgundy }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: fav ? C.butter : C.burgundy }}>
+                    {fav ? '저장됨' : '+ 저장'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })()}
           </View>
           <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
