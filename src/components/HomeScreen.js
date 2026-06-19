@@ -715,7 +715,29 @@ export function HomeScreen({ navigation, route }) {
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
-          {/* Dear Golf 이용 안내 진입 — 안녕하세요 아래 가로 띠. 미열람 시 빨간 점으로 호기심 유도. */}
+          {/* 당일 체크인 카드 배너 — 박스가 많아 정신없어, 이용안내 띠 '자리'에 대신 노출(둘 다 안 띄움). 활성 아니면 이용안내 띠. */}
+          {checkinActive ? (
+            <Animated.View style={{ marginTop: Platform.OS === 'android' ? 13 : 15, borderRadius: 12, transform: [{ scale: checkinScale }],
+              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+              <TouchableOpacity onPress={() => openCheckinCard(next)} activeOpacity={0.85}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden',
+                  backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)',
+                  borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+                {/* 안쪽 골드 글로우 — 맥동에 맞춰 opacity 펄스 */}
+                <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(245,230,168,0.55)', opacity: checkinGlow }} />
+                <Text style={{ fontSize: fs(18) }}>🎫</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>오늘 라운딩 · 체크인 카드</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.78)', marginTop: 1 }} numberOfLines={1}>
+                    {next.booker ? `예약자 ${next.booker} · 탭하면 전체화면` : '탭하면 전체화면으로 보여드려요'}
+                  </Text>
+                </View>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>›</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+          /* Dear Golf 이용 안내 진입 — 안녕하세요 아래 가로 띠. 미열람 시 빨간 점으로 호기심 유도. */
           <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.85}
             style={{ flexDirection: 'row', alignItems: 'center', gap: Platform.OS === 'android' ? 6 : 8, marginTop: Platform.OS === 'android' ? 13 : 15,
               backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
@@ -737,6 +759,7 @@ export function HomeScreen({ navigation, route }) {
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
+          )}
         </View>
 
         {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}
@@ -769,28 +792,7 @@ export function HomeScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
           </View>
-          {/* 당일 체크인 카드 배너 — 탭하면 공유 카드 전체화면(프론트 체크인용). 보딩패스=체크인 패스 ([[schedule-booker]]) */}
-          {checkinActive && (
-            <Animated.View style={{ marginHorizontal: 20, marginBottom: 10, borderRadius: 12, transform: [{ scale: checkinScale }],
-              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
-              <TouchableOpacity onPress={() => openCheckinCard(next)} activeOpacity={0.85}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden',
-                  backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)',
-                  borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-                {/* 안쪽 글로우 — 골드 반투명 오버레이가 맥동에 맞춰 opacity 펄스(빛나는 느낌). LinearGradient 없이 안전하게 */}
-                <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                  backgroundColor: 'rgba(245,230,168,0.55)', opacity: checkinGlow }} />
-                <Text style={{ fontSize: fs(18) }}>🎫</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>오늘 라운딩 · 체크인 카드</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.78)', marginTop: 1 }} numberOfLines={1}>
-                    {next.booker ? `예약자 ${next.booker} · 탭하면 전체화면` : '탭하면 전체화면으로 보여드려요'}
-                  </Text>
-                </View>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>›</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+          {/* (체크인 배너는 헤더 '이용 안내' 자리로 이동 — 박스 중복 제거) */}
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이는 D-N과 동일 고정. D-N이면 기존 고정폭 카드. */}
