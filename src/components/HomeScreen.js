@@ -844,6 +844,24 @@ export function HomeScreen({ navigation, route }) {
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         </TouchableOpacity>
+                        {/* 휑함 보완 — 코스(세부)·동반자·예약자로 빈 공간 채움(있는 항목만). 날짜 아래 정보 줄 */}
+                        {(() => {
+                          const sub = (next.subCourse || '').trim();
+                          const comps = (Array.isArray(next.companions) ? next.companions : [])
+                            .filter(c => c && !c.isMe && (c.name || c.friendUid))
+                            .map(c => (c.friendUid && friendMeta?.[c.friendUid]?.customName) ? friendMeta[c.friendUid].customName : c.name)
+                            .filter(Boolean);
+                          const booker = (next.booker || '').trim();
+                          if (!sub && !comps.length && !booker) return null;
+                          const line = { fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.82)' };
+                          return (
+                            <View style={{ marginTop: 9, gap: 4 }}>
+                              {!!sub && <Text style={line} numberOfLines={1}>⛳ {sub}</Text>}
+                              {comps.length > 0 && <Text style={line} numberOfLines={1}>👥 {comps.join(', ')}</Text>}
+                              {!!booker && <Text style={line} numberOfLines={1}>📋 예약 {booker}</Text>}
+                            </View>
+                          );
+                        })()}
                         {/* D-day 탭 → 일정 시트(바텀시트). marginBottom으로 바닥에서 살짝 띄워 위로(다른 요소 영향 X) */}
                         <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: 16, alignSelf: 'flex-start' }}>
                           <Text style={[homeS.cardDDay, { fontSize: fs(56), lineHeight: fs(60) }]}>D-{freshDDay(next)}</Text>
