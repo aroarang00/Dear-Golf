@@ -36,6 +36,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
+import { getScheduleWxSummary } from '../utils/scheduleWx'; // 공유 카드 코스명 위 '해당일' 날씨 주입
 import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
 import { deleteMeal } from '../utils/mealSuggestions';     // 고아 정리 — 식사 문서 정리
 import { FriendSelectModal } from './FriendSelectModal';
@@ -506,6 +507,14 @@ export function HomeScreen({ navigation, route }) {
     if (!s) return;
     setShowScheduleModal(false);
     setScheduleShareTarget(s);
+    // 해당일 날씨를 비동기로 주입 — 카드는 즉시 뜨고, 예보가 오면 코스명 위에 표시(예보 범위 밖이면 그대로 없음).
+    //   캡처 전에 도착하면 이미지에도 포함. 대상이 바뀌었으면(다른 일정) 덮어쓰지 않도록 date+course 일치 확인.
+    if (!s.weather) {
+      getScheduleWxSummary(s).then(w => {
+        if (!w) return;
+        setScheduleShareTarget(prev => (prev && prev.date === s.date && prev.course === s.course) ? { ...prev, weather: w } : prev);
+      }).catch(() => {});
+    }
   };
 
   const handleEditSchedule = (s) => {
