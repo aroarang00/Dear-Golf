@@ -844,8 +844,8 @@ export function HomeScreen({ navigation, route }) {
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         </TouchableOpacity>
-                        {/* D-day 탭 → 일정 시트(바텀시트) 복구 */}
-                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: 12, alignSelf: 'flex-start' }}>
+                        {/* D-day 탭 → 일정 시트(바텀시트). marginBottom으로 바닥에서 살짝 띄워 위로(다른 요소 영향 X) */}
+                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: 24, alignSelf: 'flex-start' }}>
                           <Text style={[homeS.cardDDay, { fontSize: fs(56), lineHeight: fs(60) }]}>D-{freshDDay(next)}</Text>
                         </TouchableOpacity>
                       </View>
