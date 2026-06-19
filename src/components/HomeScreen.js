@@ -331,19 +331,6 @@ export function HomeScreen({ navigation, route }) {
   // 당일 체크인 카드 배너 — D-0이고 티오프 30분 후까지(프론트 체크인용), 종료(+4h) 전. 탭하면 공유 카드 전체화면 ([[schedule-booker]])
   const checkinActive = !!next && isD0 && !roundEnded && now < teeoffMs(next) + 30 * 60000;
   const { width: winW } = useWindowDimensions();
-  // 체크인 배너 맥동 — 활성일 때만 루프(은은한 scale + 안쪽 골드 글로우 opacity). MyScheduleTab 코스버튼과 동일 톤.
-  const checkinPulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!checkinActive) return;
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(checkinPulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.timing(checkinPulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [checkinActive]);
-  const checkinScale = checkinPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
-  const checkinGlow = checkinPulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.6] });
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
@@ -754,27 +741,19 @@ export function HomeScreen({ navigation, route }) {
           </View>
           {/* 당일 체크인 카드 배너 — 탭하면 공유 카드 전체화면(프론트 체크인용). 보딩패스=체크인 패스 ([[schedule-booker]]) */}
           {checkinActive && (
-            <Animated.View style={{ marginHorizontal: 20, marginBottom: 10, borderRadius: 12, transform: [{ scale: checkinScale }],
-              shadowColor: '#F5E6A8', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 3 }}>
-              <TouchableOpacity onPress={() => openCheckinCard(next)} activeOpacity={0.85}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden',
-                  backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)',
-                  borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-                {/* 안쪽 글로우 — 중앙이 밝은 골드 그라데이션, 맥동에 맞춰 opacity 펄스(빛나는 느낌) */}
-                <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: checkinGlow }}>
-                  <LinearGradient colors={['rgba(245,230,168,0)', 'rgba(245,230,168,0.45)', 'rgba(245,230,168,0)']}
-                    start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ flex: 1 }} />
-                </Animated.View>
-                <Text style={{ fontSize: fs(18) }}>🎫</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>오늘 라운딩 · 체크인 카드</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.78)', marginTop: 1 }} numberOfLines={1}>
-                    {next.booker ? `예약자 ${next.booker} · 탭하면 전체화면` : '탭하면 전체화면으로 보여드려요'}
-                  </Text>
-                </View>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>›</Text>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity onPress={() => openCheckinCard(next)} activeOpacity={0.85}
+              style={{ marginHorizontal: 20, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 9,
+                backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.42)',
+                borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+              <Text style={{ fontSize: fs(18) }}>🎫</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>오늘 라운딩 · 체크인 카드</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.78)', marginTop: 1 }} numberOfLines={1}>
+                  {next.booker ? `예약자 ${next.booker} · 탭하면 전체화면` : '탭하면 전체화면으로 보여드려요'}
+                </Text>
+              </View>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>›</Text>
+            </TouchableOpacity>
           )}
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
