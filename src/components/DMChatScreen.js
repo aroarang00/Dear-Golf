@@ -1043,14 +1043,14 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <View style={{ backgroundColor: DM_FIELD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 10) + 6 }}>
             <TouchableOpacity activeOpacity={0.7} onPress={() => { setAttachOpen(false); handleCaptureCamera(); }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: fs(17) }}>📸</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>카메라 촬영</Text>
+              <Text style={{ fontSize: fs(19) }}>📸</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: DM_MINE_TX }}>카메라 촬영</Text>
             </TouchableOpacity>
             <View style={{ height: 0.5, backgroundColor: 'rgba(0,0,0,0.08)', marginHorizontal: 20 }} />
             <TouchableOpacity activeOpacity={0.7} onPress={() => { setAttachOpen(false); handlePickImage(); }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: fs(17) }}>🖼️</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>앨범에서 선택</Text>
+              <Text style={{ fontSize: fs(19) }}>🖼️</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: DM_MINE_TX }}>앨범에서 선택</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
