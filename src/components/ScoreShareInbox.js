@@ -17,7 +17,8 @@ export function ScoreShareInbox({ nickname, onDerived }) {
   const [active, setActive] = useState(null);   // 응답 중인 공유
   const [selIdx, setSelIdx] = useState(null);    // 선택한 행 idx
   const [busy, setBusy] = useState(false);
-  const glow = useRef(new Animated.Value(0)).current;   // 배너 맥동 글로우(받은 공유 있을 때만)
+  const glow = useRef(new Animated.Value(0)).current;       // 테두리 밝기 맥동(색이라 JS 드라이버)
+  const scalePulse = useRef(new Animated.Value(0)).current; // scale 맥동(★네이티브 드라이버 — iOS 테두리 떨림 방지)
 
   useEffect(() => {
     if (!uid) { setShares([]); return; }
@@ -25,16 +26,19 @@ export function ScoreShareInbox({ nickname, onDerived }) {
     return unsub;
   }, [uid]);
 
-  // 받은 공유가 있을 때만 은은하게 맥동하는 루프. iOS는 scale(숨쉬기)만, 안드는 border밝기+scale.
-  //   ★iOS도 맥동 재적용(사용자 2026-06-19) — 단 그림자/후광 없이 scale만이라 '노란 번짐' 없음.
+  // 받은 공유가 있을 때만 은은하게 맥동. ★scale은 네이티브 드라이버(GPU)로 분리 — JS scale은 iOS에서
+  //   매 프레임 둥근 테두리를 재렌더해 '찌글찌글'(가장자리 떨림)했음. GPU scale은 텍스처 변환이라 부드러움.
+  //   테두리 색(glow)은 색 보간이라 네이티브 드라이버 불가 → JS, 단 기하 변화가 없어 떨림 없음.
   useEffect(() => {
-    if (!shares.length) { glow.setValue(0); return; }
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
-      Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+    if (!shares.length) { glow.setValue(0); scalePulse.setValue(0); return; }
+    const mkLoop = (val, native) => Animated.loop(Animated.sequence([
+      Animated.timing(val, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: native }),
+      Animated.timing(val, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: native }),
     ]));
-    loop.start();
-    return () => loop.stop();
+    const lBorder = mkLoop(glow, false);     // 테두리 색
+    const lScale = mkLoop(scalePulse, true); // scale(네이티브)
+    lBorder.start(); lScale.start();
+    return () => { lBorder.stop(); lScale.stop(); };
   }, [shares.length]);
 
   const open = (s) => { setActive(s); setSelIdx(null); };
@@ -72,7 +76,7 @@ export function ScoreShareInbox({ nickname, onDerived }) {
       {first && (
         <Animated.View style={{
           marginHorizontal: 16, marginTop: 14, marginBottom: 4, borderRadius: 16,
-          transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }],   // iOS·안드 공통 scale 맥동(후광 X)
+          transform: [{ scale: scalePulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }],   // GPU scale(네이티브) — 부드러움
         }}>
           <Animated.View style={{
             borderRadius: 16, borderWidth: 2,
