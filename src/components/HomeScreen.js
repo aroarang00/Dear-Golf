@@ -38,7 +38,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
-import { getScheduleWxSummary } from '../utils/scheduleWx'; // 공유 카드 코스명 위 '해당일' 날씨 주입
+import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
 import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
 import { deleteMeal } from '../utils/mealSuggestions';     // 고아 정리 — 식사 문서 정리
 import { FriendSelectModal } from './FriendSelectModal';
@@ -346,6 +346,21 @@ export function HomeScreen({ navigation, route }) {
   }, [checkinActive]);
   const checkinScale = checkinPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
   const checkinGlow = checkinPulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.32] });
+
+  // D-0 카드 우측 날씨·교통 채움 — 큰 이모지만 두면 휑해서 실제 정보로(사용자 2026-06-20).
+  //   날씨=getScheduleWxSummary(캐시), 교통=getScheduleDriveMin(출발지 저장 시 경로 1회 조회). 당일 카드일 때만.
+  const [d0Info, setD0Info] = useState({ wx: '', drive: null });
+  useEffect(() => {
+    if (!isD0 || !next) { setD0Info({ wx: '', drive: null }); return; }
+    let alive = true;
+    setD0Info({ wx: '', drive: null });
+    getScheduleWxSummary(next).then(w => { if (alive && w) setD0Info(p => ({ ...p, wx: w.summary })); }).catch(() => {});
+    const home = userProfile?.departureCoord;
+    if (home && typeof home.x === 'number' && typeof home.y === 'number') {
+      getScheduleDriveMin(next, home).then(m => { if (alive && m) setD0Info(p => ({ ...p, drive: m })); }).catch(() => {});
+    }
+    return () => { alive = false; };
+  }, [isD0, next?.id, next?.course, userProfile?.departureCoord?.x, userProfile?.departureCoord?.y]);
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
@@ -851,15 +866,24 @@ export function HomeScreen({ navigation, route }) {
                           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>나가기 ✕</Text>
                         </TouchableOpacity>
                       )}
+                      {/* 우측 — 큰 이모지만이 아니라 실제 날씨·교통 요약으로 채움(휑함 완화). 탭=상세 팝업 */}
                       <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7}
-                        style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                        {/* 이모지 2개를 각각 Text로 — 한 Text에 합치면 일부 기기서 둘째(🚗)가 안 그려지던 문제 */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                          <Text style={{ fontSize: Platform.OS === 'android' ? fs(38) : fs(44) }}>🌤️</Text>
-                          <Text style={{ fontSize: Platform.OS === 'android' ? fs(34) : fs(40), marginLeft: 10 }}>🚗</Text>
+                        style={{ flex: 1, justifyContent: 'center', paddingLeft: 6 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <Text style={{ fontSize: fs(26) }}>🌤️</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>{d0Info.wx || '날씨'}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.6)' }}>예상 날씨</Text>
+                          </View>
                         </View>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginBottom: 3 }}>날씨 · 교통</Text>
-                        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.78)' }}>더보기 →</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <Text style={{ fontSize: fs(24) }}>🚗</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>{d0Info.drive ? `약 ${d0Info.drive}분` : '교통'}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.6)' }}>{d0Info.drive ? '예상 소요' : '출발 시간'}</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.82)' }}>더보기 →</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

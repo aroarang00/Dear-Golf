@@ -2,10 +2,11 @@ import { getCombinedForecast } from './kma';
 import { findUserCourseById, ensureCourseCoord } from './userCourses';
 import { searchGolfCourses } from './golfCourses';
 import { reverseGeocode } from './location';
+import { getDrivingDirections } from './directions';
 
 // 일정 좌표 해석 — WeatherTransportPopup과 동일한 3단계 폴백.
 //   1) 일정에 박힌 courseX/Y  2) courseId로 내 코스 좌표  3) 코스명으로 골프장 검색(직접입력 일정 등).
-async function resolveCoords(schedule) {
+export async function resolveScheduleCoords(schedule) {
   if (typeof schedule.courseX === 'number' && typeof schedule.courseY === 'number') {
     return { x: schedule.courseX, y: schedule.courseY, loc: schedule.courseLoc || null };
   }
@@ -36,7 +37,7 @@ export async function getScheduleWxSummary(schedule) {
   if (!schedule?.date) return null;
   if (typeof schedule.dDay === 'number' && (schedule.dDay < 0 || schedule.dDay > 3)) return null; // 3일 밖·지난 일정 → fetch 생략
   try {
-    const cc = await resolveCoords(schedule);
+    const cc = await resolveScheduleCoords(schedule);
     if (!cc) return null;
     const f = await getCombinedForecast({ lat: cc.y, lng: cc.x, loc: cc.loc });
     const days = f?.days || [];
@@ -52,6 +53,20 @@ export async function getScheduleWxSummary(schedule) {
     const detail = [sky, t != null ? `최고 ${t}°` : null, pop != null ? `강수확률 ${pop}%` : null]
       .filter(Boolean).join(' · '); // 텍스트 공유용(기온·강수확률)
     return { summary, detail };
+  } catch {
+    return null;
+  }
+}
+
+// 출발지→구장 예상 소요(분) — 홈 D-0 카드 우측 교통 표시용. home={x,y}(마이페이지 저장 출발지) 없으면 null.
+//   경로 API 1회 호출(TMap 우선·카카오 폴백). 구장 좌표 못 구하거나 실패하면 null(호출부는 표시 생략).
+export async function getScheduleDriveMin(schedule, home) {
+  if (!home || typeof home.x !== 'number' || typeof home.y !== 'number') return null;
+  try {
+    const cc = await resolveScheduleCoords(schedule);
+    if (!cc) return null;
+    const r = await getDrivingDirections({ x: home.x, y: home.y }, { x: cc.x, y: cc.y });
+    return r ? r.durationMin : null;
   } catch {
     return null;
   }
