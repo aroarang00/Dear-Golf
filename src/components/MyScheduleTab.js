@@ -833,6 +833,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         schedule={mealSchedule}
         uid={currentUid}
         nickname={userProfile?.nickname}
+        friendMeta={friendMeta}
         active={!!mealSchedule}
         autoOpen={mealAutoOpen}
         onAutoOpened={() => setMealAutoOpen(false)}

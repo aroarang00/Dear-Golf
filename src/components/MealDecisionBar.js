@@ -14,6 +14,7 @@ import {
 } from '../utils/mealSuggestions';
 import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadRoundup } from '../utils/roundup';
+import { friendDisplayName } from '../utils/friendGroups';   // 별명(customName) 우선 이름 해석
 
 // 라운딩 코스 좌표 해석 — courseId(userCourses) 우선, 없으면 이름으로 골프장 검색. 주변 맛집 검색용.
 async function resolveCoord(schedule) {
@@ -37,7 +38,7 @@ async function resolveCoord(schedule) {
 //  D-0 종일 노출(전/후 무관). 총대가 식사 최대 2곳(슬롯 1·2) 선착순 결정, 각 슬롯에 메모(예: "아침 9시까지").
 //  슬롯 데이터=결정적 ID 2개(meal_{key}·meal_{key}_2). 동반자는 audienceUids로 발견·길찾기.
 // triggerless=true: 트리거 버튼 없이 시트(Modal)만 렌더 — 부모가 autoOpen으로 연다(일정캘린더처럼 일정 시트의 '함께 식사' 행에서 호출).
-export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1, block = false, triggerless = false }) {
+export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1, block = false, triggerless = false, friendMeta = {} }) {
   const insets = useSafeAreaInsets();
   const [mine1, setMine1] = useState(null);       // 총대 본인 슬롯1 문서
   const [mine2, setMine2] = useState(null);       // 총대 본인 슬롯2 문서
@@ -231,15 +232,17 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     const editing = memoEdit?.slot === slot;
     return (
       <View key={slot} style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-        {decidedCount === 2 && (
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.warmGray, marginBottom: 4 }}>식사 {slot}</Text>
-        )}
+        {/* 헤더 — 식사 슬롯(2곳일 때) + 누가 정했는지(별명 우선). 잘 보이게 카드 최상단. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+          {decidedCount === 2 && (
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.warmGray }}>식사 {slot}</Text>
+          )}
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }} numberOfLines={1}>
+            🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님이 정함`}
+          </Text>
+        </View>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>📍 {pl?.name} 로 결정</Text>
         {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
-        {/* 누가 정했는지 — 본인이면 '내가', 아니면 이름. 동반자가 누가 골랐는지 알 수 있게. */}
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
-          🍴 {meal.authorUid === uid ? '내가 정함' : `${meal.authorName || '동반자'}님이 정함`}
-        </Text>
         {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
         {editing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
