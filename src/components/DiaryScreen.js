@@ -179,7 +179,7 @@ export function DiaryScreen({ route, navigation }) {
     else { setAddSeed(null); setShowModal(true); }
   };
   const pickRoundToRecord = (s) => {
-    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, courseLoc: s.courseLoc || null, companions: Array.isArray(s.companions) ? s.companions : [], scheduleId: s.id || null });
+    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, courseLoc: s.courseLoc || null, companions: Array.isArray(s.companions) ? s.companions : [], subCourse: s.subCourse || '', scheduleId: s.id || null });
     setShowPickSheet(false);
     setShowModal(true);
   };
@@ -315,7 +315,7 @@ export function DiaryScreen({ route, navigation }) {
         : (Array.isArray(seedSchedule?.companions) ? seedSchedule.companions : []);
       setAddSeed((addDate || addCourse || addScheduleId)
         ? { date: addDate, course: addCourse, courseId: addCourseId, scheduleId: addScheduleId || null,
-            companions: seedCompanions }
+            companions: seedCompanions, subCourse: seedSchedule?.subCourse || '' } // 연결 일정의 코스(세부코스) 자동채움 ([[schedule-booker]])
         : null);
       returnToScheduleRef.current = !!returnToSchedule;
       setShowModal(true);
@@ -358,6 +358,7 @@ export function DiaryScreen({ route, navigation }) {
         tags: data.tags || [],
         detailMemo: data.detailMemo || '',
         courseId: data.courseId || null,
+        subCourse: data.subCourse || '',                // 코스(세부코스 라벨) — 일정에서 자동채움/직접입력
         cost: data.cost || null,
         visibility: data.visibility || 'friends',
         audienceUids: data.audienceUids || [],          // 그룹 공개 수신자 스냅샷 ([[friend_groups]])

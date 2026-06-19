@@ -76,6 +76,7 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
       time: schedule.time || '',
       members: typeof schedule.members === 'number' ? schedule.members : 4,
       booker: schedule.booker || '', // 예약자(체크인 이름) — 동반자도 같은 이름을 보게 전파 ([[schedule-booker]])
+      subCourse: schedule.subCourse || '', // 코스(세부코스) — 동반자 공유 카드에도 표시
       names: { [initiatorUid]: initiatorName || '', ...nameEntries }, // uid→이름(호스트+초대친구). 표시 시 친구목록 조회 불필요
       audienceUids: aud,
       memberUids: [initiatorUid],   // 최초 공유자는 바로 멤버
@@ -138,6 +139,7 @@ export function buildDerivedSchedule(group, uid) {
     time: group.time || '',
     members: typeof group.members === 'number' ? group.members : 4,
     booker: group.booker || '', // 예약자(체크인 이름) — 전파받은 동반자도 같은 이름 표시 ([[schedule-booker]])
+    subCourse: group.subCourse || '', // 코스(세부코스) — 동반자 공유 카드에도 표시
     // 초대한 사람을 동반자 라벨로(이름+friendUid). 나머지 멤버는 그룹에서 해석(UI).
     companions: group.initiatorUid ? [{ name: group.initiatorName || '', friendUid: group.initiatorUid }] : [],
     groupId: group.id,                       // ★전파 일정 표식

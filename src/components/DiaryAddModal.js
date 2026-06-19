@@ -157,6 +157,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     ] });
   };
   const [companions, setCompanions] = useState([]); // [{ name, friendUid? }] — 친구 선택 시 friendUid 보존([[companion-design]] Phase A)
+  const [subCourse, setSubCourse] = useState(''); // 코스(세부코스 라벨) — 구장 매칭과 무관·자유 입력. 연결된 일정에서 자동채움 ([[schedule-booker]])
   const [companionInput, setCompanionInput] = useState('');
   const [friends, setFriends] = useState([]);                 // 동반자 친구 선택 목록
   const [shareScores, setShareScores] = useState(false);      // 동반자에게 스코어 공유(OCR 전체 행) opt-in ([[companion-design]] §11)
@@ -321,6 +322,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setDetailMemo('');
     setPrivacy(['friends']);
     setCompanions([]); setCompanionInput(''); setShareScores(false);
+    setSubCourse('');
     setOverseas(false); setCountry('');
     setKind('round');
   };
@@ -370,6 +372,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           .filter(c => c.name)
       );
       setCompanionInput('');
+      setSubCourse(initial.subCourse || '');
       setOverseas(!!initial.overseas);
       setCountry(initial.country || '');
       setKind(initial.kind === 'moment' ? 'moment' : 'round');
@@ -417,6 +420,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
             .slice(0, 3)
         );
       }
+      // 연결된 일정에 입력된 코스(세부코스)를 기록에도 자동 채움 — addSeed가 일정에서 끌어옴 ([[schedule-booker]])
+      setSubCourse(initial?.subCourse || '');
       if (initial?.overseas) { setOverseas(true); setCountry(initial.country || ''); }
     }
   }, [visible, isEdit, initial]);
@@ -538,6 +543,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       ],
       courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
       courseLoc: selectedCourseObj?.loc || (initial && initial.courseLoc) || null, // 코스 주소 동봉 — 지역탭 분류용([[region-classification]])
+      subCourse: (subCourse || '').trim(), // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관 ([[schedule-booker]])
       // 일정 진입 동선이면 initial.scheduleId가 prefill됨. 수정 시도 기존 값 유지.
       // 같은 날 일정 N건 + 다이어리 매칭의 비대칭 차단([[home-multi-schedule-same-day]] 룰3).
       scheduleId: initial?.scheduleId || null,
@@ -667,6 +673,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </TouchableOpacity>
                 </View>
               )}
+              {/* 코스 (선택) — 골프장 내 세부코스 라벨. 구장 검색·매칭과 무관한 자유 입력. 연결된 일정에 있으면 자동 채움 ([[schedule-booker]]) */}
+              <Text style={mS.bigLabel}>코스 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>(선택)</Text></Text>
+              <TextInput style={mS.input} value={subCourse} onChangeText={setSubCourse}
+                placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
+
               <Text style={mS.bigLabel}>날짜</Text>
               <TouchableOpacity style={[mS.input, dateLocked && { opacity: 0.55 }]}
                 activeOpacity={dateLocked ? 1 : 0.7}

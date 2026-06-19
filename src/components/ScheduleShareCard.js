@@ -95,7 +95,16 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
               <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: MUTE }}>날씨는 라운딩 3일 전부터 표시돼요</Text>
             ) : null}
           </View>
-          <Field label="COURSE" value={s.course || '-'} tone="accent" size="lg" />
+          {/* COURSE — 골프장명. 코스(세부코스)가 있으면 이름 옆에 작게 표시(카드에서만) ([[schedule-booker]]) */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>COURSE</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
+              <Text style={[styles.fieldValue, styles.fieldValueLg, { color: BURGUNDY }]} numberOfLines={1}>{s.course || '-'}</Text>
+              {!!s.subCourse && (
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: MUTE, marginLeft: 7 }}>· {s.subCourse}</Text>
+              )}
+            </View>
+          </View>
         </View>
 
         <Perforation />

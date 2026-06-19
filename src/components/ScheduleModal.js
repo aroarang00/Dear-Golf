@@ -49,6 +49,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [showCompanionPicker, setShowCompanionPicker] = useState(false);
   // 예약자 — 프론트 체크인 이름. 자유 입력(법인명·양도·대리예약 등) + 빠른 채우기(나/동반자) ([[schedule-booker]])
   const [booker, setBooker] = useState('');
+  // 코스 — 골프장 내 세부코스 라벨(레이크/동→서 등). 구장 매칭과 무관·자유 입력, 공유 카드 표시·기록 자동채움용 ([[schedule-booker]])
+  const [subCourse, setSubCourse] = useState('');
 
   const DAYS = WEEKDAYS;
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
@@ -91,6 +93,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         : []);
       setCompanionInput('');
       setBooker(initial.booker || '');
+      setSubCourse(initial.subCourse || '');
       setOverseas(!!initial.overseas);
       if (initial.overseas && initial.city) {
         setCityQuery(initial.city);
@@ -189,7 +192,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setDate(new Date()); setHourText('07'); setMinText('00'); setMembers('4');
     setEditingName(false); setEditName('');
     setCompanions([]); setCompanionInput('');
-    setBooker('');
+    setBooker(''); setSubCourse('');
     setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
   };
 
@@ -243,6 +246,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         ...companionInput.trim().split(/[\s,]+/).filter(Boolean).map(name => ({ name })),
       ],
       booker: (booker || '').trim(),  // 예약자(체크인 이름) — 선택 입력
+      subCourse: (subCourse || '').trim(), // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관
       dDay: Math.max(0, dDay),
     };
     if (isEdit) {
@@ -389,6 +393,11 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   )}
                 </>
               )}
+
+              {/* 코스 (선택) — 골프장 내 세부코스 라벨. 구장 검색·매칭과 무관한 자유 입력. 공유 카드 표시·기록 자동채움 ([[schedule-booker]]) */}
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>코스 (선택)</Text>
+              <TextInput style={mS.input} value={subCourse} onChangeText={setSubCourse}
+                placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
 
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>날짜</Text>
               <TouchableOpacity style={mS.input} onPress={() => setShowDatePicker(true)}>

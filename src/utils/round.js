@@ -136,6 +136,7 @@ export async function createRound(data) {
     course: data.course || '',
     courseId: data.courseId || null,
     courseLoc: data.courseLoc || null,      // 코스 주소 — 지역탭 분류가 userCourses 동기화에 의존하지 않게 기록에 직접 저장 ([[region-classification]])
+    subCourse: data.subCourse || '',        // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관 ([[schedule-booker]])
     score: typeof data.score === 'number' ? data.score : null,
     holeScores: Array.isArray(data.holeScores) ? data.holeScores : null, // 스코어카드 OCR 18홀(숫자), 없으면 null
     holeScoresShared: !!data.holeScoresShared, // 홀별 상세 친구 공개 여부. 기본 false=나만보기 (친구 뷰 구현 시 가림 제어)
