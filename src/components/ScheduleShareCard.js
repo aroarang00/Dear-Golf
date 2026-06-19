@@ -117,7 +117,7 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
 
         {/* 하단 — 멘트(전체 폭 중앙) + 링크. QR은 우상단으로 옮겨 멘트 공간 확보 */}
         <View style={styles.footer}>
-          <Text style={styles.footerLead}>라운딩의 모든 순간을{'\n'}더 특별하게</Text>
+          <Text style={styles.footerLead} numberOfLines={1}>라운딩의 모든 순간을 더 특별하게</Text>
           <Text style={styles.footerLink}>deargolf.app</Text>
         </View>
       </View>
