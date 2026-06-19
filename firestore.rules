@@ -202,6 +202,12 @@ service cloud.firestore {
         resource == null
         || request.auth.uid == resource.data.authorUid
         || request.auth.uid in resource.data.audienceUids
+        // 모집 일정 식사 — audienceUids 스냅샷에 없어도 '현재 모집 참여자'면 읽기 허용(나중에 합류한 사람도 식사 보임).
+        || (
+          resource.data.get('roundupId', null) != null
+          && exists(/databases/$(database)/documents/roundups/$(resource.data.roundupId))
+          && request.auth.uid in get(/databases/$(database)/documents/roundups/$(resource.data.roundupId)).data.participantUids
+        )
       );
       // 제안 = 결정(단순화 2026-06-18): 먼저 제안한 총대 1명이 식당 고르면 즉시 decided=true(동의 단계 없음).
       //   선착순 1명만 확정은 클라 트랜잭션이 보장(이미 있으면 덮어쓰기 X). 이후 변경은 총대만(아래 update).

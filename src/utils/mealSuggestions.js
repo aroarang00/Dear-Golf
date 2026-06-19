@@ -72,13 +72,15 @@ export async function proposeMeal({ authorUid, authorName, schedule, place, note
         // 변경 = 작성자(총대) 또는 단체 주최자(hostUid). 그 외엔 덮어쓰기 X.
         const canEdit = d.authorUid === authorUid || (d.hostUid && d.hostUid === authorUid);
         if (!canEdit) return { taken: true, by: d.authorName || '' };
-        tx.update(ref, { place: placeData, note: note || '', updatedAt: serverTimestamp() });
+        // roundupId backfill — 옛 문서(필드 없음)도 변경 시 채워, 모집 참여자 읽기 규칙이 동작하게.
+        tx.update(ref, { place: placeData, note: note || '', roundupId: schedule.roundupId || null, updatedAt: serverTimestamp() });
         return { id, changed: true };
       }
       tx.set(ref, {
         authorUid,
         authorName: authorName || '',
         hostUid: hostUid || null,   // 단체모집 주최자 — 변경 권한 확장용(규칙도 동일 검증)
+        roundupId: schedule.roundupId || null,   // 모집 일정이면 — 읽기 규칙이 '현재 모집 참여자'에게 허용(새 참여자도 식사 보임)
         scheduleId: key,
         slot,                   // 1 또는 2 — 동반자 화면에서 슬롯 구분
         course: schedule.course || '',
