@@ -503,7 +503,14 @@ export function HomeScreen({ navigation, route }) {
 
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 일정 공유 카드 모달 대상
   // 일정 공유 평문(설치 링크 동선) — 카드 모달의 '링크 공유' 옵션에서 사용
-  const buildScheduleMsg = (s) => `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · D-${s.dDay}\n예상 날씨 ${s.weather || '맑음'}\n티오프 30분 전 도착을 권장해요\n\n라운딩의 모든 순간을 더 특별하게\nDear Golf ⛳\n${WEB_BASE}`;
+  const buildScheduleMsg = (s) => {
+    const lines = [
+      '[ Dear Golf ]', s.course, `${s.date} ${s.day}요일 ${s.time}`, `${s.members}명 동반 · D-${s.dDay}`,
+    ];
+    if (s.weatherText) lines.push(`예상 날씨 ${s.weatherText}`); // 실제 예보(기온·강수확률) 있을 때만 — 없으면 생략(가짜 '맑음' 안 보냄)
+    lines.push('티오프 30분 전 도착을 권장해요', '', '라운딩의 모든 순간을 더 특별하게', 'Dear Golf ⛳', WEB_BASE);
+    return lines.join('\n');
+  };
   const shareScheduleText = async (s) => {
     if (!s) return;
     try { await Share.share({ message: buildScheduleMsg(s) }); }
@@ -519,7 +526,7 @@ export function HomeScreen({ navigation, route }) {
     if (!s.weather) {
       getScheduleWxSummary(s).then(w => {
         if (!w) return;
-        setScheduleShareTarget(prev => (prev && prev.date === s.date && prev.course === s.course) ? { ...prev, weather: w } : prev);
+        setScheduleShareTarget(prev => (prev && prev.date === s.date && prev.course === s.course) ? { ...prev, weather: w.summary, weatherText: w.detail } : prev);
       }).catch(() => {});
     }
   };

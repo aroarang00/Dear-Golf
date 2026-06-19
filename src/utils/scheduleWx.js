@@ -28,9 +28,10 @@ async function resolveCoords(schedule) {
   return null;
 }
 
-// 일정의 '해당일' 날씨 한 줄 요약 — 공유 카드(ScheduleShareCard) 코스명 위 표시용.
-//   ★3일 이내(D-0~D-3)만 — 단기예보만 신뢰. 그 밖(D-4+)·지난 라운딩은 null → 카드가 '3일 전부터 표시' 안내.
-//   반환 예: '맑음 24°' · '흐림 19°' · (범위 밖) null. 공유는 잦지 않아 매번 fetch해도 무방(getCombinedForecast 자체 캐시).
+// 일정의 '해당일' 날씨 — 공유 카드/텍스트 공유용.
+//   ★3일 이내(D-0~D-3)만 — 단기예보만 신뢰. 그 밖(D-4+)·지난 라운딩은 null.
+//   반환 { summary, detail } — summary='맑음 24°'(카드 코스명 위, 간결) / detail='맑음 · 최고 24° · 강수확률 30%'(텍스트 공유).
+//   공유는 잦지 않아 매번 fetch해도 무방(getCombinedForecast 자체 캐시).
 export async function getScheduleWxSummary(schedule) {
   if (!schedule?.date) return null;
   if (typeof schedule.dDay === 'number' && (schedule.dDay < 0 || schedule.dDay > 3)) return null; // 3일 밖·지난 일정 → fetch 생략
@@ -46,7 +47,11 @@ export async function getScheduleWxSummary(schedule) {
     const t = Number.isFinite(day.tmax) ? Math.round(day.tmax)
             : (Number.isFinite(day.tmin) ? Math.round(day.tmin) : null);
     if (!sky && t == null) return null; // 데이터 없는 폴백 슬롯
-    return t != null ? `${sky} ${t}°`.trim() : sky;
+    const pop = Number.isFinite(day.pop) ? Math.round(day.pop) : null;
+    const summary = t != null ? `${sky} ${t}°`.trim() : sky; // 카드용(간결)
+    const detail = [sky, t != null ? `최고 ${t}°` : null, pop != null ? `강수확률 ${pop}%` : null]
+      .filter(Boolean).join(' · '); // 텍스트 공유용(기온·강수확률)
+    return { summary, detail };
   } catch {
     return null;
   }

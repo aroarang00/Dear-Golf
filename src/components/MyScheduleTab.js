@@ -381,17 +381,21 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     setScheduleShareTarget(target);
     if (!target.weather) {
       getScheduleWxSummary(target).then(w => {
-        if (w) setScheduleShareTarget(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w } : prev);
+        if (w) setScheduleShareTarget(prev => (prev && prev.date === target.date && prev.course === target.course) ? { ...prev, weather: w.summary, weatherText: w.detail } : prev);
       }).catch(() => {});
     }
   };
-  // 카드의 '링크 공유' — 평문(설치 링크 포함). 홈 shareScheduleText와 동일 동선.
+  // 카드의 '링크 공유' — 평문(설치 링크 포함). 홈 shareScheduleText와 동일 동선. 날씨는 예보 있을 때만(기온·강수확률).
   const shareScheduleText = async (s) => {
     if (!s) return;
     const dd = computeDDay(s);
     const ddText = dd > 0 ? `D-${dd}` : dd === 0 ? 'D-DAY' : '지난 라운딩';
-    const msg = `[ Dear Golf ]\n${s.course}\n${s.date} ${s.day}요일 ${s.time}\n${s.members}명 동반 · ${ddText}\n나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳\n${WEB_BASE}`;
-    try { await Share.share({ message: msg }); }
+    const lines = [
+      '[ Dear Golf ]', s.course, `${s.date} ${s.day}요일 ${s.time}`, `${s.members}명 동반 · ${ddText}`,
+    ];
+    if (s.weatherText) lines.push(`예상 날씨 ${s.weatherText}`);
+    lines.push('나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳', WEB_BASE);
+    try { await Share.share({ message: lines.join('\n') }); }
     catch (e) { console.warn('[share schedule]', e?.message); }
   };
 
