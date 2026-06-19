@@ -42,23 +42,6 @@ import { CourseLogModal } from './CourseLogModal';
 
 export function GuideScreen({ route, navigation }) {
   const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
-  // 헤더 '내 코스 모아보기' 버튼 — 맥동(scale) 대신 위아래로 '떠다니는' 실제 이동(translateY)으로 주목 유도(사용자 2026-06-20).
-  //   Animated.View 래퍼 transform이라 안전(LinearGradient를 애니 자식으로 두면 크래시 — 그 패턴은 회피).
-  const courseFloat = useRef(new Animated.Value(0)).current;
-  // ★useNativeDriver:false — 코스 헤더는 코스 상세 진입 시 언마운트됐다 돌아오는데, 네이티브 드라이버는 리마운트
-  //   뷰에 재부착이 안 돼 '움직이다 멈춤'이 남. JS 드라이버는 값이 계속 돌면 새 뷰도 따라옴(버튼 하나라 성능 무관).
-  //   포커스 복귀 시에도 확실히 재시작하도록 useFocusEffect로 start/stop.
-  useFocusEffect(
-    React.useCallback(() => {
-      const loop = Animated.loop(Animated.sequence([
-        Animated.timing(courseFloat, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: false, isInteraction: false }),
-        Animated.timing(courseFloat, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: false, isInteraction: false }),
-      ]));
-      loop.start();
-      return () => loop.stop();
-    }, [])
-  );
-  const courseTranslateX = courseFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -9] }); // 왼쪽으로 살랑이는 이동(사용자 2026-06-20)
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
   const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
@@ -1567,28 +1550,13 @@ export function GuideScreen({ route, navigation }) {
             color: C.charcoal,
           }}>코스</Text>
         </View>
-        {/* 입체 버튼 — 차콜은 별로여서(원복), 도착 화면(CourseLogModal) 헤더 그린(#6B8B5E)으로 통일.
-            그라데이션+그림자로 입체감. 버튼↔도착 화면 색 연결. 2026-06-15 사용자.
-            + 위아래로 떠다니는 이동(translateY) 추가 — 정적이라 '따로 노는' 느낌 → 움직임으로 생기. (2026-06-20) */}
-        <Animated.View style={{ borderRadius: 14, transform: [{ translateX: courseTranslateX }],
-          shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
-        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85} style={{ borderRadius: 14 }}>
-          <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-            style={{ borderRadius: 14, paddingHorizontal: 15, paddingVertical: _and ? 7 : 8, flexDirection: 'row', alignItems: 'center',
-              borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)' }}>
-            <View>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>내 코스 모아보기</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginTop: 1 }}>방문 코스 · 통계 보기</Text>
-            </View>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#fff', marginLeft: 6 }}>›</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        </Animated.View>
+        {/* '내 코스 모아보기'는 검색창 위 긴 바(CourseExploreTab)로 이동 — 헤더 버튼 제거(중복 방지, 2026-06-20) */}
       </View>
       <CourseExploreTab
         ref={exploreRef}
         onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
         onOpenPreview={handleOpenPreview}
+        onOpenCourseLog={() => setShowCourseLog(true)}
       />
       <CourseLogModal
         visible={showCourseLog}

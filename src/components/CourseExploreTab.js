@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { showAppAlert } from './AppAlert'; // OS 기본 팝업 대신 앱 디자인 알림(안드 시스템팝업 방지)
+import { AttentionMotion } from './common/AttentionMotion'; // '내 코스 모아보기' 바 맥동
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -80,7 +82,7 @@ function MoreButton({ moreCount, onPress }) {
 }
 
 // forwardRef — 코스 탭 재탭(tabPress) 시 부모(GuideScreen)가 scrollToTop()을 호출해 목록을 맨 위로 올림.
-export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview }, ref) {
+export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview, onOpenCourseLog }, ref) {
   const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
   useImperativeHandle(ref, () => ({
     scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
@@ -258,6 +260,24 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   return (
     <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
+      {/* 0. 내 코스 모아보기 — 골프일정과 동일한 긴 바(그린 그라데이션). 검색창 위. 도착=CourseLogModal([[course-log-naming]]) */}
+      {onOpenCourseLog && (
+        <AttentionMotion type="pulse" style={{ marginHorizontal: 16, marginTop: 14, borderRadius: 12,
+          shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+          <TouchableOpacity onPress={onOpenCourseLog} activeOpacity={0.85} style={{ borderRadius: 12 }}>
+            <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12,
+                borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
+              <Text style={{ fontSize: fs(16) }}>🏌️</Text>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 코스 모아보기</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginLeft: 7 }}>방문 코스 · 통계 보기</Text>
+              </View>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#fff' }}>›</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </AttentionMotion>
+      )}
       {/* 1. 검색창 — 아래 지역탭과의 간격을 탭↔섹션헤더 간격과 대칭으로(검색박스 멀고 헤더에 바짝 붙던 불균형 해소, 안드·iOS 동일) */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
         <View style={{
