@@ -6,6 +6,7 @@ import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handl
 import { ROUTES } from '../constants/routes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';   // 코스 탭 헤더와 동일한 그린 그라데이션(색 통일)
 import { C, F, fs } from '../constants/colors';
 import { formatNameList } from '../utils/nameList';
 import { WEEKDAYS } from '../constants/data';
@@ -589,19 +590,22 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           </View>
         </View>
 
-        {/* 내 코스기록 진입 — 코스 탭 헤더 버튼과 동일 모달. 다이어리 안 쓰는 사용자가 본인 라운딩 기록을 일정 동선에서 찾을 수 있게.
-            맥동(scale)+버건디 테두리로 주목 유도 — 방문 코스·통계가 여기 있어 탭 유도. */}
-        <Animated.View style={{ marginHorizontal: 16, marginBottom: _and ? 2 : 4, transform: [{ scale: courseScale }] }}>
-        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6,
-            backgroundColor: C.butter, borderRadius: 12, borderWidth: 1.5, borderColor: C.burgundy,
-            paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
-          <Text style={{ fontSize: fs(16) }}>🏌️</Text>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>내 코스 모아보기</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.textSecondary, marginLeft: 7 }}>방문 코스 · 통계 보기</Text>
-          </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }}>›</Text>
+        {/* 내 코스기록 진입 — 코스 탭 헤더와 '동일 그린 그라데이션'으로 색 통일(같은 기능=같은 색, CourseLogModal 헤더 그린).
+            은은한 맥동(scale)+부제로 주목 유도 — 방문 코스·통계가 여기 있어 탭 유도. */}
+        <Animated.View style={{ marginHorizontal: 16, marginBottom: _and ? 2 : 4, borderRadius: 12, transform: [{ scale: courseScale }],
+          shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+        <TouchableOpacity onPress={() => setShowCourseLog(true)} activeOpacity={0.85} style={{ borderRadius: 12 }}>
+          <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12,
+              borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
+              paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
+            <Text style={{ fontSize: fs(16) }}>🏌️</Text>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>내 코스 모아보기</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginLeft: 7 }}>방문 코스 · 통계 보기</Text>
+            </View>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>›</Text>
+          </LinearGradient>
         </TouchableOpacity>
         </Animated.View>
 
