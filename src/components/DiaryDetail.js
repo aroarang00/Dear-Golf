@@ -301,14 +301,15 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
                     <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: bw, borderColor: bc }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: tcol }}>{Number.isFinite(v) ? v : '-'}</Text>
                     </View>
-                  ) : t === 'bogey' ? (
-                    // 보기 — 숫자 아래 짧은 밑줄(더블+는 표시 없음)
-                    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={scoreTxt}>{Number.isFinite(v) ? v : '-'}</Text>
-                      <View style={{ height: 1.6, width: 5, backgroundColor: UNDER, borderRadius: 1, marginTop: 1 }} />
-                    </View>
                   ) : (
-                    <Text style={scoreTxt}>{Number.isFinite(v) ? v : '-'}</Text>
+                    // par 외(보기·더블+·over) — 숫자를 원형 셀과 동일한 22 높이 박스 중앙에 고정(정렬 통일).
+                    //   보기 밑줄은 절대배치라 숫자 위치에 영향 없음 → 숫자 높이 물결 방지(사용자 2026-06-19).
+                    <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={scoreTxt}>{Number.isFinite(v) ? v : '-'}</Text>
+                      {t === 'bogey' && (
+                        <View style={{ position: 'absolute', bottom: 1, height: 1.6, width: 5, backgroundColor: UNDER, borderRadius: 1 }} />
+                      )}
+                    </View>
                   )}
                 </View>
               );
