@@ -844,10 +844,10 @@ export function HomeScreen({ navigation, route }) {
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         </TouchableOpacity>
-                        {/* 휑함 보완 — 코스(세부코스) 한 줄만(있을 때). 3줄은 iOS서 빡빡해 코스만(사용자 2026-06-20) */}
+                        {/* 휑함 보완 — 코스(세부코스) 이름만 한 줄(이모지 X, 있을 때) */}
                         {!!(next.subCourse || '').trim() && (
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.82)', marginTop: 9 }} numberOfLines={1}>
-                            ⛳ {next.subCourse.trim()}
+                          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginTop: 9 }} numberOfLines={1}>
+                            {next.subCourse.trim()}
                           </Text>
                         )}
                         {/* D-day 탭 → 일정 시트(바텀시트). marginBottom으로 바닥에서 살짝 띄워 위로(다른 요소 영향 X) */}
@@ -858,7 +858,7 @@ export function HomeScreen({ navigation, route }) {
                     )}
                     {/* 함께 식사 — 구장 박스 아래(같은 너비). ★위 정보박스가 flex:1이라 marginTop은 흡수돼 무효 →
                         marginBottom으로 바닥에서 띄워 위로 올림(2슬롯+메모, [[afterround-meal-decision]]) */}
-                    <View style={{ marginRight: 12, marginBottom: 16 }}>
+                    <View style={{ marginRight: 12, marginBottom: 6 }}>
                       <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active block friendMeta={friendMeta}
                         autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                     </View>
