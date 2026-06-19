@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
   Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated, Easing, useWindowDimensions,
@@ -35,6 +35,8 @@ import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
+import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
+import { deleteMeal } from '../utils/mealSuggestions';     // 고아 정리 — 식사 문서 정리
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { MealDecisionBar } from './MealDecisionBar';
@@ -272,6 +274,35 @@ export function HomeScreen({ navigation, route }) {
     return diaries.find(d => d.course === s.course && d.date === s.date && !d.scheduleId) || null;
   };
   const isRecorded = (s) => !!recordedDiary(s);
+
+  // 모집 확정 해제·삭제 시 고아 일정·식사 정리 (옵션1) — 라운지 탭 의존 없이 홈에서 모집 상태를 '직접 조회'해 정리.
+  //   기존엔 RoundupTab reconcile이 라운지 posts 로드 때만 돌아 '라운지 열어야 정리'되는 지연 갭이 있었음([[diary-schedule-orphan-fix]]).
+  //   ★오삭제 방지: 모집 조회 성공 + 명확히 비확정/미참여(또는 모집 삭제=null)일 때만 삭제. 조회 throw(네트워크·권한)는 보존.
+  //   기록 연결 일정(isRecorded)은 보존. 식사 문서(meal_{roundupId})는 작성자·주최자만 규칙상 삭제됨(아니면 무해).
+  const reconcileRoundupOrphans = useCallback(async () => {
+    if (!currentUid) return;
+    const list = schedules || [];
+    const rids = [...new Set(list.filter(s => s.roundupId).map(s => s.roundupId))];
+    for (const rid of rids) {
+      let post;
+      try { post = await loadRoundup(rid); }   // 미존재(삭제)=null 반환 / 에러=throw → catch에서 skip
+      catch { continue; }                       // 조회 실패(네트워크·권한) → 손대지 않음(오삭제 방지)
+      const valid = !!post && post.closed &&
+        (post.authorUid === currentUid || (Array.isArray(post.participantUids) && post.participantUids.includes(currentUid)));
+      if (valid) continue;                      // 확정 + 내가 속함 → 정상 유지
+      const targets = list.filter(s => s.roundupId === rid && !isRecorded(s)); // 기록 연결 일정은 보존
+      for (const s of targets) { await removeSchedule(s.id).catch(() => {}); }
+      if (targets.length) { deleteMeal(rid, 1).catch(() => {}); deleteMeal(rid, 2).catch(() => {}); } // 식사 문서도 정리
+    }
+  }, [currentUid, schedules, diaries, removeSchedule]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 마운트·schedules/diaries 변화 시 + 홈 focus 시 정리(라운지 안 열어도 즉시 반영).
+  useEffect(() => { if (hydrated) reconcileRoundupOrphans(); }, [hydrated, reconcileRoundupOrphans]);
+  useEffect(() => {
+    if (!navigation?.addListener) return;
+    const unsub = navigation.addListener('focus', () => { reconcileRoundupOrphans(); });
+    return unsub;
+  }, [navigation, reconcileRoundupOrphans]);
   // 자정 기준 재계산 D-day / 라운딩 종료 판정(티오프 + 4시간 — 후반 막바지, 식사·기록 동선)
   // 매너평가 윈도우(티오프+5h)와 의도적으로 다름: 홈은 끝나갈 때 진입, 매너평가는 실제 종료 후
   const freshDDay = (s) => (s ? Math.max(0, Math.round((parseSchedDate(s) - now0) / 86400000)) : 0);
