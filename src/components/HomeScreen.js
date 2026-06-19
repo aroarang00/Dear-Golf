@@ -349,12 +349,12 @@ export function HomeScreen({ navigation, route }) {
 
   // D-0 카드 우측 날씨·교통 채움 — 큰 이모지만 두면 휑해서 실제 정보로(사용자 2026-06-20).
   //   날씨=getScheduleWxSummary(캐시), 교통=getScheduleDriveMin(출발지 저장 시 경로 1회 조회). 당일 카드일 때만.
-  const [d0Info, setD0Info] = useState({ wx: '', drive: null });
+  const [d0Info, setD0Info] = useState({ wx: '', drive: null, icon: '' });
   useEffect(() => {
-    if (!isD0 || !next) { setD0Info({ wx: '', drive: null }); return; }
+    if (!isD0 || !next) { setD0Info({ wx: '', drive: null, icon: '' }); return; }
     let alive = true;
-    setD0Info({ wx: '', drive: null });
-    getScheduleWxSummary(next).then(w => { if (alive && w) setD0Info(p => ({ ...p, wx: w.summary })); }).catch(() => {});
+    setD0Info({ wx: '', drive: null, icon: '' });
+    getScheduleWxSummary(next).then(w => { if (alive && w) setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '' })); }).catch(() => {});
     const home = userProfile?.departureCoord;
     if (home && typeof home.x === 'number' && typeof home.y === 'number') {
       getScheduleDriveMin(next, home).then(m => { if (alive && m) setD0Info(p => ({ ...p, drive: m })); }).catch(() => {});
@@ -870,7 +870,7 @@ export function HomeScreen({ navigation, route }) {
                       <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7}
                         style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
                         <View style={{ alignItems: 'center' }}>
-                          <Text style={{ fontSize: fs(38) }}>🌤️</Text>
+                          <Text style={{ fontSize: fs(38) }}>{d0Info.icon || '🌤️'}</Text>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.wx || '날씨'}</Text>
                         </View>
                         <View style={{ alignItems: 'center' }}>

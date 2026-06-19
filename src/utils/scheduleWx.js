@@ -52,7 +52,7 @@ export async function getScheduleWxSummary(schedule) {
     const summary = t != null ? `${sky} ${t}°`.trim() : sky; // 카드용(간결)
     const detail = [sky, t != null ? `최고 ${t}°` : null, pop != null ? `강수확률 ${pop}%` : null]
       .filter(Boolean).join(' · '); // 텍스트 공유용(기온·강수확률)
-    return { summary, detail };
+    return { summary, detail, icon: day.icon || null }; // icon=실제 예보 이모지(맑음 ☀️·구름 ⛅·흐림 ☁️·비 🌧 등, kma skyToIcon)
   } catch {
     return null;
   }
