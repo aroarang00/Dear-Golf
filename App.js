@@ -62,6 +62,7 @@ import { loadMyBlockedUids, loadReceivedRequests } from './src/utils/friends';
 import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLimit';
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { syncUserCoursesFromFirestore } from './src/utils/userCourses';
+import { loadPrivateProfile } from './src/utils/privateProfile'; // 출발지 등 비공개 프로필 — 기기 간 유지
 import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid, auth } from './src/utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -309,6 +310,19 @@ function App() {
           }
           return next;
         });
+        // 비공개 프로필(출발지 등) — users 문서엔 안 올리는 민감정보를 owner-only 서브컬렉션에서 복원(재설치·새 기기서도 유지).
+        //   로컬에 이미 있으면(같은 기기) 그대로, 없으면 Firestore-private에서 채움. 옛 사용자(private 없음)는 로컬 유지 후 다음 저장 때 마이그레이션.
+        try {
+          const priv = await loadPrivateProfile(uid);
+          if (priv && !cancelled) {
+            setUserProfile(prev => {
+              const next = { ...prev };
+              if (priv.departure != null) next.departure = priv.departure;
+              if (priv.departureCoord && typeof priv.departureCoord.x === 'number' && typeof priv.departureCoord.y === 'number') next.departureCoord = priv.departureCoord;
+              return next;
+            });
+          }
+        } catch (e) { if (__DEV__) console.warn('[App] private profile load fail', e?.message); }
         // 카카오 프로필 사진 backfill ([[avatar-resignup-bug]]) — 연동됐는데 avatarUrl이 비어 있으면
         //   (재설치·재가입으로 푸시토큰만 먼저 생긴 빈 문서) 카카오 사진을 1회 소급 저장한다.
         //   친구가 사진을 못 보고 이니셜만 뜨던 문제 보정. 토큰 살아있을 때만(silent)·기존 값은 절대 덮어쓰지 않음.

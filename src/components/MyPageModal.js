@@ -12,6 +12,8 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { getUid } from '../utils/firebase';
+import { savePrivateDeparture } from '../utils/privateProfile'; // 출발지 비공개 Firestore 저장(기기 간 유지)
 import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
 import { UserContext } from '../contexts/UserContext';
@@ -133,6 +135,8 @@ export function MyPageModal({ visible, onClose }) {
     const updated = { ...userProfile, departure, departureCoord, phone, realName: realName.trim(), statusMessage: statusMessage.trim() };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
+    // 출발지는 비공개 서브컬렉션(owner-only)에도 저장 — 기기 간·재설치 후에도 유지(주소는 users 문서엔 안 올림, 노출 방지).
+    getUid().then(uid => { if (uid) savePrivateDeparture(uid, departure, departureCoord); }).catch(() => {});
     setDepResults([]);
     setDepSearching(false);
     setEditingInfo(false);
