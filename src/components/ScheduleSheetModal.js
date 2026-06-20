@@ -40,6 +40,18 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const dd = schedule.dDay;
   const isPast = dd != null && dd < 0;        // 지난 라운딩 — 날씨·교통 숨김
   const isOverseas = !!schedule.overseas;     // 해외 일정 — 교통 숨김
+  // 라운딩 종료(티오프+4h) 경과 여부 — 홈 종료 카드(HomeScreen.teeoffEndMs)·캘린더(MyScheduleTab.roundEnded)와 통일.
+  //   라운딩이 끝나면 모집연동 D-0 일정이 '라운지에서 취소'도 못 하고 캘린더 삭제도 막혀 갇히던 함정 해소
+  //   (사용자 2026-06-20). date 'YYYY.MM.DD' + time 'HH:MM'.
+  const roundOver = (() => {
+    if (!schedule.date) return false;
+    const [y, m, d] = String(schedule.date).split('.').map(Number);
+    const [hh, mm] = String(schedule.time || '08:00').split(':').map(Number);
+    if (!y || !m || !d) return false;
+    const teeOff = new Date(y, m - 1, d, hh || 8, mm || 0).getTime();
+    if (Number.isNaN(teeOff)) return false;
+    return Date.now() > teeOff + 4 * 3600 * 1000;
+  })();
 
   const allItems = [
     { key: 'wx', emoji: '☀️', label: '날씨 확인', onPress: onWeather },
@@ -66,7 +78,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const hasRec = !!schedule.hasRec;
   // 모집으로 생긴 예정 일정 — 캘린더에서 직접 삭제 막고 라운지로 안내 ([[roundup-schedule-delete-policy]]).
   //   취소는 라운지 정식 동선(모집 취소·나가기)이 일정까지 정리. 과거(isPast)는 이미 끝나 일반 삭제 허용.
-  const isRoundupLinked = !!schedule.roundupId && !isPast;
+  //   단, 티오프+5h 지나 라운지에서 이미 숨겨졌으면(roundOver) 라운지 취소 동선이 불가 → 캘린더 직접 삭제 허용(갇힘 방지).
+  const isRoundupLinked = !!schedule.roundupId && !isPast && !roundOver;
   // 코스 이동 가능 여부 — 부모(HomeScreen)가 이름 매칭까지 해석해 넘기면 그걸 우선,
   //   없으면 일정 필드(courseLogId/courseId)로 폴백 (MyScheduleTab 등 기존 호출처 무회귀).
   const canOpenCourse = courseNavigable != null

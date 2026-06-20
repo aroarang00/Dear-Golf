@@ -36,6 +36,19 @@ import { MealDecisionBar } from './MealDecisionBar';
 
 const DAYS = WEEKDAYS;
 
+// 라운딩 종료(티오프+4h) 경과 여부 — 홈 종료 카드(HomeScreen.teeoffEndMs)와 동일 시점으로 통일.
+//   같은 날(D-0)이라도 라운딩이 끝났으면 '완료'로 보아 ①미기록 표시·기록 추가하기 노출
+//   ②일정 출처(모집/수동) 무관하게 캘린더 직접 삭제 허용(모집연동도 갇히지 않음).
+//   date 'YYYY.MM.DD' + time 'HH:MM'. 시간 없으면 08:00 가정(홈과 동일).
+function roundEnded(s) {
+  if (!s?.date) return false;
+  const [y, m, d] = String(s.date).split('.').map(Number);
+  const [hh, mm] = String(s.time || '08:00').split(':').map(Number);
+  if (!y || !m || !d) return false;
+  const teeOff = new Date(y, m - 1, d, hh || 8, mm || 0).getTime();
+  return !Number.isNaN(teeOff) && Date.now() > teeOff + 4 * 3600 * 1000;
+}
+
 // 일정이 없을 때 빈 상태 뒤에 흐릿하게 깔리는 샘플 카드 (장식용 · 비활성)
 function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTxt, dashed, fade }) {
   return (
@@ -443,6 +456,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (!s) return;
     const isPast = new Date((s.date || '').replace(/\./g, '-')).getTime() < todayMid;
     const hasRec = hasRecordForSched(s);
+    const roundOver = roundEnded(s); // 티오프+5h 경과 — 모집연동 D-0 일정도 캘린더 직접 삭제 허용(갇힘 방지)
     const remove = async () => {
       try { await removeSchedule(s.id); }
       catch (e) { console.warn('[mySchedule] remove failed:', e?.message); return; }
@@ -457,7 +471,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     }
     // 라운지 모집으로 생긴 예정 일정 — 캘린더에서 직접 삭제 X, 라운지 취소·나가기로만 ([[roundup-schedule-delete-policy]]).
     //   탭→시트(ScheduleSheetModal) 경로는 이미 막는데 길게누르기 경로만 가드가 빠져 있었음. 과거는 시트와 동일하게 일반 삭제 허용.
-    if (s.roundupId && !isPast) {
+    if (s.roundupId && !isPast && !roundOver) {
       showAppAlert('라운지 일정', '이 라운딩은 라운지 모집으로\n만들어졌어요.\n취소하려면 라운지에서 모집 취소\n또는 참여 취소를 해주세요.', [{ text: '확인' }]);
       return;
     }
@@ -714,7 +728,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
               // 빈 time(자동 등록 등)은 정렬 시 끝으로 — 시간 정보 있는 일정 우선
               .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '~').localeCompare(b.time || '~'))
               .map(s => {
-                const past = new Date(s.date.replace(/\./g, '-')).getTime() < todayMid;
+                // '완료'(미기록·기록추가 노출) 판정 = 날짜 지남 OR 같은 날이라도 티오프+5h 경과(라운딩 끝남).
+                //   기존엔 날짜 기준이라 D-0엔 라운딩이 끝나도 다음날까지 '예정'으로 남아 기록 버튼이 안 떴음(사용자 2026-06-20).
+                const past = new Date(s.date.replace(/\./g, '-')).getTime() < todayMid || roundEnded(s);
                 const rec = hasRecordForSched(s);
                 let status, sideColor, badgeBg, badgeFg, badgeTxt;
                 if (rec) {
