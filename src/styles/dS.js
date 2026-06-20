@@ -91,7 +91,7 @@ export const dS = StyleSheet.create({
   detailScore:     { fontFamily: F.en, fontSize: fs(48), color: C.charcoal, lineHeight: 54 },
   detailScoreUnit: { fontFamily: F.en, fontSize: fs(20), color: C.charcoal },
   detailScoreSub:  { fontFamily: F.sys, fontSize: fs(12), color: C.warmGray },
-  detailCourseTxt: { fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 16 },
+  detailCourseTxt: { fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginBottom: 16 },
   detailMemoBox:   { borderLeftWidth: 2, borderLeftColor: C.burgundy, paddingLeft: 10, marginBottom: 16 },
   detailMemoTxt:   { fontFamily: F.en, fontSize: fs(14), color: C.textPrimary, lineHeight: 22 },
   companionArea:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },

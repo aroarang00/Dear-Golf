@@ -178,7 +178,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
           {/* 구장명(+코스)을 윗줄, 날짜·날씨를 아랫줄로 분리 — 구장명이 길어 두 줄이 될 때
               날짜·날씨가 중간에 끼어 애매하게 잘리는 것 방지(사용자 2026-06-20). 코스(세부코스)는 구장명 같은 줄. */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={[dS.detailCourseTxt, { marginBottom: 0 }]}>{item.course}{item.subCourse ? ` · ${item.subCourse}` : ''}</Text>
+            <Text style={[dS.detailCourseTxt, { marginBottom: 0, color: C.charcoal }]}>{item.course}{item.subCourse ? ` · ${item.subCourse}` : ''}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
               <Text style={[dS.detailCourseTxt, { marginBottom: 0 }]}>{item.date} {item.day} · {item.weather}</Text>
               {item.overseas && item.country ? (
