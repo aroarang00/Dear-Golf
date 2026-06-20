@@ -1,5 +1,5 @@
 // =============================================================
-// Firestore 보안 규칙 테스트 — 일정전파(scheduleGroups) · 내일정(schedules) · 라운지모집(roundups)
+// Firestore 보안 규칙 테스트 — 일정전파(scheduleGroups) · 내일정(schedules) · 라운지모집(roundups) · DM(conversations)
 //
 //  목적: 규칙의 "명확함"이 정상 동작을 막는 false-denial을 자동으로 잡는다.
 //        (수동 대조 대신 — 규칙을 바꿀 때마다 CI가 여기 케이스를 돌려 회귀를 차단)
@@ -229,4 +229,62 @@ test('roundups: 주최자는 전체 수정 가능, 비주최자 삭제는 거부
   await assertFails(deleteDoc(doc(as('bob'), 'roundups', 'r1')));
   // 주최자 삭제 — 허용
   await assertSucceeds(deleteDoc(doc(as('alice'), 'roundups', 'r1')));
+});
+
+// =============================================================
+// conversations / messages — 친구 1:1 DM (가장 복잡: 문서간 get 2종 의존).
+//   areFriends → friendships/{pairId}.status=='accepted', dmBlockedBetween → users/{uid}.blockedUids.
+//   pairId('alice','bob') === 'alice_bob' (정렬). 친구 + 양방향 비차단일 때만 생성·전송.
+// =============================================================
+// 친구관계 + 양쪽 users 문서 시드(dmBlockedBetween이 users get을 하므로 둘 다 있어야 함).
+//   blockedBy='bob'이면 bob 이 alice 를 차단한 상태.
+const seedDmBase = (db, { blockedBy } = {}) => Promise.all([
+  setDoc(doc(db, 'friendships', 'alice_bob'),
+    { users: ['alice', 'bob'], requesterUid: 'alice', recipientUid: 'bob', status: 'accepted' }),
+  setDoc(doc(db, 'users', 'alice'), { uid: 'alice', blockedUids: blockedBy === 'alice' ? ['bob'] : [] }),
+  setDoc(doc(db, 'users', 'bob'), { uid: 'bob', blockedUids: blockedBy === 'bob' ? ['alice'] : [] }),
+]);
+
+test('DM: 친구면 대화방 생성·메시지 전송 가능(비차단)', async () => {
+  await seed((db) => seedDmBase(db));
+  // 대화방 생성 — convId == pairId('alice','bob')
+  await assertSucceeds(setDoc(doc(as('alice'), 'conversations', 'alice_bob'),
+    { participantUids: ['alice', 'bob'], createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  // 메시지 전송 — sender 본인 + 친구 + 비차단
+  await assertSucceeds(setDoc(doc(as('alice'), 'conversations', 'alice_bob', 'messages', 'm1'),
+    { senderUid: 'alice', body: '안녕', createdAt: serverTimestamp() }));
+});
+
+test('DM: 친구 아니면 대화방 생성 거부', async () => {
+  // friendships 없음(친구 아님). users 만 존재.
+  await seed((db) => Promise.all([
+    setDoc(doc(db, 'users', 'alice'), { uid: 'alice', blockedUids: [] }),
+    setDoc(doc(db, 'users', 'bob'), { uid: 'bob', blockedUids: [] }),
+  ]));
+  await assertFails(setDoc(doc(as('alice'), 'conversations', 'alice_bob'),
+    { participantUids: ['alice', 'bob'], createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+});
+
+test('DM: 상대가 나를 차단했으면 메시지 전송 거부', async () => {
+  await seed(async (db) => {
+    await seedDmBase(db, { blockedBy: 'bob' }); // bob 이 alice 차단
+    await setDoc(doc(db, 'conversations', 'alice_bob'),
+      { participantUids: ['alice', 'bob'], createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  });
+  await assertFails(setDoc(doc(as('alice'), 'conversations', 'alice_bob', 'messages', 'm1'),
+    { senderUid: 'alice', body: '안녕', createdAt: serverTimestamp() }));
+});
+
+test('DM: 읽음표시(lastRead)는 본인 키만 — 남 키 위조 거부', async () => {
+  await seed(async (db) => {
+    await seedDmBase(db);
+    await setDoc(doc(db, 'conversations', 'alice_bob'),
+      { participantUids: ['alice', 'bob'], lastRead: {}, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  });
+  // 본인(alice) 키만 — 허용
+  await assertSucceeds(updateDoc(doc(as('alice'), 'conversations', 'alice_bob'),
+    { lastRead: { alice: 1 } }));
+  // 남(bob) 키 위조 — 거부
+  await assertFails(updateDoc(doc(as('alice'), 'conversations', 'alice_bob'),
+    { lastRead: { bob: 1 } }));
 });
