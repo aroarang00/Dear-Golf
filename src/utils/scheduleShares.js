@@ -40,7 +40,10 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
   // 초대 친구 이름맵(uid→이름) — 그룹에 저장해 표시 시 친구목록 조회 없이 이름 사용. 생성 시·나중 초대 모두 보강.
   const nameEntries = {};
   aud.forEach(u => { const nm = (names[u] || '').trim(); if (nm) nameEntries[u] = nm; });
-  const groupId = scheduleGroupId(initiatorUid, schedule.id);
+  // ★전파 일정(이미 groupId 보유)이면 '그 기존 그룹'에 초대 추가 — 동반자(비-생성자)가 초대해도 별도 그룹으로
+  //   쪼개지지 않고 한 그룹에 수렴(전원 동등 모델). 규칙도 memberUids 멤버의 audience 추가 허용([[schedule-propagation-spec]]).
+  //   groupId 없으면(최초 공유) 결정적 ID로 새 그룹 생성. 생성자 본인은 schedule.groupId==scheduleGroupId라 동일.
+  const groupId = schedule.groupId || scheduleGroupId(initiatorUid, schedule.id);
   const ref = doc(db, COLLECTION, groupId);
   const snap = await getDoc(ref);
   if (snap.exists()) {

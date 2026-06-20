@@ -166,11 +166,14 @@ service cloud.firestore {
         && request.resource.data.audienceUids is list
         && request.resource.data.course is string
         && request.resource.data.date is string;
-      // 초대 추가 — initiator가 audienceUids + names(uid→이름 맵, 표시용) 갱신(친구 더 초대).
+      // 초대 추가 — 생성자 또는 수락 멤버 누구나 audienceUids + names(uid→이름 맵, 표시용) 갱신(친구 더 초대).
+      //   ★전원 동등 모델 — 동반자가 초대해도 한 그룹에 수렴(별도 그룹 분기 방지). 안 그러면 그 초대자가
+      //     만든 별도 그룹으로 쪼개져 원래 일정의 변경알림·내용동기화를 못 받음(사용자 2026-06-20).
       //   declinedUids는 '제거만'(재초대=거절/탈퇴자 un-decline) 허용 — 추가(강제 거절)는 차단.
       //   audience는 줄지 않음(추가만), declined는 늘지 않음(제거만). 둘 다 위조방지 가드.
       allow update: if isSignedIn()
-        && resource.data.initiatorUid == request.auth.uid
+        && (request.auth.uid in resource.data.memberUids
+            || request.auth.uid == resource.data.initiatorUid)
         && changedKeysWithin(['audienceUids', 'names', 'declinedUids', 'updatedAt'])
         && request.resource.data.audienceUids.hasAll(resource.data.audienceUids)
         && request.resource.data.declinedUids.hasOnly(resource.data.declinedUids);

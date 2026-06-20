@@ -139,6 +139,25 @@ test('scheduleGroups: 초대추가(R1) — initiator 가 audience 추가 + decli
   }));
 });
 
+test('scheduleGroups: 초대추가(R1) — 수락 멤버(비-생성자)도 audience 추가 가능 (전원 동등·별도그룹 분기 방지)', async () => {
+  // alice=생성자, bob=수락 멤버. bob 이 carol 을 같은 그룹에 초대 → 성공해야(예전엔 거부돼 별도 그룹으로 쪼개짐).
+  await seed((db) => setDoc(doc(db, 'scheduleGroups', 'g1'),
+    groupBase({ memberUids: ['alice', 'bob'], audienceUids: ['bob'] })));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'scheduleGroups', 'g1'), {
+    audienceUids: arrayUnion('carol'), 'names.carol': 'Carol', updatedAt: serverTimestamp(),
+  }));
+});
+
+test('scheduleGroups: 초대추가(R1) — 멤버·생성자 아닌 사람은 audience 추가 거부(미수락 invitee 포함)', async () => {
+  // bob 은 아직 audience(초대만 받음)·미수락 → 멤버 아님. dave 는 무관한 외부인. 둘 다 초대 못 함.
+  await seed((db) => setDoc(doc(db, 'scheduleGroups', 'g1'),
+    groupBase({ memberUids: ['alice'], audienceUids: ['bob'] })));
+  await assertFails(updateDoc(doc(as('bob'), 'scheduleGroups', 'g1'),
+    { audienceUids: arrayUnion('carol'), updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as('dave'), 'scheduleGroups', 'g1'),
+    { audienceUids: arrayUnion('carol'), updatedAt: serverTimestamp() }));
+});
+
 // ── 회귀 가드: 우리가 분석한 "초대+인원증가" false-denial 방지 ──────────────
 test('REGRESSION scheduleGroups: 초대(audience)+인원(members)을 한 write 로 묶으면 거부 → 반드시 분리', async () => {
   await seed((db) => setDoc(doc(db, 'scheduleGroups', 'g1'), groupBase()));
