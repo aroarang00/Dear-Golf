@@ -275,7 +275,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님이 정함`}
           </Text>
         </View>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{pl?.name}</Text>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }} numberOfLines={1}>{pl?.name}</Text>
         {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
         {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
         {editing ? (
