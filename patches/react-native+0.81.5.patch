@@ -1,8 +1,19 @@
 diff --git a/node_modules/react-native/Libraries/Components/TextInput/TextInput.js b/node_modules/react-native/Libraries/Components/TextInput/TextInput.js
-index 1e95eb6..14299e2 100644
+index 1e95eb6..9fd87a7 100644
 --- a/node_modules/react-native/Libraries/Components/TextInput/TextInput.js
 +++ b/node_modules/react-native/Libraries/Components/TextInput/TextInput.js
-@@ -884,7 +884,7 @@ const TextInput: component(
+@@ -640,7 +640,9 @@ function InternalTextInput(props: TextInputProps): React.Node {
+   }
+ 
+   // Keep the original (potentially nested) style when possible, as React can diff these more efficiently
+-  let _style = props.style;
++  // [dear-golf patch] 글로벌 default 폰트 — fontFamily 미지정 입력창 글자에 Pretendard 주입(React 19 defaultProps 사망 대체).
++  //   default를 맨 앞(최저 우선순위)에 둬 명시 style이 항상 이김. (placeholder는 별도 AppTextInput 오버레이가 처리)
++  let _style = [{fontFamily: 'Pretendard-Regular'}, props.style];
+   const flattenedStyle = flattenStyle<TextStyleProp>(props.style);
+   if (flattenedStyle != null) {
+     let overrides: ?{...TextStyleInternal} = null;
+@@ -884,7 +886,7 @@ const TextInput: component(
    ...props: React.ElementConfig<typeof InternalTextInput>
  ) = function TextInput({
    ref: forwardedRef,
@@ -12,7 +23,7 @@ index 1e95eb6..14299e2 100644
    underlineColorAndroid = 'transparent',
    autoComplete,
 diff --git a/node_modules/react-native/Libraries/Text/Text.js b/node_modules/react-native/Libraries/Text/Text.js
-index b08b8f3..2b4db68 100644
+index b08b8f3..cfec4dc 100644
 --- a/node_modules/react-native/Libraries/Text/Text.js
 +++ b/node_modules/react-native/Libraries/Text/Text.js
 @@ -43,7 +43,7 @@ const TextImpl: component(
@@ -24,3 +35,15 @@ index b08b8f3..2b4db68 100644
    'aria-busy': ariaBusy,
    'aria-checked': ariaChecked,
    'aria-disabled': ariaDisabled,
+@@ -222,6 +222,11 @@ const TextImpl: component(
+     );
+   }
+ 
++  // [dear-golf patch] 글로벌 default 폰트 — fontFamily 미지정 top-level Text에 Pretendard 주입.
++  //   React 19 automatic JSX runtime에선 defaultProps가 무시돼(App.js 옛 방식 사망) 여기서 적용.
++  //   default를 맨 앞(최저 우선순위)에 둬 명시 style이 항상 이김. 중첩 Text는 위 early-return으로 제외(부모 폰트 상속 보존).
++  _style = [{fontFamily: 'Pretendard-Regular'}, _style];
++
+   // If the disabled prop and accessibilityState.disabled are out of sync but not both in
+   // falsy states we need to update the accessibilityState object to use the disabled prop.
+   if (

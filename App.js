@@ -1,16 +1,11 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
-// 명시된 style 의 fontFamily 는 그대로 우선 (style 배열 머지 순서). Android 시스템 폰트 fallback 차단 목적.
-// allowFontScaling 은 patch-package(Text/TextInput) 가 이미 false 로 설정.
-const _withDefaultFont = (Comp) => {
-  Comp.defaultProps = Comp.defaultProps || {};
-  Comp.defaultProps.style = [{ fontFamily: 'Pretendard-Regular' }, Comp.defaultProps.style].filter(Boolean);
-};
-_withDefaultFont(Text);
-_withDefaultFont(TextInput);
+//  ※ React 19 + automatic JSX runtime(jsx())에선 함수형 컴포넌트 defaultProps가 무시돼(옛 _withDefaultFont 방식 사망),
+//    이제 patch-package(react-native+0.81.5.patch)의 Text.js/TextInput.js 소스에서 직접 _style 앞에 주입한다.
+//    (명시 style의 fontFamily가 항상 이김 · 중첩 Text는 부모 폰트 상속 보존 · placeholder는 AppTextInput 오버레이가 별도 처리)
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
