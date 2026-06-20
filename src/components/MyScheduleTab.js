@@ -27,7 +27,8 @@ import { CourseLogModal } from './CourseLogModal';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember } from '../utils/scheduleShares';
+import { leaveMealAudience } from '../utils/mealSuggestions'; // 일정 이탈 시 식사 audience 이탈(식사 푸시·카드 중단)
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { FriendSelectModal } from './FriendSelectModal';
 import { MealDecisionBar } from './MealDecisionBar';
@@ -113,6 +114,17 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       const groupId = await shareScheduleToFriends({ schedule, initiatorUid: currentUid, initiatorName: userProfile?.nickname || '', friendUids: uids, names });
       if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId }); // 전파 일정 표식
+      // 인원 자동 증가 — 1(나) + 누적 초대자 수가 현재 인원보다 크면 올림 + 그룹 반영(다른 멤버에게도 인원 변경 반영).
+      try {
+        const group = await getScheduleGroup(groupId);
+        const audCount = Array.isArray(group?.audienceUids) ? group.audienceUids.length : 0;
+        const cur = Number(schedule?.members) || 0;
+        const next = Math.max(cur, Math.min(4, 1 + audCount));   // 4 캡 — 모달 칩(2/3/4) 범위 내(한 조 최대 4)
+        if (next !== cur && schedule?.id) {
+          await editSchedule(schedule.id, { members: next });
+          await syncGroupContentByMember(groupId, { ...schedule, members: next });
+        }
+      } catch (e) { if (__DEV__) console.warn('[mySchedule] members auto-bump', e?.message); }
       showAppAlert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
     } catch (e) {
       if (__DEV__) console.warn('[mySchedule] invite', e?.message);
@@ -315,10 +327,28 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         setPendingAlarm(newS);
       }
     } else if (type === 'schedule-edit') {
+      const oldS = schedules.find(s => s.id === data.id);
       try {
         const { id, createdAt, ownerUid, ...patch } = data;
         await editSchedule(data.id, patch);
       } catch (e) { console.warn('[mySchedule] edit failed:', e?.message); return; }
+      // 전파 일정(groupId, 라운지 아님) 수정 → 그룹 내용 갱신 + 변경 알림. 다른 멤버는 자기 화면에서 '반영할까요?' 확인.
+      //   구장·날짜는 잠금이라 time/members/booker/subCourse만 동기화. ([[schedule-propagation-spec]])
+      if (oldS?.groupId && !oldS?.roundupId && currentUid) {
+        const changed = (oldS.time !== data.time)
+          || (Number(oldS.members) !== Number(data.members))
+          || ((oldS.booker || '') !== (data.booker || ''))
+          || ((oldS.subCourse || '') !== (data.subCourse || ''));
+        if (changed) {
+          syncGroupContentByMember(oldS.groupId, { ...oldS, ...data }).then(async () => {
+            try {
+              const group = await getScheduleGroup(oldS.groupId);
+              await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleChanged',
+                actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time });
+            } catch (e) { if (__DEV__) console.warn('[mySchedule] notify changed', e?.message); }
+          });
+        }
+      }
       // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
       getAlarmTypes(data.id).then(types => {
         if (types && types.length) {
@@ -399,16 +429,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     catch (e) { console.warn('[share schedule]', e?.message); }
   };
 
-  // 전파 일정(groupId) 삭제 시 — 다른 멤버에게 취소 알림 + 그룹 탈퇴(memberUids에서 본인 제거). 홈 삭제와 동일.
-  //   탈퇴 안 하면 삭제 후에도 그룹 수정/취소 푸시가 계속 옴 ([[schedule-propagation-spec]]).
+  // 전파 일정(groupId) 개인 삭제 = 조용히 탈퇴 — 취소 알림 X(한 명이 빠지는 것일 뿐, 개인 권리 존중). 홈 삭제와 동일.
+  //   탈퇴(memberUids 제거)는 유지 → 변경 푸시 중단. 식사 audienceUids도 이탈 → 식사 푸시·카드 중단 ([[schedule-propagation-spec]]).
   const cleanupGroupOnDelete = async (s) => {
     if (!s?.groupId || !currentUid) return;
-    try {
-      const group = await getScheduleGroup(s.groupId);
-      await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleCancelled',
-        actorName: userProfile?.nickname || '', course: s.course, date: s.date, time: s.time });
-      await leaveScheduleGroup(s.groupId, currentUid);
-    } catch (e) { if (__DEV__) console.warn('[mySchedule] group cleanup', e?.message); }
+    leaveScheduleGroup(s.groupId, currentUid).catch(e => { if (__DEV__) console.warn('[mySchedule] leave group', e?.message); });
+    leaveMealAudience(s.groupId, currentUid);
   };
 
   // 일정 삭제 — 상황별 확인. 시트의 삭제 버튼 + 목록 카드 길게누르기 양쪽에서 사용

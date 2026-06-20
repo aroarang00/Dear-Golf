@@ -36,11 +36,11 @@ import { DMChatScreen } from './DMChatScreen';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
 import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
-import { deleteMeal } from '../utils/mealSuggestions';     // 고아 정리 — 식사 문서 정리
+import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { MealDecisionBar } from './MealDecisionBar';
@@ -71,6 +71,7 @@ export function HomeScreen({ navigation, route }) {
   const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
   const [upcomingPos, setUpcomingPos] = useState({ x: 0, y: 0 });
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
+  const [pendingScheduleChange, setPendingScheduleChange] = useState(null); // 전파 일정 변경 반영 대기 1건 { schedule, pc } — 홈 상단 맥동 배너
   // 친구 일정에 초대(일정 전파) — 대상 일정 + 친구목록 + 모달 ([[schedule-propagation-spec]])
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
@@ -249,6 +250,63 @@ export function HomeScreen({ navigation, route }) {
     });
     return unsubscribe;
   }, [navigation]);
+
+  // 전파(공유) 일정 변경 반영 — 다른 멤버(전원 동등)가 시간·인원·예약자·세부코스를 바꾸면 그룹 내용이 내 일정과 달라짐.
+  //   홈 상단에 '맥동 배너'로 띄움(초대처럼 눈에 띄게 — 중요) → '반영'이면 내 일정 적용, '나중에'면 같은 변경은 다시 안 띄움(새 변경이면 다시).
+  //   한 번에 하나(처리하면 다음 것). 구장·날짜는 잠금이라 여기 안 옴(삭제+재생성 전용). ([[schedule-propagation-spec]])
+  const checkSharedScheduleUpdates = useCallback(async () => {
+    if (!currentUid) { setPendingScheduleChange(null); return; }
+    const mine = (schedules || []).filter(s => s.groupId && !s.roundupId);
+    if (!mine.length) { setPendingScheduleChange(null); return; }
+    const dismissed = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
+    for (const s of mine) {
+      if (isSyncingGroup(s.groupId)) continue;   // 내가 방금 이 그룹에 쓰는 중 — 쓰기 완료 전 '되돌림' 배너 방지
+      let group;
+      try { group = await getScheduleGroup(s.groupId); } catch { continue; }
+      if (!group) continue;
+      const pc = pendingContentChange(group, s);
+      if (!pc) continue;
+      if (dismissed[s.groupId] === pc.sig) continue;   // 같은 변경 '나중에' 후 재노출 방지
+      setPendingScheduleChange({ schedule: s, pc });
+      return;
+    }
+    setPendingScheduleChange(null);   // 반영할 변경 없음
+  }, [currentUid, schedules]);
+
+  const applyScheduleChange = useCallback(async () => {
+    const p = pendingScheduleChange;
+    if (!p) return;
+    try { await editSchedule(p.schedule.id, p.pc.patch); } catch (e) { if (__DEV__) console.warn('[home] apply group change', e?.message); }
+    // 시간이 바뀌었으면 알람도 재예약(옛 시간 알람 방지) — 날짜는 잠금이라 그대로.
+    getAlarmTypes(p.schedule.id).then(types => {
+      if (types && types.length) scheduleRoundAlarms({ id: p.schedule.id, course: p.schedule.course, date: p.schedule.date, time: p.pc.patch.time }, types);
+    });
+    const d = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
+    if (d[p.schedule.groupId]) { delete d[p.schedule.groupId]; await storage.save(STORAGE_KEYS.scheduleSyncDismissed, d); }
+    setPendingScheduleChange(null);
+    setTimeout(() => checkSharedScheduleUpdates(), 300);   // 적용 후 다음 변경 확인
+  }, [pendingScheduleChange, editSchedule, checkSharedScheduleUpdates]);
+
+  const dismissScheduleChange = useCallback(async () => {
+    const p = pendingScheduleChange;
+    if (!p) return;
+    const d = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
+    d[p.schedule.groupId] = p.pc.sig; await storage.save(STORAGE_KEYS.scheduleSyncDismissed, d);
+    setPendingScheduleChange(null);
+    setTimeout(() => checkSharedScheduleUpdates(), 300);
+  }, [pendingScheduleChange, checkSharedScheduleUpdates]);
+
+  useEffect(() => {
+    if (!navigation?.addListener) return;
+    const unsub = navigation.addListener('focus', () => { setTimeout(() => checkSharedScheduleUpdates(), 500); });
+    return unsub;
+  }, [navigation, checkSharedScheduleUpdates]);
+  // 마운트·schedules 변동 시에도 점검 — 단 2s 지연. 내가 방금 편집한 경우 그룹 쓰기(async)가 끝나기 전 점검하면
+  //   그룹(옛값) vs 내 일정(새값)이 달라 '되돌림' 배너가 편집자 본인에게 깜빡 뜸. 지연 두면 그룹==내 일정 → 안 뜸(남이 바꾼 건 정상).
+  useEffect(() => {
+    const t = setTimeout(() => checkSharedScheduleUpdates(), 2000);
+    return () => clearTimeout(t);
+  }, [checkSharedScheduleUpdates]);
 
   // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함.
   //   Firestore에서 복원·머지(프레시 설치 시 코스 비어 코스이동·">"가 사라지던 문제 회복, [[data-migration]]).
@@ -469,6 +527,20 @@ export function HomeScreen({ navigation, route }) {
     try { setInviteFriends(await loadMyFriendsEnriched()); } catch { setInviteFriends([]); }
     setInviteOpen(true);
   };
+  // 초대 후 인원(members) 자동 증가 — 1(나) + 누적 초대자 수가 현재 인원보다 크면 올림 + 그룹 반영(다른 멤버에게도 인원 변경 반영).
+  const bumpMembersAfterInvite = async (schedule, groupId) => {
+    try {
+      const group = await getScheduleGroup(groupId);
+      const audCount = Array.isArray(group?.audienceUids) ? group.audienceUids.length : 0;
+      const cur = Number(schedule?.members) || 0;
+      const next = Math.max(cur, Math.min(4, 1 + audCount));   // 4 캡 — 모달 칩(2/3/4) 범위 내(한 조 최대 4)
+      if (next !== cur && schedule?.id) {
+        await editSchedule(schedule.id, { members: next });
+        await syncGroupContentByMember(groupId, { ...schedule, members: next });
+      }
+    } catch (e) { if (__DEV__) console.warn('[home] members auto-bump', e?.message); }
+  };
+
   const submitInviteFriends = async ({ selectedUids } = {}) => {
     setInviteOpen(false);
     const schedule = inviteTarget;
@@ -485,6 +557,7 @@ export function HomeScreen({ navigation, route }) {
       });
       if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId }); // 전파 일정 표식
+      await bumpMembersAfterInvite(schedule, groupId);                     // 인원 자동 증가
       showAppAlert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
     } catch (e) {
       if (__DEV__) console.warn('[home] invite schedule', e?.message);
@@ -505,6 +578,7 @@ export function HomeScreen({ navigation, route }) {
       });
       if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId });
+      await bumpMembersAfterInvite(schedule, groupId);                     // 인원 자동 증가
       showAppAlert('초대를 보냈어요', `동반자 ${friendUids.length}명에게 일정 초대를 보냈어요.\n수락하면 그 친구 일정에도 등록돼요.`);
     } catch (e) {
       if (__DEV__) console.warn('[home] invite companions', e?.message);
@@ -633,21 +707,23 @@ export function HomeScreen({ navigation, route }) {
         return;
       }
       getUserCourses().then(list => setUserCoursesList(list || []));
-      // 전파 일정(groupId)이고 핵심 정보(날짜·시간·코스) 변경 시 → 동반자 알림 여부 prompt(알림 기본). ([[schedule-propagation-spec]])
+      // 전파 일정(groupId, 라운지 아님) 수정 → 그룹 내용 갱신(다른 멤버 반영의 소스) + 변경 알림. 편집자는 즉시 반영되고,
+      //   다른 멤버는 자기 화면에서 '반영할까요?' 확인(전원 동등 모델). 구장·날짜는 잠금이라 time/members/booker/subCourse만 동기화. ([[schedule-propagation-spec]])
       const oldS = editScheduleTarget;
-      const material = oldS?.groupId && (oldS.date !== data.date || oldS.time !== data.time || oldS.course !== data.course);
-      if (material && currentUid) {
-        // 수정 모달이 닫힌 뒤 뜨도록 지연(showAppAlert가 닫히는 모달 위에 겹치면 터치 충돌 — 알려진 이슈)
-        setTimeout(() => showAppAlert('동반자에게 알릴까요?', '변경된 일정을 함께하는 동반자에게 알려요.', [
-          { text: '조용히 저장', style: 'cancel' },
-          { text: '알리고 저장', onPress: async () => {
-              try {
-                const group = await getScheduleGroup(oldS.groupId);
-                await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleChanged',
-                  actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time });
-              } catch (e) { if (__DEV__) console.warn('[home] notify changed', e?.message); }
-            } },
-        ]), 350);
+      if (oldS?.groupId && !oldS?.roundupId && currentUid) {
+        const changed = (oldS.time !== data.time)
+          || (Number(oldS.members) !== Number(data.members))
+          || ((oldS.booker || '') !== (data.booker || ''))
+          || ((oldS.subCourse || '') !== (data.subCourse || ''));
+        if (changed) {
+          syncGroupContentByMember(oldS.groupId, { ...oldS, ...data }).then(async () => {
+            try {
+              const group = await getScheduleGroup(oldS.groupId);
+              await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleChanged',
+                actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time });
+            } catch (e) { if (__DEV__) console.warn('[home] notify changed', e?.message); }
+          });
+        }
       }
       // 알람이 설정된 일정이면 변경된 날짜·시간으로 재예약
       getAlarmTypes(data.id).then(types => {
@@ -771,6 +847,30 @@ export function HomeScreen({ navigation, route }) {
 
         {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}
         <ScheduleInviteInbox onActiveChange={setScheduleInvitePending} />
+
+        {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분). */}
+        {pendingScheduleChange && (
+          <AttentionMotion type="pulse" style={{ marginHorizontal: 20, marginTop: 12 }}>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, borderWidth: 2, borderColor: 'rgba(245,230,168,0.9)', paddingHorizontal: 14, paddingVertical: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Text style={{ fontSize: fs(16) }}>🔄</Text>
+                <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>함께하는 일정이 변경됐어요</Text>
+              </View>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter, marginBottom: 3 }} numberOfLines={1}>{pendingScheduleChange.schedule.course || '라운딩'}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 9, lineHeight: 18 }} numberOfLines={4}>{pendingScheduleChange.pc.diffs.join('\n')}</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity onPress={dismissScheduleChange} activeOpacity={0.85}
+                  style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.3)' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.85)' }}>나중에</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={applyScheduleChange} activeOpacity={0.85}
+                  style={{ flex: 1.6, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: C.butter }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>내 일정에 반영</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </AttentionMotion>
+        )}
 
         {next ? (
         <>
@@ -1143,14 +1243,11 @@ export function HomeScreen({ navigation, route }) {
           if (s) {
             try { await removeSchedule(s.id); } catch (e) { console.warn('[home] schedule remove failed:', e?.message); }
             cancelRoundAlarms(s.id); // 캘린더 제거는 removeSchedule이 일괄 처리
-            // 전파 일정(groupId) 취소 → 동반자에게 알림(취소는 함께한 사람이 꼭 알아야 함). ([[schedule-propagation-spec]])
+            // 전파 일정(groupId) 개인 삭제 = 조용히 탈퇴 — 취소 알림 X(한 명이 빠지는 것일 뿐, 개인 권리 존중).
+            //   탈퇴(memberUids 제거)는 유지 → 변경 푸시 중단. 식사 audienceUids도 이탈 → 식사 푸시·카드 중단. ([[schedule-propagation-spec]])
             if (s.groupId && currentUid) {
-              try {
-                const group = await getScheduleGroup(s.groupId);
-                await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleCancelled',
-                  actorName: userProfile?.nickname || '', course: s.course, date: s.date, time: s.time });
-                await leaveScheduleGroup(s.groupId, currentUid); // 그룹 탈퇴 — 안 하면 삭제 후에도 그룹 푸시 계속 옴
-              } catch (e) { if (__DEV__) console.warn('[home] notify cancel', e?.message); }
+              leaveScheduleGroup(s.groupId, currentUid).catch(e => { if (__DEV__) console.warn('[home] leave group', e?.message); });
+              leaveMealAudience(s.groupId, currentUid);
             }
           }
           setShowScheduleModal(false);

@@ -131,6 +131,27 @@ export async function deleteMeal(scheduleId, slot = 1) {
   } catch (e) { if (__DEV__) console.warn('[meal] delete fail', e?.message); return false; }
 }
 
+// 일정에서 조용히 빠질 때 — 그 일정의 식사 문서(슬롯1·2)를 역할별로 정리.
+//   · 내가 총대(author)면: 슬롯 삭제 → 남은 멤버가 다시 정할 수 있게 리오픈(안 지우면 변경 권한이 떠난 나뿐이라 식사가 얼어붙음).
+//   · 내가 동반자(audience)면: audienceUids에서 나만 제거 → 식사 결정 변경 푸시(audienceUids 대상 CF)·식사 카드(array-contains 쿼리) 중단.
+//   문서 없음·둘 다 아님(권한 X)은 조용히 무시. ([[afterround-meal-decision]], [[schedule-propagation-spec]])
+export async function leaveMealAudience(scheduleKey, uid) {
+  if (!scheduleKey || !uid) return;
+  for (const slot of [1, 2]) {
+    const ref = doc(db, COLLECTION, mealSuggestionId(scheduleKey, slot));
+    try {
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
+      const d = snap.data();
+      if (d.authorUid === uid) {
+        await deleteDoc(ref);   // 총대 이탈 → 식사 리오픈
+      } else if (Array.isArray(d.audienceUids) && d.audienceUids.includes(uid)) {
+        await updateDoc(ref, { audienceUids: arrayRemove(uid), updatedAt: serverTimestamp() }); // 동반자 이탈
+      }
+    } catch (e) { /* 권한·없음 — 조용히 무시 */ }
+  }
+}
+
 // 내게 온 뒤풀이 제안 구독 — audienceUids에 내 uid, 만료 전. 최신순(클라). 동반자 화면용.
 export function subscribeIncomingMeals(uid, cb) {
   if (!uid) { cb([]); return () => {}; }

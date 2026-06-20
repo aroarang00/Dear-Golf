@@ -174,6 +174,12 @@ service cloud.firestore {
         && changedKeysWithin(['audienceUids', 'names', 'declinedUids', 'updatedAt'])
         && request.resource.data.audienceUids.hasAll(resource.data.audienceUids)
         && request.resource.data.declinedUids.hasOnly(resource.data.declinedUids);
+      // 공유 일정 내용 수정 — 멤버(memberUids) 누구나(전원 동등 모델). 다른 멤버 자동반영의 소스 ([[schedule-propagation-spec]] v2).
+      //   ★구장·날짜·좌표는 허용 키에서 제외 = '삭제 후 재생성' 전용으로 잠금(클라 비활성 + 규칙 이중 안전).
+      //   라운지 모집은 별도 컬렉션(roundups)이라 이 규칙과 무관.
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.memberUids
+        && changedKeysWithin(['time', 'members', 'booker', 'subCourse', 'updatedAt']);
       // 수락 — 수신자(audience)가 memberUids에 '자기 uid'만 토글. 남 변조 완전차단은 규칙만으론 불가(roundScoreShares와 동일 한계, v1 허용).
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids
@@ -227,6 +233,14 @@ service cloud.firestore {
           resource.data.authorUid == request.auth.uid
           || resource.data.get('hostUid', '') == request.auth.uid
         );
+      // 동반자 이탈 — audienceUids에서 '자기 uid'만 제거(일정 삭제로 빠질 때 식사 알림·카드 중단).
+      //   정확히 1명(나)만 제거: 추가 없음(hasOnly) + 크기 1 감소 + 나는 이전엔 있고 이후엔 없음. ([[schedule-propagation-spec]])
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.audienceUids
+        && changedKeysWithin(['audienceUids', 'updatedAt'])
+        && !(request.auth.uid in request.resource.data.audienceUids)
+        && request.resource.data.audienceUids.hasOnly(resource.data.audienceUids)
+        && resource.data.audienceUids.size() == request.resource.data.audienceUids.size() + 1;
       // 삭제(식사 취소): 작성자 또는 단체모집 주최자(hostUid). 변경 권한과 동일 기준. (TTL 정리는 후속 CF)
       allow delete: if isSignedIn()
         && (resource.data.authorUid == request.auth.uid
