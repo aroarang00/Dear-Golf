@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
 import { AttentionMotion } from './common/AttentionMotion'; // '함께 식사하기' 살랑 모션(결정 전만)
+import { Icon } from './common/Icon'; // 커스텀 아이콘 — 식사 🍲 → bowl
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
 import { getSavedRestaurants } from '../utils/savedRestaurants';
 import { naverSearchUrl } from '../utils/naverMap';   // 식당 '상세'를 네이버로(맛집 더보기와 통일)
@@ -250,10 +251,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
 
   // 카드 버튼 라벨 — 0곳/1곳(이름)/2곳
   const btnLabel = decidedCount === 0
-    ? '🍲 함께 식사'
+    ? '함께 식사'
     : decidedCount === 2
-      ? '🍲 식사 2곳 ✓'
-      : `🍲 ${(meal1 || meal2)?.place?.name || '결정됨'} ✓`;
+      ? '식사 2곳 ✓'
+      : `${(meal1 || meal2)?.place?.name || '결정됨'} ✓`;
   // 박스 모드(홈 D-0 카드) 라벨 — 아이콘·텍스트·› 분리 렌더
   const blockLabel = decidedCount === 0
     ? '함께 식사하기'
@@ -410,7 +411,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             backgroundColor: decidedCount ? C.charcoal : '#D8CC9E', // 미결정=차분한 버터(강도 낮춤), 결정=차콜
             borderTopWidth: 1, borderTopColor: decidedCount ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.4)',
             shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 }}>
-          <Text style={{ fontSize: fs(18), includeFontPadding: false }}>🍲</Text>
+          <Icon name="bowl" size={fs(24)} color={decidedCount ? C.butter : C.charcoal} />
           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: decidedCount ? C.butter : C.charcoal, marginLeft: 6, includeFontPadding: false, flexShrink: 1 }} numberOfLines={1}>{blockLabel}</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: decidedCount ? 'rgba(245,230,168,0.55)' : 'rgba(61,57,53,0.5)', marginLeft: 7, includeFontPadding: false }}>›</Text>
         </TouchableOpacity>
@@ -418,7 +419,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       ) : (
         <TouchableOpacity onPress={openSheet} activeOpacity={0.8}
           style={{ flex, backgroundColor: decidedCount ? 'rgba(245,230,168,0.18)' : 'rgba(255,255,255,0.1)',
-            borderRadius: 10, paddingVertical: 9, paddingHorizontal: 8, alignItems: 'center' }}>
+            borderRadius: 10, paddingVertical: 9, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <Icon name="bowl" size={fs(17)} color={decidedCount ? C.butter : '#fff'} />
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: decidedCount ? C.butter : '#fff' }} numberOfLines={1}>{btnLabel}</Text>
         </TouchableOpacity>
       )}
