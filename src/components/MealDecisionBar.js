@@ -137,7 +137,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const loadNearby = async () => {
     setLoading(true);
     try {
-      const cc = coord || await resolveCoord(schedule);
+      // 좌표해석 1회 재시도 — 콜드스타트 때 마스터 캐시 워밍 전이라 첫 호출이 null로 끝나
+      //   '처음엔 빈 리스트, 다시 열면 됨'이던 레이스 방어. 둘째 시도엔 캐시가 차 있어 즉시 풀림.
+      let cc = coord || await resolveCoord(schedule);
+      if (!cc && !coord) cc = await resolveCoord(schedule);
       if (!coord) setCoord(cc);
       // 저장 맛집(코스별)은 최상단 + 표식, 주변 검색결과에서 중복 제거 — 단골/미리 점찍은 곳 먼저.
       const saved = await getSavedRestaurants(schedule?.course).catch(() => []);

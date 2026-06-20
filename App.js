@@ -62,6 +62,7 @@ import { loadMyBlockedUids, loadReceivedRequests } from './src/utils/friends';
 import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLimit';
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { syncUserCoursesFromFirestore } from './src/utils/userCourses';
+import { getGolfCourses } from './src/utils/golfCourses'; // 마스터 캐시 워밍 — 식사 좌표해석 콜드스타트 레이스 예방
 import { loadPrivateProfile } from './src/utils/privateProfile'; // 출발지 등 비공개 프로필 — 기기 간 유지
 import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid, auth } from './src/utils/firebase';
@@ -283,6 +284,9 @@ function App() {
         syncReportLimitFromFirestore(),
         syncUserCoursesFromFirestore(),
       ]);
+      // 골프장 마스터 캐시 백그라운드 워밍(블로킹 X) — '함께 식사' 좌표해석이 course 이름검색으로
+      //   콜드 Firestore 조회를 처음 기다리다 빈 리스트로 끝나던 레이스 예방. in-flight dedupe로 중복 안전.
+      getGolfCourses().catch(() => {});
       // 푸시 토큰 등록 — 권한 요청 + Expo Push 토큰 발급 + users/{uid}.pushToken 저장.
       // 거부 시 null 반환, 인앱 알림으로 자동 보완 ([[notification-policy]] §2).
       setupPushNotifications().catch(e => __DEV__ && console.warn('[App] push setup fail', e?.message));
