@@ -252,7 +252,7 @@ function DmImg({ uri, size, radius, full }) {
     <Image source={{ uri }} onError={() => setErr(true)}
       onLoad={(e) => { const w = e?.source?.width, hh = e?.source?.height; if (w && hh) { primePhotoRatio(uri, w / hh); if (full) setRatio(w / hh); } }}
       style={{ width: size, height: h, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.06)' }}
-      contentFit="cover" cachePolicy="memory-disk" transition={150} recyclingKey={uri} />
+      contentFit="cover" cachePolicy="memory-disk" priority="high" recyclingKey={uri} />
   );
 }
 
