@@ -219,6 +219,9 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => {
     if (!navigation) return;
     const unsubscribe = navigation.addListener('tabPress', () => {
+      // 이미 홈에 있는 상태로 홈 탭 재탭 시 — focus는 안 뜨므로 여기서 D-day 카드를 첫 장(메인카드)으로 되돌림.
+      //   (다른 탭→홈은 focus 핸들러가 처리. tabPress는 두 경우 다 발동하지만 x:0 중복은 무해)
+      cardsScrollRef.current?.scrollTo({ x: 0, animated: true });
       setShowAddModal(false);
       setShowScheduleModal(false);
       setShowWeatherFull(false);
