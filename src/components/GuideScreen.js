@@ -958,7 +958,7 @@ export function GuideScreen({ route, navigation }) {
                   </TouchableOpacity>
                 ) : (
                   <View style={{ marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.hairline }}>
-                    {[['코스관리', 'mgmt'], ['경기진행', 'pace'], ['가성비(그린비 대비)', 'value']].map(([label, k]) => (
+                    {[['코스관리', 'mgmt'], ['경기진행', 'pace'], ['가성비(그린피 대비)', 'value']].map(([label, k]) => (
                       <View key={k} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{label}</Text>
                         <View style={{ flexDirection: 'row', gap: 2 }}>
