@@ -18,6 +18,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { LoadingState } from './common/LoadingState';
+import { AttentionMotion } from './common/AttentionMotion'; // 맞춤 모집 배너 맥동 — '내 코스 모아보기'와 동일 pulse
 import { RoundupNotifications } from './RoundupNotifications';
 import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
@@ -1851,16 +1852,20 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       {/* 맞춤 모집 배너 — 내 조건에 맞는 모집 모아보기 */}
       {view !== 'mine' && view !== 'watch' && (
         hasMatch ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: _and ? 5 : 7,
-            backgroundColor: view === 'match' ? C.burgundy : C.bgSecondary, borderRadius: 12,
-            borderWidth: 0.5, borderColor: view === 'match' ? C.burgundy : C.hairline,
+          // 맞춤 모집이 있으면 색만 바꾸지 말고 은은한 맥동으로 주목 유도(사용자 2026-06-20).
+          //   이미 'match' 뷰면(보는 중) 끔 — 도착했는데 계속 맥동하면 잔소리. '내 코스 모아보기'와 동일 pulse.
+          <AttentionMotion type="pulse" enabled={view !== 'match'} style={{ marginHorizontal: 16, marginTop: _and ? 5 : 7, marginBottom: _and ? 5 : 7 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+            // 매치 있는데 아직 안 봄(view!=='match') = 버건디로 확 띄움 + 맥동. 보는 중 = 차분한 중립색(사용자 2026-06-20).
+            backgroundColor: view !== 'match' ? C.burgundy : C.bgSecondary, borderRadius: 12,
+            borderWidth: 0.5, borderColor: view !== 'match' ? C.burgundy : C.hairline,
             paddingHorizontal: 14, paddingVertical: _and ? 7 : 9 }}>
             <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}
               activeOpacity={0.7}
               onPress={() => setView(view === 'match' ? (hideStranger ? 'friend' : 'all') : 'match')}>
               <Text style={{ fontSize: fs(14) }}>🎯</Text>
               <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13),
-                color: view === 'match' ? C.butter : C.charcoal }}>
+                color: view !== 'match' ? C.butter : C.charcoal }}>
                 내 조건에 맞는 모집 {matchCount}건{view === 'match' ? ' · 보는 중' : ''}
               </Text>
             </TouchableOpacity>
@@ -1869,6 +1874,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
               <Text style={{ fontSize: fs(15) }}>⚙️</Text>
             </TouchableOpacity>
           </View>
+          </AttentionMotion>
         ) : (
           <TouchableOpacity onPress={() => setShowMatchModal(true)} activeOpacity={0.7}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: _and ? 5 : 7,
