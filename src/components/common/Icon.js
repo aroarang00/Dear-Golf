@@ -92,18 +92,28 @@ const ICONS = {
       <Path d="M4 20 H20" />
     </>
   ),
+  // 🚗 교통(자동차) — 옆에서 본 차체(보닛·캐빈·트렁크) + 창문 + 바퀴. 라인 드로잉.
+  car: () => (
+    <>
+      <Path d="M3 15.5 L3 13 C3 12.4 3.4 12.1 4.1 12 L8.5 11.3 L10.2 7 C10.5 6.5 11 6.3 11.6 6.3 L13.4 6.3 C14 6.3 14.5 6.5 14.8 7 L16.9 11.3 L19.9 12 C20.6 12.1 21 12.5 21 13 L21 15.5" />
+      <Path d="M3 15.5 H4.8 M9.2 15.5 H14.8 M19.2 15.5 H21" />
+      <Path d="M12.5 6.3 V11.3 M8.5 11.3 H16.9" />
+      <Circle cx="7" cy="15.5" r="2.2" />
+      <Circle cx="17" cy="15.5" r="2.2" />
+    </>
+  ),
 };
 
-// ☀️ 맑음 해 — 채움 + 입체감(사용자 2026-06-21). 라디얼 그라데이션 디스크(밝은 위→진한 앰버 아래=구체감)
-//   + 광택 하이라이트 + 앰버 광선. 노랑 대신 차분한 앰버/허니톤.
+// ☀️ 맑음 해 — 채움 + 입체감(사용자 2026-06-21). 라디얼 그라데이션 디스크(밝은 위→진한 아래=구체감)
+//   + 광택 하이라이트 + 광선. 디스크 안쪽은 밝고 선명한 노랑(사용자 요청).
 function SunIcon({ size = 22 }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48">
       <Defs>
         <RadialGradient id="dgSunBody" cx="42%" cy="36%" r="68%">
-          <Stop offset="0" stopColor="#FFF0A6" />
-          <Stop offset="0.55" stopColor="#FFD23E" />
-          <Stop offset="1" stopColor="#F6B61F" />
+          <Stop offset="0" stopColor="#FFFBD2" />
+          <Stop offset="0.55" stopColor="#FFE24A" />
+          <Stop offset="1" stopColor="#FFCB2E" />
         </RadialGradient>
       </Defs>
       <G stroke="#FBC02D" strokeWidth="3.8" strokeLinecap="round">

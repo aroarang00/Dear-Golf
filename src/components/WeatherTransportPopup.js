@@ -15,6 +15,7 @@ import { searchGolfCourses } from '../utils/golfCourses';
 import { getOverseasWeather } from '../utils/openweather';
 import { getCurrentLocation, reverseGeocode, hasLocationPermission } from '../utils/location';
 import { cacheCurrentWx } from './common/HomeBgSlider';
+import { WeatherGlyph } from './common/Icon'; // 맑음(☀️·🌤️)만 입체 SVG, 나머지 날씨는 이모지 유지
 import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -865,7 +866,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       </View>
                     ))}
                     <View style={wxS.tempHero}>
-                      <Text style={wxS.tempEmoji}>{icon || '🌤️'}</Text>
+                      <View style={{ marginRight: 10 }}><WeatherGlyph icon={icon || '🌤️'} size={fs(44)} /></View>
                       <Text style={wxS.tempBig}>
                         {Number.isFinite(temp) ? `${Math.round(temp)}°` : '—'}
                       </Text>
@@ -967,7 +968,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   return (
                     <View key={i} style={[wxS.condRow, isTee && wxS.condRowTee]}>
                       <Text style={wxS.condTime} numberOfLines={1}>{slot.time}</Text>
-                      <Text style={wxS.condIcon}>{slot.icon}</Text>
+                      <View style={{ marginRight: 12 }}><WeatherGlyph icon={slot.icon} size={fs(18)} /></View>
                       <View style={wxS.condDots}>
                         {[1, 2, 3, 4, 5].map(d => {
                           const full = d <= Math.floor(dots);
@@ -1015,7 +1016,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                           <Text style={[wxS.fcDay, isToday && wxS.fcDayToday]}>{w.day}</Text>
                           <Text style={wxS.fcDate}>{dateLabel}</Text>
                         </View>
-                        <Text style={wxS.fcIcon}>{w.icon}</Text>
+                        <View style={{ marginRight: 8 }}><WeatherGlyph icon={w.icon} size={fs(20)} /></View>
                         <View style={wxS.fcMain}>
                           <View style={wxS.fcSkyRow}>
                             <Text style={wxS.fcSky}>{w.sky || '—'}</Text>
