@@ -31,7 +31,7 @@ export function FriendsScreen({ navigation }) {
             {/* 안내(!) — 코스 헤더와 동일 패턴. 그룹·별명·친구찾기(카카오)·NEW·스와이프·끊기/차단 안내(사용자 2026-06-20) */}
             <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               onPress={() => showAppAlert('친구 화면 안내',
-                '👥 친구를 그룹으로 나누고\n그룹명·친구 별명도 바꿀 수 있어요.\n(그룹 지정은 카드 길게 누르기)\n\n🤝 받은 친구 신청은 수락·거절할 수 있어요.\n\n🔍 "친구 찾기"는 카카오 동의 후\n디어골프 쓰는 카카오 친구가 보여요.\n\n📖 친구 카드를 탭하면 그 친구의\n라운딩·일상 글을 볼 수 있어요.\n\n🆕 친구 카드에 새 글이 올라오면 NEW가 떠요.\n\n👈 친구 카드를 옆으로 밀면 숨기기·즐겨찾기.\n\n🚫 친구 프로필 상세에서 친구 끊기·차단.',
+                '👥 친구를 그룹으로 나누고\n그룹명·친구 별명도 바꿀 수 있어요.\n(그룹 지정은 카드 길게 누르기)\n\n🤝 받은 친구 신청은 수락·거절할 수 있어요.\n\n🔍 "친구 찾기"는 카카오 동의 후\n디어골프 쓰는 카카오 친구가 보여요.\n\n📖 친구 카드를 탭하면 그 친구의\n라운딩·일상 글을 볼 수 있어요.\n\n🆕 친구 카드에 새 글이 올라오면\nNEW가 떠요.\n\n👈 친구 카드를 옆으로 밀면 숨기기·즐겨찾기.\n\n🚫 친구 프로필 상세에서 친구 끊기·차단.',
                 [{ text: '확인' }])}
               style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: C.navy, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.navy, lineHeight: 16 }}>!</Text>
