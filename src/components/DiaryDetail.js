@@ -175,14 +175,19 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
               )}
             </View>
           )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={dS.detailCourseTxt}>{item.course} · {item.date} {item.day} · {item.weather}</Text>
-            {item.overseas && item.country ? (
-              <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                {getCountryFlag(item.country) ? <Text style={{ fontSize: fs(12) }}>{getCountryFlag(item.country)}</Text> : null}
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.navy }}>{item.country}</Text>
-              </View>
-            ) : null}
+          {/* 구장명(+코스)을 윗줄, 날짜·날씨를 아랫줄로 분리 — 구장명이 길어 두 줄이 될 때
+              날짜·날씨가 중간에 끼어 애매하게 잘리는 것 방지(사용자 2026-06-20). 코스(세부코스)는 구장명 같은 줄. */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[dS.detailCourseTxt, { marginBottom: 0 }]}>{item.course}{item.subCourse ? ` · ${item.subCourse}` : ''}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
+              <Text style={[dS.detailCourseTxt, { marginBottom: 0 }]}>{item.date} {item.day} · {item.weather}</Text>
+              {item.overseas && item.country ? (
+                <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {getCountryFlag(item.country) ? <Text style={{ fontSize: fs(12) }}>{getCountryFlag(item.country)}</Text> : null}
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.navy }}>{item.country}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
           {item.tags && item.tags.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
