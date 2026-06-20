@@ -99,12 +99,16 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
           <View style={{ backgroundColor: C.butter, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>라베 {friend.stats?.best ?? '—'}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>
+              <Text style={{ fontFamily: F.sysM, color: C.textSecondary }}>라베 </Text>{friend.stats?.best ?? '—'}
+            </Text>
           </View>
           {/* 핸디 = paleSky(하늘빛), 라베와 색 구분. 동기화된 친구만(users.handicap) ([[friend_groups]] 핸디표시) */}
           {friend.stats?.handicap != null && (
             <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>핸디 {friend.stats.handicap}</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>
+                <Text style={{ fontFamily: F.sysM, color: C.textSecondary }}>핸디 </Text>{friend.stats.handicap}
+              </Text>
             </View>
           )}
           {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}

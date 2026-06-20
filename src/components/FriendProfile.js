@@ -195,11 +195,15 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 }}>
                       <View style={{ backgroundColor: C.butter, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-                        <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>라베 {stats.best ?? '—'}</Text>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>
+                          <Text style={{ fontFamily: F.sysM, color: C.textSecondary }}>라베 </Text>{stats.best ?? '—'}
+                        </Text>
                       </View>
                       {stats.handicap != null && (
                         <View style={{ backgroundColor: C.paleSky, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>핸디 {stats.handicap}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>
+                            <Text style={{ fontFamily: F.sysM, color: C.textSecondary }}>핸디 </Text>{stats.handicap}
+                          </Text>
                         </View>
                       )}
                     </View>
