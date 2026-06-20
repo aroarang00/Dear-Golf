@@ -1,11 +1,15 @@
 import React from 'react';
 import { Text } from 'react-native';
-import Svg, { G, Path, Circle, Rect, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { G, Path, Circle, Rect, Ellipse, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { C } from '../../constants/colors';
 
 // 커스텀 라인 아이콘 — 시스템 이모지(iOS·안드 렌더 제각각) 대체용 공용 컴포넌트.
 //   24x24 그리드, 가는 라인 + 라운드 캡/조인. color로 브랜드 색 자유 적용(채움 필요한 부분만 path에서 fill 지정).
 //   사용: <Icon name="flag" size={18} color={C.burgundy} />
+// 날씨 아이콘 멀티컬러 — 각 path에 직접 stroke 지정(Icon의 단색 color 무시). 어두운 카드/날씨화면 기준.
+const WXC = { sun: '#F5E6A8', cloud: '#FFFFFF', rain: '#7FB3E0', snow: '#CFE3F2' };
+// 통일 구름 — 흐림·비·눈 공용(같은 채움 구름, 같은 크기/위치). 비·눈은 아래에 빗줄기/눈송이만 추가.
+const WX_CLOUD = { d: 'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z', tf: 'translate(-1.5 -4.9) scale(1.125)' };
 const ICONS = {
   // ⛳ 골프 깃발 — 앱 대표 심볼
   flag: (c) => (
@@ -92,6 +96,45 @@ const ICONS = {
       <Path d="M4 20 H20" />
     </>
   ),
+  // ── 날씨(라인, 멀티컬러) — WeatherGlyph에서 이모지별 매핑. 해=버터·구름=흰색·비=파랑·눈=연파랑. ──
+  // ☀️ 맑음 — 해(원 + 광선 8개). 광선은 길고 굵게(작은 크기서도 햇살 보이게).
+  sun: () => (
+    <G stroke={WXC.sun} strokeWidth="2.2">
+      <Circle cx="12" cy="12" r="3.9" />
+      <Path d="M12 1.8V5.4 M12 18.6V22.2 M1.8 12H5.4 M18.6 12H22.2 M4.6 4.6L7.1 7.1 M16.9 16.9L19.4 19.4 M4.6 19.4L7.1 16.9 M16.9 7.1L19.4 4.6" />
+    </G>
+  ),
+  // ☁️ 흐림 — 통일 구름
+  cloud: () => (
+    <Path d={WX_CLOUD.d} fill={WXC.cloud} stroke="none" transform={WX_CLOUD.tf} />
+  ),
+  // 🌤️·⛅ 구름조금 — 해 + 구름(해가 보이게 우하단 구름 합성, 전체 1.1배)
+  cloudSun: () => (
+    <G transform="translate(-1.2 -1.2) scale(1.1)">
+      <G stroke={WXC.sun}>
+        <Path d="M12 2v2" />
+        <Path d="m4.93 4.93 1.41 1.41" />
+        <Path d="M20 12h2" />
+        <Path d="m19.07 4.93-1.41 1.41" />
+        <Path d="M15.947 12.65a4 4 0 0 0-5.925-4.128" />
+      </G>
+      <Path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z" fill={WXC.cloud} stroke="none" />
+    </G>
+  ),
+  // 🌧️·🌦️ 비 — 통일 구름 + 빗줄기
+  rain: () => (
+    <>
+      <Path d={WX_CLOUD.d} fill={WXC.cloud} stroke="none" transform={WX_CLOUD.tf} />
+      <Path d="M8 17.6v3.6 M12 18.6v3.6 M16 17.6v3.6" stroke={WXC.rain} />
+    </>
+  ),
+  // ❄️·🌨️ 눈 — 통일 구름 + 눈송이
+  snow: () => (
+    <>
+      <Path d={WX_CLOUD.d} fill={WXC.cloud} stroke="none" transform={WX_CLOUD.tf} />
+      <Path d="M8 18h.01 M8 21.2h.01 M12 19.4h.01 M12 22.6h.01 M16 18h.01 M16 21.2h.01" stroke={WXC.snow} />
+    </>
+  ),
   // 🚗 교통(자동차) — 옆에서 본 차체(보닛·캐빈·트렁크) + 창문 + 바퀴. 라인 드로잉.
   car: () => (
     <>
@@ -103,34 +146,6 @@ const ICONS = {
     </>
   ),
 };
-
-// ☀️ 맑음 해 — 채움 + 입체감(사용자 2026-06-21). 라디얼 그라데이션 디스크(밝은 위→진한 아래=구체감)
-//   + 광택 하이라이트 + 광선. 디스크 안쪽은 밝고 선명한 노랑(사용자 요청).
-function SunIcon({ size = 22 }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 48 48">
-      <Defs>
-        <RadialGradient id="dgSunBody" cx="42%" cy="36%" r="68%">
-          <Stop offset="0" stopColor="#FFFBD2" />
-          <Stop offset="0.55" stopColor="#FFE24A" />
-          <Stop offset="1" stopColor="#FFCB2E" />
-        </RadialGradient>
-      </Defs>
-      <G stroke="#FBC02D" strokeWidth="3.8" strokeLinecap="round">
-        <Line x1="24" y1="2" x2="24" y2="5" />
-        <Line x1="24" y1="43" x2="24" y2="46" />
-        <Line x1="2" y1="24" x2="5" y2="24" />
-        <Line x1="43" y1="24" x2="46" y2="24" />
-        <Line x1="8.4" y1="8.4" x2="10.6" y2="10.6" />
-        <Line x1="37.4" y1="37.4" x2="39.6" y2="39.6" />
-        <Line x1="8.4" y1="39.6" x2="10.6" y2="37.4" />
-        <Line x1="37.4" y1="10.6" x2="39.6" y2="8.4" />
-      </G>
-      <Circle cx="24" cy="24" r="14.5" fill="url(#dgSunBody)" stroke="#EBAA1C" strokeWidth="0.6" />
-      <Circle cx="20" cy="20" r="4.6" fill="#FFF7DA" opacity={0.5} />
-    </Svg>
-  );
-}
 
 // ⛳ → 입체 그린·홀컵·핀 — '내 코스 모아보기' 바(그린 그라데이션)용. 깃발은 형태가 또렷해 작은 크기서도 잘 읽힘.
 //   퍼팅 그린 둔덕 + 홀컵(어두운 타원+윗림 하이라이트) + 흰 핀(좌→우 음영=원통감) + 빨강 깃발(그린 배경서 강조) + 옆 골프공.
@@ -162,11 +177,19 @@ export function GreenFlag({ size = 22 }) {
   return <GreenFlagIcon size={size} />;
 }
 
-// 날씨 이모지 → SVG 대체. 지금은 맑음 해만(구름·비·눈은 이모지가 더 자연스러워 유지, 사용자 2026-06-21).
-const WX_SUN = ['☀️', '🌤️'];
+// 날씨 이모지 → 멀티컬러 라인 아이콘(사용자 2026-06-21). kma·openweather가 내보내는 이모지를 각 라인 아이콘에 매핑.
+//   색은 아이콘 내부(WXC)에서 멀티컬러로 직접 지정. 매핑 없는 이모지만 폴백으로 그대로 표시.
+const WX_ICON = {
+  '☀️': 'sun', '🌤️': 'sun', // 맑음·거의 맑음 → 풀 해(햇살)
+  '⛅': 'cloudSun',           // 구름많음 → 해 + 구름
+  '☁️': 'cloud',
+  '🌧️': 'rain', '🌦️': 'rain',
+  '❄️': 'snow', '🌨️': 'snow',
+};
 export function WeatherGlyph({ icon, size = 22 }) {
-  if (WX_SUN.includes(icon)) return <SunIcon size={size} />;
-  return <Text style={{ fontSize: size }}>{icon}</Text>; // 구름·비·눈 등은 이모지 유지
+  const name = WX_ICON[icon];
+  if (name) return <Icon name={name} size={size} strokeWidth={1.8} />;
+  return <Text style={{ fontSize: size }}>{icon}</Text>; // 매핑 없는 이모지는 그대로
 }
 
 export function Icon({ name, size = 22, color = C.charcoal, strokeWidth = 1.8 }) {

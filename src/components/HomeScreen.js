@@ -768,7 +768,7 @@ export function HomeScreen({ navigation, route }) {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
               <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
-                <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(36)} /></View>
+                <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(42)} /></View>
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
