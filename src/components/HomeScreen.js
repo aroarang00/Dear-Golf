@@ -1004,11 +1004,16 @@ export function HomeScreen({ navigation, route }) {
                     onPress={() => handleCardCoursePress(next)}
                     activeOpacity={canOpenCourse(next) ? 0.7 : 1}
                     style={{ marginBottom: 4 }}>
-                    <Text style={homeS.cardCourse}>{next.course}
+                    {/* 구장명 1줄 고정(길면 자동 축소) — 세부코스 줄이 들어가도 iOS 좁은 카드서 행 안 붙고 넘침 방지. */}
+                    <Text style={homeS.cardCourse} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>{next.course}
                       {canOpenCourse(next) ? <Text style={{ fontSize: fs(11), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                     </Text>
                     <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
                   </TouchableOpacity>
+                  {/* 코스(세부코스) — 첫 카드면 D-day 무관하게 표시(D-0과 동일, 입력 시만). 사용자 2026-06-20 */}
+                  {!!(next.subCourse || '').trim() && (
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginTop: 3 }} numberOfLines={1}>{next.subCourse.trim()}</Text>
+                  )}
                   <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                     <TouchableOpacity
                       onPress={() => openScheduleSheet(next)}
