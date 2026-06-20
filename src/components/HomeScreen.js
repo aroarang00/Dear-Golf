@@ -717,8 +717,9 @@ export function HomeScreen({ navigation, route }) {
           </Text>
           {/* 당일 체크인 카드 배너 — 박스가 많아 정신없어, 이용안내 띠 '자리'에 대신 노출(둘 다 안 띄움). 활성 아니면 이용안내 띠. */}
           {checkinActive ? (
-            <Animated.View style={{ marginTop: Platform.OS === 'android' ? 13 : 15, borderRadius: 12, transform: [{ scale: checkinScale }],
-              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+            /* 그림자/elevation 제거 — 배경 없는 둥근 뷰에 elevation을 주면 안드서 그림자가 '네모난 짙은 박스'로
+               채워져 보임(맥동 중 더 도드라짐, line 692와 동일 아티팩트, 사용자 2026-06-20). 테두리+글로우로 충분히 강조됨. */
+            <Animated.View style={{ marginTop: Platform.OS === 'android' ? 13 : 15, borderRadius: 12, transform: [{ scale: checkinScale }] }}>
               <TouchableOpacity onPress={() => openCheckinCard(next)} activeOpacity={0.85}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden',
                   backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)',
