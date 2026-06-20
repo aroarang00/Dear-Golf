@@ -1554,7 +1554,7 @@ export function GuideScreen({ route, navigation }) {
             '내 코스 모아보기'는 검색창 위 긴 바(CourseExploreTab)로 이동(헤더 버튼 제거, 중복 방지). */}
         <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           onPress={() => showAppAlert('코스 둘러보기 안내',
-            '🔍 골프장을 검색해 탭하면 — 코스 정보와 골퍼들의 코멘트, 주변 맛집까지 한눈에 볼 수 있어요.\n\n🖥️ 아래로 내리면 내 주변 스크린골프장도 찾아볼 수 있어요.',
+            '🔍 골프장을 검색해 탭하면\n코스 정보·골퍼 코멘트·주변 맛집을\n한눈에 볼 수 있어요.\n\n🖥️ 아래로 내리면 내 주변\n스크린골프장을 찾을 수 있어요.',
             [{ text: '확인' }])}
           style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: C.charcoal, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.charcoal, lineHeight: 17 }}>!</Text>
