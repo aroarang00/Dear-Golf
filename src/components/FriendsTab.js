@@ -8,6 +8,7 @@ const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
 import { FriendProfile } from './FriendProfile';
 import { LoadingState } from './common/LoadingState';
+import { AttentionMotion } from './common/AttentionMotion'; // 받은 친구신청 배너 맥동 — '내 코스 모아보기'와 동일 pulse
 import { FriendFinder } from './FriendFinder';
 import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { getTrustGrade } from '../constants/trustGrade';
@@ -661,15 +662,18 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       <View style={{ paddingHorizontal: 16 }}>
         {/* 받은 친구 신청 배너 — 있을 때만. 검색창 아래 고정(스크롤로 묻히지 않게) */}
         {receivedRequests.length > 0 && (
-          <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: _and ? 9 : 12,
-              backgroundColor: C.butter, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
-            <Text style={{ fontSize: fs(15) }}>📬</Text>
-            <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
-              받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{receivedRequests.length}</Text>건
-            </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>›</Text>
-          </TouchableOpacity>
+          <AttentionMotion type="shake" style={{ marginBottom: _and ? 9 : 12, borderRadius: 12,
+            shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+            <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+                backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
+              <Text style={{ fontSize: fs(15) }}>📬</Text>
+              <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
+                받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.butter }}>{receivedRequests.length}</Text>건
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.butter }}>›</Text>
+            </TouchableOpacity>
+          </AttentionMotion>
         )}
         {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
         {friends.length > 0 && Object.values(friendData.friendMeta).some(m => (m.groupIds || []).length) && (
