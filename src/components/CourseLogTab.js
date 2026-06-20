@@ -14,6 +14,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { UserContext } from '../contexts/UserContext';
 import { calcHandicap } from '../utils/handicap';
 import { ScoreStatsScreen } from './ScoreStatsScreen';
+import { AttentionMotion } from './common/AttentionMotion'; // 스코어 통계 배너 작은 맥동(탭 가능 신호)
 import { dS } from '../styles/dS';
 
 const REGION_STYLE = {
@@ -379,11 +380,13 @@ export function CourseLogTab({ avgRating, navigation }) {
           <View style={{ height: 5, borderRadius: 3, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
         </View>
       </TouchableOpacity>
-      {/* 내 스코어 — 요약 한 줄 + › 눌러 통계·추세 전용 화면(100대 배너와 같은 결, 네이비). [[feature-backlog]] ① */}
+      {/* 내 스코어 — 요약 한 줄 + › 눌러 통계·추세 전용 화면(100대 배너와 같은 결, 네이비). [[feature-backlog]] ①
+          작은 맥동(pulse)으로 탭 가능 신호 — '버튼인지 모르겠다' 보완(사용자 2026-06-20). */}
+      <AttentionMotion type="pulse">
       <TouchableOpacity style={[dS.banner, { backgroundColor: C.navy, borderWidth: 0, marginTop: -6, paddingHorizontal: 16 }]} activeOpacity={0.85}
         onPress={() => setScoreStatsOpen(true)}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={[dS.bannerTitle, { color: '#fff' }]}>내 스코어</Text>
+          <Text style={[dS.bannerTitle, { color: '#fff' }]}>스코어 통계</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             {[['평균', sAvg], ['베스트', sBest], ['핸디', sHandi]].map(([l, v]) => (
               <View key={l} style={{ alignItems: 'center' }}>
@@ -395,6 +398,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           </View>
         </View>
       </TouchableOpacity>
+      </AttentionMotion>
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
         {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
           <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>
