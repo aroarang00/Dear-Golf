@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
-import Svg, { G, Path, Circle, Rect, Line, Defs, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { G, Path, Circle, Rect, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop } from 'react-native-svg';
 import { C } from '../../constants/colors';
 
 // 커스텀 라인 아이콘 — 시스템 이모지(iOS·안드 렌더 제각각) 대체용 공용 컴포넌트.
@@ -112,6 +112,36 @@ function SunIcon({ size = 22 }) {
       <Circle cx="20" cy="20" r="4.6" fill="#FFF7DA" opacity={0.5} />
     </Svg>
   );
+}
+
+// ⛳ → 입체 그린·홀컵·핀 — '내 코스 모아보기' 바(그린 그라데이션)용. 깃발은 형태가 또렷해 작은 크기서도 잘 읽힘.
+//   퍼팅 그린 둔덕 + 홀컵(어두운 타원+윗림 하이라이트) + 흰 핀(좌→우 음영=원통감) + 빨강 깃발(그린 배경서 강조) + 옆 골프공.
+function GreenFlagIcon({ size = 22 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48">
+      <Defs>
+        <LinearGradient id="dgFlag" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#EC6A6A" />
+          <Stop offset="1" stopColor="#C42E2E" />
+        </LinearGradient>
+        <LinearGradient id="dgPole" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor="#FFFFFF" />
+          <Stop offset="0.5" stopColor="#F1F4F0" />
+          <Stop offset="1" stopColor="#C5CCC4" />
+        </LinearGradient>
+      </Defs>
+      <Ellipse cx="21" cy="40" rx="15.5" ry="3.8" fill="#A6C78C" opacity={0.5} />
+      <Ellipse cx="21" cy="39" rx="8" ry="2.8" fill="#262220" />
+      <Ellipse cx="21" cy="38.1" rx="7.8" ry="2.4" fill="#566150" opacity={0.55} />
+      <Rect x="19.4" y="5.5" width="3" height="33.5" rx="1.5" fill="url(#dgPole)" />
+      <Path d="M21 4.5 L39 9 Q41 11.5 39 14 L21 19 Z" fill="url(#dgFlag)" />
+      <Path d="M21 5.8 L35.5 9.4 L21 11.6 Z" fill="#FFFFFF" opacity={0.2} />
+      <Circle cx="34" cy="38" r="3.1" fill="#FFFFFF" stroke="#B7C4B9" strokeWidth="0.7" />
+    </Svg>
+  );
+}
+export function GreenFlag({ size = 22 }) {
+  return <GreenFlagIcon size={size} />;
 }
 
 // 날씨 이모지 → SVG 대체. 지금은 맑음 해만(구름·비·눈은 이모지가 더 자연스러워 유지, 사용자 2026-06-21).

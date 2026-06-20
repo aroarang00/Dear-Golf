@@ -23,6 +23,7 @@ import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { getCalendarChoice } from '../utils/deviceCalendar';
 import { roundsOnly } from '../utils/diaryKind';
+import { GreenFlag } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { CourseLogModal } from './CourseLogModal';
 import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
@@ -661,7 +662,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12,
               borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
               paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
-            <Text style={{ fontSize: fs(16) }}>🏌️</Text>
+            <GreenFlag size={fs(26)} />
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>내 코스 모아보기</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginLeft: 7 }}>방문 코스 · 통계 보기</Text>

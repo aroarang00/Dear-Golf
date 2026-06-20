@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { showAppAlert } from './AppAlert'; // OS 기본 팝업 대신 앱 디자인 알림(안드 시스템팝업 방지)
 import { AttentionMotion } from './common/AttentionMotion'; // '내 코스 모아보기' 바 맥동
+import { GreenFlag } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -282,7 +283,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
             <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12,
                 borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
-              <Text style={{ fontSize: fs(16) }}>🏌️</Text>
+              <GreenFlag size={fs(26)} />
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 코스 모아보기</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginLeft: 7 }}>방문 코스 · 통계 보기</Text>
