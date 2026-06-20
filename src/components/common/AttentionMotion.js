@@ -7,6 +7,7 @@ import { Animated, Easing } from 'react-native';
 //   + 마운트 시 시작·언마운트 시 정지. LinearGradient를 애니 자식으로 두는 크래시 패턴은 쓰지 않음.
 //
 //   type: 'pulse'(은은한 맥동 scale) | 'float'(상하·좌우 부유) | 'nudge'(가로로 콕콕 — 베컨, 사이 쉼)
+//       | 'shake'(빠른 좌우 진동 한 번 후 쉼 — 알림 주목, 하단 탭 등)
 //   entrance: 등장 시 살짝 페이드+업(한 번). axis/distance/duration로 미세조정.
 export function AttentionMotion({
   children, type = 'pulse', entrance = false,
@@ -30,6 +31,13 @@ export function AttentionMotion({
         Animated.timing(v, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false, isInteraction: false }),
         Animated.timing(v, { toValue: 0, duration: 260, easing: Easing.in(Easing.quad), useNativeDriver: false, isInteraction: false }),
         Animated.delay(1800),
+      ]));
+    } else if (type === 'shake') {
+      // 한 번의 버즈(빠른 좌우 떨림, 0→1 안에서 여러 번 흔들고 제자리 복귀) → 즉시 0 리셋(루프 재시작 무동작 방지) → 쉼 → 반복.
+      anim = Animated.loop(Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 550, easing: Easing.linear, useNativeDriver: false, isInteraction: false }),
+        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: false, isInteraction: false }),
+        Animated.delay(1700),
       ]));
     } else {
       anim = Animated.loop(Animated.sequence([
@@ -56,6 +64,12 @@ export function AttentionMotion({
   } else if (enabled && type === 'nudge') {
     const d = distance != null ? distance : 5;
     tf.push({ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) });
+  } else if (enabled && type === 'shake') {
+    const d = distance != null ? distance : 5; // 떨림 폭(px)
+    tf.push({ translateX: v.interpolate({
+      inputRange:  [0, 0.12, 0.24, 0.36, 0.48, 0.6, 0.72, 0.84, 1],
+      outputRange: [0, -d,   d,    -d,   d,    -d,  d,    -d,   0],
+    }) });
   }
   if (enabled && entrance) tf.push({ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) });
 
