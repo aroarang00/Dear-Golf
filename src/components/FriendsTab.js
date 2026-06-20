@@ -13,7 +13,6 @@ import { FriendFinder } from './FriendFinder';
 import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
-import { topMilestone, milestoneBadge } from './MilestoneCard';
 import { showAppAlert } from './AppAlert';
 import { UserContext } from '../contexts/UserContext';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
@@ -31,14 +30,20 @@ import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 
-// 친구 찾기에서 받은 후보(간단 필드) → 친구 목록 객체로 변환
+// 친구 찾기에서 받은 후보(간단 필드) → 친구 목록 객체로 변환.
+//   ★수락 즉시 사진·라베·핸디가 뜨도록, 받은신청 객체가 실어온 avatarUri/stats를 그대로 통과.
+//   (없으면 종전대로 null — FriendFinder 카카오·검색 후보처럼 stats 없는 호출도 안전)
 const personToFriend = (p) => ({
   id: p.id, name: p.name, style: '', roundsTogether: 0,
   hostedCount: p.hostedCount || 0, attendedCount: p.attendedCount || 0,
   mannerScore: p.mannerScore || 70,
   statusMessage: p.statusMessage || '',
+  avatarUri: p.avatarUri || null,
   recent: null,
-  stats: { rounds: 0, courses: 0, avg: p.avg ?? null, best: null },
+  stats: {
+    rounds: p.stats?.rounds || 0, courses: p.stats?.courses || 0,
+    avg: p.stats?.avg ?? p.avg ?? null, best: p.stats?.best ?? null, handicap: p.stats?.handicap ?? null,
+  },
   feed: [],
 });
 
@@ -53,80 +58,46 @@ const AVATARS = [
 ];
 
 function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onPress, onLongPress, onGradePress }) {
-  const r = friend.recent;
-  const diff = r ? r.score - r.par : 0;
-  const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  // 명함과 동일 — 마일스톤 배지·라베·멘트 ([[roundup-friend-redesign]])
-  const fMs = milestoneBadge(topMilestone({ rounds: friend.stats?.rounds ?? 0, courses: friend.stats?.courses ?? 0 }));
   const fStatus = (friend.statusMessage || '').trim();
+  const AV = _and ? 40 : 44;
+  // 컴팩트 한 줄 리스트 — 긴 카드는 친구 많아지면 자리만 차지(사용자 2026-06-20). 스탯(라베·핸디)·명함은 친구 상세로 이관.
+  //   카톡과 구조는 같되 '브랜드 스킨'으로 차별: 컬러 원형 아바타 · 즐겨찾기 좌측 버건디 틱 · 아바타 아래는 안 긋는 인셋 헤어라인.
+  //   NEW(새 글)는 이름 옆 'New' 칩으로만 — 버터 워시는 크림 페이지 위에서 대비 약해 제거(사용자 2026-06-20).
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress} delayLongPress={280}
-      style={[{ backgroundColor: isNew ? '#FBF0C8' : C.bgSecondary, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: _and ? 11 : 14, marginBottom: flush ? 0 : (_and ? 9 : 12),
-        // 라운지 모집카드와 동일 입체감 — 크림 배경 위 흰 카드 분리감 (iOS·Android)
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
-        // 즐겨찾기 = 왼쪽 보더 강조. ★ borderLeftWidth/Color를 '항상 명시'하고 값만 토글(1↔3)해야 함.
-        //   조건부로 속성을 추가/제거하면 안드에서 부분 보더 재계산이 깨져 해제 후에도 굵은 선이 잔존(iOS는 정상).
-        borderLeftWidth: favorite ? 3 : 1, borderLeftColor: favorite ? C.burgundy : 'rgba(0,0,0,0.07)' }]}>
-      {/* NEW 표시 — 새 글 있으면 카드 전체에 연한 버터 워시(점은 잘 안 보여 폐기, 2026-06-13). 즐겨찾기(좌측 버건디 보더)와 조합 가능 ([[friend_groups]] ⑤) */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: _and ? 40 : 46, height: _and ? 40 : 46, borderRadius: _and ? 20 : 23, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
-            <Image source={{ uri: friend.avatarUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
-          ) : (
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 17 : 19), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
-          )}
-        </View>
+      style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 4, backgroundColor: C.bgPrimary }}>
+      {/* 즐겨찾기 = 좌측 버건디 틱(브랜드 색). 비즐겨찾기도 같은 폭 투명 슬롯 유지해 이름 정렬 고정 */}
+      <View style={{ width: 3, height: Math.round(AV * 0.5), borderRadius: 2, marginRight: 9,
+        backgroundColor: favorite ? C.burgundy : 'transparent' }} />
+      {/* 컬러 원형 아바타 — 카톡 회색 둥근사각과 결 다름 */}
+      <View style={{ width: AV, height: AV, borderRadius: AV / 2, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
+          <Image source={{ uri: friend.avatarUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+        ) : (
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 16 : 18), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
+        )}
+      </View>
+      {/* 텍스트 열 — 좌:이름/상태, 우:라베│핸디(구분선 스타일). 하단 헤어라인은 이 열에만(아바타 아래 안 그음, 카톡 풀폭선과 차별).
+          minHeight+세로중앙 = 멘트 유무와 무관하게 행 높이 일정(다닥다닥 붙던 것 해소, 사용자 2026-06-20) */}
+      <View style={{ flex: 1, marginLeft: 12, minHeight: _and ? 54 : 60, flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 8 : 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(_and ? 14 : 15), color: C.charcoal }}>{friend.name || '친구'}</Text>
-            {/* 새 글 = 'New' 칩 — 이름 옆 버건디(흰 글씨). 작지만 또렷하게(워시만으론 안 보임 피드백, 2026-06-13) */}
+            {/* 새 글 = 'New' 칩 (워시만으론 안 보임 피드백, 2026-06-13) */}
             {isNew && (
-              <View style={{ backgroundColor: C.burgundy, borderRadius: 9, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff', letterSpacing: 0.3 }}>New</Text>
+              <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1.5 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff', letterSpacing: 0.3 }}>New</Text>
               </View>
             )}
-            {fMs && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
-                backgroundColor: '#2A2D3A', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontSize: fs(10) }}>{fMs.icon}</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#E6C677' }}>{fMs.label}</Text>
-              </View>
-            )}
-            {muted && <Text style={{ fontSize: fs(11) }}>🔕</Text>}
+            {muted && <Text style={{ fontSize: fs(10) }}>🔕</Text>}
           </View>
           {fStatus ? (
             <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2 }}>{fStatus}</Text>
           ) : null}
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <View style={{ backgroundColor: C.butter, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>
-              <Text style={{ fontFamily: F.sysM, color: C.textSecondary }}>라베 </Text>{friend.stats?.best ?? '—'}
-            </Text>
-          </View>
-          {/* 핸디 = paleSky(하늘빛), 라베와 색 구분. 동기화된 친구만(users.handicap) ([[friend_groups]] 핸디표시) */}
-          {friend.stats?.handicap != null && (
-            <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.charcoal }}>
-                <Text style={{ fontFamily: F.sysM, color: C.textSecondary }}>핸디 </Text>{friend.stats.handicap}
-              </Text>
-            </View>
-          )}
-          {/* "함께 N회" — Phase 3 친구·다이어리 마이그레이션 후 표시 ([[diary-companion-matching]]) */}
-        </View>
+        {/* › 내비 신호만 — 목록은 깔끔하게, 스탯(라베·핸디)·뱃지는 상세 명함에서 (사용자 2026-06-20) */}
+        <Text style={{ fontFamily: F.sys, fontSize: fs(17), color: C.warmGrayLight, marginLeft: 8 }}>›</Text>
       </View>
-
-      {/* 최근 라운딩 미리보기 */}
-      {r && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 7 : 10, backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 7 : 9 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1 }}>최근</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, flex: 1 }} numberOfLines={1}>
-            {r.course} · {r.date}
-          </Text>
-          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.charcoal }}>{r.score}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{diffLabel}</Text>
-        </View>
-      )}
     </TouchableOpacity>
   );
 }
@@ -159,7 +130,7 @@ function SwipeableFriendCard({ friend, favorite, onToggleFavorite, onHide, ...ca
     <Swipeable ref={ref} friction={1.6} leftThreshold={44} rightThreshold={44}
       overshootLeft={false} overshootRight={false}
       renderLeftActions={renderFavorite} renderRightActions={renderHide}
-      containerStyle={{ marginBottom: _and ? 9 : 12 }}>
+      containerStyle={{ marginBottom: 0 }}>
       <FriendCard friend={friend} favorite={favorite} flush {...cardProps} />
     </Swipeable>
   );
@@ -340,12 +311,19 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         setFriends(friendsList.map(f => toMinimal(f.otherUid)));
         // 차단한 사용자의 받은 친구신청은 숨김 — 차단=재접촉 차단([[block-nickname]] 차단 강화)
         const blockedSet = new Set(userProfile?.blockedUsers || []);
-        setReceivedRequests(received.filter(r => !blockedSet.has(r.requesterUid)).map(r => ({
-          id: r.requesterUid,
-          name: profileByUid[r.requesterUid]?.nickname || '친구',
-          realName: profileByUid[r.requesterUid]?.realName || '',
-          hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: null,
-        })));
+        setReceivedRequests(received.filter(r => !blockedSet.has(r.requesterUid)).map(r => {
+          const p = profileByUid[r.requesterUid] || {};
+          return {
+            id: r.requesterUid,
+            name: p.nickname || '친구',
+            realName: p.realName || '',
+            statusMessage: p.statusMessage || '',
+            avatarUri: p.avatarUrl || null,              // 수락 즉시 프로필 사진 반영
+            hostedCount: 0, attendedCount: 0, mannerScore: 0, avg: p.avgScore || null,
+            // 수락 즉시 라베·핸디 — 이 로드에서 이미 받아둔 값(추가 네트워크 호출 없음)
+            stats: { rounds: p.totalRounds || 0, courses: 0, avg: p.avgScore || null, best: p.lifeBest || null, handicap: p.handicap ?? null },
+          };
+        }));
         setSentRequests(sent.map(s => s.recipientUid));
       } catch (e) {
         if (__DEV__) console.warn('[FriendsTab] initial load failed', e);
