@@ -68,14 +68,14 @@ function Section({ title, right, children, onRightPress }) {
   );
 }
 
-// 더보기 버튼
-function MoreButton({ moreCount, onPress }) {
-  if (moreCount <= 0) return null;
+// 더보기/접기 토글 버튼 — 펼침 상태면 '접기'(다시 5개로). 안 펼쳤고 더 볼 게 없으면 숨김.
+function MoreButton({ moreCount, expanded, onPress }) {
+  if (!expanded && moreCount <= 0) return null;
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}
       style={{ paddingVertical: _and ? 9 : 12, alignItems: 'center' }}>
       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
-        더보기 ({moreCount}개 더) →
+        {expanded ? '접기 ↑' : `더보기 (${moreCount}개 더) →`}
       </Text>
     </TouchableOpacity>
   );
@@ -520,7 +520,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                   <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
                 </TouchableOpacity>
               ))}
-              <MoreButton moreCount={moreRecent} onPress={() => setRecentExpanded(true)} />
+              <MoreButton moreCount={moreRecent} expanded={recentExpanded} onPress={() => setRecentExpanded(v => !v)} />
             </View>
           )}
         </Section>
@@ -574,7 +574,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                 )}
               </TouchableOpacity>
             ))}
-            {!favEditMode && <MoreButton moreCount={Math.max(0, savedFav.length - 5)} onPress={() => setSavedExpanded(true)} />}
+            {!favEditMode && <MoreButton moreCount={Math.max(0, savedFav.length - 5)} expanded={savedExpanded} onPress={() => setSavedExpanded(v => !v)} />}
           </View>
         )}
       </Section>
@@ -613,7 +613,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                 </TouchableOpacity>
               </View>
             ))}
-            <MoreButton moreCount={moreScreen} onPress={() => setScreenExpanded(true)} />
+            <MoreButton moreCount={moreScreen} expanded={screenExpanded} onPress={() => setScreenExpanded(v => !v)} />
           </View>
         )}
       </Section>
