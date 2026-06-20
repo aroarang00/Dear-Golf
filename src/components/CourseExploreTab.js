@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { showAppAlert } from './AppAlert'; // OS 기본 팝업 대신 앱 디자인 알림(안드 시스템팝업 방지)
 import { AttentionMotion } from './common/AttentionMotion'; // '내 코스 모아보기' 바 맥동
-import { GreenFlag } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG
+import { GreenFlag, Icon } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG, ⛳ → green 라인 아이콘
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -514,7 +514,10 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 10 : 13,
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {c.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Icon name="green" size={fs(19)} color={C.charcoal} strokeWidth={1.7} />
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal, marginLeft: 6 }}>{c.name}</Text>
+                    </View>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>
                       {c.loc || '위치 미상'}
                     </Text>

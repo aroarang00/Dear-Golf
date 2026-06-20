@@ -15,6 +15,14 @@ const ICONS = {
       <Path d="M3.8 21H9.2" />
     </>
   ),
+  // ⛳ 그린 — 위에서 본 퍼팅 그린(초록 채움 타원) + 가운데 깃발(크게). 코스 라벨용.
+  green: (c) => (
+    <>
+      <Ellipse cx="12" cy="17" rx="9" ry="4.4" fill="#5E7E52" stroke="none" />
+      <Path d="M12 16.6 V3" />
+      <Path d="M12 3.3 20.5 6 12 8.7Z" fill={c} stroke="none" />
+    </>
+  ),
   // 📅 캘린더(일정)
   calendar: () => (
     <>
