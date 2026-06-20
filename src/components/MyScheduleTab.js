@@ -16,6 +16,7 @@ import { ShareMomentModal } from './ShareMomentModal';        // 동반자 공�
 import { getScheduleWxSummary } from '../utils/scheduleWx';    // 공유 카드 코스명 위 해당일 날씨 주입
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { showAppAlert } from './AppAlert';
+import { showToast } from './AppToast'; // 순수 성공 알림('초대를 보냈어요')은 차단형 대신 토스트로
 import { AlarmSetupModal } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
@@ -125,7 +126,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           await syncGroupContentByMember(groupId, { ...schedule, members: next });
         }
       } catch (e) { if (__DEV__) console.warn('[mySchedule] members auto-bump', e?.message); }
-      showAppAlert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
+      showToast(`친구 ${uids.length}명에게 초대를 보냈어요`);
     } catch (e) {
       if (__DEV__) console.warn('[mySchedule] invite', e?.message);
       showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');

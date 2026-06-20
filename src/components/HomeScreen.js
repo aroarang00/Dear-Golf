@@ -45,6 +45,7 @@ import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { MealDecisionBar } from './MealDecisionBar';
 import { showAppAlert } from './AppAlert';
+import { showToast } from './AppToast'; // 순수 성공 알림('초대를 보냈어요')은 차단형 대신 토스트로
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -558,7 +559,7 @@ export function HomeScreen({ navigation, route }) {
       if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId }); // 전파 일정 표식
       await bumpMembersAfterInvite(schedule, groupId);                     // 인원 자동 증가
-      showAppAlert('초대를 보냈어요', `친구 ${uids.length}명에게 일정 초대를 보냈어요.\n상대가 수락하면 그 친구 일정에도 등록돼요.`);
+      showToast(`친구 ${uids.length}명에게 초대를 보냈어요`);
     } catch (e) {
       if (__DEV__) console.warn('[home] invite schedule', e?.message);
       showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
@@ -579,7 +580,7 @@ export function HomeScreen({ navigation, route }) {
       if (!groupId) { showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.'); return; }
       if (!schedule.groupId) await editSchedule(schedule.id, { groupId });
       await bumpMembersAfterInvite(schedule, groupId);                     // 인원 자동 증가
-      showAppAlert('초대를 보냈어요', `동반자 ${friendUids.length}명에게 일정 초대를 보냈어요.\n수락하면 그 친구 일정에도 등록돼요.`);
+      showToast(`동반자 ${friendUids.length}명에게 초대를 보냈어요`);
     } catch (e) {
       if (__DEV__) console.warn('[home] invite companions', e?.message);
       showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');

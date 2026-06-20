@@ -87,6 +87,7 @@ import { GuideScreen } from './src/components/GuideScreen';
 import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
+import { AppToastHost } from './src/components/AppToast';
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
 import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
@@ -600,6 +601,7 @@ function App() {
       </Modal>
 
       <AppAlertHost />
+      <AppToastHost />
 
       {/* 라운딩 일정 알림 팝업 — 앱 전역(어느 탭에서나). 안 읽은 scheduleNotice가 있으면 모집 단위로 하나씩 표시. */}
       {(() => {
