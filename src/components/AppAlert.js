@@ -59,8 +59,9 @@ export function AppAlertHost() {
               {data.title}
             </Text>
           )}
+          {/* 본문 색 — warmGray(#8B8680)는 너무 옅어 흐릿해 보여 textSecondary(#6B6660)로 진하게. 제목은 charcoal 유지. */}
           {!!data.message && (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
               {data.message}
             </Text>
           )}
