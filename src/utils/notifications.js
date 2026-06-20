@@ -152,6 +152,34 @@ export function cancelRoundAlarms(scheduleId) {
   return enqueue(() => _cancelRoundAlarms(scheduleId));
 }
 
+// 고아 알람 정리 — OS에 예약돼 있지만 더 이상 존재하지 않는 일정의 알람을 취소.
+//   ★삭제 경로가 알람 취소를 안 거쳤거나(과거: removeSchedule이 중앙 취소 안 함), 앱 재설치로 저장 맵이 유실된 경우
+//    삭제된 일정의 D-3/D-1 알림이 계속 오던 문제 정리(사용자 2026-06-20). activeIds=현재 살아있는 일정 id 목록.
+//   로컬 예약 알림은 라운딩 알람뿐(scheduleNotificationAsync 사용처가 여기 한 곳)이라 scheduleId 기준 판별이 안전.
+async function _reconcileAlarms(activeIds) {
+  const active = new Set((activeIds || []).filter(Boolean));
+  // 1) OS가 실제로 들고 있는 예약분 기준 — scheduleId가 살아있는 일정에 없으면 취소(맵 유실분까지 확실히 제거).
+  let scheduled = [];
+  try { scheduled = await Notifications.getAllScheduledNotificationsAsync(); } catch { scheduled = []; }
+  for (const n of scheduled) {
+    const sid = n?.content?.data?.scheduleId;
+    if (!sid || active.has(sid)) continue; // 일정 알람이 아니거나(가드) 살아있는 일정 → 보존
+    try { await Notifications.cancelScheduledNotificationAsync(n.identifier); } catch { /* 이미 취소·발송됨 */ }
+  }
+  // 2) 저장 맵에서도 죽은 일정 엔트리 제거 — 다음 동기화가 깨끗한 상태에서 판단하게.
+  const map = await storage.load(STORAGE_KEYS.alarms, {});
+  let changed = false;
+  for (const id of Object.keys(map)) {
+    if (!active.has(id)) { delete map[id]; changed = true; }
+  }
+  if (changed) await storage.save(STORAGE_KEYS.alarms, map);
+}
+
+// 앱 시작·일정 로드 후 호출 — 살아있는 일정 id만 넘기면 그 외 예약 알림을 전부 정리.
+export function reconcileAlarms(activeIds) {
+  return enqueue(() => _reconcileAlarms(activeIds));
+}
+
 // 마이페이지에서 알람 시점 하나를 켜고 끌 때 — 예정된 모든 일정에 즉시 반영.
 // type 시점만 더하거나 빼고 나머지 시점은 일정별 설정 그대로 유지.
 export function syncAlarmTypeAcrossSchedules(schedules, type, enabled) {

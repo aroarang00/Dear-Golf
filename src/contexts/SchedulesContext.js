@@ -3,6 +3,7 @@ import { auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { loadMySchedules, createSchedule, updateSchedule, deleteSchedule, setScheduleDoc } from '../utils/schedule';
 import { syncRoundToCalendar, removeRoundFromCalendar } from '../utils/deviceCalendar';
+import { cancelRoundAlarms, reconcileAlarms } from '../utils/notifications';
 import { normalizeSchedules } from '../utils/helpers';
 
 // 라운딩 예정 일정 — Firestore schedules/{scheduleId} 단일 소스.
@@ -42,7 +43,10 @@ export function SchedulesProvider({ children }) {
       if (!uid) return;  // 아직 로그인 전 — 실제 uid 콜백을 기다림(앱은 항상 익명 폴백 로그인됨)
       try {
         const loaded = await loadMySchedules();
-        setSchedulesRaw(normalizeSchedules(loaded));
+        const norm = normalizeSchedules(loaded);
+        setSchedulesRaw(norm);
+        // 고아 알람 정리 — 이미 삭제됐는데 OS에 남은 예약 알림(D-3/D-1 등) 제거. 로드 성공 시에만(빈 로드로 오취소 방지).
+        reconcileAlarms(norm.map(s => s.id));
       } catch (e) {
         console.warn('[SchedulesContext] Firestore 로드 실패', e?.message);
         setSchedulesRaw([]);
@@ -73,6 +77,7 @@ export function SchedulesProvider({ children }) {
     await deleteSchedule(id);
     setSchedulesRaw(prev => prev.filter(s => s.id !== id));
     removeRoundFromCalendar(id);
+    cancelRoundAlarms(id); // 예약 알람도 중앙에서 취소 — 모든 삭제 경로가 remove를 거치므로 누락 없음(캘린더와 동일 패턴)
   }, []);
 
   // 일정 전파 수락 — 결정적 ID로 자기파생 일정 setDoc(멱등) + 로컬 즉시 반영 + 캘린더 동기화 ([[schedule-propagation-spec]]).
