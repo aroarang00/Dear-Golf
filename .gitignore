@@ -73,6 +73,10 @@ firebase-debug.*.log
 # 테스트 시드 산출물
 scripts/.seed-output.json
 
+# Admin SDK 서비스 계정 키 — 절대 커밋 금지
+scripts/serviceAccountKey.json
+serviceAccountKey.json
+
 # Functions 빌드
 functions/node_modules/
 
