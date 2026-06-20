@@ -154,6 +154,53 @@ export function derivedScheduleId(groupId, uid) {
   return `${groupId}_${uid}`;
 }
 
+// ── 공유 일정 수정 → 다른 멤버 반영 (전원 동등 모델, [[schedule-propagation-spec]] v2) ──
+//   구장·날짜는 '삭제 후 재생성' 전용(클라·규칙 모두 잠금) → 제자리 동기화 대상은 time/members/booker/subCourse뿐.
+
+// 비교·반영용 내용 필드만 추출(그룹·파생 일정 공통 모양).
+export function groupContentFields(o) {
+  if (!o) return null;
+  return {
+    time: o.time || '',
+    members: Number(o.members) || 4,
+    booker: o.booker || '',
+    subCourse: o.subCourse || '',
+  };
+}
+
+// 내가 그룹에 쓰는 중인 groupId 집합 — 편집자 본인이 '되돌림' 배너를 잠깐 보는 레이스 방지(쓰기 완료 전 점검 스킵).
+//   ★타이머 의존 X — 느린 네트워크에서도 쓰기가 끝날 때까지 정확히 가드. 모듈 전역이라 홈·캘린더 편집 모두 커버.
+const _syncingGroups = new Set();
+export function isSyncingGroup(groupId) { return _syncingGroups.has(groupId); }
+
+// 멤버가 공유 일정을 수정 → 그룹 문서 내용 갱신(다른 멤버 반영의 소스). 규칙: memberUids 멤버만, 이 키들만 허용.
+export async function syncGroupContentByMember(groupId, schedule) {
+  if (!groupId || !schedule) return false;
+  _syncingGroups.add(groupId);
+  try {
+    const c = groupContentFields(schedule);
+    await updateDoc(doc(db, COLLECTION, groupId), { ...c, updatedAt: serverTimestamp() });
+    return true;
+  } catch (e) { if (__DEV__) console.warn('[scheduleShare] sync content', e?.message); return false; }
+  finally { _syncingGroups.delete(groupId); }
+}
+
+// 그룹 내용이 내 파생 일정과 다른지 — 다르면 반영 패치(내용 필드), 같으면 null. + 변경 요약(반영 확인창 표시용).
+export function pendingContentChange(group, schedule) {
+  const g = groupContentFields(group);
+  const m = groupContentFields(schedule);
+  if (!g || !m) return null;
+  if (g.time === m.time && g.members === m.members && g.booker === m.booker && g.subCourse === m.subCourse) return null;
+  const diffs = [];
+  if (g.time !== m.time) diffs.push(`티오프 ${m.time || '-'} → ${g.time || '-'}`);
+  if (g.members !== m.members) diffs.push(`인원 ${m.members} → ${g.members}명`);
+  if (g.booker !== m.booker) diffs.push(`예약자 ${m.booker || '-'} → ${g.booker || '-'}`);
+  if (g.subCourse !== m.subCourse) diffs.push(`코스 ${m.subCourse || '-'} → ${g.subCourse || '-'}`);
+  // 변경 식별 서명 — '나중에'로 미룬 변경을 같은 내용일 땐 다시 안 묻게(새 변경이면 서명이 달라 다시 물음).
+  const sig = `${g.time}|${g.members}|${g.booker}|${g.subCourse}`;
+  return { patch: g, diffs, sig };
+}
+
 // 그룹 멤버 합류 — 수락 시(자기파생 후) 또는 같은 일정 보유로 기존 일정에 groupId만 스탬프할 때(중복 방지 경로).
 //   여기선 그룹 memberUids에 본인 추가만. 일정 doc 쓰기는 호출부(SchedulesContext).
 export async function joinScheduleGroup(groupId, uid) {

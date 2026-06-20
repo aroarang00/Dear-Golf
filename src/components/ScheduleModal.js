@@ -20,6 +20,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const { userProfile } = useContext(UserContext);
   // initial에 id가 있으면 기존 일정 수정, 없으면(날짜만 채워진 경우) 새 일정 추가
   const isEdit = !!(initial && initial.id);
+  // 일정 전파(공유) 수정 잠금 — 구장·날짜는 여파가 커 '삭제 후 재생성'으로만(시간·인원·예약자·세부코스는 제자리 수정).
+  //   ★일정 전파(groupId)만 해당. 나홀로 일정·라운지 모집은 잠그지 않음(라운지는 애초에 라운지에서만 관리). ([[schedule-propagation-spec]])
+  const sharedLock = isEdit && !!(initial && initial.groupId) && !(initial && initial.roundupId);
   const [courseSearch, setCourseSearch] = useState('');
   const [selected, setSelected] = useState(null); // { id, name, loc, x, y, kakaoId } — USER_COURSES 항목
   const [searchResults, setSearchResults] = useState([]);
@@ -279,10 +282,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
             bottomOffset={24}>
               <Text style={[mS.title, { fontSize: fs(21) }]}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
 
-              {/* 국내 / 해외 */}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+              {/* 국내 / 해외 — 전파 일정 잠금 시 비활성(구장 정체성의 일부) */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, opacity: sharedLock ? 0.45 : 1 }}>
                 {[['국내', false], ['해외', true]].map(([l, v]) => (
-                  <TouchableOpacity key={l} activeOpacity={0.7}
+                  <TouchableOpacity key={l} activeOpacity={0.7} disabled={sharedLock}
                     onPress={() => { setOverseas(v); setSearchResults([]); setCityResults([]); }}
                     style={[mS.chip, overseas === v && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
                     <Text style={[mS.chipTxt, overseas === v && mS.chipTxtOn]}>{l}</Text>
@@ -290,9 +293,18 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 ))}
               </View>
 
+              {/* 전파(공유) 일정 잠금 안내 — 구장·날짜는 삭제 후 재생성으로만 */}
+              {sharedLock && (
+                <View style={{ marginTop: 12, backgroundColor: 'rgba(122,156,108,0.10)', borderWidth: 0.5, borderColor: 'rgba(122,156,108,0.35)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                    🔒 동반자에게 전파한 일정이라 <Text style={{ fontFamily: F.sysSb }}>구장·날짜는 바꿀 수 없어요</Text>.{'\n'}바꾸려면 일정을 삭제하고 새로 만들어 전파해주세요.{'\n'}(시간·인원·예약자·코스는 수정 가능 — 동반자에게 반영 여부를 물어봐요)
+                  </Text>
+                </View>
+              )}
+
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 6 }}>
                 <Text style={[mS.label, { marginTop: 0, marginBottom: 0, fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>골프장</Text>
-                {selected && !editingName && (
+                {selected && !editingName && !sharedLock && (
                   <TouchableOpacity onPress={() => { setEditName(selected.name); setEditingName(true); }} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.burgundy }}>이름 수정</Text>
                   </TouchableOpacity>
@@ -316,8 +328,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder={overseas ? '골프장 이름 입력' : '골프장 이름으로 검색...'}
+                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }, sharedLock && { color: C.warmGray, opacity: 0.7 }]}
+                  placeholder={overseas ? '골프장 이름 입력' : '골프장 이름으로 검색...'}
                   placeholderTextColor={C.warmGrayLight} value={courseSearch}
+                  editable={!sharedLock}
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseSearch(t); setSelected(null); }} />
               )}
@@ -368,8 +382,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               {overseas && (
                 <>
                   <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>도시 <Text style={{ fontSize: fs(11), fontFamily: F.sys, color: C.warmGray }}>(현지 날씨 조회용)</Text></Text>
-                  <TextInput style={mS.input} placeholder="예: Okinawa / Da Nang / 다낭"
-                    placeholderTextColor={C.warmGrayLight} value={cityQuery}
+                  <TextInput style={[mS.input, sharedLock && { color: C.warmGray, opacity: 0.7 }]} placeholder="예: Okinawa / Da Nang / 다낭"
+                    placeholderTextColor={C.warmGrayLight} value={cityQuery} editable={!sharedLock}
                     autoCorrect={false} autoCapitalize="none"
                     onChangeText={t => { setCityQuery(t); setSelectedCity(null); }} />
                   {citySearching && (
@@ -399,9 +413,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} value={subCourse} onChangeText={setSubCourse}
                 placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
 
-              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>날짜</Text>
-              <TouchableOpacity style={mS.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>날짜{sharedLock ? ' 🔒' : ''}</Text>
+              <TouchableOpacity style={[mS.input, sharedLock && { opacity: 0.6 }]} disabled={sharedLock} onPress={() => setShowDatePicker(true)}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: sharedLock ? C.warmGray : C.textPrimary }}>
                   {formatDate(date)} ({formatDay(date)})
                 </Text>
               </TouchableOpacity>

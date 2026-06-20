@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const STORAGE_KEYS = {
   schedules:        '@dg_schedules',
+  scheduleSyncDismissed: '@dg_schedule_sync_dismissed', // 전파 일정 변경 '나중에' 미룬 서명 {groupId: sig} — 같은 변경 재확인 방지
   diaries:          '@dg_diaries',
   hof:              '@dg_hof',
   profile:          '@dg_profile',
