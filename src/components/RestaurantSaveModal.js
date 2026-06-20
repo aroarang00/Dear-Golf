@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
 
@@ -60,7 +61,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
             </Text>
 
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>맛집 이름</Text>
-            <TextInput
+            <AppTextInput
               value={name}
               onChangeText={setName}
               placeholder="맛집 이름"
@@ -74,7 +75,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
             )}
 
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>메모 (선택)</Text>
-            <TextInput
+            <AppTextInput
               value={memo}
               onChangeText={(t) => setMemo(t.slice(0, 100))}
               placeholder="라운딩 후 꼭 가기, 추천 메뉴 등"

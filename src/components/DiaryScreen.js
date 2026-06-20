@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -768,7 +769,7 @@ export function DiaryScreen({ route, navigation }) {
           {showSearch && (
             <View style={dS.searchWrap}>
               <Text style={dS.searchIcon}>🔍</Text>
-              <TextInput style={dS.searchInput} placeholder="골프장 또는 동반자 이름" placeholderTextColor={C.warmGrayLight}
+              <AppTextInput style={dS.searchInput} placeholder="골프장 또는 동반자 이름" placeholderTextColor={C.warmGrayLight}
                 value={search} onChangeText={setSearch} autoFocus />
               <TouchableOpacity activeOpacity={0.6} onPress={() => { setShowSearch(false); setSearch(''); }}>
                 <Text style={dS.searchCloseTxt}>✕</Text>

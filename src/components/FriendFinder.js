@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -220,7 +221,7 @@ export function FriendFinder({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary,
                 borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
                 <Text style={{ fontSize: fs(13) }}>🔍</Text>
-                <TextInput
+                <AppTextInput
                   style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
                   placeholder="닉네임으로 검색"
                   placeholderTextColor={C.warmGrayLight}

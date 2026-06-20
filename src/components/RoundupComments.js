@@ -1,5 +1,6 @@
 import React, { useState, useContext, useMemo } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, TouchableOpacity } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
@@ -230,7 +231,7 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
                 </Text>
               ) : (
                 <>
-                  <TextInput
+                  <AppTextInput
                     ref={inputRef}
                     onFocus={onInputFocus}
                     style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal,

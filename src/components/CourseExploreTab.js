@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { showAppAlert } from './AppAlert'; // OS 기본 팝업 대신 앱 디자인 알림(안드 시스템팝업 방지)
@@ -308,7 +309,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
           elevation: 3,
         }}>
           <Text style={{ fontSize: fs(16), marginRight: 8 }}>🔍</Text>
-          <TextInput
+          <AppTextInput
             value={search}
             onChangeText={setSearch}
             placeholder="골프장 검색"

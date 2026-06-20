@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator, Platform, Keyboard } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
@@ -613,7 +614,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             {slot.mode === 'custom' && (
               <View>
                 <Text style={trS.customHint}>아래 칸에 {kind}지를 입력해 주세요</Text>
-                <TextInput style={trS.customInput}
+                <AppTextInput style={trS.customInput}
                   ref={(r) => { customInputNode.current = r; }}
                   value={slot.custom}
                   onChangeText={(t) => setCustomText(slotKey, t)}

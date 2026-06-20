@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
@@ -302,7 +303,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 {/* 검색 — 친구 많을 때 빠르게 찾기. 이름(별명/닉네임/본명) 부분일치. */}
                 {!friendsLoading && friends.length > 0 && (
                   <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-                    <TextInput value={dmSearch} onChangeText={setDmSearch} placeholder="친구 이름 검색" placeholderTextColor={C.warmGrayLight}
+                    <AppTextInput value={dmSearch} onChangeText={setDmSearch} placeholder="친구 이름 검색" placeholderTextColor={C.warmGrayLight}
                       style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
                   </View>
                 )}

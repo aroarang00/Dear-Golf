@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Modal, View, Text, TouchableOpacity, TextInput, ScrollView,
-  Alert, Linking,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
 import { DIARY_DATA } from '../constants/data';
@@ -266,7 +264,7 @@ export function MyPageModal({ visible, onClose }) {
                 <View style={{ flex: 1 }}>
                   {editingNick ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <TextInput
+                      <AppTextInput
                         style={[myS.nickInput, { flex: 1 }]}
                         value={nickname} onChangeText={(t) => setNickname(t.slice(0, 10))}
                         onSubmitEditing={handleSaveNickname}
@@ -318,7 +316,7 @@ export function MyPageModal({ visible, onClose }) {
                   {/* 한마디(명함 멘트) — 닉네임 아래에서 바로 인라인 편집 */}
                   {editingStatus ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                      <TextInput
+                      <AppTextInput
                         style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2 }}
                         value={statusMessage} onChangeText={(t) => setStatusMessage(t.slice(0, 15))} autoFocus
                         onSubmitEditing={handleSaveStatus} returnKeyType="done"
@@ -394,7 +392,7 @@ export function MyPageModal({ visible, onClose }) {
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 4 }}>
                           {field.label}
                         </Text>
-                        <TextInput
+                        <AppTextInput
                           style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
                             borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
                             fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary }}
@@ -455,7 +453,7 @@ export function MyPageModal({ visible, onClose }) {
                     <Text style={myS.menuLabel}>자주 가는 출발지</Text>
                     {editingInfo ? (
                       <>
-                        <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
+                        <AppTextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
                           value={departure} onChangeText={handleDepartureChange} autoFocus
                           autoCapitalize="none" autoCorrect={false}
                           placeholder="동·아파트·건물명으로 검색" placeholderTextColor={C.warmGrayLight} />
@@ -493,7 +491,7 @@ export function MyPageModal({ visible, onClose }) {
                     <Text style={myS.menuLabel}>본명 (선택)</Text>
                     {editingInfo ? (
                       <>
-                        <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
+                        <AppTextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
                           value={realName} onChangeText={(t) => setRealName(t.slice(0, 20))}
                           placeholder="김골프" placeholderTextColor={C.warmGrayLight} />
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>
@@ -512,7 +510,7 @@ export function MyPageModal({ visible, onClose }) {
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>전화번호 (선택)</Text>
                     {editingInfo ? (
-                      <TextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
+                      <AppTextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
                         value={phone} onChangeText={(t) => setPhone(formatPhone(t))} maxLength={13}
                         placeholder="010-0000-0000" placeholderTextColor={C.warmGrayLight} keyboardType="phone-pad" />
                     ) : (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, ScrollView, Text, TextInput, TouchableOpacity, Platform, Modal } from 'react-native';
+import { View, ScrollView, Text, TouchableOpacity, Platform, Modal } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { Swipeable } from 'react-native-gesture-handler'; // 친구카드 좌우 스와이프(즐겨찾기·숨기기) ([[friend_card_gestures]])
 
@@ -636,7 +637,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, backgroundColor: C.bgSecondary,
             borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
             <Text style={{ fontSize: fs(13) }}>🔍</Text>
-            <TextInput
+            <AppTextInput
               style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
               placeholder="내 친구 중에서 검색"
               placeholderTextColor={C.warmGrayLight}

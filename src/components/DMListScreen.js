@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StatusBar, ActivityIndicator } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler'; // 행 좌측밀기 삭제(친구카드와 동일 레거시 Swipeable). RN Modal 안이라 자체 RootView 필요
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -187,7 +188,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
       </View>
       {/* 상단 상시 검색창 — 입력하면 전체 친구 검색(대화 없던 친구도), 비우면 대화목록. 별도 화면 X(뒤로가기·이전목록 복귀 혼란 제거, 사용자 2026-06-13) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: DM_SURFACE, borderBottomWidth: 0.5, borderBottomColor: DM_LINE }}>
-        <TextInput value={query} onChangeText={setQuery}
+        <AppTextInput value={query} onChangeText={setQuery}
           placeholder="친구 검색 — 이름으로 찾아 대화 시작" placeholderTextColor={'rgba(200,217,230,0.4)'}
           style={{ flex: 1, fontFamily: F.sys, fontSize: fs(15), color: '#EDE9E1', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }} />
         {query.length > 0 && (

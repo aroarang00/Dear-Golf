@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, Platform } from 'react-native';
+import { Modal, View, Text, ScrollView, FlatList, TouchableOpacity, Platform } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -352,7 +353,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
 
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>별명 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(최대 6자)</Text></Text>
                 {/* ⚠️ maxLength 금지 — 한글 조합(IME) 충돌로 마지막 글자가 자모서 막힘(iOS서 발현). onChangeText에서 6자 컷 ([[friend_groups]]) */}
-                <TextInput value={editName} onChangeText={(t) => setEditName(t.slice(0, 6))}
+                <AppTextInput value={editName} onChangeText={(t) => setEditName(t.slice(0, 6))}
                   placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight}
                   style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
                     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />

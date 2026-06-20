@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Linking, ActivityIndicator, Platform } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
@@ -283,7 +284,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
         {editing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <TextInput value={memoEdit.text} onChangeText={(t) => setMemoEdit(e => ({ ...e, text: t }))}
+            <AppTextInput value={memoEdit.text} onChangeText={(t) => setMemoEdit(e => ({ ...e, text: t }))}
               placeholder="메모 (예: 아침 9시까지)" placeholderTextColor={C.warmGrayLight}
               style={{ flex: 1, backgroundColor: C.bgPrimary, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, borderWidth: 0.5, borderColor: C.hairline }} />
             <TouchableOpacity onPress={saveMemo} activeOpacity={0.85} style={{ paddingHorizontal: 12, paddingVertical: 9, borderRadius: 9, backgroundColor: C.burgundy }}>
@@ -350,11 +351,11 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         </View>
         {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
         <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
-          <TextInput value={memo} onChangeText={setMemo} placeholder="메모 (선택 · 예: 아침 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
+          <AppTextInput value={memo} onChangeText={setMemo} placeholder="메모 (선택 · 예: 아침 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
             style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal }} />
         </View>
         <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
-          <TextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
+          <AppTextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
             style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
         </View>
         {/* 클럽하우스 원탭 — 구장 식당에서 먹는 흔한 케이스. 구장 좌표로 바로 지정(길찾기=구장). 좌표 없으면 지정만 되고 길찾기 비활성. */}

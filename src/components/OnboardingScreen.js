@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { obS } from '../styles/obS';
@@ -54,11 +55,11 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
               </Text>
             )}
             <Text style={obS.label}>닉네임</Text>
-            <TextInput style={obS.input} placeholder="민지 / Jessica" placeholderTextColor={C.warmGrayLight}
+            <AppTextInput style={obS.input} placeholder="민지 / Jessica" placeholderTextColor={C.warmGrayLight}
               value={nickname} onChangeText={(t) => setNickname(t.slice(0, 10))}
               autoCapitalize="none" autoCorrect={false} keyboardType="default" />{/* maxLength 금지 — 한글 조합 충돌 [[project_textinput_maxlength_hangul_bug]] */}
             <Text style={obS.label}>본명 (선택)</Text>
-            <TextInput style={obS.input} placeholder="김골프" placeholderTextColor={C.warmGrayLight}
+            <AppTextInput style={obS.input} placeholder="김골프" placeholderTextColor={C.warmGrayLight}
               value={realName} onChangeText={setRealName} />
             {/* 본명 장려 + 마스킹 노출 고지 ([[realname-policy]] 항목 1) */}
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 6, marginBottom: 4 }}>
@@ -77,10 +78,10 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
           <View>
             <Text style={obS.stepLabel}>2단계 · 골프 정보</Text>
             <Text style={obS.label}>평균 타수</Text>
-            <TextInput style={obS.input} placeholder="92" placeholderTextColor={C.warmGrayLight}
+            <AppTextInput style={obS.input} placeholder="92" placeholderTextColor={C.warmGrayLight}
               value={avgScore} onChangeText={setAvgScore} keyboardType="numeric" />
             <Text style={obS.label}>라이프 베스트 스코어</Text>
-            <TextInput style={obS.input} placeholder="88" placeholderTextColor={C.warmGrayLight}
+            <AppTextInput style={obS.input} placeholder="88" placeholderTextColor={C.warmGrayLight}
               value={lifeBest} onChangeText={setLifeBest} keyboardType="numeric" />
             {lifeBest !== '' && (
               <View style={{ marginTop: 12, padding: 12, backgroundColor: parseInt(lifeBest) <= 79 ? '#F5F0E4' : C.bgSecondary, borderRadius: 10, borderWidth: 1, borderColor: parseInt(lifeBest) <= 79 ? '#C9A84C' : C.hairline }}>

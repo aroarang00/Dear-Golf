@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
@@ -97,7 +98,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
             </>)}
 
             {/* 검색 */}
-            <TextInput
+            <AppTextInput
               style={{ ...mS.input, marginTop: 12, marginBottom: 0 }}
               placeholder="친구 이름으로 검색"
               placeholderTextColor={C.warmGrayLight}

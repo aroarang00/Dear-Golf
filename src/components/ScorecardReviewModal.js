@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { sumHoles } from '../utils/scorecardOcr';
@@ -57,7 +58,7 @@ export function ScorecardReviewModal({ visible, rows = [], failed = false, onCon
           return (
             <View key={i} style={{ flex: 1, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGray, marginBottom: 2 }}>{i + 1}</Text>
-              <TextInput
+              <AppTextInput
                 value={holes[i] ?? ''}
                 onChangeText={(v) => setHole(i, v)}
                 keyboardType="numeric"

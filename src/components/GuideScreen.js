@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Linking, TextInput, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert, Animated, Easing } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
@@ -1019,7 +1020,7 @@ export function GuideScreen({ route, navigation }) {
                       </Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>{commentInput.length}/200</Text>
                     </View>
-                    <TextInput
+                    <AppTextInput
                       value={commentInput}
                       onChangeText={(t) => { if (t.length <= 200) setCommentInput(t); }}
                       placeholder="코스에 대한 한마디를 남겨주세요"
@@ -1270,7 +1271,7 @@ export function GuideScreen({ route, navigation }) {
                     borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 12,
                   }}>
                     <Text style={{ fontSize: fs(13), marginRight: 6 }}>🔍</Text>
-                    <TextInput
+                    <AppTextInput
                       value={foodSearch}
                       onChangeText={setFoodSearch}
                       placeholder="맛집 검색 또는 직접 추가"

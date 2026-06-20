@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Linking } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { UserContext } from '../contexts/UserContext';
@@ -166,7 +167,7 @@ export function ReportModal({ visible, onClose, presetTarget = null, prefillEvid
                   </View>
                 ) : (
                   <>
-                    <TextInput
+                    <AppTextInput
                       style={input}
                       placeholder="닉네임 3글자 이상 입력"
                       placeholderTextColor={C.warmGrayLight}
@@ -242,7 +243,7 @@ export function ReportModal({ visible, onClose, presetTarget = null, prefillEvid
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6, lineHeight: 16 }}>
                       구체적인 상황·시점·근거를 적어주세요. 거짓 진술 시 허위신고로 처리됩니다.
                     </Text>
-                    <TextInput
+                    <AppTextInput
                       style={[input, { minHeight: 110, textAlignVertical: 'top' }]}
                       placeholder={`최소 ${MIN_EVIDENCE}자 이상 입력`}
                       placeholderTextColor={C.warmGrayLight}

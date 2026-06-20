@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { loadMyFriendsEnriched } from '../utils/friends';   // 동반자 친구 선택용([[companion-design]] Phase A)
@@ -636,7 +637,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 ))}
               </View>
               <Text style={mS.bigLabel}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]}
+              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]}
                 placeholder={overseas ? '골프장 이름 입력' : '골프장 검색 또는 직접 입력...'}
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
                 autoCorrect={false} autoCapitalize="none"
@@ -652,7 +653,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               {overseas && (
                 <>
                   <Text style={mS.bigLabel}>국가</Text>
-                  <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="예: 일본, 베트남, 중국"
+                  <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="예: 일본, 베트남, 중국"
                     placeholderTextColor={C.warmGrayLight} value={country} onChangeText={setCountry}
                     autoCorrect={false} />
                 </>
@@ -675,7 +676,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               )}
               {/* 코스 (선택) — 골프장 내 세부코스 라벨. 구장 검색·매칭과 무관한 자유 입력. 연결된 일정에 있으면 자동 채움 ([[schedule-booker]]) */}
               <Text style={mS.bigLabel}>코스 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>(선택)</Text></Text>
-              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} value={subCourse} onChangeText={setSubCourse}
+              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} value={subCourse} onChangeText={setSubCourse}
                 placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
 
               <Text style={mS.bigLabel}>날짜</Text>
@@ -697,7 +698,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   maximumDate={new Date()} locale="ko" />
               )}
               <Text style={mS.bigLabel}>스코어 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="타수 입력"
+              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="타수 입력"
                 placeholderTextColor={C.warmGrayLight} value={score}
                 onChangeText={setScore} keyboardType="numeric" />
 
@@ -771,14 +772,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   )}
                 </View>
               <Text style={mS.bigLabel}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
-              <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
+              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
               <Text style={mS.bigLabel}>
                 동반자
                 <Text style={{ fontSize: fs(11), fontFamily: F.sys, color: '#8B8680' }}> (선택 · 탭하여 삭제)</Text>
               </Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                <TextInput
+                <AppTextInput
                   style={[mS.input, { flex: 1, fontSize: fs(16), fontFamily: F.sysSb }]}
                   placeholder="이름 입력 (공백으로 여러 명)"
                   placeholderTextColor={C.warmGrayLight}
@@ -887,7 +888,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <View style={mS.specialBox}>
                   <Text style={mS.specialBoxTitle}>{special} 기록</Text>
                   <Text style={mS.bigLabel}>몇번 홀?</Text>
-                  <TextInput style={mS.input} placeholder="7" placeholderTextColor={C.warmGrayLight}
+                  <AppTextInput style={mS.input} placeholder="7" placeholderTextColor={C.warmGrayLight}
                     value={specialHole} onChangeText={setSpecialHole} keyboardType="numeric" />
                   <Text style={mS.bigLabel}>파(Par)?</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -898,13 +899,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     ))}
                   </View>
                   <Text style={mS.bigLabel}>거리</Text>
-                  <TextInput style={mS.input} placeholder="156m" placeholderTextColor={C.warmGrayLight}
+                  <AppTextInput style={mS.input} placeholder="156m" placeholderTextColor={C.warmGrayLight}
                     value={specialDist} onChangeText={setSpecialDist} />
                   <Text style={mS.bigLabel}>사용한 볼</Text>
-                  <TextInput style={mS.input} placeholder="Titleist Pro V1" placeholderTextColor={C.warmGrayLight}
+                  <AppTextInput style={mS.input} placeholder="Titleist Pro V1" placeholderTextColor={C.warmGrayLight}
                     value={specialBall} onChangeText={setSpecialBall} />
                   <Text style={mS.bigLabel}>한마디</Text>
-                  <TextInput style={mS.input} placeholder="그 순간을 기억하며..." placeholderTextColor={C.warmGrayLight}
+                  <AppTextInput style={mS.input} placeholder="그 순간을 기억하며..." placeholderTextColor={C.warmGrayLight}
                     value={specialMemo} onChangeText={setSpecialMemo} />
                 </View>
               )}
@@ -971,7 +972,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   borderRadius: 12, padding: 14,
                   minHeight: 140,
                 }}>
-                  <TextInput
+                  <AppTextInput
                     ref={detailMemoRef}
                     style={{
                       fontFamily: F.sys, fontSize: fs(15),
@@ -1021,7 +1022,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         {won(num(costs.green) + num(costs.cart) + num(costs.onsite))}
                       </Text>
                     ) : (
-                      <TextInput
+                      <AppTextInput
                         style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                         value={costs.field}
                         onChangeText={(t) => setCosts(prev => ({ ...prev, field: t.replace(/[^0-9]/g, '') }))}
@@ -1042,19 +1043,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     <View style={{ marginLeft: 12, marginBottom: 13 }}>
                       <View style={costRowS}>
                         <Text style={{ ...costLabelS, fontSize: fs(12) }}>그린피</Text>
-                        <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                        <AppTextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                           value={costs.green} onChangeText={(t) => setCosts(prev => ({ ...prev, green: t.replace(/[^0-9]/g, '') }))} />
                         <Text style={costWonS}>원</Text>
                       </View>
                       <View style={costRowS}>
                         <Text style={{ ...costLabelS, fontSize: fs(12) }}>카트비</Text>
-                        <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                        <AppTextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                           value={costs.cart} onChangeText={(t) => setCosts(prev => ({ ...prev, cart: t.replace(/[^0-9]/g, '') }))} />
                         <Text style={costWonS}>원</Text>
                       </View>
                       <View style={{ ...costRowS, marginBottom: 0 }}>
                         <Text style={{ ...costLabelS, fontSize: fs(12) }}>그늘집</Text>
-                        <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                        <AppTextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                           value={costs.onsite} onChangeText={(t) => setCosts(prev => ({ ...prev, onsite: t.replace(/[^0-9]/g, '') }))} />
                         <Text style={costWonS}>원</Text>
                       </View>
@@ -1064,7 +1065,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   {/* ② 캐디피 — 현금 */}
                   <View style={{ ...costRowS, marginBottom: 2 }}>
                     <Text style={costLabelS}>캐디피</Text>
-                    <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                    <AppTextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                       value={costs.caddie} onChangeText={(t) => setCosts(prev => ({ ...prev, caddie: t.replace(/[^0-9]/g, '') }))} />
                     <Text style={costWonS}>원</Text>
                   </View>
@@ -1072,7 +1073,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   {/* ③ 기타 — 식사 등 (내기는 손익이라 아래 별도 줄로 분리) */}
                   <View style={{ ...costRowS, marginBottom: 2 }}>
                     <Text style={costLabelS}>기타</Text>
-                    <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                    <AppTextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                       value={costs.etc} onChangeText={(t) => setCosts(prev => ({ ...prev, etc: t.replace(/[^0-9]/g, '') }))} />
                     <Text style={costWonS}>원</Text>
                   </View>
@@ -1091,7 +1092,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         );
                       })}
                     </View>
-                    <TextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
+                    <AppTextInput style={costInputS} placeholder="0" placeholderTextColor={C.warmGrayLight} keyboardType="numeric"
                       value={costs.bet} onChangeText={(t) => setCosts(prev => ({ ...prev, bet: t.replace(/[^0-9]/g, '') }))} />
                     <Text style={costWonS}>원</Text>
                   </View>
@@ -1130,7 +1131,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </Text>
                   <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
                     borderRadius: 12, padding: 14, minHeight: 140 }}>
-                    <TextInput
+                    <AppTextInput
                       style={{ fontFamily: F.sys, fontSize: fs(15), color: C.textPrimary,
                         minHeight: 100, textAlignVertical: 'top' }}
                       placeholder="스크린 기록과 사진, 연습장 기록, 그 외 친구들과 공유할 일상을 남겨보세요"

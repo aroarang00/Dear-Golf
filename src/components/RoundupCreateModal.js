@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Keyboard } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Platform, Keyboard } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { C, F, fs } from '../constants/colors';
@@ -409,7 +410,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             {type === 'fixed' && (
               <>
                 <Text style={mS.bigLabel}>골프장</Text>
-                <TextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="골프장 이름으로 검색..."
+                <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="골프장 이름으로 검색..."
                   placeholderTextColor={C.warmGrayLight} value={courseQuery}
                   autoCorrect={false} autoCapitalize="none"
                   onChangeText={t => { setCourseQuery(t); setCourse(null); }} />
@@ -730,7 +731,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 })}
               </View>
             )}
-            <TextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline
+            <AppTextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline
               placeholder="어느 코스인지, 라운딩에 참고할 점을 적어주세요 (예: 듄스코스)" placeholderTextColor={C.warmGrayLight}
               value={word} onChangeText={(t) => setWord(t.slice(0, 40))} />
 

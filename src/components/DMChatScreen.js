@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // DM 사진 전체화면 보기 + 실비율 프라임(뷰어 열 때 리플로우 제거)
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
@@ -169,7 +170,7 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, onP
           style={{ width: 40, height: 46, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: fs(22) }}>📷</Text>
         </TouchableOpacity>
-        <TextInput
+        <AppTextInput
           ref={inputRef}
           defaultValue=""
           onChangeText={onChangeText}
