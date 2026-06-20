@@ -32,12 +32,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # Firestore 에뮬레이터는 JVM 필요(Java 11+)
+      # Firestore 에뮬레이터는 JVM 필요. firebase-tools가 Java 21+ 요구(17이면 "no longer supports Java before 21"로 잡 실패).
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Install dependencies
         run: npm ci
