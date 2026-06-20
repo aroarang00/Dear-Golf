@@ -285,8 +285,10 @@ export function HomeScreen({ navigation, route }) {
     const d = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
     if (d[p.schedule.groupId]) { delete d[p.schedule.groupId]; await storage.save(STORAGE_KEYS.scheduleSyncDismissed, d); }
     setPendingScheduleChange(null);
-    setTimeout(() => checkSharedScheduleUpdates(), 300);   // 적용 후 다음 변경 확인
-  }, [pendingScheduleChange, editSchedule, checkSharedScheduleUpdates]);
+    // ★즉시 재검사(setTimeout) 제거 — editSchedule 전(옛 schedules) 클로저로 검사돼 방금 반영한 변경을
+    //   다시 발견→배너 재노출되던 버그(사용자 2026-06-20). schedules 변경 시 도는 아래 2s 효과가
+    //   '새 클로저'로 재검사하므로 다음 대기 변경도 그쪽이 잡음.
+  }, [pendingScheduleChange, editSchedule]);
 
   const dismissScheduleChange = useCallback(async () => {
     const p = pendingScheduleChange;
