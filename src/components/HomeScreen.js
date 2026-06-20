@@ -986,19 +986,18 @@ export function HomeScreen({ navigation, route }) {
                           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>나가기 ✕</Text>
                         </TouchableOpacity>
                       )}
-                      {/* 우측 — 이모지(크게) 아래 날씨/교통 값 세로 스택. 탭 영역 넓고 이모지 큼. 탭=상세 팝업 */}
-                      <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7}
-                        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-                        <View style={{ alignItems: 'center' }}>
+                      {/* 우측 — 날씨/교통 각각 탭: 날씨 탭하면 날씨 상세, 교통 탭하면 교통 상세로 팝업 오픈(해당 탭). */}
+                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                        <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7} style={{ alignItems: 'center' }}>
                           <Text style={{ fontSize: fs(38) }}>{d0Info.icon || '🌤️'}</Text>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.wx || '날씨'}</Text>
-                        </View>
-                        <View style={{ alignItems: 'center' }}>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowTrafficFull(true); }} activeOpacity={0.7} style={{ alignItems: 'center' }}>
                           <Text style={{ fontSize: fs(34) }}>🚗</Text>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.drive ? `약 ${formatDriveMin(d0Info.drive)}` : '교통'}</Text>
-                        </View>
+                        </TouchableOpacity>
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.82)' }}>더보기 →</Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </>
