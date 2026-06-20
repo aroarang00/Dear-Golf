@@ -4,6 +4,12 @@ import { C, F, fs } from '../constants/colors';
 // Android는 같은 픽셀에도 화면 비율 차로 더 크게 보임 — 카드 height/폰트 약간 작게 보정
 const isAndroid = Platform.OS === 'android';
 
+// ★카드 높이·패딩 단일 소스 — D-day 메인/서브/D-0(전폭) 카드가 '항상 같은 높이'여야 한다.
+//   값이 곳곳에 흩어지면 한쪽만 수정돼 높이가 어긋남(실제로 D-0만 234 하드코딩돼 안드서 14px 컸음, 2026-06-20).
+//   이 상수만 바꾸면 모든 카드가 함께 따라오게 — homeS.mainCard/subCard + HomeScreen의 D-0 인라인 모두 사용.
+export const CARD_H = isAndroid ? 220 : 234;   // 모든 D-day 카드 공통 높이
+export const CARD_PAD = isAndroid ? 13 : 16;   // 전폭 카드(메인·D-0) 내부 패딩
+
 export const homeS = StyleSheet.create({
   hdr:             { paddingHorizontal: 22, paddingTop: 10, paddingBottom: 6 },
   hdrSub:          { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', letterSpacing: 1, marginTop: 4, marginBottom: 2, includeFontPadding: false },
@@ -17,13 +23,13 @@ export const homeS = StyleSheet.create({
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },
   secLabel:        { fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },
-  mainCard:        { width: isAndroid ? 210 : 232, height: isAndroid ? 220 : 234, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: isAndroid ? 13 : 16 },
+  mainCard:        { width: isAndroid ? 210 : 232, height: CARD_H, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD },
   // D-0 카드 내부 박스(정보·날씨교통·함께식사 공용) — 카드 안에 또렷한 박스로 구분
   cardBox:         { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 },
   cardCourse:      { fontFamily: F.sysB, fontSize: fs(16), color: '#fff', marginBottom: 4, lineHeight: 21, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, includeFontPadding: false },
   cardDate:        { fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', includeFontPadding: false },
   cardDDay:        { fontFamily: F.en, fontSize: isAndroid ? fs(62) : fs(66), color: C.butter, lineHeight: isAndroid ? 66 : 70, letterSpacing: -1, includeFontPadding: false },
-  subCard:         { width: isAndroid ? 100 : 110, height: isAndroid ? 220 : 234, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: isAndroid ? 11 : 12, justifyContent: 'space-between' },
+  subCard:         { width: isAndroid ? 100 : 110, height: CARD_H, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: isAndroid ? 11 : 12, justifyContent: 'space-between' },
   subCourse:       { fontFamily: F.sysM, fontSize: fs(11), color: '#fff', lineHeight: 15, includeFontPadding: false },
   subDate:         { fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', marginTop: 2, includeFontPadding: false },
   subDDay:         { fontFamily: F.en, fontSize: isAndroid ? fs(24) : fs(28), color: 'rgba(245,230,168,0.8)', lineHeight: isAndroid ? 26 : 30, includeFontPadding: false },

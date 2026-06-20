@@ -11,7 +11,7 @@ import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
 import { getUserCourses, syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { normalizeSchedules } from '../utils/helpers';
-import { homeS } from '../styles/homeS';
+import { homeS, CARD_H, CARD_PAD } from '../styles/homeS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -795,9 +795,9 @@ export function HomeScreen({ navigation, route }) {
           {/* (체크인 배너는 헤더 '이용 안내' 자리로 이동 — 박스 중복 제거) */}
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-            {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이는 D-N과 동일 고정. D-N이면 기존 고정폭 카드. */}
+            {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일. */}
             <View style={isD0
-              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: Platform.OS === 'android' ? 13 : 16, height: 234 }
+              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, height: CARD_H }
               : homeS.mainCard}>
               {(freshDDay(next) === 0) ? (
                 <>
