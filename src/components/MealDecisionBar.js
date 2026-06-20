@@ -363,7 +363,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         <TouchableOpacity onPress={() => propose({ name: '클럽하우스', loc: schedule?.course || '', x: coord?.x, y: coord?.y })} disabled={busy} activeOpacity={0.85}
           style={{ marginHorizontal: 18, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
             paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
-          <Text style={{ fontSize: fs(14) }}>🏌️</Text>
+          <Icon name="clubhouse" size={fs(20)} color={C.burgundy} />
           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>클럽하우스에서 식사</Text>
         </TouchableOpacity>
         <View style={{ paddingBottom: 6 }}>
