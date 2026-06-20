@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
@@ -8,6 +8,7 @@ import { ShareMomentModal } from './ShareMomentModal';
 
 // 친구 화면 — 내 프로필·설정은 MY 탭으로 이관, 친구 목록 전용.
 export function FriendsScreen({ navigation }) {
+  const _and = Platform.OS === 'android'; // 헤더 안드 컴팩트 보정 — 다른 탭 헤더(코스·라운지)와 동일 규격
   // 친구 첫 진입 1회 안내는 FriendsTab 상단 인라인 카드로 이관(접이식, friendCoachDone 재사용) ([[friend_groups]])
   const openFinderRef = useRef(null); // FriendsTab의 친구 찾기(finder)를 헤더 버튼에서 열기 위한 핸들
 
@@ -20,11 +21,11 @@ export function FriendsScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       {/* 헤더 — Friends 타이틀(+우상단 💬 메시지) + 친구 찾기·초대 */}
-      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13,
+      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 7,
         flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <View>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: 4 }}>나의 골프 파트너</Text>
-          <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.navy }}>Friends</Text>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>나의 골프 파트너</Text>
+          <Text style={{ fontFamily: F.en, fontSize: fs(_and ? 24 : 28), color: C.navy }}>Friends</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 3 }}>
           <TouchableOpacity onPress={() => openFinderRef.current?.('kakao')} activeOpacity={0.8}
