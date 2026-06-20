@@ -24,7 +24,7 @@ Notifications.setNotificationHandler({
 
 // 알람 시점별 정의 — title은 알림 제목, tail은 본문 둘째 줄(행동 유도)
 export const ALARM_DEFS = {
-  d3:     { key: 'd3',     label: 'D-3 (3일 전 오전 10시)',  title: '⛳ 3일 후 라운딩이 있어요',     tail: 'Dear Golf에서 날씨와 교통을 미리 확인해보세요' },
+  d3:     { key: 'd3',     label: 'D-3 (3일 전 오전 10시)',  title: '⛳ 3일 후 라운딩이 있어요',     tail: '앱에서 날씨·교통을 미리 확인해보세요' },
   d1:     { key: 'd1',     label: 'D-1 (전날 오후 6시)',     title: '🌤️ 내일 라운딩 D-1이에요',     tail: '동반자에게 일정을 공유해보세요 →' },
   teeoff: { key: 'teeoff', label: '당일 (티오프 2시간 전)',  title: '🏌️ 오늘 라운딩 2시간 전이에요', tail: '빠뜨린 건 없는지 확인해보세요 😊' },
 };
