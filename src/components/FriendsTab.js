@@ -21,6 +21,7 @@ import {
   getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
+import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 친구 탭 첫 진입 즉시 시드
 import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
 import { useBlockUser } from '../hooks/useBlockUser';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -216,6 +217,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     setFriendsLoaded(false);
   }, [currentUid]);
 
+  const prefetchSeededRef = useRef(false); // 프리페치 시드 1회만 — 탭 재진입(reload) 시 최신 위에 캐시 덮어쓰기 방지
   // Phase 3-F2 — 마운트 시 내 users/{uid} 문서 ensure + 친구·신청 목록 Firestore 로드.
   // users/{uid}.nickname은 다른 사용자가 내 이름을 조회하는 단일 소스. F4에서 MyPage 편집 시 동기화.
   useEffect(() => {
@@ -224,6 +226,18 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       try {
         const uid = await getUid();
         if (!uid || cancelled) return;
+        // 앱 시작 프리페치 캐시가 있으면 친구·받은신청·보낸신청을 즉시 시드 → 첫 진입 즉시 채움.
+        //   아래 정식 로드(ensure·loaders·프로필)가 곧 정확히 덮어씀(stale-while-revalidate). 차단 필터는 사용자별이라 여기서 적용.
+        const preFriends = !prefetchSeededRef.current && getPrefetch('friends:base');
+        if (preFriends && !cancelled) {
+          prefetchSeededRef.current = true;
+          setFriendData(preFriends.fdata);
+          setFriends(preFriends.friends);
+          const seedBlocked = new Set(userProfile?.blockedUsers || []);
+          setReceivedRequests(preFriends.received.filter(c => !seedBlocked.has(c.id)));
+          setSentRequests(preFriends.sent);
+          setFriendsLoaded(true);
+        }
         // 1) 내 users 문서 ensure (없으면 nickname으로 생성)
         const meRef = doc(db, 'users', uid);
         const meSnap = await getDoc(meRef);

@@ -178,6 +178,27 @@ export async function isFriend(otherUid) {
 
 const USERS = 'users';
 
+// 친구/신청 상대들의 공개 프로필(users 문서) 일괄 로드 → uid→프로필 맵. 명함 카드 빌드용(FriendsTab·프리페치 공용).
+//   FriendsTab의 인라인 profileByUid 매핑과 동일 필드.
+export async function loadFriendProfiles(uids) {
+  const list = Array.from(new Set((uids || []).filter(Boolean)));
+  if (!list.length) return {};
+  const snaps = await Promise.all(list.map(u => getDoc(doc(db, USERS, u)).catch(() => null)));
+  const byUid = {};
+  snaps.forEach((snap, i) => {
+    if (!snap?.exists()) return;
+    const d = snap.data();
+    byUid[list[i]] = {
+      nickname: d.nickname || '', realName: d.realName || '', statusMessage: d.statusMessage || '',
+      lifeBest: d.lifeBest || 0, avgScore: d.avgScore || 0, totalRounds: d.totalRounds || 0,
+      avatarUrl: d.avatarUrl || null,
+      handicap: typeof d.handicap === 'number' ? d.handicap : null,
+      lastFriendPostAt: d.lastFriendPostAt || null,
+    };
+  });
+  return byUid;
+}
+
 // 내 차단 목록 — users/{uid} 문서의 blockedUids 필드
 export async function loadMyBlockedUids() {
   const uid = await getUid();

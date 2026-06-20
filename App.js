@@ -58,6 +58,7 @@ import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLi
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { syncUserCoursesFromFirestore } from './src/utils/userCourses';
 import { getGolfCourses } from './src/utils/golfCourses'; // 마스터 캐시 워밍 — 식사 좌표해석 콜드스타트 레이스 예방
+import { prefetchTabData } from './src/utils/prefetch'; // 콜드 탭(친구·라운지) 백그라운드 프리페치 — 첫 탭 채워짐 지연 완화
 import { loadPrivateProfile } from './src/utils/privateProfile'; // 출발지 등 비공개 프로필 — 기기 간 유지
 import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid, auth } from './src/utils/firebase';
@@ -157,6 +158,14 @@ function App() {
       if (__DEV__) console.warn('[App] friend badge refresh failed', e?.message);
     }
   }, []);
+
+  // 콜드 탭(친구·라운지) 백그라운드 프리페치 — 로그인·온보딩 후 1회. 첫 탭 진입 시 '비었다가 채워짐' 지연 완화
+  //   (Firestore 연결·인증·메모리 워밍 + 결과 캐시 적재 → 화면이 getPrefetch로 즉시 시드 가능). best-effort, 실패 무해.
+  useEffect(() => {
+    if (showOnboarding || !profileLoaded || !authUid) return;
+    prefetchTabData(authUid);
+  }, [authUid, profileLoaded, showOnboarding]);
+
   // 받은 친구신청 실시간 구독 ([[lounge-realtime]] ② 친구신청) — 앱 켜둔 중에도 신청 도착·수락 시 뱃지 즉시 갱신.
   //   friendships: recipientUid==me && status=='pending'. 수락하면 pending에서 빠져 size 감소 → 자동 해제.
   //   uid 변동(익명↔카카오 settle·재설치 시나리오 ②) 시 authUid 의존성으로 재구독 ([[uid-stabilization-plan]]).

@@ -19,6 +19,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { RoundupDetail } from './RoundupDetail';
 import { LoadingState } from './common/LoadingState';
 import { AttentionMotion } from './common/AttentionMotion'; // 맞춤 모집 배너 맥동 — '내 코스 모아보기'와 동일 pulse
+import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 라운지 첫 진입 즉시 시드
 import { RoundupNotifications } from './RoundupNotifications';
 import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
@@ -282,6 +283,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const [friends, setFriends] = useState([]);        // Phase 3-F6: { id, name } — 친구지정 모달 등 표시용
   const [posts, setPosts] = useState([]);
   const [hydrated, setHydrated] = useState(false);       // 첫 로드 완료 전엔 빈 가이드 숨김 — 안드 마운트 깜빡임 방지 ([[home-empty-state-flash]])
+  const prefetchSeededRef = useRef(false);               // 프리페치 시드 1회만 — 재로드 시 최신 위에 캐시 덮어쓰기 방지
   const [refreshing, setRefreshing] = useState(false);   // 당겨서 새로고침 ([[roundup-refresh]])
   const [refreshTick, setRefreshTick] = useState(0);     // 증가 시 아래 로드 effect 재실행
   const [joined, setJoined] = useState({});            // Phase 3-C: loadMyApplications 등에서 채움
@@ -334,6 +336,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         const uid = await getUid();
         if (cancelled) return;
         setMyUid(uid);
+        // 앱 시작 프리페치 캐시가 있으면 전체공개 모집을 즉시 시드(+hydrated) → 라운지 첫 진입 '비었다가 채워짐' 완화.
+        //   참여·신청·이름 등은 아래 전체 로드가 곧 정확히 덮어씀(stale-while-revalidate). 캐시 없으면 종전대로.
+        const preRoundups = !prefetchSeededRef.current && getPrefetch('roundups:all');
+        if (preRoundups && preRoundups.length) { prefetchSeededRef.current = true; setPosts(preRoundups); setHydrated(true); }
         // 1차: 내 친구 + 내 신청 + 전체공개·내 모집 + 나에게 보이는 친구지정 모집 병렬
         const [friendsList, myApps, allPosts, minePosts, selectForMe] = await Promise.all([
           loadMyFriends(),
