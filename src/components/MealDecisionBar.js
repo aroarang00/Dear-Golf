@@ -436,7 +436,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
             </View>
             <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>🍲 함께 식사</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="bowl" size={fs(20)} color={C.charcoal} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>함께 식사</Text>
+              </View>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}{schedule?.time ? ` · ${schedule.time}` : ''}
               </Text>
