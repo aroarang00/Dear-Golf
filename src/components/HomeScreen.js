@@ -129,7 +129,9 @@ export function HomeScreen({ navigation, route }) {
     loop.start();
     return () => { loop.stop(); dmBreathe.setValue(0); };
   }, [dmUnread]);
-  const dmIdleScale = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.13] });
+  // 맥동을 scale→opacity로 — iOS는 얇은 테두리(1.5·1.2px) 원을 scale하면 매 프레임 테두리를 재샘플링해
+  //   가장자리가 찌글거림(native driver로도 못 막음, 사용자 2026-06-20). 기하학 변형 없는 opacity 브리드로 대체.
+  const dmIdleOpacity = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] });
   useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
   // 홈 탭 복귀(focus) 시 안읽음 카운트 재조회 — 마운트·DM모달 닫힘에만 갱신하면, 푸시로 다른 탭에서 DM을 읽었을 때
   //   홈의 dmUnread가 옛 값(>0)으로 남아 안읽음 없는데도 버튼이 흔들리던 버그 방지(+자리 비운 새 DM도 반영). 2026-06-18.
@@ -696,7 +698,7 @@ export function HomeScreen({ navigation, route }) {
               <Animated.View style={{ width: 44, height: 44, borderRadius: 22,
                 alignItems: 'center', justifyContent: 'center',
                 transform: [{ translateX: dmShift }] }}>
-                <Animated.View style={{ transform: [{ scale: dmIdleScale }] }}>
+                <Animated.View style={{ opacity: dmIdleOpacity }}>
                   <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
                     backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                     <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
