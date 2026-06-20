@@ -111,7 +111,7 @@ const ICONS = {
   // 🌤️·⛅ 구름조금 — 해 + 구름(해가 보이게 우하단 구름 합성, 전체 1.1배)
   cloudSun: () => (
     <G transform="translate(-1.2 -1.2) scale(1.1)">
-      <G stroke={WXC.sun}>
+      <G stroke={WXC.sun} strokeWidth="2.2">
         <Path d="M12 2v2" />
         <Path d="m4.93 4.93 1.41 1.41" />
         <Path d="M20 12h2" />
