@@ -10,7 +10,7 @@ import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { addressToCoord } from '../utils/kakao';
-import { getDrivingDirections } from '../utils/directions';
+import { getDrivingDirections, formatDriveMin } from '../utils/directions';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { getOverseasWeather } from '../utils/openweather';
 import { getCurrentLocation, reverseGeocode, hasLocationPermission } from '../utils/location';
@@ -1101,7 +1101,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                         </View>
                       </View>
                       <Text style={trS.recoSub}>
-                        티오프 {schedule.time} · {driveMin != null ? `운전 ${driveMin}분 · ` : ''}여유 30분 포함
+                        티오프 {schedule.time} · {driveMin != null ? `운전 ${formatDriveMin(driveMin)} · ` : ''}여유 30분 포함
                       </Text>
                     </View>
                     <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>

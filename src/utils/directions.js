@@ -15,3 +15,12 @@ export async function getDrivingDirections(origin, destination) {
   if (k) return { ...k, provider: 'kakao' };
   return null;
 }
+
+// 소요(분)를 '시간 분'으로 — 60분 이상이면 'H시간 M분'(정각이면 'H시간'), 미만이면 'M분'.
+//   홈 D-0 카드·교통 팝업 공용(표시 통일).
+export function formatDriveMin(m) {
+  if (!(m > 0)) return '';
+  if (m < 60) return `${m}분`;
+  const h = Math.floor(m / 60), mm = m % 60;
+  return mm ? `${h}시간 ${mm}분` : `${h}시간`;
+}

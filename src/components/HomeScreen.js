@@ -39,6 +39,7 @@ import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
+import { formatDriveMin } from '../utils/directions'; // 교통 소요 '시간 분' 표시 — 카드·팝업 공용
 import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
 import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈
 import { FriendSelectModal } from './FriendSelectModal';
@@ -994,7 +995,7 @@ export function HomeScreen({ navigation, route }) {
                         </View>
                         <View style={{ alignItems: 'center' }}>
                           <Text style={{ fontSize: fs(34) }}>🚗</Text>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.drive ? `약 ${d0Info.drive}분` : '교통'}</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.drive ? `약 ${formatDriveMin(d0Info.drive)}` : '교통'}</Text>
                         </View>
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.82)' }}>더보기 →</Text>
                       </TouchableOpacity>

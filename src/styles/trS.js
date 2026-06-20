@@ -10,7 +10,7 @@ export const trS = StyleSheet.create({
   recoBox:      { backgroundColor: 'rgba(245,230,168,0.15)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.4)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, marginBottom: 16 },
   recoLabel:    { fontFamily: F.sys, fontSize: fs(14), color: 'rgba(245,230,168,0.7)', letterSpacing: 2, marginBottom: 4 },
   recoTime:     { fontFamily: F.en, fontSize: fs(44), color: '#F5E6A8', letterSpacing: -1, lineHeight: 48 },
-  recoSub:      { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: 8 },
+  recoSub:      { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: 12 },
   // ── 갈 때/올 때 2-섹션 레이아웃 ──────────────────────────
   // 섹션 간격은 컴팩트하게 — Android는 폰트 줄높이가 커서 콘텐츠가 길어지므로
   twoSection:   { paddingHorizontal: 20, marginBottom: 16 },
