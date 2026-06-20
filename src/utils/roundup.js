@@ -226,16 +226,27 @@ export async function joinWaitlist(postId, opts = {}) {
   await updateDoc(ref, update);
 }
 
-// 대기 취소 — 익명이었으면 anonymousUids도 정리(미포함이면 no-op).
+// 대기 취소 — 실제 대기자일 때만 쓰기(멱등). 가드 없이 무조건 arrayRemove 하면 이미 빠진 상태(더블탭·stale UI)에서
+//   waitlistUids가 실제론 안 바뀌어 selfMembershipToggled 규칙이 거부함(false-denial). leaveRoundup과 동일 패턴.
+//   익명이었으면 anonymousUids도 정리(미포함이면 손대지 않아 불필요한 필드 변경 회피).
 export async function leaveWaitlist(postId) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
-  await updateDoc(ref, {
-    waitlistUids: arrayRemove(uid),
-    anonymousUids: arrayRemove(uid),
-    updatedAt: serverTimestamp(),
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('not-found');
+    const d = snap.data();
+    const waitlist = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
+    if (!waitlist.includes(uid)) return; // 이미 빠진 상태 — 멱등(헛쓰기로 인한 규칙 거부 방지)
+    const update = {
+      waitlistUids: arrayRemove(uid),
+      updatedAt: serverTimestamp(),
+    };
+    const anonList = Array.isArray(d.anonymousUids) ? d.anonymousUids : [];
+    if (anonList.includes(uid)) update.anonymousUids = arrayRemove(uid);
+    tx.update(ref, update);
   });
 }
 
