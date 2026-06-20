@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Linking, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -58,6 +58,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const [memoEdit, setMemoEdit] = useState(null); // { slot, text } = 결정된 슬롯 메모만 수정 중
   const [kw, setKw] = useState('');
   const [busy, setBusy] = useState(false);
+  const scrollRef = useRef(null);   // 시트 스크롤뷰 — 변경 패널 열릴 때 화면 안으로 끌어오기
+  const pickerYRef = useRef(0);     // 현재 열린 식당 고르기 패널의 스크롤 내 y (onLayout로 갱신)
 
   const [hostUid, setHostUid] = useState(null); // 단체모집 주최자 uid — 변경 권한 확장(정한 사람 + 주최자)
   const [roundupMembers, setRoundupMembers] = useState([]); // 라운지 모집 참여자(participantUids) — audience 소스
@@ -160,6 +162,17 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   useEffect(() => {
     if (autoOpen && active && !open) { openSheet(); onAutoOpened && onAutoOpened(); }
   }, [autoOpen, active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 변경/추가 패널이 열리면 그 위치로 스크롤 — 식사 2곳일 때 패널이 화면 밖(아래)에서 열려
+  //   '버튼이 안 먹는 것처럼' 보이던 문제 해결(사용자 2026-06-20). onLayout(pickerYRef)이 채워진 뒤 스크롤.
+  useEffect(() => {
+    if (!open || pickSlot === null) return;
+    const t = setTimeout(() => {
+      const y = Math.max(0, (pickerYRef.current || 0) - 72); // 위에 살짝 여백(바뀌는 카드 헤더가 보이게)
+      scrollRef.current?.scrollTo?.({ y, animated: true });
+    }, 240);
+    return () => clearTimeout(t);
+  }, [pickSlot, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -294,11 +307,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         {author && !editing && (
           <>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-            <TouchableOpacity onPress={() => startPick(slot, meal)} activeOpacity={0.8}
-              style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.2, borderColor: C.burgundy }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>다른 곳으로 변경</Text>
+            {/* 변경 — 작동 중(이 슬롯 고르는 중)이면 채움+'변경 중 ▾'로 토글 표시. 다시 누르면 닫힘(사용자가 상태를 바로 인지). */}
+            <TouchableOpacity onPress={() => (pickSlot === slot ? (setPickSlot(null), setMemo('')) : startPick(slot, meal))} activeOpacity={0.8}
+              style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.2, borderColor: C.burgundy,
+                backgroundColor: pickSlot === slot ? C.burgundy : 'transparent' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: pickSlot === slot ? C.butter : C.burgundy }}>{pickSlot === slot ? '변경 중 ▾' : '다른 곳으로 변경'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setMemoEdit({ slot, text: meal.note || '' })} activeOpacity={0.8}
+            <TouchableOpacity onPress={() => { setMemoEdit({ slot, text: meal.note || '' }); if (pickSlot === slot) { setPickSlot(null); setMemo(''); } }} activeOpacity={0.8}
               style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.2, borderColor: C.navy }}>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.navy }}>{meal.note ? '메모 수정' : '메모'}</Text>
             </TouchableOpacity>
@@ -319,7 +334,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     const changing = (pickSlot === 1 && meal1) || (pickSlot === 2 && meal2);
     const title = changing ? '식사 변경' : (pickSlot === 2 ? '식사 2 정하기' : '식사 정하기');
     return (
-      <View style={{ marginHorizontal: 10, marginBottom: 10, paddingTop: 10, paddingBottom: 6, borderRadius: 12,
+      <View onLayout={(e) => { pickerYRef.current = e.nativeEvent.layout.y; }}
+        style={{ marginHorizontal: 10, marginBottom: 10, paddingTop: 10, paddingBottom: 6, borderRadius: 12,
         backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(160,130,30,0.18)' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 6 }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>{title}</Text>
@@ -420,12 +436,14 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               </Text>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray, marginTop: 6 }} numberOfLines={2}>
                 {(meal1 || meal2)
-                  ? '💡 변경은 정한 사람만 할 수 있어요.'
+                  ? (schedule?.roundupId
+                      ? '💡 변경은 정한 사람이나 모집 주최자만 할 수 있어요.'
+                      : '💡 변경은 정한 사람만 할 수 있어요.')
                   : '💡 먼저 정하는 분이 식사 장소를 정해요.'}
               </Text>
             </View>
 
-            <KeyboardAwareScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bottomOffset={24}>
+            <KeyboardAwareScrollView ref={scrollRef} style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bottomOffset={24}>
               {/* 결정된 식사 칸들 — 변경 중이면 그 칸 '바로 아래'에 식당 고르기 패널 인라인(시트 맨 아래가 아니라). */}
               {meal1 && renderMealCard(meal1, 1)}
               {meal1 && pickSlot === 1 && renderPicker()}
