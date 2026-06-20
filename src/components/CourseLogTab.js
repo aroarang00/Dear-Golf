@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Modal } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Modal, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
@@ -14,7 +14,7 @@ import { DiariesContext } from '../contexts/DiariesContext';
 import { UserContext } from '../contexts/UserContext';
 import { calcHandicap } from '../utils/handicap';
 import { ScoreStatsScreen } from './ScoreStatsScreen';
-import { AttentionMotion } from './common/AttentionMotion'; // 스코어 통계 배너 작은 맥동(탭 가능 신호)
+import { AttentionMotion } from './common/AttentionMotion'; // 스코어 통계 배너 상하 부유(탭 가능 신호)
 import { dS } from '../styles/dS';
 
 const REGION_STYLE = {
@@ -381,9 +381,9 @@ export function CourseLogTab({ avgRating, navigation }) {
         </View>
       </TouchableOpacity>
       {/* 내 스코어 — 요약 한 줄 + › 눌러 통계·추세 전용 화면(100대 배너와 같은 결, 네이비). [[feature-backlog]] ①
-          작은 맥동(pulse)으로 탭 가능 신호 — '버튼인지 모르겠다' 보완(사용자 2026-06-20). */}
-      <AttentionMotion type="pulse">
-      <TouchableOpacity style={[dS.banner, { backgroundColor: C.navy, borderWidth: 0, marginTop: -6, paddingHorizontal: 16 }]} activeOpacity={0.85}
+          상하 부유(float)로 탭 가능 신호 — '버튼인지 모르겠다' 보완(사용자 2026-06-20). */}
+      <AttentionMotion type="float" axis="y">
+      <TouchableOpacity style={[dS.banner, { backgroundColor: C.navy, borderWidth: 0, marginTop: 2, paddingHorizontal: 16 }]} activeOpacity={0.85}
         onPress={() => setScoreStatsOpen(true)}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={[dS.bannerTitle, { color: '#fff' }]}>스코어 통계</Text>
@@ -408,7 +408,7 @@ export function CourseLogTab({ avgRating, navigation }) {
       </View>
       {region === 'domestic' && (
         <View>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 14, marginHorizontal: 16 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: Platform.OS === 'android' ? 10 : 14, marginHorizontal: 16 }}>
             방문한 골프장 · {myCourses.length}곳
           </Text>
           {myCourses.length === 0 ? (
@@ -451,7 +451,7 @@ export function CourseLogTab({ avgRating, navigation }) {
         );
         return (
         <View>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: overseasCourses.length === 0 ? 10 : 14, marginHorizontal: 16 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: overseasCourses.length === 0 ? 10 : (Platform.OS === 'android' ? 10 : 14), marginHorizontal: 16 }}>
             해외 골프장 · {overseasCourses.length}곳
           </Text>
           {overseasCourses.length === 0 && hint}
