@@ -9,7 +9,9 @@
     "web": "expo start --web",
     "postinstall": "patch-package",
     "check:native": "node scripts/check-native-config.js",
-    "eas-build-post-install": "node scripts/check-native-config.js"
+    "eas-build-post-install": "node scripts/check-native-config.js",
+    "test:rules": "node --test test/rules/",
+    "test:rules:emu": "firebase emulators:exec --only firestore --project demo-deargolf \"npm run test:rules\""
   },
   "dependencies": {
     "@expo-google-fonts/cardo": "^0.4.1",
@@ -72,6 +74,7 @@
   "private": true,
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "babel-preset-expo": "~54.0.10",
     "patch-package": "^8.0.1"
