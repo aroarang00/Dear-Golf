@@ -17,6 +17,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
+import { Icon, WeatherGlyph } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해)
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ShareMomentModal } from './ShareMomentModal';
 import { ScheduleShareCard } from './ScheduleShareCard';   // 체크인 카드 전용(공유화면 없이 카드만) 뷰어용
@@ -767,7 +768,7 @@ export function HomeScreen({ navigation, route }) {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
               <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
-                <Text style={{ fontSize: fs(28), marginTop: 4 }}>{wxEmoji}</Text>
+                <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(36)} /></View>
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
@@ -813,7 +814,7 @@ export function HomeScreen({ navigation, route }) {
                 {/* 안쪽 골드 글로우 — 맥동에 맞춰 opacity 펄스 */}
                 <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                   backgroundColor: 'rgba(245,230,168,0.55)', opacity: checkinGlow }} />
-                <Text style={{ fontSize: fs(18) }}>🎫</Text>
+                <Icon name="ticket" size={fs(26)} color={C.butter} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>오늘 라운딩 · 체크인 카드</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.78)', marginTop: 1 }} numberOfLines={1}>
@@ -893,7 +894,7 @@ export function HomeScreen({ navigation, route }) {
                 paddingHorizontal: 12, paddingVertical: 6,
                 borderRadius: 20,
               }}>
-              <Text style={{ fontSize: fs(16) }}>📅</Text>
+              <Icon name="calendar" size={fs(19)} color={C.butter} />
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: 'rgba(255,255,255,0.95)' }}>{todayLabel}</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>›</Text>
             </TouchableOpacity>
@@ -989,7 +990,7 @@ export function HomeScreen({ navigation, route }) {
                       {/* 우측 — 날씨/교통 각각 탭: 날씨 탭하면 날씨 상세, 교통 탭하면 교통 상세로 팝업 오픈(해당 탭). */}
                       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
                         <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7} style={{ alignItems: 'center' }}>
-                          <Text style={{ fontSize: fs(38) }}>{d0Info.icon || '🌤️'}</Text>
+                          <WeatherGlyph icon={d0Info.icon || '🌤️'} size={fs(41)} />
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.wx || '날씨'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowTrafficFull(true); }} activeOpacity={0.7} style={{ alignItems: 'center' }}>
