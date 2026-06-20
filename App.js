@@ -429,6 +429,8 @@ function App() {
         if (type === 'dm') { navigationRef.navigate(ROUTES.MY, { openDmUid: data.senderUid }); return; }
         // 일정 전파 초대 → 홈(수신 배너가 홈에 있음) ([[schedule-propagation-spec]])
         if (type === 'scheduleInvite') { navigationRef.navigate(ROUTES.HOME); return; }
+        // 일정 전파 변경·취소 → 홈(변경 반영 배너·일정이 홈에 있음). 핸들러에 없으면 fallback이 라운지로 잘못 보냄 — 버그 방지. ([[schedule-propagation-spec]])
+        if (type === 'scheduleChanged' || type === 'scheduleCancelled') { navigationRef.navigate(ROUTES.HOME); return; }
         // 뒤풀이 결정·변경 → 홈 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선) ([[afterround-meal-decision]])
         if (type === 'mealSuggestion') { navigationRef.navigate(ROUTES.HOME, { openMeal: data.mealId || true }); return; }
         // 스코어 공유 → MY(ScoreShareInbox 수신 배너가 MY 피드 상단)
