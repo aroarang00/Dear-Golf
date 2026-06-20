@@ -174,11 +174,12 @@ service cloud.firestore {
         && changedKeysWithin(['audienceUids', 'names', 'declinedUids', 'updatedAt'])
         && request.resource.data.audienceUids.hasAll(resource.data.audienceUids)
         && request.resource.data.declinedUids.hasOnly(resource.data.declinedUids);
-      // 공유 일정 내용 수정 — 멤버(memberUids) 누구나(전원 동등 모델). 다른 멤버 자동반영의 소스 ([[schedule-propagation-spec]] v2).
-      //   ★구장·날짜·좌표는 허용 키에서 제외 = '삭제 후 재생성' 전용으로 잠금(클라 비활성 + 규칙 이중 안전).
-      //   라운지 모집은 별도 컬렉션(roundups)이라 이 규칙과 무관.
+      // 공유 일정 내용 수정 — 참여자(생성자 또는 수락 멤버) 누구나(전원 동등 모델). 다른 멤버 자동반영의 소스 ([[schedule-propagation-spec]] v2).
+      //   ★initiatorUid도 허용 — 생성자는 자기 일정 수정 권한이 항상 있어야 함(탈퇴 테스트 등으로 memberUids가 비어도).
+      //   구장·날짜·좌표는 허용 키에서 제외 = '삭제 후 재생성' 전용으로 잠금(클라 비활성 + 규칙 이중 안전). 라운지 모집은 별도 컬렉션이라 무관.
       allow update: if isSignedIn()
-        && request.auth.uid in resource.data.memberUids
+        && (request.auth.uid in resource.data.memberUids
+            || request.auth.uid == resource.data.initiatorUid)
         && changedKeysWithin(['time', 'members', 'booker', 'subCourse', 'updatedAt']);
       // 수락 — 수신자(audience)가 memberUids에 '자기 uid'만 토글. 남 변조 완전차단은 규칙만으론 불가(roundScoreShares와 동일 한계, v1 허용).
       allow update: if isSignedIn()
