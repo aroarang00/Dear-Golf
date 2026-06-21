@@ -407,7 +407,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         // 결정 전엔 살랑살랑(float)로 주목 유도, 결정되면(✓) 정지 — 코스 헤더 버튼과 같은 톤 ([[attention-motion]])
         <AttentionMotion type="float" axis="x" distance={7} bidir={Platform.OS === 'ios'} enabled={decidedCount === 0} style={{ borderRadius: 12 }}>
         <TouchableOpacity onPress={openSheet} activeOpacity={0.85}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11,
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9,
             backgroundColor: decidedCount ? C.charcoal : '#D8CC9E', // 미결정=차분한 버터(강도 낮춤), 결정=차콜
             borderTopWidth: 1, borderTopColor: decidedCount ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.4)',
             shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 }}>
