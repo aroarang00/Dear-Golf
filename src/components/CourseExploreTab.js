@@ -45,7 +45,7 @@ const distLabel = (m) => {
 
 // 공통 섹션 래퍼 — 깔끔한 흰 카드(둥근 모서리·얇은 테두리·부드러운 그림자)로 통일.
 //   색색 헤더 바 폐기(사용자 2026-06-20, 세련된 박스화). 아이콘은 title 안 이모지로 구분. headerBg/titleColor는 무시(호환용).
-function Section({ title, right, children, onRightPress }) {
+function Section({ title, icon, right, children, onRightPress }) {
   return (
     // 바깥 = 그림자(입체감)·둥근 모서리. 안 = overflow:hidden 클립(같은 View에 그림자+overflow면 iOS서 그림자 잘림).
     <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 14, backgroundColor: C.bgSecondary,
@@ -53,7 +53,10 @@ function Section({ title, right, children, onRightPress }) {
       <View style={{ borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: C.hairline }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           paddingHorizontal: 14, paddingTop: 13, paddingBottom: 9, gap: 8 }}>
-          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, letterSpacing: 0.3 }}>{title}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, gap: 6 }}>
+            {icon ? <Icon name={icon} size={fs(15)} color={C.warmGray} /> : null}
+            <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, letterSpacing: 0.3 }}>{title}</Text>
+          </View>
           {right ? (
             onRightPress ? (
               <TouchableOpacity onPress={onRightPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.6} style={{ flexShrink: 0 }}>
@@ -481,7 +484,8 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       {/* 3. 최근 검색 골프장 — 검색 안 할 때 항상 표시 (이력 없어도 기능을 알 수 있게) */}
       {!search.trim() && (
         <Section
-          title={`🔍 최근 검색${recentCourses.length ? ` ${recentCourses.length}곳` : ''}`}
+          title={`최근 검색${recentCourses.length ? ` ${recentCourses.length}곳` : ''}`}
+          icon="search"
           right={recentCourses.length ? '지우기' : ''}
           onRightPress={recentCourses.length ? () => {
             showAppAlert('최근 검색 지우기', '최근 검색한 골프장 목록을 모두 지울까요?', [
