@@ -312,6 +312,16 @@ export function HomeScreen({ navigation, route }) {
     const t = setTimeout(() => checkSharedScheduleUpdates(), 2000);
     return () => clearTimeout(t);
   }, [checkSharedScheduleUpdates]);
+  // 일정 변경 푸시를 포그라운드(앱 켜둔 상태)에서 받으면 반영 배너 즉시 점검 — 푸시와 배너 타이밍 일치.
+  //   기존엔 focus/schedules변동 때만 점검해, 홈에 머물러 있으면 다른 탭 갔다 와야 떴음(지연). 백그라운드 수신은 focus 폴백이 커버.
+  //   푸시는 그룹 문서 갱신(syncGroupContentByMember) 후 발송돼 이 시점엔 그룹이 최신 — 약간 버퍼 두고 재검사. ([[schedule-propagation-spec]])
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener((noti) => {
+      if (noti?.request?.content?.data?.type !== 'scheduleChanged') return;
+      setTimeout(() => checkSharedScheduleUpdates(), 400);
+    });
+    return () => sub.remove();
+  }, [checkSharedScheduleUpdates]);
 
   // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함.
   //   Firestore에서 복원·머지(프레시 설치 시 코스 비어 코스이동·">"가 사라지던 문제 회복, [[data-migration]]).
