@@ -6,6 +6,7 @@ import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
 import { hofBgColor } from './HallOfFameCard';
 import { MediaCarousel } from './common/MediaCarousel';
+import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대체)
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { toggleRoundLike } from '../utils/round';
 import { ownerVisibilityLabel } from '../utils/friendGroups';
@@ -124,7 +125,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
     <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setShowLikers(true); }} activeOpacity={0.7}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-      <Text style={{ fontSize: fs(13) }}>👍</Text>
+      <Icon name="heartFilled" size={fs(18)} />
       <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.burgundy }}>{likerUids.length}</Text>
     </TouchableOpacity>
   ) : null;
@@ -171,7 +172,7 @@ export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'm
   const likeButton = (
     <TouchableOpacity onPress={onToggleLike} activeOpacity={0.7}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 9 }}>
-      <Text style={{ fontSize: fs(12) }}>👍</Text>
+      <Icon name={liked ? 'heartFilled' : 'heart'} size={fs(18)} color={C.warmGray} />
       <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: liked ? C.burgundy : C.warmGray }}>{likeCount}</Text>
     </TouchableOpacity>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { C, F, fs } from '../../constants/colors';
+import { Icon } from './Icon'; // 좋아요 = 하트(엄지 대체)
 
 const AV = ['#C8D9E6', '#F5E6A8', '#6B8B5E', '#D9B8B8'];
 
@@ -12,9 +13,11 @@ export function WhoLikedModal({ names, onClose }) {
       <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 40 }}
         activeOpacity={1} onPress={onClose}>
         <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
-          <View style={{ paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, textAlign: 'center' }}>
-              👍 좋아요 {names.length}
+          <View style={{ paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline,
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Icon name="heartFilled" size={fs(16)} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>
+              좋아요 {names.length}
             </Text>
           </View>
           {names.length === 0 ? (
