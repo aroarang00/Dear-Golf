@@ -10,6 +10,7 @@ import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 import { loadMyFriendsEnriched } from '../utils/friends';
+import { getScheduleGroup } from '../utils/scheduleShares'; // 전파 일정 수정 시 탈퇴자(declined) 제외용
 import { FriendSelectModal } from './FriendSelectModal';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
@@ -120,6 +121,20 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     getRecentCourses().then(r => setRecentCourses(r || []));
     loadMyFriendsEnriched().then(f => setFriends(f || [])).catch(() => {});
   }, [visible]);
+
+  // 전파 일정 수정 시 — 이미 일정을 삭제(조용히 탈퇴)한 동반자는 프리필에서 제외(혼란 방지).
+  //   원본 companions 배열은 탈퇴해도 청소되지 않으므로, 그룹 declinedUids로 걸러 표시·재선택에서 뺀다.
+  //   프리필 effect가 companions를 세팅한 뒤(같은 open 시점) 이 비동기가 그 위에 필터를 적용. ([[schedule-propagation-spec]])
+  useEffect(() => {
+    if (!visible || !initial?.groupId) return;
+    let alive = true;
+    getScheduleGroup(initial.groupId).then(g => {
+      const declined = g?.declinedUids || [];
+      if (!alive || !declined.length) return;
+      setCompanions(prev => prev.filter(c => !(c?.friendUid && declined.includes(c.friendUid))));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [visible, initial?.groupId]);
 
   // 검색어 debounce (300ms) → 카카오 API 호출
   useEffect(() => {
