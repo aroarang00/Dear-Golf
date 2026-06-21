@@ -7,7 +7,8 @@ import { C } from '../../constants/colors';
 //   24x24 그리드, 가는 라인 + 라운드 캡/조인. color로 브랜드 색 자유 적용(채움 필요한 부분만 path에서 fill 지정).
 //   사용: <Icon name="flag" size={18} color={C.burgundy} />
 // 날씨 아이콘 멀티컬러 — 각 path에 직접 stroke 지정(Icon의 단색 color 무시). 어두운 카드/날씨화면 기준.
-const WXC = { sun: '#F5E6A8', cloud: '#FFFFFF', rain: '#7FB3E0', snow: '#CFE3F2' };
+// sun=앰버골드(버터 UI와 분리돼 '태양' 포인트로 살게, 2026-06-21). 버터(#F5E6A8) → #F2B441
+const WXC = { sun: '#F2B441', cloud: '#FFFFFF', rain: '#7FB3E0', snow: '#CFE3F2' };
 // 통일 구름 — 흐림·비·눈 공용(같은 채움 구름, 같은 크기/위치). 비·눈은 아래에 빗줄기/눈송이만 추가.
 const WX_CLOUD = { d: 'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z', tf: 'translate(-1.5 -4.9) scale(1.125)' };
 const ICONS = {
