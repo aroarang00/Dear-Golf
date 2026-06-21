@@ -8,6 +8,7 @@ import { C, F, fs } from '../constants/colors';
 import { HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { dS } from '../styles/dS';
+import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -763,12 +764,12 @@ export function DiaryScreen({ route, navigation }) {
             <TouchableOpacity activeOpacity={0.6}
               style={dS.searchToggleBtn}
               onPress={() => { if (showSearch) { setShowSearch(false); setSearch(''); } else setShowSearch(true); }}>
-              <Text style={[dS.searchToggleTxt, showSearch && { color: '#6B1E2A' }]}>🔍</Text>
+              <Icon name="search" size={fs(16)} color={showSearch ? '#6B1E2A' : C.charcoal} />
             </TouchableOpacity>
           </View>
           {showSearch && (
             <View style={dS.searchWrap}>
-              <Text style={dS.searchIcon}>🔍</Text>
+              <Icon name="search" size={fs(15)} color={C.warmGray} />
               <AppTextInput style={dS.searchInput} placeholder="골프장 또는 동반자 이름" placeholderTextColor={C.warmGrayLight}
                 value={search} onChangeText={setSearch} autoFocus />
               <TouchableOpacity activeOpacity={0.6} onPress={() => { setShowSearch(false); setSearch(''); }}>

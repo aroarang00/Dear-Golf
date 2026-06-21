@@ -4,6 +4,7 @@ import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
+import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
 import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
 import { searchUsersByNickname, findKakaoFriendUsers } from '../utils/friends';
 import { maskKoreanName } from '../utils/maskName';
@@ -220,7 +221,7 @@ export function FriendFinder({
             <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary,
                 borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
-                <Text style={{ fontSize: fs(13) }}>🔍</Text>
+                <Icon name="search" size={fs(15)} color={C.warmGray} />
                 <AppTextInput
                   style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
                   placeholder="닉네임으로 검색"

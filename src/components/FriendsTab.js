@@ -10,6 +10,7 @@ import { FriendProfile } from './FriendProfile';
 import { LoadingState } from './common/LoadingState';
 import { AttentionMotion } from './common/AttentionMotion'; // 받은 친구신청 배너 맥동 — '내 코스 모아보기'와 동일 pulse
 import { FriendFinder } from './FriendFinder';
+import { Icon } from './common/Icon'; // 🔍 검색 등 커스텀 아이콘(이모지 통일)
 import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
@@ -618,7 +619,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
               onPress={() => { if (searchOpen) { setSearchOpen(false); setSearch(''); } else setSearchOpen(true); }}
               style={{ width: 34, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
                 backgroundColor: searchOpen ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: searchOpen ? C.charcoal : C.hairline }}>
-              <Text style={{ fontSize: fs(14) }}>🔍</Text>
+              <Icon name="search" size={fs(16)} color={searchOpen ? C.bgPrimary : C.charcoal} />
             </TouchableOpacity>
             {friends.length > 0 && (
               <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
@@ -633,7 +634,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         {searchOpen && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, backgroundColor: C.bgSecondary,
             borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
-            <Text style={{ fontSize: fs(13) }}>🔍</Text>
+            <Icon name="search" size={fs(15)} color={C.warmGray} />
             <AppTextInput
               style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
               placeholder="내 친구 중에서 검색"

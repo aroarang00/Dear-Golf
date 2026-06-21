@@ -309,7 +309,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
           shadowOffset: { width: 0, height: 2 },
           elevation: 3,
         }}>
-          <Text style={{ fontSize: fs(16), marginRight: 8 }}>🔍</Text>
+          <View style={{ marginRight: 8 }}><Icon name="search" size={fs(17)} color={C.warmGray} /></View>
           <AppTextInput
             value={search}
             onChangeText={setSearch}

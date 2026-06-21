@@ -40,6 +40,7 @@ import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFi
 import { createContentReport, hasReportedContent } from '../utils/contentReports';
 import { RestaurantSaveModal } from './RestaurantSaveModal';
 import { CourseLogModal } from './CourseLogModal';
+import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
 
 export function GuideScreen({ route, navigation }) {
   const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
@@ -1270,7 +1271,7 @@ export function GuideScreen({ route, navigation }) {
                     backgroundColor: '#fff', borderRadius: 10,
                     borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 12,
                   }}>
-                    <Text style={{ fontSize: fs(13), marginRight: 6 }}>🔍</Text>
+                    <View style={{ marginRight: 6 }}><Icon name="search" size={fs(15)} color={C.warmGray} /></View>
                     <AppTextInput
                       value={foodSearch}
                       onChangeText={setFoodSearch}
