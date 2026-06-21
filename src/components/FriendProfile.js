@@ -12,6 +12,7 @@ import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { topMilestone, milestoneBadge } from './MilestoneCard';
 import { DiaryCard } from './DiaryCard';
+import { Icon } from './common/Icon'; // 메시지 = 날아가는 편지 아이콘(홈 DM과 통일)
 import { LoadingState } from './common/LoadingState';
 import { PhotoViewer } from './common/PhotoViewer';
 import { getUid } from '../utils/firebase';
@@ -145,8 +146,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
             {/* 메시지(DM) — 헤더 우측. 대화방을 자체 오버레이로 연다([[dm-design]]) */}
             <TouchableOpacity onPress={() => setDmOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 10 }}>
-              <Text style={{ fontSize: fs(28) }}>💬</Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>메시지</Text>
+              <Icon name="sendFilled" size={fs(34)} color={C.charcoal} strokeWidth={1.8} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setOptionsOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal, lineHeight: 22 }}>⋯</Text>
