@@ -4,6 +4,27 @@
 > 배경: 디데이 카드(교통·날씨·식사·체크인) 동선을 단체(다중 팀)까지 확장.
 > 라운지 단체 모집은 `teams`(정원=teams×4)만 있고 **조 배정·조별 티오프가 없음**(RoundupDetail.js 주석에 명시) → 이를 닫는 것이 1차 목표.
 
+## 0. 보수성 원칙 — 득실 우선 (앱 거의 완성 상태)
+기존 코드 대부분이 완성·동작 중. **비용 큰 신규(컬렉션·CF·규칙·새 화면)는 "득 > 실"이 확실할 때만.** 단계를 ROI로 가른다.
+
+### ★ 최소 버전(MVP) — 컬렉션·규칙 0, 생성 CF 1개
+"단체 확정/전파 시 **주최자가 조(≤4) 수동 분할 → 조별 4인 그룹 + 참가자 일정 생성**." 결과:
+- 각자 **자기 조 카드(자기 티오프)** — 기존 카드 그대로.
+- 교통·날씨·체크인·**조별 식사(기존 그룹 식사 바)** 전부 자동 동작.
+
+비용 정정(중요):
+- 조 규칙이 `memberUids == [생성자]`(firestore.rules:164)라 **주최자가 자기가 안 들어가는 조를 클라에서 깨끗이 못 만듦.** 그래서:
+  - **단일 조(주최자 포함)** = 기존 `shareScheduleToFriends` 그대로, 인프라 0.
+  - **여러 조(주최자 배정)** = **생성 CF 1개(`createGroupTeams`) 필요** — 조 그룹 N + 참가자 일정만 생성(**`scheduleEvents` 문서·신규 규칙 없이**). 컬렉션·규칙 0, CF 1개.
+- 즉 MVP = **조 편성 UI + 생성 CF 1개.** (event 우산 없음)
+
+### 심사숙고 영역 (MVP 검증 후에만)
+관리/편의 — "득 > 실" 확인 후:
+- `scheduleEvents` **우산 문서** + 관리 CF(`updateEventTeams`·`transferEventOrganizer`·`setEventMeals`·`cancelEvent`) + 단순 오너 규칙 → 조직자 오버뷰·전체취소·위임·event 회식(`mealMode='event'`)·전체 공지.
+- (MVP엔 우산이 없어 "전 조 한눈에/전체 공지/전체 취소"가 없음 — 조 단위로만 동작)
+
+> §2~§13은 "목표 설계도", **착수는 MVP(조 편성 UI + 생성 CF)부터.** 우산/관리 CF/위임은 검증 후 결정.
+
 ## 1. 핵심 원칙
 - **한 문서에 다 욱여넣지 않는다.** 단체 = 여러 **조(4인)**, 조마다 티오프가 다름.
 - **조 = 기존 `scheduleGroups`(전파 일정) 그대로 재사용.** 배열 토글·수락/탈퇴 규칙을 새로 안 만든다.
@@ -27,7 +48,8 @@
 
 ### `scheduleEvents/{eventId}` (신규 — 얇은 우산)
 ```
-organizerUid            // 주최자(총무/간사) — 단일 수정 권한
+organizerUid            // 주최자 — 단일 수정 권한
+deputyUid | null        // 대리인(백업) — 주최자가 생성 시 지정. 주최자 부재 시 권한 이어받기(claim) 가능
 title                   // "○○동호회 정기전"
 course, courseId, courseX/Y, courseLoc, courseKakaoId
 date                    // 보통 같은 날 1개
@@ -37,7 +59,8 @@ teams: [                // 조 배열 (주최자가 수동 배정)
   // teeTime·세부코스·예약자(booker)는 조별로 다를 수 있음. 전부 미정(null) 허용
 ]
 participantUids: [...]  // 전체(읽기 권한·쿼리용)
-meals: [                // 이벤트 회식 — 주최자 지정, 최대 2곳. 없으면 []
+mealMode: 'event' | 'perTeam'   // 'event'=주최자 회식(기본) / 'perTeam'=조별 각자(기존 조 식사 바 재사용)
+meals: [                // mealMode='event'일 때 — 주최자 회식, 최대 2곳. 없으면 []
   { place:{name,x,y,kakaoId,loc}, note, decidedBy, decidedAt }
 ]
 createdAt, updatedAt
@@ -63,6 +86,7 @@ createdAt, updatedAt
 | 조 내부 식사(옵션) | 조 단위 기존 식사 모델(조원 누구나) — 후순위 |
 
 - 기존 4인 친구 일정은 **계속 "전원 동등"** 유지. `eventId` 유무로 두 모델 공존.
+- **단독 주최자** 모델 — 공동 주최자(동시 2인) 미채택(충돌·규칙복잡 > 이득). 부재 대응은 **대리인(deputyUid)+위임**.
 
 ## 4. 식사 / 체크인 / 교통 레벨
 | 항목 | 레벨 / 주체 |
@@ -111,7 +135,7 @@ createGroupEvent({
 
 updateEventTeams({ eventId, teams })          // 주최자만 — 조/시간/세부코스/booker 재배정
 setEventMeals({ eventId, meals[≤2] })         // 주최자만 — 전체 회식(최대 2곳)
-transferEventOrganizer({ eventId, toUid })    // 주최자만 — 위임(toUid는 participantUids 내). ★필수
+transferEventOrganizer({ eventId, toUid })    // 위임 — 현 주최자 또는 대리인(deputy) claim. toUid=참가자. ★필수
 cancelEvent({ eventId })                       // 주최자만 — 전체 취소(status:'cancelled')
 ```
 - 라운지 확정은 `createGroupEvent({source:'roundup', ...})`, 전파 승격은 `({source:'schedule', ...})`로 **동일 코어 호출**. 진입점별 래퍼만 얇게.
@@ -153,7 +177,7 @@ match /scheduleEvents/{eventId} {
 - **Phase 1 ★** — 두 진입점 연결: (a) 라운지 확정 → 조 편성, (b) 홈·캘린더 전파 5인+ → 조 편성. 둘 다 공통 코어 호출. *gap 닫는 최고가치.*
 - **Phase 2** — 조직자 오버뷰 + **위임(`transferEventOrganizer`, 필수)** + 전체취소(`cancelEvent`) + 결원 통지.
 - **Phase 3** — 횡단(전체 공지·단체 회식 고도화·조 재배정).
-- **Phase 4** — 라운지 밖 수동 단체 생성 + 공동 주최자(동시 2인).
+- **Phase 4** — 라운지 밖 수동 단체 생성. (공동 주최자=동시 2인은 **미채택** — 대리인+위임으로 대체)
 
 ## 10. 확정된 결정
 1. 카드는 **티오프(조)별 생성** — 기존 4인 모델 재사용.
@@ -166,14 +190,14 @@ match /scheduleEvents/{eventId} {
 8. **두 진입점(라운지 확정 / 홈·캘린더 전파) 모두 동일 모델**로 수렴 — 공통 코어 `createGroupEvent` 사용. 조 ≤1=현행, 2+=이벤트 승격.
 
 ## 11. 리스크 & 완화
-- 주최자 단일점 → **위임(필수, `transferEventOrganizer`)** 으로 해소. 공동 주최자(동시 2인)는 후속.
+- 주최자 단일점 → **대리인(deputy) 사전지정 + 위임(`transferEventOrganizer`)** 으로 해소. 공동 주최자(동시 2인)는 **미채택**.
 - 조 내용 desync(조원이 조 시간 수정) → v1 허용(blast radius=4), 필요시 주최자 잠금.
 - 알림 스팸 → "내 조 변경 시 그 조만" 팬아웃, 전체 공지는 집계.
 - 규칙 false-denial → CI 테스트 + 실데이터 선제 점검.
 
 ## 12. 미해결 / 후속 논의
-- 조별 식사 옵션의 진입점(필요 시, 후순위).
-- 공동 주최자(동시 2인) UX(Phase 4) — 단일 위임은 Phase 2 필수 포함.
+- (해소) 조별 식사 = `mealMode='perTeam'` / 공동 주최자 = 미채택(대리인+위임 대체).
+- MVP 착수 범위 확정(조 편성 UI 형태) + 우산 단계 진입 기준(언제 "득>실" 인지).
 
 ## 13. 세부 결정 (2026-06-22 확정)
 - **A. 체크인 booker** — **단일(단체 예약명) 기본, 전 조 공유**. 조별로 다르면 조 편성 시트에서 **조별 override**(teams[i].booker).
@@ -194,4 +218,5 @@ match /scheduleEvents/{eventId} {
 
 → 취소 로직은 사실상 **2종(전체취소 / 개인이탈)** + **위임**으로 단순.
 
-- **I. 주최자 위임 (필수)** — 주최자 개인사정 불참 시 **다른 참가자에게 위임 가능해야 함.** `transferEventOrganizer`(CF, 현 주최자만, 대상=참가자). 위임 후 새 주최자가 수정/취소 권한 보유. 단독 주최의 단일점 리스크를 이걸로 해소.
+- **I. 주최자 위임 + 대리인 (필수)** — **단독 주최자 채택**, **공동 주최자(동시 2인)는 미채택**(동시 편집 충돌·규칙 복잡 > 이득). 대신 주최자가 생성 시 **대리인(deputyUid) 1명 지정** → 주최자 부재 시 대리인이 권한 이어받기(claim), 평시 위임도 가능. `transferEventOrganizer`(CF, 현 주최자 또는 대리인 claim). 단일점 리스크를 대리인+위임으로 해소. *(우산 단계=심사숙고 영역)*
+- **J. 조별 식사 진입점** — 이벤트 `mealMode` 토글: **`'event'`(기본)=주최자 회식 최대 2곳 / `'perTeam'`=각 조가 기존 그룹 식사 바로 각자.** `'event'`면 조 식사 바 숨김, `'perTeam'`면 활성 → **신규 화면 0(기존 버튼 게이팅)**. *(mealMode·event 회식은 우산 단계=심사숙고)* 단, **MVP(우산 없음)에선 조별 식사가 기본 동작**(각 조=그룹이라 식사 바 그대로).
