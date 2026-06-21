@@ -985,19 +985,19 @@ export function HomeScreen({ navigation, route }) {
                     <View style={{ flex: 1 }}>
                       {roundEnded && (
                         <TouchableOpacity onPress={() => handleDismissCard(next)} activeOpacity={0.7}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ alignSelf: 'flex-end' }}>
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' }}>나가기 ✕</Text>
                         </TouchableOpacity>
                       )}
                       {/* 우측 — 날씨/교통 각각 탭: 날씨 탭하면 날씨 상세, 교통 탭하면 교통 상세로 팝업 오픈(해당 탭). */}
-                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 }}>
                         <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }} activeOpacity={0.7} style={{ alignItems: 'center' }}>
                           <WeatherGlyph icon={d0Info.icon || '🌤️'} size={fs(41)} />
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.wx || '날씨'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => { setSelectedSchedule(next); setShowTrafficFull(true); }} activeOpacity={0.7} style={{ alignItems: 'center' }}>
-                          <Icon name="car" size={fs(46)} color="#5AA9E6" strokeWidth={1.8} />
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.drive ? `약 ${formatDriveMin(d0Info.drive)}` : '교통'}</Text>
+                          <Icon name="car" size={fs(51)} color="#8FB06B" strokeWidth={1.8} />
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff', marginTop: 3 }} numberOfLines={1}>{d0Info.drive ? `${roundEnded ? '올 때 ' : ''}약 ${formatDriveMin(d0Info.drive)}` : '교통'}</Text>
                         </TouchableOpacity>
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.82)' }}>더보기 →</Text>
                       </View>
@@ -1030,7 +1030,10 @@ export function HomeScreen({ navigation, route }) {
                     <TouchableOpacity
                       onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
                       activeOpacity={0.7}>
-                      <Text style={{ fontSize: Platform.OS === 'android' ? fs(28) : fs(32), marginBottom: Platform.OS === 'android' ? 4 : 6 }}>🌤  🚗</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: Platform.OS === 'android' ? 4 : 6 }}>
+                        <WeatherGlyph icon="⛅" size={Platform.OS === 'android' ? fs(30) : fs(34)} />
+                        <Icon name="car" size={Platform.OS === 'android' ? fs(40) : fs(44)} color="#8FB06B" strokeWidth={1.8} />
+                      </View>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>탭하여 확인하기 →</Text>
                     </TouchableOpacity>
                   </View>
