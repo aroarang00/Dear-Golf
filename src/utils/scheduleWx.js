@@ -62,14 +62,17 @@ export async function getScheduleWxSummary(schedule) {
   }
 }
 
-// 출발지→구장 예상 소요(분) — 홈 D-0 카드 우측 교통 표시용. home={x,y}(마이페이지 저장 출발지) 없으면 null.
+// 출발지↔구장 예상 소요(분) — 홈 D-0 카드 우측 교통 표시용. home={x,y}(마이페이지 저장 출발지) 없으면 null.
 //   경로 API 1회 호출(TMap 우선·카카오 폴백). 구장 좌표 못 구하거나 실패하면 null(호출부는 표시 생략).
-export async function getScheduleDriveMin(schedule, home) {
+//   reverse=true → 구장→집(올 때, 라운딩 종료 후). 기본 false → 집→구장(갈 때).
+export async function getScheduleDriveMin(schedule, home, { reverse = false } = {}) {
   if (!home || typeof home.x !== 'number' || typeof home.y !== 'number') return null;
   try {
     const cc = await resolveScheduleCoords(schedule);
     if (!cc) return null;
-    const r = await getDrivingDirections({ x: home.x, y: home.y }, { x: cc.x, y: cc.y });
+    const origin = reverse ? { x: cc.x, y: cc.y } : { x: home.x, y: home.y };
+    const dest   = reverse ? { x: home.x, y: home.y } : { x: cc.x, y: cc.y };
+    const r = await getDrivingDirections(origin, dest);
     return r ? r.durationMin : null;
   } catch {
     return null;

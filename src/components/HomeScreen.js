@@ -425,10 +425,11 @@ export function HomeScreen({ navigation, route }) {
     getScheduleWxSummary(next).then(w => { if (alive && w) setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '' })); }).catch(() => {});
     const home = userProfile?.departureCoord;
     if (home && typeof home.x === 'number' && typeof home.y === 'number') {
-      getScheduleDriveMin(next, home).then(m => { if (alive && m) setD0Info(p => ({ ...p, drive: m })); }).catch(() => {});
+      // 라운딩 종료(티오프+4h) 후엔 올 때(구장→집) 소요로 — 목적지 기본=마이페이지 저장 출발지.
+      getScheduleDriveMin(next, home, { reverse: roundEnded }).then(m => { if (alive && m) setD0Info(p => ({ ...p, drive: m })); }).catch(() => {});
     }
     return () => { alive = false; };
-  }, [isD0, next?.id, next?.course, userProfile?.departureCoord?.x, userProfile?.departureCoord?.y]);
+  }, [isD0, roundEnded, next?.id, next?.course, userProfile?.departureCoord?.x, userProfile?.departureCoord?.y]);
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
