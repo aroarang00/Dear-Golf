@@ -40,7 +40,7 @@ export const homeS = StyleSheet.create({
   memoBadgeFirst:  { backgroundColor: '#6B1E2A', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   memoBadgeVisit:  { backgroundColor: '#3D3935', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   memoBadgeComment:{ backgroundColor: C.navy, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  memoBadgeTxt:    { fontFamily: F.sys, fontSize: fs(9), color: '#F5E6A8', letterSpacing: 1 },
+  memoBadgeTxt:    { fontFamily: F.sys, fontSize: fs(9), color: '#fff', letterSpacing: 1 }, // 기본 화이트(한줄메모) — 첫방문·골퍼코멘트는 각 use에서 색 지정
   memoCardCourse:  { fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.6)' },
   memoMain:        { fontFamily: F.sysSb, fontSize: fs(14), color: 'rgba(255,255,255,0.85)', marginBottom: 3 },
   memoSub:         { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' },
