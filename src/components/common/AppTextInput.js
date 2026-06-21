@@ -84,9 +84,14 @@ const AppTextInput = forwardRef(function AppTextInput(props, ref) {
         {...rest}
       />
       {isEmpty && placeholder != null && placeholder !== '' && (
-        <Text pointerEvents="none" numberOfLines={multiline ? undefined : 1} style={overlayStyle}>
-          {placeholder}
-        </Text>
+        // ★오버레이는 View(pointerEvents='none')로 감싼다 — 안드에서 <Text>의 pointerEvents는 불안정해,
+        //   입력칸이 TouchableOpacity 안에 있으면 빈 칸 탭이 TextInput 대신 부모로 빨려가 포커스가 안 잡혔음
+        //   (맛집 저장 메모 입력 불가 버그). View pointerEvents는 확실히 통과 → TextInput이 탭을 받음.
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Text numberOfLines={multiline ? undefined : 1} style={overlayStyle}>
+            {placeholder}
+          </Text>
+        </View>
       )}
     </View>
   );
