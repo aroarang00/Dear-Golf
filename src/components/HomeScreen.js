@@ -786,13 +786,18 @@ export function HomeScreen({ navigation, route }) {
                     <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
                       backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
                       alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontFamily: dmUnread > 0 ? F.sysB : F.brand,
-                        fontSize: fs(dmUnread > 0 ? (dmUnread > 99 ? 10 : 13) : 13), lineHeight: fs(13),
-                        color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
-                        /* 안드는 includeFontPadding:false로 -1에서 정확히 센터. iOS는 그 보정이 없어 'DM'이 위로 치우쳐 +2로 내려 원 안 정중앙에 맞춤(살짝 높던 것 보정). */
-                        marginTop: dmUnread > 0 ? (Platform.OS === 'ios' ? 1 : 0) : (Platform.OS === 'ios' ? 2 : -1) }}>
-                        {dmUnread > 0 ? (dmUnread > 99 ? '99+' : dmUnread) : 'DM'}
-                      </Text>
+                      {dmUnread > 0 ? (
+                        // 안읽음 — 기존 그대로(버건디+숫자, 눈에 잘 띔)
+                        <Text style={{ fontFamily: F.sysB,
+                          fontSize: fs(dmUnread > 99 ? 10 : 13), lineHeight: fs(13),
+                          color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
+                          marginTop: Platform.OS === 'ios' ? 1 : 0 }}>
+                          {dmUnread > 99 ? '99+' : dmUnread}
+                        </Text>
+                      ) : (
+                        // 읽음 — 종이비행기(편지 날아가는) 드로잉 ('DM' 글씨 대체)
+                        <Icon name="send" size={fs(28)} color={C.butter} strokeWidth={1.7} />
+                      )}
                     </View>
                   </View>
                 </Animated.View>
