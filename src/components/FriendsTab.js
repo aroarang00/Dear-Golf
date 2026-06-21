@@ -84,19 +84,19 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(_and ? 14 : 15), color: C.charcoal }}>{friend.name || '친구'}</Text>
-            {/* 새 글 = 'New' 칩 (워시만으론 안 보임 피드백, 2026-06-13) */}
-            {isNew && (
-              <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1.5 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff', letterSpacing: 0.3 }}>New</Text>
-              </View>
-            )}
             {muted && <Text style={{ fontSize: fs(10) }}>🔕</Text>}
           </View>
           {fStatus ? (
             <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2 }}>{fStatus}</Text>
           ) : null}
         </View>
-        {/* › 내비 신호만 — 목록은 깔끔하게, 스탯(라베·핸디)·뱃지는 상세 명함에서 (사용자 2026-06-20) */}
+        {/* 새 글 = 'New' 칩 — 행 우측에 배치(허전한 우측 채움, 사용자 2026-06-22) */}
+        {isNew && (
+          <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1.5, marginLeft: 8 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff', letterSpacing: 0.3 }}>New</Text>
+          </View>
+        )}
+        {/* › 내비 신호 — 스탯(라베·핸디)·뱃지는 상세 명함에서 (사용자 2026-06-20) */}
         <Text style={{ fontFamily: F.sys, fontSize: fs(17), color: C.warmGrayLight, marginLeft: 8 }}>›</Text>
       </View>
     </TouchableOpacity>
