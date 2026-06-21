@@ -925,7 +925,8 @@ export function HomeScreen({ navigation, route }) {
                         <View style={{ backgroundColor: 'rgba(245,230,168,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
                         </View>
-                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{next.course}</Text>
+                        {/* 안드 adjustsFontSizeToFit는 numberOfLines>1이면 축소 대신 줄바꿈됨 → 안드만 1줄 강제(축소 동작) ([[rn-platform-gotchas]]) */}
+                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{next.course}</Text>
                         <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         {isRecorded(next) ? (
                           <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 16 }}
@@ -952,7 +953,7 @@ export function HomeScreen({ navigation, route }) {
                       <View style={{ flex: 1, paddingTop: 2 }}>
                         {/* 구장+날짜 탭 → 코스 페이지 */}
                         <TouchableOpacity activeOpacity={canOpenCourse(next) ? 0.7 : 1} onPress={() => handleCardCoursePress(next)}>
-                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{next.course}
+                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{next.course}
                             {canOpenCourse(next) ? <Text style={{ fontSize: fs(12), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
