@@ -32,13 +32,14 @@ title                   // "○○동호회 정기전"
 course, courseId, courseX/Y, courseLoc, courseKakaoId
 date                    // 보통 같은 날 1개
 roundupId | null        // 라운지에서 왔으면 연결
-teams: [                // 조 배열
-  { idx, teeTime|null, groupId, memberUids:[≤4] }   // teeTime 미정 허용
+teams: [                // 조 배열 (주최자가 수동 배정)
+  { idx, teeTime|null, subCourse|null, booker|null, groupId, memberUids:[≤4] }
+  // teeTime·세부코스·예약자(booker)는 조별로 다를 수 있음. 전부 미정(null) 허용
 ]
 participantUids: [...]  // 전체(읽기 권한·쿼리용)
-meal: {                 // 이벤트 식사(전체 회식) — 주최자 지정, 1곳. 없으면 null
-  place:{name,x,y,kakaoId,loc}, note, decidedBy, decidedAt
-} | null
+meals: [                // 이벤트 회식 — 주최자 지정, 최대 2곳. 없으면 []
+  { place:{name,x,y,kakaoId,loc}, note, decidedBy, decidedAt }
+]
 createdAt, updatedAt
 ```
 
@@ -66,7 +67,7 @@ createdAt, updatedAt
 ## 4. 식사 / 체크인 / 교통 레벨
 | 항목 | 레벨 / 주체 |
 |---|---|
-| **식사(회식)** | **이벤트 레벨, 주최자가 1곳** (기본). 조별 식사는 옵션·후순위 |
+| **식사(회식)** | **이벤트 레벨, 주최자가 최대 2곳** 지정. 조별 식사는 옵션·후순위 |
 | **체크인 카드** | **조 레벨** — 조마다 티오프·예약(booker)이 달라 각 조 카드에 그 조 예약자 |
 | 교통·날씨 | 개인/구장 단위(그대로) |
 
@@ -76,13 +77,15 @@ createdAt, updatedAt
 
 ### 5-A. 라운지 단체 확정
 1. 모집(teams=N) → 참가자 flat 수집(현행 유지).
-2. **[확정] 시: 조 편성 시트**(자동분할+수동이동, 조별 티오프 미정 허용).
+2. **[확정] 시: 조 편성 시트** — **주최자가 직접 배정(자동분할 없음)** + 조별 티오프·세부코스 입력(미정 허용).
 3. 공통 코어(CF)로 생성.
 
 ### 5-B. 홈 · 일정 캘린더 전파
 1. 내 일정 → 친구 초대(현행). **≤4면 현행 그대로(단일 조, 이벤트 없음).**
-2. 5인 초과 / "여러 조로 나누기" 선택 시 → **같은 조 편성 시트** 진입.
+2. 5인 초과 / "여러 조로 나누기" 선택 시 → **같은 조 편성 시트**(주최자 수동 배정) 진입.
 3. 공통 코어(CF)로 승격(이벤트+조 생성).
+
+> 티오프는 **팀먼저/티먼저 양방향** 지원: 미정으로 만들고 예약 확정 후 채워도 됨(주최자 수정). 간격은 구장마다 달라 **하드코딩 X — 주최자 입력**(원하면 첫 조+간격으로 자동 채움 헬퍼, 값은 입력값).
 
 ### 공통 결과
 - 서버(CF) 트랜잭션: event 1 + scheduleGroups N + 참가자별 schedule(자기 조 groupId·eventId·teeTime).
@@ -106,10 +109,13 @@ createGroupEvent({
   //          + 참가자별 schedules upsert(eventId·groupId·teeTime)
   // 알림: 참가자별 1푸시(자기 조·티오프)
 
-updateEventTeams({ eventId, teams })   // 주최자만 — 조/시간 재배정
-setEventMeal({ eventId, place, note }) // 주최자만 — 전체 회식 지정
+updateEventTeams({ eventId, teams })          // 주최자만 — 조/시간/세부코스/booker 재배정
+setEventMeals({ eventId, meals[≤2] })         // 주최자만 — 전체 회식(최대 2곳)
+transferEventOrganizer({ eventId, toUid })    // 주최자만 — 위임(toUid는 participantUids 내). ★필수
+cancelEvent({ eventId })                       // 주최자만 — 전체 취소(status:'cancelled')
 ```
 - 라운지 확정은 `createGroupEvent({source:'roundup', ...})`, 전파 승격은 `({source:'schedule', ...})`로 **동일 코어 호출**. 진입점별 래퍼만 얇게.
+- **위임/취소도 CF 경유** — `organizerUid`를 남에게 바꾸는 건 단순 오너 규칙(`organizerUid==me`)으로 막히므로, CF(Admin)가 현 주최자 검증 후 교체 → 규칙 완화 불필요.
 
 ## 7. 보안 규칙 초안
 ### 신규 — `scheduleEvents` (단순 오너, 배열 교차검증 없음)
@@ -145,9 +151,9 @@ match /scheduleEvents/{eventId} {
 ## 9. 단계별 로드맵
 - **Phase 0** — 스키마/필드(`scheduleEvents`, `eventId`) + **공통 코어 CF `createGroupEvent`** + 조 편성 시트(공용 컴포넌트).
 - **Phase 1 ★** — 두 진입점 연결: (a) 라운지 확정 → 조 편성, (b) 홈·캘린더 전파 5인+ → 조 편성. 둘 다 공통 코어 호출. *gap 닫는 최고가치.*
-- **Phase 2** — 조직자 오버뷰.
+- **Phase 2** — 조직자 오버뷰 + **위임(`transferEventOrganizer`, 필수)** + 전체취소(`cancelEvent`) + 결원 통지.
 - **Phase 3** — 횡단(전체 공지·단체 회식 고도화·조 재배정).
-- **Phase 4** — 라운지 밖 수동 단체 생성 + 공동 주최자/위임.
+- **Phase 4** — 라운지 밖 수동 단체 생성 + 공동 주최자(동시 2인).
 
 ## 10. 확정된 결정
 1. 카드는 **티오프(조)별 생성** — 기존 4인 모델 재사용.
@@ -160,12 +166,32 @@ match /scheduleEvents/{eventId} {
 8. **두 진입점(라운지 확정 / 홈·캘린더 전파) 모두 동일 모델**로 수렴 — 공통 코어 `createGroupEvent` 사용. 조 ≤1=현행, 2+=이벤트 승격.
 
 ## 11. 리스크 & 완화
-- 주최자 단일점 → 후속 공동 주최자/위임(Phase 4).
+- 주최자 단일점 → **위임(필수, `transferEventOrganizer`)** 으로 해소. 공동 주최자(동시 2인)는 후속.
 - 조 내용 desync(조원이 조 시간 수정) → v1 허용(blast radius=4), 필요시 주최자 잠금.
 - 알림 스팸 → "내 조 변경 시 그 조만" 팬아웃, 전체 공지는 집계.
 - 규칙 false-denial → CI 테스트 + 실데이터 선제 점검.
 
 ## 12. 미해결 / 후속 논의
-- 체크인 booker: 조별 예약자 입력 UX(단일 예약 vs 조별).
-- 조별 식사 옵션의 진입점(필요 시).
-- 단체 취소(주최자 전체 취소) 알림 정책.
+- 조별 식사 옵션의 진입점(필요 시, 후순위).
+- 공동 주최자(동시 2인) UX(Phase 4) — 단일 위임은 Phase 2 필수 포함.
+
+## 13. 세부 결정 (2026-06-22 확정)
+- **A. 체크인 booker** — **단일(단체 예약명) 기본, 전 조 공유**. 조별로 다르면 조 편성 시트에서 **조별 override**(teams[i].booker).
+- **B. 조 편성** — **주최자 수동 배정(자동분할 없음).** CF가 생성/재배정을 처리하므로 **규칙 변경·부담 없음**(주최자는 배정만 선택).
+- **C. 티오프/세부코스** — 조별. **미정 허용(팀먼저·티먼저 양방향)**, 나중 수정 가능. 간격 하드코딩 X(주최자 입력). **세부코스(subCourse)도 조별로 다를 수 있음**(같은 구장 내 다른 코스). 구장(course)은 이벤트 공유.
+- **D~E. 취소/결원** — 아래 표.
+- **F. 식사** — 이벤트 회식 **최대 2곳, 주최자 주관**. audience=전 참가자.
+- **G. 정합성** — **`scheduleEvents.teams`가 단일 진실원, 주최자 단독 수정**(CF 경유 → 조 그룹·참가자 일정 동기화). 양방향 편집 금지.
+- **H. 하위호환** — 신규부터 적용. 기존 확정 단체(flat·단일시간)는 그대로.
+
+### 취소/이탈 경우의 수 (확정)
+| 경우 | 누가 | 처리 |
+|---|---|---|
+| 이벤트 전체 취소 | **주최자 단독** | `status:'cancelled'` 표시 → 전원 취소 푸시 → **각 앱이 자기 카드 정리**(기존 `reconcileRoundupOrphans` 패턴 재사용, 규칙/CF 부담 최소) |
+| 개인 참가 취소(조원) | 본인(셀프) | 조용히 탈퇴(기존) + **주최자에게만 "○조 결원" 알림**(보충용). 친구 1:1 일정은 무통지였으나 단체는 주최자 통지 |
+| 조 단위 축소/취소 | 주최자 | 별도 화면 X — **조 편성 수정으로 흡수**, **해당 조원에게만** 알림 |
+| 주최자 본인 불참 | 주최자 | **위임(필수)** — 다른 참가자에게 organizerUid 넘김(`transferEventOrganizer`). 위임 안 하면 전체취소 |
+
+→ 취소 로직은 사실상 **2종(전체취소 / 개인이탈)** + **위임**으로 단순.
+
+- **I. 주최자 위임 (필수)** — 주최자 개인사정 불참 시 **다른 참가자에게 위임 가능해야 함.** `transferEventOrganizer`(CF, 현 주최자만, 대상=참가자). 위임 후 새 주최자가 수정/취소 권한 보유. 단독 주최의 단일점 리스크를 이걸로 해소.
