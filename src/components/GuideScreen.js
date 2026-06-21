@@ -772,7 +772,7 @@ export function GuideScreen({ route, navigation }) {
               <View style={{ alignItems: 'flex-end', paddingTop: 2, marginRight: 8 }}>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginBottom: 3 }}>골퍼평점</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ color: '#E0A800', fontSize: fs(22) }}>★</Text>
+                  <Icon name="star" size={fs(23)} color="#F2B441" />
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(25), color: C.charcoal }}>{rating.overall.toFixed(1)}</Text>
                 </View>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }}>5점 만점</Text>
@@ -927,7 +927,7 @@ export function GuideScreen({ route, navigation }) {
                 Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10 }, android: { elevation: 6 } })]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                    <Text style={{ fontSize: fs(19) }}>⭐</Text>
+                    <Icon name="star" size={fs(20)} color="#F2B441" />
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, letterSpacing: 0.3 }}>코스 평점</Text>
                   </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>

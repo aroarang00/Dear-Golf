@@ -45,7 +45,7 @@ const distLabel = (m) => {
 
 // 공통 섹션 래퍼 — 깔끔한 흰 카드(둥근 모서리·얇은 테두리·부드러운 그림자)로 통일.
 //   색색 헤더 바 폐기(사용자 2026-06-20, 세련된 박스화). 아이콘은 title 안 이모지로 구분. headerBg/titleColor는 무시(호환용).
-function Section({ title, icon, right, children, onRightPress }) {
+function Section({ title, icon, iconColor, iconSize, right, children, onRightPress }) {
   return (
     // 바깥 = 그림자(입체감)·둥근 모서리. 안 = overflow:hidden 클립(같은 View에 그림자+overflow면 iOS서 그림자 잘림).
     <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 14, backgroundColor: C.bgSecondary,
@@ -54,7 +54,7 @@ function Section({ title, icon, right, children, onRightPress }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           paddingHorizontal: 14, paddingTop: 13, paddingBottom: 9, gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, gap: 6 }}>
-            {icon ? <Icon name={icon} size={fs(15)} color={C.warmGray} /> : null}
+            {icon ? <Icon name={icon} size={iconSize || fs(15)} color={iconColor || C.warmGray} /> : null}
             <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, letterSpacing: 0.3 }}>{title}</Text>
           </View>
           {right ? (
@@ -538,7 +538,8 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       {/* 4. 내 저장 골프장 — 코스 상세에서 저장한 위시리스트(savedCourses). 개수 표시 + ↑/↓ 순서 편집.
           (기존 '주변 연습장'은 카카오 데이터 부정확으로 대체 — 사용자 2026-06-20) */}
       <Section
-        title={`⭐ 내 저장 골프장${savedFav.length ? ` ${savedFav.length}곳` : ''}`}
+        title={`내 저장 골프장${savedFav.length ? ` ${savedFav.length}곳` : ''}`}
+        icon="star" iconColor="#F2B441" iconSize={fs(20)}
         right={savedFav.length > 1 ? (favEditMode ? '완료' : '순서 편집') : undefined}
         onRightPress={savedFav.length > 1 ? () => setFavEditMode(v => !v) : undefined}
         headerBg={C.paleSky}

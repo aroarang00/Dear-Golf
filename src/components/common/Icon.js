@@ -161,6 +161,20 @@ const ICONS = {
       <Path d="M7.4 7.8 L14.5 12.6 L21.6 7.8" transform="rotate(-10 14 12)" />
     </>
   ),
+  // ★ 별 — ⭐ 느낌 정통 5각 + 금빛 그라데이션(위 밝음→아래 진함)으로 반짝이는 입체감.
+  //   평점(골퍼·코스)·저장 공용. iOS/안드 동일 렌더. (color prop 무시 — 고정 금빛 그라데이션)
+  star: () => (
+    <>
+      <Defs>
+        <LinearGradient id="dgStar" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#FBD262" />
+          <Stop offset="1" stopColor="#E2922C" />
+        </LinearGradient>
+      </Defs>
+      <Path d="M12 2.5 L14.4 8.7 L21 9.1 L15.9 13.3 L17.6 19.7 L12 16.1 L6.4 19.7 L8.1 13.3 L3 9.1 L9.6 8.7 Z"
+        fill="url(#dgStar)" stroke="none" strokeLinejoin="round" />
+    </>
+  ),
   // ♡ 좋아요 하트(아웃라인) — 미좋아요 상태. stroke=color. 명령 공백 C/Z(iOS 안전).
   heart: () => (
     <Path d="M12 20.5 C12 20.5 3.5 14.5 3.5 8.5 C3.5 5.8 5.8 4 8 4 C9.8 4 11.3 5 12 6.5 C12.7 5 14.2 4 16 4 C18.2 4 20.5 5.8 20.5 8.5 C20.5 14.5 12 20.5 12 20.5 Z" />
