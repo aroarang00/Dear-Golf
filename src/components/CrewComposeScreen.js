@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 모달 입력 가림 방지
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
+import { uploadRoundMedia } from '../utils/roundMedia';
+import { addCrewPost, setCrewNotice } from '../utils/crews';
+import { showAppAlert } from './AppAlert';
 
 // 크루 올리기(작성) — 앨범 FAB(＋)에서 진입 (docs/crew-space-design.md §3.3).
 //  글 + 사진/영상(합 10개·동영상 1개·30초) / 공지(텍스트만, 토글). 비속어 필터. 페일스카이 라이트.
-//  ※ Phase 1 — 미디어는 mock(placeholder)로 추가. 실제 expo-image-picker(MAX_PHOTOS=10·MAX_VIDEO_SEC=30) 연결은 디테일 단계.
+//  미디어=expo-image-picker → uploadRoundMedia(rounds/{uid}, https)로 업로드 후 addCrewPost.
 const BG    = '#C8D9E6';
 const INK   = '#1A3D52';
 const SUB   = 'rgba(26,61,82,0.55)';
@@ -20,29 +26,70 @@ const LINE  = 'rgba(26,61,82,0.12)';
 const MAX_MEDIA = 10;
 const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
-const TINTS = ['#A9C2D6', '#C9B7A0', '#B0C99A', '#D6BBA9', '#A9B8D6', '#C7A9C2'];
+const MAX_VIDEO_SEC = 30;
 
-export function CrewComposeScreen({ crew, onClose, onSubmit }) {
+export function CrewComposeScreen({ crew, onClose }) {
   useAndroidBack(true, onClose);
+  const currentUid = useCurrentUid();
+  const crewId = crew?.id;
   const [text, setText] = useState('');
-  const [media, setMedia] = useState([]);
+  const [media, setMedia] = useState([]);      // {type:'image'|'video', uri}
   const [isNotice, setIsNotice] = useState(false);
   const [err, setErr] = useState('');
+  const [posting, setPosting] = useState(false);
 
   const hasVideo = media.some((m) => m.type === 'video');
   const full = media.length >= MAX_MEDIA;
-  const addPhoto = () => { if (full) return; setMedia((p) => [...p, { type: 'image', tint: TINTS[p.length % TINTS.length] }]); };
-  const addVideo = () => { if (full || hasVideo) return; setMedia((p) => [...p, { type: 'video', tint: TINTS[p.length % TINTS.length] }]); };
+
+  const addPhoto = async () => {
+    if (full || posting) return;
+    try {
+      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const remaining = MAX_MEDIA - media.length;
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: remaining, quality: 1 });
+      if (res.canceled) return;
+      const picked = (res.assets || []).filter((a) => a?.uri).slice(0, remaining).map((a) => ({ type: 'image', uri: a.uri }));
+      setMedia((p) => [...p, ...picked].slice(0, MAX_MEDIA));
+    } catch (e) { if (__DEV__) console.warn('[crewCompose] addPhoto', e?.message); }
+  };
+  const addVideo = async () => {
+    if (full || hasVideo || posting) return;
+    try {
+      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], allowsMultipleSelection: false, quality: 1, videoMaxDuration: MAX_VIDEO_SEC });
+      if (res.canceled) return;
+      const a = (res.assets || [])[0];
+      if (a?.uri) setMedia((p) => p.some((m) => m.type === 'video') ? p : [...p, { type: 'video', uri: a.uri }].slice(0, MAX_MEDIA));
+    } catch (e) { if (__DEV__) console.warn('[crewCompose] addVideo', e?.message); }
+  };
   const removeMedia = (i) => setMedia((p) => p.filter((_, idx) => idx !== i));
 
   const limit = isNotice ? MAX_NOTICE : MAX_TEXT;
   const canPost = isNotice ? text.trim().length > 0 : (text.trim().length > 0 || media.length > 0);
 
-  const submit = () => {
+  const submit = async () => {
     const body = text.trim();
-    if (!canPost) return;
+    if (!canPost || posting) return;
     if (body && containsProfanity(body)) { setErr(PROFANITY_BLOCK_MESSAGE); return; }
-    onSubmit({ isNotice, text: body, media: isNotice ? [] : media });
+    if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
+    if (!crewId) return;
+    setPosting(true);
+    try {
+      if (isNotice) {
+        await setCrewNotice(crewId, body, currentUid);
+      } else {
+        const up = media.length ? await uploadRoundMedia(currentUid, media) : [];
+        await addCrewPost(crewId, { authorUid: currentUid, text: body, media: up });
+      }
+      onClose();   // 실시간 구독이 앨범에 즉시 반영
+    } catch (e) {
+      if (__DEV__) console.warn('[crewCompose] submit', e?.code, e?.message);
+      setPosting(false);
+      showAppAlert('게시 실패', e?.code === 'permission-denied'
+        ? '권한이 없어요. 크루 멤버인지 확인해주세요.' : (e?.message || '잠시 후 다시 시도해주세요.'));
+    }
   };
 
   return (
@@ -58,9 +105,10 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
           <Text style={{ fontSize: fs(20), color: INK }}>✕</Text>
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{isNotice ? '공지 작성' : '새 게시물'}</Text>
-        <TouchableOpacity onPress={submit} disabled={!canPost} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          style={{ backgroundColor: canPost ? SAGE_DEEP : 'rgba(94,126,66,0.25)', borderRadius: 9, paddingHorizontal: 16, paddingVertical: 7 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>게시</Text>
+        <TouchableOpacity onPress={submit} disabled={!canPost || posting} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+          style={{ backgroundColor: (canPost && !posting) ? SAGE_DEEP : 'rgba(94,126,66,0.25)', borderRadius: 9, paddingHorizontal: 16, paddingVertical: 7, minWidth: 56, alignItems: 'center' }}>
+          {posting ? <ActivityIndicator size="small" color="#fff" />
+                   : <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>게시</Text>}
         </TouchableOpacity>
       </View>
 
@@ -119,9 +167,11 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
               {media.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                   {media.map((m, i) => (
-                    <View key={i} style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: m.tint,
+                    <View key={i} style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: 'rgba(26,61,82,0.08)',
                       alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      <Icon name={m.type === 'video' ? 'video' : 'image'} size={fs(24)} color="rgba(255,255,255,0.9)" strokeWidth={1.4} />
+                      {m.type === 'image'
+                        ? <Image source={{ uri: m.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                        : <Icon name="video" size={fs(24)} color="rgba(26,61,82,0.5)" strokeWidth={1.4} />}
                       {m.type === 'video' && (
                         <View style={{ position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 7, paddingHorizontal: 5, paddingVertical: 1 }}>
                           <Text style={{ fontSize: fs(9), color: '#fff' }}>영상</Text>

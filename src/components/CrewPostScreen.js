@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 RN Modal서 reanimated 키보드훅 무효 → 명령형 이벤트로 처리(DM 동일)
@@ -7,11 +7,13 @@ import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
+import { subscribeCrewComments, addCrewComment } from '../utils/crews';
+import { resolveMemberDisplay } from '../utils/friends';
 
 // 크루 게시물 상세 — 피드/그리드에서 게시물 탭 시 진입 (docs/crew-space-design.md §3.2).
-//  글(옵션) + 미디어(옵션, 글만 가능) + 그 게시물의 댓글(B안). 페일스카이 라이트 테마.
-//  ※ Phase 1 — mock 댓글. 실제 미디어·업로드·삭제·실댓글은 이어서.
+//  글(옵션) + 미디어(옵션, 글만 가능) + 그 게시물의 댓글(B안, 실시간). 페일스카이 라이트 테마.
 const BG      = '#C8D9E6';               // 헤더·하단 입력바 = 페일스카이(타 화면과 통일)
 const CONTENT = '#FFFFFF';               // ★본문(스크롤)만 화이트 — 게시글 부각
 const INK   = '#1A3D52';
@@ -19,12 +21,26 @@ const SUB   = 'rgba(26,61,82,0.55)';
 const CARD  = '#FFFFFF';
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
+const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
+const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 
-const INIT_COMMENTS = [
-  { id: 'm1', n: '민', c: '#5B86A8', name: '민수', body: '스윙 좋다 👍', time: '2일 전',
-    replies: [{ id: 'm1r0', n: '나', c: '#5E7E42', name: '나', body: '고마워 ㅎㅎ', time: '2일 전' }] },
-  { id: 'm2', n: '영', c: '#8FB06B', name: '영지', body: '여기 어디야? 코스 예쁘다', time: '1일 전', replies: [] },
-];
+function fmtTime(ts) {
+  const ms = ts?.toMillis ? ts.toMillis() : 0;
+  if (!ms) return '방금';
+  const d = new Date(ms);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return '방금';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`;
+  if (d.toDateString() === now.toDateString()) return `${Math.floor(diff / 3600000)}시간 전`;
+  const a = new Date(d); a.setHours(0, 0, 0, 0);
+  const t = new Date(now); t.setHours(0, 0, 0, 0);
+  const days = Math.round((t - a) / 86400000);
+  if (days === 1) return '어제';
+  if (days <= 6) return `${days}일 전`;
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
+}
 
 // 사진 있으면 프로필 사진, 없으면 이니셜(친구·DM과 동일 폴백). uri는 실데이터 연결 시 주입.
 function Avatar({ n, c, size = 32, onPress, uri }) {
@@ -58,33 +74,69 @@ export function CrewPostScreen({ post, crew, onClose }) {
     ];
     return () => subs.forEach((s) => s.remove());
   }, []);
-  const [comments, setComments] = useState(post?.comments > 0 ? INIT_COMMENTS : []);
+  const currentUid = useCurrentUid();
+  const crewId = crew?.id;
+  const postId = post?.id;
+  const [commentDocs, setCommentDocs] = useState(null);  // 평면 댓글(parentId로 스레딩) — null=로딩
+  const [display, setDisplay] = useState({});            // uid→{name,avatarUri}
   const [draft, setDraft] = useState('');
   const [err, setErr] = useState('');                  // 비속어 안내
+  const [sending, setSending] = useState(false);
   const [profileFor, setProfileFor] = useState(null);  // 프로필 탭 → DM 시트 대상
   const [replyTo, setReplyTo] = useState(null);        // 대댓글 대상 { id, name }
-
-  const totalCount = comments.reduce((a, c) => a + 1 + (c.replies?.length || 0), 0);
 
   const author = post?.author || { n: '나', c: SAGE_DEEP, name: '나' };
   const media = post?.media || [];
   const caption = post?.text || '';
   const time = post?.time || '';
 
-  const send = () => {
+  // 댓글 실시간 구독
+  useEffect(() => {
+    if (!crewId || !postId) return;
+    return subscribeCrewComments(crewId, postId, setCommentDocs);
+  }, [crewId, postId]);
+
+  // 댓글 작성자 표시정보 resolve(보는 사람 별명 우선)
+  const authorKey = useMemo(() => (commentDocs || []).map((c) => c.authorUid).join(','), [commentDocs]);
+  useEffect(() => {
+    const uids = [...new Set([...(commentDocs || []).map((c) => c.authorUid), author?.id].filter(Boolean))];
+    if (!uids.length) { setDisplay({}); return; }
+    let alive = true;
+    resolveMemberDisplay(uids, { myUid: currentUid, namesFallback: crew?._doc?.names || {} })
+      .then((m) => { if (alive) setDisplay(m || {}); }).catch(() => {});
+    return () => { alive = false; };
+  }, [authorKey, currentUid]);
+
+  // 평면 → 스레드(최상위 + 대댓글). 각 댓글에 표시정보 입힘.
+  const comments = useMemo(() => {
+    const deco = (c) => {
+      const d = display[c.authorUid] || {};
+      const name = d.name || (crew?._doc?.names || {})[c.authorUid] || '친구';
+      return { id: c.id, authorUid: c.authorUid, body: c.body || '', time: fmtTime(c.createdAt),
+        name, n: name.charAt(0), c: colorOf(c.authorUid), uri: d.avatarUri || null, parentId: c.parentId || null };
+    };
+    const all = (commentDocs || []).map(deco);
+    const tops = all.filter((c) => !c.parentId);
+    return tops.map((t) => ({ ...t, replies: all.filter((r) => r.parentId === t.id) }));
+  }, [commentDocs, display]);
+
+  const totalCount = (commentDocs || []).length;
+
+  const send = async () => {
     const body = draft.trim();
-    if (!body) return;
+    if (!body || sending) return;
     if (containsProfanity(body)) { setErr(PROFANITY_BLOCK_MESSAGE); return; }   // 기존 필터 재사용
-    const mine = { n: '나', c: SAGE_DEEP, name: '나', body, time: '방금' };
-    if (replyTo) {
-      // 대댓글 — 대상 댓글의 replies에 추가
-      setComments((prev) => prev.map((c) => c.id === replyTo.id
-        ? { ...c, replies: [...(c.replies || []), { id: `${c.id}r${(c.replies || []).length}`, ...mine }] } : c));
-      setReplyTo(null);
-    } else {
-      setComments((prev) => [...prev, { id: `me${prev.length}`, ...mine, replies: [] }]);
+    if (!currentUid || !crewId || !postId) return;
+    const parentId = replyTo?.id || null;
+    setDraft(''); setErr(''); setReplyTo(null); setSending(true);
+    try {
+      await addCrewComment(crewId, postId, { authorUid: currentUid, body, parentId });
+    } catch (e) {
+      if (__DEV__) console.warn('[crewPost] addComment', e?.code, e?.message);
+      setDraft(body);   // 실패 시 입력 복원
+    } finally {
+      setSending(false);
     }
-    setDraft(''); setErr('');
   };
 
   return (
@@ -123,9 +175,13 @@ export function CrewPostScreen({ post, crew, onClose }) {
           {/* 미디어 — 있을 때만(글만이면 생략). 여러장 가로 페이저 */}
           {media.length > 0 && (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }}>
-              {media.map((m, mi) => (
-                <View key={mi} style={{ width: winW, height: winW, backgroundColor: m.tint, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="image" size={fs(48)} color="rgba(255,255,255,0.85)" strokeWidth={1.3} />
+              {media.map((m, mi) => {
+                const imgUri = m.type === 'video' ? m.poster : m.uri;
+                return (
+                <View key={mi} style={{ width: winW, height: winW, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                  {imgUri
+                    ? <Image source={{ uri: imgUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={120} />
+                    : <Icon name={m.type === 'video' ? 'video' : 'image'} size={fs(48)} color="rgba(26,61,82,0.35)" strokeWidth={1.3} />}
                   {m.type === 'video' && (
                     <View style={{ position: 'absolute', width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ fontSize: fs(24), color: '#fff', marginLeft: 3 }}>▶</Text>
@@ -136,9 +192,10 @@ export function CrewPostScreen({ post, crew, onClose }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{mi + 1}/{media.length}</Text>
                     </View>
                   )}
-                  {/* 저장은 인라인 X — 탭하면 확대(풀스크린 줌 뷰어)에서 저장(expo-media-library). 실데이터 연결 시 뷰어 연동 */}
+                  {/* 저장은 인라인 X — 탭하면 확대(풀스크린 줌 뷰어)에서 저장(expo-media-library). 뷰어 연동은 후속 */}
                 </View>
-              ))}
+                );
+              })}
             </ScrollView>
           )}
 
