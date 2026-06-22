@@ -678,7 +678,7 @@ export function DiaryScreen({ route, navigation }) {
             <View pointerEvents="none" style={{ position: 'absolute', right: -2, bottom: -2,
               width: 26, height: 26, borderRadius: 13, backgroundColor: C.charcoal,
               borderWidth: 2, borderColor: C.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: fs(12) }}>📷</Text>
+              <Icon name="camera" size={fs(17)} color="#fff" strokeWidth={1.8} />
             </View>
             {/* 💬 메시지(DM) 진입은 친구 탭 헤더로 이관 — 테스터 발견성 피드백(2026-06-13, [[dm-design]]). 푸시 딥링크는 아래 Modal로 유지. */}
           </View>

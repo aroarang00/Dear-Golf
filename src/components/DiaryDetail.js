@@ -5,6 +5,7 @@ import { showAppAlert } from './AppAlert';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { Icon } from './common/Icon'; // 📷 → 커스텀 카메라
 import { COURSE_TAGS, COURSE_TAG_COLORS, getCountryFlag } from '../constants/data';
 import { dS } from '../styles/dS';
 import { formatNameList } from '../utils/nameList';
@@ -350,10 +351,11 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
           {photosToShow.length === 0 ? (
             // 사진 미등록 — 탭하면 수정(DiaryAddModal) 진입.
             <TouchableOpacity activeOpacity={0.85} onPress={() => setShowEditModal(true)}
-              style={{ paddingVertical: 18, paddingHorizontal: 16, borderRadius: 12,
+              style={{ paddingVertical: 18, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center',
                 backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
-                📷 사진을 등록하면 미리보기에{'\n'}대표 사진이 표시돼요.{'\n'}그날 라운딩의 순간을{'\n'}언제든 다시 볼 수 있어요.
+              <Icon name="camera" size={fs(26)} color={C.charcoal} strokeWidth={1.8} />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 20, marginTop: 8 }}>
+                사진을 등록하면 미리보기에{'\n'}대표 사진이 표시돼요.{'\n'}그날 라운딩의 순간을{'\n'}언제든 다시 볼 수 있어요.
               </Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy, textAlign: 'center', marginTop: 10 }}>
                 [수정]에서 사진 추가·편집하기
