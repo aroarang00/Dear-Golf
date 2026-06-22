@@ -96,7 +96,15 @@ export function CrewAlbumScreen({ crew, onClose }) {
       {/* 멤버 줄 + 공지 핀 */}
       <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row' }}>{members.map((m, i) => <MiniAvatar key={i} n={m.n} c={m.c} i={i} />)}</View>
+          <View style={{ flexDirection: 'row' }}>
+            {members.slice(0, 6).map((m, i) => <MiniAvatar key={i} n={m.n} c={m.c} i={i} />)}
+            {members.length > 6 && (
+              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
+                alignItems: 'center', justifyContent: 'center', marginLeft: -9 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), color: '#fff' }}>+{members.length - 6}</Text>
+              </View>
+            )}
+          </View>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginLeft: 10 }}>{members.length}명</Text>
           <View style={{ flex: 1 }} />
           <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

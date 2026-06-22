@@ -17,12 +17,15 @@ const SUB   = 'rgba(26,61,82,0.55)';     // 보조 텍스트
 const CARD  = '#FFFFFF';                 // 박스(초대·메뉴)
 const SAGE  = '#8FB06B';                 // 크루 아이덴티티(홈 진입 아이콘과 동색)
 const SAGE_DEEP = '#5E7E42';             // 헤더 화살표·크루 아이콘 — 페일스카이에서 또렷하게(진한 세이지)
-const LINE  = 'rgba(26,61,82,0.12)';     // 헤어라인
+const LINE  = 'rgba(26,61,82,0.12)';     // 헤어라인(카드 테두리 등)
+const ROW_LINE = 'rgba(26,61,82,0.25)';  // 크루 목록 행 구분선 — 더 또렷하게
 
 // ── mock 데이터 (디자인 확인용) ──
 const MOCK_INVITES = [
-  { id: 'i1', name: '주말 골퍼', inviter: '민수', members: 3,
-    avatars: [{ n: '민', c: '#5B86A8' }, { n: '수', c: '#C98B7F' }, { n: '영', c: '#8FB06B' }] },
+  { id: 'i1', name: '주말 골퍼', inviter: '민수', members: 9,
+    avatars: [{ n: '민', c: '#5B86A8' }, { n: '수', c: '#C98B7F' }, { n: '영', c: '#8FB06B' }, { n: '준', c: '#9B7FB0' }] },
+  { id: 'i2', name: '가족 라운딩', inviter: '영지', members: 4,
+    avatars: [{ n: '영', c: '#8FB06B' }, { n: '엄', c: '#C98B7F' }] },
 ];
 const INIT_CREWS = [
   { id: 'c1', name: '대학 동기', members: 5, last: '방금', newCount: 3, fav: false },
@@ -35,6 +38,23 @@ function MiniAvatar({ n, c, i }) {
     <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c, borderWidth: 1.5, borderColor: '#fff',
       alignItems: 'center', justifyContent: 'center', marginLeft: i === 0 ? 0 : -10 }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>{n}</Text>
+    </View>
+  );
+}
+
+// 아바타 스택 — 최대 max개만 겹쳐 표시, 나머지는 +N (20명이어도 4개+N). total=실제 인원.
+function AvatarStack({ avatars, total, max = 4 }) {
+  const shown = (avatars || []).slice(0, max);
+  const extra = (total || (avatars || []).length) - shown.length;
+  return (
+    <View style={{ flexDirection: 'row' }}>
+      {shown.map((a, i) => <MiniAvatar key={i} n={a.n} c={a.c} i={i} />)}
+      {extra > 0 && (
+        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
+          alignItems: 'center', justifyContent: 'center', marginLeft: -10 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>+{extra}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -108,35 +128,35 @@ export function CrewListScreen({ onClose }) {
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
-          {/* 초대됨 — 박스 처리(아바타 이미지 노출) */}
-          {invites.map((iv) => (
-            <View key={iv.id} style={{ backgroundColor: CARD, borderRadius: 16, padding: 14, marginBottom: 16,
-              shadowColor: '#1A3D52', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: SAGE, letterSpacing: 1, marginBottom: 10 }}>초대됨</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row' }}>
-                  {iv.avatars.map((a, i) => <MiniAvatar key={i} n={a.n} c={a.c} i={i} />)}
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK }}>{iv.name}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 2 }}>{iv.inviter}님이 초대 · {iv.members}명</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', marginTop: 14, gap: 8 }}>
-                <TouchableOpacity style={{ flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center', borderWidth: 1, borderColor: LINE }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: SUB }}>거절</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{ flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center', backgroundColor: SAGE }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>수락</Text>
-                </TouchableOpacity>
+          {/* 초대됨 — "초대됨 N" 헤더 + 컴팩트 행(여러 개여도 안 밀림) */}
+          {invites.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: SAGE_DEEP, letterSpacing: 1, marginBottom: 8 }}>초대됨 {invites.length}</Text>
+              <View style={{ backgroundColor: CARD, borderRadius: 14, borderWidth: 0.5, borderColor: LINE, overflow: 'hidden' }}>
+                {invites.map((iv, i) => (
+                  <View key={iv.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11,
+                    borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>
+                    <AvatarStack avatars={iv.avatars} total={iv.members} max={3} />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: INK }} numberOfLines={1}>{iv.name}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>{iv.inviter}님 초대 · {iv.members}명</Text>
+                    </View>
+                    <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SUB }}>거절</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{ backgroundColor: SAGE_DEEP, borderRadius: 8, paddingHorizontal: 13, paddingVertical: 6, marginLeft: 2 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>수락</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
             </View>
-          ))}
+          )}
 
           {/* 내 크루 — 아바타 없이 리스트. 탭=앨범 입장 / 길게=메뉴. 즐겨찾기 위로. */}
           {ordered.map((c) => editingId === c.id ? (
             <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
-              borderBottomWidth: 0.5, borderBottomColor: LINE }}>
+              borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
               <TextInput value={draft} onChangeText={setDraft} autoFocus
                 onSubmitEditing={saveEdit} returnKeyType="done"
                 placeholder="크루 이름" placeholderTextColor={SUB}
@@ -151,7 +171,7 @@ export function CrewListScreen({ onClose }) {
               onPress={() => setOpenCrew(c)}
               onLongPress={() => setMenuFor(c)} delayLongPress={280}
               style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
-                borderBottomWidth: 0.5, borderBottomColor: LINE }}>
+                borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: INK }}>{c.name}</Text>
