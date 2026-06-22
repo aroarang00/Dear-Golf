@@ -5,6 +5,7 @@ import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { CrewPostScreen } from './CrewPostScreen';
+import { CrewComposeScreen } from './CrewComposeScreen';
 
 // 크루 앨범 — 리스트에서 크루 탭 시 진입 (docs/crew-space-design.md §3.1).
 //  ★피드 + 사진 토글: 피드=글·사진·영상 섞인 카드(글만 가능), 사진=미디어만 그리드. 댓글은 게시물별(B안).
@@ -51,11 +52,21 @@ export function CrewAlbumScreen({ crew, onClose }) {
   const { width: winW } = useWindowDimensions();
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [openPost, setOpenPost] = useState(null);
+  const [composeOpen, setComposeOpen] = useState(false);
 
-  const posts = MOCK_POSTS;
   const members = MOCK_MEMBERS;
+  const [posts, setPosts] = useState(MOCK_POSTS);
+  const [notice, setNotice] = useState(MOCK_NOTICE);
+
+  // 게시 — 공지면 핀 교체(최신 대체), 아니면 피드 맨 위에 추가
+  const handleSubmit = ({ isNotice, text, media }) => {
+    if (isNotice) setNotice(text);
+    else setPosts((prev) => [{ id: `new_${prev.length}`, author: { n: '나', c: SAGE_DEEP, name: '나' }, time: '방금', text, media, comments: 0 }, ...prev]);
+    setComposeOpen(false);
+  };
 
   if (openPost) return <CrewPostScreen post={openPost} crew={crew} onClose={() => setOpenPost(null)} />;
+  if (composeOpen) return <CrewComposeScreen crew={crew} onClose={() => setComposeOpen(false)} onSubmit={handleSubmit} />;
 
   // 사진 탭 — 모든 게시물의 미디어를 펼친 그리드
   const PAD = 12, GAP = 4, COLS = 3;
@@ -89,11 +100,11 @@ export function CrewAlbumScreen({ crew, onClose }) {
             <Icon name="personAdd" size={fs(20)} color={SAGE_DEEP} strokeWidth={1.7} />
           </TouchableOpacity>
         </View>
-        {!!MOCK_NOTICE && (
+        {!!notice && (
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
             paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, borderWidth: 0.5, borderColor: LINE }}>
             <Text style={{ fontSize: fs(13), marginRight: 8 }}>📌</Text>
-            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: INK }} numberOfLines={2}>{MOCK_NOTICE}</Text>
+            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: INK }} numberOfLines={2}>{notice}</Text>
           </View>
         )}
       </View>
@@ -189,7 +200,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
       </ScrollView>
 
       {/* 올리기 FAB */}
-      <TouchableOpacity activeOpacity={0.85}
+      <TouchableOpacity activeOpacity={0.85} onPress={() => setComposeOpen(true)}
         style={{ position: 'absolute', right: 20, bottom: 28, width: 56, height: 56, borderRadius: 28, backgroundColor: SAGE_DEEP,
           alignItems: 'center', justifyContent: 'center', shadowColor: '#1A3D52', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
         <Text style={{ fontSize: fs(30), color: '#fff', marginTop: -2 }}>＋</Text>

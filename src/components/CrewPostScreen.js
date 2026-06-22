@@ -139,7 +139,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
         {/* 댓글 입력 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
           borderTopWidth: 0.5, borderTopColor: LINE, backgroundColor: BG }}>
-          <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} placeholder="댓글 달기…" placeholderTextColor={SUB}
+          <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} maxLength={300} placeholder="댓글 달기…" placeholderTextColor={SUB}
             style={{ flex: 1, backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
               fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginRight: 8 }}
             returnKeyType="send" onSubmitEditing={send} />
