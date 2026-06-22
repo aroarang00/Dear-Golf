@@ -842,7 +842,7 @@ export function DiaryScreen({ route, navigation }) {
                   {/* 첫 특별한 순간 안내 말풍선 — 카드가 접혀 있어 존재를 모르는 문제(테스터 피드백). 펼치거나 닫으면 다시 안 뜸 */}
                   {!hofExpanded && !hofHintSeen && (
                     <View style={{ marginTop: 8, backgroundColor: '#2A2622', borderRadius: 12, borderWidth: 1, borderColor: '#C9A84C55', paddingVertical: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Text style={{ fontSize: fs(18) }}>🏆</Text>
+                      <Icon name="trophy" size={fs(20)} />
                       <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', lineHeight: 18 }}>
                         '펼치기'를 누르면 특별한 순간 카드를 볼 수 있어요.{'\n'}갤러리에 저장해 친구들에게 공유할 수도 있어요.
                       </Text>

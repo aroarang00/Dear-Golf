@@ -8,6 +8,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks, normalizeCourseName } from '../utils/top100';
 import { getGolfCourses } from '../utils/golfCourses';
+import { Icon } from './common/Icon'; // 🏆 → 커스텀 트로피
 import { isRoundDiary } from '../utils/diaryKind';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -496,7 +497,10 @@ export function CourseLogTab({ avgRating, navigation }) {
         <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>🏆 100대 코스 도전하기</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="trophy" size={fs(18)} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>100대 코스 도전하기</Text>
+              </View>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>한국골프관광협회 2024-2025</Text>
             </View>
             <TouchableOpacity onPress={() => setTop100Open(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
