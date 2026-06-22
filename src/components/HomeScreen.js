@@ -410,6 +410,9 @@ export function HomeScreen({ navigation, route }) {
   // 당일 체크인 카드 배너 — D-0이고 티오프 30분 후까지(프론트 체크인용), 종료(+4h) 전. 탭하면 공유 카드 전체화면 ([[schedule-booker]])
   const checkinActive = !!next && isD0 && !roundEnded && now < teeoffMs(next) + 30 * 60000;
   const { width: winW } = useWindowDimensions();
+  // 확대(디스플레이 줌) 대응 배율 — winW가 360 이상이면 정확히 1(정상, 무변화), 좁아질수록(확대 ON) 비례 축소.
+  //   헤더 타이틀·날씨이모지가 함께 줄어 DM과 안 겹치게. 정상/확대를 깔끔히 구분(정상은 절대 안 건드림).
+  const zoomScale = Math.min(1, winW / 360);
   // 체크인 배너 맥동 — 활성일 때만 루프(은은한 scale + 골드 오버레이 opacity 펄스). MyScheduleTab 코스버튼과 동일 톤.
   //   ★LinearGradient를 Animated.View 안에 넣었더니 런타임 에러나서, 글로우는 단순 골드 오버레이 opacity 펄스로(안전).
   const checkinPulse = useRef(new Animated.Value(0)).current;
@@ -784,15 +787,16 @@ export function HomeScreen({ navigation, route }) {
               너무 붙지 않게 간격(marginLeft)·위로 올림(marginTop 음수). 사용자 위치 지정 2026-06-17. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* flex:1+minWidth:0 — 확대로 폭 좁아질 때 좌측(타이틀+날씨)이 양보해 우측 DM이 화면 밖으로 안 밀리게.
-                타이틀 adjustsFontSizeToFit — 폭 부족 시 잘림/말줄임 대신 살짝 축소(평소엔 여유 충분해 영향 없음). 날씨·DM은 그대로. */}
+                타이틀 축소는 iOS만 — 안드는 Lora 브랜드폰트에서 adjustsFontSizeToFit이 축소 못 하고 박스만 줄어 'Golf' 잘림([[rn-platform-gotchas]]).
+                안드는 원래대로(flexShrink:0, 축소X)라 안 잘림. DM 잘림은 원래 iOS 줌 이슈라 안드 영향 없음. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
-              <Text style={[homeS.hdrTitle, { flexShrink: 1 }]} numberOfLines={1} allowFontScaling={false} adjustsFontSizeToFit minimumFontScale={0.7}>Dear Golf</Text>
+              <Text style={[homeS.hdrTitle, Platform.OS === 'android' && { fontSize: fs(43) * zoomScale, lineHeight: fs(58) * zoomScale }, Platform.OS === 'ios' && { flexShrink: 1, lineHeight: fs(56) }]} numberOfLines={1} allowFontScaling={false} adjustsFontSizeToFit={Platform.OS === 'ios'} minimumFontScale={0.7}>Dear Golf</Text>
               <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
-                <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(42)} /></View>
+                <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(42) * zoomScale} /></View>
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: 0, marginLeft: 14 }}>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginLeft: 14, marginRight: Platform.OS === 'android' && zoomScale < 1 ? -8 : 0 }}>
               {/* DM 커스텀 버튼 — 반투명 버터 동그라미 + 균일 테두리. 안읽음=버건디+숫자. 안읽음 시 좌우 진동.
                   ★드롭섀도 제거(2026-06-18): 반투명 배경을 그림자가 투과해 iOS/안드 릴리즈에서 'DM 뒤 뿌연 팔각형'
                   아티팩트가 보였음(배경 없는 뷰의 그림자 다각형 근사 + elevation 팔각형). 깔끔함 우선으로 그림자 제거. */}
