@@ -74,7 +74,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
               <Avatar n={m.n} c={m.c} uri={m.uri} />
               <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }}>{m.name}</Text>
               {m.self && <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>나</Text>}
-              {!m.self && <Icon name="paperPlane" size={fs(17)} color="rgba(26,61,82,0.3)" strokeWidth={1.7} />}
+              {!m.self && <Icon name="send" size={fs(17)} color="rgba(26,61,82,0.3)" strokeWidth={1.7} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -97,7 +97,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
             </View>
             <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
-              <View style={{ width: 28 }}><Icon name="paperPlane" size={fs(18)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
+              <View style={{ width: 32 }}><Icon name="send" size={fs(22)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>메시지 보내기</Text>
             </TouchableOpacity>
           </View>

@@ -224,7 +224,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
             </View>
             <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
-              <View style={{ width: 28 }}><Icon name="paperPlane" size={fs(18)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
+              <View style={{ width: 32 }}><Icon name="send" size={fs(22)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>메시지 보내기</Text>
             </TouchableOpacity>
           </View>
