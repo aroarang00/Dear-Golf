@@ -95,6 +95,12 @@ export function CrewPostScreen({ post, crew, onClose }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{mi + 1}/{media.length}</Text>
                     </View>
                   )}
+                  {/* 저장 — 남이 올린 사진·영상 내 기기에 저장(expo-media-library 연결 예정) */}
+                  <TouchableOpacity onPress={() => { /* TODO 저장 */ }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ position: 'absolute', bottom: 14, right: 14, width: 40, height: 40, borderRadius: 20,
+                      backgroundColor: 'rgba(0,0,0,0.42)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="download" size={fs(20)} color="#fff" strokeWidth={1.9} />
+                  </TouchableOpacity>
                 </View>
               ))}
             </ScrollView>
@@ -130,10 +136,9 @@ export function CrewPostScreen({ post, crew, onClose }) {
             style={{ flex: 1, backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
               fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginRight: 8 }}
             returnKeyType="send" onSubmitEditing={send} />
-          <TouchableOpacity onPress={send} disabled={!draft.trim()}
-            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.35)',
-              alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="send" size={fs(20)} color="#fff" strokeWidth={1.8} />
+          {/* 전송 = 종이비행기(원 없이, DM 버튼과 구분) */}
+          <TouchableOpacity onPress={send} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 7 }}>
+            <Icon name="paperPlane" size={fs(24)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.8} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
