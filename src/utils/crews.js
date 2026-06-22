@@ -133,8 +133,8 @@ export async function addCrewPost(crewId, { authorUid, text = '', media = [] }) 
   const ref = await addDoc(collection(db, COL, crewId, 'posts'), {
     authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, createdAt: serverTimestamp(),
   });
-  // 크루 최근활동 갱신(목록 정렬·새 글 표시용)
-  updateDoc(doc(db, COL, crewId), { postCount: increment(1), lastPostAt: serverTimestamp(), updatedAt: serverTimestamp() })
+  // 크루 최근활동 갱신(목록 정렬·새 글 표시용). lastPostBy=작성자 → 내 글은 새 글 표시 제외
+  updateDoc(doc(db, COL, crewId), { postCount: increment(1), lastPostAt: serverTimestamp(), lastPostBy: authorUid, updatedAt: serverTimestamp() })
     .catch((e) => __DEV__ && console.warn('[crews] post meta', e?.message));
   return ref.id;
 }
@@ -152,6 +152,20 @@ export async function deleteCrewPost(crewId, postId) {
   await deleteDoc(doc(db, COL, crewId, 'posts', postId));
   updateDoc(doc(db, COL, crewId), { postCount: increment(-1), updatedAt: serverTimestamp() })
     .catch((e) => __DEV__ && console.warn('[crews] post dec', e?.message));
+}
+// ── 게시물 수정 — 작성자 본인(본문·미디어). editedAt 기록(작성자 불변) ──
+export async function editCrewPost(crewId, postId, { text = '', media = [] }) {
+  if (!crewId || !postId) return;
+  await updateDoc(doc(db, COL, crewId, 'posts', postId), {
+    text: (text || '').trim(), media: media || [], editedAt: serverTimestamp(),
+  });
+}
+// ── 단일 게시물 구독 — 상세 화면이 본문·미디어 수정을 실시간 반영(목록 거치지 않고) ──
+export function subscribeCrewPost(crewId, postId, cb) {
+  if (!crewId || !postId) { cb(null); return () => {}; }
+  return onSnapshot(doc(db, COL, crewId, 'posts', postId), (d) => {
+    cb(d.exists() ? { id: d.id, ...d.data() } : null);
+  }, (e) => { if (__DEV__) console.warn('[crews] subscribeCrewPost', e?.message); cb(null); });
 }
 
 // ── 댓글 / 대댓글 (parentId 있으면 대댓글) ──
@@ -178,4 +192,11 @@ export async function deleteCrewComment(crewId, postId, commentId) {
   await deleteDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId));
   updateDoc(doc(db, COL, crewId, 'posts', postId), { commentCount: increment(-1) })
     .catch((e) => __DEV__ && console.warn('[crews] comment dec', e?.message));
+}
+// ── 댓글 수정 — 작성자 본인(본문). editedAt 기록(작성자·parentId 불변) ──
+export async function editCrewComment(crewId, postId, commentId, { body = '' }) {
+  if (!crewId || !postId || !commentId || !(body || '').trim()) return;
+  await updateDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId), {
+    body: body.trim(), editedAt: serverTimestamp(),
+  });
 }

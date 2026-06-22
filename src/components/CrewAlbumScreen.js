@@ -177,12 +177,25 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         </TouchableOpacity>
       </View>
 
+      {/* 피드/사진 토글 — 고정 바(ScrollView 밖). 스티키 헤더 안에선 안드서 탭이 씹혀 전환 누락 → 분리(항상 또렷이 눌림) */}
+      <View style={{ backgroundColor: BG, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
+        <View style={{ flexDirection: 'row', marginHorizontal: 14,
+          backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
+          {[['feed', '피드'], ['photos', '사진']].map(([t, label]) => (
+            <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.85} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+              style={{ flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]} scrollEventThrottle={16}
+        scrollEventThrottle={16}
         onScroll={(e) => setShowTop(e.nativeEvent.contentOffset.y > 320)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SAGE_DEEP} colors={[SAGE_DEEP]} />}>
 
-        {/* index 0 — 공지(스크롤로 흘러감, 길면 더보기) */}
+        {/* 공지(스크롤로 흘러감, 길면 더보기) */}
         <View>
           {!!notice && (
             <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
@@ -203,20 +216,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
           )}
         </View>
 
-        {/* index 1 — 피드/사진 토글(★sticky: 스크롤 내려도 상단 고정). BG 배경으로 아래 콘텐츠 가림 */}
-        <View style={{ backgroundColor: BG, paddingTop: 12, paddingBottom: 2 }}>
-          <View style={{ flexDirection: 'row', marginHorizontal: 14,
-            backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
-            {[['feed', '피드'], ['photos', '사진']].map(([t, label]) => (
-              <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.8}
-                style={{ flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* index 2 — 콘텐츠 */}
+        {/* 콘텐츠 */}
         <View style={{ paddingTop: 10 }}>
         {loading ? (
           <View style={{ paddingTop: 50, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>

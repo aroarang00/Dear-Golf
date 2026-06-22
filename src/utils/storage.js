@@ -36,6 +36,7 @@ export const STORAGE_KEYS = {
   sentFriendRequests: '@dg_sent_friend_requests', // 보낸 친구 신청 id 배열 — ['userId', ...]
   kakaoTrace: '@dg_kakao_trace',  // 카카오 연동 흔적(true) — 익명 세션으로 떨어졌을 때 '카카오로 다시 연결' 배너 판단용 ([[anonymous-user-policy]] 복귀 경로)
   crewFavorites: '@dg_crew_favorites', // 크루 즐겨찾기 {crewId: true} — 기기 로컬, per-user 표시 선호(서버 미저장)
+  crewSeen: '@dg_crew_seen', // 크루별 마지막으로 본 게시물 시각 {crewId: millis} — 기기 로컬, 새 글 표시 판단(서버 미저장)
 };
 
 export const storage = {

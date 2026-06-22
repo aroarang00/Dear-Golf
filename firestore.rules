@@ -277,7 +277,7 @@ service cloud.firestore {
       // 내용 수정(이름·공지·메타) — 멤버 누구나(전원 동등)
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.memberUids
-        && changedKeysWithin(['name', 'notice', 'noticeBy', 'noticeAt', 'postCount', 'lastPostAt', 'updatedAt']);
+        && changedKeysWithin(['name', 'notice', 'noticeBy', 'noticeAt', 'postCount', 'lastPostAt', 'lastPostBy', 'updatedAt']);
       // 수락 — audience가 memberUids에 '자기 uid'만 토글(+이름)
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids
@@ -306,6 +306,9 @@ service cloud.firestore {
         allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid && crewMember();
         // 댓글수(commentCount) 증가는 멤버 누구나 — 본문·작성자 불변
         allow update: if isSignedIn() && crewMember() && changedKeysWithin(['commentCount']);
+        // 본문·미디어 수정 — 작성자 본인만(작성자 불변)
+        allow update: if isSignedIn() && resource.data.authorUid == request.auth.uid && crewMember()
+          && changedKeysWithin(['text', 'media', 'editedAt']);
         allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
 
         match /comments/{commentId} {
@@ -314,6 +317,11 @@ service cloud.firestore {
           }
           allow read:   if isSignedIn() && crewMemberC();
           allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid && crewMemberC()
+            && request.resource.data.body is string
+            && request.resource.data.body.size() > 0 && request.resource.data.body.size() <= 300;
+          // 본문 수정 — 작성자 본인만(작성자·parentId 불변)
+          allow update: if isSignedIn() && resource.data.authorUid == request.auth.uid && crewMemberC()
+            && changedKeysWithin(['body', 'editedAt'])
             && request.resource.data.body is string
             && request.resource.data.body.size() > 0 && request.resource.data.body.size() <= 300;
           allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;

@@ -10,7 +10,7 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { uploadRoundMedia } from '../utils/roundMedia';
-import { addCrewPost, setCrewNotice } from '../utils/crews';
+import { addCrewPost, editCrewPost, setCrewNotice } from '../utils/crews';
 import { showAppAlert } from './AppAlert';
 import { CropEditorModal } from './common/CropEditorModal';
 
@@ -29,13 +29,14 @@ const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
 const MAX_VIDEO_SEC = 30;
 
-export function CrewComposeScreen({ crew, onClose }) {
+export function CrewComposeScreen({ crew, post, onClose }) {
   useAndroidBack(true, onClose);
+  const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
-  const [text, setText] = useState('');
-  const [media, setMedia] = useState([]);      // {type:'image'|'video', uri}
-  const [isNotice, setIsNotice] = useState(false);
+  const [text, setText] = useState(post?.text || '');
+  const [media, setMedia] = useState(post?.media || []);   // 기존 미디어는 https(업로드 완료) — uploadRoundMedia가 멱등 처리
+  const [isNotice, setIsNotice] = useState(false);         // 수정 모드선 미사용(공지 토글 숨김)
   const [err, setErr] = useState('');
   const [posting, setPosting] = useState(false);
   const [cropUri, setCropUri] = useState(null);   // 1장 선택 시 크롭 대상(ⓐ: 다중선택은 크롭 없이)
@@ -54,7 +55,14 @@ export function CrewComposeScreen({ crew, onClose }) {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: remaining, quality: 1 });
       if (res.canceled) return;
       const imgs = (res.assets || []).filter((a) => a?.uri).slice(0, remaining);
-      if (imgs.length === 1) { setCropUri(imgs[0].uri); return; }   // ⓐ 1장 → 크롭 에디터
+      if (imgs.length === 1) {
+        // ⓐ 1장 → 크롭 에디터. iOS는 부모 Modal 안이라 피커가 닫히는 도중 새 Modal을 띄우면
+        //   전환 충돌로 크롭이 안 뜸 → 피커 닫힘 완료 후 표시(안드는 즉시).
+        const u = imgs[0].uri;
+        if (Platform.OS === 'ios') setTimeout(() => setCropUri(u), 350);
+        else setCropUri(u);
+        return;
+      }
       setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri }))].slice(0, MAX_MEDIA));  // 여러 장 → 크롭 없이
     } catch (e) { if (__DEV__) console.warn('[crewCompose] addPhoto', e?.message); }
   };
@@ -82,13 +90,15 @@ export function CrewComposeScreen({ crew, onClose }) {
     if (!crewId) return;
     setPosting(true);
     try {
-      if (isNotice) {
+      const up = media.length ? await uploadRoundMedia(currentUid, media) : [];   // 이미 https인 기존 미디어는 멱등 스킵, 새 항목만 업로드
+      if (editing) {
+        await editCrewPost(crewId, post.id, { text: body, media: up });
+      } else if (isNotice) {
         await setCrewNotice(crewId, body, currentUid);
       } else {
-        const up = media.length ? await uploadRoundMedia(currentUid, media) : [];
         await addCrewPost(crewId, { authorUid: currentUid, text: body, media: up });
       }
-      onClose();   // 실시간 구독이 앨범에 즉시 반영
+      onClose();   // 실시간 구독이 앨범·상세에 즉시 반영
     } catch (e) {
       if (__DEV__) console.warn('[crewCompose] submit', e?.code, e?.message);
       setPosting(false);
@@ -109,17 +119,18 @@ export function CrewComposeScreen({ crew, onClose }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={{ fontSize: fs(20), color: INK }}>✕</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{isNotice ? '공지 작성' : '새 게시물'}</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{editing ? '게시물 수정' : (isNotice ? '공지 작성' : '새 게시물')}</Text>
         <TouchableOpacity onPress={submit} disabled={!canPost || posting} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           style={{ backgroundColor: (canPost && !posting) ? SAGE_DEEP : 'rgba(94,126,66,0.25)', borderRadius: 9, paddingHorizontal: 16, paddingVertical: 7, minWidth: 56, alignItems: 'center' }}>
           {posting ? <ActivityIndicator size="small" color="#fff" />
-                   : <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>게시</Text>}
+                   : <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>{editing ? '완료' : '게시'}</Text>}
         </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* 공지 토글 */}
+          {/* 공지 토글 — 수정 모드선 숨김(공지는 별도 흐름) */}
+          {!editing && (
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
             paddingHorizontal: 14, paddingVertical: 12, borderWidth: 0.5, borderColor: LINE }}>
             <View style={{ flex: 1 }}>
@@ -133,12 +144,13 @@ export function CrewComposeScreen({ crew, onClose }) {
               style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] } : undefined}
               trackColor={{ false: 'rgba(26,61,82,0.2)', true: SAGE }} thumbColor="#fff" />
           </View>
+          )}
 
           {/* 글 */}
           <TextInput value={text} onChangeText={(t) => { setText(t); if (err) setErr(''); }} multiline maxLength={limit}
             allowFontScaling={false} placeholder={isNotice ? '공지 내용을 입력하세요' : '무슨 일이 있었나요?'} placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, padding: 14,
-              fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
+              fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: editing ? 0 : 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: text.length >= limit ? '#B23B3B' : SUB, marginTop: 5 }}>{text.length}/{limit}</Text>
 
           {/* 미디어 — 공지가 아닐 때만 */}

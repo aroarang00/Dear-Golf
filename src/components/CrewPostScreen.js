@@ -9,10 +9,11 @@ import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
-import { subscribeCrewComments, addCrewComment, deleteCrewPost, deleteCrewComment } from '../utils/crews';
+import { subscribeCrewComments, subscribeCrewPost, addCrewComment, editCrewComment, deleteCrewPost, deleteCrewComment } from '../utils/crews';
 import { resolveMemberDisplay } from '../utils/friends';
 import { PhotoViewer } from './common/PhotoViewer';
 import { ReportModal } from './ReportModal';
+import { CrewComposeScreen } from './CrewComposeScreen';
 import { AppAlertHost, showAppAlert } from './AppAlert';
 
 // 크루 게시물 상세 — 피드/그리드에서 게시물 탭 시 진입 (docs/crew-space-design.md §3.2).
@@ -87,16 +88,21 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
   const [sending, setSending] = useState(false);
   const [profileFor, setProfileFor] = useState(null);  // 프로필 탭 → DM 시트 대상
   const [replyTo, setReplyTo] = useState(null);        // 대댓글 대상 { id, name }
+  const [liveDoc, setLiveDoc] = useState(post?._doc || null);   // 본문·미디어 수정 실시간 반영(목록 거치지 않고)
+  const [editingPost, setEditingPost] = useState(false);        // 게시물 편집(작성화면 재사용)
+  const [editingComment, setEditingComment] = useState(null);   // 댓글 인라인 편집 { id }
 
   const author = post?.author || { n: '나', c: SAGE_DEEP, name: '나' };
-  const media = post?.media || [];
-  const caption = post?.text || '';
+  const media = liveDoc?.media || post?.media || [];
+  const caption = (liveDoc?.text != null ? liveDoc.text : post?.text) || '';
   const time = post?.time || '';
 
-  // 댓글 실시간 구독
+  // 댓글 + 게시물(본문·미디어 수정 반영) 실시간 구독
   useEffect(() => {
     if (!crewId || !postId) return;
-    return subscribeCrewComments(crewId, postId, setCommentDocs);
+    const un1 = subscribeCrewComments(crewId, postId, setCommentDocs);
+    const un2 = subscribeCrewPost(crewId, postId, (d) => { if (d) setLiveDoc(d); });
+    return () => { un1(); un2(); };
   }, [crewId, postId]);
 
   // 댓글 작성자 표시정보 resolve(보는 사람 별명 우선)
@@ -156,12 +162,33 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
     setReportTarget({ id: a.authorUid, name: a.name,
       evidence: a.text ? `[크루 ${a.kind === 'post' ? '게시물' : '댓글'}] ${a.text}` : '' });
   };
+  // 수정 — 게시물=작성화면 재사용, 댓글=하단 입력바 인라인 편집
+  const startEdit = () => {
+    const a = actionFor; setActionFor(null);
+    if (!a) return;
+    if (a.kind === 'post') { setEditingPost(true); return; }
+    setReplyTo(null); setErr(''); setEditingComment({ id: a.id }); setDraft(a.text || '');
+  };
 
   const send = async () => {
     const body = draft.trim();
     if (!body || sending) return;
     if (containsProfanity(body)) { setErr(PROFANITY_BLOCK_MESSAGE); return; }   // 기존 필터 재사용
     if (!currentUid || !crewId || !postId) return;
+    // 댓글 수정 모드 — 새 댓글 대신 본문만 갱신
+    if (editingComment) {
+      const id = editingComment.id;
+      setDraft(''); setErr(''); setEditingComment(null); setSending(true);
+      try {
+        await editCrewComment(crewId, postId, id, { body });
+      } catch (e) {
+        if (__DEV__) console.warn('[crewPost] editComment', e?.code, e?.message);
+        setDraft(body); setEditingComment({ id });   // 실패 시 입력·모드 복원
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
     const parentId = replyTo?.id || null;
     setDraft(''); setErr(''); setReplyTo(null); setSending(true);
     try {
@@ -174,33 +201,38 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
     }
   };
 
+  // 게시물 수정 — 작성화면 재사용(글·미디어 prefill). 닫으면 구독이 본문 즉시 갱신.
+  if (editingPost) return (
+    <CrewComposeScreen crew={crew} post={{ id: postId, text: caption, media }} onClose={() => setEditingPost(false)} />
+  );
+
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
     <KeyboardProvider>
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
-      {/* 헤더 — ← · 크루명 · ⋯ */}
+      {/* 헤더 — ← · 크루명 (더보기 ⋯는 작성자 줄로 이동) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12,
         borderBottomWidth: 0.5, borderBottomColor: LINE }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
-        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}
-          onPress={() => setActionFor({ kind: 'post', id: postId, authorUid: author.id, name: author.name, text: caption })}>
-          <Text style={{ fontSize: fs(20), color: INK }}>⋯</Text>
-        </TouchableOpacity>
       </View>
 
         <ScrollView style={{ flex: 1, backgroundColor: CONTENT }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* 작성자 */}
+          {/* 작성자 — 우측 ⋯로 수정·삭제(내 글)/신고(남의 글) */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14 }}>
             <Avatar n={author.n} c={author.c} uri={author.uri} size={34} onPress={() => openProfile(author)} />
-            <View style={{ marginLeft: 10 }}>
+            <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{author.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 1 }}>{time}</Text>
             </View>
+            <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}
+              onPress={() => setActionFor({ kind: 'post', id: postId, authorUid: author.id, name: author.name, text: caption })}>
+              <Text style={{ fontSize: fs(22), color: INK }}>⋯</Text>
+            </TouchableOpacity>
           </View>
 
           {/* 글 */}
@@ -254,12 +286,17 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
+                      <View style={{ flex: 1 }} />
+                      <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 12, right: 12 }} style={{ paddingHorizontal: 4 }}
+                        onPress={() => setActionFor({ kind: 'comment', id: cm.id, authorUid: cm.authorUid, name: cm.name, text: cm.body })}>
+                        <Text style={{ fontSize: fs(18), color: SUB }}>⋯</Text>
+                      </TouchableOpacity>
                     </View>
                     <TouchableOpacity activeOpacity={0.6} delayLongPress={300}
                       onLongPress={() => setActionFor({ kind: 'comment', id: cm.id, authorUid: cm.authorUid, name: cm.name, text: cm.body })}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 3, lineHeight: fs(22) }}>{cm.body}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setReplyTo({ id: cm.id, name: cm.name })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
+                    <TouchableOpacity onPress={() => { if (editingComment) { setEditingComment(null); setDraft(''); } setReplyTo({ id: cm.id, name: cm.name }); }} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
                     </TouchableOpacity>
                   </View>
@@ -272,6 +309,11 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: INK }}>{r.name}</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: SUB, marginLeft: 8 }}>{r.time}</Text>
+                        <View style={{ flex: 1 }} />
+                        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 12, right: 12 }} style={{ paddingHorizontal: 4 }}
+                          onPress={() => setActionFor({ kind: 'comment', id: r.id, authorUid: r.authorUid, name: r.name, text: r.body })}>
+                          <Text style={{ fontSize: fs(16), color: SUB }}>⋯</Text>
+                        </TouchableOpacity>
                       </View>
                       <TouchableOpacity activeOpacity={0.6} delayLongPress={300}
                         onLongPress={() => setActionFor({ kind: 'comment', id: r.id, authorUid: r.authorUid, name: r.name, text: r.body })}>
@@ -287,8 +329,17 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
 
         {/* 입력 영역 — kbPadStyle: 키보드 높이만큼 paddingBottom으로 들어올림(안드 RN Modal 대응) */}
         <Animated.View style={[{ backgroundColor: BG }, kbPadStyle]}>
+          {/* 댓글 수정 중 배너 */}
+          {editingComment && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 7, backgroundColor: 'rgba(94,126,66,0.1)' }}>
+              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>댓글 수정 중</Text>
+              <TouchableOpacity onPress={() => { setEditingComment(null); setDraft(''); setErr(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {/* 대댓글 대상 배너 */}
-          {replyTo && (
+          {replyTo && !editingComment && (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 7, backgroundColor: 'rgba(94,126,66,0.1)' }}>
               <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>{replyTo.name}님에게 답글</Text>
               <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -302,7 +353,7 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: BAR_PAD,
             borderTopWidth: 0.5, borderTopColor: LINE }}>
             <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} maxLength={300}
-              allowFontScaling={false} placeholder={replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…'} placeholderTextColor={SUB}
+              allowFontScaling={false} placeholder={editingComment ? '댓글 수정…' : (replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…')} placeholderTextColor={SUB}
               style={{ flex: 1, backgroundColor: CARD, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
                 fontFamily: F.sys, fontSize: fs(17), lineHeight: 23, color: INK, marginRight: 8, borderWidth: 0.5, borderColor: LINE }}
               returnKeyType="send" onSubmitEditing={send} />
@@ -313,33 +364,41 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
           </View>
         </Animated.View>
 
-      {/* 프로필 탭 → 메시지(DM) 시트 — 크루는 어차피 친구라 바로 DM 가능 (실제 DM 라우팅 연결 예정) */}
+      {/* 프로필 탭 → 메시지(DM) 팝업 — 하단 시트 대신 화면 중앙 카드(프로필서 바로 확인). 크루는 친구라 바로 DM 가능 */}
       {profileFor && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setProfileFor(null)} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-              <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={36} />
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
-            </View>
-            <TouchableOpacity onPress={() => { const p = profileFor; setProfileFor(null); onOpenDM?.(p.uid, p.name, p.uri); }}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
-              <View style={{ width: 32 }}><Icon name="send" size={fs(22)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>메시지 보내기</Text>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setProfileFor(null)}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.45)' }} />
+          <View style={{ width: 250, backgroundColor: CARD, borderRadius: 20, paddingTop: 22, paddingBottom: 18, paddingHorizontal: 18, alignItems: 'center',
+            shadowColor: '#1A3D52', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+            {/* 큰 프로필 사진 */}
+            <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={84} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: INK, marginTop: 12 }} numberOfLines={1}>{profileFor.name}</Text>
+            {/* 메시지 보내기 — 세이지 채움 버튼(눈에 띄게) */}
+            <TouchableOpacity activeOpacity={0.85} onPress={() => { const p = profileFor; setProfileFor(null); onOpenDM?.(p.uid, p.name, p.uri); }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, alignSelf: 'stretch',
+                backgroundColor: SAGE_DEEP, borderRadius: 12, paddingVertical: 13 }}>
+              <Icon name="send" size={fs(20)} color="#fff" strokeWidth={1.9} />
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: '#fff', marginLeft: 8 }}>메시지 보내기</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* 게시물/댓글 더보기 — 내 것=삭제, 남의 것=신고 */}
+      {/* 게시물/댓글 더보기 — 내 것=수정·삭제, 남의 것=신고 */}
       {actionFor && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setActionFor(null)} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
             {actionFor.authorUid === currentUid ? (
-              <TouchableOpacity onPress={confirmDelete} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
+              <>
+              <TouchableOpacity onPress={startEdit} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>{actionFor.kind === 'post' ? '게시물 수정' : '댓글 수정'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirmDelete} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 0.5, borderTopColor: LINE }}>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: '#B23B3B' }}>{actionFor.kind === 'post' ? '게시물 삭제' : '댓글 삭제'}</Text>
               </TouchableOpacity>
+              </>
             ) : (
               <TouchableOpacity onPress={reportAction} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>신고하기</Text>

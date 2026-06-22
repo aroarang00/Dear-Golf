@@ -89,6 +89,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
   const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
+  const [seenSet, setSeenSet] = useState({});        // {crewId:millis} — 마지막으로 본 글 시각(새 글 표시, 기기 로컬)
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
   const [myName, setMyName] = useState('');
 
@@ -104,6 +105,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   useEffect(() => {
     let alive = true;
     storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
+    storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
     storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
     return () => { alive = false; };
   }, []);
@@ -130,13 +132,29 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   // doc → 목록 표시 모델 (최근활동순 정렬, 즐겨찾기 플래그)
   const crews = useMemo(() => (crewDocs || []).map((d) => {
     const ts = d.lastPostAt || d.updatedAt || d.createdAt;
+    const lpMs = d.lastPostAt?.toMillis ? d.lastPostAt.toMillis() : 0;
+    // 새 글 = 마지막 글이 내 글이 아니고, 본 시각 이후에 올라옴(기기 로컬 seen 기준)
+    const isNew = lpMs > 0 && d.lastPostBy && d.lastPostBy !== currentUid && lpMs > (seenSet[d.id] || 0);
     return {
       id: d.id, name: d.name || '크루', members: (d.memberUids || []).length,
-      last: fmtTime(ts), newCount: 0,    // TODO(다음 단계): 새 글 수 = 읽음 추적(per-user lastSeen)
+      last: fmtTime(ts), isNew,
       fav: !!favSet[d.id], _ts: ts?.toMillis ? ts.toMillis() : 0,
       _doc: d,    // 앨범·멤버 화면(다음 단계)에서 memberUids·names·notice 사용
     };
-  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet]);
+  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, seenSet, currentUid]);
+
+  // 크루 입장/퇴장 시 마지막 본 글 시각 갱신(새 글 표시 해제) — 현재 doc의 lastPostAt 기준
+  const markCrewSeen = (id) => {
+    const d = (crewDocs || []).find((x) => x.id === id);
+    const ms = d?.lastPostAt?.toMillis ? d.lastPostAt.toMillis() : 0;
+    if (!ms) return;
+    setSeenSet((prev) => {
+      if ((prev[id] || 0) >= ms) return prev;
+      const next = { ...prev, [id]: ms };
+      storage.save(STORAGE_KEYS.crewSeen, next);
+      return next;
+    });
+  };
 
   // doc → 초대 표시 — 내 친구 별명/프로필 우선(people), 없으면 저장 names 폴백
   const invites = useMemo(() => (inviteDocs || []).map((d) => {
@@ -194,8 +212,8 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const ordered = [...crews].sort((a, b) => (b.fav === true) - (a.fav === true));
   const isEmpty = !loading && invites.length === 0 && crews.length === 0;
 
-  // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일)
-  if (openCrew) return <CrewAlbumScreen crew={openCrew} onClose={() => setOpenCrew(null)} onOpenDM={onOpenDM} />;
+  // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일). 닫을 때 본 시각 갱신(새 글 표시 해제)
+  if (openCrew) return <CrewAlbumScreen crew={openCrew} onClose={() => { markCrewSeen(openCrew.id); setOpenCrew(null); }} onOpenDM={onOpenDM} />;
   if (createOpen) return <CrewCreateScreen onClose={() => setCreateOpen(false)} onCreate={handleCreate} />;
 
   return (
@@ -286,7 +304,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
             </View>
           ) : (
             <TouchableOpacity key={c.id} activeOpacity={0.6}
-              onPress={() => setOpenCrew(c)}
+              onPress={() => { markCrewSeen(c.id); setOpenCrew(c); }}
               onLongPress={() => setMenuFor(c)} delayLongPress={280}
               style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
                 borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
@@ -295,18 +313,15 @@ export function CrewListScreen({ onClose, onOpenDM }) {
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{c.name}</Text>
+                  {/* 새 글 = 이름 옆 빨간 점(읽음 추적: 마지막 본 글 이후 남이 올린 글) */}
+                  {c.isNew && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: BURGUNDY, marginLeft: 7 }} />}
                   {/* 즐겨찾기 = 이름 우측 하트(♥). 깃발·점으로 교체 가능 */}
                   {c.fav && <View style={{ marginLeft: 6 }}><Icon name="heartFilled" size={fs(13)} /></View>}
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>{c.members}명 · {c.last}</Text>
+                <Text style={{ fontFamily: c.isNew ? F.sysB : F.sys, fontSize: fs(12), color: c.isNew ? INK : SUB, marginTop: 3 }}>
+                  {c.isNew ? '새 글 · ' : ''}{c.members}명 · {c.last}
+                </Text>
               </View>
-              {/* 새 댓글·사진 = N 숫자 */}
-              {c.newCount > 0 && (
-                <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 7, backgroundColor: BURGUNDY,
-                  alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
-                </View>
-              )}
               <Text style={{ fontSize: fs(22), color: 'rgba(26,61,82,0.3)' }}>›</Text>
             </TouchableOpacity>
           ))}
