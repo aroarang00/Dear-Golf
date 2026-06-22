@@ -825,7 +825,7 @@ export function HomeScreen({ navigation, route }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
               <Text style={[homeS.hdrTitle, Platform.OS === 'android' && { fontSize: fs(43) * zoomScale, lineHeight: fs(58) * zoomScale }, Platform.OS === 'ios' && { flexShrink: 1, lineHeight: fs(56) }]} numberOfLines={1} allowFontScaling={false} adjustsFontSizeToFit={Platform.OS === 'ios'} minimumFontScale={0.7}>Dear Golf</Text>
               <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
-                <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(42) * zoomScale} /></View>
+                <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={(Platform.OS === 'android' ? fs(40) : fs(42)) * zoomScale} /></View>
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
@@ -933,7 +933,7 @@ export function HomeScreen({ navigation, route }) {
 
         {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분). */}
         {pendingScheduleChange && (
-          <AttentionMotion type="pulse" style={{ marginHorizontal: 20, marginTop: 12 }}>
+          <AttentionMotion type="pulse" style={{ marginHorizontal: 14, marginTop: 12 }}>
             <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, borderWidth: 2, borderColor: 'rgba(245,230,168,0.9)', paddingHorizontal: 14, paddingVertical: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Text style={{ fontSize: fs(16) }}>🔄</Text>
@@ -959,7 +959,7 @@ export function HomeScreen({ navigation, route }) {
         <>
         <View style={{ flex: 1 }} />
         <View style={[homeS.bottomArea, { paddingBottom: 0 }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, marginBottom: 8 }}>
             <TouchableOpacity
               ref={upcomingLabelRef}
               onPress={() => setShowScheduleScreen(true)}
@@ -984,10 +984,10 @@ export function HomeScreen({ navigation, route }) {
           </View>
           {/* (체크인 배너는 헤더 '이용 안내' 자리로 이동 — 박스 중복 제거) */}
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+            contentContainerStyle={{ paddingHorizontal: 14, gap: 10 }}>
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일. */}
             <View style={isD0
-              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, minHeight: CARD_H }
+              ? { width: winW - 28, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, minHeight: CARD_H }
               : homeS.mainCard}>
               {(freshDDay(next) === 0) ? (
                 <>
@@ -1148,7 +1148,7 @@ export function HomeScreen({ navigation, route }) {
 
           {/* 일정초대 배너가 떠 있는 동안엔 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(수락/거절 후 복원). 사용자 지정 2026-06-18. */}
           {!scheduleInvitePending && (<>
-          <View style={{ marginHorizontal: 20, marginVertical: 20 }}>
+          <View style={{ marginHorizontal: 14, marginVertical: 20 }}>
             <TripleStripe height={1.5} />
           </View>
 
@@ -1287,7 +1287,7 @@ export function HomeScreen({ navigation, route }) {
         ) : hydrated ? (
         // 일정 로드 완료 후에만 '첫 라운딩' 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
-          <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
+          <View style={{ marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
             {/* '첫'은 진짜 신규(라운딩 기록·일정 둘 다 없음)에게만 — 기존 사용자가 예정 없을 땐 '첫' 제외 (사용자 2026-06-22) */}
             <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', marginBottom: 8, lineHeight: 30 }}>

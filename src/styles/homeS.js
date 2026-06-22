@@ -11,7 +11,7 @@ export const CARD_H = isAndroid ? 220 : 234;   // 모든 D-day 카드 공통 높
 export const CARD_PAD = isAndroid ? 13 : 16;   // 전폭 카드(메인·D-0) 내부 패딩
 
 export const homeS = StyleSheet.create({
-  hdr:             { paddingHorizontal: 22, paddingTop: 10, paddingBottom: 6 },
+  hdr:             { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 },
   hdrSub:          { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', letterSpacing: 1, marginTop: 4, marginBottom: 2, includeFontPadding: false },
   // lineHeight fs(54) — 안드로이드 Lora Italic 'f' 디센더 잘림 방지 + 헤더 컴팩트화
   // paddingHorizontal — 이탤릭 글자 좌우 여유
@@ -22,7 +22,7 @@ export const homeS = StyleSheet.create({
   hdrGreeting:     { fontFamily: F.sys, fontSize: fs(14), color: 'rgba(255,255,255,0.75)', marginTop: 6, includeFontPadding: false },
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },
-  secLabel:        { fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 22, marginBottom: 8 },
+  secLabel:        { fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: 14, marginBottom: 8 },
   mainCard:        { width: isAndroid ? 210 : 232, height: CARD_H, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD },
   // D-0 카드 내부 박스(정보·날씨교통·함께식사 공용) — 카드 안에 또렷한 박스로 구분
   cardBox:         { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 },
@@ -33,7 +33,7 @@ export const homeS = StyleSheet.create({
   subCourse:       { fontFamily: F.sysM, fontSize: fs(11), color: '#fff', lineHeight: 15, includeFontPadding: false },
   subDate:         { fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', marginTop: 2, includeFontPadding: false },
   subDDay:         { fontFamily: F.en, fontSize: isAndroid ? fs(24) : fs(28), color: 'rgba(245,230,168,0.8)', lineHeight: isAndroid ? 26 : 30, includeFontPadding: false },
-  memoCard:        { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 62 : 90 },
+  memoCard:        { marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 62 : 90 },
   memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.08)' },
   memoCardTop:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: isAndroid ? 11 : 14, paddingVertical: isAndroid ? 5 : 8, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)' },
   memoCardBottom:  { paddingHorizontal: isAndroid ? 11 : 14, paddingTop: isAndroid ? 5 : 8, paddingBottom: isAndroid ? 6 : 10, position: 'relative', overflow: 'hidden' },
@@ -46,7 +46,7 @@ export const homeS = StyleSheet.create({
   memoSub:         { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' },
   memoScore:       { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(245,230,168,0.6)', marginBottom: 5 },
   memoTxt:         { fontFamily: F.sysM, fontSize: fs(12), color: '#fff', borderLeftWidth: 2, borderLeftColor: 'rgba(107,30,42,0.6)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
-  commentCard:     { marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 52 : 90 },
+  commentCard:     { marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 52 : 90 },
   commentTxt:      { fontFamily: F.sysM, fontSize: fs(12), color: '#fff', borderLeftWidth: 2, borderLeftColor: 'rgba(200,217,230,0.3)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
   commentWho:      { fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.4)', marginTop: isAndroid ? 4 : 6, marginLeft: 10 },
 });
