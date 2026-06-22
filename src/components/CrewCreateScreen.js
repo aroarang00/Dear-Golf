@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -79,9 +80,13 @@ export function CrewCreateScreen({ onClose, onCreate }) {
                 <TouchableOpacity key={f.id} activeOpacity={0.7} onPress={() => toggle(f.id)}
                   style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11,
                     borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: f.c, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>{f.n}</Text>
-                  </View>
+                  {f.uri ? (
+                    <Image source={{ uri: f.uri }} style={{ width: 36, height: 36, borderRadius: 18 }} contentFit="cover" />
+                  ) : (
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: f.c, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>{f.n}</Text>
+                    </View>
+                  )}
                   <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14.5), color: INK, marginLeft: 12 }}>{f.name}</Text>
                   <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5,
                     borderColor: on ? SAGE_DEEP : 'rgba(26,61,82,0.25)', backgroundColor: on ? SAGE_DEEP : 'transparent',

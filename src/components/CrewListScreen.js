@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -33,10 +34,11 @@ const INIT_CREWS = [
   { id: 'c3', name: '가족 라운딩', members: 3, last: '1주 전', newCount: 0, fav: false },
 ];
 
-function MiniAvatar({ n, c, i }) {
+function MiniAvatar({ n, c, i, uri }) {
+  const base = { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -10 };
+  if (uri) return <Image source={{ uri }} style={base} contentFit="cover" />;
   return (
-    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c, borderWidth: 1.5, borderColor: '#fff',
-      alignItems: 'center', justifyContent: 'center', marginLeft: i === 0 ? 0 : -10 }}>
+    <View style={{ ...base, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>{n}</Text>
     </View>
   );
@@ -48,7 +50,7 @@ function AvatarStack({ avatars, total, max = 4 }) {
   const extra = (total || (avatars || []).length) - shown.length;
   return (
     <View style={{ flexDirection: 'row' }}>
-      {shown.map((a, i) => <MiniAvatar key={i} n={a.n} c={a.c} i={i} />)}
+      {shown.map((a, i) => <MiniAvatar key={i} n={a.n} c={a.c} uri={a.uri} i={i} />)}
       {extra > 0 && (
         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
           alignItems: 'center', justifyContent: 'center', marginLeft: -10 }}>

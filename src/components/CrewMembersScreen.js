@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -22,7 +23,8 @@ const FRIEND_POOL = [
   { id: 'f6', n: '지', c: '#C9A24B', name: '지원' },
 ];
 
-function Avatar({ n, c, size = 40 }) {
+function Avatar({ n, c, size = 40, uri }) {
+  if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />;
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(size * 0.4), color: '#fff' }}>{n}</Text>
@@ -69,7 +71,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
           {members.map((m, i) => (
             <TouchableOpacity key={m.id} activeOpacity={m.self ? 1 : 0.7} onPress={() => !m.self && setProfileFor(m)}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>
-              <Avatar n={m.n} c={m.c} />
+              <Avatar n={m.n} c={m.c} uri={m.uri} />
               <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(15), color: INK, marginLeft: 12 }}>{m.name}</Text>
               {m.self && <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>나</Text>}
               {!m.self && <Icon name="paperPlane" size={fs(17)} color="rgba(26,61,82,0.3)" strokeWidth={1.7} />}
@@ -90,7 +92,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
           <TouchableOpacity activeOpacity={1} onPress={() => setProfileFor(null)} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-              <Avatar n={profileFor.n} c={profileFor.c} size={36} />
+              <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={36} />
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
             </View>
             <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
@@ -120,7 +122,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
                 return (
                   <TouchableOpacity key={f.id} activeOpacity={0.7} onPress={() => toggle(f.id)}
                     style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 11 }}>
-                    <Avatar n={f.n} c={f.c} size={36} />
+                    <Avatar n={f.n} c={f.c} uri={f.uri} size={36} />
                     <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14.5), color: INK, marginLeft: 12 }}>{f.name}</Text>
                     <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: on ? SAGE_DEEP : 'rgba(26,61,82,0.25)', backgroundColor: on ? SAGE_DEEP : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                       {on && <Text style={{ fontSize: fs(13), color: '#fff' }}>✓</Text>}

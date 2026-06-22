@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, useWindowDimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -40,10 +41,11 @@ const MOCK_POSTS = [
     text: '단체 사진 ☺️', media: [{ type: 'image', tint: '#A9B8D6' }, { type: 'image', tint: '#C9B7A0' }, { type: 'image', tint: '#B0C99A' }], comments: 0 },
 ];
 
-function MiniAvatar({ n, c, i, size = 30 }) {
+function MiniAvatar({ n, c, i, size = 30, uri }) {
+  const base = { width: size, height: size, borderRadius: size / 2, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -(size * 0.3) };
+  if (uri) return <Image source={{ uri }} style={base} contentFit="cover" />;
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c, borderWidth: 1.5, borderColor: '#fff',
-      alignItems: 'center', justifyContent: 'center', marginLeft: i === 0 ? 0 : -(size * 0.3) }}>
+    <View style={{ ...base, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(size * 0.38), color: '#fff' }}>{n}</Text>
     </View>
   );
@@ -95,7 +97,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
         {/* 이름 옆 아바타(+N) + 리스트 → 멤버 화면 */}
         <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
           style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
-          {members.slice(0, 3).map((m, i) => <MiniAvatar key={i} n={m.n} c={m.c} i={i} size={24} />)}
+          {members.slice(0, 3).map((m, i) => <MiniAvatar key={i} n={m.n} c={m.c} uri={m.uri} i={i} size={24} />)}
           {members.length > 3 && (
             <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
               alignItems: 'center', justifyContent: 'center', marginLeft: -7 }}>
@@ -150,7 +152,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
                 shadowColor: '#1A3D52', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
               {/* 작성자 */}
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MiniAvatar n={p.author.n} c={p.author.c} i={0} size={32} />
+                <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} i={0} size={32} />
                 <View style={{ marginLeft: 10 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: INK }}>{p.author.name}</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
