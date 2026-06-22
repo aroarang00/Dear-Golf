@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-nati
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
 // 크루 게시물 상세 — 피드/그리드에서 게시물 탭 시 진입 (docs/crew-space-design.md §3.2).
 //  글(옵션) + 미디어(옵션, 글만 가능) + 그 게시물의 댓글(B안). 페일스카이 라이트 테마.
@@ -20,12 +21,13 @@ const INIT_COMMENTS = [
   { id: 'm2', n: '영', c: '#8FB06B', name: '영지', body: '여기 어디야? 코스 예쁘다', time: '1일 전' },
 ];
 
-function Avatar({ n, c, size = 32 }) {
-  return (
+function Avatar({ n, c, size = 32, onPress }) {
+  const inner = (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(size * 0.4), color: '#fff' }}>{n}</Text>
     </View>
   );
+  return onPress ? <TouchableOpacity onPress={onPress} activeOpacity={0.7}>{inner}</TouchableOpacity> : inner;
 }
 
 export function CrewPostScreen({ post, crew, onClose }) {
@@ -33,6 +35,8 @@ export function CrewPostScreen({ post, crew, onClose }) {
   const { width: winW } = useWindowDimensions();
   const [comments, setComments] = useState(post?.comments > 0 ? INIT_COMMENTS : []);
   const [draft, setDraft] = useState('');
+  const [err, setErr] = useState('');                  // 비속어 안내
+  const [profileFor, setProfileFor] = useState(null);  // 프로필 탭 → DM 시트 대상
 
   const author = post?.author || { n: '나', c: SAGE_DEEP, name: '나' };
   const media = post?.media || [];
@@ -42,8 +46,9 @@ export function CrewPostScreen({ post, crew, onClose }) {
   const send = () => {
     const body = draft.trim();
     if (!body) return;
+    if (containsProfanity(body)) { setErr(PROFANITY_BLOCK_MESSAGE); return; }   // 기존 필터 재사용
     setComments((prev) => [...prev, { id: `me${prev.length}`, n: '나', c: SAGE_DEEP, name: '나', body, time: '방금' }]);
-    setDraft('');
+    setDraft(''); setErr('');
   };
 
   return (
@@ -67,7 +72,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 작성자 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14 }}>
-            <Avatar n={author.n} c={author.c} size={34} />
+            <Avatar n={author.n} c={author.c} size={34} onPress={() => setProfileFor(author)} />
             <View style={{ marginLeft: 10 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: INK }}>{author.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 1 }}>{time}</Text>
@@ -116,7 +121,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
             )}
             {comments.map((cm) => (
               <View key={cm.id} style={{ flexDirection: 'row', marginBottom: 16 }}>
-                <Avatar n={cm.n} c={cm.c} size={30} />
+                <Avatar n={cm.n} c={cm.c} size={30} onPress={() => setProfileFor(cm)} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
@@ -129,10 +134,12 @@ export function CrewPostScreen({ post, crew, onClose }) {
           </View>
         </ScrollView>
 
+        {/* 비속어 안내 */}
+        {!!err && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 16, paddingBottom: 2 }}>{err}</Text>}
         {/* 댓글 입력 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
           borderTopWidth: 0.5, borderTopColor: LINE, backgroundColor: BG }}>
-          <TextInput value={draft} onChangeText={setDraft} placeholder="댓글 달기…" placeholderTextColor={SUB}
+          <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} placeholder="댓글 달기…" placeholderTextColor={SUB}
             style={{ flex: 1, backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
               fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginRight: 8 }}
             returnKeyType="send" onSubmitEditing={send} />
@@ -142,6 +149,24 @@ export function CrewPostScreen({ post, crew, onClose }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* 프로필 탭 → 메시지(DM) 시트 — 크루는 어차피 친구라 바로 DM 가능 (실제 DM 라우팅 연결 예정) */}
+      {profileFor && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setProfileFor(null)} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
+              <Avatar n={profileFor.n} c={profileFor.c} size={36} />
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
+            </View>
+            <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
+              <View style={{ width: 28 }}><Icon name="paperPlane" size={fs(18)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(14.5), color: INK }}>메시지 보내기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
     </SafeAreaProvider>
   );

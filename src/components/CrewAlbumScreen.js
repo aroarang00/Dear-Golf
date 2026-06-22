@@ -98,13 +98,13 @@ export function CrewAlbumScreen({ crew, onClose }) {
         )}
       </View>
 
-      {/* 피드 / 사진 토글 */}
+      {/* 피드 / 사진 토글 — 활성=세이지 채움(또렷하게) */}
       <View style={{ flexDirection: 'row', marginHorizontal: 14, marginTop: 12, marginBottom: 2,
-        backgroundColor: 'rgba(26,61,82,0.07)', borderRadius: 10, padding: 3 }}>
+        backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
         {[['feed', '피드'], ['photos', '사진']].map(([t, label]) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.8}
-            style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: 'center', backgroundColor: tab === t ? CARD : 'transparent' }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: tab === t ? SAGE_DEEP : SUB }}>{label}</Text>
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
