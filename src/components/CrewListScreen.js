@@ -66,7 +66,12 @@ export function CrewListScreen({ onClose }) {
   useAndroidBack(true, onClose);
 
   const [crews, setCrews] = useState(INIT_CREWS);
-  const invites = MOCK_INVITES;
+  const [invites, setInvites] = useState(MOCK_INVITES);
+  const acceptInvite = (iv) => {
+    setCrews((prev) => [{ id: `c_inv_${iv.id}`, name: iv.name, members: iv.members, last: '방금', newCount: 0, fav: false }, ...prev]);
+    setInvites((prev) => prev.filter((x) => x.id !== iv.id));
+  };
+  const rejectInvite = (iv) => setInvites((prev) => prev.filter((x) => x.id !== iv.id));
   const [editingId, setEditingId] = useState(null);   // 이름변경 중인 크루
   const [draft, setDraft] = useState('');
   const [menuFor, setMenuFor] = useState(null);        // 길게누르기 메뉴 대상 크루
@@ -144,10 +149,10 @@ export function CrewListScreen({ onClose }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{iv.name}</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>{iv.inviter}님 초대 · {iv.members}명</Text>
                     </View>
-                    <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+                    <TouchableOpacity onPress={() => rejectInvite(iv)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SUB }}>거절</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={{ backgroundColor: SAGE_DEEP, borderRadius: 8, paddingHorizontal: 13, paddingVertical: 6, marginLeft: 2 }}>
+                    <TouchableOpacity onPress={() => acceptInvite(iv)} style={{ backgroundColor: SAGE_DEEP, borderRadius: 8, paddingHorizontal: 13, paddingVertical: 6, marginLeft: 2 }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>수락</Text>
                     </TouchableOpacity>
                   </View>
