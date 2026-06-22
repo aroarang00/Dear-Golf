@@ -35,6 +35,7 @@ export const STORAGE_KEYS = {
   friendRequestCount: '@dg_friend_request_count', // 친구 신청 일 10건 한도 — { date: '2026.05.27', count: 0 } ([[friend-add-feature]])
   sentFriendRequests: '@dg_sent_friend_requests', // 보낸 친구 신청 id 배열 — ['userId', ...]
   kakaoTrace: '@dg_kakao_trace',  // 카카오 연동 흔적(true) — 익명 세션으로 떨어졌을 때 '카카오로 다시 연결' 배너 판단용 ([[anonymous-user-policy]] 복귀 경로)
+  crewFavorites: '@dg_crew_favorites', // 크루 즐겨찾기 {crewId: true} — 기기 로컬, per-user 표시 선호(서버 미저장)
 };
 
 export const storage = {

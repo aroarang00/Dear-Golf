@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useCurrentUid } from '../contexts/CurrentUidContext';
+import { storage, STORAGE_KEYS } from '../utils/storage';
+import {
+  subscribeMyCrews, subscribeCrewInvites, createCrew,
+  acceptCrewInvite, declineCrewInvite, renameCrew,
+} from '../utils/crews';
 import { CrewAlbumScreen } from './CrewAlbumScreen';
 import { CrewCreateScreen } from './CrewCreateScreen';
 
@@ -26,18 +32,25 @@ const BURGUNDY = '#6B1E2A';              // 새 글(게시글) N 배지 — 눈�
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const accentOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 
-// ── mock 데이터 (디자인 확인용) ──
-const MOCK_INVITES = [
-  { id: 'i1', name: '주말 골퍼', inviter: '민수', members: 9,
-    avatars: [{ n: '민', c: '#5B86A8' }, { n: '수', c: '#C98B7F' }, { n: '영', c: '#8FB06B' }, { n: '준', c: '#9B7FB0' }] },
-  { id: 'i2', name: '가족 라운딩', inviter: '영지', members: 4,
-    avatars: [{ n: '영', c: '#8FB06B' }, { n: '엄', c: '#C98B7F' }] },
-];
-const INIT_CREWS = [
-  { id: 'c1', name: '수요일저녁라운딩모임', members: 5, last: '방금', newCount: 3, fav: false },
-  { id: 'c2', name: '수요회', members: 4, last: '2일 전', newCount: 0, fav: true },
-  { id: 'c3', name: '가족 라운딩', members: 3, last: '1주 전', newCount: 0, fav: false },
-];
+// 목록 시각 — DM 목록과 동일 상대표현. 오늘=시간 / 어제 / N일 전(~6) / N주 전(~4) / 그 이상=날짜.
+function fmtTime(ts) {
+  const ms = ts?.toMillis ? ts.toMillis() : 0;
+  if (!ms) return '';
+  const d = new Date(ms);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    const h = d.getHours(), m = d.getMinutes();
+    return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(m).padStart(2, '0')}`;
+  }
+  const a = new Date(d); a.setHours(0, 0, 0, 0);
+  const t = new Date(now); t.setHours(0, 0, 0, 0);
+  const days = Math.round((t - a) / 86400000);
+  if (days === 1) return '어제';
+  if (days <= 6) return `${days}일 전`;
+  if (days <= 34) return `${Math.floor(days / 7)}주 전`;
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
+}
 
 function MiniAvatar({ n, c, i, uri }) {
   const base = { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -10 };
@@ -68,38 +81,85 @@ function AvatarStack({ avatars, total, max = 4 }) {
 
 export function CrewListScreen({ onClose }) {
   useAndroidBack(true, onClose);
+  const currentUid = useCurrentUid();
 
-  const [crews, setCrews] = useState(INIT_CREWS);
-  const [invites, setInvites] = useState(MOCK_INVITES);
-  const acceptInvite = (iv) => {
-    setCrews((prev) => [{ id: `c_inv_${iv.id}`, name: iv.name, members: iv.members, last: '방금', newCount: 0, fav: false }, ...prev]);
-    setInvites((prev) => prev.filter((x) => x.id !== iv.id));
-  };
-  const rejectInvite = (iv) => setInvites((prev) => prev.filter((x) => x.id !== iv.id));
+  const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
+  const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
+  const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
+
+  // 실시간 구독 — 열린 동안만(uid 바뀌면 재구독). cross-user 쓰기 0(셀프토글)이라 CF 불필요.
+  useEffect(() => {
+    if (!currentUid) { setCrewDocs([]); setInviteDocs([]); return; }
+    const un1 = subscribeMyCrews(currentUid, setCrewDocs);
+    const un2 = subscribeCrewInvites(currentUid, setInviteDocs);
+    return () => { un1(); un2(); };
+  }, [currentUid]);
+
+  // 즐겨찾기 로컬 로드(서버 미저장 — 보는 사람 표시 선호)
+  useEffect(() => {
+    let alive = true;
+    storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
+    return () => { alive = false; };
+  }, []);
+
   const [editingId, setEditingId] = useState(null);   // 이름변경 중인 크루
   const [draft, setDraft] = useState('');
   const [menuFor, setMenuFor] = useState(null);        // 길게누르기 메뉴 대상 크루
   const [openCrew, setOpenCrew] = useState(null);      // 앨범(상세) 열린 크루
   const [createOpen, setCreateOpen] = useState(false); // 크루 만들기
 
-  const handleCreate = ({ name, members }) => {
-    setCrews((prev) => [{ id: `c_new_${prev.length}`, name, members, last: '방금', newCount: 0, fav: false }, ...prev]);
+  // doc → 목록 표시 모델 (최근활동순 정렬, 즐겨찾기 플래그)
+  const crews = useMemo(() => (crewDocs || []).map((d) => {
+    const ts = d.lastPostAt || d.updatedAt || d.createdAt;
+    return {
+      id: d.id, name: d.name || '크루', members: (d.memberUids || []).length,
+      last: fmtTime(ts), newCount: 0,    // TODO(다음 단계): 새 글 수 = 읽음 추적(per-user lastSeen)
+      fav: !!favSet[d.id], _ts: ts?.toMillis ? ts.toMillis() : 0,
+      _doc: d,    // 앨범·멤버 화면(다음 단계)에서 memberUids·names·notice 사용
+    };
+  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet]);
+
+  // doc → 초대 표시 (이름·아바타는 저장된 names 폴백 — 별명·사진 enrich는 다음 단계)
+  const invites = useMemo(() => (inviteDocs || []).map((d) => {
+    const ids = d.memberUids || [];
+    const names = d.names || {};
+    return {
+      id: d.id, name: d.name || '크루',
+      inviter: names[d.creatorUid] || '친구', members: ids.length,
+      avatars: ids.slice(0, 4).map((u) => ({ n: (names[u] || '?').trim().charAt(0) || '?', c: accentOf(u) })),
+    };
+  }), [inviteDocs]);
+
+  // 수락/거절 — 셀프 토글(onSnapshot이 목록 자동 갱신, 로컬 상태 변경 불필요)
+  const acceptInvite = (iv) => { if (currentUid) acceptCrewInvite(iv.id, currentUid); };
+  const rejectInvite = (iv) => { if (currentUid) declineCrewInvite(iv.id, currentUid); };
+
+  const handleCreate = async ({ name, friendUids = [], names = {} }) => {
     setCreateOpen(false);
+    if (currentUid) await createCrew({ creatorUid: currentUid, name, friendUids, names });
   };
 
   const startEdit = (c) => { setEditingId(c.id); setDraft(c.name); };
   const saveEdit = () => {
-    setCrews((prev) => prev.map((c) => (c.id === editingId ? { ...c, name: draft.trim() || c.name } : c)));
+    const nm = draft.trim();
+    if (nm && editingId) renameCrew(editingId, nm);   // onSnapshot이 반영
     setEditingId(null);
   };
   const toggleFav = () => {
-    setCrews((prev) => prev.map((c) => (c.id === menuFor.id ? { ...c, fav: !c.fav } : c)));
+    const id = menuFor.id;
+    setFavSet((prev) => {
+      const next = { ...prev };
+      if (next[id]) delete next[id]; else next[id] = true;
+      storage.save(STORAGE_KEYS.crewFavorites, next);
+      return next;
+    });
     setMenuFor(null);
   };
 
-  // 즐겨찾기 위로 정렬(안정 정렬)
+  const loading = crewDocs === null;
+  // 즐겨찾기 위로(안정 정렬 — 그룹 내 최근활동순 유지)
   const ordered = [...crews].sort((a, b) => (b.fav === true) - (a.fav === true));
-  const isEmpty = invites.length === 0 && crews.length === 0;
+  const isEmpty = !loading && invites.length === 0 && crews.length === 0;
 
   // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일)
   if (openCrew) return <CrewAlbumScreen crew={openCrew} onClose={() => setOpenCrew(null)} />;
@@ -129,7 +189,11 @@ export function CrewListScreen({ onClose }) {
       <LinearGradient colors={['#5E7E42', '#8FB06B', 'rgba(143,176,107,0.15)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={{ height: 5 }} />
 
-      {isEmpty ? (
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={SAGE_DEEP} />
+        </View>
+      ) : isEmpty ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 1.5, borderColor: 'rgba(143,176,107,0.6)',
             alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
