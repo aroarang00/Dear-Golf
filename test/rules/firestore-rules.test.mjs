@@ -288,3 +288,64 @@ test('DM: 읽음표시(lastRead)는 본인 키만 — 남 키 위조 거부', as
   await assertFails(updateDoc(doc(as('alice'), 'conversations', 'alice_bob'),
     { lastRead: { bob: 1 } }));
 });
+
+// =============================================================
+// crews — 친구 소수 그룹 공유 앨범 (멤버십=scheduleGroups 패턴, 전원 동등)
+//   alice=creator/멤버, bob=초대(audience)·수락 멤버, carol=외부인
+// =============================================================
+const seedCrew = (db, members = ['alice'], audience = ['bob']) => setDoc(doc(db, 'crews', 'c1'), {
+  creatorUid: 'alice', name: '수요회',
+  memberUids: members, audienceUids: audience, declinedUids: [],
+  names: { alice: '앨리스' }, notice: '', postCount: 0,
+  createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+});
+
+test('crews: 생성은 creator==me·memberUids==[me]만, 위조 거부', async () => {
+  await assertSucceeds(setDoc(doc(as('alice'), 'crews', 'c1'), {
+    creatorUid: 'alice', name: '수요회', memberUids: ['alice'], audienceUids: ['bob'], declinedUids: [],
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }));
+  // creator 위조 — 거부
+  await assertFails(setDoc(doc(as('alice'), 'crews', 'c2'), {
+    creatorUid: 'bob', name: 'X', memberUids: ['bob'], audienceUids: [], declinedUids: [],
+  }));
+  // memberUids에 남 끼워넣기 — 거부
+  await assertFails(setDoc(doc(as('alice'), 'crews', 'c3'), {
+    creatorUid: 'alice', name: 'X', memberUids: ['alice', 'bob'], audienceUids: [], declinedUids: [],
+  }));
+});
+
+test('crews: read는 멤버·초대받은 사람만, 외부인 거부', async () => {
+  await seed((db) => seedCrew(db));
+  await assertSucceeds(getDoc(doc(as('alice'), 'crews', 'c1')));
+  await assertSucceeds(getDoc(doc(as('bob'), 'crews', 'c1')));
+  await assertFails(getDoc(doc(as('carol'), 'crews', 'c1')));
+});
+
+test('crews: 초대 수락은 본인 uid만 토글, 외부인 거부', async () => {
+  await seed((db) => seedCrew(db));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews', 'c1'),
+    { memberUids: arrayUnion('bob'), updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as('carol'), 'crews', 'c1'),
+    { memberUids: arrayUnion('carol'), updatedAt: serverTimestamp() }));
+});
+
+test('crews: 멤버는 친구 초대(audience 추가), 외부인 거부', async () => {
+  await seed((db) => seedCrew(db, ['alice', 'bob'], []));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews', 'c1'),
+    { audienceUids: arrayUnion('carol'), updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as('carol'), 'crews', 'c1'),
+    { audienceUids: arrayUnion('carol'), updatedAt: serverTimestamp() }));
+});
+
+test('crews: 게시물·댓글은 멤버만 작성, 외부인 거부', async () => {
+  await seed((db) => seedCrew(db, ['alice', 'bob'], []));
+  await assertSucceeds(setDoc(doc(as('bob'), 'crews/c1/posts', 'p1'),
+    { authorUid: 'bob', text: '안녕', media: [], createdAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(as('carol'), 'crews/c1/posts', 'p2'),
+    { authorUid: 'carol', text: 'x', media: [], createdAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(as('alice'), 'crews/c1/posts/p1/comments', 'cm1'),
+    { authorUid: 'alice', body: '좋아', createdAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(as('carol'), 'crews/c1/posts/p1/comments', 'cm2'),
+    { authorUid: 'carol', body: 'x', createdAt: serverTimestamp() }));
+});

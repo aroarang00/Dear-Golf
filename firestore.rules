@@ -251,6 +251,76 @@ service cloud.firestore {
             || resource.data.get('hostUid', '') == request.auth.uid);
     }
 
+    // ===== crews — 친구 소수 그룹 공유 앨범 (docs/crew-space-design.md) =====
+    //  멤버십 = scheduleGroups 패턴(초대/수락 셀프토글, cross-user 쓰기 0). 전원 동등(운영자 없음).
+    //  crews/{id}: { creatorUid, name, memberUids[], audienceUids[], declinedUids[], names{}, notice?, postCount?, ... }
+    //  표시이름은 보는 사람 각자 별명으로 화면서 resolve(저장은 authorUid+names). 비속어는 클라(containsProfanity) 사전 차단.
+    match /crews/{crewId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid in resource.data.memberUids
+        || request.auth.uid in resource.data.audienceUids
+      );
+      // 생성: 본인이 creator, memberUids==[me], declinedUids==[] (셀프토글 전제)
+      allow create: if isSignedIn()
+        && request.resource.data.creatorUid == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid]
+        && request.resource.data.declinedUids == []
+        && request.resource.data.audienceUids is list
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0;
+      // 초대 추가 — 멤버가 audience 추가 + declined 제거(재초대) + 이름맵. audience는 줄지 않음, declined는 늘지 않음.
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.memberUids
+        && changedKeysWithin(['audienceUids', 'names', 'declinedUids', 'updatedAt'])
+        && request.resource.data.audienceUids.hasAll(resource.data.audienceUids)
+        && request.resource.data.declinedUids.hasOnly(resource.data.declinedUids);
+      // 내용 수정(이름·공지·메타) — 멤버 누구나(전원 동등)
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.memberUids
+        && changedKeysWithin(['name', 'notice', 'noticeBy', 'noticeAt', 'postCount', 'lastPostAt', 'updatedAt']);
+      // 수락 — audience가 memberUids에 '자기 uid'만 토글(+이름)
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.audienceUids
+        && changedKeysWithin(['memberUids', 'names', 'updatedAt'])
+        && selfMembershipToggled('memberUids');
+      // 거절 — audience가 declinedUids 자기 토글
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.audienceUids
+        && changedKeysWithin(['declinedUids', 'updatedAt'])
+        && selfMembershipToggled('declinedUids');
+      // 탈퇴 — 멤버가 본인 memberUids 빼고 declinedUids 추가(초대 재노출 방지)
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.memberUids
+        && changedKeysWithin(['memberUids', 'declinedUids', 'updatedAt'])
+        && !(request.auth.uid in request.resource.data.memberUids)
+        && (request.auth.uid in request.resource.data.declinedUids);
+      // 삭제: creator만 (빈 크루 정리는 후속)
+      allow delete: if isSignedIn() && resource.data.creatorUid == request.auth.uid;
+
+      // 게시물 — 크루 멤버만(부모 crew get). mealSuggestions의 부모 get 선례.
+      match /posts/{postId} {
+        function crewMember() {
+          return request.auth.uid in get(/databases/$(database)/documents/crews/$(crewId)).data.memberUids;
+        }
+        allow read:   if isSignedIn() && crewMember();
+        allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid && crewMember();
+        // 댓글수(commentCount) 증가는 멤버 누구나 — 본문·작성자 불변
+        allow update: if isSignedIn() && crewMember() && changedKeysWithin(['commentCount']);
+        allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+
+        match /comments/{commentId} {
+          function crewMemberC() {
+            return request.auth.uid in get(/databases/$(database)/documents/crews/$(crewId)).data.memberUids;
+          }
+          allow read:   if isSignedIn() && crewMemberC();
+          allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid && crewMemberC()
+            && request.resource.data.body is string
+            && request.resource.data.body.size() > 0 && request.resource.data.body.size() <= 300;
+          allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+        }
+      }
+    }
+
     // ===== friendships — 친구 관계. 문서 ID = pairId(uidA, uidB) =====
     // { users:[uidA,uidB], requesterUid, recipientUid, status:'pending'|'accepted' }
     match /friendships/{fid} {
