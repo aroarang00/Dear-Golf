@@ -46,7 +46,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
 
   const content = (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={asModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
-      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ flex: 1 }}>
           {/* 윗줄(eyebrow) — 친구·라운지 헤더와 동일 컨벤션. 큰 글자만 덜렁 있어 단조롭던 것 보강(2026-06-15 사용자) */}
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: Platform.OS === 'android' ? 2 : 4 }}>나의 라운딩 일정</Text>

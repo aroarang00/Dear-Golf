@@ -38,7 +38,7 @@ export function MyRoundupActivityScreen({ visible, onClose, onOpenMannerEval }) 
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}
-          <View style={{ paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center',
+          <View style={{ paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', alignItems: 'center',
             gap: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
@@ -46,7 +46,7 @@ export function MyRoundupActivityScreen({ visible, onClose, onOpenMannerEval }) 
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>내 라운지 활동</Text>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}>
 
             {/* 1) 현재 상태 카드 */}
             <Text style={section}>현재 상태</Text>

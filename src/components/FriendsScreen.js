@@ -23,7 +23,7 @@ export function FriendsScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       {/* 헤더 — Friends 타이틀(+우상단 💬 메시지) + 친구 찾기·초대 */}
-      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 20, paddingVertical: 7,
+      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 16, paddingVertical: 7,
         flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <View>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>나의 골프 파트너</Text>

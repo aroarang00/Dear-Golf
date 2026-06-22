@@ -598,7 +598,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         <GestureDetector gesture={monthSwipe}>
         <View>
         {/* Month header */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: _and ? 7 : 14 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: _and ? 7 : 14 }}>
           <TouchableOpacity onPress={goPrev} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>‹</Text>
           </TouchableOpacity>
