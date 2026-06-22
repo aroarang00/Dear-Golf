@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -21,6 +22,9 @@ const SAGE_DEEP = '#5E7E42';             // 헤더 화살표·크루 아이콘 �
 const LINE  = 'rgba(26,61,82,0.12)';     // 헤어라인(카드 테두리 등)
 const ROW_LINE = 'rgba(26,61,82,0.25)';  // 크루 목록 행 구분선 — 더 또렷하게
 const BURGUNDY = '#6B1E2A';              // 새 글(게시글) N 배지 — 눈에 띄게(DM 안읽음과 동일 톤)
+// 행 왼쪽 액센트 바 — 크루별 색(허전함 보완). id 해시로 안정 배정(정렬 바뀌어도 색 유지)
+const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
+const accentOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 
 // ── mock 데이터 (디자인 확인용) ──
 const MOCK_INVITES = [
@@ -109,8 +113,7 @@ export function CrewListScreen({ onClose }) {
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
       {/* 헤더 — ← 닫기 · 제목 · ＋ 만들기 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12,
-        borderBottomWidth: 0.5, borderBottomColor: LINE }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
@@ -122,6 +125,9 @@ export function CrewListScreen({ onClose }) {
           <Icon name="personAdd" size={fs(24)} color={INK} strokeWidth={1.8} />
         </TouchableOpacity>
       </View>
+      {/* 헤더 ↔ 목록 사이 세이지 색상바 — 밋밋함 보완(경계선 대체) */}
+      <LinearGradient colors={['#5E7E42', '#8FB06B', 'rgba(143,176,107,0.15)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={{ height: 5 }} />
 
       {isEmpty ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
@@ -161,6 +167,13 @@ export function CrewListScreen({ onClose }) {
             </View>
           )}
 
+          {/* 내 크루 N — 목록 개수 라벨(밋밋함 보완 + 구조) */}
+          {crews.length > 0 && (
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: SUB, letterSpacing: 0.5, marginBottom: 4 }}>
+              내 크루 {crews.length}
+            </Text>
+          )}
+
           {/* 내 크루 — 아바타 없이 리스트. 탭=앨범 입장 / 길게=메뉴. 즐겨찾기 위로. */}
           {ordered.map((c) => editingId === c.id ? (
             <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
@@ -180,6 +193,8 @@ export function CrewListScreen({ onClose }) {
               onLongPress={() => setMenuFor(c)} delayLongPress={280}
               style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
                 borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
+              {/* 행 왼쪽 컬러 액센트 바 — 크루별 색(아바타 대신, 허전함 보완) */}
+              <View style={{ width: 4, height: 38, borderRadius: 2, backgroundColor: accentOf(c.id), marginRight: 12 }} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{c.name}</Text>
