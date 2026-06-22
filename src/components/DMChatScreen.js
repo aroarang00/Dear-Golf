@@ -169,7 +169,7 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, onP
         {/* 사진 보내기 — 갤러리 선택 → 즉시 전송(캡션 없음 v1). 입력 좌측. */}
         <TouchableOpacity onPress={onPickImage} activeOpacity={0.7}
           style={{ width: 40, height: 46, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: fs(22) }}>📷</Text>
+          <Icon name="image" size={fs(27)} color={DM_BUTTER} strokeWidth={1.8} />
         </TouchableOpacity>
         <AppTextInput
           ref={inputRef}
