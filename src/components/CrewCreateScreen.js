@@ -4,7 +4,7 @@ import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-nati
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
-import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useScreenBack } from '../hooks/useScreenBack';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
@@ -20,7 +20,7 @@ const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42
 const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 
 export function CrewCreateScreen({ onClose, onCreate }) {
-  useAndroidBack(true, onClose);
+  useScreenBack(true, onClose);
   const [name, setName] = useState('');
   const [sel, setSel] = useState([]);
   const [err, setErr] = useState('');

@@ -4,7 +4,7 @@ import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-nati
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
-import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { subscribeCrew, inviteToCrew, leaveCrew } from '../utils/crews';
 import { resolveMemberDisplay, loadMyFriendsEnriched } from '../utils/friends';
@@ -27,7 +27,7 @@ function Avatar({ n, c, size = 40, uri }) {
 }
 
 export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
-  useAndroidBack(true, onClose);
+  useScreenBack(true, onClose);
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
 

@@ -12,6 +12,7 @@ import { getUserCourses, syncUserCoursesFromFirestore } from '../utils/userCours
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { normalizeSchedules } from '../utils/helpers';
 import { homeS, CARD_H, CARD_PAD } from '../styles/homeS';
+import { ModalBackContext } from '../hooks/useScreenBack'; // 크루 모달 내부 다단계 뒤로가기
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -109,6 +110,7 @@ export function HomeScreen({ navigation, route }) {
   const [dmOpen, setDmOpen] = useState(false);
   const [dmChat, setDmChat] = useState(null);   // { uid, name, avatar } 선택 시 대화방
   const [crewOpen, setCrewOpen] = useState(false); // 크루(친구 소수그룹 공유앨범) — DM 아래 형제 진입
+  const crewBack = useRef(null);   // 크루 모달 내부 가장 깊은 화면의 백 핸들러(다단계 뒤로가기)
   const [crewDmChat, setCrewDmChat] = useState(null); // 크루에서 연 DM { uid, name, avatar } — 닫으면 크루로 복귀(DM 목록 안 거침)
   const [dmUnread, setDmUnread] = useState(0);
   // DM 안읽음 있을 때 버튼 '전체'가 진동하듯 좌우로 떨림(2초마다 1회 buzz). 원은 회전대칭이라 rotate면 숫자만 도는 것처럼
@@ -1513,9 +1515,11 @@ export function HomeScreen({ navigation, route }) {
       {/* 크루(친구 소수그룹 공유앨범) — 홈 우상단 DM 아래 진입. 단일 Modal서 리스트↔앨범 전환(앨범은 이어서 구현, docs/crew-space-design.md) */}
       <Modal visible={crewOpen} transparent animationType="slide"
         statusBarTranslucent={Platform.OS === 'android'}
-        onRequestClose={() => setCrewOpen(false)}>
-        <CrewListScreen onClose={() => setCrewOpen(false)}
-          onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDmChat({ uid, name, avatar }); }} />
+        onRequestClose={() => { if (crewBack.current) crewBack.current(); else setCrewOpen(false); }}>
+        <ModalBackContext.Provider value={crewBack}>
+          <CrewListScreen onClose={() => setCrewOpen(false)}
+            onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDmChat({ uid, name, avatar }); }} />
+        </ModalBackContext.Provider>
       </Modal>
 
       {/* 크루에서 연 DM — 크루 모달 위에 얹어 띄움. 닫으면 크루로 복귀(DM 목록 안 거침). */}

@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
-import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { uploadRoundMedia } from '../utils/roundMedia';
@@ -31,7 +31,7 @@ const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
 const MAX_VIDEO_SEC = 30;
 
 export function CrewComposeScreen({ crew, post, onClose }) {
-  useAndroidBack(true, onClose);
+  useScreenBack(true, onClose);
   const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
   const currentUid = useCurrentUid();
   const crewId = crew?.id;

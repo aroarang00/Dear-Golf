@@ -5,7 +5,7 @@ import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
-import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import {
@@ -119,8 +119,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [reportTarget, setReportTarget] = useState(null);  // 신고 { id, name, evidence }
   const [viewer, setViewer] = useState(null);              // 풀스크린 뷰어 { media, index, caption }
 
-  // 안드 뒤로 — 떠 있는 것부터 닫고, 없으면 앨범 닫기
-  useAndroidBack(true, () => {
+  // 안드 뒤로 — 떠 있는 것부터 닫고, 없으면 앨범 닫기(목록으로). 모달 다단계 위임은 useScreenBack이 처리
+  useScreenBack(true, () => {
     if (viewer) { setViewer(null); return; }
     if (reportTarget) { setReportTarget(null); return; }
     if (profileFor) { setProfileFor(null); return; }

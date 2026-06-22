@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
-import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
@@ -83,7 +83,7 @@ function AvatarStack({ avatars, total, max = 4 }) {
 }
 
 export function CrewListScreen({ onClose, onOpenDM }) {
-  useAndroidBack(true, onClose);
+  useScreenBack(true, onClose);
   const currentUid = useCurrentUid();
 
   const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
