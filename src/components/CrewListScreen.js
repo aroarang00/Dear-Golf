@@ -4,6 +4,8 @@ import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-nati
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { SlideInRight } from 'react-native-reanimated'; // 깊은 화면 푸시 슬라이드 전환
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { DraggableRows } from './common/DraggableRows';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
@@ -32,6 +34,7 @@ const SAGE_DEEP = '#5E7E42';             // 헤더 화살표·크루 아이콘 �
 const LINE  = 'rgba(26,61,82,0.12)';     // 헤어라인(카드 테두리 등)
 const ROW_LINE = 'rgba(26,61,82,0.25)';  // 크루 목록 행 구분선 — 더 또렷하게
 const BURGUNDY = '#6B1E2A';              // 새 글(게시글) N 배지 — 눈에 띄게(DM 안읽음과 동일 톤)
+const ROW_H = 66;                        // 크루 행 고정 높이 — 드래그 순서변경 좌표 계산용
 // 행 왼쪽 액센트 바 — 크루별 색(허전함 보완). id 해시로 안정 배정(정렬 바뀌어도 색 유지)
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const accentOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
@@ -91,6 +94,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
   const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
   const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(새 글 갯수 산출, 기기 로컬)
+  const [crewOrder, setCrewOrder] = useState(null);  // [crewId,...] 수동 순서(드래그). null=미로드, []=설정 안 함
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
   const [myName, setMyName] = useState('');
 
@@ -107,6 +111,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     let alive = true;
     storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
     storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
+    storage.load(STORAGE_KEYS.crewOrder, []).then((o) => { if (alive) setCrewOrder(Array.isArray(o) ? o : []); });
     storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
     return () => { alive = false; };
   }, []);
@@ -211,8 +216,26 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   };
 
   const loading = crewDocs === null;
-  // 즐겨찾기 위로(안정 정렬 — 그룹 내 최근활동순 유지)
-  const ordered = [...crews].sort((a, b) => (b.fav === true) - (a.fav === true));
+  // 표시 순서 — 수동 순서(드래그) 있으면 그게 우선(없는 건 기본순으로 뒤에), 없으면 즐겨찾기 우선.
+  const ordered = useMemo(() => {
+    const list = [...crews];
+    const ord = crewOrder || [];
+    if (ord.length) {
+      const idx = Object.fromEntries(ord.map((id, i) => [id, i]));
+      return list.sort((a, b) => {
+        const ai = idx[a.id], bi = idx[b.id];
+        if (ai != null && bi != null) return ai - bi;
+        if (ai != null) return -1;
+        if (bi != null) return 1;
+        return 0;   // 둘 다 수동순서에 없으면 crews 기본순(_ts) 유지(안정 정렬)
+      });
+    }
+    return list.sort((a, b) => (b.fav === true) - (a.fav === true));
+  }, [crews, crewOrder]);
+  const onReorderCrews = (orderedIds) => {
+    setCrewOrder(orderedIds);
+    storage.save(STORAGE_KEYS.crewOrder, orderedIds);
+  };
   const isEmpty = !loading && invites.length === 0 && crews.length === 0;
 
   // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일). 닫을 때 본 시각 갱신(새 글 표시 해제)
@@ -231,6 +254,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     // RN Modal 안에선 루트 SafeAreaProvider가 안 닿아 top inset이 0 → 헤더(뒤로가기)가 노치 밑으로 올라가 안 눌림.
     //   DMListScreen과 동일 처리: 자체 Provider로 재측정([[dm-design]] iOS safe-area 버그).
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
@@ -300,45 +324,48 @@ export function CrewListScreen({ onClose, onOpenDM }) {
             </Text>
           )}
 
-          {/* 내 크루 — 아바타 없이 리스트. 탭=앨범 입장 / 길게=메뉴. 즐겨찾기 위로. */}
-          {ordered.map((c) => editingId === c.id ? (
-            <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
-              borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
-              <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={10}
-                allowFontScaling={false} onSubmitEditing={saveEdit} returnKeyType="done"
-                placeholder="크루 이름" placeholderTextColor={SUB}
-                style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, paddingVertical: 4,
-                  borderBottomWidth: 1.5, borderBottomColor: SAGE, marginRight: 10 }} />
-              <TouchableOpacity onPress={saveEdit} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9, backgroundColor: SAGE }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>저장</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity key={c.id} activeOpacity={0.6}
-              onPress={() => { markCrewSeen(c.id); setOpenCrew(c); }}
-              onLongPress={() => setMenuFor(c)} delayLongPress={280}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
-                borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
-              {/* 행 왼쪽 컬러 액센트 바 — 크루별 색(아바타 대신, 허전함 보완) */}
-              <View style={{ width: 4, height: 38, borderRadius: 2, backgroundColor: accentOf(c.id), marginRight: 12 }} />
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{c.name}</Text>
-                  {/* 즐겨찾기 = 이름 우측 하트(♥). 깃발·점으로 교체 가능 */}
-                  {c.fav && <View style={{ marginLeft: 6 }}><Icon name="heartFilled" size={fs(13)} /></View>}
-                </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>{c.members}명 · {c.last}</Text>
+          {/* 내 크루 — 탭=앨범 입장 / 길게=메뉴 / 우측 ≡ 핸들 잡고 위아래로 끌어 순서변경. 수동 순서 없으면 즐겨찾기 우선. */}
+          <DraggableRows items={ordered} rowHeight={ROW_H} onReorder={onReorderCrews}
+            renderItem={(c, drag) => editingId === c.id ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', height: ROW_H, borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
+                <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={10}
+                  allowFontScaling={false} onSubmitEditing={saveEdit} returnKeyType="done"
+                  placeholder="크루 이름" placeholderTextColor={SUB}
+                  style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, paddingVertical: 4,
+                    borderBottomWidth: 1.5, borderBottomColor: SAGE, marginRight: 10 }} />
+                <TouchableOpacity onPress={saveEdit} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9, backgroundColor: SAGE }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>저장</Text>
+                </TouchableOpacity>
               </View>
-              {/* 새 글 갯수 = 우측 N 배지(읽음 추적: 마지막 본 시점 이후 늘어난 글 수) */}
-              {c.newCount > 0 && (
-                <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 7, backgroundColor: BURGUNDY,
-                  alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
-                </View>
-              )}
-              <Text style={{ fontSize: fs(22), color: 'rgba(26,61,82,0.3)' }}>›</Text>
-            </TouchableOpacity>
-          ))}
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', height: ROW_H, borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
+                <TouchableOpacity activeOpacity={0.6} onPress={() => { markCrewSeen(c.id); setOpenCrew(c); }}
+                  onLongPress={() => setMenuFor(c)} delayLongPress={280}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: '100%' }}>
+                  {/* 행 왼쪽 컬러 액센트 바 — 크루별 색(아바타 대신, 허전함 보완) */}
+                  <View style={{ width: 4, height: 38, borderRadius: 2, backgroundColor: accentOf(c.id), marginRight: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{c.name}</Text>
+                      {c.fav && <View style={{ marginLeft: 6 }}><Icon name="heartFilled" size={fs(13)} /></View>}
+                    </View>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>{c.members}명 · {c.last}</Text>
+                  </View>
+                  {c.newCount > 0 && (
+                    <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 7, backgroundColor: BURGUNDY,
+                      alignItems: 'center', justifyContent: 'center', marginRight: 6 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {/* 드래그 핸들(≡) — 잡고 위아래로 끌어 순서변경 (셰브론 › 대체) */}
+                <GestureDetector gesture={drag}>
+                  <View style={{ paddingLeft: 10, paddingRight: 4, height: '100%', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                    {[0, 1, 2].map((k) => <View key={k} style={{ width: 16, height: 2, borderRadius: 1, backgroundColor: 'rgba(26,61,82,0.4)' }} />)}
+                  </View>
+                </GestureDetector>
+              </View>
+            )} />
         </ScrollView>
       )}
 
@@ -366,6 +393,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
         </View>
       )}
     </SafeAreaView>
+    </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }
