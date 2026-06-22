@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, us
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
+import Animated, { SlideInRight } from 'react-native-reanimated'; // 깊은 화면 푸시 슬라이드 전환
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
@@ -257,9 +258,21 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     finally { setSending(false); }
   };
 
-  if (composeOpen) return <CrewComposeScreen crew={crew} onClose={() => setComposeOpen(false)} />;
-  if (editingPost) return <CrewComposeScreen crew={crew} post={editingPost} onClose={() => setEditingPost(null)} />;
-  if (membersOpen) return <CrewMembersScreen crew={crew} onClose={() => setMembersOpen(false)} onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM} />;
+  if (composeOpen) return (
+    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
+      <CrewComposeScreen crew={crew} onClose={() => setComposeOpen(false)} />
+    </Animated.View>
+  );
+  if (editingPost) return (
+    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
+      <CrewComposeScreen crew={crew} post={editingPost} onClose={() => setEditingPost(null)} />
+    </Animated.View>
+  );
+  if (membersOpen) return (
+    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
+      <CrewMembersScreen crew={crew} onClose={() => setMembersOpen(false)} onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM} />
+    </Animated.View>
+  );
 
   // 사진 탭 — 모든 게시물의 미디어를 펼친 그리드
   const PAD = 12, GAP = 4, COLS = 3;

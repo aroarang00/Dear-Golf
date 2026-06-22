@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Activit
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { SlideInRight } from 'react-native-reanimated'; // 깊은 화면 푸시 슬라이드 전환
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
@@ -215,8 +216,16 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const isEmpty = !loading && invites.length === 0 && crews.length === 0;
 
   // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일). 닫을 때 본 시각 갱신(새 글 표시 해제)
-  if (openCrew) return <CrewAlbumScreen crew={openCrew} onClose={() => { markCrewSeen(openCrew.id); setOpenCrew(null); }} onOpenDM={onOpenDM} />;
-  if (createOpen) return <CrewCreateScreen onClose={() => setCreateOpen(false)} onCreate={handleCreate} />;
+  if (openCrew) return (
+    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
+      <CrewAlbumScreen crew={openCrew} onClose={() => { markCrewSeen(openCrew.id); setOpenCrew(null); }} onOpenDM={onOpenDM} />
+    </Animated.View>
+  );
+  if (createOpen) return (
+    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
+      <CrewCreateScreen onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
+    </Animated.View>
+  );
 
   return (
     // RN Modal 안에선 루트 SafeAreaProvider가 안 닿아 top inset이 0 → 헤더(뒤로가기)가 노치 밑으로 올라가 안 눌림.
