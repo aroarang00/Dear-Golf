@@ -28,7 +28,7 @@ export const homeS = StyleSheet.create({
   cardBox:         { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 },
   cardCourse:      { fontFamily: F.sysB, fontSize: fs(16), color: '#fff', marginBottom: 4, lineHeight: 21, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, includeFontPadding: false },
   cardDate:        { fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', includeFontPadding: false },
-  cardDDay:        { fontFamily: F.en, fontSize: isAndroid ? fs(62) : fs(66), color: C.butter, lineHeight: isAndroid ? 66 : 70, letterSpacing: -1, includeFontPadding: false },
+  cardDDay:        { fontFamily: F.en, fontSize: isAndroid ? fs(58) : fs(60), color: C.butter, lineHeight: isAndroid ? 62 : 64, letterSpacing: -1, includeFontPadding: false },
   subCard:         { width: isAndroid ? 100 : 110, height: CARD_H, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: isAndroid ? 11 : 12, justifyContent: 'space-between' },
   subCourse:       { fontFamily: F.sysM, fontSize: fs(11), color: '#fff', lineHeight: 15, includeFontPadding: false },
   subDate:         { fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', marginTop: 2, includeFontPadding: false },
