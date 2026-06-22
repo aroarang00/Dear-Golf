@@ -54,7 +54,7 @@ function Avatar({ n, c, size = 32, onPress, uri }) {
   return onPress ? <TouchableOpacity onPress={onPress} activeOpacity={0.7}>{inner}</TouchableOpacity> : inner;
 }
 
-export function CrewPostScreen({ post, crew, onClose }) {
+export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
   useAndroidBack(true, onClose);
   const { width: winW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -122,6 +122,12 @@ export function CrewPostScreen({ post, crew, onClose }) {
 
   const totalCount = (commentDocs || []).length;
 
+  // 프로필 탭 → DM 시트(나 자신은 제외). uid는 작성자(authorUid) 또는 글 작성자(id)로 정규화.
+  const openProfile = (person) => {
+    const uid = person?.authorUid || person?.id;
+    if (uid && uid !== currentUid) setProfileFor({ ...person, uid });
+  };
+
   const send = async () => {
     const body = draft.trim();
     if (!body || sending) return;
@@ -160,7 +166,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
         <ScrollView style={{ flex: 1, backgroundColor: CONTENT }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 작성자 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14 }}>
-            <Avatar n={author.n} c={author.c} uri={author.uri} size={34} onPress={() => setProfileFor(author)} />
+            <Avatar n={author.n} c={author.c} uri={author.uri} size={34} onPress={() => openProfile(author)} />
             <View style={{ marginLeft: 10 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{author.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 1 }}>{time}</Text>
@@ -212,7 +218,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
                 borderTopWidth: ci === 0 ? 0 : 0.5, borderTopColor: 'rgba(26,61,82,0.08)' }}>
                 {/* 댓글 */}
                 <View style={{ flexDirection: 'row' }}>
-                  <Avatar n={cm.n} c={cm.c} uri={cm.uri} size={30} onPress={() => setProfileFor(cm)} />
+                  <Avatar n={cm.n} c={cm.c} uri={cm.uri} size={30} onPress={() => openProfile(cm)} />
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
@@ -227,7 +233,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
                 {/* 대댓글(들여쓰기) */}
                 {(cm.replies || []).map((r) => (
                   <View key={r.id} style={{ flexDirection: 'row', marginLeft: 40, marginTop: 12 }}>
-                    <Avatar n={r.n} c={r.c} uri={r.uri} size={26} onPress={() => setProfileFor(r)} />
+                    <Avatar n={r.n} c={r.c} uri={r.uri} size={26} onPress={() => openProfile(r)} />
                     <View style={{ flex: 1, marginLeft: 9 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: INK }}>{r.name}</Text>
@@ -279,7 +285,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
               <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={36} />
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
             </View>
-            <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
+            <TouchableOpacity onPress={() => { const p = profileFor; setProfileFor(null); onOpenDM?.(p.uid, p.name, p.uri); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
               <View style={{ width: 32 }}><Icon name="send" size={fs(22)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>메시지 보내기</Text>

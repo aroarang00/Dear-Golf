@@ -74,7 +74,7 @@ function MediaTile({ m, style, radius = 12, playSize = 'lg' }) {
   );
 }
 
-export function CrewAlbumScreen({ crew, onClose }) {
+export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   useAndroidBack(true, onClose);
   const { width: winW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -134,9 +134,9 @@ export function CrewAlbumScreen({ crew, onClose }) {
     };
   }), [postDocs, display]);
 
-  if (openPost) return <CrewPostScreen post={openPost} crew={crew} onClose={() => setOpenPost(null)} />;
+  if (openPost) return <CrewPostScreen post={openPost} crew={crew} onClose={() => setOpenPost(null)} onOpenDM={onOpenDM} />;
   if (composeOpen) return <CrewComposeScreen crew={crew} onClose={() => setComposeOpen(false)} />;
-  if (membersOpen) return <CrewMembersScreen crew={crew} onClose={() => setMembersOpen(false)} onLeave={() => { setMembersOpen(false); onClose(); }} />;
+  if (membersOpen) return <CrewMembersScreen crew={crew} onClose={() => setMembersOpen(false)} onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM} />;
 
   // 사진 탭 — 모든 게시물의 미디어를 펼친 그리드
   const PAD = 12, GAP = 4, COLS = 3;

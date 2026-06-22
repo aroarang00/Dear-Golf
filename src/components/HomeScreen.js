@@ -35,6 +35,7 @@ import { loadFriendData } from '../utils/friendGroups';
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
 import { CrewListScreen } from './CrewListScreen'; // 크루(친구 소수그룹 공유앨범) — DM 형제 진입(docs/crew-space-design.md)
+import { subscribeCrewInvites } from '../utils/crews';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
@@ -108,6 +109,7 @@ export function HomeScreen({ navigation, route }) {
   const [dmOpen, setDmOpen] = useState(false);
   const [dmChat, setDmChat] = useState(null);   // { uid, name, avatar } 선택 시 대화방
   const [crewOpen, setCrewOpen] = useState(false); // 크루(친구 소수그룹 공유앨범) — DM 아래 형제 진입
+  const [crewDmChat, setCrewDmChat] = useState(null); // 크루에서 연 DM { uid, name, avatar } — 닫으면 크루로 복귀(DM 목록 안 거침)
   const [dmUnread, setDmUnread] = useState(0);
   // DM 안읽음 있을 때 버튼 '전체'가 진동하듯 좌우로 떨림(2초마다 1회 buzz). 원은 회전대칭이라 rotate면 숫자만 도는 것처럼
   //   보여 translateX로 떨어야 동그라미 전체가 흔들림. 사용자 요청 2026-06-18.
@@ -141,7 +143,7 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
   // 크루 — 초대 왔을 때만 강하게 끌어줌(라디오 핑 글로우 + 버건디 배지). DM 호흡보다 확실히 강함.
   //   ★얇은 테두리 원을 scale하면 iOS 찌글거림 → 글로우는 '채운 원'을 scale(테두리X)이라 안전.
-  const [crewInvite, setCrewInvite] = useState(1); // mock — 실제 크루 초대(audienceUids array-contains me) 수신 시 세팅
+  const [crewInvite, setCrewInvite] = useState(0); // 받은 크루 초대 수(audienceUids array-contains me) — 글로우 트리거
   // 초대 있을 때만 라디오 핑 글로우 — ★'채운 원'(테두리 없음)을 scale → iOS 찌글거림 없음(얇은 테두리 원만 문제).
   const crewPulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -155,6 +157,11 @@ export function HomeScreen({ navigation, route }) {
   }, [crewInvite]);
   const crewHaloScale = crewPulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.7] });
   const crewHaloOpacity = crewPulse.interpolate({ inputRange: [0, 0.12, 1], outputRange: [0, 0.5, 0] });
+  // 받은 크루 초대 실시간 구독 → 글로우 on/off (수락·거절 시 자동 꺼짐)
+  useEffect(() => {
+    if (!currentUid) { setCrewInvite(0); return; }
+    return subscribeCrewInvites(currentUid, (list) => setCrewInvite((list || []).length));
+  }, [currentUid]);
   // 홈 탭 복귀(focus) 시 안읽음 카운트 재조회 — 마운트·DM모달 닫힘에만 갱신하면, 푸시로 다른 탭에서 DM을 읽었을 때
   //   홈의 dmUnread가 옛 값(>0)으로 남아 안읽음 없는데도 버튼이 흔들리던 버그 방지(+자리 비운 새 DM도 반영). 2026-06-18.
   useEffect(() => {
@@ -1499,7 +1506,23 @@ export function HomeScreen({ navigation, route }) {
       <Modal visible={crewOpen} transparent animationType="slide"
         statusBarTranslucent={Platform.OS === 'android'}
         onRequestClose={() => setCrewOpen(false)}>
-        <CrewListScreen onClose={() => setCrewOpen(false)} />
+        <CrewListScreen onClose={() => setCrewOpen(false)}
+          onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDmChat({ uid, name, avatar }); }} />
+      </Modal>
+
+      {/* 크루에서 연 DM — 크루 모달 위에 얹어 띄움. 닫으면 크루로 복귀(DM 목록 안 거침). */}
+      <Modal visible={!!crewDmChat} transparent animationType="slide"
+        statusBarTranslucent={Platform.OS === 'android'}
+        onRequestClose={() => setCrewDmChat(null)}>
+        {crewDmChat && (
+          <DMChatScreen friendUid={crewDmChat.uid} friendName={crewDmChat.name} friendAvatarUri={crewDmChat.avatar || null}
+            onClose={() => setCrewDmChat(null)}
+            onOpenRoundup={(postId, hostUid, scope) => {
+              setCrewDmChat(null); setCrewOpen(false);
+              if (scope === 'select') navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' });
+              else navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid });
+            }} />
+        )}
       </Modal>
 
       {/* 일정 풀스크린 — 홈의 '일정' 라벨 탭 시 캘린더 화면 표시 */}

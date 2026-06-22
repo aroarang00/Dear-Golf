@@ -82,7 +82,7 @@ function AvatarStack({ avatars, total, max = 4 }) {
   );
 }
 
-export function CrewListScreen({ onClose }) {
+export function CrewListScreen({ onClose, onOpenDM }) {
   useAndroidBack(true, onClose);
   const currentUid = useCurrentUid();
 
@@ -195,7 +195,7 @@ export function CrewListScreen({ onClose }) {
   const isEmpty = !loading && invites.length === 0 && crews.length === 0;
 
   // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일)
-  if (openCrew) return <CrewAlbumScreen crew={openCrew} onClose={() => setOpenCrew(null)} />;
+  if (openCrew) return <CrewAlbumScreen crew={openCrew} onClose={() => setOpenCrew(null)} onOpenDM={onOpenDM} />;
   if (createOpen) return <CrewCreateScreen onClose={() => setCreateOpen(false)} onCreate={handleCreate} />;
 
   return (

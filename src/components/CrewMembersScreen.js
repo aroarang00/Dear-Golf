@@ -26,7 +26,7 @@ function Avatar({ n, c, size = 40, uri }) {
   );
 }
 
-export function CrewMembersScreen({ crew, onClose, onLeave }) {
+export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   useAndroidBack(true, onClose);
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
@@ -135,7 +135,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
               <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.avatarUri} size={36} />
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
             </View>
-            <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
+            <TouchableOpacity onPress={() => { const m = profileFor; setProfileFor(null); onOpenDM?.(m.id, m.name, m.avatarUri); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
               <View style={{ width: 32 }}><Icon name="send" size={fs(22)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>메시지 보내기</Text>
