@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -44,6 +44,8 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
+          {/* 확대·날짜피커 표시 시 내용이 시트(92%)를 넘쳐 저장 버튼 잘리던 것 방지 — 스크롤 */}
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
           <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>맞춤 모집 알림</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 18 }}>
@@ -128,6 +130,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>저장</Text>
             </TouchableOpacity>
           </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Modal, View, Text, TouchableOpacity, Alert, Linking } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Alert, Linking, ScrollView } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { C, F, fs } from '../constants/colors';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -78,8 +78,9 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-        <View style={{ width: '100%', maxWidth: 360, backgroundColor: C.bgPrimary, borderRadius: 20, padding: 24 }}>
-
+        <View style={{ width: '100%', maxWidth: 360, backgroundColor: C.bgPrimary, borderRadius: 20, maxHeight: '100%' }}>
+          {/* 확대 시 옵션 많은 'select' 단계가 카드를 넘쳐 하단 버튼 잘리던 것 방지 — 스크롤(패딩은 contentContainer로) */}
+          <ScrollView contentContainerStyle={{ padding: 24 }} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {stage === 'ask' ? (
             <>
               <Text style={{ fontSize: fs(34), textAlign: 'center', marginBottom: 10 }}>🔔</Text>
@@ -202,7 +203,7 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
               </View>
             </>
           )}
-
+          </ScrollView>
         </View>
       </View>
     </Modal>

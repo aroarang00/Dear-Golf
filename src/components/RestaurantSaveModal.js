@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { C, F, fs } from '../constants/colors';
@@ -52,7 +52,9 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
         <TouchableOpacity activeOpacity={1} onPress={onClose}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 28 }}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}}
-            style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 20 }}>
+            style={{ backgroundColor: C.bgPrimary, borderRadius: 16, maxHeight: '100%' }}>
+            {/* 확대+키보드 시 카드가 화면 넘쳐 입력칸/버튼 잘리던 것 방지 — 스크롤(패딩은 contentContainer로) */}
+            <ScrollView contentContainerStyle={{ padding: 20 }} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal }}>
               {isEdit ? '메모 수정' : '맛집 저장'}
             </Text>
@@ -94,6 +96,7 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: canSave ? C.butter : C.warmGrayLight }}>{isEdit ? '수정' : '저장'}</Text>
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </TouchableOpacity>
         </TouchableOpacity>
       </KeyboardAvoidingView>

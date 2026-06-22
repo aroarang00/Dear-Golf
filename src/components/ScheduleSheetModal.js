@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
@@ -125,9 +125,11 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheetS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { if (!confirmDelete) onClose(); }} />
-        <View style={[sheetS.sheet, { paddingBottom: 20 + insets.bottom }]}>
+        <View style={[sheetS.sheet, { maxHeight: '90%', paddingBottom: 20 + insets.bottom }]}>
           <View style={sheetS.handle} />
 
+          {/* 확대(디스플레이 줌) 시 메뉴가 길어져 시트가 화면 위로 넘쳐 상단(구장명) 잘리던 것 방지 — maxHeight + 스크롤 */}
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
           {confirmDelete ? (
             // 시트 안 삭제 confirm — 별도 Modal(AppAlert) 우회. RN의 3중 Modal 중첩 z-index 충돌 회피.
             <View style={{ paddingHorizontal: 22, paddingTop: 14, paddingBottom: 6 }}>
@@ -214,6 +216,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
               <View style={{ height: 8 }} />
             </>
           )}
+          </ScrollView>
         </View>
       </View>
     </Modal>
