@@ -770,20 +770,29 @@ export function HomeScreen({ navigation, route }) {
             ※ currentHeight 수동 패딩(b63920e) 롤백 — 안드 edge-to-edge에서 SafeArea와 이중 적용돼
             삼선바가 과하게 내려오는 부작용(흔들림도 못 고침). 흔들림은 dev로 insets 실측 후 재시도 ([[cross-platform-check]])
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
+        {/* 확대(디스플레이 줌) 대응 — flexGrow:1로 정상 줌엔 화면을 꽉 채워 스크롤 안 생기고(레이아웃 100% 동일),
+            확대로 내용이 넘칠 때만 세로 스크롤로 구제(하단 카드/골퍼코멘트 잘림 방지). 헤더·폰트는 손대지 않음. */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}>
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
           <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
           {/* 타이틀 줄 — Dear Golf + 날씨 + DM 💬. 💬는 날씨 아이콘 우상단에 살짝 띄워(브랜드가 말하는 말풍선 느낌),
               너무 붙지 않게 간격(marginLeft)·위로 올림(marginTop 음수). 사용자 위치 지정 2026-06-17. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={homeS.hdrTitle} numberOfLines={1} allowFontScaling={false}>Dear Golf</Text>
+            {/* flex:1+minWidth:0 — 확대로 폭 좁아질 때 좌측(타이틀+날씨)이 양보해 우측 DM이 화면 밖으로 안 밀리게.
+                타이틀 adjustsFontSizeToFit — 폭 부족 시 잘림/말줄임 대신 살짝 축소(평소엔 여유 충분해 영향 없음). 날씨·DM은 그대로. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
+              <Text style={[homeS.hdrTitle, { flexShrink: 1 }]} numberOfLines={1} allowFontScaling={false} adjustsFontSizeToFit minimumFontScale={0.7}>Dear Golf</Text>
               <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
                 <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(42)} /></View>
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: 0 }}>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginRight: 0, marginLeft: 14 }}>
               {/* DM 커스텀 버튼 — 반투명 버터 동그라미 + 균일 테두리. 안읽음=버건디+숫자. 안읽음 시 좌우 진동.
                   ★드롭섀도 제거(2026-06-18): 반투명 배경을 그림자가 투과해 iOS/안드 릴리즈에서 'DM 뒤 뿌연 팔각형'
                   아티팩트가 보였음(배경 없는 뷰의 그림자 다각형 근사 + elevation 팔각형). 깔끔함 우선으로 그림자 제거. */}
@@ -925,7 +934,7 @@ export function HomeScreen({ navigation, route }) {
             contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일. */}
             <View style={isD0
-              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, height: CARD_H }
+              ? { width: winW - 40, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, minHeight: CARD_H }
               : homeS.mainCard}>
               {(freshDDay(next) === 0) ? (
                 <>
@@ -936,7 +945,9 @@ export function HomeScreen({ navigation, route }) {
                     <View style={{ flex: 1.4 }}>
                     {/* 좌 — 정보 박스 (전: 구장+시간+D-0 / 후: 종료배지+구장+기록 안내) */}
                     {roundEnded ? (
-                      <View style={{ flex: 1, paddingTop: 2 }}>
+                      // flexBasis:'auto' — flex:1(=basis 0)이면 내용 높이가 카드에 전달 안 돼 확대 시 잘림.
+                      // flexGrow로 평소 바닥붙임은 유지하되 basis auto로 내용높이를 카드 minHeight에 반영(확대 시 카드 늘어남).
+                      <View style={{ flexGrow: 1, flexBasis: 'auto', paddingTop: 2 }}>
                         {/* 종료/완료 = 그린(완료감) — 버터 대신 의미색 */}
                         <View style={{ backgroundColor: isRecorded(next) ? '#7E9D62' : '#BE6E5D', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: isRecorded(next) ? '#F1F7EA' : '#F8EAE4', letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
@@ -989,7 +1000,7 @@ export function HomeScreen({ navigation, route }) {
                     )}
                     {/* 함께 식사 — 구장 박스 아래(같은 너비). ★위 정보박스가 flex:1이라 marginTop은 흡수돼 무효 →
                         marginBottom으로 바닥에서 띄워 위로 올림(2슬롯+메모, [[afterround-meal-decision]]) */}
-                    <View style={{ marginRight: 12, marginBottom: 6 }}>
+                    <View style={{ marginRight: 12, marginBottom: 6, marginTop: 12 }}>
                       <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active block friendMeta={friendMeta}
                         autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                     </View>
@@ -1251,6 +1262,7 @@ export function HomeScreen({ navigation, route }) {
         // 일정 로드 중 — 빈 CTA 대신 중립 여백(잘못된 빈 상태 깜빡임 차단)
         <View style={{ flex: 1 }} />
         )}
+        </ScrollView>
       </SafeAreaView>
 
       <ScheduleSheetModal
