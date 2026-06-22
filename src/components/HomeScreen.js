@@ -34,6 +34,7 @@ import { isRoundDiary } from '../utils/diaryKind';
 import { loadFriendData } from '../utils/friendGroups';
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
+import { CrewListScreen } from './CrewListScreen'; // 크루(친구 소수그룹 공유앨범) — DM 형제 진입(docs/crew-space-design.md)
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
@@ -106,6 +107,7 @@ export function HomeScreen({ navigation, route }) {
   //   단일 Modal서 목록↔대화방 전환([[dm-design]]). 안읽음 N 뱃지는 열고/닫을 때 1회 로드(상시구독 X, 비용 절약).
   const [dmOpen, setDmOpen] = useState(false);
   const [dmChat, setDmChat] = useState(null);   // { uid, name, avatar } 선택 시 대화방
+  const [crewOpen, setCrewOpen] = useState(false); // 크루(친구 소수그룹 공유앨범) — DM 아래 형제 진입
   const [dmUnread, setDmUnread] = useState(0);
   // DM 안읽음 있을 때 버튼 '전체'가 진동하듯 좌우로 떨림(2초마다 1회 buzz). 원은 회전대칭이라 rotate면 숫자만 도는 것처럼
   //   보여 translateX로 떨어야 동그라미 전체가 흔들림. 사용자 요청 2026-06-18.
@@ -795,8 +797,10 @@ export function HomeScreen({ navigation, route }) {
                 <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(42) * zoomScale} /></View>
               </TouchableOpacity>
             </View>
+            {/* DM + 크루 세로 스택 — 둘 다 '프라이빗 소통' 식구. marginTop:-28로 DM을 타이틀 줄에 맞춰 올림(기존). */}
+            <View style={{ marginTop: -28, marginLeft: 14, marginRight: Platform.OS === 'android' && zoomScale < 1 ? -8 : 0, alignItems: 'center' }}>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginLeft: 14, marginRight: Platform.OS === 'android' && zoomScale < 1 ? -8 : 0 }}>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               {/* DM 커스텀 버튼 — 반투명 버터 동그라미 + 균일 테두리. 안읽음=버건디+숫자. 안읽음 시 좌우 진동.
                   ★드롭섀도 제거(2026-06-18): 반투명 배경을 그림자가 투과해 iOS/안드 릴리즈에서 'DM 뒤 뿌연 팔각형'
                   아티팩트가 보였음(배경 없는 뷰의 그림자 다각형 근사 + elevation 팔각형). 깔끔함 우선으로 그림자 제거. */}
@@ -826,6 +830,18 @@ export function HomeScreen({ navigation, route }) {
                 </Animated.View>
               </Animated.View>
             </TouchableOpacity>
+              {/* 크루 — DM 형제(친구 소수그룹 공유앨범). DM 아래 동일 톤 동그라미. 아래 배너 marginRight:88이 이 자리 예약(line 837). */}
+              <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: 9 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
+                  alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
+                    alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="crew" size={fs(26)} color={C.butter} strokeWidth={1.6} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
@@ -1459,6 +1475,13 @@ export function HomeScreen({ navigation, route }) {
         ) : (
           <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
         )}
+      </Modal>
+
+      {/* 크루(친구 소수그룹 공유앨범) — 홈 우상단 DM 아래 진입. 단일 Modal서 리스트↔앨범 전환(앨범은 이어서 구현, docs/crew-space-design.md) */}
+      <Modal visible={crewOpen} transparent animationType="slide"
+        statusBarTranslucent={Platform.OS === 'android'}
+        onRequestClose={() => setCrewOpen(false)}>
+        <CrewListScreen onClose={() => setCrewOpen(false)} />
       </Modal>
 
       {/* 일정 풀스크린 — 홈의 '일정' 라벨 탭 시 캘린더 화면 표시 */}
