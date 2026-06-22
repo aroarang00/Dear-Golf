@@ -9,8 +9,11 @@ import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
-import { subscribeCrewComments, addCrewComment } from '../utils/crews';
+import { subscribeCrewComments, addCrewComment, deleteCrewPost, deleteCrewComment } from '../utils/crews';
 import { resolveMemberDisplay } from '../utils/friends';
+import { PhotoViewer } from './common/PhotoViewer';
+import { ReportModal } from './ReportModal';
+import { AppAlertHost, showAppAlert } from './AppAlert';
 
 // 크루 게시물 상세 — 피드/그리드에서 게시물 탭 시 진입 (docs/crew-space-design.md §3.2).
 //  글(옵션) + 미디어(옵션, 글만 가능) + 그 게시물의 댓글(B안, 실시간). 페일스카이 라이트 테마.
@@ -128,6 +131,32 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
     if (uid && uid !== currentUid) setProfileFor({ ...person, uid });
   };
 
+  const [viewerIdx, setViewerIdx] = useState(null);   // 풀스크린 뷰어 시작 인덱스(null=닫힘)
+  const [actionFor, setActionFor] = useState(null);   // 게시물/댓글 더보기 액션 { kind, id, authorUid, name, text }
+  const [reportTarget, setReportTarget] = useState(null); // 신고 대상 { id, name, evidence }
+
+  const confirmDelete = () => {
+    const a = actionFor; setActionFor(null);
+    if (!a) return;
+    const isPost = a.kind === 'post';
+    showAppAlert(isPost ? '게시물을 삭제할까요?' : '댓글을 삭제할까요?',
+      isPost ? '사진·글·댓글이 모두 삭제돼요.' : '이 댓글이 삭제돼요.', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: async () => {
+        try {
+          if (isPost) { await deleteCrewPost(crewId, a.id); onClose(); }
+          else { await deleteCrewComment(crewId, postId, a.id); }
+        } catch (e) { if (__DEV__) console.warn('[crewPost] delete', e?.code, e?.message); }
+      } },
+    ]);
+  };
+  const reportAction = () => {
+    const a = actionFor; setActionFor(null);
+    if (!a) return;
+    setReportTarget({ id: a.authorUid, name: a.name,
+      evidence: a.text ? `[크루 ${a.kind === 'post' ? '게시물' : '댓글'}] ${a.text}` : '' });
+  };
+
   const send = async () => {
     const body = draft.trim();
     if (!body || sending) return;
@@ -158,7 +187,8 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
-        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
+        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}
+          onPress={() => setActionFor({ kind: 'post', id: postId, authorUid: author.id, name: author.name, text: caption })}>
           <Text style={{ fontSize: fs(20), color: INK }}>⋯</Text>
         </TouchableOpacity>
       </View>
@@ -184,7 +214,8 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
               {media.map((m, mi) => {
                 const imgUri = m.type === 'video' ? m.poster : m.uri;
                 return (
-                <View key={mi} style={{ width: winW, height: winW, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                <TouchableOpacity key={mi} activeOpacity={0.96} onPress={() => setViewerIdx(mi)}
+                  style={{ width: winW, height: winW, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center' }}>
                   {imgUri
                     ? <Image source={{ uri: imgUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={120} />
                     : <Icon name={m.type === 'video' ? 'video' : 'image'} size={fs(48)} color="rgba(26,61,82,0.35)" strokeWidth={1.3} />}
@@ -198,8 +229,8 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{mi + 1}/{media.length}</Text>
                     </View>
                   )}
-                  {/* 저장은 인라인 X — 탭하면 확대(풀스크린 줌 뷰어)에서 저장(expo-media-library). 뷰어 연동은 후속 */}
-                </View>
+                  {/* 탭 → 풀스크린 줌 뷰어(저장 가능, expo-media-library) */}
+                </TouchableOpacity>
                 );
               })}
             </ScrollView>
@@ -224,7 +255,10 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
                     </View>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 3, lineHeight: fs(22) }}>{cm.body}</Text>
+                    <TouchableOpacity activeOpacity={0.6} delayLongPress={300}
+                      onLongPress={() => setActionFor({ kind: 'comment', id: cm.id, authorUid: cm.authorUid, name: cm.name, text: cm.body })}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 3, lineHeight: fs(22) }}>{cm.body}</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={() => setReplyTo({ id: cm.id, name: cm.name })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
                     </TouchableOpacity>
@@ -239,7 +273,10 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: INK }}>{r.name}</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: SUB, marginLeft: 8 }}>{r.time}</Text>
                       </View>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
+                      <TouchableOpacity activeOpacity={0.6} delayLongPress={300}
+                        onLongPress={() => setActionFor({ kind: 'comment', id: r.id, authorUid: r.authorUid, name: r.name, text: r.body })}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))}
@@ -293,6 +330,41 @@ export function CrewPostScreen({ post, crew, onClose, onOpenDM }) {
           </View>
         </View>
       )}
+
+      {/* 게시물/댓글 더보기 — 내 것=삭제, 남의 것=신고 */}
+      {actionFor && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setActionFor(null)} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
+            {actionFor.authorUid === currentUid ? (
+              <TouchableOpacity onPress={confirmDelete} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: '#B23B3B' }}>{actionFor.kind === 'post' ? '게시물 삭제' : '댓글 삭제'}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={reportAction} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>신고하기</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={() => setActionFor(null)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 0.5, borderTopColor: LINE }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: SUB }}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* 풀스크린 줌 뷰어 — 저장(expo-media-library) 허용 */}
+      {viewerIdx != null && (
+        <PhotoViewer photos={media} startIndex={viewerIdx} caption={caption} allowSave onClose={() => setViewerIdx(null)} />
+      )}
+
+      {/* 신고 — 작성자 대상 + 본문 인용 근거 prefill */}
+      <ReportModal visible={!!reportTarget}
+        presetTarget={reportTarget ? { id: reportTarget.id, name: reportTarget.name } : null}
+        prefillEvidence={reportTarget?.evidence || ''}
+        onClose={() => setReportTarget(null)} />
+
+      {/* 크루 모달 위 alert가 뒤로 깔리지 않게 자체 호스트(삭제 확인 등) */}
+      <AppAlertHost />
     </SafeAreaView>
     </KeyboardProvider>
     </SafeAreaProvider>

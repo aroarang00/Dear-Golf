@@ -150,6 +150,8 @@ export function subscribeCrewPosts(crewId, cb) {
 export async function deleteCrewPost(crewId, postId) {
   if (!crewId || !postId) return;
   await deleteDoc(doc(db, COL, crewId, 'posts', postId));
+  updateDoc(doc(db, COL, crewId), { postCount: increment(-1), updatedAt: serverTimestamp() })
+    .catch((e) => __DEV__ && console.warn('[crews] post dec', e?.message));
 }
 
 // ── 댓글 / 대댓글 (parentId 있으면 대댓글) ──
@@ -174,4 +176,6 @@ export function subscribeCrewComments(crewId, postId, cb) {
 export async function deleteCrewComment(crewId, postId, commentId) {
   if (!crewId || !postId || !commentId) return;
   await deleteDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId));
+  updateDoc(doc(db, COL, crewId, 'posts', postId), { commentCount: increment(-1) })
+    .catch((e) => __DEV__ && console.warn('[crews] comment dec', e?.message));
 }
