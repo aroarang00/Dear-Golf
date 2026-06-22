@@ -5,6 +5,7 @@ import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard
 import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { loadMyFriendsEnriched } from '../utils/friends';   // 동반자 친구 선택용([[companion-design]] Phase A)
 import { FriendSelectModal } from './FriendSelectModal';
+import { Icon, GreenFlag } from './common/Icon'; // 라운딩=그린·핀, 일상=사진 커스텀 아이콘
 import { Spinner } from './common/Spinner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -603,21 +604,27 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               {!isEdit ? (
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 12 }}>
                   {[
-                    { v: 'round', icon: '⛳', label: '라운딩 기록', sub: '스코어·코스' },
-                    { v: 'moment', icon: '📷', label: '일상', sub: '글·사진' },
+                    { v: 'round', label: '라운딩 기록', sub: '스코어·코스' },
+                    { v: 'moment', label: '일상', sub: '글·사진' },
                   ].map(opt => {
                     const on = kind === opt.v;
+                    // 라운딩=세이지그린(골프), 일상=버건디 — 선택 시 박스 액센트색 분기
+                    const accent = opt.v === 'round' ? '#6E8F52' : C.burgundy;
                     return (
                       <TouchableOpacity key={opt.v} activeOpacity={0.85} onPress={() => setKind(opt.v)}
                         style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 14,
                           borderWidth: 1.5,
-                          borderColor: on ? C.burgundy : C.hairline,
-                          backgroundColor: on ? (C.burgundy + '12') : C.bgSecondary }}>
-                        <Text style={{ fontSize: fs(24), marginBottom: 5 }}>{opt.icon}</Text>
+                          borderColor: on ? accent : C.hairline,
+                          backgroundColor: on ? (accent + '12') : C.bgSecondary }}>
+                        <View style={{ marginBottom: 5, height: fs(28), justifyContent: 'center' }}>
+                          {opt.v === 'round'
+                            ? <GreenFlag size={fs(27)} />
+                            : <Icon name="pen" size={fs(26)} color={on ? accent : C.charcoal} strokeWidth={1.8} />}
+                        </View>
                         <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(14),
-                          color: on ? C.burgundy : C.charcoal }}>{opt.label}</Text>
+                          color: on ? accent : C.charcoal }}>{opt.label}</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11),
-                          color: on ? C.burgundy : C.warmGray, marginTop: 2 }}>{opt.sub}</Text>
+                          color: on ? accent : C.warmGray, marginTop: 2 }}>{opt.sub}</Text>
                       </TouchableOpacity>
                     );
                   })}
