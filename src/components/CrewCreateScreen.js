@@ -11,7 +11,7 @@ import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFi
 //  ※ Phase 1 — 친구목록 mock. 실제 친구 로드(loadMyFriendsEnriched)·생성 CF/규칙은 디테일 단계.
 const BG = '#C8D9E6', INK = '#1A3D52', SUB = 'rgba(26,61,82,0.55)', CARD = '#FFFFFF', SAGE_DEEP = '#5E7E42', LINE = 'rgba(26,61,82,0.12)';
 const MAX_MEMBERS = 20;   // 나 포함
-const NAME_MAX = 16;
+const NAME_MAX = 10;
 const MOCK_FRIENDS = [
   { id: 'f1', n: '민', c: '#5B86A8', name: '민수' },
   { id: 'f2', n: '영', c: '#8FB06B', name: '영지' },
