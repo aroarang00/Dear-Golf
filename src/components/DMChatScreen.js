@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, 
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // DM 사진 전체화면 보기 + 실비율 프라임(뷰어 열 때 리플로우 제거)
+import { Icon } from './common/Icon'; // 카메라·앨범 첨부 커스텀 아이콘
 import Svg, { Path } from 'react-native-svg'; // 전송 종이비행기 아이콘(Tabler send 아웃라인). ⚠️네이티브 모듈 — 다음 빌드부터 적용
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller';
@@ -1044,13 +1045,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <View style={{ backgroundColor: DM_FIELD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 10) + 6 }}>
             <TouchableOpacity activeOpacity={0.7} onPress={() => { setAttachOpen(false); handleCaptureCamera(); }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: fs(19) }}>📸</Text>
+              <Icon name="camera" size={fs(25)} color={DM_MINE_TX} strokeWidth={1.8} />
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: DM_MINE_TX }}>카메라 촬영</Text>
             </TouchableOpacity>
             <View style={{ height: 0.5, backgroundColor: 'rgba(0,0,0,0.08)', marginHorizontal: 20 }} />
             <TouchableOpacity activeOpacity={0.7} onPress={() => { setAttachOpen(false); handlePickImage(); }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 15, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: fs(19) }}>🖼️</Text>
+              <Icon name="image" size={fs(25)} color={DM_MINE_TX} strokeWidth={1.8} />
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: DM_MINE_TX }}>앨범에서 선택</Text>
             </TouchableOpacity>
           </View>
