@@ -175,6 +175,22 @@ const ICONS = {
         fill="url(#dgStar)" stroke="none" strokeLinejoin="round" />
     </>
   ),
+  // 🏆 트로피 — 별과 같은 금빛 그라데이션 컵 + 진금 손잡이·기둥·받침. 100대 코스 등. color 무시(고정 금빛).
+  trophy: () => (
+    <>
+      <Defs>
+        <LinearGradient id="dgTrophy" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#FBD262" />
+          <Stop offset="1" stopColor="#E2922C" />
+        </LinearGradient>
+      </Defs>
+      <Path d="M6.5 4.5 C3.5 5 3.5 9.5 7 9.5" fill="none" stroke="#E2922C" strokeWidth="1.6" strokeLinecap="round" />
+      <Path d="M17.5 4.5 C20.5 5 20.5 9.5 17 9.5" fill="none" stroke="#E2922C" strokeWidth="1.6" strokeLinecap="round" />
+      <Path d="M6.5 4 L17.5 4 L17.5 8.5 C17.5 12 15 14.5 12 14.5 C9 14.5 6.5 12 6.5 8.5 Z" fill="url(#dgTrophy)" stroke="none" />
+      <Path d="M12 14.5 L12 18" fill="none" stroke="#E2922C" strokeWidth="1.8" strokeLinecap="round" />
+      <Path d="M9.5 18 L14.5 18 M8 20 L16 20" fill="none" stroke="#E2922C" strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  ),
   // ♡ 좋아요 하트(아웃라인) — 미좋아요 상태. stroke=color. 명령 공백 C/Z(iOS 안전).
   heart: () => (
     <Path d="M12 20.5 C12 20.5 3.5 14.5 3.5 8.5 C3.5 5.8 5.8 4 8 4 C9.8 4 11.3 5 12 6.5 C12.7 5 14.2 4 16 4 C18.2 4 20.5 5.8 20.5 8.5 C20.5 14.5 12 20.5 12 20.5 Z" />

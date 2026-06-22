@@ -362,7 +362,8 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       {/* 지역 선택 시 — 그 지역 100대 코스 둘러보기 */}
       {region !== '전체' && !search.trim() && (
         <Section
-          title={`🏆 ${region} 100대 코스`}
+          title={`${region} 100대 코스`}
+          icon="trophy" iconSize={fs(19)}
           right={top100.length ? `${regionCourses.length}곳` : ''}
           headerBg={C.burgundy}
           titleColor={C.butter}>
