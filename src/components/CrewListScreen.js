@@ -89,7 +89,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
   const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
-  const [seenSet, setSeenSet] = useState({});        // {crewId:millis} — 마지막으로 본 글 시각(새 글 표시, 기기 로컬)
+  const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(새 글 갯수 산출, 기기 로컬)
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
   const [myName, setMyName] = useState('');
 
@@ -132,25 +132,27 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   // doc → 목록 표시 모델 (최근활동순 정렬, 즐겨찾기 플래그)
   const crews = useMemo(() => (crewDocs || []).map((d) => {
     const ts = d.lastPostAt || d.updatedAt || d.createdAt;
-    const lpMs = d.lastPostAt?.toMillis ? d.lastPostAt.toMillis() : 0;
-    // 새 글 = 마지막 글이 내 글이 아니고, 본 시각 이후에 올라옴(기기 로컬 seen 기준)
-    const isNew = lpMs > 0 && d.lastPostBy && d.lastPostBy !== currentUid && lpMs > (seenSet[d.id] || 0);
+    const postCount = d.postCount || 0;
+    const raw = seenSet[d.id];
+    // 본 시점 글 수. 레거시(이전 점 버전의 millis 값)나 비정상은 무시(0) — postCount는 현실적으로 1e6 미만.
+    const seen = (typeof raw === 'number' && raw >= 0 && raw < 1e6) ? raw : 0;
+    const newCount = Math.max(0, postCount - seen);   // 본 시점 이후 늘어난 글 수(안 본 크루는 전체)
     return {
       id: d.id, name: d.name || '크루', members: (d.memberUids || []).length,
-      last: fmtTime(ts), isNew,
+      last: fmtTime(ts), newCount,
       fav: !!favSet[d.id], _ts: ts?.toMillis ? ts.toMillis() : 0,
-      _doc: d,    // 앨범·멤버 화면(다음 단계)에서 memberUids·names·notice 사용
+      _doc: d,    // 앨범·멤버 화면에서 memberUids·names·notice 사용
     };
-  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, seenSet, currentUid]);
+  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, seenSet]);
 
-  // 크루 입장/퇴장 시 마지막 본 글 시각 갱신(새 글 표시 해제) — 현재 doc의 lastPostAt 기준
+  // 크루 입장/퇴장 시 본 시점 글 수 갱신(새 글 갯수 0으로) — 현재 doc의 postCount 기준
   const markCrewSeen = (id) => {
     const d = (crewDocs || []).find((x) => x.id === id);
-    const ms = d?.lastPostAt?.toMillis ? d.lastPostAt.toMillis() : 0;
-    if (!ms) return;
+    if (!d) return;
+    const pc = d.postCount || 0;
     setSeenSet((prev) => {
-      if ((prev[id] || 0) >= ms) return prev;
-      const next = { ...prev, [id]: ms };
+      if (prev[id] === pc) return prev;
+      const next = { ...prev, [id]: pc };
       storage.save(STORAGE_KEYS.crewSeen, next);
       return next;
     });
@@ -313,15 +315,18 @@ export function CrewListScreen({ onClose, onOpenDM }) {
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{c.name}</Text>
-                  {/* 새 글 = 이름 옆 빨간 점(읽음 추적: 마지막 본 글 이후 남이 올린 글) */}
-                  {c.isNew && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: BURGUNDY, marginLeft: 7 }} />}
                   {/* 즐겨찾기 = 이름 우측 하트(♥). 깃발·점으로 교체 가능 */}
                   {c.fav && <View style={{ marginLeft: 6 }}><Icon name="heartFilled" size={fs(13)} /></View>}
                 </View>
-                <Text style={{ fontFamily: c.isNew ? F.sysB : F.sys, fontSize: fs(12), color: c.isNew ? INK : SUB, marginTop: 3 }}>
-                  {c.isNew ? '새 글 · ' : ''}{c.members}명 · {c.last}
-                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>{c.members}명 · {c.last}</Text>
               </View>
+              {/* 새 글 갯수 = 우측 N 배지(읽음 추적: 마지막 본 시점 이후 늘어난 글 수) */}
+              {c.newCount > 0 && (
+                <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 7, backgroundColor: BURGUNDY,
+                  alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
+                </View>
+              )}
               <Text style={{ fontSize: fs(22), color: 'rgba(26,61,82,0.3)' }}>›</Text>
             </TouchableOpacity>
           ))}

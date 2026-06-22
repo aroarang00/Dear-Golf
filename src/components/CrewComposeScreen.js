@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-nati
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 모달 입력 가림 방지
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -39,12 +40,10 @@ export function CrewComposeScreen({ crew, post, onClose }) {
   const [isNotice, setIsNotice] = useState(false);         // 수정 모드선 미사용(공지 토글 숨김)
   const [err, setErr] = useState('');
   const [posting, setPosting] = useState(false);
-  const [cropUri, setCropUri] = useState(null);   // 1장 선택 시 크롭 대상(ⓐ: 다중선택은 크롭 없이)
+  const [cropTarget, setCropTarget] = useState(null);   // 크롭 대상 { uri, index } — 탭한 사진을 그 자리에서 교체
 
   const hasVideo = media.some((m) => m.type === 'video');
   const full = media.length >= MAX_MEDIA;
-
-  const addImage = (uri) => setMedia((p) => [...p, { type: 'image', uri }].slice(0, MAX_MEDIA));
 
   const addPhoto = async () => {
     if (full || posting) return;
@@ -55,16 +54,30 @@ export function CrewComposeScreen({ crew, post, onClose }) {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: remaining, quality: 1 });
       if (res.canceled) return;
       const imgs = (res.assets || []).filter((a) => a?.uri).slice(0, remaining);
-      if (imgs.length === 1) {
-        // ⓐ 1장 → 크롭 에디터. iOS는 부모 Modal 안이라 피커가 닫히는 도중 새 Modal을 띄우면
-        //   전환 충돌로 크롭이 안 뜸 → 피커 닫힘 완료 후 표시(안드는 즉시).
-        const u = imgs[0].uri;
-        if (Platform.OS === 'ios') setTimeout(() => setCropUri(u), 350);
-        else setCropUri(u);
-        return;
-      }
-      setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri }))].slice(0, MAX_MEDIA));  // 여러 장 → 크롭 없이
+      // 고른 사진은 그대로 추가(자동 크롭 X). iOS서 피커 닫힘과 크롭 Modal이 겹쳐 간헐 실패하던 문제 회피.
+      //   크롭은 썸네일 탭으로(피커 없이 = 충돌 없음). 표시·업로드는 1:1 커버라 안 잘라도 무방.
+      setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri }))].slice(0, MAX_MEDIA));
     } catch (e) { if (__DEV__) console.warn('[crewCompose] addPhoto', e?.message); }
+  };
+  // 썸네일 탭 → 그 사진 크롭(1:1). 피커가 안 떠 있어 Modal 충돌 없음(안드·iOS 동일).
+  //   기존 업로드 사진(https)은 expo-image-manipulator가 iOS서 원격 URL을 못 다뤄 '저장 실패' →
+  //   로컬 캐시로 내려받아 로컬 경로로 편집(안드는 원격도 되지만 동작 통일).
+  const openCrop = async (m, i) => {
+    if (m.type !== 'image') return;
+    let uri = m.uri;
+    if (/^https?:\/\//.test(uri)) {
+      try {
+        const dl = await FileSystem.downloadAsync(uri, FileSystem.cacheDirectory + `dgcrop_${Date.now()}.jpg`);
+        uri = dl.uri;
+      } catch (e) { if (__DEV__) console.warn('[crewCompose] crop download', e?.message); }
+    }
+    setCropTarget({ uri, index: i });
+  };
+  // 크롭 저장 → 같은 자리 교체(로컬 크롭본). 제출 시 uploadRoundMedia가 새 항목으로 업로드.
+  const applyCrop = (uri) => {
+    const idx = cropTarget?.index;
+    if (idx == null) return;
+    setMedia((p) => p.map((m, i) => (i === idx ? { ...m, uri } : m)));
   };
   const addVideo = async () => {
     if (full || hasVideo || posting) return;
@@ -174,21 +187,28 @@ export function CrewComposeScreen({ crew, post, onClose }) {
                 </TouchableOpacity>
               </View>
 
-              {/* 안내 + 갯수 (버튼 아래) */}
+              {/* 안내 + 갯수 (버튼 아래) — 사진은 탭하면 잘라서 편집 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>사진·영상 합쳐 최대 10개 · 영상은 1개(30초)까지</Text>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>사진 탭하면 잘라서 편집 · 최대 10개(영상 1개·30초)</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: media.length > 0 ? SAGE_DEEP : SUB }}>{media.length}/{MAX_MEDIA}</Text>
               </View>
 
-              {/* 추가된 사진·영상 — 버튼 아래 가로 배열 */}
+              {/* 추가된 사진·영상 — 버튼 아래 가로 배열. 사진 탭=크롭 편집 */}
               {media.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                   {media.map((m, i) => (
-                    <View key={i} style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: 'rgba(26,61,82,0.08)',
+                    <TouchableOpacity key={i} activeOpacity={m.type === 'image' ? 0.8 : 1}
+                      onPress={() => openCrop(m, i)}
+                      style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: 'rgba(26,61,82,0.08)',
                       alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                       {m.type === 'image'
                         ? <Image source={{ uri: m.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                         : <Icon name="video" size={fs(24)} color="rgba(26,61,82,0.5)" strokeWidth={1.4} />}
+                      {m.type === 'image' && (
+                        <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(9), color: '#fff' }}>편집</Text>
+                        </View>
+                      )}
                       {m.type === 'video' && (
                         <View style={{ position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 7, paddingHorizontal: 5, paddingVertical: 1 }}>
                           <Text style={{ fontSize: fs(9), color: '#fff' }}>영상</Text>
@@ -198,7 +218,7 @@ export function CrewComposeScreen({ crew, post, onClose }) {
                         style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontSize: fs(11), color: '#fff' }}>✕</Text>
                       </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               )}
@@ -209,10 +229,10 @@ export function CrewComposeScreen({ crew, post, onClose }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ⓐ 1장 선택 시 크롭 — 저장=크롭본, 취소=원본 그대로 추가(사진 빠지지 않게) */}
-      <CropEditorModal visible={!!cropUri} uri={cropUri} aspect="square"
-        onSave={(uri) => { addImage(uri); setCropUri(null); }}
-        onClose={() => { if (cropUri) addImage(cropUri); setCropUri(null); }} />
+      {/* 썸네일 탭 → 크롭(1:1). 저장=그 자리 교체 / 취소=원본 유지(사진 그대로) */}
+      <CropEditorModal visible={!!cropTarget} uri={cropTarget?.uri} aspect="square"
+        onSave={(uri) => { applyCrop(uri); setCropTarget(null); }}
+        onClose={() => setCropTarget(null)} />
     </SafeAreaView>
     </KeyboardProvider>
     </SafeAreaProvider>
