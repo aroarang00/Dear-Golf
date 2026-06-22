@@ -67,6 +67,14 @@ export function subscribeCrewInvites(uid, cb) {
   }, (e) => { if (__DEV__) console.warn('[crews] subscribeCrewInvites', e?.message); cb([]); });
 }
 
+// ── 단일 크루 구독 — 멤버/앨범 화면이 멤버·공지 변화를 실시간 반영(초대·탈퇴 후 즉시) ──
+export function subscribeCrew(crewId, cb) {
+  if (!crewId) { cb(null); return () => {}; }
+  return onSnapshot(doc(db, COL, crewId), (d) => {
+    cb(d.exists() ? { id: d.id, ...d.data() } : null);
+  }, (e) => { if (__DEV__) console.warn('[crews] subscribeCrew', e?.message); cb(null); });
+}
+
 // 내가 든 크루 수 — 생성/가입 캡 체크용
 export async function myCrewCount(uid) {
   if (!uid) return 0;

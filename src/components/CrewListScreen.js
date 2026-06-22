@@ -12,6 +12,9 @@ import {
   subscribeMyCrews, subscribeCrewInvites, createCrew,
   acceptCrewInvite, declineCrewInvite, renameCrew,
 } from '../utils/crews';
+import { resolveMemberDisplay } from '../utils/friends';
+import { showAppAlert } from './AppAlert';
+import { showToast } from './AppToast';
 import { CrewAlbumScreen } from './CrewAlbumScreen';
 import { CrewCreateScreen } from './CrewCreateScreen';
 
@@ -86,6 +89,8 @@ export function CrewListScreen({ onClose }) {
   const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
   const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
+  const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
+  const [myName, setMyName] = useState('');
 
   // 실시간 구독 — 열린 동안만(uid 바뀌면 재구독). cross-user 쓰기 0(셀프토글)이라 CF 불필요.
   useEffect(() => {
@@ -95,12 +100,26 @@ export function CrewListScreen({ onClose }) {
     return () => { un1(); un2(); };
   }, [currentUid]);
 
-  // 즐겨찾기 로컬 로드(서버 미저장 — 보는 사람 표시 선호)
+  // 즐겨찾기 로컬 로드(서버 미저장) + 내 닉(수락 시 names 기록용)
   useEffect(() => {
     let alive = true;
     storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
+    storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
     return () => { alive = false; };
   }, []);
+
+  // 초대 표시 enrich — 초대자·멤버 uid를 내 친구 별명/프로필로 resolve(없으면 저장 names 폴백)
+  useEffect(() => {
+    const uids = [];
+    (inviteDocs || []).forEach((d) => {
+      if (d.creatorUid) uids.push(d.creatorUid);
+      (d.memberUids || []).slice(0, 4).forEach((u) => uids.push(u));
+    });
+    if (!uids.length) { setPeople({}); return; }
+    let alive = true;
+    resolveMemberDisplay(uids, { myUid: currentUid }).then((m) => { if (alive) setPeople(m || {}); }).catch(() => {});
+    return () => { alive = false; };
+  }, [inviteDocs, currentUid]);
 
   const [editingId, setEditingId] = useState(null);   // 이름변경 중인 크루
   const [draft, setDraft] = useState('');
@@ -119,24 +138,38 @@ export function CrewListScreen({ onClose }) {
     };
   }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet]);
 
-  // doc → 초대 표시 (이름·아바타는 저장된 names 폴백 — 별명·사진 enrich는 다음 단계)
+  // doc → 초대 표시 — 내 친구 별명/프로필 우선(people), 없으면 저장 names 폴백
   const invites = useMemo(() => (inviteDocs || []).map((d) => {
     const ids = d.memberUids || [];
     const names = d.names || {};
     return {
       id: d.id, name: d.name || '크루',
-      inviter: names[d.creatorUid] || '친구', members: ids.length,
-      avatars: ids.slice(0, 4).map((u) => ({ n: (names[u] || '?').trim().charAt(0) || '?', c: accentOf(u) })),
+      inviter: people[d.creatorUid]?.name || names[d.creatorUid] || '친구', members: ids.length,
+      avatars: ids.slice(0, 4).map((u) => {
+        const pm = people[u];
+        if (pm?.avatarUri) return { uri: pm.avatarUri };
+        return { n: (pm?.name || names[u] || '?').trim().charAt(0) || '?', c: accentOf(u) };
+      }),
     };
-  }), [inviteDocs]);
+  }), [inviteDocs, people]);
 
   // 수락/거절 — 셀프 토글(onSnapshot이 목록 자동 갱신, 로컬 상태 변경 불필요)
-  const acceptInvite = (iv) => { if (currentUid) acceptCrewInvite(iv.id, currentUid); };
+  const acceptInvite = (iv) => { if (currentUid) acceptCrewInvite(iv.id, currentUid, myName); };
   const rejectInvite = (iv) => { if (currentUid) declineCrewInvite(iv.id, currentUid); };
 
-  const handleCreate = async ({ name, friendUids = [], names = {} }) => {
+  const handleCreate = async ({ name, friendUids = [], names = {}, creatorName = '' }) => {
     setCreateOpen(false);
-    if (currentUid) await createCrew({ creatorUid: currentUid, name, friendUids, names });
+    if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
+    try {
+      const id = await createCrew({ creatorUid: currentUid, creatorName, name, friendUids, names });
+      if (!id) { showAppAlert('만들기 실패', '잠시 후 다시 시도해주세요.'); return; }
+      showToast(`크루 '${name}'를 만들었어요`);
+    } catch (e) {
+      if (__DEV__) console.warn('[crew] createCrew', e?.code, e?.message);
+      showAppAlert('만들기 실패', e?.code === 'permission-denied'
+        ? '크루 보안 규칙이 아직 적용되지 않았어요. 규칙 배포 후 다시 시도해주세요.'
+        : (e?.message || '잠시 후 다시 시도해주세요.'));
+    }
   };
 
   const startEdit = (c) => { setEditingId(c.id); setDraft(c.name); };

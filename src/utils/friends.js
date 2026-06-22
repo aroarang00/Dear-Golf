@@ -68,6 +68,30 @@ export async function loadMyFriendsEnriched() {
   });
 }
 
+// 원격(https) 아바타만 유효 — 로컬 키는 친구가 못 읽음(표시부 https 검사, FriendsTab과 동일).
+const httpsOnly = (u) => (u && /^https?:/.test(u)) ? u : null;
+
+// 크루/그룹 멤버 표시정보 resolve — 보는 사람 별명(customName) 우선 → 비친구는 닉네임 → 최후 namesFallback.
+//   반환: uid → { name, avatarUri, self }. myUid는 '나'로 표시(별명·사진 누출 없이 보는 사람 기준 [[friend_groups]]).
+export async function resolveMemberDisplay(uids, { myUid = null, namesFallback = {} } = {}) {
+  const list = Array.from(new Set((uids || []).filter(Boolean)));
+  const out = {};
+  if (!list.length) return out;
+  const friends = await loadMyFriendsEnriched().catch(() => []);
+  const fmap = {};
+  friends.forEach((f) => { fmap[f.id] = f; });
+  const missing = list.filter((u) => u !== myUid && !fmap[u]);
+  const profiles = missing.length ? await loadFriendProfiles(missing).catch(() => ({})) : {};
+  list.forEach((u) => {
+    if (u === myUid) { out[u] = { name: '나', avatarUri: null, self: true }; return; }
+    const f = fmap[u];
+    if (f) { out[u] = { name: f.customName || f.name || namesFallback[u] || '친구', avatarUri: httpsOnly(f.avatarUri) }; return; }
+    const p = profiles[u];
+    out[u] = { name: namesFallback[u] || p?.nickname || '친구', avatarUri: httpsOnly(p?.avatarUrl) };
+  });
+  return out;
+}
+
 // 받은 친구 신청 — recipientUid 본인 + pending
 export async function loadReceivedRequests() {
   const uid = await getUid();
