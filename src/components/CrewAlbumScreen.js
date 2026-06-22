@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, useWindowDimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, useWindowDimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
@@ -64,6 +64,10 @@ export function CrewAlbumScreen({ crew, onClose }) {
   const [posts, setPosts] = useState(MOCK_POSTS);
   const [notice, setNotice] = useState(MOCK_NOTICE);
   const [noticeExpanded, setNoticeExpanded] = useState(false);
+  const scrollRef = useRef(null);
+  const [showTop, setShowTop] = useState(false);     // 맨 위로 버튼 표시
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = () => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }; // mock — 실데이터 새로고침으로 교체
 
   // 게시 — 공지면 핀 교체(최신 대체), 아니면 피드 맨 위에 추가
   const handleSubmit = ({ isNotice, text, media }) => {
@@ -114,37 +118,47 @@ export function CrewAlbumScreen({ crew, onClose }) {
         </TouchableOpacity>
       </View>
 
-      {/* 공지 핀 — 길면 더보기/접기 (멤버 아바타는 헤더로 합침) */}
-      {!!notice && (
-        <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: CARD, borderRadius: 12,
-            paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: LINE }}>
-            <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
-                numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
-              {(notice || '').length > 45 && (
-                <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
-                </TouchableOpacity>
-              )}
+      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]} scrollEventThrottle={16}
+        onScroll={(e) => setShowTop(e.nativeEvent.contentOffset.y > 320)}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SAGE_DEEP} colors={[SAGE_DEEP]} />}>
+
+        {/* index 0 — 공지(스크롤로 흘러감, 길면 더보기) */}
+        <View>
+          {!!notice && (
+            <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: CARD, borderRadius: 12,
+                paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: LINE }}>
+                <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
+                    numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
+                  {(notice || '').length > 45 && (
+                    <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
             </View>
+          )}
+        </View>
+
+        {/* index 1 — 피드/사진 토글(★sticky: 스크롤 내려도 상단 고정). BG 배경으로 아래 콘텐츠 가림 */}
+        <View style={{ backgroundColor: BG, paddingTop: 12, paddingBottom: 2 }}>
+          <View style={{ flexDirection: 'row', marginHorizontal: 14,
+            backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
+            {[['feed', '피드'], ['photos', '사진']].map(([t, label]) => (
+              <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.8}
+                style={{ flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
-      )}
 
-      {/* 피드 / 사진 토글 — 활성=세이지 채움(또렷하게) */}
-      <View style={{ flexDirection: 'row', marginHorizontal: 14, marginTop: 12, marginBottom: 2,
-        backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
-        {[['feed', '피드'], ['photos', '사진']].map(([t, label]) => (
-          <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.8}
-            style={{ flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 10, paddingBottom: 90 }} showsVerticalScrollIndicator={false}>
+        {/* index 2 — 콘텐츠 */}
+        <View style={{ paddingTop: 10 }}>
         {tab === 'feed' ? (
           // ── 피드: 글·사진·영상 카드 ──
           posts.map((p) => (
@@ -221,7 +235,18 @@ export function CrewAlbumScreen({ crew, onClose }) {
             )}
           </View>
         )}
+        </View>
       </ScrollView>
+
+      {/* 맨 위로 — 스크롤 내려갔을 때만 (좌하단) */}
+      {showTop && (
+        <TouchableOpacity activeOpacity={0.85} onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+          style={{ position: 'absolute', left: 20, bottom: insets.bottom + 22, width: 46, height: 46, borderRadius: 23,
+            backgroundColor: '#fff', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center',
+            shadowColor: '#1A3D52', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
+          <Text style={{ fontSize: fs(22), color: SAGE_DEEP, marginTop: 1 }}>↑</Text>
+        </TouchableOpacity>
+      )}
 
       {/* 올리기 FAB */}
       <TouchableOpacity activeOpacity={0.85} onPress={() => setComposeOpen(true)}

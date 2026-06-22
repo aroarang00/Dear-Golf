@@ -20,6 +20,7 @@ const SAGE  = '#8FB06B';                 // 크루 아이덴티티(홈 진입 �
 const SAGE_DEEP = '#5E7E42';             // 헤더 화살표·크루 아이콘 — 페일스카이에서 또렷하게(진한 세이지)
 const LINE  = 'rgba(26,61,82,0.12)';     // 헤어라인(카드 테두리 등)
 const ROW_LINE = 'rgba(26,61,82,0.25)';  // 크루 목록 행 구분선 — 더 또렷하게
+const BURGUNDY = '#6B1E2A';              // 새 글(게시글) N 배지 — 눈에 띄게(DM 안읽음과 동일 톤)
 
 // ── mock 데이터 (디자인 확인용) ──
 const MOCK_INVITES = [
@@ -184,7 +185,7 @@ export function CrewListScreen({ onClose }) {
               </View>
               {/* 새 댓글·사진 = N 숫자 */}
               {c.newCount > 0 && (
-                <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 7, backgroundColor: SAGE,
+                <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 7, backgroundColor: BURGUNDY,
                   alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
                 </View>
