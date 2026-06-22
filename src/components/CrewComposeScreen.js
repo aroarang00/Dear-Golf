@@ -59,7 +59,7 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{isNotice ? '공지 작성' : '새 게시물'}</Text>
         <TouchableOpacity onPress={submit} disabled={!canPost} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: canPost ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>게시</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: canPost ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>게시</Text>
         </TouchableOpacity>
       </View>
 
@@ -68,9 +68,9 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
           {/* 공지 토글 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
             paddingHorizontal: 14, paddingVertical: 12, borderWidth: 0.5, borderColor: LINE }}>
-            <Text style={{ fontSize: fs(15), marginRight: 8 }}>📌</Text>
+            <Text style={{ fontSize: fs(16), marginRight: 8 }}>📌</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: INK }}>공지로 올리기</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>공지로 올리기</Text>
               {isNotice && <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }}>텍스트만 · 최신 공지가 기존을 대체해요</Text>}
             </View>
             <Switch value={isNotice} onValueChange={setIsNotice}

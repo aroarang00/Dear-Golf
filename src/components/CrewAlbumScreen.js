@@ -155,13 +155,13 @@ export function CrewAlbumScreen({ crew, onClose }) {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} i={0} size={32} />
                 <View style={{ marginLeft: 10 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: INK }}>{p.author.name}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{p.author.name}</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
                 </View>
               </View>
               {/* 글 */}
               {!!p.text && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</Text>
               )}
               {/* 미디어 (있을 때) — 1장 크게 / 여러장 가로 스크롤 */}
               {p.media.length > 0 && (

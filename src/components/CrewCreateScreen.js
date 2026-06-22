@@ -52,7 +52,7 @@ export function CrewCreateScreen({ onClose, onCreate }) {
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>크루 만들기</Text>
         <TouchableOpacity onPress={create} disabled={!canCreate} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: canCreate ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>만들기</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: canCreate ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>만들기</Text>
         </TouchableOpacity>
       </View>
 
@@ -63,7 +63,7 @@ export function CrewCreateScreen({ onClose, onCreate }) {
           <TextInput value={name} onChangeText={(t) => { setName(t); if (err) setErr(''); }} maxLength={NAME_MAX}
             allowFontScaling={false} placeholder="예) 수요회, 대학 동기" placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12,
-              fontFamily: F.sysB, fontSize: fs(15), color: INK }} />
+              fontFamily: F.sysB, fontSize: fs(16), color: INK }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 5 }}>{name.length}/{NAME_MAX}</Text>
 
           {/* 친구 초대 */}
@@ -84,10 +84,10 @@ export function CrewCreateScreen({ onClose, onCreate }) {
                     <Image source={{ uri: f.uri }} style={{ width: 36, height: 36, borderRadius: 18 }} contentFit="cover" />
                   ) : (
                     <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: f.c, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>{f.n}</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff' }}>{f.n}</Text>
                     </View>
                   )}
-                  <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14.5), color: INK, marginLeft: 12 }}>{f.name}</Text>
+                  <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }}>{f.name}</Text>
                   <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5,
                     borderColor: on ? SAGE_DEEP : 'rgba(26,61,82,0.25)', backgroundColor: on ? SAGE_DEEP : 'transparent',
                     alignItems: 'center', justifyContent: 'center' }}>

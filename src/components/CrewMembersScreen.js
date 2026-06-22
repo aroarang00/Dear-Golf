@@ -72,7 +72,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
             <TouchableOpacity key={m.id} activeOpacity={m.self ? 1 : 0.7} onPress={() => !m.self && setProfileFor(m)}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>
               <Avatar n={m.n} c={m.c} uri={m.uri} />
-              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(15), color: INK, marginLeft: 12 }}>{m.name}</Text>
+              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }}>{m.name}</Text>
               {m.self && <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>나</Text>}
               {!m.self && <Icon name="paperPlane" size={fs(17)} color="rgba(26,61,82,0.3)" strokeWidth={1.7} />}
             </TouchableOpacity>
@@ -82,7 +82,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
         {/* 크루 나가기 */}
         <TouchableOpacity onPress={() => setLeaveAsk(true)} activeOpacity={0.8}
           style={{ marginTop: 22, alignSelf: 'center', paddingHorizontal: 18, paddingVertical: 11 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#B23B3B' }}>크루 나가기</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#B23B3B' }}>크루 나가기</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -93,12 +93,12 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
               <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={36} />
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
             </View>
             <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
               <View style={{ width: 28 }}><Icon name="paperPlane" size={fs(18)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(14.5), color: INK }}>메시지 보내기</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>메시지 보내기</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -110,9 +110,9 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
           <TouchableOpacity activeOpacity={1} onPress={() => { setInviteOpen(false); setSel([]); }} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 28, maxHeight: '70%' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-              <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: INK }}>친구 초대</Text>
+              <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }}>친구 초대</Text>
               <TouchableOpacity onPress={invite} disabled={sel.length === 0}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: sel.length ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>초대 {sel.length || ''}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: sel.length ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>초대 {sel.length || ''}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -123,7 +123,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
                   <TouchableOpacity key={f.id} activeOpacity={0.7} onPress={() => toggle(f.id)}
                     style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 11 }}>
                     <Avatar n={f.n} c={f.c} uri={f.uri} size={36} />
-                    <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14.5), color: INK, marginLeft: 12 }}>{f.name}</Text>
+                    <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }}>{f.name}</Text>
                     <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: on ? SAGE_DEEP : 'rgba(26,61,82,0.25)', backgroundColor: on ? SAGE_DEEP : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                       {on && <Text style={{ fontSize: fs(13), color: '#fff' }}>✓</Text>}
                     </View>
@@ -140,7 +140,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave }) {
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setLeaveAsk(false)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.4)' }} />
           <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 20, width: '100%' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, textAlign: 'center' }}>크루에서 나갈까요?</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>크루에서 나갈까요?</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, textAlign: 'center', marginTop: 8, lineHeight: fs(19) }}>나가면 이 크루의 사진·글을 더 볼 수 없어요.</Text>
             <View style={{ flexDirection: 'row', marginTop: 18, gap: 8 }}>
               <TouchableOpacity onPress={() => setLeaveAsk(false)} style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: LINE }}>

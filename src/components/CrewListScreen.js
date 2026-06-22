@@ -123,7 +123,7 @@ export function CrewListScreen({ onClose }) {
             alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
             <Icon name="crew" size={fs(38)} color={SAGE} strokeWidth={1.6} />
           </View>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginBottom: 6 }}>아직 크루가 없어요</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, marginBottom: 6 }}>아직 크루가 없어요</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, textAlign: 'center', lineHeight: fs(19) }}>
             친한 친구들과 사진·영상을 함께 모으는{'\n'}프라이빗 공간을 만들어보세요.
           </Text>
@@ -140,7 +140,7 @@ export function CrewListScreen({ onClose }) {
                     borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>
                     <AvatarStack avatars={iv.avatars} total={iv.members} max={3} />
                     <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: INK }} numberOfLines={1}>{iv.name}</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{iv.name}</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>{iv.inviter}님 초대 · {iv.members}명</Text>
                     </View>
                     <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
@@ -162,7 +162,7 @@ export function CrewListScreen({ onClose }) {
               <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={10}
                 allowFontScaling={false} onSubmitEditing={saveEdit} returnKeyType="done"
                 placeholder="크루 이름" placeholderTextColor={SUB}
-                style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: INK, paddingVertical: 4,
+                style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, paddingVertical: 4,
                   borderBottomWidth: 1.5, borderBottomColor: SAGE, marginRight: 10 }} />
               <TouchableOpacity onPress={saveEdit} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9, backgroundColor: SAGE }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>저장</Text>
@@ -176,7 +176,7 @@ export function CrewListScreen({ onClose }) {
                 borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: INK }}>{c.name}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{c.name}</Text>
                   {/* 즐겨찾기 = 이름 우측 하트(♥). 깃발·점으로 교체 가능 */}
                   {c.fav && <View style={{ marginLeft: 6 }}><Icon name="heartFilled" size={fs(13)} /></View>}
                 </View>
@@ -203,17 +203,17 @@ export function CrewListScreen({ onClose }) {
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD,
             borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
             <View style={{ alignItems: 'center', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: INK }}>{menuFor.name}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{menuFor.name}</Text>
             </View>
             <TouchableOpacity onPress={toggleFav}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
               <View style={{ width: 28 }}><Icon name={menuFor.fav ? 'heart' : 'heartFilled'} size={fs(18)} color={INK} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(14.5), color: INK }}>{menuFor.fav ? '즐겨찾기 해제' : '즐겨찾기'}</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>{menuFor.fav ? '즐겨찾기 해제' : '즐겨찾기'}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { startEdit(menuFor); setMenuFor(null); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
               <View style={{ width: 28 }}><Icon name="pen" size={fs(18)} color={INK} strokeWidth={1.7} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(14.5), color: INK }}>이름 변경</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>이름 변경</Text>
             </TouchableOpacity>
           </View>
         </View>

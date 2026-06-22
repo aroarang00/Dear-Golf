@@ -99,7 +99,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: INK, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
         <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(20), color: INK }}>⋯</Text>
         </TouchableOpacity>
@@ -110,14 +110,14 @@ export function CrewPostScreen({ post, crew, onClose }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14 }}>
             <Avatar n={author.n} c={author.c} uri={author.uri} size={34} onPress={() => setProfileFor(author)} />
             <View style={{ marginLeft: 10 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: INK }}>{author.name}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{author.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 1 }}>{time}</Text>
             </View>
           </View>
 
           {/* 글 */}
           {!!caption && (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 12, marginHorizontal: 16, lineHeight: fs(24) }}>{caption}</Text>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 12, marginHorizontal: 16, lineHeight: fs(24) }}>{caption}</Text>
           )}
 
           {/* 미디어 — 있을 때만(글만이면 생략). 여러장 가로 페이저 */}
@@ -136,12 +136,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{mi + 1}/{media.length}</Text>
                     </View>
                   )}
-                  {/* 저장 — 남이 올린 사진·영상 내 기기에 저장(expo-media-library 연결 예정) */}
-                  <TouchableOpacity onPress={() => { /* TODO 저장 */ }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={{ position: 'absolute', bottom: 14, right: 14, width: 40, height: 40, borderRadius: 20,
-                      backgroundColor: 'rgba(0,0,0,0.42)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="download" size={fs(20)} color="#fff" strokeWidth={1.9} />
-                  </TouchableOpacity>
+                  {/* 저장은 인라인 X — 탭하면 확대(풀스크린 줌 뷰어)에서 저장(expo-media-library). 실데이터 연결 시 뷰어 연동 */}
                 </View>
               ))}
             </ScrollView>
@@ -166,7 +161,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
                     </View>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 3, lineHeight: fs(22) }}>{cm.body}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 3, lineHeight: fs(22) }}>{cm.body}</Text>
                     <TouchableOpacity onPress={() => setReplyTo({ id: cm.id, name: cm.name })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
                     </TouchableOpacity>
@@ -181,7 +176,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: INK }}>{r.name}</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: SUB, marginLeft: 8 }}>{r.time}</Text>
                       </View>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
                     </View>
                   </View>
                 ))}
@@ -225,12 +220,12 @@ export function CrewPostScreen({ post, crew, onClose }) {
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
               <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={36} />
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
             </View>
             <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 16 }}>
               <View style={{ width: 28 }}><Icon name="paperPlane" size={fs(18)} color={SAGE_DEEP} strokeWidth={1.7} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(14.5), color: INK }}>메시지 보내기</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>메시지 보내기</Text>
             </TouchableOpacity>
           </View>
         </View>
