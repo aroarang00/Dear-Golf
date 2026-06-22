@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-
 import { C, F, fs } from '../constants/colors';
 import { getTrustGrade } from '../constants/trustGrade';
 import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
+import { Icon } from './common/Icon'; // ⚙️ 설정 톱니바퀴 커스텀
 import { TrustBadge } from './common/TrustBadge';
 import { MannerBadge } from './common/MannerBadge';
 import { UserContext } from '../contexts/UserContext';
@@ -211,7 +212,7 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
             )}
             {/* 알림 설정 — 라운지 알림 종류별 ON/OFF */}
             <TouchableOpacity onPress={() => setSettingsOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={{ fontSize: fs(18) }}>⚙️</Text>
+              <Icon name="gear" size={fs(20)} color={C.charcoal} strokeWidth={1.8} />
             </TouchableOpacity>
           </View>
 

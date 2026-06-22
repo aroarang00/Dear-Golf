@@ -7,6 +7,7 @@ const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { RoundupCreateModal } from './RoundupCreateModal';
+import { Icon } from './common/Icon'; // ⚙️ 설정 톱니바퀴 커스텀
 import { InvitationCard } from './InvitationCard';
 import { InvitationTicket } from './InvitationTicket';
 import { MannerEvaluationModal } from './MannerEvaluationModal';
@@ -1877,7 +1878,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowMatchModal(true)} activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: fs(15) }}>⚙️</Text>
+              <Icon name="gear" size={fs(21)} color={view !== 'match' ? C.butter : C.charcoal} strokeWidth={1.8} />
             </TouchableOpacity>
           </View>
           </AttentionMotion>

@@ -625,7 +625,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
               <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
                 style={{ width: 34, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                <Text style={{ fontSize: fs(15) }}>⚙</Text>
+                <Icon name="gear" size={fs(20)} color={C.charcoal} strokeWidth={1.8} />
               </TouchableOpacity>
             )}
           </View>

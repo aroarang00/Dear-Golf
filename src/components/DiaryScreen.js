@@ -660,7 +660,7 @@ export function DiaryScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(24) }}>⚙️</Text>
+            <Icon name="gear" size={fs(30)} color={C.charcoal} strokeWidth={1.8} />
           </TouchableOpacity>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 80 }}>
