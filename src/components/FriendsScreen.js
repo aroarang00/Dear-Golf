@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
+import { Icon } from './common/Icon'; // 친구찾기 돋보기·초대 사람+ 커스텀 아이콘
 import { shareInvite } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
 import { showAppAlert } from './AppAlert';   // 헤더 안내(!) 팝업
@@ -41,15 +42,17 @@ export function FriendsScreen({ navigation }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 3 }}>
           <TouchableOpacity onPress={() => openFinderRef.current?.('kakao')} activeOpacity={0.8}
             hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
-            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.navy,
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.navy,
               borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.bgPrimary }}>🔍 친구 찾기</Text>
+            <Icon name="search" size={fs(15)} color={C.bgPrimary} strokeWidth={1.8} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.bgPrimary }}>친구 찾기</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleInvite} activeOpacity={0.8}
             hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
-            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.butter,
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.butter,
               borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>📩 초대</Text>
+            <Icon name="personAdd" size={fs(17)} color={C.charcoalDeep} strokeWidth={2.1} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>초대</Text>
           </TouchableOpacity>
         </View>
       </View>
