@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
-import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Platform, useWindowDimensions } from 'react-native';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
+import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 RN Modal서 reanimated 키보드훅 무효 → 명령형 이벤트로 처리(DM 동일)
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
@@ -10,11 +12,11 @@ import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFi
 // 크루 게시물 상세 — 피드/그리드에서 게시물 탭 시 진입 (docs/crew-space-design.md §3.2).
 //  글(옵션) + 미디어(옵션, 글만 가능) + 그 게시물의 댓글(B안). 페일스카이 라이트 테마.
 //  ※ Phase 1 — mock 댓글. 실제 미디어·업로드·삭제·실댓글은 이어서.
-const BG    = '#FFFFFF';                 // ★게시글 부각 — 하얀 배경(상세는 화이트)
+const BG      = '#C8D9E6';               // 헤더·하단 입력바 = 페일스카이(타 화면과 통일)
+const CONTENT = '#FFFFFF';               // ★본문(스크롤)만 화이트 — 게시글 부각
 const INK   = '#1A3D52';
 const SUB   = 'rgba(26,61,82,0.55)';
 const CARD  = '#FFFFFF';
-const FIELD = '#EFF2F4';                 // 댓글 입력칸(흰 배경에서 보이게 연회색)
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
 
@@ -39,6 +41,23 @@ function Avatar({ n, c, size = 32, onPress, uri }) {
 export function CrewPostScreen({ post, crew, onClose }) {
   useAndroidBack(true, onClose);
   const { width: winW } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // 안드 RN Modal — KeyboardAvoidingView(reanimated 훅)가 값 0에 머물러 무효 → KeyboardEvents로 입력바를 키보드 높이만큼 들어올림(DM 패턴).
+  const BAR_PAD = 8;
+  const CLOSED_PAD = Math.max(0, 10 + insets.bottom - BAR_PAD);
+  const kbLift = useSharedValue(0);
+  const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
+  useEffect(() => {
+    const onShow = (e) => { kbLift.value = withTiming(Math.round(e?.height || 0), { duration: e?.duration || 220 }); };
+    const onHide = (e) => { kbLift.value = withTiming(0, { duration: e?.duration || 220 }); };
+    const subs = [
+      KeyboardEvents.addListener('keyboardWillShow', onShow),
+      KeyboardEvents.addListener('keyboardDidShow', onShow),
+      KeyboardEvents.addListener('keyboardWillHide', onHide),
+      KeyboardEvents.addListener('keyboardDidHide', onHide),
+    ];
+    return () => subs.forEach((s) => s.remove());
+  }, []);
   const [comments, setComments] = useState(post?.comments > 0 ? INIT_COMMENTS : []);
   const [draft, setDraft] = useState('');
   const [err, setErr] = useState('');                  // 비속어 안내
@@ -70,7 +89,8 @@ export function CrewPostScreen({ post, crew, onClose }) {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
+    <KeyboardProvider>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
       {/* 헤더 — ← · 크루명 · ⋯ */}
@@ -79,14 +99,13 @@ export function CrewPostScreen({ post, crew, onClose }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: SUB, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: INK, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
         <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(20), color: INK }}>⋯</Text>
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ flex: 1, backgroundColor: CONTENT }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 작성자 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14 }}>
             <Avatar n={author.n} c={author.c} uri={author.uri} size={34} onPress={() => setProfileFor(author)} />
@@ -98,7 +117,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
 
           {/* 글 */}
           {!!caption && (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(14.5), color: INK, marginTop: 12, marginHorizontal: 16, lineHeight: fs(22) }}>{caption}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 12, marginHorizontal: 16, lineHeight: fs(24) }}>{caption}</Text>
           )}
 
           {/* 미디어 — 있을 때만(글만이면 생략). 여러장 가로 페이저 */}
@@ -147,7 +166,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
                     </View>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginTop: 3, lineHeight: fs(19) }}>{cm.body}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 3, lineHeight: fs(22) }}>{cm.body}</Text>
                     <TouchableOpacity onPress={() => setReplyTo({ id: cm.id, name: cm.name })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
                     </TouchableOpacity>
@@ -162,7 +181,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: INK }}>{r.name}</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: SUB, marginLeft: 8 }}>{r.time}</Text>
                       </View>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: INK, marginTop: 2, lineHeight: fs(18) }}>{r.body}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
                     </View>
                   </View>
                 ))}
@@ -171,31 +190,33 @@ export function CrewPostScreen({ post, crew, onClose }) {
           </View>
         </ScrollView>
 
-        {/* 대댓글 대상 배너 */}
-        {replyTo && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 7, backgroundColor: 'rgba(94,126,66,0.1)' }}>
-            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>{replyTo.name}님에게 답글</Text>
-            <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
+        {/* 입력 영역 — kbPadStyle: 키보드 높이만큼 paddingBottom으로 들어올림(안드 RN Modal 대응) */}
+        <Animated.View style={[{ backgroundColor: BG }, kbPadStyle]}>
+          {/* 대댓글 대상 배너 */}
+          {replyTo && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 7, backgroundColor: 'rgba(94,126,66,0.1)' }}>
+              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>{replyTo.name}님에게 답글</Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {/* 비속어 안내 */}
+          {!!err && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 16, paddingBottom: 2 }}>{err}</Text>}
+          {/* 댓글 입력 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: BAR_PAD,
+            borderTopWidth: 0.5, borderTopColor: LINE }}>
+            <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} maxLength={300}
+              allowFontScaling={false} placeholder={replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…'} placeholderTextColor={SUB}
+              style={{ flex: 1, backgroundColor: CARD, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
+                fontFamily: F.sys, fontSize: fs(17), lineHeight: 23, color: INK, marginRight: 8, borderWidth: 0.5, borderColor: LINE }}
+              returnKeyType="send" onSubmitEditing={send} />
+            {/* 전송 = 종이비행기 */}
+            <TouchableOpacity onPress={send} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 6 }}>
+              <Icon name="paperPlane" size={fs(30)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.9} />
             </TouchableOpacity>
           </View>
-        )}
-        {/* 비속어 안내 */}
-        {!!err && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 16, paddingBottom: 2 }}>{err}</Text>}
-        {/* 댓글 입력 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
-          borderTopWidth: 0.5, borderTopColor: LINE, backgroundColor: BG }}>
-          <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} maxLength={300}
-            placeholder={replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…'} placeholderTextColor={SUB}
-            style={{ flex: 1, backgroundColor: FIELD, borderRadius: 20, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-              fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginRight: 8 }}
-            returnKeyType="send" onSubmitEditing={send} />
-          {/* 전송 = 종이비행기(원 없이, DM 버튼과 구분) — 키움 */}
-          <TouchableOpacity onPress={send} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 6 }}>
-            <Icon name="paperPlane" size={fs(30)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.9} />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+        </Animated.View>
 
       {/* 프로필 탭 → 메시지(DM) 시트 — 크루는 어차피 친구라 바로 DM 가능 (실제 DM 라우팅 연결 예정) */}
       {profileFor && (
@@ -215,6 +236,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
         </View>
       )}
     </SafeAreaView>
+    </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

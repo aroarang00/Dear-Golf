@@ -61,7 +61,7 @@ export function CrewCreateScreen({ onClose, onCreate }) {
           {/* 이름 */}
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginBottom: 8 }}>크루 이름</Text>
           <TextInput value={name} onChangeText={(t) => { setName(t); if (err) setErr(''); }} maxLength={NAME_MAX}
-            placeholder="예) 수요회, 대학 동기" placeholderTextColor={SUB}
+            allowFontScaling={false} placeholder="예) 수요회, 대학 동기" placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12,
               fontFamily: F.sysB, fontSize: fs(15), color: INK }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 5 }}>{name.length}/{NAME_MAX}</Text>

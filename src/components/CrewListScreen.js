@@ -160,7 +160,7 @@ export function CrewListScreen({ onClose }) {
             <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
               borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
               <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={10}
-                onSubmitEditing={saveEdit} returnKeyType="done"
+                allowFontScaling={false} onSubmitEditing={saveEdit} returnKeyType="done"
                 placeholder="크루 이름" placeholderTextColor={SUB}
                 style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: INK, paddingVertical: 4,
                   borderBottomWidth: 1.5, borderBottomColor: SAGE, marginRight: 10 }} />

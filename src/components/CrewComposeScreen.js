@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 모달 입력 가림 방지
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -46,6 +47,7 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+    <KeyboardProvider>
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
@@ -61,7 +63,7 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 공지 토글 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
@@ -77,9 +79,9 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
 
           {/* 글 */}
           <TextInput value={text} onChangeText={(t) => { setText(t); if (err) setErr(''); }} multiline maxLength={limit}
-            placeholder={isNotice ? '공지 내용을 입력하세요' : '무슨 일이 있었나요?'} placeholderTextColor={SUB}
+            allowFontScaling={false} placeholder={isNotice ? '공지 내용을 입력하세요' : '무슨 일이 있었나요?'} placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, padding: 14,
-              fontFamily: F.sys, fontSize: fs(14.5), color: INK, marginTop: 12, minHeight: 120, textAlignVertical: 'top', lineHeight: fs(22) }} />
+              fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: text.length >= limit ? '#B23B3B' : SUB, marginTop: 5 }}>{text.length}/{limit}</Text>
 
           {/* 미디어 — 공지가 아닐 때만 */}
@@ -126,6 +128,7 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

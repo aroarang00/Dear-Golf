@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, useWindowDimensions } from 'react-native';
-import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
@@ -54,6 +54,7 @@ function MiniAvatar({ n, c, i, size = 30, uri }) {
 export function CrewAlbumScreen({ crew, onClose }) {
   useAndroidBack(true, onClose);
   const { width: winW } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [openPost, setOpenPost] = useState(null);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -82,7 +83,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
       {/* 헤더 */}
@@ -92,7 +93,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
         {/* 긴 이름(최대 10자)은 잘리지 않게 자동 축소 — 짧으면 fs20 유지 */}
-        <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(20), color: INK, marginLeft: 6 }}
+        <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(18), color: INK, marginLeft: 6 }}
           numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || '크루'}</Text>
         {/* 이름 옆 아바타(+N) + 리스트 → 멤버 화면 */}
         <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
@@ -154,13 +155,13 @@ export function CrewAlbumScreen({ crew, onClose }) {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} i={0} size={32} />
                 <View style={{ marginLeft: 10 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: INK }}>{p.author.name}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: INK }}>{p.author.name}</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
                 </View>
               </View>
               {/* 글 */}
               {!!p.text && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginTop: 10, lineHeight: fs(20) }}>{p.text}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</Text>
               )}
               {/* 미디어 (있을 때) — 1장 크게 / 여러장 가로 스크롤 */}
               {p.media.length > 0 && (
@@ -224,7 +225,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
 
       {/* 올리기 FAB */}
       <TouchableOpacity activeOpacity={0.85} onPress={() => setComposeOpen(true)}
-        style={{ position: 'absolute', right: 20, bottom: 28, width: 56, height: 56, borderRadius: 28, backgroundColor: SAGE_DEEP,
+        style={{ position: 'absolute', right: 20, bottom: insets.bottom + 18, width: 56, height: 56, borderRadius: 28, backgroundColor: SAGE_DEEP,
           alignItems: 'center', justifyContent: 'center', shadowColor: '#1A3D52', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
         <Text style={{ fontSize: fs(30), color: '#fff', marginTop: -2 }}>＋</Text>
       </TouchableOpacity>
