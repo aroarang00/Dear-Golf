@@ -184,8 +184,10 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setLeaveAsk(false)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.4)' }} />
           <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 20, width: '100%' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>크루에서 나갈까요?</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, textAlign: 'center', marginTop: 8, lineHeight: fs(19) }}>나가면 이 크루의 사진·글을 더 볼 수 없어요.</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{members.length <= 1 ? '마지막 멤버예요' : '크루에서 나갈까요?'}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: members.length <= 1 ? '#B23B3B' : SUB, textAlign: 'center', marginTop: 8, lineHeight: fs(19) }}>
+              {members.length <= 1 ? '나가면 이 크루의 사진·영상·글이 모두 삭제돼요. 되돌릴 수 없어요.' : '나가면 이 크루의 사진·글을 더 볼 수 없어요.'}
+            </Text>
             <View style={{ flexDirection: 'row', marginTop: 18, gap: 8 }}>
               <TouchableOpacity onPress={() => setLeaveAsk(false)} style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: LINE }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: SUB }}>취소</Text>

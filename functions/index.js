@@ -14,7 +14,8 @@
 
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { getStorage } = require('firebase-admin/storage');
+const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
 
@@ -227,6 +228,53 @@ exports.onCrewInviteUpdated = onDocumentUpdated('crews/{crewId}', async (event) 
       await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId });
     } catch (e) { logger.warn('[crewInvite update] push fail', e?.message); }
   }));
+});
+
+// 크루 — 마지막 멤버가 나가 memberUids가 빈 배열이 되면 즉시 크루 문서 삭제.
+//   (읽기=멤버 한정이라 아무도 못 보는 죽은 데이터 → 개인정보 최소화. 실제 정리는 onCrewDeleted가 처리)
+exports.onCrewEmptied = onDocumentUpdated('crews/{crewId}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return;
+  const beforeMembers = Array.isArray(before.memberUids) ? before.memberUids : [];
+  const afterMembers = Array.isArray(after.memberUids) ? after.memberUids : [];
+  if (beforeMembers.length === 0 || afterMembers.length !== 0) return;   // '있다가 0' 전이만
+  try {
+    await db.doc(`crews/${event.params.crewId}`).delete();   // → onCrewDeleted가 하위 정리
+    logger.info('[crewEmptied] last member left, crew deleted', event.params.crewId);
+  } catch (e) { logger.error('[crewEmptied] delete fail', event.params.crewId, e?.message); }
+});
+
+// Firebase 다운로드 URL → Storage 객체 경로 (rounds/{uid}/m_....jpg)
+function storagePathFromUrl(url) {
+  try {
+    const m = String(url || '').match(/\/o\/([^?]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch (e) { return null; }
+}
+
+// 크루 문서 삭제 시(빈 크루 정리 또는 생성자 수동삭제) — 하위 posts·comments·Storage 미디어 전부 제거.
+//   Firestore는 부모 삭제 시 서브컬렉션을 자동 삭제하지 않으므로 명시적으로 정리.
+exports.onCrewDeleted = onDocumentDeleted('crews/{crewId}', async (event) => {
+  const crewId = event.params.crewId;
+  try {
+    const bucket = getStorage().bucket();
+    const postsSnap = await db.collection(`crews/${crewId}/posts`).get();
+    for (const postDoc of postsSnap.docs) {
+      const media = Array.isArray(postDoc.data().media) ? postDoc.data().media : [];
+      // Storage 미디어(사진·영상·포스터) 삭제 — 실패해도 문서 정리는 계속(고아 파일은 후속 청소)
+      await Promise.all(media.flatMap((mm) => [mm?.uri, mm?.poster]).filter(Boolean).map(async (u) => {
+        const path = storagePathFromUrl(u);
+        if (!path) return;
+        try { await bucket.file(path).delete(); } catch (e) { logger.warn('[crewDeleted] media del', path, e?.message); }
+      }));
+      // comments 서브컬렉션 삭제 후 post 삭제
+      const cSnap = await db.collection(`crews/${crewId}/posts/${postDoc.id}/comments`).get();
+      await Promise.all(cSnap.docs.map((d) => d.ref.delete()));
+      await postDoc.ref.delete();
+    }
+    logger.info('[crewDeleted] cleaned posts/comments/media', crewId, 'posts=', postsSnap.size);
+  } catch (e) { logger.error('[crewDeleted] cleanup fail', crewId, e?.message); }
 });
 
 // 스코어 공유 생성 시 audience(동반자)에게 푸시 — MY 배너가 인앱 담당, 푸시로 발견성 보강(사용자 요청 2026-06-17).
