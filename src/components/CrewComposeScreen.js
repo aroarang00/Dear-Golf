@@ -12,6 +12,7 @@ import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFi
 import { uploadRoundMedia } from '../utils/roundMedia';
 import { addCrewPost, setCrewNotice } from '../utils/crews';
 import { showAppAlert } from './AppAlert';
+import { CropEditorModal } from './common/CropEditorModal';
 
 // 크루 올리기(작성) — 앨범 FAB(＋)에서 진입 (docs/crew-space-design.md §3.3).
 //  글 + 사진/영상(합 10개·동영상 1개·30초) / 공지(텍스트만, 토글). 비속어 필터. 페일스카이 라이트.
@@ -37,9 +38,12 @@ export function CrewComposeScreen({ crew, onClose }) {
   const [isNotice, setIsNotice] = useState(false);
   const [err, setErr] = useState('');
   const [posting, setPosting] = useState(false);
+  const [cropUri, setCropUri] = useState(null);   // 1장 선택 시 크롭 대상(ⓐ: 다중선택은 크롭 없이)
 
   const hasVideo = media.some((m) => m.type === 'video');
   const full = media.length >= MAX_MEDIA;
+
+  const addImage = (uri) => setMedia((p) => [...p, { type: 'image', uri }].slice(0, MAX_MEDIA));
 
   const addPhoto = async () => {
     if (full || posting) return;
@@ -49,8 +53,9 @@ export function CrewComposeScreen({ crew, onClose }) {
       const remaining = MAX_MEDIA - media.length;
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: remaining, quality: 1 });
       if (res.canceled) return;
-      const picked = (res.assets || []).filter((a) => a?.uri).slice(0, remaining).map((a) => ({ type: 'image', uri: a.uri }));
-      setMedia((p) => [...p, ...picked].slice(0, MAX_MEDIA));
+      const imgs = (res.assets || []).filter((a) => a?.uri).slice(0, remaining);
+      if (imgs.length === 1) { setCropUri(imgs[0].uri); return; }   // ⓐ 1장 → 크롭 에디터
+      setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri }))].slice(0, MAX_MEDIA));  // 여러 장 → 크롭 없이
     } catch (e) { if (__DEV__) console.warn('[crewCompose] addPhoto', e?.message); }
   };
   const addVideo = async () => {
@@ -191,6 +196,11 @@ export function CrewComposeScreen({ crew, onClose }) {
           {!!err && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(12), marginTop: 12 }}>{err}</Text>}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ⓐ 1장 선택 시 크롭 — 저장=크롭본, 취소=원본 그대로 추가(사진 빠지지 않게) */}
+      <CropEditorModal visible={!!cropUri} uri={cropUri} aspect="square"
+        onSave={(uri) => { addImage(uri); setCropUri(null); }}
+        onClose={() => { if (cropUri) addImage(cropUri); setCropUri(null); }} />
     </SafeAreaView>
     </KeyboardProvider>
     </SafeAreaProvider>

@@ -15,7 +15,8 @@ const MAX_SCALE = 5;
 
 const ASPECTS = {
   cover:  { ratio: 3 / 4, frameW: SW * 0.92, maxOut: 1600 }, // h/w = 3/4 (4:3 가로)
-  avatar: { ratio: 1,     frameW: SW * 0.8,  maxOut: 600  },
+  avatar: { ratio: 1,     frameW: SW * 0.8,  maxOut: 600  }, // 1:1 원형 가이드(프로필)
+  square: { ratio: 1,     frameW: SW * 0.92, maxOut: 1600 }, // 1:1 정사각(크루 사진 등) — 원형 아님
 };
 
 export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClose }) {

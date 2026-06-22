@@ -250,7 +250,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
               {p.media.length > 0 && (
                 <View style={{ marginTop: 11 }}>
                   {p.media.length === 1 ? (
-                    <MediaTile m={p.media[0]} style={{ width: '100%', aspectRatio: 1.3 }} playSize="lg" />
+                    <MediaTile m={p.media[0]} style={{ width: '100%', aspectRatio: 1 }} playSize="lg" />
                   ) : (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {p.media.map((m, mi) => (
