@@ -938,8 +938,8 @@ export function HomeScreen({ navigation, route }) {
                     {roundEnded ? (
                       <View style={{ flex: 1, paddingTop: 2 }}>
                         {/* 종료/완료 = 그린(완료감) — 버터 대신 의미색 */}
-                        <View style={{ backgroundColor: 'rgba(143,176,107,0.2)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#8FB06B', letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
+                        <View style={{ backgroundColor: isRecorded(next) ? '#7E9D62' : '#BE6E5D', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: isRecorded(next) ? '#F1F7EA' : '#F8EAE4', letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
                         </View>
                         {/* 안드 adjustsFontSizeToFit는 numberOfLines>1이면 축소 대신 줄바꿈됨 → 안드만 1줄 강제(축소 동작) ([[rn-platform-gotchas]]) */}
                         <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{next.course}</Text>
