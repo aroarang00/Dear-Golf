@@ -21,9 +21,10 @@ const LINE  = 'rgba(26,61,82,0.12)';
 
 const MOCK_MEMBERS = [
   { n: '나', c: '#5E7E42' }, { n: '민', c: '#5B86A8' }, { n: '수', c: '#C98B7F' },
-  { n: '영', c: '#8FB06B' }, { n: '준', c: '#9B7FB0' },
+  { n: '영', c: '#8FB06B' }, { n: '준', c: '#9B7FB0' }, { n: '태', c: '#C9A24B' },
+  { n: '지', c: '#5B86A8' }, { n: '현', c: '#C98B7F' },
 ];
-const MOCK_NOTICE = '이번 주 토요일 7시, 클럽하우스 앞 집결!';
+const MOCK_NOTICE = '이번 주 토요일 오전 7시 클럽하우스 앞 집결입니다! 주차는 지하 2층에 하시고, 라운딩 후 근처 식당에서 점심 같이 해요. 못 오시는 분은 미리 댓글 남겨주세요 🙏';
 
 // 게시물 = 글(옵션) + 미디어(옵션, 0장이면 글만) + 댓글
 const MOCK_POSTS = [
@@ -59,6 +60,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
   const members = MOCK_MEMBERS;
   const [posts, setPosts] = useState(MOCK_POSTS);
   const [notice, setNotice] = useState(MOCK_NOTICE);
+  const [noticeExpanded, setNoticeExpanded] = useState(false);
 
   // 게시 — 공지면 핀 교체(최신 대체), 아니면 피드 맨 위에 추가
   const handleSubmit = ({ isNotice, text, media }) => {
@@ -87,38 +89,46 @@ export function CrewAlbumScreen({ crew, onClose }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
+        {/* 긴 이름(최대 10자)은 잘리지 않게 자동 축소 — 짧으면 fs20 유지 */}
+        <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(20), color: INK, marginLeft: 6 }}
+          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || '크루'}</Text>
+        {/* 이름 옆 아바타(+N) + 리스트 → 멤버 화면 */}
+        <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+          style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
+          {members.slice(0, 3).map((m, i) => <MiniAvatar key={i} n={m.n} c={m.c} i={i} size={24} />)}
+          {members.length > 3 && (
+            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
+              alignItems: 'center', justifyContent: 'center', marginLeft: -7 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>+{members.length - 3}</Text>
+            </View>
+          )}
+          <Text style={{ fontSize: fs(20), color: SAGE_DEEP, fontWeight: '700', marginLeft: 5, marginTop: -2 }}>›</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }} />
+        {/* 친구 초대 → 멤버 관리(초대) — 진하게·크게 */}
         <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
-          <Icon name="gear" size={fs(22)} color={INK} strokeWidth={1.6} />
+          <Icon name="personAdd" size={fs(27)} color={SAGE_DEEP} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
 
-      {/* 멤버 줄 + 공지 핀 */}
-      <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row' }}>
-            {members.slice(0, 6).map((m, i) => <MiniAvatar key={i} n={m.n} c={m.c} i={i} />)}
-            {members.length > 6 && (
-              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
-                alignItems: 'center', justifyContent: 'center', marginLeft: -9 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), color: '#fff' }}>+{members.length - 6}</Text>
-              </View>
-            )}
+      {/* 공지 핀 — 길면 더보기/접기 (멤버 아바타는 헤더로 합침) */}
+      {!!notice && (
+        <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: CARD, borderRadius: 12,
+            paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: LINE }}>
+            <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
+                numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
+              {(notice || '').length > 45 && (
+                <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginLeft: 10 }}>{members.length}명</Text>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Icon name="personAdd" size={fs(20)} color={SAGE_DEEP} strokeWidth={1.7} />
-          </TouchableOpacity>
         </View>
-        {!!notice && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
-            paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, borderWidth: 0.5, borderColor: LINE }}>
-            <Text style={{ fontSize: fs(13), marginRight: 8 }}>📌</Text>
-            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: INK }} numberOfLines={2}>{notice}</Text>
-          </View>
-        )}
-      </View>
+      )}
 
       {/* 피드 / 사진 토글 — 활성=세이지 채움(또렷하게) */}
       <View style={{ flexDirection: 'row', marginHorizontal: 14, marginTop: 12, marginBottom: 2,

@@ -28,7 +28,7 @@ const MOCK_INVITES = [
     avatars: [{ n: '영', c: '#8FB06B' }, { n: '엄', c: '#C98B7F' }] },
 ];
 const INIT_CREWS = [
-  { id: 'c1', name: '대학 동기', members: 5, last: '방금', newCount: 3, fav: false },
+  { id: 'c1', name: '수요일저녁라운딩모임', members: 5, last: '방금', newCount: 3, fav: false },
   { id: 'c2', name: '수요회', members: 4, last: '2일 전', newCount: 0, fav: true },
   { id: 'c3', name: '가족 라운딩', members: 3, last: '1주 전', newCount: 0, fav: false },
 ];

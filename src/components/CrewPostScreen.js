@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -9,20 +10,25 @@ import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFi
 // 크루 게시물 상세 — 피드/그리드에서 게시물 탭 시 진입 (docs/crew-space-design.md §3.2).
 //  글(옵션) + 미디어(옵션, 글만 가능) + 그 게시물의 댓글(B안). 페일스카이 라이트 테마.
 //  ※ Phase 1 — mock 댓글. 실제 미디어·업로드·삭제·실댓글은 이어서.
-const BG    = '#C8D9E6';
+const BG    = '#FFFFFF';                 // ★게시글 부각 — 하얀 배경(상세는 화이트)
 const INK   = '#1A3D52';
 const SUB   = 'rgba(26,61,82,0.55)';
 const CARD  = '#FFFFFF';
+const FIELD = '#EFF2F4';                 // 댓글 입력칸(흰 배경에서 보이게 연회색)
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
 
 const INIT_COMMENTS = [
-  { id: 'm1', n: '민', c: '#5B86A8', name: '민수', body: '스윙 좋다 👍', time: '2일 전' },
-  { id: 'm2', n: '영', c: '#8FB06B', name: '영지', body: '여기 어디야? 코스 예쁘다', time: '1일 전' },
+  { id: 'm1', n: '민', c: '#5B86A8', name: '민수', body: '스윙 좋다 👍', time: '2일 전',
+    replies: [{ id: 'm1r0', n: '나', c: '#5E7E42', name: '나', body: '고마워 ㅎㅎ', time: '2일 전' }] },
+  { id: 'm2', n: '영', c: '#8FB06B', name: '영지', body: '여기 어디야? 코스 예쁘다', time: '1일 전', replies: [] },
 ];
 
-function Avatar({ n, c, size = 32, onPress }) {
-  const inner = (
+// 사진 있으면 프로필 사진, 없으면 이니셜(친구·DM과 동일 폴백). uri는 실데이터 연결 시 주입.
+function Avatar({ n, c, size = 32, onPress, uri }) {
+  const inner = uri ? (
+    <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />
+  ) : (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(size * 0.4), color: '#fff' }}>{n}</Text>
     </View>
@@ -37,6 +43,9 @@ export function CrewPostScreen({ post, crew, onClose }) {
   const [draft, setDraft] = useState('');
   const [err, setErr] = useState('');                  // 비속어 안내
   const [profileFor, setProfileFor] = useState(null);  // 프로필 탭 → DM 시트 대상
+  const [replyTo, setReplyTo] = useState(null);        // 대댓글 대상 { id, name }
+
+  const totalCount = comments.reduce((a, c) => a + 1 + (c.replies?.length || 0), 0);
 
   const author = post?.author || { n: '나', c: SAGE_DEEP, name: '나' };
   const media = post?.media || [];
@@ -47,7 +56,15 @@ export function CrewPostScreen({ post, crew, onClose }) {
     const body = draft.trim();
     if (!body) return;
     if (containsProfanity(body)) { setErr(PROFANITY_BLOCK_MESSAGE); return; }   // 기존 필터 재사용
-    setComments((prev) => [...prev, { id: `me${prev.length}`, n: '나', c: SAGE_DEEP, name: '나', body, time: '방금' }]);
+    const mine = { n: '나', c: SAGE_DEEP, name: '나', body, time: '방금' };
+    if (replyTo) {
+      // 대댓글 — 대상 댓글의 replies에 추가
+      setComments((prev) => prev.map((c) => c.id === replyTo.id
+        ? { ...c, replies: [...(c.replies || []), { id: `${c.id}r${(c.replies || []).length}`, ...mine }] } : c));
+      setReplyTo(null);
+    } else {
+      setComments((prev) => [...prev, { id: `me${prev.length}`, ...mine, replies: [] }]);
+    }
     setDraft(''); setErr('');
   };
 
@@ -72,7 +89,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 작성자 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14 }}>
-            <Avatar n={author.n} c={author.c} size={34} onPress={() => setProfileFor(author)} />
+            <Avatar n={author.n} c={author.c} uri={author.uri} size={34} onPress={() => setProfileFor(author)} />
             <View style={{ marginLeft: 10 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: INK }}>{author.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 1 }}>{time}</Text>
@@ -113,39 +130,69 @@ export function CrewPostScreen({ post, crew, onClose }) {
 
           <View style={{ height: 0.5, backgroundColor: LINE, marginVertical: 16, marginHorizontal: 16 }} />
 
-          {/* 댓글 */}
+          {/* 댓글 + 대댓글 */}
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginBottom: 14 }}>댓글 {comments.length}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginBottom: 14 }}>댓글 {totalCount}</Text>
             {comments.length === 0 && (
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: SUB, marginBottom: 8 }}>첫 댓글을 남겨보세요.</Text>
             )}
-            {comments.map((cm) => (
-              <View key={cm.id} style={{ flexDirection: 'row', marginBottom: 16 }}>
-                <Avatar n={cm.n} c={cm.c} size={30} onPress={() => setProfileFor(cm)} />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
+            {comments.map((cm, ci) => (
+              <View key={cm.id} style={{ marginBottom: 14, paddingTop: ci === 0 ? 0 : 14,
+                borderTopWidth: ci === 0 ? 0 : 0.5, borderTopColor: 'rgba(26,61,82,0.08)' }}>
+                {/* 댓글 */}
+                <View style={{ flexDirection: 'row' }}>
+                  <Avatar n={cm.n} c={cm.c} uri={cm.uri} size={30} onPress={() => setProfileFor(cm)} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
+                    </View>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginTop: 3, lineHeight: fs(19) }}>{cm.body}</Text>
+                    <TouchableOpacity onPress={() => setReplyTo({ id: cm.id, name: cm.name })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginTop: 3, lineHeight: fs(19) }}>{cm.body}</Text>
                 </View>
+                {/* 대댓글(들여쓰기) */}
+                {(cm.replies || []).map((r) => (
+                  <View key={r.id} style={{ flexDirection: 'row', marginLeft: 40, marginTop: 12 }}>
+                    <Avatar n={r.n} c={r.c} uri={r.uri} size={26} onPress={() => setProfileFor(r)} />
+                    <View style={{ flex: 1, marginLeft: 9 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: INK }}>{r.name}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: SUB, marginLeft: 8 }}>{r.time}</Text>
+                      </View>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: INK, marginTop: 2, lineHeight: fs(18) }}>{r.body}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             ))}
           </View>
         </ScrollView>
 
+        {/* 대댓글 대상 배너 */}
+        {replyTo && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 7, backgroundColor: 'rgba(94,126,66,0.1)' }}>
+            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>{replyTo.name}님에게 답글</Text>
+            <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {/* 비속어 안내 */}
         {!!err && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 16, paddingBottom: 2 }}>{err}</Text>}
         {/* 댓글 입력 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
           borderTopWidth: 0.5, borderTopColor: LINE, backgroundColor: BG }}>
-          <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} maxLength={300} placeholder="댓글 달기…" placeholderTextColor={SUB}
-            style={{ flex: 1, backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+          <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (err) setErr(''); }} maxLength={300}
+            placeholder={replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…'} placeholderTextColor={SUB}
+            style={{ flex: 1, backgroundColor: FIELD, borderRadius: 20, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
               fontFamily: F.sys, fontSize: fs(13.5), color: INK, marginRight: 8 }}
             returnKeyType="send" onSubmitEditing={send} />
-          {/* 전송 = 종이비행기(원 없이, DM 버튼과 구분) */}
-          <TouchableOpacity onPress={send} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 7 }}>
-            <Icon name="paperPlane" size={fs(24)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.8} />
+          {/* 전송 = 종이비행기(원 없이, DM 버튼과 구분) — 키움 */}
+          <TouchableOpacity onPress={send} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 6 }}>
+            <Icon name="paperPlane" size={fs(30)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.9} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -156,7 +203,7 @@ export function CrewPostScreen({ post, crew, onClose }) {
           <TouchableOpacity activeOpacity={1} onPress={() => setProfileFor(null)} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-              <Avatar n={profileFor.n} c={profileFor.c} size={36} />
+              <Avatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={36} />
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginLeft: 12 }}>{profileFor.name}</Text>
             </View>
             <TouchableOpacity onPress={() => { /* TODO DM 라우팅 */ setProfileFor(null); }}
