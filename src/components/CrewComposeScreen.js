@@ -58,8 +58,9 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
           <Text style={{ fontSize: fs(20), color: INK }}>✕</Text>
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{isNotice ? '공지 작성' : '새 게시물'}</Text>
-        <TouchableOpacity onPress={submit} disabled={!canPost} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: canPost ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>게시</Text>
+        <TouchableOpacity onPress={submit} disabled={!canPost} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+          style={{ backgroundColor: canPost ? SAGE_DEEP : 'rgba(94,126,66,0.25)', borderRadius: 9, paddingHorizontal: 16, paddingVertical: 7 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>게시</Text>
         </TouchableOpacity>
       </View>
 
@@ -68,12 +69,15 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
           {/* 공지 토글 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
             paddingHorizontal: 14, paddingVertical: 12, borderWidth: 0.5, borderColor: LINE }}>
-            <Text style={{ fontSize: fs(16), marginRight: 8 }}>📌</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>공지로 올리기</Text>
-              {isNotice && <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }}>텍스트만 · 최신 공지가 기존을 대체해요</Text>}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: fs(15), marginRight: 6 }}>📌</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>공지로 올리기</Text>
+              </View>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 3 }}>텍스트만 가능 · 최신 공지가 기존을 대체해요</Text>
             </View>
             <Switch value={isNotice} onValueChange={setIsNotice}
+              style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] } : undefined}
               trackColor={{ false: 'rgba(26,61,82,0.2)', true: SAGE }} thumbColor="#fff" />
           </View>
 
@@ -87,15 +91,40 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
           {/* 미디어 — 공지가 아닐 때만 */}
           {!isNotice && (
             <View style={{ marginTop: 14 }}>
+              {/* 사진·영상 추가 — 세이지 채움 큰 버튼(밋밋하지 않게) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity onPress={addPhoto} disabled={full} activeOpacity={0.85}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginRight: 8,
+                    backgroundColor: full ? 'rgba(26,61,82,0.05)' : 'rgba(143,176,107,0.16)',
+                    borderWidth: 1, borderColor: full ? LINE : 'rgba(94,126,66,0.45)', borderRadius: 12, paddingVertical: 11 }}>
+                  <Icon name="image" size={fs(20)} color={full ? SUB : SAGE_DEEP} strokeWidth={1.7} />
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: full ? SUB : SAGE_DEEP, marginLeft: 7 }}>사진</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={addVideo} disabled={full || hasVideo} activeOpacity={0.85}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: (full || hasVideo) ? 'rgba(26,61,82,0.05)' : 'rgba(143,176,107,0.16)',
+                    borderWidth: 1, borderColor: (full || hasVideo) ? LINE : 'rgba(94,126,66,0.45)', borderRadius: 12, paddingVertical: 11 }}>
+                  <Icon name="video" size={fs(20)} color={(full || hasVideo) ? SUB : SAGE_DEEP} strokeWidth={1.7} />
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: (full || hasVideo) ? SUB : SAGE_DEEP, marginLeft: 7 }}>영상</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* 안내 + 갯수 (버튼 아래) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>사진·영상 합쳐 최대 10개 · 영상은 1개(30초)까지</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: media.length > 0 ? SAGE_DEEP : SUB }}>{media.length}/{MAX_MEDIA}</Text>
+              </View>
+
+              {/* 추가된 사진·영상 — 버튼 아래 가로 배열 */}
               {media.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                   {media.map((m, i) => (
                     <View key={i} style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: m.tint,
                       alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      <Icon name="image" size={fs(24)} color="rgba(255,255,255,0.85)" strokeWidth={1.4} />
+                      <Icon name={m.type === 'video' ? 'video' : 'image'} size={fs(24)} color="rgba(255,255,255,0.9)" strokeWidth={1.4} />
                       {m.type === 'video' && (
                         <View style={{ position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 7, paddingHorizontal: 5, paddingVertical: 1 }}>
-                          <Text style={{ fontSize: fs(9), color: '#fff' }}>▶ 영상</Text>
+                          <Text style={{ fontSize: fs(9), color: '#fff' }}>영상</Text>
                         </View>
                       )}
                       <TouchableOpacity onPress={() => removeMedia(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -106,21 +135,6 @@ export function CrewComposeScreen({ crew, onClose, onSubmit }) {
                   ))}
                 </ScrollView>
               )}
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <TouchableOpacity onPress={addPhoto} disabled={full} activeOpacity={0.8}
-                  style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: full ? LINE : SAGE_DEEP, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8 }}>
-                  <Icon name="image" size={fs(18)} color={full ? SUB : SAGE_DEEP} strokeWidth={1.6} />
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: full ? SUB : SAGE_DEEP, marginLeft: 6 }}>사진</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={addVideo} disabled={full || hasVideo} activeOpacity={0.8}
-                  style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: (full || hasVideo) ? LINE : SAGE_DEEP, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 }}>
-                  <Text style={{ fontSize: fs(13), color: (full || hasVideo) ? SUB : SAGE_DEEP, marginRight: 5 }}>▶</Text>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: (full || hasVideo) ? SUB : SAGE_DEEP }}>영상</Text>
-                </TouchableOpacity>
-                <View style={{ flex: 1 }} />
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB }}>{media.length}/{MAX_MEDIA}</Text>
-              </View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 8 }}>사진·영상 합쳐 최대 10개 · 영상은 1개(30초)까지</Text>
             </View>
           )}
 

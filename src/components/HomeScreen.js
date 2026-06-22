@@ -139,6 +139,22 @@ export function HomeScreen({ navigation, route }) {
   //   가장자리가 찌글거림(native driver로도 못 막음, 사용자 2026-06-20). 기하학 변형 없는 opacity 브리드로 대체.
   const dmIdleOpacity = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] });
   useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
+  // 크루 — 초대 왔을 때만 강하게 끌어줌(라디오 핑 글로우 + 버건디 배지). DM 호흡보다 확실히 강함.
+  //   ★얇은 테두리 원을 scale하면 iOS 찌글거림 → 글로우는 '채운 원'을 scale(테두리X)이라 안전.
+  const [crewInvite, setCrewInvite] = useState(1); // mock — 실제 크루 초대(audienceUids array-contains me) 수신 시 세팅
+  // 초대 있을 때만 라디오 핑 글로우 — ★'채운 원'(테두리 없음)을 scale → iOS 찌글거림 없음(얇은 테두리 원만 문제).
+  const crewPulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!(crewInvite > 0)) { crewPulse.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(crewPulse, { toValue: 1, duration: 1100, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.delay(250),
+    ]));
+    loop.start();
+    return () => { loop.stop(); crewPulse.setValue(0); };
+  }, [crewInvite]);
+  const crewHaloScale = crewPulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.7] });
+  const crewHaloOpacity = crewPulse.interpolate({ inputRange: [0, 0.12, 1], outputRange: [0, 0.5, 0] });
   // 홈 탭 복귀(focus) 시 안읽음 카운트 재조회 — 마운트·DM모달 닫힘에만 갱신하면, 푸시로 다른 탭에서 DM을 읽었을 때
   //   홈의 dmUnread가 옛 값(>0)으로 남아 안읽음 없는데도 버튼이 흔들리던 버그 방지(+자리 비운 새 DM도 반영). 2026-06-18.
   useEffect(() => {
@@ -833,6 +849,11 @@ export function HomeScreen({ navigation, route }) {
             <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={{ position: 'absolute', right: 0, top: 56 }}>
+              {/* 초대 글로우(라디오 핑) — 평상시 정적, 초대 있을 때만 울림. 채운 원 scale이라 iOS 찌글거림 없음. 점·숫자 없이 효과만 */}
+              {crewInvite > 0 && (
+                <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, borderRadius: 22,
+                  backgroundColor: '#8FB06B', opacity: crewHaloOpacity, transform: [{ scale: crewHaloScale }] }} />
+              )}
               {/* 단일 링(원 하나) — 세이지 톤 통일. DM은 이중 링/버터라 구분됨 */}
               <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: '#8FB06B',
                 alignItems: 'center', justifyContent: 'center' }}>
