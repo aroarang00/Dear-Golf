@@ -175,6 +175,60 @@ exports.onScheduleGroupUpdated = onDocumentUpdated('scheduleGroups/{groupId}', a
   }));
 });
 
+// 크루(친구 소수그룹 공유앨범) 생성 시 초대받은 친구(audienceUids)에게 푸시 — 홈 글로우가 인앱 담당, 푸시만(알림함 미오염).
+//   crews 생성 = createCrew(creator + 초대 audience). 일정 전파와 동일 패턴. ([[crew-space-design]])
+exports.onCrewInvited = onDocumentCreated('crews/{crewId}', async (event) => {
+  const c = event.data?.data();
+  if (!c || !c.creatorUid || !Array.isArray(c.audienceUids)) return;
+  const targets = c.audienceUids.filter(u => u && u !== c.creatorUid);
+  if (!targets.length) return;
+  const creatorName = (c.names && c.names[c.creatorUid]) || '';
+  const crewT = c.name ? `'${c.name}'` : '크루';
+  const body = `${creatorName ? creatorName + '님이 ' : ''}${crewT} 크루에 초대했어요`;
+  await Promise.all(targets.map(async (uid) => {
+    try {
+      const snap = await db.doc(`users/${uid}`).get();
+      if (!snap.exists) return;
+      const u = snap.data();
+      if (u.settings?.notifyPrefs?.crewInvite === false) return;
+      if (!u.pushToken) return;
+      await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId });
+    } catch (e) { logger.warn('[crewInvite] push fail', e?.message); }
+  }));
+});
+
+// 크루 — 추가 초대/재초대(업데이트)에도 푸시. onCreate는 최초만 잡으므로, 멤버가 친구를 더 부르거나(inviteToCrew)
+//   예전 거절자를 재초대(declinedUids에서 제거)하면 새로 audience가 된 사람에게만 발송.
+//   (수락·탈퇴·이름변경·공지·게시 등 다른 업데이트엔 targets=0이라 무발송 — 중복 푸시 방지)
+exports.onCrewInviteUpdated = onDocumentUpdated('crews/{crewId}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after || !after.creatorUid || !Array.isArray(after.audienceUids)) return;
+  const beforeAud = Array.isArray(before.audienceUids) ? before.audienceUids : [];
+  const beforeDeclined = Array.isArray(before.declinedUids) ? before.declinedUids : [];
+  const afterMembers = Array.isArray(after.memberUids) ? after.memberUids : [];
+  const afterDeclined = Array.isArray(after.declinedUids) ? after.declinedUids : [];
+  const targets = after.audienceUids.filter(u =>
+    u && u !== after.creatorUid &&
+    !afterMembers.includes(u) &&
+    !afterDeclined.includes(u) &&
+    (!beforeAud.includes(u) || beforeDeclined.includes(u))
+  );
+  if (!targets.length) return;
+  const crewT = after.name ? `'${after.name}'` : '크루';
+  const body = `${crewT} 크루에 초대받았어요`;   // 초대자=임의 멤버라 이름 생략(정확성 우선)
+  await Promise.all(targets.map(async (uid) => {
+    try {
+      const snap = await db.doc(`users/${uid}`).get();
+      if (!snap.exists) return;
+      const u = snap.data();
+      if (u.settings?.notifyPrefs?.crewInvite === false) return;
+      if (!u.pushToken) return;
+      await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId });
+    } catch (e) { logger.warn('[crewInvite update] push fail', e?.message); }
+  }));
+});
+
 // 스코어 공유 생성 시 audience(동반자)에게 푸시 — MY 배너가 인앱 담당, 푸시로 발견성 보강(사용자 요청 2026-06-17).
 exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', async (event) => {
   const s = event.data?.data();

@@ -201,6 +201,14 @@ export function HomeScreen({ navigation, route }) {
     }
   }, [route?.params?.openMeal]);
 
+  // 크루 초대 푸시 탭 → 홈 착지 + 크루 화면 자동 오픈
+  useEffect(() => {
+    if (route?.params?.openCrew) {
+      setCrewOpen(true);
+      navigation.setParams({ openCrew: undefined });
+    }
+  }, [route?.params?.openCrew]);
+
   // 1분마다 현재 시각 갱신 — 라운딩 종료(티오프+4h)/자정 전환 감지
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60000);

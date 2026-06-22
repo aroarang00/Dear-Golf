@@ -458,6 +458,8 @@ function App() {
         if (type === 'mealSuggestion') { navigationRef.navigate(ROUTES.HOME, { openMeal: data.mealId || true }); return; }
         // 스코어 공유 → MY(ScoreShareInbox 수신 배너가 MY 피드 상단)
         if (type === 'scoreShare') { navigationRef.navigate(ROUTES.MY); return; }
+        // 크루 초대 → 홈 + 크루 화면 자동 오픈(글로우가 있는 홈 우상단 진입점) ([[crew-space-design]])
+        if (type === 'crewInvite') { navigationRef.navigate(ROUTES.HOME, { openCrew: true }); return; }
         const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
         navigationRef.navigate(ROUTES.LOUNGE, openPostId ? { openPostId } : undefined);
       } catch (e) { /* 네비게이션 미준비 */ }
