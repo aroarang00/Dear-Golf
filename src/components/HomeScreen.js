@@ -1225,8 +1225,9 @@ export function HomeScreen({ navigation, route }) {
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
           <View style={{ marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
+            {/* '첫'은 진짜 신규(라운딩 기록·일정 둘 다 없음)에게만 — 기존 사용자가 예정 없을 땐 '첫' 제외 (사용자 2026-06-22) */}
             <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', marginBottom: 8, lineHeight: 30 }}>
-              Dear Golf 에서{'\n'}첫 라운딩을 시작해보세요
+              Dear Golf 에서{'\n'}{((diaries || []).some(isRoundDiary) || (schedules || []).length > 0) ? '다음 ' : '첫 '}라운딩을 시작해보세요
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.45)', lineHeight: 18, marginBottom: 20 }}>
               날씨 · 교통 · 코스 정보를{'\n'}한눈에 확인할 수 있어요
