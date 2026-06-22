@@ -797,10 +797,8 @@ export function HomeScreen({ navigation, route }) {
                 <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={fs(42) * zoomScale} /></View>
               </TouchableOpacity>
             </View>
-            {/* DM + 크루 세로 스택 — 둘 다 '프라이빗 소통' 식구. marginTop:-28로 DM을 타이틀 줄에 맞춰 올림(기존). */}
-            <View style={{ marginTop: -28, marginLeft: 14, marginRight: Platform.OS === 'android' && zoomScale < 1 ? -8 : 0, alignItems: 'center' }}>
             <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginLeft: 14, marginRight: Platform.OS === 'android' && zoomScale < 1 ? -8 : 0 }}>
               {/* DM 커스텀 버튼 — 반투명 버터 동그라미 + 균일 테두리. 안읽음=버건디+숫자. 안읽음 시 좌우 진동.
                   ★드롭섀도 제거(2026-06-18): 반투명 배경을 그림자가 투과해 iOS/안드 릴리즈에서 'DM 뒤 뿌연 팔각형'
                   아티팩트가 보였음(배경 없는 뷰의 그림자 다각형 근사 + elevation 팔각형). 깔끔함 우선으로 그림자 제거. */}
@@ -830,18 +828,17 @@ export function HomeScreen({ navigation, route }) {
                 </Animated.View>
               </Animated.View>
             </TouchableOpacity>
-              {/* 크루 — DM 형제(친구 소수그룹 공유앨범). DM 아래 동일 톤 동그라미. 아래 배너 marginRight:88이 이 자리 예약(line 837). */}
-              <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: 9 }}>
-                <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
-                  alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
-                    alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="crew" size={fs(26)} color={C.butter} strokeWidth={1.6} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </View>
+            {/* 크루 — DM 아래 진입. ★절대배치 = 행 높이·DM 위치에 영향 0(세로스택이 DM을 밀어올리던 문제 해결).
+                동그라미 없이 세이지(자동차 아이콘과 동색 #8FB06B) 트리오 아이콘만. top/right로 위치 미세조정. */}
+            <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ position: 'absolute', right: 0, top: 56 }}>
+              {/* 단일 링(원 하나) — 세이지 톤 통일. DM은 이중 링/버터라 구분됨 */}
+              <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: '#8FB06B',
+                alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="crew" size={fs(26)} color="#8FB06B" strokeWidth={1.7} />
+              </View>
+            </TouchableOpacity>
           </View>
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
