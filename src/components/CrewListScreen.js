@@ -5,6 +5,7 @@ import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { CrewAlbumScreen } from './CrewAlbumScreen';
+import { CrewCreateScreen } from './CrewCreateScreen';
 
 // 크루(친구 소수 그룹) 공유 앨범 — 진입 첫 화면 = 내가 속한 크루 리스트 (docs/crew-space-design.md §3.0).
 //  ★목록은 DM(다크룸)과 다르게 — 친구화면 톤(페일스카이) 라이트 테마.
@@ -47,6 +48,12 @@ export function CrewListScreen({ onClose }) {
   const [draft, setDraft] = useState('');
   const [menuFor, setMenuFor] = useState(null);        // 길게누르기 메뉴 대상 크루
   const [openCrew, setOpenCrew] = useState(null);      // 앨범(상세) 열린 크루
+  const [createOpen, setCreateOpen] = useState(false); // 크루 만들기
+
+  const handleCreate = ({ name, members }) => {
+    setCrews((prev) => [{ id: `c_new_${prev.length}`, name, members, last: '방금', newCount: 0, fav: false }, ...prev]);
+    setCreateOpen(false);
+  };
 
   const startEdit = (c) => { setEditingId(c.id); setDraft(c.name); };
   const saveEdit = () => {
@@ -64,6 +71,7 @@ export function CrewListScreen({ onClose }) {
 
   // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일)
   if (openCrew) return <CrewAlbumScreen crew={openCrew} onClose={() => setOpenCrew(null)} />;
+  if (createOpen) return <CrewCreateScreen onClose={() => setCreateOpen(false)} onCreate={handleCreate} />;
 
   return (
     // RN Modal 안에선 루트 SafeAreaProvider가 안 닿아 top inset이 0 → 헤더(뒤로가기)가 노치 밑으로 올라가 안 눌림.
@@ -82,7 +90,7 @@ export function CrewListScreen({ onClose }) {
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Icon name="crew" size={fs(34)} color={SAGE_DEEP} strokeWidth={1.8} />
         </View>
-        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
+        <TouchableOpacity onPress={() => setCreateOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Icon name="personAdd" size={fs(24)} color={INK} strokeWidth={1.8} />
         </TouchableOpacity>
       </View>

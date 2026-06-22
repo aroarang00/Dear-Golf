@@ -6,6 +6,7 @@ import { Icon } from './common/Icon';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { CrewPostScreen } from './CrewPostScreen';
 import { CrewComposeScreen } from './CrewComposeScreen';
+import { CrewMembersScreen } from './CrewMembersScreen';
 
 // 크루 앨범 — 리스트에서 크루 탭 시 진입 (docs/crew-space-design.md §3.1).
 //  ★피드 + 사진 토글: 피드=글·사진·영상 섞인 카드(글만 가능), 사진=미디어만 그리드. 댓글은 게시물별(B안).
@@ -53,6 +54,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [openPost, setOpenPost] = useState(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
 
   const members = MOCK_MEMBERS;
   const [posts, setPosts] = useState(MOCK_POSTS);
@@ -67,6 +69,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
 
   if (openPost) return <CrewPostScreen post={openPost} crew={crew} onClose={() => setOpenPost(null)} />;
   if (composeOpen) return <CrewComposeScreen crew={crew} onClose={() => setComposeOpen(false)} onSubmit={handleSubmit} />;
+  if (membersOpen) return <CrewMembersScreen crew={crew} onClose={() => setMembersOpen(false)} onLeave={() => { setMembersOpen(false); onClose(); }} />;
 
   // 사진 탭 — 모든 게시물의 미디어를 펼친 그리드
   const PAD = 12, GAP = 4, COLS = 3;
@@ -85,7 +88,7 @@ export function CrewAlbumScreen({ crew, onClose }) {
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }} numberOfLines={1}>{crew?.name || '크루'}</Text>
-        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
+        <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Icon name="gear" size={fs(22)} color={INK} strokeWidth={1.6} />
         </TouchableOpacity>
       </View>
