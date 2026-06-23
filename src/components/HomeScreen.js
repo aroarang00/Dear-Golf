@@ -1522,21 +1522,22 @@ export function HomeScreen({ navigation, route }) {
           <CrewListScreen onClose={() => setCrewOpen(false)}
             onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDmChat({ uid, name, avatar }); }} />
         </ModalBackContext.Provider>
-      </Modal>
 
-      {/* 크루에서 연 DM — 크루 모달 위에 얹어 띄움. 닫으면 크루로 복귀(DM 목록 안 거침). */}
-      <Modal visible={!!crewDmChat} transparent animationType="slide"
-        statusBarTranslucent={Platform.OS === 'android'}
-        onRequestClose={() => setCrewDmChat(null)}>
-        {crewDmChat && (
-          <DMChatScreen friendUid={crewDmChat.uid} friendName={crewDmChat.name} friendAvatarUri={crewDmChat.avatar || null}
-            onClose={() => setCrewDmChat(null)}
-            onOpenRoundup={(postId, hostUid, scope) => {
-              setCrewDmChat(null); setCrewOpen(false);
-              if (scope === 'select') navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' });
-              else navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid });
-            }} />
-        )}
+        {/* 크루에서 연 DM — 크루 Modal '안에' 중첩. iOS는 형제 Modal 2개를 동시에 못 띄워(크루 위 DM이 안 떴음) →
+            중첩하면 크루 Modal이 DM을 위에 정상 표시. 안드는 기존대로 동작. 닫으면 크루로 복귀(DM 목록 안 거침). */}
+        <Modal visible={!!crewDmChat} transparent animationType="slide"
+          statusBarTranslucent={Platform.OS === 'android'}
+          onRequestClose={() => setCrewDmChat(null)}>
+          {crewDmChat && (
+            <DMChatScreen friendUid={crewDmChat.uid} friendName={crewDmChat.name} friendAvatarUri={crewDmChat.avatar || null}
+              onClose={() => setCrewDmChat(null)}
+              onOpenRoundup={(postId, hostUid, scope) => {
+                setCrewDmChat(null); setCrewOpen(false);
+                if (scope === 'select') navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' });
+                else navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid });
+              }} />
+          )}
+        </Modal>
       </Modal>
 
       {/* 일정 풀스크린 — 홈의 '일정' 라벨 탭 시 캘린더 화면 표시 */}
