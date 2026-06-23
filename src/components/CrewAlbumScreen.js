@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Animated, { SlideInRight } from 'react-native-reanimated';
@@ -351,8 +351,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         <View style={{ flexDirection: 'row', marginHorizontal: 14,
           backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
           {[['feed', '게시글'], ['photos', '갤러리']].map(([t, label]) => (
-            <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.85} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-              style={{ flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
+            <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{ flex: 1, paddingVertical: Platform.OS === 'android' ? 7 : 10, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
             </TouchableOpacity>
           ))}
@@ -454,7 +454,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: PAD }}>
             {tiles.map((t, i) => (
               <TouchableOpacity key={t.key} activeOpacity={0.8}
-                onPress={() => { const post = posts.find((p) => p.id === t.postId); if (post) setViewer({ media: post.media, index: t.mi }); }}
+                onPress={() => setViewer({ media: tiles, index: i })}
                 style={{ marginRight: i % COLS === COLS - 1 ? 0 : GAP, marginBottom: GAP }}>
                 <MediaTile m={t} style={{ width: cell, height: cell }} radius={8} playSize="sm" />
               </TouchableOpacity>
