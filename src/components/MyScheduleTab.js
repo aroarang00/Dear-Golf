@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, Share, Platform, Animated, Easing } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Share, Platform, Animated, Easing, useWindowDimensions } from 'react-native';
 
 const _and = Platform.OS === 'android';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
@@ -77,6 +77,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const { schedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid (홈과 동일, [[uid-stabilization-plan]])
+  // 캘린더 날짜 동그라미 — 확대(디스플레이 줌) 시 셀 폭(winW/7)이 좁아지면 32 고정이 셀을 넘쳐 캘린더 우측이
+  //   잘림 → winW 기반으로 유연하게. 정상 줌(winW 큼)엔 32 유지, 확대 시만 축소(2026-06-24). 24=그리드 좌우 패딩(12*2).
+  const { width: winW } = useWindowDimensions();
+  const dateCircleSize = Math.min(32, Math.floor((winW - 24) / 7) - 4);
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modal, setModal] = useState({ visible: false, initial: null });
@@ -549,14 +553,14 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     // Outside current month
     if (monthOffset !== 0) {
       return (
-        <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: dateCircleSize, height: dateCircleSize, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontFamily: F.en, fontSize: fs(16), color: '#C8C4BC' }}>{d}</Text>
         </View>
       );
     }
 
     const status = getStatus(0, d);
-    const base = { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' };
+    const base = { width: dateCircleSize, height: dateCircleSize, borderRadius: dateCircleSize / 2, alignItems: 'center', justifyContent: 'center' };
     const baseText = { fontFamily: F.en, fontSize: fs(16) };
     // Android Fabric(New Arch)은 둥근 View를 렌더 최적화로 병합하며 borderRadius를 간헐적으로
     // 누락시켜 네모로 그림(달 이동 시 됐다 안 됐다). collapsable={false}로 병합을 막아 원형 고정.
@@ -566,7 +570,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       case 'today':
         // 오늘 — 크고 버건디색 숫자 + 버건디 언더바 (동그라미 X)
         return (
-          <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: dateCircleSize, height: dateCircleSize, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.burgundy }}>{d}</Text>
             <View style={{ position: 'absolute', bottom: 1, width: 20, height: 3.5, borderRadius: 2, backgroundColor: C.burgundy }} />
           </View>
