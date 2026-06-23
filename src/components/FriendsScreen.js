@@ -78,10 +78,12 @@ export function FriendsScreen({ navigation, route }) {
       {/* 헤더 — Friends 타이틀(+우상단 💬 메시지) + 친구 찾기·초대 */}
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 16, paddingVertical: 7,
         flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <View>
+        {/* flex:1 + minWidth:0 — 확대(디스플레이 줌) 시 좌측 타이틀이 공간을 양보해 우측 버튼(친구찾기·초대)이
+            안 잘리게. Friends는 adjustsFontSizeToFit으로 축소(iOS 잘림 방지, 2026-06-24). */}
+        <View style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>나의 골프 파트너</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(_and ? 24 : 28), color: C.navy }}>Friends</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: F.en, fontSize: fs(_and ? 24 : 28), color: C.navy, flexShrink: 1 }}>Friends</Text>
             {/* 안내(!) — 코스 헤더와 동일 패턴. 그룹·별명·친구찾기(카카오)·NEW·스와이프·끊기/차단 안내(사용자 2026-06-20) */}
             <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               onPress={() => showAppAlert('', <FriendGuideContent />, [{ text: '확인' }])}
