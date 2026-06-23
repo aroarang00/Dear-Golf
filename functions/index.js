@@ -55,6 +55,18 @@ async function sendExpoPush(token, title, body, data = {}) {
   }
 }
 
+// 팬아웃 상한 — audience(초대·공유) 푸시 대상 수 제한. 악의적으로 audienceUids를 크게 넣어
+//   user read·푸시를 폭증시키는 남용 방어. 정상 사용(소수 동반자·친구 소그룹)은 한참 못 미침.
+//   초과 시 앞 MAX_FANOUT명에만 발송하고 경고 로그(조용한 누락 금지). 룰 단의 배열 크기 제한과 별개 방어선.
+const MAX_FANOUT = 50;
+function capFanout(targets, ctx) {
+  if (targets.length > MAX_FANOUT) {
+    logger.warn('[fanout] capped', ctx, 'requested=', targets.length, 'sent=', MAX_FANOUT);
+    return targets.slice(0, MAX_FANOUT);
+  }
+  return targets;
+}
+
 // roundupNotifications 생성 시 푸시 발송 (인앱은 클라이언트가 직접 읽음)
 exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}', async (event) => {
   const data = event.data?.data();
@@ -131,7 +143,7 @@ exports.onScheduleGroupCreated = onDocumentCreated('scheduleGroups/{groupId}', a
   if (!targets.length) return;
   const courseT = g.course ? `'${g.course}'` : '라운딩';
   const body = `${g.initiatorName ? g.initiatorName + '님이 ' : ''}${courseT} 일정에 초대했어요${g.date ? ` — ${g.date}` : ''}`;
-  await Promise.all(targets.map(async (uid) => {
+  await Promise.all(capFanout(targets, 'scheduleInvite').map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
       if (!snap.exists) return;
@@ -164,7 +176,7 @@ exports.onScheduleGroupUpdated = onDocumentUpdated('scheduleGroups/{groupId}', a
   if (!targets.length) return;
   const courseT = after.course ? `'${after.course}'` : '라운딩';
   const body = `${after.initiatorName ? after.initiatorName + '님이 ' : ''}${courseT} 일정에 초대했어요${after.date ? ` — ${after.date}` : ''}`;
-  await Promise.all(targets.map(async (uid) => {
+  await Promise.all(capFanout(targets, 'scheduleInvite/update').map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
       if (!snap.exists) return;
@@ -186,7 +198,7 @@ exports.onCrewInvited = onDocumentCreated('crews/{crewId}', async (event) => {
   const creatorName = (c.names && c.names[c.creatorUid]) || '';
   const crewT = c.name ? `'${c.name}'` : '크루';
   const body = `${creatorName ? creatorName + '님이 ' : ''}${crewT} 크루에 초대했어요`;
-  await Promise.all(targets.map(async (uid) => {
+  await Promise.all(capFanout(targets, 'crewInvite').map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
       if (!snap.exists) return;
@@ -218,7 +230,7 @@ exports.onCrewInviteUpdated = onDocumentUpdated('crews/{crewId}', async (event) 
   if (!targets.length) return;
   const crewT = after.name ? `'${after.name}'` : '크루';
   const body = `${crewT} 크루에 초대받았어요`;   // 초대자=임의 멤버라 이름 생략(정확성 우선)
-  await Promise.all(targets.map(async (uid) => {
+  await Promise.all(capFanout(targets, 'crewInvite/update').map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
       if (!snap.exists) return;
@@ -299,7 +311,7 @@ exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', as
   if (!targets.length) return;
   const courseT = s.course ? `'${s.course}'` : '라운딩';
   const body = `${s.authorName ? s.authorName + '님이 ' : ''}${courseT} 스코어를 공유했어요 — 내 점수를 추가해보세요`;
-  await Promise.all(targets.map(async (uid) => {
+  await Promise.all(capFanout(targets, 'scoreShare').map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
       if (!snap.exists) return;
@@ -320,7 +332,7 @@ exports.onMealSuggestionCreated = onDocumentCreated('mealSuggestions/{id}', asyn
   if (!targets.length) return;
   const placeName = m.place?.name || '식당';
   const body = `${m.authorName ? m.authorName + '님이 ' : ''}식사 장소를 '${placeName}'(으)로 정했어요${m.course ? ` — ${m.course}` : ''}`;
-  await Promise.all(targets.map(async (uid) => {
+  await Promise.all(capFanout(targets, 'meal').map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
       if (!snap.exists) return;
@@ -345,7 +357,7 @@ exports.onMealSuggestionUpdated = onDocumentUpdated('mealSuggestions/{id}', asyn
   if (!targets.length) return;
   const placeName = after.place?.name || '식당';
   const body = `${after.authorName ? after.authorName + '님이 ' : ''}식사 장소를 '${placeName}'(으)로 바꿨어요${after.course ? ` — ${after.course}` : ''}`;
-  await Promise.all(targets.map(async (uid) => {
+  await Promise.all(capFanout(targets, 'meal/update').map(async (uid) => {
     try {
       const snap = await db.doc(`users/${uid}`).get();
       if (!snap.exists) return;
