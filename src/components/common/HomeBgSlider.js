@@ -142,7 +142,9 @@ export function HomeBgSlider() {
   }, []);
 
   return (
-    <View style={StyleSheet.absoluteFillObject}>
+    // pointerEvents="none" — 전체화면 배경이라 확대(디스플레이 줌) 시 scene이 탭바 영역까지 커지면 이 배경이
+    //   하단 탭바를 덮어 터치를 흡수, 안드 탭바가 무반응이 됨. 배경은 터치 대상이 아니므로 터치를 통과시킴(2026-06-24).
+    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
       <Image source={imageUri} fadeDuration={0} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       <LinearGradient
         style={StyleSheet.absoluteFillObject}

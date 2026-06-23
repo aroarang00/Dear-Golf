@@ -4,6 +4,7 @@ import {
   Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated, Easing, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
 import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
@@ -61,6 +62,7 @@ export function HomeScreen({ navigation, route }) {
   const { schedules, hydrated, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid ([[uid-stabilization-plan]])
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();   // 확대 시 콘텐츠가 탭바 영역을 덮어 안드 탭바가 무반응이던 것 — 콘텐츠 하단에 탭바 높이만큼 여백(2026-06-24)
   const [showAddModal, setShowAddModal] = useState(false);
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -816,7 +818,7 @@ export function HomeScreen({ navigation, route }) {
             확대로 내용이 넘칠 때만 세로 스크롤로 구제(하단 카드/골퍼코멘트 잘림 방지). 헤더·폰트는 손대지 않음. */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: tabBarHeight }}
           showsVerticalScrollIndicator={false}
           bounces={false}>
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
