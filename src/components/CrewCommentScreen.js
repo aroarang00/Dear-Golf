@@ -307,8 +307,10 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
             <View style={{ paddingVertical: 24, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
           ) : comments.length === 0 ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: SUB, paddingVertical: 10 }}>첫 댓글을 남겨보세요.</Text>
-          ) : comments.map((cm) => (
-            <View key={cm.id} style={{ marginBottom: 14 }}>
+          ) : comments.map((cm, ci) => (
+            // 댓글 사이 구분선 + 여백 — 댓글이 안 갈리던 것 보강(첫 댓글은 상단 선 생략)
+            <View key={cm.id} style={{ paddingBottom: 14,
+              borderTopWidth: ci === 0 ? 0 : 0.5, borderTopColor: LINE, paddingTop: ci === 0 ? 0 : 14 }}>
               <View style={{ flexDirection: 'row' }}>
                 <MiniAvatar n={cm.n} c={cm.c} uri={cm.uri} size={30} onPress={() => openProfile(cm)} />
                 <View style={{ flex: 1, marginLeft: 9 }}>
