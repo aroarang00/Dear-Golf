@@ -109,18 +109,21 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
         <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginBottom: 8 }}>{members.length}/{MAX_MEMBERS}명 · 누구나 초대할 수 있어요</Text>
         <View style={{ backgroundColor: CARD, borderRadius: 14, borderWidth: 0.5, borderColor: LINE, overflow: 'hidden' }}>
           {members.map((m, i) => (
-            <TouchableOpacity key={m.id} activeOpacity={m.self ? 1 : 0.7} onPress={() => !m.self && setProfileFor(m)}
+            <View key={m.id}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>
-              <Avatar n={m.n} c={m.c} uri={m.avatarUri} />
-              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }}>{m.name}</Text>
+              {/* 본문(아바타·이름) 탭 = 프로필 시트 / DM 아이콘 탭 = 바로 대화방 — ★형제 터치영역(중첩 TouchableOpacity가 iOS서 안 먹던 문제 해결) */}
+              <TouchableOpacity activeOpacity={m.self ? 1 : 0.7} onPress={() => !m.self && setProfileFor(m)} disabled={m.self}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                <Avatar n={m.n} c={m.c} uri={m.avatarUri} />
+                <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }} numberOfLines={1}>{m.name}</Text>
+              </TouchableOpacity>
               {m.self && <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>나</Text>}
-              {/* DM 아이콘 탭 = 바로 대화방 오픈(시트 거치지 않음). 행 본문 탭은 프로필 시트(아래). */}
               {!m.self && (
                 <TouchableOpacity onPress={() => onOpenDM?.(m.id, m.name, m.avatarUri)} hitSlop={{ top: 12, bottom: 12, left: 14, right: 10 }} style={{ paddingLeft: 12 }}>
                   <Icon name="sendFilled" size={fs(30)} color={INK} strokeWidth={1.8} />
                 </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
 

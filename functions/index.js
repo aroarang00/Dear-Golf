@@ -253,29 +253,38 @@ function storagePathFromUrl(url) {
   } catch (e) { return null; }
 }
 
-// 크루 문서 삭제 시(빈 크루 정리 또는 생성자 수동삭제) — 하위 posts·comments·Storage 미디어 전부 제거.
-//   Firestore는 부모 삭제 시 서브컬렉션을 자동 삭제하지 않으므로 명시적으로 정리.
-exports.onCrewDeleted = onDocumentDeleted('crews/{crewId}', async (event) => {
-  const crewId = event.params.crewId;
-  try {
-    const bucket = getStorage().bucket();
-    const postsSnap = await db.collection(`crews/${crewId}/posts`).get();
-    for (const postDoc of postsSnap.docs) {
-      const media = Array.isArray(postDoc.data().media) ? postDoc.data().media : [];
-      // Storage 미디어(사진·영상·포스터) 삭제 — 실패해도 문서 정리는 계속(고아 파일은 후속 청소)
-      await Promise.all(media.flatMap((mm) => [mm?.uri, mm?.poster]).filter(Boolean).map(async (u) => {
-        const path = storagePathFromUrl(u);
-        if (!path) return;
-        try { await bucket.file(path).delete(); } catch (e) { logger.warn('[crewDeleted] media del', path, e?.message); }
-      }));
-      // comments 서브컬렉션 삭제 후 post 삭제
-      const cSnap = await db.collection(`crews/${crewId}/posts/${postDoc.id}/comments`).get();
-      await Promise.all(cSnap.docs.map((d) => d.ref.delete()));
-      await postDoc.ref.delete();
-    }
-    logger.info('[crewDeleted] cleaned posts/comments/media', crewId, 'posts=', postsSnap.size);
-  } catch (e) { logger.error('[crewDeleted] cleanup fail', crewId, e?.message); }
-});
+// 크루 문서 삭제 시(빈 크루 정리 또는 생성자 수동삭제) — 하위 posts·comments(recursiveDelete) + Storage 미디어 제거.
+//   ★활발한 크루(게시물·미디어 많음)도 타임아웃 안 나게: Firestore는 recursiveDelete 일괄, Storage는 10개씩 병렬.
+//   timeout/memory 상향(기본 60s론 부족할 수 있음).
+exports.onCrewDeleted = onDocumentDeleted(
+  { document: 'crews/{crewId}', timeoutSeconds: 300, memory: '512MiB' },
+  async (event) => {
+    const crewId = event.params.crewId;
+    try {
+      // 1) 삭제 전에 Storage 미디어 URL 수집
+      const postsSnap = await db.collection(`crews/${crewId}/posts`).get();
+      const urls = [];
+      postsSnap.forEach((d) => {
+        (Array.isArray(d.data().media) ? d.data().media : []).forEach((m) => {
+          if (m?.uri) urls.push(m.uri);
+          if (m?.poster) urls.push(m.poster);
+        });
+      });
+      // 2) Firestore 하위(posts + 그 안 comments) 일괄 삭제 — Admin recursiveDelete(서브컬렉션까지)
+      await db.recursiveDelete(db.doc(`crews/${crewId}`));
+      // 3) Storage 미디어 삭제 — 10개씩 묶어 병렬(실패해도 계속, 고아는 후속 청소)
+      const bucket = getStorage().bucket();
+      for (let i = 0; i < urls.length; i += 10) {
+        await Promise.all(urls.slice(i, i + 10).map(async (u) => {
+          const path = storagePathFromUrl(u);
+          if (!path) return;
+          try { await bucket.file(path).delete(); } catch (e) { logger.warn('[crewDeleted] media del', path, e?.message); }
+        }));
+      }
+      logger.info('[crewDeleted] cleaned', crewId, 'posts=', postsSnap.size, 'media=', urls.length);
+    } catch (e) { logger.error('[crewDeleted] cleanup fail', crewId, e?.message); }
+  },
+);
 
 // 스코어 공유 생성 시 audience(동반자)에게 푸시 — MY 배너가 인앱 담당, 푸시로 발견성 보강(사용자 요청 2026-06-17).
 exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', async (event) => {
