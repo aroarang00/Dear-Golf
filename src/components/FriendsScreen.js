@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -9,10 +9,24 @@ import { ShareMomentModal } from './ShareMomentModal';
 import { showAppAlert } from './AppAlert';   // 헤더 안내(!) 팝업
 
 // 친구 화면 — 내 프로필·설정은 MY 탭으로 이관, 친구 목록 전용.
-export function FriendsScreen({ navigation }) {
+export function FriendsScreen({ navigation, route }) {
   const _and = Platform.OS === 'android'; // 헤더 안드 컴팩트 보정 — 다른 탭 헤더(코스·라운지)와 동일 규격
   // 친구 첫 진입 1회 안내는 FriendsTab 상단 인라인 카드로 이관(접이식, friendCoachDone 재사용) ([[friend_groups]])
   const openFinderRef = useRef(null); // FriendsTab의 친구 찾기(finder)를 헤더 버튼에서 열기 위한 핸들
+
+  // 홈 빈 상태 '골프 친구 추가하기' → 친구 탭으로 오면서 친구찾기(카카오) 자동 오픈 — 클릭 한 단계 단축 ([[first-entry-friend-path]]).
+  //   자식(FriendsTab) effect가 먼저 돌아 openFinderRef는 이미 세팅됨. 트리거 후 즉시 param 소비(재진입 중복 오픈 방지).
+  const wantFinder = route?.params?.openFinder;
+  useEffect(() => {
+    if (!wantFinder) return;
+    // 소비(setParams)는 반드시 타이머 콜백 안에서 — 즉시 호출하면 wantFinder가 undefined로 바뀌며
+    //   cleanup이 자기 타이머를 clearTimeout으로 죽여 finder가 안 열림. open 직후 1회 소비.
+    const t = setTimeout(() => {
+      openFinderRef.current?.(wantFinder === true ? 'kakao' : wantFinder);
+      navigation.setParams({ openFinder: undefined });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [wantFinder]);
 
   // 친구 초대 — 비사용자에게 나가는 cold-acquisition 카드(랜딩 톤·올인원 차별화). 평문 링크는 카드 모달의 '링크 공유'로 유지 ([[invite-deeplink-system]])
   const [inviteOpen, setInviteOpen] = useState(false);

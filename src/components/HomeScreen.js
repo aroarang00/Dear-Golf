@@ -39,7 +39,7 @@ import { CrewListScreen } from './CrewListScreen'; // 크루(친구 소수그룹
 import { subscribeCrewInvites } from '../utils/crews';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
-import { loadMyFriendsEnriched } from '../utils/friends';
+import { loadMyFriendsEnriched, loadMyFriends } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
@@ -68,6 +68,10 @@ export function HomeScreen({ navigation, route }) {
   // 동반자 별명(customName) 해석용 owner-only 메타 — 일정 시트에서 별명 표시 ([[friend_groups]])
   const [friendMeta, setFriendMeta] = useState({});
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
+  // 빈 상태 '친구 추가' CTA 노출 판별 — 진짜 친구 수(accepted)로만. friendMeta는 별명·그룹 지정분만이라 0명 판별엔 부정확.
+  //   null=미확정(로드 전엔 CTA 숨겨 깜빡임 방지), false=친구 0명일 때만 보조 CTA 노출.
+  const [hasFriends, setHasFriends] = useState(null);
+  useEffect(() => { loadMyFriends().then(fs => setHasFriends(fs.length > 0)).catch(() => {}); }, []);
   const [showHomeIntro, setShowHomeIntro] = useState(false);   // Dear Golf 이용 안내 모달
   const [homeIntroSeen, setHomeIntroSeen] = useState(true);    // 초기 true(뱃지 X), AsyncStorage 로드 후 갱신
   const [showWeatherFull, setShowWeatherFull] = useState(false);
@@ -1306,11 +1310,21 @@ export function HomeScreen({ navigation, route }) {
               onPress={() => setShowAddModal(true)}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
             </TouchableOpacity>
+            {/* 친구 0명 신규에게만 '친구 추가' 보조 동선 — 이 앱의 핵심 가치(함께 모집·기록·공유)는 친구 연결로 열림.
+                홈 빈 상태가 '라운딩 추가'(혼자)만 가리키던 빈틈 보강. 친구 생기면 자동으로 사라짐 ([[first-entry-friend-path]]) */}
+            {hasFriends === false && (
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.FRIENDS, { openFinder: 'kakao' })} activeOpacity={0.85}
+                style={{ marginTop: 10, borderWidth: 1.2, borderColor: C.butter, borderRadius: 12, paddingVertical: 12,
+                  flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
+                <Icon name="personAdd" size={fs(18)} color={C.butter} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter, letterSpacing: 0.3 }}>골프 친구 추가하기</Text>
+              </TouchableOpacity>
+            )}
             {/* 일정 없어도 캘린더(과거 일정·기록) 진입 — 빈 상태에서도 접근 가능하게 */}
             <TouchableOpacity onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5 }}>
-              <Text style={{ fontSize: fs(13) }}>📅</Text>
+              style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+              <Icon name="calendar" size={fs(15)} color="rgba(255,255,255,0.7)" />
               <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: 'rgba(255,255,255,0.7)' }}>일정 캘린더 보기 ›</Text>
             </TouchableOpacity>
           </View>
