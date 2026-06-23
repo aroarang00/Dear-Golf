@@ -818,7 +818,7 @@ export function HomeScreen({ navigation, route }) {
             확대로 내용이 넘칠 때만 세로 스크롤로 구제(하단 카드/골퍼코멘트 잘림 방지). 헤더·폰트는 손대지 않음. */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: tabBarHeight }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: winW < 360 ? tabBarHeight : 0 }}
           showsVerticalScrollIndicator={false}
           bounces={false}>
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
