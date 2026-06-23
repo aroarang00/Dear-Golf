@@ -1260,11 +1260,12 @@ export function HomeScreen({ navigation, route }) {
                         <View style={homeS.memoBadgeComment}>
                           <Text style={[homeS.memoBadgeTxt, { color: '#C8D9E6' }]}>골퍼 코멘트</Text>
                         </View>
-                        <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
+                        <Text style={[homeS.memoCardCourse, { flex: 1 }]} numberOfLines={1}>{courseLabel}</Text>
+                        {/* 닉네임을 top 우상단으로 — 하단 본문(2줄)이 한줄메모와 같은 minHeight 안에 들어와 캐러셀 높이 안 튐 */}
+                        <Text style={homeS.commentWhoTop} numberOfLines={1}>{topComment.who}</Text>
                       </View>
                       <View style={homeS.memoCardBottom}>
                         <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
-                        <Text style={homeS.commentWho}>{topComment.who}</Text>
                       </View>
                     </View>
                   )}

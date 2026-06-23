@@ -33,7 +33,8 @@ export const homeS = StyleSheet.create({
   subCourse:       { fontFamily: F.sysM, fontSize: fs(11), color: '#fff', lineHeight: 15, includeFontPadding: false },
   subDate:         { fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', marginTop: 2, includeFontPadding: false },
   subDDay:         { fontFamily: F.en, fontSize: isAndroid ? fs(24) : fs(28), color: 'rgba(245,230,168,0.8)', lineHeight: isAndroid ? 26 : 30, includeFontPadding: false },
-  memoCard:        { marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 62 : 90 },
+  // 한줄메모·골퍼코멘트 캐러셀 높이 동일화 — 둘 다 같은 minHeight(닉네임은 top 우상단으로 빠져 본문 2줄이 안에 들어옴). 캐러셀 스왑 시 높이 안 튐.
+  memoCard:        { marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 66 : 90 },
   memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.08)' },
   memoCardTop:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: isAndroid ? 11 : 14, paddingVertical: isAndroid ? 5 : 8, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)' },
   memoCardBottom:  { paddingHorizontal: isAndroid ? 11 : 14, paddingTop: isAndroid ? 5 : 8, paddingBottom: isAndroid ? 6 : 10, position: 'relative', overflow: 'hidden' },
@@ -46,7 +47,8 @@ export const homeS = StyleSheet.create({
   memoSub:         { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' },
   memoScore:       { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(245,230,168,0.6)', marginBottom: 5 },
   memoTxt:         { fontFamily: F.sysM, fontSize: fs(12), color: '#fff', borderLeftWidth: 2, borderLeftColor: 'rgba(107,30,42,0.6)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
-  commentCard:     { marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 52 : 90 },
+  commentCard:     { marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 66 : 90 },
   commentTxt:      { fontFamily: F.sysM, fontSize: fs(12), color: '#fff', borderLeftWidth: 2, borderLeftColor: 'rgba(200,217,230,0.3)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
   commentWho:      { fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.4)', marginTop: isAndroid ? 4 : 6, marginLeft: 10 },
+  commentWhoTop:   { fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.4)', marginLeft: 6, maxWidth: 110 }, // 닉네임 top 우상단(본문 높이 안 늘리게)
 });
