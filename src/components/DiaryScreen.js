@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -94,6 +94,15 @@ export function DiaryScreen({ route, navigation }) {
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
+  // 한마디(상태 메시지) — 명함에서 바로 인라인 편집(마이페이지 진입 없이, 2026-06-24). 저장은 MyPageModal과 동일 패턴.
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [statusDraft, setStatusDraft] = useState('');
+  const handleSaveStatus = () => {
+    const updated = { ...userProfile, statusMessage: statusDraft.trim() };
+    setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
+    setEditingStatus(false);
+  };
   const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
   const [dmChat, setDmChat] = useState(null);    // DM 푸시 딥링크(openDmUid)로 연 대화방 { uid, name } — 목록 진입점은 친구 탭으로 이관([[dm-design]])
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
@@ -685,13 +694,19 @@ export function DiaryScreen({ route, navigation }) {
           {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}
           <View style={{ flex: 1 }}>
             {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{myName}</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
             {/* 멘트(상태 메시지) — 이름 아래 line 2로 올림(마일스톤 칩과 위치 스왑, 2026-06-14). 한 줄·인용·연한 톤.
                 버튼(💰·⚙️)보다 아래라 우측 여백 되찾아(marginRight 음수) 폭 확보 */}
-            <Text numberOfLines={1} style={{ fontFamily: myStatus ? F.sysM : F.sys, fontSize: fs(13),
-              color: myStatus ? 'rgba(61,57,53,0.7)' : C.warmGray, marginTop: 7, marginLeft: 12, marginRight: -64, lineHeight: 22 }}>
-              {myStatus ? `"${myStatus}"` : '마이페이지에서 한마디를 남겨보세요'}
-            </Text>
+            {/* 한마디 — 탭하면 하단 시트로 넓게 편집(좁은 명함 인라인 대신, 2026-06-24). 평소엔 표시 + pen 힌트. */}
+            {/* 안드는 닉네임을 살짝 내려(💰와 세로 분리) 한마디도 함께 내려감 → 한마디 자체 marginTop은 공통 7(2026-06-24). */}
+            <TouchableOpacity onPress={() => { setStatusDraft(myStatus); setEditingStatus(true); }} activeOpacity={0.6}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7, marginLeft: 12, marginRight: -64 }}>
+              <Text numberOfLines={1} style={{ fontFamily: myStatus ? F.sysM : F.sys, fontSize: fs(13),
+                color: myStatus ? 'rgba(61,57,53,0.7)' : C.warmGray, lineHeight: 22, flexShrink: 1 }}>
+                {myStatus ? `"${myStatus}"` : '한마디 입력하기'}
+              </Text>
+              <Icon name="pen" size={fs(11)} color={C.warmGray} strokeWidth={2} />
+            </TouchableOpacity>
             {/* 마일스톤 — line 3(버튼 아래)로 내려 칩이 💰와 안 겹치게(스왑). 획득 훈장 느낌 골드 배지, 탭→안내 ([[milestone_badges]]) */}
             <TouchableOpacity onPress={() => setMilestoneInfoOpen(true)} activeOpacity={0.7}
               style={{ alignSelf: 'stretch', marginTop: 9, marginLeft: 12, marginRight: -60 }}>
@@ -950,6 +965,38 @@ export function DiaryScreen({ route, navigation }) {
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
+      {/* 한마디 편집 팝업 — 명함 한마디 탭 시 중앙 팝업으로 넓게(하단 시트는 네비바·키보드에 가려 부적합, 2026-06-24).
+          KAV center로 키보드 올라오면 팝업이 위로 밀림. 바깥 탭 닫기 + 카드 탭은 전파 차단. */}
+      <Modal visible={editingStatus} transparent animationType="fade"
+        statusBarTranslucent={Platform.OS === 'android'} onRequestClose={() => setEditingStatus(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <TouchableWithoutFeedback onPress={() => setEditingStatus(false)}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 72, paddingHorizontal: 28 }}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 18, width: '100%', maxWidth: 340 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, textAlign: 'center', marginBottom: 16 }}>프로필 한마디</Text>
+                  <AppTextInput
+                    style={{ fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal, backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 }}
+                    value={statusDraft} onChangeText={(t) => setStatusDraft(t.slice(0, 15))} autoFocus
+                    onSubmitEditing={handleSaveStatus} returnKeyType="done"
+                    placeholder="프로필에 보일 한마디 (최대 15자)" placeholderTextColor={C.warmGrayLight} />
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'right', marginTop: 6 }}>{statusDraft.length}/15</Text>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                    <TouchableOpacity onPress={() => setEditingStatus(false)} activeOpacity={0.7}
+                      style={{ flex: 1, backgroundColor: C.bgSecondary, borderRadius: 12, paddingVertical: 13, alignItems: 'center', borderWidth: 0.5, borderColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>취소</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleSaveStatus} activeOpacity={0.85}
+                      style={{ flex: 1, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>저장</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
       {/* 메시지(DM) — 여기선 'DM 푸시 탭 → 대화방 직행' 전용(openDmUid). 목록 진입점은 친구 탭 헤더로 이관([[dm-design]]).
           푸시 핸들러가 항상 dmChat을 채우므로 대화방만 렌더(목록 분기 불필요).
           transparent + statusBarTranslucent(안드) = 앱의 검증된 키보드 모달과 동일 조합. 키보드는 DMChatScreen 내부 KAV 담당. */}
