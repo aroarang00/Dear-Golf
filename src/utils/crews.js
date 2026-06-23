@@ -106,11 +106,7 @@ export async function leaveCrew(crewId, uid) {
   });
 }
 
-// ── 이름 변경 (전원 동등 — 멤버 누구나) ──
-export async function renameCrew(crewId, name) {
-  if (!crewId || !(name || '').trim()) return;
-  await updateDoc(doc(db, COL, crewId), { name: name.trim(), updatedAt: serverTimestamp() });
-}
+// 크루명 변경은 '나만 보는 별명'(기기 로컬, CrewListScreen aliasMap)으로 대체 — 서버 name은 생성 시 고정(전원 그룹명 동시변경 방지).
 
 // ── 공지 설정 (텍스트만, 최신이 기존 대체, 멤버 누구나) ──
 export async function setCrewNotice(crewId, notice, uid) {

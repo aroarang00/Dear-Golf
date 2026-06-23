@@ -38,6 +38,7 @@ export const STORAGE_KEYS = {
   crewFavorites: '@dg_crew_favorites', // 크루 즐겨찾기 {crewId: true} — 기기 로컬, per-user 표시 선호(서버 미저장)
   crewSeen: '@dg_crew_seen', // 크루별 마지막으로 본 게시물 시각 {crewId: millis} — 기기 로컬, 새 글 표시 판단(서버 미저장)
   crewOrder: '@dg_crew_order', // 크루 목록 수동 순서 [crewId,...] — 기기 로컬, 드래그 정렬(서버 미저장)
+  crewAliases: '@dg_crew_aliases', // 크루 내 별명 {crewId: alias} — 기기 로컬, per-user '나만 보는' 이름(서버 name은 불변, 전원공유 방지)
 };
 
 export const storage = {

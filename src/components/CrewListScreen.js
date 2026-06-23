@@ -13,7 +13,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
   subscribeMyCrews, subscribeCrewInvites, createCrew,
-  acceptCrewInvite, declineCrewInvite, renameCrew,
+  acceptCrewInvite, declineCrewInvite,
 } from '../utils/crews';
 import { resolveMemberDisplay } from '../utils/friends';
 import { showAppAlert } from './AppAlert';
@@ -93,6 +93,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
   const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
+  const [aliasMap, setAliasMap] = useState({});      // {crewId:alias} — 나만 보는 크루 별명(기기 로컬, 서버 name 불변)
   const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(새 글 갯수 산출, 기기 로컬)
   const [crewOrder, setCrewOrder] = useState(null);  // [crewId,...] 수동 순서(드래그). null=미로드, []=설정 안 함
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
@@ -110,6 +111,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   useEffect(() => {
     let alive = true;
     storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
+    storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => { if (alive) setAliasMap(a || {}); });
     storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
     storage.load(STORAGE_KEYS.crewOrder, []).then((o) => { if (alive) setCrewOrder(Array.isArray(o) ? o : []); });
     storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
@@ -145,12 +147,12 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     // 마지막 글이 내 글이면 배지 억제 — 내가 방금 올린 글이 '새 글'로 뜨던 문제(addCrewPost가 lastPostBy 기록).
     const newCount = (d.lastPostBy && d.lastPostBy === currentUid) ? 0 : Math.max(0, postCount - seen);
     return {
-      id: d.id, name: d.name || '크루', members: (d.memberUids || []).length,
+      id: d.id, name: aliasMap[d.id] || d.name || '크루', members: (d.memberUids || []).length,
       last: fmtTime(ts), newCount,
       fav: !!favSet[d.id], _ts: ts?.toMillis ? ts.toMillis() : 0,
       _doc: d,    // 앨범·멤버 화면에서 memberUids·names·notice 사용
     };
-  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, seenSet, currentUid]);
+  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, aliasMap, seenSet, currentUid]);
 
   // 크루 입장/퇴장 시 본 시점 글 수 갱신(새 글 갯수 0으로) — 현재 doc의 postCount 기준
   const markCrewSeen = (id) => {
@@ -200,9 +202,19 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   };
 
   const startEdit = (c) => { setEditingId(c.id); setDraft(c.name); };
+  // 별명 저장 — 기기 로컬(나만 보기). 서버 name은 안 건드림(전원 그룹명 변경 방지).
+  //   비우거나 원래(서버) 이름과 같으면 별명 해제 → 원래 이름으로 복귀.
   const saveEdit = () => {
     const nm = draft.trim();
-    if (nm && editingId) renameCrew(editingId, nm);   // onSnapshot이 반영
+    if (editingId) {
+      setAliasMap((prev) => {
+        const next = { ...prev };
+        const serverName = (crewDocs || []).find((x) => x.id === editingId)?.name || '';
+        if (!nm || nm === serverName) delete next[editingId]; else next[editingId] = nm;
+        storage.save(STORAGE_KEYS.crewAliases, next);
+        return next;
+      });
+    }
     setEditingId(null);
   };
   const toggleFav = () => {
@@ -392,7 +404,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
             <TouchableOpacity onPress={() => { startEdit(menuFor); setMenuFor(null); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
               <View style={{ width: 28 }}><Icon name="pen" size={fs(18)} color={INK} strokeWidth={1.7} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>이름 변경</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>이름 변경 (나만 보기)</Text>
             </TouchableOpacity>
           </View>
         </View>
