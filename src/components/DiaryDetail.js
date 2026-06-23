@@ -63,9 +63,13 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
   const handleDelete = () => {
     // 삭제는 단일 동작으로 통일 — 기록 + 연결된 개인 일정 함께 삭제(라운지 일정은 보호).
     // '기록만/전체' 두 갈래는 자동일정 폐지 후 구분 실익이 없어 단순화. ([[diary-schedule-orphan-fix]])
+    // 확인창은 손실 규모를 명시 — 라운딩 기록 삭제는 기록 본체 외 가계부 비용·통계·연결 일정·명전까지
+    //   연쇄로 사라지고 복구 불가. '이 기록 삭제할까요?'만으론 약해 가벼운 라운지 가리기보다도 경고가 빈약했음.
     showAppAlert(
-      isMoment ? '일상 삭제' : '라운딩 삭제',
-      isMoment ? '이 일상 기록을 삭제할까요?' : '이 라운딩 기록을 삭제할까요?',
+      isMoment ? '일상 기록 삭제' : '라운딩 기록 삭제',
+      isMoment
+        ? '사진·메모가 사라져요.\n한 번 삭제하면 되살릴 수 없어요.'
+        : '사진·스코어·메모는 물론\n가계부 비용·통계 기록까지 함께 사라져요.\n한 번 삭제하면 되살릴 수 없어요.',
       [
         { text: '취소', style: 'cancel' },
         { text: '삭제', style: 'destructive', onPress: () => onDelete && onDelete(item, 'all') },
