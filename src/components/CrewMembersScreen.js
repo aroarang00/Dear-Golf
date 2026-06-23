@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
-import { subscribeCrew, inviteToCrew, leaveCrew } from '../utils/crews';
+import { subscribeCrew, leaveCrew } from '../utils/crews';
+import { CrewInviteSheet } from './CrewInviteSheet';
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 
@@ -38,7 +39,6 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   const [sentSet, setSentSet] = useState(new Set());           // 보낸 친구신청(recipientUid) — '신청됨' 표시
   const [myName, setMyName] = useState('');                    // 친구신청 알림 표시용 내 닉네임
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [sel, setSel] = useState([]);
   const [leaveAsk, setLeaveAsk] = useState(false);
 
   // 크루 doc 실시간 구독 — 초대(audience)·수락·탈퇴(memberUids) 즉시 반영
@@ -86,16 +86,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
     return arr.sort((a, b) => (b.self === true) - (a.self === true));
   }, [memberUids.join(','), display, currentUid]);
 
-  const pool = (friends || []).filter((f) => !memberUids.includes(f.id));
   const atMax = members.length >= MAX_MEMBERS;
-  const toggle = (id) => setSel((p) => p.includes(id) ? p.filter((x) => x !== id) : ((members.length + p.length >= MAX_MEMBERS) ? p : [...p, id]));
-  const invite = () => {
-    const add = (friends || []).filter((f) => sel.includes(f.id));
-    const names = {};
-    add.forEach((f) => { names[f.id] = f.customName || f.name || ''; });
-    if (crewId && add.length) inviteToCrew(crewId, add.map((f) => f.id), names);  // audience 추가(수락 시 멤버 합류)
-    setSel([]); setInviteOpen(false);
-  };
   const doLeave = () => {
     setLeaveAsk(false);
     if (crewId && currentUid) leaveCrew(crewId, currentUid);
@@ -156,39 +147,9 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
         </View>
       </ScrollView>
 
-      {/* 친구 초대 시트 */}
+      {/* 친구 초대 시트 — 앨범 사람+와 동일 컴포넌트 공용 */}
       {inviteOpen && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => { setInviteOpen(false); setSel([]); }} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 28, maxHeight: '70%' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-              <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }}>친구 초대</Text>
-              <TouchableOpacity onPress={invite} disabled={sel.length === 0}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: sel.length ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>초대 {sel.length || ''}</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              {friends === null
-                ? <View style={{ paddingVertical: 28, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
-                : pool.length === 0
-                ? <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: SUB, padding: 20, textAlign: 'center' }}>초대할 친구가 없어요.</Text>
-                : pool.map((f) => {
-                const on = sel.includes(f.id);
-                const dn = f.customName || f.name || '친구';
-                return (
-                  <TouchableOpacity key={f.id} activeOpacity={0.7} onPress={() => toggle(f.id)}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 11 }}>
-                    <Avatar n={dn.charAt(0)} c={colorOf(f.id)} uri={f.avatarUri} size={36} />
-                    <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }}>{dn}</Text>
-                    <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: on ? SAGE_DEEP : 'rgba(26,61,82,0.25)', backgroundColor: on ? SAGE_DEEP : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                      {on && <Text style={{ fontSize: fs(13), color: '#fff' }}>✓</Text>}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
+        <CrewInviteSheet crewId={crewId} memberUids={memberUids} onClose={() => setInviteOpen(false)} />
       )}
 
       {/* 나가기 확인 */}

@@ -1,29 +1,28 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
-import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 모달서 입력바를 키보드 높이만큼 들어올림(KAS 자동스크롤이 안 먹어 명령형으로)
 import { Image } from 'expo-image';
-import Animated, { SlideInRight, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { SlideInRight } from 'react-native-reanimated';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
-import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import {
-  subscribeCrew, subscribeCrewPosts, subscribeCrewComments,
-  addCrewComment, editCrewComment, deleteCrewPost, deleteCrewComment,
+  subscribeCrew, subscribeCrewPosts, deleteCrewPost, setCrewNotice,
 } from '../utils/crews';
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewComposeScreen } from './CrewComposeScreen';
 import { CrewMembersScreen } from './CrewMembersScreen';
+import { CrewCommentScreen } from './CrewCommentScreen';
+import { CrewInviteSheet } from './CrewInviteSheet';
 import { PhotoViewer } from './common/PhotoViewer';
 import { ReportModal } from './ReportModal';
 import { AppAlertHost, showAppAlert } from './AppAlert';
 
 // 크루 앨범 — 리스트에서 크루 탭 시 진입 (docs/crew-space-design.md §3.1).
 //  ★상세화면 폐지 — 피드 카드에서 바로 댓글 펼치기·작성/수정/삭제·신고까지 인라인 처리(2026-06-23 개편).
-//  피드 + 사진 토글: 피드=글·사진·영상 카드, 사진=미디어만 그리드. 댓글은 카드 펼침(게시물별, 실시간).
+//  게시글 + 갤러리 토글: 게시글=글·사진·영상 카드, 갤러리=미디어만 그리드. 댓글은 카드 펼침(게시물별, 실시간).
 const BG    = '#C8D9E6';
 const INK   = '#1A3D52';
 const SUB   = 'rgba(26,61,82,0.55)';
@@ -86,6 +85,64 @@ function MediaTile({ m, style, radius = 12, playSize = 'lg' }) {
   );
 }
 
+// 가로세로비 범위 — 일반 사진(세로 9:16 ~ 가로 1.91:1)은 통째로 보이고, 극단 비율만 살짝 보정
+const clampAR = (ar) => (ar && isFinite(ar)) ? Math.max(0.56, Math.min(1.91, ar)) : null;
+
+// 단일 미디어 — 원본 비율 그대로 표시(정사각 강제 X). ar 없으면 onLoad로 알아내 보정(레거시·문자열 항목 대응).
+function FeedMedia({ m }) {
+  const [ar, setAr] = useState(() => clampAR(m?.ar) || 1);
+  const uri = m?.type === 'video' ? (m.poster || m.uri) : m?.uri;
+  return (
+    <View style={{ width: '100%', aspectRatio: ar, borderRadius: 14, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={120}
+               onLoad={m?.ar ? undefined : (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); }} />
+           : <Icon name="image" size={fs(30)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
+      {m?.type === 'video' && (
+        <View style={{ position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: fs(20), color: '#fff', marginLeft: 2 }}>▶</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// 여러 장 — 풀폭 스와이프 캐러셀. 한 장씩 꽉 차게 넘겨보고, 각 사진은 안 잘리게(contain) 통째로. 하단 페이지 점.
+//   캐러셀 높이는 첫 장 비율 기준(보통 한 게시물은 방향이 비슷) — 다른 비율은 여백 두고 전체 표시.
+function SwipeCarousel({ media, width, onOpen }) {
+  const [ar, setAr] = useState(() => clampAR(media[0]?.ar) || 1);
+  const [page, setPage] = useState(0);
+  const height = Math.round(width / ar);
+  return (
+    <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(26,61,82,0.06)' }}>
+      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width, height }}
+        onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}>
+        {media.map((m, mi) => {
+          const uri = m?.type === 'video' ? (m.poster || m.uri) : m?.uri;
+          return (
+            <TouchableOpacity key={mi} activeOpacity={0.97} onPress={() => onOpen(mi)}
+              style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
+              {uri ? <Image source={{ uri }} style={{ width, height }} contentFit="contain" transition={120}
+                       onLoad={(mi === 0 && !media[0]?.ar) ? (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); } : undefined} />
+                   : <Icon name="image" size={fs(30)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
+              {m?.type === 'video' && (
+                <View style={{ position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: fs(20), color: '#fff', marginLeft: 2 }}>▶</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+      {/* 우상단 장수 뱃지 — 점 대신(10장이어도 깔끔). 예: 3/10 */}
+      {media.length > 1 && (
+        <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 11, paddingHorizontal: 9, paddingVertical: 3 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: '#fff' }}>{page + 1}/{media.length}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const { width: winW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -94,7 +151,10 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [composeOpen, setComposeOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);    // 사람+ = 친구 초대 시트(현재 화면 위에 바로)
   const [editingPost, setEditingPost] = useState(null);   // 작성화면 재사용(수정)
+  const [editingNotice, setEditingNotice] = useState(false); // 공지 수정(작성화면 공지모드)
+  const [commentPost, setCommentPost] = useState(null);   // 댓글 화면 열린 게시물(글별 분리)
 
   const [crewDoc, setCrewDoc] = useState(crew?._doc || null);
   const [postDocs, setPostDocs] = useState(null);   // null=로딩
@@ -104,16 +164,6 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const scrollRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); setTimeout(() => setRefreshing(false), 600); }; // 실시간 구독이라 표시만(당김 UX 유지)
-
-  // 인라인 댓글 — 펼친 게시물(단일)만 구독
-  const [expandedId, setExpandedId] = useState(null);
-  const [commentDocs, setCommentDocs] = useState(null);   // 펼친 글의 댓글(null=로딩)
-  const [cDisplay, setCDisplay] = useState({});
-  const [draft, setDraft] = useState('');
-  const [cErr, setCErr] = useState('');
-  const [sending, setSending] = useState(false);
-  const [replyTo, setReplyTo] = useState(null);            // 대댓글 대상 { id, name }
-  const [editingComment, setEditingComment] = useState(null); // { id, postId }
 
   // 오버레이(앨범 루트)
   const [profileFor, setProfileFor] = useState(null);      // 프로필 탭 → DM 팝업
@@ -139,30 +189,13 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     catch (e) { if (__DEV__) console.warn('[crewAlbum] friendReq', e?.code, e?.message); }
   };
 
-  // 댓글 입력바 — 키보드 높이만큼 명령형으로 들어올림(안드 RN Modal서 KAS 자동스크롤이 입력칸을 못 올려 직접 처리, DM/옛 상세 패턴).
-  const BAR_PAD = 8;
-  const CLOSED_PAD = Math.max(0, 8 + insets.bottom - BAR_PAD);
-  const kbLift = useSharedValue(0);
-  const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
-  useEffect(() => {
-    const onShow = (e) => { kbLift.value = withTiming(Math.round(e?.height || 0), { duration: e?.duration || 220 }); };
-    const onHide = (e) => { kbLift.value = withTiming(0, { duration: e?.duration || 220 }); };
-    const subs = [
-      KeyboardEvents.addListener('keyboardWillShow', onShow),
-      KeyboardEvents.addListener('keyboardDidShow', onShow),
-      KeyboardEvents.addListener('keyboardWillHide', onHide),
-      KeyboardEvents.addListener('keyboardDidHide', onHide),
-    ];
-    return () => subs.forEach((s) => s.remove());
-  }, []);
-
   // 안드 뒤로 — 떠 있는 것부터 닫고, 없으면 앨범 닫기(목록으로). 모달 다단계 위임은 useScreenBack이 처리
   useScreenBack(true, () => {
     if (viewer) { setViewer(null); return; }
     if (reportTarget) { setReportTarget(null); return; }
     if (profileFor) { setProfileFor(null); return; }
     if (actionFor) { setActionFor(null); return; }
-    if (expandedId) { setExpandedId(null); return; }
+    if (inviteOpen) { setInviteOpen(false); return; }
     onClose();
   });
 
@@ -189,24 +222,6 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     return () => { alive = false; };
   }, [memberUids.join(','), authorKey, currentUid, namesSig]);
 
-  // 펼친 글 댓글 실시간 구독
-  useEffect(() => {
-    if (!crewId || !expandedId) { setCommentDocs(null); return; }
-    setCommentDocs(null);
-    return subscribeCrewComments(crewId, expandedId, setCommentDocs);
-  }, [crewId, expandedId]);
-
-  // 댓글 작성자 표시정보 resolve
-  const cAuthorKey = useMemo(() => (commentDocs || []).map((c) => c.authorUid).join(','), [commentDocs]);
-  useEffect(() => {
-    const uids = [...new Set((commentDocs || []).map((c) => c.authorUid).filter(Boolean))];
-    if (!uids.length) { setCDisplay({}); return; }
-    let alive = true;
-    resolveMemberDisplay(uids, { myUid: currentUid, namesFallback: crewDoc?.names || {} })
-      .then((m) => { if (alive) setCDisplay(m || {}); }).catch(() => {});
-    return () => { alive = false; };
-  }, [cAuthorKey, currentUid, namesSig]);
-
   const members = useMemo(() => memberUids.map((u) => {
     const d = display[u] || {};
     const name = d.name || namesFallback[u] || '친구';
@@ -225,24 +240,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     };
   }), [postDocs, display]);
 
-  // 평면 댓글 → 스레드(최상위 + 대댓글), 표시정보 입힘
-  const comments = useMemo(() => {
-    const deco = (c) => {
-      const d = cDisplay[c.authorUid] || {};
-      const name = d.name || namesFallback[c.authorUid] || '친구';
-      return { id: c.id, authorUid: c.authorUid, body: c.body || '', time: fmtTime(c.createdAt),
-        name, n: name.charAt(0), c: colorOf(c.authorUid), uri: d.avatarUri || null, parentId: c.parentId || null };
-    };
-    const all = (commentDocs || []).map(deco);
-    const tops = all.filter((c) => !c.parentId);
-    return tops.map((t) => ({ ...t, replies: all.filter((r) => r.parentId === t.id) }));
-  }, [commentDocs, cDisplay]);
-
   // ── 동작 ──
-  const toggleExpand = (postId) => {
-    setReplyTo(null); setEditingComment(null); setDraft(''); setCErr('');
-    setExpandedId((prev) => (prev === postId ? null : postId));
-  };
   const openProfile = (person) => {
     const uid = person?.authorUid || person?.id;
     if (uid && uid !== currentUid) setProfileFor({ ...person, uid });
@@ -250,49 +248,35 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
-    const isPost = a.kind === 'post';
-    showAppAlert(isPost ? '게시물을 삭제할까요?' : '댓글을 삭제할까요?',
-      isPost ? '사진·글·댓글이 모두 삭제돼요.' : '이 댓글이 삭제돼요.', [
+    if (a.kind === 'notice') {
+      showAppAlert('공지를 삭제할까요?', '상단 공지가 사라져요.', [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: async () => {
+          try { await setCrewNotice(crewId, '', currentUid); }
+          catch (e) { if (__DEV__) console.warn('[crewAlbum] deleteNotice', e?.code, e?.message); }
+        } },
+      ]);
+      return;
+    }
+    // 게시물 삭제(공지는 위에서 처리). 댓글 삭제는 댓글 화면에서.
+    showAppAlert('게시물을 삭제할까요?', '사진·글·댓글이 모두 삭제돼요.', [
       { text: '취소', style: 'cancel' },
       { text: '삭제', style: 'destructive', onPress: async () => {
-        try {
-          if (isPost) { await deleteCrewPost(crewId, a.id); if (expandedId === a.id) setExpandedId(null); }
-          else { await deleteCrewComment(crewId, a.postId, a.id); }
-        } catch (e) { if (__DEV__) console.warn('[crewAlbum] delete', e?.code, e?.message); }
+        try { await deleteCrewPost(crewId, a.id); if (commentPost?.id === a.id) setCommentPost(null); }
+        catch (e) { if (__DEV__) console.warn('[crewAlbum] delete', e?.code, e?.message); }
       } },
     ]);
   };
   const reportAction = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
-    setReportTarget({ id: a.authorUid, name: a.name,
-      evidence: a.text ? `[크루 ${a.kind === 'post' ? '게시물' : '댓글'}] ${a.text}` : '' });
+    setReportTarget({ id: a.authorUid, name: a.name, evidence: a.text ? `[크루 게시물] ${a.text}` : '' });
   };
   const startEdit = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
-    if (a.kind === 'post') { setEditingPost(a.post); return; }
-    setReplyTo(null); setCErr(''); setEditingComment({ id: a.id, postId: a.postId }); setDraft(a.text || '');
-  };
-  const sendComment = async () => {
-    const body = draft.trim();
-    if (!body || sending) return;
-    if (containsProfanity(body)) { setCErr(PROFANITY_BLOCK_MESSAGE); return; }
-    if (!currentUid || !crewId) return;
-    if (editingComment) {
-      const { id, postId } = editingComment;
-      setDraft(''); setCErr(''); setEditingComment(null); setSending(true);
-      try { await editCrewComment(crewId, postId, id, { body }); }
-      catch (e) { if (__DEV__) console.warn('[crewAlbum] editComment', e?.code, e?.message); setDraft(body); setEditingComment({ id, postId }); }
-      finally { setSending(false); }
-      return;
-    }
-    if (!expandedId) return;
-    const parentId = replyTo?.id || null;
-    setDraft(''); setCErr(''); setReplyTo(null); setSending(true);
-    try { await addCrewComment(crewId, expandedId, { authorUid: currentUid, body, parentId }); }
-    catch (e) { if (__DEV__) console.warn('[crewAlbum] addComment', e?.code, e?.message); setDraft(body); }
-    finally { setSending(false); }
+    if (a.kind === 'notice') { setEditingNotice(true); return; }
+    setEditingPost(a.post);   // 게시물 수정
   };
 
   if (composeOpen) return (
@@ -305,9 +289,22 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
       <CrewComposeScreen crew={crew} post={editingPost} onClose={() => setEditingPost(null)} />
     </Animated.View>
   );
+  if (editingNotice) return (
+    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
+      <CrewComposeScreen crew={crew} noticeText={notice} onClose={() => setEditingNotice(false)} />
+    </Animated.View>
+  );
   if (membersOpen) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
-      <CrewMembersScreen crew={crew} onClose={() => setMembersOpen(false)} onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM} />
+      <CrewMembersScreen crew={crew}
+        onClose={() => setMembersOpen(false)}
+        onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM} />
+    </Animated.View>
+  );
+  if (commentPost) return (
+    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
+      <CrewCommentScreen crew={crew} post={commentPost} names={crewDoc?.names || {}}
+        onClose={() => setCommentPost(null)} onOpenDM={onOpenDM} />
     </Animated.View>
   );
 
@@ -319,7 +316,6 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <KeyboardProvider>
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
@@ -329,8 +325,9 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
+        {/* 별명(나만 보기) 우선 — 목록서 넘어온 crew.name=별명∥서버명. 서버 name은 불변이라 live crewDoc보다 우선 안전 */}
         <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(18), color: INK, marginLeft: 6 }}
-          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crewDoc?.name || crew?.name || '크루'}</Text>
+          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || crewDoc?.name || '크루'}</Text>
         <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
           style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
           {members.slice(0, 3).map((m, i) => <MiniAvatar key={m.id} n={m.n} c={m.c} uri={m.uri} i={i} size={24} />)}
@@ -343,7 +340,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
           <Text style={{ fontSize: fs(20), color: SAGE_DEEP, fontWeight: '700', marginLeft: 5, marginTop: -2 }}>›</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
-        <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
+        {/* 사람+ = 순수 초대(멤버 목록은 좌측 아바타 탭). 친구 초대 시트를 현재 화면 위에 바로 띄움 */}
+        <TouchableOpacity onPress={() => setInviteOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Icon name="personAdd" size={fs(27)} color={SAGE_DEEP} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
@@ -352,7 +350,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
       <View style={{ backgroundColor: BG, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
         <View style={{ flexDirection: 'row', marginHorizontal: 14,
           backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
-          {[['feed', '피드'], ['photos', '사진']].map(([t, label]) => (
+          {[['feed', '게시글'], ['photos', '갤러리']].map(([t, label]) => (
             <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.85} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
               style={{ flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
@@ -362,21 +360,21 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
       </View>
 
       {/* 일반 ScrollView — 댓글 입력은 하단 고정바가 키보드 위로 올라옴(KAS 자동스크롤이 안드서 안 먹어 교체) */}
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: expandedId ? 12 : 90 }}
+      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90 }}
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SAGE_DEEP} colors={[SAGE_DEEP]} />}>
 
-        {/* 공지(스크롤로 흘러감, 길면 더보기) */}
+        {/* 공지(스크롤로 흘러감, 길면 더보기). 작성자 본인에게만 ⋯ 수정·삭제 */}
         {!!notice && (
           <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: CARD, borderRadius: 12,
               paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: LINE }}>
               <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
               <View style={{ flex: 1 }}>
-                {/* 숨김 측정용 — 클램프 없이 실제 줄 수 파악(2줄 초과면 '더보기' 노출). 레이아웃 영향 0(absolute·opacity0) */}
-                <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysM, fontSize: fs(12.5), lineHeight: fs(19) }}
+                {/* 숨김 측정용 — 클램프 없이 실제 줄 수 파악(2줄 초과면 '더보기' 노출). 글꼴은 본문과 동일해야 측정 정확(absolute·opacity0) */}
+                <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysSb, fontSize: fs(12.5), lineHeight: fs(19) }}
                   onTextLayout={(e) => { const over = (e.nativeEvent.lines?.length || 0) > 2; if (over !== noticeClamped) setNoticeClamped(over); }}>{notice}</Text>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
                   numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
                 {(noticeClamped || noticeExpanded) && (
                   <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
@@ -384,6 +382,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
                   </TouchableOpacity>
                 )}
               </View>
+              {crewDoc?.noticeBy === currentUid && (
+                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingHorizontal: 4, marginLeft: 4, marginTop: -2 }}
+                  onPress={() => setActionFor({ kind: 'notice', authorUid: currentUid, name: '공지' })}>
+                  <Text style={{ fontSize: fs(18), color: SUB }}>⋯</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
@@ -401,9 +405,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
             </Text>
           </View>
         ) : tab === 'feed' ? (
-          // ── 피드: 카드(작성자·글·미디어·댓글 인라인) ──
+          // ── 게시글: 카드(작성자·글·미디어). 댓글은 카드 탭=게시글별 댓글 화면 ──
           posts.map((p) => {
-            const open = expandedId === p.id;
             return (
             <View key={p.id} style={{ backgroundColor: CARD, borderRadius: 16, marginHorizontal: 14, marginBottom: 12, padding: 13,
               shadowColor: '#1A3D52', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
@@ -428,84 +431,21 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
                 <View style={{ marginTop: 11 }}>
                   {p.media.length === 1 ? (
                     <TouchableOpacity activeOpacity={0.95} onPress={() => setViewer({ media: p.media, index: 0 })}>
-                      <MediaTile m={p.media[0]} style={{ width: '100%', aspectRatio: 1 }} playSize="lg" />
+                      <FeedMedia m={p.media[0]} />
                     </TouchableOpacity>
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {p.media.map((m, mi) => (
-                        <TouchableOpacity key={mi} activeOpacity={0.95} onPress={() => setViewer({ media: p.media, index: mi })}>
-                          <MediaTile m={m} style={{ width: winW * 0.42, height: winW * 0.42, marginRight: 6 }} playSize="sm" />
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                    <SwipeCarousel media={p.media} width={winW - 54} onOpen={(mi) => setViewer({ media: p.media, index: mi })} />
                   )}
                 </View>
               )}
-              {/* 댓글 펼치기 토글 */}
-              <TouchableOpacity onPress={() => toggleExpand(p.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              {/* 댓글 — 탭하면 게시글별 댓글 화면(원글+댓글+입력 한 덩어리) */}
+              <TouchableOpacity onPress={() => setCommentPost(p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: open ? SAGE_DEEP : SUB }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
                   💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
                 </Text>
-                <Text style={{ fontSize: fs(10), color: open ? SAGE_DEEP : SUB, marginLeft: 6 }}>{open ? '▲' : '▼'}</Text>
+                <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
               </TouchableOpacity>
-
-              {/* 펼침 — 댓글·답글 + 입력 (인라인) */}
-              {open && (
-                <View style={{ marginTop: 12, borderTopWidth: 0.5, borderTopColor: LINE, paddingTop: 12 }}>
-                  {commentDocs === null ? (
-                    <View style={{ paddingVertical: 14, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
-                  ) : (
-                    <>
-                      {comments.length === 0 && (
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: SUB, marginBottom: 10 }}>첫 댓글을 남겨보세요.</Text>
-                      )}
-                      {comments.map((cm) => (
-                        <View key={cm.id} style={{ marginBottom: 12 }}>
-                          <View style={{ flexDirection: 'row' }}>
-                            <MiniAvatar n={cm.n} c={cm.c} uri={cm.uri} size={28} onPress={() => openProfile(cm)} />
-                            <View style={{ flex: 1, marginLeft: 9 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK }}>{cm.name}</Text>
-                                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
-                                <View style={{ flex: 1 }} />
-                                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 12, right: 12 }} style={{ paddingHorizontal: 4 }}
-                                  onPress={() => setActionFor({ kind: 'comment', id: cm.id, postId: p.id, authorUid: cm.authorUid, name: cm.name, text: cm.body })}>
-                                  <Text style={{ fontSize: fs(17), color: SUB }}>⋯</Text>
-                                </TouchableOpacity>
-                              </View>
-                              <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 2, lineHeight: fs(21) }}>{cm.body}</Text>
-                              <TouchableOpacity onPress={() => { if (editingComment) { setEditingComment(null); setDraft(''); } setReplyTo({ id: cm.id, name: cm.name }); }}
-                                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 4, alignSelf: 'flex-start' }}>
-                                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
-                              </TouchableOpacity>
-                              {/* 대댓글 */}
-                              {(cm.replies || []).map((r) => (
-                                <View key={r.id} style={{ flexDirection: 'row', marginTop: 10 }}>
-                                  <MiniAvatar n={r.n} c={r.c} uri={r.uri} size={24} onPress={() => openProfile(r)} />
-                                  <View style={{ flex: 1, marginLeft: 8 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                      <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: INK }}>{r.name}</Text>
-                                      <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: SUB, marginLeft: 8 }}>{r.time}</Text>
-                                      <View style={{ flex: 1 }} />
-                                      <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 12, right: 12 }} style={{ paddingHorizontal: 4 }}
-                                        onPress={() => setActionFor({ kind: 'comment', id: r.id, postId: p.id, authorUid: r.authorUid, name: r.name, text: r.body })}>
-                                        <Text style={{ fontSize: fs(15), color: SUB }}>⋯</Text>
-                                      </TouchableOpacity>
-                                    </View>
-                                    <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
-                                  </View>
-                                </View>
-                              ))}
-                            </View>
-                          </View>
-                        </View>
-                      ))}
-                      {/* 입력은 하단 고정바로 이동(키보드 가림 방지) */}
-                    </>
-                  )}
-                </View>
-              )}
             </View>
             );
           })
@@ -529,47 +469,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         </View>
       </ScrollView>
 
-      {/* 댓글 입력 — 펼친 글 있을 때만 하단 고정. kbPadStyle: 키보드 높이만큼 paddingBottom으로 들어올림(안드 RN Modal 대응) */}
-      {expandedId && (
-        <Animated.View style={[{ backgroundColor: BG, borderTopWidth: 0.5, borderTopColor: LINE }, kbPadStyle]}>
-          {editingComment && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, backgroundColor: 'rgba(94,126,66,0.1)' }}>
-              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>댓글 수정 중</Text>
-              <TouchableOpacity onPress={() => { setEditingComment(null); setDraft(''); setCErr(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {replyTo && !editingComment && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, backgroundColor: 'rgba(94,126,66,0.1)' }}>
-              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>{replyTo.name}님에게 답글</Text>
-              <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {!!cErr && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 14, paddingBottom: 2 }}>{cErr}</Text>}
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: BAR_PAD }}>
-            <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (cErr) setCErr(''); }} maxLength={300}
-              allowFontScaling={false} placeholder={editingComment ? '댓글 수정…' : (replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…')}
-              placeholderTextColor={SUB} returnKeyType="send" onSubmitEditing={sendComment} blurOnSubmit={false}
-              style={{ flex: 1, backgroundColor: CARD, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
-                fontFamily: F.sys, fontSize: fs(16), color: INK, borderWidth: 0.5, borderColor: LINE, marginRight: 8 }} />
-            <TouchableOpacity onPress={sendComment} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 6 }}>
-              <Icon name="paperPlane" size={fs(30)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.9} />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
-
-      {/* 올리기 FAB — 댓글 입력바 떠 있을 땐 숨김(겹침 방지) */}
-      {!expandedId && (
+      {/* 올리기 FAB */}
       <TouchableOpacity activeOpacity={0.85} onPress={() => setComposeOpen(true)}
         style={{ position: 'absolute', right: 20, bottom: insets.bottom + 18, width: 56, height: 56, borderRadius: 28, backgroundColor: SAGE_DEEP,
           alignItems: 'center', justifyContent: 'center', shadowColor: '#1A3D52', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
         <Text style={{ fontSize: fs(30), color: '#fff', marginTop: -2 }}>＋</Text>
       </TouchableOpacity>
-      )}
 
       {/* 프로필 탭 → DM 팝업(중앙 카드) */}
       {profileFor && (
@@ -613,10 +518,10 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
             {actionFor.authorUid === currentUid ? (
               <>
               <TouchableOpacity onPress={startEdit} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>{actionFor.kind === 'post' ? '게시물 수정' : '댓글 수정'}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>{actionFor.kind === 'post' ? '게시물 수정' : actionFor.kind === 'notice' ? '공지 수정' : '댓글 수정'}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmDelete} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 0.5, borderTopColor: LINE }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: '#B23B3B' }}>{actionFor.kind === 'post' ? '게시물 삭제' : '댓글 삭제'}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: '#B23B3B' }}>{actionFor.kind === 'post' ? '게시물 삭제' : actionFor.kind === 'notice' ? '공지 삭제' : '댓글 삭제'}</Text>
               </TouchableOpacity>
               </>
             ) : (
@@ -642,10 +547,14 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         prefillEvidence={reportTarget?.evidence || ''}
         onClose={() => setReportTarget(null)} />
 
+      {/* 사람+ → 친구 초대 시트(현재 화면 위에 바로) */}
+      {inviteOpen && (
+        <CrewInviteSheet crewId={crewId} memberUids={memberUids} onClose={() => setInviteOpen(false)} />
+      )}
+
       {/* 크루 모달 위 alert 자체 호스트(삭제 확인 등) */}
       <AppAlertHost />
     </SafeAreaView>
-    </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
