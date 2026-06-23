@@ -12,7 +12,7 @@ import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
 import { getUserCourses, syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { normalizeSchedules } from '../utils/helpers';
-import { homeS, CARD_H, CARD_PAD } from '../styles/homeS';
+import { homeS, CARD_H, CARD_PAD, SIDE_PAD } from '../styles/homeS';
 import { ModalBackContext } from '../hooks/useScreenBack'; // 크루 모달 내부 다단계 뒤로가기
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -920,10 +920,10 @@ export function HomeScreen({ navigation, route }) {
           </TouchableOpacity>
           )}
           {/* 크루 — DM 아래 진입. hdr의 ★맨 마지막 자식★(그리팅·배너 위에 렌더) + zIndex로 iOS서도 맨 위라 터치 받음.
-              타이틀 줄 밖이라 안드 부모-밖 터치 잘림도 없음. right:14/top:86로 DM 아래 위치. */}
+              타이틀 줄 밖이라 안드 부모-밖 터치 잘림도 없음. right:SIDE_PAD/top:86로 DM 아래 위치(헤더 버튼과 우측 정렬). */}
           <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ position: 'absolute', right: 14, top: 86, zIndex: 20, elevation: 20 }}>
+            style={{ position: 'absolute', right: SIDE_PAD, top: 86, zIndex: 20, elevation: 20 }}>
             {/* 초대 글로우(라디오 핑) — 평상시 정적, 초대 있을 때만 울림 */}
             {crewInvite > 0 && (
               <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, borderRadius: 22,
@@ -942,7 +942,7 @@ export function HomeScreen({ navigation, route }) {
 
         {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분). */}
         {pendingScheduleChange && (
-          <AttentionMotion type="pulse" style={{ marginHorizontal: 14, marginTop: 12 }}>
+          <AttentionMotion type="pulse" style={{ marginHorizontal: SIDE_PAD, marginTop: 12 }}>
             <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, borderWidth: 2, borderColor: 'rgba(245,230,168,0.9)', paddingHorizontal: 14, paddingVertical: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Text style={{ fontSize: fs(16) }}>🔄</Text>
@@ -968,7 +968,7 @@ export function HomeScreen({ navigation, route }) {
         <>
         <View style={{ flex: 1 }} />
         <View style={[homeS.bottomArea, { paddingBottom: 0 }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SIDE_PAD, marginBottom: 8 }}>
             <TouchableOpacity
               ref={upcomingLabelRef}
               onPress={() => setShowScheduleScreen(true)}
@@ -993,12 +993,12 @@ export function HomeScreen({ navigation, route }) {
           </View>
           {/* (체크인 배너는 헤더 '이용 안내' 자리로 이동 — 박스 중복 제거) */}
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 14, gap: 10 }}>
+            contentContainerStyle={{ paddingHorizontal: SIDE_PAD, gap: 10 }}>
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일.
                 ★카드 높이 항상 고정(height) — 내용이 많아도 카드가 높아지지 않게(세부코스·확대 등). 넘침은 overflow hidden으로
                   경계 유지하되, 잘림이 안 보이게 내용은 폰트 축소(adjustsFontSizeToFit)·간격(flex)으로 CARD_H 안에 조정. iOS·안드 공통(2026-06-24). */}
             <View style={isD0
-              ? { width: winW - 28, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, height: CARD_H, overflow: 'hidden' }
+              ? { width: winW - SIDE_PAD * 2, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, height: CARD_H, overflow: 'hidden' }
               : homeS.mainCard}>
               {(freshDDay(next) === 0) ? (
                 <>
@@ -1160,7 +1160,7 @@ export function HomeScreen({ navigation, route }) {
 
           {/* 일정초대 배너가 떠 있는 동안엔 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(수락/거절 후 복원). 사용자 지정 2026-06-18. */}
           {!scheduleInvitePending && (<>
-          <View style={{ marginHorizontal: 14, marginVertical: 12 }}>
+          <View style={{ marginHorizontal: SIDE_PAD, marginVertical: 12 }}>
             <TripleStripe height={1.5} />
           </View>
 
@@ -1300,7 +1300,7 @@ export function HomeScreen({ navigation, route }) {
         ) : hydrated ? (
         // 일정 로드 완료 후에만 '첫 라운딩' 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
-          <View style={{ marginHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
+          <View style={{ marginHorizontal: SIDE_PAD, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
             {/* '첫'은 진짜 신규(라운딩 기록·일정 둘 다 없음)에게만 — 기존 사용자가 예정 없을 땐 '첫' 제외 (사용자 2026-06-22) */}
             <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', marginBottom: 8, lineHeight: 30 }}>
