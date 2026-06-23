@@ -75,6 +75,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     if (it.key === 'iv' && (!onInviteFriends || isPast || schedule.roundupId)) return false;
     // 함께 식사 — 핸들러 있을 때만, 지난 일정엔 숨김(뒤풀이는 당일까지). 라운지연동도 허용(동호회 단체 식사).
     if (it.key === 'ml' && (!onMeal || isPast)) return false;
+    // 일정 수정 — 라운지 모집으로 만들어진 예정 일정은 구장·날짜가 모집에서 내려와 로컬 수정이 반영 안 됨(라운지에서 관리) → 숨김.
+    //   삭제는 '라운지 일정' 안내로 별도 처리. 지난 일정은 기록 흐름이 있어 유지. (사용자 2026-06-23)
+    if (it.key === 'ed' && schedule.roundupId && !isPast) return false;
     return true;
   });
 
