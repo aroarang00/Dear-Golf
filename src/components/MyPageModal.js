@@ -16,6 +16,7 @@ import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
 import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
+import { Icon } from './common/Icon'; // 설정 메뉴 아이콘 — 이모지 대신 우리 커스텀 아이콘
 import { searchPlaces } from '../utils/kakao';
 import { deleteAccount } from '../utils/account';
 import { CalendarPickerModal } from './CalendarPickerModal';
@@ -34,6 +35,19 @@ import {
   PENALTY_CONSENT,
   LOCATION_BASED_SERVICE_TERMS,
 } from '../constants/legalTexts';
+
+// 설정 메뉴 행 아이콘 — iconName(우리 커스텀 아이콘) 있으면 Icon, 없으면 이모지(myS.menuIcon) 폴백.
+//   menuIcon 폭 32에 맞춰 정렬. 약관·법적·개발자 등 아이콘 미정 항목은 이모지 유지(핵심 메뉴 우선, 2026-06-24).
+function MenuIcon({ name, emoji }) {
+  if (name) {
+    return (
+      <View style={{ width: 32 }}>
+        <Icon name={name} size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
+      </View>
+    );
+  }
+  return <Text style={myS.menuIcon}>{emoji}</Text>;
+}
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
@@ -74,10 +88,8 @@ export function MyPageModal({ visible, onClose }) {
   const depTimerRef = useRef(null);
   const [phone, setPhone] = useState(userProfile.phone || '');
   const [realName, setRealName] = useState(userProfile.realName || ''); // 본명(선택) — 친구·동반자 매칭용, 검색 표시는 마스킹 ([[realname-policy]])
-  const [statusMessage, setStatusMessage] = useState(userProfile.statusMessage || ''); // 프로필 멘트(명함 표시)
   const [editingInfo, setEditingInfo] = useState(false);
   const [editingStats, setEditingStats] = useState(false);
-  const [editingStatus, setEditingStatus] = useState(false); // 한마디 — 프로필(닉네임 아래)에서 인라인 편집
   const [avgScore, setAvgScore] = useState(String(userProfile.avgScore || ''));
   const [lifeBest, setLifeBest] = useState(String(userProfile.lifeBest || ''));
   const [totalRounds, setTotalRounds] = useState(String(userProfile.totalRounds || ''));
@@ -120,9 +132,7 @@ export function MyPageModal({ visible, onClose }) {
       setDepSearching(false);
       setPhone(userProfile.phone || '');
       setRealName(userProfile.realName || '');
-      setStatusMessage(userProfile.statusMessage || '');
       setEditingInfo(false);
-      setEditingStatus(false);
     }
   }, [visible]);
 
@@ -130,7 +140,7 @@ export function MyPageModal({ visible, onClose }) {
   useEffect(() => () => { if (depTimerRef.current) clearTimeout(depTimerRef.current); }, []);
 
   const handleSaveInfo = () => {
-    const updated = { ...userProfile, departure, departureCoord, phone, realName: realName.trim(), statusMessage: statusMessage.trim() };
+    const updated = { ...userProfile, departure, departureCoord, phone, realName: realName.trim() };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
     // 출발지는 비공개 서브컬렉션(owner-only)에도 저장 — 기기 간·재설치 후에도 유지(주소는 users 문서엔 안 올림, 노출 방지).
@@ -140,14 +150,6 @@ export function MyPageModal({ visible, onClose }) {
     setEditingInfo(false);
   };
 
-  // 한마디 — 프로필에서 인라인으로 바로 저장 (내 정보 그룹 저장과 분리)
-  const handleSaveStatus = () => {
-    const updated = { ...userProfile, statusMessage: statusMessage.trim() };
-    setUserProfile({ ...updated });
-    storage.save(STORAGE_KEYS.profile, updated);
-    setEditingStatus(false);
-  };
-
   const handleCancelInfo = () => {
     setDeparture(userProfile.departure || '');
     setDepartureCoord(userProfile.departureCoord || null);
@@ -155,7 +157,6 @@ export function MyPageModal({ visible, onClose }) {
     setDepSearching(false);
     setPhone(userProfile.phone || '');
     setRealName(userProfile.realName || '');
-    setStatusMessage(userProfile.statusMessage || '');
     setEditingInfo(false);
   };
 
@@ -294,7 +295,7 @@ export function MyPageModal({ visible, onClose }) {
                             {st.canChange && (
                               <TouchableOpacity onPress={() => setEditingNick(true)} activeOpacity={0.7}
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 3 }}>
-                                <Text style={{ fontSize: fs(11) }}>✏️</Text>
+                                <Icon name="pen" size={fs(12)} color={C.burgundy} strokeWidth={2} />
                                 <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(12) }}>수정</Text>
                               </TouchableOpacity>
                             )}
@@ -312,36 +313,12 @@ export function MyPageModal({ visible, onClose }) {
                       );
                     })()
                   )}
-                  <Text style={myS.realName}>{userProfile.realName}</Text>
-                  {/* 한마디(명함 멘트) — 닉네임 아래에서 바로 인라인 편집 */}
-                  {editingStatus ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                      <AppTextInput
-                        style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2 }}
-                        value={statusMessage} onChangeText={(t) => setStatusMessage(t.slice(0, 15))} autoFocus
-                        onSubmitEditing={handleSaveStatus} returnKeyType="done"
-                        placeholder="프로필에 보일 한마디 (최대 15자)" placeholderTextColor={C.warmGrayLight} />
-                      <TouchableOpacity onPress={handleSaveStatus} activeOpacity={0.7}
-                        style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
-                        <Text style={{ fontFamily: F.sys, color: C.butter, fontSize: fs(13) }}>저장</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { setStatusMessage(userProfile.statusMessage || ''); setEditingStatus(false); }} activeOpacity={0.6}>
-                        <Text style={{ fontFamily: F.sys, color: C.warmGray, fontSize: fs(13) }}>취소</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity onPress={() => setEditingStatus(true)} activeOpacity={0.6}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: statusMessage ? C.charcoal : C.warmGrayLight, flexShrink: 1 }} numberOfLines={2}>
-                        {statusMessage || '한마디 입력하기'}
-                      </Text>
-                      <Text style={{ fontSize: fs(11) }}>✏️</Text>
-                    </TouchableOpacity>
-                  )}
+                  {/* 한마디(명함 멘트)는 MY 명함에서 바로 편집(팝업)으로 이관 — 설정 중복 제거(2026-06-24). */}
+                  {!!userProfile.realName && <Text style={myS.realName}>{userProfile.realName}</Text>}
                 </View>
               </View>
               <TripleStripe height={1.5} />
-              <View style={myS.section}>
+              <View style={myS.sectionPlain}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Text style={myS.sectionLabel}>나의 통계</Text>
                   <View style={{ flex: 1 }} />
@@ -354,7 +331,7 @@ export function MyPageModal({ visible, onClose }) {
                       setEditingStats(true);
                     }}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4 }}>
-                      <Text style={{ fontSize: fs(12) }}>✏️</Text>
+                      <Icon name="pen" size={fs(12)} color={C.burgundy} strokeWidth={2} />
                       <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(13) }}>수정</Text>
                     </TouchableOpacity>
                   )}
@@ -429,7 +406,7 @@ export function MyPageModal({ visible, onClose }) {
                   {!editingInfo && (
                     <TouchableOpacity onPress={() => setEditingInfo(true)}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4 }}>
-                      <Text style={{ fontSize: fs(12) }}>✏️</Text>
+                      <Icon name="pen" size={fs(12)} color={C.burgundy} strokeWidth={2} />
                       <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(13) }}>수정</Text>
                     </TouchableOpacity>
                   )}
@@ -448,7 +425,7 @@ export function MyPageModal({ visible, onClose }) {
                 {/* 각 행을 탭해도 편집 진입 — 작은 '수정'을 못 찾는 사용자 대응(B안) */}
                 <TouchableOpacity activeOpacity={editingInfo ? 1 : 0.7} onPress={() => { if (!editingInfo) setEditingInfo(true); }}>
                 <View style={myS.menuRow}>
-                  <Text style={myS.menuIcon}>📍</Text>
+                  <MenuIcon name="pin" />
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>자주 가는 출발지</Text>
                     {editingInfo ? (
@@ -486,7 +463,7 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 </View>
                 <View style={myS.menuRow}>
-                  <Text style={myS.menuIcon}>🪪</Text>
+                  <MenuIcon name="idCard" />
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>본명 (선택)</Text>
                     {editingInfo ? (
@@ -506,7 +483,7 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 </View>
                 <View style={myS.menuRow}>
-                  <Text style={myS.menuIcon}>📱</Text>
+                  <MenuIcon name="phone" />
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>전화번호 (선택)</Text>
                     {editingInfo ? (
@@ -530,7 +507,7 @@ export function MyPageModal({ visible, onClose }) {
                   const on = !userProfile.alarmPromptDisabled;
                   return (
                     <View style={myS.menuRow}>
-                      <Text style={myS.menuIcon}>💬</Text>
+                      <MenuIcon name="bell" />
                       <View style={{ flex: 1 }}>
                         <Text style={myS.menuLabel}>라운딩마다 알람 직접 설정</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
@@ -552,19 +529,19 @@ export function MyPageModal({ visible, onClose }) {
                     기록 리마인더는 폐기 — 라운딩 기록은 본인 자발적 추억이라 푸시 강요 부담.
                     홈 라운딩 종료 카드의 "기록 남기기 →" 버튼이 자연스러운 유도 경로 ([[softer-tone-guideline]]). */}
                 {[
-                  { key: 'friendRequest', icon: '🤝', label: '친구 신청', sub: '친구 신청을 받으면 알려드려요' },
-                  { key: 'dm', icon: '💬', label: '메시지 (DM)', sub: '친구가 보낸 메시지를 알려드려요' },
+                  { key: 'friendRequest', iconName: 'personAdd', icon: '🤝', label: '친구 신청', sub: '친구 신청을 받으면 알려드려요' },
+                  { key: 'dm', iconName: 'send', icon: '💬', label: '메시지 (DM)', sub: '친구가 보낸 메시지를 알려드려요' },
                   // 동반자 활동 알림 — CF(scheduleInvite/mealSuggestion/scoreShare)와 key 일치. 끄면 그 푸시 안 옴([[notification-type-wiring]]).
-                  { key: 'scheduleInvite', icon: '🗓️', label: '일정 초대', sub: '친구가 일정에 초대하면 알려드려요' },
-                  { key: 'mealSuggestion', icon: '🍲', label: '함께 식사', sub: '동반자가 식사 장소를 정하면 알려드려요' },
-                  { key: 'scoreShare', icon: '📊', label: '스코어 공유', sub: '동반자가 스코어를 공유하면 알려드려요' },
+                  { key: 'scheduleInvite', iconName: 'calendar', icon: '🗓️', label: '일정 초대', sub: '친구가 일정에 초대하면 알려드려요' },
+                  { key: 'mealSuggestion', iconName: 'bowl', icon: '🍲', label: '함께 식사', sub: '동반자가 식사 장소를 정하면 알려드려요' },
+                  { key: 'scoreShare', iconName: 'chart', icon: '📊', label: '스코어 공유', sub: '동반자가 스코어를 공유하면 알려드려요' },
                   // 라운딩 평가 요청 토글 제거 — 전체공개 비활성으로 매너 평가 시스템 휴면 ([[project_roundup_public_disabled]])
                 ].map((item, i, arr) => {
                   const prefs = userProfile.notifyPrefs || {};
                   const on = prefs[item.key] !== false;
                   return (
                     <View key={item.key} style={[myS.menuRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
-                      <Text style={myS.menuIcon}>{item.icon}</Text>
+                      <MenuIcon name={item.iconName} emoji={item.icon} />
                       <View style={{ flex: 1 }}>
                         <Text style={myS.menuLabel}>{item.label}</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{item.sub}</Text>
@@ -589,20 +566,20 @@ export function MyPageModal({ visible, onClose }) {
                 <Text style={myS.sectionLabel}>설정</Text>
                 {[
                   // 닉네임 변경은 상단 프로필의 닉네임 옆 ✏️수정으로 이동(설정 중복 제거)
-                  { icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
-                  { icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
-                  { icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
+                  { iconName: 'gear', icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
+                  { iconName: 'camera', icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
+                  { iconName: 'calendar', icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
                   // 내 라운지 활동 — 매너·신뢰 등급, 패널티 이력, 진행 중 신고 통합 진입점 ([[my-roundup-activity]]).
                   //   전체공개 OFF 동안 메뉴 통째로 숨김 — 매너·신뢰는 낯선사람 신뢰용이라 친구 전용 모드에선 의미 약함 ([[roundup-public-disabled]]).
-                  ...(ROUNDUP_PUBLIC_ENABLED ? [{ icon: '📋', label: '내 라운지 활동',
+                  ...(ROUNDUP_PUBLIC_ENABLED ? [{ iconName: 'clipboard', icon: '📋', label: '내 라운지 활동',
                     onPress: () => setRoundupActivityOpen(true) }] : []),
-                  { icon: '👥', label: '친구 그룹 관리',
+                  { iconName: 'people', icon: '👥', label: '친구 그룹 관리',
                     onPress: () => setGroupManageOpen(true) },
-                  { icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
+                  { iconName: 'ban', icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
                     onPress: () => setBlockManageOpen(true) },
                   // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화 ([[report-block-policy]] §5-1)
                   // Firestore reports 컬렉션 등록·이메일 발송·검토 결과 통보는 Phase 2 Cloud Functions
-                  { icon: '🚨', label: '신고하기',
+                  { iconName: 'siren', icon: '🚨', label: '신고하기',
                     // 월 1건 한도. "1/1" 분수는 다 쓴 것처럼 헷갈려 "N건 남음"으로 명확히.
                     value: reportRemaining > 0 ? `이번 달 ${reportRemaining}건 남음` : '이번 달 한도 도달',
                     onPress: () => setReportOpen(true) },
@@ -717,7 +694,7 @@ export function MyPageModal({ visible, onClose }) {
                     }) },
                 ].map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
-                    <Text style={myS.menuIcon}>{item.icon}</Text>
+                    <MenuIcon name={item.iconName} emoji={item.icon} />
                     <Text style={myS.menuLabel}>{item.label}</Text>
                     {item.value ? (
                       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginRight: 4 }}>{item.value}</Text>
@@ -758,7 +735,7 @@ export function MyPageModal({ visible, onClose }) {
                 <Text style={myS.sectionLabel}>정보</Text>
                 {[{ icon: '⭐', label: '앱 평가하기' }, { icon: '📋', label: 'v1.0.0' }].map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7}>
-                    <Text style={myS.menuIcon}>{item.icon}</Text>
+                    <MenuIcon name={item.iconName} emoji={item.icon} />
                     <Text style={myS.menuLabel}>{item.label}</Text>
                     <Text style={myS.menuValue}>›</Text>
                   </TouchableOpacity>
