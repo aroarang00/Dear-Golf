@@ -151,35 +151,34 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
           <View style={dS.detailScoreRow}>
             <Text style={[dS.detailScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
             <Text style={[dS.detailScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-            <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
-          </View>
-          {/* 성취 배지 — fs48 큰 점수와 같은 줄에 두면 baseline 줄바꿈으로 어정쩡하게 떨어져, 점수 아래 전용 줄로 분리(깔끔히 한 줄).
-              특별(홀인원·알바·이글) 뱃지는 상단 specialBanner에 이미 크게 표시돼 여기선 생략(중복 제거, 2026-06-15) */}
-          {(isSingle || item.birdieCount > 0) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-              {isSingle && (
-                <View style={{
-                  backgroundColor: '#C9A84C',
-                  borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
-                  minWidth: 52, alignItems: 'center',
-                }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
-                </View>
-              )}
+            {/* par 72 + 버디 배지를 가운데정렬 묶음으로 — 배지를 스코어 줄 par 옆에 (baseline 직접 배치 시 어정쩡하게 떨어지는 것 회피) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
               {item.birdieCount > 0 && (
-                <View style={{
-                  backgroundColor: '#3D3935',
-                  borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3,
-                }}>
+                <View style={{ backgroundColor: '#3D3935', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
                 </View>
               )}
+            </View>
+          </View>
+          {/* 싱글 배지 — 헤드라인 성취라 점수 아래 전용 줄. 버디는 위 스코어 줄로 이동(2026-06-23).
+              특별(홀인원·알바·이글) 뱃지는 상단 specialBanner에 이미 크게 표시돼 여기선 생략(중복 제거) */}
+          {isSingle && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              <View style={{
+                backgroundColor: '#C9A84C',
+                borderRadius: 12, paddingHorizontal: 12, paddingVertical: 3,
+                minWidth: 52, alignItems: 'center',
+              }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
+              </View>
             </View>
           )}
           {/* 구장명(+코스)을 윗줄, 날짜·날씨를 아랫줄로 분리 — 구장명이 길어 두 줄이 될 때
               날짜·날씨가 중간에 끼어 애매하게 잘리는 것 방지(사용자 2026-06-20). 코스(세부코스)는 구장명 같은 줄. */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={[dS.detailCourseTxt, { marginBottom: 0, color: C.charcoal }]}>{item.course}{item.subCourse ? ` · ${item.subCourse}` : ''}</Text>
+            {/* 구장명 = 제목 위계로 키우고 굵게(아래 날짜 fs12 sys와 구분) */}
+            <Text style={[dS.detailCourseTxt, { marginBottom: 0, fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }]}>{item.course}{item.subCourse ? ` · ${item.subCourse}` : ''}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
               <Text style={[dS.detailCourseTxt, { marginBottom: 0 }]}>{item.date} {item.day} · {item.weather}</Text>
               {item.overseas && item.country ? (
