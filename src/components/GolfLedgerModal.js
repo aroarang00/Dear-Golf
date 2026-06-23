@@ -6,7 +6,7 @@ import { C, F, fs } from '../constants/colors';
 
 // 팔레트: 챠콜 / 골드 / 웜크림 — 셰어 카드(폴라로이드·매거진) 결과 통일(2026-06-15 사용자 "더 예쁘게")
 const GOLD = '#C9A84C';        // 골드 — 강조 룰·라벨
-const GOLD_DEEP = '#A9854A';   // 깊은 골드 — 작은 라벨
+const GOLD_DEEP = '#8A6A33';   // 깊은 골드 — 작은 라벨. 크림·흰 배경 위 대비 위해 진하게(2026-06-24)
 // 브랜드 삼색 — 하단 시그니처(랜딩·초대카드·폴라로이드 동일 톤)
 const MS = ['#ECD884', '#B2CADD', '#6B1E2A'];
 // 내기 손익 색 — 땄으면(이득) 초록, 잃으면(손실) 버건디. 총 지출과 별도 '정산'으로 분리(테스터 요청 2026-06-17 [[ledger-bet-pnl]])
@@ -115,7 +115,8 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
               {/* 올해 요약 — 웜 크림 그라데이션 히어로 + 골드 룰 + 하단 브랜드 삼색 */}
               <LinearGradient colors={['#FFFDF8', '#F3EBD9']} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
                 style={{ borderRadius: 16, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)', overflow: 'hidden' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), letterSpacing: 2, color: GOLD_DEEP, marginBottom: 7 }}>{thisYear}년 총 지출</Text>
+                {/* 크림 배경 위 옅은 골드+작은 regular라 흐렸음 → 키우고 진한 골드(GOLD_DEEP)+semibold로 또렷하게(2026-06-24). */}
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), letterSpacing: 1.5, color: GOLD_DEEP, marginBottom: 7 }}>{thisYear}년 총 지출</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(28), color: C.charcoalDeep, letterSpacing: 0.3 }}>
                   {won(yearTotal)}<Text style={{ fontFamily: F.sysSb, fontSize: fs(17) }}>원</Text>
                 </Text>
@@ -138,7 +139,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                     paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center',
                     borderWidth: 0.5, borderColor: C.hairline,
                   }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: GOLD_DEEP, letterSpacing: 0.5, marginBottom: 6 }}>{card.label}</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: GOLD_DEEP, letterSpacing: 0.5, marginBottom: 6 }}>{card.label}</Text>
                     <Text numberOfLines={1} adjustsFontSizeToFit
                       style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoalDeep }}>
                       {won(sumOf(card.list))}원
