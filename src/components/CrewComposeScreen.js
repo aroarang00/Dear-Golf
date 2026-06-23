@@ -5,6 +5,7 @@ import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-co
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
@@ -30,14 +31,15 @@ const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
 const MAX_VIDEO_SEC = 30;
 
-export function CrewComposeScreen({ crew, post, onClose }) {
+export function CrewComposeScreen({ crew, post, noticeText = null, onClose }) {
   useScreenBack(true, onClose);
   const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
+  const editingNotice = noticeText != null;       // 공지 수정 모드(텍스트만, 토글·미디어 숨김)
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
-  const [text, setText] = useState(post?.text || '');
+  const [text, setText] = useState(post?.text || noticeText || '');
   const [media, setMedia] = useState(post?.media || []);   // 기존 미디어는 https(업로드 완료) — uploadRoundMedia가 멱등 처리
-  const [isNotice, setIsNotice] = useState(false);         // 수정 모드선 미사용(공지 토글 숨김)
+  const [isNotice, setIsNotice] = useState(editingNotice); // 공지 수정 모드면 강제 공지(토글 숨김)
   const [err, setErr] = useState('');
   const [posting, setPosting] = useState(false);
   const [cropTarget, setCropTarget] = useState(null);   // 크롭 대상 { uri, index } — 탭한 사진을 그 자리에서 교체
@@ -55,33 +57,38 @@ export function CrewComposeScreen({ crew, post, onClose }) {
       if (res.canceled) return;
       const imgs = (res.assets || []).filter((a) => a?.uri).slice(0, remaining);
       // 고른 사진은 그대로 추가(자동 크롭 X). iOS서 피커 닫힘과 크롭 Modal이 겹쳐 간헐 실패하던 문제 회피.
-      //   크롭은 썸네일 탭으로(피커 없이 = 충돌 없음). 표시·업로드는 1:1 커버라 안 잘라도 무방.
-      setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri }))].slice(0, MAX_MEDIA));
+      //   크롭은 썸네일 탭으로(피커 없이 = 충돌 없음). ar=원본 가로세로비 → 피드서 원본 비율 표시(정사각 강제 X).
+      setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri, ar: (a.width && a.height) ? a.width / a.height : undefined }))].slice(0, MAX_MEDIA));
     } catch (e) { if (__DEV__) console.warn('[crewCompose] addPhoto', e?.message); }
   };
-  // 썸네일 탭 → 그 사진 크롭(1:1). 피커가 안 떠 있어 Modal 충돌 없음(안드·iOS 동일).
+  // 썸네일 탭 → 크롭(1:1). 사진=사진 자체, 영상=커버(포스터) 편집. 피커가 안 떠 있어 Modal 충돌 없음(안드·iOS 동일).
   //   기존 업로드 사진(https)은 expo-image-manipulator가 iOS서 원격 URL을 못 다뤄 '저장 실패' →
   //   로컬 캐시로 내려받아 로컬 경로로 편집(안드는 원격도 되지만 동작 통일).
+  //   ★영상 커버는 새로 올린 영상(로컬 포스터)만 편집 — 이미 게시된 영상(https)은 uri가 https라 업로드가 멱등 스킵돼
+  //     편집 포스터가 반영 안 되므로 편집 미제공(헛동작 방지).
   const openCrop = async (m, i) => {
-    if (m.type !== 'image') return;
-    let uri = m.uri;
-    if (/^https?:\/\//.test(uri)) {
+    let src, field;
+    if (m.type === 'image') { src = m.uri; field = 'uri'; }
+    else if (m.type === 'video') { if (!m.poster || /^https?:\/\//.test(m.poster)) return; src = m.poster; field = 'poster'; }
+    else return;
+    if (/^https?:\/\//.test(src)) {
       try {
-        const dl = await FileSystem.downloadAsync(uri, FileSystem.cacheDirectory + `dgcrop_${Date.now()}.jpg`);
-        uri = dl.uri;
+        const dl = await FileSystem.downloadAsync(src, FileSystem.cacheDirectory + `dgcrop_${Date.now()}.jpg`);
+        src = dl.uri;
       } catch (e) {
         if (__DEV__) console.warn('[crewCompose] crop download', e?.message);
         showAppAlert('사진을 불러오지 못했어요', '잠시 후 다시 시도해주세요.');
         return;   // 원격 uri 그대로 크롭 열면 iOS서 저장 실패 → 중단(헛동작 방지)
       }
     }
-    setCropTarget({ uri, index: i });
+    setCropTarget({ uri: src, index: i, field });
   };
-  // 크롭 저장 → 같은 자리 교체(로컬 크롭본). 제출 시 uploadRoundMedia가 새 항목으로 업로드.
+  // 크롭 저장 → 같은 자리 교체(사진=uri, 영상=poster). 1:1로 잘렸으니 ar=1. 제출 시 uploadRoundMedia가 새 항목/포스터로 업로드.
   const applyCrop = (uri) => {
     const idx = cropTarget?.index;
+    const field = cropTarget?.field || 'uri';
     if (idx == null) return;
-    setMedia((p) => p.map((m, i) => (i === idx ? { ...m, uri } : m)));
+    setMedia((p) => p.map((m, i) => (i === idx ? { ...m, [field]: uri, ar: 1 } : m)));
   };
   const addVideo = async () => {
     if (full || hasVideo || posting) return;
@@ -91,7 +98,13 @@ export function CrewComposeScreen({ crew, post, onClose }) {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], allowsMultipleSelection: false, quality: 1, videoMaxDuration: MAX_VIDEO_SEC });
       if (res.canceled) return;
       const a = (res.assets || [])[0];
-      if (a?.uri) setMedia((p) => p.some((m) => m.type === 'video') ? p : [...p, { type: 'video', uri: a.uri }].slice(0, MAX_MEDIA));
+      if (!a?.uri) return;
+      // 첫 프레임 포스터 생성 → 등록화면 썸네일 표시·커버 편집용(로컬). 실패해도 영상은 추가(업로드 때 재생성).
+      let poster = null;
+      try { const t = await VideoThumbnails.getThumbnailAsync(a.uri, { time: 0, quality: 0.7 }); poster = t?.uri || null; }
+      catch (e) { if (__DEV__) console.warn('[crewCompose] videoPoster', e?.message); }
+      const ar = (a.width && a.height) ? a.width / a.height : undefined;   // 영상 원본 비율 → 피드 표시
+      setMedia((p) => p.some((m) => m.type === 'video') ? p : [...p, { type: 'video', uri: a.uri, poster, ar }].slice(0, MAX_MEDIA));
     } catch (e) { if (__DEV__) console.warn('[crewCompose] addVideo', e?.message); }
   };
   const removeMedia = (i) => setMedia((p) => p.filter((_, idx) => idx !== i));
@@ -136,18 +149,18 @@ export function CrewComposeScreen({ crew, post, onClose }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={{ fontSize: fs(20), color: INK }}>✕</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{editing ? '게시물 수정' : (isNotice ? '공지 작성' : '새 게시물')}</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{editing ? '게시물 수정' : editingNotice ? '공지 수정' : (isNotice ? '공지 작성' : '새 게시물')}</Text>
         <TouchableOpacity onPress={submit} disabled={!canPost || posting} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           style={{ backgroundColor: (canPost && !posting) ? SAGE_DEEP : 'rgba(94,126,66,0.25)', borderRadius: 9, paddingHorizontal: 16, paddingVertical: 7, minWidth: 56, alignItems: 'center' }}>
           {posting ? <ActivityIndicator size="small" color="#fff" />
-                   : <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>{editing ? '완료' : '게시'}</Text>}
+                   : <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>{(editing || editingNotice) ? '완료' : '게시'}</Text>}
         </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* 공지 토글 — 수정 모드선 숨김(공지는 별도 흐름) */}
-          {!editing && (
+          {/* 공지 토글 — 게시물 수정·공지 수정 모드선 숨김(공지는 별도 흐름) */}
+          {!editing && !editingNotice && (
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
             paddingHorizontal: 14, paddingVertical: 12, borderWidth: 0.5, borderColor: LINE }}>
             <View style={{ flex: 1 }}>
@@ -165,9 +178,9 @@ export function CrewComposeScreen({ crew, post, onClose }) {
 
           {/* 글 */}
           <TextInput value={text} onChangeText={(t) => { setText(t); if (err) setErr(''); }} multiline maxLength={limit}
-            allowFontScaling={false} placeholder={isNotice ? '공지 내용을 입력하세요' : '무슨 일이 있었나요?'} placeholderTextColor={SUB}
+            allowFontScaling={false} placeholder={isNotice ? '공지 내용을 입력하세요' : '크루와 나눌 소식을 적어보세요'} placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, padding: 14,
-              fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: editing ? 0 : 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
+              fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: (editing || editingNotice) ? 0 : 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: text.length >= limit ? '#B23B3B' : SUB, marginTop: 5 }}>{text.length}/{limit}</Text>
 
           {/* 미디어 — 공지가 아닐 때만 */}
@@ -193,29 +206,36 @@ export function CrewComposeScreen({ crew, post, onClose }) {
 
               {/* 안내 + 갯수 (버튼 아래) — 사진은 탭하면 잘라서 편집 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>사진 탭하면 잘라서 편집 · 최대 10개(영상 1개·30초)</Text>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>사진·영상 탭하면 잘라서 편집 · 최대 10개(영상 1개·30초)</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: media.length > 0 ? SAGE_DEEP : SUB }}>{media.length}/{MAX_MEDIA}</Text>
               </View>
 
               {/* 추가된 사진·영상 — 버튼 아래 가로 배열. 사진 탭=크롭 편집 */}
               {media.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-                  {media.map((m, i) => (
-                    <TouchableOpacity key={i} activeOpacity={m.type === 'image' ? 0.8 : 1}
+                  {media.map((m, i) => {
+                    // 편집 가능 = 사진 / 새로 올린 영상(로컬 포스터). 이미 게시된 영상(https 포스터)은 편집 미제공.
+                    const editable = m.type === 'image' || (m.type === 'video' && m.poster && !/^https?:\/\//.test(m.poster));
+                    return (
+                    <TouchableOpacity key={i} activeOpacity={editable ? 0.8 : 1}
                       onPress={() => openCrop(m, i)}
                       style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: 'rgba(26,61,82,0.08)',
                       alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                       {m.type === 'image'
                         ? <Image source={{ uri: m.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                        : m.poster
+                        ? <Image source={{ uri: m.poster }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                         : <Icon name="video" size={fs(24)} color="rgba(26,61,82,0.5)" strokeWidth={1.4} />}
-                      {m.type === 'image' && (
-                        <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(9), color: '#fff' }}>편집</Text>
+                      {/* 영상 표시 — ▶ 가운데 오버레이 */}
+                      {m.type === 'video' && (
+                        <View style={{ position: 'absolute', width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: fs(12), color: '#fff', marginLeft: 1 }}>▶</Text>
                         </View>
                       )}
-                      {m.type === 'video' && (
-                        <View style={{ position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 7, paddingHorizontal: 5, paddingVertical: 1 }}>
-                          <Text style={{ fontSize: fs(9), color: '#fff' }}>영상</Text>
+                      {/* 편집 라벨 — 탭하면 커버(1:1) 편집 */}
+                      {editable && (
+                        <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(9), color: '#fff' }}>편집</Text>
                         </View>
                       )}
                       <TouchableOpacity onPress={() => removeMedia(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -223,7 +243,8 @@ export function CrewComposeScreen({ crew, post, onClose }) {
                         <Text style={{ fontSize: fs(11), color: '#fff' }}>✕</Text>
                       </TouchableOpacity>
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </ScrollView>
               )}
             </View>

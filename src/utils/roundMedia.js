@@ -43,27 +43,41 @@ async function uploadOne(uid, item, i) {
       const { orig, ...rest } = item;
       return { ...rest, uri: url };
     }
-    // 영상은 첫 프레임 포스터(jpg)도 같이 업로드 → 안드 원격 썸네일 안정화 (실패해도 영상은 유지) ([[friend-feed-design]]).
-    const poster = await uploadVideoPoster(uid, localUri, i);
-    return poster ? { ...item, uri: url, poster } : { ...item, uri: url };
+    // 영상 포스터(jpg) 업로드 → 안드 원격 썸네일 안정화 (실패해도 영상은 유지) ([[friend-feed-design]]).
+    //   사용자가 등록화면에서 커버를 편집했으면(로컬 poster) 그걸 올리고, 없으면 첫 프레임으로 자동 생성.
+    const { poster: localPoster, ...rest } = item;
+    let posterUrl = null;
+    if (localPoster && !/^https?:\/\//.test(localPoster)) posterUrl = await uploadPosterFromImage(uid, localPoster, i);
+    if (!posterUrl) posterUrl = await uploadVideoPoster(uid, localUri, i);
+    return posterUrl ? { ...rest, uri: url, poster: posterUrl } : { ...rest, uri: url };  // 실패 시 로컬 poster는 버림(친구가 못 읽음)
   } catch (e) {
     if (__DEV__) console.warn('[roundMedia] 업로드 실패, 원본 유지', e?.message);
     return item;
   }
 }
 
-// 영상 첫 프레임을 뽑아 image/jpeg로 업로드. 실패 시 null → 클라가 기기에서 직접 생성하는 폴백으로 동작.
-//   로컬 영상 URI에서 생성하므로 안드에서도 안정적(원격 getThumbnailAsync 불안정 회피).
-async function uploadVideoPoster(uid, localVideoUri, i) {
+// 로컬 이미지(영상 포스터)를 압축해 image/jpeg로 업로드 → 원격 https. 실패 시 null.
+async function uploadPosterFromImage(uid, imageUri, i) {
   try {
-    const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(localVideoUri, { time: 0, quality: 0.7 });
-    const compressed = await compressImage(thumbUri);
+    const compressed = await compressImage(imageUri);
     const res = await fetch(compressed);
     const blob = await res.blob();
     const name = `p_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}.jpg`;
     const storageRef = ref(storage, `rounds/${uid}/${name}`);
     await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
     return await getDownloadURL(storageRef);
+  } catch (e) {
+    if (__DEV__) console.warn('[roundMedia] 포스터 업로드 실패', e?.message);
+    return null;
+  }
+}
+
+// 영상 첫 프레임을 뽑아 업로드. 실패 시 null → 클라가 기기에서 직접 생성하는 폴백으로 동작.
+//   로컬 영상 URI에서 생성하므로 안드에서도 안정적(원격 getThumbnailAsync 불안정 회피).
+async function uploadVideoPoster(uid, localVideoUri, i) {
+  try {
+    const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(localVideoUri, { time: 0, quality: 0.7 });
+    return await uploadPosterFromImage(uid, thumbUri, i);
   } catch (e) {
     if (__DEV__) console.warn('[roundMedia] 포스터 생성 실패, 기기 생성 폴백', e?.message);
     return null;
