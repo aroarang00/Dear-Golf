@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
-import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 모달서 입력바를 키보드 높이만큼 들어올림(KAS 자동스크롤이 안 먹어 명령형으로)
 import { Image } from 'expo-image';
-import Animated, { SlideInRight } from 'react-native-reanimated'; // 깊은 화면 푸시 슬라이드 전환
+import Animated, { SlideInRight, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
@@ -100,7 +100,6 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [display, setDisplay] = useState({});       // uid→{name,avatarUri,self}
   const [noticeExpanded, setNoticeExpanded] = useState(false);
   const scrollRef = useRef(null);
-  const [showTop, setShowTop] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); setTimeout(() => setRefreshing(false), 600); }; // 실시간 구독이라 표시만(당김 UX 유지)
 
@@ -119,6 +118,23 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [actionFor, setActionFor] = useState(null);        // 더보기 { kind, id, postId?, authorUid, name, text, post? }
   const [reportTarget, setReportTarget] = useState(null);  // 신고 { id, name, evidence }
   const [viewer, setViewer] = useState(null);              // 풀스크린 뷰어 { media, index, caption }
+
+  // 댓글 입력바 — 키보드 높이만큼 명령형으로 들어올림(안드 RN Modal서 KAS 자동스크롤이 입력칸을 못 올려 직접 처리, DM/옛 상세 패턴).
+  const BAR_PAD = 8;
+  const CLOSED_PAD = Math.max(0, 8 + insets.bottom - BAR_PAD);
+  const kbLift = useSharedValue(0);
+  const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
+  useEffect(() => {
+    const onShow = (e) => { kbLift.value = withTiming(Math.round(e?.height || 0), { duration: e?.duration || 220 }); };
+    const onHide = (e) => { kbLift.value = withTiming(0, { duration: e?.duration || 220 }); };
+    const subs = [
+      KeyboardEvents.addListener('keyboardWillShow', onShow),
+      KeyboardEvents.addListener('keyboardDidShow', onShow),
+      KeyboardEvents.addListener('keyboardWillHide', onHide),
+      KeyboardEvents.addListener('keyboardDidHide', onHide),
+    ];
+    return () => subs.forEach((s) => s.remove());
+  }, []);
 
   // 안드 뒤로 — 떠 있는 것부터 닫고, 없으면 앨범 닫기(목록으로). 모달 다단계 위임은 useScreenBack이 처리
   useScreenBack(true, () => {
@@ -324,9 +340,9 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         </View>
       </View>
 
-      <KeyboardAwareScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90 }}
-        showsVerticalScrollIndicator={false} scrollEventThrottle={16} keyboardShouldPersistTaps="handled" bottomOffset={20}
-        onScroll={(e) => setShowTop(e.nativeEvent.contentOffset.y > 320)}
+      {/* 일반 ScrollView — 댓글 입력은 하단 고정바가 키보드 위로 올라옴(KAS 자동스크롤이 안드서 안 먹어 교체) */}
+      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: expandedId ? 12 : 90 }}
+        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SAGE_DEEP} colors={[SAGE_DEEP]} />}>
 
         {/* 공지(스크롤로 흘러감, 길면 더보기) */}
@@ -461,37 +477,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
                           </View>
                         </View>
                       ))}
-
-                      {/* 입력 배너 */}
-                      {editingComment && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
-                          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>댓글 수정 중</Text>
-                          <TouchableOpacity onPress={() => { setEditingComment(null); setDraft(''); setCErr(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                      {replyTo && !editingComment && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
-                          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>{replyTo.name}님에게 답글</Text>
-                          <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                      {!!cErr && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), marginBottom: 4 }}>{cErr}</Text>}
-
-                      {/* 입력 — 포커스 시 KeyboardAwareScrollView가 키보드 위로 스크롤 */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                        <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (cErr) setCErr(''); }} maxLength={300}
-                          allowFontScaling={false} placeholder={editingComment ? '댓글 수정…' : (replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…')}
-                          placeholderTextColor={SUB} returnKeyType="send" onSubmitEditing={sendComment} blurOnSubmit={false}
-                          style={{ flex: 1, backgroundColor: '#F2F5F8', borderRadius: 20, paddingHorizontal: 14, paddingTop: 9, paddingBottom: 9,
-                            fontFamily: F.sys, fontSize: fs(15), color: INK, borderWidth: 0.5, borderColor: LINE, marginRight: 6 }} />
-                        <TouchableOpacity onPress={sendComment} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 4 }}>
-                          <Icon name="paperPlane" size={fs(26)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.9} />
-                        </TouchableOpacity>
-                      </View>
+                      {/* 입력은 하단 고정바로 이동(키보드 가림 방지) */}
                     </>
                   )}
                 </View>
@@ -517,24 +503,49 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
           </View>
         )}
         </View>
-      </KeyboardAwareScrollView>
+      </ScrollView>
 
-      {/* 맨 위로 — 스크롤 내려갔을 때만 (좌하단) */}
-      {showTop && (
-        <TouchableOpacity activeOpacity={0.85} onPress={() => scrollRef.current?.scrollTo?.({ y: 0, animated: true })}
-          style={{ position: 'absolute', left: 20, bottom: insets.bottom + 22, width: 46, height: 46, borderRadius: 23,
-            backgroundColor: '#fff', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#1A3D52', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
-          <Text style={{ fontSize: fs(22), color: SAGE_DEEP, marginTop: 1 }}>↑</Text>
-        </TouchableOpacity>
+      {/* 댓글 입력 — 펼친 글 있을 때만 하단 고정. kbPadStyle: 키보드 높이만큼 paddingBottom으로 들어올림(안드 RN Modal 대응) */}
+      {expandedId && (
+        <Animated.View style={[{ backgroundColor: BG, borderTopWidth: 0.5, borderTopColor: LINE }, kbPadStyle]}>
+          {editingComment && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, backgroundColor: 'rgba(94,126,66,0.1)' }}>
+              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>댓글 수정 중</Text>
+              <TouchableOpacity onPress={() => { setEditingComment(null); setDraft(''); setCErr(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {replyTo && !editingComment && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, backgroundColor: 'rgba(94,126,66,0.1)' }}>
+              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: SAGE_DEEP }}>{replyTo.name}님에게 답글</Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB }}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {!!cErr && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 14, paddingBottom: 2 }}>{cErr}</Text>}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: BAR_PAD }}>
+            <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (cErr) setCErr(''); }} maxLength={300}
+              allowFontScaling={false} placeholder={editingComment ? '댓글 수정…' : (replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…')}
+              placeholderTextColor={SUB} returnKeyType="send" onSubmitEditing={sendComment} blurOnSubmit={false}
+              style={{ flex: 1, backgroundColor: CARD, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
+                fontFamily: F.sys, fontSize: fs(16), color: INK, borderWidth: 0.5, borderColor: LINE, marginRight: 8 }} />
+            <TouchableOpacity onPress={sendComment} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 6 }}>
+              <Icon name="paperPlane" size={fs(30)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.9} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       )}
 
-      {/* 올리기 FAB */}
+      {/* 올리기 FAB — 댓글 입력바 떠 있을 땐 숨김(겹침 방지) */}
+      {!expandedId && (
       <TouchableOpacity activeOpacity={0.85} onPress={() => setComposeOpen(true)}
         style={{ position: 'absolute', right: 20, bottom: insets.bottom + 18, width: 56, height: 56, borderRadius: 28, backgroundColor: SAGE_DEEP,
           alignItems: 'center', justifyContent: 'center', shadowColor: '#1A3D52', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
         <Text style={{ fontSize: fs(30), color: '#fff', marginTop: -2 }}>＋</Text>
       </TouchableOpacity>
+      )}
 
       {/* 프로필 탭 → DM 팝업(중앙 카드) */}
       {profileFor && (

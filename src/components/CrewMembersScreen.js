@@ -114,7 +114,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
               <Avatar n={m.n} c={m.c} uri={m.avatarUri} />
               <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }}>{m.name}</Text>
               {m.self && <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>나</Text>}
-              {!m.self && <Icon name="send" size={fs(17)} color="rgba(26,61,82,0.3)" strokeWidth={1.7} />}
+              {!m.self && <Icon name="sendFilled" size={fs(30)} color={INK} strokeWidth={1.8} />}
             </TouchableOpacity>
           ))}
         </View>

@@ -861,23 +861,8 @@ export function HomeScreen({ navigation, route }) {
                 </Animated.View>
               </Animated.View>
             </TouchableOpacity>
-            {/* 크루 — DM 아래 진입. ★절대배치 = 행 높이·DM 위치에 영향 0(세로스택이 DM을 밀어올리던 문제 해결).
-                동그라미 없이 세이지(자동차 아이콘과 동색 #8FB06B) 트리오 아이콘만. top/right로 위치 미세조정. */}
-            <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ position: 'absolute', right: 0, top: 56 }}>
-              {/* 초대 글로우(라디오 핑) — 평상시 정적, 초대 있을 때만 울림. 채운 원 scale이라 iOS 찌글거림 없음. 점·숫자 없이 효과만 */}
-              {crewInvite > 0 && (
-                <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, borderRadius: 22,
-                  backgroundColor: '#8FB06B', opacity: crewHaloOpacity, transform: [{ scale: crewHaloScale }] }} />
-              )}
-              {/* 단일 링(원 하나) — 세이지 톤 통일. DM은 이중 링/버터라 구분됨 */}
-              <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: '#8FB06B',
-                alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="crew" size={fs(26)} color="#8FB06B" strokeWidth={1.7} />
-              </View>
-            </TouchableOpacity>
           </View>
+          {/* 크루 버튼은 hdr 맨 마지막 자식으로 이동 — iOS서 그리팅/배너 위에 와야 터치를 받음(아래) */}
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
@@ -928,6 +913,22 @@ export function HomeScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
           )}
+          {/* 크루 — DM 아래 진입. hdr의 ★맨 마지막 자식★(그리팅·배너 위에 렌더) + zIndex로 iOS서도 맨 위라 터치 받음.
+              타이틀 줄 밖이라 안드 부모-밖 터치 잘림도 없음. right:14/top:86로 DM 아래 위치. */}
+          <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ position: 'absolute', right: 14, top: 86, zIndex: 20, elevation: 20 }}>
+            {/* 초대 글로우(라디오 핑) — 평상시 정적, 초대 있을 때만 울림 */}
+            {crewInvite > 0 && (
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, borderRadius: 22,
+                backgroundColor: '#8FB06B', opacity: crewHaloOpacity, transform: [{ scale: crewHaloScale }] }} />
+            )}
+            {/* 어두운 반투명 스크림 — 밝은(낮) 배경서도 또렷 */}
+            <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#8FB06B',
+              backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="crew" size={fs(26)} color="#A8CC82" strokeWidth={2} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}
@@ -1150,7 +1151,7 @@ export function HomeScreen({ navigation, route }) {
 
           {/* 일정초대 배너가 떠 있는 동안엔 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(수락/거절 후 복원). 사용자 지정 2026-06-18. */}
           {!scheduleInvitePending && (<>
-          <View style={{ marginHorizontal: 14, marginVertical: 20 }}>
+          <View style={{ marginHorizontal: 14, marginVertical: 12 }}>
             <TripleStripe height={1.5} />
           </View>
 
