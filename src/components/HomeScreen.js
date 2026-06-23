@@ -992,9 +992,11 @@ export function HomeScreen({ navigation, route }) {
           {/* (체크인 배너는 헤더 '이용 안내' 자리로 이동 — 박스 중복 제거) */}
           <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 14, gap: 10 }}>
-            {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일. */}
+            {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일.
+                ★카드 높이 항상 고정(height) — 내용이 많아도 카드가 높아지지 않게(세부코스·확대 등). 넘침은 overflow hidden으로
+                  경계 유지하되, 잘림이 안 보이게 내용은 폰트 축소(adjustsFontSizeToFit)·간격(flex)으로 CARD_H 안에 조정. iOS·안드 공통(2026-06-24). */}
             <View style={isD0
-              ? { width: winW - 28, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, minHeight: CARD_H }
+              ? { width: winW - 28, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, height: CARD_H, overflow: 'hidden' }
               : homeS.mainCard}>
               {(freshDDay(next) === 0) ? (
                 <>
