@@ -407,13 +407,17 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     setTimeout(() => setWxPopup({ visible: true, schedule: s, tab }), 280);
   };
 
-  // 바텀시트 → 코스 상세 (코스기록과 연결된 일정일 때만)
+  // 바텀시트 → 코스 상세. 홈(handleCardCoursePress)과 동일 — id 있으면 그 코스, 없으면 이름으로(GuideScreen이 검색해 연다).
+  //   ★시트 + 일정 캘린더(asModal일 때 ScheduleScreen Modal)를 닫고 '즉시' navigate(onRequestOpenDiary와 동일 패턴).
+  //     안 닫으면 일정 Modal이 위에 떠 COURSE가 뒤에 가려 안 보였음(iOS). 지연(setTimeout)은 언마운트 후 실행돼 오히려 씹힘.
   const handleSheetCourse = () => {
     const s = sheet.schedule;
-    const id = s && (s.courseLogId || s.courseId);
-    if (!id || !navigation) return;
+    if (!s || !navigation) return;
+    const id = s.courseLogId || s.courseId;
     setSheet({ visible: false, schedule: null });
-    navigation.navigate(ROUTES.COURSE, { openCourseId: id });
+    onCloseSchedule?.();   // 일정 캘린더 Modal 닫기(탭 화면이면 no-op)
+    if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id });
+    else if (s.course) navigation.navigate(ROUTES.COURSE, { openCourseName: s.course, openCourseKakaoId: s.courseKakaoId || null });
   };
 
   // 바텀시트 → 동반자에게 공유: 이미지 카드(ShareMomentModal) — 홈과 동일. 시트 닫고 카드 열기(3중 Modal 회피).
@@ -892,6 +896,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         friendMeta={friendMeta}
         schedule={sheet.schedule ? { ...sheet.schedule, dDay: computeDDay(sheet.schedule) } : null}
         onClose={() => setSheet(prev => ({ ...prev, visible: false }))}
+        courseNavigable={!!(sheet.schedule && (sheet.schedule.courseLogId || sheet.schedule.courseId || sheet.schedule.course))}
         onCourseTap={handleSheetCourse}
         onWeather={() => openWxFromSheet('wx')}
         onTraffic={() => openWxFromSheet('tr')}
