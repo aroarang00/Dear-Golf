@@ -257,32 +257,37 @@ function storagePathFromUrl(url) {
 //   ★활발한 크루(게시물·미디어 많음)도 타임아웃 안 나게: Firestore는 recursiveDelete 일괄, Storage는 10개씩 병렬.
 //   timeout/memory 상향(기본 60s론 부족할 수 있음).
 exports.onCrewDeleted = onDocumentDeleted(
-  { document: 'crews/{crewId}', timeoutSeconds: 300, memory: '512MiB' },
+  { document: 'crews/{crewId}', timeoutSeconds: 540, memory: '512MiB' },
   async (event) => {
     const crewId = event.params.crewId;
+    // ★단계별 독립 처리 — 한 단계가 실패해도 나머지는 진행(예전엔 단일 try라 recursiveDelete 실패 시
+    //   Storage 정리가 통째로 스킵돼 미디어가 고아로 남았다). URL은 1)에서 먼저 확보해 2) 실패와 무관하게 3) 수행.
+    // 1) 삭제 전에 Storage 미디어 URL 수집
+    let urls = [];
     try {
-      // 1) 삭제 전에 Storage 미디어 URL 수집
       const postsSnap = await db.collection(`crews/${crewId}/posts`).get();
-      const urls = [];
       postsSnap.forEach((d) => {
         (Array.isArray(d.data().media) ? d.data().media : []).forEach((m) => {
           if (m?.uri) urls.push(m.uri);
           if (m?.poster) urls.push(m.poster);
         });
       });
-      // 2) Firestore 하위(posts + 그 안 comments) 일괄 삭제 — Admin recursiveDelete(서브컬렉션까지)
+      logger.info('[crewDeleted] media collected', crewId, 'posts=', postsSnap.size, 'media=', urls.length);
+    } catch (e) { logger.error('[crewDeleted] posts read fail', crewId, e?.message); }
+    // 2) Firestore 하위(posts + 그 안 comments) 일괄 삭제 — Admin recursiveDelete(서브컬렉션까지)
+    try {
       await db.recursiveDelete(db.doc(`crews/${crewId}`));
-      // 3) Storage 미디어 삭제 — 10개씩 묶어 병렬(실패해도 계속, 고아는 후속 청소)
-      const bucket = getStorage().bucket();
-      for (let i = 0; i < urls.length; i += 10) {
-        await Promise.all(urls.slice(i, i + 10).map(async (u) => {
-          const path = storagePathFromUrl(u);
-          if (!path) return;
-          try { await bucket.file(path).delete(); } catch (e) { logger.warn('[crewDeleted] media del', path, e?.message); }
-        }));
-      }
-      logger.info('[crewDeleted] cleaned', crewId, 'posts=', postsSnap.size, 'media=', urls.length);
-    } catch (e) { logger.error('[crewDeleted] cleanup fail', crewId, e?.message); }
+    } catch (e) { logger.error('[crewDeleted] recursiveDelete fail', crewId, e?.message); }
+    // 3) Storage 미디어 삭제 — 10개씩 묶어 병렬. recursiveDelete 성패와 무관하게 수집된 urls로 정리(개별 실패는 무시·로깅).
+    const bucket = getStorage().bucket();
+    for (let i = 0; i < urls.length; i += 10) {
+      await Promise.all(urls.slice(i, i + 10).map(async (u) => {
+        const path = storagePathFromUrl(u);
+        if (!path) return;
+        try { await bucket.file(path).delete(); } catch (e) { logger.warn('[crewDeleted] media del', path, e?.message); }
+      }));
+    }
+    logger.info('[crewDeleted] done', crewId, 'media=', urls.length);
   },
 );
 
