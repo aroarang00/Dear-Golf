@@ -8,6 +8,45 @@ import { shareInvite } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
 import { showAppAlert } from './AppAlert';   // 헤더 안내(!) 팝업
 
+// 친구 화면 이용안내 — 각 줄을 [아이콘, 키워드, 설명]으로(이모지 대신 우리 아이콘 세트, 2026-06-24).
+//   showAppAlert가 ReactNode 본문을 받게 확장돼 '둥근 칩 아이콘 + 키워드(굵게) + 설명' 2단 행을 그대로 넘김.
+//   밋밋한 텍스트 나열 대신 키워드를 굵게 띄워 중장년이 스캔하기 쉽게(2026-06-24 피드백).
+const FRIEND_GUIDE_ROWS = [
+  ['people', '그룹·별명', '친구를 그룹으로 나누고 별명도 바꿀 수 있어요. (그룹 지정은 카드 길게 누르기)'],
+  ['personAdd', '친구 신청', '받은 친구 신청을 수락하거나 거절할 수 있어요.'],
+  ['search', '친구 찾기', '카카오 동의 후 디어골프 쓰는 카카오 친구가 보여요.'],
+  ['book', '글 보기', '친구 카드를 탭하면 라운딩·일상 글을 볼 수 있어요.'],
+  ['sparkle', '새 글 NEW', '친구 카드에 새 글이 올라오면 NEW가 떠요.'],
+  ['swipe', '밀어서', '카드를 옆으로 밀면 숨기기·즐겨찾기를 할 수 있어요.'],
+  ['ban', '끊기·차단', '친구 프로필 상세에서 친구를 끊거나 차단해요.'],
+];
+function FriendGuideContent() {
+  return (
+    <View>
+      {/* 제목 헤더 — 칩 빼고 텍스트 위계로만(칩 헤더는 리스트 행·첫 항목 아이콘과 똑같아 중복·구분 안 됨, 2026-06-24).
+          제목은 더 크게+charcoal, 리스트 키워드는 navy로 색까지 분리. title 문자열 대신 본문 상단에 둬 꾸밈 적용. */}
+      <View style={{ marginBottom: 12 }}>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, letterSpacing: 0.2 }}>친구 화면 안내</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 3 }}>친구와 더 즐기는 7가지</Text>
+      </View>
+      <View style={{ height: 0.5, backgroundColor: C.hairline, marginBottom: 14 }} />
+      <View style={{ gap: 11 }}>
+        {FRIEND_GUIDE_ROWS.map(([icon, title, text]) => (
+          <View key={icon} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={icon} size={fs(19)} color={C.navy} strokeWidth={1.9} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.navy, marginBottom: 1 }}>{title}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, lineHeight: 16 }}>{text}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // 친구 화면 — 내 프로필·설정은 MY 탭으로 이관, 친구 목록 전용.
 export function FriendsScreen({ navigation, route }) {
   const _and = Platform.OS === 'android'; // 헤더 안드 컴팩트 보정 — 다른 탭 헤더(코스·라운지)와 동일 규격
@@ -45,9 +84,7 @@ export function FriendsScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.en, fontSize: fs(_and ? 24 : 28), color: C.navy }}>Friends</Text>
             {/* 안내(!) — 코스 헤더와 동일 패턴. 그룹·별명·친구찾기(카카오)·NEW·스와이프·끊기/차단 안내(사용자 2026-06-20) */}
             <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-              onPress={() => showAppAlert('친구 화면 안내',
-                '👥 친구를 그룹으로 나누고\n그룹명·친구 별명도 바꿀 수 있어요.\n(그룹 지정은 카드 길게 누르기)\n\n🤝 받은 친구 신청은 수락·거절할 수 있어요.\n\n🔍 "친구 찾기"는 카카오 동의 후\n디어골프 쓰는 카카오 친구가 보여요.\n\n📖 친구 카드를 탭하면 그 친구의\n라운딩·일상 글을 볼 수 있어요.\n\n🆕 친구 카드에 새 글이 올라오면\nNEW가 떠요.\n\n👈 친구 카드를 옆으로 밀면 숨기기·즐겨찾기.\n\n🚫 친구 프로필 상세에서 친구 끊기·차단.',
-                [{ text: '확인' }])}
+              onPress={() => showAppAlert('', <FriendGuideContent />, [{ text: '확인' }])}
               style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: C.navy, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.navy, lineHeight: 17 }}>!</Text>
             </TouchableOpacity>

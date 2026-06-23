@@ -60,10 +60,15 @@ export function AppAlertHost() {
             </Text>
           )}
           {/* 본문 색 — warmGray(#8B8680)는 너무 옅어 흐릿해 보여 textSecondary(#6B6660)로 진하게. 제목은 charcoal 유지. */}
+          {/* message가 문자열이면 종전대로 가운데 정렬 텍스트, ReactNode면 그대로 렌더 — 아이콘+텍스트 행 같은 커스텀 본문 허용(하위호환). */}
           {!!data.message && (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
-              {data.message}
-            </Text>
+            typeof data.message === 'string' ? (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
+                {data.message}
+              </Text>
+            ) : (
+              <View style={{ width: '100%', marginBottom: 20 }}>{data.message}</View>
+            )
           )}
           <View style={{ flexDirection: inRow ? 'row' : 'column', gap: 8 }}>
             {buttons.map((b, i) => {
