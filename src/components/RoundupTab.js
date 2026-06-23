@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { Modal, View, ScrollView, RefreshControl, Text, TouchableOpacity, Platform } from 'react-native';
 
 // Android는 같은 px 패딩에도 카드 박스가 시각적으로 더 커 보임(폰트 metrics 차이 누적).
@@ -49,7 +49,10 @@ import { anonNick, displayParticipantName } from '../utils/anonNick';
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.
 // joined/applied/waitlist는 Phase 3-C/D에서 loadMyApplications 등으로 복원 예정.
 
-function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, applied, waitlistNum, isBookmarked, onApply, onWaitlist, onCancel, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
+// React.memo — 부모(RoundupTab) 리렌더 시 props가 안 바뀐 카드는 리렌더 건너뜀.
+//   목록 50개에서 좋아요·참여·북마크·스냅샷 등 setPosts가 일어나도, 바뀐 카드만 다시 그린다.
+//   ★전제: 아래 props가 전부 안정 참조여야 효과 있음 — post(불변항목은 동일 ref 보존), 핸들러는 useCallback/setter(안정).
+const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, applied, waitlistNum, isBookmarked, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
   const { userProfile } = React.useContext(UserContext);
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
@@ -74,7 +77,7 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
   const isMyActivity = isMine || joined || applied || waitlistNum; // 가리기(롱탭) 가드용 — 회색 판정엔 미사용
   const dimmed = isClosed;
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onOpenDetail}
+    <TouchableOpacity activeOpacity={0.9} onPress={() => onOpenDetail(post.id)}
       // 길게 눌러 가리기 — 내 화면에서만 숨김([[roundup-hide-policy]]). 내 모집·내가 참여/신청/대기 중인 글은
       //   가리기 불가(해제 없는 숨김이라 내 관여 건을 실수로 잃지 않게 — isMyActivity로 차단).
       onLongPress={(!isMyActivity && onHide) ? () => onHide(post.id) : undefined}
@@ -131,7 +134,7 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
           {/* 신뢰등급 배지 — 친구모집(전체공개 OFF)에선 검증 의미 없어 숨김. 전체공개 부활 시 복귀 */}
           {ROUNDUP_PUBLIC_ENABLED && <TrustBadge grade={authorGrade} onPress={() => onGradePress(authorGrade.key)} />}
           {!isMine && (
-            <TouchableOpacity onPress={onToggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => onToggleBookmark(post.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ fontSize: fs(22), color: isBookmarked ? '#E2B33D' : C.warmGrayLight }}>
                 {isBookmarked ? '★' : '☆'}
               </Text>
@@ -272,7 +275,7 @@ function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, 
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 export function RoundupTab({ visible, onClose, asScreen = false, navigation, route }) {
   const insets = useSafeAreaInsets(); // asScreen(라운지 탭) 루트는 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=점프 방지, 2026-06-15). 모달 분기는 SafeAreaView 유지
@@ -444,9 +447,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const onRefresh = () => { setRefreshing(true); setRefreshTick(t => t + 1); };
 
   // 좋아요(응원) 토글 — 낙관적 갱신 후 Firestore, 실패 시 롤백. 주최자 본인 글은 무시.
-  const toggleLike = async (postId) => {
+  // 최신 posts를 ref로 노출 — toggleLike를 useCallback([myUid])로 안정화하기 위함(posts를 deps에서 제외).
+  //   posts가 매 setState마다 바뀌어도 핸들러 참조는 그대로라 PostCard memo가 유지된다.
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
+  const toggleLike = useCallback(async (postId) => {
     if (!myUid) return;
-    const post = posts.find(p => p.id === postId);
+    const post = postsRef.current.find(p => p.id === postId);
     if (!post || post.authorUid === myUid) return;
     const liked = Array.isArray(post.likedBy) && post.likedBy.includes(myUid);
     const setLiked = (add) => setPosts(prev => prev.map(p => {
@@ -461,7 +468,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       if (__DEV__) console.warn('[RoundupTab] like toggle failed', e?.message);
       setLiked(liked); // 롤백
     }
-  };
+  }, [myUid]);
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
   const pendingHostRef = useRef(null);                        // 딥링크가 실어준 주최자 uid — 비친구라 글 읽기 막힐 때 '친구 맺기' 안내용 ([[roundup-friend-redesign]])
@@ -669,13 +676,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     storage.save(STORAGE_KEYS.roundupBookmarks, bookmarks);
   }, [bookmarks, bookmarksHydrated]);
 
-  const toggleBookmark = (id) => {
+  const toggleBookmark = useCallback((id) => {
     setBookmarks(prev => {
       const next = { ...prev };
       if (next[id]) delete next[id]; else next[id] = true;
       return next;
     });
-  };
+  }, []);
 
   // 가리기 — 마운트 시 로드, 변경 시 저장 (북마크와 같은 패턴)
   const [hiddenHydrated, setHiddenHydrated] = useState(false);
@@ -691,7 +698,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   }, [hidden, hiddenHydrated]);
 
   // 모집 가리기 — 길게 눌러 내 화면에서만 숨김. 확인창 후 처리(실수 방지), 해제 UI 없음([[roundup-hide-policy]]).
-  const hideRoundup = (id) => {
+  const hideRoundup = useCallback((id) => {
     setAlert({
       title: '이 모집을 가릴까요?',
       message: '내 라운지 목록에서만 안 보이게 돼요.\n상대방은 알 수 없어요.\n한 번 가리면 되살릴 수 없어요.',
@@ -699,11 +706,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         { text: '취소', style: 'cancel' },
         { text: '가리기', onPress: () => {
           setHidden(prev => ({ ...prev, [id]: true }));
-          if (detailId === id) setDetailId(null);
+          setDetailId(cur => (cur === id ? null : cur)); // 함수형 — detailId deps 제거(핸들러 안정화)
         } },
       ],
     });
-  };
+  }, []);
 
   // 초대 억제(조용히) — 수락→취소 등 시스템 동선에서 confirm 없이 목록에서 제거 (hidden set 재사용으로 영속)
   const suppressInvite = (id) => {
@@ -2078,12 +2085,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             return (
               <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} friendMeta={friendMeta} friendNames={friendNameMap} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
                 isBookmarked={!!bookmarks[p.id]}
-                onApply={() => confirmApply(p.id)}
-                onWaitlist={() => confirmWaitlist(p.id)}
-                onCancel={() => cancelParticipation(p.id)}
-                onGradePress={(key) => setGradeModalKey(key)}
-                onOpenDetail={() => setDetailId(p.id)}
-                onToggleBookmark={() => toggleBookmark(p.id)}
+                onGradePress={setGradeModalKey}
+                onOpenDetail={setDetailId}
+                onToggleBookmark={toggleBookmark}
                 onToggleLike={toggleLike}
                 onHide={hideRoundup} />
             );
