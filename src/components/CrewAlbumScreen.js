@@ -13,7 +13,8 @@ import {
   subscribeCrew, subscribeCrewPosts, subscribeCrewComments,
   addCrewComment, editCrewComment, deleteCrewPost, deleteCrewComment,
 } from '../utils/crews';
-import { resolveMemberDisplay } from '../utils/friends';
+import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
+import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewComposeScreen } from './CrewComposeScreen';
 import { CrewMembersScreen } from './CrewMembersScreen';
 import { PhotoViewer } from './common/PhotoViewer';
@@ -119,6 +120,24 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [actionFor, setActionFor] = useState(null);        // 더보기 { kind, id, postId?, authorUid, name, text, post? }
   const [reportTarget, setReportTarget] = useState(null);  // 신고 { id, name, evidence }
   const [viewer, setViewer] = useState(null);              // 풀스크린 뷰어 { media, index, caption }
+  // 친구 여부 — 크루 멤버는 서로 친구 아닐 수 있음. 프로필 팝업서 친구=DM / 비친구=친구신청 분기(비친구 DM은 규칙상 막힘).
+  const [friends, setFriends] = useState(null);
+  const [sentSet, setSentSet] = useState(new Set());
+  const [myName, setMyName] = useState('');
+  useEffect(() => {
+    let alive = true;
+    loadMyFriendsEnriched().then((l) => { if (alive) setFriends(l || []); }).catch(() => alive && setFriends([]));
+    loadSentRequests().then((r) => { if (alive) setSentSet(new Set((r || []).map((x) => x.recipientUid))); }).catch(() => {});
+    storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
+    return () => { alive = false; };
+  }, []);
+  const friendSet = useMemo(() => new Set((friends || []).map((f) => f.id)), [friends]);
+  const requestFriend = async (uid) => {
+    if (!uid || sentSet.has(uid)) return;
+    setSentSet((p) => new Set(p).add(uid));
+    try { await sendFriendRequest(uid, myName); }
+    catch (e) { if (__DEV__) console.warn('[crewAlbum] friendReq', e?.code, e?.message); }
+  };
 
   // 댓글 입력바 — 키보드 높이만큼 명령형으로 들어올림(안드 RN Modal서 KAS 자동스크롤이 입력칸을 못 올려 직접 처리, DM/옛 상세 패턴).
   const BAR_PAD = 8;
@@ -561,12 +580,27 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
             shadowColor: '#1A3D52', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
             <MiniAvatar n={profileFor.n} c={profileFor.c} uri={profileFor.uri} size={84} />
             <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: INK, marginTop: 12 }} numberOfLines={1}>{profileFor.name}</Text>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => { const x = profileFor; setProfileFor(null); onOpenDM?.(x.uid, x.name, x.uri); }}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, alignSelf: 'stretch',
-                backgroundColor: SAGE_DEEP, borderRadius: 12, paddingVertical: 13 }}>
-              <Icon name="send" size={fs(20)} color="#fff" strokeWidth={1.9} />
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: '#fff', marginLeft: 8 }}>메시지 보내기</Text>
-            </TouchableOpacity>
+            {/* 친구=메시지 보내기(DM) / 비친구=친구 신청 — 비친구 DM은 규칙상 전송 막힘. friends 로드 전엔 DM 폴백(보통 친구) */}
+            {(!friends || friendSet.has(profileFor.uid)) ? (
+              <TouchableOpacity activeOpacity={0.85} onPress={() => { const x = profileFor; setProfileFor(null); onOpenDM?.(x.uid, x.name, x.uri); }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, alignSelf: 'stretch',
+                  backgroundColor: SAGE_DEEP, borderRadius: 12, paddingVertical: 13 }}>
+                <Icon name="send" size={fs(20)} color="#fff" strokeWidth={1.9} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: '#fff', marginLeft: 8 }}>메시지 보내기</Text>
+              </TouchableOpacity>
+            ) : sentSet.has(profileFor.uid) ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, alignSelf: 'stretch',
+                backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 12, paddingVertical: 13 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: SUB }}>친구 신청됨</Text>
+              </View>
+            ) : (
+              <TouchableOpacity activeOpacity={0.85} onPress={() => requestFriend(profileFor.uid)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, alignSelf: 'stretch',
+                  backgroundColor: SAGE_DEEP, borderRadius: 12, paddingVertical: 13 }}>
+                <Icon name="personAdd" size={fs(20)} color="#fff" strokeWidth={1.9} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: '#fff', marginLeft: 8 }}>친구 신청</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}

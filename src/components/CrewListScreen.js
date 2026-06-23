@@ -268,8 +268,12 @@ export function CrewListScreen({ onClose, onOpenDM }) {
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Icon name="crew" size={fs(34)} color={SAGE_DEEP} strokeWidth={1.8} />
         </View>
-        <TouchableOpacity onPress={() => setCreateOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
-          <Icon name="personAdd" size={fs(24)} color={INK} strokeWidth={1.8} />
+        {/* 크루 만들기 — '＋ 만들기'로 명확히(친구초대 personAdd 아이콘과 혼동 방지). personAdd는 앨범·멤버서 초대 전용 */}
+        <TouchableOpacity onPress={() => setCreateOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: SAGE_DEEP,
+            borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#fff', marginTop: -1 }}>＋</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: '#fff' }}>만들기</Text>
         </TouchableOpacity>
       </View>
       {/* 헤더 ↔ 목록 사이 세이지 색상바 — 밋밋함 보완(경계선 대체) */}
