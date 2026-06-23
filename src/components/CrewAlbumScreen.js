@@ -379,7 +379,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
                 {/* 숨김 측정용 — 클램프 없이 실제 줄 수 파악(2줄 초과면 '더보기' 노출). 글꼴은 본문과 동일해야 측정 정확(absolute·opacity0) */}
                 <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysSb, fontSize: fs(12.5), lineHeight: fs(19) }}
                   onTextLayout={(e) => { const n = e.nativeEvent.lines?.length || 0; const over = n > 2; if (over !== noticeClamped) setNoticeClamped(over); if (n !== noticeLineCount) setNoticeLineCount(n); }}>{notice}</Text>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19), textAlign: noticeLineCount === 1 ? 'center' : 'auto' }}
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
                   numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
                 {(noticeClamped || noticeExpanded) && (
                   <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
