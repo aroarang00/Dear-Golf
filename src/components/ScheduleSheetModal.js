@@ -3,11 +3,14 @@ import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
+import { Icon, GreenFlag } from './common/Icon';
 import { TripleStripe } from './common/TripleStripe';
 import { friendDisplayName } from '../utils/friendGroups';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadMyFriendsEnriched } from '../utils/friends';
+
+const SAGE = '#5E7E42';   // 세이지그린 — 교통 아이콘 액센트(앱 크루 세이지와 동색)
 
 export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
@@ -53,16 +56,17 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     return Date.now() > teeOff + 4 * 3600 * 1000;
   })();
 
+  // icon: 커스텀 라인 아이콘 있으면 그걸로(통일감), 없으면 emoji 폴백(공유·삭제는 매칭 아이콘 없음).
   const allItems = [
-    { key: 'wx', emoji: '☀️', label: '날씨 확인', onPress: onWeather },
-    { key: 'tr', emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },
-    { key: 'sh', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
+    { key: 'wx', icon: 'sun', emoji: '☀️', label: '날씨 확인', onPress: onWeather },   // 해만(앰버) — cloudSun은 흰 구름이라 밝은 시트서 안 보임
+    { key: 'tr', icon: 'car', color: SAGE, size: 24, emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },   // 차 그림이 납작해 살짝 키움
+    { key: 'sh', icon: 'share', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
     // 인앱 일정 전파 — 친구를 골라 초대, 수락 시 그 친구 일정에도 등록(외부 링크 공유와 별개) ([[schedule-propagation-spec]])
-    { key: 'iv', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
+    { key: 'iv', icon: 'personAdd', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
     // 함께 식사 — 식당 정하기/길찾기(홈 카드와 동일 기능, 일정캘린더에서도 접근) ([[afterround-meal-decision]])
-    { key: 'ml', emoji: '🍲', label: '함께 식사', onPress: onMeal },
-    { key: 'ed', emoji: '✏️', label: '일정 수정', onPress: onEdit },
-    { key: 'dl', emoji: '🗑️', label: '일정 삭제', onPress: () => setConfirmDelete(true), danger: true },
+    { key: 'ml', icon: 'bowl', emoji: '🍲', label: '함께 식사', onPress: onMeal },
+    { key: 'ed', icon: 'pen', emoji: '✏️', label: '일정 수정', onPress: onEdit },
+    { key: 'dl', icon: 'trash', emoji: '🗑️', label: '일정 삭제', onPress: () => setConfirmDelete(true), danger: true },
   ];
   const items = allItems.filter(it => {
     if (isPast && (it.key === 'wx' || it.key === 'tr')) return false;
@@ -176,18 +180,25 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     {canOpenCourse ? <Text style={sheetS.courseArrow}> ›</Text> : null}
                   </Text>
                 </TouchableOpacity>
-                <Text style={sheetS.meta}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
-                {/* 전파 일정(groupId)이면 그룹 로딩 중에도 줄 자리를 잡아둠 — async로 뒤늦게 떠 dDay가 밀리는 리플로우 방지 */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                  <View style={{ width: 20, alignItems: 'center' }}><Icon name="calendar" size={16} color={C.textSecondary} strokeWidth={1.6} /></View>
+                  <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
+                </View>
+                {/* 동반자 — 아이콘 열·간격을 예약자와 통일. 전파 일정(groupId) 로딩 중에도 줄 자리를 잡아둠(dDay 리플로우 방지) */}
                 {(companionNames.length > 0 || (schedule.groupId && !group)) && (
-                  <Text style={[sheetS.meta, { marginTop: 4 }]} numberOfLines={2}>
-                    👥 {companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 }}>
+                    <View style={{ width: 20, alignItems: 'center', marginTop: 1 }}><Icon name="people" size={17} color={C.textSecondary} strokeWidth={1.6} /></View>
+                    <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={2}>
+                      {companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
+                    </Text>
+                  </View>
                 )}
                 {/* 예약자 — 프론트 체크인 이름(있을 때만) ([[schedule-booker]]) */}
                 {!!schedule.booker && (
-                  <Text style={[sheetS.meta, { marginTop: 4 }]} numberOfLines={1}>
-                    📋 예약자 {schedule.booker}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                    <View style={{ width: 20, alignItems: 'center' }}><Icon name="clipboard" size={17} color={C.textSecondary} strokeWidth={1.6} /></View>
+                    <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={1}>예약자 {schedule.booker}</Text>
+                  </View>
                 )}
                 {dd != null && (
                   isPast ? (
@@ -195,9 +206,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 14 }}>
                       <Text style={sheetS.dday}>{dd === 0 ? 'D-DAY' : `D-${dd}`}</Text>
-                      <Text style={sheetS.ddayLabel}>
-                        {dd === 0 ? '오늘 라운딩이에요 🏌️' : `${dd}일 후 라운딩이에요 🏌️`}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={sheetS.ddayLabel}>{dd === 0 ? '오늘 라운딩이에요' : `${dd}일 후 라운딩이에요`}</Text>
+                        <GreenFlag size={18} />
+                      </View>
                     </View>
                   )
                 )}
@@ -209,7 +221,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   style={[sheetS.row, i < items.length - 1 && sheetS.rowBorder]}
                   onPress={it.onPress}
                   activeOpacity={0.6}>
-                  <Text style={sheetS.rowEmoji}>{it.emoji}</Text>
+                  {it.icon
+                    ? <View style={{ width: 22, alignItems: 'center' }}><Icon name={it.icon} size={it.size || 21} color={it.color || (it.danger ? '#D32F2F' : C.charcoal)} /></View>
+                    : <Text style={sheetS.rowEmoji}>{it.emoji}</Text>}
                   <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger]}>{it.label}</Text>
                 </TouchableOpacity>
               ))}
