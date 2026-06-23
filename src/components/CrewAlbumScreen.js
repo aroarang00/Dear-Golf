@@ -86,7 +86,9 @@ function MediaTile({ m, style, radius = 12, playSize = 'lg' }) {
 }
 
 // 가로세로비 범위 — 일반 사진(세로 9:16 ~ 가로 1.91:1)은 통째로 보이고, 극단 비율만 살짝 보정
-const clampAR = (ar) => (ar && isFinite(ar)) ? Math.max(0.56, Math.min(1.91, ar)) : null;
+// 세로 하한 0.8(4:5) — 1:1 정사각은 세로 사진을 가로처럼 눌러 부자연스러워 4:5 세로 비율 허용. 폭의 1.25배로
+//   적당히 작게(원래 0.56=1.79배 대비 크게 ↓). 피드는 cover로 꽉, 원본 전체는 탭→풀스크린 뷰어(2026-06-24). 가로 상한 1.91.
+const clampAR = (ar) => (ar && isFinite(ar)) ? Math.max(0.8, Math.min(1.91, ar)) : null;
 
 // 단일 미디어 — 원본 비율 그대로 표시(정사각 강제 X). ar 없으면 onLoad로 알아내 보정(레거시·문자열 항목 대응).
 function FeedMedia({ m }) {
@@ -121,7 +123,7 @@ function SwipeCarousel({ media, width, onOpen }) {
           return (
             <TouchableOpacity key={mi} activeOpacity={0.97} onPress={() => onOpen(mi)}
               style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
-              {uri ? <Image source={{ uri }} style={{ width, height }} contentFit="contain" transition={120}
+              {uri ? <Image source={{ uri }} style={{ width, height }} contentFit="cover" transition={120}
                        onLoad={(mi === 0 && !media[0]?.ar) ? (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); } : undefined} />
                    : <Icon name="image" size={fs(30)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
               {m?.type === 'video' && (
