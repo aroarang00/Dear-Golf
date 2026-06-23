@@ -49,6 +49,21 @@ const MAX_VIDEO_SEC = 30; // 동영상 최대 길이(초) — 과도한 업로�
 // '더 기록하기' 예시 칩 — 누르면 입력칸에 항목이 삽입돼 글쓰기 시작점이 된다
 const GUIDE_CHIPS = ['어느 코스', 'MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
 
+// 폼 섹션 헤더 — 위 구분선(hairline) + 버건디 바 + 제목으로 섹션을 시각적으로 분리. first=첫 섹션(상단 구분선 생략).
+function SectionHead({ title, sub, first }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7,
+      marginTop: first ? 8 : 22, paddingTop: first ? 0 : 18,
+      borderTopWidth: first ? 0 : 0.5, borderTopColor: C.hairline, marginBottom: 10 }}>
+      <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.burgundy }} />
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.charcoal, letterSpacing: 0.5 }}>
+        {title}
+        {sub ? <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 0 }}> {sub}</Text> : null}
+      </Text>
+    </View>
+  );
+}
+
 export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = React.useContext(UserContext);
@@ -633,6 +648,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={mS.title}>{isMoment ? '일상 기록 수정' : '라운딩 기록 수정'}</Text>
               )}
               {kind === 'round' && (<>
+              <SectionHead title="라운딩 정보" first />
               {/* 국내 / 해외 */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                 {[['국내', false], ['해외', true]].map(([l, v]) => (
@@ -643,7 +659,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={mS.bigLabel}>골프장 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>골프장 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]}
                 placeholder={overseas ? '골프장 이름 입력' : '골프장 검색 또는 직접 입력...'}
                 placeholderTextColor={C.warmGrayLight} value={courseSearch}
@@ -704,7 +720,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
                   maximumDate={new Date()} locale="ko" />
               )}
-              <Text style={mS.bigLabel}>스코어 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>스코어 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="타수 입력"
                 placeholderTextColor={C.warmGrayLight} value={score}
                 onChangeText={setScore} keyboardType="numeric" />
@@ -778,7 +794,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     </View>
                   )}
                 </View>
-              <Text style={mS.bigLabel}>한줄 메모 <Text style={{ color: '#6B1E2A' }}>*</Text></Text>
+              <SectionHead title="오늘의 기록" />
+              <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
               <Text style={mS.bigLabel}>
@@ -916,7 +933,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     value={specialMemo} onChangeText={setSpecialMemo} />
                 </View>
               )}
-              <Text style={mS.bigLabel}>이번 라운딩 만족도 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (이번 라운딩은 어떠셨나요?)</Text></Text>
+              {/* 만족도 — 반성/회고 모먼트라 라벨을 따뜻하게 어필(다른 건조한 라벨과 차별) */}
+              <Text style={[mS.bigLabel, { fontSize: fs(13.5), letterSpacing: 0.3, color: C.charcoal, marginBottom: 3 }]}>이번 라운딩, 만족하셨나요?</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginBottom: 8 }}>별점으로 오늘의 만족도를 남겨보세요</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 {[1, 2, 3, 4, 5].map(i => (
                   <TouchableOpacity key={i} onPress={() => setStarRating(i)} activeOpacity={0.6}>
@@ -926,7 +945,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 {starRating > 0 && <Text style={{ fontSize: fs(12), color: '#8B8680' }}>{starRating}점</Text>}
               </View>
 
-              <Text style={mS.bigLabel}>코스 태그 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · 중복 가능)</Text></Text>
+              <SectionHead title="더 남기기" sub="· 선택" />
+              <Text style={mS.bigLabel}>코스 태그<Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (중복 가능)</Text></Text>
               {Object.entries(COURSE_TAGS)
                 .filter(([category]) => overseas || category !== '해외 특화')
                 .map(([category, tags]) => {
@@ -957,8 +977,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
               <View style={{ marginTop: 6 }}>
                 <Text style={mS.bigLabel}>
-                  더 기록하기
-                  <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · 최대 1000자)</Text>
+                  자세한 기록
+                  <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (최대 1000자)</Text>
                 </Text>
                 {/* 예시 칩 — 누르면 입력칸에 항목이 추가돼 글쓰기 시작점이 된다 */}
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6 }}>
@@ -1155,6 +1175,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </View>
               )}
 
+              <SectionHead title="마무리" />
               <Text style={mS.bigLabel}>공개 범위</Text>
               {/* 친구 전체 / 그룹들(가까운 친구·라운딩 멤버) / 나만 보기 — 단일 선택 ([[friend_groups]]) */}
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -1174,10 +1195,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   {privacy.map(id => (friendData.friendGroups.find(g => g.id === id) || {}).name).filter(Boolean).join(' · ')} 그룹 친구에게만 보여요 (여러 그룹 선택 가능)
                 </Text>
               )}
-              <View style={{ marginTop: 16, marginBottom: 16 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 8 }}>
-                  사진 · 영상 (선택 · {addPhotos.length}/{MAX_PHOTOS})
-                </Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={mS.bigLabel}>사진 · 영상 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · {addPhotos.length}/{MAX_PHOTOS})</Text></Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {addPhotos.map((item, i) => (
                     <AddPhotoThumb key={i} item={item} isCover={i === 0}
