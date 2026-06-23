@@ -142,14 +142,15 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     const raw = seenSet[d.id];
     // 본 시점 글 수. 레거시(이전 점 버전의 millis 값)나 비정상은 무시(0) — postCount는 현실적으로 1e6 미만.
     const seen = (typeof raw === 'number' && raw >= 0 && raw < 1e6) ? raw : 0;
-    const newCount = Math.max(0, postCount - seen);   // 본 시점 이후 늘어난 글 수(안 본 크루는 전체)
+    // 마지막 글이 내 글이면 배지 억제 — 내가 방금 올린 글이 '새 글'로 뜨던 문제(addCrewPost가 lastPostBy 기록).
+    const newCount = (d.lastPostBy && d.lastPostBy === currentUid) ? 0 : Math.max(0, postCount - seen);
     return {
       id: d.id, name: d.name || '크루', members: (d.memberUids || []).length,
       last: fmtTime(ts), newCount,
       fav: !!favSet[d.id], _ts: ts?.toMillis ? ts.toMillis() : 0,
       _doc: d,    // 앨범·멤버 화면에서 memberUids·names·notice 사용
     };
-  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, seenSet]);
+  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, seenSet, currentUid]);
 
   // 크루 입장/퇴장 시 본 시점 글 수 갱신(새 글 갯수 0으로) — 현재 doc의 postCount 기준
   const markCrewSeen = (id) => {

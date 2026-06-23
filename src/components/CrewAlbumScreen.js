@@ -99,6 +99,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [postDocs, setPostDocs] = useState(null);   // null=로딩
   const [display, setDisplay] = useState({});       // uid→{name,avatarUri,self}
   const [noticeExpanded, setNoticeExpanded] = useState(false);
+  const [noticeClamped, setNoticeClamped] = useState(false);  // 공지가 실제로 2줄 넘는지(숨김 측정) — 무의미한 '더보기' 방지
   const scrollRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); setTimeout(() => setRefreshing(false), 600); }; // 실시간 구독이라 표시만(당김 UX 유지)
@@ -157,6 +158,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const memberUids = crewDoc?.memberUids || [];
   const namesFallback = crewDoc?.names || {};
   const notice = crewDoc?.notice || '';
+  const namesSig = useMemo(() => JSON.stringify(crewDoc?.names || {}), [crewDoc]); // names 변경 시 resolve 재실행용(폴백 이름 stale 방지)
 
   // 멤버 + 작성자 표시정보 resolve(보는 사람 별명 우선)
   const authorKey = useMemo(() => (postDocs || []).map((p) => p.authorUid).join(','), [postDocs]);
@@ -166,7 +168,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     let alive = true;
     resolveMemberDisplay(uids, { myUid: currentUid, namesFallback }).then((m) => { if (alive) setDisplay(m || {}); }).catch(() => {});
     return () => { alive = false; };
-  }, [memberUids.join(','), authorKey, currentUid]);
+  }, [memberUids.join(','), authorKey, currentUid, namesSig]);
 
   // 펼친 글 댓글 실시간 구독
   useEffect(() => {
@@ -184,7 +186,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     resolveMemberDisplay(uids, { myUid: currentUid, namesFallback: crewDoc?.names || {} })
       .then((m) => { if (alive) setCDisplay(m || {}); }).catch(() => {});
     return () => { alive = false; };
-  }, [cAuthorKey, currentUid]);
+  }, [cAuthorKey, currentUid, namesSig]);
 
   const members = useMemo(() => memberUids.map((u) => {
     const d = display[u] || {};
@@ -352,9 +354,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
               paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: LINE }}>
               <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
               <View style={{ flex: 1 }}>
+                {/* 숨김 측정용 — 클램프 없이 실제 줄 수 파악(2줄 초과면 '더보기' 노출). 레이아웃 영향 0(absolute·opacity0) */}
+                <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysM, fontSize: fs(12.5), lineHeight: fs(19) }}
+                  onTextLayout={(e) => { const over = (e.nativeEvent.lines?.length || 0) > 2; if (over !== noticeClamped) setNoticeClamped(over); }}>{notice}</Text>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
                   numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
-                {(notice || '').length > 45 && (
+                {(noticeClamped || noticeExpanded) && (
                   <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
                   </TouchableOpacity>

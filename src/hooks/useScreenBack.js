@@ -9,6 +9,8 @@ import { BackHandler } from 'react-native';
 //        (모달 밖·기기 차이 안전망). 핸들러는 멱등(같은 상태로 setState)이라 양쪽이 다 불려도 무해.
 export const ModalBackContext = createContext(null);
 
+// ★onBack은 반드시 멱등이어야 함 — 안드 하드웨어 백(BackHandler)과 모달 onRequestClose가 한 번에 둘 다 불릴 수 있어
+//   같은 핸들러가 2번 실행될 수 있다(setState만 하는 핸들러는 무해). API 호출 등 비멱등 동작은 넣지 말 것.
 export function useScreenBack(active, onBack) {
   const ref = useContext(ModalBackContext);
   const cb = useRef(onBack);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -15,17 +15,22 @@ export function DraggableRows({ items, rowHeight, onReorder, renderItem }) {
   const positions = useSharedValue(Object.fromEntries(ids.map((id, i) => [id, i])));
   const activeId = useSharedValue('');
 
-  // 항목 집합(추가·삭제·외부 순서변경)이 바뀌면 위치 재동기화 — 드래그 중이 아닐 때만.
+  // 항목 집합(추가·삭제·외부 순서변경)이 바뀌면 위치 재동기화 — 드래그 중이 아닐 때만(드래그 중 들어오는 실시간 업데이트 무시).
   useEffect(() => {
     if (activeId.value) return;
     positions.value = Object.fromEntries(ids.map((id, i) => [id, i]));
   }, [idsKey]);
 
-  const commit = () => {
+  // commit은 안정 참조(useCallback) + 최신 ids/onReorder는 ref로 — 드래그 중 리렌더에도 제스처가 안 끊기게.
+  const idsRef = useRef(ids); idsRef.current = ids;
+  const onReorderRef = useRef(onReorder); onReorderRef.current = onReorder;
+  const commit = useCallback(() => {
     const pos = positions.value;
-    const orderedIds = [...ids].sort((a, b) => (pos[a] ?? 0) - (pos[b] ?? 0));
-    onReorder(orderedIds);
-  };
+    const curIds = idsRef.current;
+    // pos에 없는 id(드래그 도중 추가된 크루)는 맨 뒤로 — 0번(맨 위)으로 튀지 않게.
+    const orderedIds = [...curIds].sort((a, b) => (pos[a] ?? 1e6) - (pos[b] ?? 1e6));
+    onReorderRef.current(orderedIds);
+  }, []);
 
   return (
     <View style={{ height: items.length * rowHeight }}>
@@ -47,7 +52,9 @@ function DragRow({ item, count, rowHeight, positions, activeId, onCommit, render
     (idx) => { if (idx != null && activeId.value !== item.id) top.value = withSpring(idx * rowHeight, { damping: 22, stiffness: 220 }); },
   );
 
-  const drag = Gesture.Pan()
+  // ★제스처 메모이즈 — 매 렌더마다 재생성하면 GestureDetector가 진행 중 팬을 떨굼(드래그 중 실시간 업데이트 도착 시 끊김).
+  //   item.id/count/rowHeight 바뀔 때만 재생성(일반적인 _ts 변동 등엔 불변). positions·activeId·top·startTop·onCommit은 안정 참조.
+  const drag = useMemo(() => Gesture.Pan()
     .onStart(() => { activeId.value = item.id; startTop.value = (positions.value[item.id] ?? 0) * rowHeight; })
     .onUpdate((e) => {
       top.value = startTop.value + e.translationY;
@@ -64,7 +71,8 @@ function DragRow({ item, count, rowHeight, positions, activeId, onCommit, render
       top.value = withSpring((positions.value[item.id] ?? 0) * rowHeight);
       activeId.value = '';
       runOnJS(onCommit)();
-    });
+    }),
+  [item.id, count, rowHeight]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const aStyle = useAnimatedStyle(() => {
     const dragging = activeId.value === item.id;

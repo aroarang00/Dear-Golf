@@ -69,7 +69,11 @@ export function CrewComposeScreen({ crew, post, onClose }) {
       try {
         const dl = await FileSystem.downloadAsync(uri, FileSystem.cacheDirectory + `dgcrop_${Date.now()}.jpg`);
         uri = dl.uri;
-      } catch (e) { if (__DEV__) console.warn('[crewCompose] crop download', e?.message); }
+      } catch (e) {
+        if (__DEV__) console.warn('[crewCompose] crop download', e?.message);
+        showAppAlert('사진을 불러오지 못했어요', '잠시 후 다시 시도해주세요.');
+        return;   // 원격 uri 그대로 크롭 열면 iOS서 저장 실패 → 중단(헛동작 방지)
+      }
     }
     setCropTarget({ uri, index: i });
   };

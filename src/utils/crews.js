@@ -10,14 +10,13 @@ import { db } from './firebase';
 // 멤버십 = scheduleGroups 패턴(초대/수락 셀프토글, cross-user 쓰기 0 = CF 불필요).
 //   crews/{crewId}: { creatorUid, name, memberUids[], audienceUids[], declinedUids[], names{uid:name},
 //                     notice?, noticeBy?, noticeAt?, postCount?, lastPostAt?, createdAt, updatedAt }
-//   crews/{crewId}/posts/{postId}:            { authorUid, text, media:[{url,type,poster?}], commentCount?, createdAt }
+//   crews/{crewId}/posts/{postId}:            { authorUid, text, media:[{uri,type,poster?}], commentCount?, lastPostBy?, createdAt }
 //   crews/{crewId}/posts/{postId}/comments/{commentId}: { authorUid, body, parentId?(대댓글), createdAt }
 //
 // 표시 이름은 보는 사람 각자 별명(friendDisplayName)으로 화면에서 resolve — 저장은 authorUid(+names 폴백).
 // =============================================================
 
 const COL = 'crews';
-const MAX_CREWS = 30;     // 1인당 소프트 캡
 const MAX_MEMBERS = 20;   // 크루당
 
 // ── 크루 생성 ── (creatorUid=me, memberUids=[me], audience=초대 친구)
@@ -75,13 +74,7 @@ export function subscribeCrew(crewId, cb) {
   }, (e) => { if (__DEV__) console.warn('[crews] subscribeCrew', e?.message); cb(null); });
 }
 
-// 내가 든 크루 수 — 생성/가입 캡 체크용
-export async function myCrewCount(uid) {
-  if (!uid) return 0;
-  const snap = await getDocs(query(collection(db, COL), where('memberUids', 'array-contains', uid)));
-  return snap.size;
-}
-export { MAX_CREWS, MAX_MEMBERS };
+export { MAX_MEMBERS };
 
 // ── 초대 수락 — audience가 memberUids에 자기 uid만 토글(셀프) ──
 export async function acceptCrewInvite(crewId, uid, myName = '') {
@@ -160,14 +153,6 @@ export async function editCrewPost(crewId, postId, { text = '', media = [] }) {
     text: (text || '').trim(), media: media || [], editedAt: serverTimestamp(),
   });
 }
-// ── 단일 게시물 구독 — 상세 화면이 본문·미디어 수정을 실시간 반영(목록 거치지 않고) ──
-export function subscribeCrewPost(crewId, postId, cb) {
-  if (!crewId || !postId) { cb(null); return () => {}; }
-  return onSnapshot(doc(db, COL, crewId, 'posts', postId), (d) => {
-    cb(d.exists() ? { id: d.id, ...d.data() } : null);
-  }, (e) => { if (__DEV__) console.warn('[crews] subscribeCrewPost', e?.message); cb(null); });
-}
-
 // ── 댓글 / 대댓글 (parentId 있으면 대댓글) ──
 export async function addCrewComment(crewId, postId, { authorUid, body = '', parentId = null }) {
   if (!crewId || !postId || !authorUid || !(body || '').trim()) return null;
