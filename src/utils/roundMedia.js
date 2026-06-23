@@ -11,12 +11,13 @@ import { compressImage } from './imageCompress';
 //  - 이미 https인 항목은 건너뜀(재업로드 방지 = 멱등). 실패 시 원본 유지(데이터 손실 방지, 친구는 그 항목만 못 봄).
 // 경로: rounds/{uid}/{파일명}  (storage.rules: 읽기=로그인 사용자, 쓰기=본인)
 // 입력/출력 구조 동일 — 문자열은 문자열(https)로, { uri, type:'video' } 객체는 uri만 교체.
-export async function uploadRoundMedia(uid, photos) {
+// compressOpts — compressImage 옵션(예: { maxWidth: 800 }). 크루 피드는 작게 올려 로딩↑(다이어리는 기본 1200 유지).
+export async function uploadRoundMedia(uid, photos, compressOpts = {}) {
   if (!uid || !Array.isArray(photos) || photos.length === 0) return photos;
-  return Promise.all(photos.map((p, i) => uploadOne(uid, p, i)));
+  return Promise.all(photos.map((p, i) => uploadOne(uid, p, i, compressOpts)));
 }
 
-async function uploadOne(uid, item, i) {
+async function uploadOne(uid, item, i, compressOpts = {}) {
   const isObj = item && typeof item === 'object';
   const rawUri = isObj ? item.uri : item;
   const isVideo = isObj && item.type === 'video';
@@ -24,7 +25,7 @@ async function uploadOne(uid, item, i) {
   if (/^https?:\/\//.test(rawUri)) return item; // 이미 원격(업로드 완료) — 멱등
   try {
     const localUri = resolvePhotoUri(rawUri);              // dgphoto: → 기기 절대경로
-    const uploadUri = isVideo ? localUri : await compressImage(localUri);
+    const uploadUri = isVideo ? localUri : await compressImage(localUri, compressOpts);
     const res = await fetch(uploadUri);
     const blob = await res.blob();
     const srcExt = (rawUri.split('?')[0].split('.').pop() || '').toLowerCase().slice(0, 4);

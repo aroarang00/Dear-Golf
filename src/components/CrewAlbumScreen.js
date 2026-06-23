@@ -56,7 +56,7 @@ function fmtTime(ts) {
 function MiniAvatar({ n, c, i = 0, size = 30, uri, onPress }) {
   const base = { width: size, height: size, borderRadius: size / 2, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -(size * 0.3) };
   const inner = uri
-    ? <Image source={{ uri }} style={base} contentFit="cover" />
+    ? <Image source={{ uri }} style={base} contentFit="cover" transition={200} />
     : (
       <View style={{ ...base, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(size * 0.38), color: '#fff' }}>{n}</Text>
@@ -90,13 +90,30 @@ function MediaTile({ m, style, radius = 12, playSize = 'lg' }) {
 //   적당히 작게(원래 0.56=1.79배 대비 크게 ↓). 피드는 cover로 꽉, 원본 전체는 탭→풀스크린 뷰어(2026-06-24). 가로 상한 1.91.
 const clampAR = (ar) => (ar && isFinite(ar)) ? Math.max(0.8, Math.min(1.91, ar)) : null;
 
+// 사진 로딩 — 빈 회색으로 있다가 툭 나타나지 않게 로딩 중 스피너 + 로드 시 부드러운 페이드(transition).
+//   expo-image onLoad/onError로 스피너 숨김(2026-06-24). 부모(회색 박스)가 크기·정렬을 잡고 여기선 채움.
+function ImageWithSpinner({ uri, contentFit = 'cover', transition = 220, onLoad }) {
+  const [loading, setLoading] = useState(true);
+  return (
+    <>
+      {loading && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={SAGE_DEEP} />
+        </View>
+      )}
+      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit={contentFit} transition={transition}
+        onLoad={(e) => { setLoading(false); onLoad?.(e); }} onError={() => setLoading(false)} />
+    </>
+  );
+}
+
 // 단일 미디어 — 원본 비율 그대로 표시(정사각 강제 X). ar 없으면 onLoad로 알아내 보정(레거시·문자열 항목 대응).
 function FeedMedia({ m }) {
   const [ar, setAr] = useState(() => clampAR(m?.ar) || 1);
   const uri = m?.type === 'video' ? (m.poster || m.uri) : m?.uri;
   return (
     <View style={{ width: '100%', aspectRatio: ar, borderRadius: 14, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={120}
+      {uri ? <ImageWithSpinner uri={uri}
                onLoad={m?.ar ? undefined : (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); }} />
            : <Icon name="image" size={fs(30)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
       {m?.type === 'video' && (
@@ -123,7 +140,7 @@ function SwipeCarousel({ media, width, onOpen }) {
           return (
             <TouchableOpacity key={mi} activeOpacity={0.97} onPress={() => onOpen(mi)}
               style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
-              {uri ? <Image source={{ uri }} style={{ width, height }} contentFit="cover" transition={120}
+              {uri ? <ImageWithSpinner uri={uri}
                        onLoad={(mi === 0 && !media[0]?.ar) ? (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); } : undefined} />
                    : <Icon name="image" size={fs(30)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
               {m?.type === 'video' && (
@@ -242,6 +259,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
       _doc: p,
     };
   }), [postDocs, display]);
+
+  // 피드 사진 미리 받기 — posts가 로드되면 media URL을 prefetch해 스크롤 도달 전 미리 캐시(첫 체감 로딩↑, 2026-06-24).
+  useEffect(() => {
+    const uris = posts.flatMap((p) => (p.media || []).map((m) => (m?.type === 'video' ? m?.poster : m?.uri))).filter(Boolean);
+    if (uris.length) Image.prefetch(uris, { cachePolicy: 'memory-disk' });
+  }, [posts]);
 
   // ── 동작 ──
   const openProfile = (person) => {

@@ -61,7 +61,7 @@ function fmtTime(ts) {
 
 function MiniAvatar({ n, c, i, uri }) {
   const base = { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -10 };
-  if (uri) return <Image source={{ uri }} style={base} contentFit="cover" />;
+  if (uri) return <Image source={{ uri }} style={base} contentFit="cover" transition={200} />;
   return (
     <View style={{ ...base, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>{n}</Text>
