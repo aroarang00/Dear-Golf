@@ -551,7 +551,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
 
       {/* 사람+ → 친구 초대 시트(현재 화면 위에 바로) */}
       {inviteOpen && (
-        <CrewInviteSheet crewId={crewId} memberUids={memberUids} onClose={() => setInviteOpen(false)} />
+        <CrewInviteSheet crewId={crewId} memberUids={memberUids} friends={friends} onClose={() => setInviteOpen(false)} />
       )}
 
       {/* 크루 모달 위 alert 자체 호스트(삭제 확인 등) */}

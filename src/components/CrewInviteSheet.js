@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
@@ -21,16 +22,19 @@ function Avatar({ n, c, size = 36, uri }) {
   );
 }
 
-export function CrewInviteSheet({ crewId, memberUids = [], onClose }) {
+export function CrewInviteSheet({ crewId, memberUids = [], friends: friendsProp, onClose }) {
   const insets = useSafeAreaInsets();
-  const [friends, setFriends] = useState(null);  // null=로딩
+  // 친구 목록 — 부모(앨범)가 이미 로드한 걸 prop으로 주면 재로드 안 함 → 로딩·높이 점프 0(2026-06-24).
+  //   prop 미제공(멤버 화면 등)일 때만 자체 로드(하위호환). null=로딩.
+  const [friends, setFriends] = useState(friendsProp ?? null);
   const [sel, setSel] = useState([]);
 
   useEffect(() => {
+    if (friendsProp !== undefined) { setFriends(friendsProp); return; }
     let alive = true;
     loadMyFriendsEnriched().then((l) => { if (alive) setFriends(l || []); }).catch(() => alive && setFriends([]));
     return () => { alive = false; };
-  }, []);
+  }, [friendsProp]);
 
   const pool = useMemo(() => (friends || []).filter((f) => !memberUids.includes(f.id)), [friends, memberUids]);
   const remaining = Math.max(0, MAX_MEMBERS - memberUids.length);   // 더 받을 수 있는 인원
@@ -49,9 +53,9 @@ export function CrewInviteSheet({ crewId, memberUids = [], onClose }) {
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
-      {/* minHeight 고정 — 친구 비동기 로드 중(ActivityIndicator·작은 높이)→리스트(큰 높이) 전환 시 시트가
-          접혔다 펼쳐지던 높이 점프 방지. minHeight를 maxHeight에 가깝게 둬 로딩→리스트 변화 폭 최소화(2026-06-24). */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 18 + insets.bottom, minHeight: '64%', maxHeight: '70%' }}>
+      {/* 시트 — 아래서 위로 슬라이드업(SlideInDown=reanimated에선 아래서 진입, 명명 주의). friends를 부모가 프리페치해
+          prop으로 주므로 로딩·점프 없이 즉시 리스트라 minHeight 불필요 — 내용 높이대로, 길면 maxHeight 70%(2026-06-24). */}
+      <Animated.View entering={SlideInDown.duration(240)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 18 + insets.bottom, maxHeight: '70%' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
           <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }}>친구 초대</Text>
           <TouchableOpacity onPress={invite} disabled={sel.length === 0} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -81,7 +85,7 @@ export function CrewInviteSheet({ crewId, memberUids = [], onClose }) {
               );
             })}
         </ScrollView>
-      </View>
+      </Animated.View>
     </View>
   );
 }
