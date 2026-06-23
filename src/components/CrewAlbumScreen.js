@@ -163,6 +163,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [display, setDisplay] = useState({});       // uid→{name,avatarUri,self}
   const [noticeExpanded, setNoticeExpanded] = useState(false);
   const [noticeClamped, setNoticeClamped] = useState(false);  // 공지가 실제로 2줄 넘는지(숨김 측정) — 무의미한 '더보기' 방지
+  const [noticeLineCount, setNoticeLineCount] = useState(0);  // 한 줄 공지는 가운데 정렬용(2026-06-24)
   const scrollRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); setTimeout(() => setRefreshing(false), 600); }; // 실시간 구독이라 표시만(당김 UX 유지)
@@ -369,14 +370,16 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         {/* 공지(스크롤로 흘러감, 길면 더보기). 작성자 본인에게만 ⋯ 수정·삭제 */}
         {!!notice && (
           <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: CARD, borderRadius: 12,
-              paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: LINE }}>
+            {/* 공지창 효과 — 크림 배경 + 좌측 세이지 강조 바. 하늘색 화면 배경·흰 게시물 카드와 대비돼 공지가 돋보임
+                (세이지 틴트는 하늘색 배경에 묻혀 안 보였음, 2026-06-24). */}
+            <View style={{ flexDirection: 'row', alignItems: noticeLineCount === 1 ? 'center' : 'flex-start', backgroundColor: '#F5ECD6', borderRadius: 12,
+              paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: 'rgba(150,120,60,0.25)', borderLeftWidth: 3, borderLeftColor: SAGE_DEEP }}>
               <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
               <View style={{ flex: 1 }}>
                 {/* 숨김 측정용 — 클램프 없이 실제 줄 수 파악(2줄 초과면 '더보기' 노출). 글꼴은 본문과 동일해야 측정 정확(absolute·opacity0) */}
                 <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysSb, fontSize: fs(12.5), lineHeight: fs(19) }}
-                  onTextLayout={(e) => { const over = (e.nativeEvent.lines?.length || 0) > 2; if (over !== noticeClamped) setNoticeClamped(over); }}>{notice}</Text>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
+                  onTextLayout={(e) => { const n = e.nativeEvent.lines?.length || 0; const over = n > 2; if (over !== noticeClamped) setNoticeClamped(over); if (n !== noticeLineCount) setNoticeLineCount(n); }}>{notice}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19), textAlign: noticeLineCount === 1 ? 'center' : 'auto' }}
                   numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
                 {(noticeClamped || noticeExpanded) && (
                   <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
