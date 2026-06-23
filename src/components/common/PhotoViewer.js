@@ -20,11 +20,13 @@ export function primePhotoRatio(uri, ratio) {
   if (u && !_arCache.has(u)) _arCache.set(u, ratio);
 }
 
-function VideoItem({ uri, poster, active, width, height, onRatio, onZoomChange }) {
+function VideoItem({ uri, poster, active, width, height, muted = true, onRatio, onZoomChange }) {
   const player = useVideoPlayer(uri, p => {
     p.loop = false;
+    p.muted = muted;                 // 기본 음소거(부모 토글로 켬)
     p.timeUpdateEventInterval = 0.2; // timeUpdate 이벤트 활성화 — 첫 프레임 렌더 감지용
   });
+  useEffect(() => { player.muted = muted; }, [muted, player]);
   // 원본 영상은 버퍼링이 길어 첫 프레임 전 까만 화면 → 포스터(첫프레임 jpg)를 덮어 체감 지연 제거.
   //   ★재생 위치가 실제로 진행되면(currentTime>0 = 첫 프레임이 그려진 뒤) 포스터를 걷는다 —
   //    playing 신호에 걷으면 프레임 그려지기 직전이라 까만 깜빡임이 생김(사용자 2026-06-15). 한 번 걷으면 다시 안 띄움. [[video-poster-thumbnail]]
@@ -236,6 +238,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
   const [showCaption, setShowCaption] = useState(true); // 글(caption) 표시 — 사진 탭으로 토글
   const [savedToast, setSavedToast] = useState('');     // 저장 피드백(잠깐 표시)
   const [savingPhoto, setSavingPhoto] = useState(false);
+  const [muted, setMuted] = useState(true);   // 동영상 기본 음소거(스크롤·자동재생 톤). 우상단 토글로 켜기
   const current = photos[idx];
   const isVideo = current?.type === 'video';
 
@@ -304,6 +307,14 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
+        {/* 동영상 음소거 토글 — 기본 꺼짐(muted), 탭하면 소리 켜기. 닫기 버튼 아래 우상단 */}
+        {isVideo && (
+          <TouchableOpacity onPress={() => setMuted(m => !m)} activeOpacity={0.8}
+            style={{ position: 'absolute', top: 100, right: 18, zIndex: 10, width: 38, height: 38, borderRadius: 19,
+              backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: fs(17) }}>{muted ? '🔇' : '🔊'}</Text>
+          </TouchableOpacity>
+        )}
         {/* 저장 — 허용된 곳(DM 등)에서 사진·동영상 모두. 좌상단 알약 */}
         {allowSave && (curUri || curVideoUri) && (
           <TouchableOpacity onPress={savePhoto} disabled={savingPhoto} activeOpacity={0.8}
@@ -339,7 +350,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
             <View key={i} style={{ width: SW, height: zoomed ? SH : mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
                 i === idx ? (
-                  <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active width={SW} height={mediaH} onRatio={handleRatio} onZoomChange={setZoomed} />
+                  <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active width={SW} height={mediaH} muted={muted} onRatio={handleRatio} onZoomChange={setZoomed} />
                 ) : (
                   <VideoPoster poster={item.poster ? resolvePhotoUri(item.poster) : null} height={mediaH} onRatio={handleRatio} />
                 )
