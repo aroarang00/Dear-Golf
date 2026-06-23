@@ -1045,9 +1045,10 @@ export function HomeScreen({ navigation, route }) {
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         </TouchableOpacity>
-                        {/* 휑함 보완 — 코스(세부코스) 이름만 한 줄(이모지 X, 있을 때) */}
+                        {/* 휑함 보완 — 코스(세부코스) 이름만 한 줄(이모지 X, 있을 때). marginTop 작게(3) 해서 카드 빈 공간에
+                            흡수되게 — 9면 D-day와의 빈 공간을 넘겨 카드가 높아졌음(2026-06-24). */}
                         {!!(next.subCourse || '').trim() && (
-                          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginTop: 9 }} numberOfLines={1}>
+                          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginTop: 3 }} numberOfLines={1}>
                             {next.subCourse.trim()}
                           </Text>
                         )}
