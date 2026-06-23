@@ -5,7 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
 import { Icon, GreenFlag } from './common/Icon';
 import { TripleStripe } from './common/TripleStripe';
-import { friendDisplayName } from '../utils/friendGroups';
+import { buildCompanionNames } from '../utils/scheduleCompanions';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadMyFriendsEnriched } from '../utils/friends';
@@ -93,40 +93,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     ? courseNavigable
     : !!(schedule.courseLogId || schedule.courseId);
 
-  // 동반자 닉네임 한 줄 — 수동 companions + 전파 그룹(수락=정식 / 미수락=초대중). 본인·중복 제외, friendMeta로 이름(별명 우선) 해석 ([[friend_groups]]).
-  //   ★호스트도 미수락자를 알 수 있게: 내가 동반자로 넣어(companions) 초대한 사람이라도, 전파 그룹에서 아직 수락(memberUids)
-  //   안 했으면 '(초대중)'을 붙임. 안 그러면 companions가 seen에 먼저 박혀 '초대중' 판정을 건너뛰어 다 수락한 듯 보였음
-  //   (미수락자는 본인 일정이 없어 '함께 식사' 제안도 못 볼 수 있으니, 호스트가 따로 챙길 근거가 필요 — 사용자 2026-06-19).
-  const companionNames = (() => {
-    const out = [];
-    const seen = new Set();
-    const gMembers = group?.memberUids || [];
-    const gAudience = group?.audienceUids || [];
-    const gDeclined = group?.declinedUids || [];
-    (schedule.companions || []).forEach(c => {
-      if (typeof c === 'string') { if (c) out.push(c); return; }
-      const nm = friendDisplayName(friendMeta, c?.friendUid, c?.name);
-      if (!nm) return;
-      const uid = c?.friendUid;
-      if (uid) seen.add(uid);
-      if (uid && group && gDeclined.includes(uid)) return; // 거절/탈퇴자는 동반자 목록에서도 제외
-      // 초대했는데(그룹 audience) 아직 수락(member) 안 했으면 초대중. 초대 안 보낸 일반 라벨(group 없음)은 그냥 이름.
-      const pending = !!(uid && group && gAudience.includes(uid) && !gMembers.includes(uid));
-      out.push(pending ? `${nm}(초대중)` : nm);
-    });
-    if (group) {
-      [...gMembers, ...gAudience].forEach(uid => {
-        if (!uid || uid === myUid || seen.has(uid)) return;
-        seen.add(uid);
-        if (gDeclined.includes(uid)) return; // 초대 거절했거나 받은 일정을 삭제(탈퇴)한 사람은 표시 안 함
-        // 별명(친구메타) → 그룹 저장 이름(group.names, 최적화) → 닉네임(친구목록 폴백, 옛 그룹) → 호스트명. 못 찾으면 생략.
-        const cn = (friendMeta?.[uid]?.customName || '').trim();
-        const nm = cn || group.names?.[uid] || friendNames[uid] || (uid === group.initiatorUid ? group.initiatorName : '');
-        if (nm) out.push(gMembers.includes(uid) ? nm : `${nm}(초대중)`);
-      });
-    }
-    return out;
-  })();
+  // 동반자 닉네임 한 줄 — companions + 전파 그룹(수락=정식 / 미수락=초대중) 보강. 공용 유틸(캘린더 카드와 동일 로직).
+  const companionNames = buildCompanionNames(schedule, { group, friendMeta, friendNames, myUid });
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

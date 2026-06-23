@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, Share, Platform, Animated, Easing } from 'react-native';
 
 const _and = Platform.OS === 'android';
@@ -26,10 +26,11 @@ import { roundsOnly } from '../utils/diaryKind';
 import { GreenFlag } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { CourseLogModal } from './CourseLogModal';
-import { loadFriendData, friendDisplayName } from '../utils/friendGroups';
+import { loadFriendData } from '../utils/friendGroups';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember } from '../utils/scheduleShares';
+import { buildCompanionNames } from '../utils/scheduleCompanions';
 import { leaveMealAudience } from '../utils/mealSuggestions'; // 일정 이탈 시 식사 audience 이탈(식사 푸시·카드 중단)
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { FriendSelectModal } from './FriendSelectModal';
@@ -107,6 +108,18 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   //   닉네임 그대로(전파·공유는 닉네임, owner-only 표시만 별명) ([[friend_groups]], [[diary-companion-matching]])
   const [friendMeta, setFriendMeta] = useState({});
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
+  // 전파 일정(groupId) 그룹 일괄 로드 — 캘린더 카드 동반자에 '친구 초대'(audience) 멤버까지 보강(2026-06-24).
+  //   companions만 보면 친구초대로 들어온 동반자가 누락됐음(홈 바텀시트와 동일하게 그룹 보강). groupId 집합이 바뀔 때만 재로드.
+  const [groupsById, setGroupsById] = useState({});
+  const groupIdSig = useMemo(() => [...new Set((schedules || []).map(s => s?.groupId).filter(Boolean))].sort().join(','), [schedules]);
+  useEffect(() => {
+    const gids = groupIdSig ? groupIdSig.split(',') : [];
+    if (!gids.length) { setGroupsById({}); return; }
+    let alive = true;
+    Promise.all(gids.map(gid => getScheduleGroup(gid).then(g => [gid, g]).catch(() => [gid, null])))
+      .then(pairs => { if (alive) setGroupsById(Object.fromEntries(pairs.filter(([, g]) => g))); });
+    return () => { alive = false; };
+  }, [groupIdSig]);
 
   // 친구 일정에 초대(일정 전파) — 홈 HomeScreen과 동일 동선([[schedule-propagation-spec]]). 시트 닫고 친구선택 → 발송.
   const handleInviteFriends = async (schedule) => {
@@ -810,11 +823,15 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>
                         {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
                       </Text>
-                      {Array.isArray(s.companions) && s.companions.length > 0 && (
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
-                          👥 {formatNameList(s.companions.map(c => (typeof c === 'string' ? c : friendDisplayName(friendMeta, c?.friendUid, c?.name))), { sep: ', ' })}
-                        </Text>
-                      )}
+                      {(() => {
+                        // companions + 전파 그룹(친구초대 audience 포함) 보강 — 홈 바텀시트와 동일 로직(공용 유틸).
+                        const cs = buildCompanionNames(s, { group: groupsById[s.groupId], friendMeta, myUid: currentUid });
+                        return cs.length > 0 ? (
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
+                            👥 {formatNameList(cs, { sep: ', ' })}
+                          </Text>
+                        ) : null;
+                      })()}
                     </View>
 
                     {/* Right: badge + record link */}
