@@ -49,6 +49,7 @@ export async function createSchedule(data) {
     day: data.day || '',
     time: data.time || '',
     members: typeof data.members === 'number' ? data.members : 4,
+    teams: typeof data.teams === 'number' ? data.teams : 1,   // 단체 모집(>1) 판정용 — 시트의 '단체팀' 행 노출 게이트 ([[event-model]])
     companions: Array.isArray(data.companions) ? data.companions : [], // 동반자 [{name, friendUid?}]
     booker: data.booker || '',   // 예약자(체크인 이름) — 선택 입력 ([[schedule-booker]])
     subCourse: data.subCourse || '', // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관
