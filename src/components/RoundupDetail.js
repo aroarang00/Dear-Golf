@@ -227,6 +227,8 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const waitlistTotal = Array.isArray(post.waitlistUids) ? post.waitlistUids.length : (post.waitlistCount || 0);
   // 본인 외 다른 대기자 — 개별 명단/이름으로 노출하지 않고 요약 한 줄로만 표시(가짜 이름·타인 신원 노출 방지).
   const othersWaiting = Math.max(0, waitlistTotal - (waitlistNum ? 1 : 0));
+  // 내가 익명으로 대기 중 — 내 행도 랜덤닉으로 보여 본인조차 자기인지 모르니 '(나)'+'익명' 표식으로 식별 ([[roundup-anonymous-participation]])
+  const iAmAnonWaiting = !!myUid && !!waitlistNum && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(myUid);
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
@@ -822,13 +824,12 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                     ))
                   ) : (
                     <>
-                      {/* 내가 익명으로 대기했으면 내 행도 랜덤닉으로 — '남에겐 이렇게 보인다'를 확인시켜 익명이 안 걸린 줄 오해 방지([[roundup-anonymous-participation]]). */}
+                      {/* 내가 익명으로 대기했으면 내 행도 랜덤닉 — '남에겐 이렇게 보인다' 확인 겸, 랜덤닉이라 본인이 자기인지
+                          모르므로 '(나)'와 '익명' 표식으로 식별([[roundup-anonymous-participation]]). 비익명은 내 닉네임+'(나)'. */}
                       {waitlistNum ? (
                         <WaitRow num={waitlistNum}
-                          name={(!!myUid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(myUid))
-                            ? anonNick(myUid, post.id)
-                            : (userProfile?.nickname || '나')}
-                          me />
+                          name={`${iAmAnonWaiting ? anonNick(myUid, post.id) : (userProfile?.nickname || '나')}(나)`}
+                          me anon={iAmAnonWaiting} />
                       ) : null}
                       {othersWaiting > 0 ? (
                         <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray,
