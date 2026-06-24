@@ -15,7 +15,9 @@ import { ownerVisibilityLabel } from '../utils/friendGroups';
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
 //  - variant 'friend'    : 친구 피드 — 같은 골격에 정보만 줄임(구장·스코어·한줄메모·★) + 좋아요/댓글 줄.
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
-export function DiaryCard({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups }) {
+// React.memo — 부모(DiaryScreen) 리렌더(스크롤 feedLimit·검색·선택)마다 props 안 바뀐 카드는 건너뜀.
+//   onPress는 부모에서 useCallback으로 안정화, friendGroups·friendNameByUid는 state(로드 후 안정), avgScore는 숫자.
+function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups }) {
   const [expanded, setExpanded] = useState(false);
   const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
@@ -500,3 +502,5 @@ function ExpandableMemo({ text, style, lines = 5, dateNode, rightNode }) {
     </View>
   );
 }
+
+export const DiaryCard = React.memo(DiaryCardBase);

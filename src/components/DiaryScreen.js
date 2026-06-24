@@ -510,13 +510,16 @@ export function DiaryScreen({ route, navigation }) {
     if (typeof c.seconds === 'number') return c.seconds * 1000;
     return Infinity;
   };
-  const sortedDiaries = [...diaries].sort((a, b) => {
+  // diaries가 안 바뀌면 재정렬 안 함 — 스크롤(feedLimit)·검색 타이핑마다 전체 재정렬하던 비용 제거.
+  const sortedDiaries = React.useMemo(() => [...diaries].sort((a, b) => {
     const dateA = new Date((a.date || '').replace(/\./g, '-'));
     const dateB = new Date((b.date || '').replace(/\./g, '-'));
     if (dateB - dateA !== 0) return dateB - dateA;
     // 같은 날짜는 작성 시각 최신순 — 일상(모멘트, date=작성일)이 같은 날 라운딩 사이에 자연스럽게 인터리브([[moment-feed-extension]])
     return tsMillis(b) - tsMillis(a);
-  });
+  }), [diaries]);
+  // 카드 onPress 안정화 — DiaryCard memo가 유지되도록 매 렌더 새 함수 생성 방지
+  const openDiary = React.useCallback((it) => setSelected(it), []);
 
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
@@ -916,7 +919,7 @@ export function DiaryScreen({ route, navigation }) {
                       {idx < arr.length - 1 && <View style={dS.tlLine} />}
                       {/* 일상 점은 paleSky(카드 오른쪽 띠·친구 피드 점과 통일). 베스트/버디/특별은 라운딩 전용이라 충돌 없음 ([[moment-feed-extension]]) */}
                       <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial, item.kind === 'moment' && { backgroundColor: C.paleSky, borderWidth: 0 }]} />
-                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={(it) => setSelected(it)} />
+                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary} />
                     </View>
                     );
                   })}
