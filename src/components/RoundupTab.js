@@ -788,6 +788,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
   // 자동등록 착수한 roundupId 기록 — addSchedule 비동기 완료 전 effect 재실행 시 중복 생성 방지
   const autoSchedRef = useRef(new Set());
+  // 참여/대기/취소/확정 처리 중인 postId — 확인 팝업 더블탭·연타로 같은 모집에 중복 요청 방지(정원·알림 정합성)
+  const busyPostsRef = useRef(new Set());
 
   // 모집 확정 → 예정 라운딩 자동 등록
   // 조건: 확정형 + 주최자가 '확정'(closed=true) + (내가 주최자 || 참여 확정자)
@@ -1186,6 +1188,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const performJoinOrApply = async (id, opts = {}) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
+    if (busyPostsRef.current.has(id)) return; // 연타 가드 — 처리 중이면 조용히 무시(undefined 반환 → 호출측 에러 안 띄움)
+    busyPostsRef.current.add(id);
     const anonymous = !!opts.anonymous;
     try {
       if (post.scope === 'all') {
@@ -1235,6 +1239,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       // ok:false 반환을 받아 자체 OverlayAlert를 띄운다. 여기서 setAlert하면 모달 경로에서
       // 부모(모달 뒤 가려짐)·자식 alert가 이중으로 떠서 제거함.
       return { ok: false, message: e?.message };
+    } finally {
+      busyPostsRef.current.delete(id);
     }
   };
 
@@ -1283,6 +1289,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!myUid) return;
     // 익명 → 카카오 연동 게이트(대기 신청도 소셜 액션) ([[anonymous-user-policy]])
     if (gateIfAnon(() => handleWaitlist(id, anonymous))) return;
+    if (busyPostsRef.current.has(id)) return; // 연타 가드
+    busyPostsRef.current.add(id);
     try {
       await joinWaitlist(id, { anonymous });
       let myIdx = 1;
@@ -1314,6 +1322,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         message: '잠시 후 다시 시도해 주세요.',
         buttons: [{ text: '확인' }],
       });
+    } finally {
+      busyPostsRef.current.delete(id);
     }
   };
 
@@ -1346,6 +1356,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const performCancel = async (id) => {
     const post = posts.find(p => p.id === id);
     if (!post) return;
+    if (busyPostsRef.current.has(id)) return; // 연타 가드
+    busyPostsRef.current.add(id);
     try {
       if (applied[id]) {
         await cancelApplication(id);
@@ -1391,6 +1403,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         message: '잠시 후 다시 시도해 주세요.',
         buttons: [{ text: '확인' }],
       });
+    } finally {
+      busyPostsRef.current.delete(id);
     }
   };
 
@@ -1477,14 +1491,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
   // 주최자 모집 확정 — 만석 상태에서만 호출(UI에서 보장). closed:true → 매너 -5 분기 활성 ([[roundup-penalty-policy]] §1)
   const handleConfirmRoundup = async (id) => {
+    if (busyPostsRef.current.has(id)) return; // 연타 가드
+    busyPostsRef.current.add(id);
     try {
       await closeRoundup(id);
+      setPosts(prev => prev.map(p => (p.id === id ? { ...p, closed: true } : p)));
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] closeRoundup failed', e);
       setAlert({ title: '모집 확정에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
-      return;
+    } finally {
+      busyPostsRef.current.delete(id);
     }
-    setPosts(prev => prev.map(p => (p.id === id ? { ...p, closed: true } : p)));
   };
 
   // 내 모집글 삭제/취소 — 로컬 정리 후 상세 닫기.

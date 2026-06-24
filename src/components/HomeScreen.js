@@ -317,17 +317,24 @@ export function HomeScreen({ navigation, route }) {
     setPendingScheduleChange(null);   // 반영할 변경 없음
   }, [currentUid, schedules]);
 
+  const applyingScheduleRef = useRef(false); // 그룹 일정 변경 '반영' 처리 중 플래그 — 연타 중복 방지
   const applyScheduleChange = useCallback(async () => {
     const p = pendingScheduleChange;
     if (!p) return;
-    try { await editSchedule(p.schedule.id, p.pc.patch); } catch (e) { if (__DEV__) console.warn('[home] apply group change', e?.message); }
-    // 시간이 바뀌었으면 알람도 재예약(옛 시간 알람 방지) — 날짜는 잠금이라 그대로.
-    getAlarmTypes(p.schedule.id).then(types => {
-      if (types && types.length) scheduleRoundAlarms({ id: p.schedule.id, course: p.schedule.course, date: p.schedule.date, time: p.pc.patch.time }, types);
-    });
-    const d = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
-    if (d[p.schedule.groupId]) { delete d[p.schedule.groupId]; await storage.save(STORAGE_KEYS.scheduleSyncDismissed, d); }
-    setPendingScheduleChange(null);
+    if (applyingScheduleRef.current) return; // 연타 가드 — editSchedule·알람 재예약 중복 방지(알람 2회 발송)
+    applyingScheduleRef.current = true;
+    try {
+      try { await editSchedule(p.schedule.id, p.pc.patch); } catch (e) { if (__DEV__) console.warn('[home] apply group change', e?.message); }
+      // 시간이 바뀌었으면 알람도 재예약(옛 시간 알람 방지) — 날짜는 잠금이라 그대로.
+      getAlarmTypes(p.schedule.id).then(types => {
+        if (types && types.length) scheduleRoundAlarms({ id: p.schedule.id, course: p.schedule.course, date: p.schedule.date, time: p.pc.patch.time }, types);
+      });
+      const d = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
+      if (d[p.schedule.groupId]) { delete d[p.schedule.groupId]; await storage.save(STORAGE_KEYS.scheduleSyncDismissed, d); }
+      setPendingScheduleChange(null);
+    } finally {
+      applyingScheduleRef.current = false;
+    }
     // ★즉시 재검사(setTimeout) 제거 — editSchedule 전(옛 schedules) 클로저로 검사돼 방금 반영한 변경을
     //   다시 발견→배너 재노출되던 버그(사용자 2026-06-20). schedules 변경 시 도는 아래 2s 효과가
     //   '새 클로저'로 재검사하므로 다음 대기 변경도 그쪽이 잡음.

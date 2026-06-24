@@ -198,6 +198,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   // 친구 화면 파란 헤더의 '친구 찾기' 버튼이 이 finder를 열도록 핸들 노출 (진입점을 헤더로 드러냄)
   useEffect(() => { if (openFinderRef) openFinderRef.current = openFinder; }, [openFinderRef]);
   const listScrollRef = useRef(null);
+  const sendingReqRef = useRef(new Set());          // 친구 신청 처리 중인 personId — 연타 중복/한도 이중차감 방지
   const [reloadKey, setReloadKey] = useState(0);   // 탭 재진입 시 친구·신청 목록 재조회 트리거 (수락·신청 반영)
 
   // uid 안정화([[uid-stabilization-plan]] 2단계) — 단일 uid 소스 구독.
@@ -483,17 +484,23 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   // 결과 반환: FriendFinder Modal 안에서 자체 alert 띄우도록.
   const sendRequest = async (person) => {
     if (sentRequests.includes(person.id)) return { ok: true }; // 멱등
-    const reached = await isFriendRequestLimitReached();
-    if (reached) return { ok: false, reason: 'limit' };
+    if (sendingReqRef.current.has(person.id)) return { ok: true }; // 연타 가드 — 한도 이중차감·중복 신청 방지
+    sendingReqRef.current.add(person.id);
     try {
-      await sendFriendRequest(person.id, userProfile?.nickname || '');
-    } catch (e) {
-      if (__DEV__) console.warn('[FriendsTab] sendFriendRequest failed', e?.message);
-      return { ok: false, reason: 'failed' };
+      const reached = await isFriendRequestLimitReached();
+      if (reached) return { ok: false, reason: 'limit' };
+      try {
+        await sendFriendRequest(person.id, userProfile?.nickname || '');
+      } catch (e) {
+        if (__DEV__) console.warn('[FriendsTab] sendFriendRequest failed', e?.message);
+        return { ok: false, reason: 'failed' };
+      }
+      setSentRequests(p => [...p, person.id]);
+      await incrementFriendRequestCount();
+      return { ok: true };
+    } finally {
+      sendingReqRef.current.delete(person.id);
     }
-    setSentRequests(p => [...p, person.id]);
-    await incrementFriendRequestCount();
-    return { ok: true };
   };
   // 친구 신청 취소 — Firestore doc 삭제. 한도 카운트는 환불 X (스팸 우회 방지)
   const cancelRequest = async (person) => {
