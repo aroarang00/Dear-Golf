@@ -55,6 +55,15 @@
       "collectionGroup": "roundups",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "authorUid", "order": "ASCENDING" },
+        { "fieldPath": "scope", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "roundups",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "scope", "order": "ASCENDING" },
         { "fieldPath": "audienceUids", "arrayConfig": "CONTAINS" }
       ]
