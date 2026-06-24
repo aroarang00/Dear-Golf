@@ -26,7 +26,7 @@ const ROUNDUP_NOTI_TYPES = [
 const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true, cancel: true, roundupCancelled: true, waitlist: true, slotOpen: true };
 
 const NOTI_ICON = {
-  apply: '🙋', cancel: '❌', slotOpen: '🎉', slotPassed: '⌛', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
+  apply: '🙋', cancel: '❌', slotOpen: '🎉', waitlistPromoted: '🎉', slotPassed: '⌛', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
   invite: '💌', roundupCancelled: '🚫', scheduleNotice: '📣', friendRequest: '🤝', roundupChanged: '✏️', roundupFull: '🔔',
   scheduleChanged: '🗓️', scheduleCancelled: '🚫',
   // 시스템 알림 (Cloud Functions)
@@ -76,6 +76,8 @@ function notiText(n, friendMeta) {
       ? `${who}님의 '${n.postTitle}'${n.scheduleDate ? ` (${n.scheduleDate})` : ''} 모집이 취소됐어요`
       : `${who}님이 만든 모집이 취소됐어요`;
     case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
+    // 자동 승격 — 자리가 나서 대기 순번대로 참여가 즉시 확정됨(호출·수락 단계 없음, [[roundup-waitlist-autopromote]])
+    case 'waitlistPromoted': return `대기 중이던 '${n.postTitle}' 모집에 자리가 나서 즉시 참석이 확정됐어요 — 일정에서 확인하세요`;
     // 호출됐지만 응답 시간 안에 못 들어와 다음 대기자에게 넘어갔을 때의 닫힘 통보 (서운함·오해 완화, 재대기 유도)
     case 'slotPassed': return `대기 중이던 '${n.postTitle}' 모집은 이번엔 다음 분께 자리가 넘어갔어요 — 다시 대기 신청할 수 있어요`;
     case 'confirmed': return `${who}님이 '${n.postTitle}' 모집에 참여했어요`;

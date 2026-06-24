@@ -2,7 +2,7 @@
 // Dear Golf — Cloud Functions (2nd gen)
 //
 // 트리거 영역:
-//   §A 라운지 자동 처리   — 정원 트랜잭션, closeRoundup, slotOpen 알림
+//   §A 라운지 자동 처리   — 만석 전환 알림, 대기자 자동 승격, D-7 취소 매너 평가
 //   §B 노쇼 SLA          — 7일 grace, 48h 소명, 48h 검토
 //   §C 매너 평가         — 48h 윈도우 후 익명 일괄 집계
 //   §D 콘텐츠 신고 SLA   — 3일 자동 거부, 골퍼코멘트 3건 누적 자동 가림
@@ -380,6 +380,7 @@ function titleFor(type) {
     case 'waitlist':    return '새 대기 신청';
     case 'kicked':      return '참여 취소 안내';
     case 'slotOpen':    return '대기 자리 열림';
+    case 'waitlistPromoted': return '대기 즉시 참석 확정';
     case 'slotPassed':  return '대기 안내';
     case 'comment':     return '새 댓글';
     case 'mannerEval':  return '매너 평가 요청';
@@ -433,6 +434,7 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     case 'waitlist':    return `${actorName}님이 ${t} 모집에 대기 신청했어요`;
     case 'kicked':      return `${t} 모집 참여가 주최자 사정으로 취소됐어요`;
     case 'slotOpen':    return `대기 중이던 ${t} 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
+    case 'waitlistPromoted': return `대기 중이던 ${t} 모집에 자리가 나서 즉시 참석이 확정됐어요 — 일정에서 확인하세요`;
     case 'slotPassed':  return `대기 중이던 ${t} 모집은 이번엔 다음 분께 자리가 넘어갔어요 — 다시 대기 신청할 수 있어요`;
     case 'comment':     return `${actorName}님이 ${t} 모집에 댓글을 남겼어요`;
     case 'mannerEval':  return `${t} 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
@@ -528,12 +530,10 @@ exports.onContentReportUpdated = contentReports.onContentReportUpdated;
 
 // =============================================================
 // §A 라운지 자동 — ./roundup.js (CF2)
-//   onRoundupUpdated       — 정원 만석 자동 closed / 자리 열림 시 대기자 호출 / D-7 주최자 취소 매너 평가
-//   waitlistCallCutoffTick — 12h 응답 없으면 다음 대기자에게 인계
+//   onRoundupUpdated — 만석 전환 알림 / 자리 열림 시 대기자 자동 승격 / D-7 주최자 취소 매너 평가
 // =============================================================
 const roundup = require('./roundup');
 exports.onRoundupUpdated = roundup.onRoundupUpdated;
-exports.waitlistCallCutoffTick = roundup.waitlistCallCutoffTick;
 
 // =============================================================
 // 스코어카드 OCR — ./ocr.js (네이버 CLOVA OCR 프록시)

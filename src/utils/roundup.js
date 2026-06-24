@@ -228,7 +228,13 @@ export async function leaveRoundup(postId) {
       joined: increment(-1),
       updatedAt: serverTimestamp(),
     };
-    if (!isTeam) update.closed = false; // 개별만 — 단체는 closed 안 건드림(규칙상 '그대로 둠'은 허용)
+    // 개별: 대기자가 있으면 closed 유지 → CF(onRoundupUpdated)가 빈자리를 대기 1번부터 자동 승격(제3자 진입 차단,
+    //   여러 자리·여러 대기자도 빈자리 수만큼 반복 충원). 대기자가 없을 때만 확정 해제(closed:false)해 자유 재모집.
+    //   단체는 기존대로 closed 안 건드림(국소 결원). 규칙: closed는 '불변' 또는 'false'만 허용([[roundup-penalty-policy]] §4).
+    if (!isTeam) {
+      const waitlist = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
+      if (waitlist.length === 0) update.closed = false;
+    }
     // 익명 참여였으면 anonymousUids에서도 정리(있을 때만 — 불필요한 필드 변경/규칙거부 회피)
     const anonList = Array.isArray(d.anonymousUids) ? d.anonymousUids : [];
     if (anonList.includes(uid)) update.anonymousUids = arrayRemove(uid);

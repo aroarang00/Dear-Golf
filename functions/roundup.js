@@ -2,15 +2,12 @@
 // §A 라운지 자동 처리 ([[roundup-waitlist-policy]] / [[manner-evaluation-policy]] §1-A)
 //
 // 트리거:
-//   onRoundupUpdated  — 정원 만석 자동 closed, 자리 열림 시 대기자 1번 호출,
+//   onRoundupUpdated  — 미만석→만석 전환 알림, 자리 열림 시 대기자를 빈자리 수만큼 자동 승격(즉시 참여 확정),
 //                       주최자 D-7 이내 취소 시 주최자 대상 매너 평가 윈도우 발동
-//   waitlistCallCutoffTick — 매시간. 호출 후 12h 응답 없으면 다음 대기자에게 인계
-//                            (24h 이후 재노출 — 클라이언트가 알림 표시 회피)
 // =============================================================
 
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
 
 const db = getFirestore();
@@ -19,7 +16,6 @@ const HOUR_MS = 3600 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const WINDOW_HOURS = 48;
 const D7_HOURS = 7 * 24;
-const WAITLIST_CUTOFF_HOURS = 12;
 const KST_OFFSET_HOURS = 9;
 
 async function createSystemNotification({ recipientUid, type, postId, postTitle = '', priority = 'normal' }) {
@@ -45,11 +41,6 @@ async function createSystemNotification({ recipientUid, type, postId, postTitle 
 function isFull(p) {
   const cap = p.capacity || (p.teams > 1 ? p.teams * 4 : 4);
   return (p.joined || 0) >= cap;
-}
-
-// 자리 차감 감지용 총원 — joined 기반 통일(단체 모집에서 자리열림이 안 잡히던 버그 수정).
-function totalCount(p) {
-  return p.joined || 0;
 }
 
 // 티오프 시각 (KST → UTC)
@@ -87,75 +78,45 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
     });
   }
 
-  // (B0) 호출된 대기자가 참여 확정되면 정리 — calledWaitlistUid 비우고 waitlistUids에서 제거.
-  //   안 그러면 같은 사람이 '참여자+대기자'로 중복 잔존하고, calledWaitlistUid가 남아 다음 자리열림
-  //   호출이 (B) 가드(!calledWaitlistUid)에 막혀 최대 12h(cutoff tick) 지연된다.
-  //   클라(참여자)는 보안규칙상 calledWaitlistUid를 못 지우므로 서버에서 처리(멱등).
-  const calledUid = after.calledWaitlistUid;
-  if (calledUid && Array.isArray(after.participantUids) && after.participantUids.includes(calledUid)) {
+  // (B) 자리 열림 → 대기자 자동 승격 (호출·12h 수락 없이 즉시 확정) ([[roundup-waitlist-autopromote]])
+  //   개별 모집은 취소 시 leaveRoundup이 '대기자 있으면 closed 유지'하므로, 그 빈자리를 여기서 대기 1번부터
+  //   빈자리 수(openSeats)만큼 한 번에 participantUids로 올린다. closed가 안 풀려 제3자 선참 불가.
+  //   여러 명 취소·여러 대기자도 빈자리 수만큼 반복 충원되고, 승격 후 openSeats=0이면 재트리거 시 조건이
+  //   거짓이라 멱등(무한루프 없음). 단체(teams>1)는 국소 결원이라 자동 승격 대상 아님(빈자리 충원은 자율 참여).
+  //   동시성: 트랜잭션 안에서 fresh read로 정원·대기열을 재계산 → 동시 취소/승격에도 정원 초과 없음.
+  const isTeamPost = (after.teams || 1) > 1;
+  if (after.closed && !isTeamPost
+    && Array.isArray(after.waitlistUids) && after.waitlistUids.length > 0) {
+    let promoted = [];
     try {
-      await ref.update({
-        calledWaitlistUid: FieldValue.delete(),
-        calledAt: FieldValue.delete(),
-        waitlistUids: FieldValue.arrayRemove(calledUid),
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) return;
+        const d = snap.data();
+        if (!d.closed || (d.teams || 1) > 1) return;     // 상태 바뀌었으면 중단
+        const cap = d.capacity || 4;                      // 개별 정원(=members+1, 보통 4)
+        const open = cap - (d.joined || 0);
+        const wl = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
+        if (open <= 0 || wl.length === 0) return;
+        promoted = wl.slice(0, open);                     // 빈자리 수만큼 앞에서부터
+        tx.update(ref, {
+          participantUids: FieldValue.arrayUnion(...promoted),
+          waitlistUids: FieldValue.arrayRemove(...promoted),
+          joined: FieldValue.increment(promoted.length),  // open 이내라 정원 초과 없음
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       });
-    } catch (e) {
-      logger.warn('[roundup] called-waitlist cleanup fail', e?.message);
-    }
-    return; // 자리 채워짐(열림 아님) — 이 이벤트는 정리 전용
-  }
-
-  // (B0.5) 호출된 대기자가 거절/이탈 — calledWaitlistUid가 참여자도 대기자도 아니면(leaveWaitlist로 빠짐)
-  //   즉시 다음 대기자 호출(없으면 호출 상태 정리). 클라는 보안규칙상 calledWaitlistUid를 못 지워
-  //   (B)의 !calledWaitlistUid 가드에 막히므로, 서버가 여기서 즉시 인계해 12h cutoff 지연을 없앤다(거절 즉시성).
-  //   가드 정밀: calledUid는 (B)/cutoff에서 항상 waitlist에 남겨두므로, 둘 다 아님 = 호출 본인이 빠진 경우 뿐.
-  if (calledUid
-    && !(Array.isArray(after.participantUids) && after.participantUids.includes(calledUid))
-    && !(Array.isArray(after.waitlistUids) && after.waitlistUids.includes(calledUid))) {
-    const rest = Array.isArray(after.waitlistUids) ? after.waitlistUids : [];
-    const next = rest[0] || null;
-    try {
-      await ref.update({
-        calledWaitlistUid: next || FieldValue.delete(),
-        calledAt: next ? FieldValue.serverTimestamp() : FieldValue.delete(),
-      });
-      if (next) {
+      for (const uid of promoted) {
         await createSystemNotification({
-          recipientUid: next,
-          type: 'slotOpen',
+          recipientUid: uid,
+          type: 'waitlistPromoted',     // 호출(slotOpen)이 아니라 '자동 참여 확정' 통지
           postId,
           postTitle: after.course || '',
           priority: 'important',
         });
       }
     } catch (e) {
-      logger.warn('[roundup] declined-handover fail', e?.message);
-    }
-    return; // 인계/정리 완료
-  }
-
-  // (B) 자리 열림 — 참여자 줄어들고 대기자 있으면 1번에게 호출
-  const totalBefore = totalCount(before);
-  const totalAfter = totalCount(after);
-  const seatOpened = totalAfter < totalBefore;
-  const waitlist = Array.isArray(after.waitlistUids) ? after.waitlistUids : [];
-  // 호출 중이 아닐 때만 (calledWaitlistUid 비어있음)
-  if (seatOpened && waitlist.length > 0 && !after.calledWaitlistUid) {
-    const callTarget = waitlist[0];
-    try {
-      await ref.update({
-        calledWaitlistUid: callTarget,
-        calledAt: FieldValue.serverTimestamp(),
-      });
-      await createSystemNotification({
-        recipientUid: callTarget,
-        type: 'slotOpen',
-        postId,
-        postTitle: after.course || '',
-        priority: 'important',
-      });
-    } catch (e) {
-      logger.warn('[roundup] slotOpen call fail', e?.message);
+      logger.warn('[roundup] waitlist auto-promote fail', e?.message);
     }
   }
 
@@ -201,58 +162,5 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
         logger.warn('[roundup] D-7 cancel manner window fail', e?.message);
       }
     }
-  }
-});
-
-// 매시간 — 대기자 호출 후 12h 응답 없으면 다음 대기자에게 인계.
-// 응답: 참여 확정(participantUids에 calledWaitlistUid 추가됨) → 트리거 (B0)에서 정리
-//      거절(leaveWaitlist로 waitlistUids에서 빠짐) → onRoundupUpdated (B0.5)가 즉시 다음 인계(이 틱은 무응답 전용)
-exports.waitlistCallCutoffTick = onSchedule({ schedule: 'every 60 minutes', timeZone: 'Asia/Seoul' }, async () => {
-  const cutoff = Timestamp.fromDate(new Date(Date.now() - WAITLIST_CUTOFF_HOURS * HOUR_MS));
-  try {
-    const snap = await db.collection('roundups')
-      .where('calledAt', '<=', cutoff)
-      .limit(200)
-      .get();
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      if (!d.calledWaitlistUid) continue;
-      const stuckUid = d.calledWaitlistUid;
-      // stuck 사용자를 대기자에서 제외하고 다음 사람 호출
-      const rest = (Array.isArray(d.waitlistUids) ? d.waitlistUids : []).filter(u => u !== stuckUid);
-      const next = rest[0] || null;
-      const update = {
-        waitlistUids: rest,
-        calledWaitlistUid: next,
-        calledAt: next ? FieldValue.serverTimestamp() : FieldValue.delete(),
-        lastCutoffStuckUid: stuckUid,
-        lastCutoffAt: FieldValue.serverTimestamp(),
-      };
-      try {
-        await doc.ref.update(update);
-        // 넘어간 본인에게 닫힘 통보 — '자리 났어요' 기대만 주고 침묵으로 탈락시키던 정서 공백 보완.
-        //   정보성이라 normal 우선순위. 재대기 가능 안내로 잔류 유도 ([[roundup-waitlist-policy]]).
-        await createSystemNotification({
-          recipientUid: stuckUid,
-          type: 'slotPassed',
-          postId: doc.id,
-          postTitle: d.course || '',
-          priority: 'normal',
-        });
-        if (next) {
-          await createSystemNotification({
-            recipientUid: next,
-            type: 'slotOpen',
-            postId: doc.id,
-            postTitle: d.course || '',
-            priority: 'important',
-          });
-        }
-      } catch (e) {
-        logger.warn('[roundup] cutoff handover fail', doc.id, e?.message);
-      }
-    }
-  } catch (e) {
-    logger.warn('[roundup] cutoff query fail', e?.message);
   }
 });

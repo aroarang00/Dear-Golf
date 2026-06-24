@@ -22,7 +22,7 @@ import { LoadingState } from './common/LoadingState';
 import { AttentionMotion } from './common/AttentionMotion'; // 맞춤 모집 배너 맥동 — '내 코스 모아보기'와 동일 pulse
 import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 라운지 첫 진입 즉시 시드
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, waitlistRespondHours, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
+import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
@@ -70,7 +70,6 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
   //   확정형만 만석=마감 시각 처리, 오픈형은 명시적 closed일 때만.
   const isClosed = post.closed || (post.type !== 'open' && allFull);
   const isMine = !!myUid && post.authorUid === myUid;
-  const respondHours = waitlistRespondHours(post.date);
 
   // 마감(확정·만석) 모집은 회색 처리로 시각 구분 — 숨기진 않음(대기신청 동선 유지). 마감 풀리면 자동 복귀.
   //  2026-06-04: 본인 모집·내 참여 포함 마감·확정이면 모두 회색으로 통일 (둘 다 '내 확정 라운드'라 따로 놀면 어색,
@@ -257,7 +256,7 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>⏳ 대기 {waitlistNum}번</Text>
               </View>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
-                취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
+                자리가 나면 대기 순서대로 자동 참여돼요. 참여가 확정되면 알림을 보내드려요.
               </Text>
             </View>
           ) : myRestricted ? (
@@ -798,6 +797,43 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 참여/대기/취소/확정 처리 중인 postId — 확인 팝업 더블탭·연타로 같은 모집에 중복 요청 방지(정원·알림 정합성)
   const busyPostsRef = useRef(new Set());
 
+  // 일정에 채울 동반자·인원 계산 — 자동등록·동기화 공용. 현재 participantUids 기준으로 매번 새로 산출.
+  //   이름: participantNames→친구목록→폴백. 익명 참여자는 랜덤닉+friendUid 끊기(호스트 시야는 실명) ([[roundup-anonymous-participation]]).
+  //   별명(owner-only) 저장 금지 — companions가 친구공개 기록으로 전파되므로 닉네임 저장, 표시는 friendUid로 resolve ([[friend_groups]]).
+  const buildScheduleFields = (p) => {
+    const compCount = p.teams > 1 ? 0 : (p.companions?.length || 0);
+    const members = (p.joined || 0) + compCount;
+    const nameOf = (u) => participantNames[u] || friends.find(f => f.id === u)?.name || '동반자';
+    const viewerIsHost = !!myUid && p.authorUid === myUid;
+    const isAnonU = (u) => !viewerIsHost && Array.isArray(p.anonymousUids) && p.anonymousUids.includes(u);
+    const companions = [];
+    if (p.authorUid && p.authorUid !== myUid) companions.push({ name: p.authorName || nameOf(p.authorUid), friendUid: p.authorUid });
+    (p.participantUids || []).forEach(u => {
+      if (u && u !== myUid && u !== p.authorUid) {
+        if (isAnonU(u)) companions.push({ name: anonNick(u, p.id), friendUid: null });
+        else companions.push({ name: nameOf(u), friendUid: u });
+      }
+    });
+    if (p.teams <= 1 && Array.isArray(p.companions)) {
+      p.companions.forEach(c => {
+        const nm = typeof c === 'string' ? c : c?.name;
+        if (nm) companions.push({ name: nm, friendUid: (typeof c === 'object' ? c.friendUid : null) || null });
+      });
+    }
+    return { members, companions };
+  };
+  // 일정 동반자/인원 비교 — name·friendUid·순서·길이 동일하면 같음(불필요 쓰기·무한루프 방지)
+  const sameScheduleFields = (s, members, companions) => {
+    if ((s.members || 0) !== members) return false;
+    const cur = Array.isArray(s.companions) ? s.companions : [];
+    if (cur.length !== companions.length) return false;
+    for (let i = 0; i < companions.length; i++) {
+      if ((cur[i]?.name || '') !== (companions[i]?.name || '')) return false;
+      if ((cur[i]?.friendUid || null) !== (companions[i]?.friendUid || null)) return false;
+    }
+    return true;
+  };
+
   // 모집 확정 → 예정 라운딩 자동 등록
   // 조건: 확정형 + 주최자가 '확정'(closed=true) + (내가 주최자 || 참여 확정자)
   // ★확정이 유일한 등록 분기점 — 만석만으론 등록 X(주최자가 확정 눌러야). [[roundup-friend-redesign]]
@@ -815,36 +851,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       //   사용자가 지운 과거 일정이 자동등록으로 되살아나던 문제 방지([[diary-schedule-orphan-fix]]). 2026-06-18.
       const teeMs = new Date((p.date || '').replace(/\./g, '-')).getTime();
       if (Number.isFinite(teeMs) && teeMs < todayMidMs) continue;
-      const compCount = p.teams > 1 ? 0 : (p.companions?.length || 0);
       if (schedules.some(s => s.roundupId === p.id)) continue;
       if (autoSchedRef.current.has(p.id)) continue; // 경합 가드 — schedules 상태 갱신 전 재실행돼도 중복 생성 차단
       autoSchedRef.current.add(p.id);
-      // 단체·개별 모두 joined 기반(teamJoined는 갱신되지 않아 신뢰 불가). compCount는 단체에선 0.
-      const members = (p.joined || 0) + compCount;
-      // 동반자 — 같은 모집의 다른 사람들(호스트 + 다른 확정 참여자 + 호스트가 적은 비앱 동반자).
-      //   공유 모집글(participantUids)을 읽어 '내 일정'에만 채움(전파 X) → 각자 실행돼 모두가 서로를 동반자로 봄. ([[companion-design]] Phase A)
-      //   이름은 best-effort(participantNames→친구목록→폴백), friendUid로 안정 연결.
-      // 동반자 이름 — ★별명(owner-only) 저장 금지(이 companions가 기록=친구공개로 전파됨). 닉네임으로 저장,
-      //   별명 표시는 화면(라운지 카드·상세)서 friendUid로 resolve. friendUid는 동봉(표시 resolve·매칭용) ([[friend_groups]])
-      const nameOf = (u) => participantNames[u] || friends.find(f => f.id === u)?.name || '동반자';
-      // 익명 참여자(p.anonymousUids)는 랜덤닉 + friendUid 끊기 — 이 동반자가 친구공개 기록으로 전파돼도 신원 안 새게.
-      //   호스트(p.authorUid===myUid)가 보는 경우는 실명 유지. 호스트 자신은 익명 대상 아님 ([[roundup-anonymous-participation]])
-      const viewerIsHost = !!myUid && p.authorUid === myUid;
-      const isAnonU = (u) => !viewerIsHost && Array.isArray(p.anonymousUids) && p.anonymousUids.includes(u);
-      const companions = [];
-      if (p.authorUid && p.authorUid !== myUid) companions.push({ name: p.authorName || nameOf(p.authorUid), friendUid: p.authorUid });
-      (p.participantUids || []).forEach(u => {
-        if (u && u !== myUid && u !== p.authorUid) {
-          if (isAnonU(u)) companions.push({ name: anonNick(u, p.id), friendUid: null });
-          else companions.push({ name: nameOf(u), friendUid: u });
-        }
-      });
-      if (p.teams <= 1 && Array.isArray(p.companions)) {
-        p.companions.forEach(c => {
-          const nm = typeof c === 'string' ? c : c?.name;
-          if (nm) companions.push({ name: nm, friendUid: (typeof c === 'object' ? c.friendUid : null) || null });
-        });
-      }
+      // 동반자·인원은 공용 헬퍼로 산출(participantUids 기준). 참여자 변동 시 아래 동기화 effect가 같은 헬퍼로 일정 갱신.
+      const { members, companions } = buildScheduleFields(p);
       toAdd.push({
         roundupId: p.id,
         course: p.course,
@@ -900,6 +911,22 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       removeSchedule(id).catch(e => __DEV__ && console.warn('[RoundupTab] reconcile schedule remove fail', e?.message));
     });
   }, [posts, schedules, removeSchedule, myUid, diaries]);
+
+  // 모집 멤버 변동 → 기존 일정의 동반자·인원 갱신 (add-only 갭 보강 [[roundup-schedule-sync]]).
+  //   대기자 자동 승격·취소로 participantUids가 바뀌어도 일정 companions가 옛 멤버로 굳던 문제 해소.
+  //   확정(closed)+내가 속한 일정만 손댐 — 그 외는 위 reconcile이 제거. 변경 있을 때만 editSchedule(무한루프·헛쓰기 방지).
+  useEffect(() => {
+    for (const s of schedules) {
+      if (!s.roundupId) continue;
+      const p = posts.find(x => x.id === s.roundupId);
+      if (!p || !p.closed) continue;
+      const stillIn = !!myUid && (p.authorUid === myUid || (Array.isArray(p.participantUids) && p.participantUids.includes(myUid)));
+      if (!stillIn) continue;
+      const { members, companions } = buildScheduleFields(p);
+      if (sameScheduleFields(s, members, companions)) continue;
+      editSchedule(s.id, { members, companions }).catch(e => __DEV__ && console.warn('[RoundupTab] companion sync fail', e?.message));
+    }
+  }, [posts, schedules, participantNames, friends, editSchedule, myUid]);
 
   // 모집 취소 정리 — roundupCancelled 알림이 온 모집으로 만들어졌던 본인 일정 자동 제거 (주최자 삭제 대응).
   //  주석 [[roundup-friend-redesign]]: 주최자 취소 시 참여자도 일정에서 빠져야 함. removeSchedule은 멱등(없으면 no-op).
@@ -1469,17 +1496,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   };
 
   // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
-  // 호출된 대기자 수락 — 자리가 났을 때 즉시 참여(performJoinOrApply 재사용). 익명은 대기 때 선택분 승계(다시 안 물음).
-  //   CF(onRoundupUpdated)가 참여 확정을 감지하면 waitlistUids·calledWaitlistUid를 서버에서 정리(클라는 규칙상 못 지움).
-  //   막판 동시수락으로 정원 초과 시 'full' 반환 → 상세에서 안내.
-  const acceptWaitlistCall = async (id) => {
-    const p = posts.find(x => x.id === id);
-    const wasAnon = !!(p && myUid && Array.isArray(p.anonymousUids) && p.anonymousUids.includes(myUid));
-    const r = await performJoinOrApply(id, { anonymous: wasAnon });
-    if (r?.ok) setWaitlist(prev => { const n = { ...prev }; delete n[id]; return n; });
-    return r;
-  };
-
   const cancelWaitlist = async (id) => {
     if (!myUid) return;
     try {
@@ -2186,7 +2202,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         onWaitlist={(anonymous) => detailId && handleWaitlist(detailId, !!anonymous)}
         onCancel={() => detailId && performCancel(detailId)}
         onCancelWait={() => detailId && cancelWaitlist(detailId)}
-        onAcceptCall={() => detailId ? acceptWaitlistCall(detailId) : undefined}
         onDelete={(soft) => detailId && handleDelete(detailId, soft)}
         onConfirm={() => detailId && handleConfirmRoundup(detailId)}
         onGradePress={(key) => setGradeModalKey(key)}
