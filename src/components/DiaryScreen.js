@@ -561,12 +561,23 @@ export function DiaryScreen({ route, navigation }) {
   // 갤러리에서 원본만 고르고(네이티브 크롭 미사용), 인앱 CropEditorModal(1:1)로 크롭 → 안드·iOS 동일.
   const pickAvatarImageRaw = async () => {
     try {
+      // 사진 권한 — 다른 피커와 동일 패턴. 영구 거부(다시 묻기 불가)면 설정 안내 후 중단(무반응 버튼 방지).
+      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        if (perm.canAskAgain) {
+          const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!req.granted) return null;
+        } else {
+          showAppAlert('사진 접근 권한이 필요해요', '설정 > 권한에서 사진 접근을 허용해주세요.');
+          return null;
+        }
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 1, // 크롭 전이라 원본 화질 유지 (크롭 시 600px·압축됨)
       });
       if (result.canceled) return null;
-      return result.assets[0].uri;
+      return result.assets?.[0]?.uri || null;
     } catch (e) {
       console.warn('[DiaryScreen] 이미지 선택 오류', e?.message);
       return null;
