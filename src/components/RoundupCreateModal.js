@@ -277,7 +277,13 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
   const handleSubmit = () => {
     const courseName = course?.name || courseQuery.trim();
-    if (type === 'fixed' && !courseName) return; // 확정형은 골프장 필수
+    if (type === 'fixed' && !courseName) { // 확정형은 골프장 필수 — 침묵 대신 안내(무반응 버튼 방지)
+      setAlert({
+        title: '골프장을 입력해주세요',
+        message: '확정형 모집은 어느 골프장인지\n정해야 등록할 수 있어요.',
+      });
+      return;
+    }
 
     // 과거 티오프 백스톱 — 피커 클램프를 통과해도(엣지케이스) 만들자마자 노출 윈도우에 걸려
     //   화면에서 사라지는 함정 차단. 확정형만(오픈형은 날짜 미정). [[roundup-schedule-sync]]
