@@ -963,9 +963,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const showMineToggle = hostMine.length > 0;
   const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
-  const matchTab = visiblePosts.filter(p => !(!!myUid && p.authorUid === myUid) && matchesRoundup(p, userProfile.roundupMatch));
+  const matchTab = visiblePosts.filter(p => !(!!myUid && p.authorUid === myUid) && matchesRoundup(p, userProfile?.roundupMatch));
   const matchCount = matchTab.length;
-  const hasMatch = hasRoundupMatch(userProfile.roundupMatch);
+  const hasMatch = hasRoundupMatch(userProfile?.roundupMatch);
   const tabList = view === 'friend' ? friendTab
     : view === 'mine' ? (showMineToggle ? (mineFilter === 'host' ? hostMine : mineFilter === 'join' ? joinMine : mineTab) : mineTab)
     : view === 'watch' ? watchTab : view === 'match' ? matchTab : allTab;
@@ -2129,7 +2129,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       {/* 맞춤 모집 조건 설정 */}
       <RoundupMatchModal
         visible={showMatchModal}
-        initial={userProfile.roundupMatch}
+        initial={userProfile?.roundupMatch}
         onClose={() => setShowMatchModal(false)}
         onSave={saveRoundupMatch} />
 
