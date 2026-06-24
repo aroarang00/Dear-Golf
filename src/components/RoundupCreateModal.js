@@ -413,6 +413,62 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 : '날짜·장소는 미정 — 함께 정할 동반자를 먼저 모아요'}
             </Text>
 
+            {/* 개별 / 단체 — 모집 형태와 함께 맨 위에서 정함(형태를 한 곳에). 인원/팀수도 같이. */}
+            <Text style={[mS.bigLabel, { marginTop: 16 }]}>개별 / 단체</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => (
+                <TouchableOpacity key={k} activeOpacity={0.7}
+                  onPress={() => {
+                    setGroupMode(k);
+                    if (k === 'team' && scope === 'all') {
+                      setScope('friends');
+                      setAlert({
+                        title: '단체 모집은 친구 대상으로만 가능해요',
+                        message: '단체 모집은\n친구공개·친구지정에서만 운영돼요.\n\n공개 범위를 친구공개로 바꿔뒀어요.',
+                        buttons: [{ text: '확인' }],
+                      });
+                    }
+                  }}
+                  style={[mS.chip, groupMode === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                  <Text style={[mS.chipTxt, groupMode === k && mS.chipTxtOn]}>{l}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[mS.bigLabel, { marginTop: 12 }]}>모집 인원 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(주최자 외)</Text></Text>
+            {groupMode === 'single' ? (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {[1, 2, 3].map(n => {
+                  const on = members === n;
+                  return (
+                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setMembers(n)}
+                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                      <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{n}명</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {[2, 3, 4].map(n => {
+                  const on = teams === n;
+                  return (
+                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setTeams(n)}
+                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center', paddingVertical: 9 }]}>
+                      <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: fs(13), fontFamily: F.sysB }]}>{n}팀</Text>
+                      <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: fs(10), marginTop: 1 }]}>{n * 4}명</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>
+              {groupMode === 'single'
+                ? '함께 칠 동반자를 모아요 (최대 한 팀 4명)'
+                : '여러 팀이 함께하는 단체 모집이에요 (한 팀 4명)'}
+            </Text>
+
+            <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 18, marginBottom: 2 }} />
+
             {type === 'fixed' && (
               <>
                 <Text style={mS.bigLabel}>골프장</Text>
@@ -512,65 +568,12 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               </>
             )}
 
-            <Text style={mS.bigLabel}>모집 인원 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(주최자 외)</Text></Text>
-            {/* 개별 / 단체 선택 — 단체 모집은 친구공개·친구지정에서만 (전체공개 단체는 비현실적) */}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => (
-                <TouchableOpacity key={k} activeOpacity={0.7}
-                  onPress={() => {
-                    setGroupMode(k);
-                    if (k === 'team' && scope === 'all') {
-                      setScope('friends');
-                      setAlert({
-                        title: '단체 모집은 친구 대상으로만 가능해요',
-                        message: '단체 모집은\n친구공개·친구지정에서만 운영돼요.\n\n공개 범위를 친구공개로 바꿔뒀어요.',
-                        buttons: [{ text: '확인' }],
-                      });
-                    }
-                  }}
-                  style={[mS.chip, groupMode === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
-                  <Text style={[mS.chipTxt, groupMode === k && mS.chipTxtOn]}>{l}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {groupMode === 'single' ? (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                {[1, 2, 3].map(n => {
-                  const on = members === n;
-                  return (
-                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setMembers(n)}
-                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
-                      <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{n}명</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                {[2, 3, 4].map(n => {
-                  const on = teams === n;
-                  return (
-                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setTeams(n)}
-                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center', paddingVertical: 9 }]}>
-                      <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: fs(13), fontFamily: F.sysB }]}>{n}팀</Text>
-                      <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: fs(10), marginTop: 1 }]}>{n * 4}명</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-            {/* 동반자(앱 미사용자) 입력 섹션 폐기 (2026-05-26) — 앱 사용자끼리의 모집이 본질.
-                지인 데려가기는 주최자가 모집 진행 중 인원 변경으로 처리 (Phase 2). */}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>
-              {groupMode === 'single'
-                ? '함께 칠 동반자를 모아요 (최대 한 팀 4명)'
-                : '여러 팀이 함께하는 단체 모집이에요 (한 팀 4명)'}
-            </Text>
+            <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 18, marginBottom: 2 }} />
 
+            {/* 공개 범위 — 개별/단체보다 먼저 고르게(순서 변경). 단체는 전체공개 불가(칩 비활성+안내) */}
             <Text style={mS.bigLabel}>공개 범위</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {SCOPES.map(([k, l]) => {
-                // 단체 모집은 전체공개 불가 — 칩 비활성 + 안내
                 const blocked = k === 'all' && groupMode === 'team';
                 return (
                   <TouchableOpacity key={k}
@@ -586,7 +589,6 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                         return;
                       }
                       setScope(k);
-                      // 친구지정 선택 시 그룹 빠른선택 칩을 먼저 보여줌(자동 모달 오픈 X) — 그룹/수동 둘 다 한눈에 ([[friend_groups]] Phase C)
                     }}>
                     <Text style={[mS.chipTxt, scope === k && mS.chipTxtOn]}>{l}</Text>
                   </TouchableOpacity>
@@ -701,6 +703,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
               </>
             )}
+
+            <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 18, marginBottom: 2 }} />
 
             {/* 라운딩 성격 태그 — 모든 공개범위 노출(친구모집/지정 포함). 카드를 풍성하게 + 친구가 분위기 보고 합류 판단 */}
             <Text style={mS.bigLabel}>라운딩 성격 <Text style={{ fontSize: fs(10), fontFamily: F.sys, color: C.warmGray }}>(중복 선택 · 선택)</Text></Text>
