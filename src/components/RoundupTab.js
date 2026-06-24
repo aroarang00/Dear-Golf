@@ -1815,14 +1815,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          {/* 모집글 작성 */}
-          <TouchableOpacity onPress={tryOpenCreate} activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ backgroundColor: C.burgundy, borderRadius: 18, paddingHorizontal: 15, paddingVertical: _and ? 6 : 9,
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter, includeFontPadding: false, textAlignVertical: 'center' }}>+</Text>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.butter, includeFontPadding: false, textAlignVertical: 'center' }}>모집글</Text>
-          </TouchableOpacity>
+          {/* 모집 만들기는 우측 하단 FAB로 일원화(크루·MY와 통일) — 헤더 버튼 제거 */}
           {/* 알림함 */}
           <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(22) }}>🔔</Text>
@@ -2065,7 +2058,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>📩 골프 모임 초대하기</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={tryOpenCreate} activeOpacity={0.85}
-                  style={{ marginTop: 8, backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                  style={{ marginTop: 8, backgroundColor: C.navy, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>+ 첫 모집글 작성하기</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleOpenIntroManually} activeOpacity={0.85}
@@ -2247,17 +2240,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
           {/* 라운딩 일정 리마인드 팝업은 App.js 전역으로 이동(2026-06-04) — 라운지 탭 마운트·로딩에 묶이지 않고
               앱 켤 때·포그라운드 복귀 시 어느 화면에서나 뜨도록. 읽음 처리도 App.js에서 일원화. */}
 
-          {/* 라운지 소개 FAB — MY 탭의 라운딩 기록 추가 버튼과 동일 위치·스타일.
-              노란 점은 사용자가 아직 FAB을 직접 눌러본 적 없을 때 노출 — 버건디 배경과 대비. */}
-          <TouchableOpacity onPress={handleOpenIntroManually} activeOpacity={0.85}
+          {/* 모집 만들기 FAB — 크루·MY와 동일 위치·동작(우하단=만들기 통일). 소개는 빈 화면 '다시 보기'로 이동. */}
+          <TouchableOpacity onPress={tryOpenCreate} activeOpacity={0.85}
             style={{ position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28,
-              backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center',
+              backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center',
               shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
-            <Text style={{ fontSize: fs(30) }}>📢</Text>
-            {!roundupIntroOpenedManually && (
-              <View style={{ position: 'absolute', top: 10, right: 10, width: 9, height: 9, borderRadius: 4.5,
-                backgroundColor: '#FFD700', borderWidth: 1.5, borderColor: '#fff', zIndex: 10, elevation: 10 }} />
-            )}
+            <Text style={{ fontSize: fs(32), color: C.butter, marginTop: -2 }}>＋</Text>
           </TouchableOpacity>
     </>
   );
