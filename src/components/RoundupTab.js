@@ -1377,9 +1377,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       // leaveRoundup이 closed:false도 함께 처리 → 확정 해제 + 자리 다시 열기 ([[roundup-penalty-policy]] §4, 2026-05-30)
       //  ※ 취소자 매너 -5는 별개 분기(취소 시점 상태로 이미 판정) — 확정 해제와 양립.
       await leaveRoundup(id);
-      // 1) 모집글 인원 -1 + 확정 해제 — 단체·개별 모두 joined 기반 통일
+      // 1) 모집글 인원 -1. 개별은 확정 해제(closed:false), 단체(teams>1)는 개인 이탈=국소 → 전체 확정 유지 ([[event-model]])
+      const wasTeam = (post.teams || 1) > 1;
       setPosts(prev => prev.map(p => (p.id === id
-        ? { ...p, joined: Math.max(0, (p.joined || 0) - 1), closed: false }
+        ? { ...p, joined: Math.max(0, (p.joined || 0) - 1), ...(wasTeam ? {} : { closed: false }) }
         : p)));
       // 2) 내 joined 플래그 해제
       setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });

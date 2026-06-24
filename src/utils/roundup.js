@@ -193,8 +193,10 @@ export async function joinRoundup(postId, opts = {}) {
     const d = snap.data();
     const participants = Array.isArray(d.participantUids) ? d.participantUids : [];
     if (participants.includes(uid)) return; // 멱등 — 이미 확정된 참여자
-    if (d.closed) throw new Error('full');   // 주최자 확정/마감
-    if ((d.joined || 0) >= (d.capacity || 4)) throw new Error('full'); // 선착순 정원 초과 차단
+    // 단체(teams>1)는 확정(closed)이어도 결원(정원 미만)이면 충원 허용 — 개인 이탈 자리 메우기. 개별은 닫히면 막음 ([[event-model]]).
+    //   규칙은 self-join을 closed 무관 허용(closed 안 건드림) → 별도 룰 불필요. 정원 초과는 아래에서 차단.
+    if (d.closed && (d.teams || 1) <= 1) throw new Error('full');   // 개별 확정/마감
+    if ((d.joined || 0) >= (d.capacity || 4)) throw new Error('full'); // 선착순 정원 초과 차단(단체·개별 공통)
     const update = {
       participantUids: arrayUnion(uid),
       joined: increment(1),
@@ -219,13 +221,14 @@ export async function leaveRoundup(postId) {
     const d = snap.data();
     const participants = Array.isArray(d.participantUids) ? d.participantUids : [];
     if (!participants.includes(uid)) return; // 이미 빠진 상태 — 멱등(아무 변경 없이 성공)
-    // closed:false — 결원 발생 시 확정 해제 (이미 false면 diff에 안 잡혀 무해). [[roundup-penalty-policy]] §4
+    // 결원 처리: 개별은 확정 해제(closed:false) / 단체(teams>1)는 개인 이탈=국소 — 전체 확정 유지(그 조만 결원) ([[event-model]])
+    const isTeam = (d.teams || 1) > 1;
     const update = {
       participantUids: arrayRemove(uid),
       joined: increment(-1),
-      closed: false,
       updatedAt: serverTimestamp(),
     };
+    if (!isTeam) update.closed = false; // 개별만 — 단체는 closed 안 건드림(규칙상 '그대로 둠'은 허용)
     // 익명 참여였으면 anonymousUids에서도 정리(있을 때만 — 불필요한 필드 변경/규칙거부 회피)
     const anonList = Array.isArray(d.anonymousUids) ? d.anonymousUids : [];
     if (anonList.includes(uid)) update.anonymousUids = arrayRemove(uid);
