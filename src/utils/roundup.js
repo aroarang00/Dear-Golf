@@ -196,6 +196,11 @@ export async function joinRoundup(postId, opts = {}) {
     // 단체(teams>1)는 확정(closed)이어도 결원(정원 미만)이면 충원 허용 — 개인 이탈 자리 메우기. 개별은 닫히면 막음 ([[event-model]]).
     //   규칙은 self-join을 closed 무관 허용(closed 안 건드림) → 별도 룰 불필요. 정원 초과는 아래에서 차단.
     if (d.closed && (d.teams || 1) <= 1) throw new Error('full');   // 개별 확정/마감
+    // 대기자 우선 — 개별 모집에 대기자가 있으면(=만석이었던 자리), 빈자리는 대기 순번대로 자동 승격(CF)이 채운다.
+    //   비대기자 신규 참여를 막아 제3자 선참 차단. 확정(closed)·미확정 만석 모두 적용. 단체는 결원 충원이 자유라 제외.
+    //   ([[roundup-waitlist-autopromote]])
+    const wl = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
+    if ((d.teams || 1) <= 1 && wl.length > 0 && !wl.includes(uid)) throw new Error('full');
     if ((d.joined || 0) >= (d.capacity || 4)) throw new Error('full'); // 선착순 정원 초과 차단(단체·개별 공통)
     const update = {
       participantUids: arrayUnion(uid),

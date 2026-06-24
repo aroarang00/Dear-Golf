@@ -79,13 +79,14 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
   }
 
   // (B) 자리 열림 → 대기자 자동 승격 (호출·12h 수락 없이 즉시 확정) ([[roundup-waitlist-autopromote]])
-  //   개별 모집은 취소 시 leaveRoundup이 '대기자 있으면 closed 유지'하므로, 그 빈자리를 여기서 대기 1번부터
-  //   빈자리 수(openSeats)만큼 한 번에 participantUids로 올린다. closed가 안 풀려 제3자 선참 불가.
-  //   여러 명 취소·여러 대기자도 빈자리 수만큼 반복 충원되고, 승격 후 openSeats=0이면 재트리거 시 조건이
-  //   거짓이라 멱등(무한루프 없음). 단체(teams>1)는 국소 결원이라 자동 승격 대상 아님(빈자리 충원은 자율 참여).
-  //   동시성: 트랜잭션 안에서 fresh read로 정원·대기열을 재계산 → 동시 취소/승격에도 정원 초과 없음.
+  //   개별 모집이 만석이었다가(=대기자 발생) 자리가 나면, 빈자리 수(openSeats)만큼 대기 1번부터 한 번에
+  //   participantUids로 올린다. 확정(closed)·미확정 만석 모두 대상 — 대기자는 만석일 때만 생기므로 closed
+  //   여부와 무관. 제3자 선참은 클라 joinRoundup이 '대기자 있으면 비대기자 신규 참여 차단'으로 막고, 그 자리를
+  //   여기서 대기 순번대로 채운다. 여러 명 취소·여러 대기자도 빈자리 수만큼 반복 충원, 승격 후 openSeats=0이면
+  //   재트리거 시 조건 거짓이라 멱등(무한루프 없음). 단체(teams>1)는 결원 충원이 자유라 제외.
+  //   동시성: 트랜잭션 안 fresh read로 정원·대기열 재계산 → 동시 취소/승격에도 정원 초과 없음.
   const isTeamPost = (after.teams || 1) > 1;
-  if (after.closed && !isTeamPost
+  if (!isTeamPost
     && Array.isArray(after.waitlistUids) && after.waitlistUids.length > 0) {
     let promoted = [];
     try {
@@ -93,7 +94,7 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
         const snap = await tx.get(ref);
         if (!snap.exists) return;
         const d = snap.data();
-        if (!d.closed || (d.teams || 1) > 1) return;     // 상태 바뀌었으면 중단
+        if ((d.teams || 1) > 1) return;                  // 단체면 중단(개별만 자동 승격)
         const cap = d.capacity || 4;                      // 개별 정원(=members+1, 보통 4)
         const open = cap - (d.joined || 0);
         const wl = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
