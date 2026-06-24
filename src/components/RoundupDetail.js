@@ -89,15 +89,21 @@ function SlotRow({ slot, idx, onPress, handicap }) {
   );
 }
 
-// 대기자 한 줄
-function WaitRow({ num, name, me }) {
+// 대기자 한 줄. anon=주최자 시야에서 '익명으로 신청한 대기자'임을 표식(실명은 그대로 노출) ([[roundup-anonymous-participation]])
+function WaitRow({ num, name, me, anon }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: _and ? 4 : 6 }}>
       <View style={{ minWidth: 44, alignItems: 'center', backgroundColor: '#F0E8D8', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914' }}>대기 {num}번</Text>
       </View>
-      <Text numberOfLines={1} style={{ flex: 1, fontFamily: me ? F.sysB : F.sysSb, fontSize: fs(13), color: C.charcoal }}>{name}</Text>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>대기 중</Text>
+      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: me ? F.sysB : F.sysSb, fontSize: fs(13), color: C.charcoal }}>{name}</Text>
+      {anon && (
+        // 회색 채움+흰 글씨 — 참여자 현황의 '익명 참여' 뱃지와 색·의미 통일
+        <View style={{ backgroundColor: C.warmGray, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#fff' }}>익명</Text>
+        </View>
+      )}
+      <Text style={{ marginLeft: 'auto', fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>대기 중</Text>
     </View>
   );
 }
@@ -844,29 +850,42 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               })}
             </View>
 
-            {/* 대기자 — 개별 명단은 노출하지 않고 '내 자리 + 요약 한 줄'만(타인 신원·가짜 이름 노출 방지) */}
+            {/* 대기자 — 주최자는 실명 명단(독려용), 그 외엔 '내 자리 + 요약 한 줄'만(타인 신원·가짜 이름 노출 방지) */}
             {(waitlistTotal > 0 || waitlistNum) && (
               <>
                 <Text style={sectionLabel}>대기자</Text>
                 <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
                   borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
-                  {/* 내가 익명으로 대기했으면 내 행도 랜덤닉으로 — '남에겐 이렇게 보인다'를 확인시켜 익명이 안 걸린 줄 오해 방지([[roundup-anonymous-participation]]). */}
-                  {waitlistNum ? (
-                    <WaitRow num={waitlistNum}
-                      name={(!!myUid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(myUid))
-                        ? anonNick(myUid, post.id)
-                        : (userProfile?.nickname || '나')}
-                      me />
-                  ) : null}
-                  {othersWaiting > 0 ? (
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray,
-                      marginTop: waitlistNum ? (_and ? 6 : 8) : 0,
-                      textAlign: waitlistNum ? 'left' : 'center' }}>
-                      {waitlistNum
-                        ? `나 외 ${othersWaiting}명이 함께 대기하고 있어요`
-                        : `현재 ${othersWaiting}명이 대기하고 있어요`}
-                    </Text>
-                  ) : null}
+                  {isMine && Array.isArray(post.waitlistUids) && post.waitlistUids.length > 0 ? (
+                    // 주최자 — 대기자 실명을 순번대로 나열해 직접 독려할 수 있게. 익명 신청자도 호스트에겐
+                    //   실명 노출(승격 시 그대로 이어짐)하되 '익명' 표식으로 존중 ([[roundup-anonymous-participation]]).
+                    //   이름은 내 별명(friendMeta) 우선 → participantNames(닉네임 보강) → 폴백. 호스트는 본인이 대기자가 아님.
+                    post.waitlistUids.map((uid, i) => (
+                      <WaitRow key={uid} num={i + 1}
+                        name={friendDisplayName(friendMeta, uid, participantNames[uid] || '대기자')}
+                        anon={Array.isArray(post.anonymousUids) && post.anonymousUids.includes(uid)} />
+                    ))
+                  ) : (
+                    <>
+                      {/* 내가 익명으로 대기했으면 내 행도 랜덤닉으로 — '남에겐 이렇게 보인다'를 확인시켜 익명이 안 걸린 줄 오해 방지([[roundup-anonymous-participation]]). */}
+                      {waitlistNum ? (
+                        <WaitRow num={waitlistNum}
+                          name={(!!myUid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(myUid))
+                            ? anonNick(myUid, post.id)
+                            : (userProfile?.nickname || '나')}
+                          me />
+                      ) : null}
+                      {othersWaiting > 0 ? (
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray,
+                          marginTop: waitlistNum ? (_and ? 6 : 8) : 0,
+                          textAlign: waitlistNum ? 'left' : 'center' }}>
+                          {waitlistNum
+                            ? `나 외 ${othersWaiting}명이 함께 대기하고 있어요`
+                            : `현재 ${othersWaiting}명이 대기하고 있어요`}
+                        </Text>
+                      ) : null}
+                    </>
+                  )}
                 </View>
               </>
             )}

@@ -510,7 +510,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         return next;
       });
       // 새로 들어온 참여자 닉네임 보강 — 최신 맵(ref)에 없는 uid만 fetch (중복 조회 방지)
-      const missing = (fresh.participantUids || [])
+      //   대기자(waitlistUids)는 주최자만 실명 명단을 보므로(독려용) 내가 호스트일 때만 보강 대상에 포함 ([[roundup-anonymous-participation]])
+      const iAmHost = fresh.authorUid === myUid;
+      const nameTargets = [
+        ...(fresh.participantUids || []),
+        ...(iAmHost && Array.isArray(fresh.waitlistUids) ? fresh.waitlistUids : []),
+      ];
+      const missing = nameTargets
         .filter(u => u && u !== myUid && !participantNamesRef.current[u]);
       if (missing.length) {
         Promise.all(missing.map(u => getDoc(doc(db, 'users', u)).catch(() => null)))
