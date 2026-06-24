@@ -52,8 +52,9 @@ import { anonNick, displayParticipantName } from '../utils/anonNick';
 // React.memo — 부모(RoundupTab) 리렌더 시 props가 안 바뀐 카드는 리렌더 건너뜀.
 //   목록 50개에서 좋아요·참여·북마크·스냅샷 등 setPosts가 일어나도, 바뀐 카드만 다시 그린다.
 //   ★전제: 아래 props가 전부 안정 참조여야 효과 있음 — post(불변항목은 동일 ref 보존), 핸들러는 useCallback/setter(안정).
-const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, applied, waitlistNum, isBookmarked, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
-  const { userProfile } = React.useContext(UserContext);
+// myRestricted·myEvalPending — 내 프로필에서 카드가 쓰는 두 값만 prop으로 받음(과거 UserContext 직접 구독 →
+//   setUserProfile마다 모든 카드가 리렌더돼 React.memo가 무력화됐었음). 이제 이 두 값이 안 바뀌면 카드 memo 유지.
+const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, friendMeta, friendNames, joined, applied, waitlistNum, isBookmarked, myRestricted, myEvalPending, onGradePress, onOpenDetail, onToggleBookmark, onToggleLike, onHide }) {
   const sb = SCOPE_BADGE[post.scope] || SCOPE_BADGE.all;
   const authorGrade = getTrustGrade(post.authorHostedCount, post.authorMannerScore);
   const isTeam = post.teams > 1;
@@ -232,7 +233,7 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
 
       {/* 상태 표시 — 액션(참여 신청·참여하기·대기 신청·참여 취소)은 카드에서 빼고 상세로 위임.
           카드는 훑어보기 용도, 결정은 상세에서. 빠른 참여 흐름을 의도적으로 한 단계 늦춰 신중함 확보. */}
-      {(isMine || joined || applied || waitlistNum || userProfile?.isRestricted || userProfile?.mannerEvaluationPending) && (
+      {(isMine || joined || applied || waitlistNum || myRestricted || myEvalPending) && (
         <View style={{ marginTop: _and ? 9 : 12 }}>
           {isMine ? (
             <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
@@ -259,7 +260,7 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
                 취소자 발생 시 푸시 알림을 보내드려요. {respondHours}시간 내 미응답 시 다음 대기자에게 넘어가요.
               </Text>
             </View>
-          ) : userProfile?.isRestricted ? (
+          ) : myRestricted ? (
             <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
               backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B2A2A' }}>🚫 이용 제한 중</Text>
@@ -2102,6 +2103,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             return (
               <PostCard key={p.id} post={p} myUid={myUid} friendGroups={friendGroups} friendMeta={friendMeta} friendNames={friendNameMap} joined={!!joined[p.id]} applied={!!applied[p.id]} waitlistNum={waitlist[p.id]}
                 isBookmarked={!!bookmarks[p.id]}
+                myRestricted={!!userProfile?.isRestricted} myEvalPending={!!userProfile?.mannerEvaluationPending}
                 onGradePress={setGradeModalKey}
                 onOpenDetail={setDetailId}
                 onToggleBookmark={toggleBookmark}
