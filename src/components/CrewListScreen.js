@@ -12,14 +12,16 @@ import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
-  subscribeMyCrews, subscribeCrewInvites, createCrew,
+  subscribeMyCrews, subscribeCrewInvites, createCrew, updateCrewProfile,
   acceptCrewInvite, declineCrewInvite,
 } from '../utils/crews';
+import { uploadCrewImage } from '../utils/avatarStorage';
 import { resolveMemberDisplay } from '../utils/friends';
 import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast';
 import { CrewAlbumScreen } from './CrewAlbumScreen';
 import { CrewCreateScreen } from './CrewCreateScreen';
+import { CrewAvatar } from './common/CrewAvatar';
 
 // 크루(친구 소수 그룹) 공유 앨범 — 진입 첫 화면 = 내가 속한 크루 리스트 (docs/crew-space-design.md §3.0).
 //  ★목록은 DM(다크룸)과 다르게 — 친구화면 톤(페일스카이) 라이트 테마.
@@ -150,6 +152,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
       id: d.id, name: aliasMap[d.id] || d.name || '크루', members: (d.memberUids || []).length,
       last: fmtTime(ts), newCount,
       fav: !!favSet[d.id], _ts: ts?.toMillis ? ts.toMillis() : 0,
+      themeColor: d.themeColor || null, imageUrl: d.imageUrl || null, description: d.description || '',  // 크루 프로필·성격(목록 카드)
       _doc: d,    // 앨범·멤버 화면에서 memberUids·names·notice 사용
     };
   }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, aliasMap, seenSet, currentUid]);
@@ -186,13 +189,19 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const acceptInvite = (iv) => { if (currentUid) acceptCrewInvite(iv.id, currentUid, myName); };
   const rejectInvite = (iv) => { if (currentUid) declineCrewInvite(iv.id, currentUid); };
 
-  const handleCreate = async ({ name, friendUids = [], names = {}, creatorName = '' }) => {
+  const handleCreate = async ({ name, friendUids = [], names = {}, creatorName = '', themeColor = '', description = '', photoUri = null }) => {
     setCreateOpen(false);
     if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
     try {
-      const id = await createCrew({ creatorUid: currentUid, creatorName, name, friendUids, names });
+      const id = await createCrew({ creatorUid: currentUid, creatorName, name, friendUids, names, themeColor, description });
       if (!id) { showAppAlert('만들기 실패', '잠시 후 다시 시도해주세요.'); return; }
       showToast(`크루 '${name}'를 만들었어요`);
+      // 사진을 골랐으면 생성 후(crewId 필요) 업로드 → imageUrl 반영. 실패해도 크루는 색+이니셜로 유지(치명적 아님).
+      if (photoUri) {
+        uploadCrewImage(currentUid, id, photoUri)
+          .then((url) => { if (url) return updateCrewProfile(id, { imageUrl: url }); })
+          .catch((e) => __DEV__ && console.warn('[crew] cover upload', e?.message));
+      }
     } catch (e) {
       if (__DEV__) console.warn('[crew] createCrew', e?.code, e?.message);
       showAppAlert('만들기 실패', e?.code === 'permission-denied'
@@ -359,21 +368,29 @@ export function CrewListScreen({ onClose, onOpenDM }) {
                 <TouchableOpacity activeOpacity={0.6} onPress={() => { markCrewSeen(c.id); setOpenCrew(c); }}
                   onLongPress={() => setMenuFor(c)} delayLongPress={280}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: '100%' }}>
-                  {/* 행 왼쪽 컬러 액센트 바 — 크루별 색(아바타 대신, 허전함 보완) */}
-                  <View style={{ width: 4, height: 38, borderRadius: 2, backgroundColor: accentOf(c.id), marginRight: 12 }} />
-                  <View style={{ flex: 1 }}>
+                  {/* 크루 프로필 — 색+이니셜(또는 사진). 기존 크루는 themeColor 없으면 accentOf 폴백 */}
+                  <CrewAvatar name={c.name} color={c.themeColor || accentOf(c.id)} imageUrl={c.imageUrl} size={42} radius={12} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{c.name}</Text>
+                      <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{c.name}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginLeft: 6 }}>{c.members}명</Text>
                       {c.fav && <View style={{ marginLeft: 6 }}><Icon name="heartFilled" size={fs(13)} /></View>}
                     </View>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>{c.members}명 · {c.last}</Text>
+                    {/* 둘째 줄 — 크루 성격(없으면 생략, 카드 한 줄로) */}
+                    {c.description ? (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }} numberOfLines={1}>{c.description}</Text>
+                    ) : null}
                   </View>
-                  {c.newCount > 0 && (
-                    <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 7, backgroundColor: BURGUNDY,
-                      alignItems: 'center', justifyContent: 'center', marginRight: 6 }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
-                    </View>
-                  )}
+                  {/* 우측 — 마지막 대화 시간 + 새 글 뱃지 */}
+                  <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB }}>{c.last}</Text>
+                    {c.newCount > 0 && (
+                      <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: BURGUNDY,
+                        alignItems: 'center', justifyContent: 'center', marginTop: 5 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
+                      </View>
+                    )}
+                  </View>
                 </TouchableOpacity>
                 {/* 드래그 핸들(≡) — 잡고 위아래로 끌어 순서변경 (셰브론 › 대체) */}
                 <GestureDetector gesture={drag}>

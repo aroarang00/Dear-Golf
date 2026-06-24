@@ -31,7 +31,7 @@ const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
 const MAX_VIDEO_SEC = 30;
 
-export function CrewComposeScreen({ crew, post, noticeText = null, onClose }) {
+export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = false, onClose }) {
   useScreenBack(true, onClose);
   const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
   const editingNotice = noticeText != null;       // 공지 수정 모드(텍스트만, 토글·미디어 숨김)
@@ -159,8 +159,8 @@ export function CrewComposeScreen({ crew, post, noticeText = null, onClose }) {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* 공지 토글 — 게시물 수정·공지 수정 모드선 숨김(공지는 별도 흐름) */}
-          {!editing && !editingNotice && (
+          {/* 공지 토글 — 게시물 수정·공지 수정 모드선 숨김. 공지는 크루장·운영진(canNotice)만 올릴 수 있음 */}
+          {!editing && !editingNotice && canNotice && (
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
             paddingHorizontal: 14, paddingVertical: 12, borderWidth: 0.5, borderColor: LINE }}>
             <View style={{ flex: 1 }}>

@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import Animated, { SlideInRight } from 'react-native-reanimated';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
+import { CrewAvatar } from './common/CrewAvatar';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
@@ -240,6 +241,9 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const namesFallback = crewDoc?.names || {};
   const notice = crewDoc?.notice || '';
   const namesSig = useMemo(() => JSON.stringify(crewDoc?.names || {}), [crewDoc]); // names 변경 시 resolve 재실행용(폴백 이름 stale 방지)
+  // 권한 — 크루장(creatorUid) / 운영진(adminUids). 공지·게시물·댓글 삭제는 staff(크루장+운영진)가 할 수 있음.
+  const iAmMaster = !!currentUid && currentUid === crewDoc?.creatorUid;
+  const iAmStaff = iAmMaster || (!!currentUid && (crewDoc?.adminUids || []).includes(currentUid));
 
   // 멤버 + 작성자 표시정보 resolve(보는 사람 별명 우선)
   const authorKey = useMemo(() => (postDocs || []).map((p) => p.authorUid).join(','), [postDocs]);
@@ -322,7 +326,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
 
   if (composeOpen) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
-      <CrewComposeScreen crew={crew} onClose={() => setComposeOpen(false)} />
+      <CrewComposeScreen crew={crew} canNotice={iAmStaff} onClose={() => setComposeOpen(false)} />
     </Animated.View>
   );
   if (editingPost) return (
@@ -372,9 +376,10 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
             </TouchableOpacity>
           )}
         </View>
-        {crewDoc?.noticeBy === currentUid && (
+        {/* 공지 관리 — 크루장·운영진(staff). authorUid=실제 작성자(noticeBy)로 넘겨 액션시트가 작성자/staff를 구분 */}
+        {iAmStaff && (
           <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingHorizontal: 4, marginLeft: 4, marginTop: -2 }}
-            onPress={() => setActionFor({ kind: 'notice', authorUid: currentUid, name: '공지' })}>
+            onPress={() => setActionFor({ kind: 'notice', authorUid: crewDoc?.noticeBy || null, name: '공지' })}>
             <Text style={{ fontSize: fs(18), color: SUB }}>⋯</Text>
           </TouchableOpacity>
         )}
@@ -455,9 +460,18 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
-        {/* 별명(나만 보기) 우선 — 목록서 넘어온 crew.name=별명∥서버명. 서버 name은 불변이라 live crewDoc보다 우선 안전 */}
-        <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(18), color: INK, marginLeft: 6 }}
-          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || crewDoc?.name || '크루'}</Text>
+        {/* 크루 프로필(색+이니셜/사진) */}
+        <View style={{ marginLeft: 4 }}>
+          <CrewAvatar name={crewDoc?.name || crew?.name || '크루'} color={crewDoc?.themeColor} imageUrl={crewDoc?.imageUrl} size={34} radius={11} />
+        </View>
+        {/* 별명(나만 보기) 우선 — 목록서 넘어온 crew.name=별명∥서버명. 서버 name은 불변이라 live crewDoc보다 우선 안전. 성격은 아래 줄 */}
+        <View style={{ flexShrink: 1, marginLeft: 8 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: INK }}
+            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || crewDoc?.name || '크루'}</Text>
+          {crewDoc?.description ? (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }} numberOfLines={1}>{crewDoc.description}</Text>
+          ) : null}
+        </View>
         <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
           style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
           {members.slice(0, 3).map((m, i) => <MiniAvatar key={m.id} n={m.n} c={m.c} uri={m.uri} i={i} size={24} />)}
@@ -571,9 +585,22 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
               </TouchableOpacity>
               </>
             ) : (
-              <TouchableOpacity onPress={reportAction} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
+              <>
+              {/* 크루장·운영진 — 부적절 공지는 수정(최신 대체)·삭제, 게시물·댓글은 삭제 가능 */}
+              {iAmStaff && actionFor.kind === 'notice' && (
+                <TouchableOpacity onPress={startEdit} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>공지 수정</Text>
+                </TouchableOpacity>
+              )}
+              {iAmStaff && (
+                <TouchableOpacity onPress={confirmDelete} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: actionFor.kind === 'notice' ? 0.5 : 0, borderTopColor: LINE }}>
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: '#B23B3B' }}>{actionFor.kind === 'post' ? '게시물 삭제' : actionFor.kind === 'notice' ? '공지 삭제' : '댓글 삭제'}</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={reportAction} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: iAmStaff ? 0.5 : 0, borderTopColor: LINE }}>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>신고하기</Text>
               </TouchableOpacity>
+              </>
             )}
             <TouchableOpacity onPress={() => setActionFor(null)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 0.5, borderTopColor: LINE }}>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: SUB }}>취소</Text>

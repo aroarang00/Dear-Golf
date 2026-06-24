@@ -6,8 +6,9 @@ import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
-import { subscribeCrew, leaveCrew } from '../utils/crews';
+import { subscribeCrew, leaveCrew, toggleCrewAdmin } from '../utils/crews';
 import { CrewInviteSheet } from './CrewInviteSheet';
+import { CrewEditScreen } from './CrewEditScreen';
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 
@@ -28,6 +29,15 @@ function Avatar({ n, c, size = 40, uri }) {
   );
 }
 
+// 역할 배지 — 크루장(네이비)·운영진(세이지)
+function RoleBadge({ text, bg, fg }) {
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 6 }}>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), color: fg }} allowFontScaling={false}>{text}</Text>
+    </View>
+  );
+}
+
 export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   useScreenBack(true, onClose);
   const currentUid = useCurrentUid();
@@ -40,6 +50,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   const [myName, setMyName] = useState('');                    // 친구신청 알림 표시용 내 닉네임
   const [inviteOpen, setInviteOpen] = useState(false);
   const [leaveAsk, setLeaveAsk] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);   // 크루 편집(크루장 전용)
 
   // 크루 doc 실시간 구독 — 초대(audience)·수락·탈퇴(memberUids) 즉시 반영
   useEffect(() => {
@@ -76,15 +87,20 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
     catch (e) { if (__DEV__) console.warn('[crewMembers] friendReq', e?.code, e?.message); }
   };
 
-  // 멤버 표시 모델 — 나 먼저, 그 다음 가입순
+  // 역할 — 크루장(creatorUid) / 운영진(adminUids)
+  const creatorUid = crewDoc?.creatorUid;
+  const adminUids = crewDoc?.adminUids || [];
+  const iAmMaster = !!currentUid && currentUid === creatorUid;
+  // 멤버 표시 모델 — 나 먼저, 그 다음 가입순. 역할(크루장·운영진) 포함.
   const members = useMemo(() => {
     const arr = memberUids.map((u) => {
       const d = display[u] || {};
       const name = d.name || namesFallback[u] || '친구';
-      return { id: u, name, avatarUri: d.avatarUri || null, n: name.charAt(0), c: colorOf(u), self: u === currentUid };
+      return { id: u, name, avatarUri: d.avatarUri || null, n: name.charAt(0), c: colorOf(u), self: u === currentUid,
+        isMaster: u === creatorUid, isAdmin: adminUids.includes(u) };
     });
     return arr.sort((a, b) => (b.self === true) - (a.self === true));
-  }, [memberUids.join(','), display, currentUid]);
+  }, [memberUids.join(','), display, currentUid, creatorUid, adminUids.join(',')]);
 
   const atMax = members.length >= MAX_MEMBERS;
   const doLeave = () => {
@@ -92,6 +108,15 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
     if (crewId && currentUid) leaveCrew(crewId, currentUid);
     onLeave?.();
   };
+
+  // 크루 편집(크루장 전용) — 멤버 화면 위에 풀스크린으로. 서버 name·색·성격·사진을 현재값으로 초기화.
+  if (editOpen) {
+    return (
+      <CrewEditScreen
+        crew={{ id: crewId, name: crewDoc?.name, themeColor: crewDoc?.themeColor, imageUrl: crewDoc?.imageUrl, description: crewDoc?.description }}
+        onClose={() => setEditOpen(false)} />
+    );
+  }
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
@@ -104,6 +129,13 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }}>멤버 {members.length}</Text>
+        {/* 크루 편집 — 크루장 전용(이름·색·성격·사진) */}
+        {iAmMaster && (
+          <TouchableOpacity onPress={() => setEditOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            style={{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 9, borderWidth: 1, borderColor: SAGE_DEEP, marginRight: 8 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: SAGE_DEEP }}>편집</Text>
+          </TouchableOpacity>
+        )}
         {/* 크루 나가기 — 하단보다 헤더가 자연스러움(사용자 지정) */}
         <TouchableOpacity onPress={() => setLeaveAsk(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           style={{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 9, borderWidth: 1, borderColor: 'rgba(178,59,59,0.5)' }}>
@@ -120,17 +152,28 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
           {members.map((m, i) => {
             const isFriend = friendSet.has(m.id);
             const sent = sentSet.has(m.id);
-            const inert = m.self || (!isFriend && sent);   // 나·신청됨은 탭 비활성
-            // 행 전체가 액션(단일 TouchableOpacity=중첩 없어 iOS 안전): 친구=DM / 비친구=친구신청.
-            //   ★비친구 DM은 규칙상(areFriends) 전송이 막혀 의미 없음 → 친구신청으로 분기(크루 멤버는 서로 친구 아닐 수 있음).
+            // 크루장 시야에선 행 탭(친구 액션) 비활성 — 우측 '운영진 지정/해제' 칩만 동작. 일반 시야는 기존 친구=DM/신청.
+            const inert = m.self || iAmMaster || (!isFriend && sent);
             return (
             <TouchableOpacity key={m.id} activeOpacity={inert ? 1 : 0.7} disabled={inert}
-              onPress={() => { if (m.self) return; isFriend ? onOpenDM?.(m.id, m.name, m.avatarUri) : requestFriend(m); }}
+              onPress={() => { if (m.self || iAmMaster) return; isFriend ? onOpenDM?.(m.id, m.name, m.avatarUri) : requestFriend(m); }}
               style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>
               <Avatar n={m.n} c={m.c} uri={m.avatarUri} />
-              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }} numberOfLines={1}>{m.name}</Text>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                <Text style={{ flexShrink: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK }} numberOfLines={1}>{m.name}</Text>
+                {m.isMaster && <RoleBadge text="크루장" bg={INK} fg="#fff" />}
+                {m.isAdmin && !m.isMaster && <RoleBadge text="운영진" bg="rgba(94,126,66,0.16)" fg={SAGE_DEEP} />}
+              </View>
               {m.self ? (
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>나</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP, marginLeft: 8 }}>나</Text>
+              ) : iAmMaster ? (
+                <TouchableOpacity onPress={() => toggleCrewAdmin(crewId, m.id, !m.isAdmin)} activeOpacity={0.8}
+                  style={{ marginLeft: 8, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9, borderWidth: 1,
+                    borderColor: m.isAdmin ? 'rgba(178,59,59,0.45)' : SAGE_DEEP }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: m.isAdmin ? '#B23B3B' : SAGE_DEEP }}>
+                    {m.isAdmin ? '운영진 해제' : '운영진 지정'}
+                  </Text>
+                </TouchableOpacity>
               ) : friends === null ? null : isFriend ? (
                 <Icon name="sendFilled" size={fs(30)} color={INK} strokeWidth={1.8} />
               ) : sent ? (

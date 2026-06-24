@@ -256,6 +256,9 @@ service cloud.firestore {
     //  crews/{id}: { creatorUid, name, memberUids[], audienceUids[], declinedUids[], names{}, notice?, postCount?, ... }
     //  표시이름은 보는 사람 각자 별명으로 화면서 resolve(저장은 authorUid+names). 비속어는 클라(containsProfanity) 사전 차단.
     match /crews/{crewId} {
+      // 크루장(creatorUid) / 운영진(creatorUid + adminUids) — 소모임 권한(공지·게시물삭제·프로필변경) 게이트
+      function crewMaster() { return resource.data.creatorUid == request.auth.uid; }
+      function crewStaff()  { return resource.data.creatorUid == request.auth.uid || (request.auth.uid in resource.data.get('adminUids', [])); }
       allow read: if isSignedIn() && (
         request.auth.uid in resource.data.memberUids
         || request.auth.uid in resource.data.audienceUids
@@ -274,10 +277,18 @@ service cloud.firestore {
         && changedKeysWithin(['audienceUids', 'names', 'declinedUids', 'updatedAt'])
         && request.resource.data.audienceUids.hasAll(resource.data.audienceUids)
         && request.resource.data.declinedUids.hasOnly(resource.data.declinedUids);
-      // 내용 수정(이름·공지·메타) — 멤버 누구나(전원 동등)
+      // 게시 활동 메타 — 멤버 누구나(글 작성 시 카운트·최근활동 갱신)
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.memberUids
-        && changedKeysWithin(['name', 'notice', 'noticeBy', 'noticeAt', 'postCount', 'lastPostAt', 'lastPostBy', 'updatedAt']);
+        && changedKeysWithin(['postCount', 'lastPostAt', 'lastPostBy', 'updatedAt']);
+      // 공지 — 크루장·운영진
+      allow update: if isSignedIn()
+        && crewStaff()
+        && changedKeysWithin(['notice', 'noticeBy', 'noticeAt', 'updatedAt']);
+      // 크루 프로필(이름·색·이미지·성격)·운영진 임명/해제 — 크루장만
+      allow update: if isSignedIn()
+        && crewMaster()
+        && changedKeysWithin(['name', 'themeColor', 'imageUrl', 'description', 'adminUids', 'updatedAt']);
       // 수락 — audience가 memberUids에 '자기 uid'만 토글(+이름)
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids
@@ -288,13 +299,20 @@ service cloud.firestore {
         && request.auth.uid in resource.data.audienceUids
         && changedKeysWithin(['declinedUids', 'updatedAt'])
         && selfMembershipToggled('declinedUids');
-      // 탈퇴 — 멤버가 본인 memberUids 빼고 declinedUids 추가(초대 재노출 방지)
+      // 탈퇴 — 본인 memberUids 빼고 declinedUids 추가(운영진이면 adminUids에서 자기 제거도 허용)
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.memberUids
-        && changedKeysWithin(['memberUids', 'declinedUids', 'updatedAt'])
+        && changedKeysWithin(['memberUids', 'declinedUids', 'adminUids', 'updatedAt'])
         && !(request.auth.uid in request.resource.data.memberUids)
-        && (request.auth.uid in request.resource.data.declinedUids);
-      // 삭제: creator만 (빈 크루 정리는 후속)
+        && (request.auth.uid in request.resource.data.declinedUids)
+        && !(request.auth.uid in request.resource.data.get('adminUids', []));
+      // 크루장 탈퇴 승계 — 크루장이 운영진 중 한 명에게 넘기며 본인 탈퇴(새 크루장은 기존 운영진이어야 = 임의 승계 차단)
+      allow update: if isSignedIn()
+        && crewMaster()
+        && changedKeysWithin(['memberUids', 'declinedUids', 'creatorUid', 'adminUids', 'updatedAt'])
+        && !(request.auth.uid in request.resource.data.memberUids)
+        && (request.resource.data.creatorUid in resource.data.adminUids);
+      // 삭제: 크루장만 (빈 크루 정리는 후속)
       allow delete: if isSignedIn() && resource.data.creatorUid == request.auth.uid;
 
       // 게시물 — 크루 멤버만(부모 crew get). mealSuggestions의 부모 get 선례.
@@ -309,7 +327,12 @@ service cloud.firestore {
         // 본문·미디어 수정 — 작성자 본인만(작성자 불변)
         allow update: if isSignedIn() && resource.data.authorUid == request.auth.uid && crewMember()
           && changedKeysWithin(['text', 'media', 'editedAt']);
-        allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+        // 삭제 — 작성자 본인 OR 크루장·운영진(부적절 글 정리)
+        allow delete: if isSignedIn() && (
+          resource.data.authorUid == request.auth.uid
+          || get(/databases/$(database)/documents/crews/$(crewId)).data.creatorUid == request.auth.uid
+          || (request.auth.uid in get(/databases/$(database)/documents/crews/$(crewId)).data.get('adminUids', []))
+        );
 
         match /comments/{commentId} {
           function crewMemberC() {
@@ -324,7 +347,12 @@ service cloud.firestore {
             && changedKeysWithin(['body', 'editedAt'])
             && request.resource.data.body is string
             && request.resource.data.body.size() > 0 && request.resource.data.body.size() <= 300;
-          allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+          // 삭제 — 작성자 본인 OR 크루장·운영진(부적절 댓글 정리)
+          allow delete: if isSignedIn() && (
+            resource.data.authorUid == request.auth.uid
+            || get(/databases/$(database)/documents/crews/$(crewId)).data.creatorUid == request.auth.uid
+            || (request.auth.uid in get(/databases/$(database)/documents/crews/$(crewId)).data.get('adminUids', []))
+          );
         }
       }
     }

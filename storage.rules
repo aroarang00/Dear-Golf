@@ -16,6 +16,17 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
+    // 크루 프로필 이미지 — crewImages/{uid}/{파일명} (업로더=크루장 uid 경로)
+    //  read : 멤버가 크루 프로필을 봐야 함 → 공개(URL은 crews.imageUrl에 담기고 그 변경은 firestore.rules상 크루장만)
+    //  write: 본인(uid)만, 5MB 이하 이미지
+    match /crewImages/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     // 다이어리 사진·영상 — rounds/{uid}/{파일명} ([[friend-feed-design]])
     //  read : 로그인 사용자 누구나. 단 URL(다운로드 토큰 포함)은 친구공개 round 문서에만 들어가고,
     //         그 문서는 친구만 읽을 수 있어(firestore.rules) 비친구는 URL을 얻을 수 없음.

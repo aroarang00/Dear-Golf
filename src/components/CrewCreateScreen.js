@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
+import { CrewAvatar } from './common/CrewAvatar';
+import { CREW_COLORS, DESC_MAX } from '../utils/crews';
 
 // 크루 만들기 — 리스트 헤더 ＋에서 진입 (docs/crew-space-design.md §3.3).
 //  이름 + 친구 초대(다중). 인원 20명 한도. 비속어 필터. 페일스카이 라이트.
@@ -26,6 +29,19 @@ export function CrewCreateScreen({ onClose, onCreate }) {
   const [err, setErr] = useState('');
   const [friends, setFriends] = useState(null);   // null=로딩 중. [{id,name,customName,avatarUri}]
   const [myName, setMyName] = useState('');
+  const [themeColor, setThemeColor] = useState(CREW_COLORS[0]);   // 크루 색 — 사진 없을 때 기본 프로필(색+이니셜)
+  const [desc, setDesc] = useState('');                          // 크루 성격(설명)
+  const [photoUri, setPhotoUri] = useState(null);                // 선택한 사진(로컬 uri) — 생성 후 업로드
+
+  // 프로필 사진 선택 — 앨범에서 단일 이미지(유저 프로필 패턴). 생성 시 업로드.
+  const pickImage = async () => {
+    try {
+      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: false, quality: 1 });
+      if (!res.canceled && res.assets?.[0]?.uri) setPhotoUri(res.assets[0].uri);
+    } catch (e) { if (__DEV__) console.warn('[crewCreate] pickImage', e?.message); }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -45,7 +61,7 @@ export function CrewCreateScreen({ onClose, onCreate }) {
     // 초대 이름맵 — 선택 친구 uid→표시명(별명 우선). 비친구 폴백·생성자 이름은 createCrew가 처리.
     const names = {};
     (friends || []).forEach((f) => { if (sel.includes(f.id)) names[f.id] = f.customName || f.name || ''; });
-    onCreate({ name: nm, friendUids: sel, names, creatorName: myName });
+    onCreate({ name: nm, friendUids: sel, names, creatorName: myName, themeColor, description: desc, photoUri });
   };
 
   return (
@@ -67,13 +83,45 @@ export function CrewCreateScreen({ onClose, onCreate }) {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* 이름 */}
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginBottom: 8 }}>크루 이름</Text>
-          <TextInput value={name} onChangeText={(t) => { setName(t); if (err) setErr(''); }} maxLength={NAME_MAX}
-            allowFontScaling={false} placeholder="예) 수요회, 대학 동기" placeholderTextColor={SUB}
+          {/* 프로필(탭→사진) + 이름 한 줄 — 사진 없으면 색+이니셜 미리보기 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <TouchableOpacity onPress={pickImage} activeOpacity={0.8} style={{ width: 64, height: 64 }}>
+              <CrewAvatar name={name || '크'} color={themeColor} imageUrl={photoUri} size={64} radius={16} />
+              <View style={{ position: 'absolute', right: -3, bottom: -3, width: 24, height: 24, borderRadius: 12, backgroundColor: SAGE_DEEP, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: BG }}>
+                <Text style={{ fontSize: fs(13), color: '#fff', fontFamily: F.sysB, marginTop: -1 }}>＋</Text>
+              </View>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginBottom: 8 }}>크루 이름</Text>
+              <TextInput value={name} onChangeText={(t) => { setName(t); if (err) setErr(''); }} maxLength={NAME_MAX}
+                allowFontScaling={false} placeholder="예) 수요회, 대학 동기" placeholderTextColor={SUB}
+                style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12,
+                  fontFamily: F.sysB, fontSize: fs(16), color: INK }} />
+            </View>
+          </View>
+          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 4 }}>{name.length}/{NAME_MAX}</Text>
+
+          {/* 크루 색 — 사진 없을 때 기본 프로필 색 */}
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginTop: 14, marginBottom: 10 }}>크루 색 <Text style={{ color: 'rgba(26,61,82,0.4)' }}>· 사진 없을 때 기본</Text></Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {CREW_COLORS.map((c) => {
+              const on = themeColor === c;
+              return (
+                <TouchableOpacity key={c} onPress={() => setThemeColor(c)} activeOpacity={0.8}
+                  style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c,
+                    borderWidth: on ? 3 : 0, borderColor: CARD,
+                    ...(on ? { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 3 } : {}) }} />
+              );
+            })}
+          </View>
+
+          {/* 크루 성격(설명) */}
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginTop: 18, marginBottom: 8 }}>크루 성격 <Text style={{ color: 'rgba(26,61,82,0.4)' }}>· 선택</Text></Text>
+          <TextInput value={desc} onChangeText={setDesc} maxLength={DESC_MAX} multiline
+            allowFontScaling={false} placeholder="어떤 크루인가요? 예) 주말 라운딩 같이 즐겨요" placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12,
-              fontFamily: F.sysB, fontSize: fs(16), color: INK }} />
-          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 5 }}>{name.length}/{NAME_MAX}</Text>
+              minHeight: 62, textAlignVertical: 'top', fontFamily: F.sysM, fontSize: fs(15), color: INK }} />
+          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 5 }}>{desc.length}/{DESC_MAX}</Text>
 
           {/* 친구 초대 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, marginBottom: 8 }}>
