@@ -161,8 +161,8 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
               <Avatar n={m.n} c={m.c} uri={m.avatarUri} />
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
                 <Text style={{ flexShrink: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK }} numberOfLines={1}>{m.name}</Text>
-                {m.isMaster && <RoleBadge text="크루장" bg={INK} fg="#fff" />}
-                {m.isAdmin && !m.isMaster && <RoleBadge text="운영진" bg="rgba(94,126,66,0.16)" fg={SAGE_DEEP} />}
+                {m.isMaster && <RoleBadge text="크루리더" bg={INK} fg="#fff" />}
+                {m.isAdmin && !m.isMaster && <RoleBadge text="서브리더" bg="rgba(94,126,66,0.16)" fg={SAGE_DEEP} />}
               </View>
               {m.self ? (
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP, marginLeft: 8 }}>나</Text>
@@ -171,7 +171,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
                   style={{ marginLeft: 8, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9, borderWidth: 1,
                     borderColor: m.isAdmin ? 'rgba(178,59,59,0.45)' : SAGE_DEEP }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: m.isAdmin ? '#B23B3B' : SAGE_DEEP }}>
-                    {m.isAdmin ? '운영진 해제' : '운영진 지정'}
+                    {m.isAdmin ? '서브리더 해제' : '서브리더 지정'}
                   </Text>
                 </TouchableOpacity>
               ) : friends === null ? null : isFriend ? (

@@ -53,7 +53,7 @@ export function CrewEditScreen({ crew, onClose }) {
       onClose?.();
     } catch (e) {
       if (__DEV__) console.warn('[crewEdit] save', e?.code, e?.message);
-      showAppAlert('수정 실패', e?.code === 'permission-denied' ? '크루장만 수정할 수 있어요.' : '잠시 후 다시 시도해주세요.');
+      showAppAlert('수정 실패', e?.code === 'permission-denied' ? '크루리더만 수정할 수 있어요.' : '잠시 후 다시 시도해주세요.');
     } finally { setSaving(false); }
   };
 

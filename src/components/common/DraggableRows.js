@@ -55,6 +55,7 @@ function DragRow({ item, count, rowHeight, positions, activeId, onCommit, render
   // ★제스처 메모이즈 — 매 렌더마다 재생성하면 GestureDetector가 진행 중 팬을 떨굼(드래그 중 실시간 업데이트 도착 시 끊김).
   //   item.id/count/rowHeight 바뀔 때만 재생성(일반적인 _ts 변동 등엔 불변). positions·activeId·top·startTop·onCommit은 안정 참조.
   const drag = useMemo(() => Gesture.Pan()
+    .activateAfterLongPress(250)   // 길게눌러야 드래그 시작 — 핸들 없이 행 본문을 잡고 옮김(짧은 탭은 열기와 충돌 없음)
     .onStart(() => { activeId.value = item.id; startTop.value = (positions.value[item.id] ?? 0) * rowHeight; })
     .onUpdate((e) => {
       top.value = startTop.value + e.translationY;

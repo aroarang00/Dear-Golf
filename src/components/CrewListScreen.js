@@ -133,9 +133,6 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     return () => { alive = false; };
   }, [inviteDocs, currentUid]);
 
-  const [editingId, setEditingId] = useState(null);   // 이름변경 중인 크루
-  const [draft, setDraft] = useState('');
-  const [menuFor, setMenuFor] = useState(null);        // 길게누르기 메뉴 대상 크루
   const [openCrew, setOpenCrew] = useState(null);      // 앨범(상세) 열린 크루
   const [createOpen, setCreateOpen] = useState(false); // 크루 만들기
 
@@ -210,32 +207,6 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     }
   };
 
-  const startEdit = (c) => { setEditingId(c.id); setDraft(c.name); };
-  // 별명 저장 — 기기 로컬(나만 보기). 서버 name은 안 건드림(전원 그룹명 변경 방지).
-  //   비우거나 원래(서버) 이름과 같으면 별명 해제 → 원래 이름으로 복귀.
-  const saveEdit = () => {
-    const nm = draft.trim();
-    if (editingId) {
-      setAliasMap((prev) => {
-        const next = { ...prev };
-        const serverName = (crewDocs || []).find((x) => x.id === editingId)?.name || '';
-        if (!nm || nm === serverName) delete next[editingId]; else next[editingId] = nm;
-        storage.save(STORAGE_KEYS.crewAliases, next);
-        return next;
-      });
-    }
-    setEditingId(null);
-  };
-  const toggleFav = () => {
-    const id = menuFor.id;
-    setFavSet((prev) => {
-      const next = { ...prev };
-      if (next[id]) delete next[id]; else next[id] = true;
-      storage.save(STORAGE_KEYS.crewFavorites, next);
-      return next;
-    });
-    setMenuFor(null);
-  };
 
   const loading = crewDocs === null;
   // 표시 순서 — 수동 순서(드래그) 있으면 그게 우선(없는 건 기본순으로 뒤에), 없으면 즐겨찾기 우선.
@@ -350,82 +321,42 @@ export function CrewListScreen({ onClose, onOpenDM }) {
             </Text>
           )}
 
-          {/* 내 크루 — 탭=앨범 입장 / 길게=메뉴 / 우측 ≡ 핸들 잡고 위아래로 끌어 순서변경. 수동 순서 없으면 즐겨찾기 우선. */}
+          {/* 내 크루 — 탭=앨범 입장 / 길게눌러 끌어 순서변경(핸들·메뉴 없이 심플하게) */}
           <DraggableRows items={ordered} rowHeight={ROW_H} onReorder={onReorderCrews}
-            renderItem={(c, drag) => editingId === c.id ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', height: ROW_H, borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
-                <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={10}
-                  allowFontScaling={false} onSubmitEditing={saveEdit} returnKeyType="done"
-                  placeholder="크루 이름" placeholderTextColor={SUB}
-                  style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, paddingVertical: 4,
-                    borderBottomWidth: 1.5, borderBottomColor: SAGE, marginRight: 10 }} />
-                <TouchableOpacity onPress={saveEdit} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9, backgroundColor: SAGE }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff' }}>저장</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', height: ROW_H, borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
-                <TouchableOpacity activeOpacity={0.6} onPress={() => { markCrewSeen(c.id); setOpenCrew(c); }}
-                  onLongPress={() => setMenuFor(c)} delayLongPress={280}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: '100%' }}>
-                  {/* 크루 프로필 — 색+이니셜(또는 사진). 기존 크루는 themeColor 없으면 accentOf 폴백 */}
-                  <CrewAvatar name={c.name} color={c.themeColor || accentOf(c.id)} imageUrl={c.imageUrl} size={42} radius={12} />
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{c.name}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginLeft: 6 }}>{c.members}명</Text>
-                      {c.fav && <View style={{ marginLeft: 6 }}><Icon name="heartFilled" size={fs(13)} /></View>}
-                    </View>
-                    {/* 둘째 줄 — 크루 성격(없으면 생략, 카드 한 줄로) */}
-                    {c.description ? (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }} numberOfLines={1}>{c.description}</Text>
-                    ) : null}
-                  </View>
-                  {/* 우측 — 마지막 대화 시간 + 새 글 뱃지 */}
-                  <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB }}>{c.last}</Text>
-                    {c.newCount > 0 && (
-                      <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: BURGUNDY,
-                        alignItems: 'center', justifyContent: 'center', marginTop: 5 }}>
-                        <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
+            renderItem={(c, drag) => (
+              <GestureDetector gesture={drag}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', height: ROW_H, borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
+                  <TouchableOpacity activeOpacity={0.6} onPress={() => { markCrewSeen(c.id); setOpenCrew(c); }}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: '100%' }}>
+                    {/* 크루 프로필 — 색+이니셜(또는 사진). 기존 크루는 themeColor 없으면 accentOf 폴백 */}
+                    <CrewAvatar name={c.name} color={c.themeColor || accentOf(c.id)} imageUrl={c.imageUrl} size={42} radius={12} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{c.name}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginLeft: 6 }}>{c.members}명</Text>
                       </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-                {/* 드래그 핸들(≡) — 잡고 위아래로 끌어 순서변경 (셰브론 › 대체) */}
-                <GestureDetector gesture={drag}>
-                  <View style={{ paddingLeft: 10, paddingRight: 4, height: '100%', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                    {[0, 1, 2].map((k) => <View key={k} style={{ width: 16, height: 2, borderRadius: 1, backgroundColor: 'rgba(26,61,82,0.4)' }} />)}
-                  </View>
-                </GestureDetector>
-              </View>
+                      {/* 둘째 줄 — 크루 성격(없으면 생략, 카드 한 줄로) */}
+                      {c.description ? (
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }} numberOfLines={1}>{c.description}</Text>
+                      ) : null}
+                    </View>
+                    {/* 우측 — 마지막 대화 시간 + 새 글 뱃지 */}
+                    <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB }}>{c.last}</Text>
+                      {c.newCount > 0 && (
+                        <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: BURGUNDY,
+                          alignItems: 'center', justifyContent: 'center', marginTop: 5 }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </GestureDetector>
             )} />
         </ScrollView>
       )}
 
-      {/* 길게누르기 메뉴 — 이름 변경 · 즐겨찾기 (중첩 Modal 회피 위해 화면 내 오버레이) */}
-      {menuFor && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setMenuFor(null)}
-            style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD,
-            borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingBottom: 30 }}>
-            <View style={{ alignItems: 'center', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{menuFor.name}</Text>
-            </View>
-            <TouchableOpacity onPress={toggleFav}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
-              <View style={{ width: 28 }}><Icon name={menuFor.fav ? 'heart' : 'heartFilled'} size={fs(18)} color={INK} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>{menuFor.fav ? '즐겨찾기 해제' : '즐겨찾기'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { startEdit(menuFor); setMenuFor(null); }}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
-              <View style={{ width: 28 }}><Icon name="pen" size={fs(18)} color={INK} strokeWidth={1.7} /></View>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>이름 변경 (나만 보기)</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </SafeAreaView>
     </GestureHandlerRootView>
     </SafeAreaProvider>

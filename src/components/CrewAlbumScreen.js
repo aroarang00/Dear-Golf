@@ -472,16 +472,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }} numberOfLines={1}>{crewDoc.description}</Text>
           ) : null}
         </View>
+        {/* 멤버 — 작은 아바타 대신 인원수만(탭하면 멤버 목록) */}
         <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
           style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
-          {members.slice(0, 3).map((m, i) => <MiniAvatar key={m.id} n={m.n} c={m.c} uri={m.uri} i={i} size={24} />)}
-          {members.length > 3 && (
-            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
-              alignItems: 'center', justifyContent: 'center', marginLeft: -7 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff' }}>+{members.length - 3}</Text>
-            </View>
-          )}
-          <Text style={{ fontSize: fs(20), color: SAGE_DEEP, fontWeight: '700', marginLeft: 5, marginTop: -2 }}>›</Text>
+          <Icon name="crew" size={fs(17)} color={INK} strokeWidth={1.8} />
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: 4 }}>{members.length}명</Text>
+          <Text style={{ fontSize: fs(20), color: SAGE_DEEP, fontWeight: '700', marginLeft: 3, marginTop: -2 }}>›</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
         {/* 사람+ = 순수 초대(멤버 목록은 좌측 아바타 탭). 친구 초대 시트를 현재 화면 위에 바로 띄움 */}
