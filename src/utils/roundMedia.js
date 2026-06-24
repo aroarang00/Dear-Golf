@@ -42,7 +42,11 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
     if (!isVideo) {
       if (!isObj) return url;
       const { orig, ...rest } = item;
-      return { ...rest, uri: url };
+      // compressOpts.thumb(px)를 준 호출(크루 피드)만 작은 썸네일도 함께 업로드 → 리스트는 thumb, 뷰어는 uri(원본 800px).
+      //   best-effort: 실패하면 thumb 없이 진행(렌더가 m.thumb||m.uri로 폴백). 다른 화면은 thumb 옵션을 안 줘서 영향 0.
+      let thumb = null;
+      if (compressOpts.thumb) thumb = await uploadThumb(uid, localUri, compressOpts.thumb, i);
+      return thumb ? { ...rest, uri: url, thumb } : { ...rest, uri: url };
     }
     // 영상 포스터(jpg) 업로드 → 안드 원격 썸네일 안정화 (실패해도 영상은 유지) ([[friend-feed-design]]).
     //   사용자가 등록화면에서 커버를 편집했으면(로컬 poster) 그걸 올리고, 없으면 첫 프레임으로 자동 생성.
@@ -54,6 +58,23 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
   } catch (e) {
     if (__DEV__) console.warn('[roundMedia] 업로드 실패, 원본 유지', e?.message);
     return item;
+  }
+}
+
+// 작은 썸네일(피드·갤러리 표시용)을 만들어 업로드 → 원격 https. compressOpts.thumb 준 호출(크루)만 사용.
+//   실패 시 null → 렌더가 본 이미지(uri)로 폴백하므로 표시엔 지장 없음(가속만 없음).
+async function uploadThumb(uid, localUri, width, i) {
+  try {
+    const compressed = await compressImage(localUri, { maxWidth: width });
+    const res = await fetch(compressed);
+    const blob = await res.blob();
+    const name = `t_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const storageRef = ref(storage, `rounds/${uid}/${name}`);
+    await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+    return await getDownloadURL(storageRef);
+  } catch (e) {
+    if (__DEV__) console.warn('[roundMedia] 썸네일 업로드 실패, 원본 표시', e?.message);
+    return null;
   }
 }
 

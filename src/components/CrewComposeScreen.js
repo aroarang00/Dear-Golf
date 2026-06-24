@@ -120,7 +120,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, onClose }) {
     if (!crewId) return;
     setPosting(true);
     try {
-      const up = media.length ? await uploadRoundMedia(currentUid, media, { maxWidth: 800 }) : [];   // 크루 피드 사진은 800px 압축(로딩↑, 원본 전체는 뷰어 확대). 기존 https는 멱등 스킵
+      const up = media.length ? await uploadRoundMedia(currentUid, media, { maxWidth: 800, thumb: 400 }) : [];   // 크루 피드 사진=800px(뷰어 확대용) + 400px 썸네일(thumb, 리스트 로딩↑). 기존 https는 멱등 스킵
       if (editing) {
         await editCrewPost(crewId, post.id, { text: body, media: up });
       } else if (isNotice) {

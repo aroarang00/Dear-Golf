@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, FlatList, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Animated, { SlideInRight } from 'react-native-reanimated';
@@ -56,7 +56,7 @@ function fmtTime(ts) {
 function MiniAvatar({ n, c, i = 0, size = 30, uri, onPress }) {
   const base = { width: size, height: size, borderRadius: size / 2, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -(size * 0.3) };
   const inner = uri
-    ? <Image source={{ uri }} style={base} contentFit="cover" transition={200} />
+    ? <Image source={{ uri }} style={base} contentFit="cover" transition={Platform.OS === 'android' ? 0 : 200} />
     : (
       <View style={{ ...base, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(size * 0.38), color: '#fff' }}>{n}</Text>
@@ -67,10 +67,10 @@ function MiniAvatar({ n, c, i = 0, size = 30, uri, onPress }) {
 
 // 미디어 타일 — 사진은 uri, 영상은 poster(없으면 uri) + ▶ 오버레이
 function MediaTile({ m, style, radius = 12, playSize = 'lg' }) {
-  const uri = m?.type === 'video' ? (m.poster || m.uri) : m?.uri;
+  const uri = m?.type === 'video' ? (m.poster || m.uri) : (m?.thumb || m?.uri); // 리스트=썸네일(있으면), 영상=poster
   return (
     <View style={{ ...style, borderRadius: radius, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={120} />
+      {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={Platform.OS === 'android' ? 0 : 120} />
            : <Icon name="image" size={fs(28)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
       {m?.type === 'video' && (playSize === 'lg' ? (
         <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
@@ -101,7 +101,7 @@ function ImageWithSpinner({ uri, contentFit = 'cover', transition = 220, onLoad 
           <ActivityIndicator color={SAGE_DEEP} />
         </View>
       )}
-      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit={contentFit} transition={transition}
+      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit={contentFit} transition={Platform.OS === 'android' ? 0 : transition}
         onLoad={(e) => { setLoading(false); onLoad?.(e); }} onError={() => setLoading(false)} />
     </>
   );
@@ -110,7 +110,8 @@ function ImageWithSpinner({ uri, contentFit = 'cover', transition = 220, onLoad 
 // 단일 미디어 — 원본 비율 그대로 표시(정사각 강제 X). ar 없으면 onLoad로 알아내 보정(레거시·문자열 항목 대응).
 function FeedMedia({ m }) {
   const [ar, setAr] = useState(() => clampAR(m?.ar) || 1);
-  const uri = m?.type === 'video' ? (m.poster || m.uri) : m?.uri;
+  const uri = m?.type === 'video' ? (m.poster || m.uri) : (m?.thumb || m?.uri); // 피드=썸네일(있으면), 뷰어 확대는 원본
+
   return (
     <View style={{ width: '100%', aspectRatio: ar, borderRadius: 14, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
       {uri ? <ImageWithSpinner uri={uri}
@@ -136,7 +137,7 @@ function SwipeCarousel({ media, width, onOpen }) {
       <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width, height }}
         onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}>
         {media.map((m, mi) => {
-          const uri = m?.type === 'video' ? (m.poster || m.uri) : m?.uri;
+          const uri = m?.type === 'video' ? (m.poster || m.uri) : (m?.thumb || m?.uri); // 캐러셀=썸네일(있으면)
           return (
             <TouchableOpacity key={mi} activeOpacity={0.97} onPress={() => onOpen(mi)}
               style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
@@ -181,6 +182,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [noticeExpanded, setNoticeExpanded] = useState(false);
   const [noticeClamped, setNoticeClamped] = useState(false);  // 공지가 실제로 2줄 넘는지(숨김 측정) — 무의미한 '더보기' 방지
   const [noticeLineCount, setNoticeLineCount] = useState(0);  // 한 줄 공지는 가운데 정렬용(2026-06-24)
+  const [contentReady, setContentReady] = useState(false);    // 슬라이드 전환 끝난 뒤 본문(FlatList) 마운트 — 안드 진입 뻑뻑 방지
   const scrollRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); setTimeout(() => setRefreshing(false), 600); }; // 실시간 구독이라 표시만(당김 UX 유지)
@@ -218,6 +220,13 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     if (inviteOpen) { setInviteOpen(false); return; }
     onClose();
   });
+
+  // 진입 슬라이드(CrewListScreen SlideInRight 230ms)가 도는 동안 무거운 FlatList+이미지가 같은 프레임에 마운트되면
+  //   안드서 전환이 뻑뻑함 → 전환 끝난 뒤 본문 마운트(슬라이드 매끄럽게 + 내용 한 번에 등장). iOS도 무해.
+  useEffect(() => {
+    const t = setTimeout(() => setContentReady(true), 250);
+    return () => clearTimeout(t);
+  }, []);
 
   // 크루 doc(공지·멤버) + 게시물 실시간 구독
   useEffect(() => {
@@ -260,11 +269,17 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     };
   }), [postDocs, display]);
 
-  // 피드 사진 미리 받기 — posts가 로드되면 media URL을 prefetch해 스크롤 도달 전 미리 캐시(첫 체감 로딩↑, 2026-06-24).
+  // 피드 사진 미리 받기 — 첫 화면 몇 장만. 전체 원본을 한꺼번에 prefetch하면 사진 많은 크루 진입 시
+  //   네트워크·디코드 폭주로 버벅임(가상화와 별개로 prefetch가 전량을 깨움). 6장으로 제한(2026-06-24 성능).
   useEffect(() => {
-    const uris = posts.flatMap((p) => (p.media || []).map((m) => (m?.type === 'video' ? m?.poster : m?.uri))).filter(Boolean);
+    const uris = posts.flatMap((p) => (p.media || []).map((m) => (m?.type === 'video' ? m?.poster : (m?.thumb || m?.uri)))).filter(Boolean).slice(0, 6);
     if (uris.length) Image.prefetch(uris, { cachePolicy: 'memory-disk' });
   }, [posts]);
+
+  // 갤러리 타일 — 모든 게시물 미디어를 펼친 평면 배열(가상화 data·풀스크린 뷰어 공용). early-return 위에서 메모.
+  const tiles = useMemo(
+    () => posts.flatMap((p) => (p.media || []).map((m, mi) => ({ ...m, postId: p.id, mi, key: `${p.id}_${mi}` }))),
+    [posts]);
 
   // ── 동작 ──
   const openProfile = (person) => {
@@ -337,8 +352,97 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   // 사진 탭 — 모든 게시물의 미디어를 펼친 그리드
   const PAD = 12, GAP = 4, COLS = 3;
   const cell = Math.floor((winW - PAD * 2 - GAP * (COLS - 1)) / COLS);
-  const tiles = posts.flatMap((p) => (p.media || []).map((m, mi) => ({ ...m, postId: p.id, mi, key: `${p.id}_${mi}` })));
   const loading = postDocs === null;
+
+  // ── FlatList 렌더 헬퍼 (가상화: 보이는 것만 마운트→이미지도 보이는 것만 로드) ──
+  // 헤더 = 공지(있을 때만). 토글 바는 리스트 밖 고정.
+  const renderHeader = () => (!notice ? null : (
+    <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: noticeLineCount === 1 ? 'center' : 'flex-start', backgroundColor: '#F5ECD6', borderRadius: 12,
+        paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: 'rgba(150,120,60,0.25)', borderLeftWidth: 3, borderLeftColor: SAGE_DEEP }}>
+        <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysSb, fontSize: fs(12.5), lineHeight: fs(19) }}
+            onTextLayout={(e) => { const n = e.nativeEvent.lines?.length || 0; const over = n > 2; if (over !== noticeClamped) setNoticeClamped(over); if (n !== noticeLineCount) setNoticeLineCount(n); }}>{notice}</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
+            numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
+          {(noticeClamped || noticeExpanded) && (
+            <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {crewDoc?.noticeBy === currentUid && (
+          <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingHorizontal: 4, marginLeft: 4, marginTop: -2 }}
+            onPress={() => setActionFor({ kind: 'notice', authorUid: currentUid, name: '공지' })}>
+            <Text style={{ fontSize: fs(18), color: SUB }}>⋯</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  ));
+
+  const renderEmpty = () => (loading ? (
+    <View style={{ paddingTop: 50, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
+  ) : tab === 'photos' ? (
+    <View style={{ width: '100%', alignItems: 'center', paddingTop: 50 }}>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB }}>아직 사진·영상이 없어요.</Text>
+    </View>
+  ) : (
+    <View style={{ paddingTop: 54, alignItems: 'center', paddingHorizontal: 40 }}>
+      <Icon name="image" size={fs(34)} color="rgba(26,61,82,0.3)" strokeWidth={1.4} />
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginTop: 12 }}>아직 올라온 게 없어요</Text>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginTop: 5, textAlign: 'center', lineHeight: fs(19) }}>
+        아래 ＋ 버튼으로 사진·영상이나{'\n'}소식을 처음으로 남겨보세요.
+      </Text>
+    </View>
+  ));
+
+  // 게시글 카드 — 작성자·글·미디어. 댓글은 탭하면 게시글별 댓글 화면.
+  const renderFeedItem = ({ item: p }) => (
+    <View style={{ backgroundColor: CARD, borderRadius: 16, marginHorizontal: 14, marginBottom: 12, padding: 13,
+      shadowColor: '#1A3D52', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} size={32} onPress={() => openProfile(p.author)} />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{p.author.name}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
+        </View>
+        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}
+          onPress={() => setActionFor({ kind: 'post', id: p.id, authorUid: p.author.id, name: p.author.name, text: p.text, post: p })}>
+          <Text style={{ fontSize: fs(22), color: INK }}>⋯</Text>
+        </TouchableOpacity>
+      </View>
+      {!!p.text && (
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</Text>
+      )}
+      {p.media.length > 0 && (
+        <View style={{ marginTop: 11 }}>
+          {p.media.length === 1 ? (
+            <TouchableOpacity activeOpacity={0.95} onPress={() => setViewer({ media: p.media, index: 0 })}>
+              <FeedMedia m={p.media[0]} />
+            </TouchableOpacity>
+          ) : (
+            <SwipeCarousel media={p.media} width={winW - 54} onOpen={(mi) => setViewer({ media: p.media, index: mi })} />
+          )}
+        </View>
+      )}
+      <TouchableOpacity onPress={() => setCommentPost(p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
+          💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
+        </Text>
+        <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // 갤러리 타일 — 탭하면 풀스크린 뷰어. 간격은 columnWrapperStyle gap이 처리.
+  const renderTile = ({ item: t, index: i }) => (
+    <TouchableOpacity activeOpacity={0.8} onPress={() => setViewer({ media: tiles, index: i })} style={{ marginBottom: GAP }}>
+      <MediaTile m={t} style={{ width: cell, height: cell }} radius={8} playSize="sm" />
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
@@ -385,117 +489,31 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
         </View>
       </View>
 
-      {/* 일반 ScrollView — 댓글 입력은 하단 고정바가 키보드 위로 올라옴(KAS 자동스크롤이 안드서 안 먹어 교체) */}
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90 }}
-        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SAGE_DEEP} colors={[SAGE_DEEP]} />}>
-
-        {/* 공지(스크롤로 흘러감, 길면 더보기). 작성자 본인에게만 ⋯ 수정·삭제 */}
-        {!!notice && (
-          <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
-            {/* 공지창 효과 — 크림 배경 + 좌측 세이지 강조 바. 하늘색 화면 배경·흰 게시물 카드와 대비돼 공지가 돋보임
-                (세이지 틴트는 하늘색 배경에 묻혀 안 보였음, 2026-06-24). */}
-            <View style={{ flexDirection: 'row', alignItems: noticeLineCount === 1 ? 'center' : 'flex-start', backgroundColor: '#F5ECD6', borderRadius: 12,
-              paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: 'rgba(150,120,60,0.25)', borderLeftWidth: 3, borderLeftColor: SAGE_DEEP }}>
-              <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
-              <View style={{ flex: 1 }}>
-                {/* 숨김 측정용 — 클램프 없이 실제 줄 수 파악(2줄 초과면 '더보기' 노출). 글꼴은 본문과 동일해야 측정 정확(absolute·opacity0) */}
-                <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysSb, fontSize: fs(12.5), lineHeight: fs(19) }}
-                  onTextLayout={(e) => { const n = e.nativeEvent.lines?.length || 0; const over = n > 2; if (over !== noticeClamped) setNoticeClamped(over); if (n !== noticeLineCount) setNoticeLineCount(n); }}>{notice}</Text>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
-                  numberOfLines={noticeExpanded ? undefined : 2}>{notice}</Text>
-                {(noticeClamped || noticeExpanded) && (
-                  <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {crewDoc?.noticeBy === currentUid && (
-                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingHorizontal: 4, marginLeft: 4, marginTop: -2 }}
-                  onPress={() => setActionFor({ kind: 'notice', authorUid: currentUid, name: '공지' })}>
-                  <Text style={{ fontSize: fs(18), color: SUB }}>⋯</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* 콘텐츠 */}
-        <View style={{ paddingTop: 10 }}>
-        {loading ? (
-          <View style={{ paddingTop: 50, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
-        ) : posts.length === 0 ? (
-          <View style={{ paddingTop: 54, alignItems: 'center', paddingHorizontal: 40 }}>
-            <Icon name="image" size={fs(34)} color="rgba(26,61,82,0.3)" strokeWidth={1.4} />
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: INK, marginTop: 12 }}>아직 올라온 게 없어요</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginTop: 5, textAlign: 'center', lineHeight: fs(19) }}>
-              아래 ＋ 버튼으로 사진·영상이나{'\n'}소식을 처음으로 남겨보세요.
-            </Text>
-          </View>
-        ) : tab === 'feed' ? (
-          // ── 게시글: 카드(작성자·글·미디어). 댓글은 카드 탭=게시글별 댓글 화면 ──
-          posts.map((p) => {
-            return (
-            <View key={p.id} style={{ backgroundColor: CARD, borderRadius: 16, marginHorizontal: 14, marginBottom: 12, padding: 13,
-              shadowColor: '#1A3D52', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
-              {/* 작성자 + ⋯(수정·삭제/신고) */}
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} size={32} onPress={() => openProfile(p.author)} />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{p.author.name}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
-                </View>
-                <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}
-                  onPress={() => setActionFor({ kind: 'post', id: p.id, authorUid: p.author.id, name: p.author.name, text: p.text, post: p })}>
-                  <Text style={{ fontSize: fs(22), color: INK }}>⋯</Text>
-                </TouchableOpacity>
-              </View>
-              {/* 글 */}
-              {!!p.text && (
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</Text>
-              )}
-              {/* 미디어 — 탭하면 풀스크린 뷰어 */}
-              {p.media.length > 0 && (
-                <View style={{ marginTop: 11 }}>
-                  {p.media.length === 1 ? (
-                    <TouchableOpacity activeOpacity={0.95} onPress={() => setViewer({ media: p.media, index: 0 })}>
-                      <FeedMedia m={p.media[0]} />
-                    </TouchableOpacity>
-                  ) : (
-                    <SwipeCarousel media={p.media} width={winW - 54} onOpen={(mi) => setViewer({ media: p.media, index: mi })} />
-                  )}
-                </View>
-              )}
-              {/* 댓글 — 탭하면 게시글별 댓글 화면(원글+댓글+입력 한 덩어리) */}
-              <TouchableOpacity onPress={() => setCommentPost(p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
-                  💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
-                </Text>
-                <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
-              </TouchableOpacity>
-            </View>
-            );
-          })
-        ) : (
-          // ── 사진: 미디어만 그리드 → 탭하면 풀스크린 뷰어 ──
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: PAD }}>
-            {tiles.map((t, i) => (
-              <TouchableOpacity key={t.key} activeOpacity={0.8}
-                onPress={() => setViewer({ media: tiles, index: i })}
-                style={{ marginRight: i % COLS === COLS - 1 ? 0 : GAP, marginBottom: GAP }}>
-                <MediaTile m={t} style={{ width: cell, height: cell }} radius={8} playSize="sm" />
-              </TouchableOpacity>
-            ))}
-            {tiles.length === 0 && (
-              <View style={{ width: '100%', alignItems: 'center', paddingTop: 50 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB }}>아직 사진·영상이 없어요.</Text>
-              </View>
-            )}
-          </View>
-        )}
-        </View>
-      </ScrollView>
+      {/* 콘텐츠 — FlatList 가상화(보이는 것만 마운트→이미지도 보이는 것만 로드). 공지=헤더, 토글바는 위에 고정.
+          feed=1열 / photos=3열. tab 전환 시 numColumns 바뀌므로 key={tab}로 깔끔하게 remount(스크롤 초기화).
+          contentReady — 진입 슬라이드 끝난 뒤 마운트(안드 전환 뻑뻑 방지). 그 전엔 가벼운 스피너만. */}
+      {!contentReady ? (
+        <View style={{ flex: 1, alignItems: 'center', paddingTop: 60 }}><ActivityIndicator color={SAGE_DEEP} /></View>
+      ) : (
+      <FlatList
+        key={tab}
+        ref={scrollRef}
+        data={loading ? [] : (tab === 'feed' ? posts : tiles)}
+        numColumns={tab === 'feed' ? 1 : COLS}
+        keyExtractor={(item) => (tab === 'feed' ? item.id : item.key)}
+        renderItem={tab === 'feed' ? renderFeedItem : renderTile}
+        columnWrapperStyle={tab === 'photos' ? { paddingHorizontal: PAD, gap: GAP } : undefined}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={{ paddingTop: 10, paddingBottom: 90, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={tab === 'feed' ? 4 : 12}
+        maxToRenderPerBatch={tab === 'feed' ? 4 : 12}
+        windowSize={7}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SAGE_DEEP} colors={[SAGE_DEEP]} />}
+      />
+      )}
 
       {/* 올리기 FAB */}
       <TouchableOpacity activeOpacity={0.85} onPress={() => setComposeOpen(true)}
