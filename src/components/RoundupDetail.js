@@ -229,6 +229,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const othersWaiting = Math.max(0, waitlistTotal - (waitlistNum ? 1 : 0));
   // 내가 익명으로 대기 중 — 내 행도 랜덤닉으로 보여 본인조차 자기인지 모르니 '(나)'+'익명' 표식으로 식별 ([[roundup-anonymous-participation]])
   const iAmAnonWaiting = !!myUid && !!waitlistNum && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(myUid);
+  // 단체 결원 충원 — 확정 단체에 결원(정원 미만)이고 대기자가 없으면 빈자리에 신규 참여 허용(closed 유지).
+  //   대기자가 있으면 자동 승격이 그 자리를 채우므로 비참여자는 대기 신청만(우선권 보호). ([[roundup-waitlist-autopromote]])
+  const teamVacancy = isTeam && post.closed && (post.joined || 0) < capTotal && waitlistTotal === 0;
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
@@ -584,13 +587,18 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#8B6914' }}>지난 라운딩 평가 후 신청 가능해요</Text>
       </View>
     );
-  } else if (!isClosed) {
+  } else if (!isClosed || teamVacancy) {
     const instant = post.scope !== 'all';
     actionBtn = (
-      <TouchableOpacity activeOpacity={0.85} onPress={confirmApply}
-        style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', backgroundColor: C.burgundy }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>{instant ? '참여하기' : '참여 신청'}</Text>
-      </TouchableOpacity>
+      <View>
+        <TouchableOpacity activeOpacity={0.85} onPress={confirmApply}
+          style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', backgroundColor: C.burgundy }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>{instant ? '참여하기' : '참여 신청'}</Text>
+        </TouchableOpacity>
+        {teamVacancy && (
+          <Text style={hintStyle}>확정된 단체 모집에 결원이 생겨 한 자리 비었어요 — 지금 참여하면 채워져요.</Text>
+        )}
+      </View>
     );
   } else {
     actionBtn = (

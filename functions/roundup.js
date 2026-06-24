@@ -83,19 +83,16 @@ exports.onRoundupUpdated = onDocumentUpdated('roundups/{postId}', async (event) 
   //   participantUids로 올린다. 확정(closed)·미확정 만석 모두 대상 — 대기자는 만석일 때만 생기므로 closed
   //   여부와 무관. 제3자 선참은 클라 joinRoundup이 '대기자 있으면 비대기자 신규 참여 차단'으로 막고, 그 자리를
   //   여기서 대기 순번대로 채운다. 여러 명 취소·여러 대기자도 빈자리 수만큼 반복 충원, 승격 후 openSeats=0이면
-  //   재트리거 시 조건 거짓이라 멱등(무한루프 없음). 단체(teams>1)는 결원 충원이 자유라 제외.
-  //   동시성: 트랜잭션 안 fresh read로 정원·대기열 재계산 → 동시 취소/승격에도 정원 초과 없음.
-  const isTeamPost = (after.teams || 1) > 1;
-  if (!isTeamPost
-    && Array.isArray(after.waitlistUids) && after.waitlistUids.length > 0) {
+  //   재트리거 시 조건 거짓이라 멱등(무한루프 없음). 단체(teams>1)도 동일하게 승격 — 조 배치만 주최자가
+  //   조편성에서 정리(승격은 participantUids만 채움). 동시성: 트랜잭션 fresh read로 정원·대기열 재계산.
+  if (Array.isArray(after.waitlistUids) && after.waitlistUids.length > 0) {
     let promoted = [];
     try {
       await db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists) return;
         const d = snap.data();
-        if ((d.teams || 1) > 1) return;                  // 단체면 중단(개별만 자동 승격)
-        const cap = d.capacity || 4;                      // 개별 정원(=members+1, 보통 4)
+        const cap = d.capacity || ((d.teams || 1) > 1 ? d.teams * 4 : 4);  // 단체=teams*4, 개별=members+1(보통 4)
         const open = cap - (d.joined || 0);
         const wl = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
         if (open <= 0 || wl.length === 0) return;
