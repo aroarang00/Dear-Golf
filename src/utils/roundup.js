@@ -193,15 +193,14 @@ export async function joinRoundup(postId, opts = {}) {
     const d = snap.data();
     const participants = Array.isArray(d.participantUids) ? d.participantUids : [];
     if (participants.includes(uid)) return; // 멱등 — 이미 확정된 참여자
-    // 단체(teams>1)는 확정(closed)이어도 결원(정원 미만)이면 충원 허용 — 개인 이탈 자리 메우기. 개별은 닫히면 막음 ([[event-model]]).
-    //   규칙은 self-join을 closed 무관 허용(closed 안 건드림) → 별도 룰 불필요. 정원 초과는 아래에서 차단.
-    if (d.closed && (d.teams || 1) <= 1) throw new Error('full');   // 개별 확정/마감
-    // 대기자 우선 — 모집에 대기자가 있으면(=만석이었던 자리), 빈자리는 대기 순번대로 자동 승격(CF)이 채운다.
-    //   비대기자 신규 참여를 막아 제3자 선참 차단. 개별·단체 공통, 확정(closed)·미확정 만석 모두 적용.
-    //   대기자가 없을 때만 빈자리에 신규 참여 허용(단체 결원 충원). ([[roundup-waitlist-autopromote]])
+    const cap = d.capacity || ((d.teams || 1) > 1 ? d.teams * 4 : 4);  // 단체=teams*4, 개별=members+1(보통 4)
+    // 빈자리 충원 — 개별·단체 모두 정원 미만이면 확정(closed) 상태여도 참여 허용('확정 후 결원=그 자리만 열림'으로 통일).
+    //   closed 자체로는 안 막음 — 만석은 아래 정원 가드가 차단. 그래서 결원 자리에 대기자<빈자리여도 데드락 없음 ([[roundup-waitlist-autopromote]]).
+    // 대기자 우선 — 대기자가 있으면(=만석이었던 자리) 비대기자 신규 참여를 막아 제3자 선참 차단(빈자리는 대기 순번
+    //   자동 승격 전용). 대기자가 없을 때만 자유 충원. 개별·단체 공통.
     const wl = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
     if (wl.length > 0 && !wl.includes(uid)) throw new Error('full');
-    if ((d.joined || 0) >= (d.capacity || 4)) throw new Error('full'); // 선착순 정원 초과 차단(단체·개별 공통)
+    if ((d.joined || 0) >= cap) throw new Error('full'); // 선착순 정원 초과 차단(단체·개별 공통)
     const update = {
       participantUids: arrayUnion(uid),
       joined: increment(1),
@@ -226,20 +225,14 @@ export async function leaveRoundup(postId) {
     const d = snap.data();
     const participants = Array.isArray(d.participantUids) ? d.participantUids : [];
     if (!participants.includes(uid)) return; // 이미 빠진 상태 — 멱등(아무 변경 없이 성공)
-    // 결원 처리: 개별은 확정 해제(closed:false) / 단체(teams>1)는 개인 이탈=국소 — 전체 확정 유지(그 조만 결원) ([[event-model]])
-    const isTeam = (d.teams || 1) > 1;
+    // 결원 처리 — closed는 건드리지 않는다(개별·단체 통일). '확정 후 결원=그 자리만 열림': 대기자 있으면 CF가
+    //   자동 승격, 없으면 joinRoundup이 빈자리 충원 허용. 확정은 유지되어 일정도 안 깨지고, 대기자<빈자리여도
+    //   데드락 없음(예전엔 개별만 closed:false로 풀어 자유 재모집했는데, 빈자리 충원이 그 역할을 대신함). ([[roundup-waitlist-autopromote]])
     const update = {
       participantUids: arrayRemove(uid),
       joined: increment(-1),
       updatedAt: serverTimestamp(),
     };
-    // 개별: 대기자가 있으면 closed 유지 → CF(onRoundupUpdated)가 빈자리를 대기 1번부터 자동 승격(제3자 진입 차단,
-    //   여러 자리·여러 대기자도 빈자리 수만큼 반복 충원). 대기자가 없을 때만 확정 해제(closed:false)해 자유 재모집.
-    //   단체는 기존대로 closed 안 건드림(국소 결원). 규칙: closed는 '불변' 또는 'false'만 허용([[roundup-penalty-policy]] §4).
-    if (!isTeam) {
-      const waitlist = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
-      if (waitlist.length === 0) update.closed = false;
-    }
     // 익명 참여였으면 anonymousUids에서도 정리(있을 때만 — 불필요한 필드 변경/규칙거부 회피)
     const anonList = Array.isArray(d.anonymousUids) ? d.anonymousUids : [];
     if (anonList.includes(uid)) update.anonymousUids = arrayRemove(uid);
@@ -248,17 +241,29 @@ export async function leaveRoundup(postId) {
 }
 
 // 대기 신청 — opts.anonymous면 anonymousUids에도 추가. 승격 시 그대로 승계(별도로 다시 안 물음 [[roundup-anonymous-participation]]).
+//   트랜잭션 가드: ① 이미 참여자면 거부(participant+waitlist 중복 방지) ② 빈자리 있으면(미만석) 거부 —
+//   대기는 '만석'일 때만 의미. 안 막으면 미만석 대기 등록 즉시 CF 자동승격 게이트가 발동해 선착 규칙을 우회한다.
 export async function joinWaitlist(postId, opts = {}) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
-  const update = {
-    waitlistUids: arrayUnion(uid),
-    updatedAt: serverTimestamp(),
-  };
-  if (opts.anonymous) update.anonymousUids = arrayUnion(uid);
-  await updateDoc(ref, update);
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('not-found');
+    const d = snap.data();
+    if (Array.isArray(d.participantUids) && d.participantUids.includes(uid)) throw new Error('already-joined');
+    const wl = Array.isArray(d.waitlistUids) ? d.waitlistUids : [];
+    if (wl.includes(uid)) return; // 이미 대기 — 멱등(헛쓰기·규칙거부 회피)
+    const cap = d.capacity || ((d.teams || 1) > 1 ? d.teams * 4 : 4);
+    if ((d.joined || 0) < cap) throw new Error('not-full'); // 빈자리 있으면 대기 아니라 바로 참여 대상
+    const update = {
+      waitlistUids: arrayUnion(uid),
+      updatedAt: serverTimestamp(),
+    };
+    if (opts.anonymous) update.anonymousUids = arrayUnion(uid);
+    tx.update(ref, update);
+  });
 }
 
 // 대기 취소 — 실제 대기자일 때만 쓰기(멱등). 가드 없이 무조건 arrayRemove 하면 이미 빠진 상태(더블탭·stale UI)에서
