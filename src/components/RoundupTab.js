@@ -846,9 +846,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         courseKakaoId: p.courseKakaoId || null, // 코스 가기 매칭용
         date: p.date,
         day: p.day,
-        time: p.time,
+        time: p.time,         // 첫(집결) 티오프 — 단체도 이 시간 기준으로 카드·체크인·알람 트리거([[event-model]])
         members,
         companions,
+        teams: p.teams || 1,  // 단체 여부 판정용(시트의 '단체팀' 행 노출 게이트)
       });
     }
     if (toAdd.length === 0) return;

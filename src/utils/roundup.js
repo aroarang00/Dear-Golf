@@ -151,6 +151,27 @@ export async function deleteRoundup(postId) {
   await deleteDoc(doc(db, COLLECTION, postId));
 }
 
+// 단체 조 편성 저장 — 주최자만. 조별 [티오프·세부코스·조편성(멤버/메모)] 한 블록 ([[event-model]] 간소화안).
+//   teamPlan = [{ tee, subCourse, note }, ...] (조 순서). 신규 컬렉션·CF 없이 모집글 문서에 필드만 추가
+//   (주최자 전체수정 권한으로 커버, 규칙 변경 0). 첫 조 티오프를 time과 동기화 → 카드·체크인·알람 트리거 유지.
+// teamPlan = [{ course, flights:[{ tee, note }] }] — 세부코스 묶음 안에 티오프(=조)들. 묶임/갈림 자연 표현.
+export async function updateRoundupTeamPlan(postId, { teamPlan, teamNotice }) {
+  if (!postId) throw new Error('postId required');
+  const plan = Array.isArray(teamPlan)
+    ? teamPlan.map((g) => ({
+        course: (g?.course || '').trim(),
+        flights: Array.isArray(g?.flights)
+          ? g.flights.map((f) => ({ tee: (f?.tee || '').trim(), note: (f?.note || '').trim() }))
+          : [],
+      }))
+    : [];
+  const patch = { teamPlan: plan, updatedAt: serverTimestamp() };
+  if (teamNotice !== undefined) patch.teamNotice = (teamNotice || '').trim(); // 맨 위 주최자 메모(공지)
+  const firstTee = plan[0]?.flights?.[0]?.tee;
+  if (firstTee) patch.time = firstTee; // 첫 조(첫 코스 첫 티오프) = 집결/트리거 시간
+  await updateDoc(doc(db, COLLECTION, postId), patch);
+}
+
 // ── 참여 신청·취소 (참여자 액션) ───────────────────────────────
 
 // 참여 신청 — participantUids에 me 추가, joined +1.

@@ -21,6 +21,7 @@ import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { Icon, WeatherGlyph } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차)
 import { ScheduleSheetModal } from './ScheduleSheetModal';
+import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { ShareMomentModal } from './ShareMomentModal';
 import { ScheduleShareCard } from './ScheduleShareCard';   // 체크인 카드 전용(공유화면 없이 카드만) 뷰어용
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge·부유) 공용 래퍼
@@ -88,6 +89,7 @@ export function HomeScreen({ navigation, route }) {
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [teamScheduleRid, setTeamScheduleRid] = useState(null);     // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [sheetMealSchedule, setSheetMealSchedule] = useState(null); // 일정 시트 '함께 식사' 대상(triggerless) — 세컨 카드 등 next 아닌 일정용
   const [sheetMealAutoOpen, setSheetMealAutoOpen] = useState(false);
   const [pendingInviteSchedule, setPendingInviteSchedule] = useState(null); // 생성 직후 초대 제안 대상(알람 팝업 뒤)
@@ -1363,6 +1365,7 @@ export function HomeScreen({ navigation, route }) {
         onShare={() => handleShareSchedule(selectedSchedule)}
         onInviteFriends={() => handleInviteFriends(selectedSchedule)}
         onMeal={() => { setShowScheduleModal(false); setSheetMealSchedule(selectedSchedule); setSheetMealAutoOpen(true); }}
+        onTeam={() => { setShowScheduleModal(false); setTeamScheduleRid(selectedSchedule?.roundupId || null); }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
         onDelete={async () => {
           // 시트 안에서 이미 confirm 완료 — 바로 remove + 시트 닫음 (별도 AppAlert 띄우지 않음, RN 3중 Modal 충돌 회피)
@@ -1392,6 +1395,9 @@ export function HomeScreen({ navigation, route }) {
         autoOpen={sheetMealAutoOpen}
         onAutoOpened={() => setSheetMealAutoOpen(false)}
       />
+
+      {/* 단체팀 화면 — 시트 닫은 뒤 열림(형제 Modal 회피, [[ios-modal-stacking]]) */}
+      <RoundupTeamScreen visible={!!teamScheduleRid} roundupId={teamScheduleRid} onClose={() => setTeamScheduleRid(null)} />
 
       <WeatherTransportPopup
         visible={showWeatherFull || showTrafficFull || showWeatherPopup}

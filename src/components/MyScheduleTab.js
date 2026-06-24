@@ -12,6 +12,7 @@ import { formatNameList } from '../utils/nameList';
 import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
+import { RoundupTeamScreen } from './RoundupTeamScreen';      // 단체팀 화면(조 편성·티오프)
 import { ShareMomentModal } from './ShareMomentModal';        // 동반자 공유 — 이미지 카드(홈과 동일)
 import { getScheduleWxSummary } from '../utils/scheduleWx';    // 공유 카드 코스명 위 해당일 날씨 주입
 import { WeatherTransportPopup } from './WeatherTransportPopup';
@@ -88,6 +89,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 동반자 공유 — 이미지 카드 대상(홈과 동일)
+  const [teamRid, setTeamRid] = useState(null);                         // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
   // 친구 일정에 초대 + 함께 식사 — 홈과 동일 기능을 캘린더에서도(공용 일정 시트에서 진입)
   const [inviteTarget, setInviteTarget] = useState(null);
@@ -924,9 +926,13 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onShare={handleSheetShare}
         onInviteFriends={() => handleInviteFriends(sheet.schedule)}
         onMeal={() => openMealForSchedule(sheet.schedule)}
+        onTeam={() => { const rid = sheet.schedule?.roundupId || null; setSheet(prev => ({ ...prev, visible: false })); setTeamRid(rid); }}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
+
+      {/* 단체팀 화면 — 시트 닫은 뒤 열림(형제 Modal 회피, [[ios-modal-stacking]]) */}
+      <RoundupTeamScreen visible={!!teamRid} roundupId={teamRid} onClose={() => setTeamRid(null)} />
 
       {/* 동반자 공유 카드 — 이미지(바로공유/저장) + 평문 링크(설치 동선). 시트 닫은 뒤 열림(홈과 동일) */}
       <ShareMomentModal

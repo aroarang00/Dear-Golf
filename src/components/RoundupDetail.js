@@ -17,6 +17,7 @@ import { RoundupComments } from './RoundupComments';
 import { anonNick } from '../utils/anonNick';
 import { shareRoundup } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
+import { RoundupTeamScreen } from './RoundupTeamScreen';
 
 // 참여자 아바타 색상
 const AV = [
@@ -157,6 +158,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const kbHeightRef = useRef(0);
   const [kbHeight, setKbHeight] = useState(0);
   const [shareCardOpen, setShareCardOpen] = useState(false); // 모집 공유 — 이미지/링크 선택 모달(ShareMomentModal)
+  const [teamOpen, setTeamOpen] = useState(false);           // 단체팀 화면(조 편성·티오프) — 내부 중첩 Modal([[ios-modal-stacking]])
   // 안드(엣지투엣지): 키보드가 창을 리사이즈하지 않고 콘텐츠 위로 떠서 댓글 입력칸이 가려짐.
   // 포커스된 입력칸을 키보드 위로 직접 스크롤. (iOS는 automaticallyAdjustKeyboardInsets가 처리)
   const scrollCommentIntoView = () => {
@@ -700,6 +702,15 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 {isClosed && <Badge bg="#E6C8C8" fg="#5C1E1E" text="마감" />}
               </View>
 
+              {/* 단체팀 — 조 편성·팀별 티오프 화면. 단체 모집 + 참여자(주최자·확정자)만 노출 ([[event-model]]) */}
+              {isTeam && (isMine || joined) && (
+                <TouchableOpacity onPress={() => setTeamOpen(true)} activeOpacity={0.85}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    marginBottom: _and ? 8 : 10, borderRadius: 10, paddingVertical: _and ? 9 : 11, backgroundColor: C.navy }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.butter }}>🗂 단체팀 · 조 편성 · 티오프</Text>
+                </TouchableOpacity>
+              )}
+
               {/* 주최자 — 이름 표시. 매너·주최횟수·신뢰배지는 친구모집(전체공개 OFF)에선 무의미해 숨김([[roundup-friend-redesign]]) */}
               <View
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: _and ? 6 : 8, paddingHorizontal: 12,
@@ -942,6 +953,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             onClose={() => setShareCardOpen(false)}
             onShareLink={() => { setShareCardOpen(false); setTimeout(() => shareRoundup(post), 350); }}
           />
+
+          {/* 단체팀 화면 — 상세 Modal 내부 중첩(형제 Modal 회피, [[ios-modal-stacking]]) */}
+          <RoundupTeamScreen visible={teamOpen} roundupId={post?.id} onClose={() => setTeamOpen(false)} />
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

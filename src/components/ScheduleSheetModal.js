@@ -12,7 +12,7 @@ import { loadMyFriendsEnriched } from '../utils/friends';
 
 const SAGE = '#5E7E42';   // 세이지그린 — 교통 아이콘 액센트(앱 크루 세이지와 동색)
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
@@ -60,6 +60,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const allItems = [
     { key: 'wx', icon: 'sun', emoji: '☀️', label: '날씨 확인', onPress: onWeather },   // 해만(앰버) — cloudSun은 흰 구름이라 밝은 시트서 안 보임
     { key: 'tr', icon: 'car', color: SAGE, size: 24, emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },   // 차 그림이 납작해 살짝 키움
+    // 단체팀 — 조 편성·팀별 티오프(단체 모집 일정만). 교통 바로 밑·navy 강조로 눈에 띄게 ([[event-model]])
+    { key: 'team', icon: 'clipboard', emoji: '🗂', label: '단체팀 · 조 편성·티오프', onPress: onTeam, highlight: true },
     { key: 'sh', icon: 'share', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
     // 인앱 일정 전파 — 친구를 골라 초대, 수락 시 그 친구 일정에도 등록(외부 링크 공유와 별개) ([[schedule-propagation-spec]])
     { key: 'iv', icon: 'personAdd', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
@@ -75,6 +77,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     if (it.key === 'iv' && (!onInviteFriends || isPast || schedule.roundupId)) return false;
     // 함께 식사 — 핸들러 있을 때만, 지난 일정엔 숨김(뒤풀이는 당일까지). 라운지연동도 허용(동호회 단체 식사).
     if (it.key === 'ml' && (!onMeal || isPast)) return false;
+    // 단체팀 — 라운지 단체 모집(roundupId + teams>1) 일정에만. 핸들러 있을 때만.
+    if (it.key === 'team' && !(onTeam && schedule.roundupId && (schedule.teams || 1) > 1)) return false;
     // 일정 수정 — 라운지 모집으로 만들어진 예정 일정은 구장·날짜가 모집에서 내려와 로컬 수정이 반영 안 됨(라운지에서 관리) → 숨김.
     //   삭제는 '라운지 일정' 안내로 별도 처리. 지난 일정은 기록 흐름이 있어 유지. (사용자 2026-06-23)
     if (it.key === 'ed' && schedule.roundupId && !isPast) return false;
@@ -160,7 +164,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 }}>
                     <View style={{ width: 20, alignItems: 'center', marginTop: 1 }}><Icon name="people" size={17} color={C.textSecondary} strokeWidth={1.6} /></View>
                     <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={2}>
-                      {companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
+                      {/* 단체 등 5명 이상이면 이름 나열 대신 인원만(명단은 단체팀 화면에) ([[event-model]]) */}
+                      {companionNames.length > 4 ? `동반자 ${companionNames.length}명`
+                        : companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
                     </Text>
                   </View>
                 )}
@@ -189,13 +195,14 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
               {items.map((it, i) => (
                 <TouchableOpacity
                   key={it.key}
-                  style={[sheetS.row, i < items.length - 1 && sheetS.rowBorder]}
+                  style={[sheetS.row, i < items.length - 1 && sheetS.rowBorder, it.highlight && { backgroundColor: '#EDF1F4' }]}
                   onPress={it.onPress}
                   activeOpacity={0.6}>
                   {it.icon
-                    ? <View style={{ width: 22, alignItems: 'center' }}><Icon name={it.icon} size={it.size || 21} color={it.color || (it.danger ? '#D32F2F' : C.charcoal)} /></View>
+                    ? <View style={{ width: 22, alignItems: 'center' }}><Icon name={it.icon} size={it.size || 21} color={it.highlight ? C.navy : (it.color || (it.danger ? '#D32F2F' : C.charcoal))} /></View>
                     : <Text style={sheetS.rowEmoji}>{it.emoji}</Text>}
-                  <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger]}>{it.label}</Text>
+                  <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger, it.highlight && { color: C.navy, fontFamily: F.sysB }]}>{it.label}</Text>
+                  {it.highlight && <Text style={{ marginLeft: 'auto', fontSize: fs(16), color: C.navy }}>›</Text>}
                 </TouchableOpacity>
               ))}
               <View style={{ height: 8 }} />
