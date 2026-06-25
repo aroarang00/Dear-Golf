@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform, ActivityIndicator, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 모달 입력 가림 방지
 import { Image } from 'expo-image';
@@ -13,8 +13,12 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { uploadRoundMedia } from '../utils/roundMedia';
 import { addCrewPost, editCrewPost, setCrewNotice } from '../utils/crews';
+import { storage, STORAGE_KEYS } from '../utils/storage';
 import { showAppAlert } from './AppAlert';
 import { CropEditorModal } from './common/CropEditorModal';
+
+// 게시 전 미리보기 — 피드 카드와 같은 비율 규칙(앨범 FeedMedia: 세로 0.8~가로 1.91)
+const clampAR = (ar) => (ar && isFinite(ar)) ? Math.max(0.8, Math.min(1.91, ar)) : null;
 
 // 크루 올리기(작성) — 앨범 FAB(＋)에서 진입 (docs/crew-space-design.md §3.3).
 //  글 + 사진/영상(합 10개·동영상 1개·30초) / 공지(텍스트만, 토글). 비속어 필터. 페일스카이 라이트.
@@ -31,8 +35,76 @@ const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
 const MAX_VIDEO_SEC = 30;
 
+// 미리보기 카드 — 앨범 피드 카드와 같은 레이아웃(작성자·글·미디어). 게시 전 '올라간 모습' 확인용(읽기 전용).
+function PreviewCard({ text, media, name, avatarUri, width }) {
+  const [ar, setAr] = useState(() => clampAR(media[0]?.ar) || 1);
+  const [page, setPage] = useState(0);
+  const single = media.length === 1;
+  const initial = (name || '나').trim().charAt(0) || '나';
+  const srcOf = (m) => (m?.type === 'video' ? (m.poster || m.uri) : m?.uri);
+  return (
+    <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 14,
+      shadowColor: '#1A3D52', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {avatarUri
+          ? <Image source={{ uri: avatarUri }} style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: '#fff' }} contentFit="cover" />
+          : <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: SAGE_DEEP, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: '#fff' }}>{initial}</Text>
+            </View>}
+        <View style={{ flex: 1, marginLeft: 11 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(17.5), color: INK }} numberOfLines={1}>{name || '나'}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 1 }}>방금</Text>
+        </View>
+      </View>
+      {!!text && <Text style={{ fontFamily: F.sysM, fontSize: fs(17.5), color: INK, marginTop: 12, lineHeight: fs(25) }}>{text}</Text>}
+      {media.length > 0 && (
+        <View style={{ marginTop: 11 }}>
+          {single ? (
+            <View style={{ width: '100%', aspectRatio: ar, borderRadius: 14, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <Image source={{ uri: srcOf(media[0]) }} style={{ width: '100%', height: '100%' }} contentFit="cover"
+                onLoad={media[0]?.ar ? undefined : (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); }} />
+              {media[0]?.type === 'video' && (
+                <View style={{ position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: fs(20), color: '#fff', marginLeft: 2 }}>▶</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(26,61,82,0.06)' }}>
+              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width, height: Math.round(width / ar) }}
+                onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}>
+                {media.map((m, mi) => (
+                  <View key={mi} style={{ width, height: Math.round(width / ar), alignItems: 'center', justifyContent: 'center' }}>
+                    <Image source={{ uri: srcOf(m) }} style={{ width, height: Math.round(width / ar) }} contentFit="contain"
+                      onLoad={(mi === 0 && !media[0]?.ar) ? (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); } : undefined} />
+                    {m?.type === 'video' && (
+                      <View style={{ position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: fs(20), color: '#fff', marginLeft: 2 }}>▶</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+              {media.length > 1 && (
+                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 11, paddingHorizontal: 9, paddingVertical: 3 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: '#fff' }}>{page + 1}/{media.length}</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+      {/* 좋아요·댓글 줄(읽기 전용 모양만) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
+        <Icon name="heart" size={fs(21)} color={SUB} strokeWidth={1.9} />
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB, marginLeft: 18 }}>💬 댓글 달기</Text>
+      </View>
+    </View>
+  );
+}
+
 export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = false, onClose }) {
-  useScreenBack(true, onClose);
+  useScreenBack(true, () => { if (previewing) { setPreviewing(false); return; } onClose(); });
   const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
   const editingNotice = noticeText != null;       // 공지 수정 모드(텍스트만, 토글·미디어 숨김)
   const currentUid = useCurrentUid();
@@ -43,6 +115,22 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const [err, setErr] = useState('');
   const [posting, setPosting] = useState(false);
   const [cropTarget, setCropTarget] = useState(null);   // 크롭 대상 { uri, index } — 탭한 사진을 그 자리에서 교체
+  const [previewing, setPreviewing] = useState(false);  // 게시 전 미리보기 모드(피드 카드 모습)
+  const [myName, setMyName] = useState('');             // 미리보기 작성자 표시(내 닉네임)
+  const [myAvatar, setMyAvatar] = useState(null);
+  const { width: winW } = useWindowDimensions();
+
+  // 미리보기 작성자 = 나 — 닉네임·프로필 사진 로드(앨범선 보는 사람 별명이지만, 내 글 미리보기는 내 닉으로 충분)
+  useEffect(() => {
+    let alive = true;
+    storage.load(STORAGE_KEYS.profile, null).then((p) => {
+      if (!alive || !p) return;
+      if (p.nickname) setMyName(p.nickname);
+      // avatarUri는 dgphoto: 로컬 스킴일 수 있어 그대로 expo-image에 주면 안 뜸 → http(s)만, 아니면 이니셜 폴백
+      if (p.avatarUri && /^https?:\/\//.test(p.avatarUri)) setMyAvatar(p.avatarUri);
+    });
+    return () => { alive = false; };
+  }, []);
 
   const hasVideo = media.some((m) => m.type === 'video');
   const full = media.length >= MAX_MEDIA;
@@ -146,10 +234,17 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
       {/* 헤더 — ✕ · 제목 · 게시 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
         borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={{ fontSize: fs(20), color: INK }}>✕</Text>
+        <TouchableOpacity onPress={() => { if (previewing) { setPreviewing(false); } else { onClose(); } }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <Text style={{ fontSize: fs(20), color: INK }}>{previewing ? '←' : '✕'}</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{editing ? '게시물 수정' : editingNotice ? '공지 수정' : (isNotice ? '공지 작성' : '새 게시물')}</Text>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{previewing ? '미리보기' : editing ? '게시물 수정' : editingNotice ? '공지 수정' : (isNotice ? '공지 작성' : '새 게시물')}</Text>
+        {/* 미리보기 — 게시 전 올라간 모습 확인(공지는 텍스트만이라 제외). 미리보기 중엔 숨김 */}
+        {!isNotice && canPost && !previewing && (
+          <TouchableOpacity onPress={() => { Keyboard.dismiss(); setPreviewing(true); }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+            style={{ marginRight: 10, paddingVertical: 6 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: SAGE_DEEP }}>미리보기</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={submit} disabled={!canPost || posting} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           style={{ backgroundColor: (canPost && !posting) ? SAGE_DEEP : 'rgba(94,126,66,0.25)', borderRadius: 9, paddingHorizontal: 16, paddingVertical: 7, minWidth: 56, alignItems: 'center' }}>
           {posting ? <ActivityIndicator size="small" color="#fff" />
@@ -158,6 +253,12 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        {previewing ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 6, paddingTop: 14, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: SUB, marginBottom: 12, textAlign: 'center' }}>게시하면 크루 피드에 이렇게 보여요</Text>
+          <PreviewCard text={text.trim()} media={media} name={myName} avatarUri={myAvatar} width={winW - 6 * 2 - 14 * 2} />
+        </ScrollView>
+        ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 공지 토글 — 게시물 수정·공지 수정 모드선 숨김. 공지는 크루장·운영진(canNotice)만 올릴 수 있음 */}
           {!editing && !editingNotice && canNotice && (
@@ -252,6 +353,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
 
           {!!err && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(12), marginTop: 12 }}>{err}</Text>}
         </ScrollView>
+        )}
       </KeyboardAvoidingView>
 
       {/* 썸네일 탭 → 크롭(1:1). 저장=그 자리 교체 / 취소=원본 유지(사진 그대로) */}
