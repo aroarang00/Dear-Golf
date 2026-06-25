@@ -17,7 +17,7 @@ import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewComposeScreen } from './CrewComposeScreen';
 import { CrewMembersScreen } from './CrewMembersScreen';
 import { CrewCommentScreen } from './CrewCommentScreen';
-import { PhotoViewer } from './common/PhotoViewer';
+import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer';
 import { ReportModal } from './ReportModal';
 import { AppAlertHost, showAppAlert } from './AppAlert';
 
@@ -436,6 +436,15 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   useEffect(() => {
     const uris = posts.flatMap((p) => (p.media || []).map((m) => (m?.type === 'video' ? m?.poster : (m?.thumb || m?.uri)))).filter(Boolean).slice(0, 6);
     if (uris.length) Image.prefetch(uris, { cachePolicy: 'memory-disk' });
+  }, [posts]);
+
+  // 풀스크린 뷰어 비율 미리 심기 — 미디어의 ar(저장된 비율)을 뷰어 캐시에 넣어두면, 뷰어가 폴백 크기로 열렸다
+  //   onLoad 후 진짜 비율로 '다시 커지는'(두단계 확대) 리플로우 없이 처음부터 정확한 크기로 열림.
+  useEffect(() => {
+    posts.forEach((p) => (p.media || []).forEach((m) => {
+      const key = m?.type === 'video' ? m?.poster : m?.uri;
+      if (key && m?.ar) primePhotoRatio(key, m.ar);
+    }));
   }, [posts]);
 
   // 갤러리 타일 — 모든 게시물 미디어를 펼친 평면 배열(가상화 data·풀스크린 뷰어 공용). early-return 위에서 메모.
