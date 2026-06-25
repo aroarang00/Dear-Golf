@@ -63,26 +63,56 @@ export async function pickScorecardImage(source = 'gallery') {
 // 반환: { rows: [{ label, holes:number[18], total }], pars: number[18]|null, error?, rawText?(dev) }
 //   - label: 화면 행 구분용으로만 표시(저장 X). 1행이면 자동 사용, 여러 행이면 사용자가 본인 행 선택.
 //   - 인식 실패/숫자 부족/키 미설정이면 rows:[] → 검토 모달이 빈 표(직접 입력)로 폴백.
+// 이미지를 rotate(0/90/270)로 돌려 jpg base64 만든 뒤 CLOVA → 파싱. 원본 해상도 유지(리사이즈 X).
+async function runScorecardOcr(uri, rotate) {
+  const actions = rotate ? [{ rotate }] : [];   // rotate=0이면 빈 작업
+  const img = await ImageManipulator.manipulateAsync(uri, actions, {
+    compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true,
+  });
+  const callable = httpsCallable(functions, 'recognizeScorecard');
+  const res = await callable({ imageBase64: img.base64, format: 'jpg' });
+  const fields = res?.data?.fields || [];   // [{ text, confidence, vertices }]
+  return parseTokens(tokenize(fields));      // { rows, pars }
+}
+
+// 인식 결과 신뢰도 채점 — 각 플레이어의 홀 합계가 카드에 인쇄된 total과 맞을수록 높음.
+//   회전이 틀린 방향/잘못 읽은 결과는 숫자가 무작위라 total과 안 맞음 → 올바른 방향만 높게 채점.
+//   matched = 홀합계가 인쇄 total과 '완전 일치'한 플레이어 수(1명 이상이면 확신).
+function scoreRows(rows) {
+  if (!rows || !rows.length) return { score: -1, matched: 0 };
+  let score = 0, matched = 0;
+  for (const r of rows) {
+    const filled = (r.holes || []).filter(Number.isFinite);
+    const sum = filled.reduce((a, b) => a + b, 0);
+    score += filled.length * 0.1;   // 많이 채워질수록 약간 가점
+    if (Number.isFinite(r.total) && r.total > 0) {
+      if (filled.length === 18 && sum === r.total) { score += 5; matched++; }       // 완전 일치(강한 신호)
+      else if (filled.length >= 16 && Math.abs(sum - r.total) <= 3) score += 2;     // 버디 아이콘 누락 등 근사
+    }
+  }
+  return { score, matched };
+}
+
 export async function recognizeScorecard(uri) {
   try {
-    // HEIC 대응 + 원본 해상도 유지 jpg base64 (리사이즈 X — 작은 홀 숫자 보존)
-    const img = await ImageManipulator.manipulateAsync(uri, [], {
-      compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true,
-    });
-    // Cloud Functions 프록시 호출 — CLOVA Secret/URL은 CF Secret에만(앱 노출 0). 서울 리전.
-    const callable = httpsCallable(functions, 'recognizeScorecard');
-    const res = await callable({ imageBase64: img.base64, format: 'jpg' });
-    const fields = res?.data?.fields || [];   // [{ text, confidence, vertices }]
-    const toks = tokenize(fields);
-    const { rows, pars } = parseTokens(toks);
-    // PAR 행을 못 찾으면(요약 카드 등) 홀별 타수를 만들 수 없음 → 부드러운 안내
-    if (!rows.length) {
+    // ★자동 회전 + 신뢰도 선택 — EXIF·촬영으로 표가 90/270° 누운 사진(갤러리는 똑바로 보여도 픽셀은 회전)을 위해
+    //   0°→90°→270°로 이미지를 돌려가며 재OCR하고, '인쇄된 합계(total)와 맞는' 결과를 채택(엉뚱하게 읽은 방향 배제).
+    //   한 명이라도 홀합계=total 완전일치면 그 방향이 정답 → 조기 종료(똑바른 사진/스크린샷은 0°에서 1회).
+    let best = null;
+    for (const deg of [0, 90, 270]) {
+      const r = await runScorecardOcr(uri, deg);
+      const { score, matched } = scoreRows(r.rows);
+      if (!best || score > best.score) best = { rows: r.rows, pars: r.pars, score, matched };
+      if (matched >= 1) break;   // 합계 일치 = 확신 → 더 돌릴 필요 없음
+    }
+    if (!best || !best.rows.length) {
       return {
         rows: [], pars: null,
         error: 'PAR(파)가 보이는 표 형태 스코어카드를 올려주세요.\n풍경 배경의 요약 카드는 PAR가 없어 홀별 인식이 어려워요.',
       };
     }
-    return { rows, pars };
+    // 어느 방향도 인쇄 합계와 정확히 안 맞으면 저신뢰 → 리뷰 화면에서 확인 강조(틀린 홀이 그냥 들어가는 것 방지).
+    return { rows: best.rows, pars: best.pars, lowConfidence: best.matched === 0 };
   } catch (e) {
     if (__DEV__) console.warn('[scorecardOcr] OCR fail:', e?.code || '', e?.message);
     return { rows: [], pars: null, error: e?.message || '사진을 인식하지 못했어요 — 직접 입력해 주세요' };

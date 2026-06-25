@@ -91,6 +91,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [holePars, setHolePars] = useState(null); // 스코어카드 par 행(스텁 mock) — 버디 자동집계용
   const [scRows, setScRows] = useState([]);
   const [scFailed, setScFailed] = useState(false); // OCR 인식 실패/숫자 부족 → 직접 입력 안내
+  const [scLowConf, setScLowConf] = useState(false); // OCR 저신뢰(인쇄 합계와 안 맞음) → 확인·수정 강조
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
   const [showCost, setShowCost] = useState(false);
@@ -250,6 +251,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setScRows(res.rows || []);
       setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
       setScFailed(!!res.error || !(res.rows || []).length);   // 인식 실패/숫자 부족 → 빈 표 직접 입력 안내
+      setScLowConf(!!res.lowConfidence);                       // 합계 불일치 → 저신뢰 안내(확인·수정 강조)
       setScReview(true);
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAdd] scorecard pick fail', e?.message);
@@ -332,7 +334,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setScoreCardOption('later');
-    setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScFailed(false);
+    setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScFailed(false); setScLowConf(false);
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
@@ -766,7 +768,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                           PAR(파)와 전·후반 홀이 표로 정렬된{'\n'}스코어카드가 정확히 인식돼요.{'\n'}(스마트스코어 표 · 골프장 스코어카드)
                         </Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 8 }}>
-                          · 풍경 배경의 요약 카드는 PAR가 없어 인식되지 않아요.{'\n'}· 촬영할 땐 표를 정면에서 또렷하게 담아주세요.
+                          · 풍경 배경의 요약 카드는 PAR가 없어 인식되지 않아요.{'\n'}· 돌아간 사진도 자동으로 맞춰 읽어요 — 표만 또렷하게 담기면 돼요.
                         </Text>
                       </View>
                     </View>
@@ -783,7 +785,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         onPress={() => {
                           const t = holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
                           setScRows([{ label: '입력값', holes: holeScores, total: t }]);
-                          setScFailed(false); setScReview(true);
+                          setScFailed(false); setScLowConf(false); setScReview(true);
                         }}>
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
                       </TouchableOpacity>
@@ -1234,6 +1236,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           visible={scReview}
           rows={scRows}
           failed={scFailed}
+          lowConfidence={scLowConf}
           onConfirm={handleScorecardConfirm}
           onClose={() => setScReview(false)} />
         <CropEditorModal

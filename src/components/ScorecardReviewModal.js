@@ -10,7 +10,7 @@ import { sumHoles } from '../utils/scorecardOcr';
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], failed = false, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], failed = false, lowConfidence = false, onConfirm, onClose }) {
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
@@ -93,6 +93,16 @@ export function ScorecardReviewModal({ visible, rows = [], failed = false, onCon
                 <Text style={{ fontSize: fs(20), color: C.warmGray }}>✕</Text>
               </TouchableOpacity>
             </View>
+
+            {/* 저신뢰 안내 — 인쇄된 합계와 안 맞음(잘못 읽었을 수 있음). 확인·수정 강조. failed면 그쪽 안내가 우선. */}
+            {!failed && lowConfidence && !inSelect && (
+              <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
+                backgroundColor: C.butter + '33', borderWidth: 0.5, borderColor: C.butter + '80' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
+                  ⚠️ 숫자가 정확하지 않을 수 있어요 — 홀별로 확인·수정해주세요.{'\n'}또렷한 스크린샷(앱 디지털 카드)이면 더 정확해요.
+                </Text>
+              </View>
+            )}
 
             {/* 인식 실패/숫자 부족 안내 — 빈 표에 직접 입력 유도 (부드러운 톤) */}
             {failed && (
