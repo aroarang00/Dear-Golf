@@ -13,7 +13,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
   subscribeMyCrews, subscribeCrewInvites, createCrew, updateCrewProfile,
-  acceptCrewInvite, declineCrewInvite,
+  acceptCrewInvite, declineCrewInvite, hasNewCommentsOnMyPosts,
 } from '../utils/crews';
 import { uploadCrewImage } from '../utils/avatarStorage';
 import { resolveMemberDisplay } from '../utils/friends';
@@ -98,6 +98,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [aliasMap, setAliasMap] = useState({});      // {crewId:alias} — 나만 보는 크루 별명(기기 로컬, 서버 name 불변)
   const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(목록 '새 글 N' 배지 산출, 기기 로컬)
   const [seenAtMap, setSeenAtMap] = useState({});    // {crewId:millis} — 마지막으로 앨범 닫은 시각(앨범 NEW·내글 새댓글 판단, 기기 로컬)
+  const [reactSet, setReactSet] = useState({});      // {crewId:true} — 내 글에 안 본 새 댓글 있는 크루(7b, 목록 진입 시 조회)
   const [crewOrder, setCrewOrder] = useState(null);  // [crewId,...] 수동 순서(드래그). null=미로드, []=설정 안 함
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
   const [myName, setMyName] = useState('');
@@ -134,6 +135,20 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     resolveMemberDisplay(uids, { myUid: currentUid }).then((m) => { if (alive) setPeople(m || {}); }).catch(() => {});
     return () => { alive = false; };
   }, [inviteDocs, currentUid]);
+
+  // '내 글 새 반응' 신호(7b) — 목록 진입 시 크루별로 '내 글에 lastSeenAt 이후 남이 단 댓글' 1회 조회.
+  //   크루 집합·본 시각이 바뀔 때만 재조회(crewDocs는 새 글에만 바뀌어 churn 적음 / 댓글은 크루 doc 안 건드림).
+  //   닫고 나면 seenAtSig 변경→재조회로 해당 크루 점이 사라짐(markCrewSeenAt에서 즉시 제거도 함).
+  const crewIdsSig = useMemo(() => (crewDocs || []).map((d) => d.id).sort().join(','), [crewDocs]);
+  const seenAtSig = useMemo(() => JSON.stringify(seenAtMap), [seenAtMap]);
+  useEffect(() => {
+    if (!currentUid || !crewDocs || !crewDocs.length) { setReactSet({}); return; }
+    let alive = true;
+    const ids = crewDocs.map((d) => d.id);
+    Promise.all(ids.map((id) => hasNewCommentsOnMyPosts(id, currentUid, seenAtMap[id] || 0).then((v) => [id, v]).catch(() => [id, false])))
+      .then((pairs) => { if (!alive) return; const next = {}; pairs.forEach(([id, v]) => { if (v) next[id] = true; }); setReactSet(next); });
+    return () => { alive = false; };
+  }, [currentUid, crewIdsSig, seenAtSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [openCrew, setOpenCrew] = useState(null);      // 앨범(상세) 열린 크루
   const [createOpen, setCreateOpen] = useState(false); // 크루 만들기
@@ -177,6 +192,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
       storage.save(STORAGE_KEYS.crewSeenAt, next);
       return next;
     });
+    setReactSet((prev) => { if (!prev[id]) return prev; const n = { ...prev }; delete n[id]; return n; }); // 본 즉시 점 제거(재조회 기다리지 않게)
   };
 
   // doc → 초대 표시 — 내 친구 별명/프로필 우선(people), 없으면 저장 names 폴백
@@ -346,6 +362,12 @@ export function CrewListScreen({ onClose, onOpenDM }) {
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{c.name}</Text>
+                        {/* 내 글에 안 본 새 댓글 — 빨간 하트(목록서 가장 끌어당기는 '내 것 반응' 신호). 새 글 N 배지(우측 버건디)와 구분 */}
+                        {reactSet[c.id] && (
+                          <View style={{ marginLeft: 6 }}>
+                            <Icon name="heartFilled" size={fs(14)} color="#E5484D" />
+                          </View>
+                        )}
                         <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginLeft: 6 }}>{c.members}명</Text>
                       </View>
                       {/* 둘째 줄 — 크루 성격(없으면 생략, 카드 한 줄로) */}

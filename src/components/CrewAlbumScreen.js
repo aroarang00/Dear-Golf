@@ -240,6 +240,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const [likersFor, setLikersFor] = useState(null);        // 좋아요 누른 사람 목록 { count, members:[{n,c,uri,name}] }
   const [burstId, setBurstId] = useState(null);            // 더블탭 좋아요 시 큰 하트 잠깐 표시(게시물 id)
   const burstTimer = useRef(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false); // '내 글 새 댓글' 상단 배너 이번 세션 닫음
+  const jumpIdxRef = useRef(0);                            // 배너 '보기' 탭 시 새 댓글 글들을 차례로 순회
   // 친구 여부 — 크루 멤버는 서로 친구 아닐 수 있음. 프로필 팝업서 친구=DM / 비친구=친구신청 분기(비친구 DM은 규칙상 막힘).
   const [friends, setFriends] = useState(null);
   const [sentSet, setSentSet] = useState(new Set());
@@ -343,6 +345,19 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const tiles = useMemo(
     () => posts.flatMap((p) => (p.media || []).map((m, mi) => ({ ...m, postId: p.id, mi, key: `${p.id}_${mi}` }))),
     [posts]);
+
+  // '내 글에 새 댓글' 달린 글들의 피드 인덱스 — 상단 배너 카운트 + '보기' 점프 대상(옛날 글이라 스크롤해야 보이던 것 해소)
+  const newMineIdx = useMemo(
+    () => posts.reduce((acc, p, i) => { if (p.hasNewComment) acc.push(i); return acc; }, []),
+    [posts]);
+  // 배너 '보기' — 새 댓글 달린 내 글로 차례로 스크롤(여러 개면 탭마다 다음 것, 끝나면 처음으로 순환)
+  const jumpToNewComment = () => {
+    if (!newMineIdx.length || !scrollRef.current) return;
+    const k = jumpIdxRef.current % newMineIdx.length;
+    jumpIdxRef.current = k + 1;
+    try { scrollRef.current.scrollToIndex({ index: newMineIdx[k], animated: true, viewPosition: 0.12 }); }
+    catch (e) { if (__DEV__) console.warn('[crewAlbum] jump', e?.message); }
+  };
 
   // ── 동작 ──
   const openProfile = (person) => {
@@ -608,6 +623,20 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         </View>
       </View>
 
+      {/* 내 글에 새 댓글 — 상단 배너(피드 탭). '보기'=그 글로 바로 스크롤(옛날 글이라 안 내려가도 됨). ✕=세션 닫기 */}
+      {tab === 'feed' && !bannerDismissed && newMineIdx.length > 0 && (
+        <TouchableOpacity onPress={jumpToNewComment} activeOpacity={0.85}
+          style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginTop: 10,
+            backgroundColor: '#F7E9EC', borderRadius: 12, borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', paddingHorizontal: 12, paddingVertical: 10 }}>
+          <Icon name="heartFilled" size={fs(16)} color={NEWMARK} />
+          <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: NEWMARK, marginLeft: 8 }}>내 글에 새 댓글 {newMineIdx.length}개</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: NEWMARK }}>보기 ›</Text>
+          <TouchableOpacity onPress={() => setBannerDismissed(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 12 }}>
+            <Text style={{ fontSize: fs(15), color: 'rgba(107,30,42,0.5)' }}>✕</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      )}
+
       {/* 콘텐츠 — FlatList 가상화(보이는 것만 마운트→이미지도 보이는 것만 로드). 공지=헤더, 토글바는 위에 고정.
           feed=1열 / photos=3열. tab 전환 시 numColumns 바뀌므로 key={tab}로 깔끔하게 remount(스크롤 초기화).
           contentReady — 진입 슬라이드 끝난 뒤 마운트(안드 전환 뻑뻑 방지). 그 전엔 가벼운 스피너만. */}
@@ -630,6 +659,11 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         initialNumToRender={tab === 'feed' ? 4 : 12}
         maxToRenderPerBatch={tab === 'feed' ? 4 : 12}
         windowSize={7}
+        // 카드 높이가 가변이라 미렌더 인덱스로 점프 시 실패할 수 있음 — 대략 위치로 먼저 이동 후 재시도(배너 '보기'용)
+        onScrollToIndexFailed={(info) => {
+          scrollRef.current?.scrollToOffset({ offset: (info.averageItemLength || 320) * info.index, animated: true });
+          setTimeout(() => { try { scrollRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.12 }); } catch (e) {} }, 320);
+        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SAGE_DEEP} colors={[SAGE_DEEP]} />}
       />
       )}

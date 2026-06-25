@@ -183,6 +183,29 @@ export async function addCrewPost(crewId, { authorUid, text = '', media = [] }) 
     .catch((e) => __DEV__ && console.warn('[crews] post meta', e?.message));
   return ref.id;
 }
+// ── 목록 행 '내 글 새 반응' 점(7b) — 내 글 중 sinceMs 이후 '남이 단 댓글'이 있으면 true.
+//   posts where authorUid==me & lastCommentAt>since (복합 인덱스 authorUid+lastCommentAt). 최근 5개만 보고
+//   남이 단 것(lastCommentBy≠me)이 하나라도 있으면 true. sinceMs=0(기준 없음)·인덱스 전엔 false(앱 안 죽음).
+//   좋아요는 시각(likedAt)이 없어 v1 제외 — 댓글 기준. 목록 진입 시 크루별 1회 조회(CF 없이).
+export async function hasNewCommentsOnMyPosts(crewId, myUid, sinceMs = 0) {
+  if (!crewId || !myUid || !sinceMs) return false;
+  try {
+    const q = query(
+      collection(db, COL, crewId, 'posts'),
+      where('authorUid', '==', myUid),
+      where('lastCommentAt', '>', new Date(sinceMs)),
+      orderBy('lastCommentAt', 'desc'),
+      limit(5),
+    );
+    const snap = await getDocs(q);
+    let found = false;
+    snap.forEach((d) => { const c = d.data(); if (c.lastCommentBy && c.lastCommentBy !== myUid) found = true; });
+    return found;
+  } catch (e) {
+    if (__DEV__) console.warn('[crews] hasNewComments', e?.code, e?.message);
+    return false;
+  }
+}
 export function subscribeCrewPosts(crewId, cb) {
   if (!crewId) { cb([]); return () => {}; }
   const q = query(collection(db, COL, crewId, 'posts'), orderBy('createdAt', 'desc'), limit(100));

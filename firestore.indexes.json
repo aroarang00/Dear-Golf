@@ -211,6 +211,14 @@
         { "fieldPath": "ownerUid", "order": "ASCENDING" },
         { "fieldPath": "accessedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorUid", "order": "ASCENDING" },
+        { "fieldPath": "lastCommentAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
