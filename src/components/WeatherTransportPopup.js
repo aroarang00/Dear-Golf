@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
-import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
 import { wxS } from '../styles/wxS';
@@ -20,7 +20,7 @@ import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ROUND_MIN = 5 * 60; // 라운드 평균 5시간
-const MODE_LABEL = { home: '마이페이지', course: '골프장', current: '현재위치', custom: '직접입력' };
+const MODE_LABEL = { home: '내 저장 출발지', course: '골프장', current: '현재위치', custom: '주소 입력' };
 
 // 동일 코스 재오픈 시 즉시 표시. in-flight 요청 dedupe + AsyncStorage 영속 캐시
 const wxCache = new Map(); // courseId → { data, pending?, ts }
@@ -264,6 +264,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   });
   const [expandedSlot, setExpandedSlot] = useState(null);
   const [endOffsetMin, setEndOffsetMin] = useState(0);
+  const [locating, setLocating] = useState(false);   // 현재위치 GPS 찾는 중 — '주소 입력' 안내 깜빡임 방지(계산 중 표시)
   // 안드(엣지투엣지): 키보드가 창을 리사이즈하지 않고 콘텐츠 위로 떠서, 하단 입력칸이 가려짐.
   // 키보드 높이만큼 스크롤 여백을 주고, 포커스 시 입력칸을 키보드 위로 직접 올린다. (iOS는 automaticallyAdjustKeyboardInsets가 처리)
   const [kbHeight, setKbHeight] = useState(0);
@@ -341,6 +342,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       slideBase.current = target;
     }
   }, [visible, initialTab, SW, weatherOnly, schedule?.overseas]);
+
+  // 저장 출발지가 없으면 '갈 때 출발'을 현재위치로 기본 — GPS로 실제 추정치 제공(안 되면 마이페이지 설정 유도)
+  useEffect(() => {
+    if (!visible || weatherOnly || schedule?.overseas) return;
+    if (!homeAddress && trSlots.goOrigin.mode === 'home') setSlotMode('goOrigin', 'current');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, homeAddress]);
 
   // 탭 변경 시 핀치 줌 리셋
   useEffect(() => {
@@ -523,8 +531,14 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
   // 갈 때 출발→도착 실제 소요시간 (실시간 교통 길찾기 — TMap 우선·카카오 폴백) — 좌표 변경 시 1회 조회
   // schedule 없는 렌더(가드 이전)에서도 안전하도록 schedule 있을 때만 해석
-  const goOriginCoord = schedule ? resolveSlot('goOrigin').coord : null;
+  const goOriginInfo = schedule ? resolveSlot('goOrigin') : { label: '', placeholder: true, coord: null };
+  const goOriginCoord = goOriginInfo.coord;
   const goDestCoord = schedule ? resolveSlot('goDest').coord : null;
+  // 출발지 좌표 '해석 중'(GPS·지오코딩 진행) — 좌표 없어도 안내 깜빡임 대신 '계산 중'을 보이려는 판단용
+  const _goSlot = trSlots.goOrigin;
+  const originResolving = locating
+    || (_goSlot.mode === 'home' && !!homeAddress && !homeCoord)
+    || (_goSlot.mode === 'custom' && !!_goSlot.custom && !_goSlot.customCoord);
   useEffect(() => {
     let cancelled = false;
     if (!goOriginCoord || !goDestCoord) { setDriveMin(null); return; }
@@ -539,8 +553,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const setSlotMode = async (slotKey, mode) => {
     setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], mode } }));
     if (mode === 'current' && !currentCoord) {
-      const pos = await getCurrentLocation();
-      if (pos) setCurrentCoord({ x: pos.lng, y: pos.lat });
+      setLocating(true);
+      try { const pos = await getCurrentLocation(); if (pos) setCurrentCoord({ x: pos.lng, y: pos.lat }); }
+      finally { setLocating(false); }
     }
   };
 
@@ -596,7 +611,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
           onPress={() => setExpandedSlot(expanded ? null : slotKey)}>
           <Text style={trS.slotKindTxt}>{kind}</Text>
           <Text style={info.placeholder ? trS.slotLocPh : trS.slotLocTxt} numberOfLines={1}>{info.label}</Text>
-          <Text style={trS.slotChevTxt}>{expanded ? '▲' : '▼'}</Text>
+          {/* '변경' 칩 — 탭하면 내 저장 출발지·현재위치·주소 입력 중 고를 수 있음을 또렷이(테스터가 못 찾던 직접입력 발견성) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.45)', backgroundColor: 'rgba(245,230,168,0.08)' }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(245,230,168,0.9)' }}>{expanded ? '닫기' : '변경'}</Text>
+            <Text style={{ fontSize: fs(9), color: 'rgba(245,230,168,0.7)' }}>{expanded ? '▲' : '▼'}</Text>
+          </View>
         </TouchableOpacity>
         {expanded && (
           <View style={trS.slotPicker}>
@@ -727,7 +746,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <View style={{ flex: 1, backgroundColor: BG }}>
         {/* 라디얼 배경 효과 (큰 원형 View로 흉내) */}
         <View style={wxS.glowTopRight} pointerEvents="none" />
@@ -1090,26 +1109,49 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 ) : (
                   <>
                     <View style={trS.recoBox}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={{ fontSize: fs(13) }}>📍</Text>
+                        <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13.5), color: 'rgba(255,255,255,0.9)', marginLeft: 5 }} numberOfLines={1}>
+                          {goOriginInfo.placeholder ? '출발지 미설정' : `${goOriginInfo.label} 출발`}
+                        </Text>
+                      </View>
+                      {/* 권장 출발 + 소요시간 — 둘 다 핵심이라 나란히 크게(소요시간이 안 보이던 것 보강) */}
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={trS.recoLabel}>추천 출발</Text>
-                          <Text style={[trS.recoTime, { fontSize: fs(38), lineHeight: 42 }]}>{recommended}</Text>
+                          <Text style={[trS.recoLabel, { marginBottom: 3 }]}>출발 권장</Text>
+                          <Text style={[trS.recoTime, { fontSize: fs(40), lineHeight: 44, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }]}>{recommended}</Text>
                         </View>
-                        <Text style={{ fontSize: fs(22), color: 'rgba(245,230,168,0.55)', marginHorizontal: 8 }}>→</Text>
+                        <View style={{ width: 1, height: 40, backgroundColor: 'rgba(245,230,168,0.25)', marginHorizontal: 14 }} />
                         <View style={{ flex: 1 }}>
-                          <Text style={trS.recoLabel}>도착 예정</Text>
-                          <Text style={[trS.recoTime, { fontSize: fs(38), lineHeight: 42 }]}>{arrival}</Text>
+                          <Text style={[trS.recoLabel, { marginBottom: 3 }]}>소요시간</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(28), color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                            {driveMin != null ? formatDriveMin(driveMin) : ((goOriginCoord || originResolving) ? '계산 중' : `약 ${formatDriveMin(recoDriveMin)}`)}
+                          </Text>
                         </View>
                       </View>
-                      <Text style={trS.recoSub}>
-                        티오프 {schedule.time} · {driveMin != null ? `운전 ${formatDriveMin(driveMin)} · ` : ''}여유 30분 포함
-                      </Text>
+                      <Text style={trS.recoSub}>티오프 {schedule.time} · {arrival} 도착 (30분 전)</Text>
                     </View>
-                    <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
-                      {driveMin != null
-                        ? 'ⓘ 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요'
-                        : 'ⓘ 출발지 좌표가 있어야 실제 소요시간으로 계산해요 (지금은 기본 추정치)'}
-                    </Text>
+                    {driveMin != null && trSlots.goOrigin.mode !== 'current' ? (
+                      <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
+                        ⓘ 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요
+                      </Text>
+                    ) : (driveMin == null && (goOriginCoord || originResolving)) ? (
+                      // 좌표는 있고(또는 GPS·지오코딩 진행 중) 소요 계산 전 — 깜빡임 없이 '계산 중'
+                      <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
+                        ⓘ 소요시간 계산 중…
+                      </Text>
+                    ) : (
+                      // 마이페이지 설정 유도 — 또렷한 박스로(작은 ⓘ는 잘 안 보임). 현재위치로 계산된 경우/미설정 모두.
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -6, marginBottom: 14,
+                        backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.45)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 }}>
+                        <Text style={{ fontSize: fs(15) }}>📍</Text>
+                        <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)', lineHeight: fs(18) }}>
+                          {driveMin != null
+                            ? '지금은 현재 위치 기준 · 마이페이지에서 출발지를 설정하면 매번 자동으로 계산돼요'
+                            : '마이페이지에서 출발지를 설정하면 정확한 출발 시간을 알려드려요 (지금은 기본 추정치)'}
+                        </Text>
+                      </View>
+                    )}
                   </>
                 )}
                 {renderSlot('goOrigin', '출발')}
