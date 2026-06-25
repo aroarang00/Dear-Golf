@@ -18,6 +18,7 @@ import { anonNick } from '../utils/anonNick';
 import { shareRoundup } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
 import { RoundupTeamScreen } from './RoundupTeamScreen';
+import { isTeamPlanFilled } from '../utils/roundup';
 
 // 참여자 아바타 색상
 const AV = [
@@ -674,13 +675,24 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               </View>
 
               {/* 단체팀 — 조 편성·팀별 티오프 화면. 단체 모집 + 참여자(주최자·확정자)만 노출 ([[event-model]]) */}
-              {isTeam && (isMine || joined) && (
+              {isTeam && (isMine || joined) && (() => {
+                // 조 편성 입력 여부 배지 — 주최자가 입력 전인지(앰버 '편성 전') / 입력했는지(그린 '✓ 편성 완료')
+                //   한눈에. 빈 기본값과 실제 편성을 구분하는 isTeamPlanFilled로 판정 ([[event-model]]).
+                const teamFilled = isTeamPlanFilled(post);
+                return (
                 <TouchableOpacity onPress={() => setTeamOpen(true)} activeOpacity={0.85}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    marginBottom: _and ? 8 : 10, borderRadius: 10, paddingVertical: _and ? 9 : 11, backgroundColor: C.navy }}>
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                    marginBottom: _and ? 8 : 10, borderRadius: 10, paddingVertical: _and ? 9 : 11, paddingHorizontal: 14, backgroundColor: C.navy }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.butter }}>🗂 단체팀 · 조 편성 · 티오프</Text>
+                  <View style={{ borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3,
+                    backgroundColor: teamFilled ? '#6B8B5E' : '#E8C77E' }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: teamFilled ? '#fff' : '#5A4500' }}>
+                      {teamFilled ? '✓ 편성 완료' : '편성 전'}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
-              )}
+                );
+              })()}
 
               {/* 주최자 — 이름 표시. 매너·주최횟수·신뢰배지는 친구모집(전체공개 OFF)에선 무의미해 숨김([[roundup-friend-redesign]]) */}
               <View

@@ -172,6 +172,21 @@ export async function updateRoundupTeamPlan(postId, { teamPlan, teamNotice }) {
   await updateDoc(doc(db, COLLECTION, postId), patch);
 }
 
+// 단체 조 편성이 '실제로' 입력됐는지 — 세부코스명·멤버메모가 있거나 조(티오프)를 둘 이상 둔 경우.
+//   빈 기본값([{course:'', flights:[{tee:time, note:''}]}])이나 teamPlan 미존재는 '미입력'으로 본다
+//   (저장 시 첫 조 tee는 post.time과 동기화돼 항상 차므로 tee만으론 입력 여부를 가릴 수 없음).
+//   진입 버튼 배지('편성 전'/'편성 완료')에서 주최자가 입력했는지 한눈에 보이게 하는 용도 ([[event-model]]).
+export function isTeamPlanFilled(post) {
+  const plan = post?.teamPlan;
+  if (!Array.isArray(plan) || plan.length === 0) return false;
+  const flightCount = plan.reduce((n, g) => n + (Array.isArray(g?.flights) ? g.flights.length : 0), 0);
+  if (plan.length > 1 || flightCount > 1) return true;
+  return plan.some((g) =>
+    (g?.course || '').trim() ||
+    (Array.isArray(g?.flights) && g.flights.some((f) => (f?.note || '').trim()))
+  );
+}
+
 // ── 참여 신청·취소 (참여자 액션) ───────────────────────────────
 
 // 참여 신청 — participantUids에 me 추가, joined +1.
