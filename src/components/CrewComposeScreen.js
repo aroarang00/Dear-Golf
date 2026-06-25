@@ -196,6 +196,11 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
     } catch (e) { if (__DEV__) console.warn('[crewCompose] addVideo', e?.message); }
   };
   const removeMedia = (i) => setMedia((p) => p.filter((_, idx) => idx !== i));
+  // 사진 순서 — 이웃과 자리 교환(◀=앞으로, ▶=뒤로). 드래그 대신 탭(중장년 친화·모달서 견고). 피드 표시 순서가 이 순서.
+  const moveMedia = (i, dir) => {
+    const j = i + dir;
+    setMedia((p) => { if (j < 0 || j >= p.length) return p; const n = [...p]; [n[i], n[j]] = [n[j], n[i]]; return n; });
+  };
 
   const limit = isNotice ? MAX_NOTICE : MAX_TEXT;
   const canPost = isNotice ? text.trim().length > 0 : (text.trim().length > 0 || media.length > 0);
@@ -307,20 +312,21 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
 
               {/* 안내 + 갯수 (버튼 아래) — 사진은 탭하면 잘라서 편집 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>사진·영상 탭하면 잘라서 편집 · 최대 10개(영상 1개·30초)</Text>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>탭=잘라서 편집 · ◀▶=순서 · 최대 10개(영상 1개·30초)</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: media.length > 0 ? SAGE_DEEP : SUB }}>{media.length}/{MAX_MEDIA}</Text>
               </View>
 
-              {/* 추가된 사진·영상 — 버튼 아래 가로 배열. 사진 탭=크롭 편집 */}
+              {/* 추가된 사진·영상 — 가로 배열. 사진 탭=크롭 편집, ◀▶=순서 */}
               {media.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                   {media.map((m, i) => {
                     // 편집 가능 = 사진 / 새로 올린 영상(로컬 포스터). 이미 게시된 영상(https 포스터)은 편집 미제공.
                     const editable = m.type === 'image' || (m.type === 'video' && m.poster && !/^https?:\/\//.test(m.poster));
                     return (
-                    <TouchableOpacity key={i} activeOpacity={editable ? 0.8 : 1}
+                    <View key={i} style={{ marginRight: 8, alignItems: 'center' }}>
+                    <TouchableOpacity activeOpacity={editable ? 0.8 : 1}
                       onPress={() => openCrop(m, i)}
-                      style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: 'rgba(26,61,82,0.08)',
+                      style={{ width: 86, height: 86, borderRadius: 10, backgroundColor: 'rgba(26,61,82,0.08)',
                       alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                       {m.type === 'image'
                         ? <Image source={{ uri: m.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
@@ -344,6 +350,22 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
                         <Text style={{ fontSize: fs(11), color: '#fff' }}>✕</Text>
                       </TouchableOpacity>
                     </TouchableOpacity>
+                    {/* 순서 변경 — ◀ 앞으로 / ▶ 뒤로 (사진 2개 이상일 때만). 피드 노출 순서가 이 순서 */}
+                    {media.length > 1 && (
+                      <View style={{ flexDirection: 'row', width: 86, marginTop: 5, justifyContent: 'space-between' }}>
+                        <TouchableOpacity onPress={() => moveMedia(i, -1)} disabled={i === 0} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          style={{ width: 38, height: 26, borderRadius: 7, alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: i === 0 ? 'rgba(26,61,82,0.04)' : 'rgba(143,176,107,0.18)' }}>
+                          <Text style={{ fontSize: fs(15), color: i === 0 ? 'rgba(26,61,82,0.25)' : SAGE_DEEP, marginTop: -1 }}>◀</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => moveMedia(i, 1)} disabled={i === media.length - 1} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          style={{ width: 38, height: 26, borderRadius: 7, alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: i === media.length - 1 ? 'rgba(26,61,82,0.04)' : 'rgba(143,176,107,0.18)' }}>
+                          <Text style={{ fontSize: fs(15), color: i === media.length - 1 ? 'rgba(26,61,82,0.25)' : SAGE_DEEP, marginTop: -1 }}>▶</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    </View>
                     );
                   })}
                 </ScrollView>
