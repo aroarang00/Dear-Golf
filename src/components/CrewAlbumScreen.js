@@ -6,6 +6,7 @@ import Animated, { SlideInRight } from 'react-native-reanimated';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { CrewAvatar } from './common/CrewAvatar';
+import { LinkText } from './common/LinkText';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
@@ -545,7 +546,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         </TouchableOpacity>
       </View>
       {!!p.text && (
-        <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</Text>
+        <LinkText style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</LinkText>
       )}
       {p.media.length > 0 && (
         <View style={{ marginTop: 11 }}>

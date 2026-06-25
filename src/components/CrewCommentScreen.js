@@ -13,6 +13,7 @@ import { subscribeCrewComments, addCrewComment, editCrewComment, deleteCrewComme
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { PhotoViewer } from './common/PhotoViewer';
+import { LinkText } from './common/LinkText';
 import { ReportModal } from './ReportModal';
 import { AppAlertHost, showAppAlert } from './AppAlert';
 
@@ -303,7 +304,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
             </View>
           </View>
           {!!post?.text && (
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(15.5), color: INK, marginTop: 10, lineHeight: fs(22) }}>{post.text}</Text>
+            <LinkText style={{ fontFamily: F.sysM, fontSize: fs(15.5), color: INK, marginTop: 10, lineHeight: fs(22) }}>{post.text}</LinkText>
           )}
           {media.length > 0 && (
             <View style={{ marginTop: 11 }}>
@@ -340,7 +341,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                       <Text style={{ fontSize: fs(17), color: SUB }}>⋯</Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(15.5), color: INK, marginTop: 2, lineHeight: fs(21) }}>{cm.body}</Text>
+                  <LinkText style={{ fontFamily: F.sys, fontSize: fs(15.5), color: INK, marginTop: 2, lineHeight: fs(21) }}>{cm.body}</LinkText>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
                     <TouchableOpacity onPress={() => toggleLike(cm)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                       style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -366,7 +367,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                             <Text style={{ fontSize: fs(15), color: SUB }}>⋯</Text>
                           </TouchableOpacity>
                         </View>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
+                        <LinkText style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</LinkText>
                         <TouchableOpacity onPress={() => toggleLike(r)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                           style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, alignSelf: 'flex-start' }}>
                           <Icon name={r.liked ? 'heartFilled' : 'heart'} size={fs(14)} color={r.liked ? HEART_RED : SUB} strokeWidth={1.9} />
