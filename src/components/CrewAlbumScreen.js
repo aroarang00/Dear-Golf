@@ -75,6 +75,20 @@ function fmtTime(ts) {
   return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
 }
 
+// 게시글 작성 시점 — 상대시간 대신 '날짜 + 시간'으로 표시(언제 올렸는지 명확). 같은 해는 연도 생략.
+function fmtDateTime(ts) {
+  const ms = ts?.toMillis ? ts.toMillis() : 0;
+  if (!ms) return '방금';
+  const d = new Date(ms);
+  const now = new Date();
+  const h = d.getHours();
+  const time = `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const date = d.getFullYear() === now.getFullYear()
+    ? `${d.getMonth() + 1}월 ${d.getDate()}일`
+    : `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
+  return `${date} ${time}`;
+}
+
 // 사진 있으면 프로필 사진, 없으면 이니셜. onPress=프로필(DM) 시트, i>0이면 겹쳐쌓기.
 function MiniAvatar({ n, c, i = 0, size = 30, uri, onPress }) {
   const base = { width: size, height: size, borderRadius: size / 2, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -(size * 0.3) };
@@ -407,7 +421,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
     return {
       id: p.id,
       author: { id: p.authorUid, name, n: name.charAt(0), c: colorOf(p.authorUid), uri: d.avatarUri || null },
-      time: fmtTime(p.createdAt), text: p.text || '', media: p.media || [], comments: p.commentCount || 0,
+      time: fmtDateTime(p.createdAt), text: p.text || '', media: p.media || [], comments: p.commentCount || 0,
       likedBy, liked: !!currentUid && likedBy.includes(currentUid), likeCount: likedBy.length,
       lastCommentText: p.lastCommentText || '', lastCommentName: lcName,
       // 신호 — seenAt(마지막 본 시각) 기준. 첫 진입(seenAt=0)은 전부 NEW로 도배되지 않게 억제.

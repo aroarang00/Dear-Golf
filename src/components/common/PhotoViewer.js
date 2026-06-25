@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
@@ -10,6 +11,8 @@ import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 
 const { width: SW, height: SH } = Dimensions.get('window');
+// 안드 엣지투엣지 — 하단 시스템 내비바 높이(없으면 0). '게시글 보기' 버튼이 내비바에 가리지 않게 띄움.
+const NAV_BOTTOM = Platform.OS === 'android' ? (initialWindowMetrics?.insets?.bottom || 0) : 0;
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
 // 외부에서 비율 미리 심기 — DM 말풍선 등에서 먼저 로드된 사진의 실비율을 뷰어 캐시에 넣어두면
@@ -369,7 +372,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
         {/* 게시글 보기 — 갤러리에서 연 경우(onGoToPost) 원글(글·댓글)로 이동. 확대 중엔 숨김. */}
         {onGoToPost && !zoomed && current ? (
           <TouchableOpacity onPress={() => onGoToPost(current)} activeOpacity={0.85}
-            style={{ position: 'absolute', bottom: 42, alignSelf: 'center', zIndex: 20, flexDirection: 'row', alignItems: 'center', gap: 5,
+            style={{ position: 'absolute', bottom: 42 + NAV_BOTTOM, alignSelf: 'center', zIndex: 20, flexDirection: 'row', alignItems: 'center', gap: 5,
               backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>게시글 보기</Text>
             <Text style={{ fontSize: fs(15), color: '#fff', marginTop: -1 }}>›</Text>
