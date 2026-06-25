@@ -149,39 +149,59 @@ function FeedMedia({ m }) {
   );
 }
 
-// 여러 장 — 풀폭 스와이프 캐러셀. 한 장씩 꽉 차게 넘겨보고, 각 사진은 안 잘리게(contain) 통째로. 하단 페이지 점.
-//   캐러셀 높이는 첫 장 비율 기준(보통 한 게시물은 방향이 비슷) — 다른 비율은 여백 두고 전체 표시.
-function SwipeCarousel({ media, width, onOpen }) {
-  const [ar, setAr] = useState(() => clampAR(media[0]?.ar) || 1);
-  const [page, setPage] = useState(0);
-  const height = Math.round(width / ar);
+// 여러 장 — 콜라주 그리드(좌우 스와이프 대신 한눈에). 2=나란히 / 3=좌 큰 1+우 작은 2 / 4=2×2 / 5장+=2×2에 마지막 +N.
+//   각 타일 탭 = 풀스크린 뷰어(그 인덱스부터, 거기선 전체 스와이프). 더블탭=좋아요는 상위 PostMedia가 처리.
+function CrewGrid({ media, width, onOpen }) {
+  const G = 3;
+  const n = media.length;
+  const srcOf = (m) => (m?.type === 'video' ? (m.poster || m.uri) : (m?.thumb || m?.uri));
+  const tile = (idx, w, h, more = 0) => {
+    const m = media[idx];
+    const uri = srcOf(m);
+    return (
+      <TouchableOpacity key={idx} activeOpacity={0.95} onPress={() => onOpen(idx)}
+        style={{ width: w, height: h, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={Platform.OS === 'android' ? 0 : 120} />
+             : <Icon name="image" size={fs(26)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
+        {m?.type === 'video' && (
+          <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: fs(17), color: '#fff', marginLeft: 2 }}>▶</Text>
+          </View>
+        )}
+        {more > 0 && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: '#fff' }}>+{more}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+  const box = { borderRadius: 14, overflow: 'hidden' };
+  if (n === 2) {
+    const t = Math.round((width - G) / 2);
+    return <View style={{ ...box, flexDirection: 'row' }}>{tile(0, t, t)}<View style={{ width: G }} />{tile(1, t, t)}</View>;
+  }
+  if (n === 3) {
+    const H = Math.round(width * 0.62);
+    const leftW = Math.round((width - G) * 0.62);
+    const rightW = width - G - leftW;
+    const rh = Math.round((H - G) / 2);
+    return (
+      <View style={{ ...box, flexDirection: 'row' }}>
+        {tile(0, leftW, H)}
+        <View style={{ width: G }} />
+        <View style={{ width: rightW }}>{tile(1, rightW, rh)}<View style={{ height: G }} />{tile(2, rightW, rh)}</View>
+      </View>
+    );
+  }
+  // 4장 이상 — 2×2(마지막 칸 +N)
+  const t = Math.round((width - G) / 2);
+  const extra = n - 4;
   return (
-    <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(26,61,82,0.06)' }}>
-      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width, height }}
-        onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}>
-        {media.map((m, mi) => {
-          const uri = m?.type === 'video' ? (m.poster || m.uri) : (m?.thumb || m?.uri); // 캐러셀=썸네일(있으면)
-          return (
-            <TouchableOpacity key={mi} activeOpacity={0.97} onPress={() => onOpen(mi)}
-              style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
-              {uri ? <ImageWithSpinner uri={uri}
-                       onLoad={(mi === 0 && !media[0]?.ar) ? (e) => { const a = clampAR((e?.source?.width || 0) / (e?.source?.height || 1)); if (a) setAr(a); } : undefined} />
-                   : <Icon name="image" size={fs(30)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
-              {m?.type === 'video' && (
-                <View style={{ position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: fs(20), color: '#fff', marginLeft: 2 }}>▶</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-      {/* 우상단 장수 뱃지 — 점 대신(10장이어도 깔끔). 예: 3/10 */}
-      {media.length > 1 && (
-        <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 11, paddingHorizontal: 9, paddingVertical: 3 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: '#fff' }}>{page + 1}/{media.length}</Text>
-        </View>
-      )}
+    <View style={box}>
+      <View style={{ flexDirection: 'row' }}>{tile(0, t, t)}<View style={{ width: G }} />{tile(1, t, t)}</View>
+      <View style={{ height: G }} />
+      <View style={{ flexDirection: 'row' }}>{tile(2, t, t)}<View style={{ width: G }} />{tile(3, t, t, extra > 0 ? extra : 0)}</View>
     </View>
   );
 }
@@ -197,7 +217,7 @@ function PostMedia({ media, width, onOpen, onDoubleLike, burst }) {
           <FeedMedia m={media[0]} />
         </TouchableOpacity>
       ) : (
-        <SwipeCarousel media={media} width={width} onOpen={(mi) => handleTap(mi)} />
+        <CrewGrid media={media} width={width} onOpen={(mi) => handleTap(mi)} />
       )}
       {burst && (
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
