@@ -23,7 +23,7 @@ import {
 } from '../utils/friendRequestLimit';
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
 import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 친구 탭 첫 진입 즉시 시드
-import { loadFriendData, setFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
+import { loadFriendData, setFriendMeta, pruneFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
 import { useBlockUser } from '../hooks/useBlockUser';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds, recomputeMyGroupAudiences } from '../utils/round';
@@ -392,6 +392,20 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     });
   }, [blockedIds]);
 
+  // 유령 메타 정리 — 상대가 나를 끊어/차단해 friendMeta에 남은 '이미 친구 아닌' 항목을 친구 화면 진입 시 1회 가지치기.
+  //   카운트 부풀림(관리 모달)·group 글 공개대상 잔재 제거. friends 로드 성공(>0)일 때만(빈/실패 시 전체삭제 방지).
+  const prunedGhostsRef = React.useRef(false);
+  useEffect(() => {
+    if (prunedGhostsRef.current || !currentUid || !friendsLoaded || friends.length === 0) return;
+    prunedGhostsRef.current = true;
+    (async () => {
+      try {
+        const updated = await pruneFriendMeta(friends.map(f => f.id));
+        if (updated) { setFriendData(updated); recomputeMyGroupAudiences(updated.friendMeta); }
+      } catch (e) { if (__DEV__) console.warn('[FriendsTab] prune ghost meta', e?.message); }
+    })();
+  }, [currentUid, friendsLoaded, friends.length]);
+
   const q = search.trim();
   // 미지정 = 어떤 그룹에도 안 속한 친구. 전체(catch-all)엔 항상 보임 — 1명 이상일 때만 칩 노출 ([[friend_groups]])
   const ungroupedList = friends.filter(f => !hidden[f.id] && !(friendData.friendMeta[f.id]?.groupIds || []).length);
@@ -676,7 +690,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           </AttentionMotion>
         )}
         {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
-        {friends.length > 0 && Object.values(friendData.friendMeta).some(m => (m.groupIds || []).length) && (
+        {friends.length > 0 && friends.some(f => (friendData.friendMeta[f.id]?.groupIds || []).length) && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: _and ? 8 : 12 }}
             contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
             {[
@@ -859,6 +873,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         visible={groupManageOpen}
         hiddenFriends={hiddenFriends}
         onUnhide={unhideFriend}
+        friendUids={friends.map(f => f.id)}
         onClose={() => {
           setGroupManageOpen(false);
           loadFriendData().then(setFriendData).catch(() => {});

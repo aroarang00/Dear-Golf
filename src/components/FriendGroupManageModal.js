@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,8 +15,10 @@ import { loadMyUsedGroupIds } from '../utils/round';
 // 친구 그룹 관리 — MyPage 설정 진입. 추가·이름변경·삭제(빈 그룹만)·순서. 최대 MAX_FRIEND_GROUPS개.
 //   삭제 가드(c안): 멤버 0 + 이 그룹으로 올린 글 0 일 때만. (피드 동적이라 글 있는 그룹 삭제 시 과거글 숨겨짐 회피)
 //   그룹·소속은 owner-only(친구에겐 안 보임). ([[friend_groups]])
-export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], onUnhide }) {
+export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], onUnhide, friendUids = [] }) {
   const insets = useSafeAreaInsets();
+  // 현재 친구 uid 집합 — 그룹 카운트를 실제 친구로 한정(상대가 나를 끊어 friendMeta에 남은 유령 제외)
+  const validUids = useMemo(() => new Set(friendUids), [friendUids]);
   const [groups, setGroups] = useState([]);
   const [friendMeta, setFriendMeta] = useState({});
   const [usedIds, setUsedIds] = useState(new Set());
@@ -118,7 +120,7 @@ export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], o
             </Text>
 
             {groups.map((g, i) => {
-              const members = groupMemberCount(friendMeta, g.id);
+              const members = groupMemberCount(friendMeta, g.id, validUids);
               const locked = members > 0 || usedIds.has(g.id);
               const isEditing = editingId === g.id;
               return (

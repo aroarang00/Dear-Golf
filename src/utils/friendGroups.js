@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
 // =============================================================
@@ -117,9 +117,13 @@ export function groupName(friendGroups, groupId, fallback = '그룹') {
 }
 
 // 한 그룹에 속한 친구 수 — 단일소속이라 groupIds[0] 비교(배열엔 0~1개). 삭제 가능 판단용.
-export function groupMemberCount(friendMeta, groupId) {
+//   validUids(현재 친구 uid Set/배열)를 주면 그 안의 친구만 셈 — '상대가 나를 끊어' friendMeta에 남은
+//   유령(이미 내 친구 아님)이 카운트에 끼는 것 방지([[friend_groups]] 카운트 정확도).
+export function groupMemberCount(friendMeta, groupId, validUids) {
   if (!friendMeta || !groupId) return 0;
+  const valid = validUids ? (validUids instanceof Set ? validUids : new Set(validUids)) : null;
   return Object.keys(friendMeta).filter(uid => {
+    if (valid && !valid.has(uid)) return false;
     const g = friendMeta[uid] && friendMeta[uid].groupIds;
     return Array.isArray(g) && g.includes(groupId);
   }).length;
@@ -151,6 +155,33 @@ export function ownerVisibilityLabel(friendGroups, visibility, audienceGroupIds)
     }
   }
   return null; // friends(친구 전체) 등 — 라벨 없음
+}
+
+// 유령 메타 가지치기 — friendMeta에서 '현재 친구(validUids)가 아닌' 항목 제거.
+//   상대가 나를 끊거나 차단하면(=상대 쪽에서 friendship 삭제) 내 friendMeta엔 그 사람이 그룹 소속인 채 남는다.
+//   이게 카운트·group 글 공개대상에 남으면 안 됨 → 친구 화면 진입 시 1회 호출해 정리. 변경 있을 때만 1 write.
+//   ★merge 아닌 updateDoc으로 friendMeta 맵 전체 교체(merge면 사라진 키가 안 지워짐). 반환: 갱신된 {friendGroups,friendMeta} 또는 null.
+export async function pruneFriendMeta(validUids) {
+  const uid = await getUid();
+  if (!uid) return null;
+  const valid = validUids instanceof Set ? validUids : new Set(validUids || []);
+  if (valid.size === 0) return null;   // 친구 0(또는 로드 실패) — 전체 삭제 위험 회피, 가지치기 안 함
+  const ref = privRef(uid);
+  let cur;
+  try {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    cur = snap.data();
+  } catch (e) { if (__DEV__) console.warn('[friendGroups] pruneFriendMeta read', e?.message); return null; }
+  const oldMeta = normMeta(cur.friendMeta);
+  const ghosts = Object.keys(oldMeta).filter((u) => !valid.has(u));
+  if (!ghosts.length) return null;     // 유령 없음 — 쓰기 안 함
+  const friendMeta = {};
+  Object.keys(oldMeta).forEach((u) => { if (valid.has(u)) friendMeta[u] = oldMeta[u]; });
+  try {
+    await updateDoc(ref, { friendMeta, updatedAt: serverTimestamp() });
+  } catch (e) { if (__DEV__) console.warn('[friendGroups] pruneFriendMeta write', e?.message); return null; }
+  return { friendGroups: normGroups(cur.friendGroups), friendMeta };
 }
 
 // 그룹 목록 통째 저장 (관리 화면 CRUD 공용) — friendMeta는 안 건드림. 반환 성공여부.
