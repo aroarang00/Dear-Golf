@@ -361,6 +361,12 @@ test('crews: 좋아요는 멤버가 본인 uid만 토글, 남의 좋아요 위�
   await assertSucceeds(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'), { likedBy: arrayRemove('bob') }));
   // 남의 uid 끼워넣기(좋아요 위조) — 거부
   await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'), { likedBy: arrayUnion('alice') }));
+  // 본인 토글하며 남 좋아요 끼워넣기(번들 위조) — 거부
+  await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'), { likedBy: ['bob', 'alice'] }));
+  // 본인 토글하며 남 좋아요 제거(번들 위조) — 거부
+  await seed((db) => setDoc(doc(db, 'crews/c1/posts', 'p1'),
+    { authorUid: 'alice', text: '굿샷', media: [], likedBy: ['alice'], createdAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'), { likedBy: ['bob'] }));
   // 외부인 — 거부
   await assertFails(updateDoc(doc(as('carol'), 'crews/c1/posts', 'p1'), { likedBy: arrayUnion('carol') }));
 });
