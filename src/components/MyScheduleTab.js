@@ -754,7 +754,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
               .map(s => {
                 // '완료'(미기록·기록추가 노출) 판정 = 날짜 지남 OR 같은 날이라도 티오프+5h 경과(라운딩 끝남).
                 //   기존엔 날짜 기준이라 D-0엔 라운딩이 끝나도 다음날까지 '예정'으로 남아 기록 버튼이 안 떴음(사용자 2026-06-20).
-                const past = new Date(s.date.replace(/\./g, '-')).getTime() < todayMid || roundEnded(s);
+                const past = new Date(String(s.date || '').replace(/\./g, '-')).getTime() < todayMid || roundEnded(s);
                 const rec = hasRecordForSched(s);
                 let status, sideColor, badgeBg, badgeFg, badgeTxt;
                 if (rec) {

@@ -801,7 +801,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 </Text>
                 {post.companions?.length > 0 && !isTeam ? (
                   <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginLeft: 8 }}>
-                    (동반자 {post.companions.map(n => n).join(', ')} 포함)
+                    (동반자 {post.companions.map(c => (typeof c === 'string' ? c : c?.name)).filter(Boolean).join(', ')} 포함)
                   </Text>
                 ) : null}
               </View>

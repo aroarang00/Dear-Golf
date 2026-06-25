@@ -405,7 +405,7 @@ export function HomeScreen({ navigation, route }) {
   // 빈 time(자동 등록 등)은 정렬 끝으로 — 시간 정보 있는 일정 우선
   const parseSchedTime = (s) => {
     if (!s?.time) return 24 * 60;
-    const [hh, mm] = s.time.split(':').map(Number);
+    const [hh, mm] = String(s.time).split(':').map(Number);
     return (hh || 0) * 60 + (mm || 0);
   };
   // 일정-다이어리 매칭 — scheduleId 우선, course+date fallback ([[home-multi-schedule-same-day]] 룰3)
