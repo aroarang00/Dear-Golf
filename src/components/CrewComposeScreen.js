@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform, ActivityIndicator, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 모달 입력 가림 방지
@@ -121,13 +121,14 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const [draftRestored, setDraftRestored] = useState(false); // 임시저장 글 복원됨(배너 표시)
   const { width: winW } = useWindowDimensions();
   const isNewPost = !editing && !editingNotice;        // 새 글 작성(임시저장 대상 — 수정·공지 제외)
+  const draftTouchedRef = useRef(false);               // 사용자가 입력 시작했는지 — 복원이 방금 친 글 덮어쓰는 레이스 방지
 
   // 임시저장 불러오기 — 새 글 작성 진입 시 이전에 쓰다 만 글 복원(글만, 미디어는 휘발이라 제외)
   useEffect(() => {
     if (!isNewPost || !crewId) return;
     let alive = true;
     storage.load(STORAGE_KEYS.crewDraft, {}).then((m) => {
-      if (!alive) return;
+      if (!alive || draftTouchedRef.current) return;   // 로드 늦게 와도 이미 타이핑 시작했으면 복원 안 함
       const d = (m || {})[crewId];
       if (d && d.trim()) { setText(d); setDraftRestored(true); }
     });
@@ -327,7 +328,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
           )}
 
           {/* 글 */}
-          <TextInput value={text} onChangeText={(t) => { setText(t); if (err) setErr(''); }} multiline maxLength={limit}
+          <TextInput value={text} onChangeText={(t) => { draftTouchedRef.current = true; setText(t); if (err) setErr(''); }} multiline maxLength={limit}
             allowFontScaling={false} placeholder={isNotice ? '공지 내용을 입력하세요' : '크루와 나눌 소식을 적어보세요'} placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, padding: 14,
               fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: (editing || editingNotice) ? 0 : 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
