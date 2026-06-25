@@ -227,10 +227,17 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
+    // 삭제 대상이 '최신 댓글'이면 피드 미리보기 재계산용 newLatest 산출(이미 로드된 목록 사용 — 추가 read 0)
+    let newLatest;
+    const docs = commentDocs || [];
+    if (docs.length && docs[docs.length - 1].id === a.id) {
+      const prev = docs.length >= 2 ? docs[docs.length - 2] : null;
+      newLatest = prev ? { by: prev.authorUid, text: prev.body || '', at: prev.createdAt || null } : null;
+    }
     showAppAlert('댓글을 삭제할까요?', '이 댓글이 삭제돼요.', [
       { text: '취소', style: 'cancel' },
       { text: '삭제', style: 'destructive', onPress: async () => {
-        try { await deleteCrewComment(crewId, postId, a.id); }
+        try { await deleteCrewComment(crewId, postId, a.id, { newLatest }); }
         catch (e) { if (__DEV__) console.warn('[crewComment] delete', e?.code, e?.message); }
       } },
     ]);
@@ -252,8 +259,9 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
     if (!currentUid || !crewId || !postId) return;
     if (editingComment) {
       const { id } = editingComment;
+      const isLatest = (commentDocs || []).length > 0 && commentDocs[commentDocs.length - 1].id === id;
       setDraft(''); setCErr(''); setEditingComment(null); setSending(true);
-      try { await editCrewComment(crewId, postId, id, { body }); }
+      try { await editCrewComment(crewId, postId, id, { body, isLatest }); }
       catch (e) { if (__DEV__) console.warn('[crewComment] editComment', e?.code, e?.message); setDraft(body); setEditingComment({ id }); }
       finally { setSending(false); }
       return;

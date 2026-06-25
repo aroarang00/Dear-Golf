@@ -314,11 +314,14 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     const d = display[p.authorUid] || {};
     const name = d.name || namesFallback[p.authorUid] || '친구';
     const likedBy = p.likedBy || [];
+    const lcBy = p.lastCommentBy || null;
+    const lcName = lcBy ? ((display[lcBy] || {}).name || namesFallback[lcBy] || '친구') : '';
     return {
       id: p.id,
       author: { id: p.authorUid, name, n: name.charAt(0), c: colorOf(p.authorUid), uri: d.avatarUri || null },
       time: fmtTime(p.createdAt), text: p.text || '', media: p.media || [], comments: p.commentCount || 0,
       likedBy, liked: !!currentUid && likedBy.includes(currentUid), likeCount: likedBy.length,
+      lastCommentText: p.lastCommentText || '', lastCommentName: lcName,
       _doc: p,
     };
   }), [postDocs, display, currentUid]);
@@ -520,6 +523,15 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
           <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
         </TouchableOpacity>
       </View>
+      {/* 최신 댓글 한 줄 미리보기 — 들어가지 않아도 누가 뭐라 했는지 보임. 탭=댓글 화면 */}
+      {!!p.lastCommentText && (
+        <TouchableOpacity onPress={() => setCommentPost(p)} activeOpacity={0.7} style={{ marginTop: 8 }}>
+          <Text numberOfLines={1} style={{ fontSize: fs(13), color: SUB, lineHeight: fs(19) }}>
+            <Text style={{ fontFamily: F.sysB, color: INK }}>{p.lastCommentName}</Text>
+            <Text style={{ fontFamily: F.sys }}>  {p.lastCommentText}</Text>
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 

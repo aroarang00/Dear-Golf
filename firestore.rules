@@ -322,8 +322,10 @@ service cloud.firestore {
         }
         allow read:   if isSignedIn() && crewMember();
         allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid && crewMember();
-        // 댓글수(commentCount) 증가는 멤버 누구나 — 본문·작성자 불변
-        allow update: if isSignedIn() && crewMember() && changedKeysWithin(['commentCount']);
+        // 댓글수(commentCount) + 최신 댓글 미리보기 비정규화(lastComment*) — 멤버 누구나. 본문·작성자 불변.
+        //   lastCommentBy 위조는 표시 이름만 바뀜(어차피 멤버는 어떤 댓글도 달 수 있음) — 무해.
+        allow update: if isSignedIn() && crewMember()
+          && changedKeysWithin(['commentCount', 'lastCommentBy', 'lastCommentText', 'lastCommentAt']);
         // 좋아요 — 멤버가 likedBy에 '자기 uid'만 토글. .get 기본값으로 likedBy 없던 레거시 글도 첫 좋아요 허용.
         allow update: if isSignedIn() && crewMember()
           && changedKeysWithin(['likedBy'])

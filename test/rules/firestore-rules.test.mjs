@@ -377,3 +377,20 @@ test('crews: 댓글 좋아요도 멤버 본인 uid만 토글', async () => {
   await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts/p1/comments', 'cm1'), { likedBy: arrayUnion('alice') }));
   await assertFails(updateDoc(doc(as('carol'), 'crews/c1/posts/p1/comments', 'cm1'), { likedBy: arrayUnion('carol') }));
 });
+
+test('crews: 댓글수·최신댓글 미리보기 메타 갱신은 멤버만, 본문 위조 거부', async () => {
+  await seed((db) => Promise.all([
+    seedCrew(db, ['alice', 'bob'], []),
+    setDoc(doc(db, 'crews/c1/posts', 'p1'),
+      { authorUid: 'alice', text: '굿샷', media: [], commentCount: 0, createdAt: serverTimestamp() }),
+  ]));
+  // 멤버는 댓글수+미리보기 비정규화 OK
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'),
+    { commentCount: 1, lastCommentBy: 'bob', lastCommentText: '나이스', lastCommentAt: serverTimestamp() }));
+  // 외부인 — 거부
+  await assertFails(updateDoc(doc(as('carol'), 'crews/c1/posts', 'p1'),
+    { commentCount: 1, lastCommentText: 'x' }));
+  // 비작성자가 메타 핑계로 본문 위조(허용 키 밖) — 거부
+  await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'),
+    { text: '바뀜', commentCount: 1 }));
+});

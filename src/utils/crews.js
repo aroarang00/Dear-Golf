@@ -10,7 +10,7 @@ import { db } from './firebase';
 // 멤버십 = scheduleGroups 패턴(초대/수락 셀프토글, cross-user 쓰기 0 = CF 불필요).
 //   crews/{crewId}: { creatorUid, name, memberUids[], audienceUids[], declinedUids[], names{uid:name},
 //                     notice?, noticeBy?, noticeAt?, postCount?, lastPostAt?, createdAt, updatedAt }
-//   crews/{crewId}/posts/{postId}:            { authorUid, text, media:[{uri,type,poster?}], commentCount?, likedBy[], createdAt }
+//   crews/{crewId}/posts/{postId}:            { authorUid, text, media:[{uri,type,poster?}], commentCount?, likedBy[], lastCommentBy?, lastCommentText?, lastCommentAt?, createdAt }
 //   crews/{crewId}/posts/{postId}/comments/{commentId}: { authorUid, body, parentId?(대댓글), likedBy[], createdAt }
 //
 // 표시 이름은 보는 사람 각자 별명(friendDisplayName)으로 화면에서 resolve — 저장은 authorUid(+names 폴백).
@@ -216,12 +216,15 @@ export async function togglePostLike(crewId, postId, uid, on) {
 
 // ── 댓글 / 대댓글 (parentId 있으면 대댓글) ──
 export async function addCrewComment(crewId, postId, { authorUid, body = '', parentId = null }) {
-  if (!crewId || !postId || !authorUid || !(body || '').trim()) return null;
+  const text = (body || '').trim();
+  if (!crewId || !postId || !authorUid || !text) return null;
   const ref = await addDoc(collection(db, COL, crewId, 'posts', postId, 'comments'), {
-    authorUid, body: body.trim(), parentId: parentId || null, likedBy: [], createdAt: serverTimestamp(),
+    authorUid, body: text, parentId: parentId || null, likedBy: [], createdAt: serverTimestamp(),
   });
-  updateDoc(doc(db, COL, crewId, 'posts', postId), { commentCount: increment(1) })
-    .catch((e) => __DEV__ && console.warn('[crews] comment meta', e?.message));
+  // 최신 댓글 미리보기(피드 한 줄)·'내 글 새 반응' 신호(#7)용 비정규화. 표시 이름은 보는 사람이 resolve → uid만 저장.
+  updateDoc(doc(db, COL, crewId, 'posts', postId), {
+    commentCount: increment(1), lastCommentBy: authorUid, lastCommentText: text, lastCommentAt: serverTimestamp(),
+  }).catch((e) => __DEV__ && console.warn('[crews] comment meta', e?.message));
   return ref.id;
 }
 export function subscribeCrewComments(crewId, postId, cb) {
@@ -233,18 +236,28 @@ export function subscribeCrewComments(crewId, postId, cb) {
     cb(list);
   }, (e) => { if (__DEV__) console.warn('[crews] subscribeCrewComments', e?.message); cb([]); });
 }
-export async function deleteCrewComment(crewId, postId, commentId) {
+// ── 댓글 삭제 — newLatest: 삭제 대상이 '최신 댓글'일 때 남는 최신({by,text,at}) 또는 null(댓글 0개). 미전달=미리보기 불변 ──
+export async function deleteCrewComment(crewId, postId, commentId, { newLatest } = {}) {
   if (!crewId || !postId || !commentId) return;
   await deleteDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId));
-  updateDoc(doc(db, COL, crewId, 'posts', postId), { commentCount: increment(-1) })
+  const meta = { commentCount: increment(-1) };
+  if (newLatest !== undefined) {
+    meta.lastCommentBy = newLatest ? (newLatest.by || null) : null;
+    meta.lastCommentText = newLatest ? (newLatest.text || '') : '';
+    meta.lastCommentAt = newLatest ? (newLatest.at || null) : null;
+  }
+  updateDoc(doc(db, COL, crewId, 'posts', postId), meta)
     .catch((e) => __DEV__ && console.warn('[crews] comment dec', e?.message));
 }
-// ── 댓글 수정 — 작성자 본인(본문). editedAt 기록(작성자·parentId 불변) ──
-export async function editCrewComment(crewId, postId, commentId, { body = '' }) {
-  if (!crewId || !postId || !commentId || !(body || '').trim()) return;
+// ── 댓글 수정 — 작성자 본인(본문). editedAt 기록(작성자·parentId 불변). isLatest면 미리보기 텍스트도 갱신 ──
+export async function editCrewComment(crewId, postId, commentId, { body = '', isLatest = false }) {
+  const text = (body || '').trim();
+  if (!crewId || !postId || !commentId || !text) return;
   await updateDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId), {
-    body: body.trim(), editedAt: serverTimestamp(),
+    body: text, editedAt: serverTimestamp(),
   });
+  if (isLatest) updateDoc(doc(db, COL, crewId, 'posts', postId), { lastCommentText: text })
+    .catch((e) => __DEV__ && console.warn('[crews] comment edit meta', e?.message));
 }
 // ── 댓글 좋아요 토글 — likedBy 셀프토글(게시물 좋아요와 동일 규칙) ──
 export async function toggleCommentLike(crewId, postId, commentId, uid, on) {
