@@ -1,5 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';   // 대표사진 선택 썸네일
+import { resolvePhotoUri } from '../utils/photoStorage';   // dgphoto:/객체 URI 해석(카드와 동일)
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
@@ -42,6 +44,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const cardRef = useRef(null);
   const roundRefs = useRef([]);                          // 라운딩 카드 4종 캐러셀 — 각 ViewShot ref
   const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 기념/3 폴라로이드)
+  const [coverIdx, setCoverIdx] = useState(0);           // 카드 배경에 쓸 사진 인덱스 — 대표(0) 외 다른 업로드 사진도 선택 가능(공유 때만 일시 적용)
+  useEffect(() => { setCoverIdx(0); }, [moment?.id]);    // 다른 기록 열면 대표(0)로 초기화
   // DM 공유 — 친구 다중선택해 카드 이미지를 DM으로 한 번에 전송([[dm-design]] 사진공유)
   const [dmPickerOpen, setDmPickerOpen] = useState(false);
   const [friends, setFriends] = useState([]);
@@ -70,6 +74,13 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   };
 
   if (!moment) return null;
+
+  // 라운딩 카드 배경 사진 — 카드는 photos[0]을 배경으로 쓰므로, 고른 사진을 맨 앞으로 재정렬해 넘긴다.
+  //   원본 moment.photos(대표 순서)는 그대로 두고 공유 카드 렌더에만 일시 적용. 스코어카드는 사진 미사용.
+  const roundPhotos = (isRound && Array.isArray(moment.photos)) ? moment.photos : [];
+  const roundMoment = (coverIdx > 0 && roundPhotos.length > coverIdx)
+    ? { ...moment, photos: [roundPhotos[coverIdx], ...roundPhotos.filter((_, i) => i !== coverIdx)] }
+    : moment;
 
   const handleSave = async () => {
     if (saving) return;
@@ -216,7 +227,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                   {ROUND_CARDS.map((Comp, i) => (
                     <ViewShot key={i} ref={(el) => (roundRefs.current[i] = el)} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH }}>
                       <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
-                        <Comp item={moment} width={CARD_WIDTH} />
+                        <Comp item={roundMoment} width={CARD_WIDTH} />
                       </View>
                     </ViewShot>
                   ))}
@@ -249,6 +260,37 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 </View>
               </ViewShot>
             )}
+
+            {/* 대표 사진 고르기 — 업로드한 사진 중 카드 배경에 쓸 것을 일시 선택(원본 대표순서는 안 바뀜). 사진 2장↑일 때만.
+                매거진·기념·폴라로이드 카드에 즉시 반영(스코어카드는 사진 미사용). */}
+            {isRound && roundPhotos.length > 1 && (
+              <View style={{ marginTop: 18 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>
+                  카드 배경 사진
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 4 }}>
+                  {roundPhotos.map((p, i) => {
+                    const uri = resolvePhotoUri(typeof p === 'object' ? p?.uri : p);
+                    const sel = i === coverIdx;
+                    return (
+                      <TouchableOpacity key={i} onPress={() => setCoverIdx(i)} activeOpacity={0.8}
+                        style={{ width: 60, height: 60, borderRadius: 10, overflow: 'hidden',
+                          borderWidth: sel ? 2.5 : 1, borderColor: sel ? C.burgundy : C.hairline }}>
+                        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" />
+                        {sel && (
+                          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(107,30,42,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+                            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center' }}>
+                              <Text style={{ fontSize: fs(12), color: C.butter }}>✓</Text>
+                            </View>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8, lineHeight: 17, textAlign: 'center' }}>
               {(isRoundup || isSchedule || isInvite) && onShareLink
                 ? '‘공유하기’는 카드 이미지만 전송돼요(링크 없음).\n받는 분이 바로 열어볼 수 있게 ‘링크 공유’도 함께 보내주세요.'
