@@ -795,6 +795,30 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       </TouchableOpacity>
                     </View>
                   )}
+                  {/* 동반자 점수 공유 — OCR 카드 기반이라 결과 '바로 아래'에 둠(동반자 섹션에 묻혀 못 보던 것 개선, 사용자 제보).
+                      여러 명 인식(scRows≥2) + 친구 동반자 있으면 체크박스 / 없으면 동반자 추가 유도. */}
+                  {holeScores && Array.isArray(scRows) && scRows.length >= 2 && (
+                    companions.some(c => c.friendUid) ? (
+                      <TouchableOpacity onPress={() => setShareScores(s => !s)} activeOpacity={0.75}
+                        style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginTop: 10,
+                          backgroundColor: shareScores ? (C.burgundy + '0E') : C.bgSecondary, borderRadius: 11,
+                          borderWidth: 1, borderColor: shareScores ? C.burgundy : C.hairline, padding: 12 }}>
+                        <Text style={{ fontSize: fs(16), color: shareScores ? C.burgundy : C.warmGrayLight, marginTop: -1 }}>{shareScores ? '☑' : '☐'}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: shareScores ? C.burgundy : C.charcoal }}>동반자에게 스코어 공유</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 16 }}>
+                            친구 동반자에게 이 스코어카드를 보내요.{'\n'}각자 자기 점수를 골라 본인 기록에 바로 추가할 수 있어요.
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 11, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 17 }}>
+                          👥 여러 명이 인식된 카드예요 — 아래 <Text style={{ fontFamily: F.sysSb, color: C.burgundy }}>동반자</Text>에 친구를 넣으면 이 점수를 공유할 수 있어요.
+                        </Text>
+                      </View>
+                    )
+                  )}
                 </View>
               <SectionHead title="오늘의 기록" />
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
@@ -861,26 +885,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   )}
                 </View>
               )}
-              {/* 동반자에게 스코어 공유 — OCR로 여러 명 행이 잡혔고(scRows≥2) 친구 동반자가 있을 때만.
-                  체크 시 저장하며 친구 동반자에게 카드 전송 → 각자 자기 행 골라 본인 기록에 추가 ([[companion-design]] §11) */}
-              {Array.isArray(scRows) && scRows.length >= 2 && companions.some(c => c.friendUid) && (
-                <TouchableOpacity onPress={() => setShareScores(s => !s)} activeOpacity={0.75}
-                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 10,
-                    backgroundColor: shareScores ? (C.burgundy + '0E') : C.bgSecondary, borderRadius: 11,
-                    borderWidth: 1, borderColor: shareScores ? C.burgundy : C.hairline, padding: 12 }}>
-                  <Text style={{ fontSize: fs(16), color: shareScores ? C.burgundy : C.warmGrayLight, marginTop: -1 }}>
-                    {shareScores ? '☑' : '☐'}
-                  </Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: shareScores ? C.burgundy : C.charcoal }}>
-                      동반자에게 스코어 공유
-                    </Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 16 }}>
-                      친구 동반자에게 이 스코어카드를 보내요.{'\n'}각자 자기 점수를 골라 본인 기록에 바로 추가할 수 있어요.
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              {/* 동반자 스코어 공유 옵션은 스코어카드(OCR) 결과 바로 아래로 이동 — 거기서 묻히지 않게(사용자 제보). */}
               <Text style={mS.bigLabel}>날씨</Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {['맑음','흐림','바람','비'].map(w => (
