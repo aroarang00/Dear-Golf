@@ -164,7 +164,7 @@ export function hasRoundupMatch(cfg) {
 }
 
 // 맞춤 모집 — 모집글이 사용자의 조건(roundupMatch)에 맞는지.
-// 시간대 슬롯(주중/주말×부) 일치 OR 특정 기간 내. 지역·동반자 조건은 친구모집 전환으로 폐기([[roundup-friend-redesign]]).
+// "내 조건에 맞는" = 설정한 조건(시간대 슬롯·기간)을 모두 만족(AND). 지역·동반자 조건은 친구모집 전환으로 폐기([[roundup-friend-redesign]]).
 export function matchesRoundup(post, cfg) {
   if (!post || !hasRoundupMatch(cfg)) return false;
   const slots = cfg.slots || [];
@@ -172,25 +172,24 @@ export function matchesRoundup(post, cfg) {
   const dateTo = cfg.dateTo || dateFrom; // 끝 날짜 미지정 시 시작 날짜 하루
   const hasSlots = slots.length > 0;
   const hasPeriod = !!dateFrom;
+  const wantWeekday = slots.some(s => s.startsWith('weekday'));
+  const wantWeekend = slots.some(s => s.startsWith('weekend'));
 
-  // 오픈형(날짜·시간 미정) — 부(部)가 없어 기간으론 못 거름. 슬롯의 주중/주말 선호로만 느슨 매칭.
+  // 오픈형(날짜·시간 미정) — 부(部)가 없고 날짜가 없어 기간으론 못 거름. 슬롯의 주중/주말 선호로만 매칭.
   if (post.type === 'open' || !post.date) {
-    if (!hasSlots) return true;             // 기간만 설정 → 날짜 미정 오픈형은 일단 노출
-    const pref = post.openTime || [];       // ['weekday'|'weekend']
-    if (pref.length === 0) return true;     // 모집이 '상관없음'이면 통과
-    const wantWeekday = slots.some(s => s.startsWith('weekday'));
-    const wantWeekend = slots.some(s => s.startsWith('weekend'));
+    if (!hasSlots) return false;            // 기간만 설정 → 날짜 미정 오픈형은 기간 못 맞춤 → 제외
+    const pref = post.openTime || [];       // ['weekday'|'weekend'] (빈 배열=상관없음)
+    if (pref.length === 0) return true;     // 모집이 '상관없음'이면 사용자 선호와 호환
     return (wantWeekday && pref.includes('weekday')) || (wantWeekend && pref.includes('weekend'));
   }
 
-  // 확정형 — 요일×부 슬롯 일치 / 기간 내. 둘 다 설정 시 OR, 하나만 설정 시 그것만.
+  // 확정형 — 설정한 조건은 모두(AND) 만족해야 함(요일×부 슬롯 일치 그리고 기간 내).
   // 날짜 문자열 'YYYY.MM.DD'는 자릿수 고정이라 사전순 비교 = 날짜순 비교.
   const dayType = (post.day === '토' || post.day === '일') ? 'weekend' : 'weekday';
   const part = teePartOf(post.time);
-  const slotHit = hasSlots && !!part && slots.includes(`${dayType}-${part}`);
-  const dateHit = hasPeriod && post.date >= dateFrom && post.date <= dateTo;
-  if (hasSlots && hasPeriod) return slotHit || dateHit;
-  return hasSlots ? slotHit : dateHit;
+  const slotHit = !hasSlots || (!!part && slots.includes(`${dayType}-${part}`));
+  const dateHit = !hasPeriod || (post.date >= dateFrom && post.date <= dateTo);
+  return slotHit && dateHit;
 }
 
 // 더미 참여자 이름 — seed 기반 결정적 선택 (렌더마다 동일)
