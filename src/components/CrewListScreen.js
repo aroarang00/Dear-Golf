@@ -99,6 +99,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(목록 '새 글 N' 배지 산출, 기기 로컬)
   const [seenAtMap, setSeenAtMap] = useState({});    // {crewId:millis} — 마지막으로 앨범 닫은 시각(앨범 NEW·내글 새댓글 판단, 기기 로컬)
   const [reactSet, setReactSet] = useState({});      // {crewId:true} — 내 글에 안 본 새 댓글 있는 크루(7b, 목록 진입 시 조회)
+  const [seenAtLoaded, setSeenAtLoaded] = useState(false); // crewSeenAt 로드 완료 — reactSet 조회를 그 뒤 1회만(여닫을 때마다 N재조회 churn 방지)
   const [crewOrder, setCrewOrder] = useState(null);  // [crewId,...] 수동 순서(드래그). null=미로드, []=설정 안 함
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
   const [myName, setMyName] = useState('');
@@ -117,7 +118,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
     storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => { if (alive) setAliasMap(a || {}); });
     storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
-    storage.load(STORAGE_KEYS.crewSeenAt, {}).then((s) => { if (alive) setSeenAtMap(s || {}); });
+    storage.load(STORAGE_KEYS.crewSeenAt, {}).then((s) => { if (alive) { setSeenAtMap(s || {}); setSeenAtLoaded(true); } });
     storage.load(STORAGE_KEYS.crewOrder, []).then((o) => { if (alive) setCrewOrder(Array.isArray(o) ? o : []); });
     storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
     return () => { alive = false; };
@@ -136,19 +137,17 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     return () => { alive = false; };
   }, [inviteDocs, currentUid]);
 
-  // '내 글 새 반응' 신호(7b) — 목록 진입 시 크루별로 '내 글에 lastSeenAt 이후 남이 단 댓글' 1회 조회.
-  //   크루 집합·본 시각이 바뀔 때만 재조회(crewDocs는 새 글에만 바뀌어 churn 적음 / 댓글은 크루 doc 안 건드림).
-  //   닫고 나면 seenAtSig 변경→재조회로 해당 크루 점이 사라짐(markCrewSeenAt에서 즉시 제거도 함).
+  // '내 글 새 반응' 신호(7b) — 목록 진입(+크루 집합 변경, 본 시각 로드 완료) 시 크루별 1회 조회.
+  //   seenAt 변경(여닫기)마다 재조회하면 전 크루 N getDocs churn → 의존성에서 빼고, 닫을 땐 markCrewSeenAt이 점만 즉시 제거.
   const crewIdsSig = useMemo(() => (crewDocs || []).map((d) => d.id).sort().join(','), [crewDocs]);
-  const seenAtSig = useMemo(() => JSON.stringify(seenAtMap), [seenAtMap]);
   useEffect(() => {
-    if (!currentUid || !crewDocs || !crewDocs.length) { setReactSet({}); return; }
+    if (!currentUid || !seenAtLoaded || !crewDocs || !crewDocs.length) { setReactSet({}); return; }
     let alive = true;
     const ids = crewDocs.map((d) => d.id);
     Promise.all(ids.map((id) => hasNewCommentsOnMyPosts(id, currentUid, seenAtMap[id] || 0).then((v) => [id, v]).catch(() => [id, false])))
       .then((pairs) => { if (!alive) return; const next = {}; pairs.forEach(([id, v]) => { if (v) next[id] = true; }); setReactSet(next); });
     return () => { alive = false; };
-  }, [currentUid, crewIdsSig, seenAtSig]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentUid, crewIdsSig, seenAtLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [openCrew, setOpenCrew] = useState(null);      // 앨범(상세) 열린 크루
   const [createOpen, setCreateOpen] = useState(false); // 크루 만들기

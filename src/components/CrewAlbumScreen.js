@@ -229,6 +229,71 @@ function PostMedia({ media, width, onOpen, onDoubleLike, burst }) {
   );
 }
 
+// 피드 카드 — React.memo로 부모 UI상태(뷰어·시트·버스트 등) 변화 시 헛 리렌더 차단(콜백은 부모서 useCallback 안정화).
+//   p는 데이터(posts useMemo) 변할 때만 신원 바뀜 / burst는 이 카드만 true→그 카드만 리렌더. 라운지 PostCard memo 패턴.
+const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, onAction, onOpenViewer, onDoubleLike, onToggleLike, onOpenLikers, onComment }) {
+  return (
+    <View style={{ backgroundColor: CARD, borderRadius: 16, marginHorizontal: 14, marginBottom: 12, padding: 13,
+      shadowColor: '#1A3D52', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} size={32} onPress={() => onOpenProfile(p.author)} />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{p.author.name}</Text>
+            {p.isNew && (
+              <View style={{ backgroundColor: NEWMARK, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 7 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(9.5), color: '#fff', letterSpacing: 0.4 }}>NEW</Text>
+              </View>
+            )}
+          </View>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
+        </View>
+        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }} onPress={() => onAction(p)}>
+          <Text style={{ fontSize: fs(22), color: INK }}>⋯</Text>
+        </TouchableOpacity>
+      </View>
+      {!!p.text && (
+        <LinkText style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</LinkText>
+      )}
+      {p.media.length > 0 && (
+        <View style={{ marginTop: 11 }}>
+          <PostMedia media={p.media} width={width} burst={burst}
+            onOpen={(mi) => onOpenViewer(p.media, mi)} onDoubleLike={() => onDoubleLike(p)} />
+        </View>
+      )}
+      {/* 좋아요 · 댓글 줄 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
+        <TouchableOpacity onPress={() => onToggleLike(p)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Icon name={p.liked ? 'heartFilled' : 'heart'} size={fs(21)} color={p.liked ? HEART_RED : SUB} strokeWidth={1.9} />
+          {p.likeCount > 0 && (
+            <Text onPress={() => onOpenLikers(p)} suppressHighlighting
+              style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB, marginLeft: 5 }}>{p.likeCount}</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => onComment(p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 18 }}>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
+            💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
+          </Text>
+          <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
+        </TouchableOpacity>
+      </View>
+      {/* 최신 댓글 한 줄 미리보기 — 내 글에 새 댓글이면 앞에 버건디 점 + 진하게 */}
+      {!!p.lastCommentText && (
+        <TouchableOpacity onPress={() => onComment(p)} activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          {p.hasNewComment && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: NEWMARK, marginRight: 6 }} />}
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: fs(13), color: p.hasNewComment ? INK : SUB, lineHeight: fs(19) }}>
+            <Text style={{ fontFamily: F.sysB, color: INK }}>{p.lastCommentName}</Text>
+            <Text style={{ fontFamily: F.sys }}>  {p.lastCommentText}</Text>
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+});
+
 export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const { width: winW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -380,28 +445,28 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
     catch (e) { if (__DEV__) console.warn('[crewAlbum] jump', e?.message); }
   };
 
-  // ── 동작 ──
-  const openProfile = (person) => {
+  // ── 동작 ── (카드(PostCard)에 넘기는 콜백은 useCallback으로 안정화 — memo 카드가 UI상태 변화에 헛 리렌더되지 않게)
+  const openProfile = useCallback((person) => {
     const uid = person?.authorUid || person?.id;
     if (uid && uid !== currentUid) setProfileFor({ ...person, uid });
-  };
+  }, [currentUid]);
   // 좋아요 토글 — 실시간 구독(로컬 즉시반영)이라 별도 낙관 상태 불필요. 헛쓰기 방지로 현재 상태 반대만.
-  const toggleLike = (p) => {
+  const toggleLike = useCallback((p) => {
     if (!currentUid || !crewId) return;
     togglePostLike(crewId, p.id, currentUid, !p.liked)
       .catch((e) => { if (__DEV__) console.warn('[crewAlbum] like', e?.code, e?.message); });
-  };
+  }, [currentUid, crewId]);
   // 사진 더블탭 — 항상 '좋아요'(취소 아님, 멱등). 가운데 큰 하트 잠깐 표시.
-  const likeOnDouble = (p) => {
+  const likeOnDouble = useCallback((p) => {
     if (!currentUid || !crewId) return;
     setBurstId(p.id);
     if (burstTimer.current) clearTimeout(burstTimer.current);
     burstTimer.current = setTimeout(() => setBurstId(null), 650);
     if (!p.liked) togglePostLike(crewId, p.id, currentUid, true)
       .catch((e) => { if (__DEV__) console.warn('[crewAlbum] like2', e?.code, e?.message); });
-  };
+  }, [currentUid, crewId]);
   // 좋아요 누른 사람 목록 — likedBy uid를 별명/아바타로 resolve(이미 받아둔 display + 폴백)
-  const openLikers = (p) => {
+  const openLikers = useCallback((p) => {
     if (!p.likeCount) return;
     const list = (p.likedBy || []).map((u) => {
       const d = display[u] || {};
@@ -409,7 +474,10 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
       return { id: u, name, n: name.charAt(0), c: colorOf(u), uri: d.avatarUri || null };
     });
     setLikersFor({ count: p.likeCount, members: list });
-  };
+  }, [display, namesSig]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openPostAction = useCallback((p) => setActionFor({ kind: 'post', id: p.id, authorUid: p.author.id, name: p.author.name, text: p.text, post: p }), []);
+  const openViewerAt = useCallback((media, index) => setViewer({ media, index }), []);
+  const openComment = useCallback((p) => setCommentPost(p), []);
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
@@ -523,68 +591,11 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
     </View>
   ));
 
-  // 게시글 카드 — 작성자·글·미디어. 댓글은 탭하면 게시글별 댓글 화면.
+  // 게시글 카드 — memo PostCard로(콜백 안정화). 댓글은 탭하면 게시글별 댓글 화면.
   const renderFeedItem = ({ item: p }) => (
-    <View style={{ backgroundColor: CARD, borderRadius: 16, marginHorizontal: 14, marginBottom: 12, padding: 13,
-      shadowColor: '#1A3D52', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} size={32} onPress={() => openProfile(p.author)} />
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{p.author.name}</Text>
-            {p.isNew && (
-              <View style={{ backgroundColor: NEWMARK, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 7 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(9.5), color: '#fff', letterSpacing: 0.4 }}>NEW</Text>
-              </View>
-            )}
-          </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
-        </View>
-        <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}
-          onPress={() => setActionFor({ kind: 'post', id: p.id, authorUid: p.author.id, name: p.author.name, text: p.text, post: p })}>
-          <Text style={{ fontSize: fs(22), color: INK }}>⋯</Text>
-        </TouchableOpacity>
-      </View>
-      {!!p.text && (
-        <LinkText style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</LinkText>
-      )}
-      {p.media.length > 0 && (
-        <View style={{ marginTop: 11 }}>
-          <PostMedia media={p.media} width={winW - 54} burst={burstId === p.id}
-            onOpen={(mi) => setViewer({ media: p.media, index: mi })} onDoubleLike={() => likeOnDouble(p)} />
-        </View>
-      )}
-      {/* 좋아요 · 댓글 줄 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
-        <TouchableOpacity onPress={() => toggleLike(p)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-          style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Icon name={p.liked ? 'heartFilled' : 'heart'} size={fs(21)} color={p.liked ? HEART_RED : SUB} strokeWidth={1.9} />
-          {p.likeCount > 0 && (
-            <Text onPress={() => openLikers(p)} suppressHighlighting
-              style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB, marginLeft: 5 }}>{p.likeCount}</Text>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setCommentPost(p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 18 }}>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
-            💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
-          </Text>
-          <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
-        </TouchableOpacity>
-      </View>
-      {/* 최신 댓글 한 줄 미리보기 — 들어가지 않아도 누가 뭐라 했는지 보임. 탭=댓글 화면.
-          내 글에 새 댓글이면 앞에 버건디 점 + 텍스트 진하게(가장 보고 싶어하는 신호). */}
-      {!!p.lastCommentText && (
-        <TouchableOpacity onPress={() => setCommentPost(p)} activeOpacity={0.7}
-          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          {p.hasNewComment && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: NEWMARK, marginRight: 6 }} />}
-          <Text numberOfLines={1} style={{ flex: 1, fontSize: fs(13), color: p.hasNewComment ? INK : SUB, lineHeight: fs(19) }}>
-            <Text style={{ fontFamily: F.sysB, color: INK }}>{p.lastCommentName}</Text>
-            <Text style={{ fontFamily: F.sys }}>  {p.lastCommentText}</Text>
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
+    <PostCard p={p} burst={burstId === p.id} width={winW - 54}
+      onOpenProfile={openProfile} onAction={openPostAction} onOpenViewer={openViewerAt}
+      onDoubleLike={likeOnDouble} onToggleLike={toggleLike} onOpenLikers={openLikers} onComment={openComment} />
   );
 
   // 갤러리 타일 — 탭하면 풀스크린 뷰어. 간격은 columnWrapperStyle gap이 처리.
@@ -671,6 +682,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         numColumns={tab === 'feed' ? 1 : COLS}
         keyExtractor={(item) => (tab === 'feed' ? item.id : item.key)}
         renderItem={tab === 'feed' ? renderFeedItem : renderTile}
+        extraData={burstId}
         columnWrapperStyle={tab === 'photos' ? { paddingHorizontal: PAD, gap: GAP } : undefined}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
