@@ -563,38 +563,44 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], custom: text, customCoord: null } }));
   };
 
+  // 직접입력 좌표 해석 — 좌표를 '반환'한다(호출부가 stale state 대신 방금 값을 바로 쓰게). 텍스트 바뀌면 customCoord=null이라 새 장소 재해석.
   const resolveCustomCoord = async (slotKey) => {
     const slot = trSlots[slotKey];
-    if (!slot.custom || slot.customCoord) return;
+    if (!slot.custom) return null;
+    if (slot.customCoord) return slot.customCoord;
     const coord = await addressToCoord(slot.custom);
-    if (coord) {
-      setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], customCoord: coord } }));
-    }
+    if (coord) setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], customCoord: coord } }));
+    return coord || null;
   };
 
   const openNaverRoute = async (originKey, destKey) => {
-    if (trSlots[originKey].mode === 'custom') await resolveCustomCoord(originKey);
-    if (trSlots[destKey].mode === 'custom') await resolveCustomCoord(destKey);
+    // 직접입력이면 방금 해석한 좌표를 직접 사용(resolveSlot은 직전 렌더값이라 첫 탭에 이름만 가던 것 방지)
+    const oc = trSlots[originKey].mode === 'custom' ? await resolveCustomCoord(originKey) : null;
+    const dc = trSlots[destKey].mode === 'custom' ? await resolveCustomCoord(destKey) : null;
     const orig = resolveSlot(originKey);
     const dest = resolveSlot(destKey);
+    const oCoord = oc || orig.coord;
+    const dCoord = dc || dest.coord;
     const p = [];
-    if (orig.coord) { p.push(`slat=${orig.coord.y}`); p.push(`slng=${orig.coord.x}`); }
+    if (oCoord) { p.push(`slat=${oCoord.y}`); p.push(`slng=${oCoord.x}`); }
     if (orig.label) p.push(`sname=${encodeURIComponent(orig.label)}`);
-    if (dest.coord) { p.push(`dlat=${dest.coord.y}`); p.push(`dlng=${dest.coord.x}`); }
+    if (dCoord) { p.push(`dlat=${dCoord.y}`); p.push(`dlng=${dCoord.x}`); }
     if (dest.label) p.push(`dname=${encodeURIComponent(dest.label)}`);
     p.push('appname=deargolf');
     Linking.openURL(`nmap://route/car?${p.join('&')}`).catch(() => Linking.openURL('https://map.naver.com/'));
   };
 
   const openTmapRoute = async (originKey, destKey) => {
-    if (trSlots[originKey].mode === 'custom') await resolveCustomCoord(originKey);
-    if (trSlots[destKey].mode === 'custom') await resolveCustomCoord(destKey);
+    const oc = trSlots[originKey].mode === 'custom' ? await resolveCustomCoord(originKey) : null;
+    const dc = trSlots[destKey].mode === 'custom' ? await resolveCustomCoord(destKey) : null;
     const orig = resolveSlot(originKey);
     const dest = resolveSlot(destKey);
+    const oCoord = oc || orig.coord;
+    const dCoord = dc || dest.coord;
     const p = [];
-    if (orig.coord) { p.push(`startx=${orig.coord.x}`); p.push(`starty=${orig.coord.y}`); }
+    if (oCoord) { p.push(`startx=${oCoord.x}`); p.push(`starty=${oCoord.y}`); }
     if (orig.label) p.push(`startname=${encodeURIComponent(orig.label)}`);
-    if (dest.coord) { p.push(`goalx=${dest.coord.x}`); p.push(`goaly=${dest.coord.y}`); }
+    if (dCoord) { p.push(`goalx=${dCoord.x}`); p.push(`goaly=${dCoord.y}`); }
     if (dest.label) p.push(`goalname=${encodeURIComponent(dest.label)}`);
     Linking.openURL(`tmap://route?${p.join('&')}`).catch(() => Linking.openURL('https://tmap.life'));
   };
