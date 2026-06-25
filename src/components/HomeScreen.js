@@ -58,18 +58,14 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// 스마트스토어 쇼핑 버튼 — 자리만 확보(2026-06-25). URL 채우면 외부 브라우저로 열림(WebView framing 금지·로고 무단사용 금지 [[home-shopping-reservation-buttons]]).
-//   비어있으면 버튼은 보이되 동작 안 함(아직 미연결). 나중에 이 값만 채우면 됨.
-const SMARTSTORE_URL = '';
-
-// 우측 버튼 레일(메시지·크루·쇼핑) — 셋 다 절대좌표 top = RAIL_TOP + RAIL_STEP*n (간격 균일).
-//   안드는 시작을 더 내려(상태바와 안 붙게) + 간격 압축(아래 '예정 라운딩 추가'와 안 붙게).
-//   iOS는 위아래 공간이 훨씬 여유라 시작을 더 내리고(DM 너무 위 방지) 버튼·간격을 크게. 한 곳만 고치면 셋이 같이 움직임.
+// 우측 버튼 레일(메시지·크루 2개) — 절대좌표 top = RAIL_TOP + RAIL_STEP*n (간격 균일).
+//   쇼핑·예약 등 커머스·유틸은 이 레일이 아니라 별도 가로 액션줄로 분리 예정([[home-shopping-reservation-buttons]]).
+//   안드는 상태바와 안 붙게, iOS는 공간 여유라 더 내리고 버튼·간격을 크게. 한 곳만 고치면 둘이 같이 움직임.
 const _railAnd = Platform.OS === 'android';
-const RAIL_TOP = _railAnd ? 22 : 30;
-const RAIL_STEP = _railAnd ? 70 : 84;
+const RAIL_TOP = _railAnd ? 28 : 38;
+const RAIL_STEP = _railAnd ? 80 : 94;
 const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
-const RAIL_ICON = _railAnd ? 26 : 30;    // 크루·쇼핑 라인 아이콘
+const RAIL_ICON = _railAnd ? 26 : 30;    // 크루 라인 아이콘
 const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼)
 
 export function HomeScreen({ navigation, route }) {
@@ -849,7 +845,7 @@ export function HomeScreen({ navigation, route }) {
           <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
           {/* 타이틀 줄 — Dear Golf + 날씨 + DM 💬. 💬는 날씨 아이콘 우상단에 살짝 띄워(브랜드가 말하는 말풍선 느낌),
               너무 붙지 않게 간격(marginLeft)·위로 올림(marginTop 음수). 사용자 위치 지정 2026-06-17. */}
-          {/* 우측 버튼 레일(메시지·크루·쇼핑)은 절대좌표로 통일(top 4/92/180, 간격 88 균일) — 아래 hdr 마지막 자식들.
+          {/* 우측 버튼 레일(메시지·크루)은 절대좌표로 통일(RAIL_TOP/STEP) — 아래 hdr 마지막 자식들.
               타이틀 줄은 그 자리만 비워둠(paddingRight)으로 버튼과 안 겹치게. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: RAIL_BTN + 12 }}>
             {/* flex:1+minWidth:0 — 확대로 폭 좁아질 때 좌측(타이틀+날씨)이 양보해 우측 버튼과 안 겹치게.
@@ -912,7 +908,7 @@ export function HomeScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
           )}
-          {/* ── 우측 버튼 레일: 메시지 → 크루 → 쇼핑. 셋 다 절대좌표 right:SIDE_PAD, top 4/92/180(간격 88 균일).
+          {/* ── 우측 버튼 레일: 메시지 → 크루. 둘 다 절대좌표 right:SIDE_PAD, top = RAIL_TOP + RAIL_STEP*n(간격 균일).
                 hdr 마지막 자식들(그리팅·배너 위에 렌더) + zIndex/elevation 20으로 iOS·안드 모두 맨 위라 터치 받음. ── */}
           {/* 메시지(DM) — 레일 1번. 안읽음=버건디+숫자, 안읽음 시 좌우 진동. 평상시 은은한 호흡 펄스.
               ★드롭섀도 제거(2026-06-18): 반투명 배경 그림자 투과로 'DM 뒤 뿌연 팔각형' 아티팩트 → 깔끔함 우선 제거. */}
@@ -965,18 +961,6 @@ export function HomeScreen({ navigation, route }) {
             {/* 아이콘 아래 한글 라벨 — DM과 짝(사용자 2026-06-25). 사진 배경 위 가독성 위해 그림자 */}
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A8CC82', marginTop: 2, includeFontPadding: false,
               textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>크루</Text>
-          </TouchableOpacity>
-
-          {/* 🛍 쇼핑 — 레일 3번. 지금은 자리만 확보(URL 미연결): SMARTSTORE_URL 채우면 외부 브라우저로 열림 ([[home-shopping-reservation-buttons]]). */}
-          <TouchableOpacity onPress={() => { if (SMARTSTORE_URL) Linking.openURL(SMARTSTORE_URL).catch(() => {}); }} activeOpacity={0.8}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP * 2, zIndex: 20, elevation: 20, alignItems: 'center' }}>
-            <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#6FA8D6',
-              backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="bag" size={fs(RAIL_ICON)} color="#A6CCEA" strokeWidth={2} />
-            </View>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#8FC1EC', marginTop: 2, includeFontPadding: false,
-              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>쇼핑</Text>
           </TouchableOpacity>
         </View>
 
