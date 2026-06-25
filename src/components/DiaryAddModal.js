@@ -175,6 +175,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     ] });
   };
   const [companions, setCompanions] = useState([]); // [{ name, friendUid? }] — 친구 선택 시 friendUid 보존([[companion-design]] Phase A)
+  const [teamRoster, setTeamRoster] = useState([]); // 단체(한 조 4명 초과) 일정의 참여자 전체 — 본인 조 3명을 직접 고르게(앞 3명 자동 X)
   const [subCourse, setSubCourse] = useState(''); // 코스(세부코스 라벨) — 구장 매칭과 무관·자유 입력. 연결된 일정에서 자동채움 ([[schedule-booker]])
   const [companionInput, setCompanionInput] = useState('');
   const [friends, setFriends] = useState([]);                 // 동반자 친구 선택 목록
@@ -289,6 +290,17 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setCompanions([...fromFriends, ...freeText].slice(0, 3));
   };
 
+  // 단체 참여자 목록에서 본인 조 동반자 선택(토글) — friendUid 있으면 그걸로, 없으면 이름으로 동일판정. 최대 3명.
+  const sameComp = (a, b) => (a.friendUid && b.friendUid) ? a.friendUid === b.friendUid : a.name === b.name;
+  const toggleRosterComp = (p) => {
+    setCompanions(prev => {
+      const i = prev.findIndex(c => sameComp(c, p));
+      if (i >= 0) return prev.filter((_, idx) => idx !== i);   // 이미 선택 → 빼기
+      if (prev.length >= 3) return prev;                        // 캡(나 포함 4명)
+      return [...prev, p.friendUid ? { name: p.name, friendUid: p.friendUid } : { name: p.name }];
+    });
+  };
+
   const DAYS = WEEKDAYS;
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   const formatDay = (d) => DAYS[d.getDay()];
@@ -340,7 +352,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setStarRating(0); setSelectedTags([]);
     setDetailMemo('');
     setPrivacy(['friends']);
-    setCompanions([]); setCompanionInput(''); setShareScores(false);
+    setCompanions([]); setCompanionInput(''); setShareScores(false); setTeamRoster([]);
     setSubCourse('');
     setOverseas(false); setCountry('');
     setKind('round');
@@ -429,15 +441,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (initial?.courseId) {
         findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
       }
-      // 일정(모집확정 포함)에 담긴 동반자를 기록 작성 시 미리 채움 — friendUid 보존(일정엔 친구 동반자가 friendUid로 담김), 본인 제외·최대 3명
+      // 일정(모집확정 포함)에 담긴 동반자를 기록 작성 시 미리 채움 — friendUid 보존(본인 제외).
       if (Array.isArray(initial?.companions) && initial.companions.length) {
-        setCompanions(
-          initial.companions
-            .filter(c => !(typeof c === 'object' && c.isMe))
-            .map(c => (typeof c === 'string' ? { name: c } : { name: c?.name, ...(c?.friendUid ? { friendUid: c.friendUid } : {}) }))
-            .filter(c => c.name)
-            .slice(0, 3)
-        );
+        const mapped = initial.companions
+          .filter(c => !(typeof c === 'object' && c.isMe))
+          .map(c => (typeof c === 'string' ? { name: c } : { name: c?.name, ...(c?.friendUid ? { friendUid: c.friendUid } : {}) }))
+          .filter(c => c.name);
+        if (mapped.length > 3) {
+          // 단체(한 조 4명 초과) — '앞 3명' 자동 채움은 엉뚱한 조를 끌어옴(조 배정 데이터 없음).
+          //   자동으로 안 넣고, 참여자 목록에서 본인 조에서 함께 친 3명을 직접 고르게(아래 teamRoster 선택 박스).
+          setCompanions([]);
+          setTeamRoster(mapped);
+        } else {
+          setCompanions(mapped.slice(0, 3));   // 개별 라운딩(한 조)은 그대로 자동 채움
+          setTeamRoster([]);
+        }
       }
       // 연결된 일정에 입력된 코스(세부코스)를 기록에도 자동 채움 — addSeed가 일정에서 끌어옴 ([[schedule-booker]])
       setSubCourse(initial?.subCourse || '');
@@ -828,6 +846,33 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 동반자
                 <Text style={{ fontSize: fs(11), fontFamily: F.sys, color: '#8B8680' }}> (선택 · 탭하여 삭제)</Text>
               </Text>
+              {/* 단체 라운딩 — 참여자(비친구 포함)에서 같은 조 동반자 3명을 직접 선택(앞 3명 자동 X). 친구 목록이 아니라 '이 단체 사람들'에서 고름. */}
+              {teamRoster.length > 0 && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6 }}>
+                    단체 라운딩이에요 — 같은 조에서 함께 친 동반자를 골라주세요 (최대 3명)
+                  </Text>
+                  <View style={{ maxHeight: 168, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, backgroundColor: C.bgSecondary }}>
+                    <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
+                      {teamRoster.map((p, i) => {
+                        const on = companions.some(c => sameComp(c, p));
+                        const disabled = !on && companions.length >= 3;
+                        const shown = p.friendUid ? (friends.find(f => f.id === p.friendUid)?.customName || p.name) : p.name;
+                        return (
+                          <TouchableOpacity key={(p.friendUid || p.name) + '_' + i} activeOpacity={0.7} onPress={() => toggleRosterComp(p)} disabled={disabled}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 11,
+                              borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline, opacity: disabled ? 0.4 : 1 }}>
+                            <Text style={{ fontSize: fs(15), color: on ? C.burgundy : C.warmGrayLight }}>{on ? '☑' : '☐'}</Text>
+                            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>
+                              {p.friendUid ? '👤 ' : ''}{shown}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                </View>
+              )}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 <AppTextInput
                   style={[mS.input, { flex: 1, fontSize: fs(16), fontFamily: F.sysSb }]}
