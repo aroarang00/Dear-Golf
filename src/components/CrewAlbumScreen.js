@@ -17,7 +17,6 @@ import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewComposeScreen } from './CrewComposeScreen';
 import { CrewMembersScreen } from './CrewMembersScreen';
 import { CrewCommentScreen } from './CrewCommentScreen';
-import { CrewInviteSheet } from './CrewInviteSheet';
 import { PhotoViewer } from './common/PhotoViewer';
 import { ReportModal } from './ReportModal';
 import { AppAlertHost, showAppAlert } from './AppAlert';
@@ -302,7 +301,6 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [composeOpen, setComposeOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);    // 사람+ = 친구 초대 시트(현재 화면 위에 바로)
   const [editingPost, setEditingPost] = useState(null);   // 작성화면 재사용(수정)
   const [editingNotice, setEditingNotice] = useState(false); // 공지 수정(작성화면 공지모드)
   const [commentPost, setCommentPost] = useState(null);   // 댓글 화면 열린 게시물(글별 분리)
@@ -354,7 +352,6 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
     if (reportTarget) { setReportTarget(null); return; }
     if (profileFor) { setProfileFor(null); return; }
     if (actionFor) { setActionFor(null); return; }
-    if (inviteOpen) { setInviteOpen(false); return; }
     onClose();
   });
 
@@ -620,26 +617,25 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         <View style={{ marginLeft: 4 }}>
           <CrewAvatar name={crewDoc?.name || crew?.name || '크루'} color={crewDoc?.themeColor} imageUrl={crewDoc?.imageUrl} size={34} radius={11} />
         </View>
-        {/* 별명(나만 보기) 우선 — 목록서 넘어온 crew.name=별명∥서버명. 서버 name은 불변이라 live crewDoc보다 우선 안전. 성격은 아래 줄 */}
-        <View style={{ flexShrink: 1, marginLeft: 8 }}>
+        {/* 별명(나만 보기) 우선 — 목록서 넘어온 crew.name=별명∥서버명. 서버 name은 불변이라 live crewDoc보다 우선 안전. 성격은 아래 줄.
+            flexShrink+minWidth:0 — 성격이 길어도 컬럼이 줄며 '잘림'(numberOfLines 1) → 멤버·초대를 밀지 않음. 멤버는 이름 옆 유지. */}
+        {/* 이름·성격 — 좌측 컬럼(성격은 이름 아래, 길면 잘림). */}
+        <View style={{ flexShrink: 1, minWidth: 0, marginLeft: 8 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: INK }}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || crewDoc?.name || '크루'}</Text>
           {crewDoc?.description ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }} numberOfLines={1}>{crewDoc.description}</Text>
           ) : null}
         </View>
-        {/* 멤버 — 작은 아바타 대신 인원수만(탭하면 멤버 목록) */}
-        <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-          style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
-          <Icon name="crew" size={fs(17)} color={INK} strokeWidth={1.8} />
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: 4 }}>{members.length}명</Text>
-          <Text style={{ fontSize: fs(20), color: SAGE_DEEP, fontWeight: '700', marginLeft: 3, marginTop: -2 }}>›</Text>
-        </TouchableOpacity>
         <View style={{ flex: 1 }} />
-        {/* 사람+ = 순수 초대(멤버 목록은 좌측 아바타 탭). 친구 초대 시트를 현재 화면 위에 바로 띄움 */}
-        <TouchableOpacity onPress={() => setInviteOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
-          <Icon name="personAdd" size={fs(27)} color={SAGE_DEEP} strokeWidth={2.2} />
+        {/* 멤버 — 헤더 '하단'(성격 줄 높이)에 정렬, 아이콘 키움(N명은 유지). 탭하면 멤버 목록·초대 */}
+        <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', flexShrink: 0 }}>
+          <Icon name="crew" size={fs(26)} color={INK} strokeWidth={1.8} />
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: 4 }}>{members.length}명</Text>
+          <Text style={{ fontSize: fs(20), color: SAGE_DEEP, fontWeight: '700', marginLeft: 2, marginTop: -2 }}>›</Text>
         </TouchableOpacity>
+        {/* 초대는 멤버 화면(멤버 N명 › 탭)에서 — 헤더 중복 제거 */}
       </View>
 
       {/* 피드/사진 토글 — 고정 바(ScrollView 밖) */}
@@ -818,11 +814,6 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         presetTarget={reportTarget ? { id: reportTarget.id, name: reportTarget.name } : null}
         prefillEvidence={reportTarget?.evidence || ''}
         onClose={() => setReportTarget(null)} />
-
-      {/* 사람+ → 친구 초대 시트(현재 화면 위에 바로) */}
-      {inviteOpen && (
-        <CrewInviteSheet crewId={crewId} memberUids={memberUids} friends={friends} onClose={() => setInviteOpen(false)} />
-      )}
 
       {/* 크루 모달 위 alert 자체 호스트(삭제 확인 등) */}
       <AppAlertHost />
