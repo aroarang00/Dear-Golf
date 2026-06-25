@@ -10,8 +10,8 @@ import { db } from './firebase';
 // 멤버십 = scheduleGroups 패턴(초대/수락 셀프토글, cross-user 쓰기 0 = CF 불필요).
 //   crews/{crewId}: { creatorUid, name, memberUids[], audienceUids[], declinedUids[], names{uid:name},
 //                     notice?, noticeBy?, noticeAt?, postCount?, lastPostAt?, createdAt, updatedAt }
-//   crews/{crewId}/posts/{postId}:            { authorUid, text, media:[{uri,type,poster?}], commentCount?, lastPostBy?, createdAt }
-//   crews/{crewId}/posts/{postId}/comments/{commentId}: { authorUid, body, parentId?(대댓글), createdAt }
+//   crews/{crewId}/posts/{postId}:            { authorUid, text, media:[{uri,type,poster?}], commentCount?, likedBy[], createdAt }
+//   crews/{crewId}/posts/{postId}/comments/{commentId}: { authorUid, body, parentId?(대댓글), likedBy[], createdAt }
 //
 // 표시 이름은 보는 사람 각자 별명(friendDisplayName)으로 화면에서 resolve — 저장은 authorUid(+names 폴백).
 // =============================================================
@@ -176,7 +176,7 @@ export async function setCrewNotice(crewId, notice, uid) {
 export async function addCrewPost(crewId, { authorUid, text = '', media = [] }) {
   if (!crewId || !authorUid) return null;
   const ref = await addDoc(collection(db, COL, crewId, 'posts'), {
-    authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, createdAt: serverTimestamp(),
+    authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, likedBy: [], createdAt: serverTimestamp(),
   });
   // 크루 최근활동 갱신(목록 정렬·새 글 표시용). lastPostBy=작성자 → 내 글은 새 글 표시 제외
   updateDoc(doc(db, COL, crewId), { postCount: increment(1), lastPostAt: serverTimestamp(), lastPostBy: authorUid, updatedAt: serverTimestamp() })
@@ -205,11 +205,20 @@ export async function editCrewPost(crewId, postId, { text = '', media = [] }) {
     text: (text || '').trim(), media: media || [], editedAt: serverTimestamp(),
   });
 }
+// ── 게시물 좋아요 토글 — likedBy 배열에 본인 uid만 셀프토글(멤버 누구나, 규칙 selfMembershipToggled).
+//   on=true 좋아요(arrayUnion), false 취소(arrayRemove). 더블탭 like는 on=true로 호출(멱등). 푸시 없음(인앱만). ──
+export async function togglePostLike(crewId, postId, uid, on) {
+  if (!crewId || !postId || !uid) return;
+  await updateDoc(doc(db, COL, crewId, 'posts', postId), {
+    likedBy: on ? arrayUnion(uid) : arrayRemove(uid),
+  });
+}
+
 // ── 댓글 / 대댓글 (parentId 있으면 대댓글) ──
 export async function addCrewComment(crewId, postId, { authorUid, body = '', parentId = null }) {
   if (!crewId || !postId || !authorUid || !(body || '').trim()) return null;
   const ref = await addDoc(collection(db, COL, crewId, 'posts', postId, 'comments'), {
-    authorUid, body: body.trim(), parentId: parentId || null, createdAt: serverTimestamp(),
+    authorUid, body: body.trim(), parentId: parentId || null, likedBy: [], createdAt: serverTimestamp(),
   });
   updateDoc(doc(db, COL, crewId, 'posts', postId), { commentCount: increment(1) })
     .catch((e) => __DEV__ && console.warn('[crews] comment meta', e?.message));
@@ -235,5 +244,12 @@ export async function editCrewComment(crewId, postId, commentId, { body = '' }) 
   if (!crewId || !postId || !commentId || !(body || '').trim()) return;
   await updateDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId), {
     body: body.trim(), editedAt: serverTimestamp(),
+  });
+}
+// ── 댓글 좋아요 토글 — likedBy 셀프토글(게시물 좋아요와 동일 규칙) ──
+export async function toggleCommentLike(crewId, postId, commentId, uid, on) {
+  if (!crewId || !postId || !commentId || !uid) return;
+  await updateDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId), {
+    likedBy: on ? arrayUnion(uid) : arrayRemove(uid),
   });
 }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, FlatList, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -9,7 +9,7 @@ import { CrewAvatar } from './common/CrewAvatar';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
-  subscribeCrew, subscribeCrewPosts, deleteCrewPost, setCrewNotice,
+  subscribeCrew, subscribeCrewPosts, deleteCrewPost, setCrewNotice, togglePostLike,
 } from '../utils/crews';
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
@@ -33,6 +33,27 @@ const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
+const HEART_RED = '#E5484D';
+
+// 단일 탭=확대(뷰어), 더블 탭=좋아요(인스타 결). 단일은 더블 여부 확인 위해 delay만큼만 지연.
+//   gesture-handler 없이 JS 타이머로 — iOS/안드 동일 동작, 풀스크린 모달 중첩과도 무관.
+function useDoubleTap(onSingle, onDouble, delay = 250) {
+  const lastRef = useRef(0);
+  const timerRef = useRef(null);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  return useCallback((...args) => {
+    const now = Date.now();
+    if (now - lastRef.current < delay) {           // 더블 탭
+      lastRef.current = 0;
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+      onDouble(...args);
+    } else {                                        // 일단 단일 후보 — 두 번째 탭 대기
+      lastRef.current = now;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => { timerRef.current = null; onSingle(...args); }, delay);
+    }
+  }, [onSingle, onDouble, delay]);
+}
 
 // 상대시각 — DM/목록과 동일(방금/N분 전/N시간 전/어제/N일 전/날짜)
 function fmtTime(ts) {
@@ -164,6 +185,28 @@ function SwipeCarousel({ media, width, onOpen }) {
   );
 }
 
+// 피드 카드 미디어 영역 — 단일 탭=풀스크린 뷰어, 더블 탭=좋아요. 더블탭 시 가운데 큰 하트 잠깐.
+//   useDoubleTap이 훅이라 renderItem 안에서 못 부름 → 별도 컴포넌트로 분리.
+function PostMedia({ media, width, onOpen, onDoubleLike, burst }) {
+  const handleTap = useDoubleTap((mi) => onOpen(mi), () => onDoubleLike());
+  return (
+    <View>
+      {media.length === 1 ? (
+        <TouchableOpacity activeOpacity={0.95} onPress={() => handleTap(0)}>
+          <FeedMedia m={media[0]} />
+        </TouchableOpacity>
+      ) : (
+        <SwipeCarousel media={media} width={width} onOpen={(mi) => handleTap(mi)} />
+      )}
+      {burst && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="heartFilled" size={fs(78)} color={HEART_RED} />
+        </View>
+      )}
+    </View>
+  );
+}
+
 export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const { width: winW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -193,6 +236,9 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const [actionFor, setActionFor] = useState(null);        // 더보기 { kind, id, postId?, authorUid, name, text, post? }
   const [reportTarget, setReportTarget] = useState(null);  // 신고 { id, name, evidence }
   const [viewer, setViewer] = useState(null);              // 풀스크린 뷰어 { media, index, caption }
+  const [likersFor, setLikersFor] = useState(null);        // 좋아요 누른 사람 목록 { count, members:[{n,c,uri,name}] }
+  const [burstId, setBurstId] = useState(null);            // 더블탭 좋아요 시 큰 하트 잠깐 표시(게시물 id)
+  const burstTimer = useRef(null);
   // 친구 여부 — 크루 멤버는 서로 친구 아닐 수 있음. 프로필 팝업서 친구=DM / 비친구=친구신청 분기(비친구 DM은 규칙상 막힘).
   const [friends, setFriends] = useState(null);
   const [sentSet, setSentSet] = useState(new Set());
@@ -215,6 +261,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   // 안드 뒤로 — 떠 있는 것부터 닫고, 없으면 앨범 닫기(목록으로). 모달 다단계 위임은 useScreenBack이 처리
   useScreenBack(true, () => {
     if (viewer) { setViewer(null); return; }
+    if (likersFor) { setLikersFor(null); return; }
     if (reportTarget) { setReportTarget(null); return; }
     if (profileFor) { setProfileFor(null); return; }
     if (actionFor) { setActionFor(null); return; }
@@ -228,6 +275,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     const t = setTimeout(() => setContentReady(true), 250);
     return () => clearTimeout(t);
   }, []);
+  useEffect(() => () => { if (burstTimer.current) clearTimeout(burstTimer.current); }, []);
 
   // 크루 doc(공지·멤버) + 게시물 실시간 구독
   useEffect(() => {
@@ -265,13 +313,15 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const posts = useMemo(() => (postDocs || []).map((p) => {
     const d = display[p.authorUid] || {};
     const name = d.name || namesFallback[p.authorUid] || '친구';
+    const likedBy = p.likedBy || [];
     return {
       id: p.id,
       author: { id: p.authorUid, name, n: name.charAt(0), c: colorOf(p.authorUid), uri: d.avatarUri || null },
       time: fmtTime(p.createdAt), text: p.text || '', media: p.media || [], comments: p.commentCount || 0,
+      likedBy, liked: !!currentUid && likedBy.includes(currentUid), likeCount: likedBy.length,
       _doc: p,
     };
-  }), [postDocs, display]);
+  }), [postDocs, display, currentUid]);
 
   // 피드 사진 미리 받기 — 첫 화면 몇 장만. 전체 원본을 한꺼번에 prefetch하면 사진 많은 크루 진입 시
   //   네트워크·디코드 폭주로 버벅임(가상화와 별개로 prefetch가 전량을 깨움). 6장으로 제한(2026-06-24 성능).
@@ -289,6 +339,31 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
   const openProfile = (person) => {
     const uid = person?.authorUid || person?.id;
     if (uid && uid !== currentUid) setProfileFor({ ...person, uid });
+  };
+  // 좋아요 토글 — 실시간 구독(로컬 즉시반영)이라 별도 낙관 상태 불필요. 헛쓰기 방지로 현재 상태 반대만.
+  const toggleLike = (p) => {
+    if (!currentUid || !crewId) return;
+    togglePostLike(crewId, p.id, currentUid, !p.liked)
+      .catch((e) => { if (__DEV__) console.warn('[crewAlbum] like', e?.code, e?.message); });
+  };
+  // 사진 더블탭 — 항상 '좋아요'(취소 아님, 멱등). 가운데 큰 하트 잠깐 표시.
+  const likeOnDouble = (p) => {
+    if (!currentUid || !crewId) return;
+    setBurstId(p.id);
+    if (burstTimer.current) clearTimeout(burstTimer.current);
+    burstTimer.current = setTimeout(() => setBurstId(null), 650);
+    if (!p.liked) togglePostLike(crewId, p.id, currentUid, true)
+      .catch((e) => { if (__DEV__) console.warn('[crewAlbum] like2', e?.code, e?.message); });
+  };
+  // 좋아요 누른 사람 목록 — likedBy uid를 별명/아바타로 resolve(이미 받아둔 display + 폴백)
+  const openLikers = (p) => {
+    if (!p.likeCount) return;
+    const list = (p.likedBy || []).map((u) => {
+      const d = display[u] || {};
+      const name = d.name || namesFallback[u] || '친구';
+      return { id: u, name, n: name.charAt(0), c: colorOf(u), uri: d.avatarUri || null };
+    });
+    setLikersFor({ count: p.likeCount, members: list });
   };
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
@@ -423,22 +498,28 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
       )}
       {p.media.length > 0 && (
         <View style={{ marginTop: 11 }}>
-          {p.media.length === 1 ? (
-            <TouchableOpacity activeOpacity={0.95} onPress={() => setViewer({ media: p.media, index: 0 })}>
-              <FeedMedia m={p.media[0]} />
-            </TouchableOpacity>
-          ) : (
-            <SwipeCarousel media={p.media} width={winW - 54} onOpen={(mi) => setViewer({ media: p.media, index: mi })} />
-          )}
+          <PostMedia media={p.media} width={winW - 54} burst={burstId === p.id}
+            onOpen={(mi) => setViewer({ media: p.media, index: mi })} onDoubleLike={() => likeOnDouble(p)} />
         </View>
       )}
-      <TouchableOpacity onPress={() => setCommentPost(p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
-        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
-          💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
-        </Text>
-        <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
-      </TouchableOpacity>
+      {/* 좋아요 · 댓글 줄 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
+        <TouchableOpacity onPress={() => toggleLike(p)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Icon name={p.liked ? 'heartFilled' : 'heart'} size={fs(21)} color={p.liked ? HEART_RED : SUB} strokeWidth={1.9} />
+          {p.likeCount > 0 && (
+            <Text onPress={() => openLikers(p)} suppressHighlighting
+              style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB, marginLeft: 5 }}>{p.likeCount}</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setCommentPost(p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 18 }}>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
+            💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
+          </Text>
+          <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -601,6 +682,27 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
             <TouchableOpacity onPress={() => setActionFor(null)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 0.5, borderTopColor: LINE }}>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: SUB }}>취소</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* 좋아요 누른 사람 — 카운트 탭 시 이름 목록(친구앨범이라 '누가'가 자연스러움) */}
+      {likersFor && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setLikersFor(null)} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 16, paddingBottom: 24 + insets.bottom, maxHeight: '70%' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingBottom: 12 }}>
+              <Icon name="heartFilled" size={fs(18)} color={HEART_RED} />
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: INK, marginLeft: 7 }}>좋아요 {likersFor.count}</Text>
+            </View>
+            <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingHorizontal: 22 }}>
+              {likersFor.members.map((m) => (
+                <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9 }}>
+                  <MiniAvatar n={m.n} c={m.c} uri={m.uri} size={36} />
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(15), color: INK, marginLeft: 11 }} numberOfLines={1}>{m.name}</Text>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       )}

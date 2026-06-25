@@ -324,6 +324,11 @@ service cloud.firestore {
         allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid && crewMember();
         // 댓글수(commentCount) 증가는 멤버 누구나 — 본문·작성자 불변
         allow update: if isSignedIn() && crewMember() && changedKeysWithin(['commentCount']);
+        // 좋아요 — 멤버가 likedBy에 '자기 uid'만 토글. .get 기본값으로 likedBy 없던 레거시 글도 첫 좋아요 허용.
+        allow update: if isSignedIn() && crewMember()
+          && changedKeysWithin(['likedBy'])
+          && ((request.auth.uid in resource.data.get('likedBy', []))
+              != (request.auth.uid in request.resource.data.get('likedBy', [])));
         // 본문·미디어 수정 — 작성자 본인만(작성자 불변)
         allow update: if isSignedIn() && resource.data.authorUid == request.auth.uid && crewMember()
           && changedKeysWithin(['text', 'media', 'editedAt']);
@@ -347,6 +352,11 @@ service cloud.firestore {
             && changedKeysWithin(['body', 'editedAt'])
             && request.resource.data.body is string
             && request.resource.data.body.size() > 0 && request.resource.data.body.size() <= 300;
+          // 좋아요 — 멤버가 likedBy에 '자기 uid'만 토글(게시물 좋아요와 동일)
+          allow update: if isSignedIn() && crewMemberC()
+            && changedKeysWithin(['likedBy'])
+            && ((request.auth.uid in resource.data.get('likedBy', []))
+                != (request.auth.uid in request.resource.data.get('likedBy', [])));
           // 삭제 — 작성자 본인 OR 크루장·운영진(부적절 댓글 정리)
           allow delete: if isSignedIn() && (
             resource.data.authorUid == request.auth.uid

@@ -349,3 +349,31 @@ test('crews: 게시물·댓글은 멤버만 작성, 외부인 거부', async () 
   await assertFails(setDoc(doc(as('carol'), 'crews/c1/posts/p1/comments', 'cm2'),
     { authorUid: 'carol', body: 'x', createdAt: serverTimestamp() }));
 });
+
+test('crews: 좋아요는 멤버가 본인 uid만 토글, 남의 좋아요 위조·외부인 거부', async () => {
+  await seed((db) => Promise.all([
+    seedCrew(db, ['alice', 'bob'], []),
+    setDoc(doc(db, 'crews/c1/posts', 'p1'),
+      { authorUid: 'alice', text: '굿샷', media: [], likedBy: [], createdAt: serverTimestamp() }),
+  ]));
+  // 멤버 본인 좋아요/취소 OK
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'), { likedBy: arrayUnion('bob') }));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'), { likedBy: arrayRemove('bob') }));
+  // 남의 uid 끼워넣기(좋아요 위조) — 거부
+  await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'), { likedBy: arrayUnion('alice') }));
+  // 외부인 — 거부
+  await assertFails(updateDoc(doc(as('carol'), 'crews/c1/posts', 'p1'), { likedBy: arrayUnion('carol') }));
+});
+
+test('crews: 댓글 좋아요도 멤버 본인 uid만 토글', async () => {
+  await seed((db) => Promise.all([
+    seedCrew(db, ['alice', 'bob'], []),
+    setDoc(doc(db, 'crews/c1/posts', 'p1'),
+      { authorUid: 'alice', text: '굿샷', media: [], createdAt: serverTimestamp() }),
+    setDoc(doc(db, 'crews/c1/posts/p1/comments', 'cm1'),
+      { authorUid: 'alice', body: '좋아', likedBy: [], createdAt: serverTimestamp() }),
+  ]));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews/c1/posts/p1/comments', 'cm1'), { likedBy: arrayUnion('bob') }));
+  await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts/p1/comments', 'cm1'), { likedBy: arrayUnion('alice') }));
+  await assertFails(updateDoc(doc(as('carol'), 'crews/c1/posts/p1/comments', 'cm1'), { likedBy: arrayUnion('carol') }));
+});

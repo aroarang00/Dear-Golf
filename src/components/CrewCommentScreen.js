@@ -9,7 +9,7 @@ import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
-import { subscribeCrewComments, addCrewComment, editCrewComment, deleteCrewComment } from '../utils/crews';
+import { subscribeCrewComments, addCrewComment, editCrewComment, deleteCrewComment, toggleCommentLike } from '../utils/crews';
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { PhotoViewer } from './common/PhotoViewer';
@@ -24,6 +24,7 @@ const SUB   = 'rgba(26,61,82,0.55)';
 const CARD  = '#FFFFFF';
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
+const HEART_RED = '#E5484D';
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 
@@ -201,19 +202,27 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
     const deco = (c) => {
       const d = cDisplay[c.authorUid] || {};
       const name = d.name || names[c.authorUid] || '친구';
+      const likedBy = c.likedBy || [];
       return { id: c.id, authorUid: c.authorUid, body: c.body || '', time: fmtTime(c.createdAt),
-        name, n: name.charAt(0), c: colorOf(c.authorUid), uri: d.avatarUri || null, parentId: c.parentId || null };
+        name, n: name.charAt(0), c: colorOf(c.authorUid), uri: d.avatarUri || null, parentId: c.parentId || null,
+        liked: !!currentUid && likedBy.includes(currentUid), likeCount: likedBy.length };
     };
     const all = (commentDocs || []).map(deco);
     const tops = all.filter((c) => !c.parentId);
     return tops.map((t) => ({ ...t, replies: all.filter((r) => r.parentId === t.id) }));
-  }, [commentDocs, cDisplay, names]);
+  }, [commentDocs, cDisplay, names, currentUid]);
 
   const count = (commentDocs || []).length;
 
   const openProfile = (person) => {
     const uid = person?.authorUid || person?.id;
     if (uid && uid !== currentUid) setProfileFor({ ...person, uid });
+  };
+  // 댓글·대댓글 좋아요 토글 — 실시간 구독이라 즉시 반영. 현재 상태 반대만(헛쓰기 방지).
+  const toggleLike = (cm) => {
+    if (!currentUid || !crewId || !postId) return;
+    toggleCommentLike(crewId, postId, cm.id, currentUid, !cm.liked)
+      .catch((e) => { if (__DEV__) console.warn('[crewComment] like', e?.code, e?.message); });
   };
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
@@ -324,10 +333,17 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                     </TouchableOpacity>
                   </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(15.5), color: INK, marginTop: 2, lineHeight: fs(21) }}>{cm.body}</Text>
-                  <TouchableOpacity onPress={() => { if (editingComment) { setEditingComment(null); setDraft(''); } setReplyTo({ id: cm.id, name: cm.name }); }}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 4, alignSelf: 'flex-start' }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                    <TouchableOpacity onPress={() => toggleLike(cm)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                      style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Icon name={cm.liked ? 'heartFilled' : 'heart'} size={fs(15)} color={cm.liked ? HEART_RED : SUB} strokeWidth={1.9} />
+                      {cm.likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: SUB, marginLeft: 4 }}>{cm.likeCount}</Text>}
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => { if (editingComment) { setEditingComment(null); setDraft(''); } setReplyTo({ id: cm.id, name: cm.name }); }}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }} style={{ marginLeft: 16 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
+                    </TouchableOpacity>
+                  </View>
                   {/* 대댓글 */}
                   {(cm.replies || []).map((r) => (
                     <View key={r.id} style={{ flexDirection: 'row', marginTop: 10 }}>
@@ -343,6 +359,11 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                           </TouchableOpacity>
                         </View>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: INK, marginTop: 2, lineHeight: fs(20) }}>{r.body}</Text>
+                        <TouchableOpacity onPress={() => toggleLike(r)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, alignSelf: 'flex-start' }}>
+                          <Icon name={r.liked ? 'heartFilled' : 'heart'} size={fs(14)} color={r.liked ? HEART_RED : SUB} strokeWidth={1.9} />
+                          {r.likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: SUB, marginLeft: 4 }}>{r.likeCount}</Text>}
+                        </TouchableOpacity>
                       </View>
                     </View>
                   ))}
