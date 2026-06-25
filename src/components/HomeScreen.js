@@ -58,6 +58,16 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// 우측 버튼 레일(메시지·크루·쇼핑) — 셋 다 절대좌표 top = RAIL_TOP + RAIL_STEP*n (간격 균일).
+//   안드는 시작을 더 내려(상태바와 안 붙게) + 간격 압축(아래 '예정 라운딩 추가'와 안 붙게).
+//   iOS는 위아래 공간이 훨씬 여유라 시작을 더 내리고(DM 너무 위 방지) 버튼·간격을 크게. 한 곳만 고치면 셋이 같이 움직임.
+const _railAnd = Platform.OS === 'android';
+const RAIL_TOP = _railAnd ? 22 : 30;
+const RAIL_STEP = _railAnd ? 70 : 84;
+const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
+const RAIL_ICON = _railAnd ? 26 : 30;    // 크루·쇼핑 라인 아이콘
+const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼)
+
 export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
   const { schedules, hydrated, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
@@ -835,47 +845,17 @@ export function HomeScreen({ navigation, route }) {
           <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
           {/* 타이틀 줄 — Dear Golf + 날씨 + DM 💬. 💬는 날씨 아이콘 우상단에 살짝 띄워(브랜드가 말하는 말풍선 느낌),
               너무 붙지 않게 간격(marginLeft)·위로 올림(marginTop 음수). 사용자 위치 지정 2026-06-17. */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            {/* flex:1+minWidth:0 — 확대로 폭 좁아질 때 좌측(타이틀+날씨)이 양보해 우측 DM이 화면 밖으로 안 밀리게.
-                타이틀 축소는 iOS만 — 안드는 Lora 브랜드폰트에서 adjustsFontSizeToFit이 축소 못 하고 박스만 줄어 'Golf' 잘림([[rn-platform-gotchas]]).
-                안드는 원래대로(flexShrink:0, 축소X)라 안 잘림. DM 잘림은 원래 iOS 줌 이슈라 안드 영향 없음. */}
+          {/* 우측 버튼 레일(메시지·크루·쇼핑)은 절대좌표로 통일(top 4/92/180, 간격 88 균일) — 아래 hdr 마지막 자식들.
+              타이틀 줄은 그 자리만 비워둠(paddingRight)으로 버튼과 안 겹치게. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: RAIL_BTN + 12 }}>
+            {/* flex:1+minWidth:0 — 확대로 폭 좁아질 때 좌측(타이틀+날씨)이 양보해 우측 버튼과 안 겹치게.
+                타이틀 축소는 iOS만 — 안드는 Lora 브랜드폰트에서 adjustsFontSizeToFit이 축소 못 하고 박스만 줄어 'Golf' 잘림([[rn-platform-gotchas]]). */}
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
               <Text style={[homeS.hdrTitle, Platform.OS === 'android' && { fontSize: fs(43) * zoomScale, lineHeight: fs(58) * zoomScale }, Platform.OS === 'ios' && { flexShrink: 1, lineHeight: fs(56) }]} numberOfLines={1} allowFontScaling={false} adjustsFontSizeToFit={Platform.OS === 'ios'} minimumFontScale={0.7}>Dear Golf</Text>
               <TouchableOpacity onPress={openCurrentWeather} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 12 }}>
                 <View style={{ marginTop: 4 }}><WeatherGlyph icon={wxEmoji} size={(Platform.OS === 'android' ? fs(40) : fs(42)) * zoomScale} /></View>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginTop: -28, marginLeft: 14, marginRight: Platform.OS === 'android' && zoomScale < 1 ? -8 : 0 }}>
-              {/* DM 커스텀 버튼 — 반투명 버터 동그라미 + 균일 테두리. 안읽음=버건디+숫자. 안읽음 시 좌우 진동.
-                  ★드롭섀도 제거(2026-06-18): 반투명 배경을 그림자가 투과해 iOS/안드 릴리즈에서 'DM 뒤 뿌연 팔각형'
-                  아티팩트가 보였음(배경 없는 뷰의 그림자 다각형 근사 + elevation 팔각형). 깔끔함 우선으로 그림자 제거. */}
-              <Animated.View style={{ width: 44, height: 44, borderRadius: 22,
-                alignItems: 'center', justifyContent: 'center',
-                transform: [{ translateX: dmShift }] }}>
-                <Animated.View style={{ opacity: dmIdleOpacity }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: C.butter,
-                    backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.2, borderColor: C.butter,
-                      backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
-                      alignItems: 'center', justifyContent: 'center' }}>
-                      {dmUnread > 0 ? (
-                        // 안읽음 — 기존 그대로(버건디+숫자, 눈에 잘 띔)
-                        <Text style={{ fontFamily: F.sysB,
-                          fontSize: fs(dmUnread > 99 ? 10 : 13), lineHeight: fs(13),
-                          color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
-                          marginTop: Platform.OS === 'ios' ? 1 : 0 }}>
-                          {dmUnread > 99 ? '99+' : dmUnread}
-                        </Text>
-                      ) : (
-                        // 읽음 — 종이비행기(편지 날아가는) 드로잉 ('DM' 글씨 대체)
-                        <Icon name="send" size={fs(28)} color={C.butter} strokeWidth={1.7} />
-                      )}
-                    </View>
-                  </View>
-                </Animated.View>
-              </Animated.View>
-            </TouchableOpacity>
           </View>
           {/* 크루 버튼은 hdr 맨 마지막 자식으로 이동 — iOS서 그리팅/배너 위에 와야 터치를 받음(아래) */}
           <Text style={homeS.hdrGreeting}>
@@ -928,21 +908,59 @@ export function HomeScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
           )}
-          {/* 크루 — DM 아래 진입. hdr의 ★맨 마지막 자식★(그리팅·배너 위에 렌더) + zIndex로 iOS서도 맨 위라 터치 받음.
-              타이틀 줄 밖이라 안드 부모-밖 터치 잘림도 없음. right:SIDE_PAD/top:86로 DM 아래 위치(헤더 버튼과 우측 정렬). */}
+          {/* ── 우측 버튼 레일: 메시지 → 크루 → 쇼핑. 셋 다 절대좌표 right:SIDE_PAD, top 4/92/180(간격 88 균일).
+                hdr 마지막 자식들(그리팅·배너 위에 렌더) + zIndex/elevation 20으로 iOS·안드 모두 맨 위라 터치 받음. ── */}
+          {/* 메시지(DM) — 레일 1번. 안읽음=버건디+숫자, 안읽음 시 좌우 진동. 평상시 은은한 호흡 펄스.
+              ★드롭섀도 제거(2026-06-18): 반투명 배경 그림자 투과로 'DM 뒤 뿌연 팔각형' 아티팩트 → 깔끔함 우선 제거. */}
+          <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
+            <Animated.View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2,
+              alignItems: 'center', justifyContent: 'center',
+              transform: [{ translateX: dmShift }] }}>
+              <Animated.View style={{ opacity: dmIdleOpacity }}>
+                <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 1.5, borderColor: C.butter,
+                  backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: RAIL_BTN - 8, height: RAIL_BTN - 8, borderRadius: (RAIL_BTN - 8) / 2, borderWidth: 1.2, borderColor: C.butter,
+                    backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
+                    alignItems: 'center', justifyContent: 'center' }}>
+                    {dmUnread > 0 ? (
+                      <Text style={{ fontFamily: F.sysB,
+                        fontSize: fs(dmUnread > 99 ? 10 : 13), lineHeight: fs(13),
+                        color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
+                        marginTop: Platform.OS === 'ios' ? 1 : 0 }}>
+                        {dmUnread > 99 ? '99+' : dmUnread}
+                      </Text>
+                    ) : (
+                      // 읽음 — 종이비행기(편지 날아가는) 드로잉
+                      <Icon name="send" size={fs(RAIL_SEND)} color={C.butter} strokeWidth={1.7} />
+                    )}
+                  </View>
+                </View>
+              </Animated.View>
+            </Animated.View>
+            {/* 아이콘 아래 한글 라벨 — 이모지만으론 뭔지 모를 수 있어 명시(사용자 2026-06-25). 사진 배경 위 가독성 위해 그림자 */}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, marginTop: 2, includeFontPadding: false,
+              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>메시지</Text>
+          </TouchableOpacity>
+
+          {/* 크루 — 레일 2번. 초대 있을 때만 글로우(라디오 핑). */}
           <TouchableOpacity onPress={() => setCrewOpen(true)} activeOpacity={0.8}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ position: 'absolute', right: SIDE_PAD, top: 86, zIndex: 20, elevation: 20 }}>
+            style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
             {/* 초대 글로우(라디오 핑) — 평상시 정적, 초대 있을 때만 울림 */}
             {crewInvite > 0 && (
-              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, borderRadius: 22,
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2,
                 backgroundColor: '#8FB06B', opacity: crewHaloOpacity, transform: [{ scale: crewHaloScale }] }} />
             )}
             {/* 어두운 반투명 스크림 — 밝은(낮) 배경서도 또렷 */}
-            <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#8FB06B',
+            <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#8FB06B',
               backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="crew" size={fs(26)} color="#A8CC82" strokeWidth={2} />
+              <Icon name="crew" size={fs(RAIL_ICON)} color="#A8CC82" strokeWidth={2} />
             </View>
+            {/* 아이콘 아래 한글 라벨 — DM과 짝(사용자 2026-06-25). 사진 배경 위 가독성 위해 그림자 */}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A8CC82', marginTop: 2, includeFontPadding: false,
+              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>크루</Text>
           </TouchableOpacity>
         </View>
 
