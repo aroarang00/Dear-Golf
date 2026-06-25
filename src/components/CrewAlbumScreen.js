@@ -31,6 +31,7 @@ const CARD  = '#FFFFFF';
 const SAGE  = '#8FB06B';
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
+const NEWMARK = '#6B1E2A';   // 안 본 글·내 글 새 댓글 표식 — 목록 '새 글' 배지와 같은 버건디 톤
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 const HEART_RED = '#E5484D';
@@ -207,7 +208,7 @@ function PostMedia({ media, width, onOpen, onDoubleLike, burst }) {
   );
 }
 
-export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
+export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const { width: winW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const currentUid = useCurrentUid();
@@ -316,15 +317,20 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
     const likedBy = p.likedBy || [];
     const lcBy = p.lastCommentBy || null;
     const lcName = lcBy ? ((display[lcBy] || {}).name || namesFallback[lcBy] || '친구') : '';
+    const createdMs = p.createdAt?.toMillis ? p.createdAt.toMillis() : 0;
+    const lastCMs = p.lastCommentAt?.toMillis ? p.lastCommentAt.toMillis() : 0;
     return {
       id: p.id,
       author: { id: p.authorUid, name, n: name.charAt(0), c: colorOf(p.authorUid), uri: d.avatarUri || null },
       time: fmtTime(p.createdAt), text: p.text || '', media: p.media || [], comments: p.commentCount || 0,
       likedBy, liked: !!currentUid && likedBy.includes(currentUid), likeCount: likedBy.length,
       lastCommentText: p.lastCommentText || '', lastCommentName: lcName,
+      // 신호 — seenAt(마지막 본 시각) 기준. 첫 진입(seenAt=0)은 전부 NEW로 도배되지 않게 억제.
+      isNew: seenAt > 0 && createdMs > seenAt && p.authorUid !== currentUid,         // 남이 올린 안 본 글
+      hasNewComment: seenAt > 0 && p.authorUid === currentUid && lastCMs > seenAt && !!lcBy && lcBy !== currentUid, // 내 글에 새 댓글
       _doc: p,
     };
-  }), [postDocs, display, currentUid]);
+  }), [postDocs, display, currentUid, seenAt]);
 
   // 피드 사진 미리 받기 — 첫 화면 몇 장만. 전체 원본을 한꺼번에 prefetch하면 사진 많은 크루 진입 시
   //   네트워크·디코드 폭주로 버벅임(가상화와 별개로 prefetch가 전량을 깨움). 6장으로 제한(2026-06-24 성능).
@@ -488,7 +494,14 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <MiniAvatar n={p.author.n} c={p.author.c} uri={p.author.uri} size={32} onPress={() => openProfile(p.author)} />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{p.author.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{p.author.name}</Text>
+            {p.isNew && (
+              <View style={{ backgroundColor: NEWMARK, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 7 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(9.5), color: '#fff', letterSpacing: 0.4 }}>NEW</Text>
+              </View>
+            )}
+          </View>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
         </View>
         <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}
@@ -523,10 +536,13 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM }) {
           <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
         </TouchableOpacity>
       </View>
-      {/* 최신 댓글 한 줄 미리보기 — 들어가지 않아도 누가 뭐라 했는지 보임. 탭=댓글 화면 */}
+      {/* 최신 댓글 한 줄 미리보기 — 들어가지 않아도 누가 뭐라 했는지 보임. 탭=댓글 화면.
+          내 글에 새 댓글이면 앞에 버건디 점 + 텍스트 진하게(가장 보고 싶어하는 신호). */}
       {!!p.lastCommentText && (
-        <TouchableOpacity onPress={() => setCommentPost(p)} activeOpacity={0.7} style={{ marginTop: 8 }}>
-          <Text numberOfLines={1} style={{ fontSize: fs(13), color: SUB, lineHeight: fs(19) }}>
+        <TouchableOpacity onPress={() => setCommentPost(p)} activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          {p.hasNewComment && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: NEWMARK, marginRight: 6 }} />}
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: fs(13), color: p.hasNewComment ? INK : SUB, lineHeight: fs(19) }}>
             <Text style={{ fontFamily: F.sysB, color: INK }}>{p.lastCommentName}</Text>
             <Text style={{ fontFamily: F.sys }}>  {p.lastCommentText}</Text>
           </Text>

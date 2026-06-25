@@ -96,7 +96,8 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
   const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
   const [aliasMap, setAliasMap] = useState({});      // {crewId:alias} — 나만 보는 크루 별명(기기 로컬, 서버 name 불변)
-  const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(새 글 갯수 산출, 기기 로컬)
+  const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(목록 '새 글 N' 배지 산출, 기기 로컬)
+  const [seenAtMap, setSeenAtMap] = useState({});    // {crewId:millis} — 마지막으로 앨범 닫은 시각(앨범 NEW·내글 새댓글 판단, 기기 로컬)
   const [crewOrder, setCrewOrder] = useState(null);  // [crewId,...] 수동 순서(드래그). null=미로드, []=설정 안 함
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
   const [myName, setMyName] = useState('');
@@ -115,6 +116,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
     storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => { if (alive) setAliasMap(a || {}); });
     storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
+    storage.load(STORAGE_KEYS.crewSeenAt, {}).then((s) => { if (alive) setSeenAtMap(s || {}); });
     storage.load(STORAGE_KEYS.crewOrder, []).then((o) => { if (alive) setCrewOrder(Array.isArray(o) ? o : []); });
     storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
     return () => { alive = false; };
@@ -154,7 +156,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     };
   }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, aliasMap, seenSet, currentUid]);
 
-  // 크루 입장/퇴장 시 본 시점 글 수 갱신(새 글 갯수 0으로) — 현재 doc의 postCount 기준
+  // 크루 입장/퇴장 시 본 시점 글 수 갱신(목록 '새 글 N' 0으로) — 현재 doc의 postCount 기준
   const markCrewSeen = (id) => {
     const d = (crewDocs || []).find((x) => x.id === id);
     if (!d) return;
@@ -163,6 +165,16 @@ export function CrewListScreen({ onClose, onOpenDM }) {
       if (prev[id] === pc) return prev;
       const next = { ...prev, [id]: pc };
       storage.save(STORAGE_KEYS.crewSeen, next);
+      return next;
+    });
+  };
+  // 앨범 닫을 때 '마지막 본 시각' 갱신 — 앨범 NEW 점·내 글 새 댓글 강조는 이 시각 기준(열 때가 아니라 닫을 때라
+  //   앨범 안에서는 열기 직전 값으로 NEW가 보이고, 닫고 다시 열면 그새 활동만 NEW로). Date.now 로컬 기기 시계로 충분.
+  const markCrewSeenAt = (id) => {
+    const now = Date.now();
+    setSeenAtMap((prev) => {
+      const next = { ...prev, [id]: now };
+      storage.save(STORAGE_KEYS.crewSeenAt, next);
       return next;
     });
   };
@@ -234,7 +246,8 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일). 닫을 때 본 시각 갱신(새 글 표시 해제)
   if (openCrew) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
-      <CrewAlbumScreen crew={openCrew} onClose={() => { markCrewSeen(openCrew.id); setOpenCrew(null); }} onOpenDM={onOpenDM} />
+      <CrewAlbumScreen crew={openCrew} seenAt={openCrew._seenAt || 0}
+        onClose={() => { markCrewSeen(openCrew.id); markCrewSeenAt(openCrew.id); setOpenCrew(null); }} onOpenDM={onOpenDM} />
     </Animated.View>
   );
   if (createOpen) return (
@@ -326,7 +339,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
             renderItem={(c, drag) => (
               <GestureDetector gesture={drag}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', height: ROW_H, borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
-                  <TouchableOpacity activeOpacity={0.6} onPress={() => { markCrewSeen(c.id); setOpenCrew(c); }}
+                  <TouchableOpacity activeOpacity={0.6} onPress={() => { markCrewSeen(c.id); setOpenCrew({ ...c, _seenAt: seenAtMap[c.id] || 0 }); }}
                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: '100%' }}>
                     {/* 크루 프로필 — 색+이니셜(또는 사진). 기존 크루는 themeColor 없으면 accentOf 폴백 */}
                     <CrewAvatar name={c.name} color={c.themeColor || accentOf(c.id)} imageUrl={c.imageUrl} size={42} radius={12} />
