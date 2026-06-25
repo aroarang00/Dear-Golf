@@ -674,7 +674,9 @@ export function DiaryScreen({ route, navigation }) {
         stickyHeaderIndices={[2]}>
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
-        <View style={{ position: 'absolute', top: 14, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
+        {/* 💰·⚙️ — iOS는 이름(marginTop:0)이 위에 붙어 top:14면 아이콘이 이름보다 ~5px 아래로 떨어짐 → iOS만 top 올려 이름과 맞춤.
+            안드는 이름 marginTop:8이라 14가 맞음([[rn-platform-gotchas]] 명함 정렬). */}
+        <View style={{ position: 'absolute', top: Platform.OS === 'android' ? 14 : 8, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
