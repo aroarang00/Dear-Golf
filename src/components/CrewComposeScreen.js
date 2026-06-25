@@ -118,7 +118,38 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const [previewing, setPreviewing] = useState(false);  // 게시 전 미리보기 모드(피드 카드 모습)
   const [myName, setMyName] = useState('');             // 미리보기 작성자 표시(내 닉네임)
   const [myAvatar, setMyAvatar] = useState(null);
+  const [draftRestored, setDraftRestored] = useState(false); // 임시저장 글 복원됨(배너 표시)
   const { width: winW } = useWindowDimensions();
+  const isNewPost = !editing && !editingNotice;        // 새 글 작성(임시저장 대상 — 수정·공지 제외)
+
+  // 임시저장 불러오기 — 새 글 작성 진입 시 이전에 쓰다 만 글 복원(글만, 미디어는 휘발이라 제외)
+  useEffect(() => {
+    if (!isNewPost || !crewId) return;
+    let alive = true;
+    storage.load(STORAGE_KEYS.crewDraft, {}).then((m) => {
+      if (!alive) return;
+      const d = (m || {})[crewId];
+      if (d && d.trim()) { setText(d); setDraftRestored(true); }
+    });
+    return () => { alive = false; };
+  }, [isNewPost, crewId]);
+
+  // 자동 임시저장 — 타이핑 멈추면(400ms) 글 저장(공지 모드 제외). 빈 글은 삭제. 앱이 죽어도 살아남게 기기 로컬.
+  useEffect(() => {
+    if (!isNewPost || isNotice || !crewId) return;
+    const t = setTimeout(async () => {
+      const m = (await storage.load(STORAGE_KEYS.crewDraft, {})) || {};
+      if (text.trim()) m[crewId] = text; else delete m[crewId];
+      storage.save(STORAGE_KEYS.crewDraft, m);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [text, isNotice, isNewPost, crewId]);
+
+  const clearCrewDraft = () => {
+    if (!crewId) return;
+    storage.load(STORAGE_KEYS.crewDraft, {}).then((m) => { const n = m || {}; delete n[crewId]; storage.save(STORAGE_KEYS.crewDraft, n); }).catch(() => {});
+  };
+  const discardDraft = () => { setText(''); setDraftRestored(false); setErr(''); clearCrewDraft(); };
 
   // 미리보기 작성자 = 나 — 닉네임·프로필 사진 로드(앨범선 보는 사람 별명이지만, 내 글 미리보기는 내 닉으로 충분)
   useEffect(() => {
@@ -220,6 +251,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
         await setCrewNotice(crewId, body, currentUid);
       } else {
         await addCrewPost(crewId, { authorUid: currentUid, text: body, media: up });
+        clearCrewDraft();   // 게시 성공 → 임시저장 삭제
       }
       onClose();   // 실시간 구독이 앨범·상세에 즉시 반영
     } catch (e) {
@@ -280,6 +312,18 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
               style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] } : undefined}
               trackColor={{ false: 'rgba(26,61,82,0.2)', true: SAGE }} thumbColor="#fff" />
           </View>
+          )}
+
+          {/* 임시저장 복원 안내 — 쓰다 만 글을 불러왔을 때(새 글·비공지). '지우고 새로'로 비움 */}
+          {isNewPost && !isNotice && draftRestored && !!text && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(143,176,107,0.14)', borderRadius: 10,
+              paddingHorizontal: 12, paddingVertical: 9, marginTop: 12 }}>
+              <Text style={{ fontSize: fs(13), marginRight: 7 }}>📝</Text>
+              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: SAGE_DEEP }}>쓰다 만 글을 불러왔어요</Text>
+              <TouchableOpacity onPress={discardDraft} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SUB }}>지우고 새로</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* 글 */}

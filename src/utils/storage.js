@@ -40,6 +40,7 @@ export const STORAGE_KEYS = {
   crewSeenAt: '@dg_crew_seen_at', // 크루별 마지막으로 앨범 닫은 시각 {crewId: millis} — 기기 로컬, 앨범 안 NEW 점·'내 글 새 댓글'·목록 반응 신호 판단
   crewOrder: '@dg_crew_order', // 크루 목록 수동 순서 [crewId,...] — 기기 로컬, 드래그 정렬(서버 미저장)
   crewAliases: '@dg_crew_aliases', // 크루 내 별명 {crewId: alias} — 기기 로컬, per-user '나만 보는' 이름(서버 name은 불변, 전원공유 방지)
+  crewDraft: '@dg_crew_draft', // 크루 새 글 작성 중 임시저장 {crewId: text} — 기기 로컬, 글만(미디어 uri는 휘발이라 제외). 게시 성공·지우기 시 삭제
 };
 
 export const storage = {
