@@ -232,7 +232,7 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
   );
 }
 
-export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = false }) {
+export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = false, onGoToPost = null }) {
   const [idx, setIdx] = useState(startIndex);
   const [zoomed, setZoomed] = useState(false); // 현재 사진 확대 여부 — 확대 중 가로 페이저 잠금
   const [showCaption, setShowCaption] = useState(true); // 글(caption) 표시 — 사진 탭으로 토글
@@ -365,6 +365,16 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
             </View>
           ))}
         </ScrollView>
+
+        {/* 게시글 보기 — 갤러리에서 연 경우(onGoToPost) 원글(글·댓글)로 이동. 확대 중엔 숨김. */}
+        {onGoToPost && !zoomed && current ? (
+          <TouchableOpacity onPress={() => onGoToPost(current)} activeOpacity={0.85}
+            style={{ position: 'absolute', bottom: 42, alignSelf: 'center', zIndex: 20, flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>게시글 보기</Text>
+            <Text style={{ fontSize: fs(15), color: '#fff', marginTop: -1 }}>›</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* 글(캡션) — 사진 바로 아래 흐름으로 배치, 남은 공간 전체에서 세로 스크롤. 사진 탭으로 숨김/표시 토글. 확대 중엔 숨김. */}
         {caption && showCaption && !zoomed ? (

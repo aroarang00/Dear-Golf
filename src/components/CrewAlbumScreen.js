@@ -588,7 +588,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
 
   // 갤러리 타일 — 탭하면 풀스크린 뷰어. 간격은 columnWrapperStyle gap이 처리.
   const renderTile = ({ item: t, index: i }) => (
-    <TouchableOpacity activeOpacity={0.8} onPress={() => setViewer({ media: tiles, index: i })} style={{ marginBottom: GAP }}>
+    <TouchableOpacity activeOpacity={0.8} onPress={() => setViewer({ media: tiles, index: i, gallery: true })} style={{ marginBottom: GAP }}>
       <MediaTile m={t} style={{ width: cell, height: cell }} radius={8} playSize="sm" />
     </TouchableOpacity>
   );
@@ -789,9 +789,15 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         </View>
       )}
 
-      {/* 풀스크린 줌 뷰어 — 사진/영상 가운데 확대만(캡션 없음), 저장 허용 */}
+      {/* 풀스크린 줌 뷰어 — 사진/영상 가운데 확대만(캡션 없음), 저장 허용.
+          갤러리에서 연 경우 '게시글 보기'로 원글(글·댓글)로 점프(타일의 postId로 해당 글 찾기). */}
       {viewer && (
-        <PhotoViewer photos={viewer.media} startIndex={viewer.index} allowSave onClose={() => setViewer(null)} />
+        <PhotoViewer photos={viewer.media} startIndex={viewer.index} allowSave onClose={() => setViewer(null)}
+          onGoToPost={viewer.gallery ? (item) => {
+            const p = posts.find((pp) => pp.id === item?.postId);
+            setViewer(null);
+            if (p) setCommentPost(p);
+          } : undefined} />
       )}
 
       {/* 신고 — 작성자 대상 + 본문 인용 근거 prefill */}
