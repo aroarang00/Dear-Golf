@@ -63,7 +63,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 //   안드는 상태바와 안 붙게, iOS는 공간 여유라 더 내리고 버튼·간격을 크게. 한 곳만 고치면 둘이 같이 움직임.
 const _railAnd = Platform.OS === 'android';
 const RAIL_TOP = _railAnd ? 28 : 38;
-const RAIL_STEP = _railAnd ? 80 : 94;
+const RAIL_STEP = _railAnd ? 80 : 88;
 const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
 const RAIL_ICON = _railAnd ? 26 : 30;    // 크루 라인 아이콘
 const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼)
