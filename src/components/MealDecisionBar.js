@@ -269,19 +269,20 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     const editing = memoEdit?.slot === slot;
     return (
       <View key={slot} style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-        {/* 헤더 — 식사 슬롯(2곳일 때) + 누가 정했는지(별명 우선). 잘 보이게 카드 최상단. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          {decidedCount === 2 && (
-            <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, letterSpacing: 0.3 }}>식사 {slot}</Text>
-            </View>
-          )}
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray }} numberOfLines={1}>
-            🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님이 정함`}
+        {/* 식사 슬롯(2곳일 때)만 최상단 작은 배지 — '누가 정함'은 식당명 옆으로 내려 한 줄 절약. */}
+        {decidedCount === 2 && (
+          <View style={{ alignSelf: 'flex-start', backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, letterSpacing: 0.3 }}>식사 {slot}</Text>
+          </View>
+        )}
+        {/* 식당명 + 누가 정했는지(별명 우선) 같은 줄 — 이름 왼쪽(flex), 정한 사람 오른쪽 */}
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+          <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }} numberOfLines={1}>{pl?.name}</Text>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, flexShrink: 0 }} numberOfLines={1}>
+            🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님`}
           </Text>
         </View>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }} numberOfLines={1}>{pl?.name}</Text>
-        {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
+        {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
         {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
         {editing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
@@ -343,53 +344,53 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         style={{ marginHorizontal: 10, marginBottom: 10, paddingTop: 10, paddingBottom: 6, borderRadius: 12,
         backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(160,130,30,0.18)' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 6 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, flex: 1 }}>{title}</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal, flex: 1 }}>{title}</Text>
           {/* 항상 취소 가능 — 이미 정한 게 있으면 카드로 돌아가고(닫기), 첫 결정 중이면 시트를 닫음(취소). */}
           <TouchableOpacity onPress={() => { setPickSlot(null); setMemo(''); setKw(''); if (decidedCount === 0) setOpen(false); }}
             activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>{decidedCount > 0 ? '닫기' : '취소'}</Text>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray }}>{decidedCount > 0 ? '닫기' : '취소'}</Text>
           </TouchableOpacity>
         </View>
         {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
-        <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
-          <AppTextInput value={memo} onChangeText={setMemo} placeholder="메모 (선택 · 예: 아침 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
-            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal }} />
+        <View style={{ paddingHorizontal: 18, marginBottom: 7 }}>
+          <AppTextInput value={memo} onChangeText={setMemo} placeholder="메모 (예: 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
+            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} />
         </View>
-        <View style={{ paddingHorizontal: 18, marginBottom: 6 }}>
+        <View style={{ paddingHorizontal: 18, marginBottom: 7 }}>
           <AppTextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
-            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }} />
         </View>
         {/* 클럽하우스 원탭 — 구장 식당에서 먹는 흔한 케이스. 구장 좌표로 바로 지정(길찾기=구장). 좌표 없으면 지정만 되고 길찾기 비활성. */}
         <TouchableOpacity onPress={() => propose({ name: '클럽하우스', loc: schedule?.course || '', x: coord?.x, y: coord?.y })} disabled={busy} activeOpacity={0.85}
-          style={{ marginHorizontal: 18, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-            paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
-          <Icon name="clubhouse" size={fs(20)} color={C.burgundy} />
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>클럽하우스에서 식사</Text>
+          style={{ marginHorizontal: 18, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+            paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
+          <Icon name="clubhouse" size={fs(21)} color={C.burgundy} />
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>클럽하우스에서 식사</Text>
         </TouchableOpacity>
         <View style={{ paddingBottom: 6 }}>
           {loading ? (
             <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
           ) : list.length === 0 ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 24, textAlign: 'center', paddingHorizontal: 18 }}>
-              {coord ? '주변 식당을 찾지 못했어요 — 이름으로 검색해보세요' : '코스 위치를 찾지 못해 검색만 가능해요'}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, paddingVertical: 24, textAlign: 'center', paddingHorizontal: 18, lineHeight: fs(19) }}>
+              {coord ? '주변 식당을 찾지 못했어요\n이름으로 검색해보세요' : '코스 위치를 찾지 못해\n이름으로만 검색할 수 있어요'}
             </Text>
           ) : (
             list.map((r) => (
-              <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+              <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
                   {/* 주소(loc)는 어차피 잘려 의미 적고 '상세'로 충분 → 종류·거리만 표기. */}
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
                     {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}
                   </Text>
                 </View>
                 {/* 상세 — 네이버 지도 검색(맛집 더보기와 통일). 카카오 url 대신 이름+지역으로 네이버 검색. */}
-                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(r.name, r.loc)).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 7 }}>
-                  <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
+                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(r.name, r.loc)).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
-                  style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>여기로 정하기</Text>
+                  style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>정하기</Text>
                 </TouchableOpacity>
               </View>
             ))
@@ -436,19 +437,20 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
             </View>
             <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Icon name="bowl" size={fs(20)} color={C.charcoal} />
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>함께 식사</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <Icon name="bowl" size={fs(24)} color={C.charcoal} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: C.charcoal }}>함께 식사</Text>
               </View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {schedule?.course}{schedule?.date ? ` · ${schedule.date}` : ''}{schedule?.time ? ` · ${schedule.time}` : ''}
               </Text>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray, marginTop: 6 }} numberOfLines={2}>
+              {/* 안내문 — 본문(회색)과 구분되게 네이비 색으로(박스 없이). 한 줄로 짧게. */}
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.navy, marginTop: 7, lineHeight: fs(18) }} numberOfLines={2}>
                 {(meal1 || meal2)
                   ? (schedule?.roundupId
-                      ? '💡 변경은 정한 사람이나 모집 주최자만 할 수 있어요.'
-                      : '💡 변경은 정한 사람만 할 수 있어요.')
-                  : '💡 먼저 정하는 분이 식사 장소를 정해요.'}
+                      ? '💡 변경은 정한 사람·모집 주최자만 가능'
+                      : '💡 변경은 정한 사람만 가능')
+                  : '💡 먼저 정하는 분이 식사 장소를 정해요'}
               </Text>
             </View>
 
@@ -468,9 +470,11 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               )}
 
               {audienceUids.length === 0 && !meal1 && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 18, marginBottom: 6 }}>
-                  이 라운딩에 친구 동반자가 없어요. 일정 동반자에 친구를 넣으면 함께 정할 수 있어요.
-                </Text>
+                <View style={{ marginHorizontal: 18, marginBottom: 8, backgroundColor: C.bgSecondary, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 10 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, lineHeight: fs(18) }}>
+                    친구 동반자가 없어요. 일정에 친구를 넣으면 함께 정할 수 있어요.
+                  </Text>
+                </View>
               )}
 
               {/* 최초 결정(슬롯1) 또는 슬롯2 추가. ★슬롯1 미정이면 pickSlot 타이밍과 무관하게 항상 picker 노출 —
