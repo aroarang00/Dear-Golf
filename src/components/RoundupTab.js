@@ -840,17 +840,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 중복 방지: schedules[].roundupId === post.id 로 식별
   useEffect(() => {
     const toAdd = [];
-    const _td = new Date(); _td.setHours(0, 0, 0, 0); const todayMidMs = _td.getTime(); // 과거 모집 자동등록 차단 기준(자정)
+    const nowMs = Date.now(); // 자동등록 차단 기준 — 티오프(날짜+시간) 지난 라운딩은 재생성 X
     for (const p of posts) {
       if (p.type !== 'fixed' || !p.date || !p.course) continue;
       const isMine = !!myUid && p.authorUid === myUid;
       const isJoined = !!joined[p.id];
       if (!isMine && !isJoined) continue;
       if (!p.closed) continue; // 확정 전까지는 등록 안 함
-      // 과거(티오프 지난) 모집은 일정 '신규' 자동등록 X — 예정 때 만들어진 일정은 reconcile이 유지(기록 동선),
-      //   사용자가 지운 과거 일정이 자동등록으로 되살아나던 문제 방지([[diary-schedule-orphan-fix]]). 2026-06-18.
-      const teeMs = new Date((p.date || '').replace(/\./g, '-')).getTime();
-      if (Number.isFinite(teeMs) && teeMs < todayMidMs) continue;
+      // 티오프(날짜+시간) 지난 모집은 일정 '신규' 자동등록 X — 끝난/지난 라운딩을 지워도 되살아나던 문제 방지
+      //   ([[diary-schedule-orphan-fix]]). ★기존엔 '오늘 자정' 기준이라 같은 날 티오프가 지난 라운딩이 계속
+      //   재생성됐음(삭제해도 부활). 이제 티오프 지나면 재생성 X → 끝난 라운딩 삭제 가능. 예정 라운딩만 등록.
+      const teeMs = new Date(`${(p.date || '').replace(/\./g, '-')}T${p.time || '00:00'}`).getTime();
+      if (Number.isFinite(teeMs) && teeMs <= nowMs) continue;
       if (schedules.some(s => s.roundupId === p.id)) continue;
       if (autoSchedRef.current.has(p.id)) continue; // 경합 가드 — schedules 상태 갱신 전 재실행돼도 중복 생성 차단
       autoSchedRef.current.add(p.id);
