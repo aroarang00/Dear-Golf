@@ -242,6 +242,7 @@ export async function joinRoundup(postId, opts = {}) {
     const d = snap.data();
     const participants = Array.isArray(d.participantUids) ? d.participantUids : [];
     if (participants.includes(uid)) return; // 멱등 — 이미 확정된 참여자
+    if (d.closed && d.closedShort) throw new Error('locked'); // 미달 마감(로스터 잠금) — 빈자리 충원 불가
     const cap = d.capacity || ((d.teams || 1) > 1 ? d.teams * 4 : 4);  // 단체=teams*4, 개별=members+1(보통 4)
     // 빈자리 충원 — 개별·단체 모두 정원 미만이면 확정(closed) 상태여도 참여 허용('확정 후 결원=그 자리만 열림'으로 통일).
     //   closed 자체로는 안 막음 — 만석은 아래 정원 가드가 차단. 그래서 결원 자리에 대기자<빈자리여도 데드락 없음 ([[roundup-waitlist-autopromote]]).
@@ -357,7 +358,15 @@ export async function toggleRoundupLike(postId, currentlyLiked) {
 export async function closeRoundup(postId) {
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
-  await updateDoc(ref, { closed: true, updatedAt: serverTimestamp() });
+  // 미달 확정(정원 미만으로 마감) = 로스터 잠금(closedShort) → 빈자리 추가 모집 안 함.
+  //   만석 확정은 closedShort=false → 이후 취소로 결원 생기면 빈자리 충원(vacancy) 허용. 확정 시점 만석 여부로 자동 판정.
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('not-found');
+    const d = snap.data();
+    const cap = d.capacity || ((d.teams || 1) > 1 ? d.teams * 4 : 4);
+    tx.update(ref, { closed: true, closedShort: (d.joined || 0) < cap, updatedAt: serverTimestamp() });
+  });
 }
 
 // 주최자 모집 취소 — 소프트 취소 (하드 삭제 deleteRoundup 대신 표식만 남김).

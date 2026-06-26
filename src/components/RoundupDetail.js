@@ -230,9 +230,10 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const othersWaiting = Math.max(0, waitlistTotal - (waitlistNum ? 1 : 0));
   // 내가 익명으로 대기 중 — 내 행도 랜덤닉으로 보여 본인조차 자기인지 모르니 '(나)'+'익명' 표식으로 식별 ([[roundup-anonymous-participation]])
   const iAmAnonWaiting = !!myUid && !!waitlistNum && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(myUid);
-  // 확정 후 빈자리 충원 — 확정 모집에 결원(정원 미만)이고 대기자가 없으면 빈자리 신규 참여 허용(closed 유지, 개별·단체 공통).
+  // 확정 후 빈자리 충원 — 만석 확정 모집에 결원(정원 미만)이고 대기자가 없으면 빈자리 신규 참여 허용(closed 유지, 개별·단체 공통).
   //   대기자가 있으면 자동 승격이 그 자리를 채우므로 비참여자는 대기 신청만(우선권 보호). ([[roundup-waitlist-autopromote]])
-  const vacancy = post.closed && (post.joined || 0) < capTotal && waitlistTotal === 0;
+  //   ★미달 마감(closedShort)은 제외 — 주최자가 일부러 적게 확정해 잠근 모집이라 빈자리 추가 모집 안 함.
+  const vacancy = post.closed && !post.closedShort && (post.joined || 0) < capTotal && waitlistTotal === 0;
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
@@ -374,7 +375,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
         { icon: '📍', text: post.course },
         { icon: '🗓️', text: dateLine },
       ],
-      note: '확정하면 코스·날짜·시간을 더는 수정할 수 없어요.\n비운 자리는 빈자리 충원으로 계속 받을 수 있어요.',
+      note: '확정하면 코스·날짜·시간을 더는 수정할 수 없어요.\n이 인원으로 마감(잠금)돼 빈자리는 더 받지 않아요.\n남은 자리는 직접 채워주세요.',
       buttons: [
         { text: '다시 확인', style: 'cancel' },
         { text: '이대로 마감', onPress: onConfirm },
@@ -520,7 +521,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>이대로 마감하기</Text>
                 </TouchableOpacity>
                 <Text style={hintStyle}>
-                  인원이 다 안 차도 마감할 수 있어요.{'\n'}남은 자리는 직접 채워주세요 — 빈자리는 계속 받을 수 있어요.
+                  인원이 다 안 차도 마감할 수 있어요.{'\n'}이 인원으로 잠겨 빈자리는 더 받지 않아요 — 남은 자리는 직접 채워주세요.
                 </Text>
               </>
             )}
@@ -635,6 +636,17 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
         {vacancy && (
           <Text style={hintStyle}>확정된 모집에 결원이 생겨 한 자리 비었어요 — 지금 참여하면 채워져요.</Text>
         )}
+      </View>
+    );
+  } else if (post.closedShort) {
+    // 미달 마감(잠금) — 주최자가 인원을 적게 확정한 모집. 빈자리 추가 모집 안 함(참여·대기 둘 다 X).
+    actionBtn = (
+      <View>
+        <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+          backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>마감된 모집이에요</Text>
+        </View>
+        <Text style={hintStyle}>주최자가 인원을 확정해 마감한 모집이라 더는 참여를 받지 않아요.</Text>
       </View>
     );
   } else {

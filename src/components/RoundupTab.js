@@ -65,10 +65,14 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
   const total = (post.joined || 0) + companionsCount;
   const capTotal = post.capacity || (isTeam ? post.teams * 4 : 4);
   const allFull = total >= capTotal;
+  // 확정 후 빈자리(취소로 결원) — 미달 마감(closedShort) 아니고 대기자 없을 때만 '자리 남음'(참여 가능 → 마감/회색 X).
+  //   미달 마감(일부러 적게 확정해 잠금)·만석·옛 확정형 만석은 그대로 마감. ([[roundup-waitlist-autopromote]])
+  const confirmedOpen = !!post.closed && !post.closedShort && !allFull && (post.waitlistUids?.length || 0) === 0;
+  const openSeats = Math.max(0, capTotal - total);
   // 오픈형(날짜 미정)은 만석이어도 '확정/마감'이 아님 — 주최자가 확정형으로 전환해야 확정 가능.
   //   만석을 마감(회색+뱃지)으로 표시하면 자동 확정된 것처럼 오인됨([[roundup-friend-redesign]], 만석≠확정).
-  //   확정형만 만석=마감 시각 처리, 오픈형은 명시적 closed일 때만.
-  const isClosed = post.closed || (post.type !== 'open' && allFull);
+  //   확정형만 만석=마감 시각 처리, 오픈형은 명시적 closed일 때만. 확정+빈자리(confirmedOpen)는 마감 아님(참여 동선 살림).
+  const isClosed = !confirmedOpen && (post.closed || (post.type !== 'open' && allFull));
   const isMine = !!myUid && post.authorUid === myUid;
 
   // 마감(확정·만석) 모집은 회색 처리로 시각 구분 — 숨기진 않음(대기신청 동선 유지). 마감 풀리면 자동 복귀.
@@ -110,6 +114,12 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
         {isClosed && (
           <View style={{ backgroundColor: '#E6C8C8', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#5C1E1E' }}>마감</Text>
+          </View>
+        )}
+        {/* 확정됐지만 취소로 자리 빔 — 마감 대신 '자리 남음'으로 참여 가능함을 알림(회색 처리 안 함) */}
+        {confirmedOpen && (
+          <View style={{ backgroundColor: '#D9E8CE', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#3C6B2E' }}>{openSeats}자리 남음</Text>
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
