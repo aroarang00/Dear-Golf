@@ -161,8 +161,9 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                     const masked = !isHost && u !== post.authorUid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(u);
                     const nm = masked ? anonNick(u, post.id) : (memberNames[u] || '골퍼');
                     return (
-                      <View key={u} style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6 }}>
-                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{nm}{u === myUid ? ' (나)' : ''}</Text>
+                      <View key={u} style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6, justifyContent: 'center' }}>
+                        {/* iOS는 이모지 닉네임이면 라인박스가 비대칭으로 커져 세로 치우침 → 고정 lineHeight로 박스 일정화·중앙 정렬(안드는 정상이라 미적용) */}
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, textAlign: 'center', ...(Platform.OS === 'ios' ? { lineHeight: fs(18) } : null) }}>{nm}{u === myUid ? ' (나)' : ''}</Text>
                       </View>
                     );
                   })}
