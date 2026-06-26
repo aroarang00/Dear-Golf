@@ -1,6 +1,6 @@
 import {
   collection, collectionGroup, query, where, orderBy, limit, getDocs, onSnapshot,
-  setDoc, addDoc, updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, increment, runTransaction,
+  setDoc, updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, increment, runTransaction, writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -189,12 +189,13 @@ export async function setCrewNotice(crewId, notice, uid) {
 // ── 게시물 ──
 export async function addCrewPost(crewId, { authorUid, text = '', media = [] }) {
   if (!crewId || !authorUid) return null;
-  const ref = await addDoc(collection(db, COL, crewId, 'posts'), {
-    authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, likedBy: [], createdAt: serverTimestamp(),
-  });
-  // 크루 최근활동 갱신(목록 정렬·새 글 표시용). lastPostBy=작성자 → 내 글은 새 글 표시 제외
-  updateDoc(doc(db, COL, crewId), { postCount: increment(1), lastPostAt: serverTimestamp(), lastPostBy: authorUid, updatedAt: serverTimestamp() })
-    .catch((e) => __DEV__ && console.warn('[crews] post meta', e?.message));
+  // 글 생성 + 최근활동/postCount를 한 배치로 원자화 — 분리 시 메타 갱신 실패로 postCount가 안 올라
+  //   NEW 신호(postCount>seen)가 글을 놓치던 드리프트 방지. lastPostBy=작성자 → 내 글은 새 글 표시 제외.
+  const ref = doc(collection(db, COL, crewId, 'posts'));
+  const batch = writeBatch(db);
+  batch.set(ref, { authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, likedBy: [], createdAt: serverTimestamp() });
+  batch.update(doc(db, COL, crewId), { postCount: increment(1), lastPostAt: serverTimestamp(), lastPostBy: authorUid, updatedAt: serverTimestamp() });
+  await batch.commit();
   return ref.id;
 }
 // ── 목록 행 '내 글 새 반응' 점(7b) — 내 글 중 sinceMs 이후 '남이 단 댓글'이 있으면 true.
@@ -231,9 +232,11 @@ export function subscribeCrewPosts(crewId, cb) {
 }
 export async function deleteCrewPost(crewId, postId) {
   if (!crewId || !postId) return;
-  await deleteDoc(doc(db, COL, crewId, 'posts', postId));
-  updateDoc(doc(db, COL, crewId), { postCount: increment(-1), updatedAt: serverTimestamp() })
-    .catch((e) => __DEV__ && console.warn('[crews] post dec', e?.message));
+  // 삭제 + postCount-1 원자화 — 감소가 분리돼 실패하면 카운터가 높게 남아 '유령 NEW'가 뜨던 드리프트 방지.
+  const batch = writeBatch(db);
+  batch.delete(doc(db, COL, crewId, 'posts', postId));
+  batch.update(doc(db, COL, crewId), { postCount: increment(-1), updatedAt: serverTimestamp() });
+  await batch.commit();
 }
 // ── 게시물 수정 — 작성자 본인(본문·미디어). editedAt 기록(작성자 불변) ──
 export async function editCrewPost(crewId, postId, { text = '', media = [] }) {
@@ -255,13 +258,15 @@ export async function togglePostLike(crewId, postId, uid, on) {
 export async function addCrewComment(crewId, postId, { authorUid, body = '', parentId = null }) {
   const text = (body || '').trim();
   if (!crewId || !postId || !authorUid || !text) return null;
-  const ref = await addDoc(collection(db, COL, crewId, 'posts', postId, 'comments'), {
-    authorUid, body: text, parentId: parentId || null, likedBy: [], createdAt: serverTimestamp(),
-  });
-  // 최신 댓글 미리보기(피드 한 줄)·'내 글 새 반응' 신호(#7)용 비정규화. 표시 이름은 보는 사람이 resolve → uid만 저장.
-  updateDoc(doc(db, COL, crewId, 'posts', postId), {
+  // 댓글 생성 + commentCount/최신댓글 미리보기를 한 배치로 원자화 — 분리 시 메타 실패로 카운트·미리보기가 어긋나던 드리프트 방지.
+  //   '내 글 새 반응' 신호(#7)·피드 한 줄 미리보기용 비정규화. 표시 이름은 보는 사람이 resolve → uid만 저장.
+  const ref = doc(collection(db, COL, crewId, 'posts', postId, 'comments'));
+  const batch = writeBatch(db);
+  batch.set(ref, { authorUid, body: text, parentId: parentId || null, likedBy: [], createdAt: serverTimestamp() });
+  batch.update(doc(db, COL, crewId, 'posts', postId), {
     commentCount: increment(1), lastCommentBy: authorUid, lastCommentText: text, lastCommentAt: serverTimestamp(),
-  }).catch((e) => __DEV__ && console.warn('[crews] comment meta', e?.message));
+  });
+  await batch.commit();
   return ref.id;
 }
 export function subscribeCrewComments(crewId, postId, cb) {
@@ -276,15 +281,17 @@ export function subscribeCrewComments(crewId, postId, cb) {
 // ── 댓글 삭제 — newLatest: 삭제 대상이 '최신 댓글'일 때 남는 최신({by,text,at}) 또는 null(댓글 0개). 미전달=미리보기 불변 ──
 export async function deleteCrewComment(crewId, postId, commentId, { newLatest } = {}) {
   if (!crewId || !postId || !commentId) return;
-  await deleteDoc(doc(db, COL, crewId, 'posts', postId, 'comments', commentId));
+  // 삭제 + commentCount-1(+미리보기 갱신)을 한 배치로 원자화 — 감소가 분리돼 실패하면 카운트가 높게 남던 드리프트 방지.
   const meta = { commentCount: increment(-1) };
   if (newLatest !== undefined) {
     meta.lastCommentBy = newLatest ? (newLatest.by || null) : null;
     meta.lastCommentText = newLatest ? (newLatest.text || '') : '';
     meta.lastCommentAt = newLatest ? (newLatest.at || null) : null;
   }
-  updateDoc(doc(db, COL, crewId, 'posts', postId), meta)
-    .catch((e) => __DEV__ && console.warn('[crews] comment dec', e?.message));
+  const batch = writeBatch(db);
+  batch.delete(doc(db, COL, crewId, 'posts', postId, 'comments', commentId));
+  batch.update(doc(db, COL, crewId, 'posts', postId), meta);
+  await batch.commit();
 }
 // ── 댓글 수정 — 작성자 본인(본문). editedAt 기록(작성자·parentId 불변). isLatest면 미리보기 텍스트도 갱신 ──
 export async function editCrewComment(crewId, postId, commentId, { body = '', isLatest = false }) {
