@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getShortForecast } from '../../utils/kma';
 import { getCurrentLocation } from '../../utils/location';
-import { classifyWeather } from '../../utils/unsplash';
 
 // =============================================================
 // 홈 배경 — 시간대별 골프장 사진(직접 검증한 큐레이션) + 날씨별 화면 톤.
@@ -48,6 +47,7 @@ const CLOUDY_IMAGES = [
 //  맑음: 초록 다크톤 / 흐림: 회색 (사진 채도·밝기 죽임) / 비: 더 어두운 청회색
 const OVERLAYS = {
   clear:  ['rgba(8,24,14,0.86)',  'rgba(8,24,14,0.40)',  'rgba(8,24,14,0.46)',  'rgba(8,24,14,0.74)'],
+  partly: ['rgba(24,34,30,0.82)', 'rgba(24,34,30,0.40)', 'rgba(24,34,30,0.45)', 'rgba(24,34,30,0.72)'], // 구름많음 ⛅ — clear(초록)와 cloudy(회색) 사이. 색은 회녹, 가운데 투명도는 clear급(0.40)으로 사진 밝게 비침
   cloudy: ['rgba(42,46,50,0.80)', 'rgba(42,46,50,0.42)', 'rgba(42,46,50,0.46)', 'rgba(42,46,50,0.74)'], // 옅게(2026-06-14) — 구름 낀 날 회색이 과해 사진이 묻혀 뿌옇던 것 완화. 가운데를 확 낮춰 사진 비치게, 상·하단만 글씨 가독 위해 유지(clear 수준 곡선)
   rain:   ['rgba(16,24,34,0.95)', 'rgba(16,24,34,0.72)', 'rgba(16,24,34,0.76)', 'rgba(16,24,34,0.91)'],
 };
@@ -68,11 +68,22 @@ function pickImage() {
   return pickFrom(TIME_IMAGES[timeBucket()] || TIME_IMAGES.day);
 }
 
+// 헤더 날씨 아이콘 → 배경 톤. 헤더(icon)와 배경(tone)을 '같은 아이콘'에서 도출해 둘이 절대 어긋나지 않게 한다.
+//  ☁️ 흐림(SKY=4)만 회색 cloudy / 🌧🌨❄🌦 비·눈 rain / ☀️·⛅·🌤️(맑음·구름많음)은 밝게 clear.
+//  ⛅ 구름많음은 해가 우세 — 예전엔 'cloudy'로 묶여 헤더는 ⛅인데 배경만 회색('맑은데 이미지 흐림')으로 보이던 것 바로잡음.
+function toneFromIcon(icon) {
+  const s = String(icon || '');
+  if (s.includes('☁')) return 'cloudy';            // ☁️(U+2601) 흐림 — 회색
+  if (/🌧|🌨|❄|🌦|⛈|☔/u.test(s)) return 'rain';   // 비·눈·소나기
+  if (s.includes('⛅')) return 'partly';            // ⛅(U+26C5) 구름많음 — 맑음과 흐림 사이 중간 톤
+  return 'clear';                                  // ☀️ 🌤️ 맑음
+}
+
 // 현재 날씨 (30분 캐시) — 위치 권한 없으면 맑음.
 // 반환: { weather: clear|cloudy|rain|wind, icon: 이모지 }
 // 홈 배경 톤(weather) + 홈 헤더 이모지(icon)가 같은 캐시를 공유하고,
 // 날씨 상세 팝업이 새로 받은 값(cacheCurrentWx)으로 갱신해 둘이 항상 일치한다.
-const WX_KEY = '@dg_bg_currentwx_v3';
+const WX_KEY = '@dg_bg_currentwx_v4'; // v4 — 톤을 아이콘에서 도출(구름많음 ⛅=맑게). 옛 v3 캐시(구름많음=cloudy) 무효화
 const WX_TTL = 30 * 60 * 1000;
 const WX_FALLBACK = { weather: 'clear', icon: '☀️' };
 
@@ -88,8 +99,8 @@ export async function getCurrentWx() {
     const loc = await getCurrentLocation();
     if (!loc) return WX_FALLBACK;
     const f = await getShortForecast(loc.lat, loc.lng);
-    const weather = classifyWeather(f?.current); // clear | cloudy | rain | wind
-    const icon = f?.current?.icon || '☀️';        // 상세탭과 동일한 skyToIcon 결과
+    const icon = f?.current?.icon || '☀️';   // 상세탭과 동일한 skyToIcon 결과
+    const weather = toneFromIcon(icon);       // 톤은 아이콘에서 도출 — 헤더와 항상 일치
     AsyncStorage.setItem(WX_KEY, JSON.stringify({ weather, icon, ts: Date.now() })).catch(() => {});
     return { weather, icon };
   } catch (e) {
@@ -106,7 +117,8 @@ export async function getCurrentWxClass() {
 // 팝업을 닫고 홈으로 돌아오면 헤더 이모지·배경 톤이 방금 본 값과 일치한다.
 export function cacheCurrentWx(current) {
   if (!current) return;
-  const payload = { weather: classifyWeather(current), icon: current.icon || '☀️', ts: Date.now() };
+  const icon = current.icon || '☀️';
+  const payload = { weather: toneFromIcon(icon), icon, ts: Date.now() };
   AsyncStorage.setItem(WX_KEY, JSON.stringify(payload)).catch(() => {});
 }
 
@@ -123,9 +135,10 @@ export function HomeBgSlider() {
       const b = timeBucket();
       const w = await getCurrentWxClass();
       if (cancelled) return;
-      const tone = w === 'rain' ? 'rain' : w === 'cloudy' ? 'cloudy' : 'clear';
+      const tone = (w === 'rain' || w === 'cloudy' || w === 'partly') ? w : 'clear';
       setWeather(tone);
-      // 흐림이고 낮 시간대면 실제 흐림 사진, 아니면 시간대 사진. 카테고리(시간대/흐림)가 바뀔 때만 교체(깜빡임 제거)
+      // 흐림(☁️)이고 낮 시간대면 실제 흐림 사진, 아니면 시간대 사진(구름많음 ⛅은 밝은 시간대 사진 유지).
+      //   카테고리(시간대/흐림)가 바뀔 때만 교체(깜빡임 제거)
       const useCloudy = tone === 'cloudy' && b !== 'night';
       const cat = useCloudy ? 'cloudy' : b;
       if (cat !== catRef.current) {
