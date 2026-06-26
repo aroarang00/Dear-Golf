@@ -28,8 +28,8 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
   // 친구 목록 — 부모(앨범)가 이미 로드한 걸 prop으로 주면 재로드 안 함 → 로딩·높이 점프 0(2026-06-24).
   //   prop 미제공(멤버 화면 등)일 때만 자체 로드(하위호환). null=로딩.
   const [friends, setFriends] = useState(friendsProp ?? null);
-  const [invited, setInvited] = useState(() => new Set());  // 이번에 방금 초대한 uid(낙관적 '초대중')
-  const [busy, setBusy] = useState(() => new Set());        // 초대 진행 중(중복 탭 가드)
+  const [selected, setSelected] = useState(() => new Set());  // 이번에 고른(아직 안 보낸) uid
+  const [sending, setSending] = useState(false);              // 상단 '초대 N' 전송 중
 
   useEffect(() => {
     if (friendsProp !== undefined) { setFriends(friendsProp); return; }
@@ -38,32 +38,39 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
     return () => { alive = false; };
   }, [friendsProp]);
 
-  // '초대중' 표시 대상 = audience(미수락) 中 거절 안 한 사람 + 이번에 방금 초대한 사람.
-  //   거절자(declined)는 audience에 남아있어도 재초대 가능하게 '초대' 버튼을 노출(inviteToCrew가 declined 해제).
+  // '초대중' 표시 대상 = audience(미수락) 中 거절 안 한 사람. 거절자(declined)는 audience에 남아있어도
+  //   재초대 가능하게 '초대' 버튼 노출(inviteToCrew가 declined 해제).
   const pendingSet = useMemo(() => {
     const dec = new Set(declinedUids || []);
-    const s = new Set((audienceUids || []).filter((u) => !dec.has(u)));
-    invited.forEach((u) => s.add(u));
-    return s;
-  }, [audienceUids, declinedUids, invited]);
+    return new Set((audienceUids || []).filter((u) => !dec.has(u)));
+  }, [audienceUids, declinedUids]);
 
   const pool = useMemo(() => (friends || []).filter((f) => !memberUids.includes(f.id)), [friends, memberUids]);
   const atMax = memberUids.length >= MAX_MEMBERS;   // 정원 — 더 못 받음
 
-  // 한 명씩 초대 — 선택→일괄 대신 행마다 '초대' 버튼(작아서 안 보이던 문제 + 중복초대 방지).
-  const inviteOne = async (f) => {
-    if (!crewId || busy.has(f.id) || pendingSet.has(f.id)) return;
-    setBusy((s) => new Set(s).add(f.id));
+  // 행 탭 = 선택 토글(아직 전송 X). 상단 '초대 N'을 눌러야 실제로 보냄 — 보내기 전 자유롭게 가감.
+  const toggle = (id) => {
+    if (atMax) return;
+    setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+  // 상단 '초대 N' — 고른 전원을 한 번에 초대(audience 추가) 후 닫기. 실패 시 시트 유지.
+  const sendInvites = async () => {
+    if (!crewId || selected.size === 0 || sending) return;
+    setSending(true);
+    const add = (friends || []).filter((f) => selected.has(f.id));
+    const names = {};
+    add.forEach((f) => { names[f.id] = f.customName || f.name || ''; });
     try {
-      await inviteToCrew(crewId, [f.id], { [f.id]: f.customName || f.name || '' });   // audience 추가(수락 시 합류)
-      setInvited((s) => new Set(s).add(f.id));   // 낙관적 '초대중'(구독으로 audience도 곧 갱신)
+      await inviteToCrew(crewId, add.map((f) => f.id), names);
+      onClose?.();
     } catch (e) {
       if (__DEV__) console.warn('[crew] invite failed', e?.message);
       showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
-    } finally {
-      setBusy((s) => { const n = new Set(s); n.delete(f.id); return n; });
+      setSending(false);
     }
   };
+
+  const count = selected.size;
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -74,9 +81,19 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
       <Animated.View entering={SlideInDown.duration(240)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 18 + insets.bottom, minHeight: '45%', maxHeight: '78%' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
           <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }}>친구 초대</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: SAGE_DEEP }}>완료</Text>
-          </TouchableOpacity>
+          {/* 상단 = 실제 전송. 고른 사람 있으면 '초대 N'(세이지 채움), 없으면 '닫기'(평문) */}
+          {count > 0 ? (
+            <TouchableOpacity onPress={sendInvites} disabled={sending} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ minWidth: 70, alignItems: 'center', justifyContent: 'center', backgroundColor: SAGE_DEEP, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 7 }}>
+              {sending
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>초대 {count}</Text>}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: SUB }}>닫기</Text>
+            </TouchableOpacity>
+          )}
         </View>
         {atMax && (
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#B23B3B', paddingHorizontal: 18, paddingTop: 10 }}>정원({MAX_MEMBERS}명)이 찼어요.</Text>
@@ -89,27 +106,35 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
             : pool.map((f) => {
               const dn = f.customName || f.name || '친구';
               const isPending = pendingSet.has(f.id);
-              const isBusy = busy.has(f.id);
-              return (
-                <View key={f.id}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 10 }}>
-                  <Avatar n={dn.charAt(0)} c={colorOf(f.id)} uri={f.avatarUri} size={36} />
-                  <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }} numberOfLines={1}>{dn}</Text>
-                  {isPending ? (
-                    // 초대중 — 이미 초대돼 수락 대기 중(재초대 차단)
+              const isSel = selected.has(f.id);
+              if (isPending) {
+                // 초대중 — 이미 초대돼 수락 대기 중(선택 불가)
+                return (
+                  <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 10 }}>
+                    <Avatar n={dn.charAt(0)} c={colorOf(f.id)} uri={f.avatarUri} size={36} />
+                    <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }} numberOfLines={1}>{dn}</Text>
                     <View style={{ borderWidth: 1, borderColor: LINE, borderRadius: 9, paddingHorizontal: 13, paddingVertical: 6 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: SUB }}>초대중</Text>
                     </View>
+                  </View>
+                );
+              }
+              // 행 전체 탭 = 선택 토글. 우측 알약이 상태 표시(선택=세이지채움 '선택됨' / 미선택=테두리 '초대')
+              return (
+                <TouchableOpacity key={f.id} activeOpacity={0.7} onPress={() => toggle(f.id)} disabled={atMax}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 10 }}>
+                  <Avatar n={dn.charAt(0)} c={colorOf(f.id)} uri={f.avatarUri} size={36} />
+                  <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }} numberOfLines={1}>{dn}</Text>
+                  {isSel ? (
+                    <View style={{ minWidth: 70, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: SAGE_DEEP }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }}>✓ 선택됨</Text>
+                    </View>
                   ) : (
-                    <TouchableOpacity onPress={() => inviteOne(f)} disabled={atMax || isBusy} activeOpacity={0.8}
-                      style={{ minWidth: 64, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 7,
-                        backgroundColor: atMax ? 'rgba(94,126,66,0.22)' : SAGE_DEEP }}>
-                      {isBusy
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }}>초대</Text>}
-                    </TouchableOpacity>
+                    <View style={{ minWidth: 70, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 13, paddingVertical: 6.5, borderWidth: 1.5, borderColor: atMax ? LINE : SAGE_DEEP }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: atMax ? SUB : SAGE_DEEP }}>초대</Text>
+                    </View>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })}
         </ScrollView>
