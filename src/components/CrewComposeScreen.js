@@ -213,19 +213,38 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const addVideo = async () => {
     if (full || hasVideo || posting) return;
     try {
-      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], allowsMultipleSelection: false, quality: 1, videoMaxDuration: MAX_VIDEO_SEC });
+      // 권한 — 요청 결과까지 확인(거부 시 조용히 빈 피커가 떴다 닫혀 '선택해도 안 됨'으로 보이던 것 방지)
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { showAppAlert('사진 접근 권한이 필요해요', '설정 > 권한에서 사진·동영상 접근을 허용해주세요.'); return; }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'], allowsMultipleSelection: false, quality: 1, videoMaxDuration: MAX_VIDEO_SEC,
+        // ★iOS 영상 export H264 720p — 미설정 시 원본(HEVC·4K 등)을 그대로 내보내다 export 실패로 조용히 canceled되거나
+        //   대용량으로 업로드·UI 먹통이 됐다(다이어리엔 이 옵션이 있어 멀쩡했음). 동일 프리셋으로 통일 — 호환·용량↓·faststart. [[video-playback-faststart]]
+        videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
+      });
       if (res.canceled) return;
       const a = (res.assets || [])[0];
-      if (!a?.uri) return;
-      // 첫 프레임 포스터 생성 → 등록화면 썸네일 표시·커버 편집용(로컬). 실패해도 영상은 추가(업로드 때 재생성).
-      let poster = null;
-      try { const t = await VideoThumbnails.getThumbnailAsync(a.uri, { time: 0, quality: 0.7 }); poster = t?.uri || null; }
-      catch (e) { if (__DEV__) console.warn('[crewCompose] videoPoster', e?.message); }
+      if (!a?.uri) { showAppAlert('영상을 불러오지 못했어요', '다른 영상으로 다시 시도해주세요.'); return; }
+      // 길이 제한 — 라이브러리 선택은 videoMaxDuration이 강제되지 않아(특히 안드) duration(ms)으로 직접 검사.
+      //   넘으면 조용히 들어갔다 업로드·재생서 깨지던 것 → 선택 단계에서 안내하고 막음.
+      if (a.duration && a.duration > (MAX_VIDEO_SEC + 1) * 1000) {
+        showAppAlert('영상이 너무 길어요', `${MAX_VIDEO_SEC}초 이내 영상만 올릴 수 있어요 (선택한 영상 약 ${Math.round(a.duration / 1000)}초).`);
+        return;
+      }
       const ar = (a.width && a.height) ? a.width / a.height : undefined;   // 영상 원본 비율 → 피드 표시
-      setMedia((p) => p.some((m) => m.type === 'video') ? p : [...p, { type: 'video', uri: a.uri, poster, ar }].slice(0, MAX_MEDIA));
-    } catch (e) { if (__DEV__) console.warn('[crewCompose] addVideo', e?.message); }
+      // ★영상 먼저 추가 — 포스터 생성(getThumbnailAsync)을 await로 막으면, iOS서 특정 영상(HEVC·iCloud 등)에
+      //   대해 이 호출이 응답 없이 행(hang)할 때 영상 추가까지 막혀 '선택해도 아무 일 없음'(조용한 실패)이 됐다.
+      //   다이어리는 선택 때 포스터를 안 만들어 멀쩡했던 차이. → 영상은 즉시 추가하고 포스터는 비차단으로 채운다
+      //   (실패·지연해도 업로드 때 uploadVideoPoster가 첫 프레임으로 재생성하므로 등록·표시에 지장 없음).
+      setMedia((p) => p.some((m) => m.type === 'video') ? p : [...p, { type: 'video', uri: a.uri, poster: null, ar }].slice(0, MAX_MEDIA));
+      VideoThumbnails.getThumbnailAsync(a.uri, { time: 0, quality: 0.7 })
+        .then((t) => { if (t?.uri) setMedia((p) => p.map((m) => (m.type === 'video' && m.uri === a.uri && !m.poster) ? { ...m, poster: t.uri } : m)); })
+        .catch((e) => { if (__DEV__) console.warn('[crewCompose] videoPoster', e?.message); });
+    } catch (e) {
+      if (__DEV__) console.warn('[crewCompose] addVideo', e?.message);
+      showAppAlert('영상을 불러오지 못했어요', '잠시 후 다시 시도해주세요.');   // 조용한 실패 방지(2026-06-26 감사 원칙)
+    }
   };
   const removeMedia = (i) => setMedia((p) => p.filter((_, idx) => idx !== i));
   // 사진 순서 — 이웃과 자리 교환(◀=앞으로, ▶=뒤로). 드래그 대신 탭(중장년 친화·모달서 견고). 피드 표시 순서가 이 순서.
