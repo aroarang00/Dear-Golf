@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
@@ -74,6 +74,7 @@ import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로
 import { UserContext } from './src/contexts/UserContext';
 import { FriendBadgeContext } from './src/contexts/FriendBadgeContext';
 import { subscribeIncomingScheduleInvites } from './src/utils/scheduleShares';
+import { subscribeSelectInvitesForMe } from './src/utils/roundup';
 import { CurrentUidContext } from './src/contexts/CurrentUidContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { DiariesProvider } from './src/contexts/DiariesContext';
@@ -204,6 +205,41 @@ function App() {
     })();
     return () => { cancelled = true; if (unsub) unsub(); };
   }, [showOnboarding, profileLoaded, authUid]);
+
+  // 라운지 친구지정(select) 초대 — 라운지 탭 뱃지 + 홈 배너. 받은 미응답 초대를 실시간 구독([[roundup-invitation]]).
+  //   서버 조건(미참여·윈도우)은 subscribeSelectInvitesForMe가, '거절(가리기)'은 로컬(roundupHidden)이라 여기서 차감.
+  const [roundupInvitePending, setRoundupInvitePending] = useState([]); // 서버 원천 미응답 초대
+  const [roundupHiddenMap, setRoundupHiddenMap] = useState({});         // 로컬 가리기(라운지와 같은 스토리지 키 공유)
+  const refreshRoundupHidden = useCallback(async () => {
+    try { setRoundupHiddenMap((await storage.load(STORAGE_KEYS.roundupHidden, {})) || {}); }
+    catch (e) { if (__DEV__) console.warn('[App] roundup hidden load fail', e?.message); }
+  }, []);
+  useEffect(() => { refreshRoundupHidden(); }, [refreshRoundupHidden]); // 마운트 시 가리기 로드
+  // 배너에서 거절 — 로컬 가리기에 기록(라운지 suppressInvite와 같은 키) + 즉시 반영. 재노출 방지.
+  const declineRoundupInvite = useCallback(async (postId) => {
+    if (!postId) return;
+    try {
+      const cur = (await storage.load(STORAGE_KEYS.roundupHidden, {})) || {};
+      const next = { ...cur, [postId]: true };
+      await storage.save(STORAGE_KEYS.roundupHidden, next);
+      setRoundupHiddenMap(next);
+    } catch (e) { if (__DEV__) console.warn('[App] roundup decline fail', e?.message); }
+  }, []);
+  useEffect(() => {
+    if (showOnboarding || !profileLoaded || !authUid) return;
+    let unsub = null, cancelled = false;
+    (async () => {
+      const uid = await getUid();
+      if (!uid || cancelled) return;
+      unsub = subscribeSelectInvitesForMe(uid, list => setRoundupInvitePending(Array.isArray(list) ? list : []));
+    })();
+    return () => { cancelled = true; if (unsub) unsub(); };
+  }, [showOnboarding, profileLoaded, authUid]);
+  // 가리기(거절) 반영된 최종 목록 + 카운트 — 라운지 탭 뱃지/홈 배너 공용 단일 소스.
+  const roundupInvites = useMemo(
+    () => roundupInvitePending.filter(p => !roundupHiddenMap[p.id]),
+    [roundupInvitePending, roundupHiddenMap]);
+  const roundupInviteCount = roundupInvites.length;
 
   // 라운딩 일정 알림(scheduleNotice) — 주최자의 '동반자에게 일정 알리기'를 수신자가 앱 어디서나 확인.
   //   실시간 구독([[lounge-realtime]]) — 앱 켜둔 중에도 주최자가 알리면 즉시 팝업. 본인 수신분만·최신 50건 좁게.
@@ -579,7 +615,7 @@ function App() {
     <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
     <SchedulesProvider>
     <DiariesProvider>
-    <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge, scheduleInviteCount }}>
+    <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge, scheduleInviteCount, roundupInviteCount, roundupInvites, declineRoundupInvite, refreshRoundupHidden }}>
     <InsetGate>
     <NavigationContainer
       ref={navigationRef}

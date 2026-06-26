@@ -1,7 +1,7 @@
 import {
   collection, query, where, orderBy, getDocs, getDoc,
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
-  arrayUnion, arrayRemove, increment, runTransaction,
+  arrayUnion, arrayRemove, increment, runTransaction, onSnapshot,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -79,6 +79,40 @@ export async function loadSelectRoundupsForMe(myUid) {
   const snap = await getDocs(q);
   // 주최자 소프트 취소(cancelledByHost) 모집은 라운지 목록에서 숨김 (문서는 보존 — 매너평가·보관용)
   return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.cancelledByHost);
+}
+
+// 노출 윈도우 — 티오프 + 5h 이내만(RoundupTab.isInVisibleWindow와 동일 산식). 오픈형(date 미정)은 항상.
+function inviteWithinWindow(p, now) {
+  if (!p.date) return true;
+  const [y, m, d] = String(p.date).split('.').map(Number);
+  const [hh, mm] = String(p.time || '07:00').split(':').map(Number);
+  const teeOff = new Date(y, m - 1, d, hh, mm).getTime();
+  if (Number.isNaN(teeOff)) return true;
+  return now <= teeOff + 5 * 3600 * 1000;
+}
+
+// 나를 대상으로 한 친구지정(scope='select', include) '미응답' 초대 실시간 구독 — 홈 배너·라운지 탭 뱃지용.
+//   조건: audienceUids contains me + selectMode include + 내가 아직 미참여(participantUids 미포함) + 노출 윈도우 내.
+//   '거절(가리기)'은 로컬(roundupHidden)이라 호출부에서 별도 필터. 작성자 본인 글은 제외(방어).
+//   인덱스 (scope, audienceUids CONTAINS) — loadSelectRoundupsForMe와 동일 자원 재사용(추가 인덱스 0).
+export function subscribeSelectInvitesForMe(myUid, onChange) {
+  if (!myUid) { onChange([]); return () => {}; }
+  const q = query(
+    collection(db, COLLECTION),
+    where('scope', '==', 'select'),
+    where('audienceUids', 'array-contains', myUid),
+  );
+  return onSnapshot(q, snap => {
+    const now = Date.now();
+    const list = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => !p.cancelledByHost
+        && p.selectMode === 'include'
+        && p.authorUid !== myUid
+        && !(Array.isArray(p.participantUids) && p.participantUids.includes(myUid))
+        && inviteWithinWindow(p, now));
+    onChange(list);
+  }, err => { if (__DEV__) console.warn('[roundup] select invite listener', err?.message); });
 }
 
 // 단일 모집글 조회 (상세 화면)
