@@ -521,7 +521,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       return { label: homeAddress || '마이페이지에 출발지 미설정', coord: homeCoord, placeholder: !homeAddress };
     }
     if (slot.mode === 'course') {
-      return { label: schedule?.course, coord: courseCoord ? { x: courseCoord.x, y: courseCoord.y } : null };
+      // 도착(골프장) 좌표 — schedule에 이미 있으면 동기로 즉시 사용. courseCoord state는 날씨 fetch가 끝나야
+      //   채워져, 날씨가 느리면 첫 탭에 null → 길안내 URL이 목적지 없이 열려 '무반응'이던 문제 방지
+      //   (2026-06-26 테스터: 첫 탭 무반응·둘째 탭 정상). schedule 좌표 없을 때만 weather가 채운 courseCoord 폴백.
+      const cc = (schedule?.courseX > 0 && schedule?.courseY > 0)
+        ? { x: schedule.courseX, y: schedule.courseY }
+        : (courseCoord ? { x: courseCoord.x, y: courseCoord.y } : null);
+      return { label: schedule?.course, coord: cc };
     }
     if (slot.mode === 'current') {
       return { label: resolvedLoc || '현재 위치', coord: currentCoord, placeholder: !currentCoord };
@@ -573,14 +579,28 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     return coord || null;
   };
 
+  // 슬롯 좌표 on-demand 해석 — 길안내 탭 시점에 미해석 좌표를 await로 채운다(course는 resolveSlot가
+  //   schedule 좌표로 동기 해석, home(지오코딩)·current(GPS)·custom만 비동기). 첫 탭에 좌표가 안 풀려
+  //   URL이 목적지 없이 열리던 '무반응'(2026-06-26 테스터: 첫 탭 무반응·둘째 탭 정상) 방지.
+  const resolveSlotCoordAsync = async (slotKey) => {
+    const slot = trSlots[slotKey];
+    const sync = resolveSlot(slotKey).coord;
+    if (sync) return sync;
+    if (slot.mode === 'home') return homeAddress ? await addressToCoord(homeAddress).catch(() => null) : null;
+    if (slot.mode === 'current') {
+      const pos = await getCurrentLocation().catch(() => null);
+      if (pos) { setCurrentCoord({ x: pos.lng, y: pos.lat }); return { x: pos.lng, y: pos.lat }; }
+      return null;
+    }
+    if (slot.mode === 'custom') return await resolveCustomCoord(slotKey);
+    return null;
+  };
+
   const openNaverRoute = async (originKey, destKey) => {
-    // 직접입력이면 방금 해석한 좌표를 직접 사용(resolveSlot은 직전 렌더값이라 첫 탭에 이름만 가던 것 방지)
-    const oc = trSlots[originKey].mode === 'custom' ? await resolveCustomCoord(originKey) : null;
-    const dc = trSlots[destKey].mode === 'custom' ? await resolveCustomCoord(destKey) : null;
     const orig = resolveSlot(originKey);
     const dest = resolveSlot(destKey);
-    const oCoord = oc || orig.coord;
-    const dCoord = dc || dest.coord;
+    const oCoord = await resolveSlotCoordAsync(originKey);
+    const dCoord = await resolveSlotCoordAsync(destKey);
     const p = [];
     if (oCoord) { p.push(`slat=${oCoord.y}`); p.push(`slng=${oCoord.x}`); }
     if (orig.label) p.push(`sname=${encodeURIComponent(orig.label)}`);
@@ -591,12 +611,10 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   };
 
   const openTmapRoute = async (originKey, destKey) => {
-    const oc = trSlots[originKey].mode === 'custom' ? await resolveCustomCoord(originKey) : null;
-    const dc = trSlots[destKey].mode === 'custom' ? await resolveCustomCoord(destKey) : null;
     const orig = resolveSlot(originKey);
     const dest = resolveSlot(destKey);
-    const oCoord = oc || orig.coord;
-    const dCoord = dc || dest.coord;
+    const oCoord = await resolveSlotCoordAsync(originKey);
+    const dCoord = await resolveSlotCoordAsync(destKey);
     const p = [];
     if (oCoord) { p.push(`startx=${oCoord.x}`); p.push(`starty=${oCoord.y}`); }
     if (orig.label) p.push(`startname=${encodeURIComponent(orig.label)}`);
