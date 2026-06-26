@@ -190,9 +190,11 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
         </View>
       </ScrollView>
 
-      {/* 친구 초대 시트 — 앨범 사람+와 동일 컴포넌트 공용 */}
+      {/* 친구 초대 시트 — 앨범 사람+와 동일 컴포넌트 공용.
+          friends는 이 화면이 이미 프리로드(loadMyFriendsEnriched)한 값을 prop으로 넘긴다 — 시트 self-load 시
+          entering 애니가 로딩(빈) 높이를 캡처해 한두 명만 보이던 버그 방지(2026-06-26 테스터 리포트). */}
       {inviteOpen && (
-        <CrewInviteSheet crewId={crewId} memberUids={memberUids} onClose={() => setInviteOpen(false)} />
+        <CrewInviteSheet crewId={crewId} memberUids={memberUids} friends={friends} onClose={() => setInviteOpen(false)} />
       )}
 
       {/* 나가기 확인 */}
