@@ -50,6 +50,8 @@ import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 
 import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
+import { RoundupInviteInbox } from './RoundupInviteInbox';
+import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import { MealDecisionBar } from './MealDecisionBar';
 import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast'; // 순수 성공 알림('초대를 보냈어요')은 차단형 대신 토스트로
@@ -70,6 +72,8 @@ const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼
 
 export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
+  const { refreshRoundupHidden } = React.useContext(FriendBadgeContext); // 라운지 초대 가리기 재로드(focus 시)
+  const [roundupInviteActive, setRoundupInviteActive] = React.useState(false); // 라운지 초대 배너 표시 중 여부(아래 카드 겹침 방지)
   const { schedules, hydrated, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid ([[uid-stabilization-plan]])
   const insets = useSafeAreaInsets();
@@ -302,6 +306,8 @@ export function HomeScreen({ navigation, route }) {
       cardsScrollRef.current?.scrollTo({ x: 0, animated: false });
       // userCourses 최신화 — 코스명→id 매칭(resolveCourseLogId)이 최신 목록을 쓰도록
       getUserCourses().then(list => setUserCoursesList(list || []));
+      // 라운지에서 친구지정 초대를 거절(로컬 가리기)했을 수 있으니 가리기 재로드 → 홈 배너·탭 뱃지 즉시 정합 ([[roundup-invitation]])
+      refreshRoundupHidden();
       // 다이어리는 DiariesContext가 단일 소스 — 별도 로드 불필요 (Firestore 동기화는 Context가 담당)
     });
     return unsubscribe;
@@ -967,6 +973,11 @@ export function HomeScreen({ navigation, route }) {
         {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}
         <ScheduleInviteInbox onActiveChange={setScheduleInvitePending} />
 
+        {/* 라운지 친구지정 초대 수신 — 푸시 꺼도 홈에서 인지. 탭/「초대 보기」 → 라운지 내 참여(초대 카드)로 이동 ([[roundup-invitation]]) */}
+        <RoundupInviteInbox
+          onActiveChange={setRoundupInviteActive}
+          onOpen={() => navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' })} />
+
         {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분). */}
         {pendingScheduleChange && (
           <AttentionMotion type="pulse" style={{ marginHorizontal: SIDE_PAD, marginTop: 12 }}>
@@ -1185,8 +1196,8 @@ export function HomeScreen({ navigation, route }) {
 
           </ScrollView>
 
-          {/* 일정초대 배너가 떠 있는 동안엔 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(수락/거절 후 복원). 사용자 지정 2026-06-18. */}
-          {!scheduleInvitePending && (<>
+          {/* 일정초대·라운지초대 배너가 떠 있는 동안엔 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(수락/거절 후 복원). 사용자 지정 2026-06-18. */}
+          {!scheduleInvitePending && !roundupInviteActive && (<>
           <View style={{ marginHorizontal: SIDE_PAD, marginVertical: 12 }}>
             <TripleStripe height={1.5} />
           </View>

@@ -12,7 +12,7 @@ const TAB_COLORS = [C.butter, C.navy, C.warmGray, C.paleSky, C.butter];
 
 export function TabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
-  const { friendReqCount, scheduleInviteCount } = useContext(FriendBadgeContext);
+  const { friendReqCount, scheduleInviteCount, roundupInviteCount } = useContext(FriendBadgeContext);
   return (
     <View style={[tabS.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={tabS.stripeRow}>
@@ -33,19 +33,20 @@ export function TabBar({ state, navigation }) {
               navigation.navigate(route.name);
             }
           };
-          // 친구 탭 — 받은 친구신청 / 홈 탭 — 받은 일정 전파 초대 있으면 라벨이 진동(점 대신 흔들림으로 주목, 사용자 2026-06-20).
-          //   친구 관계 알림은 친구 탭 소관, 일정 초대는 홈 탭 소관 ([[schedule-propagation-spec]]).
+          // 친구 탭 — 받은 친구신청 / 홈 탭 — 받은 일정 전파 초대 / 라운지 탭 — 받은 친구지정 초대 있으면 라벨이 진동(점 대신 흔들림으로 주목).
+          //   친구 관계 알림은 친구 탭, 일정 초대는 홈 탭, 라운딩 초대는 라운지 탭 소관 ([[schedule-propagation-spec]], [[roundup-invitation]]).
           const alertFriend = route.name === ROUTES.FRIENDS && friendReqCount > 0;
           const alertHome = route.name === ROUTES.HOME && scheduleInviteCount > 0;
+          const alertLounge = route.name === ROUTES.LOUNGE && roundupInviteCount > 0;
           return (
             <TouchableOpacity key={route.key} style={tabS.tab}
               onPress={handlePress} activeOpacity={0.7}>
-              <AttentionMotion type="shake" enabled={alertFriend || alertHome}>
+              <AttentionMotion type="shake" enabled={alertFriend || alertHome || alertLounge}>
                 {/* 알림 있으면 진동 + 라벨 버건디 + 글자 위 가운데 버건디 점 — 다른 탭에 있을 때도 인지(사용자 2026-06-20) */}
                 <View>
                   <Text numberOfLines={1} style={[tabS.label, focused ? tabS.labelOn : tabS.labelOff,
-                    (alertFriend || alertHome) && { color: C.burgundy }]}>{route.name}</Text>
-                  {(alertFriend || alertHome) && (
+                    (alertFriend || alertHome || alertLounge) && { color: C.burgundy }]}>{route.name}</Text>
+                  {(alertFriend || alertHome || alertLounge) && (
                     <View pointerEvents="none" style={{ position: 'absolute', top: -6, left: 0, right: 0, alignItems: 'center' }}>
                       <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: C.burgundy }} />
                     </View>
