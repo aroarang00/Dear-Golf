@@ -9,7 +9,7 @@ import { FriendSelectModal } from './FriendSelectModal';
 import { Icon, GreenFlag } from './common/Icon'; // 라운딩=그린·핀, 일상=사진 커스텀 아이콘
 import { Spinner } from './common/Spinner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { SpinnerPicker } from './common/SpinnerPicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { C, F, fs } from '../constants/colors';
@@ -754,11 +754,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   라운지에서 확정된 라운딩이라{'\n'}날짜는 변경할 수 없어요.
                 </Text>
               )}
-              {showDatePicker && !dateLocked && (
-                <DateTimePicker value={date} mode="date" display="spinner"
-                  onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
-                  maximumDate={new Date()} locale="ko" />
-              )}
+              <SpinnerPicker visible={showDatePicker && !dateLocked} value={date} mode="date" maximumDate={new Date()}
+                onPick={setDate} onClose={() => setShowDatePicker(false)} />
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>스코어 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="타수 입력"
                 placeholderTextColor={C.warmGrayLight} value={score}
@@ -1218,11 +1215,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       {formatDate(date)} ({formatDay(date)})
                     </Text>
                   </TouchableOpacity>
-                  {showDatePicker && (
-                    <DateTimePicker value={date} mode="date" display="spinner"
-                      onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
-                      maximumDate={new Date()} locale="ko" />
-                  )}
+                  <SpinnerPicker visible={showDatePicker} value={date} mode="date" maximumDate={new Date()}
+                    onPick={setDate} onClose={() => setShowDatePicker(false)} />
                   <Text style={[mS.bigLabel, { marginTop: 14 }]}>
                     일상 기록
                     <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (사진만 올려도 돼요 · 최대 1000자)</Text>

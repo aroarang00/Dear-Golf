@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { SpinnerPicker } from './common/SpinnerPicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -509,28 +509,20 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                     {fmtDate(date)} ({DAYS[date.getDay()]})
                   </Text>
                 </TouchableOpacity>
-                {showDate && (
-                  <DateTimePicker value={date} mode="date" display="spinner" minimumDate={new Date()} locale="ko"
-                    onChange={(e, d) => {
-                      setShowDate(false);
-                      // 오늘로 당기면 기존 시각이 과거가 될 수 있어 결합 후 현재 이후로 클램프
-                      if (d) { const nd = new Date(date); nd.setFullYear(d.getFullYear(), d.getMonth(), d.getDate()); setDate(clampFutureTee(nd)); }
-                    }} />
-                )}
+                <SpinnerPicker visible={showDate} value={date} mode="date" minimumDate={new Date()}
+                  onClose={() => setShowDate(false)}
+                  // 오늘로 당기면 기존 시각이 과거가 될 수 있어 결합 후 현재 이후로 클램프
+                  onPick={(d) => { const nd = new Date(date); nd.setFullYear(d.getFullYear(), d.getMonth(), d.getDate()); setDate(clampFutureTee(nd)); }} />
 
                 <Text style={mS.bigLabel}>티오프 시간</Text>
                 <TouchableOpacity style={mS.input} onPress={() => setShowTime(true)}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>{fmtTime(date)}</Text>
                 </TouchableOpacity>
-                {showTime && (
-                  <DateTimePicker value={date} mode="time" display="spinner" is24Hour
-                    minimumDate={isSameDay(date, new Date()) ? new Date() : undefined}
-                    onChange={(e, t) => {
-                      setShowTime(false);
-                      // 오늘 모집인데 과거 시각을 고르면 현재 이후로 클램프(안드 minimumDate 불안정 대비)
-                      if (t) { const nd = new Date(date); nd.setHours(t.getHours(), t.getMinutes(), 0, 0); setDate(clampFutureTee(nd)); }
-                    }} />
-                )}
+                <SpinnerPicker visible={showTime} value={date} mode="time" is24Hour
+                  minimumDate={isSameDay(date, new Date()) ? new Date() : undefined}
+                  onClose={() => setShowTime(false)}
+                  // 오늘 모집인데 과거 시각을 고르면 현재 이후로 클램프(안드 minimumDate 불안정 대비)
+                  onPick={(t) => { const nd = new Date(date); nd.setHours(t.getHours(), t.getMinutes(), 0, 0); setDate(clampFutureTee(nd)); }} />
               </>
             )}
 

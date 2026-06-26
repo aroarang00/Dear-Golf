@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { SpinnerPicker } from './common/SpinnerPicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { geocodeCity } from '../utils/openweather';
@@ -435,11 +435,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   {formatDate(date)} ({formatDay(date)})
                 </Text>
               </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker value={date} mode="date" display="spinner"
-                  onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }}
-                  minimumDate={new Date()} locale="ko" />
-              )}
+              <SpinnerPicker visible={showDatePicker} value={date} mode="date" minimumDate={new Date()}
+                onPick={setDate} onClose={() => setShowDatePicker(false)} />
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>티오프 시간</Text>
               {/* 안드로이드는 숫자 키보드가 입력칸을 가려서 직접입력 제거 — 휠 선택기만.
                   iOS는 키보드 회피가 정상이라 직접입력 + 휠 둘 다 유지. */}
@@ -483,15 +480,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   </TouchableOpacity>
                 </View>
               )}
-              {showTimePicker && (
-                <DateTimePicker
-                  value={(() => { const d = new Date(); d.setHours(clampNum(hourText, 23), clampNum(minText, 59), 0, 0); return d; })()}
-                  mode="time" display="spinner" is24Hour
-                  onChange={(e, t) => {
-                    setShowTimePicker(false);
-                    if (t) { setHourText(pad2(t.getHours())); setMinText(pad2(t.getMinutes())); }
-                  }} />
-              )}
+              <SpinnerPicker visible={showTimePicker} mode="time" is24Hour
+                value={(() => { const d = new Date(); d.setHours(clampNum(hourText, 23), clampNum(minText, 59), 0, 0); return d; })()}
+                onClose={() => setShowTimePicker(false)}
+                onPick={(t) => { setHourText(pad2(t.getHours())); setMinText(pad2(t.getMinutes())); }} />
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>인원</Text>
               {/* 단체 전파 지원 — 한 조(4) 넘는 모임도 가능하게 2~8명 ([[schedule-propagation-spec]]). 칩 많아 줄바꿈 */}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
