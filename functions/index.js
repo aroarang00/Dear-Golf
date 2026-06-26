@@ -115,7 +115,16 @@ exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/
     const recipientUid = participants.find(u => u && u !== senderUid);
     if (!recipientUid) return;
     // 안읽음 카운트 +1 (수신자) — DM 목록 뱃지용. 수신자가 방을 열어 읽으면 markConversationRead가 본인 unread를 0으로 리셋.
-    db.doc(`conversations/${event.params.pairId}`).update({ [`unread.${recipientUid}`]: FieldValue.increment(1) }).catch(() => {});
+    //   ★멱등 — Firestore 트리거는 at-least-once라 같은 메시지 이벤트가 재전송되면 중복 +1(유령 안읽음). 메시지에
+    //     unreadCounted 표식을 트랜잭션으로 달아 1회만 증가(contentReports countedAt와 동일 패턴).
+    const msgRef = event.data.ref;
+    const convRef = db.doc(`conversations/${event.params.pairId}`);
+    await db.runTransaction(async (tx) => {
+      const m = await tx.get(msgRef);
+      if (!m.exists || m.data().unreadCounted) return;   // 이미 카운트된 메시지(재전송) → 스킵
+      tx.update(msgRef, { unreadCounted: true });
+      tx.update(convRef, { [`unread.${recipientUid}`]: FieldValue.increment(1) });
+    }).catch((e) => logger.warn('[dm] unread inc', e?.message));
     const [rSnap, sSnap] = await Promise.all([
       db.doc(`users/${recipientUid}`).get(),
       db.doc(`users/${senderUid}`).get(),
