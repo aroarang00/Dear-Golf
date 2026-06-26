@@ -463,7 +463,13 @@ export function DiaryScreen({ route, navigation }) {
 
   // 라운딩 삭제 — 기록 + 연결된 개인 일정 함께 삭제(scheduleId 우선, 라운지 보호). mode는 'all' 단일로 통일.
   const handleDeleteDiary = async (target, mode) => {
-    await removeDiary(target.id);
+    try {
+      await removeDiary(target.id);
+    } catch (e) {
+      if (__DEV__) console.warn('[diary] delete failed', e?.message);
+      showAppAlert('삭제에 실패했어요', '네트워크 상태를 확인하고 다시 시도해주세요.');
+      return; // 삭제 실패면 연결 일정 삭제·닫기 진행 안 함(조용한 실패 방지, 2026-06-26 감사)
+    }
     // 특별한 순간·싱글 카드는 diaryHof 파생이라 기록이 사라지면 자동 제거됨(별도 처리 불필요).
     //   마일스톤은 '영속 성취'라 카운트가 줄어도 유지(milestoneHof 미회수).
     if (mode === 'all') {

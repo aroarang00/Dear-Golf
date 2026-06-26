@@ -361,13 +361,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   useEffect(() => {
     if (!visible) return;
-    loadFriendData().then(setFriendData).catch(() => {}); // 공개범위 그룹 선택·해석용 ([[friend_groups]])
-    loadMyFriendsEnriched().then(f => setFriends(f || [])).catch(() => {}); // 동반자 친구 선택용([[companion-design]] Phase A)
+    let cancelled = false;   // 비동기 resolve가 닫힌/재오픈된 폼을 덮어쓰지 않게 가드(2026-06-26 감사)
+    loadFriendData().then(d => { if (!cancelled) setFriendData(d); }).catch(() => {}); // 공개범위 그룹 선택·해석용 ([[friend_groups]])
+    loadMyFriendsEnriched().then(f => { if (!cancelled) setFriends(f || []); }).catch(() => {}); // 동반자 친구 선택용([[companion-design]] Phase A)
     if (isEdit && initial) {
       setCourseSearch(initial.course || '');
       setSelectedCourse(initial.course || '');
       if (initial.courseId) {
-        findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
+        findUserCourseById(initial.courseId).then(c => { if (!cancelled && c) setSelectedCourseObj(c); });
       }
       const dParts = (initial.date || '').split('.').map(Number);
       if (dParts.length === 3 && dParts.every(Number.isFinite)) {
@@ -440,7 +441,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         setSelectedCourse(initial.course);
       }
       if (initial?.courseId) {
-        findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
+        findUserCourseById(initial.courseId).then(c => { if (!cancelled && c) setSelectedCourseObj(c); });
       }
       // 전파 단체 일정 — 그룹(groupId)을 직접 읽어 멤버 전원을 동반자 후보(roster)로(단체 모집과 동일 UX, 2026-06-26).
       //   수신자 파생 일정의 companions엔 초대자 1명만 담겨 그것만으론 같이 친 사람을 못 고름 → 그룹에서 전원 해석.
@@ -450,7 +451,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           try {
             const me = await getUid();
             const g = await getScheduleGroup(initial.groupId);
-            if (!g) return;
+            if (cancelled || !g) return;   // 늦게 도착한 그룹 데이터가 닫힌/재오픈 폼을 덮지 않게
             const names = g.names || {};
             const declined = new Set(g.declinedUids || []);
             const uids = [...new Set([...(g.memberUids || []), ...(g.audienceUids || [])])]
@@ -480,6 +481,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setSubCourse(initial?.subCourse || '');
       if (initial?.overseas) { setOverseas(true); setCountry(initial.country || ''); }
     }
+    return () => { cancelled = true; };
   }, [visible, isEdit, initial]);
 
   const [saveError, setSaveError] = useState('');
