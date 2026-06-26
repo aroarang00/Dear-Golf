@@ -13,11 +13,12 @@ import { getCurrentLocation } from '../../utils/location';
 // =============================================================
 // 로컬 번들 에셋 — 네트워크 다운로드 없이 즉시·선명하게 표시 (사용자 직접 촬영 골프장 사진, 2026-06-27 Unsplash 전량 교체).
 // require는 정적 경로만 허용돼 개별 나열. 시간대별 풀에서 랜덤 1장.
-// ★전부 사용자 직접 촬영 사진으로 교체 완료(2026-06-27) — Unsplash 이미지 전량 제거. 일출(morning)·겨울(누런잔디)은 추가 예정.
+// ★전부 사용자 직접 촬영 사진(2026-06-27, Unsplash 전량 교체). 겨울(누런잔디)은 WINTER_IMAGES로 계절 분기(아래).
 const TIME_IMAGES = {
-  morning: [ // 아침 (05~09시) — 안개·서리·여명 (현재 안개 2장, 일출은 추가 예정 → morning3)
+  morning: [ // 아침 (05~09시) — 안개·서리·여명·일출
     require('../../../assets/home-bg/morning1.jpg'), // 아침안개 — 안개 자욱한 페어웨이·나무 실루엣
     require('../../../assets/home-bg/morning2.jpg'), // 아침안개 — 안개 속 능선·티잉 그라운드
+    require('../../../assets/home-bg/morning3.jpg'), // 일출/여명 — 분홍빛 새벽 하늘·조명 코스
   ],
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘 (전부 사용자 사진)
     require('../../../assets/home-bg/day1.jpg'), // 파란 하늘 — 연못 계곡·산·페어웨이
@@ -41,6 +42,19 @@ const CLOUDY_IMAGES = [
   require('../../../assets/home-bg/cloudy1.jpg'),
 ];
 
+// 겨울 누런잔디(휴면 잔디) — 겨울철에만 낮·늦오후 사진을 이걸로 교체(여름에 누런잔디가 뜨면 어색). 봄~가을엔 미사용.
+//   아침안개·밤은 계절 영향 작아 그대로 둠. 잔디 누레지는 11~3월에만 노출(아래 isWinter).
+const WINTER_IMAGES = [
+  require('../../../assets/home-bg/winter1.jpg'), // 겨울 맑음 — 누런 페어웨이·파란 하늘·산
+  require('../../../assets/home-bg/winter2.jpg'), // 겨울 낮 — 누런 페어웨이·능선
+  require('../../../assets/home-bg/winter3.jpg'), // 겨울 황혼 — 따뜻한 빛·누런잔디·산
+];
+// 겨울철(누런잔디 시즌) — 월 기준 11~3월. 이 기간 day·lateAfternoon만 winter 풀 사용(여름엔 안 뜸). 범위는 필요시 조정.
+function isWinter(d = new Date()) {
+  const m = d.getMonth();      // 0=1월
+  return m >= 10 || m <= 2;    // 11·12·1·2·3월
+}
+
 // 날씨별 그라데이션 오버레이 — 위/아래(글씨 영역)는 진하게, 가운데는 옅게.
 //  맑음: 초록 다크톤 / 흐림: 회색 (사진 채도·밝기 죽임) / 비: 더 어두운 청회색
 const OVERLAYS = {
@@ -62,8 +76,13 @@ function pickFrom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// 겨울이면 낮·늦오후는 winter 풀(누런잔디). 그 외 시간대(아침안개·밤)·비겨울은 시간대 풀.
+function winterApplies(b) {
+  return isWinter() && (b === 'day' || b === 'lateAfternoon');
+}
 function pickImage() {
-  return pickFrom(TIME_IMAGES[timeBucket()] || TIME_IMAGES.day);
+  const b = timeBucket();
+  return winterApplies(b) ? pickFrom(WINTER_IMAGES) : pickFrom(TIME_IMAGES[b] || TIME_IMAGES.day);
 }
 
 // 헤더 날씨 아이콘 → 배경 톤. 헤더(icon)와 배경(tone)을 '같은 아이콘'에서 도출해 둘이 절대 어긋나지 않게 한다.
@@ -125,7 +144,7 @@ export function HomeBgSlider() {
   const [weather, setWeather] = useState('clear');
   // 현재 표시 사진의 '카테고리'(시간대 morning/day/lateAfternoon/night 또는 흐림 'cloudy') — 같은 카테고리면 사진 유지.
   // (매 포그라운드 복귀마다 랜덤 재추출하면 안드 <Image> 크로스페이드로 두 사진이 겹쳐 보임)
-  const catRef = useRef(timeBucket());
+  const catRef = useRef(winterApplies(timeBucket()) ? 'winter' : timeBucket());
 
   useEffect(() => {
     let cancelled = false;
@@ -138,10 +157,11 @@ export function HomeBgSlider() {
       // 흐림(☁️)이고 낮 시간대면 실제 흐림 사진, 아니면 시간대 사진(구름많음 ⛅은 밝은 시간대 사진 유지).
       //   카테고리(시간대/흐림)가 바뀔 때만 교체(깜빡임 제거)
       const useCloudy = tone === 'cloudy' && b !== 'night';
-      const cat = useCloudy ? 'cloudy' : b;
+      const useWinter = !useCloudy && winterApplies(b);   // 겨울 낮·늦오후 — 누런잔디(흐림이 우선)
+      const cat = useCloudy ? 'cloudy' : useWinter ? 'winter' : b;
       if (cat !== catRef.current) {
         catRef.current = cat;
-        setImageUri(useCloudy ? pickFrom(CLOUDY_IMAGES) : pickFrom(TIME_IMAGES[b] || TIME_IMAGES.day));
+        setImageUri(useCloudy ? pickFrom(CLOUDY_IMAGES) : useWinter ? pickFrom(WINTER_IMAGES) : pickFrom(TIME_IMAGES[b] || TIME_IMAGES.day));
       }
     };
     refresh();
