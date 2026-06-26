@@ -11,6 +11,7 @@ import { CrewInviteSheet } from './CrewInviteSheet';
 import { CrewEditScreen } from './CrewEditScreen';
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
+import { showAppAlert } from './AppAlert';
 
 // 크루 멤버 관리 — 앨범 ⚙에서 진입 (docs/crew-space-design.md §3, 전원 동등).
 //  멤버 목록(프로필 탭→DM) + 친구 초대 + 크루 나가기. 운영자 없음(누구나 초대, 본인 탈퇴 자유).
@@ -118,10 +119,17 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   }, [memberUids.join(','), display, currentUid, creatorUid, adminUids.join(',')]);
 
   const atMax = members.length >= MAX_MEMBERS;
-  const doLeave = () => {
+  const doLeave = async () => {
     setLeaveAsk(false);
-    if (crewId && currentUid) leaveCrew(crewId, currentUid);
-    onLeave?.();
+    if (!crewId || !currentUid) { onLeave?.(); return; }
+    // await + 에러 안내 — 규칙 거부/네트워크 실패 시 조용히 닫혀 서버엔 멤버로 남던 것 방지(2026-06-26 감사)
+    try {
+      await leaveCrew(crewId, currentUid);
+      onLeave?.();
+    } catch (e) {
+      if (__DEV__) console.warn('[crew] leave failed', e?.message);
+      showAppAlert('나가기에 실패했어요', '잠시 후 다시 시도해주세요.');
+    }
   };
 
   // 크루 편집(크루장 전용) — 멤버 화면 위에 풀스크린으로. 서버 name·색·성격·사진을 현재값으로 초기화.

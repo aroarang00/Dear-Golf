@@ -6,6 +6,7 @@ import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
 import { inviteToCrew, MAX_MEMBERS } from '../utils/crews';
 import { loadMyFriendsEnriched } from '../utils/friends';
+import { showAppAlert } from './AppAlert';
 
 // 크루 친구 초대 시트 — 현재 화면 위에 바로 뜨는 바텀 시트(앨범 사람+ · 멤버화면 + 공용).
 //   친구 풀(멤버 제외) 다중선택 → inviteToCrew(audience 추가). 정원(MAX_MEMBERS) 한도 내 선택만 허용.
@@ -40,12 +41,18 @@ export function CrewInviteSheet({ crewId, memberUids = [], friends: friendsProp,
   const remaining = Math.max(0, MAX_MEMBERS - memberUids.length);   // 더 받을 수 있는 인원
   const atMax = remaining <= 0;
   const toggle = (id) => setSel((p) => p.includes(id) ? p.filter((x) => x !== id) : (p.length >= remaining ? p : [...p, id]));
-  const invite = () => {
+  const invite = async () => {
     const add = (friends || []).filter((f) => sel.includes(f.id));
     if (crewId && add.length) {
       const names = {};
       add.forEach((f) => { names[f.id] = f.customName || f.name || ''; });
-      inviteToCrew(crewId, add.map((f) => f.id), names);   // audience 추가(수락 시 멤버 합류)
+      try {
+        await inviteToCrew(crewId, add.map((f) => f.id), names);   // audience 추가(수락 시 멤버 합류)
+      } catch (e) {
+        if (__DEV__) console.warn('[crew] invite failed', e?.message);
+        showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
+        return; // 실패면 시트 유지(조용한 실패 방지, 2026-06-26 감사)
+      }
     }
     onClose?.();
   };

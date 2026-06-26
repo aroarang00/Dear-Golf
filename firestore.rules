@@ -306,12 +306,15 @@ service cloud.firestore {
         && !(request.auth.uid in request.resource.data.memberUids)
         && (request.auth.uid in request.resource.data.declinedUids)
         && !(request.auth.uid in request.resource.data.get('adminUids', []));
-      // 크루장 탈퇴 승계 — 크루장이 운영진 중 한 명에게 넘기며 본인 탈퇴(새 크루장은 기존 운영진이어야 = 임의 승계 차단)
+      // 크루장 탈퇴 승계 — 크루장이 본인 탈퇴하며 남은 멤버 중 한 명에게 승계(주인 없는 크루 방지).
+      //   ★새 크루장은 '남은 멤버(after-state memberUids)'여야 함 = 비멤버/탈퇴자 임의 승계는 차단되지만,
+      //   서브리더(adminUids)가 없어도 일반 멤버에게 승계 가능. 옛 규칙은 기존 adminUids만 허용해, 서브리더 없는
+      //   흔한 크루에서 크루장이 영영 탈퇴 못 하던 버그를 수정(2026-06-26 감사). 클라 leaveCrew 폴백과 일치.
       allow update: if isSignedIn()
         && crewMaster()
         && changedKeysWithin(['memberUids', 'declinedUids', 'creatorUid', 'adminUids', 'updatedAt'])
         && !(request.auth.uid in request.resource.data.memberUids)
-        && (request.resource.data.creatorUid in resource.data.adminUids);
+        && (request.resource.data.creatorUid in request.resource.data.memberUids);
       // 삭제: 크루장만 (빈 크루 정리는 후속)
       allow delete: if isSignedIn() && resource.data.creatorUid == request.auth.uid;
 

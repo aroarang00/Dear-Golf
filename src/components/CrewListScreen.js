@@ -218,7 +218,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
       else if (__DEV__) console.warn('[crew] accept invite', e?.message);
     }
   };
-  const rejectInvite = (iv) => { if (currentUid) declineCrewInvite(iv.id, currentUid); };
+  const rejectInvite = (iv) => { if (currentUid) declineCrewInvite(iv.id, currentUid).catch(e => __DEV__ && console.warn('[crew] decline invite', e?.message)); };
 
   const handleCreate = async ({ name, friendUids = [], names = {}, creatorName = '', themeColor = '', description = '', photoUri = null }) => {
     setCreateOpen(false);
