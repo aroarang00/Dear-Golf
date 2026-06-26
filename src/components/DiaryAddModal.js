@@ -4,6 +4,7 @@ import AppTextInput from './common/AppTextInput';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { loadMyFriendsEnriched } from '../utils/friends';   // 동반자 친구 선택용([[companion-design]] Phase A)
+import { getScheduleGroup } from '../utils/scheduleShares';  // 전파 단체 일정 → 멤버 전원 동반자 후보 해석
 import { FriendSelectModal } from './FriendSelectModal';
 import { Icon, GreenFlag } from './common/Icon'; // 라운딩=그린·핀, 일상=사진 커스텀 아이콘
 import { Spinner } from './common/Spinner';
@@ -441,8 +442,26 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (initial?.courseId) {
         findUserCourseById(initial.courseId).then(c => { if (c) setSelectedCourseObj(c); });
       }
-      // 일정(모집확정 포함)에 담긴 동반자를 기록 작성 시 미리 채움 — friendUid 보존(본인 제외).
-      if (Array.isArray(initial?.companions) && initial.companions.length) {
+      // 전파 단체 일정 — 그룹(groupId)을 직접 읽어 멤버 전원을 동반자 후보(roster)로(단체 모집과 동일 UX, 2026-06-26).
+      //   수신자 파생 일정의 companions엔 초대자 1명만 담겨 그것만으론 같이 친 사람을 못 고름 → 그룹에서 전원 해석.
+      //   멤버(나 제외)가 3명 초과면 teamRoster로 본인 조 3명 직접 선택, 이하면 그대로 자동 채움.
+      if (initial?.groupId) {
+        (async () => {
+          try {
+            const me = await getUid();
+            const g = await getScheduleGroup(initial.groupId);
+            if (!g) return;
+            const names = g.names || {};
+            const declined = new Set(g.declinedUids || []);
+            const uids = [...new Set([...(g.memberUids || []), ...(g.audienceUids || [])])]
+              .filter(u => u && u !== me && !declined.has(u));
+            const roster = uids.map(u => ({ name: (names[u] || '').trim() || '동반자', friendUid: u }));
+            if (roster.length > 3) { setCompanions([]); setTeamRoster(roster); }
+            else { setCompanions(roster.slice(0, 3)); setTeamRoster([]); }
+          } catch (e) { if (__DEV__) console.warn('[diary] group roster resolve', e?.message); }
+        })();
+      } else if (Array.isArray(initial?.companions) && initial.companions.length) {
+        // 일정(모집확정 포함)에 담긴 동반자를 기록 작성 시 미리 채움 — friendUid 보존(본인 제외).
         const mapped = initial.companions
           .filter(c => !(typeof c === 'object' && c.isMe))
           .map(c => (typeof c === 'string' ? { name: c } : { name: c?.name, ...(c?.friendUid ? { friendUid: c.friendUid } : {}) }))
