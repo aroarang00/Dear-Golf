@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking, AppState } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 //  ※ React 19 + automatic JSX runtime(jsx())에선 함수형 컴포넌트 defaultProps가 무시돼(옛 _withDefaultFont 방식 사망),
@@ -519,6 +519,19 @@ function App() {
     // 앱 실행 중 알림 탭
     const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
     return () => sub.remove();
+  }, []);
+
+  // iOS 앱 아이콘 배지 / 알림센터 정리 — 인앱에서 알림을 다 읽어도(푸시 탭 안 하고) 아이콘 갯수가 안 사라지던 문제.
+  //   앱을 열면(포그라운드 복귀·콜드스타트) = 확인한 것으로 보고 배지를 0으로 내리고 알림센터 스택도 비운다.
+  //   인앱 알림센터가 읽음 상태의 진짜 소스라 트레이 정리는 안전. 안드는 배지 모델이 달라 무해(예외 삼킴).
+  useEffect(() => {
+    const clearBadge = () => {
+      Notifications.setBadgeCountAsync(0).catch(() => {});
+      Notifications.dismissAllNotificationsAsync().catch(() => {});
+    };
+    clearBadge(); // 실행/콜드스타트 시 1회
+    const appSub = AppState.addEventListener('change', (s) => { if (s === 'active') clearBadge(); });
+    return () => appSub.remove();
   }, []);
 
   // 딥링크 수신 — deargolf.app/r/{postId}(Universal/App Links) 또는 deargolf://r/{postId} → 라운지 모집 상세.
