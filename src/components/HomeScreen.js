@@ -19,7 +19,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
-import { Icon, WeatherGlyph } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차)
+import { Icon, WeatherGlyph, GreenFlag } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차 · 당일 골프 깃발)
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { ShareMomentModal } from './ShareMomentModal';
@@ -1186,7 +1186,10 @@ export function HomeScreen({ navigation, route }) {
                         })()}
                         {/* 당일은 큰 'D-0' 숫자 대신 '오늘 라운딩' 강조 — 오늘인 게 한눈에 + 코랄 포인트 유지. 탭하면 일정 시트(기존 D-0 탭 대체). */}
                         <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: Platform.OS === 'ios' ? 8 : 16, alignSelf: 'flex-start' }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(21), lineHeight: fs(27), color: '#DD6E58' }}>오늘 라운딩 ⛳</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(21), lineHeight: fs(27), color: '#DD6E58' }}>오늘 라운딩</Text>
+                            <GreenFlag size={fs(28)} />{/* ⛳ 이모지 → 우리 골프 깃발(코랄·그린, 텍스트색과 통일) */}
+                          </View>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>일정 보기 ›</Text>
                         </TouchableOpacity>
                       </View>
