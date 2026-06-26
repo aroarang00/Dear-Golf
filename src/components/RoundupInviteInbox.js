@@ -1,5 +1,5 @@
 import React, { useEffect, useContext, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { C, F, fs } from '../constants/colors';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 
@@ -33,7 +33,8 @@ export function RoundupInviteInbox({ onOpen, onActiveChange }) {
 
   return (
     <Animated.View style={{
-      marginHorizontal: 20, marginTop: 12, borderRadius: 16,
+      // iOS는 크루 아이콘 행과 너무 붙어 보여 위 여백을 조금 더(안드는 그대로) — 사용자 2026-06-26
+      marginHorizontal: 20, marginTop: Platform.OS === 'ios' ? 22 : 12, borderRadius: 16,
       shadowColor: '#D9AF3C', shadowOffset: { width: 0, height: 0 },
       shadowOpacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }),
       shadowRadius: glow.interpolate({ inputRange: [0, 1], outputRange: [16, 34] }),
