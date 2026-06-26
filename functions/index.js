@@ -526,6 +526,11 @@ exports.ttlCleanupTick = ttlCleanup.ttlCleanupTick;
 const videoFaststart = require('./videoFaststart');
 exports.faststartVideo = videoFaststart.faststartVideo;
 
+// 일회성 — 옛 영상 일괄 리먹스(backfill). 2026-06-26 실행 완료(옛 영상 47개 리먹스, 실패 0) 후
+//   함수 삭제(functions:delete)·export 비활성. 옛 영상이 또 쌓이면 아래 2줄 주석 해제→배포→호출→재삭제.
+// const batchFaststart = require('./batchFaststart');
+// exports.batchFaststart = batchFaststart.batchFaststart;
+
 // =============================================================
 // 운영 이메일 — ./email.js (SendGrid 신고 접수 알림)
 // ⚠️ 비활성화 (2026-06-02): SendGrid 키 미발급이라 SENDGRID_API_KEY secret이 없어
