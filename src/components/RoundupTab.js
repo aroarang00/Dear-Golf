@@ -1499,6 +1499,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
   const cancelWaitlist = async (id) => {
     if (!myUid) return;
+    if (busyPostsRef.current.has(id)) return; // 연타 가드 — 처리 중 두 번째 호출은 stale 배열로 규칙 거부→거짓 실패 알림 나던 것 방지
+    busyPostsRef.current.add(id);
     try {
       await leaveWaitlist(id);
       setPosts(prev => prev.map(p => p.id === id
@@ -1512,6 +1514,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         message: '잠시 후 다시 시도해 주세요.',
         buttons: [{ text: '확인' }],
       });
+    } finally {
+      busyPostsRef.current.delete(id);
     }
   };
 
