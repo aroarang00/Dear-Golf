@@ -472,7 +472,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             // 만석 + 미확정(확정형) — 주최자 명시 확정 버튼. 만석 자체는 자동 확정 X (2026-05-28 정책)
             <>
               <TouchableOpacity activeOpacity={0.85} onPress={confirmFinalize}
-                style={{ borderRadius: 10, paddingVertical: _and ? 9 : 12, alignItems: 'center', backgroundColor: '#3C7D4F' }}>
+                style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', backgroundColor: '#3C7D4F' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>모집 확정하기</Text>
               </TouchableOpacity>
               {/* 만석=확정 아님. 버튼 아래에 대기 상태 강조 — 주최자가 '눌러야 함' 인식 ([[roundup-confirm-judgment]]) */}
@@ -878,7 +878,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               return (
                 <>
                   <TouchableOpacity onPress={enabled ? handleNotifySchedule : undefined} disabled={!enabled} activeOpacity={0.85}
-                    style={{ marginHorizontal: 16, marginTop: _and ? 12 : 16, borderRadius: 12, paddingVertical: 13,
+                    style={{ marginHorizontal: 16, marginTop: _and ? 12 : 16, borderRadius: 10, paddingVertical: _and ? 8 : 11,
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
                       backgroundColor: enabled ? C.navy : C.bgSecondary,
                       borderWidth: enabled ? 0 : 0.5, borderColor: C.hairline, opacity: enabled ? 1 : 0.7 }}>
