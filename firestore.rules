@@ -547,14 +547,21 @@ service cloud.firestore {
       // 보관기간 만료 시 Cloud Function 정리 (Phase 2 후속).
     }
 
-    // ===== roundupNotifications — 모집 알림 =====
-    //   ※ create를 클라이언트에 열어두면 알림 스팸이 가능 —
-    //     운영 단계에선 Cloud Function 생성으로 이관 권장
+    // ===== roundupNotifications — 인앱 알림(범용: 모집·친구·일정) =====
+    //   create는 클라가 직접(actor=me) — 스팸 남용 방어로 페이로드를 제약(2026-06-26 강화):
+    //   ① priority 'important' 금지 — CF가 important는 알림 토글을 무시하고 강제 푸시하므로 클라가 못 올리게(클라 정상값은 'normal'뿐).
+    //   ② type/actorName/postTitle 길이 상한 — 대용량·도배 페이로드 차단. (모르는 type은 CF가 안전한 기본 문구로 처리하므로 enum 강제 없음=false-denial 회피.)
+    //   남은 '임의 uid에 템플릿 알림' 벡터는 actorUid=me로 추적 가능 + 저영향이라 운영 중 CF 이관은 후속.
     match /roundupNotifications/{notiId} {
       allow read: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
       allow create: if isSignedIn()
         && request.resource.data.actorUid == request.auth.uid
-        && request.resource.data.recipientUid != request.auth.uid;
+        && request.resource.data.recipientUid is string
+        && request.resource.data.recipientUid != request.auth.uid
+        && request.resource.data.type is string && request.resource.data.type.size() <= 40
+        && (!('priority' in request.resource.data) || request.resource.data.priority == 'normal')
+        && (!('actorName' in request.resource.data) || (request.resource.data.actorName is string && request.resource.data.actorName.size() <= 40))
+        && (!('postTitle' in request.resource.data) || (request.resource.data.postTitle is string && request.resource.data.postTitle.size() <= 80));
       allow update: if isSignedIn()
         && resource.data.recipientUid == request.auth.uid
         && changedKeysWithin(['read']);          // 읽음 처리만
@@ -726,13 +733,17 @@ service cloud.firestore {
     // 정지 사실과 식별자만 별도 보존 ([[account-deletion]] A안).
     //
     // 보안: 카카오 로그인 콜백에서 본인 sub 매칭 차단용으로 read 필요.
-    // write는 정지된 본인의 탈퇴 시점에 한정 — Phase 5 Cloud Functions로 이관 권장.
-    //   (현재 임시 클라이언트 작성 — 위조 위험은 카카오 sub를 다른 사람의 것 알기 어려움으로 완화)
+    // write는 정지된 '본인'의 탈퇴 시점에 한정(account.js preserveBanIfRestricted).
+    //   ★2026-06-26 강화: 남의 sub를 위조해 피해자를 잠그는 griefing 차단 —
+    //     문서의 kakaoSub가 '내 users 문서의 kakaoId'와 일치하고 + 내가 실제 isRestricted일 때만 생성 허용.
+    //     (탈퇴 흐름상 ban 쓰기 시점에 users/{me}가 아직 살아있고 kakaoId·isRestricted를 가짐 — 확인됨.)
     match /banned_users/{kakaoSub} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
         && request.resource.data.kakaoSub == kakaoSub
-        && request.resource.data.reason is string;
+        && request.resource.data.reason is string
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('kakaoId', '') == kakaoSub
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isRestricted', false) == true;
       allow update, delete: if false;  // 변조 금지. 만료/해제는 Cloud Functions가 처리 ([[age-policy]] §3)
     }
 

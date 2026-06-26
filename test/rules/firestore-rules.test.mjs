@@ -400,3 +400,68 @@ test('crews: 댓글수·최신댓글 미리보기 메타 갱신은 멤버만, �
   await assertFails(updateDoc(doc(as('bob'), 'crews/c1/posts', 'p1'),
     { text: '바뀜', commentCount: 1 }));
 });
+
+// =============================================================
+// banned_users — 정지된 '본인' sub만 보존, 남 sub 위조 차단(2026-06-26 강화)
+//   규칙: 문서 kakaoSub == 내 users.kakaoId  AND  내 users.isRestricted == true
+// =============================================================
+test('banned_users: 정지된 본인은 본인 kakaoId로 ban 보존 가능', async () => {
+  await seed((db) => setDoc(doc(db, 'users', 'alice'), { kakaoId: 'ksub_alice', isRestricted: true }));
+  await assertSucceeds(setDoc(doc(as('alice'), 'banned_users', 'ksub_alice'),
+    { kakaoSub: 'ksub_alice', reason: 'minor', bannedAt: serverTimestamp() }));
+});
+
+test('banned_users: 남의 sub 위조로 피해자 잠그기 — 거부(griefing 차단)', async () => {
+  await seed((db) => setDoc(doc(db, 'users', 'alice'), { kakaoId: 'ksub_alice', isRestricted: true }));
+  // 내 kakaoId(ksub_alice)가 아닌 피해자 sub로 ban 생성 시도 — 거부
+  await assertFails(setDoc(doc(as('alice'), 'banned_users', 'ksub_victim'),
+    { kakaoSub: 'ksub_victim', reason: 'x' }));
+});
+
+test('banned_users: 정지 상태가 아니면 본인 sub여도 ban 생성 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'users', 'bob'), { kakaoId: 'ksub_bob', isRestricted: false }));
+  await assertFails(setDoc(doc(as('bob'), 'banned_users', 'ksub_bob'),
+    { kakaoSub: 'ksub_bob', reason: 'x' }));
+});
+
+test('banned_users: update·delete는 누구도 불가(이력 불변)', async () => {
+  await seed((db) => setDoc(doc(db, 'banned_users', 'ksub_alice'), { kakaoSub: 'ksub_alice', reason: 'x' }));
+  await assertFails(updateDoc(doc(as('alice'), 'banned_users', 'ksub_alice'), { reason: 'y' }));
+  await assertFails(deleteDoc(doc(as('alice'), 'banned_users', 'ksub_alice')));
+});
+
+// =============================================================
+// roundupNotifications — 페이로드 남용 차단(2026-06-26 강화)
+//   actor=me·recipient≠me 유지 + priority important 금지 + 길이 상한
+// =============================================================
+test('roundupNotifications: 정상 알림(apply) 생성 가능', async () => {
+  await assertSucceeds(setDoc(doc(as('alice'), 'roundupNotifications', 'n1'),
+    { type: 'apply', actorUid: 'alice', actorName: '앨리스', recipientUid: 'bob',
+      postId: 'p1', postTitle: '레이크사이드', read: false, createdAt: serverTimestamp() }));
+});
+
+test('roundupNotifications: scheduleNotice(priority normal)도 정상 통과', async () => {
+  await assertSucceeds(setDoc(doc(as('alice'), 'roundupNotifications', 'n2'),
+    { type: 'scheduleNotice', actorUid: 'alice', actorName: '앨리스', recipientUid: 'bob',
+      postId: 'p1', postTitle: '레이크사이드', priority: 'normal', read: false, createdAt: serverTimestamp() }));
+});
+
+test('roundupNotifications: 본인에게 알림 / actorUid 위조 — 거부', async () => {
+  await assertFails(setDoc(doc(as('alice'), 'roundupNotifications', 'n3'),
+    { type: 'apply', actorUid: 'alice', recipientUid: 'alice', read: false }));
+  await assertFails(setDoc(doc(as('alice'), 'roundupNotifications', 'n4'),
+    { type: 'apply', actorUid: 'bob', recipientUid: 'carol', read: false }));
+});
+
+test('roundupNotifications: priority important(강제 푸시 우회) — 거부', async () => {
+  await assertFails(setDoc(doc(as('alice'), 'roundupNotifications', 'n5'),
+    { type: 'apply', actorUid: 'alice', recipientUid: 'bob', priority: 'important', read: false }));
+});
+
+test('roundupNotifications: 과대 actorName·postTitle 도배 페이로드 — 거부', async () => {
+  const big = 'x'.repeat(200);
+  await assertFails(setDoc(doc(as('alice'), 'roundupNotifications', 'n6'),
+    { type: 'apply', actorUid: 'alice', recipientUid: 'bob', actorName: big, read: false }));
+  await assertFails(setDoc(doc(as('alice'), 'roundupNotifications', 'n7'),
+    { type: 'apply', actorUid: 'alice', recipientUid: 'bob', postTitle: big, read: false }));
+});
