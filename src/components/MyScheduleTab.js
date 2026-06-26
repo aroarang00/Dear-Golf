@@ -114,6 +114,15 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   //   닉네임 그대로(전파·공유는 닉네임, owner-only 표시만 별명) ([[friend_groups]], [[diary-companion-matching]])
   const [friendMeta, setFriendMeta] = useState({});
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
+  // MY 탭 focus 시 친구 별명 재로드 — 탭이 상주 마운트라 마운트 1회 로드만으론 별명 변경이 캘린더 동반자 표시에
+  //   반영 안 되던 것 보강(2026-06-26 감사).
+  useEffect(() => {
+    if (!navigation?.addListener) return;
+    const unsub = navigation.addListener('focus', () => {
+      loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {});
+    });
+    return unsub;
+  }, [navigation]);
   // 전파 일정(groupId) 그룹 일괄 로드 — 캘린더 카드 동반자에 '친구 초대'(audience) 멤버까지 보강(2026-06-24).
   //   companions만 보면 친구초대로 들어온 동반자가 누락됐음(홈 바텀시트와 동일하게 그룹 보강). groupId 집합이 바뀔 때만 재로드.
   const [groupsById, setGroupsById] = useState({});

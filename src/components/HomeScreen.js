@@ -353,6 +353,9 @@ export function HomeScreen({ navigation, route }) {
       getUserCourses().then(list => setUserCoursesList(list || []));
       // 라운지에서 친구지정 초대를 거절(로컬 가리기)했을 수 있으니 가리기 재로드 → 홈 배너·탭 뱃지 즉시 정합 ([[roundup-invitation]])
       refreshRoundupHidden();
+      // 친구 데이터 최신화 — 친구 탭에서 수락·별명 변경 후 홈 복귀 시 stale 방지(빈 'CTA'·동반자 별명 옛값). 마운트 1회만 로드하던 것 보강(2026-06-26 감사)
+      loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {});
+      loadMyFriends().then(fs => setHasFriends(fs.length > 0)).catch(() => {});
       // 다이어리는 DiariesContext가 단일 소스 — 별도 로드 불필요 (Firestore 동기화는 Context가 담당)
     });
     return unsubscribe;
