@@ -1220,8 +1220,10 @@ export function HomeScreen({ navigation, route }) {
                     <TouchableOpacity
                       onPress={() => openScheduleSheet(next)}
                       activeOpacity={0.7}
-                      style={{ alignSelf: 'flex-start' }}>
+                      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={homeS.cardDDay}>D-{freshDDay(next)}</Text>
+                      {/* 탭하면 일정 시트 열린다는 affordance(테스터 피드백 2026-06-26) */}
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(30), color: C.butter, marginLeft: 8, marginTop: 6 }}>›</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
@@ -1254,7 +1256,11 @@ export function HomeScreen({ navigation, route }) {
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
                 </TouchableOpacity>
-                <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
+                  {/* 탭하면 일정 시트 열린다는 affordance — '카드 탭하면 뭐 뜨는지 모르겠다' 테스터 피드백(2026-06-26) */}
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: 'rgba(245,230,168,0.7)', includeFontPadding: false }}>›</Text>
+                </View>
               </TouchableOpacity>
               );
             })}
