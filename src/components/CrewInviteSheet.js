@@ -23,12 +23,13 @@ function Avatar({ n, c, size = 36, uri }) {
   );
 }
 
-export function CrewInviteSheet({ crewId, memberUids = [], friends: friendsProp, onClose }) {
+export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], declinedUids = [], friends: friendsProp, onClose }) {
   const insets = useSafeAreaInsets();
   // 친구 목록 — 부모(앨범)가 이미 로드한 걸 prop으로 주면 재로드 안 함 → 로딩·높이 점프 0(2026-06-24).
   //   prop 미제공(멤버 화면 등)일 때만 자체 로드(하위호환). null=로딩.
   const [friends, setFriends] = useState(friendsProp ?? null);
-  const [sel, setSel] = useState([]);
+  const [invited, setInvited] = useState(() => new Set());  // 이번에 방금 초대한 uid(낙관적 '초대중')
+  const [busy, setBusy] = useState(() => new Set());        // 초대 진행 중(중복 탭 가드)
 
   useEffect(() => {
     if (friendsProp !== undefined) { setFriends(friendsProp); return; }
@@ -37,36 +38,44 @@ export function CrewInviteSheet({ crewId, memberUids = [], friends: friendsProp,
     return () => { alive = false; };
   }, [friendsProp]);
 
+  // '초대중' 표시 대상 = audience(미수락) 中 거절 안 한 사람 + 이번에 방금 초대한 사람.
+  //   거절자(declined)는 audience에 남아있어도 재초대 가능하게 '초대' 버튼을 노출(inviteToCrew가 declined 해제).
+  const pendingSet = useMemo(() => {
+    const dec = new Set(declinedUids || []);
+    const s = new Set((audienceUids || []).filter((u) => !dec.has(u)));
+    invited.forEach((u) => s.add(u));
+    return s;
+  }, [audienceUids, declinedUids, invited]);
+
   const pool = useMemo(() => (friends || []).filter((f) => !memberUids.includes(f.id)), [friends, memberUids]);
-  const remaining = Math.max(0, MAX_MEMBERS - memberUids.length);   // 더 받을 수 있는 인원
-  const atMax = remaining <= 0;
-  const toggle = (id) => setSel((p) => p.includes(id) ? p.filter((x) => x !== id) : (p.length >= remaining ? p : [...p, id]));
-  const invite = async () => {
-    const add = (friends || []).filter((f) => sel.includes(f.id));
-    if (crewId && add.length) {
-      const names = {};
-      add.forEach((f) => { names[f.id] = f.customName || f.name || ''; });
-      try {
-        await inviteToCrew(crewId, add.map((f) => f.id), names);   // audience 추가(수락 시 멤버 합류)
-      } catch (e) {
-        if (__DEV__) console.warn('[crew] invite failed', e?.message);
-        showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
-        return; // 실패면 시트 유지(조용한 실패 방지, 2026-06-26 감사)
-      }
+  const atMax = memberUids.length >= MAX_MEMBERS;   // 정원 — 더 못 받음
+
+  // 한 명씩 초대 — 선택→일괄 대신 행마다 '초대' 버튼(작아서 안 보이던 문제 + 중복초대 방지).
+  const inviteOne = async (f) => {
+    if (!crewId || busy.has(f.id) || pendingSet.has(f.id)) return;
+    setBusy((s) => new Set(s).add(f.id));
+    try {
+      await inviteToCrew(crewId, [f.id], { [f.id]: f.customName || f.name || '' });   // audience 추가(수락 시 합류)
+      setInvited((s) => new Set(s).add(f.id));   // 낙관적 '초대중'(구독으로 audience도 곧 갱신)
+    } catch (e) {
+      if (__DEV__) console.warn('[crew] invite failed', e?.message);
+      showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
+    } finally {
+      setBusy((s) => { const n = new Set(s); n.delete(f.id); return n; });
     }
-    onClose?.();
   };
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(26,61,82,0.35)' }} />
-      {/* 시트 — 아래서 위로 슬라이드업(SlideInDown=reanimated에선 아래서 진입, 명명 주의). friends를 부모가 프리페치해
-          prop으로 주므로 로딩·점프 없이 즉시 리스트라 minHeight 불필요 — 내용 높이대로, 길면 maxHeight 70%(2026-06-24). */}
-      <Animated.View entering={SlideInDown.duration(240)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 18 + insets.bottom, maxHeight: '70%' }}>
+      {/* 시트 — 아래서 위로 슬라이드업(SlideInDown=reanimated에선 아래서 진입, 명명 주의).
+          minHeight 고정 — 부모 friends가 아직 null(로딩)일 때 열면 entering 애니가 접힌(스피너) 높이를 잡아
+          친구 도착 후 한두 명만 보이던 잔존 버그 방지(2026-06-26). 안정 높이 위에서 리스트가 채워짐. */}
+      <Animated.View entering={SlideInDown.duration(240)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: CARD, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 18 + insets.bottom, minHeight: '45%', maxHeight: '78%' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
           <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: INK }}>친구 초대</Text>
-          <TouchableOpacity onPress={invite} disabled={sel.length === 0} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: sel.length ? SAGE_DEEP : 'rgba(94,126,66,0.4)' }}>초대 {sel.length || ''}</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: SAGE_DEEP }}>완료</Text>
           </TouchableOpacity>
         </View>
         {atMax && (
@@ -78,17 +87,29 @@ export function CrewInviteSheet({ crewId, memberUids = [], friends: friendsProp,
             : pool.length === 0
             ? <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: SUB, padding: 20, textAlign: 'center' }}>초대할 친구가 없어요.</Text>
             : pool.map((f) => {
-              const on = sel.includes(f.id);
               const dn = f.customName || f.name || '친구';
+              const isPending = pendingSet.has(f.id);
+              const isBusy = busy.has(f.id);
               return (
-                <TouchableOpacity key={f.id} activeOpacity={0.7} onPress={() => toggle(f.id)}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 11 }}>
+                <View key={f.id}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 10 }}>
                   <Avatar n={dn.charAt(0)} c={colorOf(f.id)} uri={f.avatarUri} size={36} />
                   <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(16), color: INK, marginLeft: 12 }} numberOfLines={1}>{dn}</Text>
-                  <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: on ? SAGE_DEEP : 'rgba(26,61,82,0.25)', backgroundColor: on ? SAGE_DEEP : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                    {on && <Text style={{ fontSize: fs(13), color: '#fff' }}>✓</Text>}
-                  </View>
-                </TouchableOpacity>
+                  {isPending ? (
+                    // 초대중 — 이미 초대돼 수락 대기 중(재초대 차단)
+                    <View style={{ borderWidth: 1, borderColor: LINE, borderRadius: 9, paddingHorizontal: 13, paddingVertical: 6 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: SUB }}>초대중</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity onPress={() => inviteOne(f)} disabled={atMax || isBusy} activeOpacity={0.8}
+                      style={{ minWidth: 64, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 7,
+                        backgroundColor: atMax ? 'rgba(94,126,66,0.22)' : SAGE_DEEP }}>
+                      {isBusy
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }}>초대</Text>}
+                    </TouchableOpacity>
+                  )}
+                </View>
               );
             })}
         </ScrollView>
