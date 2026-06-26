@@ -65,8 +65,13 @@ exports.onContentReportCreated = onDocumentCreated('content_reports/{reportId}',
   const targetRef = db.doc(`${coll}/${targetId}`);
   try {
     await db.runTransaction(async (tx) => {
+      // 멱등 — Firestore 트리거는 at-least-once라 같은 신고 이벤트가 재전송되면 reportedCount가 중복 증가해
+      //   실제 신고자 3명 미만에서 자동 가림 임계에 도달하던 문제. 신고 문서에 countedAt 표식을 달아 1회만 카운트.
+      const r = await tx.get(snap.ref);
+      if (!r.exists || r.data().countedAt) return;   // 이미 카운트된 신고(재전송) → 스킵
       const t = await tx.get(targetRef);
-      if (!t.exists) return;
+      tx.set(snap.ref, { countedAt: FieldValue.serverTimestamp() }, { merge: true }); // 이 신고를 '카운트됨'으로 표식
+      if (!t.exists) return;                          // 대상 사라짐 — 표식만 남기고 종료
       const nextCount = (t.data().reportedCount || 0) + 1;
       const update = {
         reportedCount: nextCount,
