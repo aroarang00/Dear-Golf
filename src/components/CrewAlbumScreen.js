@@ -554,12 +554,9 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM} />
     </Animated.View>
   );
-  if (commentPost) return (
-    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
-      <CrewCommentScreen crew={crew} post={commentPost} names={crewDoc?.names || {}}
-        onClose={() => setCommentPost(null)} onOpenDM={onOpenDM} />
-    </Animated.View>
-  );
+  // ★댓글은 early-return으로 앨범을 갈아치우지 않고 '오버레이'로 띄운다(아래 메인 return 끝).
+  //   갈아치우면 앨범 FlatList가 언마운트돼, 댓글에서 뒤로가기 시 스크롤이 리셋돼 '첫 리스트'로 돌아가던 버그.
+  //   오버레이는 FlatList를 살려둬 닫으면(안드 뒤로가기·iOS ← 포함) 보던 게시글 위치 그대로 복귀.
 
   // 사진 탭 — 모든 게시물의 미디어를 펼친 그리드
   const PAD = 12, GAP = 4, COLS = 3;
@@ -840,6 +837,16 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
 
       {/* 크루 모달 위 alert 자체 호스트(삭제 확인 등) */}
       <AppAlertHost />
+
+      {/* 게시글 댓글 — 오버레이로 띄움(앨범 FlatList를 살려둠). early-return으로 갈아치우면 FlatList가
+          언마운트→복귀 시 첫 리스트로 갔음(2026-06-26 수정). 닫기(뒤로가기 포함)는 CrewCommentScreen이 자체 back 핸들러로 onClose. */}
+      {commentPost && (
+        <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, elevation: 30 }}
+          entering={SlideInRight.duration(230)}>
+          <CrewCommentScreen crew={crew} post={commentPost} names={crewDoc?.names || {}}
+            onClose={() => setCommentPost(null)} onOpenDM={onOpenDM} />
+        </Animated.View>
+      )}
     </SafeAreaView>
     </SafeAreaProvider>
   );
