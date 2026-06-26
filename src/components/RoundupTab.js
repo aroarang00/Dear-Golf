@@ -702,6 +702,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!hiddenHydrated) return;
     storage.save(STORAGE_KEYS.roundupHidden, hidden);
   }, [hidden, hiddenHydrated]);
+  // 라운지 포커스 시 가리기 재로드 — 홈 배너에서 친구지정 초대를 거절(가리기)한 경우 내 참여·관심과 정합 ([[roundup-invitation]]).
+  useEffect(() => {
+    if (!navigation?.addListener) return;
+    const unsub = navigation.addListener('focus', () => {
+      storage.load(STORAGE_KEYS.roundupHidden, {}).then(h => setHidden(h || {})).catch(() => {});
+    });
+    return unsub;
+  }, [navigation]);
 
   // 모집 가리기 — 길게 눌러 내 화면에서만 숨김. 확인창 후 처리(실수 방지), 해제 UI 없음([[roundup-hide-policy]]).
   const hideRoundup = useCallback((id) => {
