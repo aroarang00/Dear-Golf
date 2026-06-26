@@ -1,11 +1,60 @@
 import { storage, STORAGE_KEYS } from './storage';
+import { db, getUid } from './firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-// 골프장별 저장 맛집 — AsyncStorage 기반
+// 골프장별 저장 맛집 — 로컬(AsyncStorage) 캐시 + Firestore(users/{uid}.savedRestaurants) 영속 백업.
 // 구조: { [courseName]: [ { id, name, type, loc, x, y, kakaoId, memo, addedAt } ] }
 // 골프장 식별은 이름(courseName)으로 — id가 COURSE_LOG/userCourses/preview 간 다르기 때문
+//   ★로컬뿐이면 재설치(allowBackup=false)·타기기에서 저장 맛집이 다 사라짐 → users 문서에 미러(savedCourses와 동일 패턴,
+//     규칙 변경 불필요=owner 임의필드 허용). 변경 시 전체 맵 미러, 시작 시 코스별 머지 복원. [[data-migration]]
 
 async function loadAll() {
   return (await storage.load(STORAGE_KEYS.savedRestaurants, {})) || {};
+}
+
+// 전체 맵을 users/{uid}.savedRestaurants에 미러(merge). 실패해도 로컬엔 영향 X.
+async function pushToFirestore(all) {
+  try {
+    const uid = await getUid();
+    if (!uid) return;
+    await setDoc(doc(db, 'users', uid), { uid, savedRestaurants: all || {}, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) { if (__DEV__) console.warn('[savedRestaurants] firestore push 실패', e?.message); }
+}
+
+const totalCount = (m) => Object.values(m || {}).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0);
+
+// 시작 시 복원 — 코스별로 Firestore와 로컬을 머지(kakaoId|이름 중복제거, 최근저장순)해 로컬 저장. 프레시 설치=Firestore로 복원.
+export async function syncSavedRestaurantsFromFirestore() {
+  try {
+    const uid = await getUid();
+    if (!uid) return await loadAll();
+    const snap = await getDoc(doc(db, 'users', uid));
+    const rd = snap.exists() ? snap.data().savedRestaurants : null;
+    const remote = (rd && typeof rd === 'object') ? rd : {};
+    const local = await loadAll();
+    const merged = {};
+    for (const cn of new Set([...Object.keys(remote), ...Object.keys(local)])) {
+      const r = Array.isArray(remote[cn]) ? remote[cn] : [];
+      const l = Array.isArray(local[cn]) ? local[cn] : [];
+      const seen = new Set();
+      const list = [];
+      for (const item of [...r, ...l]) {
+        if (!item || !item.name) continue;
+        const k = item.kakaoId ? `k:${item.kakaoId}` : `n:${(item.name || '').trim()}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        list.push(item);
+      }
+      list.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+      merged[cn] = list;
+    }
+    await storage.save(STORAGE_KEYS.savedRestaurants, merged);
+    if (totalCount(merged) !== totalCount(remote)) pushToFirestore(merged); // 로컬 전용 항목 역반영
+    return merged;
+  } catch (e) {
+    if (__DEV__) console.warn('[savedRestaurants] firestore sync 실패', e?.message);
+    return await loadAll();
+  }
 }
 
 // 특정 골프장에 저장된 맛집 목록 (최근 저장 순)
@@ -36,6 +85,7 @@ export async function addSavedRestaurant(courseName, rest) {
   };
   all[courseName] = [item, ...list];
   await storage.save(STORAGE_KEYS.savedRestaurants, all);
+  pushToFirestore(all); // 영속 백업
   return item;
 }
 
@@ -45,6 +95,7 @@ export async function removeSavedRestaurant(courseName, id) {
   const all = await loadAll();
   all[courseName] = (all[courseName] || []).filter(r => r.id !== id);
   await storage.save(STORAGE_KEYS.savedRestaurants, all);
+  pushToFirestore(all);
 }
 
 // 저장 맛집 수정 (이름·메모 등)
@@ -53,4 +104,5 @@ export async function updateSavedRestaurant(courseName, id, patch) {
   const all = await loadAll();
   all[courseName] = (all[courseName] || []).map(r => (r.id === id ? { ...r, ...patch } : r));
   await storage.save(STORAGE_KEYS.savedRestaurants, all);
+  pushToFirestore(all);
 }
