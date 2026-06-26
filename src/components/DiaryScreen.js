@@ -371,6 +371,7 @@ export function DiaryScreen({ route, navigation }) {
 
   const handleSave = async (type, data) => {
     const cameFromSchedule = returnToScheduleRef.current; // await 전에 캡처 — onClose가 ref를 곧 false로 리셋
+    try {  // 저장/수정 실패(규칙 거부 등) 시 조용히 유실 안 되게 안내 — 모달은 이미 닫혀도 알림은 뜸
     if (type === 'diary') {
       // Firestore에서 ID 자동 생성. 신규 생성 후 명예의 전당도 같이 갱신.
       const created = await addDiary({
@@ -453,6 +454,10 @@ export function DiaryScreen({ route, navigation }) {
         }
       }
       // 특별한 순간·퍼스트 싱글 카드는 기록에서 파생(diaryHof) — special 추가/해제·내용 수정이 자동 반영됨(별도 동기화 불필요).
+    }
+    } catch (e) {
+      if (__DEV__) console.warn('[diary] save failed', e?.message);
+      showAppAlert('저장에 실패했어요', '네트워크 상태를 확인하고 다시 시도해주세요.');
     }
   };
 

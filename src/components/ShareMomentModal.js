@@ -189,12 +189,21 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
       // ★대화방을 먼저 보장(ensureConversation) — 메시지 생성 규칙이 members()=대화방 문서를 get()으로 읽어,
       //   상대와 처음 DM하는 경우(방 미존재) 메시지 create가 거부돼 수신자가 못 받던 버그 수정.
       //   정상 채팅은 입장 시 ensureConversation을 부르지만 이 공유 경로엔 없었음(첫 대화일 때만 실패=들쭉날쭉).
-      await Promise.all(targets.map(fid =>
+      const results = await Promise.all(targets.map(fid =>
         ensureConversation(fid)
           .then(() => sendImageMessageUrl(fid, url, false, roundupMeta))
-          .catch(e => __DEV__ && console.warn('[dmShare] send fail', fid, e?.message))));
+          .then(() => true)
+          .catch(e => { if (__DEV__) console.warn('[dmShare] send fail', fid, e?.message); return false; })));
+      const sent = results.filter(Boolean).length;
       setDmPickerOpen(false);
-      setAlert({ title: 'DM으로 보냈어요', message: `${targets.length}명에게 카드를 보냈어요.`, buttons: [{ text: '확인', onPress: onClose }] });
+      // 거짓 성공 방지 — 전부 실패/일부 실패/전부 성공을 정확히 구분해 안내.
+      if (sent === 0) {
+        setAlert({ title: '전송에 실패했어요', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
+      } else if (sent < targets.length) {
+        setAlert({ title: '일부만 전송됐어요', message: `${targets.length}명 중 ${sent}명에게 보냈어요.`, buttons: [{ text: '확인', onPress: onClose }] });
+      } else {
+        setAlert({ title: 'DM으로 보냈어요', message: `${targets.length}명에게 카드를 보냈어요.`, buttons: [{ text: '확인', onPress: onClose }] });
+      }
     } catch (e) {
       setAlert({ title: '전송에 실패했어요', message: e?.message || '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
     } finally { setDmSending(false); }

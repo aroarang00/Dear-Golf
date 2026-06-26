@@ -125,7 +125,13 @@ const DMInputBar = React.memo(React.forwardRef(function DMInputBar({ onSend, onP
     setHasText(false);
     setInputH(46);  // 전송 후 입력창 높이 원위치(clear가 onContentSizeChange를 항상 트리거하진 않음)
     setSending(true);
-    await onSend(body);  // 실패는 드물고(차단·친구해지) alert가 안내 — 낙관적이라 입력 복구는 생략
+    const ok = await onSend(body);  // 실패는 드물고(차단·친구해지) alert가 안내
+    if (ok === false) {
+      // 전송 실패 — 낙관적으로 비운 입력을 복원(애써 친 메시지 유실 방지)
+      inputRef.current?.setNativeProps?.({ text: body });
+      textRef.current = body;
+      setHasText(true);
+    }
     setSending(false);
   };
   const canSend = hasText && !sending;
