@@ -310,12 +310,13 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
-        {/* 동영상 음소거 토글 — 기본 꺼짐(muted), 탭하면 소리 켜기. 닫기 버튼 아래 우상단 */}
+        {/* 동영상 소리 토글 — 기본 꺼짐(muted). 🔇/🔊 이모지는 한눈에 구분이 어려워 라벨 알약으로
+            (꺼짐=흐림 / 켜짐=세이지 채움 + 꺼짐↔켜짐 대비). 닫기 버튼 아래 우상단. 탭하면 토글 */}
         {isVideo && (
           <TouchableOpacity onPress={() => setMuted(m => !m)} activeOpacity={0.8}
-            style={{ position: 'absolute', top: 100, right: 18, zIndex: 10, width: 38, height: 38, borderRadius: 19,
-              backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(17) }}>{muted ? '🔇' : '🔊'}</Text>
+            style={{ position: 'absolute', top: 100, right: 18, zIndex: 10, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7,
+              backgroundColor: muted ? 'rgba(255,255,255,0.16)' : 'rgba(143,176,107,0.92)' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>{muted ? '소리 꺼짐' : '소리 켜짐'}</Text>
           </TouchableOpacity>
         )}
         {/* 저장 — 허용된 곳(DM 등)에서 사진·동영상 모두. 좌상단 알약 */}
