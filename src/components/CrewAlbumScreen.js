@@ -122,6 +122,17 @@ function MediaTile({ m, style, radius = 12, playSize = 'lg' }) {
   );
 }
 
+// 갤러리 타일 — React.memo로 부모 UI상태 churn(뷰어·버스트·시트 등) 시 헛 리렌더 차단(사진 많은 크루 갤러리 매끄럽게).
+//   props가 원시값(cell·index)+안정 객체(m=tiles 원소)+안정 콜백(onOpen)이라 memo 유효. style/onPress는 내부 생성이라
+//   부모 함수 재생성과 무관(MediaTile은 비-memo지만 이 타일 안에 갇혀 함께 스킵됨). marginBottom 4 = GAP.
+const GalleryTile = React.memo(function GalleryTile({ m, cell, index, onOpen }) {
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={() => onOpen(index)} style={{ marginBottom: 4 }}>
+      <MediaTile m={m} style={{ width: cell, height: cell }} radius={8} playSize="sm" />
+    </TouchableOpacity>
+  );
+});
+
 // 가로세로비 범위 — 일반 사진(세로 9:16 ~ 가로 1.91:1)은 통째로 보이고, 극단 비율만 살짝 보정
 // 세로 하한 0.8(4:5) — 1:1 정사각은 세로 사진을 가로처럼 눌러 부자연스러워 4:5 세로 비율 허용. 폭의 1.25배로
 //   적당히 작게(원래 0.56=1.79배 대비 크게 ↓). 피드는 cover로 꽉, 원본 전체는 탭→풀스크린 뷰어(2026-06-24). 가로 상한 1.91.
@@ -498,6 +509,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const openPostAction = useCallback((p) => setActionFor({ kind: 'post', id: p.id, authorUid: p.author.id, name: p.author.name, text: p.text, post: p }), []);
   const openViewerAt = useCallback((media, index) => setViewer({ media, index }), []);
   const openComment = useCallback((p) => setCommentPost(p), []);
+  // 갤러리 타일 onOpen — tiles 바뀔 때만 갱신(사진 추가 등, 드묾). 평소엔 안정 → GalleryTile memo 유지.
+  const openTile = useCallback((i) => setViewer({ media: tiles, index: i, gallery: true }), [tiles]);
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
@@ -615,11 +628,9 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
       onDoubleLike={likeOnDouble} onToggleLike={toggleLike} onOpenLikers={openLikers} onComment={openComment} />
   );
 
-  // 갤러리 타일 — 탭하면 풀스크린 뷰어. 간격은 columnWrapperStyle gap이 처리.
+  // 갤러리 타일 — memo GalleryTile(부모 churn에 헛 리렌더 X). onOpen=안정 콜백. 간격은 columnWrapperStyle gap이 처리.
   const renderTile = ({ item: t, index: i }) => (
-    <TouchableOpacity activeOpacity={0.8} onPress={() => setViewer({ media: tiles, index: i, gallery: true })} style={{ marginBottom: GAP }}>
-      <MediaTile m={t} style={{ width: cell, height: cell }} radius={8} playSize="sm" />
-    </TouchableOpacity>
+    <GalleryTile m={t} cell={cell} index={i} onOpen={openTile} />
   );
 
   return (
