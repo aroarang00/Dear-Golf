@@ -103,6 +103,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   const [crewOrder, setCrewOrder] = useState(null);  // [crewId,...] 수동 순서(드래그). null=미로드, []=설정 안 함
   const [people, setPeople] = useState({});          // uid→{name,avatarUri} — 초대 표시 enrich(내 별명·사진)
   const [myName, setMyName] = useState('');
+  const [mutedMap, setMutedMap] = useState({});      // {crewId:true} — 새 글 알림 음소거(멤버 화면서 토글, 기기 로컬). 행에 표시
 
   // 실시간 구독 — 열린 동안만(uid 바뀌면 재구독). cross-user 쓰기 0(셀프토글)이라 CF 불필요.
   useEffect(() => {
@@ -120,6 +121,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
     storage.load(STORAGE_KEYS.crewSeenAt, {}).then((s) => { if (alive) { setSeenAtMap(s || {}); setSeenAtLoaded(true); } });
     storage.load(STORAGE_KEYS.crewOrder, []).then((o) => { if (alive) setCrewOrder(Array.isArray(o) ? o : []); });
+    storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => { if (alive) setMutedMap(m || {}); });
     storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
     return () => { alive = false; };
   }, []);
@@ -269,7 +271,9 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   if (openCrew) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
       <CrewAlbumScreen crew={openCrew} seenAt={openCrew._seenAt || 0}
-        onClose={() => { markCrewSeen(openCrew.id); markCrewSeenAt(openCrew.id); setOpenCrew(null); }} onOpenDM={onOpenDM} />
+        onClose={() => { markCrewSeen(openCrew.id); markCrewSeenAt(openCrew.id);
+          storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => setMutedMap(m || {}));   // 멤버 화면서 토글했을 수 있어 재로드
+          setOpenCrew(null); }} onOpenDM={onOpenDM} />
     </Animated.View>
   );
   if (createOpen) return (
@@ -375,6 +379,14 @@ export function CrewListScreen({ onClose, onOpenDM }) {
                           </View>
                         )}
                         <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginLeft: 6 }}>{c.members}명</Text>
+                        {/* 새 글 알림 음소거 표시 — 멤버 화면 스피커로 끈 크루(홈 NEW 신호 제외됨)임을 목록에서 알림.
+                            아이콘만이면 작아서 안 보여 라벨 칩으로(중장년 발견성). 읽기전용 — 끄기/켜기는 멤버 화면서. */}
+                        {mutedMap[c.id] && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 6, paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 7, backgroundColor: 'rgba(26,61,82,0.07)' }}>
+                            <Icon name="speakerOff" size={fs(15)} color={SUB} strokeWidth={2.2} />
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: SUB, marginLeft: 3 }} allowFontScaling={false}>알림 꺼짐</Text>
+                          </View>
+                        )}
                       </View>
                       {/* 둘째 줄 — 크루 성격(없으면 생략, 카드 한 줄로) */}
                       {c.description ? (

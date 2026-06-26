@@ -153,10 +153,6 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
         </TouchableOpacity>
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 6 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: INK }}>멤버 {members.length}</Text>
-          {/* 알림 음소거 — 멤버 수 옆. 켜짐=스피커, 음소거=스피커+✕. 끄면 홈 크루 새 글 점에서 제외(본인만) */}
-          <TouchableOpacity onPress={toggleMuted} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ marginLeft: 10 }}>
-            <Icon name={muted ? 'speakerOff' : 'speaker'} size={fs(23)} color={muted ? SUB : INK} strokeWidth={2.2} />
-          </TouchableOpacity>
         </View>
         {/* 크루 편집 — 크루장 전용(이름·색·성격·사진) */}
         {iAmMaster && (
@@ -177,6 +173,25 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14 }} showsVerticalScrollIndicator={false}>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginBottom: 8 }}>{members.length}/{MAX_MEMBERS}명 · 누구나 초대할 수 있어요</Text>
+
+        {/* 새 글 알림 토글 — 헤더 스피커 아이콘만이면 작아서 안 보여 라벨 행으로(중장년 발견성).
+            끄면 홈 크루 새 글 'NEW' 신호에서 이 크루 제외(본인만, 기기 로컬). [[crew-new-signal]] */}
+        <TouchableOpacity onPress={toggleMuted} activeOpacity={0.8}
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
+          <Icon name={muted ? 'speakerOff' : 'speaker'} size={fs(22)} color={muted ? '#B23B3B' : SAGE_DEEP} strokeWidth={2.2} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>새 글 알림</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>
+              {muted ? '꺼짐 · 홈에서 이 크루 새 글 신호가 안 떠요' : '켜짐 · 새 글이 올라오면 홈에 표시돼요'}
+            </Text>
+          </View>
+          {/* 탭하면 바뀌는 동작 라벨 — 음소거 상태면 '켜기', 켜진 상태면 '끄기' */}
+          <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginLeft: 10,
+            backgroundColor: muted ? 'rgba(94,126,66,0.12)' : 'rgba(178,59,59,0.08)' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: muted ? SAGE_DEEP : '#B23B3B' }}>{muted ? '켜기' : '끄기'}</Text>
+          </View>
+        </TouchableOpacity>
+
         <View style={{ backgroundColor: CARD, borderRadius: 14, borderWidth: 0.5, borderColor: LINE, overflow: 'hidden' }}>
           {members.map((m, i) => {
             const isFriend = friendSet.has(m.id);
