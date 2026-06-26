@@ -56,7 +56,7 @@ export async function getScheduleWxSummary(schedule) {
     const tempDetail = (lo != null && hi != null) ? `최저 ${lo}° · 최고 ${hi}°` : (hi != null ? `최고 ${hi}°` : (lo != null ? `최저 ${lo}°` : null));
     const detail = [sky, tempDetail, pop != null ? `강수확률 ${pop}%` : null]
       .filter(Boolean).join(' · '); // 텍스트 공유용(최저/최고·강수확률)
-    return { summary, detail, icon: day.icon || null }; // icon=실제 예보 이모지(맑음 ☀️·구름 ⛅·흐림 ☁️·비 🌧 등, kma skyToIcon)
+    return { summary, detail, icon: day.icon || null, hi, lo }; // icon=실제 예보 이모지(맑음 ☀️·구름 ⛅·흐림 ☁️·비 🌧 등, kma skyToIcon). hi/lo=최고/최저°(D-0 준비물 기온 분기용)
   } catch {
     return null;
   }

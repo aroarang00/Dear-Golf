@@ -544,12 +544,12 @@ export function HomeScreen({ navigation, route }) {
 
   // D-0 카드 우측 날씨·교통 채움 — 큰 이모지만 두면 휑해서 실제 정보로(사용자 2026-06-20).
   //   날씨=getScheduleWxSummary(캐시), 교통=getScheduleDriveMin(출발지 저장 시 경로 1회 조회). 당일 카드일 때만.
-  const [d0Info, setD0Info] = useState({ wx: '', drive: null, icon: '' });
+  const [d0Info, setD0Info] = useState({ wx: '', drive: null, icon: '', hi: null, lo: null });
   useEffect(() => {
-    if (!isD0 || !next) { setD0Info({ wx: '', drive: null, icon: '' }); return; }
+    if (!isD0 || !next) { setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null }); return; }
     let alive = true;
-    setD0Info({ wx: '', drive: null, icon: '' });
-    getScheduleWxSummary(next).then(w => { if (alive && w) setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '' })); }).catch(() => {});
+    setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null });
+    getScheduleWxSummary(next).then(w => { if (alive && w) setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '', hi: w.hi ?? null, lo: w.lo ?? null })); }).catch(() => {});
     const home = userProfile?.departureCoord;
     if (home && typeof home.x === 'number' && typeof home.y === 'number') {
       // 라운딩 종료(티오프+4h) 후엔 올 때(구장→집) 소요로 — 목적지 기본=마이페이지 저장 출발지.
@@ -1159,10 +1159,28 @@ export function HomeScreen({ navigation, route }) {
                             {next.subCourse.trim()}
                           </Text>
                         )}
-                        {/* D-day 탭 → 일정 시트. marginBottom으로 바닥에서 띄워 위로. iOS는 자리가 빠듯해 코스 줄 공간 위해 D-0을 조금 내림(8). */}
+                        {/* 날씨별 준비물(당일) — 이미 받아둔 예보 아이콘·기온으로 한 줄. 입력 의존 없이 항상 뜸. 비/눈>추움>더움·맑음>흐림 우선. */}
+                        {!!d0Info.icon && (() => {
+                          const s = String(d0Info.icon || '');
+                          const rain = /🌧|🌨|❄|🌦|⛈|☔/u.test(s);
+                          const cold = (d0Info.hi != null && d0Info.hi < 10) || (d0Info.lo != null && d0Info.lo <= 0);
+                          const hot = d0Info.hi != null && d0Info.hi >= 28;
+                          const prep = rain ? (cold ? '우비·핫팩·여벌 양말' : '우비·여벌 양말·타월')
+                            : cold ? '핫팩·방한 장갑·넥워머'
+                            : hot ? '선크림·모자·물 넉넉히'
+                            : (s.includes('☀') || s.includes('🌤')) ? '선크림·모자·선글라스'
+                            : (s.includes('☁') || s.includes('⛅')) ? '선크림·가벼운 겉옷'
+                            : '선크림·모자';
+                          return (
+                            <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: 'rgba(255,255,255,0.88)', marginTop: 3 }} numberOfLines={1}>
+                              <Text style={{ color: C.butter, fontFamily: F.sysSb }}>준비물</Text>  {prep}
+                            </Text>
+                          );
+                        })()}
+                        {/* 당일은 큰 'D-0' 숫자 대신 '오늘 라운딩' 강조 — 오늘인 게 한눈에 + 코랄 포인트 유지. 탭하면 일정 시트(기존 D-0 탭 대체). */}
                         <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: Platform.OS === 'ios' ? 8 : 16, alignSelf: 'flex-start' }}>
-                          {/* D-0(오늘)만 코랄 포인트 — D-1+는 버터(위계). 버터 일색 탈피 */}
-                          <Text style={[homeS.cardDDay, { fontSize: fs(56), lineHeight: fs(60), color: '#DD6E58' }]}>D-{freshDDay(next)}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(21), lineHeight: fs(27), color: '#DD6E58' }}>오늘 라운딩 ⛳</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>일정 보기 ›</Text>
                         </TouchableOpacity>
                       </View>
                     )}
