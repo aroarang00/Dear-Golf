@@ -8,8 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
 
-// 헤더 배경 — 밝은 햇살·파란 하늘 골프장 (HomeBgSlider의 day 카테고리, 봄·여름 톤)
-const HEADER_BG_URI = 'https://images.unsplash.com/photo-1758190153146-a1507e2e000d?w=1080&q=80&auto=format';
+// 헤더 배경 — 사용자 직접 촬영 골프장 사진(번들, HomeBgSlider day와 같은 톤). Unsplash URL 제거(2026-06-27). 로컬이라 네트워크 없이 즉시·선명.
+const HEADER_IMG = require('../../assets/home-bg/day1.jpg');
 
 // 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
 const FEATURES = [
@@ -41,7 +41,7 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
             <View style={{ position: 'relative', minHeight: 280, backgroundColor: C.charcoal }}>
               {/* 배경 사진 — 로딩 실패 시 차콜 배경이 폴백 */}
               <Image
-                source={{ uri: HEADER_BG_URI }}
+                source={HEADER_IMG}
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                 resizeMode="cover"
               />
