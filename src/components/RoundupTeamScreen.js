@@ -77,6 +77,14 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   const isHost = !!post && !!myUid && post.authorUid === myUid;
   const canEdit = isHost && editMode;   // 실제 편집 허용 — 호스트 + 수정모드일 때만
   const memberCount = (post?.participantUids?.length) || 0;
+  // 조 미배정 표시 — 조 편성(조별 멤버 note)을 시작한 뒤(planStarted) 어느 조 note에도 이름이 안 보이는 참여자.
+  //   note는 자유 텍스트라 이름 부분일치 휴리스틱(완벽하진 않지만 '새로 들어왔는데 조에 안 넣은 사람' 환기엔 충분).
+  //   호스트 전용(배치는 호스트 일). 조 편성 전(note 전부 비었으면)엔 조별 '조 편성 미정'이 이미 안내하므로 안 띄움.
+  const planNotes = groups.flatMap((g) => (g.flights || []).map((f) => f.note || '')).join(' ').toLowerCase();
+  // 이름(memberNames) 로드 완료 후에만 — 로드 전엔 전원 '미배정'으로 잘못 깜빡이는 것 방지.
+  const planStarted = isHost && planNotes.trim().length > 0 && Object.keys(memberNames).length > 0;
+  const isAssigned = (u) => { const nm = (memberNames[u] || '').trim().toLowerCase(); return !!nm && planNotes.includes(nm); };
+  const unassignedCount = planStarted ? (post.participantUids || []).filter((u) => !isAssigned(u)).length : 0;
 
   const setCourse = (gi, v) => setGroups((p) => p.map((g, i) => (i === gi ? { ...g, course: v } : g)));
   const setFlight = (gi, fi, key, v) => setGroups((p) => p.map((g, i) => (i === gi ? { ...g, flights: g.flights.map((f, j) => (j === fi ? { ...f, [key]: v } : f)) } : g)));
@@ -156,14 +164,26 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
             {memberCount > 0 && (
               <View style={{ marginTop: 18 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginBottom: 7 }}>참여자 {memberCount}명</Text>
+                {/* 조 미배정 환기(호스트) — 조 편성 시작 뒤 어느 조에도 안 들어간 참여자(새로 합류 등). 누르면 수정모드로. */}
+                {unassignedCount > 0 && (
+                  <TouchableOpacity activeOpacity={0.8} disabled={editMode} onPress={() => setEditMode(true)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FBF0DA', borderWidth: 0.5, borderColor: '#E0C271', borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8, marginBottom: 9 }}>
+                    <Icon name="flag" size={fs(14)} color="#B5852A" strokeWidth={2} />
+                    <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: '#8B6914', lineHeight: 17 }}>
+                      조 미배정 {unassignedCount}명 — 아래 조 편성의 멤버 칸에 넣어주세요{editMode ? '.' : ' (눌러서 수정).'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {post.participantUids.map((u) => {
                     const masked = !isHost && u !== post.authorUid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(u);
                     const nm = masked ? anonNick(u, post.id) : (memberNames[u] || '골퍼');
+                    const unplaced = planStarted && !isAssigned(u);   // 조 편성 했는데 이 사람만 빠짐 → 호박색 강조
                     return (
-                      <View key={u} style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6, justifyContent: 'center' }}>
+                      <View key={u} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: unplaced ? '#FBF0DA' : C.bgSecondary, borderWidth: 0.5, borderColor: unplaced ? '#E0C271' : C.hairline, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6, justifyContent: 'center' }}>
                         {/* iOS는 이모지 닉네임이면 라인박스가 비대칭으로 커져 세로 치우침 → 고정 lineHeight로 박스 일정화·중앙 정렬(안드는 정상이라 미적용) */}
-                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, textAlign: 'center', ...(Platform.OS === 'ios' ? { lineHeight: fs(18) } : null) }}>{nm}{u === myUid ? ' (나)' : ''}</Text>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: unplaced ? '#8B6914' : C.charcoal, textAlign: 'center', ...(Platform.OS === 'ios' ? { lineHeight: fs(18) } : null) }}>{nm}{u === myUid ? ' (나)' : ''}</Text>
+                        {unplaced && <Text style={{ fontFamily: F.sysB, fontSize: fs(9.5), color: '#B5852A' }}>미배정</Text>}
                       </View>
                     );
                   })}
