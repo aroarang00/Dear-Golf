@@ -11,30 +11,27 @@ import { getCurrentLocation } from '../../utils/location';
 //  · 날씨: 비/흐림이면 화면을 어둡고 회색톤으로 덮음 (Unsplash에 비 오는
 //          골프장 사진이 거의 없어, 사진 교체 대신 톤으로 날씨 분위기를 냄)
 // =============================================================
-// 로컬 번들 에셋 — 네트워크 다운로드 없이 즉시·선명하게 표시 (Unsplash에서 받아 앱에 포함).
+// 로컬 번들 에셋 — 네트워크 다운로드 없이 즉시·선명하게 표시 (사용자 직접 촬영 골프장 사진, 2026-06-27 Unsplash 전량 교체).
 // require는 정적 경로만 허용돼 개별 나열. 시간대별 풀에서 랜덤 1장.
+// ★전부 사용자 직접 촬영 사진으로 교체 완료(2026-06-27) — Unsplash 이미지 전량 제거. 일출(morning)·겨울(누런잔디)은 추가 예정.
 const TIME_IMAGES = {
-  morning: [ // 아침 (05~09시) — 안개·서리·여명
-    require('../../../assets/home-bg/morning1.jpg'),
-    require('../../../assets/home-bg/morning2.jpg'),
-    require('../../../assets/home-bg/morning3.jpg'), // 아침안개 — 안개 자욱한 페어웨이·나무 실루엣 (사용자 사진, 2026-06-27 추가)
+  morning: [ // 아침 (05~09시) — 안개·서리·여명 (현재 안개 2장, 일출은 추가 예정 → morning3)
+    require('../../../assets/home-bg/morning1.jpg'), // 아침안개 — 안개 자욱한 페어웨이·나무 실루엣
+    require('../../../assets/home-bg/morning2.jpg'), // 아침안개 — 안개 속 능선·티잉 그라운드
   ],
-  day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
-    require('../../../assets/home-bg/day1.jpg'),
-    require('../../../assets/home-bg/day2.jpg'), // 자연 풍경 + 코스·페어웨이·호수
-    require('../../../assets/home-bg/day3.jpg'), // 화창 — 연못·벙커·숲 (사용자 사진, 2026-06-14 추가)
-    require('../../../assets/home-bg/day4.jpg'), // 화창 — 페어웨이·연못·산·카트 (사용자 사진, 2026-06-14 추가)
-    // lateAfternoon3 제외(2026-06-15) — 갈색 마른 러프+노을빛 톤이라 '맑은 오전'과 안 맞고 정돈감 부족(사용자 [[home-bg-curation]]). 파일은 보존
+  day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘 (전부 사용자 사진)
+    require('../../../assets/home-bg/day1.jpg'), // 파란 하늘 — 연못 계곡·산·페어웨이
+    require('../../../assets/home-bg/day2.jpg'), // 파란 하늘 — 코스 길·산
+    require('../../../assets/home-bg/day3.jpg'), // 화창 — 연못·벙커·숲
+    require('../../../assets/home-bg/day4.jpg'), // 화창 — 페어웨이·연못·산·카트
   ],
-  lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을
-    require('../../../assets/home-bg/lateAfternoon1.jpg'),
-    require('../../../assets/home-bg/lateAfternoon2.jpg'),
-    require('../../../assets/home-bg/lateAfternoon4.jpg'),
-    require('../../../assets/home-bg/lateAfternoon5.jpg'),
+  lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을 (사용자 사진, 노을 더 받으면 보강)
+    require('../../../assets/home-bg/lateAfternoon1.jpg'), // 황혼빛 — 따뜻한 빛·드라마틱 구름
+    require('../../../assets/home-bg/lateAfternoon2.jpg'), // 골든아워 — 낮게 깔린 햇살·티잉 그라운드
   ],
   night: [ // 진짜 밤 (21~05시) — 밤골프장(조명 켜진 페어웨이)·자연 야경 (도시 야경 X)
-    require('../../../assets/home-bg/night1.jpg'), // 맑은 밤 — 남색 하늘·산 실루엣·조명 페어웨이·벙커 (사용자 사진, 2026-06-27 대체)
-    require('../../../assets/home-bg/night2.jpg'), // 어스름 — 조명 켜진 페어웨이·산 (사용자 사진, 2026-06-27 대체)
+    require('../../../assets/home-bg/night1.jpg'), // 맑은 밤 — 남색 하늘·산 실루엣·조명 페어웨이·벙커
+    require('../../../assets/home-bg/night2.jpg'), // 어스름 — 조명 켜진 페어웨이·산
   ],
 };
 
