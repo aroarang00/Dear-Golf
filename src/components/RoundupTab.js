@@ -1448,13 +1448,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         }).catch(e => __DEV__ && console.warn('[RoundupTab] cancel-apply noti fail', e?.message));
         return;
       }
-      // leaveRoundup이 closed:false도 함께 처리 → 확정 해제 + 자리 다시 열기 ([[roundup-penalty-policy]] §4, 2026-05-30)
-      //  ※ 취소자 매너 -5는 별개 분기(취소 시점 상태로 이미 판정) — 확정 해제와 양립.
+      // leaveRoundup은 closed를 안 건드린다(확정 유지 + 빈자리 충원, [[roundup-waitlist-autopromote]]).
+      //  ※ 취소자 매너 -5는 별개 분기(취소 시점 상태로 이미 판정).
       await leaveRoundup(id);
-      // 1) 모집글 인원 -1. 개별은 확정 해제(closed:false), 단체(teams>1)는 개인 이탈=국소 → 전체 확정 유지 ([[event-model]])
-      const wasTeam = (post.teams || 1) > 1;
+      // 1) 모집글 인원 -1만 낙관 반영. ★옛 코드의 closed:false(개별 확정 해제) 낙관은 서버와 어긋나(서버는 closed 유지)
+      //    취소자 화면이 잠깐 '모집중'으로 뜨고 '자리 남음'(confirmedOpen)도 안 뜨던 것 → 제거(2026-06-27). 개별·단체 동일.
       setPosts(prev => prev.map(p => (p.id === id
-        ? { ...p, joined: Math.max(0, (p.joined || 0) - 1), ...(wasTeam ? {} : { closed: false }) }
+        ? { ...p, joined: Math.max(0, (p.joined || 0) - 1) }
         : p)));
       // 2) 내 joined 플래그 해제
       setJoined(prev => { const n = { ...prev }; delete n[id]; return n; });
