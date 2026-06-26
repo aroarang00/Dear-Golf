@@ -522,6 +522,10 @@ exports.onContentReportUpdated = contentReports.onContentReportUpdated;
 const ttlCleanup = require('./ttlCleanup');
 exports.ttlCleanupTick = ttlCleanup.ttlCleanupTick;
 
+// §G 영상 faststart 리먹스 — 업로드된 영상 moov atom을 앞으로 옮겨 '뜸 들이다 재생' 해소(rounds/·dmImages/).
+const videoFaststart = require('./videoFaststart');
+exports.faststartVideo = videoFaststart.faststartVideo;
+
 // =============================================================
 // 운영 이메일 — ./email.js (SendGrid 신고 접수 알림)
 // ⚠️ 비활성화 (2026-06-02): SendGrid 키 미발급이라 SENDGRID_API_KEY secret이 없어
