@@ -51,6 +51,21 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [leaveAsk, setLeaveAsk] = useState(false);
   const [editOpen, setEditOpen] = useState(false);   // 크루 편집(크루장 전용)
+  // 알림(홈 새 글 점) 음소거 — 크루별 로컬(per-user). 멤버 N 옆 스피커 토글 ([[crew-new-signal]])
+  const [muted, setMuted] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    storage.load(STORAGE_KEYS.crewMuted, {}).then(m => { if (alive) setMuted(!!(m && m[crewId])); }).catch(() => {});
+    return () => { alive = false; };
+  }, [crewId]);
+  const toggleMuted = async () => {
+    if (!crewId) return;
+    const m = (await storage.load(STORAGE_KEYS.crewMuted, {})) || {};
+    const next = { ...m };
+    if (next[crewId]) delete next[crewId]; else next[crewId] = true;
+    await storage.save(STORAGE_KEYS.crewMuted, next);
+    setMuted(!!next[crewId]);
+  };
 
   // 크루 doc 실시간 구독 — 초대(audience)·수락·탈퇴(memberUids) 즉시 반영
   useEffect(() => {
@@ -128,7 +143,13 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }}>멤버 {members.length}</Text>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 6 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: INK }}>멤버 {members.length}</Text>
+          {/* 알림 음소거 — 멤버 수 옆. 켜짐=스피커, 음소거=스피커+✕. 끄면 홈 크루 새 글 점에서 제외(본인만) */}
+          <TouchableOpacity onPress={toggleMuted} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ marginLeft: 10 }}>
+            <Icon name={muted ? 'speakerOff' : 'speaker'} size={fs(23)} color={muted ? SUB : INK} strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
         {/* 크루 편집 — 크루장 전용(이름·색·성격·사진) */}
         {iAmMaster && (
           <TouchableOpacity onPress={() => setEditOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}

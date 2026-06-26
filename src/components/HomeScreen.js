@@ -38,7 +38,7 @@ import { loadFriendData } from '../utils/friendGroups';
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
 import { CrewListScreen } from './CrewListScreen'; // 크루(친구 소수그룹 공유앨범) — DM 형제 진입(docs/crew-space-design.md)
-import { subscribeCrewInvites } from '../utils/crews';
+import { subscribeCrewInvites, subscribeMyCrews } from '../utils/crews';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched, loadMyFriends } from '../utils/friends';
@@ -187,6 +187,50 @@ export function HomeScreen({ navigation, route }) {
     if (!currentUid) { setCrewInvite(0); return; }
     return subscribeCrewInvites(currentUid, (list) => setCrewInvite((list || []).length));
   }, [currentUid]);
+
+  // 크루 새 글 점 — 안 음소거 + postCount>본 글수 + 내 글 아닌 크루가 하나라도 있으면 홈 크루 아이콘에 조용한 점.
+  //   목록 '새 글 N' 배지와 동일 기준(글만; 댓글 디테일은 목록에). 점은 크루 열면 사라짐(crewSeen↑). ([[crew-new-signal]])
+  const [crewDocs, setCrewDocs] = useState([]);        // 내 크루(실시간) — postCount·lastPostBy
+  const [crewSeenMap, setCrewSeenMap] = useState({});  // {crewId: 마지막 본 글수} 로컬
+  const [crewMutedMap, setCrewMutedMap] = useState({}); // {crewId: true} 음소거 로컬
+  useEffect(() => {
+    if (!currentUid) { setCrewDocs([]); return; }
+    return subscribeMyCrews(currentUid, (list) => setCrewDocs(Array.isArray(list) ? list : []));
+  }, [currentUid]);
+  const reloadCrewSignals = useCallback(async () => {
+    try {
+      const [seen, muted] = await Promise.all([
+        storage.load(STORAGE_KEYS.crewSeen, {}),
+        storage.load(STORAGE_KEYS.crewMuted, {}),
+      ]);
+      setCrewSeenMap(seen || {}); setCrewMutedMap(muted || {});
+    } catch (e) { if (__DEV__) console.warn('[home] crew signals load', e?.message); }
+  }, []);
+  useEffect(() => { reloadCrewSignals(); }, [reloadCrewSignals]);   // 마운트
+  // 크루 모달 닫힐 때 재로드 — 안에서 글 봤거나(seen↑) 음소거했을 수 있어 점 즉시 정합
+  useEffect(() => { if (!crewOpen) reloadCrewSignals(); }, [crewOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 안 음소거 크루에 안 본 새 글이 있으면 원을 채우고 'NEW' 표시(DM 안읽음과 같은 맥락, 단 정확 카운트는
+  //   음소거·seen 추적 때문에 못 믿어 이진 NEW로). 초대 글로우 땐 양보(초대 우선).
+  //   seen 가드 + lastPostBy===me 억제는 CrewListScreen '새 글 N' 산식과 동일(목록↔홈 어긋남 방지).
+  const crewHasNew = crewInvite === 0 && crewDocs.some(c => {
+    if (!c || crewMutedMap[c.id]) return false;
+    if (c.lastPostBy && c.lastPostBy === currentUid) return false;
+    const raw = crewSeenMap[c.id];
+    const seen = (typeof raw === 'number' && raw >= 0 && raw < 1e6) ? raw : 0;
+    return (c.postCount || 0) > seen;
+  });
+  // 새 글 있으면 크루 버튼이 은은하게 숨쉬듯 맥동(주목 — 초대 글로우보다 약하게). 없으면/음소거면 정지.
+  const crewNewPulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!crewHasNew) { crewNewPulse.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(crewNewPulse, { toValue: 1, duration: 850, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(crewNewPulse, { toValue: 0, duration: 850, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [crewHasNew]); // eslint-disable-line react-hooks/exhaustive-deps
+  const crewNewScale = crewNewPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.07] });
   // 홈 탭 복귀(focus) 시 안읽음 카운트 재조회 — 마운트·DM모달 닫힘에만 갱신하면, 푸시로 다른 탭에서 DM을 읽었을 때
   //   홈의 dmUnread가 옛 값(>0)으로 남아 안읽음 없는데도 버튼이 흔들리던 버그 방지(+자리 비운 새 DM도 반영). 2026-06-18.
   useEffect(() => {
@@ -970,10 +1014,18 @@ export function HomeScreen({ navigation, route }) {
                 backgroundColor: '#8FB06B', opacity: crewHaloOpacity, transform: [{ scale: crewHaloScale }] }} />
             )}
             {/* 어두운 반투명 스크림 — 밝은(낮) 배경서도 또렷 */}
-            <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#8FB06B',
-              backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="crew" size={fs(RAIL_ICON)} color="#A8CC82" strokeWidth={2} />
-            </View>
+            {/* 새 글이면 원을 세이지로 채우고 'NEW' + 은은한 맥동(DM 안읽음=원채움+숫자와 같은 맥락, 색·모션은 구분). 아니면 크루 아이콘 ([[crew-new-signal]]) */}
+            <Animated.View style={{ transform: [{ scale: crewNewScale }] }}>
+              <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#8FB06B',
+                backgroundColor: crewHasNew ? '#5E7E42' : 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
+                {crewHasNew ? (
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), lineHeight: fs(12), color: '#fff', letterSpacing: 0.3,
+                    includeFontPadding: false, marginTop: Platform.OS === 'ios' ? 1 : 0 }}>NEW</Text>
+                ) : (
+                  <Icon name="crew" size={fs(RAIL_ICON)} color="#A8CC82" strokeWidth={2} />
+                )}
+              </View>
+            </Animated.View>
             {/* 아이콘 아래 한글 라벨 — DM과 짝(사용자 2026-06-25). 사진 배경 위 가독성 위해 그림자 */}
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A8CC82', marginTop: 2, includeFontPadding: false,
               textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>크루</Text>
