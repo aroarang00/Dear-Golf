@@ -974,14 +974,25 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const allTab = visiblePosts
     .filter(p => p.scope === 'all')
     .filter(p => regionFilter === 'all' || p.region === regionFilter);
-  // 친구 탭 — 친구공개(friends) + 나에게 보이는 친구지정(select)을 함께 노출 (친구 대상 모집의 단일 진입)
-  //   친구지정 수신자 노출은 audienceUids 기준(loadSelectRoundupsForMe가 이미 필터, 여기선 방어적 재확인)
-  const friendTab = visiblePosts.filter(p => {
+  // 친구 탭 — 친구공개(friends) + 내가 수락(참여)한 친구지정(select)을 함께 노출 (친구 범위 모집의 단일 진입)
+  //   posts에서 직접 거른다 — 수락한 select는 내 활동이므로 mineTab처럼 가리기/차단을 무시하고 보존해야 하기 때문.
+  //   friends(브라우즈)는 종전대로 차단·가리기·윈도우 적용.
+  const friendTab = posts.filter(p => {
+    if (!isInVisibleWindow(p)) return false;
     if (p.scope === 'friends') {
+      if (!isPostVisible(p, userProfile) || hidden[p.id]) return false; // 브라우즈 — 차단/가리기 제외
       if (!!myUid && p.authorUid === myUid) return true;
       return friendUids.includes(p.authorUid);
     }
-    // 친구지정(select)은 사적 초대 → 친구 브라우즈에 노출 X. 내 참여 탭(mineTab)에만 (2026-06-03)
+    // 친구지정(select) — 내가 올렸거나 내가 수락(참여)한 것을 친구 탭에 노출(친구공개와 동일한 친구 범위 모집).
+    //   ① 주최(authorUid==me): 친구공개 주최 글과 동일하게 노출(내 화면이라 사적 초대 우려 없음).
+    //   ② 수락분: joined 우선 — 수락 낙관 갱신·재로드 복원 모두 유지되는 정식 참여 신호
+    //      (participantUids는 수락 직후 낙관 갱신이 안 돼 in-session 누락 → 방어적 보강으로만).
+    //   미응답 초대는 사적 초대라 친구 브라우즈 제외, 내 참여 탭에만 (2026-06-03 전면 제외 → 2026-06-26 완화).
+    if (p.scope === 'select') {
+      if (!!myUid && p.authorUid === myUid) return true; // ① 주최
+      return !!joined[p.id] || (Array.isArray(p.participantUids) && !!myUid && p.participantUids.includes(myUid)); // ② 수락
+    }
     return false;
   });
   // mine 탭은 내가 직접 관여한 모집이므로 차단 필터는 무시하되, 티오프+5h 윈도우는 동일 적용
@@ -999,7 +1010,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const hostMine = mineTab.filter(p => !!myUid && p.authorUid === myUid);
   const joinMine = mineTab.filter(p => !(!!myUid && p.authorUid === myUid));
   const showMineToggle = hostMine.length > 0;
-  const watchTab = visiblePosts.filter(p => bookmarks[p.id]);
+  // 관심 — visiblePosts(차단·가리기 필터 적용)가 아니라 posts에서 직접 거른다.
+  //   ① 내가 주최한 모집은 자기 글이라 별표 버튼이 없으므로 무조건 관심에 포함(사용자 요청 2026-06-26).
+  //   ② 별표한 글이 내 활동(주최·참여·신청·대기)이면 mineTab과 동일하게 가리기·차단을 무시하고 보존 —
+  //      익명으로 참여한 친구 모집을 별표해도 가리기 이력 등으로 관심에서 누락되던 비대칭을 해소.
+  //   ③ 그 외(관여 없이 별표만 한 남의 글)는 표준 가시성(차단·가리기) 적용.
+  const watchTab = posts.filter(p => {
+    if (!isInVisibleWindow(p)) return false;
+    if (!!myUid && p.authorUid === myUid) return true;                 // ① 주최 → 무조건 관심
+    if (!bookmarks[p.id]) return false;                                // 별표한 글만
+    if (joined[p.id] || applied[p.id] || waitlist[p.id]) return true;  // ② 내 활동이면 가리기/차단 무시 보존
+    return isPostVisible(p, userProfile) && !hidden[p.id];             // ③ 표준 가시성
+  });
   // 맞춤 모집 — 내 조건(roundupMatch)에 맞는 모집 (내가 주최한 모집은 제외)
   const matchTab = visiblePosts.filter(p => !(!!myUid && p.authorUid === myUid) && matchesRoundup(p, userProfile?.roundupMatch));
   const matchCount = matchTab.length;
