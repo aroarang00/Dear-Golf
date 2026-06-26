@@ -47,7 +47,8 @@ try {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
-import * as SystemUI from 'expo-system-ui';
+// expo-system-ui는 정적 import 시 모듈 로드 시점에 requireNativeModule('ExpoSystemUI')를 호출 →
+//   구버전 iOS dev client(모듈 없음)에서 'Cannot find native module' 크래시. 안드 전용이라 아래 effect에서 lazy require.
 import { useFonts, Lora_500Medium_Italic } from '@expo-google-fonts/lora';
 import { PlayfairDisplay_700Bold, PlayfairDisplay_700Bold_Italic } from '@expo-google-fonts/playfair-display';
 import { C, F, fs } from './src/constants/colors';
@@ -419,9 +420,12 @@ function App() {
   //   로딩·화면 전환 시 검은 영역이 노출(로딩 풀스크린 안 됨)되던 것 방지 (2026-06-14, [[android_edge_to_edge]]).
   //   splash.backgroundColor는 네이티브 런치 스크린만 칠함 → JS 전환 후 루트 뷰 배경은 별도 설정 필요.
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(C.paleSky).catch(() => {});
-    // ★띠 진단/수정 시도 — 불투명 paleSky 상태바가 띠로 보임 + inset.top=0. 투명+translucent로 전환해 풀블리드+inset 정상화 시도.
+    // 안드 전용 — 기능 목적이 안드 edge-to-edge 배경이고, iOS엔 ExpoSystemUI 네이티브 모듈이 없어
+    //   (구버전 dev client) setBackgroundColorAsync 호출 시 'Cannot find native module' 크래시. iOS에선 불필요.
     if (Platform.OS === 'android') {
+      const SystemUI = require('expo-system-ui'); // lazy — iOS에선 실행 안 돼 네이티브 모듈 require 회피
+      SystemUI.setBackgroundColorAsync(C.paleSky).catch(() => {});
+      // ★띠 진단/수정 — 불투명 paleSky 상태바가 띠로 보임 + inset.top=0. 투명+translucent로 풀블리드+inset 정상화.
       try { RNStatusBar.setTranslucent(true); } catch (e) {}
       try { RNStatusBar.setBackgroundColor('transparent', false); } catch (e) {}
     }
