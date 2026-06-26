@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C } from '../constants/colors';
+import { C, F } from '../constants/colors';
 import { tabS } from '../styles/tabS';
 import { ROUTES } from '../constants/routes';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
@@ -42,16 +42,12 @@ export function TabBar({ state, navigation }) {
             <TouchableOpacity key={route.key} style={tabS.tab}
               onPress={handlePress} activeOpacity={0.7}>
               <AttentionMotion type="shake" enabled={alertFriend || alertHome || alertLounge}>
-                {/* 알림 있으면 진동 + 라벨 버건디 + 글자 위 가운데 버건디 점 — 다른 탭에 있을 때도 인지(사용자 2026-06-20) */}
-                <View>
-                  <Text numberOfLines={1} style={[tabS.label, focused ? tabS.labelOn : tabS.labelOff,
-                    (alertFriend || alertHome || alertLounge) && { color: C.burgundy }]}>{route.name}</Text>
-                  {(alertFriend || alertHome || alertLounge) && (
-                    <View pointerEvents="none" style={{ position: 'absolute', top: -6, left: 0, right: 0, alignItems: 'center' }}>
-                      <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: C.burgundy }} />
-                    </View>
-                  )}
-                </View>
+                {/* 알림 있으면 진동 + 라벨 버건디 — 다른 탭에 있을 때도 인지(사용자 2026-06-20).
+                    점(dot)은 제거 — 탭바 높이 축소로 상단 삼색바와 맞닿아 어색했음(사용자 2026-06-26). */}
+                {/* 알림 라벨 — 포커스 안 된 탭은 labelOff(얇은 weight+opacity 0.5)라 버건디만 덮으면 가늘게 보임 →
+                    굵게(F.sysB)+불투명도 1로 또렷하게(사용자 2026-06-26). */}
+                <Text numberOfLines={1} style={[tabS.label, focused ? tabS.labelOn : tabS.labelOff,
+                  (alertFriend || alertHome || alertLounge) && { color: C.burgundy, fontFamily: F.sysB, opacity: 1 }]}>{route.name}</Text>
               </AttentionMotion>
             </TouchableOpacity>
           );
