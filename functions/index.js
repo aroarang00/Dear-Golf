@@ -518,6 +518,10 @@ exports.onContentReportCreated = contentReports.onContentReportCreated;
 exports.contentReportSlaTick = contentReports.contentReportSlaTick;
 exports.onContentReportUpdated = contentReports.onContentReportUpdated;
 
+// §E TTL 정리 — scheduleGroups·mealSuggestions·roundScoreShares 무한 누적 정리(매일 04:00). [[stability-audit-2026-06]]
+const ttlCleanup = require('./ttlCleanup');
+exports.ttlCleanupTick = ttlCleanup.ttlCleanupTick;
+
 // =============================================================
 // 운영 이메일 — ./email.js (SendGrid 신고 접수 알림)
 // ⚠️ 비활성화 (2026-06-02): SendGrid 키 미발급이라 SENDGRID_API_KEY secret이 없어
