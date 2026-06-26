@@ -17,6 +17,7 @@ const TIME_IMAGES = {
   morning: [ // 아침 (05~09시) — 안개·서리·여명
     require('../../../assets/home-bg/morning1.jpg'),
     require('../../../assets/home-bg/morning2.jpg'),
+    require('../../../assets/home-bg/morning3.jpg'), // 아침안개 — 안개 자욱한 페어웨이·나무 실루엣 (사용자 사진, 2026-06-27 추가)
   ],
   day: [ // 낮 (09~16시) — 밝은 햇살·파란 하늘
     require('../../../assets/home-bg/day1.jpg'),
@@ -31,9 +32,9 @@ const TIME_IMAGES = {
     require('../../../assets/home-bg/lateAfternoon4.jpg'),
     require('../../../assets/home-bg/lateAfternoon5.jpg'),
   ],
-  night: [ // 진짜 밤 (21~05시) — 별·달·자연 야경 (도시 야경 X)
-    require('../../../assets/home-bg/night1.jpg'), // 별 + 호수 야경
-    require('../../../assets/home-bg/night2.jpg'), // 별 + 나무 실루엣
+  night: [ // 진짜 밤 (21~05시) — 밤골프장(조명 켜진 페어웨이)·자연 야경 (도시 야경 X)
+    require('../../../assets/home-bg/night1.jpg'), // 맑은 밤 — 남색 하늘·산 실루엣·조명 페어웨이·벙커 (사용자 사진, 2026-06-27 대체)
+    require('../../../assets/home-bg/night2.jpg'), // 어스름 — 조명 켜진 페어웨이·산 (사용자 사진, 2026-06-27 대체)
   ],
 };
 
