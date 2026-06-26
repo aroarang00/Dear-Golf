@@ -116,6 +116,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const [showTip, setShowTip] = useState(false);     // 모집 형태 안내 툴팁 (1회)
   const [alert, setAlert] = useState(null);          // 수정 모드 주요 변경 확인용
   const debounceRef = useRef(null);
+  const submittingRef = useRef(false);   // 생성 더블탭 가드 — 같은 틱 두 번 탭으로 모집글 중복 생성 방지
 
   // 처음 작성 화면을 열 때 1회 툴팁 표시 (수정 모드에선 안 띄움)
   useEffect(() => {
@@ -270,9 +271,12 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   };
 
   const doSubmit = () => {
+    if (submittingRef.current) return;        // 연타 가드 — 중복 생성 차단
+    submittingRef.current = true;
     onCreate(buildPayload());
     if (!initialPost) reset();
     onClose();
+    setTimeout(() => { submittingRef.current = false; }, 1200); // 연타 윈도우만 막고 해제(재사용 대비)
   };
 
   const handleSubmit = () => {
