@@ -11,6 +11,7 @@
 // =============================================================
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');   // per-uid 레이트리밋 저장
 const { logger } = require('firebase-functions');
 
 const CLOVA_OCR_SECRET = defineSecret('CLOVA_OCR_SECRET');
@@ -40,21 +41,47 @@ exports.recognizeScorecard = onCall(
       throw new HttpsError('invalid-argument', '이미지가 너무 커요. 다시 찍어주세요.');
     }
 
-    // 3. CLOVA OCR 호출
+    // 3. per-uid 레이트리밋 — 인증돼 있어도 유료 CLOVA OCR을 루프로 남용하면 비용 폭증.
+    //    롤링 1시간 창에 uid당 RATE_LIMIT회 초과 시 차단(정상=라운드당 수회라 한참 못 미침).
+    //    저장은 ocrUsage/{uid}(CF만 접근 — 규칙 기본 deny). App Check 없이 비용 상한만 거는 경량 방어.
+    const uid = request.auth.uid;
+    const db = getFirestore();
+    const RATE_LIMIT = 30;
+    const WINDOW_MS = 60 * 60 * 1000;
+    const now = Date.now();
+    let allowed = true;
+    try {
+      allowed = await db.runTransaction(async (tx) => {
+        const ref = db.doc(`ocrUsage/${uid}`);
+        const snap = await tx.get(ref);
+        const d = snap.exists ? snap.data() : null;
+        if (!d || now - (d.windowStart || 0) > WINDOW_MS) {
+          tx.set(ref, { windowStart: now, count: 1 });
+          return true;
+        }
+        if ((d.count || 0) >= RATE_LIMIT) return false;
+        tx.update(ref, { count: FieldValue.increment(1) });
+        return true;
+      });
+    } catch (e) {
+      // 레이트리밋 저장소 오류는 OCR을 막지 않음(가용성 우선) — 로그만
+      logger.warn('[ocr] ratelimit check fail (allowing)', e?.message);
+      allowed = true;
+    }
+    if (!allowed) {
+      logger.warn('[ocr] ratelimit exceeded', { uid });
+      throw new HttpsError('resource-exhausted', '스코어카드 인식을 너무 많이 요청했어요. 잠시 후 다시 시도해주세요.');
+    }
+
+    // 4. CLOVA OCR 호출
     const body = {
       version: 'V2',
-      requestId: `score-${request.auth.uid}-${Date.now()}`,
+      requestId: `score-${uid}-${Date.now()}`,
       timestamp: Date.now(),
       images: [{ format, name: 'scorecard', data: imageBase64 }],
     };
 
-    // 진단 로그 (원인 확정용 — 확인 후 제거 예정): base64 길이·머리·URL 꼬리
-    logger.info('[ocr] req', {
-      format,
-      b64len: imageBase64.length,
-      b64head: imageBase64.slice(0, 16),
-      urlTail: (CLOVA_OCR_URL.value() || '').slice(-22),
-    });
+    logger.info('[ocr] req', { format, b64len: imageBase64.length });   // 비민감 정보만(URL·base64 머리 로깅 제거)
 
     let res;
     try {
@@ -77,7 +104,7 @@ exports.recognizeScorecard = onCall(
       throw new HttpsError('internal', 'OCR 처리에 실패했어요. 잠시 후 다시 시도해주세요.');
     }
 
-    // 4. 결과 정리 — 텍스트 + 신뢰도 + 좌표만 (원본 응답 전체 X)
+    // 5. 결과 정리 — 텍스트 + 신뢰도 + 좌표만 (원본 응답 전체 X)
     const json = await res.json().catch(() => null);
     const fields = json?.images?.[0]?.fields || [];
     const result = fields.map((f) => ({
