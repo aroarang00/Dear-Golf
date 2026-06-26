@@ -403,6 +403,11 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   // 권한 — 크루장(creatorUid) / 운영진(adminUids). 공지·게시물·댓글 삭제는 staff(크루장+운영진)가 할 수 있음.
   const iAmMaster = !!currentUid && currentUid === crewDoc?.creatorUid;
   const iAmStaff = iAmMaster || (!!currentUid && (crewDoc?.adminUids || []).includes(currentUid));
+  // 공지 작성자 역할 — 크루장(creatorUid)·운영진(adminUids) 둘 다 공지 작성 가능하니, 누가 썼는지 표시(사용자 요청 2026-06-26).
+  const noticeBy = crewDoc?.noticeBy || null;
+  const noticeRole = noticeBy === crewDoc?.creatorUid ? '크루리더'
+    : (noticeBy && (crewDoc?.adminUids || []).includes(noticeBy)) ? '서브리더' : null;
+  const noticeAuthorName = noticeBy ? (display[noticeBy]?.name || '') : '';
 
   // 멤버 + 작성자 표시정보 resolve(보는 사람 별명 우선)
   const authorKey = useMemo(() => (postDocs || []).map((p) => p.authorUid).join(','), [postDocs]);
@@ -593,6 +598,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
             </TouchableOpacity>
           )}
+          {/* 작성자 역할 — 크루장/운영진 누가 올린 공지인지(둘 다 작성 가능) */}
+          {noticeRole && (
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: 'rgba(120,95,40,0.85)', marginTop: 5 }}>
+              {noticeRole}{noticeAuthorName ? ` · ${noticeAuthorName}` : ''}
+            </Text>
+          )}
         </View>
         {/* 공지 관리 — 크루장·운영진(staff). authorUid=실제 작성자(noticeBy)로 넘겨 액션시트가 작성자/staff를 구분 */}
         {iAmStaff && (
@@ -652,34 +663,41 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
             flexShrink+minWidth:0 — 성격이 길어도 컬럼이 줄며 '잘림'(numberOfLines 1) → 멤버·초대를 밀지 않음. 멤버는 이름 옆 유지. */}
         {/* 이름·성격 — 좌측 컬럼(성격은 이름 아래, 길면 잘림). */}
         <View style={{ flexShrink: 1, minWidth: 0, marginLeft: 8 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: INK }}
-            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || crewDoc?.name || '크루'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK }}
+              numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || crewDoc?.name || '크루'}</Text>
+            {/* 인원 — 이름 옆 간단 표시(상세·관리·음소거는 우측 설정). 이모지 대신 커스텀 아이콘(렌더 일관) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 7, flexShrink: 0 }}>
+              <Icon name="crew" size={fs(13)} color={SUB} strokeWidth={2} />
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SUB, marginLeft: 2 }}>{members.length}</Text>
+            </View>
+          </View>
           {crewDoc?.description ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }} numberOfLines={1}>{crewDoc.description}</Text>
           ) : null}
         </View>
         <View style={{ flex: 1 }} />
-        {/* 멤버 — 헤더 '하단'(성격 줄 높이)에 정렬, 아이콘 키움(N명은 유지). 탭하면 멤버 목록·초대 */}
-        <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', flexShrink: 0 }}>
-          <Icon name="crew" size={fs(26)} color={INK} strokeWidth={1.8} />
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: INK, marginLeft: 4 }}>{members.length}명</Text>
-          <Text style={{ fontSize: fs(20), color: SAGE_DEEP, fontWeight: '700', marginLeft: 2, marginTop: -2 }}>›</Text>
+        {/* 설정 — 멤버 목록·초대·알림 음소거·편집·나가기 진입. 인원은 이름 옆에 표시하므로 여기선 톱니만 */}
+        <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{ flexShrink: 0 }}>
+          <Icon name="gear" size={fs(23)} color={INK} strokeWidth={1.9} />
         </TouchableOpacity>
         {/* 초대는 멤버 화면(멤버 N명 › 탭)에서 — 헤더 중복 제거 */}
       </View>
 
-      {/* 피드/사진 토글 — 고정 바(ScrollView 밖) */}
-      <View style={{ backgroundColor: BG, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-        <View style={{ flexDirection: 'row', marginHorizontal: 14,
-          backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 11, padding: 3 }}>
-          {[['feed', '게시글'], ['photos', '갤러리']].map(([t, label]) => (
-            <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{ flex: 1, paddingVertical: Platform.OS === 'android' ? 7 : 10, borderRadius: 9, alignItems: 'center', backgroundColor: tab === t ? SAGE_DEEP : 'transparent' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: tab === t ? '#fff' : SUB }}>{label}</Text>
+      {/* 게시글/갤러리 — 밴드식 밑줄 텍스트탭(가운데 2등분). 고정 바(ScrollView 밖) */}
+      <View style={{ backgroundColor: BG, flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: LINE }}>
+        {[['feed', '게시글'], ['photos', '갤러리']].map(([t, label]) => {
+          const on = tab === t;
+          return (
+            <TouchableOpacity key={t} onPress={() => setTab(t)} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+              style={{ flex: 1, alignItems: 'center', paddingTop: Platform.OS === 'android' ? 11 : 13, paddingBottom: 0 }}>
+              <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(14.5), color: on ? INK : SUB }}>{label}</Text>
+              {/* 활성 밑줄 — 탭 전체 폭(alignSelf stretch). 비활성은 투명이라 레이아웃 점프 없음 */}
+              <View style={{ marginTop: Platform.OS === 'android' ? 8 : 10, height: 3, alignSelf: 'stretch', backgroundColor: on ? SAGE_DEEP : 'transparent' }} />
             </TouchableOpacity>
-          ))}
-        </View>
+          );
+        })}
       </View>
 
       {/* 내 글에 새 댓글 — 상단 배너(피드 탭). '보기'=그 글로 바로 스크롤(옛날 글이라 안 내려가도 됨). ✕=세션 닫기 */}
