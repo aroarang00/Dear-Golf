@@ -19,6 +19,8 @@ import { shareRoundup } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
 import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { isTeamPlanFilled } from '../utils/roundup';
+import { loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
+import { showToast } from './AppToast';
 
 // 참여자 아바타 색상
 const AV = [
@@ -54,20 +56,17 @@ function SlotRow({ slot, idx, onPress, handicap }) {
     );
   }
   const pal = AV[idx % AV.length];
+  // 행 전체를 탭 영역으로 — 이름 텍스트만 탭 가능하던 때는 타깃이 작고 ScrollView가 첫 탭을 먹어 '여러 번 눌러야' 열렸다(2026-06-26).
+  const Row = onPress ? TouchableOpacity : View;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: _and ? 4 : 6 }}>
+    <Row {...(onPress ? { activeOpacity: 0.6, onPress } : {})}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: _and ? 7 : 9 }}>
       <View style={{ width: _and ? 32 : 36, height: _and ? 32 : 36, borderRadius: _and ? 16 : 18, backgroundColor: pal.bg, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 13 : 14), color: pal.fg }}>{(slot.name || '?').charAt(0)}</Text>
       </View>
       {/* 이름 영역 — flex:1 + 말줄임. 별명·닉네임이 길어도 행이 깨지지 않게 ([[friend_groups]] 2026-06-09) */}
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        {onPress ? (
-          <TouchableOpacity style={{ flexShrink: 1 }} activeOpacity={0.7} onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-            <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
-          </TouchableOpacity>
-        ) : (
-          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
-        )}
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{slot.name}</Text>
         {handicap != null && (
           /* 이름과 gap:8로 이미 분리 — 구분점(·) 대신 '핸디' 라벨로(주최자 표시와 의미 통일). 작고 흐리게 유지 */
           <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: C.warmGray }}>핸디 {handicap}</Text>
@@ -85,8 +84,9 @@ function SlotRow({ slot, idx, onPress, handicap }) {
           </View>
         )}
       </View>
-      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F' }}>참여 확정</Text>
-    </View>
+      {/* 탭 가능한 행이면 ›로 '누를 수 있음' 암시(친구신청·차단 시트). 비탭(본인·익명)은 '참여 확정'만 */}
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F' }}>참여 확정{onPress ? '  ›' : ''}</Text>
+    </Row>
   );
 }
 
@@ -152,7 +152,29 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta 
 export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, participantNames = {}, participantHandicaps = {}, visible, joined, applied, waitlistNum, isBookmarked, comments = [], onClose, onApply, onWaitlist, onCancel, onCancelWait, onDelete, onConfirm, onGradePress, onToggleBookmark, onToggleLike, onBlock, onReport, onEdit, onAddComment, onDeleteComment, onPinComment, onNotifySchedule, commentTotal = 0, onLoadOlderComments }) {
   const { userProfile } = React.useContext(UserContext);
   const [alert, setAlert] = useState(null);
-  const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 신고/차단 시트
+  const [actionTarget, setActionTarget] = useState(null); // 프로필 클릭 — 친구신청/차단 시트
+  const [friendSet, setFriendSet] = useState(() => new Set());  // 내 친구 uid — 시트 '친구 신청' 게이트
+  const [sentSet, setSentSet] = useState(() => new Set());      // 내가 보낸 친구신청 recipient uid — '신청됨'
+
+  // 친구 상태 로드 — 라운지 참여자는 주최자 친구일 뿐 내 친구는 아닐 수 있어 '친구 신청' 제공.
+  //   이미 친구/신청됨을 구분하려 상세 열릴 때 1회 로드(친구목록·보낸신청). friendMeta는 별명·그룹뿐이라 부정확 → 실목록 사용.
+  useEffect(() => {
+    if (!visible || !myUid) return;
+    let alive = true;
+    loadMyFriendsEnriched().then((l) => { if (alive) setFriendSet(new Set((l || []).map((f) => f.id))); }).catch(() => {});
+    loadSentRequests().then((r) => { if (alive) setSentSet(new Set((r || []).map((x) => x.recipientUid))); }).catch(() => {});
+    return () => { alive = false; };
+  }, [visible, myUid]);
+
+  // 친구 신청 — 낙관적 '신청됨' 후 전송(이미 친구/신청됨이면 무해). 익명·본인 슬롯은 애초에 시트가 안 열림.
+  const requestFriend = (t) => {
+    if (!t?.uid || friendSet.has(t.uid) || sentSet.has(t.uid)) return;
+    setSentSet((p) => new Set(p).add(t.uid));
+    sendFriendRequest(t.uid, userProfile?.nickname || '').catch((e) => { if (__DEV__) console.warn('[roundup] friendReq', e?.code, e?.message); });
+    showToast(`${t.name}님에게 친구 신청을 보냈어요`);
+  };
+  const targetFriendState = !actionTarget?.uid ? 'none'
+    : friendSet.has(actionTarget.uid) ? 'friend' : (sentSet.has(actionTarget.uid) ? 'sent' : 'none');
   // z-index 이슈로 부모(RoundupTab)의 모달이 이 Modal 뒤로 가려져서, 등급/차단 확인 모달은 여기서 자체 렌더링.
   const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
   const [mannerKey, setMannerKey] = useState(null);        // 매너 등급 안내 모달
@@ -869,7 +891,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 return (
                   <SlotRow key={i} slot={s} idx={i} handicap={s.masked ? null : hcOf(s.uid)}
                     onPress={(s.name && !isSelfSlot && !s.masked)
-                      ? () => setActionTarget({ id: s.uid || s.name, name: s.name, role: s.host ? 'host' : 'participant' })
+                      ? () => setActionTarget({ id: s.uid || s.name, uid: s.uid || null, name: s.name, role: s.host ? 'host' : 'participant' })
                       : null} />
                 );
               })}
@@ -969,11 +991,13 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
           {/* 등급 안내 모달 — 부모 모달 뒤로 가려지지 않게 자체 렌더링 */}
           <TrustGradeModal visible={!!gradeKey} highlightKey={gradeKey} onClose={() => setGradeKey(null)} />
           <MannerGradeModal visible={!!mannerKey} highlightKey={mannerKey} onClose={() => setMannerKey(null)} />
-          {/* 프로필 액션 시트 — 차단만 (친구신청·강퇴 폐기, [[roundup-friend-redesign]]) */}
+          {/* 프로필 액션 시트 — 친구 신청 + 차단. 라운지 참여자는 주최자 친구일 뿐 내 친구는 아닐 수 있어 친구 신청 제공(2026-06-26 재도입). */}
           <ProfileActionSheet
             visible={!!actionTarget}
             target={actionTarget}
             isMe={!!myUid && (actionTarget?.id === myUid || actionTarget?.name === '나')}
+            friendState={targetFriendState}
+            onFriendRequest={requestFriend}
             onClose={() => setActionTarget(null)}
             onBlock={(t) => {
               // 시트 닫고 자체 확인 alert. 확인 시 RoundupDetail 닫고 부모로 차단 신호 (부모는 alert 없이 즉시 처리)

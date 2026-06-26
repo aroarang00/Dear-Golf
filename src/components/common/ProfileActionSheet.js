@@ -1,15 +1,14 @@
-// 모집글 주최자/참여자 프로필 클릭 시 뜨는 액션 시트 — 차단만.
-// 신고는 마이페이지 → [신고하기]로 일원화 (정책 [[report-block-policy]] §5-1).
-// 라운지 메인에서 직접 신고 진입 X — 마찰을 입력 단계로 옮겨 충동 신고 방지.
-// 차단 사실은 상대에게 알리지 않음(UI에 그런 노출 없음).
-// 강퇴 기능은 폐기 — 친구모집에선 분란 소지라 제거(2026-06-02, [[roundup-friend-redesign]]).
-// 친구 신청은 라운지에서 제거(학연·지연·사업 교차 연결 민감성) — 친구 추가는 카카오·검색 경로로만 ([[roundup-friend-redesign]]).
+// 모집글 주최자/참여자 프로필 클릭 시 뜨는 액션 시트 — 친구 신청 + 차단.
+// 신고는 마이페이지 → [신고하기]로 일원화 (정책 [[report-block-policy]] §5-1). 라운지 직접 신고 진입 X(충동 신고 방지).
+// 차단 사실은 상대에게 알리지 않음. 강퇴 폐기(친구모집 분란 소지, 2026-06-02).
+// 친구 신청 — 2026-06-26 재도입: 라운지 참여자는 주최자 친구일 뿐 내 친구는 아닐 수 있어 직접 신청 제공.
+//   친구·신청됨이면 버튼 숨김/비활성. 익명·본인 슬롯은 부모(RoundupDetail)가 시트 자체를 안 연다.
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../../constants/colors';
 
-export function ProfileActionSheet({ visible, target, onClose, onBlock, isMe }) {
+export function ProfileActionSheet({ visible, target, onClose, onBlock, isMe, friendState = 'none', onFriendRequest }) {
   const insets = useSafeAreaInsets();
   if (!target) return null;
   return (
@@ -32,8 +31,25 @@ export function ProfileActionSheet({ visible, target, onClose, onBlock, isMe }) 
               </Text>
             ) : (
               <>
-                {/* 친구 신청은 라운지에서 제거 — 학연·지연·사업 등 교차 연결 민감성([[roundup-friend-redesign]]).
-                    친구 추가는 카카오·검색 경로로만. 라운지 프로필 시트는 차단만 둠. */}
+                {/* 친구 신청 — uid 있는 참여자에게. 이미 친구면 숨김, 신청 보냈으면 '신청됨'(비활성). */}
+                {target.uid && friendState === 'friend' && (
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', paddingVertical: 8, marginBottom: 4 }}>
+                    이미 친구예요
+                  </Text>
+                )}
+                {target.uid && friendState === 'sent' && (
+                  <View style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center', marginBottom: 8,
+                    backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>친구 신청됨</Text>
+                  </View>
+                )}
+                {target.uid && friendState === 'none' && (
+                  // 세이지 채움 — 크림 시트 위에서 또렷이 튀어 '주 액션'으로 읽힘(차단=빨강 테두리와 구분).
+                  <TouchableOpacity onPress={() => { onClose(); onFriendRequest?.(target); }} activeOpacity={0.85}
+                    style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center', marginBottom: 8, backgroundColor: '#5E7E42' }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: '#fff' }}>＋ 친구 신청</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity onPress={() => { onClose(); onBlock?.(target); }} activeOpacity={0.85}
                   style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center',
                     backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
