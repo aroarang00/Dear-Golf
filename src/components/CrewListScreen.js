@@ -272,7 +272,8 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
       <CrewAlbumScreen crew={openCrew} seenAt={openCrew._seenAt || 0}
         onClose={() => { markCrewSeen(openCrew.id); markCrewSeenAt(openCrew.id);
-          storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => setMutedMap(m || {}));   // 멤버 화면서 토글했을 수 있어 재로드
+          storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => setMutedMap(m || {}));     // 멤버 화면서 토글했을 수 있어 재로드
+          storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => setAliasMap(a || {}));   // 멤버 화면서 별명 바꿨을 수 있어 재로드
           setOpenCrew(null); }} onOpenDM={onOpenDM} />
     </Animated.View>
   );

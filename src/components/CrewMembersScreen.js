@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { F, fs } from '../constants/colors';
@@ -66,6 +66,27 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
     if (next[crewId]) delete next[crewId]; else next[crewId] = true;
     await storage.save(STORAGE_KEYS.crewMuted, next);
     setMuted(!!next[crewId]);
+  };
+
+  // 내가 보는 크루 이름(별명) — 기기 로컬·per-user(STORAGE_KEYS.crewAliases). 서버 name은 안 바뀌고(리더만 '편집'),
+  //   목록·앨범 표시가 이 별명 우선(CrewListScreen aliasMap). 롱탭 메뉴가 순서변경으로 바뀌며 빠졌던 편집 진입점을 멤버 화면에 둠.
+  const serverName = crewDoc?.name || crew?.name || '크루';
+  const [alias, setAlias] = useState('');
+  const [aliasEdit, setAliasEdit] = useState(null); // null=닫힘 / 문자열=편집 중 입력값
+  useEffect(() => {
+    let alive = true;
+    storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => { if (alive) setAlias((a && a[crewId]) || ''); }).catch(() => {});
+    return () => { alive = false; };
+  }, [crewId]);
+  const saveAlias = async () => {
+    if (!crewId) return;
+    const v = (aliasEdit || '').trim();
+    const a = (await storage.load(STORAGE_KEYS.crewAliases, {})) || {};
+    const next = { ...a };
+    if (v && v !== serverName) next[crewId] = v; else delete next[crewId]; // 비우거나 서버명과 같으면 별명 해제
+    await storage.save(STORAGE_KEYS.crewAliases, next);
+    setAlias(next[crewId] || '');
+    setAliasEdit(null);
   };
 
   // 크루 doc 실시간 구독 — 초대(audience)·수락·탈퇴(memberUids) 즉시 반영
@@ -174,6 +195,21 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14 }} showsVerticalScrollIndicator={false}>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginBottom: 8 }}>{members.length}/{MAX_MEMBERS}명 · 누구나 초대할 수 있어요</Text>
 
+        {/* 내가 보는 크루 이름(별명) — 나만 보이는 이름. 서버 이름은 안 바뀜(리더만 헤더 '편집'으로 변경). 탭하면 편집 팝업 */}
+        <TouchableOpacity onPress={() => setAliasEdit(alias || serverName)} activeOpacity={0.8}
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
+          <Icon name="pen" size={fs(20)} color={SAGE_DEEP} strokeWidth={2} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>내가 보는 크루 이름</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>
+              {alias ? `별명: ${alias} · 나만 보여요` : `${serverName} · 나만 보이는 이름으로 바꿀 수 있어요`}
+            </Text>
+          </View>
+          <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginLeft: 10, backgroundColor: 'rgba(94,126,66,0.12)' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: SAGE_DEEP }}>{alias ? '바꾸기' : '별명'}</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* 새 글 알림 토글 — 헤더 스피커 아이콘만이면 작아서 안 보여 라벨 행으로(중장년 발견성).
             끄면 홈 크루 새 글 'NEW' 신호에서 이 크루 제외(본인만, 기기 로컬). [[crew-new-signal]] */}
         <TouchableOpacity onPress={toggleMuted} activeOpacity={0.8}
@@ -261,6 +297,29 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
               </TouchableOpacity>
               <TouchableOpacity onPress={doLeave} style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: '#B23B3B' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }}>나가기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 내가 보는 크루 이름(별명) 편집 — paddingBottom으로 위로 띄워 키보드 가림 방지 */}
+      {aliasEdit !== null && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 220 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setAliasEdit(null)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.4)' }} />
+          <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 20, width: '100%' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>내가 보는 크루 이름</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, textAlign: 'center', marginTop: 6 }}>나만 보이는 이름이에요 · 원래 이름: {serverName}</Text>
+            <TextInput value={aliasEdit} onChangeText={setAliasEdit} maxLength={20} autoFocus
+              placeholder={serverName} placeholderTextColor={SUB} allowFontScaling={false}
+              style={{ marginTop: 14, borderWidth: 1, borderColor: LINE, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 11, fontFamily: F.sysM, fontSize: fs(15), color: INK }} />
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: SUB, marginTop: 6 }}>비우고 저장하면 원래 이름으로 돌아가요.</Text>
+            <View style={{ flexDirection: 'row', marginTop: 16, gap: 8 }}>
+              <TouchableOpacity onPress={() => setAliasEdit(null)} style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: LINE }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: SUB }}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveAlias} style={{ flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: SAGE_DEEP }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }}>저장</Text>
               </TouchableOpacity>
             </View>
           </View>
