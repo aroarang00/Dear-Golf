@@ -18,7 +18,7 @@ const MODE_OPTIONS = [
 ];
 
 // mode: 'select'(기본, 친구지정 — 포함/제외 토글) | 'companion'(동반자 선택 — 토글 없이 다중선택)
-export function FriendSelectModal({ visible, friends = [], initial, onClose, onConfirm, mode = 'select' }) {
+export function FriendSelectModal({ visible, friends = [], initial, onClose, onConfirm, mode = 'select', maxSelect = 0 }) {
   const insets = useSafeAreaInsets();
   const isCompanion = mode === 'companion';
   const [selectMode, setSelectMode] = useState(initial?.selectMode || 'include');
@@ -45,7 +45,11 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
   }, [friends, query, friendMeta]);
 
   const toggle = (uid) => {
-    setSelected(prev => prev.includes(uid) ? prev.filter(x => x !== uid) : [...prev, uid]);
+    setSelected(prev => {
+      if (prev.includes(uid)) return prev.filter(x => x !== uid);
+      if (maxSelect > 0 && prev.length >= maxSelect) return prev; // 상한 도달 — 더 못 고름(단체 정원)
+      return [...prev, uid];
+    });
   };
 
   const submit = () => {
@@ -158,7 +162,7 @@ export function FriendSelectModal({ visible, friends = [], initial, onClose, onC
             )}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
-                {selected.length}명 선택됨
+                {selected.length}명 선택됨{maxSelect > 0 ? ` · 최대 ${maxSelect}명` : ''}
               </Text>
               {selected.length > 0 && (
                 <TouchableOpacity onPress={() => setSelected([])} activeOpacity={0.7}

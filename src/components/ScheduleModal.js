@@ -493,8 +493,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   }} />
               )}
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>인원</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {['2','3','4'].map(n => (
+              {/* 단체 전파 지원 — 한 조(4) 넘는 모임도 가능하게 2~8명 ([[schedule-propagation-spec]]). 칩 많아 줄바꿈 */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {['2','3','4','5','6','7','8'].map(n => (
                   <TouchableOpacity key={n} style={[mS.chip, members === n && mS.chipOn]} onPress={() => setMembers(n)}>
                     <Text style={[mS.chipTxt, members === n && mS.chipTxtOn, { fontSize: fs(13) }]}>{n}명</Text>
                   </TouchableOpacity>

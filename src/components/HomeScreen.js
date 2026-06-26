@@ -103,6 +103,7 @@ export function HomeScreen({ navigation, route }) {
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteMax, setInviteMax] = useState(7);   // 단체 정원(8) 내 이번에 더 고를 수 있는 친구 수(8 − 이미 합류·초대된 인원)
   const [teamScheduleRid, setTeamScheduleRid] = useState(null);     // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [sheetMealSchedule, setSheetMealSchedule] = useState(null); // 일정 시트 '함께 식사' 대상(triggerless) — 세컨 카드 등 next 아닌 일정용
   const [sheetMealAutoOpen, setSheetMealAutoOpen] = useState(false);
@@ -609,6 +610,15 @@ export function HomeScreen({ navigation, route }) {
     if (!schedule) return;
     setShowScheduleModal(false);
     setInviteTarget(schedule);
+    // 단체 정원(8) 내 남은 자리 — 이미 합류(memberUids)·초대(audienceUids)된 인원 제외. 기존 그룹 없으면 나 1명 기준(7).
+    let used = 1;
+    if (schedule.groupId) {
+      try {
+        const g = await getScheduleGroup(schedule.groupId);
+        if (g) used = new Set([...(g.memberUids || []), ...(g.audienceUids || [])]).size || 1;
+      } catch (e) { if (__DEV__) console.warn('[home] invite remaining calc', e?.message); }
+    }
+    setInviteMax(Math.max(0, 8 - used));
     try { setInviteFriends(await loadMyFriendsEnriched()); } catch { setInviteFriends([]); }
     setInviteOpen(true);
   };
@@ -618,7 +628,7 @@ export function HomeScreen({ navigation, route }) {
       const group = await getScheduleGroup(groupId);
       const audCount = Array.isArray(group?.audienceUids) ? group.audienceUids.length : 0;
       const cur = Number(schedule?.members) || 0;
-      const next = Math.max(cur, Math.min(4, 1 + audCount));   // 4 캡 — 모달 칩(2/3/4) 범위 내(한 조 최대 4)
+      const next = Math.max(cur, Math.min(8, 1 + audCount));   // 8 캡 — 단체 전파 지원(모달 칩 2~8). [[schedule-propagation-spec]]
       if (next !== cur && schedule?.id) {
         await editSchedule(schedule.id, { members: next });
         await syncGroupContentByMember(groupId, { ...schedule, members: next });
@@ -1554,6 +1564,7 @@ export function HomeScreen({ navigation, route }) {
         visible={inviteOpen}
         mode="companion"
         friends={inviteFriends}
+        maxSelect={inviteMax}
         onClose={() => { setInviteOpen(false); setInviteTarget(null); }}
         onConfirm={submitInviteFriends}
       />
