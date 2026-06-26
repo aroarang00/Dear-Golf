@@ -2,9 +2,9 @@
 // 100대 골프코스 — Firestore(top100Courses) 조회 + 골프장명 매칭
 // 시딩: scripts/seedTop100.mjs · 출처: 한국골프관광협회 2024-2025
 // =============================================================
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from './firebase';
+import { db, getUid } from './firebase';
 import { STORAGE_KEYS, storage } from './storage';
 
 const CACHE_KEY = '@dg_top100_v1';
@@ -122,11 +122,38 @@ export function top100RankOf(top100List, courseName) {
   return null;
 }
 
-// 사용자가 100대 코스 목록에서 직접 체크한 순위(rank) 배열 — 로컬 저장
+// 사용자가 100대 코스 목록에서 직접 체크한 순위(rank) 배열 — 로컬 캐시 + Firestore(users/{uid}.top100Checks) 영속 백업.
+//   재설치/타기기 보존(savedCourses 패턴, users 규칙이 owner 임의필드 허용이라 규칙 변경 불필요). [[data-migration]]
 export async function getManualTop100Checks() {
   const list = await storage.load(STORAGE_KEYS.top100Checks, []);
   return Array.isArray(list) ? list : [];
 }
 export async function saveManualTop100Checks(ranks) {
-  await storage.save(STORAGE_KEYS.top100Checks, Array.isArray(ranks) ? ranks : []);
+  const next = Array.isArray(ranks) ? ranks : [];
+  await storage.save(STORAGE_KEYS.top100Checks, next);
+  pushTop100ChecksToFirestore(next); // 영속 백업
+}
+async function pushTop100ChecksToFirestore(ranks) {
+  try {
+    const uid = await getUid();
+    if (!uid) return;
+    await setDoc(doc(db, 'users', uid), { uid, top100Checks: ranks, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) { if (__DEV__) console.warn('[top100] checks push 실패', e?.message); }
+}
+// 시작 시 복원 — Firestore와 로컬 union(rank 숫자). 프레시 설치=Firestore로 복원.
+export async function syncTop100ChecksFromFirestore() {
+  try {
+    const uid = await getUid();
+    if (!uid) return await getManualTop100Checks();
+    const snap = await getDoc(doc(db, 'users', uid));
+    const remote = snap.exists() && Array.isArray(snap.data().top100Checks) ? snap.data().top100Checks : [];
+    const local = await getManualTop100Checks();
+    const merged = [...new Set([...remote, ...local])];
+    await storage.save(STORAGE_KEYS.top100Checks, merged);
+    if (merged.length !== remote.length) pushTop100ChecksToFirestore(merged); // 로컬 전용 역반영
+    return merged;
+  } catch (e) {
+    if (__DEV__) console.warn('[top100] checks sync 실패', e?.message);
+    return await getManualTop100Checks();
+  }
 }
