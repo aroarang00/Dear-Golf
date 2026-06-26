@@ -360,6 +360,27 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
       ],
     });
   };
+  // 인원 미달 마감 — 단체는 정원(팀*4)을 온라인으로 다 못 채울 수 있어, 남은 자리를 직접(오프라인) 채우기로 하고
+  //   주최자가 이대로 확정. confirmFinalize와 동일하게 onConfirm(closed:true). 확정 뒤에도 빈자리 충원(vacancy)은
+  //   열려 있어 온라인으로 더 받을 수도 있다 ([[roundup-underfilled-finalize]]).
+  const confirmFinalizeUnderfilled = () => {
+    const filled = (post.joined || 0) + companionsCount;
+    const remaining = Math.max(0, capTotal - filled);
+    const dateLine = `${post.date}${post.day ? ` (${post.day})` : ''} · ${post.time}`;
+    setAlert({
+      title: '인원이 다 안 찼어요',
+      message: `아직 ${remaining}자리 비었어요.\n남은 자리는 직접 채우기로 하고\n이대로 확정(마감)할까요?`,
+      highlight: [
+        { icon: '📍', text: post.course },
+        { icon: '🗓️', text: dateLine },
+      ],
+      note: '확정하면 코스·날짜·시간을 더는 수정할 수 없어요.\n비운 자리는 빈자리 충원으로 계속 받을 수 있어요.',
+      buttons: [
+        { text: '다시 확인', style: 'cancel' },
+        { text: '이대로 마감', onPress: onConfirm },
+      ],
+    });
+  };
   // 신청 취소 — 아직 미확정(수락 대기)이라 자유 취소, 매너/패널티 영향 없음
   const confirmCancelApplication = () => setAlert({
     title: '신청을 취소할까요?',
@@ -485,10 +506,25 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             </>
           )
         ) : (
-          <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
-            backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>내가 올린 모집글</Text>
-          </View>
+          <>
+            <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>내가 올린 모집글</Text>
+            </View>
+            {/* 인원 미달 마감 — 단체는 정원을 온라인으로 다 못 채울 수 있어, 남은 자리는 직접 채우기로 하고 확정.
+                확정형만(오픈형은 날짜부터). [[roundup-underfilled-finalize]] */}
+            {isTeam && post.type === 'fixed' && (
+              <>
+                <TouchableOpacity activeOpacity={0.85} onPress={confirmFinalizeUnderfilled}
+                  style={{ marginTop: _and ? 6 : 8, borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', backgroundColor: '#3C7D4F' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>이대로 마감하기</Text>
+                </TouchableOpacity>
+                <Text style={hintStyle}>
+                  인원이 다 안 차도 마감할 수 있어요.{'\n'}남은 자리는 직접 채워주세요 — 빈자리는 계속 받을 수 있어요.
+                </Text>
+              </>
+            )}
+          </>
         )}
         <View style={{ flexDirection: 'row', gap: 8, marginTop: _and ? 6 : 8 }}>
           {onEdit && !post.closed && (
