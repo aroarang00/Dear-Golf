@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
-import { HALL_OF_FAME } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { dS } from '../styles/dS';
 import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
@@ -69,6 +68,9 @@ function buildHofEntry(data, diaryId) {
     memo: data.specialMemo || '',
   };
 }
+
+// 'YYYY.MM.DD' → 정렬용 숫자 (HOF 날짜 desc·최초 싱글 판정)
+const hofDateNum = (s) => { const p = String(s || '').split('.').map(n => parseInt(n, 10)); return (p[0] || 0) * 10000 + (p[1] || 0) * 100 + (p[2] || 0); };
 
 // 라운딩 기록 → 퍼스트 싱글 명예의 전당 엔트리 (라운드 단위 성취 — 80타 미만)
 function buildSingleHofEntry(data, diaryId) {
@@ -199,7 +201,8 @@ export function DiaryScreen({ route, navigation }) {
   const [hofExpanded, setHofExpanded] = useState(false);
   const [hofTeaserDismissed, setHofTeaserDismissed] = useState(false); // 명예의 전당 티저 '다시 보지 않기' 여부
   const [hofHintSeen, setHofHintSeen] = useState(false); // 첫 특별한 순간 생긴 후 '펼치기' 안내 말풍선 본 여부
-  const [hallOfFame, setHallOfFame] = useState(HALL_OF_FAME);
+  // 마일스톤(라운딩100·구장100 등)만 '영속 성취'라 별도 저장. 특별한 순간·퍼스트 싱글은 기록에서 파생(아래 diaryHof).
+  const [milestoneHof, setMilestoneHof] = useState([]);
   const [hofHydrated, setHofHydrated] = useState(false);
   const [shareMoment, setShareMoment] = useState(null);   // 특별한 순간 공유 대상
   const [search, setSearch] = useState('');
@@ -223,11 +226,12 @@ export function DiaryScreen({ route, navigation }) {
   useEffect(() => {
     (async () => {
       const [h, teaserDismissed, hintSeen] = await Promise.all([
-        storage.load(STORAGE_KEYS.hof, HALL_OF_FAME),
+        storage.load(STORAGE_KEYS.hof, []),
         storage.load(STORAGE_KEYS.hofTeaserDismissed, false),
         storage.load(STORAGE_KEYS.hofHintSeen, false),
       ]);
-      setHallOfFame(h);
+      // 마이그레이션 — 저장값에서 마일스톤만 남김(옛 데모 카드·특별순간·싱글 제거. 후자는 이제 기록에서 파생).
+      setMilestoneHof((Array.isArray(h) ? h : []).filter(e => e && e.kind === 'milestone'));
       setHofHydrated(true);
       setHofTeaserDismissed(teaserDismissed);
       setHofHintSeen(hintSeen);
@@ -236,8 +240,8 @@ export function DiaryScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!hofHydrated) return;
-    storage.save(STORAGE_KEYS.hof, hallOfFame);
-  }, [hallOfFame, hofHydrated]);
+    storage.save(STORAGE_KEYS.hof, milestoneHof);
+  }, [milestoneHof, hofHydrated]);
 
   // 활동 마일스톤 도달 감지 → 명예의 전당에 멱등 등재(이미 넘긴 단계는 백필).
   // 데이터(라운딩=총 라운딩, 방문 구장=CourseLog 집계)는 이미 있는 것 재사용 — 화면 간 숫자 일치.
@@ -249,13 +253,34 @@ export function DiaryScreen({ route, navigation }) {
     // 기념비적 단위(100+)만 '특별한 순간' 카드로 등재 — 30·50은 명함 메달로만([[milestone_badges]])
     const reached = reachedMilestones({ rounds, courses }).filter(m => m.value >= SHAREABLE_MILESTONE_MIN);
     if (reached.length === 0) return;
-    setHallOfFame(prev => {
+    setMilestoneHof(prev => {
       const have = new Set(prev.map(h => h.id));
       const missing = reached.filter(m => !have.has(milestoneId(m.category, m.value)));
       if (missing.length === 0) return prev;  // 변화 없으면 같은 참조 반환 → 재렌더·루프 방지
       return [...missing.map(buildMilestoneEntry), ...prev];
     });
   }, [hofHydrated, diaries, schedules, userProfile]);
+
+  // 특별한 순간(홀인원·이글·알바트로스)·퍼스트 싱글 — 기록(다이어리)에서 '파생'(저장 X).
+  //   ★기록 삭제 시 카드 자동 제거 + 재설치 시 기록에서 자동 복원 + 데모 카드 누출 없음(2026-06-26 파생 전환).
+  const diaryHof = useMemo(() => {
+    const rounds = (diaries || []).filter(d => d && d.kind !== 'moment');
+    const special = rounds.filter(d => d.special).map(d => buildHofEntry(d, d.id));
+    special.sort((a, b) => hofDateNum(b.date) - hofDateNum(a.date)); // 최신 날짜 위
+    let single = [];
+    const onboardBest = userProfile.lifeBest || 99; // 온보딩 라이프베스트가 80타↑였던 사람만 '첫 싱글' 대상(이미 싱글이면 제외)
+    if (onboardBest > 79) {
+      const subs = rounds.filter(d => typeof d.score === 'number' && d.score <= 79);
+      if (subs.length) {
+        const first = subs.reduce((a, b) => (hofDateNum(b.date) < hofDateNum(a.date) ? b : a)); // 가장 이른 날짜=최초 싱글
+        single = [buildSingleHofEntry(first, first.id)];
+      }
+    }
+    return [...special, ...single];
+  }, [diaries, userProfile.lifeBest]);
+
+  // 표시용 합본 — 마일스톤(영속) 위, 그 아래 특별순간·싱글(파생).
+  const hallOfFame = useMemo(() => [...milestoneHof, ...diaryHof], [milestoneHof, diaryHof]);
 
   // 내 핸디를 users 문서에 동기화 — 라운지 모집 상세에서 남(주최자·참여자)이 내 핸디 보이게.
   //   값이 바뀔 때만 write(중복 방지). ([[friend_groups]] 핸디표시 / handicap.syncMyHandicap)
@@ -379,22 +404,7 @@ export function DiaryScreen({ route, navigation }) {
         country: data.country || '',
       });
       refreshFriendData(); // 방금 추가한 친구 동반자 별명을 상세에서 바로 잡도록 갱신([[companion-design]] Phase A)
-      // 일상(모멘트)은 명예의전당·첫싱글 대상 아님 — score:null이라 가드 없으면 첫싱글(≤79) 오발동([[moment-feed-extension]])
-      if (data.kind !== 'moment') {
-        setHallOfFame(prev => {
-          let next = prev;
-          // 특별한 순간(홀인원·이글·알바트로스) 카드
-          if (data.special) next = [buildHofEntry(data, created.id), ...next];
-          // 퍼스트 싱글 — 80타 미만 첫 기록 시 1회 자동 등재.
-          // 온보딩/프로필 라이프베스트가 이미 싱글(≤79)이면 제외 — 이미 싱글이라 '첫' 싱글 아님.
-          // lifeBest 직접 사용: MyPage에서 lifeBest 수정 시 hasFirstSingle 플래그는 stale → lifeBest가 정확.
-          const onboardBest = userProfile.lifeBest || 99;
-          if (data.score <= 79 && onboardBest > 79 && !prev.some(h => h.type === '퍼스트 싱글')) {
-            next = [buildSingleHofEntry(data, created.id), ...next];
-          }
-          return next;
-        });
-      }
+      // 특별한 순간·퍼스트 싱글 카드는 기록에서 파생(diaryHof) — 여기서 직접 등재하지 않음(추가 즉시 자동 반영).
       // 저장 직후 라운딩 카드 — 최근 라운딩(2일 이내) + 일정 복귀 동선 아닐 때만 축하 시트. 방금 만든 라운딩을 자랑/기록 카드로.
       // 옛 기록 몰아입력 시엔 안 뜸(상세 골드칩으로 언제든 가능). 톤은 카드가 스코어 따라 분기 ([[score-brag-card]])
       if (data.kind !== 'moment' && !cameFromSchedule) {
@@ -442,33 +452,15 @@ export function DiaryScreen({ route, navigation }) {
           catch (e) { console.warn('[diary] schedule sync failed:', e?.message); }
         }
       }
-      // 명예의 전당 동기화
-      setHallOfFame(prev => {
-        const holeId = 'hof_' + data.id;
-        const singleId = 'hof_single_' + data.id;
-        let next = prev;
-        // 홀 성취 카드(홀인원·이글·알바트로스) — special 값으로 등재/갱신/해제
-        const holeExists = next.some(h => h.id === holeId);
-        if (data.special) {
-          next = holeExists
-            ? next.map(h => h.id === holeId ? buildHofEntry(data, data.id) : h)
-            : [buildHofEntry(data, data.id), ...next];
-        } else if (holeExists) {
-          next = next.filter(h => h.id !== holeId);
-        }
-        // 퍼스트 싱글 카드 — '자격'(최초 1회 마일스톤)은 건드리지 않고,
-        // 이미 등재된 카드면 골프장·날짜·동반자·메모 등 내용만 갱신
-        next = next.map(h => h.id === singleId ? buildSingleHofEntry(data, data.id) : h);
-        return next;
-      });
+      // 특별한 순간·퍼스트 싱글 카드는 기록에서 파생(diaryHof) — special 추가/해제·내용 수정이 자동 반영됨(별도 동기화 불필요).
     }
   };
 
   // 라운딩 삭제 — 기록 + 연결된 개인 일정 함께 삭제(scheduleId 우선, 라운지 보호). mode는 'all' 단일로 통일.
   const handleDeleteDiary = async (target, mode) => {
     await removeDiary(target.id);
-    // 연결된 명예의 전당 카드도 함께 삭제
-    setHallOfFame(prev => prev.filter(h => h.diaryId !== target.id));
+    // 특별한 순간·싱글 카드는 diaryHof 파생이라 기록이 사라지면 자동 제거됨(별도 처리 불필요).
+    //   마일스톤은 '영속 성취'라 카운트가 줄어도 유지(milestoneHof 미회수).
     if (mode === 'all') {
       // ② 연결 일정 삭제는 scheduleId 우선 — 날짜·구장이 수정돼 어긋나도 정확히 그 일정을 지움(고아 차단).
       //   scheduleId가 없거나 끊긴 옛 데이터만 course+date 폴백. 라운지 일정(roundupId)은 공유 데이터라 보호.
