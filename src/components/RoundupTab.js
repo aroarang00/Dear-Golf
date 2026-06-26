@@ -1559,13 +1559,18 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     }
   };
 
-  // 주최자 모집 확정 — 만석 상태에서만 호출(UI에서 보장). closed:true → 매너 -5 분기 활성 ([[roundup-penalty-policy]] §1)
+  // 주최자 모집 확정 — 만석(confirmFinalize) 또는 단체 미달(confirmFinalizeUnderfilled)에서 호출. closed:true → 매너 -5 분기 활성 ([[roundup-penalty-policy]] §1)
   const handleConfirmRoundup = async (id) => {
     if (busyPostsRef.current.has(id)) return; // 연타 가드
     busyPostsRef.current.add(id);
     try {
       await closeRoundup(id);
-      setPosts(prev => prev.map(p => (p.id === id ? { ...p, closed: true } : p)));
+      // closedShort도 낙관적으로 — closeRoundup 서버 로직과 동일(미달이면 잠금). 안 넣으면 미달 마감 직후 카드가 잠깐 '자리 남음'으로 깜빡.
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        const cap = p.capacity || ((p.teams || 1) > 1 ? p.teams * 4 : 4);
+        return { ...p, closed: true, closedShort: (p.joined || 0) < cap };
+      }));
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] closeRoundup failed', e);
       setAlert({ title: '모집 확정에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
