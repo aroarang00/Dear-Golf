@@ -34,11 +34,12 @@ async function leaveJoinedRoundups(uid, actorName) {
     await Promise.all(snap.docs.map(async (d) => {
       const data = d.data();
       if (data.authorUid === uid) return; // 본인 작성 모집은 cancelOwnRoundups에서 처리
-      // 정식 참여취소(leaveRoundup)와 동일 — 개별은 closed:false(확정 해제), 단체(teams>1)는 개인 이탈=국소(전체 확정 유지) ([[event-model]]).
-      // (확정모집에서도 규칙상 참여자 셀프 제거 허용: changedKeysWithin + selfMembershipToggled)
+      // 현 leaveRoundup과 통일 — closed는 건드리지 않는다(개별·단체 공통). '확정 후 결원=그 자리만 열림'으로
+      //   빈자리 충원이 재모집 역할 대체([[roundup-waitlist-autopromote]]). ★옛 코드의 closed:false(개별 재오픈)는 제거 —
+      //   계정삭제로 확정이 풀려 남은 멤버 자동등록 일정이 reconcile에서 삭제되던 결함 차단(2026-06-27).
+      //   (확정모집에서도 규칙상 참여자 셀프 제거 허용: changedKeysWithin + selfMembershipToggled)
       try {
         const upd = { participantUids: arrayRemove(uid), joined: increment(-1), updatedAt: serverTimestamp() };
-        if ((data.teams || 1) <= 1) upd.closed = false;
         await updateDoc(d.ref, upd);
         // 주최자에게 알림 — 참여 취소와 동일('cancel'). 탈퇴로 자리가 빔 → 주최자가 인원 변화를 인지.
         await createNotification({

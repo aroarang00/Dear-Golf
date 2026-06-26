@@ -1809,7 +1809,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 사용자 차단 — 일일 한도 5명, 양방향 모집글 숨김. 차단 사실은 상대에게 알리지 않음.
   // 확인 모달은 호출자(RoundupDetail 등)에서 처리 → 여기는 즉시 차단 + 참여/신청/대기 자동 정리.
   // 정책 [[block-participation]] — 차단으로 인한 참여 취소엔 추가 패널티 없음.
-  const handleBlock = (target) => {
+  const handleBlock = async (target) => {
     if (!target?.id) return;
     const remaining = remainingBlocksToday(userProfile);
     if (remaining <= 0) {
@@ -1820,39 +1820,46 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       });
       return;
     }
+    const targetKey = target.id;
+    const isAuthored = (p) => (p.authorUid || p.authorId || p.author) === targetKey;
+    const affected = posts.filter(isAuthored);
+
+    // 1) 즉시 로컬 차단 + 상세 닫기(스냅).
     const result = blockUser(userProfile, target.id);
     if (!result.ok) return;
     setUserProfile(result.profile);
     storage.save(STORAGE_KEYS.profile, result.profile);
-    // Firestore write-through — users/{myUid}.blockedUids 동기화 (멀티기기 일관성)
-    fsBlockUid(target.id).catch(e => __DEV__ && console.warn('[RoundupTab] fsBlockUid failed', e?.message));
-    // 일반 차단 = 일방 친구 해지 ([[friend-relationship]]) — FriendsTab 차단 경로와 일관.
-    //   friendship 삭제로 areFriends=false → DM 전송도 규칙에서 차단됨. 친구 아니었으면 no-op(멱등).
-    unfriend(target.id).catch(e => __DEV__ && console.warn('[RoundupTab] unfriend(block) failed', e?.message));
+    setDetailId(null); // 차단 후 상세 닫기 — 더 이상 보이지 않으므로
     // 차단된 사용자가 actor·author인 알림도 모두 정리 (수락 알림 등으로 다시 진입 방지).
-    const targetKey = target.id;
     setNotifications(prev => prev.filter(n => {
       if (n.actorUid === targetKey) return false;
       const p = posts.find(pp => pp.id === n.postId);
       if (p && ((p.authorUid || p.authorId || p.author) === targetKey)) return false;
       return true;
     }));
-    // 차단한 사람이 author인 모집에서 내 참여/신청/대기 자동 취소.
-    const isAuthored = (p) => (p.authorUid || p.authorId || p.author) === targetKey;
-    const affectedIds = posts.filter(isAuthored).map(p => p.id);
-    if (affectedIds.length > 0) {
-      const drop = (m) => { const n = { ...m }; for (const id of affectedIds) delete n[id]; return n; };
+    // 차단한 사람이 author인 모집에서 내 참여/신청/대기 낙관적 정리(로컬).
+    if (affected.length > 0) {
+      const drop = (m) => { const n = { ...m }; for (const p of affected) delete n[p.id]; return n; };
       setJoined(drop);
       setApplied(drop);
       setWaitlist(drop);
-      setPosts(prev => prev.map(p => {
-        if (!isAuthored(p)) return p;
-        // 내가 confirmed 참여자였다면 정원 -1 (단체·개별 모두 joined 기반 통일)
-        if (!joined[p.id]) return p;
-        return { ...p, joined: Math.max(0, (p.joined || 0) - 1) };
-      }));
+      setPosts(prev => prev.map(p => (isAuthored(p) && joined[p.id]) ? { ...p, joined: Math.max(0, (p.joined || 0) - 1) } : p));
     }
-    setDetailId(null); // 차단 후 상세 닫기 — 더 이상 보이지 않으므로
+
+    // 2) ★서버 정리 — unfriend로 친구공개 모집 읽기권한을 잃기 전에 실제 이탈/취소(서버 joined·명단 반영).
+    //    이게 없으면 차단 확인 문구('참여·신청·대기 자동 취소')와 달리 서버엔 유령 참여자로 남아 한 자리가 막혔다(2026-06-27 발견).
+    await Promise.all(affected.map(async (p) => {
+      try {
+        if (joined[p.id]) await leaveRoundup(p.id);
+        else if (applied[p.id]) await cancelApplication(p.id);
+        else if (waitlist[p.id]) await leaveWaitlist(p.id);
+      } catch (e) { if (__DEV__) console.warn('[RoundupTab] block roundup cleanup fail', p.id, e?.message); }
+    }));
+
+    // 3) 친구 해지 + 차단 동기화 — 서버 이탈 뒤에(읽기권한 잃어도 OK).
+    //    Firestore write-through(blockedUids, 멀티기기) + 일방 친구 해지(areFriends=false → DM도 규칙서 차단). 친구 아니었으면 멱등.
+    fsBlockUid(target.id).catch(e => __DEV__ && console.warn('[RoundupTab] fsBlockUid failed', e?.message));
+    unfriend(target.id).catch(e => __DEV__ && console.warn('[RoundupTab] unfriend(block) failed', e?.message));
   };
   const handleReport = (target) => {
     setAlert({
