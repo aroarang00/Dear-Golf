@@ -480,10 +480,17 @@ export function HomeScreen({ navigation, route }) {
     const list = schedules || [];
     const rids = [...new Set(list.filter(s => s.roundupId).map(s => s.roundupId))];
     for (const rid of rids) {
-      let post;
-      try { post = await loadRoundup(rid); }   // 미존재(삭제)=null 반환 / 에러=throw → catch에서 skip
-      catch { continue; }                       // 조회 실패(네트워크·권한) → 손대지 않음(오삭제 방지)
-      const valid = !!post && post.closed &&
+      let post, gone = false;
+      try { post = await loadRoundup(rid); if (!post) gone = true; }   // 미존재(삭제)=null
+      catch (e) {
+        // 삭제된 모집은 read 규칙이 resource.data(scope·participantUids 등)를 참조 → resource=null이라
+        //   permission-denied로 막힘(not-found 포함). 확정+내가 참여 중이면 규칙상 '항상' read 가능하므로
+        //   거부 = 모집 삭제 or 내가 빠짐 → 고아로 정리. 네트워크 등 일시 오류(unavailable 등)만 보존(오삭제 방지).
+        const code = e?.code || '';
+        if (code === 'permission-denied' || code === 'not-found') gone = true;
+        else continue;
+      }
+      const valid = !gone && !!post && post.closed &&
         (post.authorUid === currentUid || (Array.isArray(post.participantUids) && post.participantUids.includes(currentUid)));
       if (valid) continue;                      // 확정 + 내가 속함 → 정상 유지
       const targets = list.filter(s => s.roundupId === rid && !isRecorded(s)); // 기록 연결 일정은 보존
