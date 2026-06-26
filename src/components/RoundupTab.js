@@ -38,7 +38,7 @@ import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
-import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, closeRoundup, toggleRoundupLike } from '../utils/roundup';
+import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, loadApplicationsForRoundup, closeRoundup, toggleRoundupLike } from '../utils/roundup';
 import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore, subscribeLatestComments, mergeLiveComments } from '../utils/comments';
 import { getUid, auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -1591,6 +1591,23 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         postTitle: cancelledPost?.course || '',
         scheduleDate: cancelledPost?.date || '', // 확정형 날짜 — 알림에서 어떤 모집인지 식별용
       }).catch(e => __DEV__ && console.warn('[RoundupTab] roundupCancelled noti fail', e?.message));
+    }
+    // 전체공개 모집의 pending 신청자 — 확정 참여자(participantUids)가 아니라 위 알림에서 누락됐던 사각.
+    //   취소 통보 + 신청 정리(2026-06-26 감사). 전체공개 비활성(ROUNDUP_PUBLIC_ENABLED OFF)이라 신규는 없고
+    //   레거시·향후 대비. 신청 doc은 분쟁이력 보존이라 삭제 X → pending→rejected로 유령 '신청함' 카드만 해소.
+    if (cancelledPost?.scope === 'all') {
+      try {
+        const pendingApps = await loadApplicationsForRoundup(id);
+        for (const a of pendingApps) {
+          const auid = a.applicantUid;
+          if (!auid || auid === myUid) continue;
+          createNotification({
+            type: 'roundupCancelled', recipientUid: auid, actorName: userProfile?.nickname || '',
+            postId: id, postTitle: cancelledPost?.course || '', scheduleDate: cancelledPost?.date || '',
+          }).catch(e => __DEV__ && console.warn('[RoundupTab] applicant cancel noti fail', e?.message));
+          rejectApplication(id, auid).catch(e => __DEV__ && console.warn('[RoundupTab] applicant reject fail', e?.message));
+        }
+      } catch (e) { if (__DEV__) console.warn('[RoundupTab] pending applicants cleanup', e?.message); }
     }
     // 주최자 본인 일정에서도 제거 (확정 때 생성됐던 것). 참여자 일정은 roundupCancelled 알림 수신 시 각 클라가 정리.
     const myLinkedSched = schedules.find(s => s.roundupId === id);
