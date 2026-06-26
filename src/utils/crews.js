@@ -114,9 +114,18 @@ export async function deleteCrew(crewId) {
 // ── 초대 수락 — audience가 memberUids에 자기 uid만 토글(셀프) ──
 export async function acceptCrewInvite(crewId, uid, myName = '') {
   if (!crewId || !uid) return;
-  const upd = { memberUids: arrayUnion(uid), updatedAt: serverTimestamp() };
-  if (myName) upd[`names.${uid}`] = myName;
-  await updateDoc(doc(db, COL, crewId), upd);
+  // 트랜잭션 — 정원(20) 초과 차단. N명이 동시에 수락해 20을 넘기던 것 방지(create/invite 시트만 가드돼 있었음).
+  return await runTransaction(db, async (tx) => {
+    const ref = doc(db, COL, crewId);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('not-found');
+    const members = Array.isArray(snap.data().memberUids) ? snap.data().memberUids : [];
+    if (members.includes(uid)) return;                          // 이미 멤버 — 멱등
+    if (members.length >= MAX_MEMBERS) throw new Error('full');  // 정원 초과
+    const upd = { memberUids: arrayUnion(uid), updatedAt: serverTimestamp() };
+    if (myName) upd[`names.${uid}`] = myName;
+    tx.update(ref, upd);
+  });
 }
 // ── 초대 거절 — declinedUids 자기 토글 ──
 export async function declineCrewInvite(crewId, uid) {

@@ -210,7 +210,14 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   }), [inviteDocs, people]);
 
   // 수락/거절 — 셀프 토글(onSnapshot이 목록 자동 갱신, 로컬 상태 변경 불필요)
-  const acceptInvite = (iv) => { if (currentUid) acceptCrewInvite(iv.id, currentUid, myName); };
+  const acceptInvite = async (iv) => {
+    if (!currentUid) return;
+    try { await acceptCrewInvite(iv.id, currentUid, myName); }
+    catch (e) {
+      if (e?.message === 'full') showAppAlert('정원이 찼어요', '이 크루는 인원이 다 찼어요 (최대 20명).');
+      else if (__DEV__) console.warn('[crew] accept invite', e?.message);
+    }
+  };
   const rejectInvite = (iv) => { if (currentUid) declineCrewInvite(iv.id, currentUid); };
 
   const handleCreate = async ({ name, friendUids = [], names = {}, creatorName = '', themeColor = '', description = '', photoUri = null }) => {
