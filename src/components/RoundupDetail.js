@@ -243,7 +243,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const capTotal = post.capacity || (isTeam ? post.teams * 4 : 4);
   const allFull = (post.joined || 0) + companionsCount >= capTotal;
   // 만석(allFull) 또는 주최자 확정(closed)이면 마감 — 비참여자에겐 대기신청 동선.
-  //  취소 시엔 leaveRoundup이 closed:false + joined-1로 둘 다 풀어주므로 참여 버튼이 정상 복귀.
+  //  취소로 결원이 나면 closed는 유지되고 joined만 -1 → 아래 vacancy로 참여 버튼 복귀(빈자리 충원).
   const isClosed = post.closed || allFull;
   const slots = buildSlots(post, participantNames, myUid, userProfile?.nickname, friendMeta);
   // 대기자 수 — 실제 대기열(waitlistUids) 기준. 옛 waitlistCount 필드는 아무도 갱신하지 않아 항상 0이었다.

@@ -905,8 +905,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 모집 일정에 라운딩 기록이 연결됐는지 — 고아 기록 방지로 자동 삭제에서 제외(reconcile·취소정리 공용 헬퍼).
   const hasRound = (s) => (diaries || []).some(d => d.scheduleId === s.id || (d.course === s.course && d.date === s.date));
 
-  // 모집 확정 해제·이탈 시 일정 정리(reconcile) — 불변식 강제: "모집 일정은 '확정(closed)+내가 속한' 모집에만 존재".
-  //   ★결원으로 확정이 풀리면(leaveRoundup이 closed:false) 남은 멤버 일정이 고아로 남고 나간 동반자까지 표시되던 버그 보강
+  // 모집 확정·이탈 시 일정 정리(reconcile) — 불변식 강제: "모집 일정은 '확정(closed)+내가 속한' 모집에만 존재".
+  //   ★이탈해도 closed는 유지(빈자리 충원)지만, 내가 participantUids에서 빠지면 '내가 속함=false'로 본인 일정 정리.
+  //     옛날엔 leaveRoundup이 closed:false라 남은 멤버 일정이 고아로 남고 나간 동반자까지 표시되던 버그를 보강한 경로
   //   ([[roundup-schedule-sync]] add-only 갭). 확정 해제(또는 내가 빠짐) 시 본인 일정 제거 → 재확정되면 위 자동등록이
   //   '현재 참여자'로 다시 생성해 고아·나간 동반자 동시 해소. 라운지=친구 전용이라 이탈 경로는 본인 취소 하나뿐(강퇴 폐기).
   //   ★오삭제 방지 가드: 모집글이 실제 로드됐을 때만(미로드=필터·만료·취소는 손대지 않음, 취소는 알림 정리에 위임),
@@ -1193,7 +1194,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const handleEditRequest = (post) => {
     if (!post) return;
     // 수정 차단 기준을 "확정(closed)"으로 통일 (2026-05-30, [[roundup-edit-policy]] §1 개정).
-    //   확정 모집만 D-7 이내 수정 차단(약속 보호). 결원으로 확정 해제(closed:false)되면 수정 자유 + 재모집.
+    //   확정 모집만 D-7 이내 수정 차단(약속 보호). 확정은 결원이 나도 유지되므로(빈자리 충원) 계속 차단 — 일관.
     //   매너 -5·모집확정 표시와 동일하게 closed 기준 — 모든 분기 일관.
     if (post.closed && post.date) {
       const [y, m, d] = post.date.split('.').map(Number);
