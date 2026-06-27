@@ -703,7 +703,7 @@ export function DiaryScreen({ route, navigation }) {
               style={{ width: 80, height: 80, borderRadius: 40,
                 backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {userProfile.avatarUri ? (
-                <Image source={{ uri: resolvePhotoUri(userProfile.avatarUri) }} style={{ width: '100%', height: '100%' }} />
+                <Image source={{ uri: resolvePhotoUri(userProfile.avatarUri) }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={0} />
               ) : (
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: '#fff' }}>{myInitial}</Text>
               )}

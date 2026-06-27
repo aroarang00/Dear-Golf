@@ -74,7 +74,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
       {/* 컬러 원형 아바타 — 카톡 회색 둥근사각과 결 다름 */}
       <View style={{ width: AV, height: AV, borderRadius: AV / 2, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
-          <Image source={{ uri: friend.avatarUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+          <Image source={{ uri: friend.avatarUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={0} />
         ) : (
           <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 16 : 18), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
         )}

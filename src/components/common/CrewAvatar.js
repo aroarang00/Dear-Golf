@@ -8,7 +8,7 @@ import { F } from '../../constants/colors';
 export function CrewAvatar({ name = '', color = '#5E7E42', imageUrl = null, size = 44, radius }) {
   const r = radius != null ? radius : size / 2;
   if (imageUrl) {
-    return <Image source={{ uri: imageUrl }} style={{ width: size, height: size, borderRadius: r, backgroundColor: color }} contentFit="cover" transition={0} />;
+    return <Image source={{ uri: imageUrl }} style={{ width: size, height: size, borderRadius: r, backgroundColor: color }} contentFit="cover" cachePolicy="memory-disk" transition={0} />;
   }
   return (
     <View style={{ width: size, height: size, borderRadius: r, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>

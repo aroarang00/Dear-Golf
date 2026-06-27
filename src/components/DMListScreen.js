@@ -145,7 +145,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
         {/* 사진 우선 + 이니셜 fallback — 대화방 아바타와 통일(다크 차콜 배경 + 버터골드 이니셜) */}
         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {avatar && /^https?:\/\//.test(avatar) ? (
-            <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+            <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={0} />
           ) : (
             <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.butter }}>{(name || '?').charAt(0)}</Text>
           )}
@@ -214,7 +214,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
                 <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {hasPhoto
-                    ? <Image source={{ uri: av }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+                    ? <Image source={{ uri: av }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" transition={0} />
                     : <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.butter }}>{(dn || '?').charAt(0)}</Text>}
                 </View>
                 <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(16), color: DM_BUTTER }} numberOfLines={1}>{dn}</Text>

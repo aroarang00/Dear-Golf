@@ -172,7 +172,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                   <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
                     alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
-                      <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+                      <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} contentFit="cover" cachePolicy="memory-disk" transition={0} />
                     ) : (
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
                     )}

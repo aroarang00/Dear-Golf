@@ -94,7 +94,7 @@ function fmtDateTime(ts) {
 function MiniAvatar({ n, c, i = 0, size = 30, uri, onPress }) {
   const base = { width: size, height: size, borderRadius: size / 2, borderWidth: 1.5, borderColor: '#fff', marginLeft: i === 0 ? 0 : -(size * 0.3) };
   const inner = uri
-    ? <Image source={{ uri }} style={base} contentFit="cover" transition={Platform.OS === 'android' ? 0 : 200} />
+    ? <Image source={{ uri }} style={base} contentFit="cover" cachePolicy="memory-disk" transition={0} />
     : (
       <View style={{ ...base, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(size * 0.38), color: '#fff' }}>{n}</Text>
