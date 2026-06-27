@@ -1694,7 +1694,7 @@ export function HomeScreen({ navigation, route }) {
         <ModalBackContext.Provider value={crewBack}>
           <CrewListScreen onClose={() => setCrewOpen(false)}
             onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDmChat({ uid, name, avatar }); }}
-            onOpenRoundup={(id) => { if (id) { setCrewOpen(false); navigation.navigate(ROUTES.LOUNGE, { openPostId: id }); } }} />
+            onOpenRoundup={(id, hostUid) => { if (id) { setCrewOpen(false); navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined }); } }} />
         </ModalBackContext.Provider>
 
         {/* 크루에서 연 DM — 크루 Modal '안에' 중첩. iOS는 형제 Modal 2개를 동시에 못 띄워(크루 위 DM이 안 떴음) →
