@@ -1088,6 +1088,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 소도시 예외 — 전체/친구 탭에서 보이는 모집글이 3개 이하면 조건 완화 안내
   const showSparseHint = (view === 'all' || view === 'friend') && list.length > 0 && list.length <= 3;
 
+  // 만석인데 미확정인 '내 모집'(확정형) — 주최자에게 목록 상단 배너로 확정 유도(만석 푸시 놓쳐도 상시 보이게).
+  //   카드의 awaitingConfirm와 동일 공식. 어느 탭/필터든 보이게 전체 posts에서 계산. 확정·결원되면 자동 사라짐.
+  const awaitingMine = !myUid ? [] : posts.filter((p) => {
+    if (p.authorUid !== myUid || p.closed || p.type === 'open') return false;
+    const isTeam = p.teams > 1;
+    const total = (p.joined || 0) + (isTeam ? 0 : (p.companions?.length || 0));
+    return total >= (p.capacity || (isTeam ? p.teams * 4 : 4));
+  });
+
   // 목록 안내 라벨 — 전체공개 꺼진 동안엔 친구 모집뿐이라 'friend' 라벨은 대비대상 없어 잉여→숨김(코드 보존, 부활 시 복귀).
   //   '맞춤'은 부분집합이라 유지, '전체공개'는 ROUNDUP_PUBLIC_ENABLED 부활 시만 ([[roundup-public-disabled]]). 사용자 2026-06-15
   const browseLabel = view === 'match' ? '내 조건에 맞는 모집이에요'
@@ -2066,6 +2075,25 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
       {/* 카드 영역 — 좌우 16 패딩(옛 ScrollView contentContainer 패딩 대체). 위 줄들(지역칩 풀블리드·맞춤배너 marginH16·안내 paddingH16)은 자체 여백 유지 */}
       <View style={{ paddingHorizontal: 16, paddingTop: _and ? 3 : 5 }}>
+        {/* 확정 대기 배너 — 만석+미확정인 내 모집이 있으면 상단에 노출. 탭하면 첫 모집 상세(→'모집 확정하기') */}
+        {awaitingMine.length > 0 && (
+          <TouchableOpacity activeOpacity={0.85}
+            onPress={() => {
+              // 1개면 바로 그 모집 상세, 2개+면 '내 주최' 목록으로 보내 모두 보이게(한 개만 열려 헷갈리던 문제)
+              if (awaitingMine.length === 1) { setDetailId(awaitingMine[0].id); return; }
+              setView('mine'); setMineFilter('host');
+              listScrollRef.current?.scrollTo?.({ y: 0, animated: true });
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F3E2A0',
+              borderRadius: 12, borderWidth: 1, borderColor: '#E0C969', paddingVertical: 11, paddingHorizontal: 14,
+              marginBottom: _and ? 8 : 10 }}>
+            <Text style={{ fontSize: fs(15) }}>⏳</Text>
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13), color: '#7A5A00', lineHeight: 18 }}>
+              {`인원이 다 모인 내 모집 ${awaitingMine.length}개 · 확정해 주세요`}
+            </Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#7A5A00' }}>›</Text>
+          </TouchableOpacity>
+        )}
         {/* 초대장(친구지정·포함)은 아래 list.map에서 실제 카드로 렌더 — dev에선 내가 만든 글도 자기 미리보기로 보임 ([[roundup-invitation]]) */}
         {!hydrated ? <LoadingState /> : list.length === 0 ? (
           view === 'mine' ? (
