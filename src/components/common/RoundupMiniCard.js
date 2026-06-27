@@ -29,7 +29,7 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress }) 
   if (state === 'loading') return null;
   if (state === 'gone') {
     return (
-      <View style={[box, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+      <View style={[box, { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: fs(20) }]}>
         <Icon name="flag" size={fs(13)} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
         <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: 'rgba(255,255,255,0.7)' }}>종료됐거나 볼 수 없는 모집이에요</Text>
       </View>
@@ -45,7 +45,7 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress }) 
   const title = post.type === 'fixed' ? (post.course || '라운딩') : '장소 · 날짜 미정';
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={() => onPress?.(roundupId)} style={box}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: fs(20) }}>
         <Icon name="flag" size={fs(13)} color={C.butter} strokeWidth={1.9} />
         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff', marginLeft: 6, flexShrink: 1 }} numberOfLines={1}>{title}</Text>
         {post.type === 'fixed' && !!post.date && (
