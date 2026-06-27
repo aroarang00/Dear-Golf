@@ -347,12 +347,17 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
               </View>
             )}
 
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8, lineHeight: 17, textAlign: 'center' }}>
-              {(isRoundup || isSchedule || isInvite) && onShareLink
-                ? '‘공유하기’는 카드 이미지만 전송돼요(링크 없음).\n받는 분이 바로 열어볼 수 있게 ‘링크 공유’도 함께 보내주세요.'
-                : (isRoundup || isSchedule || isInvite || isRound)
-                  ? '카드 이미지로 공유돼요.\nDear Golf 마크가 들어가요.'
-                  : '투명 배경 PNG로 저장돼요.\n카드에 Dear Golf 마크가 들어가요.'}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: isRoundup && moment?.scope !== 'all' ? C.navy : C.warmGray, marginTop: 8, lineHeight: fs(17), textAlign: 'center' }}>
+              {/* 모집은 버튼명이 동작을 다 말하므로(링크 공유/디엠/크루) 안내 자리엔 '실질 정보' — 친구공개 가시성 제약을 넣는다. */}
+              {isRoundup
+                ? (moment?.scope !== 'all'
+                    ? '친구공개 모집이에요. 주최자와 친구가 아닌 분껜 공유해도 모집이 보이지 않아요 —\n먼저 친구를 맺어야 모집을 보고 참여할 수 있어요.'
+                    : '누구나 볼 수 있는 모집이에요. 자유롭게 공유하세요.')
+                : (isSchedule || isInvite) && onShareLink
+                  ? '‘공유하기’는 카드 이미지만 전송돼요(링크 없음).\n받는 분이 바로 열어볼 수 있게 ‘링크 공유’도 함께 보내주세요.'
+                  : (isSchedule || isInvite || isRound)
+                    ? '카드 이미지로 공유돼요.\nDear Golf 마크가 들어가요.'
+                    : '투명 배경 PNG로 저장돼요.\n카드에 Dear Golf 마크가 들어가요.'}
             </Text>
 
             {/* 공유 옵션 — 종류별 순서. 링크 공유가 가장 중요(받는 분 바로 열람·설치 funnel)라 링크 있는 종류는 최상단.
@@ -360,17 +365,17 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 · 라운딩기록(링크 없음): 공유하기 → 디엠 공유하기 → 이미지 저장
                 · 친구 초대(DM 없음): 공유하기 → 링크 공유 → 이미지 저장
                 카카오톡 공유는 딥링크 미연동으로 보류([[invite-deeplink-system]]). */}
-            <View style={{ gap: 10, marginTop: 22 }}>
+            <View style={{ gap: 8, marginTop: 16 }}>
               {(() => {
                 const disabled = sharing || saving;
                 const btn = (key, icon, label, bg, fg) => (
                   <TouchableOpacity key={key} activeOpacity={0.85}
                     onPress={() => { if (key === 'link') onShareLink?.(); else if (key === 'dm') openDmPicker(); else if (key === 'crew') openCrewPicker(); else handleOption(key); }}
                     disabled={disabled}
-                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      backgroundColor: bg, borderRadius: 12, height: 48, opacity: disabled ? 0.5 : 1 }}>
-                    <Text style={{ fontSize: fs(16) }}>{icon}</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: fg }}>{label}</Text>
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+                      backgroundColor: bg, borderRadius: 11, height: 44, opacity: disabled ? 0.5 : 1 }}>
+                    <Text style={{ fontSize: fs(15) }}>{icon}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: fg }}>{label}</Text>
                   </TouchableOpacity>
                 );
                 const link = onShareLink ? btn('link', '🔗', '링크 공유', C.navy, '#fff') : null;
