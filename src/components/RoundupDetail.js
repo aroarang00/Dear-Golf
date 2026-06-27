@@ -405,6 +405,19 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
       ],
     });
   };
+  // 확정 후 결원으로 빈자리가 열렸을 때 — 원치 않는 입장 차단: 현재 인원으로 잠금.
+  //   onConfirm(=closeRoundup) 재호출 시 joined<cap이라 closedShort=true로 설정돼 빈자리(vacancy)가 닫힌다.
+  //   기존 메커니즘 재사용 — 데이터·규칙·신규 함수 0(부작용 없음: handleConfirmRoundup은 closeRoundup+낙관갱신뿐).
+  const lockSeats = () => {
+    setAlert({
+      title: '이 인원으로 마감할까요?',
+      message: '빈자리를 닫고 지금 인원으로 마감해요.\n더 이상 새 참여를 받지 않아요.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        { text: '이대로 마감', onPress: onConfirm },
+      ],
+    });
+  };
   // 인원 미달 마감 — 단체는 정원(팀*4)을 온라인으로 다 못 채울 수 있어, 남은 자리를 직접(오프라인) 채우기로 하고
   //   주최자가 이대로 확정. confirmFinalize와 동일하게 onConfirm(closed:true). 확정 뒤에도 빈자리 충원(vacancy)은
   //   열려 있어 온라인으로 더 받을 수도 있다 ([[roundup-underfilled-finalize]]).
@@ -518,10 +531,22 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
       <View>
         {post.closed ? (
           // 이미 확정됨 — closed:true. D-7 이내 참여자 취소 시 매너 -5 분기 활성 ([[roundup-penalty-policy]] §1)
+          <>
           <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#3C7D4F' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C7D4F' }}>모집 확정됨 ✓</Text>
           </View>
+          {/* 결원으로 빈자리가 열림 — 원치 않는 입장 차단: 현재 인원으로 마감(closedShort 잠금) */}
+          {vacancy && (
+            <>
+              <TouchableOpacity activeOpacity={0.85} onPress={lockSeats}
+                style={{ marginTop: 8, borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', borderWidth: 1, borderColor: C.navy, backgroundColor: C.bgSecondary }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.navy }}>이 인원으로 마감 (빈자리 닫기)</Text>
+              </TouchableOpacity>
+              <Text style={hintStyle}>결원으로 한 자리 열렸어요. 더 받지 않으려면 ‘이 인원으로 마감’을 누르세요.</Text>
+            </>
+          )}
+          </>
         ) : allFull ? (
           post.type === 'open' ? (
             // 오픈형 만석 — 일정 미정이라 확정 불가. 먼저 '모집글 수정'에서 확정형(날짜·골프장)으로 전환해야 함.
