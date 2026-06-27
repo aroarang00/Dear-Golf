@@ -7,6 +7,8 @@ import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { CrewAvatar } from './common/CrewAvatar';
 import { LinkText } from './common/LinkText';
+import { RoundupMiniCard } from './common/RoundupMiniCard';
+import { loadRoundup } from '../utils/roundup';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
@@ -256,7 +258,7 @@ function PostMedia({ media, width, onOpen, onDoubleLike, burst }) {
 
 // 피드 카드 — React.memo로 부모 UI상태(뷰어·시트·버스트 등) 변화 시 헛 리렌더 차단(콜백은 부모서 useCallback 안정화).
 //   p는 데이터(posts useMemo) 변할 때만 신원 바뀜 / burst는 이 카드만 true→그 카드만 리렌더. 라운지 PostCard memo 패턴.
-const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, onAction, onOpenViewer, onDoubleLike, onToggleLike, onOpenLikers, onComment }) {
+const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, onAction, onOpenViewer, onDoubleLike, onToggleLike, onOpenLikers, onComment, onOpenRoundup }) {
   return (
     <View style={{ backgroundColor: CARD, borderRadius: 16, marginHorizontal: 14, marginBottom: 12, padding: 13,
       shadowColor: '#1A3D52', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
@@ -280,6 +282,7 @@ const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, 
       {!!p.text && (
         <LinkText style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</LinkText>
       )}
+      {!!p.roundupId && <RoundupMiniCard roundupId={p.roundupId} onPress={onOpenRoundup} />}
       {p.media.length > 0 && (
         <View style={{ marginTop: 11 }}>
           <PostMedia media={p.media} width={width} burst={burst}
@@ -319,7 +322,7 @@ const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, 
   );
 });
 
-export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
+export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt = 0 }) {
   const { width: winW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const currentUid = useCurrentUid();
@@ -455,10 +458,42 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
       // 신호 — seenAt(마지막 본 시각) 기준. 첫 진입(seenAt=0)은 전부 NEW로 도배되지 않게 억제.
       isNew: seenAt > 0 && createdMs > seenAt && p.authorUid !== currentUid,         // 남이 올린 안 본 글
       hasNewComment: seenAt > 0 && p.authorUid === currentUid && lastCMs > seenAt && !!lcBy && lcBy !== currentUid, // 내 글에 새 댓글
+      roundupId: p.roundupId || null,   // 크루에 첨부/생성한 모집 — 미니카드 렌더
       _doc: p,
     };
     });
   }, [postDocs, display, currentUid, seenAt]);
+
+  // 진행 중인 모집 상단 고정 — 크루 게시물 중 roundupId 있는 모집을 로드해 active(미확정·미종료·티오프 전)만 헤더에 핀.
+  //   확정·만석마감·취소·티오프+5h 지나면 자동으로 핀에서 내려감(피드 글은 그대로 남음). ★early return보다 위에 둬야 hooks 누락 안 됨.
+  const pinnedRoundupIds = useMemo(() => {
+    const ids = [];
+    (postDocs || []).forEach((p) => { if (p.roundupId && !ids.includes(p.roundupId)) ids.push(p.roundupId); });
+    return ids;
+  }, [postDocs]);
+  const [roundupMap, setRoundupMap] = useState({});
+  useEffect(() => {
+    if (!pinnedRoundupIds.length) { setRoundupMap({}); return; }
+    let alive = true;
+    Promise.all(pinnedRoundupIds.map((id) => loadRoundup(id).then((r) => [id, r]).catch(() => [id, null])))
+      .then((pairs) => { if (!alive) return; const m = {}; pairs.forEach(([id, r]) => { m[id] = r; }); setRoundupMap(m); });
+    return () => { alive = false; };
+  }, [pinnedRoundupIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const activePinnedIds = useMemo(() => {
+    const now = Date.now();
+    return pinnedRoundupIds.filter((id) => {
+      const r = roundupMap[id];
+      if (!r || r.cancelledByHost || r.closed) return false;          // 미존재·취소·확정 → 핀 해제
+      if (r.type === 'open' || !r.date) return true;                  // 날짜 미정 → 항상
+      const [y, m, d] = String(r.date).split('.').map(Number);
+      const [hh, mm] = String(r.time || '07:00').split(':').map(Number);
+      const teeOff = new Date(y, m - 1, d, hh, mm).getTime();
+      return Number.isNaN(teeOff) ? true : now <= teeOff + 5 * 3600 * 1000; // 티오프+5h 지나면 해제
+    });
+  }, [pinnedRoundupIds.join(','), roundupMap]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 피드 = 게시글만(모집글 제외). 모집 카드는 상단 '진행 중인 모집' 핀에만 노출 → '모집은 모집만, 게시글은 게시글만'.
+  //   모집은 핀에서 active만 보이고, 확정·취소·티오프+5h 지나면 핀에서 내려가 사라짐(라운지 모집과 동일 lifecycle).
+  const feedPosts = useMemo(() => posts.filter((p) => !p.roundupId), [posts]);
 
   // 피드 사진 미리 받기 — 첫 화면 몇 장만. 전체 원본을 한꺼번에 prefetch하면 사진 많은 크루 진입 시
   //   네트워크·디코드 폭주로 버벅임(가상화와 별개로 prefetch가 전량을 깨움). 6장으로 제한(2026-06-24 성능).
@@ -565,7 +600,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
 
   if (composeOpen) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
-      <CrewComposeScreen crew={crew} canNotice={iAmStaff} onClose={() => setComposeOpen(false)} />
+      <CrewComposeScreen crew={crew} canNotice={iAmStaff} memberUids={memberUids} crewName={crewDoc?.name || crew?.name || ''}
+        onClose={() => setComposeOpen(false)} onOpenRoundup={onOpenRoundup} />
     </Animated.View>
   );
   if (editingPost) return (
@@ -595,8 +631,13 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const loading = postDocs === null;
 
   // ── FlatList 렌더 헬퍼 (가상화: 보이는 것만 마운트→이미지도 보이는 것만 로드) ──
-  // 헤더 = 공지(있을 때만). 토글 바는 리스트 밖 고정.
-  const renderHeader = () => (!notice ? null : (
+  // 헤더 = 진행 중 모집(핀) + 공지(있을 때만). 토글 바는 리스트 밖 고정.
+  const renderHeader = () => {
+    const hasPinned = activePinnedIds.length > 0;
+    if (!hasPinned && !notice) return null;
+    return (
+    <View>
+      {!!notice && (
     <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: noticeLineCount === 1 ? 'center' : 'flex-start', backgroundColor: '#F5ECD6', borderRadius: 12,
         paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: 'rgba(150,120,60,0.25)', borderLeftWidth: 3, borderLeftColor: SAGE_DEEP }}>
@@ -627,7 +668,18 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
         )}
       </View>
     </View>
-  ));
+      )}
+      {hasPinned && (
+        <View style={{ paddingHorizontal: 14, paddingTop: notice ? 0 : 4, paddingBottom: 8 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(11.5), color: SAGE_DEEP, marginLeft: 2 }}>진행 중인 모집</Text>
+          {activePinnedIds.map((id) => (
+            <RoundupMiniCard key={id} roundupId={id} post={roundupMap[id]} onPress={onOpenRoundup} />
+          ))}
+        </View>
+      )}
+    </View>
+    );
+  };
 
   const renderEmpty = () => (loading ? (
     <View style={{ paddingTop: 50, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
@@ -649,7 +701,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const renderFeedItem = ({ item: p }) => (
     <PostCard p={p} burst={burstId === p.id} width={winW - 54}
       onOpenProfile={openProfile} onAction={openPostAction} onOpenViewer={openViewerAt}
-      onDoubleLike={likeOnDouble} onToggleLike={toggleLike} onOpenLikers={openLikers} onComment={openComment} />
+      onDoubleLike={likeOnDouble} onToggleLike={toggleLike} onOpenLikers={openLikers} onComment={openComment}
+      onOpenRoundup={onOpenRoundup} />
   );
 
   // 갤러리 타일 — memo GalleryTile(부모 churn에 헛 리렌더 X). onOpen=안정 콜백. 간격은 columnWrapperStyle gap이 처리.
@@ -736,7 +789,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
       <FlatList
         key={tab}
         ref={scrollRef}
-        data={loading ? [] : (tab === 'feed' ? posts : tiles)}
+        data={loading ? [] : (tab === 'feed' ? feedPosts : tiles)}
         numColumns={tab === 'feed' ? 1 : COLS}
         keyExtractor={(item) => (tab === 'feed' ? item.id : item.key)}
         renderItem={tab === 'feed' ? renderFeedItem : renderTile}

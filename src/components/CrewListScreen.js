@@ -90,7 +90,7 @@ function AvatarStack({ avatars, total, max = 4 }) {
   );
 }
 
-export function CrewListScreen({ onClose, onOpenDM }) {
+export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup }) {
   useScreenBack(true, onClose);
   const currentUid = useCurrentUid();
 
@@ -287,7 +287,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
         onClose={() => { markCrewSeen(openCrew.id); markCrewSeenAt(openCrew.id);
           storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => setMutedMap(m || {}));     // 멤버 화면서 토글했을 수 있어 재로드
           storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => setAliasMap(a || {}));   // 멤버 화면서 별명 바꿨을 수 있어 재로드
-          setOpenCrew(null); }} onOpenDM={onOpenDM} />
+          setOpenCrew(null); }} onOpenDM={onOpenDM} onOpenRoundup={onOpenRoundup} />
     </Animated.View>
   );
   if (createOpen) return (

@@ -13,6 +13,8 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { uploadRoundMedia } from '../utils/roundMedia';
 import { addCrewPost, editCrewPost, setCrewNotice } from '../utils/crews';
+import { createRoundup } from '../utils/roundup';
+import { RoundupCreateModal } from './RoundupCreateModal';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { showAppAlert } from './AppAlert';
 import { CropEditorModal } from './common/CropEditorModal';
@@ -30,6 +32,7 @@ const CARD  = '#FFFFFF';
 const SAGE  = '#8FB06B';
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
+const BURGUNDY = '#6B1E2A';   // 모집 첨부 액센트(라운지 톤)
 const MAX_MEDIA = 10;
 const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
@@ -103,7 +106,7 @@ function PreviewCard({ text, media, name, avatarUri, width }) {
   );
 }
 
-export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = false, onClose }) {
+export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = false, memberUids = [], crewName = '', onClose, onOpenRoundup }) {
   useScreenBack(true, () => { if (previewing) { setPreviewing(false); return; } onClose(); });
   const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
   const editingNotice = noticeText != null;       // 공지 수정 모드(텍스트만, 토글·미디어 숨김)
@@ -114,6 +117,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const [isNotice, setIsNotice] = useState(editingNotice); // 공지 수정 모드면 강제 공지(토글 숨김)
   const [err, setErr] = useState('');
   const [posting, setPosting] = useState(false);
+  const [showRoundupModal, setShowRoundupModal] = useState(false);
   const [cropTarget, setCropTarget] = useState(null);   // 크롭 대상 { uri, index } — 탭한 사진을 그 자리에서 교체
   const [previewing, setPreviewing] = useState(false);  // 게시 전 미리보기 모드(피드 카드 모습)
   const [myName, setMyName] = useState('');             // 미리보기 작성자 표시(내 닉네임)
@@ -256,19 +260,26 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const limit = isNotice ? MAX_NOTICE : MAX_TEXT;
   const canPost = isNotice ? text.trim().length > 0 : (text.trim().length > 0 || media.length > 0);
 
-  const submit = async () => {
+  // rPayload 있으면 '모집글'(모달 '크루에 올리기'가 넘김) — 생성+게시 한 번에. 없으면 일반 글.
+  const submit = async (rPayload) => {
+    const roundup = rPayload || null;
     const body = text.trim();
-    if (!canPost || posting) return;
+    if (posting) return;
+    if (!roundup && !canPost) return;   // 일반글은 내용 필요, 모집글은 항상 게시 가능
     if (body && containsProfanity(body)) { setErr(PROFANITY_BLOCK_MESSAGE); return; }
     if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
     if (!crewId) return;
     setPosting(true);
     try {
-      const up = media.length ? await uploadRoundMedia(currentUid, media, { maxWidth: 800, thumb: 400 }) : [];   // 크루 피드 사진=800px(뷰어 확대용) + 400px 썸네일(thumb, 리스트 로딩↑). 기존 https는 멱등 스킵
+      const up = (!roundup && media.length) ? await uploadRoundMedia(currentUid, media, { maxWidth: 800, thumb: 400 }) : [];   // 크루 피드 사진=800px(뷰어 확대용) + 400px 썸네일. 모집글은 카드만이라 미디어 업로드 스킵
       if (editing) {
         await editCrewPost(crewId, post.id, { text: body, media: up });
       } else if (isNotice) {
         await setCrewNotice(crewId, body, currentUid);
+      } else if (roundup) {
+        // 모집글 = 카드만(텍스트·미디어 없이). 라운지 모집과 동일하게 끝나면(확정·티오프+5h) 사라짐. 게시글과 분리.
+        const r = await createRoundup({ ...roundup, authorName: myName || '' });
+        await addCrewPost(crewId, { authorUid: currentUid, text: '', media: [], roundupId: r?.id || null });
       } else {
         await addCrewPost(crewId, { authorUid: currentUid, text: body, media: up });
         clearCrewDraft();   // 게시 성공 → 임시저장 삭제
@@ -302,7 +313,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: SAGE_DEEP }}>미리보기</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={submit} disabled={!canPost || posting} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+        <TouchableOpacity onPress={() => submit()} disabled={!canPost || posting} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           style={{ backgroundColor: (canPost && !posting) ? SAGE_DEEP : 'rgba(94,126,66,0.25)', borderRadius: 9, paddingHorizontal: 16, paddingVertical: 7, minWidth: 56, alignItems: 'center' }}>
           {posting ? <ActivityIndicator size="small" color="#fff" />
                    : <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>{(editing || editingNotice) ? '완료' : '게시'}</Text>}
@@ -344,6 +355,15 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SUB }}>지우고 새로</Text>
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* 라운딩 모집 만들기 — 입력박스 위(새 글에서만). 모달 '크루에 올리기' 한 번에 모집 생성+게시 */}
+          {isNewPost && (
+            <TouchableOpacity onPress={() => setShowRoundupModal(true)} activeOpacity={0.88}
+              style={{ alignItems: 'center', justifyContent: 'center', marginTop: 12,
+                backgroundColor: BURGUNDY, borderRadius: 12, paddingVertical: 13 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', letterSpacing: 0.3 }}>라운딩 모집 만들기</Text>
+            </TouchableOpacity>
           )}
 
           {/* 글 */}
@@ -446,6 +466,11 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
       <CropEditorModal visible={!!cropTarget} uri={cropTarget?.uri} aspect="square"
         onSave={(uri) => { applyCrop(uri); setCropTarget(null); }}
         onClose={() => setCropTarget(null)} />
+      {/* 크루 모집 만들기 — 공개범위=이 크루 멤버 고정(crewAudience). onCreate는 payload만 받아두고 제출 시 생성. 열 때만 마운트 */}
+      {showRoundupModal && (
+        <RoundupCreateModal visible onClose={() => setShowRoundupModal(false)}
+          onCreate={(payload) => submit(payload)} crewAudience={memberUids} crewName={crewName} />
+      )}
     </SafeAreaView>
     </KeyboardProvider>
     </SafeAreaProvider>
