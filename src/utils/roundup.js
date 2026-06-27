@@ -201,7 +201,10 @@ export async function updateRoundupTeamPlan(postId, { teamPlan, teamNotice, team
     : [];
   const patch = { teamPlan: plan, updatedAt: serverTimestamp() };
   if (teamNotice !== undefined) patch.teamNotice = (teamNotice || '').trim(); // 맨 위 주최자 메모(공지)
-  if (teamPlanDone !== undefined) patch.teamPlanDone = !!teamPlanDone; // 주최자 '편성 완료' 표식(작성자 전체수정 허용 — 규칙 변경 0)
+  if (teamPlanDone !== undefined) {
+    patch.teamPlanDone = !!teamPlanDone; // 주최자 '편성 완료' 표식(작성자 전체수정 허용 — 규칙 변경 0)
+    if (teamPlanDone) patch.teamPlannedAt = serverTimestamp(); // 완료 시각 — 참여자 '미열람 새 편성' 맥동 판단용
+  }
   const firstTee = plan[0]?.flights?.[0]?.tee;
   if (firstTee) patch.time = firstTee; // 첫 조(첫 코스 첫 티오프) = 집결/트리거 시간
   await updateDoc(doc(db, COLLECTION, postId), patch);

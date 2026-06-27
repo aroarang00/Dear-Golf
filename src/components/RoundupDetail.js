@@ -19,6 +19,8 @@ import { shareRoundup } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
 import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { isTeamPlanFilled } from '../utils/roundup';
+import { AttentionMotion } from './common/AttentionMotion';   // 편성완료 미열람 맥동
+import { storage, STORAGE_KEYS } from '../utils/storage';     // 단체팀 열람 시각(맥동 판단)
 import { loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { showToast } from './AppToast';
 
@@ -188,6 +190,23 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const [kbHeight, setKbHeight] = useState(0);
   const [shareCardOpen, setShareCardOpen] = useState(false); // 모집 공유 — 이미지/링크 선택 모달(ShareMomentModal)
   const [teamOpen, setTeamOpen] = useState(false);           // 단체팀 화면(조 편성·티오프) — 내부 중첩 Modal([[ios-modal-stacking]])
+  const [teamSeenMs, setTeamSeenMs] = useState(0);           // 이 모집 단체팀 마지막 열람 시각(로컬) — 편성완료 미열람 맥동 판단
+  // 단체팀 열람 시각 로드 — 모집 바뀔 때
+  useEffect(() => {
+    if (!visible || !post?.id) return;
+    let alive = true;
+    storage.load(STORAGE_KEYS.teamSeenAt, {}).then((m) => { if (alive) setTeamSeenMs((m && m[post.id]) || 0); }).catch(() => {});
+    return () => { alive = false; };
+  }, [visible, post?.id]);
+  // 단체팀 열기 — 열람 시각 기록(맥동 정지) 후 화면 오픈
+  const openTeam = React.useCallback(() => {
+    const id = post?.id;
+    setTeamOpen(true);
+    if (!id) return;
+    const now = Date.now();
+    setTeamSeenMs(now);
+    storage.load(STORAGE_KEYS.teamSeenAt, {}).then((m) => storage.save(STORAGE_KEYS.teamSeenAt, { ...(m || {}), [id]: now })).catch(() => {});
+  }, [post?.id]);
   // 안드(엣지투엣지): 키보드가 창을 리사이즈하지 않고 콘텐츠 위로 떠서 댓글 입력칸이 가려짐.
   // 포커스된 입력칸을 키보드 위로 직접 스크롤. (iOS는 automaticallyAdjustKeyboardInsets가 처리)
   const scrollCommentIntoView = () => {
@@ -746,21 +765,26 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
 
               {/* 단체팀 — 조 편성·팀별 티오프 화면. 단체 모집 + 참여자(주최자·확정자)만 노출 ([[event-model]]) */}
               {isTeam && (isMine || joined) && (() => {
-                // 조 편성 입력 여부 배지 — 주최자가 입력 전인지(앰버 '편성 전') / 입력했는지(그린 '✓ 편성 완료')
-                //   한눈에. 빈 기본값과 실제 편성을 구분하는 isTeamPlanFilled로 판정 ([[event-model]]).
-                const teamFilled = isTeamPlanFilled(post);
+                // 배지 — 주최자가 '편성 완료'를 명시(teamPlanDone)하면 그린 '✓ 편성 완료', 아니면 앰버 '편성 전'.
+                //   옛 데이터(완료 버튼 전 입력분) 호환 위해 isTeamPlanFilled도 완료로 인정 ([[event-model]]).
+                const teamDone = !!post.teamPlanDone || isTeamPlanFilled(post);
+                // 맥동 — 참여자(비주최자)가 '새로 완료된 편성'을 아직 안 봤을 때만 1회 주목(열면 정지). 주최자엔 안 띔.
+                const teamPlannedMs = post.teamPlannedAt?.toMillis ? post.teamPlannedAt.toMillis() : 0;
+                const teamUnseen = !isMine && !!post.teamPlanDone && teamPlannedMs > teamSeenMs;
                 return (
-                <TouchableOpacity onPress={() => setTeamOpen(true)} activeOpacity={0.85}
+                <AttentionMotion type="pulse" enabled={teamUnseen}>
+                <TouchableOpacity onPress={openTeam} activeOpacity={0.85}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
                     marginBottom: _and ? 8 : 10, borderRadius: 10, paddingVertical: _and ? 9 : 11, paddingHorizontal: 14, backgroundColor: C.navy }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.butter }}>🗂 단체팀 · 조 편성 · 티오프</Text>
                   <View style={{ borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3,
-                    backgroundColor: teamFilled ? '#6B8B5E' : '#E8C77E' }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: teamFilled ? '#fff' : '#5A4500' }}>
-                      {teamFilled ? '✓ 편성 완료' : '편성 전'}
+                    backgroundColor: teamDone ? '#6B8B5E' : '#E8C77E' }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: teamDone ? '#fff' : '#5A4500' }}>
+                      {teamDone ? '✓ 편성 완료' : '편성 전'}
                     </Text>
                   </View>
                 </TouchableOpacity>
+                </AttentionMotion>
                 );
               })()}
 
