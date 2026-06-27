@@ -717,6 +717,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('focus', () => {
       storage.load(STORAGE_KEYS.roundupHidden, {}).then(h => setHidden(h || {})).catch(() => {});
+      // 별명·그룹 재로드 — 다른 화면에서 친구 별명(customName)을 바꿔도 라운지(내 모집글 등)에 바로 반영.
+      //   기존엔 마운트 1회만 로드(useEffect [])라 별명 변경이 앱 재시작 전엔 안 보였음.
+      loadFriendData().then(fd => { setFriendGroups(fd.friendGroups); setFriendMeta(fd.friendMeta); }).catch(() => {});
     });
     return unsub;
   }, [navigation]);
