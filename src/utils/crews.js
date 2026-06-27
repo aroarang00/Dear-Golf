@@ -59,6 +59,17 @@ export function subscribeMyCrews(uid, cb) {
   }, (e) => { if (__DEV__) console.warn('[crews] subscribeMyCrews', e?.message); cb([]); });
 }
 
+// ── 내 크루 1회 조회 (공유 시트 등 단발성 — 구독 불필요한 곳) ──
+export async function loadMyCrews(uid) {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(query(collection(db, COL), where('memberUids', 'array-contains', uid)));
+    const list = [];
+    snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+    return list;
+  } catch (e) { if (__DEV__) console.warn('[crews] loadMyCrews', e?.message); return []; }
+}
+
 // ── 내게 온 초대 구독 (audience, 미수락·미거절) ──
 export function subscribeCrewInvites(uid, cb) {
   if (!uid) { cb([]); return () => {}; }
@@ -187,14 +198,18 @@ export async function setCrewNotice(crewId, notice, uid) {
 }
 
 // ── 게시물 ──
-export async function addCrewPost(crewId, { authorUid, text = '', media = [], roundupId = null }) {
+export async function addCrewPost(crewId, { authorUid, text = '', media = [], roundupId = null, roundupHost = null, roundupShare = false }) {
   if (!crewId || !authorUid) return null;
   // 글 생성 + 최근활동/postCount를 한 배치로 원자화 — 분리 시 메타 갱신 실패로 postCount가 안 올라
   //   NEW 신호(postCount>seen)가 글을 놓치던 드리프트 방지. lastPostBy=작성자 → 내 글은 새 글 표시 제외.
   const ref = doc(collection(db, COL, crewId, 'posts'));
   const batch = writeBatch(db);
   const data = { authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, likedBy: [], createdAt: serverTimestamp() };
-  if (roundupId) data.roundupId = roundupId;   // 크루에 첨부/생성한 모집(있을 때만) — 피드에 미니카드로 렌더
+  if (roundupId) {
+    data.roundupId = roundupId;                 // 크루에 첨부/생성한 모집(있을 때만) — 미니카드로 렌더
+    if (roundupHost) data.roundupHost = roundupHost; // 주최자 uid — 비친구라 모집을 못 읽을 때 '주최자와 친구 맺기' 안내 타겟
+    if (roundupShare) data.roundupShare = true; // true=라운지 모집 공유(피드 광고 글), 없음=크루서 만든 모집(상단 핀)
+  }
   batch.set(ref, data);
   batch.update(doc(db, COL, crewId), { postCount: increment(1), lastPostAt: serverTimestamp(), lastPostBy: authorUid, updatedAt: serverTimestamp() });
   await batch.commit();
