@@ -227,8 +227,8 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 13, paddingVertical: 10, backgroundColor: '#EDF1F4', borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <Icon name="flag" size={fs(16)} color={C.navy} strokeWidth={1.9} />
                   {canEdit ? (
-                    <TextInput value={g.course} onChangeText={(v) => setCourse(gi, v)} placeholder="세부코스 (예: 동코스)" placeholderTextColor={C.warmGrayLight}
-                      maxLength={20} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.navy, padding: 0 }} />
+                    <TextInput value={g.course} onChangeText={(v) => setCourse(gi, v)} placeholder="세부코스 직접 입력 (예: 동코스)" placeholderTextColor={C.warmGrayLight}
+                      maxLength={20} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.navy, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.warmGrayLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: Platform.OS === 'android' ? 5 : 7 }} />
                   ) : (
                     <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.navy }}>{g.course || '세부코스 미정'}</Text>
                   )}
@@ -332,6 +332,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   );
 }
 
-const INP = { borderWidth: 1, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 11, fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal, backgroundColor: C.bgPrimary };
+// 입력칸 — 흰 배경 + 또렷한 테두리로 '입력칸'임이 분명하게(시트=크림/카드=흰색 양쪽에서 구분되게 테두리는 진하게)
+const INP = { borderWidth: 1, borderColor: C.warmGrayLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 11, fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal, backgroundColor: '#FFFFFF' };
 const TEE_BTN = { borderWidth: 1, borderColor: C.navy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 };
 const TEE_BTN_TXT = { fontFamily: F.sysSb, fontSize: fs(12), color: C.navy };
