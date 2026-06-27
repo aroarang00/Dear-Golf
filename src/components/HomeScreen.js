@@ -136,10 +136,17 @@ export function HomeScreen({ navigation, route }) {
   const crewBack = useRef(null);   // 크루 모달 내부 가장 깊은 화면의 백 핸들러(다단계 뒤로가기)
   const [crewDmChat, setCrewDmChat] = useState(null); // 크루에서 연 DM { uid, name, avatar } — 닫으면 크루로 복귀(DM 목록 안 거침)
   const [crewReturnId, setCrewReturnId] = useState(null); // 라운지서 모집 닫고 복귀할 크루 id — CrewListScreen이 그 앨범 다시 열게
+  const [crewModalAnim, setCrewModalAnim] = useState('slide'); // 크루 모달 등장 애니 — 복귀 땐 안드만 'fade'(슬라이드 펼쳐짐 대신 은은하게 떠오름, 무거운 마운트와 경합 줄임)
   // 크루서 연 모집을 라운지서 닫고 돌아오면(RoundupTab가 reopenCrew 실어 navigate) 크루 모달을 다시 연다 —
   //   크루는 홈 아이콘이라 복귀 동선이 길던 것 단축. 모달 숨김 시 openCrew(앨범)가 날아가므로 crewReturnId로 그 앨범 복원.
+  //   ★복귀 크루 id는 '복귀 시점'에 여기서 세팅 — 카드 탭 때 미리 세팅하면 소비 effect가 모달 닫힘과 경합해 들쭉날쭉(목록/앨범).
   useEffect(() => {
-    if (route?.params?.reopenCrew) { setCrewOpen(true); navigation?.setParams?.({ reopenCrew: undefined }); }
+    if (route?.params?.reopenCrew) {
+      setCrewReturnId(route?.params?.reopenCrewId || null);
+      setCrewModalAnim(Platform.OS === 'android' ? 'fade' : 'slide');
+      setCrewOpen(true);
+      navigation?.setParams?.({ reopenCrew: undefined, reopenCrewId: undefined });
+    }
   }, [route?.params?.reopenCrew]); // eslint-disable-line react-hooks/exhaustive-deps
   const [dmUnread, setDmUnread] = useState(0);
   // DM 안읽음 있을 때 버튼 '전체'가 진동하듯 좌우로 떨림(2초마다 1회 buzz). 원은 회전대칭이라 rotate면 숫자만 도는 것처럼
@@ -280,6 +287,7 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => {
     if (route?.params?.openCrew) {
       setCrewReturnId(null);   // 푸시로 여는 건 목록부터 — 남아있던 복귀 id로 엉뚱한 앨범 열리지 않게
+      setCrewModalAnim('slide');
       setCrewOpen(true);
       navigation.setParams({ openCrew: undefined });
     }
@@ -1034,7 +1042,7 @@ export function HomeScreen({ navigation, route }) {
           </TouchableOpacity>
 
           {/* 크루 — 레일 2번. 초대 있을 때만 글로우(라디오 핑). */}
-          <TouchableOpacity onPress={() => { setCrewReturnId(null); setCrewOpen(true); }} activeOpacity={0.8}
+          <TouchableOpacity onPress={() => { setCrewReturnId(null); setCrewModalAnim('slide'); setCrewOpen(true); }} activeOpacity={0.8}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
             {/* 초대 글로우(라디오 핑) — 평상시 정적, 초대 있을 때만 울림 */}
@@ -1695,14 +1703,14 @@ export function HomeScreen({ navigation, route }) {
       </Modal>
 
       {/* 크루(친구 소수그룹 공유앨범) — 홈 우상단 DM 아래 진입. 단일 Modal서 리스트↔앨범 전환(앨범은 이어서 구현, docs/crew-space-design.md) */}
-      <Modal visible={crewOpen} transparent animationType="slide"
+      <Modal visible={crewOpen} transparent animationType={crewModalAnim}
         statusBarTranslucent={Platform.OS === 'android'}
         onRequestClose={() => { if (crewBack.current) crewBack.current(); else setCrewOpen(false); }}>
         <ModalBackContext.Provider value={crewBack}>
           <CrewListScreen onClose={() => setCrewOpen(false)}
             reopenCrewId={crewReturnId} onReopenConsumed={() => setCrewReturnId(null)}
             onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDmChat({ uid, name, avatar }); }}
-            onOpenRoundup={(id, hostUid, crewId) => { if (id) { setCrewReturnId(crewId || null); setCrewOpen(false); navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crew' }); } }} />
+            onOpenRoundup={(id, hostUid, crewId) => { if (id) { setCrewOpen(false); navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crew', openPostCrewId: crewId || undefined }); } }} />
         </ModalBackContext.Provider>
 
         {/* 크루에서 연 DM — 크루 Modal '안에' 중첩. iOS는 형제 Modal 2개를 동시에 못 띄워(크루 위 DM이 안 떴음) →

@@ -573,9 +573,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     const pid = route?.params?.openPostId;
     if (!pid) return;
     pendingHostRef.current = route?.params?.openPostHost || null; // 딥링크 주최자 uid(있으면) — 비친구 안내용
-    detailReturnRef.current = route?.params?.openPostReturn === 'crew' ? pid : null; // 크루서 연 모집이면 닫을 때 크루로 복귀
+    // 크루서 연 모집이면 닫을 때 그 크루로 복귀 — 어느 크루였는지(crewId)도 같이 들고 있다가 닫을 때 되돌려 보낸다.
+    detailReturnRef.current = route?.params?.openPostReturn === 'crew' ? { id: pid, crewId: route?.params?.openPostCrewId || null } : null;
     setDetailId(pid);
-    navigation?.setParams?.({ openPostId: undefined, openPostHost: undefined, openPostReturn: undefined });
+    navigation?.setParams?.({ openPostId: undefined, openPostHost: undefined, openPostReturn: undefined, openPostCrewId: undefined });
   }, [route?.params?.openPostId]);
   // 상세가 닫히면(차단·삭제 등 onClose 외 경로 포함) 복귀 플래그 정리 — 다음에 라운지서 직접 연 모집에 잘못 새지 않게.
   useEffect(() => { if (!detailId) detailReturnRef.current = null; }, [detailId]);
@@ -2334,11 +2335,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         commentTotal={detailId ? (commentsTotal[detailId] || 0) : 0}
         onLoadOlderComments={() => detailId && handleLoadOlderComments(detailId)}
         onClose={() => {
-          // 크루서 연 모집(detailReturnRef==현재 id)이면 닫을 때 홈으로 돌아가 크루를 다시 연다 — '모집 닫으면 크루 그 자리'.
-          const backToCrew = detailReturnRef.current && detailReturnRef.current === detailId;
+          // 크루서 연 모집(detailReturnRef.id==현재 id)이면 닫을 때 홈으로 돌아가 그 크루를 다시 연다 — '모집 닫으면 크루 그 자리'.
+          const ret = detailReturnRef.current;
+          const backToCrew = ret && ret.id === detailId;
           detailReturnRef.current = null;
           setDetailId(null);
-          if (backToCrew) navigation?.navigate?.(ROUTES.HOME, { reopenCrew: Date.now() });
+          if (backToCrew) navigation?.navigate?.(ROUTES.HOME, { reopenCrew: Date.now(), reopenCrewId: ret.crewId || undefined });
         }}
         onApply={(anonymous) => detailId ? performJoinOrApply(detailId, { anonymous: !!anonymous }) : undefined}
         onWaitlist={(anonymous) => detailId && handleWaitlist(detailId, !!anonymous)}
