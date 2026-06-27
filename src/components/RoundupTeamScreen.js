@@ -181,7 +181,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FBF0DA', borderWidth: 0.5, borderColor: '#E0C271', borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8, marginBottom: 9 }}>
                     <Icon name="flag" size={fs(14)} color="#B5852A" strokeWidth={2} />
                     <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: '#8B6914', lineHeight: 17 }}>
-                      조 미배정 {unassignedCount}명 — 아래 조 편성의 멤버 칸에 넣어주세요{editMode ? '.' : ' (눌러서 수정).'}
+                      조 미배정 {unassignedCount}명 — 아래 조 편성의 멤버 칸에 이름을 직접 입력해주세요{editMode ? '.' : ' (눌러서 수정).'}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -282,7 +282,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                             </View>
                           )}
                           <TextInput value={f.note} onChangeText={(v) => setFlight(gi, fi, 'note', v)} multiline
-                            placeholder="멤버 (예: 홍길동·김철수·이영희·박민수)" placeholderTextColor={C.warmGrayLight}
+                            placeholder="멤버 이름 직접 입력 (예: 홍길동·김철수·이영희·박민수)" placeholderTextColor={C.warmGrayLight}
                             style={[INP, { marginTop: 7, minHeight: 40, textAlignVertical: 'top' }]} />
                         </>
                       ) : (
