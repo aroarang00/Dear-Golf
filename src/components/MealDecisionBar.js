@@ -160,6 +160,17 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     } catch { /* noop */ }
     finally { setLoading(false); }
   };
+  // 빈 결과/로딩 실패 재시도 — 콜드스타트 좌표 레이스나 카카오 일시 오류로 리스트가 비는 경우.
+  //   키워드가 있으면 키워드 재검색, 없으면 주변(좌표 재해석 포함) 다시 로드.
+  const retryLoad = () => {
+    const q = kw.trim();
+    if (q) {
+      setLoading(true);
+      searchRestaurantsByKeyword(q, coord?.y, coord?.x).then(setList).catch(() => {}).finally(() => setLoading(false));
+    } else {
+      loadNearby();
+    }
+  };
   // 식당 고르기 시작 — 해당 슬롯으로 picking 진입. 변경이면 기존 메모 프리필.
   const startPick = (slot, existing) => { setPickSlot(slot); setMemo(existing?.note || ''); setKw(''); setMemoEdit(null); };
   // ★pickSlot=null로 연다 — 시트는 항상 결정 카드(또는 미정이면 482줄이 picker)만 보여주고,
@@ -374,9 +385,16 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
           {loading ? (
             <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
           ) : list.length === 0 ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, paddingVertical: 24, textAlign: 'center', paddingHorizontal: 18, lineHeight: fs(19) }}>
-              {coord ? '주변 식당을 찾지 못했어요\n이름으로 검색해보세요' : '코스 위치를 찾지 못해\n이름으로만 검색할 수 있어요'}
-            </Text>
+            <View style={{ paddingVertical: 24, alignItems: 'center', paddingHorizontal: 18 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', lineHeight: fs(19) }}>
+                {coord ? '주변 식당을 찾지 못했어요\n이름으로 검색해보세요' : '코스 위치를 찾지 못해\n이름으로만 검색할 수 있어요'}
+              </Text>
+              {/* 다시 시도 — 좌표/리스트 로딩이 일시 실패(콜드스타트·카카오 오류)했을 때 재시도 경로 제공 */}
+              <TouchableOpacity onPress={retryLoad} activeOpacity={0.8}
+                style={{ marginTop: 12, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 9, borderWidth: 1, borderColor: C.burgundy }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>↻ 다시 시도</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             list.map((r) => (
               <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
