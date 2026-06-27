@@ -12,7 +12,6 @@ import { getSubCoursesForCourse } from '../utils/golfCourses';   // 세부코스
 import { SubCourseChips } from './common/SubCourseChips';
 import { anonNick } from '../utils/anonNick';
 import { showToast } from './AppToast';
-import { showAppAlert } from './AppAlert';
 
 // 단체팀 화면 — 세부코스(+) 안에 티오프(+)=조. 골프장 예약 구조(코스→티오프)와 일치, 묶임/갈림 자연 표현.
 //  맨 위 구장·날짜 히어로 + 주최자 메모(공지) + 참여자 칩(누가 있는지). 데이터는 모집글 teamPlan에만 저장(신규 컬렉션·CF·규칙 0).
@@ -121,32 +120,21 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
     return '';
   };
 
-  const doSave = async () => {
+  // 편성 완료 — 주최자가 명시(teamPlanDone=true). 미배정은 위 호박색 배너가 사전 경고하므로 별도 확인창 없이 바로 완료.
+  //   (이 화면엔 AppAlertHost가 없어 showAppAlert가 안 떠 버튼이 안 먹던 버그 → toast로 통일.)
+  const save = async () => {
     if (saving) return;
     setSaving(true);
     try {
-      // teamPlanDone=true — 주최자가 '편성 완료'를 명시(휴리스틱 추측 대신 확정 신호). 완료 배지·효과 트리거.
       await updateRoundupTeamPlan(roundupId, { teamPlan: groups, teamNotice: memo, teamPlanDone: true });
       showToast('편성 완료 🎉');
       setEditMode(false);   // 완료 후 보기 모드로
     } catch (e) {
       if (__DEV__) console.warn('[teamScreen] save fail', e?.message);
-      showAppAlert('저장에 실패했어요', '잠시 후 다시 시도해 주세요.');
+      showToast('저장에 실패했어요 · 잠시 후 다시 시도해 주세요');
     } finally {
       setSaving(false);
     }
-  };
-  // 미배정(휴리스틱)이 남았으면 소프트 확인 후 완료 — 차단은 아니고 주최자 판단에 맡김.
-  const save = () => {
-    if (saving) return;
-    if (unassignedCount > 0) {
-      showAppAlert('미배정 참여자 있음', `아직 조에 안 들어간 참여자가 ${unassignedCount}명 있어요.\n그래도 편성 완료할까요?`, [
-        { text: '취소', style: 'cancel' },
-        { text: '편성 완료', onPress: doSave },
-      ]);
-      return;
-    }
-    doSave();
   };
 
   return (
