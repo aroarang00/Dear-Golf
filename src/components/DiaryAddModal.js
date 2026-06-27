@@ -233,6 +233,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const compressed = await compressMedia(posterItems);
       const items = await persistPhotos(compressed);
       setAddPhotos(prev => [...prev, ...items].slice(0, MAX_PHOTOS));
+      // 영구 저장 실패로 드롭된 사진이 있으면 안내 — iCloud 원본 미다운로드가 흔한 원인(조용한 데이터 손실 방지)
+      if (items.length < compressed.length) {
+        setOverlay({ title: '일부 사진을 저장하지 못했어요', message: 'iCloud 사진은 기기에 원본이 없을 수 있어요.\n설정 ▸ 사진 ▸ "원본 다운로드 및 보관" 후 다시 시도하거나 다른 사진을 선택해주세요.' });
+      }
       }
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAddModal] pickPhoto failed', e?.message);
@@ -1310,7 +1314,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           uri={cropIdx !== null ? resolvePhotoUri(typeof addPhotos[cropIdx] === 'object' ? (addPhotos[cropIdx].orig || addPhotos[cropIdx].uri) : addPhotos[cropIdx]) : null}
           onClose={() => setCropIdx(null)}
           onSave={async (croppedUri) => {
-            const persisted = await persistPhoto(croppedUri);
+            let persisted;
+            try { persisted = await persistPhoto(croppedUri); }
+            catch (e) { setCropIdx(null); setOverlay({ title: '사진 저장에 실패했어요', message: '잠시 후 다시 시도해주세요.' }); return; }
             setAddPhotos(prev => {
               const next = [...prev];
               const cur = next[cropIdx];
@@ -1325,7 +1331,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           uri={editorIndex !== null ? resolvePhotoUri(typeof addPhotos[editorIndex] === 'object' ? addPhotos[editorIndex].uri : addPhotos[editorIndex]) : null}
           onClose={() => setEditorIndex(null)}
           onSave={async (newUri) => {
-            const persisted = await persistPhoto(newUri);
+            let persisted;
+            try { persisted = await persistPhoto(newUri); }
+            catch (e) { setEditorIndex(null); setOverlay({ title: '사진 저장에 실패했어요', message: '잠시 후 다시 시도해주세요.' }); return; }
             setAddPhotos(prev => {
               const next = [...prev];
               const orig = next[editorIndex];

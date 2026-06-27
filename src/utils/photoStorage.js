@@ -18,30 +18,48 @@ async function ensureDir() {
 }
 
 // ImagePicker URI → 영구 폴더에 복사하고 'dgphoto:파일명' 식별자 반환.
-// 원격 URL(http)·이미 저장된 식별자는 그대로 둔다. 복사 실패 시 원본 uri 폴백.
+// 원격 URL(http)·이미 저장된 식별자는 그대로 둔다.
+// ★복사 후 파일 크기를 검증(>0)하고 1회 재시도 — iCloud '아이폰 저장공간 최적화'로 원본이 기기에 없으면
+//   복사가 0바이트/깨진 파일로 끝나 나중에 검정/회색이 됨. 검증 실패 시 '조용한 휘발성 폴백' 대신 throw해
+//   호출부가 인지(사용자 안내·드롭)하게 한다. 예전엔 실패 시 원본 uri를 그대로 저장→캐시 비워지면 깨졌음.
 export async function persistPhoto(uri) {
   if (!uri || typeof uri !== 'string') return uri;
   if (uri.startsWith('http') || uri.startsWith(SCHEME)) return uri;
-  try {
-    await ensureDir();
-    const ext = ((uri.split('?')[0].split('.').pop()) || 'jpg').slice(0, 5);
+  await ensureDir();
+  const ext = ((uri.split('?')[0].split('.').pop()) || 'jpg').slice(0, 5);
+  for (let attempt = 0; attempt < 2; attempt++) {
     const name = `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    await FileSystem.copyAsync({ from: uri, to: PHOTO_DIR + name });
-    return SCHEME + name;
-  } catch (e) {
-    console.warn('[photoStorage] 사진 저장 실패', e?.message);
-    return uri;
+    const dest = PHOTO_DIR + name;
+    try {
+      await FileSystem.copyAsync({ from: uri, to: dest });
+      const info = await FileSystem.getInfoAsync(dest, { size: true });
+      if (info.exists && info.size > 100) return SCHEME + name;   // 정상(0바이트/깨짐 아님)
+      // 깨진 복사 — 흔적 지우고 재시도
+      try { await FileSystem.deleteAsync(dest, { idempotent: true }); } catch { /* noop */ }
+      if (__DEV__) console.warn('[photoStorage] 복사본 손상(size=', info?.size, ') 재시도', attempt);
+    } catch (e) {
+      if (__DEV__) console.warn('[photoStorage] 복사 실패 재시도', attempt, e?.message);
+    }
   }
+  // 휘발성 원본을 그대로 저장하면 나중에 깨지므로, 차라리 실패를 알린다(호출부에서 안내/드롭).
+  throw new Error('persist-failed');
 }
 
 // 사진 배열(문자열 또는 { uri, type:'video' } 객체 혼합) 전체를 영구 저장.
+// ★실패한 항목은 '드롭'(깨진 참조를 저장하지 않음) — 정상 사진은 보존. 호출부는 입력↔출력 길이 차로 누락 안내.
 export async function persistPhotos(photos) {
   if (!Array.isArray(photos)) return photos;
-  return Promise.all(photos.map(async (p) => {
-    if (typeof p === 'string') return persistPhoto(p);
-    if (p && typeof p === 'object' && p.uri) return { ...p, uri: await persistPhoto(p.uri) };
-    return p;
-  }));
+  const out = [];
+  for (const p of photos) {
+    try {
+      if (typeof p === 'string') out.push(await persistPhoto(p));
+      else if (p && typeof p === 'object' && p.uri) out.push({ ...p, uri: await persistPhoto(p.uri) });
+      else out.push(p);
+    } catch (e) {
+      if (__DEV__) console.warn('[photoStorage] persist 드롭(깨진 사진 저장 방지)', e?.message);
+    }
+  }
+  return out;
 }
 
 // 저장된 식별자 → 표시용 절대 URI.

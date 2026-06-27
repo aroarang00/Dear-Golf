@@ -409,6 +409,7 @@ function GridThumb({ item, src }) {
   const isVideo = typeof item === 'object' && item?.type === 'video';
   const poster = isVideo && item?.poster ? resolvePhotoUri(item.poster) : null;
   const [thumb, setThumb] = useState(poster || null);
+  const [broken, setBroken] = useState(false);   // 로드 실패(파일 소실·iCloud 미다운로드) → 검정 대신 안내
 
   useEffect(() => {
     if (!isVideo) return;
@@ -449,5 +450,17 @@ function GridThumb({ item, src }) {
     );
   }
 
-  return <Image source={{ uri: src }} style={dS.photoGridImg} contentFit="cover" cachePolicy="memory-disk" transition={150} />;
+  // 사진 로드 실패 — 검정/회색 대신 '다시 첨부' 안내(진단 로그로 원인 추적)
+  if (broken) {
+    return (
+      <View style={[dS.photoGridImg, { backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center', padding: 6 }]}>
+        <Text style={{ fontSize: fs(16) }}>🖼️</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGray, textAlign: 'center', marginTop: 3, lineHeight: 12 }}>
+          불러올 수 없어요{'\n'}수정에서 다시 첨부
+        </Text>
+      </View>
+    );
+  }
+  return <Image source={{ uri: src }} style={dS.photoGridImg} contentFit="cover" cachePolicy="memory-disk" transition={150}
+    onError={() => { if (__DEV__) console.warn('[diaryPhoto] 미리보기 로드 실패', src); setBroken(true); }} />;
 }

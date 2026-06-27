@@ -229,7 +229,8 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
       <Animated.View style={[{ width, height }, animStyle]}>
         {/* expo-image — 피드(FocalImage)와 디스크 캐시 공유 = 전체화면 열기 즉시. onLoad로 실비율 보고(getSize 별도 다운로드 제거) */}
         <Image source={{ uri }} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk" priority="high" recyclingKey={uri}
-          onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(uri, w / h); }} />
+          onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(uri, w / h); }}
+          onError={() => { if (__DEV__) console.warn('[photoViewer] 로드 실패', uri); }} />
       </Animated.View>
     </GestureDetector>
   );
@@ -363,7 +364,8 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
                 Math.abs(i - idx) <= 1 ? (
                   <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
                 ) : (
-                  <Image source={{ uri: resolvePhotoUri(item.uri || item) }} style={{ width: SW, height: mediaH }} contentFit="contain" cachePolicy="memory-disk" recyclingKey={resolvePhotoUri(item.uri || item)} />
+                  <Image source={{ uri: resolvePhotoUri(item.uri || item) }} style={{ width: SW, height: mediaH }} contentFit="contain" cachePolicy="memory-disk" recyclingKey={resolvePhotoUri(item.uri || item)}
+                    onError={() => { if (__DEV__) console.warn('[photoViewer] 정적 로드 실패', resolvePhotoUri(item.uri || item)); }} />
                 )
               )}
             </View>

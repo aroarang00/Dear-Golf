@@ -1068,8 +1068,10 @@ export function DiaryScreen({ route, navigation }) {
         onClose={() => setAvatarCropUri(null)}
         onSave={async (croppedUri) => {
           setAvatarCropUri(null);
-          const persisted = await persistPhoto(croppedUri); // 크롭에디터가 이미 600px·압축 출력
-          if (persisted) persistProfile({ avatarUri: persisted });
+          try {
+            const persisted = await persistPhoto(croppedUri); // 크롭에디터가 이미 600px·압축 출력
+            if (persisted) persistProfile({ avatarUri: persisted });
+          } catch (e) { if (__DEV__) console.warn('[DiaryScreen] avatar persist fail', e?.message); }
         }} />
     </View>
   );
