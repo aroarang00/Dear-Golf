@@ -187,13 +187,15 @@ export async function setCrewNotice(crewId, notice, uid) {
 }
 
 // ── 게시물 ──
-export async function addCrewPost(crewId, { authorUid, text = '', media = [] }) {
+export async function addCrewPost(crewId, { authorUid, text = '', media = [], roundupId = null }) {
   if (!crewId || !authorUid) return null;
   // 글 생성 + 최근활동/postCount를 한 배치로 원자화 — 분리 시 메타 갱신 실패로 postCount가 안 올라
   //   NEW 신호(postCount>seen)가 글을 놓치던 드리프트 방지. lastPostBy=작성자 → 내 글은 새 글 표시 제외.
   const ref = doc(collection(db, COL, crewId, 'posts'));
   const batch = writeBatch(db);
-  batch.set(ref, { authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, likedBy: [], createdAt: serverTimestamp() });
+  const data = { authorUid, text: (text || '').trim(), media: media || [], commentCount: 0, likedBy: [], createdAt: serverTimestamp() };
+  if (roundupId) data.roundupId = roundupId;   // 크루에 첨부/생성한 모집(있을 때만) — 피드에 미니카드로 렌더
+  batch.set(ref, data);
   batch.update(doc(db, COL, crewId), { postCount: increment(1), lastPostAt: serverTimestamp(), lastPostBy: authorUid, updatedAt: serverTimestamp() });
   await batch.commit();
   return ref.id;

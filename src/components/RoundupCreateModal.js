@@ -55,7 +55,7 @@ const defaultTeeOff = () => {
 // 라운딩 모집글 작성·수정 — 확정형/오픈형, 코스 검색, 날짜·시간, 인원, 공개범위, 한마디.
 // initialPost 있으면 수정 모드 (prefill + 타이틀·버튼 변경). 부모에서 id 매칭으로 분기.
 // friends — 친구지정 모달용 친구 목록 [{ id, name(닉네임), realName }]. RoundupTab이 friendships 컬렉션에서 실제 로드해 주입.
-export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = null, friends = [] }) {
+export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = null, friends = [], crewAudience = null, crewName = '' }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = useContext(UserContext);
   // 안드: 투명 Modal 안에선 키보드로 윈도우 리사이즈가 안 먹어 하단 입력창(한마디)이 가려짐.
@@ -142,6 +142,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
   // 오픈형 친구지정 모집이 만석이면, 수정은 '확정형으로 전환'만 허용 (오픈형 잠금) — 일정 확정 동선
   const isEdit = !!initialPost;
+  // 크루에서 만든 모집 — 공개범위를 '이 크루 멤버 대상 친구지정(select)'으로 고정([[crew-roundup-share-plan]] B). 없으면 일반 모드(동작 0변경).
+  const crewMode = Array.isArray(crewAudience) && crewAudience.length > 0;
   // 만석 판정 — joined 기반 통일. teamJoined는 joinRoundup이 갱신 안 해 단체 모집이 만석에 못 닿던 버그 ([[roundup-team-flat-roster]]).
   const editCapTotal = ((initialPost?.teams || 1) > 1) ? ((initialPost?.teams || 0) * 4) : 4;
   const editFull = isEdit && (initialPost.joined || 0) >= ((initialPost.capacity) || editCapTotal);
@@ -245,7 +247,17 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     const courseName = course?.name || courseQuery.trim();
     const isTeam = groupMode === 'team';
     const region = type === 'fixed' ? regionFromAddress(course?.loc) : openRegion;
-    const isPublic = scope === 'all';
+    // 크루모드 — scope=select·audienceUids=크루멤버로 강제. crewMode=false면 아래는 기존과 100% 동일.
+    const effScope = crewMode ? 'select' : scope;
+    const isSelect = effScope === 'select';
+    const isPublic = effScope === 'all';
+    const effAudience = crewMode
+      ? crewAudience
+      : (isSelect
+          ? (selectMode === 'exclude'
+              ? friends.map(f => f.id).filter(Boolean).filter(id => !selectedUids.includes(id))
+              : selectedUids)
+          : []);
     return {
       type,
       course: type === 'fixed' ? courseName : null,
@@ -260,22 +272,14 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       capacity: isTeam ? teams * 4 : (members + 1),
       companions: [],
       openTime: type === 'open' ? openTime : [],
-      scope,
-      // 친구지정 — select일 때만 저장, 그 외 null/[]
-      //   selectMode·selectedUids = 원래 선택(수정 복원용)
-      //   audienceUids = 작성 시점 해석된 실제 수신자 — include면 선택친구, exclude면 (내친구 전체 − 선택친구)
+      scope: effScope,
+      // 친구지정/크루 — select일 때만 저장. 크루모드는 audienceUids=크루 memberUids(include 고정).
       //   ([[roundup-visibility-design]] 2026-06-01: Firestore "규칙은 필터 아님" 제약 회피용 해석 필드)
-      selectMode: scope === 'select' ? selectMode : null,
-      selectedUids: scope === 'select' ? selectedUids : [],
-      audienceUids: scope === 'select'
-        ? (selectMode === 'exclude'
-            ? friends.map(f => f.id).filter(Boolean).filter(id => !selectedUids.includes(id))
-            : selectedUids)
-        : [],
-      // 그룹 빠른선택으로 채운 경우 원본 그룹 id(표시·수정복원용). 수동 선택이면 빈 배열 ([[friend_groups]] Phase C)
-      audienceGroupIds: scope === 'select' && selectMode === 'include' ? selectedGroupIds : [],
-      // 초대장 톤(격식/편안) — select일 때만 ([[roundup-invitation]])
-      inviteStyle: scope === 'select' ? inviteStyle : null,
+      selectMode: isSelect ? (crewMode ? 'include' : selectMode) : null,
+      selectedUids: isSelect ? (crewMode ? crewAudience : selectedUids) : [],
+      audienceUids: effAudience,
+      audienceGroupIds: isSelect && !crewMode && selectMode === 'include' ? selectedGroupIds : [],
+      inviteStyle: isSelect ? (crewMode ? 'casual' : inviteStyle) : null,
       word: word.trim(),
       companion: isPublic ? companion : 'any',
       ageGroup: isPublic ? ageGroup : 'any',
@@ -591,7 +595,14 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
             <View style={{ height: 1, backgroundColor: C.hairline, marginTop: 18, marginBottom: 2 }} />
 
-            {/* 공개 범위 — 개별/단체보다 먼저 고르게(순서 변경). 단체는 전체공개 불가(칩 비활성+안내) */}
+            {/* 공개 범위 — 일반: 칩 선택 / 크루모드: '크루 멤버 공개' 고정 배너 */}
+            {crewMode ? (
+              <View style={{ marginTop: 14, paddingHorizontal: 12, paddingVertical: 11, borderRadius: 10,
+                backgroundColor: 'rgba(143,176,107,0.12)', borderWidth: 0.5, borderColor: 'rgba(94,126,66,0.3)' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.charcoal }}>크루 ‘{crewName || '우리 크루'}’ 멤버에게 공개</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>이 모집은 크루 멤버 전원이 보고 참여할 수 있어요.</Text>
+              </View>
+            ) : (<>
             <Text style={mS.bigLabel}>공개 범위</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {SCOPES.map(([k, l]) => {
@@ -616,6 +627,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 );
               })}
             </View>
+            </>)}
 
             {/* 그룹 빠른선택 — 그룹 멤버로 한 번에 지정(include만). 수동 선택과 병행 ([[friend_groups]] Phase C) */}
             {scope === 'select' && selectMode === 'include' && (
@@ -680,8 +692,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               </View>
             )}
 
-            {/* 동반자 조건·태그 — 전체공개에서만 의미. 친구공개·친구지정은 어차피 친구라 숨김 */}
-            {scope === 'all' && (
+            {/* 동반자 조건·태그 — 전체공개에서만 의미. 친구공개·친구지정·크루는 어차피 친구라 숨김 */}
+            {!crewMode && scope === 'all' && (
               <>
                 <Text style={mS.bigLabel}>동반자 구성</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -768,7 +780,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
             <TouchableOpacity style={mS.saveBtn} onPress={handleSubmit}>
               <Text style={[mS.saveBtnTxt, { fontSize: fs(17) }]}>
-                {initialPost ? '수정 저장' : '모집글 등록'}
+                {initialPost ? '수정 저장' : (crewMode ? '크루에 올리기' : '모집글 등록')}
               </Text>
             </TouchableOpacity>
             <View style={{ height: 24 }} />
