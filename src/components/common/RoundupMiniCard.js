@@ -8,7 +8,7 @@ import { loadRoundup } from '../../utils/roundup';
 //   모집 doc은 1회 조회(피드 다건이라 구독 X). 삭제·주최자취소면 '종료' 안내, 권한 없으면(비-audience) 조회 실패→종료로 graceful.
 // preloaded가 { __denied:true }면 = 상위에서 권한없음(비친구·미지정 audience)으로 판정 → '친구만 볼 수 있음' 카드.
 const stateOf = (p) => (p ? (p.__denied ? 'denied' : (p.cancelledByHost ? 'gone' : 'ok')) : 'loading');
-export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress }) {
+export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, shared = false }) {
   const [post, setPost] = useState(preloaded);
   const [state, setState] = useState(stateOf(preloaded)); // loading | ok | gone | denied
 
@@ -25,7 +25,8 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress }) 
 
   const box = {
     marginTop: 8, borderRadius: 10,
-    backgroundColor: C.navy, paddingHorizontal: 12, paddingVertical: 9,   // 라운지 네이비 색채움 — 컴팩트
+    // 핀(크루서 만든 모집)=라운지 네이비 / 피드 링크공유 모집(shared)=세이지 그린 — '크루에 공유' 버튼색과 짝, 한눈에 구분.
+    backgroundColor: shared ? '#5E7E42' : C.navy, paddingHorizontal: 12, paddingVertical: 9,
   };
 
   if (state === 'loading') return null;

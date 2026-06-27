@@ -282,7 +282,7 @@ const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, 
       {!!p.text && (
         <LinkText style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</LinkText>
       )}
-      {!!p.roundupId && <RoundupMiniCard roundupId={p.roundupId} onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />}
+      {!!p.roundupId && <RoundupMiniCard roundupId={p.roundupId} shared={p.roundupShare} onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />}
       {p.media.length > 0 && (
         <View style={{ marginTop: 11 }}>
           <PostMedia media={p.media} width={width} burst={burst}
