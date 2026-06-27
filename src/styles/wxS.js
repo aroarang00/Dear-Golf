@@ -45,7 +45,7 @@ export const wxS = StyleSheet.create({
   gIdxScore:     { marginLeft: 10, fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.5)' },
   gIdxBar:       { height: 5, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, marginTop: 12, overflow: 'hidden' },
   gIdxBarFill:   { height: '100%', backgroundColor: '#F5E6A8', borderRadius: 3 },
-  gIdxBadgeRow:  { flexDirection: 'row', gap: 6, marginTop: 14 },
+  gIdxBadgeRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14 },   // wrap — 배지 최대 5개(자외선 매우높음 등 긴 라벨) 박스 넘침 방지(gap이 줄간격도 처리)
   gIdxBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   gIdxBadgeTxt:  { fontFamily: F.sysSb, fontSize: fs(11) },
 

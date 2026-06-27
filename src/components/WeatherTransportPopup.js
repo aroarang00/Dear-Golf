@@ -307,6 +307,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   // 핀치 줌 (날씨 탭 한정)
   const scale = useRef(new Animated.Value(1)).current;
   const lastScale = useRef(1);
+  // 줌 중일 때만 transform을 부착 — 평상시(scale=1)에 변환이 상시 걸려 있으면 스크롤뷰가 별도 레이어로
+  //   합성돼 빠른 스크롤 시 재래스터화로 지직거림. 핀치 시작 시 부착, 원위치로 돌아오면 제거(평소 스크롤 매끈).
+  const [zoomed, setZoomed] = useState(false);
 
   const onPinchEvent = Animated.event(
     [{ nativeEvent: { scale } }],
@@ -314,11 +317,14 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   );
 
   const onPinchStateChange = (event) => {
+    const st = event.nativeEvent.state;
+    if (st === State.BEGAN || st === State.ACTIVE) setZoomed(true);   // 줌 시작 → transform 부착
     if (event.nativeEvent.oldState === State.ACTIVE) {
       let next = lastScale.current * event.nativeEvent.scale;
       next = Math.max(1, Math.min(2, next));
       lastScale.current = next;
       scale.setValue(next);
+      if (next <= 1.01) setZoomed(false);   // 원위치 → transform 제거(평상시 스크롤 지직거림 방지)
     }
   };
 
@@ -354,6 +360,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   useEffect(() => {
     scale.setValue(1);
     lastScale.current = 1;
+    setZoomed(false);
   }, [tab]);
 
   // 날씨 fetch — visible 변경 / 일정 변경 / weatherOnly 변경 시
@@ -814,7 +821,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             <View style={{ width: SW }}>
             <PinchGestureHandler onGestureEvent={onPinchEvent} onHandlerStateChange={onPinchStateChange}>
             <Animated.ScrollView
-              style={{ flex: 1, transform: [{ scale }] }}
+              style={{ flex: 1, transform: zoomed ? [{ scale }] : undefined }}
               contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
               showsVerticalScrollIndicator={false}>
 
