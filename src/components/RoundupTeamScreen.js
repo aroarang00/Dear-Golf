@@ -121,19 +121,32 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
     return '';
   };
 
-  const save = async () => {
+  const doSave = async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await updateRoundupTeamPlan(roundupId, { teamPlan: groups, teamNotice: memo });
-      showToast('단체팀 정보를 저장했어요');
-      setEditMode(false);   // 저장 후 보기 모드로
+      // teamPlanDone=true — 주최자가 '편성 완료'를 명시(휴리스틱 추측 대신 확정 신호). 완료 배지·효과 트리거.
+      await updateRoundupTeamPlan(roundupId, { teamPlan: groups, teamNotice: memo, teamPlanDone: true });
+      showToast('편성 완료 🎉');
+      setEditMode(false);   // 완료 후 보기 모드로
     } catch (e) {
       if (__DEV__) console.warn('[teamScreen] save fail', e?.message);
       showAppAlert('저장에 실패했어요', '잠시 후 다시 시도해 주세요.');
     } finally {
       setSaving(false);
     }
+  };
+  // 미배정(휴리스틱)이 남았으면 소프트 확인 후 완료 — 차단은 아니고 주최자 판단에 맡김.
+  const save = () => {
+    if (saving) return;
+    if (unassignedCount > 0) {
+      showAppAlert('미배정 참여자 있음', `아직 조에 안 들어간 참여자가 ${unassignedCount}명 있어요.\n그래도 편성 완료할까요?`, [
+        { text: '취소', style: 'cancel' },
+        { text: '편성 완료', onPress: doSave },
+      ]);
+      return;
+    }
+    doSave();
   };
 
   return (
@@ -146,6 +159,12 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
           </TouchableOpacity>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, marginLeft: 4 }}>단체팀</Text>
           <View style={{ flex: 1 }} />
+          {/* 편성 완료 배지 — 주최자가 '편성 완료'를 누르면 표시(보기 모드). 호스트·동반자 공통으로 '확정됨' 신호 */}
+          {!!post?.teamPlanDone && !editMode && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E8F0E0', borderWidth: 0.5, borderColor: '#9BB87E', borderRadius: 9, paddingHorizontal: 10, paddingVertical: 5, marginRight: 8 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#5E7E42' }}>✓ 편성 완료</Text>
+            </View>
+          )}
           {/* 수정 모드 토글 — 호스트만. 평소 '수정'(네이비), 수정 중 '보기'로 빠져나감 */}
           {isHost && !loading && !!post && (
             <TouchableOpacity onPress={() => setEditMode((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -322,7 +341,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
             {canEdit && (
               <TouchableOpacity onPress={save} activeOpacity={0.85} disabled={saving}
                 style={{ marginTop: 20, borderRadius: 12, paddingVertical: 14, alignItems: 'center', backgroundColor: C.burgundy, opacity: saving ? 0.6 : 1 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>{saving ? '저장 중…' : '저장'}</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff' }}>{saving ? '완료 중…' : '편성 완료'}</Text>
               </TouchableOpacity>
             )}
 
