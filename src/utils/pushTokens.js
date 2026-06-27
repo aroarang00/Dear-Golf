@@ -53,9 +53,35 @@ export async function saveMyPushToken(token) {
   }
 }
 
-// 마운트 1회 호출 — 권한 + 발급 + 저장 일괄
+// 알림 종류별 푸시 토글 저장 — users/{uid}.settings.notifyPrefs.{key}. CF 발송 게이팅이 이 값을 읽음.
+//   기존엔 마이페이지 토글이 로컬에만 저장돼(OFF가 서버에 안 닿아) 꺼도 푸시가 계속 갔음(2026-06-27 수정).
+//   merge:true는 맵을 깊은 병합 → 다른 notifyPrefs 키·settings 필드 보존. uid 포함=users 규칙 충족.
+export async function saveNotifyPref(key, value) {
+  if (!key) return;
+  const uid = await getUid();
+  if (!uid) return;
+  try {
+    await setDoc(doc(db, 'users', uid), {
+      uid,
+      settings: { notifyPrefs: { [key]: !!value } },
+    }, { merge: true });
+  } catch (e) {
+    if (__DEV__) console.warn('[pushTokens] saveNotifyPref fail', e?.message);
+  }
+}
+
+// 토큰 로테이션 리스너 — Expo/FCM이 토큰을 갱신하면 새 토큰을 즉시 재저장(stale 토큰으로 조용히 미수신 방지).
+//   앱 수명 동안 1회만 등록(중복 방지). 구독 해제 불필요(전역 1개).
+let _tokenListener = null;
+
+// 마운트 1회 호출 — 권한 + 발급 + 저장 일괄 + 로테이션 리스너 등록
 export async function setupPushNotifications() {
   const token = await registerPushToken();
   if (token) await saveMyPushToken(token);
+  if (!_tokenListener) {
+    try {
+      _tokenListener = Notifications.addPushTokenListener((t) => { if (t?.data) saveMyPushToken(t.data); });
+    } catch (e) { if (__DEV__) console.warn('[pushTokens] token listener', e?.message); }
+  }
   return token;
 }

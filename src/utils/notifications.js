@@ -1,5 +1,19 @@
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { STORAGE_KEYS, storage } from './storage';
+
+// Android 알림 채널 — 8+(API26)에선 채널이 없거나 importance가 낮으면 heads-up 배너·소리가 안 뜰 수 있음
+//   ('테스터별 조용히 옴/안 옴'의 흔한 원인). 고중요도 'default' 채널을 모듈 로드 시 1회 보장(권한 불필요).
+//   ★원격 푸시가 이 채널을 쓰려면 CF의 Expo 푸시 페이로드에 channelId:'default'가 필요(후속 CF 배포분에서 추가).
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('default', {
+    name: '기본 알림',
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: 'default',
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#6B1E2A',
+  }).catch(() => {});
+}
 
 // 현재 열려 있는 DM 대화방 pairId — 포그라운드 중복 푸시 억제용 ([[dm-design]]).
 //   그 방을 보고 있으면 메시지가 이미 실시간으로 보이므로 배너를 띄우지 않는다(앱이 백그라운드면

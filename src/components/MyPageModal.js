@@ -11,6 +11,7 @@ import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUid } from '../utils/firebase';
+import { saveNotifyPref } from '../utils/pushTokens';   // 알림 토글 서버 동기(CF 게이팅이 읽는 users.settings.notifyPrefs)
 import { savePrivateDeparture } from '../utils/privateProfile'; // 출발지 비공개 Firestore 저장(기기 간 유지)
 import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
@@ -104,9 +105,12 @@ export function MyPageModal({ visible, onClose }) {
   // 실제 푸시 발송은 FCM 서버 연동 후 동작한다.
   const toggleNotifyPref = (key) => {
     const prefs = userProfile.notifyPrefs || {};
-    const next = { ...userProfile, notifyPrefs: { ...prefs, [key]: prefs[key] === false } };
+    const newVal = prefs[key] === false;   // 토글 결과값(꺼져 있었으면 켜기)
+    const next = { ...userProfile, notifyPrefs: { ...prefs, [key]: newVal } };
     setUserProfile({ ...next });
     storage.save(STORAGE_KEYS.profile, next);
+    // ★서버 동기 — CF 발송 게이팅이 users.settings.notifyPrefs를 읽으므로 Firestore에도 반영(로컬만이면 OFF 무효였음)
+    saveNotifyPref(key, newVal);
   };
 
   const handleSaveStats = () => {
