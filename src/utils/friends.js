@@ -71,6 +71,19 @@ export async function loadMyFriendsEnriched() {
 // 원격(https) 아바타만 유효 — 로컬 키는 친구가 못 읽음(표시부 https 검사, FriendsTab과 동일).
 const httpsOnly = (u) => (u && /^https?:/.test(u)) ? u : null;
 
+// 세션 표시정보 캐시(uid → {name, avatarUri}) — 크루 재진입 시 '첫 페인트'에 아바타·이름 즉시 적용.
+//   resolveMemberDisplay가 resolve할 때마다 갱신. 본인(myUid)은 캐시 안 함(항상 '나'). 아바타 URI를 모를 때
+//   기본 아바타(이니셜)가 보였다가 사진으로 바뀌던 flicker 방지(사용자 2026-06-27).
+const _memberDisplayCache = {};
+export function getCachedMemberDisplay(uids, { myUid = null } = {}) {
+  const out = {};
+  (uids || []).filter(Boolean).forEach((u) => {
+    if (u === myUid) { out[u] = { name: '나', avatarUri: null, self: true }; return; }
+    if (_memberDisplayCache[u]) out[u] = _memberDisplayCache[u];
+  });
+  return out;
+}
+
 // 크루/그룹 멤버 표시정보 resolve — 보는 사람 별명(customName) 우선 → 비친구는 닉네임 → 최후 namesFallback.
 //   반환: uid → { name, avatarUri, self }. myUid는 '나'로 표시(별명·사진 누출 없이 보는 사람 기준 [[friend_groups]]).
 export async function resolveMemberDisplay(uids, { myUid = null, namesFallback = {} } = {}) {
@@ -89,6 +102,8 @@ export async function resolveMemberDisplay(uids, { myUid = null, namesFallback =
     const p = profiles[u];
     out[u] = { name: namesFallback[u] || p?.nickname || '친구', avatarUri: httpsOnly(p?.avatarUrl) };
   });
+  // 세션 캐시 갱신(본인 제외) — 다음 화면 첫 페인트에 아바타·이름 즉시 사용
+  Object.keys(out).forEach((u) => { if (!out[u].self) _memberDisplayCache[u] = out[u]; });
   return out;
 }
 

@@ -38,6 +38,12 @@ const normGroups = (g) =>
 const normMeta = (m) =>
   (m && typeof m === 'object') ? m : {};
 
+// 세션 메모리 캐시(별명 맵) — 화면 재진입 시 별명을 '첫 페인트'에 즉시 적용해 flicker 방지.
+//   비동기 loadFriendData 완료 전엔 원래 닉네임이 보였다가 별명으로 바뀌던 버퍼링(특히 크루 멤버)이 원인.
+//   loadFriendData/setFriendMeta/pruneFriendMeta가 항상 최신으로 갱신 → getCachedFriendMeta()로 동기 조회.
+let _friendMetaCache = null;
+export function getCachedFriendMeta() { return _friendMetaCache || {}; }
+
 // 내 친구데이터 로드 — 문서 없으면 기본 그룹으로 채워(메모리상) 반환. 쓰기는 안 함(lazy).
 //   반환: { friendGroups, friendMeta }
 export async function loadFriendData() {
@@ -47,8 +53,11 @@ export async function loadFriendData() {
     const snap = await getDoc(privRef(uid));
     if (snap.exists()) {
       const d = snap.data();
-      return { friendGroups: normGroups(d.friendGroups), friendMeta: normMeta(d.friendMeta) };
+      const friendMeta = normMeta(d.friendMeta);
+      _friendMetaCache = friendMeta;   // 캐시 갱신(별명 flicker 방지)
+      return { friendGroups: normGroups(d.friendGroups), friendMeta };
     }
+    _friendMetaCache = {};   // 문서 없음 = 별명 없음(확정) — 캐시도 빈 값으로
   } catch (e) {
     if (__DEV__) console.warn('[friendGroups] loadFriendData', e?.message);
   }
@@ -81,6 +90,7 @@ export async function setFriendMeta(friendUid, { customName = '', groupIds = [] 
     friendMeta[friendUid] = meta;
   }
   await setDoc(ref, { friendGroups, friendMeta, updatedAt: serverTimestamp() }, { merge: true });
+  _friendMetaCache = friendMeta;   // 별명 편집 즉시 캐시 반영(다음 화면 첫 페인트부터 새 별명)
   return { friendGroups, friendMeta };
 }
 
@@ -181,6 +191,7 @@ export async function pruneFriendMeta(validUids) {
   try {
     await updateDoc(ref, { friendMeta, updatedAt: serverTimestamp() });
   } catch (e) { if (__DEV__) console.warn('[friendGroups] pruneFriendMeta write', e?.message); return null; }
+  _friendMetaCache = friendMeta;   // 유령 정리 후에도 캐시 동기화
   return { friendGroups: normGroups(cur.friendGroups), friendMeta };
 }
 

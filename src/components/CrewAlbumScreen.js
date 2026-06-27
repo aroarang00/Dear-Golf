@@ -12,7 +12,8 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
   subscribeCrew, subscribeCrewPosts, deleteCrewPost, setCrewNotice, togglePostLike,
 } from '../utils/crews';
-import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
+import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest, getCachedMemberDisplay } from '../utils/friends';
+import { friendDisplayName, getCachedFriendMeta } from '../utils/friendGroups';   // 별명 캐시 — 첫 페인트 flicker 방지
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewComposeScreen } from './CrewComposeScreen';
 import { CrewMembersScreen } from './CrewMembersScreen';
@@ -332,7 +333,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
 
   const [crewDoc, setCrewDoc] = useState(crew?._doc || null);
   const [postDocs, setPostDocs] = useState(null);   // null=로딩
-  const [display, setDisplay] = useState({});       // uid→{name,avatarUri,self}
+  // uid→{name,avatarUri,self} — 세션 캐시로 초기화(첫 페인트에 아바타·이름 즉시, 기본아바타→사진 flicker 방지)
+  const [display, setDisplay] = useState(() => getCachedMemberDisplay(crew?._doc?.memberUids || [], { myUid: currentUid }));
   const [noticeExpanded, setNoticeExpanded] = useState(false);
   const [noticeClamped, setNoticeClamped] = useState(false);  // 공지가 실제로 2줄 넘는지(숨김 측정) — 무의미한 '더보기' 방지
   const [noticeLineCount, setNoticeLineCount] = useState(0);  // 한 줄 공지는 가운데 정렬용(2026-06-24)
@@ -407,7 +409,10 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
   const noticeBy = crewDoc?.noticeBy || null;
   const noticeRole = noticeBy === crewDoc?.creatorUid ? '크루리더'
     : (noticeBy && (crewDoc?.adminUids || []).includes(noticeBy)) ? '서브리더' : null;
-  const noticeAuthorName = noticeBy ? (display[noticeBy]?.name || '') : '';
+  const noticeAuthorName = noticeBy
+    ? (noticeBy === currentUid ? (display[noticeBy]?.name || '나')
+       : friendDisplayName(getCachedFriendMeta(), noticeBy, display[noticeBy]?.name || namesFallback[noticeBy] || ''))
+    : '';
 
   // 멤버 + 작성자 표시정보 resolve(보는 사람 별명 우선)
   const authorKey = useMemo(() => (postDocs || []).map((p) => p.authorUid).join(','), [postDocs]);
@@ -415,23 +420,30 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
     const uids = [...new Set([...memberUids, ...(postDocs || []).map((p) => p.authorUid)].filter(Boolean))];
     if (!uids.length) { setDisplay({}); return; }
     let alive = true;
+    // 캐시 즉시 적용(새 uid는 cache로, 기존은 prev 유지) → 아바타·이름 깜빡임 없이 바로, 그 뒤 최신으로 refine
+    setDisplay((prev) => ({ ...getCachedMemberDisplay(uids, { myUid: currentUid }), ...prev }));
     resolveMemberDisplay(uids, { myUid: currentUid, namesFallback }).then((m) => { if (alive) setDisplay(m || {}); }).catch(() => {});
     return () => { alive = false; };
   }, [memberUids.join(','), authorKey, currentUid, namesSig]);
 
-  const members = useMemo(() => memberUids.map((u) => {
-    const d = display[u] || {};
-    const name = d.name || namesFallback[u] || '친구';
-    return { id: u, name, n: name.charAt(0), c: colorOf(u), uri: d.avatarUri || null };
-  }), [memberUids.join(','), display]);
+  const members = useMemo(() => {
+    const cachedMeta = getCachedFriendMeta();   // 별명 캐시 — display 로드 전 첫 페인트에 별명 즉시 적용(flicker 방지)
+    return memberUids.map((u) => {
+      const d = display[u] || {};
+      const name = u === currentUid ? (d.name || '나') : friendDisplayName(cachedMeta, u, d.name || namesFallback[u] || '친구');
+      return { id: u, name, n: name.charAt(0), c: colorOf(u), uri: d.avatarUri || null };
+    });
+  }, [memberUids.join(','), display, currentUid]);
 
   // 게시물 표시 모델
-  const posts = useMemo(() => (postDocs || []).map((p) => {
+  const posts = useMemo(() => {
+    const cachedMeta = getCachedFriendMeta();   // 별명 캐시 — 작성자명도 첫 페인트부터 별명(원래 닉네임 깜빡임 방지)
+    return (postDocs || []).map((p) => {
     const d = display[p.authorUid] || {};
-    const name = d.name || namesFallback[p.authorUid] || '친구';
+    const name = p.authorUid === currentUid ? (d.name || '나') : friendDisplayName(cachedMeta, p.authorUid, d.name || namesFallback[p.authorUid] || '친구');
     const likedBy = p.likedBy || [];
     const lcBy = p.lastCommentBy || null;
-    const lcName = lcBy ? ((display[lcBy] || {}).name || namesFallback[lcBy] || '친구') : '';
+    const lcName = lcBy ? (lcBy === currentUid ? ((display[lcBy] || {}).name || '나') : friendDisplayName(cachedMeta, lcBy, (display[lcBy] || {}).name || namesFallback[lcBy] || '친구')) : '';
     const createdMs = p.createdAt?.toMillis ? p.createdAt.toMillis() : 0;
     const lastCMs = p.lastCommentAt?.toMillis ? p.lastCommentAt.toMillis() : 0;
     return {
@@ -445,7 +457,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, seenAt = 0 }) {
       hasNewComment: seenAt > 0 && p.authorUid === currentUid && lastCMs > seenAt && !!lcBy && lcBy !== currentUid, // 내 글에 새 댓글
       _doc: p,
     };
-  }), [postDocs, display, currentUid, seenAt]);
+    });
+  }, [postDocs, display, currentUid, seenAt]);
 
   // 피드 사진 미리 받기 — 첫 화면 몇 장만. 전체 원본을 한꺼번에 prefetch하면 사진 많은 크루 진입 시
   //   네트워크·디코드 폭주로 버벅임(가상화와 별개로 prefetch가 전량을 깨움). 6장으로 제한(2026-06-24 성능).

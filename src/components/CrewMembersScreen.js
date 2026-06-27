@@ -9,7 +9,8 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { subscribeCrew, leaveCrew, toggleCrewAdmin } from '../utils/crews';
 import { CrewInviteSheet } from './CrewInviteSheet';
 import { CrewEditScreen } from './CrewEditScreen';
-import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
+import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest, getCachedMemberDisplay } from '../utils/friends';
+import { friendDisplayName, getCachedFriendMeta } from '../utils/friendGroups';   // 별명 캐시 — 첫 페인트 flicker 방지
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { showAppAlert } from './AppAlert';
 
@@ -45,7 +46,8 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   const crewId = crew?.id;
 
   const [crewDoc, setCrewDoc] = useState(crew?._doc || null);  // 라이브 크루 doc
-  const [display, setDisplay] = useState({});                  // uid→{name,avatarUri,self}
+  // uid→{name,avatarUri,self} — 세션 캐시로 초기화(첫 페인트에 아바타·이름 즉시, 기본아바타→사진 flicker 방지)
+  const [display, setDisplay] = useState(() => getCachedMemberDisplay(crew?._doc?.memberUids || [], { myUid: currentUid }));
   const [friends, setFriends] = useState(null);                // 초대용 내 친구 + 멤버 친구여부 판정
   const [sentSet, setSentSet] = useState(new Set());           // 보낸 친구신청(recipientUid) — '신청됨' 표시
   const [myName, setMyName] = useState('');                    // 친구신청 알림 표시용 내 닉네임
@@ -102,6 +104,8 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   useEffect(() => {
     if (!memberUids.length) { setDisplay({}); return; }
     let alive = true;
+    // 캐시 즉시 적용(새 멤버는 cache로, 기존은 prev 유지) → 아바타·이름 깜빡임 없이 바로, 그 뒤 최신으로 refine
+    setDisplay((prev) => ({ ...getCachedMemberDisplay(memberUids, { myUid: currentUid }), ...prev }));
     resolveMemberDisplay(memberUids, { myUid: currentUid, namesFallback }).then((m) => { if (alive) setDisplay(m || {}); }).catch(() => {});
     return () => { alive = false; };
   }, [memberUids.join(','), currentUid]);
@@ -130,9 +134,14 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   const iAmMaster = !!currentUid && currentUid === creatorUid;
   // 멤버 표시 모델 — 나 먼저, 그 다음 가입순. 역할(크루장·운영진) 포함.
   const members = useMemo(() => {
+    const cachedMeta = getCachedFriendMeta();   // 별명 캐시 — display 비동기 로드 전에도 별명 즉시 적용
     const arr = memberUids.map((u) => {
       const d = display[u] || {};
-      const name = d.name || namesFallback[u] || '친구';
+      // 첫 페인트(display 빈 상태)에 원래 닉네임이 깜빡 보였다가 별명으로 바뀌던 flicker 방지 —
+      //   캐시된 별명(customName)을 우선 적용. 본인은 항상 '나'.
+      const name = u === currentUid
+        ? (d.name || '나')
+        : friendDisplayName(cachedMeta, u, d.name || namesFallback[u] || '친구');
       return { id: u, name, avatarUri: d.avatarUri || null, n: name.charAt(0), c: colorOf(u), self: u === currentUid,
         isMaster: u === creatorUid, isAdmin: adminUids.includes(u) };
     });

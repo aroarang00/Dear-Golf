@@ -16,7 +16,8 @@ import {
   acceptCrewInvite, declineCrewInvite, hasNewCommentsOnMyPosts,
 } from '../utils/crews';
 import { uploadCrewImage } from '../utils/avatarStorage';
-import { resolveMemberDisplay } from '../utils/friends';
+import { resolveMemberDisplay, getCachedMemberDisplay } from '../utils/friends';
+import { friendDisplayName, getCachedFriendMeta } from '../utils/friendGroups';   // 별명 캐시 — 첫 페인트 flicker 방지
 import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast';
 import { CrewAlbumScreen } from './CrewAlbumScreen';
@@ -135,6 +136,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
     });
     if (!uids.length) { setPeople({}); return; }
     let alive = true;
+    setPeople((prev) => ({ ...getCachedMemberDisplay(uids, { myUid: currentUid }), ...prev }));   // 캐시 즉시 → 아바타 깜빡임 방지
     resolveMemberDisplay(uids, { myUid: currentUid }).then((m) => { if (alive) setPeople(m || {}); }).catch(() => {});
     return () => { alive = false; };
   }, [inviteDocs, currentUid]);
@@ -197,19 +199,22 @@ export function CrewListScreen({ onClose, onOpenDM }) {
   };
 
   // doc → 초대 표시 — 내 친구 별명/프로필 우선(people), 없으면 저장 names 폴백
-  const invites = useMemo(() => (inviteDocs || []).map((d) => {
+  const invites = useMemo(() => {
+    const cachedMeta = getCachedFriendMeta();   // 별명 캐시 — people 로드 전 첫 페인트에 초대자 별명 즉시 적용
+    return (inviteDocs || []).map((d) => {
     const ids = d.memberUids || [];
     const names = d.names || {};
     return {
       id: d.id, name: d.name || '크루',
-      inviter: people[d.creatorUid]?.name || names[d.creatorUid] || '친구', members: ids.length,
+      inviter: friendDisplayName(cachedMeta, d.creatorUid, people[d.creatorUid]?.name || names[d.creatorUid] || '친구'), members: ids.length,
       avatars: ids.slice(0, 4).map((u) => {
         const pm = people[u];
         if (pm?.avatarUri) return { uri: pm.avatarUri };
-        return { n: (pm?.name || names[u] || '?').trim().charAt(0) || '?', c: accentOf(u) };
+        return { n: (friendDisplayName(cachedMeta, u, pm?.name || names[u] || '?')).trim().charAt(0) || '?', c: accentOf(u) };
       }),
     };
-  }), [inviteDocs, people]);
+    });
+  }, [inviteDocs, people]);
 
   // 수락/거절 — 셀프 토글(onSnapshot이 목록 자동 갱신, 로컬 상태 변경 불필요)
   const acceptInvite = async (iv) => {
