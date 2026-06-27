@@ -190,7 +190,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                     return (
                       <View key={u} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6, justifyContent: 'center' }}>
                         {/* iOS는 이모지 닉네임이면 라인박스가 비대칭으로 커져 세로 치우침 → 고정 lineHeight로 박스 일정화·중앙 정렬(안드는 정상이라 미적용) */}
-                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, textAlign: 'center', ...(Platform.OS === 'ios' ? { lineHeight: fs(18) } : null) }}>{nm}{u === myUid ? ' (나)' : ''}</Text>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal, textAlign: 'center', ...(Platform.OS === 'ios' ? { lineHeight: fs(19) } : null) }}>{nm}{u === myUid ? ' (나)' : ''}</Text>
                       </View>
                     );
                   })}
@@ -209,7 +209,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                 style={[INP, { minHeight: 64, textAlignVertical: 'top' }]} />
             ) : (
               <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, padding: 13, backgroundColor: '#F5ECD6' }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: memo ? C.charcoal : C.warmGray, lineHeight: 21 }}>{memo || '아직 공지가 없어요'}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(15), color: memo ? C.charcoal : C.warmGray, lineHeight: 22 }}>{memo || '아직 공지가 없어요'}</Text>
               </View>
             )}
 
@@ -224,9 +224,9 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                   <Icon name="flag" size={fs(16)} color={C.navy} strokeWidth={1.9} />
                   {canEdit ? (
                     <TextInput value={g.course} onChangeText={(v) => setCourse(gi, v)} placeholder="세부코스 직접 입력 (예: 동코스)" placeholderTextColor={C.warmGrayLight}
-                      maxLength={20} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.navy, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.warmGrayLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: Platform.OS === 'android' ? 5 : 7 }} />
+                      maxLength={20} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.navy, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.warmGrayLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: Platform.OS === 'android' ? 5 : 7 }} />
                   ) : (
-                    <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(15), color: C.navy }}>{g.course || '세부코스 미정'}</Text>
+                    <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.navy }}>{g.course || '세부코스 미정'}</Text>
                   )}
                   {canEdit && groups.length > 1 && (
                     <TouchableOpacity onPress={() => removeGroup(gi)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -284,7 +284,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                       ) : (
                         <>
                           <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>{f.tee || '시간 미정'}</Text>
-                          <Text style={{ marginTop: 5, fontFamily: F.sysM, fontSize: fs(14), color: f.note ? C.charcoal : C.warmGray, lineHeight: 21 }}>{f.note || '조 편성 미정'}</Text>
+                          <Text style={{ marginTop: 5, fontFamily: F.sysM, fontSize: fs(15), color: f.note ? C.charcoal : C.warmGray, lineHeight: 22 }}>{f.note || '조 편성 미정'}</Text>
                         </>
                       )}
                     </View>
