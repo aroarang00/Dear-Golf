@@ -268,7 +268,7 @@ export function OnboardingIntro({ onDone }) {
             {/* 4가지 모집 방식 1열 카드 — 가로 레이아웃 (아이콘 + 타이틀·설명) */}
             <View style={{ gap: 10 }}>
               {[
-                ['👥', '친구공개로 모집', '내 친구·친구의 친구까지'],
+                ['👥', '친구공개로 모집', '내 친구들에게'],
                 ['🎯', '친구지정으로 모집', '고른 친구에게만'],
                 ['📅', '일정 정해서 모집', '확정형 — 날짜·구장 정해서'],
                 ['💬', '친구랑 상의해서 모집', '오픈형 — 함께 정하기'],
@@ -431,6 +431,16 @@ export function OnboardingIntro({ onDone }) {
         </View>
 
       </PagerView>
+
+      {/* 건너뛰기 — 인트로를 빠르게 지나가고 싶은 사용자용. onDone=시작하기와 동일(다음 온보딩 단계로).
+          마지막 시작 페이지(idx 7)엔 '시작하기' 버튼이 있어 숨김. 페이지마다 배경색이 달라 반투명 펄로 가독성 확보. */}
+      {idx < 7 && (
+        <TouchableOpacity onPress={onDone} activeOpacity={0.7}
+          style={{ position: 'absolute', top: insets.top + 8, right: 14, zIndex: 10,
+            backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 13 }}>
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: '#fff' }}>건너뛰기</Text>
+        </TouchableOpacity>
+      )}
 
       {/* 하단 스와이프 인디케이터 */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: insets.bottom + 14 }}>

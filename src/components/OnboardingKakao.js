@@ -123,7 +123,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
           borderRadius: 12, padding: 16, gap: 12 }}>
           {[
             ['👤', '카카오 닉네임 · 프로필 사진 자동 적용'],
-            ['🤝', '카카오 친구 중 Dear Golf 유저 찾기 (예정)'],
+            ['🤝', '카카오 친구 중 Dear Golf 유저 찾기'],
             ['🔒', '카카오 계정으로 안전한 로그인'],
           ].map(([icon, txt]) => (
             <View key={txt} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
