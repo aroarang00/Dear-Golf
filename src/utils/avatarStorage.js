@@ -48,15 +48,28 @@ export async function uploadAvatar(uid, photoUri) {
 //  반환: https URL(성공) 또는 null(실패). crews.imageUrl에 동기화해 사용(변경은 firestore.rules상 크루장만).
 export async function uploadCrewImage(uid, crewId, photoUri) {
   if (!uid || !crewId || !photoUri || typeof photoUri !== 'string') return null;
-  if (/^https?:\/\//.test(photoUri)) return photoUri;   // 이미 원격 URL — 업로드 불필요
+  if (/firebasestorage\.(googleapis\.com|app)/.test(photoUri)) return photoUri; // 이미 우리 Storage URL — 재업로드 불필요
   try {
-    const localUri = resolvePhotoUri(photoUri);
+    let localUri;
+    if (/^https?:\/\//.test(photoUri)) {
+      // 외부 원격: https 강제 후 기기에 먼저 내려받아 검증된 로컬 업로드 경로로 (uploadAvatar와 동일 — 원격 blob 직접 업로드 회피).
+      const httpsUri = photoUri.replace(/^http:\/\//, 'https://');
+      const dest = `${FileSystem.cacheDirectory}crew_src_${Date.now()}.jpg`;
+      const dl = await FileSystem.downloadAsync(httpsUri, dest);
+      localUri = dl?.uri || null;
+      if (!localUri) return null;
+    } else {
+      localUri = resolvePhotoUri(photoUri);
+    }
     const compressedUri = await compressImage(localUri);
     const res = await fetch(compressedUri);
     const blob = await res.blob();
     const storageRef = ref(storage, `crewImages/${uid}/${crewId}.jpg`);
     await uploadBytes(storageRef, blob);
-    return await getDownloadURL(storageRef);
+    const url = await getDownloadURL(storageRef);
+    // 같은 경로 덮어쓰기 → 다운로드 URL이 그대로일 수 있어 멤버 기기 expo-image가 캐시 옛 이미지 표시.
+    //   캐시버스트로 변경마다 새 URL → crews.imageUrl 갱신·멤버 기기 갱신 강제 (uploadAvatar와 동일).
+    return `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`;
   } catch (e) {
     if (__DEV__) console.warn('[avatarStorage] uploadCrewImage fail', e?.message);
     return null;
