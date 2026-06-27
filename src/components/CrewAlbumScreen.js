@@ -354,8 +354,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   const [likersFor, setLikersFor] = useState(null);        // 좋아요 누른 사람 목록 { count, members:[{n,c,uri,name}] }
   const [burstId, setBurstId] = useState(null);            // 더블탭 좋아요 시 큰 하트 잠깐 표시(게시물 id)
   const burstTimer = useRef(null);
-  const [bannerDismissed, setBannerDismissed] = useState(false); // '내 글 새 댓글' 상단 배너 이번 세션 닫음
-  const jumpIdxRef = useRef(0);                            // 배너 '보기' 탭 시 새 댓글 글들을 차례로 순회
+  const [bannerDismissed, setBannerDismissed] = useState(false); // '내 글 새 댓글' 상단 배너 이번 세션 닫음(✕)
+  const [seenNewIds, setSeenNewIds] = useState(() => new Set()); // 이번 세션에 댓글 확인한 내 글 id — 배너서 빠짐(카운트 감소)
   // 친구 여부 — 크루 멤버는 서로 친구 아닐 수 있음. 프로필 팝업서 친구=DM / 비친구=친구신청 분기(비친구 DM은 규칙상 막힘).
   const [friends, setFriends] = useState(null);
   const [sentSet, setSentSet] = useState(new Set());
@@ -528,18 +528,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
     () => posts.flatMap((p) => (p.media || []).map((m, mi) => ({ ...m, postId: p.id, mi, key: `${p.id}_${mi}` }))),
     [posts]);
 
-  // '내 글에 새 댓글' 달린 글들의 피드 인덱스 — 상단 배너 카운트 + '보기' 점프 대상(옛날 글이라 스크롤해야 보이던 것 해소)
-  const newMineIdx = useMemo(
-    () => posts.reduce((acc, p, i) => { if (p.hasNewComment) acc.push(i); return acc; }, []),
-    [posts]);
-  // 배너 '보기' — 새 댓글 달린 내 글로 차례로 스크롤(여러 개면 탭마다 다음 것, 끝나면 처음으로 순환)
-  const jumpToNewComment = () => {
-    if (!newMineIdx.length || !scrollRef.current) return;
-    const k = jumpIdxRef.current % newMineIdx.length;
-    jumpIdxRef.current = k + 1;
-    try { scrollRef.current.scrollToIndex({ index: newMineIdx[k], animated: true, viewPosition: 0.12 }); }
-    catch (e) { if (__DEV__) console.warn('[crewAlbum] jump', e?.message); }
-  };
+  // '내 글에 새 댓글' 달린 글들 — 이번 세션에 확인한 건 빠짐(카운트 감소). 상단 배너 카운트 + '보기' 탭 대상.
+  const newMinePosts = useMemo(() => posts.filter((p) => p.hasNewComment && !seenNewIds.has(p.id)), [posts, seenNewIds]);
+  // 배너 '보기' — 남은 첫 글의 '댓글 화면'을 연다. 열면 그 글이 확인됨으로 빠져(openComment), 다음 탭은 자연히 다음 글.
+  //   ★피드 스크롤 인덱스 점프 대신 댓글 화면 직접 오픈: 모집 핀 글이 posts엔 있고 feedPosts엔 없어 인덱스가
+  //   어긋나던 문제(엉뚱한 글로 가거나 안 먹힘) 해소 + '그 댓글로' 바로 도달.
+  const jumpToNewComment = () => { if (newMinePosts.length) openComment(newMinePosts[0]); };
 
   // ── 동작 ── (카드(PostCard)에 넘기는 콜백은 useCallback으로 안정화 — memo 카드가 UI상태 변화에 헛 리렌더되지 않게)
   const openProfile = useCallback((person) => {
@@ -573,7 +567,11 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   }, [display, namesSig]); // eslint-disable-line react-hooks/exhaustive-deps
   const openPostAction = useCallback((p) => setActionFor({ kind: 'post', id: p.id, authorUid: p.author.id, name: p.author.name, text: p.text, post: p }), []);
   const openViewerAt = useCallback((media, index) => setViewer({ media, index }), []);
-  const openComment = useCallback((p) => setCommentPost(p), []);
+  const openComment = useCallback((p) => {
+    setCommentPost(p);
+    // 새 댓글 달린 내 글의 댓글을 열면 '확인함' — 배너 카운트서 빠지고, 다 보면 ✕ 없이도 배너 자동 사라짐.
+    if (p?.hasNewComment) setSeenNewIds((prev) => (prev.has(p.id) ? prev : new Set(prev).add(p.id)));
+  }, []);
   // 갤러리 타일 onOpen — tiles 바뀔 때만 갱신(사진 추가 등, 드묾). 평소엔 안정 → GalleryTile memo 유지.
   const openTile = useCallback((i) => setViewer({ media: tiles, index: i, gallery: true }), [tiles]);
   const confirmDelete = () => {
@@ -780,12 +778,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       </View>
 
       {/* 내 글에 새 댓글 — 상단 배너(피드 탭). '보기'=그 글로 바로 스크롤(옛날 글이라 안 내려가도 됨). ✕=세션 닫기 */}
-      {tab === 'feed' && !bannerDismissed && newMineIdx.length > 0 && (
+      {tab === 'feed' && !bannerDismissed && newMinePosts.length > 0 && (
         <TouchableOpacity onPress={jumpToNewComment} activeOpacity={0.85}
           style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginTop: 10,
             backgroundColor: '#F7E9EC', borderRadius: 12, borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', paddingHorizontal: 12, paddingVertical: 10 }}>
           <Icon name="heartFilled" size={fs(16)} color={NEWMARK} />
-          <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: NEWMARK, marginLeft: 8 }}>내 글에 새 댓글 {newMineIdx.length}개</Text>
+          <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: NEWMARK, marginLeft: 8 }}>내 글에 새 댓글 {newMinePosts.length}개</Text>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: NEWMARK }}>보기 ›</Text>
           <TouchableOpacity onPress={() => setBannerDismissed(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 12 }}>
             <Text style={{ fontSize: fs(15), color: 'rgba(107,30,42,0.5)' }}>✕</Text>
