@@ -38,6 +38,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);    // 보기 ↔ 수정 (호스트만 전환)
   const [memberNames, setMemberNames] = useState({}); // uid→닉네임 (참여자 칩)
+  const [memberReal, setMemberReal] = useState({});   // uid→본명(있을 때만, 호스트 전용 — 칩 표시·조배정 매칭)
   const [subCourseOpts, setSubCourseOpts] = useState([]); // 구장의 세부코스 칩 제안(시드된 구장만)
   // 모집 구장(courseKakaoId)의 세부코스 칩 로드 — 시드된 구장만(없으면 []=칩 미표시, 자유입력 유지)
   useEffect(() => {
@@ -73,15 +74,20 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   // 닫히면 수정모드 해제 — 다음 진입은 항상 보기 모드부터.
   useEffect(() => { if (!visible) setEditMode(false); }, [visible]);
 
-  // 참여자 이름 — 호스트가 '누가 있는지' 칩으로 보기 위함. 이 화면 칩은 호스트 전용 노출이라 익명자도 실명(닉네임).
+  // 참여자 이름 — 닉네임(표시) + 본명(호스트 전용: 조편성은 본명으로 적는 게 일반이라 칩·배정매칭에 본명 우선).
+  //   같은 users 문서에서 realName도 함께 읽음(추가 읽기 없음). 본명은 호스트 시야에서만 사용(동반자엔 닉네임 유지).
   useEffect(() => {
     const uids = post?.participantUids;
-    if (!Array.isArray(uids) || !uids.length) { setMemberNames({}); return; }
+    if (!Array.isArray(uids) || !uids.length) { setMemberNames({}); setMemberReal({}); return; }
     let alive = true;
     Promise.all(uids.map((u) => getDoc(doc(db, 'users', u))
-      .then((s) => [u, (s.exists() && s.data().nickname) || '골퍼'])
-      .catch(() => [u, '골퍼'])))
-      .then((pairs) => { if (alive) setMemberNames(Object.fromEntries(pairs)); });
+      .then((s) => { const d = s.exists() ? s.data() : null; return [u, (d && d.nickname) || '골퍼', (d && d.realName ? String(d.realName).trim() : '')]; })
+      .catch(() => [u, '골퍼', ''])))
+      .then((rows) => {
+        if (!alive) return;
+        setMemberNames(Object.fromEntries(rows.map(([u, nick]) => [u, nick])));
+        setMemberReal(Object.fromEntries(rows.map(([u, , real]) => [u, real])));
+      });
     return () => { alive = false; };
   }, [post?.participantUids]);
 
@@ -94,7 +100,8 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   const planNotes = groups.flatMap((g) => (g.flights || []).map((f) => f.note || '')).join(' ').toLowerCase();
   // 이름(memberNames) 로드 완료 후에만 — 로드 전엔 전원 '미배정'으로 잘못 깜빡이는 것 방지.
   const planStarted = isHost && planNotes.trim().length > 0 && Object.keys(memberNames).length > 0;
-  const isAssigned = (u) => { const nm = (memberNames[u] || '').trim().toLowerCase(); return !!nm && planNotes.includes(nm); };
+  // 배정 매칭 — 호스트가 조 멤버칸에 본명으로 적는 게 일반이라 본명 우선(없으면 닉네임)으로 글자 매칭.
+  const isAssigned = (u) => { const nm = ((memberReal[u] || memberNames[u]) || '').trim().toLowerCase(); return !!nm && planNotes.includes(nm); };
   const unassignedCount = planStarted ? (post.participantUids || []).filter((u) => !isAssigned(u)).length : 0;
 
   const setCourse = (gi, v) => setGroups((p) => p.map((g, i) => (i === gi ? { ...g, course: v } : g)));
@@ -188,7 +195,8 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {post.participantUids.map((u) => {
                     const masked = !isHost && u !== post.authorUid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(u);
-                    const nm = masked ? anonNick(u, post.id) : (memberNames[u] || '골퍼');
+                    // 호스트 시야엔 본명 우선(조편성 이름과 일치 → 매칭·식별 쉬움), 동반자 시야엔 닉네임(본명 미노출).
+                    const nm = masked ? anonNick(u, post.id) : ((isHost && memberReal[u]) ? memberReal[u] : (memberNames[u] || '골퍼'));
                     const unplaced = planStarted && !isAssigned(u);   // 조 편성 했는데 이 사람만 빠짐 → 호박색 강조
                     return (
                       <View key={u} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: unplaced ? '#FBF0DA' : C.bgSecondary, borderWidth: 0.5, borderColor: unplaced ? '#E0C271' : C.hairline, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6, justifyContent: 'center' }}>
