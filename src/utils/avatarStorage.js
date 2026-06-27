@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system/legacy';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
@@ -14,16 +15,28 @@ export async function uploadAvatar(uid, photoUri) {
   if (!uid || !photoUri || typeof photoUri !== 'string') return null;
   if (/firebasestorage\.(googleapis\.com|app)/.test(photoUri)) return photoUri; // 이미 우리 Storage URL — 재업로드 불필요
   try {
-    const isRemote = /^https?:\/\//.test(photoUri);
-    const srcUri = isRemote
-      ? photoUri.replace(/^http:\/\//, 'https://')       // 카카오 등 외부 http → https 강제(ATS·친구 표시)
-      : resolvePhotoUri(photoUri);                        // dgphoto: → 기기 절대경로
-    const compressedUri = await compressImage(srcUri);    // 로컬은 압축, 원격은 통과(아래 fetch가 다운로드)
+    let localUri;
+    if (/^https?:\/\//.test(photoUri)) {
+      // 외부 원격(카카오 등): https 강제 후 기기에 먼저 내려받는다. RN에서 원격 blob 업로드가 불안정해
+      //   다운로드→로컬 파일 업로드(검증된 갤러리 경로)로 통일 — 조용한 실패로 친구 화면이 안 바뀌던 문제 방지.
+      const httpsUri = photoUri.replace(/^http:\/\//, 'https://');
+      const dest = `${FileSystem.cacheDirectory}avatar_src_${Date.now()}.jpg`;
+      const dl = await FileSystem.downloadAsync(httpsUri, dest);
+      localUri = dl?.uri || null;
+      if (!localUri) return null;
+    } else {
+      localUri = resolvePhotoUri(photoUri);               // dgphoto: → 기기 절대경로
+    }
+    const compressedUri = await compressImage(localUri);   // 1200px·80% JPEG
     const res = await fetch(compressedUri);
     const blob = await res.blob();
     const storageRef = ref(storage, `avatars/${uid}/profile.jpg`);
     await uploadBytes(storageRef, blob);
-    return await getDownloadURL(storageRef);
+    const url = await getDownloadURL(storageRef);
+    // 같은 경로(profile.jpg)를 덮어쓰면 다운로드 URL(토큰)이 그대로일 수 있어 avatarUrl 값이 안 바뀌고,
+    //   다른 기기 expo-image도 같은 URL=캐시의 옛 사진을 계속 내준다(바꿔도 친구 화면 안 바뀜).
+    //   캐시버스트 파라미터로 매 변경마다 새 URL을 만들어 write-through·친구 기기 갱신을 강제한다.
+    return `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`;
   } catch (e) {
     if (__DEV__) console.warn('[avatarStorage] uploadAvatar fail', e?.message);
     return null;
