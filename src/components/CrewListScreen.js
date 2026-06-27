@@ -169,8 +169,9 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
     albumAnimRef.current = false;        // 복귀 앨범은 슬라이드 생략
     if (!crewDocs) return;               // doc 로드 후 승격(그 전엔 위 albumCrew(stub)로 이미 떠 있음)
     const c = crewDocs.find((d) => d.id === reopenCrewId);
-    if (c) setOpenCrew({ ...c, name: aliasMap[c.id] || c.name, _seenAt: seenAtMap[c.id] || 0 });
-    onReopenConsumed?.();
+    // ★찾았을 때만 승격+소비 — 못 찾으면(탈퇴·제거·일시적 빈 스냅샷=Firestore 블립) 소비 안 하고 stub 유지.
+    //   crewDocs 갱신 시 재시도해 블립서 회복, 정말 멤버 아니면 사용자가 뒤로가기로 탈출(onClose가 소비). 목록으로 튕김 방지.
+    if (c) { setOpenCrew({ ...c, name: aliasMap[c.id] || c.name, _seenAt: seenAtMap[c.id] || 0 }); onReopenConsumed?.(); }
   }, [reopenCrewId, crewDocs]); // eslint-disable-line react-hooks/exhaustive-deps
   // 첫 진입 시 크루 소개 1회 자동 표시 — 라운지 소개와 동일 패턴(crewIntroSeen)
   useEffect(() => {
