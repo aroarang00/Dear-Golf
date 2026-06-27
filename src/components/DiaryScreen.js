@@ -555,7 +555,12 @@ export function DiaryScreen({ route, navigation }) {
         try {
           const uid = await getUid();
           const url = patch.avatarUri ? await uploadAvatar(uid, patch.avatarUri) : null;
-          const withUrl = { ...updated, avatarUrl: url };
+          // 원격 원본(카카오 등)은 본인 표시(avatarUri)도 재호스팅된 안정적 https로 교체 —
+          //   카카오 http URL은 캐시 비우면 ATS로 본인 화면도 깨질 수 있음. 로컬(dgphoto)은 그대로 유지(즉시 표시).
+          const wasRemote = /^https?:\/\//.test(patch.avatarUri || '');
+          const withUrl = (wasRemote && url)
+            ? { ...updated, avatarUri: url, avatarUrl: url }
+            : { ...updated, avatarUrl: url };
           setUserProfile({ ...withUrl });
           storage.save(STORAGE_KEYS.profile, withUrl);
         } catch (e) {
