@@ -22,6 +22,8 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { loadFriendData, resolveGroupAudience, groupColor } from '../utils/friendGroups';   // 그룹 단위 DM 공유
 import { uploadDmImage, sendImageMessageUrl, ensureConversation } from '../utils/dm';
+import { loadMyCrews, addCrewPost } from '../utils/crews';   // 모집을 내 크루 '진행 중인 모집' 핀에 카드로 올리기
+import { getUid } from '../utils/firebase';
 
 // 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
 // 달라져, 같은 카드도 좁은 폰에선 라벨이 서로 붙는 등 레이아웃이 어긋났음(앱의 얼굴인 공유 이미지 완성도 문제, 2026-06-14).
@@ -55,6 +57,12 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const [dmSearch, setDmSearch] = useState('');          // 친구 검색(많을 때 빨리 찾기)
   const [dmGroups, setDmGroups] = useState([]);          // 친구 그룹 — 그룹 단위 공유(내가 만든 그룹)
   const [dmGroupMeta, setDmGroupMeta] = useState({});    // uid→{groupIds} (resolveGroupAudience용)
+  // 크루 공유 — 모집을 내 크루(들) '진행 중인 모집' 핀에 카드로 올림(모집만 해당)
+  const [crewPickerOpen, setCrewPickerOpen] = useState(false);
+  const [crews, setCrews] = useState([]);
+  const [crewsLoading, setCrewsLoading] = useState(false);
+  const [selectedCrews, setSelectedCrews] = useState([]);
+  const [crewPosting, setCrewPosting] = useState(false);
   const isRound = moment?.shareKind === 'round';
   const isRoundup = moment?.shareKind === 'roundup';
   const isSchedule = moment?.shareKind === 'schedule';
@@ -73,6 +81,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const handleRequestClose = () => {
     if (alert) { setAlert(null); return; }
     if (dmPickerOpen) { setDmPickerOpen(false); return; }
+    if (crewPickerOpen) { setCrewPickerOpen(false); return; }
     onClose();
   };
 
@@ -215,6 +224,38 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
     } finally { setDmSending(false); }
   };
 
+  // 크루 공유 — 내 크루 목록 로드 후 다중선택 시트 오픈(모집 전용)
+  const openCrewPicker = async () => {
+    setSelectedCrews([]); setCrewPickerOpen(true); setCrewsLoading(true);
+    try { const uid = await getUid(); setCrews(uid ? await loadMyCrews(uid) : []); } catch { setCrews([]); }
+    finally { setCrewsLoading(false); }
+  };
+  const toggleCrew = (id) => setSelectedCrews(prev => (prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]));
+  // 선택한 크루(들)에 모집 카드 게시 — addCrewPost(roundupId+roundupHost). 핀이 roundupId로 중복 제거하므로 같은 모집 재게시도 무해.
+  const shareToCrews = async () => {
+    if (crewPosting || !selectedCrews.length || !moment?.id) return;
+    setCrewPosting(true);
+    try {
+      const uid = await getUid();
+      if (!uid) throw new Error('not-auth');
+      const host = moment.authorUid || uid;
+      const results = await Promise.all(selectedCrews.map(cid =>
+        addCrewPost(cid, { authorUid: uid, text: '', media: [], roundupId: moment.id, roundupHost: host, roundupShare: true })
+          .then(() => true).catch(e => { if (__DEV__) console.warn('[crewShare] post fail', cid, e?.message); return false; })));
+      const ok = results.filter(Boolean).length;
+      setCrewPickerOpen(false);
+      if (ok === 0) {
+        setAlert({ title: '공유에 실패했어요', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
+      } else if (ok < selectedCrews.length) {
+        setAlert({ title: '일부만 올렸어요', message: `${selectedCrews.length}개 중 ${ok}개 크루에 올렸어요.`, buttons: [{ text: '확인', onPress: onClose }] });
+      } else {
+        setAlert({ title: '크루에 공유했어요', message: `${ok}개 크루 피드에 모집 카드를 올렸어요.`, buttons: [{ text: '확인', onPress: onClose }] });
+      }
+    } catch (e) {
+      setAlert({ title: '공유에 실패했어요', message: e?.message || '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] });
+    } finally { setCrewPosting(false); }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
@@ -324,7 +365,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 const disabled = sharing || saving;
                 const btn = (key, icon, label, bg, fg) => (
                   <TouchableOpacity key={key} activeOpacity={0.85}
-                    onPress={() => { if (key === 'link') onShareLink?.(); else if (key === 'dm') openDmPicker(); else handleOption(key); }}
+                    onPress={() => { if (key === 'link') onShareLink?.(); else if (key === 'dm') openDmPicker(); else if (key === 'crew') openCrewPicker(); else handleOption(key); }}
                     disabled={disabled}
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                       backgroundColor: bg, borderRadius: 12, height: 48, opacity: disabled ? 0.5 : 1 }}>
@@ -335,12 +376,15 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 const link = onShareLink ? btn('link', '🔗', '링크 공유', C.navy, '#fff') : null;
                 // 라운딩기록은 '디엠으로 보내기'(현행), 모집·일정은 '디엠 공유하기'.
                 const dm = !isInvite ? btn('dm', '💬', isRound ? '디엠으로 보내기' : '디엠 공유하기', '#6B1E2A', '#F5E6A8') : null;
+                // 크루 공유 — 모집만. 내 크루 '진행 중인 모집' 핀에 카드로(라운지 모집과 동일 진입).
+                const crew = isRoundup ? btn('crew', '👥', '크루에 공유', '#5E7E42', '#fff') : null;
                 // 카드 이미지 공유 — 모집·일정은 명칭을 '카드 이미지 공유하기'로(링크와 구분), 라운딩기록·초대는 '공유하기' 유지.
                 const shareLabel = sharing ? '공유 준비 중...' : ((isRoundup || isSchedule) ? '카드 이미지 공유하기' : '공유하기');
                 const share = btn('share', '📤', shareLabel, C.charcoal, '#fff');
                 const save = btn('save', '🖼', saving ? '저장 중...' : '이미지 저장', C.butter, C.charcoal);
                 const order = isInvite ? [share, link, save]
                   : isRound ? [share, dm, save]
+                  : isRoundup ? [link, dm, crew, share, save]
                   : [link, dm, share, save];
                 return order;
               })()}
@@ -432,6 +476,62 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                       opacity: (!selectedDm.length || dmSending) ? 0.5 : 1 }}>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>
                       {dmSending ? '보내는 중…' : `보내기${selectedDm.length ? ` (${selectedDm.length})` : ''}`}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* 크루 다중선택 시트 — 모집을 선택한 크루(들) '진행 중인 모집' 핀에 카드로 올림 */}
+          {crewPickerOpen && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+              <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setCrewPickerOpen(false)} />
+              <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '72%', paddingBottom: 16 + insets.bottom }}>
+                <View style={{ alignItems: 'center', paddingTop: 8 }}>
+                  <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
+                </View>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>크루에 모집 올리기</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 20, paddingBottom: 8 }}>올릴 크루를 선택하세요 (여러 개 가능) · 크루 피드에 모집 카드 글로 올라가요</Text>
+                {/* 친구공개/친구지정 모집 — 주최자와 친구 아닌 크루 멤버는 카드만 보이고 참여하려면 친구 신청 필요 안내. */}
+                {isRoundup && moment?.scope !== 'all' && (
+                  <View style={{ marginHorizontal: 16, marginBottom: 8, backgroundColor: 'rgba(0,11,92,0.06)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.navy, lineHeight: fs(18) }}>
+                      💡 친구공개 모집이에요. 주최자와 친구가 아닌 크루 멤버에겐 ‘친구만 볼 수 있어요’로 표시되고, 참여하려면 친구 신청이 필요해요.
+                    </Text>
+                  </View>
+                )}
+                {crewsLoading ? (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>불러오는 중…</Text>
+                ) : crews.length === 0 ? (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 28 }}>아직 크루가 없어요.</Text>
+                ) : (
+                  <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingHorizontal: 12 }} keyboardShouldPersistTaps="handled">
+                    {crews.map(c => {
+                      const sel = selectedCrews.includes(c.id);
+                      const cnt = (c.memberUids || []).length;
+                      return (
+                        <TouchableOpacity key={c.id} onPress={() => toggleCrew(c.id)} activeOpacity={0.7}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10,
+                            borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                          <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
+                            borderColor: sel ? C.burgundy : C.hairline, backgroundColor: sel ? C.burgundy : 'transparent',
+                            alignItems: 'center', justifyContent: 'center' }}>
+                            {sel && <Text style={{ fontSize: fs(13), color: C.butter }}>✓</Text>}
+                          </View>
+                          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{c.name || '크루'}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{cnt}명</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+                  <TouchableOpacity onPress={shareToCrews} disabled={!selectedCrews.length || crewPosting} activeOpacity={0.85}
+                    style={{ backgroundColor: C.burgundy, borderRadius: 12, height: 48, alignItems: 'center', justifyContent: 'center',
+                      opacity: (!selectedCrews.length || crewPosting) ? 0.5 : 1 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>
+                      {crewPosting ? '올리는 중…' : `올리기${selectedCrews.length ? ` (${selectedCrews.length})` : ''}`}
                     </Text>
                   </TouchableOpacity>
                 </View>
