@@ -8,6 +8,8 @@ import { C, F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { updateRoundupTeamPlan } from '../utils/roundup';
+import { getSubCoursesForCourse } from '../utils/golfCourses';   // 세부코스 칩 제안(시드된 구장)
+import { SubCourseChips } from './common/SubCourseChips';
 import { anonNick } from '../utils/anonNick';
 import { showToast } from './AppToast';
 import { showAppAlert } from './AppAlert';
@@ -36,6 +38,15 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);    // 보기 ↔ 수정 (호스트만 전환)
   const [memberNames, setMemberNames] = useState({}); // uid→닉네임 (참여자 칩)
+  const [subCourseOpts, setSubCourseOpts] = useState([]); // 구장의 세부코스 칩 제안(시드된 구장만)
+  // 모집 구장(courseKakaoId)의 세부코스 칩 로드 — 시드된 구장만(없으면 []=칩 미표시, 자유입력 유지)
+  useEffect(() => {
+    const kid = post?.courseKakaoId;
+    if (!kid) { setSubCourseOpts([]); return; }
+    let alive = true;
+    getSubCoursesForCourse(kid).then(o => { if (alive) setSubCourseOpts(o); }).catch(() => {});
+    return () => { alive = false; };
+  }, [post?.courseKakaoId]);
 
   // 모집 실시간 구독 — 참여자(결원·충원)를 즉시 반영. teamPlan·메모는 첫 로드 때만 채워 편집 중 덮어쓰기 방지.
   useEffect(() => {
@@ -227,6 +238,13 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {/* 세부코스 칩 제안 — 시드된 구장만(없으면 미표시). 탭하면 이 조의 세부코스 채움 */}
+                {canEdit && subCourseOpts.length > 0 && (
+                  <View style={{ paddingHorizontal: 13, paddingTop: 8 }}>
+                    <SubCourseChips options={subCourseOpts} value={g.course} onPick={(v) => setCourse(gi, v)} />
+                  </View>
+                )}
 
                 {/* 티오프(조)들 */}
                 {g.flights.map((f, fi) => {

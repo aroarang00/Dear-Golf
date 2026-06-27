@@ -5,7 +5,8 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SpinnerPicker } from './common/SpinnerPicker';
 import { C, F, fs } from '../constants/colors';
-import { searchGolfCourses } from '../utils/golfCourses';
+import { searchGolfCourses, getSubCoursesForCourse } from '../utils/golfCourses';
+import { SubCourseChips } from './common/SubCourseChips';   // 세부코스 칩 제안(시드된 구장)
 import { geocodeCity } from '../utils/openweather';
 import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
@@ -56,6 +57,15 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [booker, setBooker] = useState('');
   // 코스 — 골프장 내 세부코스 라벨(레이크/동→서 등). 구장 매칭과 무관·자유 입력, 공유 카드 표시·기록 자동채움용 ([[schedule-booker]])
   const [subCourse, setSubCourse] = useState('');
+  const [subCourseOpts, setSubCourseOpts] = useState([]); // 선택 구장의 세부코스 칩 제안(시드된 구장만)
+  // 선택 구장 바뀌면 세부코스 칩 제안 로드 — 시드된 구장만(없으면 []=칩 미표시, 자유입력 유지)
+  useEffect(() => {
+    const kid = selected?.kakaoId;
+    if (!kid) { setSubCourseOpts([]); return; }
+    let alive = true;
+    getSubCoursesForCourse(kid).then(o => { if (alive) setSubCourseOpts(o); }).catch(() => {});
+    return () => { alive = false; };
+  }, [selected?.kakaoId]);
 
   const DAYS = WEEKDAYS;
   const formatDate = (d) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
@@ -284,8 +294,16 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       <KeyboardProvider>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
-        <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
+        <View style={[mS.sheet, { paddingBottom: 0 }]}>
           <View style={mS.handle} />
+          {/* A. 고정 헤더 — 제목 + 항상 보이는 ✕ 닫기(iOS 백버튼 부재·긴 내용서 닫기 어려움 대응) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 6 }}>
+            <Text style={[mS.title, { fontSize: fs(21), flex: 1, marginBottom: 0 }]}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
+            <TouchableOpacity onPress={() => { reset(); onClose(); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 }}>
+              <Text style={{ fontSize: fs(22), color: C.warmGray }}>✕</Text>
+            </TouchableOpacity>
+          </View>
           {/* flexShrink:1 — 시트 maxHeight(92%)에 맞춰 스크롤뷰가 줄어들어 스크롤 가능해짐 */}
           {/* KeyboardAwareScrollView — 포커스된 입력칸을 키보드 위로 자동 스크롤(iOS·안드 공통).
               안드는 기존 KeyboardAvoidingView(behavior undefined)가 무효라 동반자 입력칸이 가려졌었음. */}
@@ -296,7 +314,6 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             bottomOffset={24}>
-              <Text style={[mS.title, { fontSize: fs(21) }]}>{isEdit ? '예정 라운딩 수정' : '예정 라운딩 추가'}</Text>
 
               {/* 국내 / 해외 — 전파 일정 잠금 시 비활성(구장 정체성의 일부) */}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, opacity: sharedLock ? 0.45 : 1 }}>
@@ -428,6 +445,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>코스 (선택)</Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} value={subCourse} onChangeText={setSubCourse}
                 placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
+              <SubCourseChips options={subCourseOpts} value={subCourse} onPick={setSubCourse} />
 
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>날짜{sharedLock ? ' 🔒' : ''}</Text>
               <TouchableOpacity style={[mS.input, sharedLock && { opacity: 0.6 }]} disabled={sharedLock} onPress={() => setShowDatePicker(true)}>
@@ -560,11 +578,17 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 💡 프론트 체크인 때 보여줄 예약자 이름이에요
               </Text>
 
-              <TouchableOpacity style={mS.saveBtn} onPress={handleSave}>
-                <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
-              </TouchableOpacity>
-              <View style={{ height: 40 }} />
             </KeyboardAwareScrollView>
+          {/* C. 고정 하단 바 — 항상 보이는 취소/저장(스크롤 끝까지 안 내려가도 닫기·저장 가능) */}
+          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+            <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.8}
+              style={{ paddingVertical: 15, paddingHorizontal: 22, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>취소</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[mS.saveBtn, { flex: 1, marginTop: 0 }]} onPress={handleSave} activeOpacity={0.85}>
+              <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         {/* 모달 안 커스텀 알럿(검증 등) — 네이티브 Alert 대신 오버레이 View(모달 위 모달 터치충돌 회피) */}
         <OverlayAlert data={overlay} onClose={() => setOverlay(null)} />

@@ -16,6 +16,8 @@ import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS, COURSE_TAG_OPPOSITES, WEEKDAYS } from '../constants/data';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
+import { getSubCoursesForCourse } from '../utils/golfCourses';   // 세부코스 칩 제안(시드된 구장)
+import { SubCourseChips } from './common/SubCourseChips';
 import { mS } from '../styles/mS';
 import { UserContext } from '../contexts/UserContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -178,6 +180,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [companions, setCompanions] = useState([]); // [{ name, friendUid? }] — 친구 선택 시 friendUid 보존([[companion-design]] Phase A)
   const [teamRoster, setTeamRoster] = useState([]); // 단체(한 조 4명 초과) 일정의 참여자 전체 — 본인 조 3명을 직접 고르게(앞 3명 자동 X)
   const [subCourse, setSubCourse] = useState(''); // 코스(세부코스 라벨) — 구장 매칭과 무관·자유 입력. 연결된 일정에서 자동채움 ([[schedule-booker]])
+  const [subCourseOpts, setSubCourseOpts] = useState([]); // 선택 구장의 세부코스 칩 제안(시드된 구장만, 없으면 자유입력)
+  // 선택 구장 바뀌면 세부코스 칩 제안 로드 — 시드된 구장만 채워짐(없으면 []=칩 미표시, 자유입력 유지)
+  useEffect(() => {
+    const kid = selectedCourseObj?.kakaoId;
+    if (!kid) { setSubCourseOpts([]); return; }
+    let alive = true;
+    getSubCoursesForCourse(kid).then(o => { if (alive) setSubCourseOpts(o); }).catch(() => {});
+    return () => { alive = false; };
+  }, [selectedCourseObj?.kakaoId]);
   const [companionInput, setCompanionInput] = useState('');
   const [friends, setFriends] = useState([]);                 // 동반자 친구 선택 목록
   const [shareScores, setShareScores] = useState(false);      // 동반자에게 스코어 공유(OCR 전체 행) opt-in ([[companion-design]] §11)
@@ -650,11 +661,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         <KeyboardProvider>
         <View style={mS.mask}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
-          <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
+          <View style={[mS.sheet, { paddingBottom: 0 }]}>
             <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.7}
               style={{ alignItems: 'center', paddingVertical: 10 }}>
               <View style={mS.handle} />
             </TouchableOpacity>
+            {/* A. 고정 헤더 — 제목 + 항상 보이는 ✕ 닫기(iOS 백버튼 부재·긴 내용서 닫기 어려움 대응) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 4 }}>
+              <Text style={[mS.title, { fontSize: fs(21), flex: 1, marginBottom: 0 }]}>{isEdit ? '기록 수정' : '기록하기'}</Text>
+              <TouchableOpacity onPress={() => { reset(); onClose(); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 }}>
+                <Text style={{ fontSize: fs(22), color: C.warmGray }}>✕</Text>
+              </TouchableOpacity>
+            </View>
             {/* KeyboardAwareScrollView — 포커스 입력칸을 키보드 위로 자동 스크롤(iOS·안드 공통) */}
             <KeyboardAwareScrollView style={{ flexShrink: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled" bottomOffset={24}>
@@ -746,6 +765,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <Text style={mS.bigLabel}>코스 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>(선택)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} value={subCourse} onChangeText={setSubCourse}
                 placeholder="예: 레이크코스 / 동→서" placeholderTextColor={C.warmGrayLight} autoCorrect={false} />
+              <SubCourseChips options={subCourseOpts} value={subCourse} onPick={setSubCourse} />
 
               <Text style={mS.bigLabel}>날짜</Text>
               <TouchableOpacity style={[mS.input, dateLocked && { opacity: 0.55 }]}
@@ -1285,17 +1305,23 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   )}
                 </ScrollView>
               </View>
-              {saveError ? (
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#6B1E2A', textAlign: 'center', marginTop: 8 }}>{saveError}</Text>
-              ) : null}
-              <TouchableOpacity
-                style={[mS.saveBtn, { backgroundColor: !canSave ? '#B8B3AB' : (isEdit ? C.charcoal : C.burgundy) }]}
-                onPress={handleSave}
-                disabled={!canSave}>
-                <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
-              </TouchableOpacity>
-              <View style={{ height: 40 }} />
             </KeyboardAwareScrollView>
+            {/* C. 고정 하단 바 — 항상 보이는 취소/저장 + 검증 에러(스크롤 끝까지 안 내려가도 닫기·저장 가능) */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+              {saveError ? (
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#6B1E2A', textAlign: 'center', marginBottom: 8 }}>{saveError}</Text>
+              ) : null}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.8}
+                  style={{ paddingVertical: 15, paddingHorizontal: 22, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[mS.saveBtn, { flex: 1, marginTop: 0, backgroundColor: !canSave ? '#B8B3AB' : (isEdit ? C.charcoal : C.burgundy) }]}
+                  onPress={handleSave} disabled={!canSave} activeOpacity={0.85}>
+                  <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
         </KeyboardProvider>

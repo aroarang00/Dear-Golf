@@ -32,6 +32,7 @@ function toEntry(v) {
     x: typeof v.x === 'number' ? v.x : parseFloat(v.x),
     y: typeof v.y === 'number' ? v.y : parseFloat(v.y),
     url: kakaoId ? `http://place.map.kakao.com/${kakaoId}` : '',
+    subCourses: Array.isArray(v.subCourses) ? v.subCourses : [],   // 세부코스 라벨(시드된 구장만, 없으면 [])
   };
 }
 
@@ -71,6 +72,17 @@ export async function getGolfCourses() {
     console.warn('[golfCourses] 불러오기 실패', e?.message);
     return [];
   }
+}
+
+// 구장(kakaoId)의 세부코스 라벨 목록 — 시드된 마스터에서 조회. 없으면 [](=칩 없음, 자유입력 유지).
+//   세부코스 데이터는 관리자 스크립트로 golfCourses 문서에 subCourses[]로 시드(클라 쓰기 X). [[course-subcourse-plan]]
+export async function getSubCoursesForCourse(kakaoId) {
+  if (!kakaoId) return [];
+  try {
+    const all = await getGolfCourses();
+    const hit = all.find(c => String(c.kakaoId) === String(kakaoId));
+    return Array.isArray(hit?.subCourses) ? hit.subCourses : [];
+  } catch { return []; }
 }
 
 // 로컬 마스터 검색 — 정규화 매칭. 결과 형태는 카카오 검색과 동일.
