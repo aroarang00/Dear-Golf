@@ -44,6 +44,7 @@ export const STORAGE_KEYS = {
   crewDraft: '@dg_crew_draft', // 크루 새 글 작성 중 임시저장 {crewId: text} — 기기 로컬, 글만(미디어 uri는 휘발이라 제외). 게시 성공·지우기 시 삭제
   crewMuted: '@dg_crew_muted', // 크루별 알림(새 글 점) 음소거 {crewId: true} — 기기 로컬, per-user. 홈 크루 점에서 제외(어쩔수없이 든 크루 등)
   teamSeenAt: '@dg_team_seen_at', // 단체 모집별 단체팀(조편성) 마지막 열람 시각 {roundupId: millis} — 편성완료 미열람 맥동 판단(서버 미저장)
+  crewIntroSeen: '@dg_crew_intro_seen', // 크루 소개(이용안내) 첫 진입 1회 자동 표시 제어 — 라운지 소개와 동일 패턴
 };
 
 export const storage = {

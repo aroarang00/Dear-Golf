@@ -22,6 +22,7 @@ import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast';
 import { CrewAlbumScreen } from './CrewAlbumScreen';
 import { CrewCreateScreen } from './CrewCreateScreen';
+import { CrewIntroModal } from './CrewIntroModal';
 import { CrewAvatar } from './common/CrewAvatar';
 
 // 크루(친구 소수 그룹) 공유 앨범 — 진입 첫 화면 = 내가 속한 크루 리스트 (docs/crew-space-design.md §3.0).
@@ -155,6 +156,13 @@ export function CrewListScreen({ onClose, onOpenDM }) {
 
   const [openCrew, setOpenCrew] = useState(null);      // 앨범(상세) 열린 크루
   const [createOpen, setCreateOpen] = useState(false); // 크루 만들기
+  const [showIntro, setShowIntro] = useState(false);   // 크루 소개(이용안내)
+  // 첫 진입 시 크루 소개 1회 자동 표시 — 라운지 소개와 동일 패턴(crewIntroSeen)
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.crewIntroSeen, false).then(seen => {
+      if (!seen) { setShowIntro(true); storage.save(STORAGE_KEYS.crewIntroSeen, true); }
+    });
+  }, []);
 
   // doc → 목록 표시 모델 (최근활동순 정렬, 즐겨찾기 플래그)
   const crews = useMemo(() => (crewDocs || []).map((d) => {
@@ -305,6 +313,11 @@ export function CrewListScreen({ onClose, onOpenDM }) {
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Icon name="crew" size={fs(34)} color={SAGE_DEEP} strokeWidth={1.8} />
         </View>
+        {/* 이용안내(크루 소개) — 우리 book 아이콘. 첫 진입 1회 자동 + 여기서 다시 보기 */}
+        <TouchableOpacity onPress={() => setShowIntro(true)} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+          style={{ padding: 6, marginRight: 4 }}>
+          <Icon name="book" size={fs(23)} color={SAGE_DEEP} strokeWidth={1.8} />
+        </TouchableOpacity>
         {/* 크루 만들기 — '＋ 만들기'로 명확히(친구초대 personAdd 아이콘과 혼동 방지). personAdd는 앨범·멤버서 초대 전용 */}
         <TouchableOpacity onPress={() => setCreateOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: SAGE_DEEP,
@@ -416,6 +429,7 @@ export function CrewListScreen({ onClose, onOpenDM }) {
         </ScrollView>
       )}
 
+      <CrewIntroModal visible={showIntro} onClose={() => setShowIntro(false)} onCreatePress={() => setCreateOpen(true)} />
     </SafeAreaView>
     </GestureHandlerRootView>
     </SafeAreaProvider>
