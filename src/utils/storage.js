@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
   roundupTipDone:   '@dg_roundup_tip_done',      // 모집글 작성 화면 툴팁 1회
   roundupBookmarks: '@dg_roundup_bookmarks',     // 관심 모집 북마크 {postId: true}
   roundupHidden: '@dg_roundup_hidden',           // 가리기 — 길게 눌러 숨긴 모집 {postId: true} (내 화면 한정, 해제 없음)
+  roundupSuppressed: '@dg_roundup_suppressed',   // 초대 자동억제 — 거절·수락후취소한 친구지정 초대 {postId: true}. 초대 표시(홈 배너·내참여)만 숨김, 친구공개 브라우즈엔 미적용(공개 전환 시 다시 보임)
   dismissedRoundCards: '@dg_dismissed_round_cards', // 홈 종료 카드 나가기 — 사용자가 닫은 D-0 카드 {scheduleId: true} (홈에서만 숨김, 자정 자연 정리)
   d0Info: '@dg_d0info_',  // [접두사] D-0 카드 날씨·교통·준비물 마지막값 캐시 — 키=d0Info+scheduleId, {t,date,v}. 콜드스타트 즉시표시용(stagger 완화)
   homeIntroSeen:    '@dg_home_intro_seen',       // 홈 Dear Golf 이용 안내 1회 — 뱃지 표시 제어

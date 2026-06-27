@@ -208,22 +208,30 @@ function App() {
   }, [showOnboarding, profileLoaded, authUid]);
 
   // 라운지 친구지정(select) 초대 — 라운지 탭 뱃지 + 홈 배너. 받은 미응답 초대를 실시간 구독([[roundup-invitation]]).
-  //   서버 조건(미참여·윈도우)은 subscribeSelectInvitesForMe가, '거절(가리기)'은 로컬(roundupHidden)이라 여기서 차감.
+  //   서버 조건(미참여·윈도우)은 subscribeSelectInvitesForMe가, '거절·취소'는 로컬(roundupSuppressed)·'가리기'(roundupHidden)라 여기서 차감.
   const [roundupInvitePending, setRoundupInvitePending] = useState([]); // 서버 원천 미응답 초대
   const [roundupHiddenMap, setRoundupHiddenMap] = useState({});         // 로컬 가리기(라운지와 같은 스토리지 키 공유)
+  const [roundupSuppressedMap, setRoundupSuppressedMap] = useState({}); // 로컬 초대 자동억제(거절·취소) — 초대 표시만 숨김
   const refreshRoundupHidden = useCallback(async () => {
-    try { setRoundupHiddenMap((await storage.load(STORAGE_KEYS.roundupHidden, {})) || {}); }
-    catch (e) { if (__DEV__) console.warn('[App] roundup hidden load fail', e?.message); }
+    try {
+      const [h, s] = await Promise.all([
+        storage.load(STORAGE_KEYS.roundupHidden, {}),
+        storage.load(STORAGE_KEYS.roundupSuppressed, {}),
+      ]);
+      setRoundupHiddenMap(h || {});
+      setRoundupSuppressedMap(s || {});
+    } catch (e) { if (__DEV__) console.warn('[App] roundup hidden load fail', e?.message); }
   }, []);
   useEffect(() => { refreshRoundupHidden(); }, [refreshRoundupHidden]); // 마운트 시 가리기 로드
-  // 배너에서 거절 — 로컬 가리기에 기록(라운지 suppressInvite와 같은 키) + 즉시 반영. 재노출 방지.
+  // 배너에서 거절 — 로컬 '초대 자동억제'에 기록(라운지 suppressInvite와 같은 키). 초대 재노출만 막고,
+  //   친구공개로 바뀌면 다시 보이게(가리기와 분리). 재노출 방지 + 즉시 반영.
   const declineRoundupInvite = useCallback(async (postId) => {
     if (!postId) return;
     try {
-      const cur = (await storage.load(STORAGE_KEYS.roundupHidden, {})) || {};
+      const cur = (await storage.load(STORAGE_KEYS.roundupSuppressed, {})) || {};
       const next = { ...cur, [postId]: true };
-      await storage.save(STORAGE_KEYS.roundupHidden, next);
-      setRoundupHiddenMap(next);
+      await storage.save(STORAGE_KEYS.roundupSuppressed, next);
+      setRoundupSuppressedMap(next);
     } catch (e) { if (__DEV__) console.warn('[App] roundup decline fail', e?.message); }
   }, []);
   useEffect(() => {
@@ -238,8 +246,8 @@ function App() {
   }, [showOnboarding, profileLoaded, authUid]);
   // 가리기(거절) 반영된 최종 목록 + 카운트 — 라운지 탭 뱃지/홈 배너 공용 단일 소스.
   const roundupInvites = useMemo(
-    () => roundupInvitePending.filter(p => !roundupHiddenMap[p.id]),
-    [roundupInvitePending, roundupHiddenMap]);
+    () => roundupInvitePending.filter(p => !roundupHiddenMap[p.id] && !roundupSuppressedMap[p.id]),
+    [roundupInvitePending, roundupHiddenMap, roundupSuppressedMap]);
   const roundupInviteCount = roundupInvites.length;
 
   // 라운딩 일정 알림(scheduleNotice) — 주최자의 '동반자에게 일정 알리기'를 수신자가 앱 어디서나 확인.

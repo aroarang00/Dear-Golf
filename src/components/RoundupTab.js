@@ -321,7 +321,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const participantNamesRef = useRef(participantNames); // 최신 이름 맵 미러 — 상세 실시간 구독이 deps 없이 읽기 위함
   useEffect(() => { participantNamesRef.current = participantNames; }, [participantNames]);
   const [bookmarks, setBookmarks] = useState({});      // 관심 모집 {postId: true}
-  const [hidden, setHidden] = useState({});            // 가리기 — 길게 눌러 숨긴 모집 {postId: true}
+  const [hidden, setHidden] = useState({});            // 가리기 — 길게 눌러 숨긴 모집 {postId: true} (브라우즈 포함 어디서나)
+  const [suppressed, setSuppressed] = useState({});    // 초대 자동억제 — 거절·취소한 친구지정 초대 {postId: true} (초대 표시만 숨김, 친구공개 브라우즈엔 미적용)
   // 댓글 — { [postId]: [comment...] }. Firebase 마이그레이션 시 서브컬렉션 roundups/{postId}/comments로 이관.
   const [commentsByPost, setCommentsByPost] = useState({});
   const [commentsTotal, setCommentsTotal] = useState({});   // {postId: 총 댓글 수} — 작성 한도·이전댓글 보기 판단
@@ -722,11 +723,21 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!hiddenHydrated) return;
     storage.save(STORAGE_KEYS.roundupHidden, hidden);
   }, [hidden, hiddenHydrated]);
+  // 초대 자동억제(거절·취소) — 가리기와 분리. 친구공개로 바뀌면 다시 보이게 하려고 브라우즈 필터엔 안 쓴다.
+  const [suppressedHydrated, setSuppressedHydrated] = useState(false);
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.roundupSuppressed, {}).then(s => { setSuppressed(s || {}); setSuppressedHydrated(true); });
+  }, []);
+  useEffect(() => {
+    if (!suppressedHydrated) return;
+    storage.save(STORAGE_KEYS.roundupSuppressed, suppressed);
+  }, [suppressed, suppressedHydrated]);
   // 라운지 포커스 시 가리기 재로드 — 홈 배너에서 친구지정 초대를 거절(가리기)한 경우 내 참여·관심과 정합 ([[roundup-invitation]]).
   useEffect(() => {
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('focus', () => {
       storage.load(STORAGE_KEYS.roundupHidden, {}).then(h => setHidden(h || {})).catch(() => {});
+      storage.load(STORAGE_KEYS.roundupSuppressed, {}).then(s => setSuppressed(s || {})).catch(() => {});
       // 별명·그룹 재로드 — 다른 화면에서 친구 별명(customName)을 바꿔도 라운지(내 모집글 등)에 바로 반영.
       //   기존엔 마운트 1회만 로드(useEffect [])라 별명 변경이 앱 재시작 전엔 안 보였음.
       loadFriendData().then(fd => { setFriendGroups(fd.friendGroups); setFriendMeta(fd.friendMeta); }).catch(() => {});
@@ -749,9 +760,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     });
   }, []);
 
-  // 초대 억제(조용히) — 수락→취소 등 시스템 동선에서 confirm 없이 목록에서 제거 (hidden set 재사용으로 영속)
+  // 초대 억제(조용히) — 거절·수락→취소 등 시스템 동선에서 confirm 없이 목록에서 제거.
+  //   ★가리기(hidden)와 분리된 suppressed에 기록 — 친구공개/전체공개로 바뀌면 자동 해제돼 브라우즈에 다시 보인다
+  //   (공개판인데 거절했던 사람만 안 보이던 문제 해소. 직접 길게눌러 가린 건 hidden이라 그대로 유지).
   const suppressInvite = (id) => {
-    setHidden(prev => ({ ...prev, [id]: true }));
+    setSuppressed(prev => ({ ...prev, [id]: true }));
     if (detailId === id) setDetailId(null);
   };
 
@@ -1035,7 +1048,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id]) return true;
     // 친구지정(select) 초대 수신자 — 아직 미참여여도 노출. 단, 거절/수락후취소로 가린 초대는 다시 안 띄움
     const amSelectRecipient = p.scope === 'select' && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
-    return amSelectRecipient && !hidden[p.id];
+    return amSelectRecipient && !hidden[p.id] && !suppressed[p.id];
   });
   // 내 주최 vs 참여 분리 — 주최(authorUid==me) / 그 외(참여·신청·대기·초대 수신).
   //   주최한 모집이 있을 때만 mine 탭에 '내 주최|참여' 토글 노출(참여만 있으면 숨김, 사용자 2026-06-18).
