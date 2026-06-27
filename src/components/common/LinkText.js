@@ -7,9 +7,9 @@ import { Text, Linking } from 'react-native';
 const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
 const TRAIL_RE = /[)\]}.,!?;:'"·]+$/;   // 링크 끝에 붙은 문장부호는 링크에서 떼어냄
 
-export function LinkText({ children, style, linkColor = '#1565C0' }) {
+export function LinkText({ children, style, linkColor = '#1565C0', numberOfLines, onTextLayout }) {
   const text = typeof children === 'string' ? children : (children == null ? '' : String(children));
-  if (!text) return <Text style={style}>{text}</Text>;
+  if (!text) return <Text style={style} numberOfLines={numberOfLines} onTextLayout={onTextLayout}>{text}</Text>;
 
   const parts = [];
   let last = 0;
@@ -28,7 +28,7 @@ export function LinkText({ children, style, linkColor = '#1565C0' }) {
   if (last < text.length) parts.push({ t: text.slice(last), link: false });
 
   // 링크가 없으면 그냥 평문(불필요한 span 분리 회피)
-  if (!parts.some(p => p.link)) return <Text style={style}>{text}</Text>;
+  if (!parts.some(p => p.link)) return <Text style={style} numberOfLines={numberOfLines} onTextLayout={onTextLayout}>{text}</Text>;
 
   const open = (raw) => {
     const u = /^www\./i.test(raw) ? `https://${raw}` : raw;
@@ -36,7 +36,7 @@ export function LinkText({ children, style, linkColor = '#1565C0' }) {
   };
 
   return (
-    <Text style={style}>
+    <Text style={style} numberOfLines={numberOfLines} onTextLayout={onTextLayout}>
       {parts.map((p, i) => p.link
         ? <Text key={i} onPress={() => open(p.t)} suppressHighlighting
             style={{ color: linkColor, textDecorationLine: 'underline' }}>{p.t}</Text>
