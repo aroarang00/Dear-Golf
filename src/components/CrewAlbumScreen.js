@@ -282,7 +282,7 @@ const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, 
       {!!p.text && (
         <LinkText style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</LinkText>
       )}
-      {!!p.roundupId && <RoundupMiniCard roundupId={p.roundupId} shared={p.roundupShare} onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />}
+      {!!p.roundupId && <RoundupMiniCard roundupId={p.roundupId} shared={p.roundupShare} isHost={p.roundupIsHost} onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />}
       {p.media.length > 0 && (
         <View style={{ marginTop: 11 }}>
           <PostMedia media={p.media} width={width} burst={burst}
@@ -460,6 +460,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       hasNewComment: seenAt > 0 && p.authorUid === currentUid && lastCMs > seenAt && !!lcBy && lcBy !== currentUid, // 내 글에 새 댓글
       roundupId: p.roundupId || null,   // 크루에 첨부/생성한 모집 — 미니카드 렌더
       roundupHost: p.roundupHost || null, // 주최자 uid — 비친구 '친구 맺기' 안내 타겟
+      roundupIsHost: !!currentUid && p.roundupHost === currentUid, // 보는 이가 주최자 — denied면 친추 아니라 '삭제/종료'로 판별
       roundupShare: !!p.roundupShare,   // true=라운지 모집을 가볍게 공유(피드 광고). false/없음=크루서 만든 모집(상단 핀)
       _doc: p,
     };
@@ -480,16 +481,22 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
     (postDocs || []).forEach((p) => { if (p.roundupId && p.roundupHost && !m[p.roundupId]) m[p.roundupId] = p.roundupHost; });
     return m;
   }, [postDocs]);
+  // 상태를 로드할 모집 = 핀(표시용) + 내가 올린 공유 모집(자동정리용 — 라운지서 삭제 시 공유 카드도 치우려면 상태 필요).
+  const loadRoundupIds = useMemo(() => {
+    const ids = [...pinnedRoundupIds];
+    (postDocs || []).forEach((p) => { if (p.roundupId && p.roundupShare && p.authorUid === currentUid && !ids.includes(p.roundupId)) ids.push(p.roundupId); });
+    return ids;
+  }, [postDocs, pinnedRoundupIds, currentUid]);
   const [roundupMap, setRoundupMap] = useState({});
   useEffect(() => {
-    if (!pinnedRoundupIds.length) { setRoundupMap({}); return; }
+    if (!loadRoundupIds.length) { setRoundupMap({}); return; }
     let alive = true;
     // 권한없음(비친구·미지정 audience)은 삭제와 구분 — { __denied } 센티넬로 표시해 핀에 '친구만 볼 수 있음' 카드로 노출.
-    Promise.all(pinnedRoundupIds.map((id) => loadRoundup(id).then((r) => [id, r])
+    Promise.all(loadRoundupIds.map((id) => loadRoundup(id).then((r) => [id, r])
       .catch((e) => [id, e?.code === 'permission-denied' ? { __denied: true } : null])))
       .then((pairs) => { if (!alive) return; const m = {}; pairs.forEach(([id, r]) => { m[id] = r; }); setRoundupMap(m); });
     return () => { alive = false; };
-  }, [pinnedRoundupIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadRoundupIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
   const activePinnedIds = useMemo(() => {
     const now = Date.now();
     return pinnedRoundupIds.filter((id) => {
@@ -506,6 +513,37 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   // 피드 = 일반 게시글 + 모집 '공유' 광고 글(roundupShare). '크루서 만든 모집'(핀 대상)만 피드서 제외 → 핀과 중복 안 됨.
   //   핀 모집은 active만 보이고 확정·취소·티오프+5h 지나면 내려감(라운지와 동일). 공유 광고는 일반 글처럼 피드에 남음.
   const feedPosts = useMemo(() => posts.filter((p) => !p.roundupId || p.roundupShare), [posts]);
+
+  // 모집 글 자동 정리(내가 올린 것만, 권한) — (a) 핀(크루서 만든): 확정·취소·티오프+5h로 끝나면 숨은 고아라 정리,
+  //   (b) 핀·공유 무관 '삭제된' 모집(주최자 본인이라 못 읽음=삭제 확실)은 dead 카드라 정리 → 라운지서 삭제 시 크루 카드 자동 제거.
+  //   공유 광고는 '종료'만으론 안 지움(피드에 보이는 글, 확정 표시로 남기고 수동 삭제 가능) — 삭제 dead만.
+  const cleanedRef = useRef(new Set());
+  useEffect(() => {
+    if (!currentUid || !crewId) return;
+    const now = Date.now();
+    (postDocs || []).forEach((p) => {
+      if (!p.roundupId || p.authorUid !== currentUid) return; // 내가 올린 모집 글만
+      if (cleanedRef.current.has(p.id)) return;
+      const r = roundupMap[p.roundupId];
+      if (!r) return;                                     // 미로드(undefined)·일시실패(null) 제외 — 블립에 안전
+      let remove = false;
+      if (r.__denied) {
+        if (p.roundupHost === currentUid) remove = true;  // 주최자 본인이 못 읽음 = 삭제됨(존재 시 항상 읽힘) → 핀·공유 dead 카드 정리
+      } else if (!p.roundupShare) {                        // 핀(크루서 만든)만 '종료' 정리. 공유 광고는 종료돼도 피드에 유지
+        let ended = !!r.closed || !!r.cancelledByHost;
+        if (!ended && r.type !== 'open' && r.date) {
+          const [y, m, d] = String(r.date).split('.').map(Number);
+          const [hh, mm] = String(r.time || '07:00').split(':').map(Number);
+          const teeOff = new Date(y, m - 1, d, hh, mm).getTime();
+          if (!Number.isNaN(teeOff) && now > teeOff + 5 * 3600 * 1000) ended = true;
+        }
+        remove = ended;
+      }
+      if (!remove) return;
+      cleanedRef.current.add(p.id);
+      deleteCrewPost(crewId, p.id).catch((e) => { cleanedRef.current.delete(p.id); if (__DEV__) console.warn('[crewAlbum] roundup post cleanup', e?.message); });
+    });
+  }, [postDocs, roundupMap, currentUid, crewId]);
 
   // 피드 사진 미리 받기 — 첫 화면 몇 장만. 전체 원본을 한꺼번에 prefetch하면 사진 많은 크루 진입 시
   //   네트워크·디코드 폭주로 버벅임(가상화와 별개로 prefetch가 전량을 깨움). 6장으로 제한(2026-06-24 성능).
@@ -601,6 +639,18 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
     if (!a) return;
     setReportTarget({ id: a.authorUid, name: a.name, evidence: a.text ? `[크루 게시물] ${a.text}` : '' });
   };
+  // 핀 카드 길게 누르기 — '크루에서 내리기'(모집은 라운지에 그대로, 이 크루 글만 삭제). 작성자/운영진만.
+  const removePinPost = (roundupId) => {
+    const post = (postDocs || []).find((p) => p.roundupId === roundupId && !p.roundupShare);
+    if (!post || (post.authorUid !== currentUid && !iAmStaff)) return;
+    showAppAlert('이 모집을 크루에서 내릴까요?', '모집글은 라운지에 그대로 남고, 이 크루에서만 카드가 사라져요.', [
+      { text: '취소', style: 'cancel' },
+      { text: '내리기', style: 'destructive', onPress: async () => {
+        try { await deleteCrewPost(crewId, post.id); }
+        catch (e) { if (__DEV__) console.warn('[crewAlbum] removePin', e?.code, e?.message); }
+      } },
+    ]);
+  };
   const startEdit = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
@@ -684,7 +734,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
           <Text style={{ fontFamily: F.sysB, fontSize: fs(11.5), color: SAGE_DEEP, marginLeft: 2 }}>진행 중인 모집</Text>
           {activePinnedIds.map((id) => (
             <RoundupMiniCard key={id} roundupId={id} post={roundupMap[id]}
-              onPress={(rid) => onOpenRoundup?.(rid, roundupHostById[rid])} />
+              onPress={(rid) => onOpenRoundup?.(rid, roundupHostById[rid])} onLongPress={() => removePinPost(id)} />
           ))}
         </View>
       )}

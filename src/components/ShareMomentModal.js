@@ -22,7 +22,7 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { loadFriendData, resolveGroupAudience, groupColor } from '../utils/friendGroups';   // 그룹 단위 DM 공유
 import { uploadDmImage, sendImageMessageUrl, ensureConversation } from '../utils/dm';
-import { loadMyCrews, addCrewPost } from '../utils/crews';   // 모집을 내 크루 '진행 중인 모집' 핀에 카드로 올리기
+import { loadMyCrews, addCrewPost } from '../utils/crews';   // 모집을 내 크루 피드에 카드 글(roundupShare)로 올리기(핀 아님)
 import { getUid } from '../utils/firebase';
 
 // 캡처 영역 너비 — ★고정값(폰 화면 폭에 의존하지 않음). 화면폭(window.width-40) 기준이면 폰마다 카드 크기가
@@ -231,7 +231,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
     finally { setCrewsLoading(false); }
   };
   const toggleCrew = (id) => setSelectedCrews(prev => (prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]));
-  // 선택한 크루(들)에 모집 카드 게시 — addCrewPost(roundupId+roundupHost). 핀이 roundupId로 중복 제거하므로 같은 모집 재게시도 무해.
+  // 선택한 크루(들) 피드에 모집 카드 글 게시 — addCrewPost(roundupId+roundupHost+roundupShare:true). 핀 아니라 피드 광고 글.
   const shareToCrews = async () => {
     if (crewPosting || !selectedCrews.length || !moment?.id) return;
     setCrewPosting(true);

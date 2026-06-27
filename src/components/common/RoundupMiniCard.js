@@ -8,7 +8,7 @@ import { loadRoundup } from '../../utils/roundup';
 //   모집 doc은 1회 조회(피드 다건이라 구독 X). 삭제·주최자취소면 '종료' 안내, 권한 없으면(비-audience) 조회 실패→종료로 graceful.
 // preloaded가 { __denied:true }면 = 상위에서 권한없음(비친구·미지정 audience)으로 판정 → '친구만 볼 수 있음' 카드.
 const stateOf = (p) => (p ? (p.__denied ? 'denied' : (p.cancelledByHost ? 'gone' : 'ok')) : 'loading');
-export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, shared = false }) {
+export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, shared = false, isHost = false, onLongPress = null }) {
   const [post, setPost] = useState(preloaded);
   const [state, setState] = useState(stateOf(preloaded)); // loading | ok | gone | denied
 
@@ -30,7 +30,9 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, sh
   };
 
   if (state === 'loading') return null;
-  if (state === 'gone') {
+  // 삭제된 모집은 없는 doc 읽기가 permission-denied로 떨어져 denied가 됨(친추 아님). 친추 안내는 '공유 카드(shared, friends)
+  //   + 보는 이가 주최자 아님'일 때만 의미 — 주최자 본인이 못 읽음=삭제됨이고, 핀(select)은 친추로 권한 안 생김. 그 외 denied는 '종료/볼 수 없음'.
+  if (state === 'gone' || (state === 'denied' && (!shared || isHost))) {
     return (
       <View style={[box, { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: fs(20) }]}>
         <Icon name="flag" size={fs(13)} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
@@ -38,10 +40,10 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, sh
       </View>
     );
   }
-  // 비친구(미지정 audience)라 모집을 못 읽음 — 탭하면 라운지로 보내 '주최자와 친구 맺기' 안내(기존 동선 재사용).
+  // 비친구(친구공개 모집을 공유받았는데 주최자와 친구 아님) — 탭하면 라운지로 보내 '주최자와 친구 맺기' 안내(기존 동선 재사용).
   if (state === 'denied') {
     return (
-      <TouchableOpacity activeOpacity={0.85} onPress={() => onPress?.(roundupId)}
+      <TouchableOpacity activeOpacity={0.85} onPress={() => onPress?.(roundupId)} onLongPress={onLongPress || undefined} delayLongPress={350}
         style={[box, { flexDirection: 'row', alignItems: 'center', minHeight: fs(20) }]}>
         <Text style={{ fontSize: fs(11.5) }}>🔒</Text>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: 'rgba(255,255,255,0.85)', marginLeft: 7, flexShrink: 1 }} numberOfLines={1}>친구만 볼 수 있는 모집이에요</Text>
@@ -59,7 +61,7 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, sh
     : (allFull ? (post.type === 'open' ? '날짜 정하기' : '확정 대기') : '모집중');
   const title = post.type === 'fixed' ? (post.course || '라운딩') : '장소 · 날짜 미정';
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress?.(roundupId)} style={box}>
+    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress?.(roundupId)} onLongPress={onLongPress || undefined} delayLongPress={350} style={box}>
       <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: fs(20) }}>
         <Icon name="flag" size={fs(13)} color={C.butter} strokeWidth={1.9} />
         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff', marginLeft: 6, flexShrink: 1 }} numberOfLines={1}>{title}</Text>
