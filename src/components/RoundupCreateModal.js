@@ -762,7 +762,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 })}
               </View>
             )}
-            <AppTextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline
+            <AppTextInput style={[mS.input, { minHeight: 64, textAlignVertical: 'top', fontSize: fs(15), lineHeight: 21 }]} multiline
               placeholder="어느 코스인지, 라운딩에 참고할 점을 적어주세요 (예: 듄스코스)" placeholderTextColor={C.warmGrayLight}
               value={word} onChangeText={(t) => setWord(t.slice(0, 40))} />
 
