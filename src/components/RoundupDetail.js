@@ -873,6 +873,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               {post.type === 'fixed' ? (
                 <>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 16 : 17), color: C.charcoal, lineHeight: fs(_and ? 21 : 23) }}>{post.course}</Text>
+                  {post.subCourse ? (
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray, marginTop: 2 }}>{post.subCourse}</Text>
+                  ) : null}
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 2 : 4, lineHeight: _and ? 17 : 18 }}>
                     {post.date} ({post.day}) · {post.time}
                   </Text>

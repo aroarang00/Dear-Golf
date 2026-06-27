@@ -197,6 +197,9 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
       {post.type === 'fixed' ? (
         <>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 15 : 17), color: C.charcoal, lineHeight: fs(_and ? 20 : 23) }}>{post.course}</Text>
+          {post.subCourse ? (
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(_and ? 11 : 12), color: C.warmGray, marginTop: 1 }}>{post.subCourse}</Text>
+          ) : null}
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(_and ? 12 : 13), color: C.charcoal, lineHeight: fs(_and ? 17 : 19), marginTop: _and ? 3 : 5 }}>
             {post.date} ({post.day}) · {post.time}
           </Text>

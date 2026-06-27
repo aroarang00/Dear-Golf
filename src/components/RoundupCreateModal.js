@@ -4,7 +4,7 @@ import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SpinnerPicker } from './common/SpinnerPicker';
 import { C, F, fs } from '../constants/colors';
-import { searchGolfCourses } from '../utils/golfCourses';
+import { searchGolfCourses, getSubCoursesForCourse } from '../utils/golfCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { COMPANION_OPTIONS, AGEGROUP_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, tagStyle, INVITE_SAMPLES, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, regionFromAddress } from '../constants/roundup';
 import { mS } from '../styles/mS';
@@ -13,6 +13,7 @@ import { UserContext } from '../contexts/UserContext';
 import { OverlayAlert } from './common/OverlayAlert';
 import { FriendSelectModal } from './FriendSelectModal';
 import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
+import { SubCourseChips } from './common/SubCourseChips';
 
 const SCOPES_ALL = [
   ['all', '전체공개'],
@@ -74,6 +75,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const [courseQuery, setCourseQuery] = useState('');
   const [course, setCourse] = useState(null);
   const [results, setResults] = useState([]);
+  const [subCourse, setSubCourse] = useState('');         // 세부코스(선택) — 자유입력 + 시드 칩
+  const [subCourseOpts, setSubCourseOpts] = useState([]); // 선택 구장의 세부코스 칩 제안(시드된 구장만)
   const [searching, setSearching] = useState(false);
   const [date, setDate] = useState(defaultTeeOff); // 과거 티오프 방지 — 오늘 07:00(지났으면 내일)
   const [showDate, setShowDate] = useState(false);
@@ -102,6 +105,14 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     if (!visible) return;
     loadFriendData().then(setFriendData).catch(() => {});
   }, [visible]);
+  // 선택한 구장의 세부코스 칩 제안 — 시드된 구장만(없으면 칩 미표시, 자유입력 유지) ([[course-subcourse-plan]])
+  useEffect(() => {
+    const kid = course?.kakaoId;
+    if (!kid) { setSubCourseOpts([]); return; }
+    let alive = true;
+    getSubCoursesForCourse(kid).then(o => { if (alive) setSubCourseOpts(Array.isArray(o) ? o : []); }).catch(() => {});
+    return () => { alive = false; };
+  }, [course?.kakaoId]);
   // 동반자 조건 필터 — 구성·연령대·실력 단일 선택, 태그 다중 선택. 전체공개에서만 노출.
   const [companion, setCompanion] = useState('any');
   const [ageGroup, setAgeGroup] = useState('any');
@@ -141,7 +152,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     if (!visible || !initialPost) return;
     setType(lockToFixed ? 'fixed' : (initialPost.type || 'fixed'));
     setCourseQuery(initialPost.course || '');
-    setCourse(initialPost.course ? { name: initialPost.course, loc: null } : null);
+    setCourse(initialPost.course ? { name: initialPost.course, loc: null, kakaoId: initialPost.courseKakaoId || null } : null);
+    setSubCourse(initialPost.subCourse || '');
     if (initialPost.date && initialPost.time) {
       const [y, m, d] = initialPost.date.split('.').map(Number);
       const [hh, mm] = initialPost.time.split(':').map(Number);
@@ -196,6 +208,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setCompanion('any'); setAgeGroup('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
     setSelectMode('include'); setSelectedUids([]); setSelectedGroupIds([]); setShowFriendSelect(false);
+    setSubCourse(''); setSubCourseOpts([]);
   };
   const close = () => { if (!initialPost) reset(); onClose(); };
   // 안드로이드 뒤로가기 — 확인창(OverlayAlert)이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
@@ -238,6 +251,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       course: type === 'fixed' ? courseName : null,
       courseLoc: type === 'fixed' ? (course?.loc || null) : null,         // 주소 — 확정 시 일정/지역탭으로 전달([[region-classification]])
       courseKakaoId: type === 'fixed' ? (course?.kakaoId || null) : null, // 코스 가기 매칭용
+      subCourse: type === 'fixed' ? (subCourse.trim() || null) : null,    // 세부코스(선택) — 있으면 카드·상세에 구장 아래 표시
       region,
       date: type === 'fixed' ? fmtDate(date) : null,
       day: type === 'fixed' ? DAYS[date.getDay()] : null,
@@ -505,6 +519,17 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                   <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: 17 }}>
                     💡 직접 입력한 코스는 일정 자동 연동·100대 코스 체크가 제한될 수 있어요.
                   </Text>
+                )}
+
+                {/* 세부코스(선택) — 골프장 아래. 자유입력 + 시드 구장이면 칩 제안. 비우면 카드·상세에 미표시 */}
+                <Text style={mS.bigLabel}>세부코스 <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>(선택)</Text></Text>
+                <AppTextInput style={[mS.input, { fontSize: fs(15), fontFamily: F.sysSb }]} placeholder="예: 동코스 — 없으면 비워두세요"
+                  placeholderTextColor={C.warmGrayLight} value={subCourse} maxLength={20}
+                  autoCorrect={false} onChangeText={setSubCourse} />
+                {subCourseOpts.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <SubCourseChips options={subCourseOpts} value={subCourse} onPick={setSubCourse} />
+                  </View>
                 )}
 
                 <Text style={mS.bigLabel}>날짜</Text>

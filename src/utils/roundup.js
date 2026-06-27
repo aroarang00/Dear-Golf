@@ -134,6 +134,7 @@ export async function createRoundup(data) {
     type: data.type || 'fixed',
     course: data.course || '',
     courseKakaoId: data.courseKakaoId || null,
+    subCourse: data.subCourse || null,   // 세부코스(선택) — 카드·상세에 구장 아래 표시
     date: data.date || null,
     day: data.day || null,
     time: data.time || null,
