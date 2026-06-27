@@ -555,8 +555,14 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => {
     if (!isD0 || !next) { setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null }); return; }
     let alive = true;
+    let gotWx = false;   // fresh 날씨 도착 후엔 캐시로 되돌리지 않음(레이스 방지)
+    const cacheKey = STORAGE_KEYS.d0Info + next.id;
     setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null });
-    getScheduleWxSummary(next).then(w => { if (alive && w) setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '', hi: w.hi ?? null, lo: w.lo ?? null })); }).catch(() => {});
+    // 캐시 즉시 표시 — 콜드스타트에 빈 카드 뒤 날씨·준비물이 '툭' 뜨던 stagger 완화(같은 날짜·12h 이내만, fresh 전).
+    storage.load(cacheKey, null).then(c => {
+      if (alive && !gotWx && c?.v && c.date === next.date && Date.now() - (c.t || 0) < 12 * 3600 * 1000) setD0Info(c.v);
+    }).catch(() => {});
+    getScheduleWxSummary(next).then(w => { if (alive && w) { gotWx = true; setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '', hi: w.hi ?? null, lo: w.lo ?? null })); } }).catch(() => {});
     const home = userProfile?.departureCoord;
     if (home && typeof home.x === 'number' && typeof home.y === 'number') {
       // 라운딩 종료(티오프+4h) 후엔 올 때(구장→집) 소요로 — 목적지 기본=마이페이지 저장 출발지.
@@ -564,6 +570,12 @@ export function HomeScreen({ navigation, route }) {
     }
     return () => { alive = false; };
   }, [isD0, roundEnded, next?.id, next?.course, userProfile?.departureCoord?.x, userProfile?.departureCoord?.y]);
+
+  // d0Info(날씨·교통)가 채워지면 일정별로 캐시 저장 — 다음 앱 시작 시 즉시 표시용(위 stagger 완화)
+  useEffect(() => {
+    if (!isD0 || !next?.id || !d0Info.icon) return;
+    storage.save(STORAGE_KEYS.d0Info + next.id, { t: Date.now(), date: next.date, v: d0Info });
+  }, [isD0, next?.id, next?.date, d0Info]);
 
   const carouselActive = React.useMemo(() => {
     const course = next?.course;
