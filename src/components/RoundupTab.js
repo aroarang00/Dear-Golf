@@ -262,7 +262,7 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
           ) : joined ? (
             <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
               backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>참여 확정 ✓</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>참여 완료 ✓</Text>
             </View>
           ) : applied ? (
             <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',

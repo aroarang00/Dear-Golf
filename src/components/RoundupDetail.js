@@ -86,8 +86,8 @@ function SlotRow({ slot, idx, onPress, handicap }) {
           </View>
         )}
       </View>
-      {/* 탭 가능한 행이면 ›로 '누를 수 있음' 암시(친구신청·차단 시트). 비탭(본인·익명)은 '참여 확정'만 */}
-      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F' }}>참여 확정{onPress ? '  ›' : ''}</Text>
+      {/* 탭 가능한 행이면 ›로 '누를 수 있음' 암시(친구신청·차단 시트). 비탭(본인·익명)은 '참여 완료'만 */}
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#3C7D4F' }}>참여 완료{onPress ? '  ›' : ''}</Text>
     </Row>
   );
 }
@@ -619,7 +619,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
           // 모집 확정됨 — 주최자가 확정(closed:true). 참여자에게도 "모집 확정" 표시 ([[roundup-penalty-policy]] §1)
           <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#3C7D4F' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C7D4F' }}>모집 확정 · 참여 확정 ✓</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#3C7D4F' }}>모집 확정 · 참여 완료 ✓</Text>
           </View>
         ) : allFull ? (
           // 만석이지만 주최자 미확정 — 참여자에게 '일정 확정 대기중' 명시.
@@ -627,7 +627,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
           <>
             <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
               backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.navy }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.navy }}>참여 확정 ✓ · 확정 대기중</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.navy }}>참여 완료 ✓ · 확정 대기중</Text>
             </View>
             <Text style={hintStyle}>
               인원은 다 모였어요.{'\n'}주최자가 일정을 확정하면{'\n'}일정에 추가되고 알려드려요
@@ -636,7 +636,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
         ) : (
           <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
             backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>참여 확정 ✓</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>참여 완료 ✓</Text>
           </View>
         )}
         <TouchableOpacity onPress={confirmCancel} activeOpacity={0.7}
