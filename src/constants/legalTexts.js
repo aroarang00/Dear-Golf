@@ -4,7 +4,7 @@
 //
 // ✅ placeholder 전부 채움(2026-06-11 위치기반 신고번호 제1160호가 마지막) — 남은 ○○○ 없음.
 
-export const LEGAL_VERSION = '2026-05-29';  // 변호사 검토 반영 → 기존 사용자 재동의 트리거
+export const LEGAL_VERSION = '2026-06-02';  // = 문서 시행일·웹(deargolf.app/legal)과 정합. 변경 시 기존 사용자 재동의 트리거(트리거 배선은 백로그)
 
 export const TERMS_OF_SERVICE = `Dear Golf 이용약관
 
