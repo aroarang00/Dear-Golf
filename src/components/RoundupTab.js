@@ -240,7 +240,7 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
         {allFull
           ? (post.type === 'open'
               ? <Icon name="calendar" size={fs(14)} color={C.charcoal} strokeWidth={1.8} />
-              : <Icon name="check" size={fs(15)} color="#3C7D4F" strokeWidth={2.2} />)
+              : <Icon name="check" size={fs(16)} color={C.burgundy} strokeWidth={2.8} />)
           : <Icon name="people" size={fs(15)} color={C.charcoal} strokeWidth={1.8} />}
         <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
