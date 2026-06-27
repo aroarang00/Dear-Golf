@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, Platform } from 'react
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
+import { Icon } from './common/Icon';
 import { ROUTES } from '../constants/routes';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -64,12 +65,8 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
           onPress={() => setInfoModal(true)}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{
-            width: 24, height: 24, borderRadius: 12,
-            borderWidth: 1.5, borderColor: C.navy,
-            alignItems: 'center', justifyContent: 'center',
-          }}>
-          <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.navy, lineHeight: 17 }}>!</Text>
+          style={{ padding: 4 }}>
+          <Icon name="book" size={fs(21)} color={C.navy} strokeWidth={1.8} />
         </TouchableOpacity>
         {asModal && (
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

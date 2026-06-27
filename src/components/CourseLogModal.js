@@ -2,6 +2,7 @@ import React, { useRef, useMemo, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { Icon } from './common/Icon';
 import { CourseLogTab } from './CourseLogTab';
 
 // 내 코스기록 — 코스 탭 헤더에서 진입하는 전체화면 페이지.
@@ -45,17 +46,13 @@ export function CourseLogModal({ visible, onClose, navigation }) {
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(22), color: '#fff' }}>←</Text>
             </TouchableOpacity>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>내 코스 모아보기</Text>
+              <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ padding: 4 }}>
+                <Icon name="book" size={fs(18)} color="#fff" strokeWidth={1.8} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={{
-                width: 24, height: 24, borderRadius: 12,
-                borderWidth: 1.5, borderColor: '#fff',
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: '#fff', lineHeight: 17 }}>!</Text>
-            </TouchableOpacity>
           </View>
 
           <CourseLogTab navigation={wrappedNav} />

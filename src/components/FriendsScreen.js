@@ -87,8 +87,8 @@ export function FriendsScreen({ navigation, route }) {
             {/* 안내(!) — 코스 헤더와 동일 패턴. 그룹·별명·친구찾기(카카오)·NEW·스와이프·끊기/차단 안내(사용자 2026-06-20) */}
             <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               onPress={() => showAppAlert('', <FriendGuideContent />, [{ text: '확인' }])}
-              style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: C.navy, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.navy, lineHeight: 17 }}>!</Text>
+              style={{ padding: 4 }}>
+              <Icon name="book" size={fs(21)} color={C.navy} strokeWidth={1.8} />
             </TouchableOpacity>
           </View>
         </View>

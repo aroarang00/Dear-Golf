@@ -1914,12 +1914,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <Text style={{ fontFamily: F.serifKR, fontSize: fs(_and ? 24 : 28), color: C.bgPrimary }}>라운지</Text>
               <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{
-                  width: 24, height: 24, borderRadius: 12,
-                  borderWidth: 1.5, borderColor: C.bgPrimary,
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.bgPrimary, lineHeight: 17 }}>!</Text>
+                style={{ padding: 4 }}>
+                <Icon name="book" size={fs(21)} color={C.bgPrimary} strokeWidth={1.8} />
               </TouchableOpacity>
             </View>
           </View>

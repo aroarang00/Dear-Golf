@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { Icon } from './common/Icon';
 
 // 팔레트: 챠콜 / 골드 / 웜크림 — 셰어 카드(폴라로이드·매거진) 결과 통일(2026-06-15 사용자 "더 예쁘게")
 const GOLD = '#C9A84C';        // 골드 — 강조 룰·라벨
@@ -93,8 +94,8 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#F5EFDE' }}>골프 가계부</Text>
                 {/* 안내 — 일정·라운지 헤더와 같은 원형 느낌표(라운지 헤더 스타일 참조) */}
                 <TouchableOpacity onPress={() => setInfoOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(14), color: GOLD, lineHeight: 17 }}>!</Text>
+                  style={{ padding: 4 }}>
+                  <Icon name="book" size={fs(21)} color={GOLD} strokeWidth={1.8} />
                 </TouchableOpacity>
               </View>
             </View>
