@@ -72,14 +72,17 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
   // 오픈형(날짜 미정)은 만석이어도 '확정/마감'이 아님 — 주최자가 확정형으로 전환해야 확정 가능.
   //   만석을 마감(회색+뱃지)으로 표시하면 자동 확정된 것처럼 오인됨([[roundup-friend-redesign]], 만석≠확정).
   //   확정형만 만석=마감 시각 처리, 오픈형은 명시적 closed일 때만. 확정+빈자리(confirmedOpen)는 마감 아님(참여 동선 살림).
-  const isClosed = !confirmedOpen && (post.closed || (post.type !== 'open' && allFull));
+  // ★상태 분리(2026-06-27): 만석이어도 주최자 확정(closed) 전엔 '확정 대기'(또렷)일 뿐 마감/확정 아님.
+  //   '확정'은 closed일 때만 — 만석 미확정과 시각적으로 명확히 구분(테스터 혼란 해소).
+  const confirmed = !!post.closed;                                        // 주최자가 확정함
+  const awaitingConfirm = !confirmed && allFull && post.type !== 'open';  // 확정형 만석인데 미확정 → '확정 대기'
   const isMine = !!myUid && post.authorUid === myUid;
 
   // 마감(확정·만석) 모집은 회색 처리로 시각 구분 — 숨기진 않음(대기신청 동선 유지). 마감 풀리면 자동 복귀.
   //  2026-06-04: 본인 모집·내 참여 포함 마감·확정이면 모두 회색으로 통일 (둘 다 '내 확정 라운드'라 따로 놀면 어색,
   //  내 참여 탭에 함께 모이는 항목이라 상태 표시를 일관되게). '확정 완료=회색, 진행/대기=또렷'으로 읽힘.
   const isMyActivity = isMine || joined || applied || waitlistNum; // 가리기(롱탭) 가드용 — 회색 판정엔 미사용
-  const dimmed = isClosed;
+  const dimmed = confirmed && !confirmedOpen;   // 회색(가라앉음) = '확정 + 자리없음'에만. 만석 미확정·확정+빈자리는 또렷.
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpenDetail(post.id)}
       // 길게 눌러 가리기 — 내 화면에서만 숨김([[roundup-hide-policy]]). 내 모집·내가 참여/신청/대기 중인 글은
@@ -111,15 +114,22 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
         <View style={{ backgroundColor: sb.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: sb.fg }}>{sb.label}</Text>
         </View>
-        {isClosed && (
-          <View style={{ backgroundColor: '#E6C8C8', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#5C1E1E' }}>마감</Text>
+        {/* 확정 완료(주최자 closed)·자리없음 → 그린 '✓ 확정' (회색 카드와 함께 '끝난 라운드'로 읽힘) */}
+        {confirmed && !confirmedOpen && (
+          <View style={{ backgroundColor: '#D9E8CE', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#2E6B3E' }}>✓ 확정</Text>
           </View>
         )}
-        {/* 확정됐지만 취소로 자리 빔 — 마감 대신 '자리 남음'으로 참여 가능함을 알림(회색 처리 안 함) */}
+        {/* 만석인데 주최자 확정 전 → 호박 '확정 대기'(또렷). 마감/확정으로 오인 방지(만석≠확정) */}
+        {awaitingConfirm && (
+          <View style={{ backgroundColor: '#F3E2A0', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#7A5A00' }}>확정 대기</Text>
+          </View>
+        )}
+        {/* 확정됐지만 취소로 자리 빔 — 참여 가능함을 알림(회색 처리 안 함) */}
         {confirmedOpen && (
           <View style={{ backgroundColor: '#D9E8CE', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#3C6B2E' }}>{openSeats}자리 남음</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#3C6B2E' }}>✓ 확정 · {openSeats}자리</Text>
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
@@ -234,9 +244,9 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
           <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 동반자 {post.companions.length}명 포함</Text>
         ) : null}
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
-          color: allFull ? (post.type === 'open' ? C.charcoal : '#3C7D4F') : C.warmGray, marginLeft: 'auto' }}>
-          {/* 오픈형은 만석=확정 아님 — '동반자 다 모임 → 이제 날짜 조율' 단계로 안내(만석≠확정, [[roundup-friend-redesign]]) */}
-          {allFull ? (post.type === 'open' ? '날짜 정하기' : '모집 완료') : '모집중'}
+          color: confirmed ? '#3C7D4F' : (awaitingConfirm ? '#7A5A00' : (allFull && post.type === 'open' ? C.charcoal : C.warmGray)), marginLeft: 'auto' }}>
+          {/* 오픈형은 만석=확정 아님(날짜 조율 단계). 확정형 만석은 '확정 대기'(미확정)/'확정'(closed)로 구분 ([[roundup-friend-redesign]]) */}
+          {confirmed ? '확정' : (awaitingConfirm ? '확정 대기' : (allFull ? (post.type === 'open' ? '날짜 정하기' : '확정 대기') : '모집중'))}
         </Text>
       </View>
 

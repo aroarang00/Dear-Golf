@@ -275,6 +275,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   //   대기자가 있으면 자동 승격이 그 자리를 채우므로 비참여자는 대기 신청만(우선권 보호). ([[roundup-waitlist-autopromote]])
   //   ★미달 마감(closedShort)은 제외 — 주최자가 일부러 적게 확정해 잠근 모집이라 빈자리 추가 모집 안 함.
   const vacancy = post.closed && !post.closedShort && (post.joined || 0) < capTotal && waitlistTotal === 0;
+  // 상태 배지 분리 — 만석이어도 주최자 확정(closed) 전엔 '확정 대기'(미확정). '확정'은 closed일 때만(테스터 혼란 해소).
+  const awaitingConfirm = !post.closed && allFull && post.type !== 'open'; // 확정형 만석인데 미확정
+  const vacancySeats = Math.max(0, capTotal - (post.joined || 0));
 
   // 전체공개는 신청(수락 대기), 친구공개·친구지정은 즉시 참여
   const confirmApply = () => {
@@ -760,7 +763,10 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 <Badge bg={post.type === 'fixed' ? C.charcoal : '#6B8B5E'} fg="#fff" text={post.type === 'fixed' ? '확정형' : '오픈형'} />
                 {isTeam && <Badge bg={C.navy} fg={C.butter} text={`단체 ${post.teams}팀`} />}
                 <Badge bg={sb.bg} fg={sb.fg} text={sb.label} />
-                {isClosed && <Badge bg="#E6C8C8" fg="#5C1E1E" text="마감" />}
+                {/* 확정(closed)+자리없음 → 그린 ✓확정 / 만석 미확정 → 호박 확정 대기 / 확정+빈자리 → ✓확정·N자리 */}
+                {post.closed && !vacancy && <Badge bg="#D9E8CE" fg="#2E6B3E" text="✓ 확정" />}
+                {awaitingConfirm && <Badge bg="#F3E2A0" fg="#7A5A00" text="확정 대기" />}
+                {vacancy && <Badge bg="#D9E8CE" fg="#3C6B2E" text={`✓ 확정 · ${vacancySeats}자리`} />}
               </View>
 
               {/* 단체팀 — 조 편성·팀별 티오프 화면. 단체 모집 + 참여자(주최자·확정자)만 노출 ([[event-model]]) */}
