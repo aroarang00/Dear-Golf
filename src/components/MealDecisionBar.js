@@ -162,7 +162,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   };
   // 식당 고르기 시작 — 해당 슬롯으로 picking 진입. 변경이면 기존 메모 프리필.
   const startPick = (slot, existing) => { setPickSlot(slot); setMemo(existing?.note || ''); setKw(''); setMemoEdit(null); };
-  const openSheet = () => { setOpen(true); setKw(''); setMemoEdit(null); setPickSlot(meal1 ? null : 1); setMemo(''); if (!coord) loadNearby(); };
+  // ★pickSlot=null로 연다 — 시트는 항상 결정 카드(또는 미정이면 482줄이 picker)만 보여주고,
+  //   '식사 변경' 패널은 오직 '다른 곳으로 변경' 버튼으로만 펼쳐지게. (meal1 구독 로딩 레이스로 pickSlot이 1로 굳어
+  //   식사1 아래 변경패널이 멋대로 펼쳐지고 식사2 카드가 밀려 안 보이던 버그 방지. 사용자 2026-06-27)
+  const openSheet = () => { setOpen(true); setKw(''); setMemoEdit(null); setPickSlot(null); setMemo(''); if (!coord) loadNearby(); };
   // 푸시 탭으로 진입 시 시트 자동 오픈(푸시→길찾기 한 동선). 한 번 열고 부모 신호 리셋.
   useEffect(() => {
     if (autoOpen && active && !open) { openSheet(); onAutoOpened && onAutoOpened(); }
