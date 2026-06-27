@@ -97,7 +97,9 @@ export async function uploadDmImage(imageUri, compressOpts = {}) {
   const compressedUri = await compressImage(localUri, compressOpts);
   const res = await fetch(compressedUri);
   const blob = await res.blob();
-  const r = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.jpg`);
+  // 공유 카드는 PNG로 올려 투명도 보존(둥근 모서리가 JPEG 흰배경으로 굳는 '하얀 티' 방지). 일반 사진은 jpg.
+  const ext = compressOpts.format === 'png' ? 'png' : 'jpg';
+  const r = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`);
   await uploadBytes(r, blob);
   return await getDownloadURL(r);
 }

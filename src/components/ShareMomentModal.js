@@ -180,7 +180,10 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
       // ★화질 — pixelRatio 4로 캡처(카드폭 320×4=1280px ≥ 압축 maxWidth 1200)해 compressImage가 '다운스케일'(선명)되게.
       //   pixelRatio 2(=640px)면 1200으로 '업스케일'되며 텍스트가 뭉개졌음(사용자 2026-06-19). 카드는 텍스트가 많아 quality도 0.9.
       const uri = await captureRef(isRound ? roundRefs.current[roundStyleIdx] : cardRef, { format: 'png', quality: 1, pixelRatio: 4 });
-      const url = await uploadDmImage(uri, { quality: 0.95 });
+      // 평면 벡터 카드(모집·일정·초대)는 PNG로 업로드 — 둥근 모서리 투명도를 JPEG가 흰색으로 굳혀
+      //   어두운 격식 초대장 하단에 '하얀 티'가 보이던 문제 방지. 사진 많은 라운딩 카드는 용량 때문에 JPEG 유지.
+      const flatCard = isRoundup || isSchedule || isInvite;
+      const url = await uploadDmImage(uri, { quality: 0.95, ...(flatCard ? { format: 'png' } : {}) });
       const targets = [...selectedDm];
       // 모집 공유(초대)면 roundupId를 메시지에 실어 수신측 DM에 '모집 보러 가기' 버튼 → 라운지 상세로 바로 참여.
       const roundupMeta = (isRoundup && moment?.id)
