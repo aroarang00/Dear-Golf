@@ -500,6 +500,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [detailId, setDetailId] = useState(null);             // 상세 화면에 띄울 모집글 id
   const pendingHostRef = useRef(null);                        // 딥링크가 실어준 주최자 uid — 비친구라 글 읽기 막힐 때 '친구 맺기' 안내용 ([[roundup-friend-redesign]])
+  const detailReturnRef = useRef(null);                       // 이 모집 상세(=저장된 id)를 닫으면 크루로 복귀 — 크루서 연 모집만(홈 아이콘 동선 단축)
   // 모집 상세 실시간 — 상세가 열려 있는 동안 그 모집글 1건만 onSnapshot 구독.
   //   동반자 참여·취소·정원 충족·확정이 보고 있는 중 즉시 반영. 닫으면 해제(비용·생명주기 통제).
   //   리스트 전체는 비실시간 유지(탭 재진입/새로고침). 상세만 점진 실시간화 ([[lounge-realtime]]).
@@ -572,9 +573,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     const pid = route?.params?.openPostId;
     if (!pid) return;
     pendingHostRef.current = route?.params?.openPostHost || null; // 딥링크 주최자 uid(있으면) — 비친구 안내용
+    detailReturnRef.current = route?.params?.openPostReturn === 'crew' ? pid : null; // 크루서 연 모집이면 닫을 때 크루로 복귀
     setDetailId(pid);
-    navigation?.setParams?.({ openPostId: undefined, openPostHost: undefined });
+    navigation?.setParams?.({ openPostId: undefined, openPostHost: undefined, openPostReturn: undefined });
   }, [route?.params?.openPostId]);
+  // 상세가 닫히면(차단·삭제 등 onClose 외 경로 포함) 복귀 플래그 정리 — 다음에 라운지서 직접 연 모집에 잘못 새지 않게.
+  useEffect(() => { if (!detailId) detailReturnRef.current = null; }, [detailId]);
   // 친구지정 초대(invite) 푸시 탭 — '내 참여(mine)' view로 전환해 초대장 카드를 보게 한다 ([[roundup-invitation]]).
   //   초대장은 view==='mine' 게이트로만 렌더되고 mineTab이 초대 수신글을 포함하므로 view만 바꾸면 노출된다.
   useEffect(() => {
@@ -2329,7 +2333,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         comments={detailId ? (commentsByPost[detailId] || []) : []}
         commentTotal={detailId ? (commentsTotal[detailId] || 0) : 0}
         onLoadOlderComments={() => detailId && handleLoadOlderComments(detailId)}
-        onClose={() => setDetailId(null)}
+        onClose={() => {
+          // 크루서 연 모집(detailReturnRef==현재 id)이면 닫을 때 홈으로 돌아가 크루를 다시 연다 — '모집 닫으면 크루 그 자리'.
+          const backToCrew = detailReturnRef.current && detailReturnRef.current === detailId;
+          detailReturnRef.current = null;
+          setDetailId(null);
+          if (backToCrew) navigation?.navigate?.(ROUTES.HOME, { reopenCrew: Date.now() });
+        }}
         onApply={(anonymous) => detailId ? performJoinOrApply(detailId, { anonymous: !!anonymous }) : undefined}
         onWaitlist={(anonymous) => detailId && handleWaitlist(detailId, !!anonymous)}
         onCancel={() => detailId && performCancel(detailId)}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -90,7 +90,7 @@ function AvatarStack({ avatars, total, max = 4 }) {
   );
 }
 
-export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup }) {
+export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId, onReopenConsumed }) {
   useScreenBack(true, onClose);
   const currentUid = useCurrentUid();
 
@@ -155,8 +155,23 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup }) {
   }, [currentUid, crewIdsSig, seenAtLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [openCrew, setOpenCrew] = useState(null);      // 앨범(상세) 열린 크루
+  // 복귀(reopenCrewId)면 마운트 첫 렌더부터 슬라이드 생략 — 안드는 리마운트라 초기값이 true면 SlideInRight가
+  //   모달 슬라이드업과 동시에 재생돼 끊김. 목록 탭 진입(reopenCrewId 없음)만 슬라이드.
+  const albumAnimRef = useRef(!reopenCrewId);
+  // ★복귀 시(reopenCrewId) openCrew가 비어 있어도 그 앨범을 '렌더에서 파생'해 즉시 띄운다 — iOS(마운트 유지)·안드(리마운트)
+  //   양쪽에서 목록 플래시 0. CrewAlbumScreen이 crewId만으로 자체 구독해 내용 채움. 아래 effect가 실제 doc으로 승격.
+  const albumCrew = openCrew || (reopenCrewId ? { id: reopenCrewId, __stub: true } : null);
   const [createOpen, setCreateOpen] = useState(false); // 크루 만들기
   const [showIntro, setShowIntro] = useState(false);   // 크루 소개(이용안내)
+  // 모집 보고 복귀 — reopenCrewId를 별명·본문 갖춘 doc으로 승격해 openCrew에 심고 1회 소비(이후 reopenCrewId 비어도 앨범 유지).
+  useEffect(() => {
+    if (!reopenCrewId) return;
+    albumAnimRef.current = false;        // 복귀 앨범은 슬라이드 생략
+    if (!crewDocs) return;               // doc 로드 후 승격(그 전엔 위 albumCrew(stub)로 이미 떠 있음)
+    const c = crewDocs.find((d) => d.id === reopenCrewId);
+    if (c) setOpenCrew({ ...c, name: aliasMap[c.id] || c.name, _seenAt: seenAtMap[c.id] || 0 });
+    onReopenConsumed?.();
+  }, [reopenCrewId, crewDocs]); // eslint-disable-line react-hooks/exhaustive-deps
   // 첫 진입 시 크루 소개 1회 자동 표시 — 라운지 소개와 동일 패턴(crewIntroSeen)
   useEffect(() => {
     storage.load(STORAGE_KEYS.crewIntroSeen, false).then(seen => {
@@ -281,13 +296,14 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup }) {
   const isEmpty = !loading && invites.length === 0 && crews.length === 0;
 
   // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일). 닫을 때 본 시각 갱신(새 글 표시 해제)
-  if (openCrew) return (
-    <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
-      <CrewAlbumScreen crew={openCrew} seenAt={openCrew._seenAt || 0}
-        onClose={() => { markCrewSeen(openCrew.id); markCrewSeenAt(openCrew.id);
+  if (albumCrew) return (
+    <Animated.View style={{ flex: 1 }} entering={albumAnimRef.current ? SlideInRight.duration(230) : undefined}>
+      <CrewAlbumScreen crew={albumCrew} seenAt={albumCrew._seenAt || 0}
+        onClose={() => { markCrewSeen(albumCrew.id); markCrewSeenAt(albumCrew.id);
           storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => setMutedMap(m || {}));     // 멤버 화면서 토글했을 수 있어 재로드
           storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => setAliasMap(a || {}));   // 멤버 화면서 별명 바꿨을 수 있어 재로드
-          setOpenCrew(null); }} onOpenDM={onOpenDM} onOpenRoundup={onOpenRoundup} />
+          setOpenCrew(null); onReopenConsumed?.(); }} onOpenDM={onOpenDM}
+        onOpenRoundup={(id, host) => onOpenRoundup?.(id, host, albumCrew?.id)} />
     </Animated.View>
   );
   if (createOpen) return (
@@ -384,7 +400,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup }) {
             renderItem={(c, drag) => (
               <GestureDetector gesture={drag}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', height: ROW_H, borderBottomWidth: 1, borderBottomColor: ROW_LINE }}>
-                  <TouchableOpacity activeOpacity={0.6} onPress={() => { markCrewSeen(c.id); setOpenCrew({ ...c, _seenAt: seenAtMap[c.id] || 0 }); }}
+                  <TouchableOpacity activeOpacity={0.6} onPress={() => { albumAnimRef.current = true; markCrewSeen(c.id); setOpenCrew({ ...c, _seenAt: seenAtMap[c.id] || 0 }); }}
                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: '100%' }}>
                     {/* 크루 프로필 — 색+이니셜(또는 사진). 기존 크루는 themeColor 없으면 accentOf 폴백 */}
                     <CrewAvatar name={c.name} color={c.themeColor || accentOf(c.id)} imageUrl={c.imageUrl} size={42} radius={12} />
