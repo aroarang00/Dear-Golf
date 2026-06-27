@@ -237,7 +237,11 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
       {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서. 게스트(앱 미사용자)가 있으면 명시. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 9 : 12,
         backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 6 : 8 }}>
-        <Text style={{ fontSize: fs(13) }}>{allFull ? (post.type === 'open' ? '📅' : '✅') : '👥'}</Text>
+        {allFull
+          ? (post.type === 'open'
+              ? <Icon name="calendar" size={fs(14)} color={C.charcoal} strokeWidth={1.8} />
+              : <Icon name="check" size={fs(15)} color="#3C7D4F" strokeWidth={2.2} />)
+          : <Icon name="people" size={fs(15)} color={C.charcoal} strokeWidth={1.8} />}
         <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
         {post.companions?.length > 0 ? (
