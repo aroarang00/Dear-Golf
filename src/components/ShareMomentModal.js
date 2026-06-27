@@ -59,6 +59,9 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const isRoundup = moment?.shareKind === 'roundup';
   const isSchedule = moment?.shareKind === 'schedule';
   const isInvite = moment?.shareKind === 'invite';
+  // 친구지정(select) 모집 — 미리 지정한 친구만 열람·참여 가능(firestore.rules). 미지정 친구에겐 카드만 전달되고
+  //   '모집 바로가기'가 동작 안 함 → DM 공유 시 호스트에게 그 제약을 안내(결원을 새 사람으로 충원하려면 모집 수정 필요).
+  const isSelectRoundup = isRoundup && moment?.scope === 'select';
   const titleText = isInvite ? '친구 초대'
     : isSchedule ? '라운딩 일정'
     : isRoundup ? '모집 초대장'
@@ -354,6 +357,14 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 </View>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>친구에게 DM으로 보내기</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingHorizontal: 20, paddingBottom: 8 }}>받을 친구를 선택하세요 (여러 명 가능)</Text>
+                {/* 친구지정 모집 — 지정한 친구만 참여 가능. 미지정 친구에겐 카드만 가고 '모집 바로가기'가 안 떠 헷갈리던 점 안내. */}
+                {isSelectRoundup && (
+                  <View style={{ marginHorizontal: 16, marginBottom: 8, backgroundColor: 'rgba(0,11,92,0.06)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.navy, lineHeight: fs(18) }}>
+                      💡 친구지정 모집은 지정한 친구만 참여할 수 있어요. 지정하지 않은 친구에겐 초대장만 전달되고 모집 참여는 안 돼요(결원에 새 친구를 넣으려면 모집을 수정해 추가하세요).
+                    </Text>
+                  </View>
+                )}
                 {/* 검색 — 친구 많을 때 빠르게 찾기. 이름(별명/닉네임/본명) 부분일치. */}
                 {!friendsLoading && friends.length > 0 && (
                   <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
