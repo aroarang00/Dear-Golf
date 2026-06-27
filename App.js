@@ -69,6 +69,7 @@ import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid, auth } from './src/utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { fetchKakaoProfileImage } from './src/utils/kakaoAuth';
+import { uploadAvatar } from './src/utils/avatarStorage';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import './src/utils/firebase'; // 앱 시작 시 Firebase 초기화 + 익명 로그인
 import { UserContext } from './src/contexts/UserContext';
@@ -381,7 +382,9 @@ function App() {
         //   (재설치·재가입으로 푸시토큰만 먼저 생긴 빈 문서) 카카오 사진을 1회 소급 저장한다.
         //   친구가 사진을 못 보고 이니셜만 뜨던 문제 보정. 토큰 살아있을 때만(silent)·기존 값은 절대 덮어쓰지 않음.
         if (data.kakaoLinked === true && !data.avatarUrl) {
-          const url = await fetchKakaoProfileImage({ silent: true });
+          const kakaoUrl = await fetchKakaoProfileImage({ silent: true });
+          // 카카오 URL을 그대로 저장하면 친구가 못 봄(http·ATS/만료) → 우리 Storage로 재호스팅한 https만 저장.
+          const url = kakaoUrl ? await uploadAvatar(uid, kakaoUrl) : null;
           if (url && !cancelled) {
             await setDoc(doc(db, 'users', uid), { uid, avatarUrl: url, updatedAt: serverTimestamp() }, { merge: true });
             setUserProfile(prev => (prev.avatarUrl ? prev : { ...prev, avatarUrl: url }));
