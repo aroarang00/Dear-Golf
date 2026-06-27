@@ -28,7 +28,9 @@ const db = getFirestore();
 // 중요 알림(priority='important')은 토글 무시하고 항상 발송.
 // =============================================================
 
-async function sendExpoPush(token, title, body, data = {}) {
+// ownerUid — 이 토큰의 주인. DeviceNotRegistered(앱 삭제·토큰 만료) 티켓이 오면 그 토큰을 정리해
+//   다음부터 헛발송을 막고 '테스터별 안 옴'을 진단 가능하게 한다(주면 정리, 없으면 로깅만).
+async function sendExpoPush(token, title, body, data = {}, ownerUid = null) {
   if (!token) return;
   try {
     const fetch = (await import('node-fetch')).default;
@@ -45,10 +47,23 @@ async function sendExpoPush(token, title, body, data = {}) {
         title,
         body,
         data,
+        channelId: 'default',   // Android — 클라가 만든 고중요도 채널로 라우팅(heads-up·소리)
+        priority: 'high',       // 도즈/저전력에서도 지연 없이(FCM high priority)
       }),
     });
     if (!res.ok) {
       logger.warn('[push] expo api non-ok', res.status);
+      return;
+    }
+    // 티켓 검사 — 200이어도 개별 티켓에 DeviceNotRegistered 등 오류가 담김. 무시하면 조용한 미수신 진단 불가.
+    const json = await res.json().catch(() => null);
+    const ticket = Array.isArray(json?.data) ? json.data[0] : json?.data;
+    if (ticket && ticket.status === 'error') {
+      logger.warn('[push] ticket error', ticket.message || '', ticket.details?.error || '');
+      // 죽은 토큰 정리 — 더는 유효하지 않은 토큰은 users 문서에서 제거(다음 발송부터 스킵)
+      if (ownerUid && ticket.details?.error === 'DeviceNotRegistered') {
+        await db.doc(`users/${ownerUid}`).update({ pushToken: FieldValue.delete() }).catch(() => {});
+      }
     }
   } catch (e) {
     logger.warn('[push] send fail', e?.message);
@@ -93,7 +108,7 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
 
   const title = titleFor(type);
   const body = bodyFor(type, { postTitle, actorName, scheduleDate, scheduleTime });
-  await sendExpoPush(token, title, body, { type, postId: data.postId, notiId: event.params.notiId });
+  await sendExpoPush(token, title, body, { type, postId: data.postId, notiId: event.params.notiId }, recipientUid);
 });
 
 // DM 메시지 생성 시 상대에게 푸시 — 마이페이지 'DM 알림' 토글(settings.notifyPrefs.dm) 기본 ON, false면 차단.
@@ -137,7 +152,7 @@ exports.onDmMessageCreated = onDocumentCreated('conversations/{pairId}/messages/
     const token = r.pushToken;
     if (!token) return;
     const senderName = (sSnap.exists && sSnap.data().nickname) ? sSnap.data().nickname : '친구';
-    await sendExpoPush(token, senderName, preview, { type: 'dm', pairId: event.params.pairId, senderUid });
+    await sendExpoPush(token, senderName, preview, { type: 'dm', pairId: event.params.pairId, senderUid }, recipientUid);
   } catch (e) {
     logger.warn('[dm] push fail', e?.message);
   }
@@ -159,7 +174,7 @@ exports.onScheduleGroupCreated = onDocumentCreated('scheduleGroups/{groupId}', a
       const u = snap.data();
       if (u.settings?.notifyPrefs?.scheduleInvite === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '일정 초대', body, { type: 'scheduleInvite', groupId: event.params.groupId });
+      await sendExpoPush(u.pushToken, '일정 초대', body, { type: 'scheduleInvite', groupId: event.params.groupId }, uid);
     } catch (e) { logger.warn('[scheduleInvite] push fail', e?.message); }
   }));
 });
@@ -192,7 +207,7 @@ exports.onScheduleGroupUpdated = onDocumentUpdated('scheduleGroups/{groupId}', a
       const u = snap.data();
       if (u.settings?.notifyPrefs?.scheduleInvite === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '일정 초대', body, { type: 'scheduleInvite', groupId: event.params.groupId });
+      await sendExpoPush(u.pushToken, '일정 초대', body, { type: 'scheduleInvite', groupId: event.params.groupId }, uid);
     } catch (e) { logger.warn('[scheduleInvite update] push fail', e?.message); }
   }));
 });
@@ -214,7 +229,7 @@ exports.onCrewInvited = onDocumentCreated('crews/{crewId}', async (event) => {
       const u = snap.data();
       if (u.settings?.notifyPrefs?.crewInvite === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId });
+      await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId }, uid);
     } catch (e) { logger.warn('[crewInvite] push fail', e?.message); }
   }));
 });
@@ -246,7 +261,7 @@ exports.onCrewInviteUpdated = onDocumentUpdated('crews/{crewId}', async (event) 
       const u = snap.data();
       if (u.settings?.notifyPrefs?.crewInvite === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId });
+      await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId }, uid);
     } catch (e) { logger.warn('[crewInvite update] push fail', e?.message); }
   }));
 });
@@ -327,7 +342,7 @@ exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', as
       const u = snap.data();
       if (u.settings?.notifyPrefs?.scoreShare === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '스코어 공유', body, { type: 'scoreShare', shareId: event.params.shareId });
+      await sendExpoPush(u.pushToken, '스코어 공유', body, { type: 'scoreShare', shareId: event.params.shareId }, uid);
     } catch (e) { logger.warn('[scoreShare] push fail', e?.message); }
   }));
 });
@@ -348,7 +363,7 @@ exports.onMealSuggestionCreated = onDocumentCreated('mealSuggestions/{id}', asyn
       const u = snap.data();
       if (u.settings?.notifyPrefs?.mealSuggestion === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '함께 식사', body, { type: 'mealSuggestion', mealId: event.params.id });
+      await sendExpoPush(u.pushToken, '함께 식사', body, { type: 'mealSuggestion', mealId: event.params.id }, uid);
     } catch (e) { logger.warn('[meal] push fail', e?.message); }
   }));
 });
@@ -373,7 +388,7 @@ exports.onMealSuggestionUpdated = onDocumentUpdated('mealSuggestions/{id}', asyn
       const u = snap.data();
       if (u.settings?.notifyPrefs?.mealSuggestion === false) return;
       if (!u.pushToken) return;
-      await sendExpoPush(u.pushToken, '함께 식사 변경', body, { type: 'mealSuggestion', mealId: event.params.id });
+      await sendExpoPush(u.pushToken, '함께 식사 변경', body, { type: 'mealSuggestion', mealId: event.params.id }, uid);
     } catch (e) { logger.warn('[meal] change push fail', e?.message); }
   }));
 });
