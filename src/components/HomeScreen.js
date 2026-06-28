@@ -1549,6 +1549,11 @@ export function HomeScreen({ navigation, route }) {
         active={!!sheetMealSchedule}
         autoOpen={sheetMealAutoOpen}
         onAutoOpened={() => setSheetMealAutoOpen(false)}
+        onClose={() => {
+          // 식사 시트 닫히면 원래 일정 시트로 복귀(빈 화면에 덩그러니 남지 않게). 모달 닫힘 후 재오픈([[ios-modal-stacking]]).
+          const s = sheetMealSchedule;
+          if (s) setTimeout(() => { setSelectedSchedule(s); setShowScheduleModal(true); setSheetMealSchedule(null); }, 260);
+        }}
       />
 
       {/* 단체팀 화면 — 시트 닫은 뒤 열림(형제 Modal 회피, [[ios-modal-stacking]]) */}

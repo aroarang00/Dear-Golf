@@ -499,7 +499,8 @@ export function DiaryScreen({ route, navigation }) {
         catch (e) { console.warn('[diary] schedule remove failed:', e?.message); }
       }
     }
-    setSelected(null);
+    // 삭제 후에도 뒤로가기와 '같은 출구'로 — 홈/일정에서 들어왔으면 그쪽으로 복귀(MY 목록에 덩그러니 남지 않게).
+    handleCloseDetail();
   };
 
   // 명예의 전당 티저 '다시 보지 않기' — 영구 감춤

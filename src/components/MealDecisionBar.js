@@ -46,12 +46,18 @@ async function resolveCoord(schedule) {
 //  D-0 종일 노출(전/후 무관). 총대가 식사 최대 2곳(슬롯 1·2) 선착순 결정, 각 슬롯에 메모(예: "아침 9시까지").
 //  슬롯 데이터=결정적 ID 2개(meal_{key}·meal_{key}_2). 동반자는 audienceUids로 발견·길찾기.
 // triggerless=true: 트리거 버튼 없이 시트(Modal)만 렌더 — 부모가 autoOpen으로 연다(일정캘린더처럼 일정 시트의 '함께 식사' 행에서 호출).
-export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, flex = 1, block = false, triggerless = false, friendMeta = {} }) {
+export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onAutoOpened, onClose, flex = 1, block = false, triggerless = false, friendMeta = {} }) {
   const insets = useSafeAreaInsets();
   const [mine1, setMine1] = useState(null);       // 총대 본인 슬롯1 문서
   const [mine2, setMine2] = useState(null);       // 총대 본인 슬롯2 문서
   const [incoming, setIncoming] = useState([]);   // 동반자로 받은 제안(양 슬롯)
   const [open, setOpen] = useState(false);
+  // 시트 닫힘(열림→닫힘)을 부모에 통지 — 일정 시트에서 연 경우(triggerless) 부모가 그 일정 시트를 다시 열어 복귀.
+  const prevOpenRef = useRef(false);
+  useEffect(() => {
+    if (prevOpenRef.current && !open) onClose && onClose();
+    prevOpenRef.current = open;
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const [coord, setCoord] = useState(null);
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);

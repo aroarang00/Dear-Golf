@@ -969,6 +969,11 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         active={!!mealSchedule}
         autoOpen={mealAutoOpen}
         onAutoOpened={() => setMealAutoOpen(false)}
+        onClose={() => {
+          // 식사 시트 닫히면 원래 일정 시트로 복귀(빈 화면에 덩그러니 남지 않게). 모달 닫힘 후 재오픈([[ios-modal-stacking]]).
+          const s = mealSchedule;
+          if (s) setTimeout(() => { setSheet({ visible: true, schedule: s }); setMealSchedule(null); }, 260);
+        }}
       />
 
       <WeatherTransportPopup

@@ -1258,9 +1258,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         return;
       }
     }
+    // 상세(풀스크린)를 닫고 생성/수정 모달은 닫힘 후 띄움 — present-during-dismiss 레이스 회피([[ios-modal-stacking]]).
     setDetailId(null);
-    setEditingPost(post);
-    setShowCreate(true);
+    setTimeout(() => { setEditingPost(post); setShowCreate(true); }, 300);
   };
 
   // 모집글 작성 진입 — 정지 상태 차단 (패널티 동의서 §5 / 콘텐츠 정책 §7)
@@ -1829,10 +1829,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!n.read) {
       markNotificationRead(n.id).catch(e => __DEV__ && console.warn('[RoundupTab] markRead fail', e?.message));
     }
+    // 알림함(풀스크린 슬라이드 Modal)을 먼저 닫고, 모달/탭 전환은 닫힘 애니메이션 후로 지연 —
+    //   같은 프레임에 풀스크린 모달을 교체하면 iOS에서 'already presenting'으로 상세가 안 떠 무반응([[ios-modal-stacking]]).
     setShowNoti(false);
     // 친구 신청 알림 — 모집글이 아니라 친구 탭으로 이동
     if (n.type === 'friendRequest') {
-      navigation?.navigate?.(ROUTES.FRIENDS);
+      setTimeout(() => navigation?.navigate?.(ROUTES.FRIENDS), 320);
       return;
     }
     // 매너 평가 진입 — 정상 종료(mannerEval) + 주최자 취소 보상(hostCancelledD7) 둘 다 평가 모달로.
@@ -1840,10 +1842,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       let post = posts.find(p => p.id === n.postId);
       // 취소·만료로 라운지 목록에서 빠진 모집은 개별 로드
       if (!post) { try { post = await loadRoundup(n.postId); } catch { post = null; } }
-      if (post) { setEvalPostData(post); setEvaluatingPostId(n.postId); }
+      if (post) setTimeout(() => { setEvalPostData(post); setEvaluatingPostId(n.postId); }, 320);
       return;
     }
-    setDetailId(n.postId);
+    setTimeout(() => setDetailId(n.postId), 320);
   };
   const readAllNoti = () => {
     const snapshot = notifications;
