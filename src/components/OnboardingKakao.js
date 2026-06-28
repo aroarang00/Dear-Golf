@@ -92,7 +92,9 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
       // 4. 온보딩 다음 단계로 — 재설치·기기변경(기존 계정)이면 Firestore 프로필로 prefill
       const isReturning = link.mode === 'existing' && !userDoc.created;
       onKakaoSuccess({
-        nickname: (isReturning ? userDoc.data.displayName : result.nickname) || '',
+        // 재방문자는 라이브 nickname 우선 — displayName은 가입 시점 1회만 기록되는 옛 필드라,
+        //   닉 변경 후 재설치/재연동 시 옛 닉으로 롤백되던 버그. nickname 없을 때만 displayName 폴백.
+        nickname: (isReturning ? (userDoc.data.nickname || userDoc.data.displayName) : result.nickname) || '',
         avatarUri: (isReturning ? userDoc.data.avatarUrl : result.profileImageUrl) || null,
         kakaoLinked: true,
         kakaoId: result.kakaoId || null,
