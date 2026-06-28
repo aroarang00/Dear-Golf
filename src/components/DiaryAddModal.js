@@ -505,7 +505,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const finalCourseLive = selectedCourse || courseSearch.trim();
   const canSave = isMoment
     ? ((!!memo.trim() || addPhotos.length > 0) && !photoBusy) // 일상: 글만/사진만이라도 OK
-    : (!!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !!memo.trim() && !photoBusy);
+    : (!!finalCourseLive && !!score && !isNaN(parseInt(score)) && parseInt(score) > 0 && !photoBusy); // 메모는 선택 — 점수+구장이 기록의 본체
 
   const num = (v) => parseInt(v) || 0;
   const courseAmt = showCourseDetail ? (num(costs.green) + num(costs.cart) + num(costs.onsite)) : num(costs.field); // 골프장 결제(그린피+카트+그늘집)
@@ -582,10 +582,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setSaveError('스코어를 입력해주세요');
       return;
     }
-    if (!memo.trim()) {
-      setSaveError('한줄 메모를 입력해주세요');
-      return;
-    }
+    // 메모는 선택 — 점수+구장만으로 저장 허용(일상글이 사진만으로 저장되는 것과 일관, 사용자 2026-06-29).
     setSaveError('');
     const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
@@ -881,7 +878,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   )}
                 </View>
               <SectionHead title="오늘의 기록" />
-              <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
+              <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(선택)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
                 value={memo} onChangeText={setMemo} />
               <Text style={mS.bigLabel}>
