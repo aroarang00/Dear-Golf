@@ -42,6 +42,7 @@ import { saveStatusMessage } from '../utils/userDoc';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
+import { ScoreStatsScreen, ScoreBanner } from './ScoreStatsScreen';
 import { MilestoneInfoModal } from './common/MilestoneInfoModal';
 
 // 빈 상태 예시 카드용 더미 데이터 (실제 DiaryCard 컴포넌트로 렌더)
@@ -122,7 +123,7 @@ export function DiaryScreen({ route, navigation }) {
     loadFriendData().then(fd => { setFriendGroups(fd.friendGroups); setFriendMeta(fd.friendMeta || {}); }).catch(() => {});
   }, []);
   useEffect(() => { refreshFriendData(); }, [refreshFriendData]);
-  const [statsExpanded, setStatsExpanded] = useState(false); // 통계 박스 펼침 (기본 접힘, 검색 토글과 독립)
+  const [scoreStatsOpen, setScoreStatsOpen] = useState(false); // 스코어 통계 화면(명함 스코어 배너에서 진입)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
   const [avatarCropUri, setAvatarCropUri] = useState(null); // 아바타 1:1 크롭 대상(갤러리 선택 후, 크롭 전 raw uri)
@@ -619,29 +620,14 @@ export function DiaryScreen({ route, navigation }) {
   const myGrade = getTrustGrade(userProfile.hostedCount || 0, userProfile.mannerScore || 0);
   const myManner = getMannerGrade(userProfile.mannerScore || 70);
   const myHandicap = calcHandicap(diaries, userProfile.avgScore);
-  // 통계 박스 — 평균타 라벨 폐기, 핸디로 통일 (친구에게 공개되는 핸디 뱃지와 일관성).
-  // 라운딩 5개 이하면 입력값 우선, 6개부터는 베스트 5개 평균 (잘 친 5개만, 못 친 건 버림).
-  // 총 라운딩 = 자동 완료 라운딩(다이어리+미기록 지난 일정)에, 마이페이지 입력 기준값 반영([[project_total_rounds]])
+  // 명함 메달 트랙용 — 총 완료 라운딩(다이어리+미기록 지난 일정, 마이페이지 입력 반영). [[project_total_rounds]]
+  //   스코어 평균·베스트·핸디 통계는 ScoreBanner/ScoreStatsScreen이 자체 집계(옛 통계박스 → ScoreBanner로 대체).
   const completedRounds = countCompletedRounds(diaries, schedules);
   const _dispTotal = displayTotalRounds(userProfile, completedRounds);
-  const totalRounds = _dispTotal > 0 ? _dispTotal : null;
-  // 라이프베스트 = 설정값(수동 입력한 과거 베스트)과 다이어리 최저 중 더 좋은(낮은) 값.
-  // (다이어리만 쓰면 설정 89가 무시돼, 100짜리 라운딩 추가 시 100으로 잘못 표시되던 버그 수정)
-  // 일상(모멘트)은 스코어가 없으므로 제외 — 안 그러면 Math.min에 undefined 섞여 NaN
-  const roundScores = roundsOnly(diaries).map(d => d.score).filter(v => Number.isFinite(v) && v > 0);
-  const diaryBest = roundScores.length ? Math.min(...roundScores) : null;
-  const bestCandidates = [diaryBest, userProfile.lifeBest].filter(v => Number.isFinite(v) && v > 0);
-  const bestScore = bestCandidates.length ? Math.min(...bestCandidates) : null;
   // 명함 — 이름 / 흐린 트랙 메달 줄(탭→안내) / 멘트
   const visitedCourses = countVisitedCourses(diaries, schedules);
   const medals = trackTopMedals({ rounds: _dispTotal, courses: visitedCourses }); // { rounds, courses }: 트랙별 최고 메달 value|null
   const myStatus = (userProfile.statusMessage || '').trim();
-  // 통계박스 — 핸디 계산 라벨·설명 유지(애매함 방지). 핸디/베스트 그대로 둠.
-  const statBoxes = [
-    { label: '총 라운딩', value: totalRounds },
-    { label: '핸디', value: myHandicap, hi: true },
-    { label: '베스트', value: bestScore },
-  ];
 
   // 필터·검색·피드 계산 — 본문으로 올림(필터 바를 ScrollView 고정 인덱스 자식으로 떼어 sticky 시키기 위해, [[project_fullscroll_profile]])
   const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트 스코어'];
@@ -757,33 +743,10 @@ export function DiaryScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* 통계 토글 — 검색 토글과 완전히 독립. 기본 펼침 */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
-        {statsExpanded && (
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
-            {statBoxes.map((st, i) => (
-              <View key={i} style={{
-                flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12,
-                backgroundColor: st.hi ? '#F5F0E4' : C.bgSecondary,
-                borderWidth: st.hi ? 1 : 0.5, borderColor: st.hi ? C.burgundy : C.hairline,
-              }}>
-                <Text style={{ fontFamily: F.en, fontSize: fs(20), color: st.hi ? C.burgundy : C.charcoal }}>
-                  {st.value != null ? st.value : '—'}
-                </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{st.label}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        <TouchableOpacity onPress={() => setStatsExpanded(v => !v)} activeOpacity={0.7}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 12 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>
-            통계 {statsExpanded ? '접기' : '펼치기'}
-          </Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGray }}>{statsExpanded ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-      </View>
+      {/* 인덱스 1 — 내 스코어 배너(공용 ScoreBanner). 옛 통계박스(탭 안 되는 숫자판+접기토글) 대체.
+          탭 → 통계·추세·마일스톤·분포·구장별 전용 화면. 자식 순서 고정 유지(명함0·스코어1·필터2·피드3). */}
+      <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)}
+        collapsible style={{ marginTop: 4, marginBottom: 6 }} />
 
       {/* 인덱스 2 — ★sticky 필터 바(필터 칩 + 🔍 + 검색입력 한 묶음). 위에 딱 붙도록 배경 불투명(C.bgPrimary)으로
           아래 카드가 비쳐 보이지 않게, 하단 구분선은 dS.filterRow 자체 borderBottom. 로딩·빈 상태엔 빈 View(인덱스 2 자리 유지·sticky 항상 적용). */}
@@ -1039,6 +1002,8 @@ export function DiaryScreen({ route, navigation }) {
       <TrustGradeModal visible={gradeModalOpen} highlightKey={myGrade.key} onClose={() => setGradeModalOpen(false)} />
       <MannerGradeModal visible={mannerModalOpen} highlightKey={myManner.key} onClose={() => setMannerModalOpen(false)} />
       <HandicapInfoModal visible={handicapInfoOpen} onClose={() => setHandicapInfoOpen(false)} />
+      <ScoreStatsScreen visible={scoreStatsOpen} onClose={() => setScoreStatsOpen(false)}
+        diaries={diaries} schedules={schedules} userProfile={userProfile} />
       <MilestoneInfoModal visible={milestoneInfoOpen} onClose={() => setMilestoneInfoOpen(false)} />
 
       {/* 프로필 사진 변경 시트 — 자체 오버레이 (Modal 전환 충돌 회피) */}

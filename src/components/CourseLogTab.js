@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Modal, Platform, Dimensions } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Modal, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
@@ -13,8 +13,7 @@ import { isRoundDiary } from '../utils/diaryKind';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { UserContext } from '../contexts/UserContext';
-import { calcHandicap } from '../utils/handicap';
-import { ScoreStatsScreen, ScoreSparkline, dateKey } from './ScoreStatsScreen';
+import { ScoreStatsScreen, ScoreBanner } from './ScoreStatsScreen';
 import { dS } from '../styles/dS';
 
 const REGION_STYLE = {
@@ -131,43 +130,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   const [manualChecks, setManualChecks] = useState([]); // 사용자가 직접 체크한 100대 코스 rank
   const scrollRef = useRef(null);
 
-  // 내 스코어 요약(배너) — 통계 화면과 동일 집계(라운딩 점수만, 일상·해외무관 score>0)
-  const scoreList = (diaries || []).filter(isRoundDiary).map(d => d.score).filter(s => typeof s === 'number' && s > 0);
-  const sAvg = scoreList.length ? Math.round(scoreList.reduce((a, b) => a + b, 0) / scoreList.length) : null;
-  const sBestArr = [scoreList.length ? Math.min(...scoreList) : null, userProfile?.lifeBest].filter(v => Number.isFinite(v) && v > 0);
-  const sBest = sBestArr.length ? Math.min(...sBestArr) : null;
-  const sHandi = calcHandicap(diaries || [], userProfile?.avgScore);
-  // 배너 미니 스파크라인용 — 날짜 오름차순 점수 배열(최근 20개). 통계 화면과 동일 집계.
-  const scoreSeriesAsc = (diaries || []).filter(isRoundDiary)
-    .filter(d => typeof d.score === 'number' && d.score > 0)
-    .map(d => ({ s: d.score, k: dateKey(d.date) }))
-    .sort((a, b) => a.k - b.k)
-    .map(o => o.s);
-  // 최근 흐름 힌트 — 최근 N R 평균 vs 직전 N R 평균(낮을수록 좋음). 배너 한 줄 신호 + 콘텐츠 예고.
-  const sRecentDelta = (() => {
-    if (scoreSeriesAsc.length < 4) return null;
-    const k = Math.min(5, Math.floor(scoreSeriesAsc.length / 2));
-    const m = (a) => a.reduce((x, y) => x + y, 0) / a.length;
-    return m(scoreSeriesAsc.slice(-k * 2, -k)) - m(scoreSeriesAsc.slice(-k));   // >0 개선
-  })();
-  const sHint = scoreSeriesAsc.length < 4 ? '탭하면 추세·구장별·분포까지 →'
-    : sRecentDelta > 0.5 ? '최근 좋아지는 중 ↗'
-    : sRecentDelta < -0.5 ? '최근 흐름이 아쉬워요'
-    : '꾸준히 유지 중';
-  const SPARK_W = Dimensions.get('window').width - 16 * 2 - 16 * 2;   // 배너 margin16*2 + padding16*2
-  // 배너 하이라이트 배지 — 최근 라운드에 '눌러볼 이유'가 생긴 순간만 골드 배지로(없으면 힌트 텍스트).
-  const sBannerHighlight = (() => {
-    const arr = scoreSeriesAsc;
-    if (arr.length < 2) return null;
-    const last = arr[arr.length - 1];
-    const prev = arr.slice(0, -1);
-    const prevBest = Math.min(...prev);
-    if (last <= prevBest) return `🎉 베스트 갱신 ${last}!`;                 // 최근 라운드 = 역대 최저
-    if (last < 80 && prevBest >= 80) return '🏆 첫 싱글 달성!';            // 처음으로 80 깸
-    if (last < 90 && prevBest >= 90) return '🏆 90 브레이크!';             // 처음으로 90 깸
-    if (sRecentDelta != null && sRecentDelta >= 2) return `📈 최근 ${Math.round(sRecentDelta)}타 좋아지는 중`;
-    return null;
-  })();
+  // 스코어 배너 계산·렌더는 공용 ScoreBanner로 위임(MY 명함 화면과 동일 컴포넌트).
 
   // 등록 코스·100대·체크 로드 — 다이어리는 DiariesContext가 단일 소스라 별도 로드 X
   useEffect(() => {
@@ -411,44 +374,9 @@ export function CourseLogTab({ avgRating, navigation }) {
           <View style={{ height: 5, borderRadius: 3, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
         </View>
       </TouchableOpacity>
-      {/* 내 스코어 — 진입 배너. 미니 추세 스파크라인을 박아 '안에 뭐가 있는지' 미리보기(float 까딱임 대체).
-          탭 → 통계·추세·점수대 분포·구장별 스코어 전용 화면. [[feature-backlog]] ① (사용자 2026-06-28) */}
-      <TouchableOpacity style={{ marginHorizontal: 16, marginTop: 2, marginBottom: 14, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 }}
-        activeOpacity={0.85} onPress={() => setScoreStatsOpen(true)}>
-        {/* 상단 — 제목 + 평균·베스트·핸디 */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 스코어</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            {[['평균', sAvg], ['베스트', sBest], ['핸디', sHandi]].map(([l, v]) => (
-              <View key={l} style={{ alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: l === '베스트' ? C.butter : '#fff' }}>{v != null ? v : '-'}</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(9.5), color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>{l}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-        {/* 중단 — 미니 추세(2R+) 또는 빈 안내 */}
-        {scoreSeriesAsc.length >= 2 ? (
-          <View style={{ marginTop: 10 }}>
-            <ScoreSparkline scores={scoreSeriesAsc.slice(-20)} width={SPARK_W} height={32} />
-          </View>
-        ) : (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.7)', marginTop: 10 }}>
-            라운딩을 기록하면 스코어 추세가 보여요
-          </Text>
-        )}
-        {/* 하단 — 하이라이트 배지(있으면 골드) 또는 흐름 힌트 + CTA(명시적 버튼 라벨로 '버튼인지 모르겠다' 해소) */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-          {sBannerHighlight ? (
-            <View style={{ backgroundColor: C.butter, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.navy }} numberOfLines={1}>{sBannerHighlight}</Text>
-            </View>
-          ) : (
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: 'rgba(255,255,255,0.72)' }}>{sHint}</Text>
-          )}
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.butter }}>통계 자세히 보기 →</Text>
-        </View>
-      </TouchableOpacity>
+      {/* 내 스코어 — 진입 배너(공용 ScoreBanner). 탭 → 통계·추세·분포·구장별 전용 화면. [[feature-backlog]] ① */}
+      <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)}
+        style={{ marginTop: 2, marginBottom: 14 }} />
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
         {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
           <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>

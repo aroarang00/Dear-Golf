@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, Dimensions } from 'rea
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { C, F, fs } from '../constants/colors';
-import { roundsOnly } from '../utils/diaryKind';
+import { roundsOnly, isRoundDiary } from '../utils/diaryKind';
 import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 
@@ -39,6 +39,99 @@ export function ScoreSparkline({ scores, width, height = 32 }) {
       <Polyline points={pts} fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
       <Circle cx={x(bi)} cy={y(best)} r={3} fill={C.butter} />
     </Svg>
+  );
+}
+
+// 스코어 진입 배너(공용) — 미니 추세 스파크라인 + 평균·베스트·핸디 + 하이라이트 배지 + CTA.
+//   MY 명함 화면·내 코스 모아보기 양쪽에서 같은 배너 사용(onPress로 ScoreStatsScreen 진입). 다이어리 클라 집계라 추가 저장 0.
+export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible = false }) {
+  // collapsible이면 '기본 접힘'으로 시작 — 평소엔 한 줄로 깔끔, 필요할 때만 펼침. 로컬 상태라
+  //   다른 화면 갔다 오면(재마운트) 다시 접힌다. 비-collapsible(코스 모아보기)은 항상 펼침.
+  const [collapsed, setCollapsed] = useState(collapsible);
+  const series = useMemo(() => (diaries || []).filter(isRoundDiary)
+    .filter((d) => typeof d.score === 'number' && d.score > 0)
+    .map((d) => ({ s: d.score, k: dateKey(d.date) }))
+    .sort((a, b) => a.k - b.k)
+    .map((o) => o.s), [diaries]);
+
+  const avg = series.length ? Math.round(series.reduce((a, b) => a + b, 0) / series.length) : null;
+  const bestCand = [series.length ? Math.min(...series) : null, userProfile?.lifeBest].filter((v) => Number.isFinite(v) && v > 0);
+  const best = bestCand.length ? Math.min(...bestCand) : null;
+  const handi = calcHandicap(diaries || [], userProfile?.avgScore);
+
+  const recentDelta = useMemo(() => {
+    if (series.length < 4) return null;
+    const k = Math.min(5, Math.floor(series.length / 2));
+    const m = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    return m(series.slice(-k * 2, -k)) - m(series.slice(-k));   // >0 개선
+  }, [series]);
+
+  const hint = series.length < 4 ? '탭하면 추세·구장별·분포까지 →'
+    : recentDelta > 0.5 ? '최근 좋아지는 중 ↗'
+    : recentDelta < -0.5 ? '최근 흐름이 아쉬워요'
+    : '꾸준히 유지 중';
+
+  const highlight = useMemo(() => {
+    if (series.length < 2) return null;
+    const last = series[series.length - 1];
+    const prevBest = Math.min(...series.slice(0, -1));
+    if (last <= prevBest) return `🎉 베스트 갱신 ${last}!`;                  // 최근 라운드 = 역대 최저
+    if (last < 80 && prevBest >= 80) return '🏆 첫 싱글 달성!';             // 처음으로 80 깸
+    if (last < 90 && prevBest >= 90) return '🏆 90 브레이크!';              // 처음으로 90 깸
+    if (recentDelta != null && recentDelta >= 2) return `📈 최근 ${Math.round(recentDelta)}타 좋아지는 중`;
+    return null;
+  }, [series, recentDelta]);
+
+  const SPARK_W = Dimensions.get('window').width - 16 * 2 - 16 * 2;   // margin16*2 + padding16*2
+
+  return (
+    <TouchableOpacity style={[{ marginHorizontal: 16, marginVertical: 8, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 }, style]}
+      activeOpacity={0.85} onPress={onPress}>
+      {/* 상단 — 제목 + 평균·베스트·핸디 */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 스코어</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          {[['평균', avg], ['베스트', best], ['핸디', handi]].map(([l, v]) => (
+            <View key={l} style={{ alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: l === '베스트' ? C.butter : '#fff' }}>{v != null ? v : '-'}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(9.5), color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>{l}</Text>
+            </View>
+          ))}
+          {/* 접기/펼치기 — 배너 탭(통계 진입)과 분리된 별도 터치영역. collapsible일 때만 */}
+          {collapsible && (
+            <TouchableOpacity onPress={() => setCollapsed((c) => !c)} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }} style={{ paddingLeft: 2 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.6)' }}>{collapsed ? '▼' : '▲'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+      {/* 접힌 상태(collapsible)면 위 한 줄만 — 추세·배지·CTA 숨김 */}
+      {!collapsed && (
+        <>
+          {/* 중단 — 미니 추세(2R+) 또는 빈 안내 */}
+          {series.length >= 2 ? (
+            <View style={{ marginTop: 10 }}>
+              <ScoreSparkline scores={series.slice(-20)} width={SPARK_W} height={32} />
+            </View>
+          ) : (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.7)', marginTop: 10 }}>
+              라운딩을 기록하면 스코어 추세가 보여요
+            </Text>
+          )}
+          {/* 하단 — 하이라이트 배지(있으면 골드) 또는 흐름 힌트 + CTA */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            {highlight ? (
+              <View style={{ backgroundColor: C.butter, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.navy }} numberOfLines={1}>{highlight}</Text>
+              </View>
+            ) : (
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: 'rgba(255,255,255,0.72)' }}>{hint}</Text>
+            )}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.butter }}>통계 자세히 보기 →</Text>
+          </View>
+        </>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -466,21 +559,24 @@ function Milestones({ scored, lifeBest }) {
   const rows = [
     { emoji: '🏆', label: '라이프 베스트', val: bestVal != null ? `${bestVal}` : '—', sub: bestSub, done: bestVal != null },
     { emoji: '⛳', label: '90 브레이크', val: m.sub90 ? m.sub90.date : '도전 중', sub: m.sub90 ? (m.sub90.course || '코스 미상') : null, done: !!m.sub90 },
-    { emoji: '🔥', label: '첫 싱글 (80↓)', val: m.sub80 ? m.sub80.date : '도전 중', sub: m.sub80 ? (m.sub80.course || '코스 미상') : null, done: !!m.sub80 },
+    { emoji: '🔥', label: '첫 싱글 (79↓)', val: m.sub80 ? m.sub80.date : '도전 중', sub: m.sub80 ? (m.sub80.course || '코스 미상') : null, done: !!m.sub80 },
     { emoji: '📒', label: '기록한 라운딩', val: `${m.total}회`, sub: null, done: true },
   ];
 
   return (
     <View style={card}>
       {rows.map((r, i) => (
-        <View key={r.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10,
-          borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
-          <Text style={{ fontSize: fs(15), opacity: r.done ? 1 : 0.4 }}>{r.emoji}</Text>
-          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: r.done ? C.charcoal : C.warmGrayLight }}>{r.label}</Text>
-          <View style={{ alignItems: 'flex-end', maxWidth: 150 }}>
+        <View key={r.label} style={{ paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+          {/* 첫 줄 — 이모지 + 라벨 + 값(값은 right) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={{ fontSize: fs(15), opacity: r.done ? 1 : 0.4 }}>{r.emoji}</Text>
+            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: r.done ? C.charcoal : C.warmGrayLight }}>{r.label}</Text>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: r.done ? C.charcoal : C.warmGrayLight }}>{r.val}</Text>
-            {r.sub ? <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.sub}</Text> : null}
           </View>
+          {/* 부제(구장·날짜) — 전체 폭 둘째 줄로 빼 잘림 방지(이모지 폭만큼 들여쓰기) */}
+          {r.sub ? (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray, marginTop: 3, marginLeft: 25 }} numberOfLines={1}>{r.sub}</Text>
+          ) : null}
         </View>
       ))}
     </View>
