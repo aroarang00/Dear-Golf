@@ -61,7 +61,8 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, sh
     : (allFull ? (post.type === 'open' ? '날짜 정하기' : '확정 대기') : '모집중');
   const title = post.type === 'fixed' ? (post.course || '라운딩') : '장소 · 날짜 미정';
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress?.(roundupId)} onLongPress={onLongPress || undefined} delayLongPress={350} style={box}>
+    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress?.(roundupId)} onLongPress={onLongPress || undefined} delayLongPress={350}
+      style={[box, post.closed && { opacity: 0.55 }]}>{/* 확정=빛바램(라운지 모집처럼), 글은 남고 티오프 후/삭제 시 사라짐 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: fs(20) }}>
         <Icon name="flag" size={fs(13)} color={C.butter} strokeWidth={1.9} />
         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff', marginLeft: 6, flexShrink: 1 }} numberOfLines={1}>{title}</Text>

@@ -503,7 +503,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
     return pinnedRoundupIds.filter((id) => {
       const r = roundupMap[id];
       if (r && r.__denied) return true;                              // 비친구라 못 읽음 → 친추 안내 카드로 노출(안 거름)
-      if (!r || r.cancelledByHost || r.closed) return false;          // 미존재·취소·확정 → 핀 해제
+      if (!r || r.cancelledByHost) return false;                     // 미존재·취소 → 핀 해제 (확정은 빛바래며 유지, 아래 티오프+5h에만 내려감)
       if (r.type === 'open' || !r.date) return true;                  // 날짜 미정 → 항상
       const [y, m, d] = String(r.date).split('.').map(Number);
       const [hh, mm] = String(r.time || '07:00').split(':').map(Number);
@@ -531,7 +531,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       if (r.__denied) {
         if (p.roundupHost === currentUid) remove = true;  // 주최자 본인이 못 읽음 = 삭제됨(존재 시 항상 읽힘) → 핀·공유 dead 카드 정리
       } else if (!p.roundupShare) {                        // 핀(크루서 만든)만 '종료' 정리. 공유 광고는 종료돼도 피드에 유지
-        let ended = !!r.closed || !!r.cancelledByHost;
+        let ended = !!r.cancelledByHost;   // 확정(closed)만으론 안 지움 — 빛바래며 남고, 취소/삭제/티오프+5h에만 정리
         if (!ended && r.type !== 'open' && r.date) {
           const [y, m, d] = String(r.date).split('.').map(Number);
           const [hh, mm] = String(r.time || '07:00').split(':').map(Number);
