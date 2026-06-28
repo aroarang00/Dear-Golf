@@ -49,3 +49,13 @@ export async function ensureUserDoc(uid, seed = {}) {
   await setDoc(ref, data);
   return { created: true, data };
 }
+
+// 프로필 '한마디'(statusMessage) 즉시 저장 — 편집 시점에 직접 write해 친구에게도 바로 반영.
+//   ★빈 문자열(지우기)도 명시적으로 쓴다. App.js write-through는 `if(statusMessage)` truthy 가드라
+//     빈값이면 skip → 한마디를 지워도 서버엔 옛 멘트가 남아 친구가 계속 옛 멘트를 보던 문제 회피.
+export async function saveStatusMessage(uid, statusMessage) {
+  if (!uid) return;
+  await setDoc(doc(db, 'users', uid), {
+    uid, statusMessage: statusMessage || '', updatedAt: serverTimestamp(),
+  }, { merge: true });
+}

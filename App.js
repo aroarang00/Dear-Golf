@@ -362,6 +362,8 @@ function App() {
           const next = { ...prev };
           if (settings) Object.assign(next, settings);
           if (data.nickname) next.nickname = data.nickname;
+          // 프로필 한마디(statusMessage) — Firestore 권위로 복원(재설치·새 기기서도 유지). '' 도 반영(서버에서 지운 상태).
+          if (data.statusMessage != null) next.statusMessage = data.statusMessage;
           // 카카오 연동 상태 — Firestore가 권위 (재설치 후 자동 복원)
           if (typeof data.kakaoLinked === 'boolean') next.kakaoLinked = data.kakaoLinked;
           if (data.kakaoId) next.kakaoId = data.kakaoId;

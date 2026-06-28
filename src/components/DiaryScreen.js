@@ -38,6 +38,7 @@ import { uploadAvatar } from '../utils/avatarStorage';
 import { CropEditorModal } from './common/CropEditorModal';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { getUid } from '../utils/firebase';
+import { saveStatusMessage } from '../utils/userDoc';
 import { TrustGradeModal } from './common/TrustBadge';
 import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
@@ -100,9 +101,12 @@ export function DiaryScreen({ route, navigation }) {
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
   const handleSaveStatus = () => {
-    const updated = { ...userProfile, statusMessage: statusDraft.trim() };
+    const trimmed = statusDraft.trim();
+    const updated = { ...userProfile, statusMessage: trimmed };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
+    // 친구에게도 즉시 반영되도록 Firestore에 직접 저장(빈값=지우기 포함). write-through truthy 가드 우회.
+    getUid().then(uid => { if (uid) saveStatusMessage(uid, trimmed).catch(() => {}); }).catch(() => {});
     setEditingStatus(false);
   };
   const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
