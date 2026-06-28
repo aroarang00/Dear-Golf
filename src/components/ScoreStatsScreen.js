@@ -14,10 +14,32 @@ import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 const PERIODS = [[10, '최근 10'], [20, '최근 20'], [0, '전체']];
 
 // "YYYY.MM.DD" → 정렬 키(숫자). 형식 깨지면 0.
-function dateKey(s) {
+export function dateKey(s) {
   const m = String(s || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);
   if (!m) return 0;
   return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+}
+
+// 미니 추세 스파크라인 — 내 코스 모아보기 배너 안에 박는 작은 추세선(낮은 점수=위). 베스트 점 골드.
+//   진입 배너가 곧 '콘텐츠 미리보기'가 되도록(까딱임 대신 시선 유도). scores=날짜오름차순 점수배열.
+export function ScoreSparkline({ scores, width, height = 32 }) {
+  if (!scores || scores.length < 2 || !width) return null;
+  const best = Math.min(...scores);
+  let minV = best, maxV = Math.max(...scores);
+  if (minV === maxV) { minV -= 1; maxV += 1; }   // 전부 동점 — 평평한 중앙선
+  const span = maxV - minV;
+  const n = scores.length;
+  const padY = 4;
+  const x = (i) => (width * i) / (n - 1);
+  const y = (v) => padY + ((v - minV) / span) * (height - padY * 2);   // ★낮은 v(좋음)→작은 y(위)
+  const pts = scores.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  const bi = scores.lastIndexOf(best);
+  return (
+    <Svg width={width} height={height}>
+      <Polyline points={pts} fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      <Circle cx={x(bi)} cy={y(best)} r={3} fill={C.butter} />
+    </Svg>
+  );
 }
 
 export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userProfile }) {
@@ -39,6 +61,17 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
   const best = [diaryBest, userProfile?.lifeBest].filter(v => Number.isFinite(v) && v > 0);
   const bestVal = best.length ? Math.min(...best) : null;
   const handicap = calcHandicap(diaries || [], userProfile?.avgScore);
+
+  // 최근 폼 — 최근 N R 평균 vs 직전 N R 평균(낮을수록 좋음). 숫자만 보던 걸 '해석' 한 줄로.
+  const form = useMemo(() => {
+    const arr = scored.map(s => s.score);
+    if (arr.length < 4) return null;                 // 흐름 비교엔 최소 4R
+    const k = Math.min(5, Math.floor(arr.length / 2));
+    const recent = arr.slice(-k), prev = arr.slice(-k * 2, -k);
+    const m = (a) => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+    const ra = m(recent), pa = m(prev);
+    return { k, ra, delta: pa - ra };                // delta>0 = 개선(점수 낮아짐)
+  }, [scored]);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -79,6 +112,28 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
               </Text>
             </View>
 
+            {/* A-2. 최근 폼 인사이트 — 숫자 해석 한 줄(개선=그린/아쉬움=코랄/유지=중립) */}
+            {form && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
+                backgroundColor: (form.delta > 0 ? '#EAF1E2' : form.delta < 0 ? '#F7E9E4' : C.bgSecondary),
+                borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11,
+                borderWidth: 0.5, borderColor: C.hairline }}>
+                <Text style={{ fontSize: fs(14) }}>{form.delta > 0 ? '📈' : form.delta < 0 ? '📉' : '➖'}</Text>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                  최근 <Text style={{ fontFamily: F.sysB }}>{form.k}R 평균 {form.ra}</Text>
+                  {form.delta > 0
+                    ? <Text> — 직전 {form.k}R보다 <Text style={{ fontFamily: F.sysB, color: '#4B7A3E' }}>{form.delta}타 좋아졌어요 ↗</Text></Text>
+                    : form.delta < 0
+                      ? <Text> — 직전 {form.k}R보다 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{-form.delta}타 아쉬웠어요</Text></Text>
+                      : <Text> — 직전과 <Text style={{ fontFamily: F.sysB }}>비슷한 흐름</Text>이에요</Text>}
+                </Text>
+              </View>
+            )}
+
+            {/* A-3. 기록(마일스톤) — 라이프 베스트·브레이크 달성 등 성취 하이라이트 */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>기록</Text>
+            <Milestones scored={scored} lifeBest={userProfile?.lifeBest} />
+
             {/* B. 스코어 추세 그래프 */}
             <View style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>스코어 추세</Text>
@@ -98,9 +153,17 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
 
             <TrendChart series={series} avg={avg} bestVal={bestVal} />
 
-            {/* C. 홀 분석 — 파·버디·보기 비율 도넛 */}
+            {/* C. 점수대 분포 — 내 실력대가 어디에 몰려 있는지 */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>점수대 분포</Text>
+            <ScoreDistribution scored={scored} />
+
+            {/* D. 홀 분석 — 파·버디·보기 비율 도넛 */}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>홀 분석</Text>
             <HoleBreakdown diaries={diaries} />
+
+            {/* E. 구장별 스코어 — '내 코스 모아보기'와 직접 연결(구장·방문·베스트·평균) */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>구장별 스코어</Text>
+            <CourseScores scored={scored} />
           </ScrollView>
         </SafeAreaView>
       </SafeAreaProvider>
@@ -270,6 +333,156 @@ function HoleBreakdown({ diaries }) {
       <Text style={{ fontFamily: F.sys, fontSize: fs(9.5), color: C.warmGrayLight, textAlign: 'right', marginTop: 10 }}>
         {stat.rounds}개 라운드 · 홀별 입력 기준
       </Text>
+    </View>
+  );
+}
+
+// 점수대 분포 — 70대 이하 / 80대 / 90대 / 100 이상 막대. 내 실력대가 어디 몰렸는지 한눈에.
+const DIST_BUCKETS = [
+  ['70대 이하', '#6B8B5E', (v) => v < 80],
+  ['80대',     '#4E6E8E', (v) => v >= 80 && v < 90],
+  ['90대',     '#C9A84C', (v) => v >= 90 && v < 100],
+  ['100 이상', '#B8835A', (v) => v >= 100],
+];
+function ScoreDistribution({ scored }) {
+  const rows = useMemo(() => {
+    const counts = DIST_BUCKETS.map(([label, color]) => ({ label, color, count: 0 }));
+    (scored || []).forEach((s) => {
+      const idx = DIST_BUCKETS.findIndex(([, , test]) => test(s.score));
+      if (idx >= 0) counts[idx].count++;
+    });
+    return counts;
+  }, [scored]);
+  const total = (scored || []).length;
+  const max = Math.max(1, ...rows.map((r) => r.count));
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 16, paddingVertical: 14 };
+
+  if (!total) {
+    return (
+      <View style={[card, { alignItems: 'center' }]}>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', lineHeight: 18 }}>
+          점수를 기록한 라운딩이 없어요.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={card}>
+      {rows.map((r) => (
+        <View key={r.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 5 }}>
+          <Text style={{ width: 56, fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{r.label}</Text>
+          <View style={{ flex: 1, height: 16, backgroundColor: C.hairline, borderRadius: 8, overflow: 'hidden' }}>
+            <View style={{ width: `${(r.count / max) * 100}%`, height: '100%', backgroundColor: r.color, borderRadius: 8 }} />
+          </View>
+          <Text style={{ width: 60, textAlign: 'right', fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>
+            {r.count}<Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>회 · {Math.round((r.count / total) * 100)}%</Text>
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// 구장별 스코어 — 구장·방문수·베스트·평균. '내 코스 모아보기'와 스코어를 직접 연결. 방문 많은 순→베스트 좋은 순.
+function CourseScores({ scored }) {
+  const rows = useMemo(() => {
+    const m = new Map();
+    (scored || []).forEach((s) => {
+      const c = (s.course || '').trim() || '코스 미상';
+      if (!m.has(c)) m.set(c, []);
+      m.get(c).push(s.score);
+    });
+    return Array.from(m.entries())
+      .map(([course, arr]) => ({
+        course, count: arr.length,
+        best: Math.min(...arr),
+        avg: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length),
+      }))
+      .sort((a, b) => b.count - a.count || a.best - b.best);
+  }, [scored]);
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 4 };
+
+  if (!rows.length) {
+    return (
+      <View style={[card, { alignItems: 'center', paddingVertical: 16 }]}>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', lineHeight: 18 }}>
+          점수를 기록한 라운딩이 없어요.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={card}>
+      {/* 헤더 */}
+      <View style={{ flexDirection: 'row', paddingVertical: 8 }}>
+        <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>구장</Text>
+        <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>방문</Text>
+        <Text style={{ width: 52, textAlign: 'center', fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>베스트</Text>
+        <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>평균</Text>
+      </View>
+      {rows.map((r) => (
+        <View key={r.course} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+          <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal, paddingRight: 6 }}>{r.course}</Text>
+          <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{r.count}</Text>
+          <Text style={{ width: 52, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(13.5), color: '#C9A84C' }}>{r.best}</Text>
+          <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal }}>{r.avg}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// 기록(마일스톤) — 라이프 베스트·90 브레이크·첫 싱글(80↓)·총 라운딩. scored=날짜오름차순(첫 항목=최초 달성).
+//   미달성은 '도전 중'으로 회색 — 목표가 보여 동기부여. 추가 저장 없이 다이어리에서 집계.
+function Milestones({ scored, lifeBest }) {
+  const m = useMemo(() => {
+    const list = scored || [];
+    let best = null;
+    list.forEach((s) => { if (best == null || s.score < best.score) best = s; });
+    const firstUnder = (th) => list.find((s) => s.score < th) || null;   // 날짜오름차순 → 첫 매치 = 최초 달성
+    return { total: list.length, best, sub90: firstUnder(90), sub80: firstUnder(80) };
+  }, [scored]);
+
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 16, paddingVertical: 4 };
+
+  if (!m.total) {
+    return (
+      <View style={[card, { alignItems: 'center', paddingVertical: 16 }]}>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', lineHeight: 18 }}>
+          점수를 기록하면 베스트·브레이크 기록이 쌓여요.
+        </Text>
+      </View>
+    );
+  }
+
+  // 라이프 베스트 — 다이어리 최저 vs 수동입력 lifeBest 중 더 낮은 값(구장·날짜는 다이어리 베스트일 때만).
+  const diaryBest = m.best ? m.best.score : null;
+  const cand = [diaryBest, lifeBest].filter((v) => Number.isFinite(v) && v > 0);
+  const bestVal = cand.length ? Math.min(...cand) : null;
+  const bestSub = (m.best && diaryBest === bestVal) ? `${m.best.course || '코스 미상'} · ${m.best.date}` : null;
+
+  const rows = [
+    { emoji: '🏆', label: '라이프 베스트', val: bestVal != null ? `${bestVal}` : '—', sub: bestSub, done: bestVal != null },
+    { emoji: '⛳', label: '90 브레이크', val: m.sub90 ? m.sub90.date : '도전 중', sub: m.sub90 ? (m.sub90.course || '코스 미상') : null, done: !!m.sub90 },
+    { emoji: '🔥', label: '첫 싱글 (80↓)', val: m.sub80 ? m.sub80.date : '도전 중', sub: m.sub80 ? (m.sub80.course || '코스 미상') : null, done: !!m.sub80 },
+    { emoji: '📒', label: '기록한 라운딩', val: `${m.total}회`, sub: null, done: true },
+  ];
+
+  return (
+    <View style={card}>
+      {rows.map((r, i) => (
+        <View key={r.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10,
+          borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+          <Text style={{ fontSize: fs(15), opacity: r.done ? 1 : 0.4 }}>{r.emoji}</Text>
+          <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: r.done ? C.charcoal : C.warmGrayLight }}>{r.label}</Text>
+          <View style={{ alignItems: 'flex-end', maxWidth: 150 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: r.done ? C.charcoal : C.warmGrayLight }}>{r.val}</Text>
+            {r.sub ? <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.sub}</Text> : null}
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
