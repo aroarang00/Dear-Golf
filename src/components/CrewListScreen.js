@@ -27,7 +27,7 @@ import { CrewAvatar } from './common/CrewAvatar';
 
 // 크루(친구 소수 그룹) 공유 앨범 — 진입 첫 화면 = 내가 속한 크루 리스트 (docs/crew-space-design.md §3.0).
 //  ★목록은 DM(다크룸)과 다르게 — 친구화면 톤(페일스카이) 라이트 테마.
-//  상호작용: 탭=앨범 입장 / 길게누르기=메뉴(이름 변경·즐겨찾기) — 탭과 안 엇갈리게.
+//  상호작용: 탭=앨범 입장 / 길게누르기=메뉴(이름 변경) — 탭과 안 엇갈리게. (즐겨찾기는 드래그 순서변경으로 대체·폐기)
 //  ※ Phase 1 — mock 데이터로 화면 디자인 단계. 데이터(crews)·앨범·만들기는 이어서 연결.
 const BG    = '#C8D9E6';                 // 페일스카이 배경 (친구화면 액센트색)
 const INK   = '#1A3D52';                 // 본문(네이비)
@@ -96,7 +96,6 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
 
   const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
-  const [favSet, setFavSet] = useState({});          // {crewId:true} — 즐겨찾기(기기 로컬, per-user)
   const [aliasMap, setAliasMap] = useState({});      // {crewId:alias} — 나만 보는 크루 별명(기기 로컬, 서버 name 불변)
   const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(목록 '새 글 N' 배지 산출, 기기 로컬)
   const [seenAtMap, setSeenAtMap] = useState({});    // {crewId:millis} — 마지막으로 앨범 닫은 시각(앨범 NEW·내글 새댓글 판단, 기기 로컬)
@@ -115,10 +114,9 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
     return () => { un1(); un2(); };
   }, [currentUid]);
 
-  // 즐겨찾기 로컬 로드(서버 미저장) + 내 닉(수락 시 names 기록용)
+  // 로컬 메타 로드(별명·본 시점·순서·음소거) + 내 닉(수락 시 names 기록용)
   useEffect(() => {
     let alive = true;
-    storage.load(STORAGE_KEYS.crewFavorites, {}).then((f) => { if (alive) setFavSet(f || {}); });
     storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => { if (alive) setAliasMap(a || {}); });
     storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
     storage.load(STORAGE_KEYS.crewSeenAt, {}).then((s) => { if (alive) { setSeenAtMap(s || {}); setSeenAtLoaded(true); } });
@@ -180,7 +178,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
     });
   }, []);
 
-  // doc → 목록 표시 모델 (최근활동순 정렬, 즐겨찾기 플래그)
+  // doc → 목록 표시 모델 (최근활동순 정렬)
   const crews = useMemo(() => (crewDocs || []).map((d) => {
     const ts = d.lastPostAt || d.updatedAt || d.createdAt;
     const postCount = d.postCount || 0;
@@ -192,11 +190,11 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
     return {
       id: d.id, name: aliasMap[d.id] || d.name || '크루', members: (d.memberUids || []).length,
       last: fmtTime(ts), newCount,
-      fav: !!favSet[d.id], _ts: ts?.toMillis ? ts.toMillis() : 0,
+      _ts: ts?.toMillis ? ts.toMillis() : 0,
       themeColor: d.themeColor || null, imageUrl: d.imageUrl || null, description: d.description || '',  // 크루 프로필·성격(목록 카드)
       _doc: d,    // 앨범·멤버 화면에서 memberUids·names·notice 사용
     };
-  }).sort((a, b) => b._ts - a._ts), [crewDocs, favSet, aliasMap, seenSet, currentUid]);
+  }).sort((a, b) => b._ts - a._ts), [crewDocs, aliasMap, seenSet, currentUid]);
 
   // 크루 입장/퇴장 시 본 시점 글 수 갱신(목록 '새 글 N' 0으로) — 현재 doc의 postCount 기준
   const markCrewSeen = (id) => {
@@ -274,7 +272,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
 
 
   const loading = crewDocs === null;
-  // 표시 순서 — 수동 순서(드래그) 있으면 그게 우선(없는 건 기본순으로 뒤에), 없으면 즐겨찾기 우선.
+  // 표시 순서 — 수동 순서(드래그) 있으면 그게 우선(없는 건 기본순으로 뒤에), 없으면 최근활동순.
   const ordered = useMemo(() => {
     const list = [...crews];
     const ord = crewOrder || [];
@@ -288,7 +286,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
         return 0;   // 둘 다 수동순서에 없으면 crews 기본순(_ts) 유지(안정 정렬)
       });
     }
-    return list.sort((a, b) => (b.fav === true) - (a.fav === true));
+    return list;   // 수동 순서 없으면 최근활동순(crews 기본 _ts 정렬) 유지
   }, [crews, crewOrder]);
   const onReorderCrews = (orderedIds) => {
     setCrewOrder(orderedIds);
