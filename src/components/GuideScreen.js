@@ -8,6 +8,7 @@ import { auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { ROUTES } from '../constants/routes';
 import { UserContext } from '../contexts/UserContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
