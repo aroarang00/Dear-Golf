@@ -124,6 +124,7 @@ export function DiaryScreen({ route, navigation }) {
   }, []);
   useEffect(() => { refreshFriendData(); }, [refreshFriendData]);
   const [scoreStatsOpen, setScoreStatsOpen] = useState(false); // 스코어 통계 화면(명함 스코어 배너에서 진입)
+  const [scoreBannerKey, setScoreBannerKey] = useState(0);     // 화면 떠나면 ++ → ScoreBanner 리마운트(펼침 상태 초기화)
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false); // 프로필 사진 변경 시트
   useAndroidBack(avatarSheetOpen, () => setAvatarSheetOpen(false)); // 시트 떠 있을 때 뒤로가기 → 닫기
   const [avatarCropUri, setAvatarCropUri] = useState(null); // 아바타 1:1 크롭 대상(갤러리 선택 후, 크롭 전 raw uri)
@@ -147,6 +148,13 @@ export function DiaryScreen({ route, navigation }) {
     });
     return unsub;
   }, [navigation, reloadDiaries, refreshFriendData]);
+
+  // 화면을 떠나면(다른 탭 이동) 스코어 배너 펼침 상태 초기화 — key를 바꿔 리마운트(항상 접힘으로 복귀).
+  useEffect(() => {
+    if (!navigation?.addListener) return;
+    const unsub = navigation.addListener('blur', () => setScoreBannerKey(k => k + 1));
+    return unsub;
+  }, [navigation]);
   // 미기록 라운딩 — 지난 일정(오늘은 티오프+4h 경과분만) 중 라운딩 기록이 1:1로 배정되지 않은 것.
   //  · 같은 날 같은 구장 2건(36홀·더블)도 각각 일정-기록 1:1로 매칭(정책: 2건 따로 지원)
   //  · 기록의 scheduleId가 가리키던 일정이 삭제(dangling)됐어도 course+date로 다시 이어 '이미 기록인데 미기록으로 떠 중복 기록'을 방지
@@ -745,7 +753,7 @@ export function DiaryScreen({ route, navigation }) {
 
       {/* 인덱스 1 — 내 스코어 배너(공용 ScoreBanner). 옛 통계박스(탭 안 되는 숫자판+접기토글) 대체.
           탭 → 통계·추세·마일스톤·분포·구장별 전용 화면. 자식 순서 고정 유지(명함0·스코어1·필터2·피드3). */}
-      <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)}
+      <ScoreBanner key={scoreBannerKey} diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)}
         collapsible style={{ marginTop: 4, marginBottom: 6 }} />
 
       {/* 인덱스 2 — ★sticky 필터 바(필터 칩 + 🔍 + 검색입력 한 묶음). 위에 딱 붙도록 배경 불투명(C.bgPrimary)으로
