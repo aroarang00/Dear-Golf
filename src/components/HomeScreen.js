@@ -666,7 +666,8 @@ export function HomeScreen({ navigation, route }) {
   const handleCardCoursePress = (schedule, returnScheduleId = null) => {
     if (!schedule) return;
     const id = resolveCourseLogId(schedule);
-    const ret = returnScheduleId ? { returnToScheduleId: returnScheduleId } : {}; // 일정 시트에서 왔으면 닫을 때 복귀
+    // 일정 시트에서 왔으면 그 시트로, 아니면(홈 카드 직접 탭) 홈으로 복귀
+    const ret = returnScheduleId ? { returnToScheduleId: returnScheduleId } : { returnToHome: true };
     if (id) { navigation.navigate(ROUTES.COURSE, { openCourseId: id, ...ret }); return; }
     if (schedule.course) {
       navigation.navigate(ROUTES.COURSE, {
