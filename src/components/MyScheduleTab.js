@@ -444,8 +444,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     const id = s.courseLogId || s.courseId;
     setSheet({ visible: false, schedule: null });
     onCloseSchedule?.();   // 일정 캘린더 Modal 닫기(탭 화면이면 no-op)
-    if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id });
-    else if (s.course) navigation.navigate(ROUTES.COURSE, { openCourseName: s.course, openCourseKakaoId: s.courseKakaoId || null });
+    if (id) navigation.navigate(ROUTES.COURSE, { openCourseId: id, returnToScheduleId: s.id });
+    else if (s.course) navigation.navigate(ROUTES.COURSE, { openCourseName: s.course, openCourseKakaoId: s.courseKakaoId || null, returnToScheduleId: s.id });
   };
 
   // 바텀시트 → 동반자에게 공유: 이미지 카드(ShareMomentModal) — 홈과 동일. 시트 닫고 카드 열기(3중 Modal 회피).

@@ -271,6 +271,15 @@ export function HomeScreen({ navigation, route }) {
     }
   }, [route?.params?.openSchedule]);
 
+  // 코스에서 '일정으로 복귀' — 코스를 일정 시트에서 열었다가 닫으면(returnToScheduleId) 그 일정 시트를 다시 연다.
+  useEffect(() => {
+    const sid = route?.params?.openScheduleSheetId;
+    if (!sid) return;
+    navigation.setParams({ openScheduleSheetId: undefined });
+    const s = (schedules || []).find((x) => x.id === sid);
+    if (s) openScheduleSheet(s);
+  }, [route?.params?.openScheduleSheetId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);
   useEffect(() => {
@@ -654,14 +663,16 @@ export function HomeScreen({ navigation, route }) {
 
   // 코스 탭으로 이동 — id로 해석되면 그 코스, 아니면 이름/kakaoId로 (GuideScreen이 카카오 검색해 연다).
   //   일정엔 코스 이름이 항상 있으므로 '코스 가기'는 항상 동작 (로컬 userCourses·courseId 유무와 무관, [[course-name-input]]).
-  const handleCardCoursePress = (schedule) => {
+  const handleCardCoursePress = (schedule, returnScheduleId = null) => {
     if (!schedule) return;
     const id = resolveCourseLogId(schedule);
-    if (id) { navigation.navigate(ROUTES.COURSE, { openCourseId: id }); return; }
+    const ret = returnScheduleId ? { returnToScheduleId: returnScheduleId } : {}; // 일정 시트에서 왔으면 닫을 때 복귀
+    if (id) { navigation.navigate(ROUTES.COURSE, { openCourseId: id, ...ret }); return; }
     if (schedule.course) {
       navigation.navigate(ROUTES.COURSE, {
         openCourseName: schedule.course,
         openCourseKakaoId: schedule.courseKakaoId || null,
+        ...ret,
       });
     }
   };
@@ -1500,7 +1511,7 @@ export function HomeScreen({ navigation, route }) {
         courseNavigable={canOpenCourse(selectedSchedule)}
         onCourseTap={() => {
           setShowScheduleModal(false);
-          handleCardCoursePress(selectedSchedule);
+          handleCardCoursePress(selectedSchedule, selectedSchedule?.id); // 일정 시트→코스: 닫을 때 이 일정으로 복귀
         }}
         onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}

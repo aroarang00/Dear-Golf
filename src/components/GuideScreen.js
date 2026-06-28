@@ -201,7 +201,27 @@ export function GuideScreen({ route, navigation }) {
     } catch (e) { if (__DEV__) console.warn('[course save toggle]', e?.message); }
   };
 
-  // Android 시스템 뒤로가기 — 코스 상세가 열려 있으면 홈으로 가지 않고 상세만 닫는다
+  // 일정 시트에서 코스로 들어온 경우, 그 일정 id를 기억했다가 코스를 닫을 때 일정 시트로 복귀(다이어리 경로와 통일).
+  const returnScheduleIdRef = React.useRef(null);
+  useEffect(() => {
+    if (route?.params?.returnToScheduleId) {
+      returnScheduleIdRef.current = route.params.returnToScheduleId;
+      navigation.setParams({ returnToScheduleId: undefined });
+    }
+  }, [route?.params?.returnToScheduleId]);
+  // 코스 상세 닫기(공통) — 안드 뒤로가기·← 버튼 공용. 일정에서 왔으면 홈으로 가 그 일정 시트를 다시 연다.
+  const closeDetail = React.useCallback(() => {
+    setSelected(null);
+    setPreviewCourse(null);
+    setOpeningCourse(false);
+    setInnerTab('course');
+    setShowCommentInput(false);
+    setShowRatingInput(false);
+    const sid = returnScheduleIdRef.current;
+    if (sid) { returnScheduleIdRef.current = null; navigation.navigate(ROUTES.HOME, { openScheduleSheetId: sid }); }
+  }, [navigation]);
+
+  // Android 시스템 뒤로가기 — 코스 상세가 열려 있으면 홈으로 가지 않고 상세만 닫는다(일정에서 왔으면 일정으로 복귀)
   // (코스 탭에 머물러 검색·최근검색 상태 유지)
   useFocusEffect(
     React.useCallback(() => {
@@ -210,16 +230,14 @@ export function GuideScreen({ route, navigation }) {
         if (showCommentInput) { setShowCommentInput(false); return true; }
         if (showRatingInput) { setShowRatingInput(false); return true; }
         if (selected || previewCourse) {
-          setSelected(null);
-          setPreviewCourse(null);
-          setInnerTab('course');
+          closeDetail();
           return true;
         }
         return false;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
       return () => sub.remove();
-    }, [selected, previewCourse, showCommentInput, showRatingInput]),
+    }, [selected, previewCourse, showCommentInput, showRatingInput, closeDetail]),
   );
 
   // 코스 상세에서 날씨/교통 팝업 열기 — 오늘 라운딩 가상 일정으로 fetch
@@ -661,7 +679,7 @@ export function GuideScreen({ route, navigation }) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
-          <TouchableOpacity onPress={() => { setOpeningCourse(false); setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
+          <TouchableOpacity onPress={closeDetail}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
           </TouchableOpacity>
@@ -680,7 +698,7 @@ export function GuideScreen({ route, navigation }) {
       return (
         <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
           <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
-            <TouchableOpacity onPress={() => { setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
+            <TouchableOpacity onPress={closeDetail}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
             </TouchableOpacity>
@@ -727,7 +745,7 @@ export function GuideScreen({ route, navigation }) {
       <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <TouchableOpacity onPress={() => { setSelected(null); setPreviewCourse(null); setInnerTab('course'); }}
+            <TouchableOpacity onPress={closeDetail}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
             </TouchableOpacity>
