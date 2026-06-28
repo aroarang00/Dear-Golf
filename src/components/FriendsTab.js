@@ -678,15 +678,41 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         {receivedRequests.length > 0 && (
           <AttentionMotion type="shake" style={{ marginBottom: _and ? 9 : 12, borderRadius: 12,
             shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
-            <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
-                backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
-              <Text style={{ fontSize: fs(15) }}>📬</Text>
-              <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
-                받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.butter }}>{receivedRequests.length}</Text>건
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.butter }}>›</Text>
-            </TouchableOpacity>
+            {receivedRequests.length === 1 ? (() => {
+              // 1건 — 배너에서 바로 수락/무시(모달 거치지 않게). 이름 영역 탭은 상세(프로필) 진입.
+              const r = receivedRequests[0];
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+                  backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 7 : 9 }}>
+                  <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontSize: fs(15) }}>📬</Text>
+                    <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }} numberOfLines={1}>
+                      <Text style={{ fontFamily: F.sysB, color: C.butter }}>{r.name}</Text>님의 친구 신청
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => ignoreRequest(r.id)} activeOpacity={0.8}
+                    style={{ paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.45)' }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#fff' }}>무시</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => acceptRequest(r)} activeOpacity={0.85}
+                    style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 8, backgroundColor: C.butter }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.burgundy }}>수락</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })() : (
+              // 여러 건 — 목록으로(누구 수락할지 골라야 하므로). 기존 동선 유지.
+              <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+                  backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
+                <Text style={{ fontSize: fs(15) }}>📬</Text>
+                <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
+                  받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.butter }}>{receivedRequests.length}</Text>건
+                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.butter }}>›</Text>
+              </TouchableOpacity>
+            )}
           </AttentionMotion>
         )}
         {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
