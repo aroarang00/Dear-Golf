@@ -203,14 +203,21 @@ export function GuideScreen({ route, navigation }) {
   };
 
   // 일정 시트에서 코스로 들어온 경우, 그 일정 id를 기억했다가 코스를 닫을 때 일정 시트로 복귀(다이어리 경로와 통일).
-  const returnScheduleIdRef = React.useRef(null);
+  const returnScheduleIdRef = React.useRef(null);   // 홈 일정 시트에서 옴 → 닫을 때 그 시트 재오픈
+  const returnCalendarRef = React.useRef(false);    // 일정 캘린더에서 옴 → 닫을 때 캘린더 재오픈
   useEffect(() => {
     if (route?.params?.returnToScheduleId) {
       returnScheduleIdRef.current = route.params.returnToScheduleId;
       navigation.setParams({ returnToScheduleId: undefined });
     }
   }, [route?.params?.returnToScheduleId]);
-  // 코스 상세 닫기(공통) — 안드 뒤로가기·← 버튼 공용. 일정에서 왔으면 홈으로 가 그 일정 시트를 다시 연다.
+  useEffect(() => {
+    if (route?.params?.returnToCalendar) {
+      returnCalendarRef.current = true;
+      navigation.setParams({ returnToCalendar: undefined });
+    }
+  }, [route?.params?.returnToCalendar]);
+  // 코스 상세 닫기(공통) — 안드 뒤로가기·← 버튼 공용. 일정에서 왔으면 그 출발지(홈 시트 / 캘린더)로 복귀.
   const closeDetail = React.useCallback(() => {
     setSelected(null);
     setPreviewCourse(null);
@@ -219,7 +226,11 @@ export function GuideScreen({ route, navigation }) {
     setShowCommentInput(false);
     setShowRatingInput(false);
     const sid = returnScheduleIdRef.current;
-    if (sid) { returnScheduleIdRef.current = null; navigation.navigate(ROUTES.HOME, { openScheduleSheetId: sid }); }
+    const cal = returnCalendarRef.current;
+    returnScheduleIdRef.current = null;
+    returnCalendarRef.current = false;
+    if (cal) navigation.navigate(ROUTES.HOME, { openSchedule: true });           // 캘린더에서 옴 → 캘린더 재오픈
+    else if (sid) navigation.navigate(ROUTES.HOME, { openScheduleSheetId: sid }); // 홈 시트에서 옴 → 그 시트 재오픈
   }, [navigation]);
 
   // Android 시스템 뒤로가기 — 코스 상세가 열려 있으면 홈으로 가지 않고 상세만 닫는다(일정에서 왔으면 일정으로 복귀)
