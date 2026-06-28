@@ -1117,7 +1117,10 @@ export function HomeScreen({ navigation, route }) {
                 paddingHorizontal: 12, paddingVertical: 6,
                 borderRadius: 20,
               }}>
-              <Icon name="calendar" size={fs(19)} color={C.butter} />
+              {/* 캘린더 아이콘 살짝 흔들어 '탭하면 일정 캘린더 열림' 신호 강화 (사용자 2026-06-29) */}
+              <AttentionMotion type="shake" distance={3}>
+                <Icon name="calendar" size={fs(19)} color={C.butter} />
+              </AttentionMotion>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: 'rgba(255,255,255,0.95)' }}>{todayLabel}</Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>›</Text>
             </TouchableOpacity>
