@@ -364,6 +364,17 @@ function App() {
           if (data.nickname) next.nickname = data.nickname;
           // 프로필 한마디(statusMessage) — Firestore 권위로 복원(재설치·새 기기서도 유지). '' 도 반영(서버에서 지운 상태).
           if (data.statusMessage != null) next.statusMessage = data.statusMessage;
+          // 명함 공개필드 복원 — write-through로 users 문서엔 저장되지만 startup에서 안 읽어, 재설치 시
+          //   본인 화면에서 아바타·본명·입력 스탯이 사라지던 빈틈 보완(친구는 users 문서를 직접 읽어 정상이었음).
+          if (data.avatarUrl) {
+            next.avatarUrl = data.avatarUrl;
+            // 본인 표시는 avatarUri 기준 — 로컬에 없으면(재설치) https로 복원. 없으면 친구는 보는데 내 화면엔 내 사진이 안 떴음.
+            if (!prev.avatarUri) next.avatarUri = data.avatarUrl;
+          }
+          if (data.realName) next.realName = data.realName;
+          if (data.avgScore > 0) next.avgScore = data.avgScore;
+          if (data.lifeBest > 0) next.lifeBest = data.lifeBest;
+          if (data.totalRounds > 0) next.totalRounds = data.totalRounds;
           // 카카오 연동 상태 — Firestore가 권위 (재설치 후 자동 복원)
           if (typeof data.kakaoLinked === 'boolean') next.kakaoLinked = data.kakaoLinked;
           if (data.kakaoId) next.kakaoId = data.kakaoId;
