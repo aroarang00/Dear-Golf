@@ -788,27 +788,21 @@ export function GuideScreen({ route, navigation }) {
           <View style={{ flex: 1, backgroundColor: C.burgundy }} />
         </View>
 
-        {/* 내부 메뉴 — 세그먼트 토글 */}
+        {/* 내부 메뉴 — 아이콘 세그먼트. 맛집 발견성이 중요해, 비활성 탭도 진한 글씨+아이콘으로 또렷이 보이게.
+            선택만 채움(차콜+버터), 비선택도 충분히 읽힘(회색X→차콜). */}
         <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingVertical: 12 }}>
-          <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
+          <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
             {[
-              ['course', '코스 & 코멘트'],
-              ['food',   '맛집 & 주변'],
-            ].map(([k, l]) => {
+              ['course', '코스 · 코멘트', 'flag'],
+              ['food',   '맛집 · 주변', 'bowl'],
+            ].map(([k, l, ic]) => {
               const on = innerTab === k;
               return (
-                <TouchableOpacity key={k}
-                  activeOpacity={0.7}
-                  style={[
-                    { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
-                    on && { backgroundColor: C.charcoal },
-                  ]}
-                  onPress={() => setInnerTab(k)}>
-                  <Text style={{
-                    fontFamily: on ? F.sysB : F.sysM,
-                    fontSize: fs(13),
-                    color: on ? C.butter : C.warmGray,
-                  }}>{l}</Text>
+                <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setInnerTab(k)}
+                  style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5,
+                    paddingVertical: 10, borderRadius: 9, backgroundColor: on ? C.charcoal : 'transparent' }}>
+                  <Icon name={ic} size={fs(15)} color={on ? C.butter : C.charcoal} />
+                  <Text numberOfLines={1} style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.charcoal }}>{l}</Text>
                 </TouchableOpacity>
               );
             })}
