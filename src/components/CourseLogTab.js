@@ -381,12 +381,22 @@ export function CourseLogTab({ avgRating, navigation }) {
       {/* 내 스코어 — 진입 배너(공용 ScoreBanner). 탭 → 통계·추세·분포·구장별 전용 화면. [[feature-backlog]] ① */}
       <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)}
         style={{ marginTop: 2, marginBottom: 14 }} />
-      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 18, backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3, borderWidth: 0.5, borderColor: C.hairline }}>
-        {[['domestic', '국내'], ['overseas', '해외']].map(([k, l]) => (
-          <TouchableOpacity key={k} style={[{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, region === k && { backgroundColor: C.charcoal }]} onPress={() => setRegion(k)}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: region === k ? C.butter : C.warmGrayLight }}>{l}</Text>
-          </TouchableOpacity>
-        ))}
+      {/* 국내/해외 — 언더라인 텍스트 탭 + 방문 개수(박스 토글 탈피, 세련). 선택=짙은 글씨+골드 밑줄 / 비선택=회색 */}
+      <View style={{ flexDirection: 'row', gap: 22, marginHorizontal: 16, marginBottom: 16,
+        borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+        {[['domestic', '국내', myCourses.length], ['overseas', '해외', overseasCourses.length]].map(([k, l, n]) => {
+          const on = region === k;
+          return (
+            <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setRegion(k)}
+              style={{ paddingTop: 2, paddingBottom: 9, marginBottom: -0.5,
+                borderBottomWidth: 2, borderBottomColor: on ? '#C9A84C' : 'transparent' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+                <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(14), color: on ? C.charcoal : C.warmGrayLight }}>{l}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: on ? '#A8801E' : C.warmGrayLight }}>{n}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
       {region === 'domestic' && (
         <View>
