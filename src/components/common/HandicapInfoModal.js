@@ -17,10 +17,10 @@ export function HandicapInfoModal({ visible, onClose }) {
           </View>
           <View style={{ paddingHorizontal: 20, paddingVertical: 18 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, lineHeight: 20 }}>
-              핸디 = 베스트 5개 라운드의 평균
+              핸디 = 최근 20라운드 중 베스트 5개 평균
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: 19 }}>
-              전체 평균이 아니라 가장 잘 친 5개 라운드로 계산해요. 그래서 안 좋은 날을 기록해도 핸디가 잘 오르지 않아요.
+              전체 평균이 아니라 최근 20라운드에서 가장 잘 친 5개로 계산해요. 그래서 안 좋은 날을 기록해도 핸디가 잘 오르지 않고, 옛 기록에 영영 매이지도 않아요.
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: 19 }}>
               기복이 있어도 부담 없이 모든 라운딩을 남겨보세요. 라운딩 기록이 5개 이하면 입력한 평균타를 써요.

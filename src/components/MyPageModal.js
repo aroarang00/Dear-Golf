@@ -54,7 +54,7 @@ export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
   const { diaries } = React.useContext(DiariesContext);
   const { schedules } = React.useContext(SchedulesContext);
-  // 핸디 — 베스트 5개 평균(기록 5개 미만 시 입력 평균타 우선). DiaryScreen·DiaryCard와 동일 정책.
+  // 핸디 — 최근 20라운드 중 베스트 5개 평균(기록 5개 미만 시 입력 평균타 우선). DiaryScreen·DiaryCard와 동일 정책.
   const handicap = calcHandicap(diaries, userProfile.avgScore);
   // 총 라운딩 — 자동 완료 라운딩 + 마이페이지 입력 기준값(입력 이후 증가분만 가산). DiaryScreen과 동일 헬퍼.
   const completedRounds = countCompletedRounds(diaries, schedules);

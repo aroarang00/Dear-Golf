@@ -1,6 +1,6 @@
-// 핸디 — 라운딩 기록 중 베스트 5개(가장 좋은 점수)의 평균.
-// 전체 평균이 아니라 좋은 라운드 위주로 계산해, 나쁜 날을 기록해도 핸디가
-// 잘 나빠지지 않게 한다 (정식 골프 핸디캡 철학 + 기록 부담 최소화).
+// 핸디 — 최근 N라운드(HANDICAP_RECENT_WINDOW) 중 베스트 5개(가장 좋은 점수)의 평균.
+// 전체 평균이 아니라 '최근의 좋은 라운드' 위주로 계산해, 나쁜 날을 기록해도 핸디가 잘 나빠지지
+// 않으면서도, 옛 베스트가 핸디를 영영 붙잡지 않게 한다 (정식 핸디캡 철학 — 최근 라운드 기준).
 //
 // 기록이 5개 이하면(=6개 미만) 표본이 적고 버릴 라운드도 없어 핸디 신뢰도가 낮으므로,
 // 사용자가 온보딩/마이페이지에서 입력한 평균타(manualAvg)를 우선 사용한다.
@@ -10,25 +10,36 @@ import { db, getUid } from './firebase';
 import { roundsOnly } from './diaryKind';
 
 export const HANDICAP_BEST_COUNT = 5;
+export const HANDICAP_RECENT_WINDOW = 20;   // 최근 20라운드 중에서 베스트 선정(옛 베스트가 핸디를 영영 붙잡지 않게)
 
-const collectScores = (diaries) => roundsOnly(diaries) // 일상(모멘트) 제외
-  .map(d => d?.score)
-  .filter(s => typeof s === 'number' && s > 0);
+// "YYYY.MM.DD" → 정렬 키(숫자). 형식 깨지면 0(가장 오래된 것으로 취급).
+const dateKey = (s) => {
+  const m = String(s || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);
+  return m ? Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]) : 0;
+};
+
+// 최근 윈도우 점수 — 일상(모멘트) 제외, score>0, 날짜 최근순 정렬 후 상위 N개만.
+const collectRecentScores = (diaries) => roundsOnly(diaries)
+  .filter(d => typeof d?.score === 'number' && d.score > 0)
+  .map(d => ({ score: d.score, k: dateKey(d.date) }))
+  .sort((a, b) => b.k - a.k)                  // 최근 라운드 먼저
+  .slice(0, HANDICAP_RECENT_WINDOW)           // 최근 N라운드만
+  .map(d => d.score);
 
 const avgOf = (arr) => Math.round(arr.reduce((s, v) => s + v, 0) / arr.length);
 
 export function calcHandicap(diaries, manualAvg) {
-  const scores = collectScores(diaries).sort((a, b) => a - b);
+  const recent = collectRecentScores(diaries);
   const hasManual = typeof manualAvg === 'number' && manualAvg > 0;
 
   // 기록 5개 이하 — 입력값 우선, 없으면 있는 기록 평균, 그것도 없으면 null.
-  // (가장 나쁜 라운드를 버리고 베스트 5개를 고르려면 6개 이상 필요 → 그 전엔 입력값)
-  if (scores.length <= HANDICAP_BEST_COUNT) {
+  if (recent.length <= HANDICAP_BEST_COUNT) {
     if (hasManual) return manualAvg;
-    return scores.length ? avgOf(scores) : null;
+    return recent.length ? avgOf(recent) : null;
   }
-  // 기록 6개 이상 — 베스트 5개 평균 (정렬 오름차순이라 앞 5개 = 좋은 5개, 가장 나쁜 건 버림)
-  return avgOf(scores.slice(0, HANDICAP_BEST_COUNT));
+  // 기록 6개 이상 — 최근 N라운드 중 베스트 5개 평균 (오름차순 정렬 후 앞 5개).
+  const best5 = [...recent].sort((a, b) => a - b).slice(0, HANDICAP_BEST_COUNT);
+  return avgOf(best5);
 }
 
 // 내 핸디를 users 문서에 동기화 — 라운지 모집 상세에서 남(주최자·참여자)이 내 핸디를 보려면

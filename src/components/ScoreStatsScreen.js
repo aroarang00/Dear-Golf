@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
@@ -137,6 +137,9 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
 
 export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userProfile }) {
   const [period, setPeriod] = useState(20);
+  const [infoOpen, setInfoOpen] = useState(false);   // 안내 — 항상 접힌 채 시작, 탭 시 펼침
+  // 화면을 닫으면(다른 화면으로 이동) 안내를 다시 접는다 — 모달은 마운트 유지라 상태가 남기 때문.
+  useEffect(() => { if (!visible) setInfoOpen(false); }, [visible]);
 
   // 점수 있는 라운딩만 날짜순(오름차순) — 추세용
   const scored = useMemo(() => roundsOnly(diaries || [])
@@ -195,15 +198,30 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
                 </View>
               ))}
             </View>
-            {/* 평균·핸디 혼동 방지 안내 — 연한 박스 + 💡 */}
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, backgroundColor: C.bgSecondary,
-              borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }}>
-              <Text style={{ fontSize: fs(13) }}>💡</Text>
-              <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, lineHeight: 17 }}>
-                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>평균</Text>은 전체 라운딩 평균이에요.{'\n'}
-                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>핸디</Text>는 가장 잘 친 5개의 평균이에요 <Text style={{ color: C.warmGrayLight }}>(기록 6개부터)</Text>
-              </Text>
-            </View>
+            {/* 안내 — 평소 접힘(제목만 또렷이), 탭하면 화면 각 항목 설명 펼침. 공간 절약 + 알아보기 쉬운 제목 */}
+            <TouchableOpacity onPress={() => setInfoOpen((o) => !o)} activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10,
+                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 10 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>💡 평균·베스트·핸디 안내</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{infoOpen ? '접기 ▲' : '펼치기 ▼'}</Text>
+            </TouchableOpacity>
+            {infoOpen && (
+              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
+                paddingHorizontal: 14, paddingVertical: 12, marginTop: 6, gap: 7 }}>
+                {[
+                  ['평균·베스트·핸디', `점수를 기록한 ${scored.length}라운드 기준이에요.`],
+                  ['핸디', '그중 최근 20R의 베스트 5개 평균이에요 (기록 6개부터).'],
+                  ['총 라운딩', '점수 없는 라운딩·지난 일정까지 포함해요.'],
+                  ['최근 폼', '최근 5R 평균이 직전 5R보다 좋아졌는지·나빠졌는지 보여줘요.'],
+                  ['점수대 분포', '70대 이하·80대·90대·100+ 비율이에요.'],
+                  ['구장별 스코어', '구장마다 방문 수·베스트·평균을 모았어요.'],
+                ].map(([k, v]) => (
+                  <Text key={k} style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, lineHeight: 17 }}>
+                    <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>{k}</Text>  {v}
+                  </Text>
+                ))}
+              </View>
+            )}
 
             {/* A-2. 최근 폼 인사이트 — 숫자 해석 한 줄(개선=그린/아쉬움=코랄/유지=중립) */}
             {form && (
@@ -473,6 +491,10 @@ function ScoreDistribution({ scored }) {
           </Text>
         </View>
       ))}
+      {/* 분모 명시 — '회' 합이 요약바 총 라운딩과 달라 보이는 혼동 방지(총 라운딩은 점수 없는 것까지 포함) */}
+      <Text style={{ fontFamily: F.sys, fontSize: fs(9.5), color: C.warmGrayLight, textAlign: 'right', marginTop: 8 }}>
+        점수 기록 {total}라운드 기준
+      </Text>
     </View>
   );
 }
