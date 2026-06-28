@@ -74,8 +74,17 @@ export function SchedulesProvider({ children }) {
   }, []);
 
   const removeSchedule = useCallback(async (id) => {
-    await deleteSchedule(id);
+    // 낙관적 제거 — 서버 왕복을 기다리지 않고 카드를 즉시 지운다. 비낙관적(await 후 제거)이면
+    //   네트워크 지연 동안 카드가 남아 있다가, 시트 닫힘 애니메이션과 리스트 변경이 겹쳐
+    //   안드에서 삭제한 D-day 카드가 한 번 더 그려졌다 사라지는 잔상(깜빡임)이 났다(2026-06-28).
+    const snapshot = schedulesRef.current;
     setSchedulesRaw(prev => prev.filter(s => s.id !== id));
+    try {
+      await deleteSchedule(id);
+    } catch (e) {
+      setSchedulesRaw(normalizeSchedules(snapshot)); // 실패 시 복원 — 서버가 최종 정합
+      throw e;
+    }
     removeRoundFromCalendar(id);
     cancelRoundAlarms(id); // 예약 알람도 중앙에서 취소 — 모든 삭제 경로가 remove를 거치므로 누락 없음(캘린더와 동일 패턴)
   }, []);

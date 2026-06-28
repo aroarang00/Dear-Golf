@@ -31,7 +31,7 @@ import { ScheduleScreen } from './ScheduleScreen';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal } from './AlarmSetupModal';
-import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
+import { scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
 import { loadFriendData } from '../utils/friendGroups';
@@ -1522,20 +1522,20 @@ export function HomeScreen({ navigation, route }) {
         onMeal={() => { setShowScheduleModal(false); setSheetMealSchedule(selectedSchedule); setSheetMealAutoOpen(true); }}
         onTeam={() => { setShowScheduleModal(false); setTeamScheduleRid(selectedSchedule?.roundupId || null); }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
-        onDelete={async () => {
-          // 시트 안에서 이미 confirm 완료 — 바로 remove + 시트 닫음 (별도 AppAlert 띄우지 않음, RN 3중 Modal 충돌 회피)
+        onDelete={() => {
+          // 시트 안에서 이미 confirm 완료 — 시트를 '먼저' 닫고(닫힘 애니메이션과 리스트 변경이 겹쳐
+          //   안드에서 삭제 카드가 깜빡이던 잔상 방지) 삭제는 낙관적으로 백그라운드 처리.
+          //   (별도 AppAlert 띄우지 않음, RN 3중 Modal 충돌 회피)
           const s = selectedSchedule;
-          if (s) {
-            try { await removeSchedule(s.id); } catch (e) { console.warn('[home] schedule remove failed:', e?.message); }
-            cancelRoundAlarms(s.id); // 캘린더 제거는 removeSchedule이 일괄 처리
-            // 전파 일정(groupId) 개인 삭제 = 조용히 탈퇴 — 취소 알림 X(한 명이 빠지는 것일 뿐, 개인 권리 존중).
-            //   탈퇴(memberUids 제거)는 유지 → 변경 푸시 중단. 식사 audienceUids도 이탈 → 식사 푸시·카드 중단. ([[schedule-propagation-spec]])
-            if (s.groupId && currentUid) {
-              leaveScheduleGroup(s.groupId, currentUid).catch(e => { if (__DEV__) console.warn('[home] leave group', e?.message); });
-              leaveMealAudience(s.groupId, currentUid);
-            }
-          }
           setShowScheduleModal(false);
+          if (!s) return;
+          removeSchedule(s.id).catch(e => console.warn('[home] schedule remove failed:', e?.message)); // 낙관적 제거(컨텍스트가 즉시 반영·실패 시 복원)
+          // 전파 일정(groupId) 개인 삭제 = 조용히 탈퇴 — 취소 알림 X(한 명이 빠지는 것일 뿐, 개인 권리 존중).
+          //   탈퇴(memberUids 제거)는 유지 → 변경 푸시 중단. 식사 audienceUids도 이탈 → 식사 푸시·카드 중단. ([[schedule-propagation-spec]])
+          if (s.groupId && currentUid) {
+            leaveScheduleGroup(s.groupId, currentUid).catch(e => { if (__DEV__) console.warn('[home] leave group', e?.message); });
+            leaveMealAudience(s.groupId, currentUid);
+          }
         }}
       />
 

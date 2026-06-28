@@ -523,15 +523,14 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
   // 시트 안에서 이미 confirm 완료된 상태 — 바로 remove + 시트 닫음.
   // (별도 AppAlert 띄우지 않음. RN의 3중 Modal 중첩 z-index 충돌 회피.)
-  const handleDelete = async () => {
+  const handleDelete = () => {
     const s = sheet.schedule;
-    if (s) {
-      try { await removeSchedule(s.id); }
-      catch (e) { console.warn('[mySchedule] remove failed:', e?.message); showToast('일정 삭제에 실패했어요'); }
-      cancelRoundAlarms(s.id); // 캘린더 제거는 removeSchedule이 일괄 처리
-      await cleanupGroupOnDelete(s); // 전파 일정이면 취소 알림 + 그룹 탈퇴 (홈과 동일)
-    }
+    // 시트를 '먼저' 닫고(닫힘 애니메이션과 리스트 변경이 겹쳐 안드에서 삭제 카드가 깜빡이던 잔상 방지)
+    //   삭제는 낙관적으로 백그라운드 처리 — 컨텍스트 removeSchedule이 즉시 반영·실패 시 복원 + 알람 취소.
     setSheet({ visible: false, schedule: null });
+    if (!s) return;
+    removeSchedule(s.id).catch(e => { console.warn('[mySchedule] remove failed:', e?.message); showToast('일정 삭제에 실패했어요'); });
+    cleanupGroupOnDelete(s); // 전파 일정이면 취소 알림 + 그룹 탈퇴 (홈과 동일)
   };
 
   const monthSchedules = schedules.filter(s => s.date && s.date.startsWith(monthStr));
