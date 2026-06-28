@@ -116,7 +116,8 @@ function WaitRow({ num, name, me, anon }) {
 //   선착순 카운트가 '조편성'처럼 오해됨(카톡 오픈챗도 평면 나열). 조편성은 댓글로 ([[roundup-comments-policy]]).
 // nameMap: { uid: nickname } — 실제 참여자 이름. participantUids 우선, 옛 더미 호환 위해 pickNames fallback.
 function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta = {}) {
-  const hostName = post.authorName || post.author || '주최자';
+  // 주최자 표시명 = 라이브 닉네임 우선(nameMap엔 authorUid도 포함). 저장된 post.authorName은 폴백(작성 후 닉 변경분 반영, [[nickname-live-display]])
+  const hostName = nameMap[post.authorUid] || post.authorName || post.author || '주최자';
   const cap = post.capacity || 4;            // 단체=teams*4, 개별=members+1
   const filled = post.joined || 0;
   const uids = Array.isArray(post.participantUids) ? post.participantUids : [];
@@ -134,7 +135,7 @@ function buildSlots(post, nameMap = {}, myUid = null, myName = null, friendMeta 
       let base;
       if (host) {
         // 주최자도 내가 정한 별명 우선(owner-only) — 카드 타이틀과 일치. 본인·폴백은 닉네임 ([[friend_groups]])
-        base = isSelf ? hostName : friendDisplayName(friendMeta, uid, hostName);
+        base = isSelf ? (myName || hostName) : friendDisplayName(friendMeta, uid, hostName);
       } else if (masked) {
         base = anonNick(uid, post.id);            // 랜덤닉(저장X·결정적) — 일반 닉처럼 묻힘
       } else {
@@ -825,9 +826,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                   backgroundColor: C.bgPrimary, borderRadius: 10, marginBottom: _and ? 8 : 10 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginRight: 2 }}>주최자</Text>
                 <TouchableOpacity activeOpacity={0.7}
-                  onPress={() => setActionTarget({ id: post.authorUid || post.authorId || post.author, name: friendDisplayName(friendMeta, post.authorUid, post.authorName || post.author || '주최자'), role: 'host' })}
+                  onPress={() => setActionTarget({ id: post.authorUid || post.authorId || post.author, name: friendDisplayName(friendMeta, post.authorUid, participantNames[post.authorUid] || post.authorName || post.author || '주최자'), role: 'host' })}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{friendDisplayName(friendMeta, post.authorUid, post.authorName || post.author || '주최자')}</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{friendDisplayName(friendMeta, post.authorUid, participantNames[post.authorUid] || post.authorName || post.author || '주최자')}</Text>
                 </TouchableOpacity>
                 {hcOf(post.authorUid) != null && (
                   <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 핸디 {hcOf(post.authorUid)}</Text>

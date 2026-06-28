@@ -18,7 +18,9 @@ function commentAuthor(comment, post, viewerUid, nameMap, friendMeta) {
   const uid = comment.authorUid;
   const anon = Array.isArray(post?.anonymousUids) && post.anonymousUids.includes(uid);
   if (!anon) {
-    const fallback = comment.authorName || '동반자';
+    // 라이브 닉네임 우선 — 모집 댓글은 참여 확정자만 작성하므로 작성자 uid가 nameMap(participantNames, 라이브)에 항상 있음.
+    //   저장된 comment.authorName은 폴백(작성 후 닉 변경분 반영, [[nickname-live-display]]).
+    const fallback = (nameMap && nameMap[uid]) || comment.authorName || '동반자';
     return (uid && uid !== viewerUid) ? friendDisplayName(friendMeta, uid, fallback) : fallback;
   }
   const viewerIsHost = !!viewerUid && post?.authorUid === viewerUid;
