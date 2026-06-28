@@ -7,7 +7,6 @@ import { getMannerGrade } from '../constants/mannerGrade';
 import { getTrustGrade } from '../constants/trustGrade';
 import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
-import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 
 // "내 라운지 활동" 화면 ([[my-roundup-activity]]).
 // 매너 등급·신뢰등급·패널티 이력·진행 중 신고 통합 진입점.
@@ -20,8 +19,9 @@ export function MyRoundupActivityScreen({ visible, onClose, onOpenMannerEval }) 
   const [trustModal, setTrustModal] = useState(false);
   const [mannerModal, setMannerModal] = useState(false);
 
-  useOverlayBackHandler(visible, onClose);
-
+  // 안드 뒤로가기 — 이 화면은 RN Modal(아래 onRequestClose)이라 그게 유일하게 신뢰되는 back 핸들러.
+  //   useOverlayBackHandler를 추가로 걸면 등급·매너 내부 Modal을 닫을 때 부모 핸들러까지 같이 발화해
+  //   화면이 통째로 닫혔음 → 훅 제거(RoundupDetail과 동일 패턴, [[ios-modal-stacking]]).
   if (!userProfile) return null;
 
   const mannerGrade = getMannerGrade(userProfile.mannerScore);

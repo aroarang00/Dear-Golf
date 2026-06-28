@@ -206,6 +206,9 @@ export function GuideScreen({ route, navigation }) {
   useFocusEffect(
     React.useCallback(() => {
       const onBack = () => {
+        // 인라인 입력(코멘트·평점)이 열려 있으면 그것부터 닫는다 — 작성 중 뒤로가기에 상세가 통째로 닫히지 않게.
+        if (showCommentInput) { setShowCommentInput(false); return true; }
+        if (showRatingInput) { setShowRatingInput(false); return true; }
         if (selected || previewCourse) {
           setSelected(null);
           setPreviewCourse(null);
@@ -216,7 +219,7 @@ export function GuideScreen({ route, navigation }) {
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
       return () => sub.remove();
-    }, [selected, previewCourse]),
+    }, [selected, previewCourse, showCommentInput, showRatingInput]),
   );
 
   // 코스 상세에서 날씨/교통 팝업 열기 — 오늘 라운딩 가상 일정으로 fetch

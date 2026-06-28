@@ -41,7 +41,6 @@ function RoleBadge({ text, bg, fg }) {
 }
 
 export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
-  useScreenBack(true, onClose);
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
 
@@ -75,6 +74,15 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
   const serverName = crewDoc?.name || crew?.name || '크루';
   const [alias, setAlias] = useState('');
   const [aliasEdit, setAliasEdit] = useState(null); // null=닫힘 / 문자열=편집 중 입력값
+  // 안드 뒤로가기 — 열린 오버레이(별명 편집·나가기 확인·초대)를 먼저 닫고, 없을 때만 멤버 화면을 닫는다.
+  //   기존엔 onClose만 걸려 오버레이가 떠 있어도 화면이 통째로 album으로 닫혔음. 핸들러는 setState만이라
+  //   멱등(BackHandler/모달 양쪽이 불려도 무해, [[ios-modal-stacking]]).
+  useScreenBack(true, () => {
+    if (aliasEdit !== null) { setAliasEdit(null); return; }
+    if (leaveAsk) { setLeaveAsk(false); return; }
+    if (inviteOpen) { setInviteOpen(false); return; }
+    onClose();
+  });
   useEffect(() => {
     let alive = true;
     storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => { if (alive) setAlias((a && a[crewId]) || ''); }).catch(() => {});
