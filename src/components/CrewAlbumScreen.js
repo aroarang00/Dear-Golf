@@ -329,6 +329,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   const crewId = crew?.id;
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeRoundup, setComposeRoundup] = useState(false);   // 헤더 '모집' 진입 — 작성기를 모집 모드로 열기
   const [membersOpen, setMembersOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);   // 작성화면 재사용(수정)
   const [editingNotice, setEditingNotice] = useState(false); // 공지 수정(작성화면 공지모드)
@@ -661,7 +662,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   if (composeOpen) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
       <CrewComposeScreen crew={crew} canNotice={iAmStaff} memberUids={memberUids} crewName={crewDoc?.name || crew?.name || ''}
-        onClose={() => setComposeOpen(false)} onOpenRoundup={onOpenRoundup} />
+        autoRoundup={composeRoundup}
+        onClose={() => { setComposeOpen(false); setComposeRoundup(false); }} onOpenRoundup={onOpenRoundup} />
     </Animated.View>
   );
   if (editingPost) return (
@@ -793,7 +795,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ flexShrink: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK }}
               numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{crew?.name || crewDoc?.name || '크루'}</Text>
-            {/* 인원 — 이름 옆 간단 표시(상세·관리·음소거는 우측 설정). 이모지 대신 커스텀 아이콘(렌더 일관) */}
+            {/* 인원 — 이름 옆 간단 표시(상세·관리·음소거는 우측 설정). 이모지 대신 커스텀 아이콘(렌더 일관).
+                ★숫자만 표시(탭 X)는 의도 — 톱니와 중복이라 진입은 톱니 하나로 일원화. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 7, flexShrink: 0 }}>
               <Icon name="crew" size={fs(13)} color={SUB} strokeWidth={2} />
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SUB, marginLeft: 2 }}>{members.length}</Text>
@@ -804,10 +807,18 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
           ) : null}
         </View>
         <View style={{ flex: 1 }} />
+        {/* 라운딩 모집 — 작성기 안에만 있어 발견성이 낮던 진입을 헤더로 노출(사용자 2026-06-29). 탭=작성기를 모집 모드로 연다 */}
+        <TouchableOpacity onPress={() => { setComposeRoundup(true); setComposeOpen(true); }}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: SAGE_DEEP,
+            borderRadius: 9, paddingHorizontal: 11, paddingVertical: 6, marginRight: 12, flexShrink: 0 }}>
+          <Icon name="flag" size={fs(13)} color="#fff" strokeWidth={2} />
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>모집</Text>
+        </TouchableOpacity>
         {/* 설정 — 멤버 목록·초대·알림 음소거·편집·나가기 진입. 인원은 이름 옆에 표시하므로 여기선 톱니만 */}
         <TouchableOpacity onPress={() => setMembersOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={{ flexShrink: 0 }}>
-          <Icon name="gear" size={fs(23)} color={INK} strokeWidth={1.9} />
+          <Icon name="gear" size={fs(26)} color={INK} strokeWidth={1.9} />
         </TouchableOpacity>
         {/* 초대는 멤버 화면(멤버 N명 › 탭)에서 — 헤더 중복 제거 */}
       </View>

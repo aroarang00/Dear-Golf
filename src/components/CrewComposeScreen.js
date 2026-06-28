@@ -106,7 +106,7 @@ function PreviewCard({ text, media, name, avatarUri, width }) {
   );
 }
 
-export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = false, memberUids = [], crewName = '', onClose, onOpenRoundup }) {
+export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = false, memberUids = [], crewName = '', onClose, onOpenRoundup, autoRoundup = false }) {
   useScreenBack(true, () => { if (previewing) { setPreviewing(false); return; } onClose(); });
   const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
   const editingNotice = noticeText != null;       // 공지 수정 모드(텍스트만, 토글·미디어 숨김)
@@ -126,6 +126,8 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const { width: winW } = useWindowDimensions();
   const isNewPost = !editing && !editingNotice;        // 새 글 작성(임시저장 대상 — 수정·공지 제외)
   const draftTouchedRef = useRef(false);               // 사용자가 입력 시작했는지 — 복원이 방금 친 글 덮어쓰는 레이스 방지
+  // 헤더 '모집' 진입 — 작성기를 모집 모드로 바로 연다(autoRoundup, 마운트 1회). 일반 ＋는 글쓰기 그대로.
+  useEffect(() => { if (autoRoundup && isNewPost) setShowRoundupModal(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 임시저장 불러오기 — 새 글 작성 진입 시 이전에 쓰다 만 글 복원(글만, 미디어는 휘발이라 제외)
   useEffect(() => {
