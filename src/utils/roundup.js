@@ -107,6 +107,7 @@ export function subscribeSelectInvitesForMe(myUid, onChange) {
     const list = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(p => !p.cancelledByHost
+        && !p.crewId                  // 크루서 만든 모집은 정식 초대 배너 제외 — 카드로 자율 참여(강제 수락/거절 부담 제거)
         && p.selectMode === 'include'
         && p.authorUid !== myUid
         && !(Array.isArray(p.participantUids) && p.participantUids.includes(myUid))
@@ -154,6 +155,7 @@ export async function createRoundup(data) {
     audienceUids: Array.isArray(data.audienceUids) ? data.audienceUids : [],
     // 그룹 빠른선택으로 채운 경우 원본 그룹 id(수정 복원·표시용). 친구지정 audienceUids는 위에서 처리 ([[friend_groups]] Phase C)
     audienceGroupIds: Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [],
+    crewId: data.crewId || null,   // 크루서 만든 모집 — select여도 정식 '초대'(홈 배너) 안 띄움(모집은 카드로 자율 참여)
     inviteStyle: data.scope === 'select' ? (data.inviteStyle || 'casual') : null,
     closed: false,
     word: data.word || '',

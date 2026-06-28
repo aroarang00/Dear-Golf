@@ -278,7 +278,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
         await setCrewNotice(crewId, body, currentUid);
       } else if (roundup) {
         // 모집글 = 카드만(텍스트·미디어 없이). 라운지 모집과 동일하게 끝나면(확정·티오프+5h) 사라짐. 게시글과 분리.
-        const r = await createRoundup({ ...roundup, authorName: myName || '' });
+        const r = await createRoundup({ ...roundup, authorName: myName || '', crewId });
         // roundupHost=주최자(=나) — 나중에 합류한 멤버는 audience 스냅샷에 없어 모집을 못 읽음 → 핀 카드가 '주최자와 친구 맺기' 안내로 폴백.
         await addCrewPost(crewId, { authorUid: currentUid, text: '', media: [], roundupId: r?.id || null, roundupHost: r?.authorUid || currentUid });
       } else {
