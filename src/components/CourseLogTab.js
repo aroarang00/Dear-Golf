@@ -357,21 +357,25 @@ export function CourseLogTab({ avgRating, navigation }) {
   return (
     <>
     <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
-      {/* 100대 코스 도전하기 — 컴팩트 배너 (탭하면 전체 목록) */}
+      {/* 100대 코스 도전하기 — 옥골드 채움 + 트로피로 대비 강화(흰 띠라 페이지 배경에 묻혀 '있는 줄도 모름' 보완,
+          사용자 2026-06-29). 컴팩트 한 줄 유지. 탭하면 전체 목록 */}
       <TouchableOpacity
-        style={[dS.banner, { backgroundColor: '#fff', borderColor: '#C9A84C', borderWidth: 1.5 }]}
+        style={[dS.banner, { backgroundColor: '#F5EAC2', borderColor: '#C9A84C', borderWidth: 1.5 }]}
         activeOpacity={0.85}
         onPress={() => setTop100Open(true)}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={[dS.bannerTitle, { color: '#3D3935' }]}>100대 코스 도전하기</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <Icon name="trophy" size={fs(17)} color="#B8902E" />
+            <Text style={[dS.bannerTitle, { color: '#5C4A1E', fontFamily: F.sysB, marginBottom: 0 }]}>100대 코스 도전하기</Text>
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(18), color: '#C9A84C' }}>{checkedCount}</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}> / 100</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(18), color: '#A8801E' }}>{checkedCount}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#9A8A5E' }}> / 100</Text>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#A88A2E', marginLeft: 6 }}>›</Text>
           </View>
         </View>
-        <View style={{ height: 5, borderRadius: 3, backgroundColor: '#F0EDE6', marginTop: 8, overflow: 'hidden' }}>
-          <View style={{ height: 5, borderRadius: 3, backgroundColor: '#C9A84C', width: `${checkedCount}%` }} />
+        <View style={{ height: 5, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.08)', marginTop: 8, overflow: 'hidden' }}>
+          <View style={{ height: 5, borderRadius: 3, backgroundColor: '#B8902E', width: `${checkedCount}%` }} />
         </View>
       </TouchableOpacity>
       {/* 내 스코어 — 진입 배너(공용 ScoreBanner). 탭 → 통계·추세·분포·구장별 전용 화면. [[feature-backlog]] ① */}
