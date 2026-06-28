@@ -8,16 +8,17 @@ import { Icon } from './common/Icon';
 import { CrewAvatar } from './common/CrewAvatar';
 import { LinkText } from './common/LinkText';
 import { RoundupMiniCard } from './common/RoundupMiniCard';
-import { loadRoundup } from '../utils/roundup';
+import { loadRoundup, createRoundup } from '../utils/roundup';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
-  subscribeCrew, subscribeCrewPosts, deleteCrewPost, setCrewNotice, togglePostLike,
+  subscribeCrew, subscribeCrewPosts, deleteCrewPost, setCrewNotice, togglePostLike, addCrewPost,
 } from '../utils/crews';
 import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFriendRequest, getCachedMemberDisplay } from '../utils/friends';
 import { friendDisplayName, getCachedFriendMeta } from '../utils/friendGroups';   // 별명 캐시 — 첫 페인트 flicker 방지
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewComposeScreen } from './CrewComposeScreen';
+import { RoundupCreateModal } from './RoundupCreateModal';
 import { CrewMembersScreen } from './CrewMembersScreen';
 import { CrewCommentScreen } from './CrewCommentScreen';
 import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer';
@@ -329,7 +330,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   const crewId = crew?.id;
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeRoundup, setComposeRoundup] = useState(false);   // 헤더 '모집' 진입 — 작성기를 모집 모드로 열기
+  const [showRoundupCreate, setShowRoundupCreate] = useState(false);   // 헤더 '모집' — 모집 만들기 모달(작성기 안 거치고 바로)
   const [membersOpen, setMembersOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);   // 작성화면 재사용(수정)
   const [editingNotice, setEditingNotice] = useState(false); // 공지 수정(작성화면 공지모드)
@@ -652,6 +653,22 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       } },
     ]);
   };
+  // 헤더 '모집' → 모집 만들기 모달에서 생성 = 라운지 모집 생성 + 크루에 글 게시(작성기 안 거침). (구 CrewComposeScreen.submit 로직 이관)
+  const creatingRoundupRef = useRef(false);   // 더블탭 중복 생성 가드(구 submit의 posting 가드 대체)
+  const handleCreateRoundup = async (payload) => {
+    if (!crewId || !currentUid || creatingRoundupRef.current) return;
+    creatingRoundupRef.current = true;
+    try {
+      const r = await createRoundup({ ...payload, authorName: myName || '', crewId });
+      await addCrewPost(crewId, { authorUid: currentUid, text: '', media: [], roundupId: r?.id || null, roundupHost: r?.authorUid || currentUid });
+      setShowRoundupCreate(false);
+    } catch (e) {
+      if (__DEV__) console.warn('[crewAlbum] createRoundup', e?.code, e?.message);
+      showAppAlert('게시 실패', e?.code === 'permission-denied' ? '권한이 없어요. 크루 멤버인지 확인해주세요.' : (e?.message || '잠시 후 다시 시도해주세요.'));
+    } finally {
+      creatingRoundupRef.current = false;
+    }
+  };
   const startEdit = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
@@ -662,8 +679,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   if (composeOpen) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
       <CrewComposeScreen crew={crew} canNotice={iAmStaff} memberUids={memberUids} crewName={crewDoc?.name || crew?.name || ''}
-        autoRoundup={composeRoundup}
-        onClose={() => { setComposeOpen(false); setComposeRoundup(false); }} onOpenRoundup={onOpenRoundup} />
+        onClose={() => setComposeOpen(false)} onOpenRoundup={onOpenRoundup} />
     </Animated.View>
   );
   if (editingPost) return (
@@ -807,8 +823,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
           ) : null}
         </View>
         <View style={{ flex: 1 }} />
-        {/* 라운딩 모집 — 작성기 안에만 있어 발견성이 낮던 진입을 헤더로 노출(사용자 2026-06-29). 탭=작성기를 모집 모드로 연다 */}
-        <TouchableOpacity onPress={() => { setComposeRoundup(true); setComposeOpen(true); }}
+        {/* 라운딩 모집 — 모집 만들기 모달을 바로 연다(작성기 안 거침, 사용자 2026-06-29). 작성기엔 모집 버튼 없음 */}
+        <TouchableOpacity onPress={() => setShowRoundupCreate(true)}
           hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: SAGE_DEEP,
             borderRadius: 9, paddingHorizontal: 11, paddingVertical: 6, marginRight: 12, flexShrink: 0 }}>
@@ -890,6 +906,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
           alignItems: 'center', justifyContent: 'center', shadowColor: '#1A3D52', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
         <Text style={{ fontSize: fs(30), color: '#fff', marginTop: -2 }}>＋</Text>
       </TouchableOpacity>
+
+      {/* 라운딩 모집 만들기 — 헤더 '모집'에서 바로(작성기 안 거침). 공개범위=이 크루 멤버 고정 */}
+      {showRoundupCreate && (
+        <RoundupCreateModal visible onClose={() => setShowRoundupCreate(false)}
+          onCreate={handleCreateRoundup} crewAudience={memberUids} crewName={crewDoc?.name || crew?.name || ''} />
+      )}
 
       {/* 프로필 탭 → DM 팝업(중앙 카드) */}
       {profileFor && (
