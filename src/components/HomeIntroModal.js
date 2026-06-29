@@ -2,14 +2,15 @@
 // 사용자가 한 영역만 쓰지 않고 올인원 골프 라이프 앱이라는 정체성을 발견하도록.
 // 라운지 RoundupIntroModal(네이비)과 시각적 차별 — 차콜 헤더 + 베이지 본문.
 import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
 
-// 헤더 배경 — 사용자 직접 촬영 골프장 사진(번들, HomeBgSlider day와 같은 톤). Unsplash URL 제거(2026-06-27). 로컬이라 네트워크 없이 즉시·선명.
-const HEADER_IMG = require('../../assets/home-bg/day1.jpg');
+// 헤더 배경 — 사용자 직접 촬영 골프장 사진(번들). day3=가로형 맑은 날 코스 전경이라 가로 헤더에 딱 맞음
+//   (세로 day1은 짧은 헤더에 cover하면 하늘만 잘려 부적합, 2026-06-29). 로컬이라 네트워크 없이 즉시·선명.
+const HEADER_IMG = require('../../assets/home-bg/day3.jpg');
 
 // 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
 const FEATURES = [
@@ -37,14 +38,10 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {/* 1. 훅 헤더 — 골든아워 골프장 사진 + 다층 그라데이션 오버레이 */}
-            <View style={{ position: 'relative', minHeight: 280, backgroundColor: C.charcoal }}>
-              {/* 배경 사진 — 로딩 실패 시 차콜 배경이 폴백 */}
-              <Image
-                source={HEADER_IMG}
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                resizeMode="cover"
-              />
+            {/* 1. 훅 헤더 — 가로형 골프장 사진(day3) 배경 + 다층 그라데이션 오버레이.
+                 ★로컬 require 이미지를 absolute <Image>로 깔면 헤더 height(내용 의존)를 못 채우고 아래로 흐름 → ImageBackground로 안정화(2026-06-29). */}
+            <ImageBackground source={HEADER_IMG} resizeMode="cover"
+              style={{ minHeight: 280, backgroundColor: C.charcoal }}>
               {/* 그라데이션 오버레이 — 밝은 사진 살리기 위해 옅게. 아래는 burgundy 톤으로 텍스트 가독성 확보 */}
               <LinearGradient
                 colors={['rgba(0,0,0,0.30)', 'rgba(8,24,14,0.55)', 'rgba(60,30,40,0.82)']}
@@ -77,7 +74,7 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
               </View>
               {/* 시그니처 삼색 띠 — 헤더와 본문 경계 (butter·paleSky·burgundy). 사진 어두운 톤·본문 베이지 톤과 섞이지 않게 두껍게 */}
               <TripleStripe height={6} />
-            </View>
+            </ImageBackground>
 
             {/* 2. 비교 안내 — 짧게 */}
             <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 4 }}>
