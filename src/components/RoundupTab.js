@@ -1685,7 +1685,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
   // 댓글 — Firestore 서브컬렉션(roundups/{postId}/comments) 연동 (2026-05-30, [[roundup-comments-policy]]).
   //  비속어/권한 사전검증은 RoundupComments·utils, 최종 저장은 Firestore. 쓰기 후 재로드로 정합성 보장.
-  //  알림(comment 타입 주최자+참여자 발송)은 Phase 2 Cloud Function — 현재 단계 X.
+  //  알림: comment 타입을 '주최자에게만' 생성(참여자만 댓글 가능 → 동반자의 조율 댓글을 호스트가 놓치지 않게).
+  //    참여자 전원 스레드 알림은 미구현(알림 과다 방지). createNotification이 recipientUid===본인→null로 막아
+  //    내 글에 내가 단 댓글은 자기알림 안 됨. 토글: settings.roundupNotifyPrefs.comment(기본 ON).
   const handleAddComment = async (postId, comment) => {
     // 익명 → 카카오 연동 게이트(댓글도 소셜 액션) ([[anonymous-user-policy]])
     if (gateIfAnon(() => handleAddComment(postId, comment))) return;
@@ -1697,6 +1699,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     try {
       const r = await addCommentToFirestore(postId, userProfile?.nickname || '', comment?.body || '');
       if (!r.ok) return; // 비속어·빈값은 RoundupComments가 이미 인라인 차단 (이중 안전망)
+      // 주최자에게 댓글 알림 — 자기알림은 createNotification 내부 가드가 차단.
+      const cPost = posts.find(p => p.id === postId);
+      if (cPost?.authorUid) {
+        createNotification({
+          type: 'comment',
+          recipientUid: cPost.authorUid,
+          actorName: userProfile?.nickname || '',
+          postId,
+          postTitle: cPost.course || '',
+        }).catch(e => __DEV__ && console.warn('[RoundupTab] comment noti fail', e?.message));
+      }
       const list = await loadComments(postId);
       setCommentsByPost(prev => ({ ...prev, [postId]: list }));
       setCommentsTotal(prev => ({ ...prev, [postId]: (prev[postId] || 0) + 1 }));

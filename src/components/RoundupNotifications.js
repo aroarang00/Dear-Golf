@@ -13,7 +13,7 @@ import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { OverlayAlert } from './common/OverlayAlert';
 import { friendDisplayName } from '../utils/friendGroups';
 
-// 라운지 알림 토글 — ON/OFF. 댓글 알림은 미발송(생성 안 함)이라 토글에서 제외 (켜도 안 와 혼란 방지).
+// 라운지 알림 토글 — ON/OFF. comment(모집 댓글)는 주최자에게만 발송(RoundupTab.handleAddComment에서 생성).
 const ROUNDUP_NOTI_TYPES = [
   { key: 'invite',           icon: '💌', label: '라운딩 초대',     sub: '친구가 나를 지정해 모집하면' },
   { key: 'confirmed',        icon: '✅', label: '동반자 참여',     sub: '내 모집에 친구가 참여하면' },
@@ -21,9 +21,10 @@ const ROUNDUP_NOTI_TYPES = [
   { key: 'cancel',           icon: '❌', label: '동반자 참여 취소', sub: '동반자가 참여를 취소하면' },
   { key: 'roundupCancelled', icon: '🚫', label: '모집 취소',       sub: '참여한 모집이 취소되면' },
   { key: 'waitlist',         icon: '⏳', label: '대기 신청',       sub: '내 모집글에 대기 신청이 들어오면' },
+  { key: 'comment',          icon: '💬', label: '모집 댓글',       sub: '내 모집글에 댓글이 달리면' },
   { key: 'slotOpen',         icon: '🎉', label: '대기 자리 열림',  sub: '대기 중인 모집에 자리가 나면' },
 ];
-const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true, cancel: true, roundupCancelled: true, waitlist: true, slotOpen: true };
+const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true, cancel: true, roundupCancelled: true, waitlist: true, comment: true, slotOpen: true };
 
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', slotOpen: '🎉', waitlistPromoted: '🎉', slotPassed: '⌛', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
