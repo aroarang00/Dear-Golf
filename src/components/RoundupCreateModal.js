@@ -831,7 +831,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 {(INVITE_SAMPLES[inviteStyle] || INVITE_SAMPLES.casual).map((s, i) => {
                   const on = word === s;
                   return (
-                    <TouchableOpacity key={i} activeOpacity={0.7} onPress={() => setWord(s)}
+                    <TouchableOpacity key={i} activeOpacity={0.7} onPress={() => setWord(on ? '' : s)}
                       style={{ backgroundColor: on ? C.burgundy : C.bgSecondary, borderRadius: 10,
                         borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline,
                         paddingHorizontal: 12, paddingVertical: 9, marginBottom: 6 }}>
