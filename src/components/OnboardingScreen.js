@@ -8,8 +8,8 @@ import { TripleStripe } from './common/TripleStripe';
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분) — 개인차가 커 한 번만 정해두면 평생 적용
 const PREP_OPTS = [5, 15, 30, 60];
-const ARRIVE_OPTS = [0, 30, 60];
-const arriveLabel = (m) => (m === 0 ? '바로' : `${m}분`);
+const ARRIVE_OPTS = [30, 60, 90]; // 최소 30분(기본 에티켓), 90분=오후티 등 여유. '바로' 제외
+const arriveLabel = (m) => `${m}분`;
 
 // 프로필 입력 온보딩 — 인트로·카카오·약관 동의 단계 다음.
 // seed: 카카오 로그인으로 받은 prefill 값 ({ nickname, avatarUri, kakaoLinked, kakaoId })

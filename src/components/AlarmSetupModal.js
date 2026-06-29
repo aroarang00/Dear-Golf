@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { showAppAlert } from './AppAlert';
 import { C, F, fs } from '../constants/colors';
+import { TripleStripe } from './common/TripleStripe';
+import { Icon } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대신(OS 간 렌더 일관)
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { UserContext } from '../contexts/UserContext';
 import {
@@ -15,28 +19,40 @@ import { setSystemAlarm, SYSTEM_ALARM_SUPPORTED } from '../utils/nativeAlarm';
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분).
 //   기본값을 강요하지 않되, 처음엔 무난한 30분에서 시작 — 사람마다 칩으로 조정(여성 화장 1시간 ↔ 남성 5분).
 const PREP_OPTS = [5, 15, 30, 60];
-const ARRIVE_OPTS = [0, 30, 60];
-const arriveLabel = (m) => (m === 0 ? '바로' : `${m}분`);
+const ARRIVE_OPTS = [30, 60, 90]; // 구장 도착여유 — 최소 30분이 기본 에티켓, 90분은 오후티 등 여유. '바로'는 뺌
+const arriveLabel = (m) => `${m}분`;
 const DEFAULT_PREP = 30;
 const DEFAULT_ARRIVE = 30;
+// 'HH:MM' → '오전/오후 h:mm' (사용자가 설정한 시각을 또렷이 보여주기)
+const fmtKorTime = (hhmm) => {
+  if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return '';
+  const [h, m] = hhmm.split(':').map(Number);
+  const ap = h < 12 ? '오전' : '오후';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${ap} ${h12}:${String(m).padStart(2, '0')}`;
+};
 
-// 일정 추가 직후 뜨는 알람 설정 팝업.
-// stage 'ask'(예/아니오) → stage 'select'(시점 체크박스) → 예약
-export function AlarmSetupModal({ visible, schedule, onClose }) {
+// 일정 추가 직후 뜨는 전체화면 알람 설정 화면 — 혼자 쓰는 사람의 핵심.
+//   출발지 → (라운드 전 식사·모임 시각) → 기상/출발 역산 → 토글 → (안드) 시계앱 알람.
+export function AlarmSetupModal({ visible, schedule, onClose, existing = null }) {
   const { userProfile, setUserProfile } = useContext(UserContext);
-  const [stage, setStage] = useState('ask');
   const [picked, setPicked] = useState(ALARM_DEFAULTS_FALLBACK);
   const [dontAsk, setDontAsk] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // 기상·출발(동적 알람) 상태 — 이동시간 역산 기반
-  const [driveMin, setDriveMin] = useState(null);          // 집→구장 이동(분). null=미조회/불가
+  const [driveMin, setDriveMin] = useState(null);          // 출발지→구장 이동(분). null=미조회/불가
   const [driveLoading, setDriveLoading] = useState(false);
   const [prepMin, setPrepMin] = useState(DEFAULT_PREP);     // 집에서 나갈 준비시간
   const [arriveBufferMin, setArriveBufferMin] = useState(DEFAULT_ARRIVE); // 구장 도착여유
   const [wakeOn, setWakeOn] = useState(false);
   const [departOn, setDepartOn] = useState(false);
   const [originKey, setOriginKey] = useState('home'); // 'home'|'work'|'current' — 출발지(부별 기본)
+  const [mealTime, setMealTime] = useState(null);     // 'HH:MM' | null — 라운드 전 식사·모임 시각(있으면 도착 목표)
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  // 시계앱 기상 알람 — 못 들을까 봐 여러 번(간격) 거는 사람용(안드)
+  const [snoozeCount, setSnoozeCount] = useState(1);        // 1~3개
+  const [snoozeIntervalMin, setSnoozeIntervalMin] = useState(10); // 5/10/15분 간격
 
   // 저장된 출발지(집·회사)
   const homeCoord = userProfile?.departureCoord;
@@ -45,14 +61,14 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
   const hasWork = !!(workCoord && typeof workCoord.x === 'number' && typeof workCoord.y === 'number');
   const hasAnyOrigin = hasHome || hasWork;
 
-  // 이미 지난 시점은 예약 불가 — 체크박스 비활성 처리용
-  const triggers = schedule ? alarmTriggers(schedule, { driveMin, prepMin, arriveBufferMin }) : {};
+  const tlOpts = { driveMin, prepMin, arriveBufferMin, arriveAt: mealTime };
+  const triggers = schedule ? alarmTriggers(schedule, tlOpts) : {};
   const now = Date.now();
   const isPast = (t) => !triggers[t] || triggers[t].getTime() <= now;
 
-  // 역산 타임라인 — 이동시간 확보 시 기상·출발·티오프 시각 계산
-  const timeline = (driveMin != null && schedule)
-    ? computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin }) : null;
+  // 역산 타임라인 — 이동시간 확보 시 기상·출발 시각 계산
+  const timeline = (driveMin != null && schedule) ? computeRoundTimeline(schedule, tlOpts) : null;
+  const baseTl = schedule ? computeRoundTimeline(schedule, {}) : null; // 티오프 시각(이동시간 없이도) — 피커 기본값용
   // 기상 알림은 '오전티(1부)'일 때만 권함 — 티오프<9시거나 역산 기상이<7시(낮티라도 먼거리). 낮·야간은 숨김.
   const isMorningWake = shouldOfferWake(timeline);
   const departPast = isPast('depart');
@@ -60,19 +76,26 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
 
   useEffect(() => {
     if (visible) {
-      setStage('ask');
       setSaving(false);
       setDontAsk(false);
-      const base = userProfile.alarmDefaults || ALARM_DEFAULTS_FALLBACK;
-      // 기본값에서 시작하되 이미 지난 시점은 꺼둠
+      setShowTimePicker(false);
+      setMealTime(null);
+      setSnoozeCount(Number.isFinite(userProfile.snoozeCount) ? userProfile.snoozeCount : 1);
+      setSnoozeIntervalMin(Number.isFinite(userProfile.snoozeIntervalMin) ? userProfile.snoozeIntervalMin : 10);
+      // 편집(기존 알람 있음)이면 그 값으로 프리필, 아니면 저장 기본값.
+      const ex = (existing && Array.isArray(existing.types)) ? existing : null;
+      const base = ex
+        ? { d3: ex.types.includes('d3'), d1: ex.types.includes('d1'), teeoff: ex.types.includes('teeoff') }
+        : (userProfile.alarmDefaults || ALARM_DEFAULTS_FALLBACK);
       setPicked({
         d3: !!base.d3 && !isPast('d3'),
         d1: !!base.d1 && !isPast('d1'),
         teeoff: !!base.teeoff && !isPast('teeoff'),
       });
-      // 개인설정은 저장값 우선(기억된 습관), 없으면 기본
-      setPrepMin(Number.isFinite(userProfile.prepMin) ? userProfile.prepMin : DEFAULT_PREP);
-      setArriveBufferMin(Number.isFinite(userProfile.arriveBufferMin) ? userProfile.arriveBufferMin : DEFAULT_ARRIVE);
+      // 개인설정은 편집값 > 저장값(기억된 습관) > 기본
+      setPrepMin(Number.isFinite(ex?.opts?.prepMin) ? ex.opts.prepMin : (Number.isFinite(userProfile.prepMin) ? userProfile.prepMin : DEFAULT_PREP));
+      setArriveBufferMin(Number.isFinite(ex?.opts?.arriveBufferMin) ? ex.opts.arriveBufferMin : (Number.isFinite(userProfile.arriveBufferMin) ? userProfile.arriveBufferMin : DEFAULT_ARRIVE));
+      setMealTime(ex?.opts?.arriveAt || null);
       setWakeOn(false);
       setDepartOn(false);
       setDriveMin(null);
@@ -106,12 +129,18 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
     return () => { alive = false; };
   }, [visible, schedule, originKey]);
 
-  // 이동시간 확보 시 동적 알람 기본 ON(요청 많던 기능) — 출발은 항상, 기상은 새벽 티만
+  // 이동시간 확보 시 동적 알람 ON — 편집이면 기존 설정대로, 아니면 기본(출발 항상·기상 새벽만)
   useEffect(() => {
     if (driveMin == null) return;
-    setDepartOn(!departPast);
-    setWakeOn(isMorningWake && !wakePast);
-  }, [driveMin]);
+    const ex = (existing && Array.isArray(existing.types)) ? existing : null;
+    if (ex) {
+      setDepartOn(ex.types.includes('depart') && !departPast);
+      setWakeOn(ex.types.includes('wake') && !wakePast);
+    } else {
+      setDepartOn(!departPast);
+      setWakeOn(isMorningWake && !wakePast);
+    }
+  }, [driveMin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!schedule) return null;
 
@@ -124,23 +153,57 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
   const pickPrep = (m) => { setPrepMin(m); persistProfile({ prepMin: m }); };
   const pickArrive = (m) => { setArriveBufferMin(m); persistProfile({ arriveBufferMin: m }); };
 
-  // 안드 시계앱에 기상 알람 등록 — 무음 뚫고 울리게(자체 알림 보완). 시계앱이 시각 미리 채워 열림.
+  // 시간 피커 기본값 — 이미 정했으면 그 시각, 아니면 티오프 1시간 전
+  const pickerValue = (() => {
+    const [y, m, d] = String(schedule.date || '').split('.').map(Number);
+    if (mealTime && /^\d{1,2}:\d{2}$/.test(mealTime)) {
+      const [hh, mm] = mealTime.split(':').map(Number);
+      return new Date(y, m - 1, d, hh, mm, 0, 0);
+    }
+    if (baseTl?.teeoff) return new Date(baseTl.teeoff.getTime() - 60 * 60000);
+    return new Date(y || 2026, (m || 1) - 1, d || 1, 7, 0, 0, 0);
+  })();
+  const onPickTime = (event, date) => {
+    setShowTimePicker(false);
+    if (event?.type === 'dismissed' || !date) return;
+    setMealTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+  };
+
+  const pickSnoozeCount = (n) => { setSnoozeCount(n); persistProfile({ snoozeCount: n }); };
+  const pickSnoozeInterval = (m) => { setSnoozeIntervalMin(m); persistProfile({ snoozeIntervalMin: m }); };
+
+  // 안드 시계앱에 기상 알람 등록 — 무음 뚫고 울리게(자체 알림 보완).
+  //   1개: 시계앱 열려 미리 채워짐(투명). 2~3개: 못 들을까 봐 간격으로 연속 등록(조용히 일괄 + 우리 알림).
   const addWakeToClock = async () => {
     if (!timeline?.wake) return;
-    const ok = await setSystemAlarm({
-      hour: timeline.wake.getHours(),
-      minute: timeline.wake.getMinutes(),
-      message: `${schedule.course} 기상`,
-    });
-    if (!ok) showAppAlert('시계앱을 열 수 없어요', '기기에 기본 시계앱이 없거나 알람 추가를 지원하지 않을 수 있어요.');
+    const base = timeline.wake.getTime();
+    if (snoozeCount <= 1) {
+      const ok = await setSystemAlarm({ hour: timeline.wake.getHours(), minute: timeline.wake.getMinutes(), message: `${schedule.course} 기상` });
+      if (!ok) showAppAlert('시계앱을 열 수 없어요', '기기에 기본 시계앱이 없거나 알람 추가를 지원하지 않을 수 있어요.');
+      return;
+    }
+    let added = 0;
+    for (let i = 0; i < snoozeCount; i++) {
+      const t = new Date(base + i * snoozeIntervalMin * 60000);
+      const ok = await setSystemAlarm({ hour: t.getHours(), minute: t.getMinutes(), message: `${schedule.course} 기상${i > 0 ? ` (+${i * snoozeIntervalMin}분)` : ''}`, skipUi: true });
+      if (ok) added++;
+    }
+    if (added) showAppAlert('시계앱에 등록했어요', `기상 알람 ${added}개를 ${snoozeIntervalMin}분 간격으로 추가했어요.\n무음·방해금지에도 울려요. 시계앱에서 확인하세요.`);
+    else showAppAlert('시계앱을 열 수 없어요', '기기가 알람 추가를 지원하지 않을 수 있어요.');
   };
 
   const anyPicked = ALARM_TYPES.some(t => picked[t]) || (departOn && !departPast) || (wakeOn && !wakePast);
 
-  // 닫을 때 '다시 묻지 않기'가 켜져 있으면 프로필에 기록
+  // 닫을 때 '다음부터 이대로 자동'이 켜져 있으면 — 지금 화면 설정 그대로 기본값에 저장(이후 팝업 없이 그대로 적용).
+  //   ★끈 항목(예: D-3 해제)도 그대로 반영되게 picked·wake·depart를 alarmDefaults에 저장.
   const close = () => {
-    if (dontAsk && !userProfile.alarmPromptDisabled) {
-      const updated = { ...userProfile, alarmPromptDisabled: true };
+    if (dontAsk) {
+      const updated = {
+        ...userProfile,
+        alarmPromptDisabled: true,
+        alarmDefaults: { d3: !!picked.d3, d1: !!picked.d1, teeoff: !!picked.teeoff, wake: wakeOn, depart: departOn },
+        prepMin, arriveBufferMin,
+      };
       setUserProfile({ ...updated });
       storage.save(STORAGE_KEYS.profile, updated);
     }
@@ -167,265 +230,349 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
     const types = ALARM_TYPES.filter(t => picked[t]);
     if (departOn && !departPast) types.push('depart');
     if (wakeOn && !wakePast) types.push('wake');
-    // 동적 알람(기상·출발) 켜졌으면 역산 근거(이동시간·개인설정)를 함께 넘김
-    const opts = (departOn || wakeOn) ? { driveMin, prepMin, arriveBufferMin } : undefined;
+    // 동적 알람(기상·출발) 켜졌으면 역산 근거(이동시간·개인설정·식사시각)를 함께 넘김
+    const opts = (departOn || wakeOn) ? { driveMin, prepMin, arriveBufferMin, arriveAt: mealTime } : undefined;
     await scheduleRoundAlarms(schedule, types, opts);
     setSaving(false);
     close();
   };
 
+  // 작은 칩 렌더 헬퍼 — 준비시간·도착여유 공용
+  const Chip = ({ label, on, onPress }) => (
+    <TouchableOpacity activeOpacity={0.8} onPress={onPress}
+      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary }}>
+      <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(13), color: on ? C.burgundy : C.warmGray }}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  // 섹션 카드 — 크림 배경 위에 흰 카드 + 그림자로 또렷이 구분
+  const cardStyle = {
+    backgroundColor: C.bgSecondary, borderRadius: 16, padding: 16, marginTop: 14,
+    borderWidth: 1, borderColor: C.hairline,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  };
+  // 섹션 제목 — 버건디 액센트 바 + 진한 글씨로 대비
+  const SectionTitle = ({ children }) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+      <View style={{ width: 3, height: 16, borderRadius: 2, backgroundColor: C.burgundy, marginRight: 8 }} />
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoalDeep }}>{children}</Text>
+    </View>
+  );
+
+  // 역산 시각 한 줄(아이콘 + 라벨 + 시각) — 골프 가는 길 박스
+  const TimeRow = ({ name, label, time }) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 }}>
+      <Icon name={name} size={fs(17)} color={C.charcoalDeep} />
+      <Text style={{ fontFamily: F.sysM, fontSize: fs(15), color: C.charcoalDeep }}>{label} {time}</Text>
+    </View>
+  );
+
+  // 기상·출발 토글 한 행 — 공용
+  const ToggleRow = ({ on, past, onToggle, iconName, title, sub }) => (
+    <TouchableOpacity activeOpacity={past ? 1 : 0.7} disabled={past} onPress={onToggle}
+      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary, opacity: past ? 0.45 : 1 }}>
+      <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: on ? C.burgundy : C.warmGrayLight, backgroundColor: on ? C.burgundy : 'transparent' }}>
+        {on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Icon name={iconName} size={fs(16)} color={C.charcoal} />
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>{title}</Text>
+        </View>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>{sub}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-        <View style={{ width: '100%', maxWidth: 360, backgroundColor: C.bgPrimary, borderRadius: 20, maxHeight: '100%' }}>
-          {/* 확대 시 옵션 많은 'select' 단계가 카드를 넘쳐 하단 버튼 잘리던 것 방지 — 스크롤(패딩은 contentContainer로) */}
-          <ScrollView contentContainerStyle={{ padding: 24 }} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {stage === 'ask' ? (
-            <>
-              <Text style={{ fontSize: fs(34), textAlign: 'center', marginBottom: 10 }}>🔔</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, textAlign: 'center' }}>
-                라운딩 알람을 설정할까요?
-              </Text>
-              <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, padding: 14, marginTop: 16 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>
-                  {schedule.course}
-                </Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }}>
-                  {schedule.date} {schedule.day} · {schedule.time}
-                </Text>
-              </View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 14, lineHeight: 18 }}>
-                라운딩 전에 잊지 않도록{'\n'}미리 알림을 보내드릴 수 있어요.
-              </Text>
+    <Modal visible={visible} animationType="slide" onRequestClose={close} presentationStyle="fullScreen">
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom']}>
+        <TripleStripe />
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 28 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* 헤더 */}
+          <View style={{ marginBottom: 8 }}><Icon name="bell" size={fs(30)} color={C.burgundy} /></View>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal }}>라운딩 알람</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 6 }}>
+            출발지만 정하면 기상·출발 시각을 자동으로 계산해 알려드려요.
+          </Text>
 
-              {/* 다시 묻지 않기 */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setDontAsk(v => !v)}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
-                <View style={{
-                  width: 18, height: 18, borderRadius: 5, marginRight: 8,
-                  alignItems: 'center', justifyContent: 'center',
-                  borderWidth: 1.5, borderColor: dontAsk ? C.burgundy : C.warmGrayLight,
-                  backgroundColor: dontAsk ? C.burgundy : 'transparent',
-                }}>
-                  {dontAsk && <Text style={{ color: C.butter, fontSize: fs(11), fontWeight: '700' }}>✓</Text>}
-                </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>
-                  다시 묻지 않기 (기본 설정대로 자동 적용)
-                </Text>
-              </TouchableOpacity>
+          {/* 일정 요약 */}
+          <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, padding: 16, marginTop: 18 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.charcoal }} numberOfLines={1}>{schedule.course}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 5 }}>
+              {schedule.date} {schedule.day} · {schedule.time}
+            </Text>
+          </View>
 
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={close}
-                  style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>나중에</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => setStage('select')}
-                  style={{ flex: 1.4, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: C.burgundy }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>네, 설정할게요</Text>
-                </TouchableOpacity>
+          {/* ── 골프 가는 길 ── */}
+          {hasAnyOrigin ? (
+            <View style={cardStyle}>
+              <SectionTitle>골프 가는 길</SectionTitle>
+
+              {/* 출발지 — 부별 기본, 탭해서 변경 */}
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>어디서 출발해요?</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {[
+                  hasHome && { key: 'home', icon: 'home', label: '집', size: fs(18) },
+                  hasWork && { key: 'work', icon: 'building', label: '회사', size: fs(14) },
+                  { key: 'current', icon: 'pin', label: '현재위치', size: fs(18) },
+                ].filter(Boolean).map(o => {
+                  const on = originKey === o.key;
+                  return (
+                    <TouchableOpacity key={o.key} activeOpacity={0.8} onPress={() => setOriginKey(o.key)}
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary }}>
+                      <Icon name={o.icon} size={o.size} color={on ? C.burgundy : C.warmGray} />
+                      <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(11), color: on ? C.burgundy : C.warmGray }}>{o.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              {dontAsk && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, textAlign: 'center', marginTop: 10, lineHeight: 15 }}>
-                  다음부터는 이 팝업 없이 마이페이지 기본 설정대로 적용돼요.{'\n'}마이페이지에서 다시 켤 수 있어요.
-                </Text>
+              {originKey === 'current' && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 5 }}>지금 위치 기준으로 계산해요</Text>
               )}
-            </>
-          ) : (
-            <>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>
-                알람 받을 시점
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, marginBottom: 14 }}>
-                원하는 시점을 선택해주세요.
-              </Text>
 
-              {/* ── 기상·출발 (이동시간 역산) ── */}
-              {hasAnyOrigin ? (
-                <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>골프 가는 길</Text>
-                  {/* 출발지 선택 — 부별 기본(1부 집·2/3부 회사), 탭해서 변경 */}
-                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-                    {[
-                      hasHome && { key: 'home', label: '🏠 집' },
-                      hasWork && { key: 'work', label: '🏢 회사' },
-                      { key: 'current', label: '📍 현재위치' },
-                    ].filter(Boolean).map(o => {
-                      const on = originKey === o.key;
-                      return (
-                        <TouchableOpacity key={o.key} activeOpacity={0.8} onPress={() => setOriginKey(o.key)}
-                          style={{ flex: 1, paddingVertical: 7, borderRadius: 9, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary }}>
-                          <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(11), color: on ? C.burgundy : C.warmGray }}>{o.label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+              {/* 라운드 전 식사·모임 시각 — 있으면 그 시각이 도착 목표(출발·기상이 그 기준으로 당겨짐) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Icon name="bowl" size={fs(16)} color={C.charcoal} />
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>라운드 전 식사·모임</Text>
                   </View>
-                  {originKey === 'current' && (
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGrayLight, marginTop: 4 }}>지금 위치 기준으로 계산해요 (오후·야간 라운드)</Text>
-                  )}
-                  {driveLoading && !timeline?.depart ? (
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8 }}>이동시간 계산 중…</Text>
-                  ) : timeline?.depart ? (
+                  <Text style={{ fontFamily: mealTime ? F.sysSb : F.sys, fontSize: fs(11), color: mealTime ? C.burgundy : C.warmGray, marginTop: 2 }}>
+                    {mealTime ? `${fmtKorTime(mealTime)}에 만나요 · 이번 라운드만` : '이번 라운드만 · 먼저 만나면 그 시각 기준으로 계산'}
+                  </Text>
+                </View>
+                {mealTime ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity onPress={() => setShowTimePicker(true)} activeOpacity={0.8}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 9, backgroundColor: C.burgundy }}>
+                      <Icon name="pen" size={fs(12)} color={C.butter} />
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>{fmtKorTime(mealTime)}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setMealTime(null)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textDecorationLine: 'underline' }}>해제</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={() => setShowTimePicker(true)} activeOpacity={0.8}
+                    style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>시각 설정</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {showTimePicker && (
+                <DateTimePicker value={pickerValue} mode="time" is24Hour display="spinner" onChange={onPickTime} />
+              )}
+
+              {/* 역산 타임라인 + 조정 */}
+              {driveLoading && !timeline?.depart ? (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 16 }}>이동시간 계산 중…</Text>
+              ) : timeline?.depart ? (
+                <>
+                  <View style={{ backgroundColor: '#F5F0E4', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: C.burgundy, padding: 14, marginTop: 16 }}>
+                    {isMorningWake && <TimeRow name="bell" label="기상" time={fmtClock(timeline.wake)} />}
+                    <TimeRow name="car" label="출발" time={fmtClock(timeline.depart)} />
+                    {mealTime && <TimeRow name="bowl" label="모임" time={mealTime} />}
+                    <TimeRow name="flag" label="티오프" time={fmtClock(timeline.teeoff)} />
+                  </View>
+
+                  {/* 준비시간 칩 — 기상 알림이 의미있는 새벽 티에만 */}
+                  {isMorningWake && (
                     <>
-                      {/* 역산 타임라인 요약 */}
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: 20 }}>
-                        🏌️ 티오프 {fmtClock(timeline.teeoff)}   ·   🚗 출발 {fmtClock(timeline.depart)}
-                        {isMorningWake ? `   ·   🔔 기상 ${fmtClock(timeline.wake)}` : ''}
-                      </Text>
-
-                      {/* 준비시간 칩 — 기상 알림이 의미있는 새벽 티에만 */}
-                      {isMorningWake && (
-                        <>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 12 }}>집에서 나갈 준비 시간</Text>
-                          <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                            {PREP_OPTS.map(m => {
-                              const on = prepMin === m;
-                              return (
-                                <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => pickPrep(m)}
-                                  style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary }}>
-                                  <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{m}분</Text>
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </View>
-                        </>
-                      )}
-
-                      {/* 도착여유 칩 */}
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 12 }}>구장 도착여유 (티오프 전)</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 14 }}>집에서 나갈 준비 시간 (화장·짐 등)</Text>
                       <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                        {ARRIVE_OPTS.map(m => {
-                          const on = arriveBufferMin === m;
-                          return (
-                            <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => pickArrive(m)}
-                              style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary }}>
-                              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{arriveLabel(m)}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
+                        {PREP_OPTS.map(m => <Chip key={m} label={`${m}분`} on={prepMin === m} onPress={() => pickPrep(m)} />)}
                       </View>
+                    </>
+                  )}
 
-                      {/* 출발 알림 토글 */}
-                      <TouchableOpacity activeOpacity={departPast ? 1 : 0.7} disabled={departPast} onPress={() => setDepartOn(v => !v)}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 11, marginTop: 12, borderRadius: 12, borderWidth: 1, borderColor: departOn ? C.burgundy : C.hairline, backgroundColor: departOn ? '#F5EAEC' : C.bgPrimary, opacity: departPast ? 0.45 : 1 }}>
-                        <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: departOn ? C.burgundy : C.warmGrayLight, backgroundColor: departOn ? C.burgundy : 'transparent' }}>
-                          {departOn && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>🚗 출발 알림</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
-                            {departPast ? '이미 지난 시각이에요' : `${fmtClock(timeline.depart)}에 알려드려요`}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
+                  {/* 도착여유 칩 — 식사·모임 시각을 정하면 그게 도착 목표라 숨김 */}
+                  {!mealTime && (
+                    <>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 14 }}>구장 도착여유 (티오프 전)</Text>
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                        {ARRIVE_OPTS.map(m => <Chip key={m} label={arriveLabel(m)} on={arriveBufferMin === m} onPress={() => pickArrive(m)} />)}
+                      </View>
+                    </>
+                  )}
 
-                      {/* 기상 알림 토글 — 새벽 티에만 */}
-                      {isMorningWake && (
-                        <>
-                          <TouchableOpacity activeOpacity={wakePast ? 1 : 0.7} disabled={wakePast} onPress={() => setWakeOn(v => !v)}
-                            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 11, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: wakeOn ? C.burgundy : C.hairline, backgroundColor: wakeOn ? '#F5EAEC' : C.bgPrimary, opacity: wakePast ? 0.45 : 1 }}>
-                            <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: wakeOn ? C.burgundy : C.warmGrayLight, backgroundColor: wakeOn ? C.burgundy : 'transparent' }}>
-                              {wakeOn && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>🔔 기상 알림</Text>
-                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
-                                {wakePast ? '이미 지난 시각이에요' : `${fmtClock(timeline.wake)}에 깨워드려요`}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
+                  {/* 출발 알림 */}
+                  <ToggleRow on={departOn} past={departPast} onToggle={() => setDepartOn(v => !v)}
+                    iconName="car" title="출발 알림"
+                    sub={departPast ? `${fmtClock(timeline.depart)} · 이미 지난 시각` : `${fmtClock(timeline.depart)}에 알려드려요`} />
 
-                          {/* 안드 전용 — 시계앱에 진짜 알람 등록(무음·방해금지 뚫고 울림). 자체 알림은 무음이면 약함 */}
-                          {SYSTEM_ALARM_SUPPORTED && wakeOn && !wakePast && (
-                            <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
-                              style={{ marginTop: 8, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter }}>📲 시계앱에도 기상 알람 추가</Text>
-                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#F0D9CF', marginTop: 2 }}>무음·방해금지에도 울리게 (권장)</Text>
-                            </TouchableOpacity>
+                  {/* 기상 알림 — 새벽 티에만 */}
+                  {isMorningWake && (
+                    <>
+                      <ToggleRow on={wakeOn} past={wakePast} onToggle={() => setWakeOn(v => !v)}
+                        iconName="bell" title="기상 알림"
+                        sub={wakePast ? `${fmtClock(timeline.wake)} · 이미 지난 시각` : `${fmtClock(timeline.wake)}에 깨워드려요`} />
+
+                      {/* 안드 — 시계앱에 진짜 알람(무음 뚫고 울림). 못 들을까 봐 여러 번 거는 사람용으로 횟수·간격 선택 */}
+                      {SYSTEM_ALARM_SUPPORTED && wakeOn && !wakePast && (
+                        <View style={{ marginTop: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgPrimary }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Icon name="phone" size={fs(16)} color={C.charcoal} />
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>시계앱 기상 알람</Text>
+                          </View>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>무음·방해금지에도 울려요 (안드로이드)</Text>
+
+                          <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, marginTop: 10 }}>몇 번 깨울까요?</Text>
+                          <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                            {[1, 2, 3].map(n => <Chip key={n} label={`${n}번`} on={snoozeCount === n} onPress={() => pickSnoozeCount(n)} />)}
+                          </View>
+                          {snoozeCount > 1 && (
+                            <>
+                              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, marginTop: 10 }}>간격</Text>
+                              <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                                {[5, 10, 15].map(m => <Chip key={m} label={`${m}분`} on={snoozeIntervalMin === m} onPress={() => pickSnoozeInterval(m)} />)}
+                              </View>
+                            </>
                           )}
-                        </>
+                          <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
+                            style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>
+                              {snoozeCount > 1 ? `시계앱에 ${snoozeCount}개 등록 (${snoozeIntervalMin}분 간격)` : '시계앱에 등록'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </>
-                  ) : (
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: 18 }}>
-                      구장 위치를 못 찾아 이동시간을 계산할 수 없어요. 일정의 구장명을 확인해주세요.
-                    </Text>
                   )}
-                </View>
+                </>
               ) : (
-                <View style={{ backgroundColor: '#FBF6EE', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>🚗 출발·기상 알림</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 17 }}>
-                    마이페이지에서 자주 가는 출발지를 저장하면, 이동시간을 계산해{'\n'}출발·기상 시각을 자동으로 알려드려요.
-                  </Text>
-                </View>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 14, lineHeight: 19 }}>
+                  구장 위치를 못 찾아 이동시간을 계산할 수 없어요. 일정의 구장명을 확인해주세요.
+                </Text>
               )}
-
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginBottom: 8 }}>그 밖의 알림</Text>
-
-              {ALARM_TYPES.map(t => {
-                const def = ALARM_DEFS[t];
-                const past = isPast(t);
-                const on = picked[t];
-                return (
-                  <TouchableOpacity
-                    key={t}
-                    activeOpacity={past ? 1 : 0.7}
-                    disabled={past}
-                    onPress={() => setPicked(p => ({ ...p, [t]: !p[t] }))}
-                    style={{
-                      flexDirection: 'row', alignItems: 'center',
-                      paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
-                      borderRadius: 12, borderWidth: 1,
-                      borderColor: on ? C.burgundy : C.hairline,
-                      backgroundColor: on ? '#F5EAEC' : C.bgSecondary,
-                      opacity: past ? 0.45 : 1,
-                    }}>
-                    <View style={{
-                      width: 22, height: 22, borderRadius: 6, marginRight: 12,
-                      alignItems: 'center', justifyContent: 'center',
-                      borderWidth: 1.5, borderColor: on ? C.burgundy : C.warmGrayLight,
-                      backgroundColor: on ? C.burgundy : 'transparent',
-                    }}>
-                      {on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>
-                        {def.label}
-                      </Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
-                        {past ? '이미 지난 시점이에요' : def.title}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={close}
-                  style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>건너뛰기</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  disabled={saving}
-                  onPress={handleConfirm}
-                  style={{ flex: 1.4, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: anyPicked ? C.burgundy : C.warmGrayLight }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>
-                    {saving ? '설정 중…' : anyPicked ? '알람 설정' : '선택 안 함'}
-                  </Text>
-                </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ backgroundColor: '#FBF6EE', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, padding: 16, marginTop: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="car" size={fs(16)} color={C.charcoal} />
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>출발·기상 알림</Text>
               </View>
-            </>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 7, lineHeight: 18 }}>
+                마이페이지에서 자주 가는 출발지를 저장하면, 이동시간을 계산해 출발·기상 시각을 자동으로 알려드려요.
+              </Text>
+            </View>
           )}
-          </ScrollView>
+
+          {/* ── 그 밖의 알림 ── */}
+          <View style={cardStyle}>
+          <SectionTitle>그 밖의 알림</SectionTitle>
+          {ALARM_TYPES.map(t => {
+            const def = ALARM_DEFS[t];
+            const past = isPast(t);
+            const on = picked[t];
+            return (
+              <TouchableOpacity key={t} activeOpacity={past ? 1 : 0.7} disabled={past}
+                onPress={() => setPicked(p => ({ ...p, [t]: !p[t] }))}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary, opacity: past ? 0.45 : 1 }}>
+                <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: on ? C.burgundy : C.warmGrayLight, backgroundColor: on ? C.burgundy : 'transparent' }}>
+                  {on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{def.label}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{past ? '이미 지난 시점이에요' : def.title}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          </View>
+
+          {/* 다음부터 안 물어보고 이대로 자동 — 잘 보이게 카드로 */}
+          <TouchableOpacity activeOpacity={0.8} onPress={() => setDontAsk(v => !v)}
+            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, padding: 14, borderRadius: 14,
+              borderWidth: 1.5, borderColor: dontAsk ? C.burgundy : C.hairline, backgroundColor: dontAsk ? '#F5EAEC' : C.bgSecondary }}>
+            <View style={{ width: 24, height: 24, borderRadius: 7, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: dontAsk ? C.burgundy : C.warmGrayLight, backgroundColor: dontAsk ? C.burgundy : 'transparent' }}>
+              {dontAsk && <Text style={{ color: C.butter, fontSize: fs(14), fontWeight: '700' }}>✓</Text>}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep }}>다음부터 안 물어보고 이대로 자동</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>다음부턴 '미리 만나는 시각'만 그때그때 정하면 돼요. 출발지·준비시간 등은 정해둔 대로 (마이페이지에서 변경)</Text>
+            </View>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* 하단 고정 버튼 */}
+        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+          <TouchableOpacity activeOpacity={0.8} onPress={close}
+            style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>나중에</Text>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.85} disabled={saving} onPress={handleConfirm}
+            style={{ flex: 1.6, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: anyPicked ? C.burgundy : C.warmGrayLight }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>
+              {saving ? '설정 중…' : anyPicked ? '알람 설정' : '선택 안 함'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// '이대로 자동'(alarmPromptDisabled) 모드에서 일정 추가 시 뜨는 가벼운 프롬프트.
+//   매 라운드 달라지는 '티오프 전 미리 만나는 시각'만 묻고, 나머지(출발지·준비·알람종류)는 저장설정대로 자동 적용.
+//   onDone(arriveAt|null) — 부모가 applyDefaultAlarms(schedule, profile, { arriveAt })로 마무리.
+export function QuickMealPrompt({ visible, schedule, onDone }) {
+  const [mealTime, setMealTime] = useState(null); // 'HH:MM' | null
+  const [showPicker, setShowPicker] = useState(false);
+  useEffect(() => { if (visible) { setMealTime(null); setShowPicker(false); } }, [visible]);
+  if (!schedule) return null;
+
+  const pickerValue = (() => {
+    const [y, m, d] = String(schedule.date || '').split('.').map(Number);
+    if (mealTime && /^\d{1,2}:\d{2}$/.test(mealTime)) {
+      const [hh, mm] = mealTime.split(':').map(Number);
+      return new Date(y, m - 1, d, hh, mm, 0, 0);
+    }
+    const [th, tm] = String(schedule.time || '08:00').split(':').map(Number);
+    return new Date(y || 2026, (m || 1) - 1, d || 1, th || 8, tm || 0, 0, 0);
+  })();
+  const onPick = (event, date) => {
+    setShowPicker(false);
+    if (event?.type === 'dismissed' || !date) return;
+    setMealTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => onDone(null)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View style={{ width: '100%', maxWidth: 360, backgroundColor: C.bgPrimary, borderRadius: 20, padding: 22 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <Icon name="bowl" size={fs(22)} color={C.burgundy} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoalDeep }}>라운드 전 미리 만나요?</Text>
+          </View>
+          <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, padding: 13, marginTop: 14 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{schedule.course}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4 }}>{schedule.date} {schedule.day} · {schedule.time}</Text>
+          </View>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 12 }}>
+            먼저 만나 식사·모임하면 그 시각 기준으로 출발·기상을 계산해요.{'\n'}없으면 건너뛰기 — 출발·기상은 저장한 설정대로 자동 적용돼요.
+          </Text>
+
+          {/* 시각 선택 */}
+          <TouchableOpacity onPress={() => setShowPicker(true)} activeOpacity={0.8}
+            style={{ marginTop: 14, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 1.5,
+              borderColor: mealTime ? C.burgundy : C.hairline, backgroundColor: mealTime ? '#F5EAEC' : C.bgSecondary }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: mealTime ? C.burgundy : C.warmGray }}>
+              {mealTime ? `🕘 ${fmtKorTime(mealTime)} 만남` : '미리 만나는 시각 선택'}
+            </Text>
+          </TouchableOpacity>
+          {showPicker && <DateTimePicker value={pickerValue} mode="time" is24Hour display="spinner" onChange={onPick} />}
+
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => onDone(null)}
+              style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>건너뛰기</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => onDone(mealTime)}
+              style={{ flex: 1.4, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: C.burgundy }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>적용</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
