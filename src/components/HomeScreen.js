@@ -1523,6 +1523,12 @@ export function HomeScreen({ navigation, route }) {
         onInviteFriends={() => handleInviteFriends(selectedSchedule)}
         onMeal={() => { setShowScheduleModal(false); setSheetMealSchedule(selectedSchedule); setSheetMealAutoOpen(true); }}
         onTeam={() => { setShowScheduleModal(false); setTeamScheduleRid(selectedSchedule?.roundupId || null); }}
+        onOpenRoundup={() => {
+          // 모집 연동 예정 일정 — 일정수정이 막혀 원본 모집글(라운지 상세)로 직행해 관리 ([[roundup-schedule-delete-policy]])
+          const rid = selectedSchedule?.roundupId;
+          setShowScheduleModal(false);
+          if (rid) navigation.navigate(ROUTES.LOUNGE, { openPostId: rid });
+        }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
         onDelete={() => {
           // 시트 안에서 이미 confirm 완료 — 시트를 '먼저' 닫고(닫힘 애니메이션과 리스트 변경이 겹쳐

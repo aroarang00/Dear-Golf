@@ -448,6 +448,16 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     else if (s.course) navigation.navigate(ROUTES.COURSE, { openCourseName: s.course, openCourseKakaoId: s.courseKakaoId || null, returnToCalendar: true });
   };
 
+  // 바텀시트 → 라운지 모집글 상세. 모집 연동 예정 일정은 일정수정이 막혀 있어, 원본 모집글로 보내 거기서 관리(취소·나가기·정보).
+  //   handleSheetCourse와 동일 패턴 — 시트 + 일정 캘린더 Modal 닫고 즉시 navigate(openPostId로 RoundupTab이 목록에 없어도 fetch해 상세 오픈).
+  const handleSheetRoundup = () => {
+    const s = sheet.schedule;
+    if (!s?.roundupId || !navigation) return;
+    setSheet({ visible: false, schedule: null });
+    onCloseSchedule?.();   // 일정 캘린더 Modal 닫기(탭 화면이면 no-op)
+    navigation.navigate(ROUTES.LOUNGE, { openPostId: s.roundupId });
+  };
+
   // 바텀시트 → 동반자에게 공유: 이미지 카드(ShareMomentModal) — 홈과 동일. 시트 닫고 카드 열기(3중 Modal 회피).
   //   해당일 날씨를 비동기 주입(코스명 위), 카드의 '링크 공유'가 평문(설치 링크) 담당.
   const handleSheetShare = () => {
@@ -935,6 +945,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onInviteFriends={() => handleInviteFriends(sheet.schedule)}
         onMeal={() => openMealForSchedule(sheet.schedule)}
         onTeam={() => { const rid = sheet.schedule?.roundupId || null; setSheet(prev => ({ ...prev, visible: false })); setTeamRid(rid); }}
+        onOpenRoundup={handleSheetRoundup}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
