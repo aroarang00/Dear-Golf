@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { STORAGE_KEYS, storage } from './storage';
 import { getScheduleDriveMin } from './scheduleWx'; // 자동 적용 시 기상·출발 역산용 이동시간(집→구장)
+import { setSystemAlarm } from './nativeAlarm';     // 옵션 켜짐 시 시계앱 진짜 알람 자동 등록(안드 빌드에서만 동작)
 
 // Android 알림 채널 — 8+(API26)에선 채널이 없거나 importance가 낮으면 heads-up 배너·소리가 안 뜰 수 있음
 //   ('테스터별 조용히 옴/안 옴'의 흔한 원인). 고중요도 'default' 채널을 모듈 로드 시 1회 보장(권한 불필요).
@@ -86,15 +87,24 @@ export function fmtClock(date) {
 //   driveMin=집→구장 이동(분), prepMin=집에서 나갈 준비(분, 화장·짐 등), arriveBufferMin=구장 도착~티오프 여유(분).
 //   teeoff − 도착여유 = 구장도착 / − 이동시간 = 출발 / − 준비시간 = 기상.
 //   반환 { teeoff, arrive, depart, wake } — 입력이 모자라 못 구하는 항목은 null(부분 반환).
-export function computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin } = {}) {
+//   arriveAt('HH:MM' 또는 Date) = 라운드 전 식사·모임 시각이 있으면 그게 '도착 목표'(도착여유 무시).
+export function computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin, arriveAt } = {}) {
   const [y, m, d] = (schedule?.date || '').split('.').map(Number);
   const [hh, mm] = (schedule?.time || '08:00').split(':').map(Number);
   if (!y || !m || !d) return null;
   const teeoff = new Date(y, m - 1, d, hh || 8, mm || 0, 0, 0);
-  const arrive = Number.isFinite(arriveBufferMin) ? new Date(teeoff.getTime() - arriveBufferMin * 60000) : null;
+  // 도착 목표 — 식사·모임 시각(arriveAt) 우선, 없으면 티오프 − 도착여유.
+  let arrive = null;
+  if (arriveAt instanceof Date) arrive = arriveAt;
+  else if (typeof arriveAt === 'string' && /^\d{1,2}:\d{2}$/.test(arriveAt)) {
+    const [ah, am] = arriveAt.split(':').map(Number);
+    arrive = new Date(y, m - 1, d, ah, am, 0, 0);
+  } else if (Number.isFinite(arriveBufferMin)) {
+    arrive = new Date(teeoff.getTime() - arriveBufferMin * 60000);
+  }
   const depart = (arrive && Number.isFinite(driveMin)) ? new Date(arrive.getTime() - driveMin * 60000) : null;
   const wake   = (depart && Number.isFinite(prepMin)) ? new Date(depart.getTime() - prepMin * 60000) : null;
-  return { teeoff, arrive, depart, wake };
+  return { teeoff, arrive, depart, wake, anchoredToMeal: !!arrive && arriveAt != null };
 }
 
 // 일정 객체 → 알람 시점별 발송 시각(Date). { d3, d1, teeoff } + opts 주어지면 { depart, wake } 추가.
@@ -256,13 +266,15 @@ export function reconcileAlarms(activeIds) {
 // 팝업 없이 기본 설정대로 예약 — '라운드마다 직접 설정' 끈 사용자(=대부분, 온보딩서 한 번 정함).
 //   profile = userProfile 전체. alarmDefaults(고정 3종 + wake/depart) + prepMin·arriveBufferMin·departureCoord 사용.
 //   기상·출발(동적)은 출발지 저장돼 이동시간 역산될 때만, 기상은 '새벽 티'(역산 기상<오전7시)일 때만 자동 적용.
-export async function applyDefaultAlarms(schedule, profile) {
+//   arriveAt('HH:MM') = 라운드마다 달라지는 '전 식사·모임 시각'(자동 모드에서 그날만 입력받아 넘김). 있으면 그 시각이 도착 목표.
+export async function applyDefaultAlarms(schedule, profile, { arriveAt } = {}) {
   const base = profile?.alarmDefaults || ALARM_DEFAULTS_FALLBACK;
   const types = ALARM_TYPES.filter(t => base[t]); // 고정 3종(d3/d1/teeoff)
 
   // 동적 알람(기상·출발) — 켜져 있고 출발지 있으면 이동시간 역산해 추가.
   //   출발지는 부(部)별 기본: 1부=집 / 2·3부=회사(없으면 집). 자동 경로라 현재위치(GPS)는 안 씀.
   let opts;
+  let wakeDate = null; // 시계앱 자동 등록용 — 기상 알람이 걸린 경우의 기상 시각
   const originKey = defaultOriginKey(schedule, profile);
   const origin = originCoordOf(originKey, profile);
   const wantDynamic = (base.wake || base.depart);
@@ -272,10 +284,10 @@ export async function applyDefaultAlarms(schedule, profile) {
       if (Number.isFinite(driveMin)) {
         const prepMin = Number.isFinite(profile.prepMin) ? profile.prepMin : 30;
         const arriveBufferMin = Number.isFinite(profile.arriveBufferMin) ? profile.arriveBufferMin : 30;
-        const tl = computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin });
+        const tl = computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin, arriveAt });
         if (base.depart && tl?.depart) types.push('depart');
-        if (base.wake && shouldOfferWake(tl)) types.push('wake'); // 오전티(1부)만 — 낮·야간 자동 제외
-        opts = { driveMin, prepMin, arriveBufferMin };
+        if (base.wake && shouldOfferWake(tl)) { types.push('wake'); wakeDate = tl.wake; } // 오전티(1부)만 — 낮·야간 자동 제외
+        opts = { driveMin, prepMin, arriveBufferMin, arriveAt: arriveAt || null };
       }
     } catch (e) { if (__DEV__) console.warn('[notifications] applyDefault dynamic', e?.message); }
   }
@@ -284,6 +296,18 @@ export async function applyDefaultAlarms(schedule, profile) {
   const granted = await requestNotificationPermission();
   if (!granted) return;
   await scheduleRoundAlarms(schedule, types, opts);
+
+  // 시계앱 자동 등록(옵션) — 기상 알람이 걸렸고 사용자가 켜둔 경우만. 안드 네이티브 빌드에서만 실제 동작(아니면 no-op).
+  //   못 들을까 봐 거는 횟수·간격(snoozeCount/Interval)대로 조용히(skipUi) 시계앱에 등록.
+  if (profile?.autoSystemAlarm && wakeDate && wakeDate.getTime() > Date.now()) {
+    const count = Math.max(1, Number.isFinite(profile.snoozeCount) ? profile.snoozeCount : 1);
+    const interval = Number.isFinite(profile.snoozeIntervalMin) ? profile.snoozeIntervalMin : 10;
+    const baseMs = wakeDate.getTime();
+    for (let i = 0; i < count; i++) {
+      const t = new Date(baseMs + i * interval * 60000);
+      await setSystemAlarm({ hour: t.getHours(), minute: t.getMinutes(), message: `${schedule.course} 기상`, skipUi: true });
+    }
+  }
 }
 
 // 일정에 설정된 알람 시점 목록 반환 (없으면 null) — 수정 시 재예약 여부 판단용
@@ -292,5 +316,15 @@ export function getAlarmTypes(scheduleId) {
     if (!scheduleId) return null;
     const map = await storage.load(STORAGE_KEYS.alarms, {});
     return map[scheduleId]?.types || null;
+  });
+}
+
+// 일정에 설정된 알람 전체 설정 반환 — { types, opts } | null. 일정 시트의 '라운드 알람' 표시·편집 프리필용.
+export function getAlarmConfig(scheduleId) {
+  return enqueue(async () => {
+    if (!scheduleId) return null;
+    const map = await storage.load(STORAGE_KEYS.alarms, {});
+    const e = map[scheduleId];
+    return e ? { types: e.types || [], opts: e.opts || {} } : null;
   });
 }
