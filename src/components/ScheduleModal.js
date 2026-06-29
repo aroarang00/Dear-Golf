@@ -250,6 +250,15 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       setOverlay({ title: '골프장을 입력해주세요', message: '저장하려면 골프장을 먼저 입력하거나 검색해 선택해주세요.' });
       return;
     }
+    // 새 일정은 현재 시각 이후만 — 지난 시각으로 예정 라운딩을 만드는 건 이치에 안 맞음(수정은 제외).
+    if (!isEdit) {
+      const [th, tm] = resolvedTime().split(':').map(Number);
+      const teeoff = new Date(date.getFullYear(), date.getMonth(), date.getDate(), th || 0, tm || 0, 0, 0);
+      if (teeoff.getTime() <= Date.now()) {
+        setOverlay({ title: '지난 시각이에요', message: '현재 시각 이후로 라운딩 일정을 만들어주세요.' });
+        return;
+      }
+    }
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const target = new Date(date); target.setHours(0, 0, 0, 0);
     const dDay = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
