@@ -21,6 +21,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ROUND_MIN = 5 * 60; // 라운드 평균 5시간
 const MODE_LABEL = { home: '내 저장 출발지', course: '골프장', current: '현재위치', custom: '주소 입력' };
+// 교통 출발지/도착지 기본 — 갈 때(집→골프장)·올 때(골프장→집). 매번 새 객체(팝업 닫을 때 이 기본으로 초기화).
+const makeDefaultTrSlots = () => ({
+  goOrigin:   { mode: 'home',   custom: '', customCoord: null },
+  goDest:     { mode: 'course', custom: '', customCoord: null },
+  backOrigin: { mode: 'course', custom: '', customCoord: null },
+  backDest:   { mode: 'home',   custom: '', customCoord: null },
+});
 
 // 동일 코스 재오픈 시 즉시 표시. in-flight 요청 dedupe + AsyncStorage 영속 캐시
 const wxCache = new Map(); // courseId → { data, pending?, ts }
@@ -256,12 +263,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [currentCoord, setCurrentCoord] = useState(null); // { x, y }
   const [homeCoord, setHomeCoord] = useState(null);       // { x, y }
   const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 실시간 교통 길찾기(TMap 우선·카카오 폴백)
-  const [trSlots, setTrSlots] = useState({
-    goOrigin:   { mode: 'home',   custom: '', customCoord: null },
-    goDest:     { mode: 'course', custom: '', customCoord: null },
-    backOrigin: { mode: 'course', custom: '', customCoord: null },
-    backDest:   { mode: 'home',   custom: '', customCoord: null },
-  });
+  const [trSlots, setTrSlots] = useState(makeDefaultTrSlots);
   const [expandedSlot, setExpandedSlot] = useState(null);
   const [endOffsetMin, setEndOffsetMin] = useState(0);
   const [locating, setLocating] = useState(false);   // 현재위치 GPS 찾는 중 — '주소 입력' 안내 깜빡임 방지(계산 중 표시)
@@ -346,6 +348,12 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       const target = t === 'wx' ? 0 : -SW;
       slideAnim.setValue(target);
       slideBase.current = target;
+    } else {
+      // 닫을 때 출발지/도착지·관련 UI 초기화 — 다음에 열면(특히 다른 일정) 기본(집→골프장)부터.
+      //   trSlots는 Modal이라 안 언마운트돼 그대로 남던 것(현재위치·직접입력 주소가 다음 일정에 잔존).
+      setTrSlots(makeDefaultTrSlots());
+      setExpandedSlot(null);
+      setEndOffsetMin(0);
     }
   }, [visible, initialTab, SW, weatherOnly, schedule?.overseas]);
 
