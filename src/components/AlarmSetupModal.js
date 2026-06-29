@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Modal, View, Text, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { C, F, fs } from '../constants/colors';
 import { STORAGE_KEYS, storage } from '../utils/storage';
@@ -10,6 +10,7 @@ import {
 } from '../utils/notifications';
 import { getScheduleDriveMin } from '../utils/scheduleWx';
 import { getCurrentLocation } from '../utils/location';
+import { setSystemAlarm, SYSTEM_ALARM_SUPPORTED } from '../utils/nativeAlarm';
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분).
 //   기본값을 강요하지 않되, 처음엔 무난한 30분에서 시작 — 사람마다 칩으로 조정(여성 화장 1시간 ↔ 남성 5분).
@@ -122,6 +123,17 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
   };
   const pickPrep = (m) => { setPrepMin(m); persistProfile({ prepMin: m }); };
   const pickArrive = (m) => { setArriveBufferMin(m); persistProfile({ arriveBufferMin: m }); };
+
+  // 안드 시계앱에 기상 알람 등록 — 무음 뚫고 울리게(자체 알림 보완). 시계앱이 시각 미리 채워 열림.
+  const addWakeToClock = async () => {
+    if (!timeline?.wake) return;
+    const ok = await setSystemAlarm({
+      hour: timeline.wake.getHours(),
+      minute: timeline.wake.getMinutes(),
+      message: `${schedule.course} 기상`,
+    });
+    if (!ok) showAppAlert('시계앱을 열 수 없어요', '기기에 기본 시계앱이 없거나 알람 추가를 지원하지 않을 수 있어요.');
+  };
 
   const anyPicked = ALARM_TYPES.some(t => picked[t]) || (departOn && !departPast) || (wakeOn && !wakePast);
 
@@ -314,18 +326,29 @@ export function AlarmSetupModal({ visible, schedule, onClose }) {
 
                       {/* 기상 알림 토글 — 새벽 티에만 */}
                       {isMorningWake && (
-                        <TouchableOpacity activeOpacity={wakePast ? 1 : 0.7} disabled={wakePast} onPress={() => setWakeOn(v => !v)}
-                          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 11, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: wakeOn ? C.burgundy : C.hairline, backgroundColor: wakeOn ? '#F5EAEC' : C.bgPrimary, opacity: wakePast ? 0.45 : 1 }}>
-                          <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: wakeOn ? C.burgundy : C.warmGrayLight, backgroundColor: wakeOn ? C.burgundy : 'transparent' }}>
-                            {wakeOn && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>🔔 기상 알림</Text>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
-                              {wakePast ? '이미 지난 시각이에요' : `${fmtClock(timeline.wake)}에 깨워드려요`}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
+                        <>
+                          <TouchableOpacity activeOpacity={wakePast ? 1 : 0.7} disabled={wakePast} onPress={() => setWakeOn(v => !v)}
+                            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 11, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: wakeOn ? C.burgundy : C.hairline, backgroundColor: wakeOn ? '#F5EAEC' : C.bgPrimary, opacity: wakePast ? 0.45 : 1 }}>
+                            <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: wakeOn ? C.burgundy : C.warmGrayLight, backgroundColor: wakeOn ? C.burgundy : 'transparent' }}>
+                              {wakeOn && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>🔔 기상 알림</Text>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
+                                {wakePast ? '이미 지난 시각이에요' : `${fmtClock(timeline.wake)}에 깨워드려요`}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+
+                          {/* 안드 전용 — 시계앱에 진짜 알람 등록(무음·방해금지 뚫고 울림). 자체 알림은 무음이면 약함 */}
+                          {SYSTEM_ALARM_SUPPORTED && wakeOn && !wakePast && (
+                            <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
+                              style={{ marginTop: 8, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter }}>📲 시계앱에도 기상 알람 추가</Text>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#F0D9CF', marginTop: 2 }}>무음·방해금지에도 울리게 (권장)</Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
                       )}
                     </>
                   ) : (

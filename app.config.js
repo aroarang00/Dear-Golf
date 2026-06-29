@@ -61,6 +61,8 @@ module.exports = {
       permissions: [
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
+        // 시계앱에 기상/출발 알람 등록(ACTION_SET_ALARM) — 무음 뚫는 진짜 알람용 ([[smart-preround-timing-plan]])
+        'com.android.alarm.permission.SET_ALARM',
       ],
       // Android Auto Backup 비활성화 — 앱 삭제 시 데이터 완전 초기화.
       // 활성화 상태(기본값)면 SharedPreferences·AsyncStorage가 Google 계정에 자동 백업되어
