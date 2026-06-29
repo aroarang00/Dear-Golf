@@ -18,10 +18,10 @@ import { getScheduleWxSummary } from '../utils/scheduleWx';    // 공유 카드 
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast'; // 순수 성공 알림('초대를 보냈어요')은 차단형 대신 토스트로
-import { AlarmSetupModal } from './AlarmSetupModal';
+import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
-import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
+import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms } from '../utils/notifications';
 import { getCalendarChoice } from '../utils/deviceCalendar';
 import { roundsOnly } from '../utils/diaryKind';
 import { GreenFlag } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG
@@ -86,6 +86,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modal, setModal] = useState({ visible: false, initial: null });
   const [pendingAlarm, setPendingAlarm] = useState(null);
+  const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' — 식사시각만 묻는 가벼운 프롬프트
+  const [alarmEditExisting, setAlarmEditExisting] = useState(null); // 시트에서 알람 변경 시 기존 설정 프리필
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 동반자 공유 — 이미지 카드 대상(홈과 동일)
@@ -362,10 +364,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       try { newS = await addSchedule(data); }
       catch (e) { console.warn('[mySchedule] add failed:', e?.message); showAppAlert('일정 저장에 실패했어요', '네트워크 상태를 확인하고 다시 시도해주세요.'); return; }
       // (캘린더 추가는 addSchedule이 일괄 처리)
-      // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
+      // 일정 추가 완료 → 알람 팝업.
+      //   '이대로 자동'이면 전체 팝업 대신 '식사시각만' 묻는 가벼운 프롬프트(나머지는 저장설정대로 자동).
       if (userProfile.alarmPromptDisabled) {
-        applyDefaultAlarms(newS, userProfile);
-        maybePromptCalendar(); // 알람 팝업이 없으면 바로 캘린더 선택 안내
+        setPendingQuickAlarm(newS);
       } else {
         setPendingAlarm(newS);
       }
@@ -912,7 +914,20 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       <AlarmSetupModal
         visible={!!pendingAlarm}
         schedule={pendingAlarm}
-        onClose={() => { setPendingAlarm(null); maybePromptCalendar(); }}
+        existing={alarmEditExisting}
+        onClose={() => { setPendingAlarm(null); setAlarmEditExisting(null); maybePromptCalendar(); }}
+      />
+
+      {/* '이대로 자동' 모드 — 식사시각만 묻고 나머지는 저장설정대로 자동 적용 */}
+      <QuickMealPrompt
+        visible={!!pendingQuickAlarm}
+        schedule={pendingQuickAlarm}
+        onDone={(arriveAt) => {
+          const s = pendingQuickAlarm;
+          setPendingQuickAlarm(null);
+          if (s) applyDefaultAlarms(s, userProfile, { arriveAt });
+          maybePromptCalendar();
+        }}
       />
 
       <CalendarPickerModal visible={calPickerOpen} onClose={() => setCalPickerOpen(false)} />
@@ -947,6 +962,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onTeam={() => { const rid = sheet.schedule?.roundupId || null; setSheet(prev => ({ ...prev, visible: false })); setTeamRid(rid); }}
         onOpenRoundup={handleSheetRoundup}
         onEdit={handleEdit}
+        onAlarm={() => {
+          const s = sheet.schedule;
+          setSheet(prev => ({ ...prev, visible: false }));
+          if (!s) return;
+          getAlarmConfig(s.id).then(cfg => { setAlarmEditExisting(cfg); setPendingAlarm(s); }).catch(() => { setAlarmEditExisting(null); setPendingAlarm(s); });
+        }}
         onDelete={handleDelete}
       />
 

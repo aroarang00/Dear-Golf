@@ -6,15 +6,23 @@ import { sheetS } from '../styles/sheetS';
 import { Icon, GreenFlag } from './common/Icon';
 import { TripleStripe } from './common/TripleStripe';
 import { buildCompanionNames } from '../utils/scheduleCompanions';
+import { getAlarmConfig, computeRoundTimeline, fmtClock } from '../utils/notifications'; // 라운드 알람 요약 표시
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadMyFriendsEnriched } from '../utils/friends';
 
 const SAGE = '#5E7E42';   // 세이지그린 — 교통 아이콘 액센트(앱 크루 세이지와 동색)
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, courseNavigable, friendMeta = {} }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
+  const [alarmCfg, setAlarmCfg] = useState(null); // 이 라운드에 설정된 알람 { types, opts } — 요약 표시
+  useEffect(() => {
+    if (!visible || !schedule?.id) { setAlarmCfg(null); return; }
+    let alive = true;
+    getAlarmConfig(schedule.id).then(c => { if (alive) setAlarmCfg(c); }).catch(() => {});
+    return () => { alive = false; };
+  }, [visible, schedule?.id]);
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [group, setGroup] = useState(null); // 전파 일정 그룹(동반자 이름 보강)
@@ -60,6 +68,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const allItems = [
     { key: 'wx', icon: 'sun', emoji: '☀️', label: '날씨 확인', onPress: onWeather },   // 해만(앰버) — cloudSun은 흰 구름이라 밝은 시트서 안 보임
     { key: 'tr', icon: 'car', color: SAGE, size: 24, emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },   // 차 그림이 납작해 살짝 키움
+    // 알람 — 기상·출발 시각 설정/변경(설정돼 있으면 위 요약에 시각 표시). 닫고 부모가 알람 화면 엶 ([[smart-preround-timing-plan]])
+    { key: 'al', icon: 'bell', emoji: '🔔', label: alarmCfg?.types?.length ? '알람 변경' : '알람 설정', onPress: onAlarm },
     // 단체팀 — 조 편성·팀별 티오프(단체 모집 일정만). 교통 바로 밑·navy 강조로 눈에 띄게 ([[event-model]])
     { key: 'team', icon: 'clipboard', emoji: '🗂', label: '단체팀 · 조 편성·티오프', onPress: onTeam, highlight: true },
     // 모집 보기 — 모집 연동 예정 일정은 일정수정이 막혀 있어, 원본 모집글(라운지 상세)로 직행해 거기서 관리 ([[roundup-schedule-delete-policy]])
@@ -75,6 +85,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const items = allItems.filter(it => {
     if (isPast && (it.key === 'wx' || it.key === 'tr')) return false;
     if (isOverseas && it.key === 'tr') return false;
+    // 알람 — 핸들러 있을 때만, 지난 일정엔 숨김(예정 라운드 알람용)
+    if (it.key === 'al' && (!onAlarm || isPast)) return false;
     // 친구 일정 초대 — 핸들러 있을 때만, 지난 일정·라운지연동 일정엔 숨김(라운지는 자체 참여 동선)
     if (it.key === 'iv' && (!onInviteFriends || isPast || schedule.roundupId)) return false;
     // 함께 식사 — 핸들러 있을 때만, 지난 일정엔 숨김(뒤풀이는 당일까지). 라운지연동도 허용(동호회 단체 식사).
@@ -103,6 +115,23 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
 
   // 동반자 닉네임 한 줄 — companions + 전파 그룹(수락=정식 / 미수락=초대중) 보강. 공용 유틸(캘린더 카드와 동일 로직).
   const companionNames = buildCompanionNames(schedule, { group, friendMeta, friendNames, myUid });
+
+  // 라운드 알람 요약 — 설정된 시각(기상·출발·모임)과 고정 시점(D-3/D-1/당일)을 한 줄로.
+  const alarmTL = (alarmCfg?.opts && schedule) ? computeRoundTimeline(schedule, alarmCfg.opts) : null;
+  const alarmSummary = (() => {
+    const t = alarmCfg?.types;
+    if (!t?.length) return null;
+    const parts = [];
+    if (t.includes('wake') && alarmTL?.wake) parts.push(`기상 ${fmtClock(alarmTL.wake)}`);
+    if (t.includes('depart') && alarmTL?.depart) parts.push(`출발 ${fmtClock(alarmTL.depart)}`);
+    if (alarmCfg?.opts?.arriveAt) parts.push(`모임 ${alarmCfg.opts.arriveAt}`);
+    const fixed = [];
+    if (t.includes('d3')) fixed.push('D-3');
+    if (t.includes('d1')) fixed.push('D-1');
+    if (t.includes('teeoff')) fixed.push('당일');
+    if (fixed.length) parts.push(fixed.join('·'));
+    return parts.length ? parts.join(' · ') : null;
+  })();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -179,6 +208,13 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                     <View style={{ width: 20, alignItems: 'center' }}><Icon name="clipboard" size={17} color={C.textSecondary} strokeWidth={1.6} /></View>
                     <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={1}>예약자 {schedule.booker}</Text>
+                  </View>
+                )}
+                {/* 라운드 알람 — 설정된 기상·출발·모임 시각 한 줄(있을 때만). 변경은 아래 메뉴 '알람'에서 */}
+                {!isPast && alarmSummary && (
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 }}>
+                    <View style={{ width: 20, alignItems: 'center', marginTop: 1 }}><Icon name="bell" size={15} color={C.textSecondary} strokeWidth={1.6} /></View>
+                    <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={2}>{alarmSummary}</Text>
                   </View>
                 )}
                 {dd != null && (

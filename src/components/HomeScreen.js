@@ -29,8 +29,8 @@ import { HomeIntroModal } from './HomeIntroModal';
 import { ScheduleScreen } from './ScheduleScreen';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
-import { AlarmSetupModal } from './AlarmSetupModal';
-import { scheduleRoundAlarms, getAlarmTypes, applyDefaultAlarms } from '../utils/notifications';
+import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
+import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
 import { loadFriendData } from '../utils/friendGroups';
@@ -111,6 +111,8 @@ export function HomeScreen({ navigation, route }) {
   const { diaries } = React.useContext(DiariesContext);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
+  const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' 모드 — 식사시각만 묻는 가벼운 프롬프트
+  const [alarmEditExisting, setAlarmEditExisting] = useState(null); // 일정 시트에서 알람 변경 시 기존 설정 프리필
   const [dismissedCards, setDismissedCards] = useState({}); // 홈 종료 카드 나가기 — {scheduleId: true} (홈에서만 숨김)
   useEffect(() => { storage.load(STORAGE_KEYS.dismissedRoundCards, {}).then(setDismissedCards); }, []);
   // 종료 카드 나가기 — 홈에서만 숨김(기록 여부 무관). 일정·내코스모아보기는 그대로.
@@ -857,10 +859,11 @@ export function HomeScreen({ navigation, route }) {
       // (캘린더 추가는 addSchedule이 일괄 처리)
       // 친구 동반자가 있으면 생성 직후(알람 팝업 뒤) 일정 전파 초대 제안 ([[schedule-propagation-spec]] A안)
       const hasFriendCompanions = Array.isArray(data.companions) && data.companions.some(c => c?.friendUid);
-      // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
+      // 일정 추가 완료 → 알람 팝업.
+      //   '이대로 자동'이면 전체 팝업 대신 '식사시각만' 묻는 가벼운 프롬프트(나머지는 저장설정대로 자동).
       if (userProfile.alarmPromptDisabled) {
-        applyDefaultAlarms(newS, userProfile);
-        if (hasFriendCompanions) offerInviteAfterCreate(newS);   // 알람 팝업 없음 → 바로 제안
+        setPendingQuickAlarm(newS);
+        if (hasFriendCompanions) setPendingInviteSchedule(newS); // 프롬프트 닫힌 뒤 제안
       } else {
         setPendingAlarmSchedule(newS);
         if (hasFriendCompanions) setPendingInviteSchedule(newS); // 알람 팝업 닫힌 뒤 제안
@@ -1529,6 +1532,13 @@ export function HomeScreen({ navigation, route }) {
           if (rid) navigation.navigate(ROUTES.LOUNGE, { openPostId: rid });
         }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
+        onAlarm={() => {
+          // 일정 시트 → 알람 변경: 시트 닫고 기존 설정 불러와 알람 화면 열기(편집 프리필)
+          const s = selectedSchedule;
+          setShowScheduleModal(false);
+          if (!s) return;
+          getAlarmConfig(s.id).then(cfg => { setAlarmEditExisting(cfg); setPendingAlarmSchedule(s); }).catch(() => { setAlarmEditExisting(null); setPendingAlarmSchedule(s); });
+        }}
         onDelete={() => {
           // 시트 안에서 이미 confirm 완료 — 시트를 '먼저' 닫고(닫힘 애니메이션과 리스트 변경이 겹쳐
           //   안드에서 삭제 카드가 깜빡이던 잔상 방지) 삭제는 낙관적으로 백그라운드 처리.
@@ -1590,13 +1600,31 @@ export function HomeScreen({ navigation, route }) {
       <AlarmSetupModal
         visible={!!pendingAlarmSchedule}
         schedule={pendingAlarmSchedule}
+        existing={alarmEditExisting}
         onClose={() => {
           setPendingAlarmSchedule(null);
+          setAlarmEditExisting(null);
           // 알람 팝업 닫힌 뒤 친구 초대 제안(생성 직후 동선) — 모달 닫힘 후 띄우게 약간 지연 ([[schedule-propagation-spec]])
           if (pendingInviteSchedule) {
             const s = pendingInviteSchedule;
             setPendingInviteSchedule(null);
             setTimeout(() => offerInviteAfterCreate(s), 350);
+          }
+        }}
+      />
+
+      {/* '이대로 자동' 모드 — 식사시각만 묻고 나머지는 저장설정대로 자동 적용 */}
+      <QuickMealPrompt
+        visible={!!pendingQuickAlarm}
+        schedule={pendingQuickAlarm}
+        onDone={(arriveAt) => {
+          const s = pendingQuickAlarm;
+          setPendingQuickAlarm(null);
+          if (s) applyDefaultAlarms(s, userProfile, { arriveAt });
+          if (pendingInviteSchedule) {
+            const inv = pendingInviteSchedule;
+            setPendingInviteSchedule(null);
+            setTimeout(() => offerInviteAfterCreate(inv), 350);
           }
         }}
       />
