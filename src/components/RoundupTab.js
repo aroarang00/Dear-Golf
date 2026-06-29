@@ -933,7 +933,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       for (const data of toAdd) {
         try {
           const created = await addSchedule(data);
-          applyDefaultAlarms(created, userProfile?.alarmDefaults);
+          applyDefaultAlarms(created, userProfile);
         } catch (e) {
           autoSchedRef.current.delete(data.roundupId); // 실패 시 재시도 허용
           console.warn('[roundup] auto-schedule add failed:', e?.message);

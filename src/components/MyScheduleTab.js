@@ -364,7 +364,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       // (캘린더 추가는 addSchedule이 일괄 처리)
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
-        applyDefaultAlarms(newS, userProfile.alarmDefaults);
+        applyDefaultAlarms(newS, userProfile);
         maybePromptCalendar(); // 알람 팝업이 없으면 바로 캘린더 선택 안내
       } else {
         setPendingAlarm(newS);

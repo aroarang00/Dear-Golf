@@ -859,7 +859,7 @@ export function HomeScreen({ navigation, route }) {
       const hasFriendCompanions = Array.isArray(data.companions) && data.companions.some(c => c?.friendUid);
       // 일정 추가 완료 → 알람 팝업 (다시 묻지 않기 설정 시 기본값 자동 적용)
       if (userProfile.alarmPromptDisabled) {
-        applyDefaultAlarms(newS, userProfile.alarmDefaults);
+        applyDefaultAlarms(newS, userProfile);
         if (hasFriendCompanions) offerInviteAfterCreate(newS);   // 알람 팝업 없음 → 바로 제안
       } else {
         setPendingAlarmSchedule(newS);

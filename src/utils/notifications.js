@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { STORAGE_KEYS, storage } from './storage';
+import { getScheduleDriveMin } from './scheduleWx'; // 자동 적용 시 기상·출발 역산용 이동시간(집→구장)
 
 // Android 알림 채널 — 8+(API26)에선 채널이 없거나 importance가 낮으면 heads-up 배너·소리가 안 뜰 수 있음
 //   ('테스터별 조용히 옴/안 옴'의 흔한 원인). 고중요도 'default' 채널을 모듈 로드 시 1회 보장(권한 불필요).
@@ -41,12 +42,64 @@ export const ALARM_DEFS = {
   d3:     { key: 'd3',     label: 'D-3 (3일 전 오전 10시)',  title: '⛳ 3일 후 라운딩이 있어요',     tail: '앱에서 날씨·교통을 미리 확인해보세요' },
   d1:     { key: 'd1',     label: 'D-1 (전날 오후 6시)',     title: '🌤️ 내일 라운딩 D-1이에요',     tail: '동반자에게 일정을 공유해보세요 →' },
   teeoff: { key: 'teeoff', label: '당일 (티오프 2시간 전)',  title: '🏌️ 오늘 라운딩 2시간 전이에요', tail: '빠뜨린 건 없는지 확인해보세요 😊' },
+  // 동적 알람 — 발송 시각이 이동시간(driveMin)·개인설정(prepMin·arriveBufferMin)에 따라 달라짐.
+  //   ALARM_TYPES(고정시점 체크박스·기본설정)엔 넣지 않음. body는 _scheduleRoundAlarms에서 계산시각으로 동적 생성.
+  depart: { key: 'depart', label: '출발 알림',  title: '🚗 이제 출발할 시간이에요',         tail: '안전운전하세요!' },
+  wake:   { key: 'wake',   label: '기상 알림',  title: '⛳ 골프 가는 날! 일어날 시간이에요', tail: '좋은 라운딩 되세요 😊' },
 };
-export const ALARM_TYPES = ['d3', 'd1', 'teeoff'];
+export const ALARM_TYPES = ['d3', 'd1', 'teeoff'];          // 고정시점 — 체크박스·기본설정·자동적용용
+export const DYNAMIC_ALARM_TYPES = ['wake', 'depart'];      // 이동시간 역산 기반 — 출발지 좌표 있어야 계산
 export const ALARM_DEFAULTS_FALLBACK = { d3: true, d1: true, teeoff: true };
+export const MORNING_TEE_BEFORE_HOUR = 9;                   // 티오프가 이 시각 전이면 '오전티(1부)' — 기상 알림 의미 있음(한국 골프: 오전티 보통 9시 이전)
+export const MORNING_WAKE_BEFORE_HOUR = 7;                  // 또는 역산 기상이 이 시각 전이면(낮티라도 먼 거리로 일찍 기상) 기상 알림 권함
 
-// 일정 객체 → 알람 시점별 발송 시각(Date). { d3, d1, teeoff }
-export function alarmTriggers(schedule) {
+// 이 라운드에 기상 알림이 의미 있는지 — 오전티(티오프<9시)거나, 역산 기상이 이른(<7시) 경우.
+//   낮티(10:30+)·야간(3부)은 둘 다 아니라 false → 기상 알림 숨김/생략.
+export function shouldOfferWake(timeline) {
+  if (!timeline?.wake) return false;
+  return timeline.teeoff.getHours() < MORNING_TEE_BEFORE_HOUR
+    || timeline.wake.getHours() < MORNING_WAKE_BEFORE_HOUR;
+}
+
+// 부(部)별 기본 출발지 키 — 'home' | 'work'.
+//   1부(오전티,<9시)=집 / 2·3부(오후·야간)=회사(저장돼 있으면, 없으면 집). 퇴근 후 직행이 흔해서.
+export function defaultOriginKey(schedule, profile) {
+  const [hh] = (schedule?.time || '08:00').split(':').map(Number);
+  const hasWork = !!(profile?.workCoord && typeof profile.workCoord.x === 'number' && typeof profile.workCoord.y === 'number');
+  if ((hh || 8) < MORNING_TEE_BEFORE_HOUR) return 'home'; // 오전티 → 집
+  return hasWork ? 'work' : 'home';                       // 오후·야간 → 회사(있으면)
+}
+
+// 출발지 키 → 저장된 좌표({x,y}|null). 'current'(현재위치)는 비동기라 호출부에서 별도 처리.
+export function originCoordOf(key, profile) {
+  if (key === 'work') return profile?.workCoord || null;
+  return profile?.departureCoord || null; // 'home'
+}
+
+// 'HH:MM' 표기 — 동적 알람 본문·UI 공용
+export function fmtClock(date) {
+  if (!date) return '';
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+// 일정 + 개인설정으로 라운드 타임라인 역산.
+//   driveMin=집→구장 이동(분), prepMin=집에서 나갈 준비(분, 화장·짐 등), arriveBufferMin=구장 도착~티오프 여유(분).
+//   teeoff − 도착여유 = 구장도착 / − 이동시간 = 출발 / − 준비시간 = 기상.
+//   반환 { teeoff, arrive, depart, wake } — 입력이 모자라 못 구하는 항목은 null(부분 반환).
+export function computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin } = {}) {
+  const [y, m, d] = (schedule?.date || '').split('.').map(Number);
+  const [hh, mm] = (schedule?.time || '08:00').split(':').map(Number);
+  if (!y || !m || !d) return null;
+  const teeoff = new Date(y, m - 1, d, hh || 8, mm || 0, 0, 0);
+  const arrive = Number.isFinite(arriveBufferMin) ? new Date(teeoff.getTime() - arriveBufferMin * 60000) : null;
+  const depart = (arrive && Number.isFinite(driveMin)) ? new Date(arrive.getTime() - driveMin * 60000) : null;
+  const wake   = (depart && Number.isFinite(prepMin)) ? new Date(depart.getTime() - prepMin * 60000) : null;
+  return { teeoff, arrive, depart, wake };
+}
+
+// 일정 객체 → 알람 시점별 발송 시각(Date). { d3, d1, teeoff } + opts 주어지면 { depart, wake } 추가.
+//   opts={ driveMin, prepMin, arriveBufferMin } — 동적 알람 계산용(없으면 고정 3종만).
+export function alarmTriggers(schedule, opts = {}) {
   const [y, m, d] = (schedule?.date || '').split('.').map(Number);
   const [hh, mm] = (schedule?.time || '08:00').split(':').map(Number);
   if (!y || !m || !d) return {};
@@ -60,7 +113,13 @@ export function alarmTriggers(schedule) {
 
   const teeoff2h = new Date(teeoff.getTime() - 2 * 3600000); // 티오프 2시간 전
 
-  return { d3, d1, teeoff: teeoff2h };
+  const out = { d3, d1, teeoff: teeoff2h };
+
+  // 동적 알람 — 이동시간 등 옵션이 있을 때만 역산해 추가
+  const tl = computeRoundTimeline(schedule, opts);
+  if (tl?.depart) out.depart = tl.depart;
+  if (tl?.wake) out.wake = tl.wake;
+  return out;
 }
 
 // 알림 권한 요청 — 이미 허용돼 있으면 바로 true, 아니면 OS 팝업
@@ -103,10 +162,24 @@ async function _cancelRoundAlarms(scheduleId) {
   }
 }
 
-async function _scheduleRoundAlarms(schedule, types) {
+// 동적 알람(wake/depart) 본문 — 역산 시각을 보여줘 한눈에 확인되게.
+function _dynamicBody(t, schedule, opts) {
+  const tl = computeRoundTimeline(schedule, opts || {});
+  if (t === 'wake' && tl?.wake) return `${schedule.course}\n${fmtClock(tl.wake)} 기상 · ${fmtClock(tl.depart)} 출발`;
+  if (t === 'depart' && tl?.depart) return `${schedule.course}\n${fmtClock(tl.depart)} 출발 · ${fmtClock(tl.teeoff)} 티오프`;
+  return `${schedule.course} · ${schedule.time}\n${ALARM_DEFS[t]?.tail || ''}`;
+}
+
+async function _scheduleRoundAlarms(schedule, types, opts) {
   if (!schedule?.id) return [];
+  // 동적 알람(wake/depart) 재예약 시 opts 미전달이면 이전 저장 opts 재사용.
+  //   이동시간(driveMin)은 출발지·구장 거리라 일정 시간 변경과 무관 → 옛 값 그대로 써도 정확.
+  //   (편집 경로가 scheduleRoundAlarms(s, types)만 호출해도 wake/depart가 유지되게)
+  const prevMap = await storage.load(STORAGE_KEYS.alarms, {});
+  const effOpts = (opts && Object.keys(opts).length) ? opts : (prevMap[schedule.id]?.opts || {});
+
   await _cancelRoundAlarms(schedule.id); // 기존 예약분 먼저 정리
-  const triggers = alarmTriggers(schedule);
+  const triggers = alarmTriggers(schedule, effOpts);
   const now = Date.now();
   const scheduled = [];
 
@@ -114,11 +187,12 @@ async function _scheduleRoundAlarms(schedule, types) {
     const when = triggers[t];
     const def = ALARM_DEFS[t];
     if (!when || !def || when.getTime() <= now) continue; // 지난 시점은 건너뜀
+    const isDynamic = t === 'wake' || t === 'depart';
     try {
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: def.title,
-          body: `${schedule.course} · ${schedule.time}\n${def.tail}`,
+          body: isDynamic ? _dynamicBody(t, schedule, effOpts) : `${schedule.course} · ${schedule.time}\n${def.tail}`,
           data: { scheduleId: schedule.id, nav: 'home' },
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
@@ -130,17 +204,20 @@ async function _scheduleRoundAlarms(schedule, types) {
   }
 
   const map = await storage.load(STORAGE_KEYS.alarms, {});
-  // types는 사용자가 켠 시점 전체를 기록(과거라 건너뛴 것 포함) — 수정 시 재예약 기준
-  map[schedule.id] = { types: types || [], ids: scheduled };
+  // types는 사용자가 켠 시점 전체를 기록(과거라 건너뛴 것 포함) — 수정 시 재예약 기준.
+  // opts는 동적 알람(wake/depart) 재계산용으로 함께 저장.
+  map[schedule.id] = { types: types || [], ids: scheduled, opts: effOpts };
   await storage.save(STORAGE_KEYS.alarms, map);
   return scheduled;
 }
 
 // --- 공개 API (큐를 통해 직렬 실행) ---
 
-// 일정에 대한 라운딩 알람 예약. types: ['d3','d1','teeoff'] 중 선택분.
-export function scheduleRoundAlarms(schedule, types) {
-  return enqueue(() => _scheduleRoundAlarms(schedule, types));
+// 일정에 대한 라운딩 알람 예약. types: ['d3','d1','teeoff','wake','depart'] 중 선택분.
+//   opts={ driveMin, prepMin, arriveBufferMin } — wake/depart 역산용(고정 3종만 켜면 불필요).
+//   opts 생략 시 직전 저장값 재사용(편집 재예약 등) — _scheduleRoundAlarms 참고.
+export function scheduleRoundAlarms(schedule, types, opts) {
+  return enqueue(() => _scheduleRoundAlarms(schedule, types, opts));
 }
 
 // 일정 삭제 시 — 해당 일정의 모든 예약 알람 취소
@@ -176,14 +253,37 @@ export function reconcileAlarms(activeIds) {
   return enqueue(() => _reconcileAlarms(activeIds));
 }
 
-// 팝업 없이 기본 알람 설정대로 예약 — '다시 묻지 않기'를 켠 사용자용
-export async function applyDefaultAlarms(schedule, alarmDefaults) {
-  const base = alarmDefaults || ALARM_DEFAULTS_FALLBACK;
-  const types = ALARM_TYPES.filter(t => base[t]);
+// 팝업 없이 기본 설정대로 예약 — '라운드마다 직접 설정' 끈 사용자(=대부분, 온보딩서 한 번 정함).
+//   profile = userProfile 전체. alarmDefaults(고정 3종 + wake/depart) + prepMin·arriveBufferMin·departureCoord 사용.
+//   기상·출발(동적)은 출발지 저장돼 이동시간 역산될 때만, 기상은 '새벽 티'(역산 기상<오전7시)일 때만 자동 적용.
+export async function applyDefaultAlarms(schedule, profile) {
+  const base = profile?.alarmDefaults || ALARM_DEFAULTS_FALLBACK;
+  const types = ALARM_TYPES.filter(t => base[t]); // 고정 3종(d3/d1/teeoff)
+
+  // 동적 알람(기상·출발) — 켜져 있고 출발지 있으면 이동시간 역산해 추가.
+  //   출발지는 부(部)별 기본: 1부=집 / 2·3부=회사(없으면 집). 자동 경로라 현재위치(GPS)는 안 씀.
+  let opts;
+  const originKey = defaultOriginKey(schedule, profile);
+  const origin = originCoordOf(originKey, profile);
+  const wantDynamic = (base.wake || base.depart);
+  if (wantDynamic && origin && typeof origin.x === 'number' && typeof origin.y === 'number') {
+    try {
+      const driveMin = await getScheduleDriveMin(schedule, origin);
+      if (Number.isFinite(driveMin)) {
+        const prepMin = Number.isFinite(profile.prepMin) ? profile.prepMin : 30;
+        const arriveBufferMin = Number.isFinite(profile.arriveBufferMin) ? profile.arriveBufferMin : 30;
+        const tl = computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin });
+        if (base.depart && tl?.depart) types.push('depart');
+        if (base.wake && shouldOfferWake(tl)) types.push('wake'); // 오전티(1부)만 — 낮·야간 자동 제외
+        opts = { driveMin, prepMin, arriveBufferMin };
+      }
+    } catch (e) { if (__DEV__) console.warn('[notifications] applyDefault dynamic', e?.message); }
+  }
+
   if (!types.length) return;
   const granted = await requestNotificationPermission();
   if (!granted) return;
-  await scheduleRoundAlarms(schedule, types);
+  await scheduleRoundAlarms(schedule, types, opts);
 }
 
 // 일정에 설정된 알람 시점 목록 반환 (없으면 null) — 수정 시 재예약 여부 판단용
