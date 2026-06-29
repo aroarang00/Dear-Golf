@@ -1,11 +1,12 @@
 # Data Safety 초안 (Google Play) + App Privacy 참고 (App Store)
 
-> 작성 2026-06-27. 근거 = 개인정보처리방침(`src/constants/legalTexts.js` PRIVACY_POLICY, 시행일 2026-06-02) + 코드 감사.
+> 작성 2026-06-27, **Sentry OFF 확정 반영 2026-06-29**. 근거 = 개인정보처리방침(`src/constants/legalTexts.js` PRIVACY_POLICY, 시행일 2026-06-02) + 코드 감사 + EAS 환경변수 확인.
 > 이 문서는 **콘솔 입력용 초안**이다. 제출 전 아래 "확인 필요" 항목을 사장님이 확정할 것.
+> **★2026-06-29 결정: Sentry 끄고 출시** — EAS 프로덕션 env에 `EXPO_PUBLIC_SENTRY_DSN` 없음(빌드 로그 + `eas env:list` 이중확인) → 실제 배포 빌드에 Sentry 미작동 → 크래시·진단 수집=아니오, 법무 고지 불필요. (나중에 켜려면 EAS env에 DSN 추가 + 개인정보처리방침 제5·6조 법무 반영.)
 
 ## 0. 요약 판정 (Play Console 첫 분기)
 - **데이터 수집(Collect)**: 예
-- **제3자 공유(Share)**: **아니오** — 외부사(Firebase/Google·Kakao·SendGrid·Sentry)는 전부 **처리위탁(service provider)**이라 Play 정의상 'shared' 아님. 사용자↔사용자 콘텐츠 노출(DM·모집·크루)도 Play의 '공유'가 아님(다른 회사 전송이 아님).
+- **제3자 공유(Share)**: **아니오** — 활성 외부사(Firebase/Google·Kakao)는 **처리위탁(service provider)**이라 Play 정의상 'shared' 아님. (SendGrid·Sentry는 현재 비활성/미설정 — §4 참조.) 사용자↔사용자 콘텐츠 노출(DM·모집·크루)도 Play의 '공유'가 아님(다른 회사 전송이 아님).
 - **전송 중 암호화(Encrypted in transit)**: 예 (SSL/TLS·Firestore)
 - **삭제 요청 수단 제공**: 예 (앱 내 마이페이지 → 계정 탈퇴 = 즉시 완전 삭제 + 이메일 데이터 다운로드 요청)
 - **Families/아동 정책**: 만 19세 이상 전용, 아동 대상 아님
@@ -23,12 +24,12 @@
 | **사진·동영상 > 동영상** | 라운딩·크루·DM 동영상 | 예 | 아니오 | 선택 | 앱 기능 | Storage 업로드 |
 | **앱 활동 > 사용자 생성 콘텐츠** | 라운딩 기록·스코어·모집글·크루 게시물·댓글·식사·신고·매너 | 예 | 아니오 | 선택 | 앱 기능 | Firestore |
 | **앱 활동 > 앱 내 검색기록** | 최근 코스/검색 | 예 | 아니오 | 선택 | 앱 기능 | recentCourses |
-| **앱 정보·성능 > 크래시 로그** | 크래시 스택 | 예 | 아니오(Sentry=위탁) | 선택 | 분석(안정성) | `ErrorBoundary` Sentry.captureException |
-| **앱 정보·성능 > 진단** | 성능·오류 진단 | 예 | 아니오(Sentry=위탁) | 선택 | 분석 | Sentry |
 | **기기·기타 ID** | 푸시 토큰, 기기 식별자, 접속 로그 | 예 | 아니오 | 필수 | 앱 기능(푸시), 보안·부정방지 | `pushTokens.js`, PRIVACY 제10조 |
 
+> ※ **앱 정보·성능(크래시 로그·진단)은 수집 안 함** — Sentry 미설정(EAS 프로덕션 env에 DSN 없음, 2026-06-29 확정). 코드에 Sentry.init은 있으나 DSN 없으면 `enabled=false`라 미작동. 나중에 Sentry 켜면 이 두 항목을 '수집=예(처리위탁)'로 되살릴 것.
+
 ### 수집 안 함 (명시)
-- 금융정보, 건강/피트니스(골프 스코어는 '앱 활동'으로 분류), 정확한 위치(Precise), 이메일(사용자 수집 X — 운영자 연락처만), 연락처(기기 주소록 접근 X), 캘린더(기기 캘린더 접근 X — 인앱 일정만), 웹 브라우징, 오디오, 광고 ID(광고 없음).
+- **크래시 로그·진단(Sentry 미설정 — EAS 프로덕션 env에 DSN 없음, 2026-06-29 확정)**, 금융정보, 건강/피트니스(골프 스코어는 '앱 활동'으로 분류), 정확한 위치(Precise), 이메일(사용자 수집 X — 운영자 연락처만), 연락처(기기 주소록 접근 X), 캘린더(기기 캘린더 접근 X — 인앱 일정만), 웹 브라우징, 오디오, 광고 ID(광고 없음).
 
 ## 2. 보안/삭제 (Data security 섹션)
 - 전송 중 암호화: **예**
@@ -36,10 +37,10 @@
 - 독립 보안 표준 검토(선택 질문): 해당 없음/미작성
 
 ## 3. App Store App Privacy (Apple — 병행 제출용 참고)
-Apple 영양성분표(Nutrition Label)도 유사 매핑. "Data Used to Track You" = **없음**(광고·추적 SDK 없음). "Data Linked to You": 위치(대략)·이름·사용자ID·생년월일·메시지·사진/동영상·사용자콘텐츠·진단·식별자(푸시/기기). "Data Not Linked": (없음 또는 크래시 진단을 Not Linked로 분류 가능 — Sentry 구성에 따라). 추적(ATT) 프롬프트 불필요(추적 없음).
+Apple 영양성분표(Nutrition Label)도 유사 매핑. "Data Used to Track You" = **없음**(광고·추적 SDK 없음). "Data Linked to You": 위치(대략)·이름·사용자ID·생년월일·메시지·사진/동영상·사용자콘텐츠·식별자(푸시/기기). "Data Not Linked": **없음**(크래시·진단 미수집 — Sentry off). 추적(ATT) 프롬프트 불필요(추적 없음).
 
 ## 4. ★확인 필요 (제출 전 사장님 확정)
-1. ✅ **확정(2026-06-29): Sentry는 프로덕션에서 가동 중.** `.env`에 실가동 DSN(`...ingest.us.sentry.io`, 미국) 설정됨 + `App.js:27` `enabled: !__DEV__ && !!DSN` → preview/production 빌드(`__DEV__=false`)에서 ON. `sendDefaultPii:false`+`beforeSend`로 IP·email 제거. → '앱 정보·성능(크래시·진단)' 수집=**예** 유지가 맞음. **단, 켜둔 채 출시하려면 §6 법무 고지(제5·6조)가 필수.** Sentry on/off 출시 결정은 **보류**(2026-06-29) — 끄기로 하면 이 항목 수집=아니오 + §6 불필요로 전환.
+1. ✅ **확정·결정(2026-06-29): Sentry OFF로 출시.** 로컬 `.env`엔 DSN이 있으나 **EAS 프로덕션 환경엔 `EXPO_PUBLIC_SENTRY_DSN`이 없음**(EAS 빌드는 EAS env 사용 — 빌드 로그 + `eas env:list --environment production` 이중확인). `App.js:27` `enabled: !__DEV__ && !!DSN` → DSN 없으면 false → **실제 배포(vc94 등) 빌드에 Sentry 미작동.** → '앱 정보·성능(크래시·진단)' 수집=**아니오**, §6 법무 고지 **불필요.** (켜려면: EAS env에 DSN 추가 → 그땐 §1 두 항목 수집=예 복원 + §6 법무 반영.)
 2. ✅ **확정(2026-06-29): 기기 주소록 미접근.** `findKakaoFriendUsers`→`getKakaoFriends`→카카오 SDK `getFriends()`(friends scope, 소셜 그래프)만 사용. 코드 전체에 `expo-contacts`/`Contacts.` 사용 0건. → Play '연락처(Contacts=기기 주소록)' 카테고리 **해당 없음**(현 표기 유지). 보수적 표기 불필요.
 3. **위치 '공유'** — 대략 위치를 카카오/네이버/기상청 API에 보내 결과를 받음(처리위탁). 'shared=아니오' 유지가 통상이나, 심사 보수적으로 갈지 결정.
 4. **데이터 다운로드(데이터 이동권)** — 현재 '이메일 요청 후 수기 제공'. 자동화 안 됐어도 '삭제·다운로드 제공=예'로 신고 가능(수단 존재).
@@ -47,7 +48,8 @@ Apple 영양성분표(Nutrition Label)도 유사 매핑. "Data Used to Track You
 
 ## 5. 정합 메모
 - 개인정보처리방침 제1조 수집항목과 위 표는 일치(닉네임·본명·생년월일·sub·기록·매너·신고·기기식별자·푸시토큰·접속로그·위치).
-- 제5조 위탁: Kakao·Google(Firebase)·Twilio(SendGrid, 현재 비활성). Sentry는 약관 위탁목록에 **미기재**.
+- 제5조 위탁: Kakao·Google(Firebase)·Twilio(SendGrid, 현재 비활성). Sentry는 약관 위탁목록에 미기재 — **현재 OFF라 정합 문제 없음**(켜면 추가 필요).
 
-## 6. 법무 반영 대기 (2026-06-27 결정)
-- **[법무] Sentry 처리위탁·국외이전(미국) 고지 추가** — Sentry는 크래시/오류 데이터를 수집하는 국외 처리위탁사인데 개인정보처리방침 제5조(위탁)·제6조(국외이전)에 미기재. 변호사 검토 문서라 임의 수정하지 않고 **법무 반영 예정**. 반영 시: 위탁사 'Functional Software, Inc.(Sentry)', 이전국가 미국, 이전항목 '오류·크래시 진단 로그', 목적 '서비스 안정성', SSL 전송. (Sentry를 끄기로 하면 고지 불필요 — 그 경우 Data Safety §1의 크래시·진단도 수집=아니오로.)
+## 6. 법무 반영 — Sentry 고지 불필요 (2026-06-29 결정)
+- **Sentry OFF로 출시 확정 → 개인정보처리방침 제5·6조에 Sentry 추가 불필요.** 실제 배포 빌드에 미작동(EAS env에 DSN 없음)이라 크래시/오류 데이터 국외이전이 발생하지 않음.
+- **(나중에 켤 경우에만)** 제5조(위탁)·제6조(국외이전) 추가 필요: 위탁사 'Functional Software, Inc.(Sentry)', 이전국가 미국, 이전항목 '오류·크래시 진단 로그', 목적 '서비스 안정성', SSL 전송 — 변호사 검토 후 반영. 그때 Data Safety §1 크래시·진단도 '수집=예'로 복원.
