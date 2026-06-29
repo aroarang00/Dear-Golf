@@ -195,6 +195,32 @@ test('roundups: 생성은 author==me + scope in [friends,select] (all 은 거부
   await assertSucceeds(setDoc(doc(as('alice'), 'roundups', 'r1'), roundupBase()));
   // scope='all' — 생성 차단(전체공개 비활성화 정책)
   await assertFails(setDoc(doc(as('alice'), 'roundups', 'r2'), roundupBase({ scope: 'all' })));
+  // 친구지정/크루지정(select) — 비친구(carol, 친구설정 없음)를 audienceUids에 넣어도 생성 허용.
+  //   규칙은 audienceUids 멤버의 친구 여부를 검사하지 않음 → 크루 멤버(비친구) 지정의 토대 ([[crew-roundup-share-plan]]).
+  await assertSucceeds(setDoc(doc(as('alice'), 'roundups', 'r3'),
+    roundupBase({ scope: 'select', selectMode: 'include', selectedUids: ['carol'], audienceUids: ['carol'] })));
+});
+
+test('roundups: 친구지정/크루지정(select) read — audienceUids 멤버만 허용, 미지정자 거부', async () => {
+  // bob 지정(audienceUids). 친구든 크루 멤버든 audienceUids에 있으면 동일 경로.
+  await seed((db) => setDoc(doc(db, 'roundups', 'r1'),
+    roundupBase({ scope: 'select', selectMode: 'include', selectedUids: ['bob'], audienceUids: ['bob'] })));
+  await assertSucceeds(getDoc(doc(as('bob'), 'roundups', 'r1')));    // 지정된 bob — 읽기 허용
+  await assertFails(getDoc(doc(as('carol'), 'roundups', 'r1')));      // 미지정 carol — 읽기 거부
+  await assertSucceeds(getDoc(doc(as('alice'), 'roundups', 'r1')));   // 작성자 — 항상 읽기
+});
+
+test('roundups: 크루지정 — 비친구도 audienceUids면 read+참여 허용, 밖이면 거부', async () => {
+  // carol 은 alice 와 친구관계 없음(테스트 env에 친구설정 없음) = 비친구 크루 멤버 상황.
+  await seed((db) => setDoc(doc(db, 'roundups', 'r1'),
+    roundupBase({ scope: 'select', selectMode: 'include', selectedUids: [], audienceUids: ['carol'] })));
+  // 비친구 carol 이 audienceUids라 read 허용 — 크루지정의 핵심 보장(친구 아님과 무관)
+  await assertSucceeds(getDoc(doc(as('carol'), 'roundups', 'r1')));
+  // 그리고 자기 토글로 참여 가능
+  await assertSucceeds(updateDoc(doc(as('carol'), 'roundups', 'r1'),
+    { participantUids: arrayUnion('carol'), joined: 2, updatedAt: serverTimestamp() }));
+  // audienceUids 밖 dave — read 거부
+  await assertFails(getDoc(doc(as('dave'), 'roundups', 'r1')));
 });
 
 test('roundups: 참여자는 participantUids 자기 토글만, 남 토글·금지필드는 거부', async () => {
