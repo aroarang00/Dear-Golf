@@ -11,7 +11,7 @@ import { Animated, Easing } from 'react-native';
 //   entrance: 등장 시 살짝 페이드+업(한 번). axis/distance/duration로 미세조정.
 export function AttentionMotion({
   children, type = 'pulse', entrance = false,
-  axis = 'x', distance, duration = 1000, style, enabled = true, bidir = false,
+  axis = 'x', distance, duration = 1000, style, enabled = true, bidir = false, pulseScale = 1.04,
 }) {
   const v = useRef(new Animated.Value(0)).current;                       // 루프 0↔1
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;    // 등장 0→1
@@ -51,7 +51,7 @@ export function AttentionMotion({
 
   const tf = [];
   if (enabled && type === 'pulse') {
-    tf.push({ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) });
+    tf.push({ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, pulseScale] }) });
   } else if (enabled && type === 'float') {
     const d = distance != null ? distance : -6; // 부호=방향(+ 오른쪽/아래, − 왼쪽/위)
     // bidir=양쪽 살랑(가운데 기준 ±d), 아니면 한 방향(0→d). 둘 다 rest=0(제자리)에서 시작.

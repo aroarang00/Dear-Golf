@@ -1,11 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Dimensions, Animated, Easing } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
+import Svg, { Polyline, Circle, Line, G, Text as SvgText } from 'react-native-svg';
 import { C, F, fs } from '../constants/colors';
+import { AttentionMotion } from './common/AttentionMotion';
 import { roundsOnly, isRoundDiary } from '../utils/diaryKind';
 import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
+
+// 추세선 draw-on·점 페이드 — react-native-svg 컴포넌트에 RN Animated 바인딩(JS 드라이버, useNativeDriver:false)
+const AnimatedPolyline = Animated.createAnimatedComponent(Polyline);
+const AnimatedG = Animated.createAnimatedComponent(G);
 
 // 스코어 통계·추세 — "내 코스 모아보기"의 요약 배너에서 진입(전용 화면). ([[feature-backlog]] ①)
 //  전부 다이어리(라운딩 기록) 클라 집계 = 추가 저장 0. 차트는 기존 react-native-svg(재빌드 X).
@@ -190,13 +195,17 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
                 ['평균', avg != null ? `${avg}` : '-'],
                 ['베스트', bestVal != null ? `${bestVal}` : '-'],
                 ['핸디', handicap != null ? `${handicap}` : '-'],
-              ].map(([label, val], i) => (
+              ].map(([label, val], i) => {
+                const valEl = <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: i === 2 ? C.butter : '#fff' }}>{val}</Text>;
+                return (
                 <View key={label} style={{ flex: 1, alignItems: 'center',
                   borderLeftWidth: i === 0 ? 0 : 0.5, borderLeftColor: 'rgba(255,255,255,0.15)' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: i === 2 ? C.butter : '#fff' }}>{val}</Text>
+                  {/* 베스트(i=2)만 맥동 — 성취 강조. 숫자라 진폭 키움(기본 1.04는 안 보임). 값 있을 때만 */}
+                  {i === 2 && bestVal != null ? <AttentionMotion type="pulse" pulseScale={1.13} duration={780}>{valEl}</AttentionMotion> : valEl}
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{label}</Text>
                 </View>
-              ))}
+                );
+              })}
             </View>
             {/* 안내 — 평소 접힘(제목만 또렷이), 탭하면 화면 각 항목 설명 펼침. 공간 절약 + 알아보기 쉬운 제목 */}
             <TouchableOpacity onPress={() => setInfoOpen((o) => !o)} activeOpacity={0.7}
@@ -243,7 +252,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
 
             {/* A-3. 기록(마일스톤) — 라이프 베스트·브레이크 달성 등 성취 하이라이트 */}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>기록</Text>
-            <Milestones scored={scored} lifeBest={userProfile?.lifeBest} />
+            <Milestones scored={scored} lifeBest={userProfile?.lifeBest} diaries={diaries} />
 
             {/* B. 스코어 추세 그래프 */}
             <View style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -268,8 +277,9 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>점수대 분포</Text>
             <ScoreDistribution scored={scored} />
 
-            {/* D. 홀 분석 — 파·버디·보기 비율 도넛 */}
+            {/* D. 홀 분석 — 파·버디·보기 비율 도넛. 제목 아래 조건 안내(스코어 추세 부제와 동일 패턴) */}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 24, marginBottom: 2 }}>홀 분석</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight, marginTop: 2 }}>홀별 스코어를 등록한 라운드만 분석돼요</Text>
             <HoleBreakdown diaries={diaries} />
 
             {/* E. 구장별 스코어 — '내 코스 모아보기'와 직접 연결(구장·방문·베스트·평균) */}
@@ -294,6 +304,14 @@ function TrendChart({ series, avg, bestVal }) {
   // 카드 — 스탯바·안내 박스와 같은 결(연한 배경 + 라운드 + 헤어라인)로 통일
   const card = { marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline };
 
+  // 추세선 draw-on — hook은 early return 위에서(규칙 준수). 시리즈(점수열) 바뀌면 다시 그림.
+  const drawAnim = useRef(new Animated.Value(0)).current;
+  const seriesKey = (series || []).map(s => s.score).join(',');
+  useEffect(() => {
+    drawAnim.setValue(0);
+    Animated.timing(drawAnim, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: false, isInteraction: false }).start();
+  }, [seriesKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!series || series.length < 2) {
     return (
       <View style={[card, { height: 180, alignItems: 'center', justifyContent: 'center' }]}>
@@ -315,6 +333,13 @@ function TrendChart({ series, avg, bestVal }) {
   const pts = series.map((s, i) => `${x(i)},${y(s.score)}`).join(' ');
   const avgY = avg != null ? y(Math.min(maxV, Math.max(minV, avg))) : null;
 
+  // 폴리라인 총 길이 — dashoffset을 이만큼 줬다가 0으로 보내면 선이 왼→오로 그려진다. 점은 끝나갈 때 페이드인.
+  let totalLen = 0;
+  for (let i = 1; i < n; i++) totalLen += Math.hypot(x(i) - x(i - 1), y(series[i].score) - y(series[i - 1].score));
+  totalLen = totalLen || 1;
+  const dashOffset = drawAnim.interpolate({ inputRange: [0, 1], outputRange: [totalLen, 0] });
+  const dotsOpacity = drawAnim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0, 1] });
+
   return (
     <View style={[card, { paddingHorizontal: CARD_PAD, paddingVertical: CARD_PAD }]}>
       <Svg width={W} height={H}>
@@ -325,16 +350,19 @@ function TrendChart({ series, avg, bestVal }) {
         {avgY != null && (
           <Line x1={padL} y1={avgY} x2={W - padR} y2={avgY} stroke={C.warmGrayLight} strokeWidth={1} strokeDasharray="4,4" />
         )}
-        {/* 추세선 — 네이비(브랜드) */}
-        <Polyline points={pts} fill="none" stroke={C.navy} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-        {/* 점 — 베스트는 골드(흰 테두리), 그 외 흰 점+네이비 링 */}
-        {series.map((s, i) => {
-          const isBest = bestVal != null && s.score === bestVal;
-          return (
-            <Circle key={i} cx={x(i)} cy={y(s.score)} r={isBest ? 5.5 : 3.5}
-              fill={isBest ? GOLD : '#fff'} stroke={isBest ? '#fff' : C.navy} strokeWidth={isBest ? 1.5 : 2} />
-          );
-        })}
+        {/* 추세선 — 네이비(브랜드). dash 길이=총길이, offset을 0으로 보내며 왼→오로 그려짐 */}
+        <AnimatedPolyline points={pts} fill="none" stroke={C.navy} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round"
+          strokeDasharray={totalLen} strokeDashoffset={dashOffset} />
+        {/* 점 — 베스트는 골드(흰 테두리), 그 외 흰 점+네이비 링. 선이 끝나갈 때 같이 페이드인 */}
+        <AnimatedG opacity={dotsOpacity}>
+          {series.map((s, i) => {
+            const isBest = bestVal != null && s.score === bestVal;
+            return (
+              <Circle key={i} cx={x(i)} cy={y(s.score)} r={isBest ? 5.5 : 3.5}
+                fill={isBest ? GOLD : '#fff'} stroke={isBest ? '#fff' : C.navy} strokeWidth={isBest ? 1.5 : 2} />
+            );
+          })}
+        </AnimatedG>
       </Svg>
       {/* x축 — 처음/끝 날짜 (차트 점 위치에 맞춰 정렬) */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: padL, paddingRight: padR, marginTop: 2 }}>
@@ -551,7 +579,7 @@ function CourseScores({ scored }) {
 
 // 기록(마일스톤) — 라이프 베스트·90 브레이크·첫 싱글(80↓)·총 라운딩. scored=날짜오름차순(첫 항목=최초 달성).
 //   미달성은 '도전 중'으로 회색 — 목표가 보여 동기부여. 추가 저장 없이 다이어리에서 집계.
-function Milestones({ scored, lifeBest }) {
+function Milestones({ scored, lifeBest, diaries }) {
   const m = useMemo(() => {
     const list = scored || [];
     let best = null;
@@ -559,6 +587,18 @@ function Milestones({ scored, lifeBest }) {
     const firstUnder = (th) => list.find((s) => s.score < th) || null;   // 날짜오름차순 → 첫 매치 = 최초 달성
     return { total: list.length, best, sub90: firstUnder(90), sub80: firstUnder(80) };
   }, [scored]);
+
+  // 특별 기록 — 라운드 기록의 '특별한 순간'(special 필드: 'EAGLE'|'ALBATROSS'|'HOLE IN ONE') 집계.
+  //   총타수만 입력해도 사용자가 직접 고른 값이라 잡힘(홀별 par 불필요). 라운드당 1건(단일 선택). 있을 때만 행 추가.
+  const special = useMemo(() => {
+    let eagle = 0, albatross = 0, holeInOne = 0;
+    roundsOnly(diaries || []).forEach((d) => {
+      if (d.special === 'EAGLE') eagle++;
+      else if (d.special === 'ALBATROSS') albatross++;
+      else if (d.special === 'HOLE IN ONE') holeInOne++;
+    });
+    return { eagle, albatross, holeInOne };
+  }, [diaries]);
 
   const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 16, paddingVertical: 4 };
 
@@ -582,6 +622,10 @@ function Milestones({ scored, lifeBest }) {
     { emoji: '🏆', label: '라이프 베스트', val: bestVal != null ? `${bestVal}` : '—', sub: bestSub, done: bestVal != null },
     { emoji: '⛳', label: '90 브레이크', val: m.sub90 ? m.sub90.date : '도전 중', sub: m.sub90 ? (m.sub90.course || '코스 미상') : null, done: !!m.sub90 },
     { emoji: '🔥', label: '첫 싱글 (79↓)', val: m.sub80 ? m.sub80.date : '도전 중', sub: m.sub80 ? (m.sub80.course || '코스 미상') : null, done: !!m.sub80 },
+    // 특별 기록 — 있을 때만 노출(희귀 기록이라 '도전 중'으로 모두에게 띄우면 노이즈). 홀별 스코어 등록 라운드 기준.
+    ...(special.eagle ? [{ emoji: '🦅', label: '이글', val: `${special.eagle}회`, sub: null, done: true }] : []),
+    ...(special.albatross ? [{ emoji: '💎', label: '알바트로스', val: `${special.albatross}회`, sub: null, done: true }] : []),
+    ...(special.holeInOne ? [{ emoji: '🎯', label: '홀인원', val: `${special.holeInOne}회`, sub: null, done: true }] : []),
     { emoji: '📒', label: '기록한 라운딩', val: `${m.total}회`, sub: null, done: true },
   ];
 
