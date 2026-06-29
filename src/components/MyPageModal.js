@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Linking, Platform } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
@@ -646,12 +646,12 @@ export function MyPageModal({ visible, onClose }) {
                       {/* 도착여유 칩 */}
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 12 }}>구장 도착여유 (티오프 전)</Text>
                       <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                        {[0, 30, 60].map(m => {
+                        {[30, 60, 90].map(m => {
                           const on = arriveBufferMin === m;
                           return (
                             <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => persistAlarmCfg({ arriveBufferMin: m })}
                               style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary }}>
-                              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{m === 0 ? '바로' : `${m}분`}</Text>
+                              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{`${m}분`}</Text>
                             </TouchableOpacity>
                           );
                         })}
@@ -676,6 +676,23 @@ export function MyPageModal({ visible, onClose }) {
                           </View>
                         );
                       })}
+
+                      {/* 시계앱 자동 등록(안드) — 켜면 새벽 라운드 기상 알람을 시계앱에도 자동 등록(무음 뚫기) */}
+                      {Platform.OS === 'android' && (() => {
+                        const on = !!userProfile.autoSystemAlarm;
+                        return (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>🔔 기상 알람 시계앱에도 자동 등록</Text>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2, lineHeight: 16 }}>무음·방해금지에도 울려요. 새벽 라운드면 자동 등록 (다음 앱 업데이트부터 작동)</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => persistAlarmCfg({ autoSystemAlarm: !on })} activeOpacity={0.8}
+                              style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center', backgroundColor: on ? C.burgundy : C.hairline }}>
+                              <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff', alignSelf: on ? 'flex-end' : 'flex-start' }} />
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })()}
 
                       {!hasHome && (
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#B0641E', marginTop: 12, lineHeight: 16 }}>
