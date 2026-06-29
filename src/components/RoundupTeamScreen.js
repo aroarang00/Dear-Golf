@@ -93,6 +93,11 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   const isHost = !!post && !!myUid && post.authorUid === myUid;
   const canEdit = isHost && editMode;   // 실제 편집 허용 — 호스트 + 수정모드일 때만
   const memberCount = (post?.participantUids?.length) || 0;
+  // 저장된 조편성 내용이 있는지 — 버튼 라벨(편성하기 vs 수정)·힌트 분기. 아무것도 입력 안 했으면 '수정'이 어색.
+  const hasPlan = !!post?.teamPlanDone || (Array.isArray(post?.teamPlan) && post.teamPlan.some(
+    (g) => (g?.course || '').trim() || (Array.isArray(g?.flights) && g.flights.some((f) => (f?.tee || '').trim() || (f?.note || '').trim()))
+  ));
+  const editLabel = hasPlan ? '수정' : '편성하기';
   // 미배정 자동 경고 제거(2026-06-27) — 멤버칸이 자유 텍스트라 이름 글자 매칭 휴리스틱은 닉네임만 있거나 표기가
   //   다른 사람을 '미배정'으로 오판해 역효과. 완료는 주최자가 '편성 완료' 버튼으로 명시(teamPlanDone)하므로 불필요.
 
@@ -150,7 +155,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
           {isHost && !loading && !!post && (
             <TouchableOpacity onPress={() => setEditMode((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 9, backgroundColor: editMode ? C.bgSecondary : C.navy, borderWidth: editMode ? 0.5 : 0, borderColor: C.hairline }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: editMode ? C.charcoal : '#fff' }}>{editMode ? '보기' : '수정'}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: editMode ? C.charcoal : '#fff' }}>{editMode ? '보기' : editLabel}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -317,7 +322,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
             {/* 호스트인데 보기 모드 — '수정'으로 전환하라는 힌트 (편집 UI 숨겨져 혼란 방지) */}
             {isHost && !editMode && (
               <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, textAlign: 'center', marginTop: 18 }}>
-                편집하려면 오른쪽 위 ‘수정’을 눌러주세요.
+                {hasPlan ? '편집하려면' : '조를 편성하려면'} 오른쪽 위 ‘{editLabel}’ 버튼을 눌러주세요.
               </Text>
             )}
           </KeyboardAwareScrollView>
