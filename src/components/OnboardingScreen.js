@@ -6,6 +6,11 @@ import { C, F, fs } from '../constants/colors';
 import { obS } from '../styles/obS';
 import { TripleStripe } from './common/TripleStripe';
 
+// 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분) — 개인차가 커 한 번만 정해두면 평생 적용
+const PREP_OPTS = [5, 15, 30, 60];
+const ARRIVE_OPTS = [0, 30, 60];
+const arriveLabel = (m) => (m === 0 ? '바로' : `${m}분`);
+
 // 프로필 입력 온보딩 — 인트로·카카오·약관 동의 단계 다음.
 // seed: 카카오 로그인으로 받은 prefill 값 ({ nickname, avatarUri, kakaoLinked, kakaoId })
 // consent: 약관 동의 데이터 ({ agreedTos·agreedPrivacy·agreedPenalty·agreedAge·agreedMarketing·legalVersion·agreedAt })
@@ -15,6 +20,11 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const [avgScore, setAvgScore] = useState('');
   const [lifeBest, setLifeBest] = useState('');
   const [step, setStep] = useState(1);
+  // 3단계 · 알림 — 한 번 정해두면 매 라운드 자동 적용(팝업 없음)
+  const [prepMin, setPrepMin] = useState(30);          // 집에서 나갈 준비시간(화장·짐 등)
+  const [arriveBufferMin, setArriveBufferMin] = useState(30); // 구장 도착여유
+  const [wakeOn, setWakeOn] = useState(true);          // 기상 알림(새벽 티 자동)
+  const [departOn, setDepartOn] = useState(true);      // 출발 알림
 
   const handleComplete = () => {
     const nick = nickname.trim() || '';
@@ -28,8 +38,11 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
       totalRounds: 0,
       hasFirstSingle: best <= 79,
       onboardingDone: true,
-      alarmDefaults: { d3: true, d1: true, teeoff: true },
-      alarmPromptDisabled: false,
+      // 알림 기본값 — 여기서 한 번 정한 대로 매 라운드 자동 적용(팝업 없음). 마이페이지에서 변경 가능.
+      alarmDefaults: { d3: true, d1: true, teeoff: true, wake: wakeOn, depart: departOn },
+      alarmPromptDisabled: true, // 자동 적용(라운드마다 직접 설정은 마이페이지에서 켤 수 있음)
+      prepMin,
+      arriveBufferMin,
       // 카카오 단계에서 받은 값
       avatarUri: seed.avatarUri || null,
       kakaoLinked: !!seed.kakaoLinked,
@@ -93,6 +106,94 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
               <TouchableOpacity style={[obS.nextBtn, { flex: 0, backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.hairline }]}
                 onPress={() => setStep(1)}>
+                <Text style={[obS.nextBtnTxt, { color: C.warmGray }]}>이전</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={() => setStep(3)}>
+                <Text style={obS.nextBtnTxt}>다음 →</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {step === 3 && (
+          <View>
+            <Text style={obS.stepLabel}>3단계 · 알림</Text>
+
+            {/* ── 강한 어필: 혼자 써도 강력한 이유 ── */}
+            <View style={{ backgroundColor: '#F5F0E4', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C', padding: 16, marginBottom: 18 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, lineHeight: 25 }}>
+                골프 가는 날,{'\n'}몇 시에 일어날지 계산해 깨워드려요 ⛳
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#6B5A2E', lineHeight: 20, marginTop: 10 }}>
+                티오프 시간에 <Text style={{ fontFamily: F.sysSb }}>실시간 교통(이동시간)</Text>과{'\n'}
+                <Text style={{ fontFamily: F.sysSb }}>나만의 준비 습관</Text>까지 더해서,{'\n'}
+                <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>기상 시각 · 출발 시각</Text>을 자동으로 알려드려요.
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: '#D8C384' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#8B6914', lineHeight: 18 }}>
+                  🔔 04:42 기상   ·   🚗 05:42 출발   ·   🏌️ 07:12 티오프{'\n'}
+                  새벽 라운드, 더는 늦잠·지각 걱정 없이.
+                </Text>
+              </View>
+            </View>
+
+            {/* 준비시간 — 개인차가 큰 핵심 값 */}
+            <Text style={obS.label}>집에서 나갈 준비, 보통 얼마나 걸려요?</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 8, lineHeight: 16 }}>
+              화장·짐 챙기는 시간이요. 사람마다 달라서 한 번만 정해두면 평생 적용돼요.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 18 }}>
+              {PREP_OPTS.map(m => {
+                const on = prepMin === m;
+                return (
+                  <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => setPrepMin(m)}
+                    style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary }}>
+                    <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(13), color: on ? C.burgundy : C.warmGray }}>{m}분</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* 도착여유 */}
+            <Text style={obS.label}>구장엔 티오프 몇 분 전에 도착하나요?</Text>
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, marginBottom: 18 }}>
+              {ARRIVE_OPTS.map(m => {
+                const on = arriveBufferMin === m;
+                return (
+                  <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => setArriveBufferMin(m)}
+                    style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary }}>
+                    <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(13), color: on ? C.burgundy : C.warmGray }}>{arriveLabel(m)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* 어떤 알림을 자동으로 받을지 */}
+            <Text style={obS.label}>자동으로 받을 알림</Text>
+            {[
+              { key: 'wake', on: wakeOn, set: setWakeOn, icon: '🔔', title: '기상 알림', sub: '새벽 라운드, 일어날 시각에' },
+              { key: 'depart', on: departOn, set: setDepartOn, icon: '🚗', title: '출발 알림', sub: '출발지에서 나설 시각에' },
+            ].map(it => (
+              <TouchableOpacity key={it.key} activeOpacity={0.7} onPress={() => it.set(v => !v)}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: it.on ? C.burgundy : C.hairline, backgroundColor: it.on ? '#F5EAEC' : C.bgSecondary }}>
+                <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: it.on ? C.burgundy : C.warmGrayLight, backgroundColor: it.on ? C.burgundy : 'transparent' }}>
+                  {it.on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{it.icon} {it.title}</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{it.sub}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17, marginTop: 12 }}>
+              💡 <Text style={{ fontFamily: F.sysSb }}>마이페이지에 자주 가는 출발지</Text>만 저장하면 이동시간을 계산해 자동으로 챙겨드려요.{'\n'}
+              D-3 · D-1 · 당일 알림도 함께 받아요. 모두 마이페이지에서 바꿀 수 있어요.
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
+              <TouchableOpacity style={[obS.nextBtn, { flex: 0, backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.hairline }]}
+                onPress={() => setStep(2)}>
                 <Text style={[obS.nextBtnTxt, { color: C.warmGray }]}>이전</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={handleComplete}>
