@@ -32,6 +32,47 @@ const fmtKorTime = (hhmm) => {
   return `${ap} ${h12}:${String(m).padStart(2, '0')}`;
 };
 
+// 섹션 카드 — 크림 배경 위 흰 카드 + 그림자로 또렷이. (모듈 상수 — 리렌더 영향 X)
+const cardStyle = {
+  backgroundColor: C.bgSecondary, borderRadius: 16, padding: 16, marginTop: 14,
+  borderWidth: 1, borderColor: C.hairline,
+  shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+};
+// 칩·섹션제목·역산줄·토글 — 모듈 스코프 컴포넌트(부모 안에 두면 매 렌더 remount=렉). prop로만 동작.
+const Chip = ({ label, on, onPress }) => (
+  <TouchableOpacity activeOpacity={0.8} onPress={onPress}
+    style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary }}>
+    <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(13), color: on ? C.burgundy : C.warmGray }}>{label}</Text>
+  </TouchableOpacity>
+);
+const SectionTitle = ({ children }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+    <View style={{ width: 3, height: 16, borderRadius: 2, backgroundColor: C.burgundy, marginRight: 8 }} />
+    <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoalDeep }}>{children}</Text>
+  </View>
+);
+const TimeRow = ({ name, label, time }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 }}>
+    <Icon name={name} size={fs(17)} color={C.charcoalDeep} />
+    <Text style={{ fontFamily: F.sysM, fontSize: fs(15), color: C.charcoalDeep }}>{label} {time}</Text>
+  </View>
+);
+const ToggleRow = ({ on, past, onToggle, iconName, title, sub }) => (
+  <TouchableOpacity activeOpacity={past ? 1 : 0.7} disabled={past} onPress={onToggle}
+    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary, opacity: past ? 0.45 : 1 }}>
+    <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: on ? C.burgundy : C.warmGrayLight, backgroundColor: on ? C.burgundy : 'transparent' }}>
+      {on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
+    </View>
+    <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Icon name={iconName} size={fs(16)} color={C.charcoal} />
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>{title}</Text>
+      </View>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>{sub}</Text>
+    </View>
+  </TouchableOpacity>
+);
+
 // 일정 추가 직후 뜨는 전체화면 알람 설정 화면 — 혼자 쓰는 사람의 핵심.
 //   출발지 → (라운드 전 식사·모임 시각) → 기상/출발 역산 → 토글 → (안드) 시계앱 알람.
 export function AlarmSetupModal({ visible, schedule, onClose, existing = null }) {
@@ -237,52 +278,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     close();
   };
 
-  // 작은 칩 렌더 헬퍼 — 준비시간·도착여유 공용
-  const Chip = ({ label, on, onPress }) => (
-    <TouchableOpacity activeOpacity={0.8} onPress={onPress}
-      style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary }}>
-      <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(13), color: on ? C.burgundy : C.warmGray }}>{label}</Text>
-    </TouchableOpacity>
-  );
-
-  // 섹션 카드 — 크림 배경 위에 흰 카드 + 그림자로 또렷이 구분
-  const cardStyle = {
-    backgroundColor: C.bgSecondary, borderRadius: 16, padding: 16, marginTop: 14,
-    borderWidth: 1, borderColor: C.hairline,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  };
-  // 섹션 제목 — 버건디 액센트 바 + 진한 글씨로 대비
-  const SectionTitle = ({ children }) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-      <View style={{ width: 3, height: 16, borderRadius: 2, backgroundColor: C.burgundy, marginRight: 8 }} />
-      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoalDeep }}>{children}</Text>
-    </View>
-  );
-
-  // 역산 시각 한 줄(아이콘 + 라벨 + 시각) — 골프 가는 길 박스
-  const TimeRow = ({ name, label, time }) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 }}>
-      <Icon name={name} size={fs(17)} color={C.charcoalDeep} />
-      <Text style={{ fontFamily: F.sysM, fontSize: fs(15), color: C.charcoalDeep }}>{label} {time}</Text>
-    </View>
-  );
-
-  // 기상·출발 토글 한 행 — 공용
-  const ToggleRow = ({ on, past, onToggle, iconName, title, sub }) => (
-    <TouchableOpacity activeOpacity={past ? 1 : 0.7} disabled={past} onPress={onToggle}
-      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgPrimary, opacity: past ? 0.45 : 1 }}>
-      <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: on ? C.burgundy : C.warmGrayLight, backgroundColor: on ? C.burgundy : 'transparent' }}>
-        {on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Icon name={iconName} size={fs(16)} color={C.charcoal} />
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>{title}</Text>
-        </View>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>{sub}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  // 헬퍼(Chip·SectionTitle·TimeRow·ToggleRow)·cardStyle는 모듈 상단으로 이동 — 컴포넌트 안에 두면
+  //   매 렌더마다 새 함수로 재생성돼 칩/토글 탭 때 전체 remount(렉) 유발. 모듈 상수라 리렌더 영향 없음.
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={close} presentationStyle="fullScreen">
