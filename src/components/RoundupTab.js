@@ -39,6 +39,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
 import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, loadApplicationsForRoundup, closeRoundup, toggleRoundupLike } from '../utils/roundup';
+import { addCrewPost } from '../utils/crews';
 import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addCommentToFirestore, deleteCommentFromFirestore, pinCommentInFirestore, subscribeLatestComments, mergeLiveComments } from '../utils/comments';
 import { getUid, auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -1222,6 +1223,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       const created = await createRoundup(payload);
       // serverTimestamp는 클라에서 즉시 안 풀려 정렬 0이 됨 → 방금 만든 글이 맨 위에 오도록 ts 부여
       setPosts(prev => [{ ...created, ts: Date.now() }, ...prev]);
+      // '크루로 지정'한 크루(들) 앨범에 모집을 핀으로 올림 — 크루 스페이스에서 자율 참여(크루서 만든 모집과 동일 핀). ([[crew-roundup-share-plan]])
+      //   addCrewPost 기본(roundupShare=false)=핀. 본인이 멤버인 크루만(loadMyCrews) 골랐으므로 규칙 통과.
+      if (Array.isArray(created.audienceCrewIds) && created.audienceCrewIds.length) {
+        for (const cid of created.audienceCrewIds) {
+          addCrewPost(cid, { authorUid: myUid, roundupId: created.id, roundupHost: created.authorUid || myUid })
+            .catch(e => __DEV__ && console.warn('[RoundupTab] crew pin failed', cid, e?.message));
+        }
+      }
       // 친구지정·포함 = 개인 초대장 → 선택 친구에게 초대 알림 1회(멱등) ([[roundup-invitation]])
       if (created.scope === 'select' && created.selectMode === 'include' && Array.isArray(created.selectedUids) && created.selectedUids.length) {
         createInviteNotifications(created.id, created.course || '', created.selectedUids, userProfile?.nickname || '')
@@ -2254,6 +2263,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             const amRecipient = !mine && !!myUid && Array.isArray(p.audienceUids) && p.audienceUids.includes(myUid);
             const showInvite = view === 'mine' && p.scope === 'select' && p.selectMode === 'include'
               && !joined[p.id] && !applied[p.id]
+              && !(Array.isArray(p.audienceCrewIds) && p.audienceCrewIds.length > 0) // 크루로 지정한 모집은 초대장 대신 자율참여 카드 ([[crew-roundup-share-plan]])
               && amRecipient; // 친구지정·포함 초대 수신자에게만 초대장 카드 ([[roundup-invitation]])
             if (showInvite) {
               const inviteProps = {

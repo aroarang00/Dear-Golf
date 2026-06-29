@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,8 @@ import { UserContext } from '../contexts/UserContext';
 import { OverlayAlert } from './common/OverlayAlert';
 import { FriendSelectModal } from './FriendSelectModal';
 import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
+import { loadMyCrews } from '../utils/crews';
+import { getUid } from '../utils/firebase';
 import { SubCourseChips } from './common/SubCourseChips';
 
 const SCOPES_ALL = [
@@ -93,6 +95,10 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   // 친구 그룹(가까운친구·라운딩멤버) 빠른선택 — 그룹 멤버 uid로 selectedUids 채움 ([[friend_groups]] Phase C)
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [selectedGroupIds, setSelectedGroupIds] = useState([]); // 그룹으로 채운 경우 그 그룹 id들(복수, 표시·audienceGroupIds용). 수동 선택 시 [] ([[friend_groups]])
+  // '크루로 지정' — 내 크루 목록 + 선택한 크루 id들. 선택 크루의 memberUids를 audience에 합침(친구 아니어도 참여) ([[crew-roundup-share-plan]])
+  const [myCrews, setMyCrews] = useState([]);                   // [{ id, name, memberUids, names }]
+  const [selectedCrewIds, setSelectedCrewIds] = useState([]);
+  const [meUid, setMeUid] = useState(null);                     // 본인 uid — 크루 멤버에서 자기 제외용
   const [inviteStyle, setInviteStyle] = useState('casual'); // 친구지정 초대장 톤: 'casual'(보딩패스) | 'formal'(격식) ([[roundup-invitation]])
   const [showFriendSelect, setShowFriendSelect] = useState(false);
   const [word, setWord] = useState('');
@@ -149,6 +155,33 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const editFull = isEdit && (initialPost.joined || 0) >= ((initialPost.capacity) || editCapTotal);
   const lockToFixed = isEdit && initialPost.scope === 'select' && initialPost.type === 'open' && editFull;
 
+  // '크루로 지정'용 내 크루 로드 — 친구지정에서 크루 멤버를 audience에 합치기 위함. crewMode(크루서 만들기)면 불필요.
+  useEffect(() => {
+    if (!visible || crewMode) return;
+    let alive = true;
+    (async () => {
+      try {
+        const uid = await getUid();
+        if (!alive || !uid) return;
+        setMeUid(uid);
+        const cs = await loadMyCrews(uid);
+        if (alive && Array.isArray(cs)) setMyCrews(cs);
+      } catch { /* 무시 — 크루 없으면 섹션 미표시 */ }
+    })();
+    return () => { alive = false; };
+  }, [visible, crewMode]);
+
+  // 선택한 크루들의 멤버 합집합(본인 제외) — audience에 더해지는 비친구 포함 수신자.
+  const crewMemberUids = useMemo(() => {
+    if (!selectedCrewIds.length) return [];
+    const set = new Set();
+    for (const cid of selectedCrewIds) {
+      const c = myCrews.find(x => x.id === cid);
+      (c?.memberUids || []).forEach(u => { if (u && u !== meUid) set.add(u); });
+    }
+    return Array.from(set);
+  }, [selectedCrewIds, myCrews, meUid]);
+
   // 수정 모드 — initialPost로 모든 state prefill
   useEffect(() => {
     if (!visible || !initialPost) return;
@@ -177,6 +210,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setSelectMode(initialPost.selectMode || 'include');
     setSelectedUids(Array.isArray(initialPost.selectedUids) ? initialPost.selectedUids : []);
     setSelectedGroupIds(Array.isArray(initialPost.audienceGroupIds) ? initialPost.audienceGroupIds : []);
+    setSelectedCrewIds(Array.isArray(initialPost.audienceCrewIds) ? initialPost.audienceCrewIds : []);
     setInviteStyle(initialPost.inviteStyle || 'casual');
   }, [visible, initialPost]);
 
@@ -209,7 +243,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setGroupMode('single'); setMembers(3); setTeams(2); setScope(hideStranger ? 'friends' : 'all'); setWord(''); setOpenTime([]);
     setCompanion('any'); setAgeGroup('any'); setSkill('any'); setTags([]);
     setOpenRegion('capital');
-    setSelectMode('include'); setSelectedUids([]); setSelectedGroupIds([]); setShowFriendSelect(false);
+    setSelectMode('include'); setSelectedUids([]); setSelectedGroupIds([]); setSelectedCrewIds([]); setShowFriendSelect(false);
     setSubCourse(''); setSubCourseOpts([]);
   };
   const close = () => { if (!initialPost) reset(); onClose(); };
@@ -242,6 +276,13 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setSelectedGroupIds(next);
   };
 
+  // '크루로 지정' 토글 — 크루 멤버는 selectedUids와 별개로 crewMemberUids로 audience에 합쳐짐(친구 그룹과 달리 비친구 포함).
+  //   include 모드에서만 의미. 빈 크루(나만 있는)는 합칠 멤버가 없어 무해.
+  const pickCrew = (cid) => {
+    setSelectMode('include');
+    setSelectedCrewIds(prev => prev.includes(cid) ? prev.filter(x => x !== cid) : [...prev, cid]);
+  };
+
   // 최종 데이터 빌드
   const buildPayload = () => {
     const courseName = course?.name || courseQuery.trim();
@@ -256,7 +297,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       : (isSelect
           ? (selectMode === 'exclude'
               ? friends.map(f => f.id).filter(Boolean).filter(id => !selectedUids.includes(id))
-              : selectedUids)
+              // include — 개별 지정 친구 ∪ '크루로 지정'한 크루 멤버(비친구 포함). 중복 제거.
+              : Array.from(new Set([...selectedUids, ...crewMemberUids])))
           : []);
     return {
       type,
@@ -279,6 +321,8 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       selectedUids: isSelect ? (crewMode ? crewAudience : selectedUids) : [],
       audienceUids: effAudience,
       audienceGroupIds: isSelect && !crewMode && selectMode === 'include' ? selectedGroupIds : [],
+      // '크루로 지정'한 크루 id들 — 비어있지 않으면 createRoundup이 홈 정식초대 배너 제외(카드 자율참여). 수정 복원·표시용.
+      audienceCrewIds: isSelect && !crewMode && selectMode === 'include' ? selectedCrewIds : [],
       inviteStyle: isSelect ? (crewMode ? 'casual' : inviteStyle) : null,
       word: word.trim(),
       companion: isPublic ? companion : 'any',
@@ -318,11 +362,12 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
       return;
     }
 
-    // 친구지정 가드 — include + 0명 차단 (아무도 못 봄), exclude + 0명은 친구공개 동등이라 허용
-    if (scope === 'select' && selectMode === 'include' && selectedUids.length === 0) {
+    // 친구지정 가드 — include + 0명 차단 (아무도 못 봄), exclude + 0명은 친구공개 동등이라 허용.
+    //   '크루로 지정'한 멤버가 있으면 audience가 비지 않으므로 통과.
+    if (scope === 'select' && selectMode === 'include' && selectedUids.length === 0 && crewMemberUids.length === 0) {
       setAlert({
         title: '친구를 선택해주세요',
-        message: '한 명도 선택하지 않으면 아무도 모집글을 볼 수 없어요.\n친구지정 화면에서 친구를 골라주세요.',
+        message: '한 명도 선택하지 않으면 아무도 모집글을 볼 수 없어요.\n친구지정 화면에서 친구를 고르거나 크루를 지정해주세요.',
         buttons: [
           { text: '취소', style: 'cancel' },
           { text: '친구 선택', onPress: () => setShowFriendSelect(true) },
@@ -646,13 +691,35 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               </View>
             )}
 
+            {/* 크루로 지정 — 선택 크루 멤버 전원을 audience에 추가(친구 아니어도 보고 참여). 친구 그룹과 별개의 묶음 지정 ([[crew-roundup-share-plan]]) */}
+            {scope === 'select' && selectMode === 'include' && myCrews.length > 0 && (
+              <View style={{ marginTop: 10 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 6 }}>
+                  크루로 지정
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {myCrews.map(c => (
+                    <TouchableOpacity key={c.id} activeOpacity={0.8} onPress={() => pickCrew(c.id)}
+                      style={[mS.chip, selectedCrewIds.includes(c.id) && mS.chipOn]}>
+                      <Text style={[mS.chipTxt, selectedCrewIds.includes(c.id) && mS.chipTxtOn]}>{c.name || '크루'}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {crewMemberUids.length > 0 && (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                    크루 멤버 {crewMemberUids.length}명에게 공개 — 친구가 아니어도 보고 참여할 수 있어요.
+                  </Text>
+                )}
+              </View>
+            )}
+
             {/* 친구지정 상태 — 모드·인원 표시 + 다시 선택 진입 */}
             {scope === 'select' && (
               <View style={{ marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
                 backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
                 flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>
-                  {selectMode === 'include' ? '포함' : '제외'} · {selectedUids.length}명
+                  {selectMode === 'include' ? '포함' : '제외'} · 친구 {selectedUids.length}명{crewMemberUids.length > 0 ? ` + 크루 ${crewMemberUids.length}명` : ''}
                 </Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, flex: 1 }}>
                   {selectMode === 'include' ? '선택한 친구에게만 보여요' : '선택한 친구만 안 보여요'}
@@ -668,11 +735,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
             {/* 지정 인원 < 모집 좌석 안내 — 지정모집은 지정한 친구만 참여 가능(선착순). 풀이 좌석보다 작으면
                 만석이 안 돼 확정이 막힐 수 있음. 막지 않고 안내 + escape(인원 수정) 제시 ([[roundup-visibility-design]]) */}
-            {scope === 'select' && selectMode === 'include' && selectedUids.length > 0 && selectedUids.length < members && (
+            {scope === 'select' && selectMode === 'include' && (selectedUids.length + crewMemberUids.length) > 0 && (selectedUids.length + crewMemberUids.length) < members && (
               <View style={{ marginTop: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
                 backgroundColor: '#FBF3D3', borderWidth: 0.5, borderColor: C.hairline }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
-                  💡 지정한 친구 {selectedUids.length}명이 모집 인원 {members}명보다 적어요.{'\n'}지정한 친구만 참여할 수 있어, 자리가 다 안 차면 '모집글 수정'에서 인원을 줄여 확정할 수 있어요.
+                  💡 지정한 인원 {selectedUids.length + crewMemberUids.length}명이 모집 인원 {members}명보다 적어요.{'\n'}지정한 사람만 참여할 수 있어, 자리가 다 안 차면 '모집글 수정'에서 인원을 줄여 확정할 수 있어요.
                 </Text>
               </View>
             )}
