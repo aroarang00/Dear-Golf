@@ -782,52 +782,33 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               <SpinnerPicker visible={showDatePicker && !dateLocked} value={date} mode="date" maximumDate={new Date()}
                 onPick={setDate} onClose={() => setShowDatePicker(false)} />
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>스코어 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
-              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="타수 입력"
-                placeholderTextColor={C.warmGrayLight} value={score}
-                onChangeText={setScore} keyboardType="numeric" />
 
-              {/* 스코어카드 등록 — 점수 입력 없이도 노출 (OCR이 점수를 채우므로 선행 입력 불필요) */}
+              {/* OCR 전면화 — 스코어판 사진 자동입력을 1순위(기본 노출). 직접 입력은 이 블록 아래 보조로. 인식되면 요약으로 대체. */}
               <View style={{ marginBottom: 10 }}>
-                  <Text style={mS.bigLabel}>스코어카드 등록할까요?</Text>
-                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                    {[
-                      { key: 'photo', label: '사진으로 등록' },
-                      { key: 'later', label: '나중에' },
-                    ].map(opt => (
-                      <TouchableOpacity key={opt.key}
-                        style={[mS.chip, scoreCardOption === opt.key && mS.chipOn]}
-                        onPress={() => setScoreCardOption(opt.key)}>
-                        <Text style={[mS.chipTxt, scoreCardOption === opt.key && mS.chipTxtOn]}>{opt.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
                   {/* 사진으로 등록 — 갤러리(권장)/촬영. 인식 결과는 검토 모달에서 확인·수정 후 확정 */}
-                  {scoreCardOption === 'photo' && !holeScores && (
-                    <View style={{ marginTop: 10 }}>
+                  {!holeScores && (
+                    <View>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('gallery')}
                           style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
                             backgroundColor: C.burgundy, opacity: scBusy ? 0.6 : 1 }}>
                           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
-                            {scBusy ? '인식 중…' : '갤러리에서 선택'}
+                            {scBusy ? '인식 중…' : '📱 스크린샷 올리기'}
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('camera')}
                           style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
                             backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: scBusy ? 0.6 : 1 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>촬영</Text>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>실물 촬영</Text>
                         </TouchableOpacity>
                       </View>
                       <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 12,
                         borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12 }}>
-                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 7 }}>
-                          📷 어떤 스코어카드를 올리나요?
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
+                          📱 스마트스코어 캡처(스크린샷)가 가장 정확해요
                         </Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: 20 }}>
-                          PAR(파)와 전·후반 홀이 표로 정렬된{'\n'}스코어카드가 정확히 인식돼요.{'\n'}(스마트스코어 표 · 골프장 스코어카드)
-                        </Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 8 }}>
-                          · 풍경 배경의 요약 카드는 PAR가 없어 인식되지 않아요.{'\n'}· 돌아간 사진도 자동으로 맞춰 읽어요 — 표만 또렷하게 담기면 돼요.
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, lineHeight: 21 }}>
+                          · PAR·전후반 홀이 표로 보이는 카드{'\n'}· 실물 촬영은 빛·각도로 인식이 약해요{'\n'}· 풍경 요약카드는 PAR가 없어 인식 안 돼요
                         </Text>
                       </View>
                     </View>
@@ -879,6 +860,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     )
                   )}
                 </View>
+              {/* 또는 타수만 직접 입력 — 완전한 방법(폴백 아님). 총타수만 적어도 기록됨. 사진 OCR도 이 값을 채움. */}
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: 4 }}>또는 타수만 직접 입력</Text>
+              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="총타수 입력 (예: 88)"
+                placeholderTextColor={C.warmGrayLight} value={score}
+                onChangeText={setScore} keyboardType="numeric" />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>
+                사진 없이 <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>총타수만 적어도 충분히 기록</Text>돼요.{'\n'}(홀별·버디 자동집계는 스코어카드 등록 시에만 추가돼요)
+              </Text>
               <SectionHead title="오늘의 기록" />
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(선택)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
