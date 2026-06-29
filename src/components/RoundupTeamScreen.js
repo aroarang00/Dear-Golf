@@ -162,7 +162,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>모집 정보를 불러오지 못했어요.</Text>
           </View>
         ) : (
-          <KeyboardAwareScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 + insets.bottom }} keyboardShouldPersistTaps="handled" bottomOffset={24} showsVerticalScrollIndicator={false}>
+          <KeyboardAwareScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 + insets.bottom }} keyboardShouldPersistTaps="always" keyboardDismissMode="on-drag" bottomOffset={24} showsVerticalScrollIndicator={false}>
 
             {/* ── 히어로: 구장 · 날짜 (가장 중요) ── */}
             <View style={{ backgroundColor: C.navy, borderRadius: 16, padding: 18 }}>

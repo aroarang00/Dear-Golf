@@ -311,7 +311,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
             style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
             keyboardDismissMode="on-drag"
             bottomOffset={24}>
 

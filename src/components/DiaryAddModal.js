@@ -671,9 +671,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={{ fontSize: fs(22), color: C.warmGray }}>✕</Text>
               </TouchableOpacity>
             </View>
-            {/* KeyboardAwareScrollView — 포커스 입력칸을 키보드 위로 자동 스크롤(iOS·안드 공통) */}
+            {/* KeyboardAwareScrollView — 포커스 입력칸을 키보드 위로 자동 스크롤(iOS·안드 공통).
+                ★keyboardShouldPersistTaps="always" — 안드에서 키보드가 떠 있을 때 'handled'가 칩·버튼 첫 탭을 키보드 닫기에
+                 먹히게 하던 이슈(react-native-keyboard-controller KAS) 회피. 탭이 항상 자식에 도달(공개범위 칩 등). (2026-06-29) */}
             <KeyboardAwareScrollView style={{ flexShrink: 1, padding: 20, paddingTop: 0 }} showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled" bottomOffset={24}>
+              keyboardShouldPersistTaps="always" keyboardDismissMode="on-drag" bottomOffset={24}>
               {/* 상위 분기: 라운딩 기록 | 일상 — 아이콘 카드 2개(아이콘+제목+한줄설명).
                   카드형이라 아래 [국내|해외] 작은 칩과 모양·높이가 전혀 달라 안 헷갈리고, 설명으로 차이도 바로 전달.
                   편집은 토글 잠금(round↔moment 전환 금지: 데이터·통계 정합성)이라 제목 텍스트로 표시. */}

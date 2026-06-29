@@ -481,7 +481,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               </Text>
             </View>
 
-            <KeyboardAwareScrollView ref={scrollRef} style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bottomOffset={24}>
+            <KeyboardAwareScrollView ref={scrollRef} style={{ flexShrink: 1 }} keyboardShouldPersistTaps="always" keyboardDismissMode="on-drag" bottomOffset={24}>
               {/* 결정된 식사 칸들 — 변경 중이면 그 칸 '바로 아래'에 식당 고르기 패널 인라인(시트 맨 아래가 아니라). */}
               {meal1 && renderMealCard(meal1, 1)}
               {meal1 && pickSlot === 1 && renderPicker()}
