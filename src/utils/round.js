@@ -72,6 +72,32 @@ export async function loadFriendRounds(friendUid) {
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)); // date desc
 }
 
+// 친구의 '그룹 공개' 글 중 내가 볼 수 있는(audienceUids에 나 포함) 것의 '최신 작성시각(millis)' — 친구별 {uid: ms}.
+//   친구탭 NEW: lastFriendPostAt(친구공개 전용)에 이걸 합쳐 '그룹 글 NEW'를 그룹 멤버에게만 띄운다(비대상자 누수 차단, [[friend_groups]] ⑤).
+//   기존 인덱스 (ownerUid, visibility, audienceUids CONTAINS) prefix 재사용(orderBy 없음). 친구 수만큼 병렬, 대부분 빈 결과라 가벼움.
+export async function loadVisibleGroupPostTimes(friendUids) {
+  const me = await getUid();
+  if (!me || !Array.isArray(friendUids) || !friendUids.length) return {};
+  const base = collection(db, COLLECTION);
+  const entries = await Promise.all(friendUids.filter(Boolean).map(async (fu) => {
+    try {
+      const snap = await getDocs(query(base,
+        where('ownerUid', '==', fu),
+        where('visibility', '==', 'group'),
+        where('audienceUids', 'array-contains', me),
+      ));
+      let max = 0;
+      snap.forEach((d) => {
+        const c = d.data().createdAt;
+        const ms = c?.toMillis ? c.toMillis() : 0;
+        if (ms > max) max = ms;
+      });
+      return [fu, max];
+    } catch (e) { if (__DEV__) console.warn('[round] visibleGroupTimes', fu, e?.message); return [fu, 0]; }
+  }));
+  return Object.fromEntries(entries);
+}
+
 // 내 group 공개 글들이 참조하는 그룹 id 집합 — 그룹 관리 화면의 '글 0' 삭제 가드용 ([[friend_groups]]).
 //   인덱스 (ownerUid, visibility, date) 재사용. 내 글만이라 가벼움.
 export async function loadMyUsedGroupIds() {
@@ -172,8 +198,11 @@ export async function createRound(data) {
     round.photos = await uploadRoundMedia(uid, round.photos);
   }
   const ref = await addDoc(collection(db, COLLECTION), round);
-  // 친구 피드 새 글 시각 — 친구탭 NEW 점·새글순용. 친구공개/그룹 글만(나만보기 제외) ([[friend_groups]] ⑤).
-  if (round.visibility === 'friends' || round.visibility === 'group') {
+  // 친구 피드 새 글 시각 — 친구탭 NEW 점·새글순용. ★친구공개(friends)만 갱신:
+  //   user 문서의 단일 필드라 모든 친구가 같은 값을 읽음 → 그룹 글에도 갱신하면 '대상 아닌 친구'에게도 NEW가 뜸
+  //   (피드는 audienceUids로 막혀 비어있는데 NEW만 뜨는 어긋남). 그룹 글의 NEW는 FriendsTab이 'audienceUids에 나 포함'
+  //   글을 따로 조회(loadVisibleGroupPostTimes)해 그룹 멤버에게만 띄운다. ([[friend_groups]] ⑤)
+  if (round.visibility === 'friends') {
     try {
       await setDoc(doc(db, 'users', uid), { uid, lastFriendPostAt: serverTimestamp() }, { merge: true });
     } catch (e) { if (__DEV__) console.warn('[round] lastFriendPostAt', e?.message); }

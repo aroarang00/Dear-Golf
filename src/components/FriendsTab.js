@@ -26,7 +26,7 @@ import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐�
 import { loadFriendData, setFriendMeta, pruneFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
 import { useBlockUser } from '../hooks/useBlockUser';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { loadFriendRounds, recomputeMyGroupAudiences } from '../utils/round';
+import { loadFriendRounds, recomputeMyGroupAudiences, loadVisibleGroupPostTimes } from '../utils/round';
 import { db, getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
@@ -300,6 +300,10 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             };
           }
         });
+        // 그룹 공개 글 NEW를 '대상 그룹 멤버에게만' — 친구의 그룹글 중 내가 볼 수 있는(audienceUids에 나 포함) 것의 최신 시각을
+        //   조회해 lastPostAt에 합침(lastFriendPostAt은 친구공개 전용이라 그룹글은 여기서 보강). 비대상자엔 0 → NEW 안 뜸 ([[friend_groups]] ⑤).
+        const groupTimes = await loadVisibleGroupPostTimes(friendsList.map(f => f.otherUid));
+        if (cancelled) return;
         // 4) UI 객체로 매핑 — 명함 공개필드(멘트·라이프베스트·평균타·총라운딩·사진) 반영 (친구 공개 뷰 2단계)
         const toMinimal = (uid) => {
           const p = profileByUid[uid] || {};
@@ -319,7 +323,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             hostedCount: 0, attendedCount: 0, mannerScore: 0,
             recent: null,
             stats: { rounds: p.totalRounds || 0, avg: p.avgScore || null, best: p.lifeBest || null, handicap: p.handicap ?? null },
-            lastPostAt: p.lastFriendPostAt?.toMillis ? p.lastFriendPostAt.toMillis() : 0, // 친구 피드 최신 글 시각 — NEW 점·새글순 ([[friend_groups]] ⑤)
+            lastPostAt: Math.max(p.lastFriendPostAt?.toMillis ? p.lastFriendPostAt.toMillis() : 0, groupTimes[uid] || 0), // 친구공개 최신 + 내가 볼 수 있는 그룹글 최신 — NEW 점·새글순. 그룹글은 멤버에게만 반영 ([[friend_groups]] ⑤)
             feed: [],
             togetherCount: 0, // 자리만 — 동반자 매칭(닉네임/본명) 구현 후 채움. 0이면 명함에 미표시 ([[diary-companion-matching]])
           };
