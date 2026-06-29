@@ -4,7 +4,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, Platform, Keyboard, us
 const _and = Platform.OS === 'android';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { groupColor, groupName, friendDisplayName } from '../utils/friendGroups';
+import { friendDisplayName } from '../utils/friendGroups';
 import { SCOPE_BADGE, FILTER_BADGE, tagStyle, COMPANION_LABEL, AGEGROUP_LABEL, SKILL_LABEL, pickNames, isRoundupConfirmed, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED } from '../constants/roundup';
 import { ProfileActionSheet } from './common/ProfileActionSheet';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -12,7 +12,7 @@ import { UserContext } from '../contexts/UserContext';
 import { getTrustGrade } from '../constants/trustGrade';
 import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
-import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
+import { isD7Inside } from '../constants/mannerGrade';
 import { RoundupComments } from './RoundupComments';
 import { anonNick } from '../utils/anonNick';
 import { shareRoundup } from '../utils/invite';

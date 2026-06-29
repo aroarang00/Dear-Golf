@@ -1,5 +1,5 @@
 import {
-  collection, query, where, orderBy, getDocs, getDoc, setDoc, doc, serverTimestamp,
+  getDoc, setDoc, doc, serverTimestamp,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -63,17 +63,4 @@ export async function createContentReport(data) {
   };
   await setDoc(ref, report);
   return { id, alreadyReported: false, ...report };
-}
-
-// 내가 작성한 콘텐츠 신고 — 최신순. (마이페이지엔 노출 X 정책이지만 디버그·운영용)
-export async function loadMyContentReports() {
-  const uid = await getUid();
-  if (!uid) return [];
-  const q = query(
-    collection(db, COLLECTION),
-    where('reporterUid', '==', uid),
-    orderBy('createdAt', 'desc'),
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { C, F, fs } from '../constants/colors';
+import { F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { formatNameList } from '../utils/nameList';
 

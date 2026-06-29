@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, FlatList, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, Text, FlatList, TouchableOpacity, Platform } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';

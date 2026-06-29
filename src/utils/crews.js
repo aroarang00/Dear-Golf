@@ -1,6 +1,6 @@
 import {
-  collection, collectionGroup, query, where, orderBy, limit, getDocs, onSnapshot,
-  setDoc, updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, increment, runTransaction, writeBatch,
+  collection, query, where, orderBy, limit, getDocs, onSnapshot,
+  setDoc, updateDoc, doc, serverTimestamp, arrayUnion, arrayRemove, increment, runTransaction, writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -114,12 +114,6 @@ export async function toggleCrewAdmin(crewId, uid, add) {
     adminUids: add ? arrayUnion(uid) : arrayRemove(uid),
     updatedAt: serverTimestamp(),
   });
-}
-
-// ── 크루 삭제/해체 — 크루장만(보안 규칙). 하위 posts·comments 정리는 후속(빈 크루 위주) ──
-export async function deleteCrew(crewId) {
-  if (!crewId) return;
-  await deleteDoc(doc(db, COL, crewId));
 }
 
 // ── 초대 수락 — audience가 memberUids에 자기 uid만 토글(셀프) ──

@@ -1,5 +1,5 @@
 import {
-  collection, query, where, getDocs, onSnapshot,
+  collection, query, where, onSnapshot,
   addDoc, setDoc, updateDoc, doc, serverTimestamp, arrayUnion, Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -80,22 +80,6 @@ export function subscribeIncomingScoreShares(uid, cb) {
     list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
     cb(list);
   }, (e) => { if (__DEV__) console.warn('[scoreShare] subscribe fail', e?.message); cb([]); });
-}
-
-// 1회 조회 버전(폴백/초기 로드).
-export async function loadIncomingScoreShares(uid) {
-  if (!uid) return [];
-  const q = query(collection(db, COLLECTION), where('audienceUids', 'array-contains', uid));
-  const snap = await getDocs(q);
-  const list = [];
-  snap.forEach(d => {
-    const data = d.data();
-    if ((data.respondedUids || []).includes(uid)) return;
-    if (data.authorUid === uid) return;
-    list.push({ id: d.id, ...data });
-  });
-  list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-  return list;
 }
 
 // 공유 + 선택한 행 → 내 rounds 파생 payload(프리필). 수신자가 검토·수정 가능(visibility=private 기본).

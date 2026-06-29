@@ -1,6 +1,6 @@
 import {
   collection, query, where, onSnapshot,
-  setDoc, updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove, Timestamp, runTransaction,
+  setDoc, updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayRemove, Timestamp, runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -169,11 +169,4 @@ export function subscribeIncomingMeals(uid, cb) {
     list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
     cb(list);
   }, (e) => { if (__DEV__) console.warn('[meal] incoming subscribe fail', e?.message); cb([]); });
-}
-
-// 1회 조회(폴백).
-export async function getMealForSchedule(scheduleId, slot = 1) {
-  if (!scheduleId) return null;
-  const snap = await getDoc(doc(db, COLLECTION, mealSuggestionId(scheduleId, slot)));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }

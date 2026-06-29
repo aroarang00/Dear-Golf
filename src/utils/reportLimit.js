@@ -78,12 +78,4 @@ export async function syncReportLimitFromFirestore() {
   }
 }
 
-// 개발용·테스트용 — 카운트 강제 초기화 (출시 후엔 호출 X)
-export async function resetReportCount() {
-  await storage.save(STORAGE_KEYS.userReportCount, {
-    yearMonth: currentYearMonth(),
-    count: 0,
-  });
-}
-
 export const REPORT_MONTH_LIMIT = MONTH_LIMIT;

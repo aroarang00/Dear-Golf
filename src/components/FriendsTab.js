@@ -13,13 +13,12 @@ import { FriendFinder } from './FriendFinder';
 import { Icon } from './common/Icon'; // 🔍 검색 등 커스텀 아이콘(이모지 통일)
 import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { getTrustGrade } from '../constants/trustGrade';
-import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
+import { TrustGradeModal } from './common/TrustBadge';
 import { showAppAlert } from './AppAlert';
 import { UserContext } from '../contexts/UserContext';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import {
   isFriendRequestLimitReached, incrementFriendRequestCount,
-  getFriendRequestRemainingToday, FRIEND_REQUEST_DAILY_LIMIT,
 } from '../utils/friendRequestLimit';
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
 import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 친구 탭 첫 진입 즉시 시드

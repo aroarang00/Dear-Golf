@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Linking, KeyboardAvoidingView, Platform, BackHandler, Image, ActivityIndicator, Dimensions, Alert, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, KeyboardAvoidingView, Platform, BackHandler, ActivityIndicator } from 'react-native';
 import AppTextInput from './common/AppTextInput';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
 import { auth } from '../utils/firebase';
@@ -18,11 +17,10 @@ const _and = Platform.OS === 'android';
 
 import { C, F, fs } from '../constants/colors';
 import {
-  FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG, DIARY_DATA,
-  RECOMMENDED_COURSES, WEEKDAYS,
+  FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG, WEEKDAYS,
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { getTop100Courses, normalizeCourseName, top100RankOf } from '../utils/top100';
+import { getTop100Courses, top100RankOf } from '../utils/top100';
 import { getUserCourses } from '../utils/userCourses';
 import { getSavedCourses, toggleSavedCourse } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트) — 기록 무관
 import { gS } from '../styles/gS';

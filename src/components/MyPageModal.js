@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
@@ -28,7 +28,7 @@ import { MyRoundupActivityScreen } from './MyRoundupActivityScreen';
 import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
 import { clearRecentCourses } from '../utils/recentCourses';
 import { TermsViewerModal } from './TermsViewerModal';
-import { getReportRemainingThisMonth, isReportLimitReached, REPORT_MONTH_LIMIT } from '../utils/reportLimit';
+import { getReportRemainingThisMonth, REPORT_MONTH_LIMIT } from '../utils/reportLimit';
 import {
   TERMS_OF_SERVICE,
   PRIVACY_POLICY,

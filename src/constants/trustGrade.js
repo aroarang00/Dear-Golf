@@ -13,8 +13,6 @@ export const TRUST_GRADES = [
 
 const BY_KEY = TRUST_GRADES.reduce((m, g) => { m[g.key] = g; return m; }, {});
 
-export const trustGradeByKey = (key) => BY_KEY[key] || BY_KEY.new;
-
 // 주최 완료 횟수와 매너 점수로 신뢰등급 산출.
 // 매너 조건 미달 시 한 등급 아래로 떨어짐 (예: 주최 100회 + 매너 75 → 실버).
 export function getTrustGrade(hostedCount = 0, mannerScore = 0) {

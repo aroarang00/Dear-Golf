@@ -3,8 +3,7 @@ import { ScrollView, View, Text, TouchableOpacity, Modal, Platform } from 'react
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
-import { OVERSEAS_COURSE_LOG, COURSE_LOG, DIARY_DATA, getCountryFlag } from '../constants/data';
-import { STORAGE_KEYS, storage } from '../utils/storage';
+import { OVERSEAS_COURSE_LOG, COURSE_LOG, getCountryFlag } from '../constants/data';
 import { syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks, normalizeCourseName } from '../utils/top100';
 import { getGolfCourses } from '../utils/golfCourses';

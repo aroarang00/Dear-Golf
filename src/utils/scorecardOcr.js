@@ -18,7 +18,6 @@ import { functions } from './firebase';
 // =============================================================
 
 export const HOLE_COUNT = 18;
-export const emptyHoles = () => Array(HOLE_COUNT).fill(null);
 export const sumHoles = (holes) =>
   (holes || []).reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
 

@@ -2,7 +2,6 @@
 //   수신 라우팅은 App.js가 navigationRef로 처리(푸시 알림 handleResponse와 동일 동선). ([[invite-deeplink-system]])
 //   ※ 활성화 조건: app.config 네이티브 설정(associatedDomains·intentFilters) + deargolf.app well-known 파일(Phase 2) + EAS 재빌드.
 export const WEB_BASE = 'https://deargolf.app';
-export const APP_SCHEME = 'deargolf';
 
 // 모집글 공유 URL — 미설치자도 클릭되는 웹 링크. 앱 설치 시 Universal/App Links로 앱이 가로채 상세를 연다.
 //   ?h={hostUid} = 주최자 uid. 친구공개 글은 비친구가 글을 못 읽어(규칙) 주최자를 알 수 없으므로, 링크에 실어

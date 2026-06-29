@@ -507,7 +507,7 @@ function App() {
   useEffect(() => {
     // 모집글 상세로 바로 여는 게 자연스러운(글 중심) 타입. 노쇼·정지 등은 상세 대신 라운지 착지.
     const POST_DETAIL_TYPES = new Set([
-      'apply', 'confirmed', 'cancel', 'waitlist', 'kicked', 'slotOpen', 'waitlistPromoted',
+      'apply', 'confirmed', 'cancel', 'waitlist', 'waitlistPromoted',
       'comment', 'mannerEval', 'hostCancelledD7', 'scheduleNotice', 'roundupChanged', 'roundupFull',
     ]);
     const handleResponse = (resp) => {

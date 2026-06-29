@@ -89,10 +89,6 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
   const { recipientUid, type, postTitle, actorName, priority, scheduleDate, scheduleTime } = data;
   if (!recipientUid) return;
 
-  // slotPassed(대기 넘어감)는 긴급하지 않아 인앱 알림함·배지로만 — 푸시는 보내지 않음(알림 과다 방지).
-  //   인앱 문서는 이미 생성돼 있으므로 여기서 return해도 알림함엔 그대로 남는다(유저 문서 read도 절약).
-  if (type === 'slotPassed') return;
-
   // 수신자 settings 조회 — 일반 알림이면 토글 체크, 중요 알림은 무시
   const userSnap = await db.doc(`users/${recipientUid}`).get();
   if (!userSnap.exists) return;
@@ -402,10 +398,7 @@ function titleFor(type) {
     case 'confirmed':   return '참여 확정';
     case 'cancel':      return '참여 취소';
     case 'waitlist':    return '새 대기 신청';
-    case 'kicked':      return '참여 취소 안내';
-    case 'slotOpen':    return '대기 자리 열림';
     case 'waitlistPromoted': return '대기 즉시 참석 확정';
-    case 'slotPassed':  return '대기 안내';
     case 'comment':     return '새 댓글';
     case 'mannerEval':  return '매너 평가 요청';
     case 'hostCancelledD7': return '모집 취소 안내';
@@ -456,10 +449,7 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     case 'confirmed':   return `${t} 모집 참여가 확정됐어요`;
     case 'cancel':      return `${actorName}님이 ${t} 모집 참여를 취소했어요`;
     case 'waitlist':    return `${actorName}님이 ${t} 모집에 대기 신청했어요`;
-    case 'kicked':      return `${t} 모집 참여가 주최자 사정으로 취소됐어요`;
-    case 'slotOpen':    return `대기 중이던 ${t} 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
     case 'waitlistPromoted': return `대기 중이던 ${t} 모집에 자리가 나서 즉시 참석이 확정됐어요 — 일정에서 확인하세요`;
-    case 'slotPassed':  return `대기 중이던 ${t} 모집은 이번엔 다음 분께 자리가 넘어갔어요 — 다시 대기 신청할 수 있어요`;
     case 'comment':     return `${actorName}님이 ${t} 모집에 댓글을 남겼어요`;
     case 'mannerEval':  return `${t} 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     case 'hostCancelledD7': return `${t} 모집이 주최자에 의해 취소됐어요 — 매너 평가를 남길 수 있어요`;

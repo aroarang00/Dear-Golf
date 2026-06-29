@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Linking, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Linking, ActivityIndicator, Platform } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';

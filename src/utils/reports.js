@@ -1,6 +1,5 @@
 import {
-  collection, query, where, orderBy, getDocs,
-  addDoc, doc, serverTimestamp,
+  collection, addDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
@@ -43,17 +42,4 @@ export async function createReport(data) {
   };
   const ref = await addDoc(collection(db, COLLECTION), report);
   return { id: ref.id, ...report };
-}
-
-// 내가 작성한 신고 — 최신순. 검토 결과 확인용.
-export async function loadMyReports() {
-  const uid = await getUid();
-  if (!uid) return [];
-  const q = query(
-    collection(db, COLLECTION),
-    where('reporterUid', '==', uid),
-    orderBy('createdAt', 'desc'),
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }

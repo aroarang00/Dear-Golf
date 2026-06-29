@@ -10,8 +10,6 @@
 
 // 카카오 디벨로퍼스 (https://developers.kakao.com/console/app)
 export const KAKAO_REST_API_KEY   = process.env.EXPO_PUBLIC_KAKAO_REST_API_KEY;   // REST API — 로그인 OAuth
-export const KAKAO_NATIVE_APP_KEY = process.env.EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY; // 네이티브 앱 키
-export const KAKAO_JS_KEY         = process.env.EXPO_PUBLIC_KAKAO_JS_KEY;         // JS 키 — Kakao Maps SDK
 
 // 티맵모빌리티 (https://openapi.sk.com) — 자동차 경로안내(실시간 교통). 교통탭 추천 출발시간 계산(TMap 우선·카카오 폴백)
 export const TMAP_APP_KEY    = process.env.EXPO_PUBLIC_TMAP_APP_KEY;
@@ -32,10 +30,6 @@ export const FIREBASE_CONFIG = {
 //  - 인증: x-ncp-apigw-api-key-id / x-ncp-apigw-api-key 헤더
 export const NAVER_MAP_CLIENT_ID     = process.env.EXPO_PUBLIC_NAVER_MAP_CLIENT_ID;
 export const NAVER_MAP_CLIENT_SECRET = process.env.EXPO_PUBLIC_NAVER_MAP_CLIENT_SECRET;
-export const NAVER_STATIC_MAP_URL    = 'https://maps.apigw.ntruss.com/map-static/v2/raster';
-
-// Unsplash Access Key — 홈화면 배경사진 (시간대/날씨별 골프장 이미지)
-export const UNSPLASH_ACCESS_KEY = process.env.EXPO_PUBLIC_UNSPLASH_ACCESS_KEY;
 
 // 공공데이터포털(data.go.kr) 일반 인증키 — 활용신청한 모든 서비스 공용
 //  - 기상청 단기예보 / 중기예보 / 생활기상지수(자외선), 한국환경공단 미세먼지

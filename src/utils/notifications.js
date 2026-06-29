@@ -136,24 +136,6 @@ async function _scheduleRoundAlarms(schedule, types) {
   return scheduled;
 }
 
-async function _syncAlarmTypeAcrossSchedules(schedules, type, enabled) {
-  const map = await storage.load(STORAGE_KEYS.alarms, {});
-  const now = Date.now();
-  for (const s of schedules || []) {
-    if (!s?.id) continue;
-    const triggers = alarmTriggers(s);
-    const future = ALARM_TYPES.some(t => triggers[t] && triggers[t].getTime() > now);
-    if (!future) continue; // 알람과 무관한 지난 일정은 건너뜀
-    const current = map[s.id]?.types || [];
-    const has = current.includes(type);
-    if (has === enabled) continue; // 변화 없음
-    const next = enabled ? [...current, type] : current.filter(t => t !== type);
-    await _scheduleRoundAlarms(s, next);
-    // 같은 큐 작업 안에서 다음 일정 판단을 위해 로컬 스냅샷도 갱신
-    map[s.id] = { ...(map[s.id] || {}), types: next };
-  }
-}
-
 // --- 공개 API (큐를 통해 직렬 실행) ---
 
 // 일정에 대한 라운딩 알람 예약. types: ['d3','d1','teeoff'] 중 선택분.
@@ -192,12 +174,6 @@ async function _reconcileAlarms(activeIds) {
 // 앱 시작·일정 로드 후 호출 — 살아있는 일정 id만 넘기면 그 외 예약 알림을 전부 정리.
 export function reconcileAlarms(activeIds) {
   return enqueue(() => _reconcileAlarms(activeIds));
-}
-
-// 마이페이지에서 알람 시점 하나를 켜고 끌 때 — 예정된 모든 일정에 즉시 반영.
-// type 시점만 더하거나 빼고 나머지 시점은 일정별 설정 그대로 유지.
-export function syncAlarmTypeAcrossSchedules(schedules, type, enabled) {
-  return enqueue(() => _syncAlarmTypeAcrossSchedules(schedules, type, enabled));
 }
 
 // 팝업 없이 기본 알람 설정대로 예약 — '다시 묻지 않기'를 켠 사용자용

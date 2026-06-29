@@ -49,18 +49,6 @@ export async function submitEvaluation(data) {
   return { id, alreadyEvaluated: false, ...evaluation };
 }
 
-// 특정 모집의 특정 대상에 이미 평가했는지 (UI 비활성 표시용)
-export async function hasEvaluated(roundupId, targetUid) {
-  const uid = await getUid();
-  if (!uid || !roundupId || !targetUid) return false;
-  try {
-    const snap = await getDoc(doc(db, COLLECTION, evalDocId(roundupId, uid, targetUid)));
-    return snap.exists();
-  } catch {
-    return false;
-  }
-}
-
 // 특정 모집에서 내가 작성한 평가들 — 모달 진입 시 prefill
 export async function loadMyEvaluationsForRoundup(roundupId) {
   const uid = await getUid();

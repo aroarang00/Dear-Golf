@@ -31,10 +31,3 @@ export function calculateAgeFromKakao(birthyear, birthday, now = new Date()) {
   const bd = birthday.slice(2, 4);
   return calculateAge(birthyear, bm, bd, now);
 }
-
-// 만 19세 이상 판정. 생년월일 없으면 false (모르면 성인 아님).
-export function isAdultByKakao(birthyear, birthday, now = new Date()) {
-  const age = calculateAgeFromKakao(birthyear, birthday, now);
-  if (age === null) return false;
-  return age >= ADULT_AGE;
-}

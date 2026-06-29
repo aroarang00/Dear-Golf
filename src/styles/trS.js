@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { C, F, fs } from '../constants/colors';
+import { F, fs } from '../constants/colors';
 
 export const trS = StyleSheet.create({
   // Cream section (header → route card)

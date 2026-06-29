@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Image } from 'expo-image'; // 상세 사진 그리드 디스크캐시 — 피드 카드(expo-image)와 캐시 공유로 '한 장씩 뜨는' 지연 제거 ([[image-load-speed]])
 import { showAppAlert } from './AppAlert';
 import * as VideoThumbnails from 'expo-video-thumbnails';

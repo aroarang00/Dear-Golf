@@ -13,7 +13,7 @@ import { getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { LinkText } from './common/LinkText';
-import { ensureConversation, sendMessage, sendImageMessage, sendImagesMessage, sendVideoMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
+import { ensureConversation, sendMessage, sendImagesMessage, sendVideoMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import * as ImagePicker from 'expo-image-picker';
 import { storage } from '../utils/storage';
 import { setActiveDmPair } from '../utils/notifications';

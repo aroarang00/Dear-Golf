@@ -8,11 +8,6 @@ export const SCHEDULES_INIT = [
   { id: '4', course: '포천베어크리크CC',      date: '2026.06.15', day: '월', time: '09:00', members: 4, dDay: 33, weather: '맑음 22°', wind: '북 2m/s',   duration: '1시간 30분', courseLogId: '4' },
 ];
 
-export const HALL_OF_FAME = [
-  { id: 'h1', type: 'HOLE IN ONE', date: '2024.09.15', course: '제이드팰리스 골프클럽', hole: 7, par: 3, distance: '156m', ball: 'Titleist Pro V1', companions: ['김민준', '이수연'], memo: '믿을 수가 없었다. 볼이 그냥 들어갔어' },
-  { id: 'h2', type: 'EAGLE', date: '2025.03.30', course: '남촌 골프클럽', hole: 12, par: 5, distance: '490m', ball: 'Titleist Pro V1', companions: ['오세훈'], memo: '세컨샷이 핀에 딱 붙었다' },
-];
-
 export const DIARY_DATA = [
   { id: '1', date: '2025.03.30', day: '일', course: '남촌 골프클럽', score: 76, par: 72,
     memo: '베스트 갱신! 아이언이 살아났다', badge: '베스트', weather: '맑음',
@@ -62,17 +57,6 @@ export const COURSE_COMMENTS = [
 
 export const FAVORITES_INIT = ['2'];
 
-export const MEMO_MAP = {
-  '1': { text: '7번홀 OB 조심, 클럽하우스 된장찌개 맛있음', date: '2025.10.03', courseId: '1' },
-};
-
-export const MY_RESTAURANTS  = [{ id: '1', name: '천안 한우명가', type: '한우구이', dist: '500m', memo: '라운딩 후 꼭 가기. 1++ 등심 추천' }];
-
-export const USER_RESTAURANTS = [
-  { id: '2', name: '미락 숯불갈비', type: '갈비', dist: '1.2km', rating: '4.8' },
-  { id: '3', name: '순두부마을', type: '순두부찌개', dist: '800m', rating: '4.5' },
-];
-
 export const COURSE_TAGS = {
   '코스 관리':   ['관리 최상', '관리 보통', '관리 아쉬움'],
   '코스 특성':   ['그린 빠름', '그린 느림', '넓은 페어웨이', '좁은 페어웨이', '전장 길음', '전장 짧음'],
@@ -101,13 +85,6 @@ export const COURSE_TAG_COLORS = {
 
 // GOLF_DB는 카카오 로컬 API 검색 + USER_COURSES(AsyncStorage)로 대체됨
 // src/utils/kakao.js, src/utils/userCourses.js 참고
-
-export const RECOMMENDED_COURSES = [
-  { id: 'r1', name: '클럽나인브릿지', loc: '제주', tags: ['★★★★★', '국내 TOP'] },
-  { id: 'r2', name: '핀크스 골프클럽', loc: '제주', tags: ['★★★★★', '오션뷰'] },
-  { id: 'r3', name: '레이크사이드CC', loc: '경기 고양', tags: ['★★★★', '접근 편리'] },
-  { id: 'r4', name: '해슬리나인브릿지', loc: '경기 여주', tags: ['★★★★★', '명문 코스'] },
-];
 
 // 사용자가 입력한 country 텍스트 → 국기 이모지 매핑
 // 매핑에 없으면 빈 문자열 반환 → 카드는 국기 자리 비움
@@ -146,35 +123,6 @@ export const OVERSEAS_COURSE_LOG = [
   { id: 'o1', name: '나루토 골프클럽', loc: '일본 오사카', country: '일본', flag: '🇯🇵', visits: 2, best: 88, avg: 94, memo: '코스 관리 최고, 뷰가 아름다움', tags: ['★★★★★', '오션뷰'] },
   { id: 'o2', name: '블랙마운틴 CC', loc: '태국 후아힌', country: '태국', flag: '🇹🇭', visits: 1, best: 92, avg: 92, memo: '열대 코스, 캐디 서비스 훌륭', tags: ['★★★★', '리조트형'] },
   { id: 'o3', name: '발리 국립 GC', loc: '인도네시아 발리', country: '인도네시아', flag: '🇮🇩', visits: 1, best: 95, avg: 95, memo: '발리 여행 중 라운딩, 뷰 최고', tags: ['★★★★', '열대우림'] },
-];
-
-export const TOP_100_COURSES = [
-  { rank: 1,  name: '클럽나인브릿지',    loc: '제주', visited: false },
-  { rank: 2,  name: '핀크스 골프클럽',   loc: '제주', visited: false },
-  { rank: 3,  name: '해슬리나인브릿지',  loc: '경기 여주', visited: false },
-  { rank: 4,  name: '레이크사이드CC',    loc: '경기 고양', visited: false },
-  { rank: 5,  name: '남촌 골프클럽',     loc: '경기 남양주', visited: true },
-  { rank: 6,  name: '블랙스톤 컨트리클럽', loc: '충북 음성', visited: true },
-  { rank: 7,  name: '제이드팰리스 골프클럽', loc: '경기 용인', visited: true },
-  { rank: 8,  name: '스카이72 골프앤리조트', loc: '인천 영종도', visited: false },
-  { rank: 9,  name: '오크밸리CC',        loc: '강원 원주', visited: false },
-  { rank: 10, name: '가평베네스트 CC',   loc: '경기 가평', visited: false },
-  { rank: 11, name: '골든비치CC',        loc: '강원 강릉', visited: false },
-  { rank: 12, name: '웰링턴CC',          loc: '경기 여주', visited: false },
-  { rank: 13, name: '안성베네스트 CC',   loc: '경기 안성', visited: false },
-  { rank: 14, name: '사우스링스 CC',     loc: '경기 안성', visited: false },
-  { rank: 15, name: '파인크리크 골프장', loc: '경기 평택', visited: false },
-  { rank: 16, name: '트리니티클럽',      loc: '경기 용인', visited: false },
-  { rank: 17, name: '베어크리크 GC',     loc: '경기 용인', visited: false },
-  { rank: 18, name: '88CC',             loc: '경기 여주', visited: false },
-  { rank: 19, name: '아시아나CC',        loc: '전남 영광', visited: false },
-  { rank: 20, name: '엘리시안 제주',     loc: '제주', visited: false },
-];
-
-export const FRIENDS_DATA = [
-  { id: 'f1', nickname: '김민준', realName: '김민준', rounds: 28, best: 82, lastCourse: '남촌 골프클럽', lastDate: '2025.05.01', photos: ['https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=400'] },
-  { id: 'f2', nickname: '이수연', realName: '이수연', rounds: 15, best: 91, lastCourse: '블랙스톤 CC', lastDate: '2025.04.28', photos: ['https://images.unsplash.com/photo-1592919505780-303950717480?w=400'] },
-  { id: 'f3', nickname: '오세훈', realName: '오세훈', rounds: 42, best: 78, lastCourse: '제이드팰리스', lastDate: '2025.04.20', photos: [] },
 ];
 
 // 신규 유저 초기 프로필 — 빈 상태로 시작, 온보딩에서 채워진다
@@ -221,7 +169,7 @@ export const USER_PROFILE_INIT = {
   // 라운지 — 모르는 사람 모집 숨김. true면 '전체' 탭이 사라지고 친구 모집만 보임.
   hideStrangerRoundups: false,
   // 라운지 알림 종류별 ON/OFF — RoundupNotifications ⚙️에서 토글. Phase 2 FCM 연동 시 실제 푸시 발송 제어.
-  roundupNotifyPrefs: { apply: true, confirmed: true, cancel: true, waitlist: true, slotOpen: true, comment: true },
+  roundupNotifyPrefs: { apply: true, confirmed: true, cancel: true, waitlist: true, comment: true },
   // 라운지 맞춤 모집 조건 — 새 모집글이 이 조건에 맞으면 라운지에서 알려줌(인앱).
   // regions: 관심 지역 / days: 요일 다중(빈 배열=무관) / dateFrom~dateTo: 특정 기간
   // companion: 'female'(여성만)·'couple'(부부·커플)·null(상관없음)

@@ -7,7 +7,6 @@ import { TermsViewerModal } from './TermsViewerModal';
 import {
   TERMS_OF_SERVICE,
   PRIVACY_POLICY,
-  COMMUNITY_GUIDELINES,
   PENALTY_CONSENT,
   LOCATION_BASED_SERVICE_TERMS,
   LEGAL_VERSION,

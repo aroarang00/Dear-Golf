@@ -26,7 +26,6 @@ export const REGION_OPTIONS = [
   ['gyeongsang', '경상'],
   ['jeju', '제주'],
 ];
-export const REGION_LABEL = Object.fromEntries(REGION_OPTIONS);
 
 // 골프장 주소(예: '경기 용인', '제주특별자치도 서귀포') → region 키
 export function regionFromAddress(addr) {
@@ -107,19 +106,6 @@ export const FILTER_BADGE = {
   skill:     { bg: '#D9C8E0', fg: '#4A2A5C' },
 };
 
-// 실력 — 카드용 짧은 표기 ('90-100타' → '90타대')
-export function skillLabelShort(skill) {
-  if (!skill || skill === 'any') return null;
-  const SHORT = { beginner: '100타+', high: '90타대', mid: '80타대', pro: '80타-' };
-  return SHORT[skill] || SKILL_LABEL[skill] || null;
-}
-
-// 연령대 — 카드용 짧은 표기 ('any' → 표시 안 함)
-export function ageGroupLabelShort(ageGroup) {
-  if (!ageGroup || ageGroup === 'any') return null;
-  return AGEGROUP_LABEL[ageGroup] || null;
-}
-
 // 모집이 "확정" 상태인지 판정 — D-7 이내 매너 -5 패널티 분기의 유일한 트리거.
 // 확정 = 주최자가 명시적으로 [확정] 버튼을 누른 시점(closed=true)만.
 // 만석 자동 마감은 "확정"으로 보지 않음 (2026-05-28 정책 변경):
@@ -129,18 +115,6 @@ export function ageGroupLabelShort(ageGroup) {
 // 카드 '마감' 뱃지·'모집 완료'·자동 일정 등록은 만석 기준 그대로 (별개 동선 — "신규 참여 X"의 의미).
 export function isRoundupConfirmed(post) {
   return !!post?.closed;
-}
-
-// 라운딩 날짜까지 남은 일수로 대기자 응답 제한 시간(시간)을 계산
-export function waitlistRespondHours(dateStr) {
-  if (!dateStr) return 24;   // 오픈형(날짜 미정)은 기본 24시간
-  const [y, m, d] = dateStr.split('.').map(Number);
-  const target = new Date(y, m - 1, d);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const days = Math.round((target - today) / 86400000);
-  if (days >= 7) return 24;
-  if (days >= 3) return 6;
-  return 1;
 }
 
 // 시간대 슬롯 — 주중/주말 × 1·2·3부 (맞춤모집 매칭축, [[roundup-friend-redesign]]).

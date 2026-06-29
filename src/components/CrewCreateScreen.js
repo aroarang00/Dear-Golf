@@ -4,7 +4,6 @@ import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-nati
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { F, fs } from '../constants/colors';
-import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { loadMyFriendsEnriched } from '../utils/friends';

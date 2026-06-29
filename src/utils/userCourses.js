@@ -85,13 +85,6 @@ export async function findUserCourseById(id) {
   return list.find(c => c.id === id) || null;
 }
 
-export async function deleteUserCourse(id) {
-  const list = await getUserCourses();
-  const next = list.filter(c => c.id !== id);
-  await storage.save(STORAGE_KEYS.userCourses, next);
-  pushUserCoursesToFirestore(next);
-}
-
 // 좌표 보장: x/y 없으면 loc으로 카카오 주소검색해서 채움 + 캐시. 갱신된 course 반환, 실패 시 null.
 // 카카오 검색 없이 손으로 등록한 코스도 KMA 단기예보(격자 변환)에 쓸 수 있게 보충.
 export async function ensureCourseCoord(course) {

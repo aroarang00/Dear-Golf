@@ -22,16 +22,14 @@ const ROUNDUP_NOTI_TYPES = [
   { key: 'roundupCancelled', icon: '🚫', label: '모집 취소',       sub: '참여한 모집이 취소되면' },
   { key: 'waitlist',         icon: '⏳', label: '대기 신청',       sub: '내 모집글에 대기 신청이 들어오면' },
   { key: 'comment',          icon: '💬', label: '모집 댓글',       sub: '내 모집글에 댓글이 달리면' },
-  { key: 'slotOpen',         icon: '🎉', label: '대기 자리 열림',  sub: '대기 중인 모집에 자리가 나면' },
 ];
-const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true, cancel: true, roundupCancelled: true, waitlist: true, comment: true, slotOpen: true };
+const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true, cancel: true, roundupCancelled: true, waitlist: true, comment: true };
 
 const NOTI_ICON = {
-  apply: '🙋', cancel: '❌', slotOpen: '🎉', waitlistPromoted: '🎉', slotPassed: '⌛', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
+  apply: '🙋', cancel: '❌', waitlistPromoted: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
   invite: '💌', roundupCancelled: '🚫', scheduleNotice: '📣', friendRequest: '🤝', roundupChanged: '✏️', roundupFull: '🔔',
   scheduleChanged: '🗓️', scheduleCancelled: '🚫',
   // 시스템 알림 (Cloud Functions)
-  kicked: '🚪',
   noshowReported: '⚠️', noshowReportSubmitted: '📩', noshowExplanationRequired: '⏰',
   noshowConfirmed: '🚫', noshowReporterConfirmed: '✅', noshowFalseReport: '🚫',
   noshowFalseReportConfirmed: '✅', noshowInconclusive: '⚖️', noshowCancelled: '✋',
@@ -76,11 +74,8 @@ function notiText(n, friendMeta) {
     case 'roundupCancelled': return n.postTitle
       ? `${who}님의 '${n.postTitle}'${n.scheduleDate ? ` (${n.scheduleDate})` : ''} 모집이 취소됐어요`
       : `${who}님이 만든 모집이 취소됐어요`;
-    case 'slotOpen':  return `대기 중이던 '${n.postTitle}' 모집에 자리가 났어요 — 시간 내에 응답해주세요`;
     // 자동 승격 — 자리가 나서 대기 순번대로 참여가 즉시 확정됨(호출·수락 단계 없음, [[roundup-waitlist-autopromote]])
     case 'waitlistPromoted': return `대기 중이던 '${n.postTitle}' 모집에 자리가 나서 즉시 참석이 확정됐어요 — 일정에서 확인하세요`;
-    // 호출됐지만 응답 시간 안에 못 들어와 다음 대기자에게 넘어갔을 때의 닫힘 통보 (서운함·오해 완화, 재대기 유도)
-    case 'slotPassed': return `대기 중이던 '${n.postTitle}' 모집은 이번엔 다음 분께 자리가 넘어갔어요 — 다시 대기 신청할 수 있어요`;
     case 'confirmed': return `${who}님이 '${n.postTitle}' 모집에 참여했어요`;
     case 'invite': {
       // 오픈형은 코스 미정이라 postTitle 비거나 '라운딩 초대' 폴백 → 코스명 있을 때만 표기
@@ -96,7 +91,6 @@ function notiText(n, friendMeta) {
     }
     case 'friendRequest': return `${who}님이 친구 신청을 보냈어요`;
     case 'mannerEval':return `'${n.postTitle}' 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
-    case 'kicked':    return `'${n.postTitle}' 모집 참여가 주최자 사정으로 취소됐어요`;
 
     // 노쇼 신고 (시스템)
     case 'noshowReported':

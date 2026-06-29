@@ -27,14 +27,14 @@ import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
-import { isPostVisible, blockUser, unblockUser, remainingBlocksToday } from '../utils/block';
+import { isPostVisible, blockUser, remainingBlocksToday } from '../utils/block';
 import { blockUid as fsBlockUid, loadMyFriends, unfriend, sendFriendRequest, isFriend } from '../utils/friends';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { getCancelWarningByHours, isD7Inside } from '../constants/mannerGrade';
+import { isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
@@ -44,7 +44,7 @@ import { loadComments, loadOlderComments, countComments, COMMENT_MAX_TOTAL, addC
 import { getUid, auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { shareInvite } from '../utils/invite';
-import { loadFriendData, groupColor, groupName, friendDisplayName, ownerVisibilityLabel, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
+import { loadFriendData, friendDisplayName, ownerVisibilityLabel, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { anonNick, displayParticipantName } from '../utils/anonNick';
 
 // posts/comments/notifications — Phase 3-A에서 Firestore 직결로 전환.

@@ -1,5 +1,5 @@
 import {
-  collection, query, where, getDocs, onSnapshot,
+  collection, query, where, onSnapshot,
   setDoc, updateDoc, getDoc, doc, serverTimestamp, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -99,14 +99,6 @@ export function subscribeIncomingScheduleInvites(uid, cb) {
   return onSnapshot(q, (snap) => {
     cb(filterPending(snap, uid));
   }, (e) => { if (__DEV__) console.warn('[scheduleShare] subscribe fail', e?.message); cb([]); });
-}
-
-// 1회 조회 버전(폴백/초기 로드).
-export async function loadIncomingScheduleInvites(uid) {
-  if (!uid) return [];
-  const q = query(collection(db, COLLECTION), where('audienceUids', 'array-contains', uid));
-  const snap = await getDocs(q);
-  return filterPending(snap, uid);
 }
 
 // 미응답(수락·거절 안 한) 초대만 추려 최신순. 본인이 보낸 그룹은 제외.

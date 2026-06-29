@@ -85,22 +85,6 @@ export function canDeleteComment(comment, myId, myName) {
   return comment.authorName === myName;
 }
 
-// 댓글 고정 토글 — 주최자만 (호출 측에서 권한 체크 후 사용).
-// 새 댓글을 고정하면 기존 고정 자동 해제 (한 모집글당 1개 유지).
-export function togglePinComment(comments, commentId) {
-  const target = comments.find(c => c.id === commentId);
-  if (!target) return comments;
-  if (target.pinned) {
-    return comments.map(c => c.id === commentId ? { ...c, pinned: false, pinnedAt: null } : c);
-  }
-  const now = Date.now();
-  return comments.map(c => {
-    if (c.id === commentId) return { ...c, pinned: true, pinnedAt: now };
-    if (c.pinned) return { ...c, pinned: false, pinnedAt: null };
-    return c;
-  });
-}
-
 // =============================================================
 // Firestore 서브컬렉션 — roundups/{postId}/comments/{commentId}
 //   2026-05-30 연동. 권한: create=authorUid==me / delete=본인 / pin=changedKeysWithin (클라가 주최자만 노출)

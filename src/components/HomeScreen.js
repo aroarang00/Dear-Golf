@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Modal, LayoutAnimation, Platform, UIManager, Linking, AppState, Animated, Easing, useWindowDimensions,
+  Share, Modal, LayoutAnimation, Platform, UIManager, AppState, Animated, Easing, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
 import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
-import { COURSE_LOG, DIARY_DATA, WEEKDAYS } from '../constants/data';
+import { COURSE_LOG, WEEKDAYS } from '../constants/data';
 import { getUserCourses, syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { STORAGE_KEYS, storage } from '../utils/storage';
-import { normalizeSchedules } from '../utils/helpers';
 import { homeS, CARD_H, CARD_PAD, SIDE_PAD } from '../styles/homeS';
 import { ModalBackContext } from '../hooks/useScreenBack'; // 크루 모달 내부 다단계 뒤로가기
 import { UserContext } from '../contexts/UserContext';

@@ -42,8 +42,3 @@ export function displayParticipantName(post, uid, realName, viewerUid) {
   if (viewerIsHost) return realName || '동반자'; // 호스트는 코디·검증 위해 실명
   return anonNick(uid, post.id);
 }
-
-// 특정 uid가 이 모집에서 익명 참여 중인지
-export function isAnonParticipant(post, uid) {
-  return !!post && !!uid && Array.isArray(post.anonymousUids) && post.anonymousUids.includes(uid);
-}

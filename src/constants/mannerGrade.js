@@ -11,8 +11,6 @@ export const MANNER_GRADES = [
 
 const BY_KEY = MANNER_GRADES.reduce((m, g) => { m[g.key] = g; return m; }, {});
 
-export const mannerGradeByKey = (key) => BY_KEY[key] || BY_KEY.normal;
-
 // 매너 점수로 등급 산출.
 export function getMannerGrade(score = 70) {
   if (score >= 95) return BY_KEY.king;
@@ -37,14 +35,6 @@ export const MANNER_DELTAS = {
   evalGood:         +1,   // 매너 평가 👍 (1명만이라도 가능)
   evalNeutral:       0,   // 매너 평가 😐 또는 무평가(자동 보통 처리)
 };
-
-// 매너 평가 👎 개수에 따른 차감 — 그라데이션 ([[manner-evaluation-policy]])
-// 1명만 👎는 무시(자동 보통 처리), 2명부터 사회적 합의로 인정.
-export function getBadVoteDelta(badCount) {
-  if (badCount < 2) return 0;      // 1명 이하 — 사적 감정 차단
-  if (badCount === 2) return -2;   // 2명 합의
-  return -3;                        // 3명 이상 (4인 라운드 최대치)
-}
 
 // 매너 점수에 변동분 적용 (클램프 포함)
 export function applyMannerDelta(score, kind) {

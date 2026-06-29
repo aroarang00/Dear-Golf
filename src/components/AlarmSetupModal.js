@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Modal, View, Text, TouchableOpacity, Alert, Linking, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Linking, ScrollView } from 'react-native';
 import { showAppAlert } from './AppAlert';
 import { C, F, fs } from '../constants/colors';
 import { STORAGE_KEYS, storage } from '../utils/storage';
