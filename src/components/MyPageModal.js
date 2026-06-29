@@ -12,7 +12,7 @@ import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUid } from '../utils/firebase';
 import { saveNotifyPref } from '../utils/pushTokens';   // 알림 토글 서버 동기(CF 게이팅이 읽는 users.settings.notifyPrefs)
-import { savePrivateDeparture } from '../utils/privateProfile'; // 출발지 비공개 Firestore 저장(기기 간 유지)
+import { savePrivateDeparture, savePrivateWork } from '../utils/privateProfile'; // 출발지·회사 비공개 Firestore 저장(기기 간 유지)
 import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
 import { UserContext } from '../contexts/UserContext';
@@ -87,6 +87,12 @@ export function MyPageModal({ visible, onClose }) {
   const [depResults, setDepResults] = useState([]);
   const [depSearching, setDepSearching] = useState(false);
   const depTimerRef = useRef(null);
+  // 회사(또는 자주 가는 또 하나의 출발지) — 오후·야간 티 출발 계산용
+  const [work, setWork] = useState(userProfile.work || '');
+  const [workCoord, setWorkCoord] = useState(userProfile.workCoord || null);
+  const [workResults, setWorkResults] = useState([]);
+  const [workSearching, setWorkSearching] = useState(false);
+  const workTimerRef = useRef(null);
   const [phone, setPhone] = useState(userProfile.phone || '');
   const [realName, setRealName] = useState(userProfile.realName || ''); // 본명(선택) — 친구·동반자 매칭용, 검색 표시는 마스킹 ([[realname-policy]])
   const [editingInfo, setEditingInfo] = useState(false);
@@ -99,6 +105,17 @@ export function MyPageModal({ visible, onClose }) {
     const updated = { ...userProfile, alarmPromptDisabled: !userProfile.alarmPromptDisabled };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
+  };
+
+  // 라운드 준비 알림(준비시간·도착여유·기상/출발 기본) — 즉시 로컬 저장. 다음 일정부터 자동 적용.
+  const persistAlarmCfg = (patch) => {
+    const updated = { ...userProfile, ...patch };
+    setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
+  };
+  const toggleAlarmDefault = (key) => {
+    const defaults = userProfile.alarmDefaults || { d3: true, d1: true, teeoff: true };
+    persistAlarmCfg({ alarmDefaults: { ...defaults, [key]: !defaults[key] } });
   };
 
   // 알림 항목 토글 (친구·모집·평가·기록) — 기본 ON, 즉시 저장.
@@ -134,6 +151,10 @@ export function MyPageModal({ visible, onClose }) {
       setDepartureCoord(userProfile.departureCoord || null);
       setDepResults([]);
       setDepSearching(false);
+      setWork(userProfile.work || '');
+      setWorkCoord(userProfile.workCoord || null);
+      setWorkResults([]);
+      setWorkSearching(false);
       setPhone(userProfile.phone || '');
       setRealName(userProfile.realName || '');
       setEditingInfo(false);
@@ -141,16 +162,18 @@ export function MyPageModal({ visible, onClose }) {
   }, [visible]);
 
   // 디바운스 타이머 정리
-  useEffect(() => () => { if (depTimerRef.current) clearTimeout(depTimerRef.current); }, []);
+  useEffect(() => () => { if (depTimerRef.current) clearTimeout(depTimerRef.current); if (workTimerRef.current) clearTimeout(workTimerRef.current); }, []);
 
   const handleSaveInfo = () => {
-    const updated = { ...userProfile, departure, departureCoord, phone, realName: realName.trim() };
+    const updated = { ...userProfile, departure, departureCoord, work, workCoord, phone, realName: realName.trim() };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
-    // 출발지는 비공개 서브컬렉션(owner-only)에도 저장 — 기기 간·재설치 후에도 유지(주소는 users 문서엔 안 올림, 노출 방지).
-    getUid().then(uid => { if (uid) savePrivateDeparture(uid, departure, departureCoord); }).catch(() => {});
+    // 출발지·회사는 비공개 서브컬렉션(owner-only)에도 저장 — 기기 간·재설치 후에도 유지(주소는 users 문서엔 안 올림, 노출 방지).
+    getUid().then(uid => { if (uid) { savePrivateDeparture(uid, departure, departureCoord); savePrivateWork(uid, work, workCoord); } }).catch(() => {});
     setDepResults([]);
     setDepSearching(false);
+    setWorkResults([]);
+    setWorkSearching(false);
     setEditingInfo(false);
   };
 
@@ -159,6 +182,10 @@ export function MyPageModal({ visible, onClose }) {
     setDepartureCoord(userProfile.departureCoord || null);
     setDepResults([]);
     setDepSearching(false);
+    setWork(userProfile.work || '');
+    setWorkCoord(userProfile.workCoord || null);
+    setWorkResults([]);
+    setWorkSearching(false);
     setPhone(userProfile.phone || '');
     setRealName(userProfile.realName || '');
     setEditingInfo(false);
@@ -186,6 +213,28 @@ export function MyPageModal({ visible, onClose }) {
     setDepartureCoord({ x: r.x, y: r.y });
     setDepResults([]);
     setDepSearching(false);
+  };
+
+  // 회사 입력 — 출발지와 동일한 디바운스 검색
+  const handleWorkChange = (t) => {
+    setWork(t);
+    setWorkCoord(null);
+    if (workTimerRef.current) clearTimeout(workTimerRef.current);
+    const q = t.trim();
+    if (q.length < 2) { setWorkResults([]); setWorkSearching(false); return; }
+    setWorkSearching(true);
+    workTimerRef.current = setTimeout(async () => {
+      const results = await searchPlaces(q);
+      setWorkResults(results);
+      setWorkSearching(false);
+    }, 350);
+  };
+  const handleSelectWork = (r) => {
+    if (workTimerRef.current) clearTimeout(workTimerRef.current);
+    setWork(r.name);
+    setWorkCoord({ x: r.x, y: r.y });
+    setWorkResults([]);
+    setWorkSearching(false);
   };
 
   const formatPhone = (t) => {
@@ -467,6 +516,44 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 </View>
                 <View style={myS.menuRow}>
+                  <MenuIcon name="pin" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={myS.menuLabel}>그 외 자주 출발하는 곳 (예: 회사)</Text>
+                    {editingInfo ? (
+                      <>
+                        <AppTextInput style={{ fontFamily: F.sys, fontSize: fs(12), color: C.burgundy, borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingBottom: 2, marginTop: 2 }}
+                          value={work} onChangeText={handleWorkChange}
+                          autoCapitalize="none" autoCorrect={false}
+                          placeholder="회사·건물명으로 검색" placeholderTextColor={C.warmGrayLight} />
+                        {workSearching && (
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>검색 중…</Text>
+                        )}
+                        {!workSearching && workResults.length > 0 && (
+                          <View style={{ marginTop: 6, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 8, overflow: 'hidden' }}>
+                            {workResults.map((r, i) => (
+                              <TouchableOpacity key={r.kakaoId} activeOpacity={0.7}
+                                onPress={() => handleSelectWork(r)}
+                                style={{ paddingVertical: 8, paddingHorizontal: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+                                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal }} numberOfLines={1}>{r.name}</Text>
+                                {!!r.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.loc}</Text>}
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: workCoord ? '#3C7D4F' : C.warmGrayLight, marginTop: 6, lineHeight: 15 }}>
+                          {workCoord
+                            ? '✓ 오후·야간 티는 여기서 출발하는 시각으로 계산해요'
+                            : '오후·야간 라운드 출발지로 써요 (퇴근 후 직행 등)'}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: work ? C.burgundy : C.warmGrayLight, marginTop: 2 }}>
+                        {work || '입력하기 →'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={myS.menuRow}>
                   <MenuIcon name="idCard" />
                   <View style={{ flex: 1 }}>
                     <Text style={myS.menuLabel}>본명 (선택)</Text>
@@ -515,7 +602,7 @@ export function MyPageModal({ visible, onClose }) {
                       <View style={{ flex: 1 }}>
                         <Text style={myS.menuLabel}>라운딩마다 알람 직접 설정</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
-                          {on ? '일정을 추가할 때마다 알람 설정을 물어봐요' : '팝업 없이 D-3·D-1·당일 알람이 자동 적용돼요'}
+                          {on ? '일정을 추가할 때마다 알람 설정을 물어봐요' : '팝업 없이 아래 설정대로 자동 적용돼요'}
                         </Text>
                       </View>
                       <TouchableOpacity onPress={toggleAlarmPrompt} activeOpacity={0.8}
@@ -527,6 +614,78 @@ export function MyPageModal({ visible, onClose }) {
                     </View>
                   );
                 })()}
+
+                {/* 라운드 준비 알림 — 기상·출발 시각 자동 계산(온보딩과 동일 설정, 여기서 변경) */}
+                {(() => {
+                  const prepMin = Number.isFinite(userProfile.prepMin) ? userProfile.prepMin : 30;
+                  const arriveBufferMin = Number.isFinite(userProfile.arriveBufferMin) ? userProfile.arriveBufferMin : 30;
+                  const defaults = userProfile.alarmDefaults || {};
+                  const hasHome = !!((userProfile.departureCoord && typeof userProfile.departureCoord.x === 'number')
+                    || (userProfile.workCoord && typeof userProfile.workCoord.x === 'number'));
+                  return (
+                    <View style={{ paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>골프 가는 길 (기상·출발 알림)</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 16 }}>
+                        티오프 시간에 이동시간·아래 설정을 더해 기상·출발 시각을 자동 계산해요.
+                      </Text>
+
+                      {/* 준비시간 칩 */}
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 14 }}>집에서 나갈 준비 시간 (화장·짐 등)</Text>
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                        {[5, 15, 30, 60].map(m => {
+                          const on = prepMin === m;
+                          return (
+                            <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => persistAlarmCfg({ prepMin: m })}
+                              style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary }}>
+                              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{m}분</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {/* 도착여유 칩 */}
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 12 }}>구장 도착여유 (티오프 전)</Text>
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                        {[0, 30, 60].map(m => {
+                          const on = arriveBufferMin === m;
+                          return (
+                            <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => persistAlarmCfg({ arriveBufferMin: m })}
+                              style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary }}>
+                              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{m === 0 ? '바로' : `${m}분`}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {/* 기상·출발 기본 ON/OFF */}
+                      {[
+                        { key: 'wake', icon: '🔔', label: '기상 알림', sub: '새벽 라운드, 일어날 시각에' },
+                        { key: 'depart', icon: '🚗', label: '출발 알림', sub: '출발지에서 나설 시각에' },
+                      ].map(it => {
+                        const on = !!defaults[it.key];
+                        return (
+                          <View key={it.key} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{it.icon} {it.label}</Text>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{it.sub}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => toggleAlarmDefault(it.key)} activeOpacity={0.8}
+                              style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center', backgroundColor: on ? C.burgundy : C.hairline }}>
+                              <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff', alignSelf: on ? 'flex-end' : 'flex-start' }} />
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
+
+                      {!hasHome && (
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#B0641E', marginTop: 12, lineHeight: 16 }}>
+                          💡 위 '내 정보'에서 자주 가는 출발지를 저장하면 기상·출발 시각이 자동 계산돼요.
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })()}
+
                 {/* 추가 알림 — 친구 신청. 푸시 발송은 서버(onNotificationCreated) 연동 후 동작 */}
                 {/* 라운지(모집) 알림은 라운지 알림창 우상단 ⚙️에서 관리 ([[roundup-comments-policy]] §4 컨텍스트 분리 원칙).
                     여기엔 라운지 외 카테고리만 둠 — 중복·혼란 방지.

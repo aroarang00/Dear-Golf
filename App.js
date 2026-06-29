@@ -395,6 +395,8 @@ function App() {
               const next = { ...prev };
               if (priv.departure != null) next.departure = priv.departure;
               if (priv.departureCoord && typeof priv.departureCoord.x === 'number' && typeof priv.departureCoord.y === 'number') next.departureCoord = priv.departureCoord;
+              if (priv.work != null) next.work = priv.work;
+              if (priv.workCoord && typeof priv.workCoord.x === 'number' && typeof priv.workCoord.y === 'number') next.workCoord = priv.workCoord;
               return next;
             });
           }

@@ -21,6 +21,16 @@ export async function savePrivateDeparture(uid, departure, departureCoord) {
   } catch (e) { if (__DEV__) console.warn('[privateProfile] save departure', e?.message); }
 }
 
+// 회사(또는 자주 가는 또 하나의 출발지) 비공개 저장 — 오후·야간 티 출발지 계산용([[smart-preround-timing-plan]]).
+export async function savePrivateWork(uid, work, workCoord) {
+  if (!uid) return;
+  const coord = (workCoord && typeof workCoord.x === 'number' && typeof workCoord.y === 'number')
+    ? { x: workCoord.x, y: workCoord.y } : null;
+  try {
+    await setDoc(privRef(uid), { work: work || '', workCoord: coord, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) { if (__DEV__) console.warn('[privateProfile] save work', e?.message); }
+}
+
 // 비공개 프로필 로드 — { departure, departureCoord } | null. 앱 시작 시 1회(App.js 동기화).
 export async function loadPrivateProfile(uid) {
   if (!uid) return null;
