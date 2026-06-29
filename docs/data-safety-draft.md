@@ -39,11 +39,11 @@
 Apple 영양성분표(Nutrition Label)도 유사 매핑. "Data Used to Track You" = **없음**(광고·추적 SDK 없음). "Data Linked to You": 위치(대략)·이름·사용자ID·생년월일·메시지·사진/동영상·사용자콘텐츠·진단·식별자(푸시/기기). "Data Not Linked": (없음 또는 크래시 진단을 Not Linked로 분류 가능 — Sentry 구성에 따라). 추적(ATT) 프롬프트 불필요(추적 없음).
 
 ## 4. ★확인 필요 (제출 전 사장님 확정)
-1. **Sentry DSN이 프로덕션 빌드에 실제 설정**돼 크래시가 수집되는가? (안 켰으면 '앱 정보·성능' 수집=아니오로). `EXPO_PUBLIC_SENTRY_DSN` 확인.
-2. **카카오 친구 매칭**(`findKakaoFriendUsers`) — 카카오 소셜 그래프(친구의 카카오ID)를 받아 매칭. Play '연락처'는 *기기 주소록* 기준이라 해당 없음으로 보지만, 보수적으로 표기할지 결정.
+1. ✅ **확정(2026-06-29): Sentry는 프로덕션에서 가동 중.** `.env`에 실가동 DSN(`...ingest.us.sentry.io`, 미국) 설정됨 + `App.js:27` `enabled: !__DEV__ && !!DSN` → preview/production 빌드(`__DEV__=false`)에서 ON. `sendDefaultPii:false`+`beforeSend`로 IP·email 제거. → '앱 정보·성능(크래시·진단)' 수집=**예** 유지가 맞음. **단, 켜둔 채 출시하려면 §6 법무 고지(제5·6조)가 필수.** Sentry on/off 출시 결정은 **보류**(2026-06-29) — 끄기로 하면 이 항목 수집=아니오 + §6 불필요로 전환.
+2. ✅ **확정(2026-06-29): 기기 주소록 미접근.** `findKakaoFriendUsers`→`getKakaoFriends`→카카오 SDK `getFriends()`(friends scope, 소셜 그래프)만 사용. 코드 전체에 `expo-contacts`/`Contacts.` 사용 0건. → Play '연락처(Contacts=기기 주소록)' 카테고리 **해당 없음**(현 표기 유지). 보수적 표기 불필요.
 3. **위치 '공유'** — 대략 위치를 카카오/네이버/기상청 API에 보내 결과를 받음(처리위탁). 'shared=아니오' 유지가 통상이나, 심사 보수적으로 갈지 결정.
 4. **데이터 다운로드(데이터 이동권)** — 현재 '이메일 요청 후 수기 제공'. 자동화 안 됐어도 '삭제·다운로드 제공=예'로 신고 가능(수단 존재).
-5. SendGrid 이메일 위탁은 **현재 비활성**(코드 주석). 위탁 목록에서 빼거나 '예정'으로 둘지(개인정보처리방침 제5조와 정합).
+5. ✅ **확정(2026-06-29): SendGrid 비활성.** `functions/index.js:560` 키 미발급으로 호출부 4줄 주석처리, `email.js`도 키 없으면 silent skip. 개인정보처리방침 제5·6조엔 위탁사로 남아있음('Twilio(SendGrid) 또는 Gmail SMTP') — 신고 알림 메일 자체는 가능한 구성이라 약관 유지는 무방. Data Safety 위탁 목록 표기는 '예정/조건부'로 둘지 결정.
 
 ## 5. 정합 메모
 - 개인정보처리방침 제1조 수집항목과 위 표는 일치(닉네임·본명·생년월일·sub·기록·매너·신고·기기식별자·푸시토큰·접속로그·위치).
