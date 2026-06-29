@@ -362,7 +362,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     if (insideD7) {
       setAlert({
         title: '라운딩이 며칠 안 남았어요',
-        message: '라운딩 날짜가 가까워요.\n정말 취소하시겠어요?\n취소하면 자리는 다시 열려요.',
+        message: '라운딩 날짜가 가까워요.\n정말 취소하시겠어요?\n취소하면 대기자가 있으면 다음 대기자가 자동 참여되고, 없으면 자리가 다시 열려요.',
         buttons: [
           { text: '계속 참여', style: 'cancel' },
           { text: '취소하기', style: 'destructive', onPress: onCancel },
@@ -373,7 +373,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     // (3) D-7 이전 — 자유 취소, 약속 존중 톤
     setAlert({
       title: '참여를 취소할까요?',
-      message: '참여 확정된 라운딩이에요.\n신중하게 생각하고 취소해 주세요.\n취소하면 자리는 다시 열려요.',
+      message: '참여 확정된 라운딩이에요.\n신중하게 생각하고 취소해 주세요.\n취소하면 대기자가 있으면 다음 대기자가 자동 참여되고, 없으면 자리가 다시 열려요.',
       buttons: [
         { text: '계속 참여', style: 'cancel' },
         { text: '참여 취소', style: 'destructive', onPress: onCancel },
@@ -550,14 +550,24 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
           </>
         ) : allFull ? (
           post.type === 'open' ? (
-            // 오픈형 만석 — 일정 미정이라 확정 불가. 먼저 '모집글 수정'에서 확정형(날짜·골프장)으로 전환해야 함.
+            // 오픈형 만석 — 일정 미정이라 바로 확정 불가. '날짜·골프장 정하기'(=모집글 수정)로 일정을 정하면 확정 가능.
             <>
-              <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
-                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: 0.7 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGrayLight }}>모집 확정하기</Text>
-              </View>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.navy, textAlign: 'center', marginBottom: _and ? 7 : 9 }}>
+                🎉 인원이 다 모였어요 · 이제 일정을 정해요
+              </Text>
+              {onEdit ? (
+                <TouchableOpacity activeOpacity={0.85} onPress={onEdit}
+                  style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', backgroundColor: C.navy }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>📅 날짜·골프장 정하기</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: 0.7 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGrayLight }}>모집 확정하기</Text>
+                </View>
+              )}
               <Text style={hintStyle}>
-                일정이 아직 정해지지 않았어요.{'\n'}'모집글 수정'에서 날짜·골프장을 정하면 확정할 수 있어요.
+                날짜·골프장을 정하면 모집을 확정할 수 있어요.{'\n'}(오픈형은 일정을 먼저 정해야 확정돼요)
               </Text>
             </>
           ) : (
