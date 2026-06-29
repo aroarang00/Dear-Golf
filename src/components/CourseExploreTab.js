@@ -278,25 +278,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   return (
     <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
-      {/* 0. 내 코스 모아보기 — 골프일정과 동일한 긴 바(그린 그라데이션). 검색창 위. 도착=CourseLogModal([[course-log-naming]]) */}
-      {onOpenCourseLog && (
-        <AttentionMotion type="pulse" style={{ marginHorizontal: 16, marginTop: 14, borderRadius: 12,
-          shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
-          <TouchableOpacity onPress={onOpenCourseLog} activeOpacity={0.85} style={{ borderRadius: 12 }}>
-            <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12,
-                borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
-              <GreenFlag size={fs(26)} />
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 코스 모아보기</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginLeft: 7 }}>방문 코스 · 통계 보기</Text>
-              </View>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#fff' }}>›</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </AttentionMotion>
-      )}
-      {/* 1. 검색창 — 아래 지역탭과의 간격을 탭↔섹션헤더 간격과 대칭으로(검색박스 멀고 헤더에 바짝 붙던 불균형 해소, 안드·iOS 동일) */}
+      {/* 1. 검색창 — 위키 진입점(맨 위). 어느 골프장이든 검색해 평점·후기를 본다. '내 코스 모아보기'는 검색 아래로(솔로 신규는 검색 먼저). */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 }}>
         <View style={{
           flexDirection: 'row',
@@ -316,7 +298,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
           <AppTextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="골프장 검색"
+            placeholder="골프장 평점·후기 검색"
             placeholderTextColor={C.warmGray}
             style={{
               flex: 1,
@@ -329,6 +311,25 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
           />
         </View>
       </View>
+
+      {/* 내 코스 모아보기 — 검색 아래로 이동(검색이 위키 진입점이라 위). 방문 코스·통계. 도착=CourseLogModal */}
+      {onOpenCourseLog && (
+        <AttentionMotion type="pulse" style={{ marginHorizontal: 16, marginBottom: 4, borderRadius: 12,
+          shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
+          <TouchableOpacity onPress={onOpenCourseLog} activeOpacity={0.85} style={{ borderRadius: 12 }}>
+            <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12,
+                borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 14, paddingVertical: _and ? 10 : 11 }}>
+              <GreenFlag size={fs(26)} />
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 코스 모아보기</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginLeft: 7 }}>방문 코스 · 통계 보기</Text>
+              </View>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#fff' }}>›</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </AttentionMotion>
+      )}
 
       {/* 코스 검색 안내 — 첫 사용(최근 검색 기록이 아직 없을 때)에만 */}
       {!search.trim() && recentCourses.length === 0 && (

@@ -816,7 +816,7 @@ export function GuideScreen({ route, navigation }) {
                   <Icon name="star" size={fs(23)} color="#F2B441" />
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(25), color: C.charcoal }}>{rating.overall.toFixed(1)}</Text>
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }}>5점 만점</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }}>골퍼 {rating.count}명</Text>
               </View>
             ) : null}
           </View>
@@ -876,88 +876,8 @@ export function GuideScreen({ route, navigation }) {
               })()}
               {/* 연락처 제거 (2026-06-01) — 네이버정보 버튼으로 대체, 코스페이지 정리(골퍼코멘트 메인화) */}
 
-              {/* 한줄 메모 — 버건디 액센트 바 헤더 + 방문 횟수 칩(기록 아닌 방문 기준, 기록 없는 지난 일정 포함) */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                  <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
-                  <Text style={[gS.secLabel, { marginBottom: 0 }]}>한줄 메모</Text>
-                </View>
-                {visitCount > 0 && (
-                  <View style={gS.mineCountPill}>
-                    <Text style={gS.mineCountTxt}>방문 {visitCount}회</Text>
-                  </View>
-                )}
-              </View>
-              {(() => {
-                // 최근 라운딩 (날짜 내림차순) 첫 번째의 memo
-                const latestDiary = [...myDiaries].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
-                const memo = latestDiary?.memo;
-                if (!memo) {
-                  // 미방문 코스 — 입력칸이 아니라 '기록하면 자동으로 채워진다'는 안내.
-                  // 점선 테두리 = 앱 전반의 '미기록' 표시와 일관 (메모 카드처럼 보이지 않게)
-                  return (
-                    <View style={{
-                      backgroundColor: C.bgSecondary,
-                      borderWidth: 1, borderColor: C.hairline, borderStyle: 'dashed',
-                      borderRadius: 10,
-                      paddingHorizontal: 14, paddingVertical: 16, marginBottom: _and ? 14 : 22,
-                      alignItems: 'center',
-                    }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center' }}>
-                        아직 이 코스 라운딩 기록이 없어요
-                      </Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 5, lineHeight: 16 }}>
-                        라운딩 후 다이어리에 기록을 남기면{'\n'}그날의 한줄 메모가 여기에 표시돼요
-                      </Text>
-                    </View>
-                  );
-                }
-                return (
-                  <View style={{
-                    backgroundColor: '#fff',
-                    borderLeftWidth: 4, borderLeftColor: C.burgundy,
-                    borderRadius: 10,
-                    paddingHorizontal: 14, paddingVertical: 12, marginBottom: _and ? 14 : 22,
-                  }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#3D3935', lineHeight: 21 }}>
-                      {memo}
-                    </Text>
-                    {latestDiary?.date ? (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 6 }}>
-                        {latestDiary.date} 라운딩
-                      </Text>
-                    ) : null}
-                  </View>
-                );
-              })()}
-
-              {/* 날씨 · 교통 · 네이버정보 — 한 줄 나란히 (한줄메모 아래로 이동, 2026-06-01). 아래 코스평점 패널과 갭 과해 안드·iOS 동일하게 좁힘(iOS도 적용, 2026-06-16 [[feedback_cross_platform_check]]) */}
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
-                <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
-                  style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: C.charcoal,
-                  }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>날씨</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
-                  style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: C.burgundy,
-                  }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(c.name, c.loc))}
-                  activeOpacity={0.8}
-                  style={{
-                    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: '#03C75A',
-                  }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>네이버정보</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* 코스 평점 — 흰 카드 박스로 띄움(골퍼코멘트 풀폭 따뜻한 패널과 구분, 눈에 확). 사용자 2026-06-14 ([[project_course_rating]]) */}
+              {/* 코스 평점 — 흰 카드 박스로 띄움(골퍼코멘트 풀폭 따뜻한 패널과 구분, 눈에 확). 사용자 2026-06-14 ([[project_course_rating]])
+                  ★위키 재배치(2026-06-30): 평점·코멘트가 메인이라 상단으로. 날씨·교통·네이버(유틸)는 코멘트 아래로 이동, 내 기록·한줄평 strip 제거. */}
               <View style={[{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: C.hairline, padding: 16, marginTop: 10, marginBottom: 18 },
                 Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10 }, android: { elevation: 6 } })]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -1164,6 +1084,26 @@ export function GuideScreen({ route, navigation }) {
                   </>
                 );
               })()}
+              </View>
+
+              {/* 날씨 · 교통 · 네이버정보 — 유틸리티(라운드 준비). 위키 재배치로 평점·코멘트 아래로 이동(2026-06-30). */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 18, marginBottom: 8 }}>
+                <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
+                <Text style={[gS.secLabel, { marginBottom: 0 }]}>날씨 · 교통 · 정보</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+                <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.charcoal }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>날씨</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.burgundy }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(c.name, c.loc))} activeOpacity={0.8}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#03C75A' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>네이버정보</Text>
+                </TouchableOpacity>
               </View>
 
               {/* 주변 골프장 — 카카오 로컬 반경 10km */}
