@@ -16,6 +16,7 @@ import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS, COURSE_TAG_OPPOSITES, WEEKDAYS } from '../constants/data';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
+import { getRecentCourses, addRecentCourse } from '../utils/recentCourses'; // 최근 검색한 골프장(일정 추가와 동일 UX)
 import { getSubCoursesForCourse } from '../utils/golfCourses';   // 세부코스 칩 제안(시드된 구장)
 import { SubCourseChips } from './common/SubCourseChips';
 import { mS } from '../styles/mS';
@@ -78,6 +79,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedCourseObj, setSelectedCourseObj] = useState(null); // USER_COURSES 항목
+  const [recentCourses, setRecentCourses] = useState([]); // 최근 검색한 골프장(입력 전 3개 빠른 선택)
   const [kakaoResults, setKakaoResults] = useState([]);
   const [kakaoSearching, setKakaoSearching] = useState(false);
   const debounceRef = useRef(null);
@@ -344,6 +346,17 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setSelectedCourse(saved.name);
     setCourseSearch(saved.name);
     setKakaoResults([]);
+    addRecentCourse({ name: r.name, loc: r.loc, x: r.x, y: r.y, kakaoId: r.kakaoId }).then(list => setRecentCourses(list || []));
+  };
+
+  // 최근 검색한 골프장 탭 → 바로 자동 입력(일정 추가와 동일)
+  const handleSelectRecent = async (rc) => {
+    const saved = await addUserCourse({ name: rc.name, loc: rc.loc, x: rc.x, y: rc.y, kakaoId: rc.kakaoId });
+    setSelectedCourseObj(saved);
+    setSelectedCourse(saved.name);
+    setCourseSearch(saved.name);
+    setKakaoResults([]);
+    addRecentCourse(rc).then(list => setRecentCourses(list || []));
   };
 
   const handleSelectManual = async () => {
@@ -379,6 +392,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     let cancelled = false;   // 비동기 resolve가 닫힌/재오픈된 폼을 덮어쓰지 않게 가드(2026-06-26 감사)
     loadFriendData().then(d => { if (!cancelled) setFriendData(d); }).catch(() => {}); // 공개범위 그룹 선택·해석용 ([[friend_groups]])
     loadMyFriendsEnriched().then(f => { if (!cancelled) setFriends(f || []); }).catch(() => {}); // 동반자 친구 선택용([[companion-design]] Phase A)
+    getRecentCourses().then(r => { if (!cancelled) setRecentCourses(r || []); }).catch(() => {}); // 입력 전 최근 검색 구장 3개
     if (isEdit && initial) {
       setCourseSearch(initial.course || '');
       setSelectedCourse(initial.course || '');
@@ -735,6 +749,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               )}
               {!overseas && kakaoSearching && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }}>검색 중...</Text>
+              )}
+              {/* 입력 전 — 최근 검색한 골프장 3개 빠른 선택(일정 추가와 동일 UX, 사용자 요청) */}
+              {!overseas && !selectedCourse && !courseSearch && recentCourses.length > 0 && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginBottom: 6 }}>🕘 최근 검색</Text>
+                  <View style={mS.searchDrop}>
+                    {recentCourses.slice(0, 3).map((rc, i) => (
+                      <TouchableOpacity key={rc.kakaoId || `${rc.name}_${i}`} style={mS.searchItem}
+                        onPress={() => handleSelectRecent(rc)}>
+                        <Text style={mS.searchName}>{rc.name}</Text>
+                        {!!rc.loc && <Text style={mS.searchLoc}>{rc.loc}</Text>}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
               )}
               {overseas && (
                 <>

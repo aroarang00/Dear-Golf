@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SpinnerPicker } from './common/SpinnerPicker';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses, getSubCoursesForCourse } from '../utils/golfCourses';
+import { getRecentCourses, addRecentCourse } from '../utils/recentCourses'; // 최근 검색한 골프장(일정·기록 추가와 동일 UX)
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { COMPANION_OPTIONS, AGEGROUP_OPTIONS, SKILL_OPTIONS, TAG_OPTIONS, tagStyle, INVITE_SAMPLES, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, regionFromAddress } from '../constants/roundup';
 import { mS } from '../styles/mS';
@@ -77,6 +78,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const [courseQuery, setCourseQuery] = useState('');
   const [course, setCourse] = useState(null);
   const [results, setResults] = useState([]);
+  const [recentCourses, setRecentCourses] = useState([]); // 최근 검색한 골프장(입력 전 3개 빠른 선택)
   const [subCourse, setSubCourse] = useState('');         // 세부코스(선택) — 자유입력 + 시드 칩
   const [subCourseOpts, setSubCourseOpts] = useState([]); // 선택 구장의 세부코스 칩 제안(시드된 구장만)
   const [searching, setSearching] = useState(false);
@@ -110,6 +112,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   useEffect(() => {
     if (!visible) return;
     loadFriendData().then(setFriendData).catch(() => {});
+    getRecentCourses().then(r => setRecentCourses(r || [])).catch(() => {}); // 입력 전 최근 검색 구장 3개
   }, [visible]);
   // 선택한 구장의 세부코스 칩 제안 — 시드된 구장만(없으면 칩 미표시, 자유입력 유지) ([[course-subcourse-plan]])
   useEffect(() => {
@@ -551,11 +554,33 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 {searching && (
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>검색 중...</Text>
                 )}
+                {/* 입력 전 — 최근 검색한 골프장 3개 빠른 선택(일정·기록 추가와 동일 UX, 사용자 요청) */}
+                {!course && !courseQuery && recentCourses.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginBottom: 6 }}>🕘 최근 검색</Text>
+                    <View style={mS.searchDrop}>
+                      {recentCourses.slice(0, 3).map((rc, i) => (
+                        <TouchableOpacity key={rc.kakaoId || `${rc.name}_${i}`} style={mS.searchItem}
+                          onPress={() => {
+                            setCourse({ name: rc.name, loc: rc.loc, x: rc.x, y: rc.y, kakaoId: rc.kakaoId });
+                            setCourseQuery(rc.name); setResults([]);
+                            addRecentCourse(rc).then(list => setRecentCourses(list || []));
+                          }}>
+                          <Text style={mS.searchName}>{rc.name}</Text>
+                          {!!rc.loc && <Text style={mS.searchLoc}>{rc.loc}</Text>}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
                 {!searching && results.length > 0 && (
                   <View style={mS.searchDrop}>
                     {results.map(r => (
                       <TouchableOpacity key={r.kakaoId} style={mS.searchItem}
-                        onPress={() => { setCourse(r); setCourseQuery(r.name); setResults([]); }}>
+                        onPress={() => {
+                          setCourse(r); setCourseQuery(r.name); setResults([]);
+                          addRecentCourse({ name: r.name, loc: r.loc, x: r.x, y: r.y, kakaoId: r.kakaoId }).then(list => setRecentCourses(list || []));
+                        }}>
                         <Text style={mS.searchName}>{r.name}</Text>
                         <Text style={mS.searchLoc}>{r.loc}</Text>
                       </TouchableOpacity>
