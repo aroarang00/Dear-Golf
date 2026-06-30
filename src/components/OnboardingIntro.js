@@ -103,12 +103,15 @@ export function OnboardingIntro({ onDone }) {
                 <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#fff', marginBottom: 4 }}>제이드팰리스 GC</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.5)' }}>5월 24일 토 · 07:30</Text>
                 <Text style={{ fontFamily: F.en, fontSize: fs(52), color: C.butter, marginTop: 6 }}>D-7</Text>
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                   <View style={{ backgroundColor: 'rgba(200,217,230,0.18)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 4 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#C8D9E6' }}>☀ 22°</Text>
                   </View>
                   <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 4 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.7)' }}>🚗 1시간 20분</Text>
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(245,230,168,0.16)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.butter }}>🔔 기상 4:50</Text>
                   </View>
                 </View>
               </View>
@@ -128,10 +131,13 @@ export function OnboardingIntro({ onDone }) {
               </Text>
             </View>
           </View>
-          {/* 아래쪽 — 한 줄 설명 패널 */}
+          {/* 아래쪽 — 한 줄 설명 패널 (+ 알람 가치 한 줄: 라운드 준비 페이지라 기상·출발 알람이 결이 맞음) */}
           <View style={{ backgroundColor: C.navy, paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', textAlign: 'center', lineHeight: 30 }}>
               일정·날씨·교통을 한눈에
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', textAlign: 'center', marginTop: 9, lineHeight: 19 }}>
+              이동시간을 계산해 기상·출발 시각까지 알려드려요
             </Text>
           </View>
         </View>
