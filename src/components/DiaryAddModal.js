@@ -90,7 +90,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   // 안드로이드 뒤로가기 — 날짜 picker 열려있으면 그것부터 닫기
   useOverlayBackHandler(showDatePicker, () => setShowDatePicker(false));
   const [score, setScore] = useState('');
-  const [scoreCardOption, setScoreCardOption] = useState('later');
   // 스코어카드 OCR — holeScores(확정된 18홀), 검토 모달 상태. recognizeScorecard는 현재 스텁.
   const [holeScores, setHoleScores] = useState(null);
   const [holePars, setHolePars] = useState(null); // 스코어카드 par 행(스텁 mock) — 버디 자동집계용
@@ -374,7 +373,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setScore(''); setWeather('맑음'); setMemo(''); setBirdieCount(0);
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
-    setScoreCardOption('later');
     setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScFailed(false); setScLowConf(false);
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);

@@ -250,7 +250,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 2 }}>{it.subtitle}</Text>
                     </View>
                   ) : (
-                    <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger, it.highlight && { color: C.navy, fontFamily: F.sysB }, it.isNew && { flex: 1 }]}>{it.label}</Text>
+                    <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger, it.highlight && { color: C.navy, fontFamily: F.sysB }]}>{it.label}</Text>
                   )}
                   {it.isNew && (
                     <View style={{ backgroundColor: C.burgundy, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
