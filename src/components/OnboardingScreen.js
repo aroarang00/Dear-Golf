@@ -75,8 +75,11 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
             <AppTextInput style={obS.input} placeholder="김골프" placeholderTextColor={C.warmGrayLight}
               value={realName} onChangeText={setRealName} />
             {/* 본명 장려 + 마스킹 노출 고지 ([[realname-policy]] 항목 1) */}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 6, marginBottom: 4 }}>
-              닉네임은 같은 이름이 많아 친구·동반자 찾기가 부정확해요.{'\n'}본명을 넣으면 더 정확하게 매칭돼요 (나중에 입력해도 돼요){'\n'}검색 화면엔 이름 일부만 가려서 보여요 — 예: 김*프
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19, marginTop: 6 }}>
+              • 닉네임은 동명이인이 많아 친구·동반자 찾기가 부정확해요{'\n'}• 본명을 넣으면 더 정확하게 매칭돼요{'\n'}• 검색 화면엔 이름 일부만 가려서 보여요 — 예: 김*프
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGrayLight, marginTop: 5, marginBottom: 4 }}>
+              본명은 나중에 입력해도 돼요
             </Text>
             <TouchableOpacity style={obS.nextBtn} onPress={() => {
               if (!nickname.trim()) return;
