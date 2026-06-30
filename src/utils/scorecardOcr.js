@@ -47,7 +47,7 @@ export async function pickScorecardImage(source = 'gallery') {
   let result;
   if (source === 'camera') {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return null;
+    if (!perm.granted) return { denied: true };   // 취소(null)와 구분 — 호출처가 권한 안내
     result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
   } else {
     result = await ImagePicker.launchImageLibraryAsync({

@@ -264,7 +264,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setScBusy(true);
     try {
       const img = await pickScorecardImage(source);
-      if (!img) return; // 취소·권한거부
+      if (img?.denied) { setOverlay({ title: '카메라 권한이 필요해요', message: '설정에서 카메라 접근을 허용한 뒤 다시 시도해 주세요.' }); return; }
+      if (!img) return; // 취소
       const res = await recognizeScorecard(img.uri);
       setScRows(res.rows || []);
       setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
