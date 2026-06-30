@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { showAppAlert } from './AppAlert';
+import { showAppAlert, AppAlertHost } from './AppAlert';   // 풀스크린 모달 안에서도 알럿이 위로 보이게 모달 내부에 호스트 장착([[ios-modal-stacking]])
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
 import { Icon } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대신(OS 간 렌더 일관)
@@ -166,7 +166,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
 
   // 출발지(originKey)별 이동시간 조회 — 출발지 바뀌면 재계산. 'current'는 GPS 1회(미리 예약이라 지금 위치 기준).
   useEffect(() => {
-    if (!visible || !schedule) return;
+    // 저장 출발지(집·회사) 없으면 '골프 가는 길' 카드·토글이 숨겨지므로(아래 안내박스만) 이동시간 조회·자동 ON을 하지 않음.
+    //   안 그러면 토글이 안 보이는데도 GPS로 driveMin이 채워져 출발/기상 알람이 조용히 예약됨([[smart-preround-timing-plan]]).
+    if (!visible || !schedule || !hasAnyOrigin) return;
     let alive = true;
     setDriveMin(null);
     (async () => {
@@ -552,6 +554,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
           </TouchableOpacity>
         </View>
       </View>
+      {/* 모달 내부 알럿 호스트 — 루트 호스트는 이 풀스크린 모달 뒤로 깔려 iOS에서 안 보임(권한 거부 안내 등). */}
+      <AppAlertHost />
     </Modal>
   );
 }
