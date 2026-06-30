@@ -210,7 +210,7 @@ export function OnboardingConsent({ onAgree }) {
           • 만 19세 미만은 가입할 수 없으며, 연령은 위 [필수] 동의로 확인합니다.
         </Text>
 
-        {/* 다음 버튼 — 필수 4개 모두 동의해야 활성 */}
+        {/* 다음 버튼 — 필수 5개(이용약관·개인정보·운영정책·위치기반·만19세) 모두 동의해야 활성 */}
         <TouchableOpacity onPress={handleNext} disabled={!allRequired} activeOpacity={0.85}
           style={{ marginTop: 28, backgroundColor: allRequired ? C.burgundy : C.warmGrayLight,
             borderRadius: 12, paddingVertical: 16, alignItems: 'center', opacity: allRequired ? 1 : 0.6 }}>

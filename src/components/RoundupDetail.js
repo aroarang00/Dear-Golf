@@ -420,8 +420,8 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     });
   };
   // 인원 미달 마감 — 단체는 정원(팀*4)을 온라인으로 다 못 채울 수 있어, 남은 자리를 직접(오프라인) 채우기로 하고
-  //   주최자가 이대로 확정. confirmFinalize와 동일하게 onConfirm(closed:true). 확정 뒤에도 빈자리 충원(vacancy)은
-  //   열려 있어 온라인으로 더 받을 수도 있다 ([[roundup-underfilled-finalize]]).
+  //   주최자가 이대로 확정. closeRoundup이 미달이면 closedShort=true로 로스터를 잠가(vacancy=false)
+  //   빈자리 추가 모집을 닫는다(UI note '이 인원으로 마감(잠금)'과 일치) ([[roundup-underfilled-finalize]]).
   const confirmFinalizeUnderfilled = () => {
     const filled = (post.joined || 0) + companionsCount;
     const remaining = Math.max(0, capTotal - filled);
