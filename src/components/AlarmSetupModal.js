@@ -409,7 +409,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                     {/* 구장 소요시간 — 역산에 쓰인 이동시간(driveMin)을 그대로 노출(출발지→구장, 차로). 커스텀 car 아이콘(세이지) */}
                     {driveMin != null && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7, marginLeft: 2 }}>
-                        <Icon name="car" size={fs(15)} color="#8FB06B" strokeWidth={1.8} />
+                        <Icon name="car" size={fs(20)} color="#5E7E42" strokeWidth={2.3} />
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray }}>
                           구장까지 차로 약 {driveMin >= 60 ? `${Math.floor(driveMin / 60)}시간${driveMin % 60 ? ` ${driveMin % 60}분` : ''}` : `${driveMin}분`}
                         </Text>
