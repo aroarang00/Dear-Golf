@@ -260,12 +260,17 @@ export async function clearConversation(convId) {
   await updateDoc(doc(db, CONV, convId), { [`clearedAt.${uid}`]: serverTimestamp() });
 }
 
-// 총 안읽음 수 — 내 대화방 unread.{uid} 합산(명함 💬 진입점 뱃지용). 숨긴(cleared) 방은 loadMyConversations에서 이미 제외됨.
-export async function loadUnreadTotal() {
+// 총 안읽음 수 — 내 대화방 unread.{uid} 합산(명함 💬 진입점 뱃지용). 숨긴(cleared) 방은 loadMyConversations에서 제외,
+//   차단 상대 방은 blockedUids로 제외(목록에선 숨겨져 읽음처리가 불가 → 안 빼면 사라지지 않는 영구 유령 뱃지).
+export async function loadUnreadTotal(blockedUids = []) {
   const uid = await getUid();
   if (!uid) return 0;
   const convs = await loadMyConversations();
-  return convs.reduce((s, c) => s + (c.unread?.[uid] || 0), 0);
+  const blocked = Array.isArray(blockedUids) ? blockedUids : [];
+  return convs.reduce((s, c) => {
+    if (blocked.length && blocked.includes(otherUidOf(c, uid))) return s;
+    return s + (c.unread?.[uid] || 0);
+  }, 0);
 }
 
 // 공감(리액션) — 메시지 reactions 맵에 '내 uid 키'만 set/제거(보안규칙과 1:1 대응, 본문 불변).

@@ -98,6 +98,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
   const [aliasMap, setAliasMap] = useState({});      // {crewId:alias} — 나만 보는 크루 별명(기기 로컬, 서버 name 불변)
   const [seenSet, setSeenSet] = useState({});        // {crewId:postCount} — 마지막으로 본 시점의 글 수(목록 '새 글 N' 배지 산출, 기기 로컬)
+  const [seenLoaded, setSeenLoaded] = useState(false); // crewSeen 로드 완료 — baseline 레이스 가드(로드 전 {}일 때 baseline 돌면 실제 seen 덮어씀)
   const [seenAtMap, setSeenAtMap] = useState({});    // {crewId:millis} — 마지막으로 앨범 닫은 시각(앨범 NEW·내글 새댓글 판단, 기기 로컬)
   const [reactSet, setReactSet] = useState({});      // {crewId:true} — 내 글에 안 본 새 댓글 있는 크루(7b, 목록 진입 시 조회)
   const [seenAtLoaded, setSeenAtLoaded] = useState(false); // crewSeenAt 로드 완료 — reactSet 조회를 그 뒤 1회만(여닫을 때마다 N재조회 churn 방지)
@@ -118,13 +119,26 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
   useEffect(() => {
     let alive = true;
     storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => { if (alive) setAliasMap(a || {}); });
-    storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) setSeenSet(s || {}); });
+    storage.load(STORAGE_KEYS.crewSeen, {}).then((s) => { if (alive) { setSeenSet(s || {}); setSeenLoaded(true); } });
     storage.load(STORAGE_KEYS.crewSeenAt, {}).then((s) => { if (alive) { setSeenAtMap(s || {}); setSeenAtLoaded(true); } });
     storage.load(STORAGE_KEYS.crewOrder, []).then((o) => { if (alive) setCrewOrder(Array.isArray(o) ? o : []); });
     storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => { if (alive) setMutedMap(m || {}); });
     storage.load(STORAGE_KEYS.profile, null).then((p) => { if (alive && p?.nickname) setMyName(p.nickname); });
     return () => { alive = false; };
   }, []);
+
+  // 첫 설치·재설치·새 크루 가입 시 '새 글 N' 도배 방지 — crewSeen에 기록 없는 크루는 '지금 글 수'를 본 것으로 baseline.
+  //   앱 삭제 시 allowBackup:false로 로컬 읽음기록이 초기화돼 전부 NEW로 뜨던 것 억제(홈 아이콘·친구 피드와 동일 발상, [[crew-new-signal]]).
+  //   ★seen 로드 완료 후에만 — 로드 전 {}일 때 돌면 실제 본 글수를 덮어써 NEW가 영영 안 뜸.
+  useEffect(() => {
+    if (!seenLoaded || !crewDocs?.length) return;
+    setSeenSet((prev) => {
+      let changed = false; const next = { ...prev };
+      crewDocs.forEach((d) => { if (d?.id && next[d.id] === undefined) { next[d.id] = d.postCount || 0; changed = true; } });
+      if (changed) storage.save(STORAGE_KEYS.crewSeen, next);
+      return changed ? next : prev;
+    });
+  }, [crewDocs, seenLoaded]);
 
   // 초대 표시 enrich — 초대자·멤버 uid를 내 친구 별명/프로필로 resolve(없으면 저장 names 폴백)
   useEffect(() => {
@@ -186,7 +200,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
     // 본 시점 글 수. 레거시(이전 점 버전의 millis 값)나 비정상은 무시(0) — postCount는 현실적으로 1e6 미만.
     const seen = (typeof raw === 'number' && raw >= 0 && raw < 1e6) ? raw : 0;
     // 마지막 글이 내 글이면 배지 억제 — 내가 방금 올린 글이 '새 글'로 뜨던 문제(addCrewPost가 lastPostBy 기록).
-    const newCount = (d.lastPostBy && d.lastPostBy === currentUid) ? 0 : Math.max(0, postCount - seen);
+    const newCount = (raw === undefined || (d.lastPostBy && d.lastPostBy === currentUid)) ? 0 : Math.max(0, postCount - seen); // raw 없음=첫 관측(도배 방지, baseline 저장 전까지)
     return {
       id: d.id, name: aliasMap[d.id] || d.name || '크루', members: (d.memberUids || []).length,
       last: fmtTime(ts), newCount,

@@ -177,7 +177,7 @@ export function HomeScreen({ navigation, route }) {
   // 맥동을 scale→opacity로 — iOS는 얇은 테두리(1.5·1.2px) 원을 scale하면 매 프레임 테두리를 재샘플링해
   //   가장자리가 찌글거림(native driver로도 못 막음, 사용자 2026-06-20). 기하학 변형 없는 opacity 브리드로 대체.
   const dmIdleOpacity = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] });
-  useEffect(() => { if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {}); }, [dmOpen]);
+  useEffect(() => { if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {}); }, [dmOpen]);
   // 크루 — 초대 왔을 때만 강하게 끌어줌(라디오 핑 글로우 + 버건디 배지). DM 호흡보다 확실히 강함.
   //   ★얇은 테두리 원을 scale하면 iOS 찌글거림 → 글로우는 '채운 원'을 scale(테두리X)이라 안전.
   const [crewInvite, setCrewInvite] = useState(0); // 받은 크루 초대 수(audienceUids array-contains me) — 글로우 트리거
@@ -204,6 +204,7 @@ export function HomeScreen({ navigation, route }) {
   //   목록 '새 글 N' 배지와 동일 기준(글만; 댓글 디테일은 목록에). 점은 크루 열면 사라짐(crewSeen↑). ([[crew-new-signal]])
   const [crewDocs, setCrewDocs] = useState([]);        // 내 크루(실시간) — postCount·lastPostBy
   const [crewSeenMap, setCrewSeenMap] = useState({});  // {crewId: 마지막 본 글수} 로컬
+  const [crewSeenLoaded, setCrewSeenLoaded] = useState(false); // crewSeen 로드 완료 — baseline 레이스 가드(로드 전 {}일 때 baseline 돌면 실제 seen을 덮어씀)
   const [crewMutedMap, setCrewMutedMap] = useState({}); // {crewId: true} 음소거 로컬
   useEffect(() => {
     if (!currentUid) { setCrewDocs([]); return; }
@@ -215,12 +216,24 @@ export function HomeScreen({ navigation, route }) {
         storage.load(STORAGE_KEYS.crewSeen, {}),
         storage.load(STORAGE_KEYS.crewMuted, {}),
       ]);
-      setCrewSeenMap(seen || {}); setCrewMutedMap(muted || {});
+      setCrewSeenMap(seen || {}); setCrewMutedMap(muted || {}); setCrewSeenLoaded(true);
     } catch (e) { if (__DEV__) console.warn('[home] crew signals load', e?.message); }
   }, []);
   useEffect(() => { reloadCrewSignals(); }, [reloadCrewSignals]);   // 마운트
   // 크루 모달 닫힐 때 재로드 — 안에서 글 봤거나(seen↑) 음소거했을 수 있어 점 즉시 정합
   useEffect(() => { if (!crewOpen) reloadCrewSignals(); }, [crewOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 첫 설치·재설치·새 크루 가입 시 NEW 도배 방지 — crewSeen에 기록 없는 크루는 '지금 글 수'를 본 것으로 baseline.
+  //   앱 삭제 시 allowBackup:false로 로컬 읽음기록이 초기화돼 전부 NEW로 뜨던 것 억제(친구 피드 baseline과 동일 발상, [[crew-new-signal]]).
+  //   ★seen 로드 완료 후에만 — 로드 전 {}일 때 돌면 실제 본 글수를 postCount로 덮어써 NEW가 영영 안 뜸.
+  useEffect(() => {
+    if (!crewSeenLoaded || !crewDocs.length) return;
+    setCrewSeenMap(prev => {
+      let changed = false; const next = { ...prev };
+      crewDocs.forEach(c => { if (c?.id && next[c.id] === undefined) { next[c.id] = c.postCount || 0; changed = true; } });
+      if (changed) storage.save(STORAGE_KEYS.crewSeen, next);
+      return changed ? next : prev;
+    });
+  }, [crewDocs, crewSeenLoaded]);
   // 안 음소거 크루에 안 본 새 글이 있으면 원을 채우고 'NEW' 표시(DM 안읽음과 같은 맥락, 단 정확 카운트는
   //   음소거·seen 추적 때문에 못 믿어 이진 NEW로). 초대 글로우 땐 양보(초대 우선).
   //   seen 가드 + lastPostBy===me 억제는 CrewListScreen '새 글 N' 산식과 동일(목록↔홈 어긋남 방지).
@@ -228,6 +241,7 @@ export function HomeScreen({ navigation, route }) {
     if (!c || crewMutedMap[c.id]) return false;
     if (c.lastPostBy && c.lastPostBy === currentUid) return false;
     const raw = crewSeenMap[c.id];
+    if (raw === undefined) return false; // 첫 관측(재설치·새 가입)=도배 방지(baseline effect가 '본 것'으로 저장 전까지)
     const seen = (typeof raw === 'number' && raw >= 0 && raw < 1e6) ? raw : 0;
     return (c.postCount || 0) > seen;
   });
@@ -248,7 +262,7 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => {
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('focus', () => {
-      if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {});
+      if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {});
     });
     return unsub;
   }, [navigation, dmOpen]);
@@ -257,7 +271,7 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener((noti) => {
       if (noti?.request?.content?.data?.type !== 'dm') return;
-      if (!dmOpen) loadUnreadTotal().then(setDmUnread).catch(() => {});
+      if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {});
     });
     return () => sub.remove();
   }, [dmOpen]);
