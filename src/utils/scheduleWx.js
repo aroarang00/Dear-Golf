@@ -7,13 +7,13 @@ import { getDrivingDirections } from './directions';
 // 일정 좌표 해석 — WeatherTransportPopup과 동일한 3단계 폴백.
 //   1) 일정에 박힌 courseX/Y  2) courseId로 내 코스 좌표  3) 코스명으로 골프장 검색(직접입력 일정 등).
 export async function resolveScheduleCoords(schedule) {
-  if (typeof schedule.courseX === 'number' && typeof schedule.courseY === 'number') {
+  if (Number.isFinite(schedule.courseX) && Number.isFinite(schedule.courseY)) { // Number.isFinite — NaN 좌표 통과 차단(typeof NaN==='number'). NaN이면 아래 courseId/이름 폴백으로 회복
     return { x: schedule.courseX, y: schedule.courseY, loc: schedule.courseLoc || null };
   }
   if (schedule.courseId) {
     try {
       const c = await ensureCourseCoord(await findUserCourseById(schedule.courseId));
-      if (c && typeof c.x === 'number' && typeof c.y === 'number') return { x: c.x, y: c.y, loc: c.loc || schedule.courseLoc || null };
+      if (c && Number.isFinite(c.x) && Number.isFinite(c.y)) return { x: c.x, y: c.y, loc: c.loc || schedule.courseLoc || null };
     } catch {}
   }
   if (schedule.course) {
@@ -66,7 +66,7 @@ export async function getScheduleWxSummary(schedule) {
 //   경로 API 1회 호출(TMap 우선·카카오 폴백). 구장 좌표 못 구하거나 실패하면 null(호출부는 표시 생략).
 //   reverse=true → 구장→집(올 때, 라운딩 종료 후). 기본 false → 집→구장(갈 때).
 export async function getScheduleDriveMin(schedule, home, { reverse = false } = {}) {
-  if (!home || typeof home.x !== 'number' || typeof home.y !== 'number') return null;
+  if (!home || !Number.isFinite(home.x) || !Number.isFinite(home.y)) return null; // Number.isFinite — NaN 출발지 좌표 차단(typeof NaN==='number')
   try {
     const cc = await resolveScheduleCoords(schedule);
     if (!cc) return null;

@@ -56,12 +56,12 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
   } else {
     // ★좌표를 미리 풀어 그룹에 저장 — 수신자(다른 계정)는 발신자의 per-user courseId로 좌표를 못 찾으므로
     //   계정 독립적인 좌표(courseX/Y)를 발신자가 해석해 박아둔다. 실패하면 수신자가 이름으로 폴백([[schedule-propagation-spec]]).
-    let courseX = (typeof schedule.courseX === 'number') ? schedule.courseX : null;
-    let courseY = (typeof schedule.courseY === 'number') ? schedule.courseY : null;
+    let courseX = Number.isFinite(schedule.courseX) ? schedule.courseX : null; // Number.isFinite — NaN 차단(typeof NaN==='number'이라 통과되던 것)
+    let courseY = Number.isFinite(schedule.courseY) ? schedule.courseY : null;
     if ((courseX == null || courseY == null) && schedule.courseId) {
       try {
         const c = await ensureCourseCoord(await findUserCourseById(schedule.courseId));
-        if (c && typeof c.x === 'number' && typeof c.y === 'number') { courseX = c.x; courseY = c.y; }
+        if (c && Number.isFinite(c.x) && Number.isFinite(c.y)) { courseX = c.x; courseY = c.y; }
       } catch (e) { if (__DEV__) console.warn('[scheduleShare] coord resolve fail', e?.message); }
     }
     await setDoc(ref, {
@@ -127,8 +127,8 @@ export function buildDerivedSchedule(group, uid) {
     courseLoc: group.courseLoc || null,
     courseLogId: null,
     courseKakaoId: group.courseKakaoId || null,
-    courseX: (typeof group.courseX === 'number') ? group.courseX : null,
-    courseY: (typeof group.courseY === 'number') ? group.courseY : null,
+    courseX: Number.isFinite(group.courseX) ? group.courseX : null, // NaN 좌표 차단(typeof NaN==='number' 통과 방지)
+    courseY: Number.isFinite(group.courseY) ? group.courseY : null,
     date: group.date || '',
     day: group.day || '',
     time: group.time || '',

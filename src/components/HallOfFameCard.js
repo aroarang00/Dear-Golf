@@ -80,7 +80,7 @@ export function HallOfFameCard({ item, onShare }) {
               { label: 'WITH', value: formatNameList(item.companions, { sep: ', ' }) || '나 홀로 라운딩' },
             ]
           : [
-              { label: 'HOLE', value: `${item.hole}번홀`, big: true },
+              { label: 'HOLE', value: Number.isFinite(item.hole) ? `${item.hole}번홀` : '—', big: true },
               { label: 'PAR · DIST', value: `파${item.par} · ${item.distance}` },
               { label: 'BALL', value: item.ball },
               { label: 'WITH', value: formatNameList(item.companions, { sep: ', ' }) || '나 홀로 라운딩' },

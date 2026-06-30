@@ -40,11 +40,15 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
   const onToggleLike = () => {
     const next = !liked;
     setLiked(next);
-    toggleRoundLike(item.id, next).catch(() => setLiked(!next)); // 실패 시 롤백
+    toggleRoundLike(item.id, next).catch((e) => {
+      if (__DEV__) console.warn('[like] toggle fail', item?.id, e?.code, e?.message); // 진단 — permission-denied면 규칙/데이터(visibility·친구관계)
+      setLiked(!next); // 실패 시 롤백
+    });
   };
 
   const hasScore = typeof item.score === 'number';
-  const diff = hasScore ? item.score - item.par : 0;
+  const hasPar = typeof item.par === 'number'; // 파생 라운드 등 par 누락 시 NaN/"par undefined" 방지
+  const diff = (hasScore && hasPar) ? item.score - item.par : 0;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
   const hasBest = item.badge === '베스트';
   const hasPhoto = item.photos && item.photos.length > 0;
@@ -91,7 +95,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
         <>
           <Text style={[dS.cardScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
           <Text style={[dS.cardScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-          <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+          <Text style={dS.cardPar}>{hasPar ? `${diffLabel} · par ${item.par}` : ''}</Text>
         </>
       ) : (
         <Text style={dS.cardPar}>스코어 미기록</Text>
@@ -186,7 +190,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
         <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>{item.score}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>타</Text>
       </View>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>{diffLabel} · par {item.par}</Text>
+      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>{hasPar ? `${diffLabel} · par ${item.par}` : ''}</Text>
     </View>
   ) : null;
 
@@ -378,7 +382,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
                   <Text style={[dS.cardScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
                   <Text style={[dS.cardScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
                 </View>
-                <Text style={dS.cardPar}>{diffLabel} · par {item.par}</Text>
+                <Text style={dS.cardPar}>{hasPar ? `${diffLabel} · par ${item.par}` : ''}</Text>
               </>
             ) : (
               <Text style={dS.cardPar}>스코어 미기록</Text>

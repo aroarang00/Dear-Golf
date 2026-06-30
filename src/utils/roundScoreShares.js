@@ -86,20 +86,34 @@ export function subscribeIncomingScoreShares(uid, cb) {
 export function buildDerivedRound(share, selectedRow, { uid, nickname }) {
   const holes = Array.isArray(selectedRow?.holes) ? selectedRow.holes : null;
   const total = Number.isFinite(selectedRow?.total) ? selectedRow.total : (parseInt(selectedRow?.total) || 0);
+  // 홀별 합이 총타와 어긋나면(OCR 저신뢰) 홀별·버디를 버려 헤드라인 총타와 표가 모순되지 않게 — 일반 저장(DiaryAddModal)과 동일 정책.
+  const holesOk = Array.isArray(holes) && holes.length > 0 && holes.every(h => Number.isFinite(h)) && holes.reduce((s, h) => s + h, 0) === total;
+  // ★createRound(round.js)와 같은 필드 집합으로 맞춤 — 파생 라운드에 par·likes 등이 빠지면
+  //   소비처(DiaryDetail의 score−par)가 NaN/undefined가 되고, 좋아요·표시가 일반 라운드와 비대칭이 된다([[firestore-rules-false-denial]]).
   return {
     ownerUid: uid,
+    kind: 'round',                  // 일상(moment) 아님 — 정규 라운드
     course: share.course || '',
     courseId: share.courseId || null,
     courseLoc: share.courseLoc || null,
+    subCourse: '',
     date: share.date || '',
     day: share.day || '',
     score: total,
-    holeScores: holes,
+    holeScores: holesOk ? holes : null,
+    holeScoresShared: false,
     holePars: Array.isArray(share.pars) ? share.pars : null,
-    birdieCount: countBirdies(holes, share.pars),
+    // par(총) — OCR 홀별 par 합이 있으면 그 값, 없으면 정규 72. createRound와 동일하게 항상 숫자 보장.
+    par: Array.isArray(share.pars) && share.pars.length
+      ? (share.pars.reduce((s, p) => s + (Number(p) || 0), 0) || 72)
+      : 72,
+    birdieCount: holesOk ? countBirdies(holes, share.pars) : 0,
     weather: '',
     memo: '',                       // 비워둠 — 수신자가 기록에서 보완(프리필+수락제)
+    detailMemo: '',
     visibility: 'private',          // 나만보기 기본(스코어 민감)
+    audienceUids: [],
+    audienceGroupIds: [],
     starRating: 0,
     tags: [],
     photos: [],
@@ -108,8 +122,20 @@ export function buildDerivedRound(share, selectedRow, { uid, nickname }) {
       { name: nickname || '', isMe: true },
       ...(share.authorUid ? [{ name: share.authorName || '', isMe: false, friendUid: share.authorUid }] : []),
     ],
+    special: null,
+    specialHole: null,
+    specialPar: null,
+    specialDist: '',
+    specialBall: '',
+    specialMemo: '',
+    badge: null,
+    overseas: false,
+    country: '',
+    likes: [],                      // 친구 좋아요 — 일반 라운드와 동일하게 빈 배열로 초기화(친구 공개 전환 대비)
+    scheduleId: share.scheduleId || null, // 원본 일정 매칭(있으면)
     sourceShareId: share.id,        // 출처(멱등·추적)
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   };
 }
 

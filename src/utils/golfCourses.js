@@ -29,8 +29,8 @@ function toEntry(v) {
     name: v.name || '',
     input: v.input || v.name || '',          // 공공데이터 원본명(풀네임) — 별칭 검색용. 결과엔 노출 안 함
     loc: v.road || v.addr || '',
-    x: typeof v.x === 'number' ? v.x : parseFloat(v.x),
-    y: typeof v.y === 'number' ? v.y : parseFloat(v.y),
+    x: Number.isFinite(v.x) ? v.x : (Number.isFinite(parseFloat(v.x)) ? parseFloat(v.x) : null), // NaN/비숫자 좌표는 null — typeof NaN==='number' 통과로 캐시가 오염돼 일정전파·날씨가 NaN 좌표로 깨지던 것 차단
+    y: Number.isFinite(v.y) ? v.y : (Number.isFinite(parseFloat(v.y)) ? parseFloat(v.y) : null),
     url: kakaoId ? `http://place.map.kakao.com/${kakaoId}` : '',
     subCourses: Array.isArray(v.subCourses) ? v.subCourses : [],   // 세부코스 라벨(시드된 구장만, 없으면 [])
   };

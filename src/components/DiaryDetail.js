@@ -32,8 +32,9 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
   // 공개범위(나만 보는 라벨) — 상세는 선택 그룹 전체 표시(색점+이름). 친구전체는 null ([[friend_groups]])
   const ovd = friendGroups ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds) : null;
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
-  const diff = item.score - item.par;
-  const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
+  const hasPar = typeof item.par === 'number'; // 파생 라운드 등 par 누락 시 NaN/"par undefined" 노출 방지
+  const diff = hasPar ? item.score - item.par : null;
+  const diffLabel = diff == null ? '' : (diff > 0 ? `+${diff}` : `${diff}`);
   const companionsToShow = item.companions || [];
 
   const COMP_PALETTE = [
@@ -118,7 +119,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
           <View style={[dS.specialBanner, { backgroundColor: hofBgColor(isSpecial ? item.special : '퍼스트 싱글') }]}>
             <Text style={dS.specialBannerSub}>달성</Text>
             <Text style={dS.specialBannerTitle}>{isSpecial ? item.special : 'FIRST SINGLE'}</Text>
-            <Text style={dS.specialBannerSub}>{isSpecial ? `${item.specialHole}번홀 기록` : `${item.score}타 기록`}</Text>
+            <Text style={dS.specialBannerSub}>{isSpecial ? (Number.isFinite(item.specialHole) ? `${item.specialHole}번홀 기록` : '기록 달성') : `${item.score}타 기록`}</Text>
           </View>
         )}
         <View style={[dS.detailInfoArea, (isSpecial || isFirstSingle) && { borderBottomColor: '#C9A84C33' }]}>
@@ -157,7 +158,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
             <Text style={[dS.detailScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
             {/* par 72 + 버디 배지를 가운데정렬 묶음으로 — 배지를 스코어 줄 par 옆에 (baseline 직접 배치 시 어정쩡하게 떨어지는 것 회피) */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={dS.detailScoreSub}>{diffLabel} · par {item.par}</Text>
+              <Text style={dS.detailScoreSub}>{hasPar ? `${diffLabel} · par ${item.par}` : ''}</Text>
               {item.birdieCount > 0 && (
                 <View style={{ backgroundColor: '#3D3935', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
