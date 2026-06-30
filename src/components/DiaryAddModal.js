@@ -881,11 +881,16 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         </View>
                       </TouchableOpacity>
                     ) : (
-                      <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 11, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 17 }}>
-                          👥 여러 명이 인식된 카드예요 — 아래 <Text style={{ fontFamily: F.sysSb, color: C.burgundy }}>동반자</Text>에 친구를 넣으면 이 점수를 공유할 수 있어요.
+                      // 친구 동반자가 아직 없으면 — '아래 동반자 섹션으로 가라'는 왕복을 없애고, 이 박스를 탭하면
+                      //   바로 친구 선택 picker가 열리게(동반자가 다른 섹션에 있어 불편하다는 사용자 제보). 친구 넣으면 위 체크박스로 전환.
+                      <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.75}
+                        style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 11, borderWidth: 0.5, borderColor: C.hairline,
+                          padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                        <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 17 }}>
+                          👥 여러 명이 인식된 카드예요 — <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>함께 친 친구</Text>를 넣으면 이 점수를 바로 공유할 수 있어요.
                         </Text>
-                      </View>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>친구 선택 ›</Text>
+                      </TouchableOpacity>
                     )
                   )}
                 </View>
@@ -953,14 +958,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.butter }}>추가</Text>
                 </TouchableOpacity>
               </View>
-              {/* 친구에서 선택 — friendUid 보존(동반자 통계·향후 스코어 공유 전제) ([[companion-design]] Phase A) */}
-              <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.7}
-                style={{ marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>👥 친구에서 선택</Text>
+              {/* 친구에서 선택 — friendUid 보존(동반자 통계·향후 스코어 공유 전제) ([[companion-design]] Phase A)
+                  pill(테두리+배경+›)로 '눌러서 고를 수 있다'를 명확히(그냥 글씨라 탭 가능 힌트가 없다는 사용자 제보).
+                  이미 친구 동반자가 있으면 '선택·수정'으로 — 다시 눌러 바꿀 수 있음을 알림. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.burgundy,
+                    borderRadius: 20, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.burgundy + '0E' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>
+                    👥 {companions.some(c => c.friendUid) ? '친구 선택·수정' : '친구에서 선택'} ›
+                  </Text>
+                </TouchableOpacity>
                 {friends.length === 0 && (
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>(친구를 추가하면 골라서 넣을 수 있어요)</Text>
+                  <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>친구를 추가하면 골라서 넣을 수 있어요</Text>
                 )}
-              </TouchableOpacity>
+              </View>
               {companions.length === 0 && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 8 }}>
                   이름을 입력하면 저장할 때 자동으로 반영돼요. 공백으로 띄우면 여러 명도 한 번에 (최대 3명)
