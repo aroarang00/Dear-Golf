@@ -327,10 +327,12 @@ export async function applyDefaultAlarms(schedule, profile, { arriveAt } = {}) {
   const wantDynamic = (base.wake || base.depart);
   if (wantDynamic && origin && typeof origin.x === 'number' && typeof origin.y === 'number') {
     try {
-      const driveMin = await getScheduleDriveMin(schedule, origin);
+      const prepMin = Number.isFinite(profile.prepMin) ? profile.prepMin : 30;
+      const arriveBufferMin = Number.isFinite(profile.arriveBufferMin) ? profile.arriveBufferMin : 30;
+      // 도착 목표(만남시각 or 티오프−도착여유, driveMin 무관)를 먼저 구해 그 시각 기준으로 미래 교통 예측(교통화면과 동일 기준).
+      const tgt = computeRoundTimeline(schedule, { arriveBufferMin, arriveAt });
+      const driveMin = await getScheduleDriveMin(schedule, origin, { arrivalAt: tgt?.arrive || null });
       if (Number.isFinite(driveMin)) {
-        const prepMin = Number.isFinite(profile.prepMin) ? profile.prepMin : 30;
-        const arriveBufferMin = Number.isFinite(profile.arriveBufferMin) ? profile.arriveBufferMin : 30;
         const tl = computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin, arriveAt });
         if (base.depart && tl?.depart) types.push('depart');
         if (base.wake && shouldOfferWake(tl)) { types.push('wake'); wakeDate = tl.wake; } // 오전티(1부)만 — 낮·야간 자동 제외

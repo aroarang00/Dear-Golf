@@ -201,13 +201,15 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       if (!coord) { if (alive) setDriveLoading(false); return; }
       if (alive) setDriveLoading(true);
       try {
-        const m = await getScheduleDriveMin(schedule, coord);
+        // 도착 목표(만남시각 or 티오프−도착여유)에 '도착' 기준으로 미래 교통 예측 — 라운드 당일 그 시간대 교통으로 정확.
+        const tgt = computeRoundTimeline(schedule, { arriveBufferMin, arriveAt: mealTime });
+        const m = await getScheduleDriveMin(schedule, coord, { arrivalAt: tgt?.arrive || null });
         if (alive && Number.isFinite(m)) setDriveMin(m);
       } catch {}
       if (alive) setDriveLoading(false);
     })();
     return () => { alive = false; };
-  }, [visible, schedule, originKey]);
+  }, [visible, schedule, originKey, mealTime]); // mealTime(만남시각) 바뀌면 그 시각 기준으로 재예측
 
   // 이동시간 확보 시 동적 알람 ON — 편집이면 기존 설정대로, 아니면 기본(출발 항상·기상 새벽만)
   useEffect(() => {
