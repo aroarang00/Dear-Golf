@@ -69,7 +69,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     { key: 'wx', icon: 'sun', emoji: '☀️', label: '날씨 확인', onPress: onWeather },   // 해만(앰버) — cloudSun은 흰 구름이라 밝은 시트서 안 보임
     { key: 'tr', icon: 'car', color: SAGE, size: 24, emoji: '🚗', label: '교통 · 출발시간', onPress: onTraffic },   // 차 그림이 납작해 살짝 키움
     // 알람 — 기상·출발 시각 설정/변경(설정돼 있으면 위 요약에 시각 표시). 닫고 부모가 알람 화면 엶 ([[smart-preround-timing-plan]])
-    { key: 'al', icon: 'bell', emoji: '🔔', label: alarmCfg?.types?.length ? '알람 변경' : '알람 설정', onPress: onAlarm },
+    //   아직 안 건 라운드엔 부제·NEW로 발견성↑(기능 모르고 지나치는 것 방지). 이미 걸면 깔끔히 '알람 변경'만(잔소리 X).
+    { key: 'al', icon: 'bell', emoji: '🔔', label: alarmCfg?.types?.length ? '알람 변경' : '알람 설정', onPress: onAlarm,
+      subtitle: alarmCfg?.types?.length ? null : '기상·출발 시각 자동 계산', isNew: !alarmCfg?.types?.length },
     // 단체팀 — 조 편성·팀별 티오프(단체 모집 일정만). 교통 바로 밑·navy 강조로 눈에 띄게 ([[event-model]])
     { key: 'team', icon: 'clipboard', emoji: '🗂', label: '단체팀 · 조 편성·티오프', onPress: onTeam, highlight: true },
     // 모집 보기 — 모집 연동 예정 일정은 일정수정이 막혀 있어, 원본 모집글(라운지 상세)로 직행해 거기서 관리 ([[roundup-schedule-delete-policy]])
@@ -241,7 +243,20 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   {it.icon
                     ? <View style={{ width: 22, alignItems: 'center' }}><Icon name={it.icon} size={it.size || 21} color={it.highlight ? C.navy : (it.color || (it.danger ? '#D32F2F' : C.charcoal))} /></View>
                     : <Text style={sheetS.rowEmoji}>{it.emoji}</Text>}
-                  <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger, it.highlight && { color: C.navy, fontFamily: F.sysB }]}>{it.label}</Text>
+                  {it.subtitle ? (
+                    // 라벨 + 가치 부제(세로) — flex:1로 우측 NEW 배지를 끝으로 밀어냄
+                    <View style={{ flex: 1 }}>
+                      <Text style={[sheetS.rowText, it.highlight && { color: C.navy, fontFamily: F.sysB }]}>{it.label}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 2 }}>{it.subtitle}</Text>
+                    </View>
+                  ) : (
+                    <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger, it.highlight && { color: C.navy, fontFamily: F.sysB }, it.isNew && { flex: 1 }]}>{it.label}</Text>
+                  )}
+                  {it.isNew && (
+                    <View style={{ backgroundColor: C.burgundy, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff', letterSpacing: 0.5 }}>NEW</Text>
+                    </View>
+                  )}
                   {it.highlight && <Text style={{ marginLeft: 'auto', fontSize: fs(16), color: C.navy }}>›</Text>}
                 </TouchableOpacity>
               ))}
