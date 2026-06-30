@@ -1176,12 +1176,12 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                         <View style={{ flex: 1 }}>
                           <Text style={[trS.recoLabel, { marginBottom: 3 }]}>출발 권장</Text>
-                          <Text style={[trS.recoTime, { fontSize: fs(40), lineHeight: 44, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }]}>{recommended}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(32), lineHeight: fs(38), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{recommended}</Text>
                         </View>
                         <View style={{ width: 1, height: 40, backgroundColor: 'rgba(245,230,168,0.25)', marginHorizontal: 14 }} />
                         <View style={{ flex: 1 }}>
                           <Text style={[trS.recoLabel, { marginBottom: 3 }]}>소요시간</Text>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(28), color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(32), lineHeight: fs(38), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                             {driveMin != null ? formatDriveMin(driveMin) : ((goOriginCoord || originResolving) ? '계산 중' : `약 ${formatDriveMin(recoDriveMin)}`)}
                           </Text>
                         </View>
