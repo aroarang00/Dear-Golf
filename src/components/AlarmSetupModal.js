@@ -406,6 +406,12 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                     {/* 티오프 = 모든 시각의 기준점(앵커) — 구분선으로 떼어내고 강조 */}
                     <View style={{ height: 1, backgroundColor: C.hairline, marginVertical: 7 }} />
                     <TimeRow name="flag" label="티오프" time={fmtClock(timeline.teeoff)} accent />
+                    {/* 구장 소요시간 — 역산에 쓰인 이동시간(driveMin)을 그대로 노출(출발지→구장, 차로) */}
+                    {driveMin != null && (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 7, marginLeft: 2 }}>
+                        🚗 구장까지 차로 약 {driveMin >= 60 ? `${Math.floor(driveMin / 60)}시간${driveMin % 60 ? ` ${driveMin % 60}분` : ''}` : `${driveMin}분`}
+                      </Text>
+                    )}
                   </View>
 
                   {/* 준비시간 칩 — 기상 알림이 의미있는 새벽 티에만 */}
