@@ -266,6 +266,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 실시간 교통 길찾기(TMap 우선·카카오 폴백)
   const [trSlots, setTrSlots] = useState(makeDefaultTrSlots);
   const [mealAt, setMealAt] = useState(null); // 알람에서 정한 '먼저 만나는 시각' 'HH:MM' — 있으면 교통 도착 목표(티오프-30 대신)
+  const [arriveBuffer, setArriveBuffer] = useState(null); // 알람 '구장 도착여유'(분) — 모임시각 없을 때 도착목표=티오프-buffer(알람과 통일)
   const [expandedSlot, setExpandedSlot] = useState(null);
   const [endOffsetMin, setEndOffsetMin] = useState(0);
   const [locating, setLocating] = useState(false);   // 현재위치 GPS 찾는 중 — '주소 입력' 안내 깜빡임 방지(계산 중 표시)
@@ -350,12 +351,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       const target = t === 'wx' ? 0 : -SW;
       slideAnim.setValue(target);
       slideBase.current = target;
-      // 알람에서 정한 '먼저 만나는 시각'을 읽어 교통 도착 목표로 통일(없으면 티오프-30 유지)
+      // 알람에서 정한 '먼저 만나는 시각'(모임/식사)·'구장 도착여유'를 읽어 교통 도착 목표로 통일(없으면 티오프-30 유지)
       if (schedule?.id && !weatherOnly) {
         getAlarmConfig(schedule.id)
-          .then(cfg => { const a = cfg?.opts?.arriveAt; setMealAt(a && /^\d{1,2}:\d{2}$/.test(a) ? a : null); })
-          .catch(() => setMealAt(null));
-      } else setMealAt(null);
+          .then(cfg => {
+            const a = cfg?.opts?.arriveAt; setMealAt(a && /^\d{1,2}:\d{2}$/.test(a) ? a : null);
+            const b = cfg?.opts?.arriveBufferMin; setArriveBuffer(Number.isFinite(b) ? b : null);
+          })
+          .catch(() => { setMealAt(null); setArriveBuffer(null); });
+      } else { setMealAt(null); setArriveBuffer(null); }
     } else {
       // 닫을 때 출발지/도착지·관련 UI 초기화 — 다음에 열면(특히 다른 일정) 기본(집→골프장)부터.
       //   trSlots는 Modal이라 안 언마운트돼 그대로 남던 것(현재위치·직접입력 주소가 다음 일정에 잔존).
@@ -363,6 +367,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       setExpandedSlot(null);
       setEndOffsetMin(0);
       setMealAt(null);
+      setArriveBuffer(null);
     }
   }, [visible, initialTab, SW, weatherOnly, schedule?.overseas, schedule?.id]);
 
@@ -535,9 +540,10 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   };
   const endStr = toHHMM(teeMin + ROUND_MIN + endOffsetMin);
   const recoDriveMin = driveMin ?? 80; // 길찾기 API 실측 소요, 없으면 기본 가정치
-  // 도착 목표 — 알람에서 '먼저 만나는 시각'을 정했으면 그 시각, 아니면 티오프 30분 전(기본).
+  // 도착 목표 — 알람에서 '먼저 만나는 시각'을 정했으면 그 시각, 아니면 티오프 -도착여유(알람 설정값, 기본 30분).
   const mealMin = mealAt ? (Number(mealAt.split(':')[0]) * 60 + Number(mealAt.split(':')[1])) : null;
-  const arriveMin = (mealMin != null && mealMin < teeMin) ? mealMin : (teeMin - 30);
+  const bufferMin = arriveBuffer ?? 30;
+  const arriveMin = (mealMin != null && mealMin < teeMin) ? mealMin : (teeMin - bufferMin);
   const recommended = toHHMM(arriveMin - recoDriveMin);
   const arrival = toHHMM(arriveMin); // 추천 출발로 가면 이 시각에 도착
 
@@ -1180,7 +1186,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                           </Text>
                         </View>
                       </View>
-                      <Text style={trS.recoSub}>티오프 {schedule.time} · {arrival} 도착 ({mealAt ? '먼저 만남' : '30분 전'})</Text>
+                      <Text style={trS.recoSub}>티오프 {schedule.time} · {arrival} 도착 ({mealAt ? '먼저 만남' : `${bufferMin}분 전`})</Text>
                     </View>
                     {driveMin != null && trSlots.goOrigin.mode !== 'current' ? (
                       <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
