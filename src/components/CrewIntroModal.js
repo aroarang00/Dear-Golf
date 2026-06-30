@@ -19,12 +19,11 @@ const STEPS = [
   { icon: 'bell',       title: '새 글 신호',   desc: '새 글이 올라오면 홈 크루 아이콘에 표시돼요.' },
 ];
 
-// 소소한 편의 — 모두 기기 로컬(나만의 표시)
+// 소소한 편의 — 순서는 기기 로컬, 이름·음소거는 크루 설정에서
 const TIPS = [
-  { icon: 'star',    title: '즐겨찾기',       desc: '자주 보는 크루를 위로 고정해요.' },
   { icon: 'swipe',   title: '순서 바꾸기',    desc: '목록을 길게 눌러 드래그로 정렬해요.' },
-  { icon: 'pen',     title: '나만 보는 이름', desc: '목록을 길게 눌러 내게만 보이는 이름으로 바꿔요.' },
-  { icon: 'bellOff', title: '음소거',         desc: '새 글 알림이 부담되면 크루별로 꺼요.' },
+  { icon: 'pen',     title: '나만 보는 이름', desc: '크루 설정에서 멤버를 내게만 보이는 이름으로 바꿔요.' },
+  { icon: 'bellOff', title: '음소거',         desc: '크루 설정에서 크루별 새 글 알림을 꺼요.' },
 ];
 
 function IconRow({ icon, title, desc, last }) {
