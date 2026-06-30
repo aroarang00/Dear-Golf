@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { C, F, fs } from '../../constants/colors';
 import { Icon } from './Icon'; // 좋아요 = 하트(엄지 대체)
 
@@ -10,8 +10,9 @@ export function WhoLikedModal({ names, onClose }) {
   if (!names) return null;
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 40 }}
-        activeOpacity={1} onPress={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 40 }}>
+        {/* 배경 탭으로 닫기 — 카드 '뒤'의 절대위치 레이어로 분리해야 카드 위 ScrollView 스크롤 제스처를 안 가로챔(부모 TouchableOpacity가 자식 스크롤을 먹던 버그) */}
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
           <View style={{ paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: C.hairline,
             flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -25,7 +26,8 @@ export function WhoLikedModal({ names, onClose }) {
               아직 좋아요가 없어요
             </Text>
           ) : (
-            <ScrollView style={{ maxHeight: 300 }}>
+            <ScrollView style={{ maxHeight: 300 }} nestedScrollEnabled showsVerticalScrollIndicator>
+
               {names.map((nm, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 9 }}>
                   <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: AV[i % AV.length],
@@ -44,7 +46,7 @@ export function WhoLikedModal({ names, onClose }) {
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, textAlign: 'center' }}>확인</Text>
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 }
