@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from './net';
 import { KAKAO_REST_API_KEY } from '../constants/api';
 import { normalizeCourseName } from './top100';
 
@@ -72,7 +73,7 @@ export async function searchGolfCoursesKakao(query) {
       const url = `${KEYWORD_URL}?query=${encodeURIComponent(qstr)}&size=15&page=${p}`;
       let res;
       try {
-        res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+        res = await fetchWithTimeout(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
       } catch (e) { break; }
       if (!res.ok) { if (p === 1) console.warn('[kakao] HTTP', res.status); break; }
       const data = await res.json();
@@ -158,7 +159,7 @@ async function searchNearbyByKeyword(query, lat, lng, radius, filterRe) {
   } catch {}
   try {
     const url = `${KEYWORD_URL}?query=${encodeURIComponent(query)}&x=${lng}&y=${lat}&radius=${radius}&sort=distance&size=15`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
     });
     if (!res.ok) { console.warn('[kakao] nearby HTTP', res.status, query); return []; }
@@ -208,7 +209,7 @@ async function searchNearbyByCategory(code, lat, lng, radius) {
   try {
     // 거리순, 반경 radius(m, 최대 20000)
     const url = `${CATEGORY_URL}?category_group_code=${code}&x=${lng}&y=${lat}&radius=${radius}&sort=distance&size=15`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
     });
     if (!res.ok) { console.warn('[kakao] nearby HTTP', res.status, code); return []; }
@@ -253,7 +254,7 @@ export async function searchRestaurantsByKeyword(query, lat, lng) {
     if (typeof lat === 'number' && typeof lng === 'number') {
       url += `&x=${lng}&y=${lat}&radius=20000&sort=distance`;
     }
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
     });
     if (!res.ok) { console.warn('[kakao] keyword food HTTP', res.status); return []; }
@@ -281,7 +282,7 @@ export async function fetchCoursePlaceInfo(name) {
   try {
     const fullQ = /(골프|골프장|cc|CC|컨트리클럽)/.test(name) ? name : name + ' 골프장';
     const url = `${KEYWORD_URL}?query=${encodeURIComponent(fullQ)}&size=5`;
-    const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+    const res = await fetchWithTimeout(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
     if (!res.ok) return null;
     const data = await res.json();
     const d = (data.documents || []).find(it => (it.category_name || '').includes('골프장')) || data.documents?.[0];
@@ -360,7 +361,7 @@ export async function getDrivingDirectionsKakao(origin, destination) {
   } catch {}
   try {
     const url = `${DIRECTIONS_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}`;
-    const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+    const res = await fetchWithTimeout(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
     if (!res.ok) { console.warn('[kakao] directions HTTP', res.status); return null; }
     const data = await res.json();
     const route = data.routes?.[0];
@@ -394,7 +395,7 @@ export async function getDrivingDirectionsKakaoFuture(origin, destination, depar
     const p = (n) => String(n).padStart(2, '0');
     const dt = `${departureAt.getFullYear()}${p(departureAt.getMonth() + 1)}${p(departureAt.getDate())}${p(departureAt.getHours())}${p(departureAt.getMinutes())}`;
     const url = `${KAKAO_FUTURE_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}&departure_time=${dt}`;
-    const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+    const res = await fetchWithTimeout(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
     if (!res.ok) { console.warn('[kakao] future HTTP', res.status); return null; }
     const data = await res.json();
     const route = data.routes?.[0];
@@ -421,7 +422,7 @@ export async function addressToCoord(address) {
   }
   const headers = { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` };
   try {
-    const addrRes = await fetch(`${ADDRESS_URL}?query=${encodeURIComponent(q)}&size=1`, { headers });
+    const addrRes = await fetchWithTimeout(`${ADDRESS_URL}?query=${encodeURIComponent(q)}&size=1`, { headers });
     if (addrRes.ok) {
       const data = await addrRes.json();
       const d = data.documents?.[0];
@@ -430,7 +431,7 @@ export async function addressToCoord(address) {
       console.warn('[kakao] address HTTP', addrRes.status);
     }
     // 폴백: 키워드 검색 (도로명/지번 매칭 실패 케이스)
-    const kwRes = await fetch(`${KEYWORD_URL}?query=${encodeURIComponent(q)}&size=1`, { headers });
+    const kwRes = await fetchWithTimeout(`${KEYWORD_URL}?query=${encodeURIComponent(q)}&size=1`, { headers });
     if (!kwRes.ok) { console.warn('[kakao] keyword fallback HTTP', kwRes.status); return null; }
     const kwData = await kwRes.json();
     const k = kwData.documents?.[0];

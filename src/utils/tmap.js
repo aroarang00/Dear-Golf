@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TMAP_APP_KEY, TMAP_ROUTES_URL } from '../constants/api';
+import { fetchWithTimeout } from './net'; // 느린 TMap에 매달리지 않게 — 타임아웃 시 abort→null→카카오 폴백
 
 // =============================================================
 // 티맵모빌리티 자동차 경로안내 — 출발/도착 좌표로 실제 소요시간 조회 (실시간 교통 반영)
@@ -58,7 +59,7 @@ export async function getDrivingDirectionsTmapPrediction(origin, destination, ar
     recordLocationAccess({ providerName: 'tmap', purpose: '교통 미래소요 예측(타임머신)', method: 'send' });
   } catch {}
   try {
-    const res = await fetch(`${TMAP_PREDICTION_URL}?version=1&format=json`, {
+    const res = await fetchWithTimeout(`${TMAP_PREDICTION_URL}?version=1&format=json`, {
       method: 'POST',
       headers: { appKey: TMAP_APP_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -101,7 +102,7 @@ export async function getDrivingDirectionsTmap(origin, destination) {
     recordLocationAccess({ providerName: 'tmap', purpose: '교통 소요시간 조회', method: 'send' });
   } catch {}
   try {
-    const res = await fetch(`${TMAP_ROUTES_URL}?version=1&format=json`, {
+    const res = await fetchWithTimeout(`${TMAP_ROUTES_URL}?version=1&format=json`, {
       method: 'POST',
       headers: { appKey: TMAP_APP_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
