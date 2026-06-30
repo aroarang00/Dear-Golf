@@ -16,7 +16,7 @@ export const NON_COURSE_NAME_RE = /(연습장|스크린|실내골프|아카데�
 //  - 코스 형제가 없으면(예: 힐마루는 '힐마루 골프앤리조트' 단일 entry) 건드리지 않음
 //  - 대표명만 단독으로 잡힌 경우도 안전하게 유지(빈 결과 방지)
 function hideCuratedUmbrellas(arr) {
-  if (!HIDDEN_UMBRELLA_BASES.length) return arr;
+  if (!Array.isArray(arr) || !HIDDEN_UMBRELLA_BASES.length) return arr; // arr가 null/비배열(좌표 폴백 검색 실패·빈 응답)이면 그대로 — null.forEach 크래시 방지
   const baseHasCourse = {};
   arr.forEach(r => {
     if (/코스/.test(r.name || '')) baseHasCourse[normalizeCourseName(r.name)] = true;
