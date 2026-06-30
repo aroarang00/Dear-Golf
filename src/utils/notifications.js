@@ -218,7 +218,8 @@ async function _scheduleRoundAlarms(schedule, types, opts) {
             //   iOS엔 시계앱 강제알람 API가 없어 이게 현실적 최선. 엔타이틀먼트는 app.config.js ios.entitlements.
             ...(isDynamic ? { interruptionLevel: 'timeSensitive' } : null),
           },
-          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
+          // channelId — 안드는 trigger에 채널 지정해야 위에서 만든 HIGH 'default' 채널(heads-up·소리)로 감. 미지정 시 폴백 채널로 빠져 조용히 올 위험. iOS는 무시.
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt, channelId: 'default' },
         });
         scheduled.push({ type: t, id });
       } catch (e) {
