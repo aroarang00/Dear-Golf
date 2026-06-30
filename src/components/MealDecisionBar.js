@@ -269,18 +269,21 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
 
   if (!active) return null;
 
+  // 표시용 식당명 — '○○클럽하우스'처럼 구장명이 붙어 길게 저장된 건 그냥 '클럽하우스'로(라벨 가독성)
+  const shortPlaceName = (name) => (name && name.includes('클럽하우스') ? '클럽하우스' : name);
+  const decidedPlaceName = shortPlaceName((meal1 || meal2)?.place?.name);
   // 카드 버튼 라벨 — 0곳/1곳(이름)/2곳
   const btnLabel = decidedCount === 0
     ? '함께 식사'
     : decidedCount === 2
       ? '식사 2곳 ✓'
-      : `${(meal1 || meal2)?.place?.name || '결정됨'} ✓`;
+      : `${decidedPlaceName || '결정됨'} ✓`;
   // 박스 모드(홈 D-0 카드) 라벨 — 아이콘·텍스트·› 분리 렌더
   const blockLabel = decidedCount === 0
     ? '함께 식사하기'
     : decidedCount === 2
       ? '식사 2곳 결정'
-      : `${(meal1 || meal2)?.place?.name || '식사'} 결정`;
+      : `${decidedPlaceName || '식사'} ✓`;
 
   // 결정된 식사 한 칸 — 장소·메모·길찾기 + (총대) 변경·메모수정
   const renderMealCard = (meal, slot) => {
@@ -297,7 +300,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         )}
         {/* 식당명 + 누가 정했는지(별명 우선) 같은 줄 — 이름 왼쪽(flex), 정한 사람 오른쪽 */}
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-          <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }} numberOfLines={1}>{pl?.name}</Text>
+          <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }} numberOfLines={1}>{shortPlaceName(pl?.name)}</Text>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, flexShrink: 0 }} numberOfLines={1}>
             🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님`}
           </Text>
@@ -440,7 +443,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             borderTopWidth: 1, borderTopColor: decidedCount ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.4)',
             shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 }}>
           <Icon name="bowl" size={fs(21)} color={decidedCount ? C.butter : C.charcoal} />
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: decidedCount ? C.butter : C.charcoal, marginLeft: 6, includeFontPadding: false, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{blockLabel}</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: decidedCount ? C.butter : C.charcoal, marginLeft: 6, includeFontPadding: false, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{blockLabel}</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: decidedCount ? 'rgba(245,230,168,0.55)' : 'rgba(61,57,53,0.5)', marginLeft: 7, includeFontPadding: false }}>›</Text>
         </TouchableOpacity>
         </AttentionMotion>
