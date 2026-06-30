@@ -596,9 +596,16 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     }
     // 메모는 선택 — 점수+구장만으로 저장 허용(일상글이 사진만으로 저장되는 것과 일관, 사용자 2026-06-29).
     setSaveError('');
+    // OCR 홀별(holeScores)이 있는데 총타수를 손으로 바꿔 합계와 어긋나면, 직접 입력한 총타수를 신뢰하고
+    //   더는 맞지 않는 홀별 집계는 저장에서 제외(보기 화면 '총 N타'와 홀별 합 불일치 방지).
+    let finalHoleScores = holeScores, finalHolePars = holePars;
+    if (finalHoleScores) {
+      const holeSum = finalHoleScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
+      if (holeSum !== (parseInt(score) || 0)) { finalHoleScores = null; finalHolePars = null; }
+    }
     const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
-      score: parseInt(score) || 0, holeScores, holePars, weather, memo, birdieCount, ...vis,
+      score: parseInt(score) || 0, holeScores: finalHoleScores, holePars: finalHolePars, weather, memo, birdieCount, ...vis,
       special, specialHole: parseInt(specialHole),
       specialPar: parseInt(specialPar) || null,
       specialDist, specialBall, specialMemo,
