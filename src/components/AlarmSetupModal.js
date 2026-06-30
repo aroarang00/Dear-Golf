@@ -304,16 +304,20 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   const close = () => {
     // 체크 상태를 자동모드(alarmPromptDisabled)에 그대로 반영 — 켜면 자동(현재 화면 설정 저장), 끄면 다음부터 다시 매번 묻기.
     //   끈 항목(예: D-3 해제)도 그대로 반영되게 picked·wake·depart를 alarmDefaults에 저장.
-    const updated = {
-      ...userProfile,
-      alarmPromptDisabled: dontAsk,
-      ...(dontAsk ? {
-        alarmDefaults: { d3: !!picked.d3, d1: !!picked.d1, teeoff: !!picked.teeoff, wake: wakeOn, depart: departOn },
-        prepMin, arriveBufferMin,
-      } : {}),
-    };
-    setUserProfile({ ...updated });
-    storage.save(STORAGE_KEYS.profile, updated);
+    // ★functional setState — persistProfile(exactAlarmGuided 등)로 막 갱신된 최신값을 stale 캡처로 덮어,
+    //   '정확알람 1회 안내'(exactAlarmGuided)가 매번 다시 뜨던 버그 방지. prev 기준으로 머지·저장.
+    setUserProfile(prev => {
+      const updated = {
+        ...prev,
+        alarmPromptDisabled: dontAsk,
+        ...(dontAsk ? {
+          alarmDefaults: { d3: !!picked.d3, d1: !!picked.d1, teeoff: !!picked.teeoff, wake: wakeOn, depart: departOn },
+          prepMin, arriveBufferMin,
+        } : {}),
+      };
+      storage.save(STORAGE_KEYS.profile, updated);
+      return updated;
+    });
     onClose && onClose();
   };
 
