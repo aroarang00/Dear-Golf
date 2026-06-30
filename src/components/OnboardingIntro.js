@@ -4,6 +4,7 @@ import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { requestLocationPermission, hasLocationPermission } from '../utils/location';
+import { requestNotificationPermission, hasNotificationPermission } from '../utils/notifications';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -26,11 +27,12 @@ function Feature({ icon, title, sub }) {
   );
 }
 
-// 8장 스와이프 인트로 — 인트로·라운딩 준비·기록·명예의 전당·라운지(메인 키)·코스·위치 권한·시작. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
+// 9장 스와이프 인트로 — 인트로·라운딩 준비·기록·명예의 전당·라운지(메인 키)·코스·위치 권한·알림 권한·시작. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
 export function OnboardingIntro({ onDone }) {
   const insets = useSafeAreaInsets();
   const [idx, setIdx] = useState(0);
   const [locStatus, setLocStatus] = useState('idle'); // idle | granted | denied
+  const [notifStatus, setNotifStatus] = useState('idle'); // idle | granted | denied
 
   // 위치 권한 요청 — OS 팝업만 띄우고 결과 반영(좌표 수집 X). 실제 위치 사용은 LBS 약관 동의 이후 기능에서.
   async function handleLocation() {
@@ -38,14 +40,22 @@ export function OnboardingIntro({ onDone }) {
     setLocStatus(granted ? 'granted' : 'denied');
   }
 
-  // 거부 후 OS 설정에서 허용하고 돌아오면 상태 자동 갱신
+  // 알림 권한 요청 — 안드13+/iOS는 옵트인이라 미리 받아두면 첫 알람 설정 때 막히지 않음(priming).
+  async function handleNotif() {
+    const granted = await requestNotificationPermission();
+    setNotifStatus(granted ? 'granted' : 'denied');
+  }
+
+  // 거부 후 OS 설정에서 허용하고 돌아오면 상태 자동 갱신(위치·알림 공용)
   useEffect(() => {
-    if (locStatus !== 'denied') return;
+    if (locStatus !== 'denied' && notifStatus !== 'denied') return;
     const sub = AppState.addEventListener('change', async s => {
-      if (s === 'active' && (await hasLocationPermission())) setLocStatus('granted');
+      if (s !== 'active') return;
+      if (locStatus === 'denied' && (await hasLocationPermission())) setLocStatus('granted');
+      if (notifStatus === 'denied' && (await hasNotificationPermission())) setNotifStatus('granted');
     });
     return () => sub.remove();
-  }, [locStatus]);
+  }, [locStatus, notifStatus]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
@@ -449,6 +459,52 @@ export function OnboardingIntro({ onDone }) {
           </ScrollView>
         </View>
 
+        {/* 8 — 알림 권한 안내 (위치 페이지와 동일 priming 패턴) */}
+        <View key="ob7b" style={{ width: SW, backgroundColor: C.bgPrimary }}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
+            <Text style={{ fontSize: fs(38), marginBottom: 14 }}>🔔</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: C.charcoal, marginBottom: 10 }}>알림 권한</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 21, marginBottom: 24 }}>
+              라운딩을 잊지 않도록 제때 알려드려요.{'\n'}허용은 선택이고, 언제든 바꿀 수 있어요.
+            </Text>
+            {/* 알림으로 받는 것 */}
+            <View style={{ gap: 16 }}>
+              <Feature icon="⛳" title="기상·출발 알람" sub="라운드 당일, 늦지 않게 깨워드려요" />
+              <Feature icon="📅" title="D-3 · D-1 리마인드" sub="다가오는 라운딩을 미리 알림" />
+              <Feature icon="💬" title="라운지·친구 소식" sub="댓글·확정·초대를 바로 확인" />
+            </View>
+            {/* 권한 요청 버튼 */}
+            <TouchableOpacity onPress={handleNotif} activeOpacity={0.85}
+              disabled={notifStatus === 'granted'}
+              style={{
+                marginTop: 28, borderRadius: 12, paddingVertical: 14, alignItems: 'center',
+                backgroundColor: notifStatus === 'granted' ? C.hairline : C.charcoal,
+              }}>
+              <Text style={{
+                fontFamily: F.sysSb, fontSize: fs(14),
+                color: notifStatus === 'granted' ? C.warmGray : C.butter,
+              }}>
+                {notifStatus === 'granted' ? '✓ 알림 권한 허용됨' : '알림 권한 허용하기'}
+              </Text>
+            </TouchableOpacity>
+            {notifStatus === 'denied' && (
+              <View style={{ marginTop: 12, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.burgundy, textAlign: 'center', lineHeight: 17 }}>
+                  권한이 거부됐어요. 라운딩 알람을 받으려면{'\n'}휴대폰 설정에서 다시 허용할 수 있어요.
+                </Text>
+                <TouchableOpacity onPress={() => Linking.openSettings()} activeOpacity={0.85}
+                  style={{ marginTop: 10, borderWidth: 1, borderColor: C.charcoal, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 22 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>설정 열기</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 14, textAlign: 'center' }}>
+              건너뛰고 나중에 설정해도 괜찮아요
+            </Text>
+          </ScrollView>
+        </View>
+
         {/* 9 — 시작 (팔레스카이 배경) */}
         <View key="ob8" style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: fs(44), marginBottom: 14 }}>⛳</Text>
@@ -465,8 +521,8 @@ export function OnboardingIntro({ onDone }) {
       </PagerView>
 
       {/* 건너뛰기 — 인트로를 빠르게 지나가고 싶은 사용자용. onDone=시작하기와 동일(다음 온보딩 단계로).
-          마지막 시작 페이지(idx 7)엔 '시작하기' 버튼이 있어 숨김. 페이지마다 배경색이 달라 반투명 펄로 가독성 확보. */}
-      {idx < 7 && (
+          마지막 시작 페이지(idx 8)엔 '시작하기' 버튼이 있어 숨김. 페이지마다 배경색이 달라 반투명 펄로 가독성 확보. */}
+      {idx < 8 && (
         <TouchableOpacity onPress={onDone} activeOpacity={0.7}
           style={{ position: 'absolute', top: insets.top + 8, right: 14, zIndex: 10,
             backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 13 }}>
@@ -476,7 +532,7 @@ export function OnboardingIntro({ onDone }) {
 
       {/* 하단 스와이프 인디케이터 */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: insets.bottom + 14 }}>
-        {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => (
           <View key={i} style={{
             width: idx === i ? 22 : 7, height: 7, borderRadius: 4,
             backgroundColor: idx === i ? C.burgundy : C.hairline,

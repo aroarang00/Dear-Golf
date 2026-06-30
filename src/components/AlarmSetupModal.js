@@ -14,12 +14,15 @@ import {
 } from '../utils/notifications';
 import { getScheduleDriveMin } from '../utils/scheduleWx';
 import { getCurrentLocation } from '../utils/location';
-import { setSystemAlarm, SYSTEM_ALARM_SUPPORTED } from '../utils/nativeAlarm';
+import { setSystemAlarm, SYSTEM_ALARM_SUPPORTED, openExactAlarmSettings } from '../utils/nativeAlarm';
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분).
 //   기본값을 강요하지 않되, 처음엔 무난한 30분에서 시작 — 사람마다 칩으로 조정(여성 화장 1시간 ↔ 남성 5분).
 const PREP_OPTS = [5, 15, 30, 60];
 const ARRIVE_OPTS = [30, 60, 90]; // 구장 도착여유 — 최소 30분이 기본 에티켓, 90분은 오후티 등 여유. '바로'는 뺌
+// 안드 시계앱(SET_ALARM)은 시·분만 받고 '날짜'를 못 넣음 → '가장 가까운 그 시각(오늘/내일)'에 울림.
+//   라운드 당일 기상시각이 24시간 밖이면 지금 걸면 라운드가 아닌 오늘/내일에 잘못 울리므로, 전날(24h 이내)에만 등록 허용.
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const arriveLabel = (m) => `${m}분`;
 const DEFAULT_PREP = 30;
 const DEFAULT_ARRIVE = 30;
@@ -130,6 +133,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   const isMorningWake = shouldOfferWake(timeline);
   const departPast = isPast('depart');
   const wakePast = isPast('wake');
+  // 시계앱 알람을 지금 걸어도 정확한지 — 기상시각이 24시간 이내(=라운드 전날/당일)일 때만. 그밖엔 오늘 잘못 울림.
+  const wakeWithin24h = !!(timeline?.wake && timeline.wake.getTime() > now && timeline.wake.getTime() - now <= ONE_DAY_MS);
 
   useEffect(() => {
     if (visible) {
@@ -242,6 +247,12 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   const addWakeToClock = async () => {
     if (!timeline?.wake) return;
     const base = timeline.wake.getTime();
+    // 24h 안전망 — 버튼을 비활성으로 막아도, 시각이 24시간 밖이면 등록 자체를 거부(오늘 잘못 울림 방지).
+    const okTime = (ms) => ms > Date.now() && ms - Date.now() <= ONE_DAY_MS;
+    if (!okTime(base)) {
+      showAppAlert('아직 등록할 수 없어요', '안드로이드 시계앱 알람은 날짜를 지정할 수 없어, 지금 걸면 라운드 당일이 아니라 오늘 울려요.\n라운드 전날 이 화면을 다시 열어 등록해주세요.');
+      return;
+    }
     if (snoozeCount <= 1) {
       const ok = await setSystemAlarm({ hour: timeline.wake.getHours(), minute: timeline.wake.getMinutes(), message: `${schedule.course} 기상` });
       if (!ok) showAppAlert('시계앱을 열 수 없어요', '기기에 기본 시계앱이 없거나 알람 추가를 지원하지 않을 수 있어요.');
@@ -250,6 +261,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     let added = 0;
     for (let i = 0; i < snoozeCount; i++) {
       const t = new Date(base + i * snoozeIntervalMin * 60000);
+      if (!okTime(t.getTime())) continue; // 24h 넘는 반복분은 건너뜀(그것만 오늘 잘못 울리는 것 방지)
       const ok = await setSystemAlarm({ hour: t.getHours(), minute: t.getMinutes(), message: `${schedule.course} 기상${i > 0 ? ` (+${i * snoozeIntervalMin}분)` : ''}`, skipUi: true });
       if (ok) added++;
     }
@@ -301,6 +313,24 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       : undefined;
     await scheduleRoundAlarms(schedule, types, opts);
     setSaving(false);
+
+    // 안드 14+ — 정확한 기상·출발 시각엔 '알람 및 리마인더(정확한 알람)' 권한이 필요.
+    //   미허용 시 expo-notifications가 부정확 알람으로 폴백해 몇 분 늦게 옴(분 단위가 중요한 기상·출발에만 안내).
+    //   상태 조회 API가 없어 한 번만 안내(exactAlarmGuided 플래그). 닫기는 안내 응답 후에 — 모달이 먼저 닫히면 알럿이 사라짐.
+    const needExactGuide = Platform.OS === 'android' && Number(Platform.Version) >= 34
+      && (wakeOn || departOn) && !userProfile.exactAlarmGuided;
+    if (needExactGuide) {
+      persistProfile({ exactAlarmGuided: true });
+      showAppAlert(
+        '정확한 알람을 위해 한 가지만',
+        '안드로이드 14부터는 앱이 정확한 시각에 깨우려면 "알람 및 리마인더" 권한이 필요해요.\n켜두면 기상·출발 알람이 분 단위로 정확히 울려요.',
+        [
+          { text: '나중에', style: 'cancel', onPress: () => close() },
+          { text: '설정 열기', onPress: () => { openExactAlarmSettings(); close(); } },
+        ],
+      );
+      return;
+    }
     close();
   };
 
@@ -461,7 +491,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                             <Icon name="bell" size={fs(16)} color={C.charcoal} />
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>기상 알림 반복</Text>
                           </View>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 2 }}>
                             {snoozeCount > 1
                               ? `${fmtClock(timeline.wake)}부터 ${snoozeIntervalMin}분 간격으로 ${snoozeCount}번 울려요`
                               : `${fmtClock(timeline.wake)}에 한 번만 울려요`}
@@ -480,14 +510,28 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                             </>
                           )}
 
-                          {/* 시계앱 진짜 알람(무음·방해금지에도 울림) — 안드 네이티브 빌드에서만 */}
+                          {/* 시계앱 진짜 알람(무음·방해금지에도 울림) — 안드 네이티브 빌드에서만.
+                              ★단, 시계앱은 날짜를 못 넣어 '가장 가까운 그 시각'에 울림 → 24h 밖이면 지금 걸면 오늘 잘못 울림.
+                                그래서 24h 이내(전날/당일)에만 버튼 활성, 멀면 비활성 + '전날 등록' 안내. */}
                           {SYSTEM_ALARM_SUPPORTED && (
-                            <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
-                              style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>
-                                {snoozeCount > 1 ? `시계앱에도 ${snoozeCount}개 등록 (무음에도 울림)` : '시계앱에도 등록 (무음에도 울림)'}
-                              </Text>
-                            </TouchableOpacity>
+                            wakeWithin24h ? (
+                              <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
+                                style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
+                                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>
+                                  {snoozeCount > 1 ? `시계앱에도 ${snoozeCount}개 등록 (무음에도 울림)` : '시계앱에도 등록 (무음에도 울림)'}
+                                </Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <Icon name="bell" size={fs(15)} color={C.charcoal} />
+                                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>시계앱 알람은 라운드 전날 등록할 수 있어요</Text>
+                                </View>
+                                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 4, lineHeight: 16 }}>
+                                  지금 걸면 오늘 울려요. 인앱 기상 알림은 그날 정확히 울려요.
+                                </Text>
+                              </View>
+                            )
                           )}
                         </View>
                       )}

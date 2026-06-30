@@ -16,6 +16,27 @@ export const SYSTEM_ALARM_SUPPORTED = !!_intentNative;
 
 //   skipUi=false → 시계앱이 열려 시·분 미리 채워진 채 사용자가 저장(단건, 투명). true → 시계앱 안 열고 바로 등록
 //   (여러 개 연속 등록용 — 못 들을까 봐 10분 간격으로 2~3개 거는 경우). true면 사용자에게 우리 토스트로 알림.
+// 안드 14+(API34) — '알람 및 리마인더(정확한 알람)' 설정 화면을 연다.
+//   이 권한이 꺼져 있으면 expo-notifications가 부정확 알람으로 폴백(기상이 몇 분 늦게 옴) → 사용자가 켜도록 유도.
+//   ★현재 권한 상태를 JS로 읽는 API가 없어(노출 안 됨) '켜졌는지'는 모름 — 호출부에서 1회만 안내하는 식으로 사용.
+//   설정 화면이 없는 기기(드뭄)면 앱 상세설정으로 폴백.
+export async function openExactAlarmSettings() {
+  if (Platform.OS !== 'android') return false;
+  const IntentLauncher = require('expo-intent-launcher');
+  try {
+    await IntentLauncher.startActivityAsync('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', { data: 'package:app.deargolf' });
+    return true;
+  } catch (e) {
+    try {
+      await IntentLauncher.startActivityAsync('android.settings.APPLICATION_DETAILS_SETTINGS', { data: 'package:app.deargolf' });
+      return true;
+    } catch (e2) {
+      if (__DEV__) console.warn('[nativeAlarm] openExactAlarmSettings', e2?.message);
+      return false;
+    }
+  }
+}
+
 export async function setSystemAlarm({ hour, minute, message, skipUi = false }) {
   if (!SYSTEM_ALARM_SUPPORTED) return false; // 네이티브 모듈 없으면 호출 자체를 안 함(에러 방지)
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;

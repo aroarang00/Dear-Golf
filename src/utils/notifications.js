@@ -102,6 +102,10 @@ export function computeRoundTimeline(schedule, { driveMin, prepMin, arriveBuffer
   } else if (Number.isFinite(arriveBufferMin)) {
     arrive = new Date(teeoff.getTime() - arriveBufferMin * 60000);
   }
+  // 식사·모임 시각(arriveAt)이 티오프 이후로 잘못 들어오면(편집 재예약 등 모달 검증을 안 거친 경로) 도착여유로 폴백 — depart/wake가 티오프 뒤 엉뚱한·과거 시각이 되는 것 방지.
+  if (arrive && arrive.getTime() >= teeoff.getTime()) {
+    arrive = Number.isFinite(arriveBufferMin) ? new Date(teeoff.getTime() - arriveBufferMin * 60000) : null;
+  }
   const depart = (arrive && Number.isFinite(driveMin)) ? new Date(arrive.getTime() - driveMin * 60000) : null;
   const wake   = (depart && Number.isFinite(prepMin)) ? new Date(depart.getTime() - prepMin * 60000) : null;
   return { teeoff, arrive, depart, wake, anchoredToMeal: !!arrive && arriveAt != null };
@@ -130,6 +134,16 @@ export function alarmTriggers(schedule, opts = {}) {
   if (tl?.depart) out.depart = tl.depart;
   if (tl?.wake) out.wake = tl.wake;
   return out;
+}
+
+// 현재 알림 권한이 허용 상태인지만 확인(OS 팝업 없음) — 온보딩 priming의 상태 표시·복귀 갱신용.
+export async function hasNotificationPermission() {
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    return !!(current.granted || current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL);
+  } catch {
+    return false;
+  }
 }
 
 // 알림 권한 요청 — 이미 허용돼 있으면 바로 true, 아니면 OS 팝업
@@ -317,12 +331,17 @@ export async function applyDefaultAlarms(schedule, profile, { arriveAt } = {}) {
 
   // 시계앱 자동 등록(옵션) — 기상 알람이 걸렸고 사용자가 켜둔 경우만. 안드 네이티브 빌드에서만 실제 동작(아니면 no-op).
   //   못 들을까 봐 거는 횟수·간격(snoozeCount/Interval)대로 조용히(skipUi) 시계앱에 등록.
-  if (profile?.autoSystemAlarm && wakeDate && wakeDate.getTime() > Date.now()) {
+  //   ★시계앱(SET_ALARM)은 날짜를 못 넣어 '가장 가까운 그 시각'에 울림 → 기상시각이 24h 밖이면 등록 시 오늘 잘못 울림.
+  //     자동 경로는 사용자 모르게 도므로 더 위험 — 24h 이내(라운드 전날/당일 앱을 연 경우)에만 등록. 그밖엔 인앱 알림만으로 충분.
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  if (profile?.autoSystemAlarm && wakeDate && wakeDate.getTime() - Date.now() <= ONE_DAY_MS) {
     const count = Math.max(1, Number.isFinite(profile.snoozeCount) ? profile.snoozeCount : 1);
     const interval = Number.isFinite(profile.snoozeIntervalMin) ? profile.snoozeIntervalMin : 10;
     const baseMs = wakeDate.getTime();
     for (let i = 0; i < count; i++) {
-      const t = new Date(baseMs + i * interval * 60000);
+      const fireMs = baseMs + i * interval * 60000;
+      if (fireMs <= Date.now() || fireMs - Date.now() > ONE_DAY_MS) continue; // 과거·24h 밖은 건너뜀(오늘 잘못 울림 방지)
+      const t = new Date(fireMs);
       await setSystemAlarm({ hour: t.getHours(), minute: t.getMinutes(), message: `${schedule.course} 기상`, skipUi: true });
     }
   }

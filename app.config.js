@@ -68,6 +68,11 @@ module.exports = {
         'android.permission.ACCESS_FINE_LOCATION',
         // 시계앱에 기상/출발 알람 등록(ACTION_SET_ALARM) — 무음 뚫는 진짜 알람용 ([[smart-preround-timing-plan]])
         'com.android.alarm.permission.SET_ALARM',
+        // 정확한 시각 알람(기상·출발) — 미선언이면 expo-notifications가 canScheduleExactAlarms()=false라
+        //   setAndAllowWhileIdle(부정확)로 폴백해 Doze에서 알림이 몇 분 늦게 옴(기상엔 치명적).
+        //   선언 시: 안드 12·13은 자동 허용→정확 / 안드 14+는 사용자가 설정에서 허용해야 정확(openExactAlarmSettings로 유도).
+        //   ★USE_EXACT_ALARM은 '알람시계가 앱 핵심기능'인 경우만 Play 허용 → 골프앱은 거부위험이라 SCHEDULE_EXACT_ALARM 사용.
+        'android.permission.SCHEDULE_EXACT_ALARM',
       ],
       // Android Auto Backup 비활성화 — 앱 삭제 시 데이터 완전 초기화.
       // 활성화 상태(기본값)면 SharedPreferences·AsyncStorage가 Google 계정에 자동 백업되어
@@ -110,8 +115,9 @@ module.exports = {
       [
         'expo-location',
         {
-          locationAlwaysAndWhenInUsePermission:
-            '출발지 자동 설정 및 현재 위치 날씨를 위해 위치 권한이 필요해요',
+          // '사용 중에만(WhenInUse)' 권한만 사용 — 백그라운드/Always 위치는 안 씀(foreground 1회 조회만).
+          //   locationAlwaysAndWhenInUsePermission을 두면 iOS에 NSLocationAlwaysAndWhenInUseUsageDescription이
+          //   들어가 '상시 위치'를 쓰는 것처럼 보여 심사 지적 소지 → WhenInUse 설명만 둔다.
           locationWhenInUsePermission:
             '출발지 자동 설정 및 현재 위치 날씨를 위해 위치 권한이 필요해요',
         },
