@@ -6,6 +6,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
   subscribeIncomingScoreShares, buildDerivedRound, acceptScoreShare, declineScoreShare,
 } from '../utils/roundScoreShares';
+import { showAppAlert } from './AppAlert';   // 실패 안내(prod 무음 방지) — 모달 닫고 띄워 iOS에서 뒤로 안 깔리게
 
 // 동반자 스코어 공유 수신 — 기록 화면 피드 상단 배너 + 본인 행 선택 모달 (Phase C ③④, [[companion-design]] §11).
 //  uid는 useCurrentUid(단일 소스)로 — 재설치·계정전환(uid 변경) 시 자동 재구독.
@@ -53,7 +54,11 @@ export function ScoreShareInbox({ nickname, onDerived }) {
       await acceptScoreShare(active, uid, derived);
       setActive(null); setSelIdx(null);
       onDerived && onDerived();   // 내 기록 새로고침(파생 round 반영)
-    } catch (e) { if (__DEV__) console.warn('[scoreShare] accept fail', e?.message); }
+    } catch (e) {
+      if (__DEV__) console.warn('[scoreShare] accept fail', e?.message);
+      setActive(null); setSelIdx(null);   // 모달 닫고(루트 알럿이 모달 뒤로 안 깔리게) 안내
+      showAppAlert('스코어 추가 실패', '잠시 후 다시 시도해 주세요.');
+    }
     finally { setBusy(false); }
   };
 
@@ -61,7 +66,11 @@ export function ScoreShareInbox({ nickname, onDerived }) {
     if (!active || busy || !uid) return;
     setBusy(true);
     try { await declineScoreShare(active.id, uid); setActive(null); setSelIdx(null); }
-    catch (e) { if (__DEV__) console.warn('[scoreShare] decline fail', e?.message); }
+    catch (e) {
+      if (__DEV__) console.warn('[scoreShare] decline fail', e?.message);
+      setActive(null); setSelIdx(null);
+      showAppAlert('처리 실패', '잠시 후 다시 시도해 주세요.');
+    }
     finally { setBusy(false); }
   };
 

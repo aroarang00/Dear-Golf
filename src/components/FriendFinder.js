@@ -363,7 +363,7 @@ export function FriendFinder({
                     <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
                       paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
-                        💡 친구 신청은 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>60일간 보관</Text>돼요
+                        💡 받은 친구 신청은 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>계속 보관</Text>돼요
                       </Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
                         무시해도 상대방에게 알리지 않으니 부담 갖지 마세요.

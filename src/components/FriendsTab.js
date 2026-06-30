@@ -385,7 +385,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   useEffect(() => {
     if (blockedIds.length === 0) return;
     setFriends(prev => {
-      const next = prev.filter(f => !blockedIds.includes(f.id) && !blockedIds.includes(f.name));
+      const next = prev.filter(f => !blockedIds.includes(f.id)); // blockedIds=uid 배열이라 f.id로만 비교(옛 f.name 비교는 죽은 코드)
       return next.length === prev.length ? prev : next;
     });
     // 차단 시 그 사람의 받은 친구신청도 즉시 가림 (재접촉 차단)
