@@ -34,6 +34,11 @@ module.exports = {
       buildNumber: '1',
       // 딥링크 — Universal Links(deargolf.app/r/* 등). 활성화엔 deargolf.app에 apple-app-site-association 호스팅 필요(Phase 2). ([[invite-deeplink-system]])
       associatedDomains: ['applinks:deargolf.app'],
+      // 기상·출발 알림을 '시간 중요(Time Sensitive)'로 보내기 위한 엔타이틀먼트 — 집중모드/방해금지 일부를 뚫고 울림.
+      //   iOS엔 시계앱 강제알람 API가 없어 이게 현실적 최선(완전 무음 스위치는 못 뚫음). 특별 승인 불필요(critical과 달리).
+      entitlements: {
+        'com.apple.developer.usernotifications.time-sensitive': true,
+      },
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         // 카카오 SDK가 카카오톡 앱을 열려면(공유 shareFeedTemplate·로그인) 이 스킴들을 조회 허용해야 함.

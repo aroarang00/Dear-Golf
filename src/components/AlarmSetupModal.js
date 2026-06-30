@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showAppAlert } from './AppAlert';
 import { C, F, fs } from '../constants/colors';
@@ -32,6 +32,13 @@ const fmtKorTime = (hhmm) => {
   return `${ap} ${h12}:${String(m).padStart(2, '0')}`;
 };
 
+// 라운드 전 식사·모임은 티오프보다 빨라야 함 — 고른 시각(hh,mm)이 티오프(scheduleTime 'HH:MM') 이상이면 true(거부).
+const isAtOrAfterTee = (hh, mm, scheduleTime) => {
+  const [th, tm] = String(scheduleTime || '').split(':').map(Number);
+  if (!Number.isFinite(th)) return false;
+  return (hh * 60 + mm) >= (th * 60 + (tm || 0));
+};
+
 // 섹션 카드 — 크림 배경 위 흰 카드 + 그림자로 또렷이. (모듈 상수 — 리렌더 영향 X)
 const cardStyle = {
   backgroundColor: C.bgSecondary, borderRadius: 16, padding: 16, marginTop: 14,
@@ -51,10 +58,17 @@ const SectionTitle = ({ children }) => (
     <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoalDeep }}>{children}</Text>
   </View>
 );
-const TimeRow = ({ name, label, time }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 }}>
-    <Icon name={name} size={fs(17)} color={C.charcoalDeep} />
-    <Text style={{ fontFamily: F.sysM, fontSize: fs(15), color: C.charcoalDeep }}>{label} {time}</Text>
+// 역산 타임라인 한 줄 — 라벨(좌) · 시각(우 정렬)로 시각이 한눈에 맞춰 보이게.
+//   accent=티오프(가장 중요한 앵커)는 와인색·굵게·크게, 나머지(기상/출발/모임)는 보조 톤.
+// 아이콘은 모든 줄 동일 크기 + 고정폭 칸에 중앙정렬 → 라벨 시작점이 줄마다 안 어긋나게(정렬 맞춤).
+//   티오프(accent)는 크기 차이로 키우기보다 색·굵기로 강조(시각만 과대해지지 않게 균형).
+const TimeRow = ({ name, label, time, accent }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3 }}>
+    <View style={{ width: fs(22), alignItems: 'center' }}>
+      <Icon name={name} size={fs(17)} color={accent ? C.burgundy : C.charcoal} />
+    </View>
+    <Text style={{ flex: 1, marginLeft: 8, fontFamily: accent ? F.sysB : F.sysM, fontSize: fs(accent ? 15 : 14), color: accent ? C.burgundy : C.charcoal }}>{label}</Text>
+    <Text style={{ fontFamily: accent ? F.sysB : F.sysSb, fontSize: fs(accent ? 19 : 15), color: accent ? C.burgundy : C.charcoalDeep }}>{time}</Text>
   </View>
 );
 const ToggleRow = ({ on, past, onToggle, iconName, title, sub }) => (
@@ -76,6 +90,7 @@ const ToggleRow = ({ on, past, onToggle, iconName, title, sub }) => (
 // 일정 추가 직후 뜨는 전체화면 알람 설정 화면 — 혼자 쓰는 사람의 핵심.
 //   출발지 → (라운드 전 식사·모임 시각) → 기상/출발 역산 → 토글 → (안드) 시계앱 알람.
 export function AlarmSetupModal({ visible, schedule, onClose, existing = null }) {
+  const insets = useSafeAreaInsets(); // 루트 SafeAreaProvider 컨텍스트(투명 모달이라 유지됨) — 중첩 provider 없이 수동 적용
   const { userProfile, setUserProfile } = useContext(UserContext);
   const [picked, setPicked] = useState(ALARM_DEFAULTS_FALLBACK);
   const [dontAsk, setDontAsk] = useState(false);
@@ -90,6 +105,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   const [departOn, setDepartOn] = useState(false);
   const [originKey, setOriginKey] = useState('home'); // 'home'|'work'|'current' — 출발지(부별 기본)
   const [mealTime, setMealTime] = useState(null);     // 'HH:MM' | null — 라운드 전 식사·모임 시각(있으면 도착 목표)
+  const [mealErr, setMealErr] = useState('');         // 티오프 이후 고르면 그 자리 인라인 경고(팝업은 풀스크린 모달 뒤로 깔려 부적합)
   const [showTimePicker, setShowTimePicker] = useState(false);
   // 시계앱 기상 알람 — 못 들을까 봐 여러 번(간격) 거는 사람용(안드)
   const [snoozeCount, setSnoozeCount] = useState(1);        // 1~3개
@@ -207,6 +223,11 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   const onPickTime = (event, date) => {
     setShowTimePicker(false);
     if (event?.type === 'dismissed' || !date) return;
+    if (isAtOrAfterTee(date.getHours(), date.getMinutes(), schedule.time)) {
+      setMealErr(`티오프(${schedule.time}) 전 시각을 골라주세요`); // 인라인 경고 — 고르는 즉시
+      return;
+    }
+    setMealErr('');
     setMealTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
   };
 
@@ -271,8 +292,10 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     const types = ALARM_TYPES.filter(t => picked[t]);
     if (departOn && !departPast) types.push('depart');
     if (wakeOn && !wakePast) types.push('wake');
-    // 동적 알람(기상·출발) 켜졌으면 역산 근거(이동시간·개인설정·식사시각)를 함께 넘김
-    const opts = (departOn || wakeOn) ? { driveMin, prepMin, arriveBufferMin, arriveAt: mealTime } : undefined;
+    // 동적 알람(기상·출발) 켜졌으면 역산 근거(이동시간·개인설정·식사시각) + 기상 반복(스누즈)을 함께 넘김
+    const opts = (departOn || wakeOn)
+      ? { driveMin, prepMin, arriveBufferMin, arriveAt: mealTime, snoozeCount, snoozeIntervalMin }
+      : undefined;
     await scheduleRoundAlarms(schedule, types, opts);
     setSaving(false);
     close();
@@ -281,9 +304,12 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   // 헬퍼(Chip·SectionTitle·TimeRow·ToggleRow)·cardStyle는 모듈 상단으로 이동 — 컴포넌트 안에 두면
   //   매 렌더마다 새 함수로 재생성돼 칩/토글 탭 때 전체 remount(렉) 유발. 모듈 상수라 리렌더 영향 없음.
 
+  // transparent 모달 + useSafeAreaInsets 수동 적용(ScheduleModal과 동일, 검증된 매끄러운 패턴).
+  //   presentationStyle="fullScreen"은 iOS에서 inset이 0이 되고(상단 노치 밑으로 안 내려감),
+  //   중첩 SafeAreaProvider는 열릴 때 레이아웃 패스가 더 생겨 덜컹댐 → 둘 다 피함.
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={close} presentationStyle="fullScreen">
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom']}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top }}>
         <TripleStripe />
         <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 28 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 헤더 */}
@@ -335,8 +361,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                     <Icon name="bowl" size={fs(16)} color={C.charcoal} />
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>라운드 전 식사·모임</Text>
                   </View>
+                  {/* 시각은 오른쪽 버튼에 이미 보이므로 부제는 반복 없이 짧게(좁은 칸에서 두 줄 접힘 방지) */}
                   <Text style={{ fontFamily: mealTime ? F.sysSb : F.sys, fontSize: fs(11), color: mealTime ? C.burgundy : C.warmGray, marginTop: 2 }}>
-                    {mealTime ? `${fmtKorTime(mealTime)}에 만나요 · 이번 라운드만` : '이번 라운드만 · 먼저 만나면 그 시각 기준으로 계산'}
+                    {mealTime ? '이번 라운드만 적용돼요' : '먼저 만나면 그 시각 기준으로 계산'}
                   </Text>
                 </View>
                 {mealTime ? (
@@ -346,7 +373,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                       <Icon name="pen" size={fs(12)} color={C.butter} />
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>{fmtKorTime(mealTime)}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setMealTime(null)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity onPress={() => { setMealTime(null); setMealErr(''); }} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textDecorationLine: 'underline' }}>해제</Text>
                     </TouchableOpacity>
                   </View>
@@ -357,6 +384,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                   </TouchableOpacity>
                 )}
               </View>
+              {!!mealErr && (
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginTop: 6 }}>⚠ {mealErr}</Text>
+              )}
               {showTimePicker && (
                 <DateTimePicker value={pickerValue} mode="time" is24Hour display="spinner" onChange={onPickTime} />
               )}
@@ -366,17 +396,21 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 16 }}>이동시간 계산 중…</Text>
               ) : timeline?.depart ? (
                 <>
-                  <View style={{ backgroundColor: '#F5F0E4', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: C.burgundy, padding: 14, marginTop: 16 }}>
+                  <View style={{ backgroundColor: '#F5F0E4', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: C.burgundy, paddingVertical: 12, paddingHorizontal: 14, marginTop: 16 }}>
                     {isMorningWake && <TimeRow name="bell" label="기상" time={fmtClock(timeline.wake)} />}
                     <TimeRow name="car" label="출발" time={fmtClock(timeline.depart)} />
                     {mealTime && <TimeRow name="bowl" label="모임" time={mealTime} />}
-                    <TimeRow name="flag" label="티오프" time={fmtClock(timeline.teeoff)} />
+                    {/* 티오프 = 모든 시각의 기준점(앵커) — 구분선으로 떼어내고 강조 */}
+                    <View style={{ height: 1, backgroundColor: C.hairline, marginVertical: 7 }} />
+                    <TimeRow name="flag" label="티오프" time={fmtClock(timeline.teeoff)} accent />
                   </View>
 
                   {/* 준비시간 칩 — 기상 알림이 의미있는 새벽 티에만 */}
                   {isMorningWake && (
                     <>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 14 }}>집에서 나갈 준비 시간 (화장·짐 등)</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal, marginTop: 14 }}>
+                        집에서 나갈 준비 시간 <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray }}>(세면·화장·짐 챙기기)</Text>
+                      </Text>
                       <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                         {PREP_OPTS.map(m => <Chip key={m} label={`${m}분`} on={prepMin === m} onPress={() => pickPrep(m)} />)}
                       </View>
@@ -386,7 +420,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                   {/* 도착여유 칩 — 식사·모임 시각을 정하면 그게 도착 목표라 숨김 */}
                   {!mealTime && (
                     <>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 14 }}>구장 도착여유 (티오프 전)</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal, marginTop: 14 }}>
+                        구장 도착여유 <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray }}>(티오프 전)</Text>
+                      </Text>
                       <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                         {ARRIVE_OPTS.map(m => <Chip key={m} label={arriveLabel(m)} on={arriveBufferMin === m} onPress={() => pickArrive(m)} />)}
                       </View>
@@ -405,18 +441,23 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                         iconName="bell" title="기상 알림"
                         sub={wakePast ? `${fmtClock(timeline.wake)} · 이미 지난 시각` : `${fmtClock(timeline.wake)}에 깨워드려요`} />
 
-                      {/* 안드 — 시계앱에 진짜 알람(무음 뚫고 울림). 못 들을까 봐 여러 번 거는 사람용으로 횟수·간격 선택 */}
-                      {SYSTEM_ALARM_SUPPORTED && wakeOn && !wakePast && (
+                      {/* 기상 반복(스누즈) — 못 들을까 봐 '정한 시각에 한 번' vs '10분 후 한두 번 더'.
+                          인앱 알림에 바로 적용(빌드 불필요). 시계앱 진짜 알람(무음 뚫고)은 안드 네이티브 빌드에서만 추가 노출. */}
+                      {wakeOn && !wakePast && (
                         <View style={{ marginTop: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgPrimary }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Icon name="phone" size={fs(16)} color={C.charcoal} />
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>시계앱 기상 알람</Text>
+                            <Icon name="bell" size={fs(16)} color={C.charcoal} />
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>기상 알림 반복</Text>
                           </View>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>무음·방해금지에도 울려요 (안드로이드)</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
+                            {snoozeCount > 1
+                              ? `${fmtClock(timeline.wake)}부터 ${snoozeIntervalMin}분 간격으로 ${snoozeCount}번 울려요`
+                              : `${fmtClock(timeline.wake)}에 한 번만 울려요`}
+                          </Text>
 
                           <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, marginTop: 10 }}>몇 번 깨울까요?</Text>
                           <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                            {[1, 2, 3].map(n => <Chip key={n} label={`${n}번`} on={snoozeCount === n} onPress={() => pickSnoozeCount(n)} />)}
+                            {[1, 2, 3].map(n => <Chip key={n} label={n === 1 ? '한 번만' : `${n}번`} on={snoozeCount === n} onPress={() => pickSnoozeCount(n)} />)}
                           </View>
                           {snoozeCount > 1 && (
                             <>
@@ -426,12 +467,16 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                               </View>
                             </>
                           )}
-                          <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
-                            style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>
-                              {snoozeCount > 1 ? `시계앱에 ${snoozeCount}개 등록 (${snoozeIntervalMin}분 간격)` : '시계앱에 등록'}
-                            </Text>
-                          </TouchableOpacity>
+
+                          {/* 시계앱 진짜 알람(무음·방해금지에도 울림) — 안드 네이티브 빌드에서만 */}
+                          {SYSTEM_ALARM_SUPPORTED && (
+                            <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
+                              style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>
+                                {snoozeCount > 1 ? `시계앱에도 ${snoozeCount}개 등록 (무음에도 울림)` : '시계앱에도 등록 (무음에도 울림)'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       )}
                     </>
@@ -492,8 +537,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
           </TouchableOpacity>
         </ScrollView>
 
-        {/* 하단 고정 버튼 */}
-        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+        {/* 하단 고정 버튼 — 홈 인디케이터/내비바 위로(insets.bottom) */}
+        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 22, paddingTop: 10, paddingBottom: insets.bottom + 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
           <TouchableOpacity activeOpacity={0.8} onPress={close}
             style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>나중에</Text>
@@ -505,7 +550,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
             </Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -515,8 +560,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
 //   onDone(arriveAt|null) — 부모가 applyDefaultAlarms(schedule, profile, { arriveAt })로 마무리.
 export function QuickMealPrompt({ visible, schedule, onDone }) {
   const [mealTime, setMealTime] = useState(null); // 'HH:MM' | null
+  const [mealErr, setMealErr] = useState('');     // 티오프 이후 경고(인라인)
   const [showPicker, setShowPicker] = useState(false);
-  useEffect(() => { if (visible) { setMealTime(null); setShowPicker(false); } }, [visible]);
+  useEffect(() => { if (visible) { setMealTime(null); setMealErr(''); setShowPicker(false); } }, [visible]);
   if (!schedule) return null;
 
   const pickerValue = (() => {
@@ -525,12 +571,19 @@ export function QuickMealPrompt({ visible, schedule, onDone }) {
       const [hh, mm] = mealTime.split(':').map(Number);
       return new Date(y, m - 1, d, hh, mm, 0, 0);
     }
+    // 기본값 = 티오프 1시간 전(식사·모임은 티오프 전이므로). 티오프 그 자체를 기본으로 두면 무심코 '티오프 이후'가 됨.
     const [th, tm] = String(schedule.time || '08:00').split(':').map(Number);
-    return new Date(y || 2026, (m || 1) - 1, d || 1, th || 8, tm || 0, 0, 0);
+    const tee = new Date(y || 2026, (m || 1) - 1, d || 1, Number.isFinite(th) ? th : 8, tm || 0, 0, 0);
+    return new Date(tee.getTime() - 60 * 60000);
   })();
   const onPick = (event, date) => {
     setShowPicker(false);
     if (event?.type === 'dismissed' || !date) return;
+    if (isAtOrAfterTee(date.getHours(), date.getMinutes(), schedule.time)) {
+      setMealErr(`티오프(${schedule.time}) 전 시각을 골라주세요`);
+      return;
+    }
+    setMealErr('');
     setMealTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
   };
 
@@ -562,6 +615,9 @@ export function QuickMealPrompt({ visible, schedule, onDone }) {
             </Text>
           </TouchableOpacity>
           {showPicker && <DateTimePicker value={pickerValue} mode="time" is24Hour display="spinner" onChange={onPick} />}
+          {!!mealErr && (
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginTop: 8, textAlign: 'center' }}>⚠ {mealErr}</Text>
+          )}
 
           {/* 건너뛰기 안내 — 버튼 바로 위 */}
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 14, textAlign: 'center' }}>

@@ -193,23 +193,37 @@ async function _scheduleRoundAlarms(schedule, types, opts) {
   const now = Date.now();
   const scheduled = [];
 
+  // 기상 알림은 못 들을까 봐 '10분 후 한두 번 더' 반복 발송 가능(snoozeCount/Interval) — 시계앱 없이 인앱 알림에도 적용.
+  const wakeReps = Math.max(1, Number.isFinite(effOpts.snoozeCount) ? effOpts.snoozeCount : 1);
+  const wakeIntervalMs = (Number.isFinite(effOpts.snoozeIntervalMin) ? effOpts.snoozeIntervalMin : 10) * 60000;
+
   for (const t of types || []) {
     const when = triggers[t];
     const def = ALARM_DEFS[t];
     if (!when || !def || when.getTime() <= now) continue; // 지난 시점은 건너뜀
     const isDynamic = t === 'wake' || t === 'depart';
-    try {
-      const id = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: def.title,
-          body: isDynamic ? _dynamicBody(t, schedule, effOpts) : `${schedule.course} · ${schedule.time}\n${def.tail}`,
-          data: { scheduleId: schedule.id, nav: 'home' },
-        },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
-      });
-      scheduled.push({ type: t, id });
-    } catch (e) {
-      console.warn('[notifications] schedule', t, e?.message);
+    const reps = t === 'wake' ? wakeReps : 1; // 기상만 반복(나머지는 1회)
+    for (let i = 0; i < reps; i++) {
+      const fireAt = i === 0 ? when : new Date(when.getTime() + i * wakeIntervalMs);
+      if (fireAt.getTime() <= now) continue;
+      const body = isDynamic ? _dynamicBody(t, schedule, effOpts) : `${schedule.course} · ${schedule.time}\n${def.tail}`;
+      try {
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: i === 0 ? def.title : '⛳ 아직 안 일어났나요?',
+            body,
+            data: { scheduleId: schedule.id, nav: 'home' },
+            sound: 'default',
+            // iOS — 기상·출발은 '시간 중요(Time Sensitive)'로: 집중모드/대부분의 방해금지를 뚫고 울림(완전 무음 스위치는 제외).
+            //   iOS엔 시계앱 강제알람 API가 없어 이게 현실적 최선. 엔타이틀먼트는 app.config.js ios.entitlements.
+            ...(isDynamic ? { interruptionLevel: 'timeSensitive' } : null),
+          },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
+        });
+        scheduled.push({ type: t, id });
+      } catch (e) {
+        console.warn('[notifications] schedule', t, i, e?.message);
+      }
     }
   }
 
@@ -287,7 +301,9 @@ export async function applyDefaultAlarms(schedule, profile, { arriveAt } = {}) {
         const tl = computeRoundTimeline(schedule, { driveMin, prepMin, arriveBufferMin, arriveAt });
         if (base.depart && tl?.depart) types.push('depart');
         if (base.wake && shouldOfferWake(tl)) { types.push('wake'); wakeDate = tl.wake; } // 오전티(1부)만 — 낮·야간 자동 제외
-        opts = { driveMin, prepMin, arriveBufferMin, arriveAt: arriveAt || null };
+        opts = { driveMin, prepMin, arriveBufferMin, arriveAt: arriveAt || null,
+          snoozeCount: Math.max(1, Number.isFinite(profile.snoozeCount) ? profile.snoozeCount : 1),
+          snoozeIntervalMin: Number.isFinite(profile.snoozeIntervalMin) ? profile.snoozeIntervalMin : 10 };
       }
     } catch (e) { if (__DEV__) console.warn('[notifications] applyDefault dynamic', e?.message); }
   }
