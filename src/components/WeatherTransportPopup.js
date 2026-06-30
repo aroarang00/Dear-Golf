@@ -264,6 +264,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [currentCoord, setCurrentCoord] = useState(null); // { x, y }
   const [homeCoord, setHomeCoord] = useState(null);       // { x, y }
   const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 실시간 교통 길찾기(TMap 우선·카카오 폴백)
+  const [driveLoading, setDriveLoading] = useState(false); // 길찾기 조회 진행 중 — '조회 중'과 '실패(null)'를 구분해 무한 '계산 중' 방지
   const [trSlots, setTrSlots] = useState(makeDefaultTrSlots);
   const [mealAt, setMealAt] = useState(null); // 알람에서 정한 '먼저 만나는 시각' 'HH:MM' — 있으면 교통 도착 목표(티오프-30 대신)
   const [arriveBuffer, setArriveBuffer] = useState(null); // 알람 '구장 도착여유'(분) — 모임시각 없을 때 도착목표=티오프-buffer(알람과 통일)
@@ -580,7 +581,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     || (_goSlot.mode === 'custom' && !!_goSlot.custom && !_goSlot.customCoord);
   useEffect(() => {
     let cancelled = false;
-    if (!goOriginCoord || !goDestCoord) { setDriveMin(null); return; }
+    if (!goOriginCoord || !goDestCoord) { setDriveMin(null); setDriveLoading(false); return; }
+    setDriveLoading(true);
     (async () => {
       // 도착 목표 시각(구장 도착 = 티오프−도착여유 또는 만남 시각)에 '도착' 기준으로 미래 교통 예측 —
       //   지금 막히는 낮에 조회해도 라운드 당일 그 시간대(새벽 등) 교통으로 소요를 계산(실패 시 현재 기준 폴백).
@@ -589,7 +591,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
         ? new Date(yy, mm - 1, dd, Math.floor(arriveMin / 60), arriveMin % 60, 0, 0)
         : null;
       const r = await getDrivingDirections(goOriginCoord, goDestCoord, { arrivalAt });
-      if (!cancelled) setDriveMin(r ? r.durationMin : null);
+      if (!cancelled) { setDriveMin(r ? r.durationMin : null); setDriveLoading(false); }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1189,7 +1191,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                         <View style={{ flex: 1 }}>
                           <Text style={[trS.recoLabel, { marginBottom: 3 }]}>소요시간</Text>
                           <Text style={{ fontFamily: F.sysB, fontSize: fs(32), lineHeight: fs(38), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                            {driveMin != null ? formatDriveMin(driveMin) : ((goOriginCoord || originResolving) ? '계산 중' : `약 ${formatDriveMin(recoDriveMin)}`)}
+                            {driveMin != null ? formatDriveMin(driveMin) : ((driveLoading || originResolving) ? '계산 중' : `약 ${formatDriveMin(recoDriveMin)}`)}
                           </Text>
                         </View>
                       </View>
@@ -1199,8 +1201,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
                         ⓘ 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요
                       </Text>
-                    ) : (driveMin == null && (goOriginCoord || originResolving)) ? (
-                      // 좌표는 있고(또는 GPS·지오코딩 진행 중) 소요 계산 전 — 깜빡임 없이 '계산 중'
+                    ) : (driveMin == null && (driveLoading || originResolving)) ? (
+                      // 조회가 '실제 진행 중'일 때만 '계산 중' — 실패(조회 끝·null)면 아래 추정치 안내로 떨어져 무한 '계산 중' 방지
                       <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
                         ⓘ 소요시간 계산 중…
                       </Text>
@@ -1212,7 +1214,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                         <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)', lineHeight: fs(18) }}>
                           {driveMin != null
                             ? '지금은 현재 위치 기준 · 마이페이지에서 출발지를 설정하면 매번 자동으로 계산돼요'
-                            : '마이페이지에서 출발지를 설정하면 정확한 출발 시간을 알려드려요 (지금은 기본 추정치)'}
+                            : goOriginCoord
+                              ? '교통 정보를 잠시 불러오지 못해 기본 추정치로 안내 중이에요 · 잠시 후 다시 열어보세요'
+                              : '마이페이지에서 출발지를 설정하면 정확한 출발 시간을 알려드려요 (지금은 기본 추정치)'}
                         </Text>
                       </View>
                     )}
