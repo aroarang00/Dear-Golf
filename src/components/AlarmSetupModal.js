@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { SpinnerPicker } from './common/SpinnerPicker'; // iOS/안드 스피너 차이 흡수(iOS '완료'로 닫기) — 직접 DateTimePicker는 매 변경마다 닫혀 iOS 스크롤 불가
 import { showAppAlert, AppAlertHost } from './AppAlert';   // 풀스크린 모달 안에서도 알럿이 위로 보이게 모달 내부에 호스트 장착([[ios-modal-stacking]])
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
@@ -113,6 +113,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   // 시계앱 기상 알람 — 못 들을까 봐 여러 번(간격) 거는 사람용(안드)
   const [snoozeCount, setSnoozeCount] = useState(1);        // 1~3개
   const [snoozeIntervalMin, setSnoozeIntervalMin] = useState(10); // 5/10/15분 간격
+  const [sysAlarmDone, setSysAlarmDone] = useState(false); // 이 일정에 '내 폰 알람 등록'을 눌렀는지(로컬 기록) — 버튼이 '등록하기' vs '등록함'을 구분
+  const [sysAlarmWake, setSysAlarmWake] = useState(null);  // 등록한 기상 시각('HH:MM') — 지금 역산 시각과 다르면 '새로 등록'+이전시각 삭제 안내
 
   // 저장된 출발지(집·회사)
   const homeCoord = userProfile?.departureCoord;
@@ -135,11 +137,14 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   const wakePast = isPast('wake');
   // 시계앱 알람을 지금 걸어도 정확한지 — 기상시각이 24시간 이내(=라운드 전날/당일)일 때만. 그밖엔 오늘 잘못 울림.
   const wakeWithin24h = !!(timeline?.wake && timeline.wake.getTime() > now && timeline.wake.getTime() - now <= ONE_DAY_MS);
+  // 등록한 기상 시각이 지금 역산 시각과 다르면(준비시간·도착여유·식사시각 변경 등) — 버튼을 '새로 등록'으로, 이전 시각 직접 삭제 안내.
+  const sysAlarmCurWake = timeline?.wake ? fmtClock(timeline.wake) : null;
+  const sysAlarmTimeChanged = sysAlarmDone && !!sysAlarmWake && !!sysAlarmCurWake && sysAlarmWake !== sysAlarmCurWake;
 
   useEffect(() => {
     if (visible) {
       setSaving(false);
-      setDontAsk(false);
+      setDontAsk(!!userProfile.alarmPromptDisabled); // 현재 자동모드 상태를 체크박스에 반영 — 매번 언체크로 보여 '리셋됐나' 혼란 주던 것 해소
       setShowTimePicker(false);
       setMealTime(null);
       // 편집(기존 알람 있음)이면 그 값으로 프리필, 아니면 저장 기본값.
@@ -167,6 +172,16 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       if (k === 'home' && !hasHome) k = hasWork ? 'work' : 'current';
       setOriginKey(k);
     }
+  }, [visible, schedule]);
+
+  // '내 폰 알람 등록함' 기록 로드 — 버튼이 '등록하기'(미등록) vs '등록함·다시 등록'(눌렀음)을 구분해 보이게.
+  useEffect(() => {
+    if (!visible || !schedule?.id) { setSysAlarmDone(false); setSysAlarmWake(null); return; }
+    storage.load(STORAGE_KEYS.systemAlarmDone, {}).then(m => {
+      const e = m && m[schedule.id];
+      setSysAlarmDone(!!e);
+      setSysAlarmWake((e && typeof e === 'object') ? (e.wake || null) : null); // 옛 형식(millis 숫자)은 시각 정보 없음
+    }).catch(() => {});
   }, [visible, schedule]);
 
   // 출발지(originKey)별 이동시간 조회 — 출발지 바뀌면 재계산. 'current'는 GPS 1회(미리 예약이라 지금 위치 기준).
@@ -228,9 +243,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     if (baseTl?.teeoff) return new Date(baseTl.teeoff.getTime() - 60 * 60000);
     return new Date(y || 2026, (m || 1) - 1, d || 1, 7, 0, 0, 0);
   })();
-  const onPickTime = (event, date) => {
-    setShowTimePicker(false);
-    if (event?.type === 'dismissed' || !date) return;
+  // SpinnerPicker가 닫기(onClose)를 따로 처리 — 여기선 고른 값만 반영(iOS는 스크롤마다 호출되며 마지막 값 유지).
+  const onPickTime = (date) => {
+    if (!date) return;
     if (isAtOrAfterTee(date.getHours(), date.getMinutes(), schedule.time)) {
       setMealErr(`티오프(${schedule.time}) 전 시각을 골라주세요`); // 인라인 경고 — 고르는 즉시
       return;
@@ -242,20 +257,33 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   const pickSnoozeCount = (n) => { setSnoozeCount(n); persistProfile({ snoozeCount: n }); };
   const pickSnoozeInterval = (m) => { setSnoozeIntervalMin(m); persistProfile({ snoozeIntervalMin: m }); };
 
-  // 안드 시계앱에 기상 알람 등록 — 무음 뚫고 울리게(자체 알림 보완).
-  //   1개: 시계앱 열려 미리 채워짐(투명). 2~3개: 못 들을까 봐 간격으로 연속 등록(조용히 일괄 + 우리 알림).
+  // '내 폰 알람 등록 눌렀음'을 일정별 기록 — 버튼이 '등록함'으로 바뀌게(OS 등록여부 조회 불가, '눌렀음'만 기록).
+  const markSystemAlarmDone = async () => {
+    const w = timeline?.wake ? fmtClock(timeline.wake) : null; // 등록한 기상 시각 기록 — 시각 바뀐 채 재등록 시 이전 시각 삭제 안내용
+    try {
+      const m = await storage.load(STORAGE_KEYS.systemAlarmDone, {});
+      m[schedule.id] = { at: Date.now(), wake: w };
+      await storage.save(STORAGE_KEYS.systemAlarmDone, m);
+    } catch {}
+    setSysAlarmDone(true);
+    setSysAlarmWake(w);
+  };
+
+  // 안드 폰 알람에 기상 알람 등록 — 무음 뚫고 울리게(자체 알림 보완).
+  //   1개: 폰 알람 앱 열려 미리 채워짐(투명). 2~3개: 못 들을까 봐 간격으로 연속 등록(조용히 일괄 + 우리 알림).
   const addWakeToClock = async () => {
     if (!timeline?.wake) return;
     const base = timeline.wake.getTime();
     // 24h 안전망 — 버튼을 비활성으로 막아도, 시각이 24시간 밖이면 등록 자체를 거부(오늘 잘못 울림 방지).
     const okTime = (ms) => ms > Date.now() && ms - Date.now() <= ONE_DAY_MS;
     if (!okTime(base)) {
-      showAppAlert('아직 등록할 수 없어요', '안드로이드 시계앱 알람은 날짜를 지정할 수 없어, 지금 걸면 라운드 당일이 아니라 오늘 울려요.\n라운드 전날 이 화면을 다시 열어 등록해주세요.');
+      showAppAlert('아직 등록할 수 없어요', '내 폰 알람은 날짜를 지정할 수 없어, 지금 걸면 라운드 당일이 아니라 오늘 울려요.\n라운드 전날 이 화면을 다시 열어 등록해주세요.');
       return;
     }
     if (snoozeCount <= 1) {
       const ok = await setSystemAlarm({ hour: timeline.wake.getHours(), minute: timeline.wake.getMinutes(), message: `${schedule.course} 기상` });
-      if (!ok) showAppAlert('시계앱을 열 수 없어요', '기기에 기본 시계앱이 없거나 알람 추가를 지원하지 않을 수 있어요.');
+      if (!ok) showAppAlert('내 폰 알람을 열 수 없어요', '폰에 기본 알람(시계) 기능이 없거나 알람 추가를 지원하지 않을 수 있어요.');
+      else markSystemAlarmDone();
       return;
     }
     let added = 0;
@@ -265,8 +293,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       const ok = await setSystemAlarm({ hour: t.getHours(), minute: t.getMinutes(), message: `${schedule.course} 기상${i > 0 ? ` (+${i * snoozeIntervalMin}분)` : ''}`, skipUi: true });
       if (ok) added++;
     }
-    if (added) showAppAlert('시계앱에 등록했어요', `기상 알람 ${added}개를 ${snoozeIntervalMin}분 간격으로 추가했어요.\n무음·방해금지에도 울려요. 시계앱에서 확인하세요.`);
-    else showAppAlert('시계앱을 열 수 없어요', '기기가 알람 추가를 지원하지 않을 수 있어요.');
+    if (added) { showAppAlert('내 폰 알람에 등록했어요', `기상 알람 ${added}개를 ${snoozeIntervalMin}분 간격으로 추가했어요.\n무음·방해금지에도 울려요. 폰 알람에서 확인하세요.`); markSystemAlarmDone(); }
+    else showAppAlert('내 폰 알람을 열 수 없어요', '폰이 알람 추가를 지원하지 않을 수 있어요.');
   };
 
   const anyPicked = ALARM_TYPES.some(t => picked[t]) || (departOn && !departPast) || (wakeOn && !wakePast);
@@ -274,16 +302,18 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   // 닫을 때 '다음부터 이대로 자동'이 켜져 있으면 — 지금 화면 설정 그대로 기본값에 저장(이후 팝업 없이 그대로 적용).
   //   ★끈 항목(예: D-3 해제)도 그대로 반영되게 picked·wake·depart를 alarmDefaults에 저장.
   const close = () => {
-    if (dontAsk) {
-      const updated = {
-        ...userProfile,
-        alarmPromptDisabled: true,
+    // 체크 상태를 자동모드(alarmPromptDisabled)에 그대로 반영 — 켜면 자동(현재 화면 설정 저장), 끄면 다음부터 다시 매번 묻기.
+    //   끈 항목(예: D-3 해제)도 그대로 반영되게 picked·wake·depart를 alarmDefaults에 저장.
+    const updated = {
+      ...userProfile,
+      alarmPromptDisabled: dontAsk,
+      ...(dontAsk ? {
         alarmDefaults: { d3: !!picked.d3, d1: !!picked.d1, teeoff: !!picked.teeoff, wake: wakeOn, depart: departOn },
         prepMin, arriveBufferMin,
-      };
-      setUserProfile({ ...updated });
-      storage.save(STORAGE_KEYS.profile, updated);
-    }
+      } : {}),
+    };
+    setUserProfile({ ...updated });
+    storage.save(STORAGE_KEYS.profile, updated);
     onClose && onClose();
   };
 
@@ -307,8 +337,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     const types = ALARM_TYPES.filter(t => picked[t]);
     if (departOn && !departPast) types.push('depart');
     if (wakeOn && !wakePast) types.push('wake');
-    // 동적 알람(기상·출발) 켜졌으면 역산 근거(이동시간·개인설정·식사시각) + 기상 반복(스누즈)을 함께 넘김
-    const opts = (departOn || wakeOn)
+    // 동적 알람(기상·출발) 켜졌거나 '만남 시각'을 정했으면 — 역산 근거(이동시간·개인설정·식사시각)+스누즈를 저장.
+    //   ★mealTime도 조건에 포함 — 안 그러면 식사시각만 정하고 출발/기상 알람을 안 켠 경우 arriveAt이 저장 안 돼 다시 열면 초기화됨.
+    const opts = (departOn || wakeOn || mealTime)
       ? { driveMin, prepMin, arriveBufferMin, arriveAt: mealTime, snoozeCount, snoozeIntervalMin }
       : undefined;
     await scheduleRoundAlarms(schedule, types, opts);
@@ -420,9 +451,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
               {!!mealErr && (
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginTop: 6 }}>⚠ {mealErr}</Text>
               )}
-              {showTimePicker && (
-                <DateTimePicker value={pickerValue} mode="time" is24Hour display="spinner" onChange={onPickTime} />
-              )}
+              <SpinnerPicker visible={showTimePicker} value={pickerValue} mode="time" is24Hour
+                onPick={onPickTime} onClose={() => setShowTimePicker(false)} />
 
               {/* 역산 타임라인 + 조정 */}
               {driveLoading && !timeline?.depart ? (
@@ -515,17 +545,36 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                                 그래서 24h 이내(전날/당일)에만 버튼 활성, 멀면 비활성 + '전날 등록' 안내. */}
                           {SYSTEM_ALARM_SUPPORTED && (
                             wakeWithin24h ? (
-                              <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
-                                style={{ marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: C.burgundy }}>
-                                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>
-                                  {snoozeCount > 1 ? `시계앱에도 ${snoozeCount}개 등록 (무음에도 울림)` : '시계앱에도 등록 (무음에도 울림)'}
+                              <>
+                                {/* 3상태 — 미등록=버건디 CTA(벨+'등록하기') / 등록함·시각동일=회색('✓ 등록함·다시 등록') / 시각변경=버건디('새로 등록하기')+이전시각 삭제안내. */}
+                                {(() => {
+                                  const isAction = !sysAlarmDone || sysAlarmTimeChanged; // 버건디(누를 일 있음) vs 회색(이미 그 시각 등록됨)
+                                  return (
+                                    <TouchableOpacity activeOpacity={0.85} onPress={addWakeToClock}
+                                      style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 10,
+                                        backgroundColor: isAction ? C.burgundy : C.bgSecondary, borderWidth: isAction ? 0 : 1, borderColor: C.burgundy }}>
+                                      {isAction && <Icon name="bell" size={fs(15)} color={C.butter} />}
+                                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: isAction ? C.butter : C.burgundy }}>
+                                        {!sysAlarmDone
+                                          ? (snoozeCount > 1 ? `내 폰 알람에 ${snoozeCount}개 등록하기` : '내 폰 알람에 등록하기')
+                                          : (sysAlarmTimeChanged ? '시간이 바뀌었어요 · 새로 등록하기' : '✓ 내 폰 알람에 등록함 · 다시 등록')}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })()}
+                                <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: sysAlarmTimeChanged ? C.burgundy : C.warmGray, textAlign: 'center', marginTop: 5, lineHeight: 15 }}>
+                                  {!sysAlarmDone
+                                    ? '탭하면 폰 기본 알람에 추가돼\n무음·방해금지에도 울려요'
+                                    : (sysAlarmTimeChanged
+                                        ? `시각이 바뀌었어요 — 새로 등록하고,\n이전 ${sysAlarmWake} 알람은 폰 알람 앱에서 지워주세요`
+                                        : '내 폰 기본 알람에 등록됐어요 · 무음에도 울려요\n수정·삭제는 폰 알람 앱에서 할 수 있어요')}
                                 </Text>
-                              </TouchableOpacity>
+                              </>
                             ) : (
                               <View style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                   <Icon name="bell" size={fs(15)} color={C.charcoal} />
-                                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>시계앱 알람은 라운드 전날 등록할 수 있어요</Text>
+                                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>내 폰 알람은 라운드 전날 등록할 수 있어요</Text>
                                 </View>
                                 <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 4, lineHeight: 16 }}>
                                   지금 걸면 오늘 울려요. 인앱 기상 알림은 그날 정확히 울려요.
@@ -634,9 +683,8 @@ export function QuickMealPrompt({ visible, schedule, onDone }) {
     const tee = new Date(y || 2026, (m || 1) - 1, d || 1, Number.isFinite(th) ? th : 8, tm || 0, 0, 0);
     return new Date(tee.getTime() - 60 * 60000);
   })();
-  const onPick = (event, date) => {
-    setShowPicker(false);
-    if (event?.type === 'dismissed' || !date) return;
+  const onPick = (date) => {
+    if (!date) return;
     if (isAtOrAfterTee(date.getHours(), date.getMinutes(), schedule.time)) {
       setMealErr(`티오프(${schedule.time}) 전 시각을 골라주세요`);
       return;
@@ -672,7 +720,8 @@ export function QuickMealPrompt({ visible, schedule, onDone }) {
               {mealTime ? `🕘 ${fmtKorTime(mealTime)} 만남` : '🕘 미리 만나는 시각 선택'}
             </Text>
           </TouchableOpacity>
-          {showPicker && <DateTimePicker value={pickerValue} mode="time" is24Hour display="spinner" onChange={onPick} />}
+          <SpinnerPicker visible={showPicker} value={pickerValue} mode="time" is24Hour
+            onPick={onPick} onClose={() => setShowPicker(false)} />
           {!!mealErr && (
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginTop: 8, textAlign: 'center' }}>⚠ {mealErr}</Text>
           )}

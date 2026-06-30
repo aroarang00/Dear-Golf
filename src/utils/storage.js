@@ -46,6 +46,7 @@ export const STORAGE_KEYS = {
   crewMuted: '@dg_crew_muted', // 크루별 알림(새 글 점) 음소거 {crewId: true} — 기기 로컬, per-user. 홈 크루 점에서 제외(어쩔수없이 든 크루 등)
   teamSeenAt: '@dg_team_seen_at', // 단체 모집별 단체팀(조편성) 마지막 열람 시각 {roundupId: millis} — 편성완료 미열람 맥동 판단(서버 미저장)
   crewIntroSeen: '@dg_crew_intro_seen', // 크루 소개(이용안내) 첫 진입 1회 자동 표시 제어 — 라운지 소개와 동일 패턴
+  systemAlarmDone: '@dg_system_alarm_done', // 일정별 '내 폰 알람 등록 버튼 눌렀음' {scheduleId: millis} — 기기 로컬. 등록함 표시용(안드 SET_ALARM은 OS 등록여부 조회 불가→'눌렀음'만 기록, 폰 알람 앱서 직접 삭제는 미반영)
 };
 
 export const storage = {
