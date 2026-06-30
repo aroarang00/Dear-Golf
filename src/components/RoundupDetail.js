@@ -182,6 +182,16 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
   const [mannerKey, setMannerKey] = useState(null);        // 매너 등급 안내 모달
 
+  // 안드: 모달 슬라이드업과 무거운 본문(ScrollView+카드들)이 같은 프레임서 마운트되면 '튀면서 열림' →
+  //   슬라이드 끝난 뒤 본문 마운트(잠깐 빈 배경 → 채움). iOS는 슬라이드가 매끄러워 즉시(지연 불필요). [[rn-list-perf-patterns]]
+  const [bodyReady, setBodyReady] = useState(!_and);
+  useEffect(() => {
+    if (!_and) return;
+    if (!visible) { setBodyReady(false); return; }
+    const t = setTimeout(() => setBodyReady(true), 250);
+    return () => clearTimeout(t);
+  }, [visible]);
+
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
   const scrollRef = useRef(null);
@@ -235,13 +245,14 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     return () => { show.remove(); hide.remove(); };
   }, []);
 
-  // 안드로이드 뒤로가기 — RN Modal에선 onRequestClose가 유일하게 신뢰되는 back 핸들러다.
-  // (Modal 안에서 BackHandler 리스너는 onRequestClose보다 안 먹는 RN 고질 이슈 → 훅 제거)
-  // 내부 RN Modal(등급·매너·액션시트)은 각자 onRequestClose로 닫히고,
-  // 자체 오버레이(OverlayAlert)만 부모 Modal의 onRequestClose에서 우선 닫는다.
+  // 안드로이드 뒤로가기 — RN Modal에선 onRequestClose가 신뢰되는 back 핸들러(모달 위 JS BackHandler는 불안정 → 안 씀).
+  //   단, 이 상세는 라운지 탭 위 모달이라 하드웨어 백 시 네비게이터(backBehavior=history)가 '함께' 뒤로 가버린다 →
+  //   onClose가 동기로 navigate(크루)해도 그 뒤 history 백이 라운지로 되돌려, 상단 ←(크루)와 목적지가 갈렸다.
+  //   → 하드웨어 백 경로만 크루 복귀 navigate를 '다음 틱'으로 미뤄(viaBack) 네비게이터 백이 끝난 뒤 크루를 연다.
+  //   내부 RN Modal(등급·매너·액션시트)은 각자 onRequestClose로 닫고, 오버레이(OverlayAlert)만 여기서 우선 닫는다.
   const handleRequestClose = () => {
     if (alert) { setAlert(null); return; }      // 확인창 떠 있으면 그것만 취소로 닫기 (상세는 유지)
-    onClose();
+    onClose({ viaBack: true });                 // 하드웨어/시스템 백 — 크루 복귀를 지연 navigate(네비게이터 백과 경합 회피)
   };
 
   if (!post) return null;
@@ -746,14 +757,15 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
     );
   }
 
+  // 안드: slide는 위치를 프레임마다 옮겨 '툭툭'거림(RN Modal 한계) → 가벼운 fade로(끊겨도 티 덜남). iOS는 매끄러운 slide 유지. [[rn-modal-android-jank]]
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} animationType={_and ? 'fade' : 'slide'} onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
           {/* 헤더 */}
           <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: _and ? 8 : 11,
             flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={() => onClose()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
             </TouchableOpacity>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>모집 상세</Text>
@@ -779,6 +791,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             )}
           </View>
 
+          {bodyReady ? (
           <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 36 + (kbHeight ? kbHeight + 80 : 0) }}
             scrollEventThrottle={16}
@@ -1054,6 +1067,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
 
             <View style={{ height: 20 }} />
           </ScrollView>
+          ) : (
+            <View style={{ flex: 1, backgroundColor: C.bgPrimary }} />
+          )}
 
           {/* 참여 확인 / 카카오 안내 / 차단 확인 — 모달 위 오버레이 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />

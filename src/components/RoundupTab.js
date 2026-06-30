@@ -576,7 +576,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!pid) return;
     pendingHostRef.current = route?.params?.openPostHost || null; // 딥링크 주최자 uid(있으면) — 비친구 안내용
     // 크루서 연 모집이면 닫을 때 그 크루로 복귀 — 어느 크루였는지(crewId)도 같이 들고 있다가 닫을 때 되돌려 보낸다.
-    detailReturnRef.current = route?.params?.openPostReturn === 'crew' ? { id: pid, crewId: route?.params?.openPostCrewId || null } : null;
+    const _ret = route?.params?.openPostReturn;   // 'crew'(iOS: 크루 닫고 옴→복귀 시 재오픈) | 'crewKept'(안드: 크루 연 채 스택→복귀 시 탭만 복원)
+    detailReturnRef.current = (_ret === 'crew' || _ret === 'crewKept')
+      ? { id: pid, crewId: route?.params?.openPostCrewId || null, kept: _ret === 'crewKept' }
+      : null;
     setDetailId(pid);
     navigation?.setParams?.({ openPostId: undefined, openPostHost: undefined, openPostReturn: undefined, openPostCrewId: undefined });
   }, [route?.params?.openPostId]);
@@ -2360,13 +2363,28 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         comments={detailId ? (commentsByPost[detailId] || []) : []}
         commentTotal={detailId ? (commentsTotal[detailId] || 0) : 0}
         onLoadOlderComments={() => detailId && handleLoadOlderComments(detailId)}
-        onClose={() => {
-          // 크루서 연 모집(detailReturnRef.id==현재 id)이면 닫을 때 홈으로 돌아가 그 크루를 다시 연다 — '모집 닫으면 크루 그 자리'.
+        onClose={(opts) => {
+          // 크루서 연 모집(detailReturnRef.id==현재 id)이면 닫을 때 크루로 돌아간다 — '모집 닫으면 크루 그 자리'.
           const ret = detailReturnRef.current;
           const backToCrew = ret && ret.id === detailId;
           detailReturnRef.current = null;
-          setDetailId(null);
-          if (backToCrew) navigation?.navigate?.(ROUTES.HOME, { reopenCrew: Date.now(), reopenCrewId: ret.crewId || undefined });
+          if (!backToCrew) { setDetailId(null); return; }   // 일반 라운지 상세 — 그냥 닫기
+          if (ret.kept) {
+            // 안드: 크루 모달은 '홈 탭이 활성'일 때만 덮는다 → 라운지에 있는 채 상세를 닫으면 라운지가 드러난다.
+            //   그래서 ①먼저 홈으로 전환하되 상세 모달이 '덮고 있는 동안' 전환을 끝내(탭 churn 비노출) ②자리잡은 뒤 닫는다 →
+            //   닫히며 드러나는 건 라운지가 아니라 크루. 닫은 직후 라운지 잔상도 없다.
+            const seq = () => {
+              navigation?.navigate?.(ROUTES.HOME);        // 상세가 덮은 채 홈 전환 (churn 안 보임)
+              setTimeout(() => setDetailId(null), 90);    // 홈+크루 자리잡은 뒤 상세 닫기 → 크루 바로 드러남
+            };
+            // 시스템 백(viaBack)은 네비게이터 history 백(라운지→홈)도 함께 일으킨다 → 한 틱 미뤄 그 백이 먼저 끝난 뒤 위 순서 실행.
+            if (opts?.viaBack) setTimeout(seq, 0); else seq();
+            return;
+          }
+          // iOS: 크루 닫고 왔으니 닫을 때 크루를 재오픈. 모달 '닫기 전에' 홈+크루 먼저 전환 → 라운지 잔상 제거.
+          const crewId = ret.crewId || undefined;
+          const go = () => { navigation?.navigate?.(ROUTES.HOME, { reopenCrew: Date.now(), reopenCrewId: crewId }); setDetailId(null); };
+          if (opts?.viaBack) setTimeout(go, 0); else go();
         }}
         onApply={(anonymous) => detailId ? performJoinOrApply(detailId, { anonymous: !!anonymous }) : undefined}
         onWaitlist={(anonymous) => detailId && handleWaitlist(detailId, !!anonymous)}

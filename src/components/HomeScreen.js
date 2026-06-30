@@ -1713,7 +1713,18 @@ export function HomeScreen({ navigation, route }) {
           <CrewListScreen onClose={() => setCrewOpen(false)}
             reopenCrewId={crewReturnId} onReopenConsumed={() => setCrewReturnId(null)}
             onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDmChat({ uid, name, avatar }); }}
-            onOpenRoundup={(id, hostUid, crewId) => { if (id) { setCrewOpen(false); navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crew', openPostCrewId: crewId || undefined }); } }} />
+            onOpenRoundup={(id, hostUid, crewId) => {
+              if (!id) return;
+              if (Platform.OS === 'android') {
+                // 안드: 크루 모달을 '연 채로' 라운지로 전환 → 무거운 라운지 렌더가 크루 모달 뒤(비노출)서 끝나고,
+                //   모집 상세가 크루 위로 stack돼 '모달 하나 떠오름'처럼 보인다(탭 점프 비노출). 닫으면 밑의 크루가 바로 보임. [[rn-modal-android-jank]]
+                navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crewKept', openPostCrewId: crewId || undefined });
+              } else {
+                // iOS: 형제 풀스크린 Modal 2개 동시표시 불가([[ios-modal-stacking]]) → 크루 닫고 점프(iOS는 이미 부드러움).
+                setCrewModalAnim('slide'); setCrewOpen(false);
+                navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crew', openPostCrewId: crewId || undefined });
+              }
+            }} />
         </ModalBackContext.Provider>
 
         {/* 크루에서 연 DM — 크루 Modal '안에' 중첩. iOS는 형제 Modal 2개를 동시에 못 띄워(크루 위 DM이 안 떴음) →
