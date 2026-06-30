@@ -584,7 +584,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     navigation?.setParams?.({ openPostId: undefined, openPostHost: undefined, openPostReturn: undefined, openPostCrewId: undefined });
   }, [route?.params?.openPostId]);
   // 상세가 닫히면(차단·삭제 등 onClose 외 경로 포함) 복귀 플래그 정리 — 다음에 라운지서 직접 연 모집에 잘못 새지 않게.
-  useEffect(() => { if (!detailId) detailReturnRef.current = null; }, [detailId]);
+  //   ★'열림→닫힘' 전이일 때만 지운다. 첫 마운트(detailId 초기 null)에 무조건 지우면, 바로 위 openPostId 효과가
+  //     막 세팅한 복귀정보를 덮어써 '첫 진입 시 크루로 복귀 안 됨' 버그가 난다(라운지 첫 마운트 = 크루서 첫 모집 열 때).
+  const prevDetailIdRef = useRef(detailId);
+  useEffect(() => {
+    if (prevDetailIdRef.current && !detailId) detailReturnRef.current = null;
+    prevDetailIdRef.current = detailId;
+  }, [detailId]);
   // 친구지정 초대(invite) 푸시 탭 — '내 참여(mine)' view로 전환해 초대장 카드를 보게 한다 ([[roundup-invitation]]).
   //   초대장은 view==='mine' 게이트로만 렌더되고 mineTab이 초대 수신글을 포함하므로 view만 바꾸면 노출된다.
   useEffect(() => {
