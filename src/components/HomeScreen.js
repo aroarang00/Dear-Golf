@@ -30,7 +30,7 @@ import { ScheduleScreen } from './ScheduleScreen';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
-import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms } from '../utils/notifications';
+import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms, computeRoundTimeline } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
 import { loadFriendData } from '../utils/friendGroups';
@@ -593,7 +593,10 @@ export function HomeScreen({ navigation, route }) {
     const home = userProfile?.departureCoord;
     if (home && typeof home.x === 'number' && typeof home.y === 'number') {
       // 라운딩 종료(티오프+4h) 후엔 올 때(구장→집) 소요로 — 목적지 기본=마이페이지 저장 출발지.
-      getScheduleDriveMin(next, home, { reverse: roundEnded }).then(m => { if (alive && m) setD0Info(p => ({ ...p, drive: m })); }).catch(() => {});
+      //   갈 때는 '도착 목표(티오프−도착여유)' 시각 기준 미래 교통 예측 — 교통화면과 동일 기준(불일치 방지).
+      const arriveBufferMin = Number.isFinite(userProfile?.arriveBufferMin) ? userProfile.arriveBufferMin : 30;
+      const tgt = roundEnded ? null : computeRoundTimeline(next, { arriveBufferMin });
+      getScheduleDriveMin(next, home, { reverse: roundEnded, arrivalAt: tgt?.arrive || null }).then(m => { if (alive && m) setD0Info(p => ({ ...p, drive: m })); }).catch(() => {});
     }
     return () => { alive = false; };
   }, [isD0, roundEnded, next?.id, next?.course, userProfile?.departureCoord?.x, userProfile?.departureCoord?.y]);

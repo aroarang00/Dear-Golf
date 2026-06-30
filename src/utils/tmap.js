@@ -40,6 +40,52 @@ async function markQuotaBlockedToday() {
   try { await AsyncStorage.setItem(k, '1'); } catch {}
 }
 
+// 타임머신(미래 시각 예측) — predictionType:'arrival' + predictionTime(도착 목표)로 그 시각 도착 기준 교통 소요 예측.
+//   엔드포인트가 일반 routes와 다름(routes/prediction), 본문도 routesInfo 래퍼(검색 확인). 응답 형식은 일반과 동일 가정(totalTime).
+//   ★형식 미확정 부분 있어 응답 로깅 + 실패 시 null(directions.js가 현재 기준으로 폴백). 새벽 라운드를 낮에 조회해도 그 시각 교통 반영.
+const TMAP_PREDICTION_URL = 'https://apis.openapi.sk.com/tmap/routes/prediction';
+const fmtTmapPredTime = (d) => {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00+0900`; // ISO-8601 KST
+};
+export async function getDrivingDirectionsTmapPrediction(origin, destination, arrivalAt) {
+  if (!origin || !destination || !(arrivalAt instanceof Date)) return null;
+  if (!(origin.x > 0) || !(origin.y > 0) || !(destination.x > 0) || !(destination.y > 0)) return null;
+  if (!isKeyConfigured()) return null;
+  if (await isQuotaBlockedToday()) return null;
+  try {
+    const { recordLocationAccess } = require('./locationAccessLog');
+    recordLocationAccess({ providerName: 'tmap', purpose: '교통 미래소요 예측(타임머신)', method: 'send' });
+  } catch {}
+  try {
+    const res = await fetch(`${TMAP_PREDICTION_URL}?version=1&format=json`, {
+      method: 'POST',
+      headers: { appKey: TMAP_APP_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // 공식 타임머신 예제 형식 — routesInfo 래퍼, departure/destination는 name/lon/lat만. searchOption 등 추가하면 1100 오류.
+        routesInfo: {
+          departure: { name: '출발', lon: String(origin.x), lat: String(origin.y) },
+          destination: { name: '도착', lon: String(destination.x), lat: String(destination.y) },
+          predictionType: 'arrival',
+          predictionTime: fmtTmapPredTime(arrivalAt),
+        },
+      }),
+    });
+    if (res.status === 429) { console.warn('[tmap] prediction 일한도 초과(429)'); await markQuotaBlockedToday(); return null; }
+    if (!res.ok) { console.warn('[tmap] prediction HTTP', res.status); return null; }
+    const data = await res.json();
+    const props = data?.features?.find(f => f?.properties?.totalTime != null)?.properties;
+    if (!props || props.totalTime == null) {
+      if (__DEV__) console.warn('[tmap] prediction totalTime 없음 — 응답:', JSON.stringify(data)?.slice(0, 300));
+      return null;
+    }
+    return { durationMin: Math.round((props.totalTime || 0) / 60), distanceM: props.totalDistance || 0 };
+  } catch (e) {
+    console.warn('[tmap] getDrivingDirectionsTmapPrediction failed:', e?.message);
+    return null;
+  }
+}
+
 export async function getDrivingDirectionsTmap(origin, destination) {
   if (!origin || !destination) return null;
   if (!(origin.x > 0) || !(origin.y > 0) || !(destination.x > 0) || !(destination.y > 0)) return null;

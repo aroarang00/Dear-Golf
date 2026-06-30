@@ -582,12 +582,18 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     let cancelled = false;
     if (!goOriginCoord || !goDestCoord) { setDriveMin(null); return; }
     (async () => {
-      const r = await getDrivingDirections(goOriginCoord, goDestCoord);
+      // 도착 목표 시각(구장 도착 = 티오프−도착여유 또는 만남 시각)에 '도착' 기준으로 미래 교통 예측 —
+      //   지금 막히는 낮에 조회해도 라운드 당일 그 시간대(새벽 등) 교통으로 소요를 계산(실패 시 현재 기준 폴백).
+      const [yy, mm, dd] = String(schedule?.date || '').split('.').map(Number);
+      const arrivalAt = (yy && mm && dd && Number.isFinite(arriveMin) && !schedule?.isPreview)
+        ? new Date(yy, mm - 1, dd, Math.floor(arriveMin / 60), arriveMin % 60, 0, 0)
+        : null;
+      const r = await getDrivingDirections(goOriginCoord, goDestCoord, { arrivalAt });
       if (!cancelled) setDriveMin(r ? r.durationMin : null);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goOriginCoord?.x, goOriginCoord?.y, goDestCoord?.x, goDestCoord?.y]);
+  }, [goOriginCoord?.x, goOriginCoord?.y, goDestCoord?.x, goDestCoord?.y, arriveMin, schedule?.date]);
 
   const setSlotMode = async (slotKey, mode) => {
     setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], mode } }));

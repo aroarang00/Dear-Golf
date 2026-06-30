@@ -380,6 +380,36 @@ export async function getDrivingDirectionsKakao(origin, destination) {
   }
 }
 
+// 미래 운행 정보 길찾기 — departure_time(출발 예상 시각, YYYYMMDDhhmm) 기준 그 시간대 교통으로 소요 예측.
+//   카카오는 '출발' 기준만이라 도착 목표에 맞추려면 호출부가 출발시각을 역산해 넘김(directions.js). 6주 후까지 지원.
+const KAKAO_FUTURE_URL = 'https://apis-navi.kakaomobility.com/v1/future/directions';
+export async function getDrivingDirectionsKakaoFuture(origin, destination, departureAt) {
+  if (!origin || !destination || !(departureAt instanceof Date)) return null;
+  if (!isKeyConfigured()) { console.warn('[kakao] KAKAO_REST_API_KEY not configured.'); return null; }
+  try {
+    const { recordLocationAccess } = require('./locationAccessLog');
+    recordLocationAccess({ providerName: 'kakao_mobility', purpose: '교통 미래소요 예측', method: 'send' });
+  } catch {}
+  try {
+    const p = (n) => String(n).padStart(2, '0');
+    const dt = `${departureAt.getFullYear()}${p(departureAt.getMonth() + 1)}${p(departureAt.getDate())}${p(departureAt.getHours())}${p(departureAt.getMinutes())}`;
+    const url = `${KAKAO_FUTURE_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}&departure_time=${dt}`;
+    const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+    if (!res.ok) { console.warn('[kakao] future HTTP', res.status); return null; }
+    const data = await res.json();
+    const route = data.routes?.[0];
+    if (!route || route.result_code !== 0) {
+      if (route) console.warn('[kakao] future result', route.result_code, route.result_msg);
+      return null;
+    }
+    const s = route.summary || {};
+    return { durationMin: Math.round((s.duration || 0) / 60), distanceM: s.distance || 0 };
+  } catch (e) {
+    console.warn('[kakao] getDrivingDirectionsKakaoFuture failed:', e?.message);
+    return null;
+  }
+}
+
 // 주소 문자열 → 좌표 (x=경도, y=위도). 실패 시 null.
 // 1차: 주소 검색 API, 0건이면 키워드 검색으로 폴백.
 export async function addressToCoord(address) {
