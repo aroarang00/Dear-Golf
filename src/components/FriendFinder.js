@@ -176,12 +176,21 @@ export function FriendFinder({
         onPress={async () => {
           if (!onSend) return;
           const result = await onSend(person);
-          if (result && result.ok === false && result.reason === 'limit') {
-            setAlert({
+          if (result && result.ok === false) {
+            const r = result.reason;
+            if (r === 'limit') setAlert({
               title: '오늘 친구 신청 한도를 초과했어요',
               message: `친구 신청은 하루 ${FRIEND_REQUEST_DAILY_LIMIT}건으로 제한되어 있어요.\n내일 다시 시도해주세요.`,
               buttons: [{ text: '확인' }],
             });
+            else if (r === 'incoming') setAlert({
+              title: '이미 받은 신청이 있어요',
+              message: `${person.name}님이 먼저 친구 신청을 보냈어요.\n'받은 신청'에서 수락하면 바로 친구가 돼요.`,
+              buttons: [{ text: '확인' }],
+            });
+            else if (r === 'already_friends') setAlert({ title: '이미 친구예요', message: `${person.name}님과는 이미 친구예요.`, buttons: [{ text: '확인' }] });
+            else if (r === 'already_requested') setAlert({ title: '이미 신청했어요', message: '상대가 수락하면 친구가 돼요.', buttons: [{ text: '확인' }] });
+            else setAlert({ title: '친구 신청 실패', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
           }
         }}
         onCancel={() => onCancelSend && onCancelSend(person)} />

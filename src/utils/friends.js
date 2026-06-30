@@ -148,7 +148,11 @@ export async function sendFriendRequest(toUid, actorName = '') {
   if (existing.exists()) {
     const data = existing.data();
     if (data.status === 'accepted') throw new Error('Already friends');
-    if (data.status === 'pending') throw new Error('Already requested');
+    if (data.status === 'pending') {
+      // pairId가 결정적이라 상대가 '먼저 보낸' 신청도 같은 doc에 잡힘 → 역방향을 구분해 호출처가 '받은 신청서 수락' 안내하게.
+      if (data.requesterUid === toUid) throw new Error('Incoming request');
+      throw new Error('Already requested');
+    }
   }
   await setDoc(ref, {
     users: [uid, toUid].sort(),

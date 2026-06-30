@@ -510,7 +510,14 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         await sendFriendRequest(person.id, userProfile?.nickname || '');
       } catch (e) {
         if (__DEV__) console.warn('[FriendsTab] sendFriendRequest failed', e?.message);
-        return { ok: false, reason: 'failed' };
+        // 결과를 세분화해 호출처(FriendFinder)가 맞는 안내를 띄우게 — 특히 역방향(상대가 먼저 신청)은 막다른 길이라 '받은 신청서 수락' 유도.
+        const msg = e?.message || '';
+        const reason = msg.includes('Incoming') ? 'incoming'
+          : msg.includes('Already friends') ? 'already_friends'
+          : msg.includes('Already requested') ? 'already_requested'
+          : 'failed';
+        if (reason === 'already_requested') setSentRequests(p => (p.includes(person.id) ? p : [...p, person.id])); // 이미 보냄 → 버튼 '신청함'으로 동기화
+        return { ok: false, reason };
       }
       setSentRequests(p => [...p, person.id]);
       await incrementFriendRequestCount();
@@ -535,6 +542,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       await acceptFriendRequest(person.id);
     } catch (e) {
       if (__DEV__) console.warn('[FriendsTab] acceptFriendRequest failed', e?.message);
+      // 표시~수락 사이 상대가 취소(doc 삭제)했으면 updateDoc이 throw → 같은 항목 반복 탭(막다른 길) 방지로 목록서 제거.
+      setReceivedRequests(p => p.filter(r => r.id !== person.id));
       return;
     }
     setFriends(p => (p.some(f => f.id === person.id) ? p : [...p, personToFriend(person)]));
