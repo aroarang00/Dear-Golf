@@ -47,6 +47,22 @@ export async function getCurrentLocation(timeoutMs = 8000) {
   }
 }
 
+// 위치 권한만 요청 (OS 팝업) — 좌표는 수집하지 않음.
+//   온보딩 인트로는 LBS 약관 동의 '전' 단계라, 여기서 getCurrentLocation으로 GPS fix를 받으면
+//   '동의 없이 위치 수집' 소지가 생김. 권한만 미리 받아두고 실제 좌표 수집은 동의 이후 기능에서.
+export async function requestLocationPermission() {
+  try {
+    let { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      const req = await Location.requestForegroundPermissionsAsync();
+      status = req.status;
+    }
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 // 현재 위치 권한이 허용 상태인지만 확인 (OS 팝업 없음)
 export async function hasLocationPermission() {
   try {

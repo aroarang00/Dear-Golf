@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Dimensions, Linking, AppState
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { getCurrentLocation, hasLocationPermission } from '../utils/location';
+import { requestLocationPermission, hasLocationPermission } from '../utils/location';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -32,10 +32,10 @@ export function OnboardingIntro({ onDone }) {
   const [idx, setIdx] = useState(0);
   const [locStatus, setLocStatus] = useState('idle'); // idle | granted | denied
 
-  // 위치 권한 요청 — OS 팝업을 띄우고 결과를 반영
+  // 위치 권한 요청 — OS 팝업만 띄우고 결과 반영(좌표 수집 X). 실제 위치 사용은 LBS 약관 동의 이후 기능에서.
   async function handleLocation() {
-    const loc = await getCurrentLocation();
-    setLocStatus(loc ? 'granted' : 'denied');
+    const granted = await requestLocationPermission();
+    setLocStatus(granted ? 'granted' : 'denied');
   }
 
   // 거부 후 OS 설정에서 허용하고 돌아오면 상태 자동 갱신
