@@ -83,6 +83,15 @@ export function fmtClock(date) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
+// 역산 시각을 보기 좋게 10분 단위로 — 분 일의자리 ≤5 내림(자름), ≥6 올림(예 6:07→6:10, 6:05→6:00). 시·날짜 넘김은 Date가 자동 처리.
+function roundTo10Min(d) {
+  if (!d) return d;
+  const r = new Date(d);
+  const ones = r.getMinutes() % 10;
+  r.setMinutes(r.getMinutes() - ones + (ones <= 5 ? 0 : 10), 0, 0);
+  return r;
+}
+
 // 일정 + 개인설정으로 라운드 타임라인 역산.
 //   driveMin=집→구장 이동(분), prepMin=집에서 나갈 준비(분, 화장·짐 등), arriveBufferMin=구장 도착~티오프 여유(분).
 //   teeoff − 도착여유 = 구장도착 / − 이동시간 = 출발 / − 준비시간 = 기상.
@@ -108,7 +117,15 @@ export function computeRoundTimeline(schedule, { driveMin, prepMin, arriveBuffer
   }
   const depart = (arrive && Number.isFinite(driveMin)) ? new Date(arrive.getTime() - driveMin * 60000) : null;
   const wake   = (depart && Number.isFinite(prepMin)) ? new Date(depart.getTime() - prepMin * 60000) : null;
-  return { teeoff, arrive, depart, wake, anchoredToMeal: !!arrive && arriveAt != null };
+  // 10분 단위로 다듬기 — 표시·알람 모두 이 시각을 써 일관. 식사 '약속시각'(arriveAt 입력)은 정확히 지켜야 하므로 그대로,
+  //   도착여유로 계산된 도착·출발·기상만 다듬는다. 티오프는 실제 부킹 시각이라 손대지 않음.
+  return {
+    teeoff,
+    arrive: (arriveAt != null) ? arrive : roundTo10Min(arrive),
+    depart: roundTo10Min(depart),
+    wake: roundTo10Min(wake),
+    anchoredToMeal: !!arrive && arriveAt != null,
+  };
 }
 
 // 일정 객체 → 알람 시점별 발송 시각(Date). { d3, d1, teeoff } + opts 주어지면 { depart, wake } 추가.
