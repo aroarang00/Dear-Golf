@@ -847,7 +847,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             <View style={{ width: SW }}>
             <PinchGestureHandler onGestureEvent={onPinchEvent} onHandlerStateChange={onPinchStateChange}>
             <Animated.ScrollView
-              style={{ flex: 1, transform: zoomed ? [{ scale }] : undefined }}
+              // zoomed=false면 transform 키 자체를 제거 — New Arch Animated가 transform:undefined를 null로 넘겨 _validateTransforms가 forEach 크래시하던 것 차단
+              style={[{ flex: 1 }, zoomed ? { transform: [{ scale }] } : null]}
               contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
               showsVerticalScrollIndicator={false}>
 
