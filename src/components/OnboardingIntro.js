@@ -154,13 +154,24 @@ export function OnboardingIntro({ onDone }) {
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 2, marginBottom: 2 }}>나의 라운딩 기록</Text>
               <Text style={{ fontFamily: F.en, fontSize: fs(26), color: C.charcoal }}>MY</Text>
             </View>
-            <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginTop: 12 }}>
-              {[['라운딩', '24'], ['평균타', '92'], ['베스트', '78']].map(([l, v]) => (
-                <View key={l} style={{ flex: 1, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.charcoal }}>{v}</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{l}</Text>
+            {/* 내 스코어 배너 — 실제 MY 탭의 ScoreBanner(navy) 모양 반영(옛 3칸 통계박스 → ScoreBanner 대체).
+                평균·베스트·핸디 + 흐름 힌트 + 통계 진입 CTA. */}
+            <View style={{ marginHorizontal: 24, marginTop: 12, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 스코어</Text>
+                <View style={{ flexDirection: 'row', gap: 14 }}>
+                  {[['평균', '92'], ['베스트', '78'], ['핸디', '18']].map(([l, v]) => (
+                    <View key={l} style={{ alignItems: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: l === '베스트' ? C.butter : '#fff' }}>{v}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(9.5), color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>{l}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: 'rgba(255,255,255,0.72)' }}>최근 좋아지는 중 ↗</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.butter }}>통계 자세히 보기 →</Text>
+              </View>
             </View>
             <View style={{ marginHorizontal: 24, marginTop: 10, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 11 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>2026.05.24 토 · 제이드팰리스 GC</Text>
@@ -196,6 +207,9 @@ export function OnboardingIntro({ onDone }) {
           <View style={{ backgroundColor: C.burgundy, paddingHorizontal: 32, paddingTop: 20, paddingBottom: 28 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: '#fff', textAlign: 'center', lineHeight: 30 }}>
               나만의 골프 기록을 모아서
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.78)', textAlign: 'center', marginTop: 9, lineHeight: 19 }}>
+              스코어판 사진 한 장이면 자동으로 입력돼요
             </Text>
           </View>
         </View>
@@ -268,11 +282,23 @@ export function OnboardingIntro({ onDone }) {
 
             {/* 메인 헤드라인 — 핵심 메시지 */}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#fff', lineHeight: 28, marginBottom: 18 }}>
-              4명 채우기,{'\n'}이제 연락 돌리지 마세요
+              골프 약속,{'\n'}이제 여기서 만들어요
             </Text>
 
-            {/* 4가지 모집 방식 1열 카드 — 가로 레이아웃 (아이콘 + 타이틀·설명) */}
+            {/* 크루 + 4가지 모집 방식 1열 카드 — 가로 레이아웃 (아이콘 + 타이틀·설명) */}
             <View style={{ gap: 10 }}>
+              {/* 크루 — 자주 치는 멤버와 약속을 한곳에. 콜드스타트 네트워크 단위라 모집보다 위에 강조(버터 테두리) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12,
+                backgroundColor: 'rgba(245,230,168,0.14)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.55)',
+                borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(245,230,168,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: fs(20) }}>🤝</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 2 }}>자주 치는 멤버는 '크루'로</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.7)', lineHeight: 16 }}>우리 모임 일정·앨범·약속을 한곳에</Text>
+                </View>
+              </View>
               {[
                 ['👥', '친구공개로 모집', '내 친구들에게'],
                 ['🎯', '친구지정으로 모집', '고른 친구에게만'],
