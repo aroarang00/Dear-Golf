@@ -164,7 +164,7 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
   const handleAcceptClick = (n) => {
     setAlert({
       title: '라운딩 모집이 확정되었어요',
-      message: `${n.actor}님의 참여가 확정되고\n정원이 1명 늘어요.\n\n확정 후엔 동반자 약속이 시작돼요.`,
+      message: `${n.actorName || n.actor || '신청자'}님의 참여가 확정되고\n정원이 1명 늘어요.\n\n확정 후엔 동반자 약속이 시작돼요.`,
       buttons: [
         { text: '취소', style: 'cancel' },
         { text: '수락하기', onPress: () => onAccept && onAccept(n) },

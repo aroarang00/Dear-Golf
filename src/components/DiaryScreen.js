@@ -894,7 +894,7 @@ export function DiaryScreen({ route, navigation }) {
 
               {filtered.length === 0 ? (
                 <View style={dS.emptyWrap}>
-                  <Text style={dS.emptyMsg}>{filterKey === '일상' ? '아직 일상이 없어요' : filterKey === '라운딩' ? '아직 라운딩 기록이 없어요' : '검색 결과가 없어요'}</Text>
+                  <Text style={dS.emptyMsg}>{filterKey === '일상' ? '아직 일상이 없어요' : filterKey === '라운딩' ? '아직 라운딩 기록이 없어요' : filterKey === '올해' ? '올해 기록이 없어요' : filterKey === '베스트 스코어' ? '아직 라운딩 기록이 없어요' : '검색 결과가 없어요'}</Text>
                 </View>
               ) : (
                 <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>

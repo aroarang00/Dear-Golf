@@ -606,7 +606,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date),
       score: parseInt(score) || 0, holeScores: finalHoleScores, holePars: finalHolePars, weather, memo, birdieCount, ...vis,
-      special, specialHole: parseInt(specialHole),
+      special, specialHole: parseInt(specialHole) || null,
       specialPar: parseInt(specialPar) || null,
       specialDist, specialBall, specialMemo,
       photos: addPhotos,
