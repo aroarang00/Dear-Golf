@@ -96,6 +96,11 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
         //   닉 변경 후 재설치/재연동 시 옛 닉으로 롤백되던 버그. nickname 없을 때만 displayName 폴백.
         nickname: (isReturning ? (userDoc.data.nickname || userDoc.data.displayName) : result.nickname) || '',
         avatarUri: (isReturning ? userDoc.data.avatarUrl : result.profileImageUrl) || null,
+        // 재방문자(재설치·기기변경) 스탯·본명 prefill — 빈 폼을 그대로 통과하면 기본값(90/99)이 실제 기록을
+        //   덮어쓰던 것 차단. 프로필 폼에 실제값이 보이고 완료 시 그대로 다시 저장됨([[course-rating-key-stability]]·재방문자 보호).
+        realName: (isReturning ? userDoc.data.realName : '') || '',
+        avgScore: (isReturning ? userDoc.data.avgScore : null) || null,
+        lifeBest: (isReturning ? userDoc.data.lifeBest : null) || null,
         kakaoLinked: true,
         kakaoId: result.kakaoId || null,
         isReturning,            // App.js에서 재방문자 온보딩 단축 처리 시 사용

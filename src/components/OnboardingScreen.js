@@ -16,9 +16,10 @@ const arriveLabel = (m) => `${m}분`;
 // consent: 약관 동의 데이터 ({ agreedTos·agreedPrivacy·agreedPenalty·agreedAge·agreedMarketing·legalVersion·agreedAt })
 export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const [nickname, setNickname] = useState(seed.nickname || '');
-  const [realName, setRealName] = useState('');
-  const [avgScore, setAvgScore] = useState('');
-  const [lifeBest, setLifeBest] = useState('');
+  // 재방문자는 seed에 실린 기존 값으로 prefill(빈 폼→기본값이 실제 스탯 덮어쓰는 것 방지). 신규는 빈칸.
+  const [realName, setRealName] = useState(seed.realName || '');
+  const [avgScore, setAvgScore] = useState(seed.avgScore > 0 ? String(seed.avgScore) : '');
+  const [lifeBest, setLifeBest] = useState(seed.lifeBest > 0 ? String(seed.lifeBest) : '');
   const [step, setStep] = useState(1);
   // 3단계 · 알림 — 한 번 정해두면 매 라운드 자동 적용(팝업 없음)
   const [prepMin, setPrepMin] = useState(30);          // 집에서 나갈 준비시간(화장·짐 등)
