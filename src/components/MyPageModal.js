@@ -683,8 +683,8 @@ export function MyPageModal({ visible, onClose }) {
                         return (
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>🔔 기상 알람 시계앱에도 자동 등록</Text>
-                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2, lineHeight: 16 }}>무음·방해금지에도 울려요. 새벽 라운드 전날 앱을 열면 그날 기상 알람을 시계앱에 자동 등록 (시계앱은 날짜 지정이 안 돼 전날에만 가능)</Text>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>🔔 기상 알람 내 폰 알람에도 자동 등록</Text>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2, lineHeight: 16 }}>무음·방해금지에도 울려요. 새벽 라운드 전날 앱을 열면 그날 기상 알람을 내 폰 알람에 자동 등록 (폰 알람은 날짜 지정이 안 돼 전날에만 가능)</Text>
                             </View>
                             <TouchableOpacity onPress={() => persistAlarmCfg({ autoSystemAlarm: !on })} activeOpacity={0.8}
                               style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center', backgroundColor: on ? C.burgundy : C.hairline }}>
