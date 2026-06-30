@@ -137,8 +137,6 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       setDontAsk(false);
       setShowTimePicker(false);
       setMealTime(null);
-      setSnoozeCount(Number.isFinite(userProfile.snoozeCount) ? userProfile.snoozeCount : 1);
-      setSnoozeIntervalMin(Number.isFinite(userProfile.snoozeIntervalMin) ? userProfile.snoozeIntervalMin : 10);
       // 편집(기존 알람 있음)이면 그 값으로 프리필, 아니면 저장 기본값.
       const ex = (existing && Array.isArray(existing.types)) ? existing : null;
       const base = ex
@@ -152,6 +150,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       // 개인설정은 편집값 > 저장값(기억된 습관) > 기본
       setPrepMin(Number.isFinite(ex?.opts?.prepMin) ? ex.opts.prepMin : (Number.isFinite(userProfile.prepMin) ? userProfile.prepMin : DEFAULT_PREP));
       setArriveBufferMin(Number.isFinite(ex?.opts?.arriveBufferMin) ? ex.opts.arriveBufferMin : (Number.isFinite(userProfile.arriveBufferMin) ? userProfile.arriveBufferMin : DEFAULT_ARRIVE));
+      // 스누즈도 편집값 > 저장값 > 기본(prep·arrive와 동일 우선순위 — 일정별 저장값이 프로필 기본에 덮이지 않게)
+      setSnoozeCount(Number.isFinite(ex?.opts?.snoozeCount) ? ex.opts.snoozeCount : (Number.isFinite(userProfile.snoozeCount) ? userProfile.snoozeCount : 1));
+      setSnoozeIntervalMin(Number.isFinite(ex?.opts?.snoozeIntervalMin) ? ex.opts.snoozeIntervalMin : (Number.isFinite(userProfile.snoozeIntervalMin) ? userProfile.snoozeIntervalMin : 10));
       setMealTime(ex?.opts?.arriveAt || null);
       setWakeOn(false);
       setDepartOn(false);

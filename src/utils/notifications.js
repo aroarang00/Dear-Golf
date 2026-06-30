@@ -200,7 +200,8 @@ async function _scheduleRoundAlarms(schedule, types, opts) {
   for (const t of types || []) {
     const when = triggers[t];
     const def = ALARM_DEFS[t];
-    if (!when || !def || when.getTime() <= now) continue; // 지난 시점은 건너뜀
+    if (!when || !def) continue;
+    // ★기준시각(i=0)이 막 지나도 미래 스누즈 반복분(i=1,2)은 살리려고 여기서 과거 컷 안 함 — 아래 반복 루프가 fireAt별로 개별 컷.
     const isDynamic = t === 'wake' || t === 'depart';
     const reps = t === 'wake' ? wakeReps : 1; // 기상만 반복(나머지는 1회)
     for (let i = 0; i < reps; i++) {
