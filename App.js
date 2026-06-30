@@ -512,8 +512,12 @@ function App() {
       'apply', 'confirmed', 'cancel', 'waitlist', 'waitlistPromoted',
       'comment', 'mannerEval', 'hostCancelledD7', 'scheduleNotice', 'roundupChanged', 'roundupFull',
     ]);
-    const handleResponse = (resp) => {
-      if (!navigationRef.isReady()) return;
+    const handleResponse = (resp, attempt = 0) => {
+      // 콜드스타트 — 종료 상태서 알림 탭으로 켜지면 네비가 아직 미준비일 수 있어, 딥링크와 동일하게 준비될 때까지 재시도(고정 지연은 안드 InsetGate 마운트 지연에 유실).
+      if (!navigationRef.isReady()) {
+        if (attempt < 20) setTimeout(() => handleResponse(resp, attempt + 1), 250);
+        return;
+      }
       const data = resp?.notification?.request?.content?.data || {};
       const type = data.type;
       try {
@@ -540,7 +544,7 @@ function App() {
     };
     // 앱이 종료된 상태에서 알림 탭으로 실행된 경우 — 네비게이션 준비 시간 확보
     Notifications.getLastNotificationResponseAsync().then(resp => {
-      if (resp) setTimeout(() => handleResponse(resp), 400);
+      if (resp) handleResponse(resp); // handleResponse가 네비 준비까지 재시도 내장(고정 400ms 제거)
     });
     // 앱 실행 중 알림 탭
     const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
