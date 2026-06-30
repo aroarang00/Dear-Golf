@@ -39,9 +39,25 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
     }
     // 호출자가 배열에서 '자기 자신'의 포함 여부만 토글했는지 (가입/탈퇴·좋아요)
+    // 내 uid가 배열 field에서 add/remove '토글'됐는지(한쪽에만 존재). ★.get(field, []) 기본값 필수 —
+    //   필드가 아예 없는 문서(스코어공유 파생 라운드는 likes 없이 생성 등)에서 resource.data[field] 직접
+    //   접근하면 평가가 깨져 합법 토글이 permission-denied로 막힘([[firestore-rules-false-denial]]).
     function selfMembershipToggled(field) {
-      return (request.auth.uid in resource.data[field])
-          != (request.auth.uid in request.resource.data[field]);
+      return (request.auth.uid in resource.data.get(field, []))
+          != (request.auth.uid in request.resource.data.get(field, []));
+    }
+    // 제재·매너 필드는 서버(CF·admin SDK)만 변경 — 본인 update가 정지 자가해제/매너점수 조작을 못 하게
+    //   이전 값과 동일함을 강제. ★App.js write-through는 setDoc merge:true + payload에 이 필드들 미포함이라
+    //   보존됨(=값 동일=통과) → 정당한 프로필 저장은 안 막힌다. owner full-write users의 권위필드 구멍 차단.
+    function sanctionFieldsUnchanged() {
+      return request.resource.data.get('isRestricted', null) == resource.data.get('isRestricted', null)
+        && request.resource.data.get('mannerScore', null) == resource.data.get('mannerScore', null)
+        && request.resource.data.get('noshowCount', null) == resource.data.get('noshowCount', null)
+        && request.resource.data.get('falseReportCount', null) == resource.data.get('falseReportCount', null)
+        && request.resource.data.get('restrictUntil', null) == resource.data.get('restrictUntil', null)
+        && request.resource.data.get('restrictReason', null) == resource.data.get('restrictReason', null)
+        && request.resource.data.get('permanentPendingAppealUntil', null) == resource.data.get('permanentPendingAppealUntil', null)
+        && request.resource.data.get('permanentPendingReason', null) == resource.data.get('permanentPendingReason', null);
     }
 
     // ===== users — 골퍼 프로필 (명함). MY 탭 = 친구 프로필 = 같은 스키마 =====
@@ -49,8 +65,11 @@ service cloud.firestore {
     //   ※ 민감 정보(전화번호 등)는 users 문서에 직접 저장하지 말 것
     match /users/{uid} {
       allow read: if isSignedIn();
-      allow create: if isOwner(uid) && request.resource.data.uid == uid;
-      allow update: if isOwner(uid) && request.resource.data.uid == uid;
+      // 생성 시 제재·매너 필드를 끼워 넣지 못하게(신규 계정이 매너점수 뻥튀기 등 차단) — CF만 부여.
+      allow create: if isOwner(uid) && request.resource.data.uid == uid
+        && !request.resource.data.keys().hasAny(['isRestricted', 'mannerScore', 'noshowCount', 'falseReportCount', 'restrictUntil', 'restrictReason', 'permanentPendingAppealUntil', 'permanentPendingReason']);
+      allow update: if isOwner(uid) && request.resource.data.uid == uid
+        && sanctionFieldsUnchanged(); // 제재 자가해제·매너 조작 차단(서버 권위 필드 불변)
       allow delete: if isOwner(uid);
 
       // 친구 그룹·별명 (친구 그룹 기능 — docs/friend-groups-design.md). 본인만.
@@ -85,7 +104,7 @@ service cloud.firestore {
             && areFriends(request.auth.uid, resource.data.ownerUid))
         // 그룹 공개 — 작성 시점 audienceUids(작성자 친구로 한정)에 포함된 수신자만 ([[friend_groups]])
         || (resource.data.visibility == 'group'
-            && request.auth.uid in resource.data.audienceUids)
+            && request.auth.uid in resource.data.get('audienceUids', [])) // .get — group 라운드에 audienceUids 누락 시 false-denial 방지
       );
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
@@ -101,7 +120,7 @@ service cloud.firestore {
             && selfMembershipToggled('likes'))
         // 그룹 공개 글 좋아요 — 수신자(audienceUids)만 자기 uid 토글 ([[friend_groups]])
         || (resource.data.visibility == 'group'
-            && request.auth.uid in resource.data.audienceUids
+            && request.auth.uid in resource.data.get('audienceUids', [])
             && changedKeysWithin(['likes', 'updatedAt'])
             && selfMembershipToggled('likes'))
       );
@@ -465,7 +484,15 @@ service cloud.firestore {
           //   participantUids/waitlistUids 토글에 의존(남의 익명여부 조작 완전차단은 규칙만으론 불가 → CF 이관 권장 [[data-integrity-principles]]).
           && changedKeysWithin(['participantUids', 'waitlistUids', 'joined', 'teamJoined', 'closed', 'anonymousUids', 'updatedAt'])
           && (selfMembershipToggled('participantUids') || selfMembershipToggled('waitlistUids'))
-          && (resource.data.closed == request.resource.data.closed || request.resource.data.closed == false)
+          && (resource.data.get('closed', false) == request.resource.data.get('closed', false) || request.resource.data.get('closed', false) == false) // .get — closed 누락 모집서 참여/취소 false-denial 방지
+          // ★정원 무결성 — joined 증감 = participantUids 증감(변화량 일치, 레거시 절대값 불일치엔 관대해 false-denial 회피).
+          //   joined를 0/9999로 위조해 만석·정원 판정을 교란하던 구멍 차단.
+          && (request.resource.data.get('joined', 0) - resource.data.get('joined', 0))
+             == (request.resource.data.get('participantUids', []).size() - resource.data.get('participantUids', []).size())
+          // ★내 uid 외 participant/waitlist/anonymous 집합 불변 — 타 참여자 추방·남의 익명여부 조작 차단(self 토글만 위에서 허용).
+          && request.resource.data.get('participantUids', []).removeAll([request.auth.uid]) == resource.data.get('participantUids', []).removeAll([request.auth.uid])
+          && request.resource.data.get('waitlistUids', []).removeAll([request.auth.uid]) == resource.data.get('waitlistUids', []).removeAll([request.auth.uid])
+          && request.resource.data.get('anonymousUids', []).removeAll([request.auth.uid]) == resource.data.get('anonymousUids', []).removeAll([request.auth.uid])
         )
         || (
           // 좋아요(응원) — 작성자 외 읽기권한자가 likedBy에 본인 uid만 토글 (모두 공개, [[roundup-friend-redesign]]).

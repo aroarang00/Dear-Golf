@@ -246,6 +246,46 @@ test('roundups: 좋아요는 likedBy 자기 토글만(updatedAt 없이)', async 
     { likedBy: arrayUnion('bob') }));
 });
 
+test('roundups: 정원 무결성 — joined 위조·타 참여자 추방 거부, 정상 참여는 허용', async () => {
+  await seed((db) => setDoc(doc(db, 'roundups', 'r1'),
+    roundupBase({ participantUids: ['alice', 'carol'], joined: 2 })));
+  const bobRef = doc(as('bob'), 'roundups', 'r1');
+  // 참여 없이 joined만 부풀리기 — 거부(joined 변화량 != participantUids 변화량)
+  await assertFails(updateDoc(bobRef, { joined: 9999, updatedAt: serverTimestamp() }));
+  // 참여하면서 joined 과다 조작 — 거부
+  await assertFails(updateDoc(bobRef, { participantUids: arrayUnion('bob'), joined: 9999, updatedAt: serverTimestamp() }));
+  // 타 참여자(carol) 추방 + 본인 추가 — 거부(내 uid 외 집합 불변 위반)
+  await assertFails(updateDoc(bobRef, { participantUids: ['alice', 'bob'], joined: 2, updatedAt: serverTimestamp() }));
+  // 정상 참여(변화량 1==1, 타인 불변) — 허용
+  await assertSucceeds(updateDoc(bobRef, { participantUids: arrayUnion('bob'), joined: 3, updatedAt: serverTimestamp() }));
+});
+
+// =============================================================
+// users — 프로필은 owner full-write, 단 제재·매너 필드는 서버(CF·admin)만 변경 가능
+// =============================================================
+test('users: 제재 필드 자가위조 거부, 정당한 프로필 저장은 허용', async () => {
+  // CF가 부여한 정지 상태를 시드
+  await seed((db) => setDoc(doc(db, 'users', 'alice'), {
+    uid: 'alice', nickname: '앨리스', isRestricted: true, mannerScore: 50, noshowCount: 1,
+  }));
+  const ref = doc(as('alice'), 'users', 'alice');
+  // 정당한 프로필 저장(제재필드 미포함 merge — write-through와 동일) — 허용
+  await assertSucceeds(setDoc(ref, { uid: 'alice', nickname: '앨리스2', updatedAt: serverTimestamp() }, { merge: true }));
+  // 정지 자가해제·매너 조작 — 거부
+  await assertFails(updateDoc(ref, { isRestricted: false }));
+  await assertFails(updateDoc(ref, { mannerScore: 100 }));
+  await assertFails(updateDoc(ref, { noshowCount: 0 }));
+});
+
+test('users: 생성 시 제재 필드 끼워넣기 거부, 제재필드 없는 정상 생성은 허용', async () => {
+  const ref = doc(as('bob'), 'users', 'bob');
+  // 신규 계정이 매너점수 뻥튀기/정지회피 시도 — 거부
+  await assertFails(setDoc(ref, { uid: 'bob', nickname: '밥', mannerScore: 100 }));
+  await assertFails(setDoc(ref, { uid: 'bob', nickname: '밥', isRestricted: false }));
+  // 제재필드 없는 정상 생성 — 허용
+  await assertSucceeds(setDoc(ref, { uid: 'bob', nickname: '밥' }));
+});
+
 test('roundups: 주최자는 전체 수정 가능, 비주최자 삭제는 거부', async () => {
   await seed((db) => setDoc(doc(db, 'roundups', 'r1'), roundupBase()));
   // 주최자 alice — 제목·정원 등 자유 수정
