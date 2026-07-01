@@ -36,6 +36,7 @@ import { db } from '../utils/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { isD7Inside } from '../constants/mannerGrade';
 import { STORAGE_KEYS, storage } from '../utils/storage';
+import { pushRoundupSuppressed, syncRoundupSuppressedFromFirestore } from '../utils/roundupSuppressed'; // 초대 거절 재설치 보존
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { applyDefaultAlarms } from '../utils/notifications';
 import { loadAllRoundups, loadMyRoundups, loadFriendRoundups, loadSelectRoundupsForMe, loadRoundup, createRoundup, updateRoundupAsAuthor, deleteRoundup, cancelRoundupByHost, applyToRoundup, cancelApplication, joinRoundup, leaveRoundup, loadMyApplications, joinWaitlist, leaveWaitlist, acceptApplication, rejectApplication, loadApplicationsForRoundup, closeRoundup, toggleRoundupLike } from '../utils/roundup';
@@ -749,11 +750,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 초대 자동억제(거절·취소) — 가리기와 분리. 친구공개로 바뀌면 다시 보이게 하려고 브라우즈 필터엔 안 쓴다.
   const [suppressedHydrated, setSuppressedHydrated] = useState(false);
   useEffect(() => {
-    storage.load(STORAGE_KEYS.roundupSuppressed, {}).then(s => { setSuppressed(s || {}); setSuppressedHydrated(true); });
+    // 서버(users/{uid}) ∪ 로컬 머지 복원 — 재설치·타기기에서 거절이 되살아나지 않게([[roundup-invitation]]).
+    syncRoundupSuppressedFromFirestore().then(s => { setSuppressed(s || {}); setSuppressedHydrated(true); });
   }, []);
   useEffect(() => {
     if (!suppressedHydrated) return;
     storage.save(STORAGE_KEYS.roundupSuppressed, suppressed);
+    pushRoundupSuppressed(suppressed); // 서버 미러 — 라운지 거절도 재설치 보존(맵은 추가만 돼 전체 덮어써도 유실 없음)
   }, [suppressed, suppressedHydrated]);
   // 라운지 포커스 시 가리기 재로드 — 홈 배너에서 친구지정 초대를 거절(가리기)한 경우 내 참여·관심과 정합 ([[roundup-invitation]]).
   useEffect(() => {

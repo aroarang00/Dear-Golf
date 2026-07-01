@@ -76,6 +76,7 @@ import { UserContext } from './src/contexts/UserContext';
 import { FriendBadgeContext } from './src/contexts/FriendBadgeContext';
 import { subscribeIncomingScheduleInvites } from './src/utils/scheduleShares';
 import { subscribeSelectInvitesForMe } from './src/utils/roundup';
+import { suppressRoundupInvite, syncRoundupSuppressedFromFirestore } from './src/utils/roundupSuppressed'; // 초대 거절 재설치 보존
 import { CurrentUidContext } from './src/contexts/CurrentUidContext';
 import { SchedulesProvider } from './src/contexts/SchedulesContext';
 import { DiariesProvider } from './src/contexts/DiariesContext';
@@ -223,14 +224,13 @@ function App() {
     } catch (e) { if (__DEV__) console.warn('[App] roundup hidden load fail', e?.message); }
   }, []);
   useEffect(() => { refreshRoundupHidden(); }, [refreshRoundupHidden]); // 마운트 시 가리기 로드
-  // 배너에서 거절 — 로컬 '초대 자동억제'에 기록(라운지 suppressInvite와 같은 키). 초대 재노출만 막고,
-  //   친구공개로 바뀌면 다시 보이게(가리기와 분리). 재노출 방지 + 즉시 반영.
+  // 배너에서 거절 — '초대 자동억제'에 기록(라운지 suppressInvite와 같은 로컬 키) + users/{uid} 서버 미러.
+  //   초대 재노출만 막고(친구공개로 바뀌면 다시 보이게 — 가리기와 분리), 즉시 반영. ★서버 백업이라
+  //   재설치·타기기에서 거절이 되살아나지 않는다([[roundup-invitation]], roundupSuppressed 유틸).
   const declineRoundupInvite = useCallback(async (postId) => {
     if (!postId) return;
     try {
-      const cur = (await storage.load(STORAGE_KEYS.roundupSuppressed, {})) || {};
-      const next = { ...cur, [postId]: true };
-      await storage.save(STORAGE_KEYS.roundupSuppressed, next);
+      const next = await suppressRoundupInvite(postId);
       setRoundupSuppressedMap(next);
     } catch (e) { if (__DEV__) console.warn('[App] roundup decline fail', e?.message); }
   }, []);
@@ -243,6 +243,17 @@ function App() {
       unsub = subscribeSelectInvitesForMe(uid, list => setRoundupInvitePending(Array.isArray(list) ? list : []));
     })();
     return () => { cancelled = true; if (unsub) unsub(); };
+  }, [showOnboarding, profileLoaded, authUid]);
+  // 거절(자동억제) 서버 복원 — 재설치·타기기에서 거절한 초대가 되살아나지 않게 users/{uid}에서 머지(로컬 미러).
+  //   마운트 로컬 로드(refreshRoundupHidden) 이후, 인증 준비되면 서버∪로컬로 덮어써 최종 정합.
+  useEffect(() => {
+    if (showOnboarding || !profileLoaded || !authUid) return;
+    let cancelled = false;
+    (async () => {
+      const merged = await syncRoundupSuppressedFromFirestore();
+      if (!cancelled) setRoundupSuppressedMap(merged || {});
+    })();
+    return () => { cancelled = true; };
   }, [showOnboarding, profileLoaded, authUid]);
   // 가리기(거절) 반영된 최종 목록 + 카운트 — 라운지 탭 뱃지/홈 배너 공용 단일 소스.
   const roundupInvites = useMemo(
