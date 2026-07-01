@@ -33,7 +33,7 @@ export async function shareFriendInviteKakao() {
         content: {
           title: '골프 약속·준비, 디어골프 하나로 ⛳',
           description: '기상·출발 알람 · 도착시각 예측 교통\n동반자·식사·일정 버튼 하나로 공유',
-          imageUrl: 'https://deargolf.app/og-card-v2.jpg',
+          imageUrl: 'https://deargolf.app/og-card-v3.jpg',
           link,
         },
         buttons: [{ title: '디어골프 시작하기', link }],
