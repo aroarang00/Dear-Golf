@@ -625,6 +625,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     setTrSlots(prev => ({ ...prev, [slotKey]: { ...prev[slotKey], mode } }));
     if (mode === 'current' && !currentCoord) {
       setLocating(true);
+      // 갈때 출발지=현재위치면 즉시 로딩 유지 — GPS 완료~소요조회 시작 사이 '못 불러옴' 문구가 한 프레임 번쩍이던 것 방지.
+      //   (GPS 실패로 좌표 못 얻으면 조회 useEffect가 goOriginCoord null이라 driveLoading을 다시 false로 내림)
+      if (slotKey === 'goOrigin') setDriveLoading(true);
       try { const pos = await getCurrentLocation(); if (pos) setCurrentCoord({ x: pos.lng, y: pos.lat }); }
       finally { setLocating(false); }
     }
@@ -759,7 +762,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const todayDay = days[0] || null;
   // 라운딩 컨디션 슬롯: 일정 모드는 라운드 날짜, weatherOnly는 오늘
   const targetDateCompact = weatherOnly ? todayCompact() : compactDate(schedule?.date);
-  const hourSlots = pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
+  // ★useMemo — 매 렌더 새 배열이면 이걸 의존성으로 쓰는 golfIdx 메모까지 무효화돼, 교통 소요 조회(driveMin/
+  //   driveLoading 갱신)마다 날씨 골프지수가 통째로 재계산되며 화면이 덜컹였음(사용자 2026-07-02).
+  const hourSlots = React.useMemo(() => pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact), [forecast, targetDateCompact]);
 
   // 미세먼지·자외선은 '오늘' 측정값만 정확 — 오늘 라운딩/현재날씨일 때만 점수에 반영
   const isTodayWx = weatherOnly || schedule?.dDay === 0;
@@ -1220,38 +1225,43 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                         <View style={{ flex: 1 }}>
                           <Text style={[trS.recoLabel, { marginBottom: 3 }]}>출발권장</Text>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(31), lineHeight: fs(34), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{recommended}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(31), lineHeight: fs(34), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1}>{recommended}</Text>
                         </View>
                         <View style={{ width: 1, height: 40, backgroundColor: 'rgba(245,230,168,0.25)', marginHorizontal: 14 }} />
                         <View style={{ flex: 1 }}>
                           <Text style={[trS.recoLabel, { marginBottom: 3 }]}>소요시간</Text>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(28), lineHeight: fs(34), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(28), lineHeight: fs(34), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1}>
                             {driveMin != null ? formatDriveMin(driveMin).replace(' ', '') : ((driveLoading || originResolving) ? '계산 중' : `약 ${formatDriveMin(recoDriveMin).replace(' ', '')}`)}
                           </Text>
                         </View>
                       </View>
                       <Text style={trS.recoSub}>티오프 {schedule.time} · {arrival} 도착 ({mealAt ? '먼저 만남' : `${bufferMin}분 전`})</Text>
                     </View>
+                    {/* ★현재위치는 로딩·완료 모두 '박스'로 통일 — 예전엔 로딩 땐 짧은 ⓘ 한 줄이었다가 완료 시 큰
+                        박스로 바뀌며 높이가 튀어(덜컹) 보였음. 로딩 때도 박스로 유지해 높이 고정(사용자 2026-07-02). */}
                     {driveMin != null && trSlots.goOrigin.mode !== 'current' ? (
                       <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
                         ⓘ 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요
                       </Text>
-                    ) : (driveMin == null && (driveLoading || originResolving)) ? (
-                      // 조회가 '실제 진행 중'일 때만 '계산 중' — 실패(조회 끝·null)면 아래 추정치 안내로 떨어져 무한 '계산 중' 방지
+                    ) : (driveMin == null && (driveLoading || originResolving) && trSlots.goOrigin.mode !== 'current') ? (
+                      // 저장 출발지 조회 진행 중 — '계산 중'(짧은 ⓘ). 완료되면 위 실시간 ⓘ로(같은 높이, 점프 없음).
                       <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
                         ⓘ 소요시간 계산 중…
                       </Text>
                     ) : (
-                      // 마이페이지 설정 유도 — 또렷한 박스로(작은 ⓘ는 잘 안 보임). 현재위치로 계산된 경우/미설정 모두.
+                      // 마이페이지 설정 유도 — 또렷한 박스. 현재위치(로딩·완료)·조회실패·미설정 모두 이 박스로 높이 통일.
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -6, marginBottom: 14,
-                        backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.45)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 }}>
+                        backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.45)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11,
+                        minHeight: fs(18) * 2 + 22 }}>{/* ★2줄 높이로 고정 — 문구가 1줄↔2줄로 바뀌어도 박스가 접혔다 펼쳐지지 않게(사용자 2026-07-02) */}
                         <Text style={{ fontSize: fs(15) }}>📍</Text>
                         <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)', lineHeight: fs(18) }}>
-                          {driveMin != null
-                            ? '지금은 현재 위치 기준 · 마이페이지에서 출발지를 설정하면 매번 자동으로 계산돼요'
-                            : goOriginCoord
-                              ? '교통 정보를 잠시 불러오지 못해 기본 추정치로 안내 중이에요 · 잠시 후 다시 열어보세요'
-                              : '마이페이지에서 출발지를 설정하면 정확한 출발 시간을 알려드려요 (지금은 기본 추정치)'}
+                          {(driveLoading || originResolving)
+                            ? '현재 위치로 소요시간을 계산하고 있어요…'
+                            : driveMin != null
+                              ? '지금은 현재 위치 기준 · 마이페이지에서 출발지를 설정하면 매번 자동으로 계산돼요'
+                              : goOriginCoord
+                                ? '교통 정보를 잠시 불러오지 못해 기본 추정치로 안내 중이에요 · 잠시 후 다시 열어보세요'
+                                : '마이페이지에서 출발지를 설정하면 정확한 출발 시간을 알려드려요 (지금은 기본 추정치)'}
                         </Text>
                       </View>
                     )}
