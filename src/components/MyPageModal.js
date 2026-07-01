@@ -50,6 +50,17 @@ function MenuIcon({ name, emoji }) {
   return <Text style={myS.menuIcon}>{emoji}</Text>;
 }
 
+// 알람 섹션 강조 배지 — 중요한 알람 설정 아이콘을 연버건디 원형 배경 + 버건디 아이콘으로 감싸 눈에 띄게.
+//   차콜 라인 아이콘이 배경에 묻히던 것 보완(사용자 2026-07-02). '켜짐' 상태 틴트(#F5EAEC)와 통일.
+function AlarmBadge({ name, size = 17 }) {
+  return (
+    <View style={{ width: 34, height: 34, borderRadius: 17, marginRight: 6, backgroundColor: '#F5EAEC',
+      alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={name} size={fs(size)} color={C.burgundy} strokeWidth={2.2} />
+    </View>
+  );
+}
+
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
   const { diaries } = React.useContext(DiariesContext);
@@ -606,7 +617,7 @@ export function MyPageModal({ visible, onClose }) {
                   const on = !userProfile.alarmPromptDisabled;
                   return (
                     <View style={myS.menuRow}>
-                      <MenuIcon name="bell" />
+                      <AlarmBadge name="bell" />
                       <View style={{ flex: 1 }}>
                         <Text style={myS.menuLabel}>라운딩마다 알람 직접 설정</Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
@@ -667,14 +678,15 @@ export function MyPageModal({ visible, onClose }) {
 
                       {/* 기상·출발 기본 ON/OFF */}
                       {[
-                        { key: 'wake', icon: '🔔', label: '기상 알림', sub: '새벽 라운드, 일어날 시각에' },
-                        { key: 'depart', icon: '🚗', label: '출발 알림', sub: '출발지에서 나설 시각에' },
+                        { key: 'wake', iconName: 'bell', label: '기상 알림', sub: '새벽 라운드, 일어날 시각에' },
+                        { key: 'depart', iconName: 'car', label: '출발 알림', sub: '출발지에서 나설 시각에' },
                       ].map(it => {
                         const on = !!defaults[it.key];
                         return (
                           <View key={it.key} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                            <AlarmBadge name={it.iconName} />
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{it.icon} {it.label}</Text>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{it.label}</Text>
                               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{it.sub}</Text>
                             </View>
                             <TouchableOpacity onPress={() => toggleAlarmDefault(it.key)} activeOpacity={0.8}
@@ -690,8 +702,9 @@ export function MyPageModal({ visible, onClose }) {
                         const on = !!userProfile.autoSystemAlarm;
                         return (
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                            <AlarmBadge name="bell" />
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>🔔 기상 알람 내 폰 알람에도 자동 등록</Text>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>기상 알람 내 폰 알람에도 자동 등록</Text>
                               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2, lineHeight: 16 }}>무음·방해금지에도 울려요. 새벽 라운드 전날 앱을 열면 그날 기상 알람을 내 폰 알람에 자동 등록 (폰 알람은 날짜 지정이 안 돼 전날에만 가능)</Text>
                             </View>
                             <TouchableOpacity onPress={() => persistAlarmCfg({ autoSystemAlarm: !on })} activeOpacity={0.8}
