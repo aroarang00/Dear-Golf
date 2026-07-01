@@ -557,7 +557,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     m = (m + 24 * 60) % (24 * 60);
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   };
-  const endStr = toHHMM(teeMin + ROUND_MIN + endOffsetMin);
+  // 예상 종료 = 티오프 + 평균 라운드시간(추정) → 분 단위 정밀은 무의미·지저분해 10분 단위로 반올림.
+  //   (티오프는 실제 예약이라 정확해야 하지만 종료는 추정치. 올때 도착목표 표시라 10분 해상도로 충분)
+  const endStr = toHHMM(Math.round((teeMin + ROUND_MIN + endOffsetMin) / 10) * 10);
   const recoDriveMin = driveMin ?? 80; // 길찾기 API 실측 소요, 없으면 기본 가정치
   // 도착 목표 — 알람에서 '먼저 만나는 시각'을 정했으면 그 시각, 아니면 티오프 -도착여유(알람 설정값, 기본 30분).
   const mealMin = mealAt ? (Number(mealAt.split(':')[0]) * 60 + Number(mealAt.split(':')[1])) : null;
