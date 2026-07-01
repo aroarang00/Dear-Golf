@@ -157,12 +157,15 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
         d1: !!base.d1 && !isPast('d1'),
         teeoff: !!base.teeoff && !isPast('teeoff'),
       });
-      // 개인설정은 편집값 > 저장값(기억된 습관) > 기본
-      setPrepMin(Number.isFinite(ex?.opts?.prepMin) ? ex.opts.prepMin : (Number.isFinite(userProfile.prepMin) ? userProfile.prepMin : DEFAULT_PREP));
-      setArriveBufferMin(Number.isFinite(ex?.opts?.arriveBufferMin) ? ex.opts.arriveBufferMin : (Number.isFinite(userProfile.arriveBufferMin) ? userProfile.arriveBufferMin : DEFAULT_ARRIVE));
-      // 스누즈도 편집값 > 저장값 > 기본(prep·arrive와 동일 우선순위 — 일정별 저장값이 프로필 기본에 덮이지 않게)
-      setSnoozeCount(Number.isFinite(ex?.opts?.snoozeCount) ? ex.opts.snoozeCount : (Number.isFinite(userProfile.snoozeCount) ? userProfile.snoozeCount : 1));
-      setSnoozeIntervalMin(Number.isFinite(ex?.opts?.snoozeIntervalMin) ? ex.opts.snoozeIntervalMin : (Number.isFinite(userProfile.snoozeIntervalMin) ? userProfile.snoozeIntervalMin : 10));
+      // 개인설정(준비시간·도착여유·스누즈)은 프로필 습관 > 일정 저장값(ex.opts) > 기본.
+      //   ★프로필 우선 — 이 값들은 칩·마이페이지·온보딩에서 누르는 즉시 프로필에 기록돼 늘 최신 의도.
+      //   ex.opts는 동적 알람(출발/기상)·식사시각 있을 때만 갱신돼(그 외엔 이전 opts 재사용) stale 가능 →
+      //   ex.opts를 우선하면 마이페이지에서 30으로 바꿔도 옛 60이 다시 뜸(사용자 2026-07-02). 이 모달엔 일정별 전용
+      //   저장 경로가 없어(칩=프로필 동기) ex.opts가 프로필과 다르면 stale뿐이므로 프로필을 신뢰.
+      setPrepMin(Number.isFinite(userProfile.prepMin) ? userProfile.prepMin : (Number.isFinite(ex?.opts?.prepMin) ? ex.opts.prepMin : DEFAULT_PREP));
+      setArriveBufferMin(Number.isFinite(userProfile.arriveBufferMin) ? userProfile.arriveBufferMin : (Number.isFinite(ex?.opts?.arriveBufferMin) ? ex.opts.arriveBufferMin : DEFAULT_ARRIVE));
+      setSnoozeCount(Number.isFinite(userProfile.snoozeCount) ? userProfile.snoozeCount : (Number.isFinite(ex?.opts?.snoozeCount) ? ex.opts.snoozeCount : 1));
+      setSnoozeIntervalMin(Number.isFinite(userProfile.snoozeIntervalMin) ? userProfile.snoozeIntervalMin : (Number.isFinite(ex?.opts?.snoozeIntervalMin) ? ex.opts.snoozeIntervalMin : 10));
       setMealTime(ex?.opts?.arriveAt || null);
       setWakeOn(false);
       setDepartOn(false);
