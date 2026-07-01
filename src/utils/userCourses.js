@@ -34,7 +34,14 @@ export async function syncUserCoursesFromFirestore() {
     const remote = snap.exists() && Array.isArray(snap.data().userCourses) ? snap.data().userCourses : [];
     const local = await getUserCourses();
     const byId = new Map();
-    for (const c of [...remote, ...local]) { if (c && c.id) byId.set(c.id, c); }
+    for (const c of [...remote, ...local]) {
+      if (!c || !c.id) continue;
+      const prev = byId.get(c.id);
+      // 같은 id면 '좌표 있는 버전' 우선 — 백필/타기기에서 채운 좌표가 옛 로컬 null을 덮게(사용자 2026-07-01).
+      //   둘 다 있거나 둘 다 없으면 나중(local) 유지.
+      if (prev && Number.isFinite(prev.x) && Number.isFinite(prev.y) && !(Number.isFinite(c.x) && Number.isFinite(c.y))) continue;
+      byId.set(c.id, c);
+    }
     const seenKakao = new Set();
     const merged = [];
     for (const c of byId.values()) {
