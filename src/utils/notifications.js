@@ -220,6 +220,10 @@ async function _scheduleRoundAlarms(schedule, types, opts) {
   const prevMap = await storage.load(STORAGE_KEYS.alarms, {});
   const effOpts = (opts && Object.keys(opts).length) ? opts : (prevMap[schedule.id]?.opts || {});
 
+  // ★오후티(11시~) 가드 — 오전 라운드에 기상(wake)을 켜뒀다가 '일정 시간만' 오후로 편집하면(알람 모달 재저장 없이)
+  //   저장 types에 wake가 남아 오후 라운드에 기상 알림·요약이 잔존하던 것 방지. AlarmSetupModal 저장 외 모든 재예약 경로 공통 방어.
+  const effTypes = (types || []).filter(t => t !== 'wake' || shouldOfferWake(computeRoundTimeline(schedule, effOpts)));
+
   await _cancelRoundAlarms(schedule.id); // 기존 예약분 먼저 정리
   const triggers = alarmTriggers(schedule, effOpts);
   const now = Date.now();
@@ -229,7 +233,7 @@ async function _scheduleRoundAlarms(schedule, types, opts) {
   const wakeReps = Math.max(1, Number.isFinite(effOpts.snoozeCount) ? effOpts.snoozeCount : 1);
   const wakeIntervalMs = (Number.isFinite(effOpts.snoozeIntervalMin) ? effOpts.snoozeIntervalMin : 10) * 60000;
 
-  for (const t of types || []) {
+  for (const t of effTypes) {
     const when = triggers[t];
     const def = ALARM_DEFS[t];
     if (!when || !def) continue;
@@ -263,8 +267,9 @@ async function _scheduleRoundAlarms(schedule, types, opts) {
 
   const map = await storage.load(STORAGE_KEYS.alarms, {});
   // types는 사용자가 켠 시점 전체를 기록(과거라 건너뛴 것 포함) — 수정 시 재예약 기준.
+  //   단 오후티로 빠진 wake는 effTypes에서 제외돼 저장(시트 요약도 자동 정합).
   // opts는 동적 알람(wake/depart) 재계산용으로 함께 저장.
-  map[schedule.id] = { types: types || [], ids: scheduled, opts: effOpts };
+  map[schedule.id] = { types: effTypes, ids: scheduled, opts: effOpts };
   await storage.save(STORAGE_KEYS.alarms, map);
   return scheduled;
 }
