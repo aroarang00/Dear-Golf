@@ -61,13 +61,15 @@ export function shouldOfferWake(timeline) {
   return timeline.teeoff.getHours() < MORNING_TEE_BEFORE_HOUR;
 }
 
-// 부(部)별 기본 출발지 키 — 'home' | 'work'.
-//   1부(오전티,<9시)=집 / 2·3부(오후·야간)=회사(저장돼 있으면, 없으면 집). 퇴근 후 직행이 흔해서.
+// 부(部)별 기본 출발지 키 — 저장 여부에 따라 폴백('home'|'work'|'current').
+//   1부(오전티,<11시)=집 우선(없으면 그외→현재위치) / 2·3부(오후·야간)=그외 우선(없으면 현재위치 — 2부는 이미 나와있어 집 안 씀).
+//   ★hasHome/hasWork 폴백을 여기서 처리 → 자동모드(applyDefaultAlarms)도 저장지 하나만 있어도 알람이 걸림(리뷰 2026-07-01).
 export function defaultOriginKey(schedule, profile) {
   const [hh] = (schedule?.time || '08:00').split(':').map(Number);
+  const hasHome = !!(profile?.departureCoord && typeof profile.departureCoord.x === 'number' && typeof profile.departureCoord.y === 'number');
   const hasWork = !!(profile?.workCoord && typeof profile.workCoord.x === 'number' && typeof profile.workCoord.y === 'number');
-  if ((hh || 8) < MORNING_TEE_BEFORE_HOUR) return 'home'; // 오전티 → 집
-  return hasWork ? 'work' : 'home';                       // 오후·야간 → 회사(있으면)
+  if ((hh || 8) < MORNING_TEE_BEFORE_HOUR) return hasHome ? 'home' : (hasWork ? 'work' : 'current'); // 오전티
+  return hasWork ? 'work' : 'current';                                                                // 오후·야간 — 그외 없으면 현재위치
 }
 
 // 출발지 키 → 저장된 좌표({x,y}|null). 'current'(현재위치)는 비동기라 호출부에서 별도 처리.

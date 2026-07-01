@@ -131,7 +131,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
   // 역산 타임라인 — 이동시간 확보 시 기상·출발 시각 계산
   const timeline = (driveMin != null && schedule) ? computeRoundTimeline(schedule, tlOpts) : null;
   const baseTl = schedule ? computeRoundTimeline(schedule, {}) : null; // 티오프 시각(이동시간 없이도) — 피커 기본값용
-  // 기상 알림은 '오전티(1부)'일 때만 권함 — 티오프<9시거나 역산 기상이<7시(낮티라도 먼거리). 낮·야간은 숨김.
+  // 기상 알림은 '오전티(1부)'일 때만 권함 — 티오프<11시(2부부터는 출발만). 낮·야간은 숨김.
   const isMorningWake = shouldOfferWake(timeline);
   const departPast = isPast('depart');
   const wakePast = isPast('wake');
@@ -167,13 +167,8 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       setWakeOn(false);
       setDepartOn(false);
       setDriveMin(null);
-      // 출발지 기본값 — 부(部)별: 1부=집 / 2·3부=회사. 기본 좌표 없으면 가능한 것으로 폴백.
-      let k = defaultOriginKey(schedule, userProfile);
-      // 저장 안 된 출발지로 기본이 잡히면 폴백 — 2부 티 기본은 'work'(그 외 출발지)인데 미저장이면
-      //   이동시간 계산이 깨지므로 현재위치로(사용자 2026-07-01). home 미저장도 동일 폴백.
-      if (k === 'home' && !hasHome) k = hasWork ? 'work' : 'current';
-      else if (k === 'work' && !hasWork) k = 'current';
-      setOriginKey(k);
+      // 출발지 기본값 — 부(部)별 우선(1부=집/2·3부=그외). 저장 안 됐으면 defaultOriginKey가 폴백(다른 저장지·현재위치).
+      setOriginKey(defaultOriginKey(schedule, userProfile));
     }
   }, [visible, schedule]);
 

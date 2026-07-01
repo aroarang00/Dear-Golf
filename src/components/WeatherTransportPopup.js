@@ -260,9 +260,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const homeAddress = userProfile?.departure || '';
   const savedDepX = userProfile?.departureCoord?.x;
   const savedDepY = userProfile?.departureCoord?.y;
-  const workAddress = userProfile?.work || '';            // '그 외 출발지'(work) — 저장 시 선택지로 노출
+  const workAddress = userProfile?.work || '';            // '그 외 출발지'(work) 라벨
   const savedWorkX = userProfile?.workCoord?.x;
   const savedWorkY = userProfile?.workCoord?.y;
+  // ★칩 노출은 '좌표 있을 때만'(주소만 저장·좌표 실패면 지오코딩 재실패로 무한 '계산 중' 위험 → 알람 hasWork와 동일 기준).
+  const hasWorkCoord = typeof savedWorkX === 'number' && typeof savedWorkY === 'number';
   const [courseCoord, setCourseCoord] = useState(null);   // { x, y, loc }
   const [currentCoord, setCurrentCoord] = useState(null); // { x, y }
   const [homeCoord, setHomeCoord] = useState(null);       // { x, y }
@@ -693,7 +695,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     const defaultMode = isOriginSlot ? 'home' : 'course';
     // 출발지 슬롯(갈때 출발·올때 도착)엔 '그 외 출발지'(work)가 저장돼 있으면 함께 선택지로(사용자 2026-07-01)
     const modes = isOriginSlot
-      ? ['home', ...(workAddress ? ['work'] : []), 'current', 'custom']
+      ? ['home', ...(hasWorkCoord ? ['work'] : []), 'current', 'custom']
       : [defaultMode, 'current', 'custom'];
     return (
       <View key={slotKey}>
