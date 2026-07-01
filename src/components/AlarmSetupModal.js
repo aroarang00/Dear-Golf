@@ -588,6 +588,20 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                               </View>
                             )
                           )}
+
+                          {/* iOS — 시계앱 강제알람 API가 없어 로컬 알림(timeSensitive)으로 깨운다. 집중모드·방해금지는 뚫지만
+                              물리 무음 스위치는 못 뚫음(애플 설계) → 기상 놓침 방지 위해 무음 끄기 안내. (안드는 위 시계앱 알람이 무음도 뚫음) */}
+                          {!SYSTEM_ALARM_SUPPORTED && (
+                            <View style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Icon name="bell" size={fs(15)} color={C.charcoal} />
+                                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>무음 스위치를 꺼두면 확실해요</Text>
+                              </View>
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 4, lineHeight: 16 }}>
+                                아이폰은 옆면 무음 스위치가 켜져 있으면 기상 알림 소리가 안 나요. 집중모드·방해금지는 뚫지만 무음 스위치는 못 뚫어요.
+                              </Text>
+                            </View>
+                          )}
                         </View>
                       )}
                     </>
