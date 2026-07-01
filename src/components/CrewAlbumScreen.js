@@ -283,7 +283,7 @@ const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, 
       {!!p.text && (
         <LinkText style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK, marginTop: 10, lineHeight: fs(22) }}>{p.text}</LinkText>
       )}
-      {!!p.roundupId && <RoundupMiniCard roundupId={p.roundupId} shared={p.roundupShare} isHost={p.roundupIsHost} onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />}
+      {!!p.roundupId && <RoundupMiniCard roundupId={p.roundupId} shared={p.roundupShare} isHost={p.roundupIsHost} hostIsFriend={p.roundupHostIsFriend} onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />}
       {p.media.length > 0 && (
         <View style={{ marginTop: 11 }}>
           <PostMedia media={p.media} width={width} burst={burst}
@@ -463,11 +463,13 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       roundupId: p.roundupId || null,   // 크루에 첨부/생성한 모집 — 미니카드 렌더
       roundupHost: p.roundupHost || null, // 주최자 uid — 비친구 '친구 맺기' 안내 타겟
       roundupIsHost: !!currentUid && p.roundupHost === currentUid, // 보는 이가 주최자 — denied면 친추 아니라 '삭제/종료'로 판별
+      // 주최자가 내 친구면 denied는 '비친구'가 아니라 '삭제·지정제외' → 친구인데 '친구만 볼 수 있음' 오표시 방지(삭제된 공유 모집)
+      roundupHostIsFriend: !!p.roundupHost && p.roundupHost !== currentUid && friendSet.has(p.roundupHost),
       roundupShare: !!p.roundupShare,   // true=라운지 모집을 가볍게 공유(피드 광고). false/없음=크루서 만든 모집(상단 핀)
       _doc: p,
     };
     });
-  }, [postDocs, display, currentUid, seenAt]);
+  }, [postDocs, display, currentUid, seenAt, friendSet]);
 
   // 진행 중인 모집 상단 고정 — 크루 게시물 중 roundupId 있는 모집을 로드해 active(미확정·미종료·티오프 전)만 헤더에 핀.
   //   확정·만석마감·취소·티오프+5h 지나면 자동으로 핀에서 내려감(피드 글은 그대로 남음). ★early return보다 위에 둬야 hooks 누락 안 됨.

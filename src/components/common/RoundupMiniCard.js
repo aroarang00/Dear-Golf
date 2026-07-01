@@ -8,7 +8,7 @@ import { loadRoundup } from '../../utils/roundup';
 //   모집 doc은 1회 조회(피드 다건이라 구독 X). 삭제·주최자취소면 '종료' 안내, 권한 없으면(비-audience) 조회 실패→종료로 graceful.
 // preloaded가 { __denied:true }면 = 상위에서 권한없음(비친구·미지정 audience)으로 판정 → '친구만 볼 수 있음' 카드.
 const stateOf = (p) => (p ? (p.__denied ? 'denied' : (p.cancelledByHost ? 'gone' : 'ok')) : 'loading');
-export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, shared = false, isHost = false, onLongPress = null }) {
+export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, shared = false, isHost = false, hostIsFriend = false, onLongPress = null }) {
   const [post, setPost] = useState(preloaded);
   const [state, setState] = useState(stateOf(preloaded)); // loading | ok | gone | denied
 
@@ -31,8 +31,9 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, sh
 
   if (state === 'loading') return null;
   // 삭제된 모집은 없는 doc 읽기가 permission-denied로 떨어져 denied가 됨(친추 아님). 친추 안내는 '공유 카드(shared, friends)
-  //   + 보는 이가 주최자 아님'일 때만 의미 — 주최자 본인이 못 읽음=삭제됨이고, 핀(select)은 친추로 권한 안 생김. 그 외 denied는 '종료/볼 수 없음'.
-  if (state === 'gone' || (state === 'denied' && (!shared || isHost))) {
+  //   + 보는 이가 주최자 아님 + 주최자가 내 친구도 아님'일 때만 의미 — 주최자 본인이 못 읽음=삭제됨이고, 핀(select)은 친추로 권한 안 생김.
+  //   ★주최자가 내 친구인데 denied면 '비친구'가 아니라 삭제·지정제외 → 친구인데 '친구만 볼 수 있음' 오표시되던 것 방지(삭제된 공유 모집).
+  if (state === 'gone' || (state === 'denied' && (!shared || isHost || hostIsFriend))) {
     return (
       <View style={[box, { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: fs(20) }]}>
         <Icon name="flag" size={fs(13)} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
