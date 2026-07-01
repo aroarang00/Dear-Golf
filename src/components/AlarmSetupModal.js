@@ -600,6 +600,10 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                               <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 4, lineHeight: 16 }}>
                                 아이폰은 옆면 무음 스위치가 켜져 있으면 기상 알림 소리가 안 나요. 집중모드·방해금지는 뚫지만 무음 스위치는 못 뚫어요.
                               </Text>
+                              {/* iOS는 폰 알람 자동등록 API가 막혀 안내만 — '시계앱' 대신 '내 폰 알람'(안드 버튼과 동일 표현, 사용자 혼동 방지) */}
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.charcoal, marginTop: 8, lineHeight: 16 }}>
+                                ⏰ 내 폰 알람에도 {sysAlarmCurWake ? `${sysAlarmCurWake}로 ` : ''}맞춰두세요.
+                              </Text>
                             </View>
                           )}
                         </View>
