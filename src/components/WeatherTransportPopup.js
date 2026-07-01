@@ -1213,14 +1213,14 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       {/* 권장 출발 + 소요시간 — 둘 다 핵심이라 나란히 크게(소요시간이 안 보이던 것 보강) */}
                       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={[trS.recoLabel, { marginBottom: 3 }]}>출발 권장</Text>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(32), lineHeight: fs(38), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{recommended}</Text>
+                          <Text style={[trS.recoLabel, { marginBottom: 3 }]}>출발권장</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(31), lineHeight: fs(34), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{recommended}</Text>
                         </View>
                         <View style={{ width: 1, height: 40, backgroundColor: 'rgba(245,230,168,0.25)', marginHorizontal: 14 }} />
                         <View style={{ flex: 1 }}>
                           <Text style={[trS.recoLabel, { marginBottom: 3 }]}>소요시간</Text>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(32), lineHeight: fs(38), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                            {driveMin != null ? formatDriveMin(driveMin) : ((driveLoading || originResolving) ? '계산 중' : `약 ${formatDriveMin(recoDriveMin)}`)}
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(28), lineHeight: fs(34), letterSpacing: -0.5, color: driveMin == null ? 'rgba(245,230,168,0.55)' : '#F5E6A8' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                            {driveMin != null ? formatDriveMin(driveMin).replace(' ', '') : ((driveLoading || originResolving) ? '계산 중' : `약 ${formatDriveMin(recoDriveMin).replace(' ', '')}`)}
                           </Text>
                         </View>
                       </View>
