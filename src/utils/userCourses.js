@@ -58,12 +58,23 @@ export async function addUserCourse({ name, loc, x, y, kakaoId }) {
     const found = list.find(c => c.kakaoId === kakaoId);
     if (found) return found;
   }
+  let cx = Number.isFinite(x) ? x : null;
+  let cy = Number.isFinite(y) ? y : null;
+  // ★좌표 없이 저장되면 그 구장은 날씨가 안 나온다(격자 변환 불가) → 저장 전에 loc(주소)·이름으로 좌표를 채운다
+  //   (직접 입력 구장 대비, 출발지 지오코딩과 동일 취지. 사용자 2026-07-01).
+  if (cx == null || cy == null) {
+    let coord = (loc || '').trim() ? await addressToCoord(loc.trim()).catch(() => null) : null;
+    if (!coord && (name || '').trim()) {
+      try { const r = await searchGolfCourses(name.trim()); const t = r && r[0]; if (t && t.x > 0 && t.y > 0) coord = { x: t.x, y: t.y }; } catch {}
+    }
+    if (coord) { cx = coord.x; cy = coord.y; }
+  }
   const newCourse = {
     id: 'uc_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
     name: (name || '').trim(),
     loc: (loc || '').trim(),
-    x: typeof x === 'number' ? x : null,
-    y: typeof y === 'number' ? y : null,
+    x: cx,
+    y: cy,
     kakaoId: kakaoId || null,
   };
   const next = [...list, newCourse];
