@@ -743,13 +743,14 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               </View>
             )}
 
-            {/* 친구지정 상태 — 모드·인원 표시 + 다시 선택 진입 */}
-            {scope === 'select' && (
+            {/* 친구지정 상태 — 모드·인원 표시 + 다시 선택 진입. 크루 지정 중엔 위 '크루로 지정' 섹션이
+                안내를 맡으므로 숨김(친구지정↔크루 상호배타 — '친구 0명 + 크루 N명' 혼란 제거, 사용자 2026-07-01) */}
+            {scope === 'select' && crewMemberUids.length === 0 && (
               <View style={{ marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
                 backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
                 flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>
-                  {selectMode === 'include' ? '포함' : '제외'} · 친구 {selectedUids.length}명{crewMemberUids.length > 0 ? ` + 크루 ${crewMemberUids.length}명` : ''}
+                  {selectMode === 'include' ? '포함' : '제외'} · 친구 {selectedUids.length}명
                 </Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, flex: 1 }}>
                   {selectMode === 'include' ? '선택한 친구에게만 보여요' : '선택한 친구만 안 보여요'}
