@@ -49,7 +49,10 @@ const AppTextInput = forwardRef(function AppTextInput(props, ref) {
 
   // 바깥 레이아웃 속성만 래퍼 View로 분리(나머지 박스·텍스트 스타일은 TextInput에 그대로 남김).
   const outer = {};
-  const inner = { ...flat };
+  // ★includeFontPadding:false — 오버레이 placeholder(아래 false)와 본체 텍스트/커서의 세로 위치를 일치시킨다.
+  //   안 맞추면 안드 기본값(true)의 폰트 상하여백만큼 커서가 밀려 'placeholder 위에 커서'로 어긋나 보임(사용자 2026-07-01).
+  //   호출부가 명시했으면 그 값 존중.
+  const inner = { includeFontPadding: false, ...flat };
   for (const k of OUTER_KEYS) {
     if (flat[k] !== undefined) { outer[k] = flat[k]; delete inner[k]; }
   }
