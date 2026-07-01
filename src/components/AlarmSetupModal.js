@@ -167,8 +167,14 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       setWakeOn(false);
       setDepartOn(false);
       setDriveMin(null);
-      // 출발지 기본값 — 부(部)별 우선(1부=집/2·3부=그외). 저장 안 됐으면 defaultOriginKey가 폴백(다른 저장지·현재위치).
-      setOriginKey(defaultOriginKey(schedule, userProfile));
+      // 출발지 — 편집이면 저장한 선택(originKey) 복원, 없으면 부(部)별 기본(1부=집/2·3부=그외).
+      //   ★저장값 우선 안 하면 오후티에서 홈으로 바꿔도 재진입 시 defaultOriginKey가 '그외'로 되돌림(사용자 2026-07-02).
+      //   저장 좌표가 사라진 키(예: work 지웠는데 originKey='work')는 무효 처리해 기본으로 폴백.
+      const savedOrigin = ex?.opts?.originKey;
+      const originValid = savedOrigin === 'current'
+        || (savedOrigin === 'home' && hasHome)
+        || (savedOrigin === 'work' && hasWork);
+      setOriginKey(originValid ? savedOrigin : defaultOriginKey(schedule, userProfile));
     }
   }, [visible, schedule]);
 
@@ -346,7 +352,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     // 동적 알람(기상·출발) 켜졌거나 '만남 시각'을 정했으면 — 역산 근거(이동시간·개인설정·식사시각)+스누즈를 저장.
     //   ★mealTime도 조건에 포함 — 안 그러면 식사시각만 정하고 출발/기상 알람을 안 켠 경우 arriveAt이 저장 안 돼 다시 열면 초기화됨.
     const opts = (departOn || wakeOn || mealTime)
-      ? { driveMin, prepMin, arriveBufferMin, arriveAt: mealTime, snoozeCount, snoozeIntervalMin }
+      ? { driveMin, prepMin, arriveBufferMin, arriveAt: mealTime, snoozeCount, snoozeIntervalMin, originKey }
       : undefined;
     await scheduleRoundAlarms(schedule, types, opts);
     setSaving(false);
