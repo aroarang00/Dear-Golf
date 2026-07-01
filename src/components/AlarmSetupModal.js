@@ -217,7 +217,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     const ex = (existing && Array.isArray(existing.types)) ? existing : null;
     if (ex) {
       setDepartOn(ex.types.includes('depart') && !departPast);
-      setWakeOn(ex.types.includes('wake') && !wakePast);
+      // ★isMorningWake 가드 — 아침티로 기상을 켜둔 일정의 티오프를 오후로 바꾸면 ex.types에 'wake'가 남아
+      //   오후티인데 기상이 유지되던 버그 방지(사용자 2026-07-01). 오후티(11시~)면 강제로 꺼짐.
+      setWakeOn(ex.types.includes('wake') && !wakePast && isMorningWake);
     } else {
       setDepartOn(!departPast);
       setWakeOn(isMorningWake && !wakePast);
@@ -299,7 +301,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     else showAppAlert('내 폰 알람을 열 수 없어요', '폰이 알람 추가를 지원하지 않을 수 있어요.');
   };
 
-  const anyPicked = ALARM_TYPES.some(t => picked[t]) || (departOn && !departPast) || (wakeOn && !wakePast);
+  const anyPicked = ALARM_TYPES.some(t => picked[t]) || (departOn && !departPast) || (wakeOn && !wakePast && isMorningWake);
 
   // 닫을 때 '다음부터 이대로 자동'이 켜져 있으면 — 지금 화면 설정 그대로 기본값에 저장(이후 팝업 없이 그대로 적용).
   //   ★끈 항목(예: D-3 해제)도 그대로 반영되게 picked·wake·depart를 alarmDefaults에 저장.
@@ -342,7 +344,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     }
     const types = ALARM_TYPES.filter(t => picked[t]);
     if (departOn && !departPast) types.push('depart');
-    if (wakeOn && !wakePast) types.push('wake');
+    if (wakeOn && !wakePast && isMorningWake) types.push('wake'); // 오후티(11시~)면 기상 저장 안 함(이중 방어)
     // 동적 알람(기상·출발) 켜졌거나 '만남 시각'을 정했으면 — 역산 근거(이동시간·개인설정·식사시각)+스누즈를 저장.
     //   ★mealTime도 조건에 포함 — 안 그러면 식사시각만 정하고 출발/기상 알람을 안 켠 경우 arriveAt이 저장 안 돼 다시 열면 초기화됨.
     const opts = (departOn || wakeOn || mealTime)

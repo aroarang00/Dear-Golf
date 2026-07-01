@@ -51,15 +51,14 @@ export const ALARM_DEFS = {
 export const ALARM_TYPES = ['d3', 'd1', 'teeoff'];          // 고정시점 — 체크박스·기본설정·자동적용용
 export const DYNAMIC_ALARM_TYPES = ['wake', 'depart'];      // 이동시간 역산 기반 — 출발지 좌표 있어야 계산
 export const ALARM_DEFAULTS_FALLBACK = { d3: true, d1: true, teeoff: true };
-export const MORNING_TEE_BEFORE_HOUR = 9;                   // 티오프가 이 시각 전이면 '오전티(1부)' — 기상 알림 의미 있음(한국 골프: 오전티 보통 9시 이전)
-export const MORNING_WAKE_BEFORE_HOUR = 7;                  // 또는 역산 기상이 이 시각 전이면(낮티라도 먼 거리로 일찍 기상) 기상 알림 권함
+export const MORNING_TEE_BEFORE_HOUR = 11;                  // 티오프가 이 시각 전이면 '오전티(1부)' — 기상 알림 의미. 11시부터는 2부(오후티)라 기상 없이 출발만(사용자 2026-07-01)
 
-// 이 라운드에 기상 알림이 의미 있는지 — 오전티(티오프<9시)거나, 역산 기상이 이른(<7시) 경우.
-//   낮티(10:30+)·야간(3부)은 둘 다 아니라 false → 기상 알림 숨김/생략.
+// 이 라운드에 기상 알림이 의미 있는지 — 티오프가 11시 전(1부/오전티)일 때만.
+//   11시 이후(2부·3부/오후·야간)는 기상이 아니라 출발 알림만 의미 있음 → false로 기상 숨김/생략.
+//   ★역산 기상 시각(<7시) OR 조건 제거: 오후티인데 먼 거리면 기상이 이르게 잡혀 '오후티에 기상' 오표시되던 원인.
 export function shouldOfferWake(timeline) {
-  if (!timeline?.wake) return false;
-  return timeline.teeoff.getHours() < MORNING_TEE_BEFORE_HOUR
-    || timeline.wake.getHours() < MORNING_WAKE_BEFORE_HOUR;
+  if (!timeline?.teeoff) return false;
+  return timeline.teeoff.getHours() < MORNING_TEE_BEFORE_HOUR;
 }
 
 // 부(部)별 기본 출발지 키 — 'home' | 'work'.
