@@ -386,7 +386,10 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                     borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <Text style={{ fontFamily: F.en, fontSize: fs(14), color: '#A88A2E', width: 34 }}>{c.rank}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {c.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Icon name="green" size={fs(19)} color={C.charcoal} strokeWidth={1.7} />
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal, marginLeft: 6 }}>{c.name}</Text>
+                    </View>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{c.region}</Text>
                   </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
