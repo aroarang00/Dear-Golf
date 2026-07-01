@@ -21,7 +21,7 @@ import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ROUND_MIN = 5 * 60; // 라운드 평균 5시간
-const MODE_LABEL = { home: '내 저장 출발지', course: '골프장', current: '현재위치', custom: '주소 입력' };
+const MODE_LABEL = { home: '집', work: '그 외 출발지', course: '골프장', current: '현재위치', custom: '주소 입력' };
 // 교통 출발지/도착지 기본 — 갈 때(집→골프장)·올 때(골프장→집). 매번 새 객체(팝업 닫을 때 이 기본으로 초기화).
 const makeDefaultTrSlots = () => ({
   goOrigin:   { mode: 'home',   custom: '', customCoord: null },
@@ -260,9 +260,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const homeAddress = userProfile?.departure || '';
   const savedDepX = userProfile?.departureCoord?.x;
   const savedDepY = userProfile?.departureCoord?.y;
+  const workAddress = userProfile?.work || '';            // '그 외 출발지'(work) — 저장 시 선택지로 노출
+  const savedWorkX = userProfile?.workCoord?.x;
+  const savedWorkY = userProfile?.workCoord?.y;
   const [courseCoord, setCourseCoord] = useState(null);   // { x, y, loc }
   const [currentCoord, setCurrentCoord] = useState(null); // { x, y }
   const [homeCoord, setHomeCoord] = useState(null);       // { x, y }
+  const [workCoord, setWorkCoord] = useState(null);       // { x, y } — '그 외 출발지'(work)
   const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 실시간 교통 길찾기(TMap 우선·카카오 폴백)
   const [driveLoading, setDriveLoading] = useState(false); // 길찾기 조회 진행 중 — '조회 중'과 '실패(null)'를 구분해 무한 '계산 중' 방지
   const [trSlots, setTrSlots] = useState(makeDefaultTrSlots);
@@ -474,6 +478,18 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     return () => { cancelled = true; };
   }, [homeAddress, savedDepX, savedDepY]);
 
+  // '그 외 출발지'(work) 좌표 해석 — 위 집(home)과 동일 패턴(선택 좌표 우선, 없으면 주소 변환).
+  useEffect(() => {
+    let cancelled = false;
+    if (typeof savedWorkX === 'number' && typeof savedWorkY === 'number') { setWorkCoord({ x: savedWorkX, y: savedWorkY }); return; }
+    if (!workAddress) { setWorkCoord(null); return; }
+    (async () => {
+      const coord = await addressToCoord(workAddress);
+      if (!cancelled) setWorkCoord(coord);
+    })();
+    return () => { cancelled = true; };
+  }, [workAddress, savedWorkX, savedWorkY]);
+
   // 백그라운드 prefetch — 일정이 정해지면 팝업 열기 전부터 미리 받아둠 (in-flight dedupe로 중복 fetch 방지)
   useEffect(() => {
     if (weatherOnly) return;
@@ -554,6 +570,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     if (slot.mode === 'home') {
       return { label: homeAddress || '마이페이지에 출발지 미설정', coord: homeCoord, placeholder: !homeAddress };
     }
+    if (slot.mode === 'work') {
+      return { label: workAddress || '마이페이지에 그 외 출발지 미설정', coord: workCoord, placeholder: !workAddress };
+    }
     if (slot.mode === 'course') {
       // 도착(골프장) 좌표 — schedule에 이미 있으면 동기로 즉시 사용. courseCoord state는 날씨 fetch가 끝나야
       //   채워져, 날씨가 느리면 첫 탭에 null → 길안내 URL이 목적지 없이 열려 '무반응'이던 문제 방지
@@ -578,6 +597,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const _goSlot = trSlots.goOrigin;
   const originResolving = locating
     || (_goSlot.mode === 'home' && !!homeAddress && !homeCoord)
+    || (_goSlot.mode === 'work' && !!workAddress && !workCoord)
     || (_goSlot.mode === 'custom' && !!_goSlot.custom && !_goSlot.customCoord);
   useEffect(() => {
     let cancelled = false;
@@ -628,6 +648,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     const sync = resolveSlot(slotKey).coord;
     if (sync) return sync;
     if (slot.mode === 'home') return homeAddress ? await addressToCoord(homeAddress).catch(() => null) : null;
+    if (slot.mode === 'work') return workAddress ? await addressToCoord(workAddress).catch(() => null) : null;
     if (slot.mode === 'current') {
       const pos = await getCurrentLocation().catch(() => null);
       if (pos) { setCurrentCoord({ x: pos.lng, y: pos.lat }); return { x: pos.lng, y: pos.lat }; }
@@ -668,8 +689,12 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     const expanded = expandedSlot === slotKey;
     const slot = trSlots[slotKey];
     const info = resolveSlot(slotKey);
-    const defaultMode = (slotKey === 'goOrigin' || slotKey === 'backDest') ? 'home' : 'course';
-    const modes = [defaultMode, 'current', 'custom'];
+    const isOriginSlot = slotKey === 'goOrigin' || slotKey === 'backDest';
+    const defaultMode = isOriginSlot ? 'home' : 'course';
+    // 출발지 슬롯(갈때 출발·올때 도착)엔 '그 외 출발지'(work)가 저장돼 있으면 함께 선택지로(사용자 2026-07-01)
+    const modes = isOriginSlot
+      ? ['home', ...(workAddress ? ['work'] : []), 'current', 'custom']
+      : [defaultMode, 'current', 'custom'];
     return (
       <View key={slotKey}>
         <TouchableOpacity style={trS.slotRow} activeOpacity={0.7}

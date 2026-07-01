@@ -169,7 +169,10 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       setDriveMin(null);
       // 출발지 기본값 — 부(部)별: 1부=집 / 2·3부=회사. 기본 좌표 없으면 가능한 것으로 폴백.
       let k = defaultOriginKey(schedule, userProfile);
+      // 저장 안 된 출발지로 기본이 잡히면 폴백 — 2부 티 기본은 'work'(그 외 출발지)인데 미저장이면
+      //   이동시간 계산이 깨지므로 현재위치로(사용자 2026-07-01). home 미저장도 동일 폴백.
       if (k === 'home' && !hasHome) k = hasWork ? 'work' : 'current';
+      else if (k === 'work' && !hasWork) k = 'current';
       setOriginKey(k);
     }
   }, [visible, schedule]);
@@ -409,7 +412,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 {[
                   hasHome && { key: 'home', icon: 'home', label: '집', size: fs(18) },
-                  hasWork && { key: 'work', icon: 'building', label: '회사', size: fs(14) },
+                  hasWork && { key: 'work', icon: 'building', label: '그 외 출발지', size: fs(12) },
                   { key: 'current', icon: 'pin', label: '현재위치', size: fs(18) },
                 ].filter(Boolean).map(o => {
                   const on = originKey === o.key;
