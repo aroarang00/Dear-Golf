@@ -725,6 +725,12 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                 );
               })}
             </View>
+            {/* 그외출발지 발견성 — 저장 전엔 'work' 칩이 안 떠 존재를 모름(테스터·사용자 2026-07-02). 저장 유도 한 줄. */}
+            {isOriginSlot && !hasWorkCoord && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(245,230,168,0.7)', marginTop: 8, lineHeight: fs(16) }}>
+                자주 가는 '그 외 출발지'(회사 등)는 마이페이지에서 저장해두면 여기서 바로 골라요
+              </Text>
+            )}
             {slot.mode === 'custom' && (
               <View>
                 <Text style={trS.customHint}>아래 칸에 {kind}지를 입력해 주세요</Text>
