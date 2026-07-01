@@ -279,7 +279,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
       {/* 1. 검색창 — 위키 진입점(맨 위). 어느 골프장이든 검색해 평점·후기를 본다. '내 코스 모아보기'는 검색 아래로(솔로 신규는 검색 먼저). */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 9 }}>
         <View style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -314,7 +314,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
 
       {/* 내 코스 모아보기 — 검색 아래로 이동(검색이 위키 진입점이라 위). 방문 코스·통계. 도착=CourseLogModal */}
       {onOpenCourseLog && (
-        <AttentionMotion type="pulse" style={{ marginHorizontal: 16, marginBottom: 4, borderRadius: 12,
+        <AttentionMotion type="pulse" style={{ marginHorizontal: 16, marginBottom: 7, borderRadius: 12,
           shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 2.5, elevation: 3 }}>
           <TouchableOpacity onPress={onOpenCourseLog} activeOpacity={0.85} style={{ borderRadius: 12 }}>
             <LinearGradient colors={['#7A9C6C', '#5E7E52']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
@@ -341,9 +341,11 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       )}
 
       {/* 2. 지역 퀵탭 */}
+      {/* marginBottom:-5 — 아래 Section 공통 marginTop:12는 못 건드려(모든 섹션 공유), 이 토글에서만 5px 당겨
+          위 간격(내코스→토글 9px)과 아래 간격(토글→최근검색: 2+(-5)+12=9px)을 맞춤 */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 2, gap: 8 }}
-        style={{ maxHeight: _and ? 36 : 40, marginBottom: 0 }}>
+        style={{ maxHeight: _and ? 36 : 40, marginBottom: -5 }}>
         {REGIONS.map(r => {
           const on = region === r;
           return (
