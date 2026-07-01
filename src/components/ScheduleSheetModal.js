@@ -127,11 +127,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     if (t.includes('wake') && alarmTL?.wake) parts.push(`기상 ${fmtClock(alarmTL.wake)}`);
     if (t.includes('depart') && alarmTL?.depart) parts.push(`출발 ${fmtClock(alarmTL.depart)}`);
     if (alarmCfg?.opts?.arriveAt) parts.push(`모임 ${alarmCfg.opts.arriveAt}`);
-    const fixed = [];
-    if (t.includes('d3')) fixed.push('D-3');
-    if (t.includes('d1')) fixed.push('D-1');
-    if (t.includes('teeoff')) fixed.push('당일');
-    if (fixed.length) parts.push(fixed.join('·'));
+    // 고정 미리알림(3일전·전날·당일)은 요약에서 뺌 — 바로 아래 큰 D-DAY 블록과 중복(사용자 2026-07-01). 시각(기상·출발·모임)만 표시.
     return parts.length ? parts.join(' · ') : null;
   })();
 
