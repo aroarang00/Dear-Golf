@@ -18,7 +18,7 @@ import { myS } from '../styles/myS';
 import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
 import { Icon } from './common/Icon'; // 설정 메뉴 아이콘 — 이모지 대신 우리 커스텀 아이콘
-import { searchPlaces } from '../utils/kakao';
+import { searchPlaces, addressToCoord } from '../utils/kakao';
 import { deleteAccount } from '../utils/account';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { BlockManageScreen } from './BlockManageScreen';
@@ -164,12 +164,20 @@ export function MyPageModal({ visible, onClose }) {
   // 디바운스 타이머 정리
   useEffect(() => () => { if (depTimerRef.current) clearTimeout(depTimerRef.current); if (workTimerRef.current) clearTimeout(workTimerRef.current); }, []);
 
-  const handleSaveInfo = () => {
-    const updated = { ...userProfile, departure, departureCoord, work, workCoord, phone, realName: realName.trim() };
+  const handleSaveInfo = async () => {
+    // ★검색결과를 안 골라 좌표가 없으면 주소 텍스트로 지오코딩 — 타이핑만 해도 알람·교통에서 실제로 쓰이게
+    //   (좌표 없으면 '그 외 출발지'가 알람에 안 뜨던 원인. 사용자 2026-07-01). 실패하면 null 그대로.
+    let depCoord = departureCoord;
+    let wkCoord = workCoord;
+    if (departure.trim() && !depCoord) depCoord = await addressToCoord(departure.trim()).catch(() => null);
+    if (work.trim() && !wkCoord) wkCoord = await addressToCoord(work.trim()).catch(() => null);
+    if (depCoord !== departureCoord) setDepartureCoord(depCoord);
+    if (wkCoord !== workCoord) setWorkCoord(wkCoord);
+    const updated = { ...userProfile, departure, departureCoord: depCoord, work, workCoord: wkCoord, phone, realName: realName.trim() };
     setUserProfile({ ...updated });
     storage.save(STORAGE_KEYS.profile, updated);
     // 출발지·회사는 비공개 서브컬렉션(owner-only)에도 저장 — 기기 간·재설치 후에도 유지(주소는 users 문서엔 안 올림, 노출 방지).
-    getUid().then(uid => { if (uid) { savePrivateDeparture(uid, departure, departureCoord); savePrivateWork(uid, work, workCoord); } }).catch(() => {});
+    getUid().then(uid => { if (uid) { savePrivateDeparture(uid, departure, depCoord); savePrivateWork(uid, work, wkCoord); } }).catch(() => {});
     setDepResults([]);
     setDepSearching(false);
     setWorkResults([]);
