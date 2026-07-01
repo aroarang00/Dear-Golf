@@ -1062,7 +1062,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     //   미응답 초대는 사적 초대라 친구 브라우즈 제외, 내 참여 탭에만 (2026-06-03 전면 제외 → 2026-06-26 완화).
     if (p.scope === 'select') {
       if (!!myUid && p.authorUid === myUid) return true; // ① 주최
-      return !!joined[p.id] || (Array.isArray(p.participantUids) && !!myUid && p.participantUids.includes(myUid)); // ② 수락
+      if (!!joined[p.id] || (Array.isArray(p.participantUids) && !!myUid && p.participantUids.includes(myUid))) return true; // ② 수락
+      // ③ 크루 모집 — 크루원(audienceUids)에게 카드로 자율 노출(강제 초대 아님). 크루 뷰·상세와 정합 위해
+      //    거절(suppressed)·가리기(hidden) 무시 = 거절해도 친구 탭에서 안 사라짐(사용자 2026-07-01, [[crew-roundup-share-plan]]).
+      const isCrew = !!p.crewId || (Array.isArray(p.audienceCrewIds) && p.audienceCrewIds.length > 0);
+      if (isCrew && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid)) return true;
+      return false;
     }
     return false;
   });
@@ -1072,8 +1077,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     if (!isInVisibleWindow(p)) return false;
     // 내 활동(주최·참여·신청·대기)은 가리기 무시하고 보존 (본인 활동 우선)
     if ((!!myUid && p.authorUid === myUid) || joined[p.id] || applied[p.id] || waitlist[p.id]) return true;
-    // 친구지정(select) 초대 수신자 — 아직 미참여여도 노출. 단, 거절/수락후취소로 가린 초대는 다시 안 띄움
-    const amSelectRecipient = p.scope === 'select' && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
+    // 친구지정(select) 초대 수신자 — 아직 미참여여도 노출(초대장). 단, 거절/수락후취소로 가린 초대는 다시 안 띄움.
+    //   ★크루 모집(crewId/audienceCrewIds)은 제외 — 홈 배너와 동일 기준(roundup.js subscribeSelectInvitesForMe).
+    //   크루 모집은 '강제 수락/거절' 초대가 아니라 카드로 자율 참여라, 참여 전엔 내 참여에 안 뜨고 친구 탭·크루 뷰에서 브라우즈([[crew-roundup-share-plan]]).
+    const amSelectRecipient = p.scope === 'select'
+      && !p.crewId
+      && !(Array.isArray(p.audienceCrewIds) && p.audienceCrewIds.length > 0)
+      && Array.isArray(p.audienceUids) && !!myUid && p.audienceUids.includes(myUid);
     return amSelectRecipient && !hidden[p.id] && !suppressed[p.id];
   });
   // 내 주최 vs 참여 분리 — 주최(authorUid==me) / 그 외(참여·신청·대기·초대 수신).

@@ -277,6 +277,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setSelectMode('include');
     setSelectedUids(uids);
     setSelectedGroupIds(next);
+    if (uids.length) setSelectedCrewIds([]); // 개별/그룹 선택 시 크루 지정 해제 — 상호배타(위 pickCrew 참조)
   };
 
   // '크루로 지정' 토글 — 크루 멤버는 selectedUids와 별개로 crewMemberUids로 audience에 합쳐짐(친구 그룹과 달리 비친구 포함).
@@ -284,6 +285,10 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const pickCrew = (cid) => {
     setSelectMode('include');
     setSelectedCrewIds(prev => prev.includes(cid) ? prev.filter(x => x !== cid) : [...prev, cid]);
+    // 크루 지정과 개별 친구지정은 상호배타 — 혼합 시 개별 초대 친구가 홈배너·내참여 초대를 못 받고
+    //   브라우즈 카드로 강등되던 문제 방지(사용자 2026-07-01). 크루 고르면 개별 친구/그룹 선택 해제.
+    setSelectedUids([]);
+    setSelectedGroupIds([]);
   };
 
   // 최종 데이터 빌드
@@ -885,7 +890,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
         friends={friends}
         initial={{ selectMode, selectedUids }}
         onClose={() => setShowFriendSelect(false)}
-        onConfirm={({ selectMode: m, selectedUids: u }) => { setSelectMode(m); setSelectedUids(u); setSelectedGroupIds([]); }} />
+        onConfirm={({ selectMode: m, selectedUids: u }) => { setSelectMode(m); setSelectedUids(u); setSelectedGroupIds([]); if (u.length) setSelectedCrewIds([]); }} />
     </Modal>
   );
 }
