@@ -1,5 +1,6 @@
 import { storage, STORAGE_KEYS } from './storage';
 import { addressToCoord } from './kakao';
+import { searchGolfCourses } from './golfCourses'; // 좌표 복원 폴백 — loc 없어도 코스명으로 카카오 골프장 검색
 import { db, getUid } from './firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -89,9 +90,17 @@ export async function findUserCourseById(id) {
 // 카카오 검색 없이 손으로 등록한 코스도 KMA 단기예보(격자 변환)에 쓸 수 있게 보충.
 export async function ensureCourseCoord(course) {
   if (!course) return null;
-  if (typeof course.x === 'number' && typeof course.y === 'number') return course;
-  if (!course.loc) return null;
-  const coord = await addressToCoord(course.loc);
+  if (Number.isFinite(course.x) && Number.isFinite(course.y)) return course; // Number.isFinite — NaN 좌표(typeof NaN==='number' 통과) 차단
+  // 좌표 없으면 복원 — ①loc(주소) 카카오 지오코딩 ②없거나 실패하면 코스명으로 골프장 검색(카카오) 폴백.
+  //   기존엔 loc만 써서, loc·좌표 둘 다 없이 저장된 구장(마스터 밖 검색 추가 등)은 날씨가 안 나왔다(사용자 2026-07-01, 예: 코브스윙CC).
+  let coord = course.loc ? await addressToCoord(course.loc).catch(() => null) : null;
+  if (!coord && course.name) {
+    try {
+      const results = await searchGolfCourses(course.name);
+      const top = results && results[0];
+      if (top && top.x > 0 && top.y > 0) coord = { x: top.x, y: top.y };
+    } catch {}
+  }
   if (!coord) return null;
   const updated = await updateUserCourse(course.id, { x: coord.x, y: coord.y });
   return updated || { ...course, x: coord.x, y: coord.y };
