@@ -71,9 +71,10 @@ export async function setFriendMeta(friendUid, { customName = '', groupIds = [] 
   if (!uid || !friendUid) return null;
   const ref = privRef(uid);
   let cur = {};
+  let exists = false;
   try {
     const snap = await getDoc(ref);
-    if (snap.exists()) cur = snap.data();
+    if (snap.exists()) { cur = snap.data(); exists = true; }
   } catch (e) {
     if (__DEV__) console.warn('[friendGroups] setFriendMeta read', e?.message);
   }
@@ -89,7 +90,19 @@ export async function setFriendMeta(friendUid, { customName = '', groupIds = [] 
     if (name) meta.customName = name;
     friendMeta[friendUid] = meta;
   }
-  await setDoc(ref, { friendGroups, friendMeta, updatedAt: serverTimestamp() }, { merge: true });
+  // ★merge 아닌 updateDoc으로 friendMeta 맵 전체 교체 — merge:true면 깊은 병합이라 지운 별명(customName)이나
+  //   빼낸 항목 키가 Firestore에 그대로 남아 다음 로드 때 되살아남. pruneFriendMeta와 동일 함정. ([[friend_groups]])
+  //   문서가 없을 때만 setDoc으로 최초 생성(updateDoc은 문서 없으면 실패).
+  try {
+    if (exists) {
+      await updateDoc(ref, { friendGroups, friendMeta, updatedAt: serverTimestamp() });
+    } else {
+      await setDoc(ref, { friendGroups, friendMeta, updatedAt: serverTimestamp() });
+    }
+  } catch (e) {
+    if (__DEV__) console.warn('[friendGroups] setFriendMeta write', e?.message);
+    return null;
+  }
   _friendMetaCache = friendMeta;   // 별명 편집 즉시 캐시 반영(다음 화면 첫 페인트부터 새 별명)
   return { friendGroups, friendMeta };
 }
