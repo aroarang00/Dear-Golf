@@ -62,7 +62,9 @@ const AppTextInput = forwardRef(function AppTextInput(props, ref) {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     paddingTop: flat.paddingTop ?? flat.paddingVertical ?? flat.padding,
     paddingBottom: flat.paddingBottom ?? flat.paddingVertical ?? flat.padding,
-    paddingLeft: flat.paddingLeft ?? flat.paddingHorizontal ?? flat.padding,
+    // +3: 커서 폭만큼 오른쪽으로 — 빈칸+포커스 시 커서(x=0)가 placeholder 첫 글자 위에 겹쳐 보이던 것 방지
+    //   (iOS 네이티브는 OS가 커서를 placeholder 앞에 두지만, 안드 오버레이는 같은 x라 겹침. 사용자 2026-07-01)
+    paddingLeft: (flat.paddingLeft ?? flat.paddingHorizontal ?? flat.padding ?? 0) + 3,
     paddingRight: flat.paddingRight ?? flat.paddingHorizontal ?? flat.padding,
     fontFamily: flat.fontFamily || F.sys,
     fontSize: flat.fontSize,
