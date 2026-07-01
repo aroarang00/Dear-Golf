@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { FriendsTab } from './FriendsTab';
 import { Icon } from './common/Icon'; // 친구찾기 돋보기·초대 사람+ 커스텀 아이콘
-import { shareInvite } from '../utils/invite';
+import { shareInvite, shareFriendInviteKakao } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
 import { showAppAlert } from './AppAlert';   // 헤더 안내(!) 팝업
 
@@ -117,7 +117,7 @@ export function FriendsScreen({ navigation, route }) {
         moment={inviteOpen ? { shareKind: 'invite' } : null}
         visible={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        onShareLink={() => { setInviteOpen(false); setTimeout(() => shareInvite(), 350); }}
+        onShareLink={() => { setInviteOpen(false); setTimeout(() => shareFriendInviteKakao(), 350); }}
       />
     </SafeAreaView>
   );

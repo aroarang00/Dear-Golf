@@ -22,6 +22,32 @@ export async function shareInvite() {
   } catch (e) { /* 사용자 취소 — 무시 */ }
 }
 
+// 카카오톡 친구 초대 — 이미지+문구+버튼+링크를 '한 카드'로(설치 유도). 링크=랜딩(deargolf.app, 딥링크 불필요).
+//   OS 평문 공유는 이미지/링크가 따로 나가지만, 카카오 피드는 한 카드에 다 담긴다(사용자 2026-07-01).
+//   카카오톡 불가(미설치·비카카오 대상)면 OS 공유시트 평문(shareInvite)으로 폴백.
+export async function shareFriendInviteKakao() {
+  const link = { webUrl: INVITE_LINK, mobileWebUrl: INVITE_LINK };
+  try {
+    await shareFeedTemplate({
+      template: {
+        content: {
+          title: '골프 약속·준비, 디어골프 하나로 ⛳',
+          description: '기상·출발 알람 · 도착시각 예측 교통\n동반자·식사·일정 버튼 하나로 공유',
+          imageUrl: 'https://deargolf.app/og-card-v2.jpg',
+          link,
+        },
+        buttons: [{ title: '디어골프 시작하기', link }],
+      },
+      useWebBrowserIfKakaoTalkNotAvailable: true,
+    });
+    return true;
+  } catch (e) {
+    if (__DEV__) console.warn('[shareFriendInviteKakao] 실패, 평문 폴백', e?.message);
+    await shareInvite();
+    return false;
+  }
+}
+
 // 라운지 모집 공유 — 모임 단톡방에 모집을 알리고 앱 설치를 유도 ([[lounge-positioning]] 모임 통째 유입).
 //   친구공개 모집이라 글 자체는 디어골프 친구만 보므로, 문구에 핵심 정보(구장·날짜·인원)를 담아 전달.
 //   받은 사람 동선 = 랜딩 → (출시 후) 설치 → 가입 → 주최자와 친구 → 참여. 카카오 공유 템플릿(이미지 카드)은
