@@ -20,6 +20,7 @@ import { ShareMomentModal } from './ShareMomentModal';
 import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { isTeamPlanFilled } from '../utils/roundup';
 import { AttentionMotion } from './common/AttentionMotion';   // 편성완료 미열람 맥동
+import { Icon } from './common/Icon';   // 취소 배너 깃발 아이콘
 import { storage, STORAGE_KEYS } from '../utils/storage';     // 단체팀 열람 시각(맥동 판단)
 import { loadMyFriendsEnriched, loadSentRequests, sendFriendRequest } from '../utils/friends';
 import { showToast } from './AppToast';
@@ -276,6 +277,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   // 만석(allFull) 또는 주최자 확정(closed)이면 마감 — 비참여자에겐 대기신청 동선.
   //  취소로 결원이 나면 closed는 유지되고 joined만 -1 → 아래 vacancy로 참여 버튼 복귀(빈자리 충원).
   const isClosed = post.closed || allFull;
+  // 주최자 소프트 취소(cancelledByHost) — 목록 로더·미니카드는 '종료'로 거르는데 상세만 이 상태를 놓쳐
+  //   closed:true라 '✓ 확정'으로 오표시하던 것 보정. DM 카드·알림 등 목록 필터를 우회한 진입에서 노출됨.
+  const isCancelled = !!post.cancelledByHost;
   const slots = buildSlots(post, participantNames, myUid, userProfile?.nickname, friendMeta);
   // 대기자 수 — 실제 대기열(waitlistUids) 기준. 옛 waitlistCount 필드는 아무도 갱신하지 않아 항상 0이었다.
   const waitlistTotal = Array.isArray(post.waitlistUids) ? post.waitlistUids.length : (post.waitlistCount || 0);
@@ -634,6 +638,14 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
         </View>
       </View>
     );
+  } else if (isCancelled) {
+    // 취소된 모집(비주최자) — 참여·대기 동선 모두 막고 안내만. 상단 배너·'취소됨' 배지와 함께 오해 방지.
+    actionBtn = (
+      <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
+        backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>주최자가 취소한 모집이에요</Text>
+      </View>
+    );
   } else if (joined) {
     actionBtn = (
       <View>
@@ -797,6 +809,17 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             scrollEventThrottle={16}
             onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
             keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
+            {/* 취소된 모집 배너 — 목록 필터를 우회한 진입(DM 카드·알림)에서 '확정'으로 오인 방지. 최상단 강조 */}
+            {isCancelled && (
+              <View style={{ marginHorizontal: 16, marginTop: _and ? 9 : 12, backgroundColor: '#F6E7E4',
+                borderWidth: 1, borderColor: '#D8A9A0', borderRadius: 10, paddingVertical: _and ? 8 : 10, paddingHorizontal: 14,
+                flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <Icon name="flag" size={fs(15)} color="#A24B3B" strokeWidth={1.9} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#A24B3B', flex: 1 }}>
+                  주최자가 취소한 모집이에요 · 라운딩이 열리지 않아요
+                </Text>
+              </View>
+            )}
             {/* 긍정 문구 — 약속·시간 존중 문화 고정 안내 ([[roundup-penalty-policy]] §5) */}
             <View style={{ marginHorizontal: 16, marginTop: _and ? 9 : 12,
               backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#E2D2A8',
@@ -812,10 +835,16 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 <Badge bg={post.type === 'fixed' ? C.charcoal : '#6B8B5E'} fg="#fff" text={post.type === 'fixed' ? '확정형' : '오픈형'} />
                 {isTeam && <Badge bg={C.navy} fg={C.butter} text={`단체 ${post.teams}팀`} />}
                 <Badge bg={sb.bg} fg={sb.fg} text={sb.label} />
-                {/* 확정(closed)+자리없음 → 그린 ✓확정 / 만석 미확정 → 호박 확정 대기 / 확정+빈자리 → ✓확정·N자리 */}
-                {post.closed && !vacancy && <Badge bg="#D9E8CE" fg="#2E6B3E" text="✓ 확정" />}
-                {awaitingConfirm && <Badge bg="#F3E2A0" fg="#7A5A00" text="확정 대기" />}
-                {vacancy && <Badge bg="#D9E8CE" fg="#3C6B2E" text={`✓ 확정 · ${vacancySeats}자리`} />}
+                {/* 취소 시엔 '취소됨'만 — 확정/대기 배지는 오해라 숨김. 그 외: 확정+자리없음 → ✓확정 / 만석 미확정 → 확정 대기 / 확정+빈자리 → ✓확정·N자리 */}
+                {isCancelled ? (
+                  <Badge bg="#EBD6D2" fg="#A24B3B" text="취소됨" />
+                ) : (
+                  <>
+                    {post.closed && !vacancy && <Badge bg="#D9E8CE" fg="#2E6B3E" text="✓ 확정" />}
+                    {awaitingConfirm && <Badge bg="#F3E2A0" fg="#7A5A00" text="확정 대기" />}
+                    {vacancy && <Badge bg="#D9E8CE" fg="#3C6B2E" text={`✓ 확정 · ${vacancySeats}자리`} />}
+                  </>
+                )}
               </View>
 
               {/* 단체팀 — 조 편성·팀별 티오프 화면. 단체 모집 + 참여자(주최자·확정자)만 노출 ([[event-model]]) */}
