@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Dear Golf — 라운딩 초대</title>
   <meta name="description" content="좋은 동반자와 함께할 그날의 라운드, 디어골프에서 확인하세요." />
-  <!-- 공유 미리보기(카톡 등) — 골프장 사진 카드 톤(og-card-v2.jpg). 모집 상세는 친구공개라 비노출, 브랜드 카드만. -->
+  <!-- 공유 미리보기(카톡 등) — 골프장 사진 카드 톤(og-card-v2.jpg). 모집 상세는 친구공개라 비노출, 브랜드 카드만.
+       ※ 이 og: 문구는 카톡 공유 미리보기용으로 따로 튜닝됨(아래 주석) — 페이지 본문 문구와 별개로 유지. -->
   <meta property="og:title" content="Dear Golf — 라운딩 초대" />
   <!-- 카톡이 description '맨 끝 한 글자'를 깎음(게→요 확인). 짧게 줄여 잘릴 확률↓ + 끝에 버릴 글자 ⛳로
        혹시 깎여도 본문 온전. 슬로건은 공식 '더 특별하게' 유지([[brand-slogan]]). 사용자 2026-06-17 -->
@@ -21,12 +22,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@1,400;1,500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <style>
-    /* 메인 랜딩(index.html)과 같은 결 — 크림 배경·차콜 Lora 워드마크·네이비 글래스 버튼. 골드 베벨/사진배경 폐기(2026-06-17 사용자 "만화 같다") */
+    /* 메인 랜딩(index.html)과 동일 결·문구 — 크림 배경·차콜 Lora 워드마크·삼색 스트라이프.
+       ★버튼은 그라데이션·광택·이중 그림자 효과 전부 빼고 '플랫 네이비 단색'으로 통일(사용자 2026-07-01 "촌스럽다"). */
     :root{
       --cream:#FAF6EC; --butter:#F5E6A8; --paleSky:#C8D9E6;
       --burgundy:#6B1E2A; --charcoal:#3D3935; --navy:#1A3D52;
       --butter-tint:#FCF4D2; --sky-tint:#DCE9F2; --cream-soft:#FBF4D9;
-      --charcoal-soft:rgba(61,57,53,0.62); --charcoal-faint:rgba(61,57,53,0.40);
       --hairline:rgba(61,57,53,0.12);
     }
     *{ box-sizing:border-box; margin:0; padding:0; }
@@ -46,64 +47,54 @@
       -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
       word-break:keep-all;
     }
-    /* 상단 브랜드 삼색바 — 아주 얇게 */
+    /* 상단 브랜드 삼색바 — 아주 얇게 (index.html과 동일) */
     .stripe{ position:fixed; left:0; right:0; top:0; height:4px; display:flex; z-index:10; }
     .stripe i{ flex:1; }
     .wrap{ width:100%; max-width:340px; text-align:center;
       opacity:0; transform:translateY(14px); animation:rise .9s cubic-bezier(.2,.7,.2,1) .05s forwards; }
     @keyframes rise{ to{ opacity:1; transform:none; } }
 
-    .eyebrow{ font-size:15px; font-weight:600; letter-spacing:4px; color:var(--burgundy); opacity:.92; margin-bottom:20px; }
+    /* 헤더 문구 — index.html 히어로와 동일 카피(우리의 빛나는 아카이브 / For Your Ultimate Golf Life / 더 특별하게) */
+    .subtitle{ font-weight:400; font-size:clamp(14px,4vw,16px); letter-spacing:2px; color:rgba(61,57,53,0.78); margin-bottom:18px; }
     .wordmark{ font-family:'Lora',Georgia,serif; font-style:italic; font-weight:400;
-      font-size:clamp(54px,17vw,74px); line-height:1.04; color:var(--charcoal); letter-spacing:-.5px; }
-    .mini-stripe{ display:flex; width:96px; height:3px; margin:22px auto 20px; border-radius:2px; overflow:hidden; }
+      font-size:clamp(52px,16vw,72px); line-height:1.05; color:var(--charcoal); letter-spacing:-.5px; }
+    .brand-sub{ margin-top:14px; font-weight:500; font-size:clamp(12px,3.4vw,14px); letter-spacing:2.5px; color:var(--burgundy); opacity:.78; }
+    .mini-stripe{ display:flex; width:100px; height:3px; margin:24px auto 20px; border-radius:2px; overflow:hidden; }
     .mini-stripe i{ flex:1; }
-    .slogan{ font-size:clamp(16px,4.6vw,18px); font-weight:300; line-height:1.6; color:var(--charcoal); letter-spacing:.2px; }
-    .slogan b{ color:var(--burgundy); font-weight:500; }
+    .tagline{ font-size:clamp(17px,4.8vw,19px); font-weight:300; line-height:1.6; color:var(--charcoal); letter-spacing:.2px; }
+    .tagline b{ color:var(--burgundy); font-weight:500; }
 
-    /* 버튼 폭 줄여 가운데로 모음 — 더 단정하게 */
-    .btns{ display:flex; flex-direction:column; gap:12px; margin:38px auto 0; max-width:268px; }
-    a.btn{ display:flex; align-items:center; justify-content:center; gap:9px; text-decoration:none;
-      border-radius:14px; font-weight:500; letter-spacing:.2px; transition:transform .15s, box-shadow .2s, filter .2s; }
-    /* 주 CTA — 네이비 글래스 + 입체감(상단 하이라이트·하단 음영·이중 그림자) */
-    .btn-app{ padding:17px 22px; font-size:16px; color:#fff;
-      background:linear-gradient(180deg, #2D5C78 0%, #1A3D52 100%);
-      border:1px solid rgba(70,108,132,0.55);
-      box-shadow:0 8px 18px rgba(20,49,64,0.24), 0 1.5px 3px rgba(20,49,64,0.18), inset 0 1px 0 rgba(255,255,255,0.16); }
-    .btn-app:hover{ transform:translateY(-1.5px); filter:brightness(1.06);
-      box-shadow:0 13px 26px rgba(20,49,64,0.3), 0 2px 4px rgba(20,49,64,0.2), inset 0 1px 0 rgba(255,255,255,0.18); }
-    .btn-app:active{ transform:translateY(0); box-shadow:0 4px 10px rgba(20,49,64,0.22), inset 0 1px 0 rgba(255,255,255,0.14); }
-    /* 스토어 — 버터 컬러(네이비 CTA와 대비되는 따뜻한 보조). 차콜 글자·아이콘으로 또렷이 */
-    .btn-store{ padding:14px 22px; font-size:14px; color:var(--charcoal); font-weight:600;
-      background:linear-gradient(180deg, #FBEFC2 0%, #F1DD93 100%);
-      border:1px solid rgba(176,143,73,0.45);
-      box-shadow:0 8px 18px rgba(176,143,73,0.20), 0 1.5px 3px rgba(176,143,73,0.12),
-        inset 0 1px 0 rgba(255,255,255,0.55); }
-    .btn-store:hover{ transform:translateY(-1.5px); border-color:rgba(176,143,73,0.62);
-      box-shadow:0 12px 24px rgba(176,143,73,0.26), 0 2px 5px rgba(176,143,73,0.14), inset 0 1px 0 rgba(255,255,255,0.6); }
-    .btn-store:active{ transform:translateY(0); }
-    .btn .ico{ width:18px; height:18px; flex:none; }
+    /* 버튼 — 플랫 네이비 단색(그라데이션·광택·그림자·호버 리프트 없음). 링크 열기=조금 크게 강조, 스토어=동일 톤 */
+    .btns{ display:flex; flex-direction:column; gap:11px; margin:38px auto 0; max-width:300px; }
+    a.btn{ display:flex; align-items:center; justify-content:center; gap:10px; text-decoration:none;
+      border-radius:14px; font-weight:500; letter-spacing:.2px; background:var(--navy); color:#fff; }
+    /* ★a.btn-app (요소+클래스)로 특정도를 a.btn과 맞춰야 background가 덮인다 — .btn-app(클래스만)이면 a.btn 네이비가 이김 */
+    a.btn-app{ padding:17px 22px; font-size:16px; background:var(--burgundy); } /* 주 액션 — 스토어(네이비)와 구분되게 버건디 */
+    .btn-store{ padding:15px 22px; font-size:14.5px; }
+    .btn .ico{ width:19px; height:19px; flex:none; fill:var(--butter); }
+    @media (hover:hover){ a.btn:hover{ opacity:.92; } }
 
-    .foot{ margin-top:32px; font-size:16px; font-weight:600; letter-spacing:1px; color:var(--navy); opacity:.9; }
+    .foot{ margin-top:32px; font-size:15px; font-weight:600; letter-spacing:1px; color:var(--navy); opacity:.9; }
   </style>
 </head>
 <body>
   <div class="stripe"><i style="background:#ECD884"></i><i style="background:#B2CADD"></i><i style="background:#6B1E2A"></i></div>
   <div class="wrap">
-    <div class="eyebrow">라운딩 초대</div>
+    <div class="subtitle">우리의 빛나는 아카이브</div>
     <div class="wordmark">Dear&nbsp;Golf</div>
+    <div class="brand-sub">For Your Ultimate Golf Life</div>
     <div class="mini-stripe"><i style="background:#ECD884"></i><i style="background:#B2CADD"></i><i style="background:#6B1E2A"></i></div>
-    <div class="slogan">라운딩의 모든 순간을 <b>더 특별하게</b></div>
+    <div class="tagline">라운딩의 모든 순간을 <b>더 특별하게</b></div>
 
     <div class="btns">
       <a class="btn btn-app" id="openApp" href="#">앱에서 열기</a>
       <a class="btn btn-store" href="https://apps.apple.com/app/id6770383793">
-        <svg class="ico" viewBox="0 0 24 24" fill="#3D3935"><path d="M16.4 12.9c0-2 1.6-3 1.7-3.1-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2.1 2.4 2 .9 0 1.3-.6 2.4-.6s1.4.6 2.4.6c1 0 1.7-1 2.3-2 .7-1.1 1-2.2 1-2.2-.1 0-2-.8-1.9-3.1zM14.6 6.7c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>
-        App Store에서 받기
+        <svg class="ico" viewBox="0 0 24 24"><path d="M16.4 12.9c0-2 1.6-3 1.7-3.1-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2.1 2.4 2 .9 0 1.3-.6 2.4-.6s1.4.6 2.4.6c1 0 1.7-1 2.3-2 .7-1.1 1-2.2 1-2.2-.1 0-2-.8-1.9-3.1zM14.6 6.7c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>
+        App Store · iOS 다운로드
       </a>
       <a class="btn btn-store" href="https://play.google.com/store/apps/details?id=app.deargolf">
-        <svg class="ico" viewBox="0 0 24 24" fill="#3D3935"><path d="M5 4.5l8.6 8.6L5 21.7c-.3-.2-.5-.6-.5-1V5.5c0-.4.2-.8.5-1zM15 14.5l2.6 2.6-9.4 5.3 6.8-7.9zm0-3l-6.8-7.9 9.4 5.3L15 11.5zm1.4 1.4l2.6-1.5c.6-.4.6-1.4 0-1.8l-2.6-1.5-2.1 2.4 2.1 2.4z"/></svg>
-        Google Play에서 받기
+        <svg class="ico" viewBox="0 0 24 24"><path d="M5 4.5l8.6 8.6L5 21.7c-.3-.2-.5-.6-.5-1V5.5c0-.4.2-.8.5-1zM15 14.5l2.6 2.6-9.4 5.3 6.8-7.9zm0-3l-6.8-7.9 9.4 5.3L15 11.5zm1.4 1.4l2.6-1.5c.6-.4.6-1.4 0-1.8l-2.6-1.5-2.1 2.4 2.1 2.4z"/></svg>
+        Google Play · Android 다운로드
       </a>
     </div>
     <div class="foot">deargolf.app</div>
