@@ -24,7 +24,7 @@ import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms } from '../utils/notifications';
 import { getCalendarChoice } from '../utils/deviceCalendar';
 import { roundsOnly } from '../utils/diaryKind';
-import { GreenFlag } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG
+import { GreenFlag, Icon } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG / people → 동반자 아이콘
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { CourseLogModal } from './CourseLogModal';
 import { loadFriendData } from '../utils/friendGroups';
@@ -853,9 +853,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                         // companions + 전파 그룹(친구초대 audience 포함) 보강 — 홈 바텀시트와 동일 로직(공용 유틸).
                         const cs = buildCompanionNames(s, { group: groupsById[s.groupId], friendMeta, myUid: currentUid });
                         return cs.length > 0 ? (
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
-                            👥 {formatNameList(cs, { sep: ', ' })}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                            <Icon name="people" size={fs(13)} color={C.warmGray} strokeWidth={1.7} />
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 5, flex: 1 }} numberOfLines={1}>
+                              {formatNameList(cs, { sep: ', ' })}
+                            </Text>
+                          </View>
                         ) : null;
                       })()}
                     </View>
