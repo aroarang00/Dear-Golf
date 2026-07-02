@@ -317,6 +317,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const [friends, setFriends] = useState([]);        // Phase 3-F6: { id, name } — 친구지정 모달 등 표시용
   const [posts, setPosts] = useState([]);
   const [hydrated, setHydrated] = useState(false);       // 첫 로드 완료 전엔 빈 가이드 숨김 — 안드 마운트 깜빡임 방지 ([[home-empty-state-flash]])
+  const [loadFailed, setLoadFailed] = useState(false);    // 초기 로드 실패 — 빈 라운지(모집 없음)로 위장하지 않고 재시도 안내 ([[read-failure-disguise]])
   const prefetchSeededRef = useRef(false);               // 프리페치 시드 1회만 — 재로드 시 최신 위에 캐시 덮어쓰기 방지
   const [refreshing, setRefreshing] = useState(false);   // 당겨서 새로고침 ([[roundup-refresh]])
   const [refreshTick, setRefreshTick] = useState(0);     // 증가 시 아래 로드 effect 재실행
@@ -466,8 +467,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         } catch (e) {
           if (__DEV__) console.warn('[RoundupTab] notifications load failed', e?.message);
         }
+        if (!cancelled) setLoadFailed(false); // 전체 로드 성공 — 오류 상태 해제
       } catch (e) {
         if (__DEV__) console.warn('[RoundupTab] initial load failed', e);
+        // 로드 실패를 빈 라운지로 위장하지 않기 — 글이 하나도 없을 때만 오류+재시도 UI로 구분(아래 렌더)
+        if (!cancelled) setLoadFailed(true);
       } finally {
         if (!cancelled) { setRefreshing(false); setHydrated(true); }
       }
@@ -2164,7 +2168,22 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
           </TouchableOpacity>
         )}
         {/* 초대장(친구지정·포함)은 아래 list.map에서 실제 카드로 렌더 — dev에선 내가 만든 글도 자기 미리보기로 보임 ([[roundup-invitation]]) */}
-        {!hydrated ? <LoadingState /> : list.length === 0 ? (
+        {!hydrated ? <LoadingState /> : (loadFailed && posts.length === 0) ? (
+          /* 로드 실패 + 글 0개 — 네트워크 오류를 '모집 없음' 가이드로 위장하지 않고 재시도 제공 */
+          <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
+            <Text style={{ fontSize: fs(34) }}>📡</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 14 }}>
+              모집글을 불러오지 못했어요
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+              네트워크 상태를 확인하고 다시 시도해주세요
+            </Text>
+            <TouchableOpacity onPress={onRefresh} activeOpacity={0.85}
+              style={{ marginTop: 16, backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 28 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        ) : list.length === 0 ? (
           view === 'mine' ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 48 }}>
               아직 참여 중인 모집이 없어요

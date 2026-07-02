@@ -92,7 +92,7 @@ export function DiaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();   // 안드 내비게이션 바 인셋 — 하단 바텀시트 잘림 방지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
-  const { diaries, hydrated: diariesHydrated, addDiary, editDiary, removeDiary, reloadDiaries } = React.useContext(DiariesContext);
+  const { diaries, hydrated: diariesHydrated, loadFailed: diariesLoadFailed, addDiary, editDiary, removeDiary, reloadDiaries } = React.useContext(DiariesContext);
   // 친구 좋아요 표시용 — 내 다이어리 likes(uid)를 닉네임으로 해석 (좋아요는 친구만 가능)
   const [friendNameByUid, setFriendNameByUid] = useState({});
   const [selected, setSelected] = useState(null);
@@ -807,6 +807,25 @@ export function DiaryScreen({ route, navigation }) {
         // 첫 로드 전 — 빈 상태 대신 로딩 스피너 (다이어리 로컬+Firestore 로드 동안 깜빡임 방지)
         if (!diariesHydrated) {
           return <LoadingState style={{ backgroundColor: C.bgPrimary }} />;
+        }
+        // 로드 실패 — 빈 상태(신규 안내)로 위장하지 않고 오류+재시도 표시. 오프라인·타임아웃 시
+        //   "기록이 다 사라졌다" 오인 방지 ([[read-failure-disguise]]). 기록이 이미 로드돼 있으면 그대로 둠.
+        if (diariesLoadFailed && diaries.length === 0) {
+          return (
+            <View style={{ backgroundColor: C.bgPrimary, alignItems: 'center', paddingTop: 48, paddingBottom: 48 }}>
+              <Text style={{ fontSize: fs(34), marginBottom: 12 }}>📡</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
+                기록을 불러오지 못했어요
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
+                네트워크 상태를 확인하고{'\n'}다시 시도해주세요
+              </Text>
+              <TouchableOpacity onPress={() => reloadDiaries()} activeOpacity={0.85}
+                style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 30 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>다시 시도</Text>
+              </TouchableOpacity>
+            </View>
+          );
         }
         // 기록이 하나도 없을 때 — 빈 상태 (예시 카드 + CTA)
         if (diaries.length === 0) {

@@ -9,6 +9,7 @@ import { loadMyRounds, createRound, updateRound, deleteRound } from '../utils/ro
 export const DiariesContext = React.createContext({
   diaries: [],
   hydrated: false,
+  loadFailed: false,
   addDiary: async () => {},
   editDiary: async () => {},
   removeDiary: async () => {},
@@ -19,6 +20,9 @@ export const DiariesContext = React.createContext({
 export function DiariesProvider({ children }) {
   const [diaries, setDiaries] = useState([]);
   const [hydrated, setHydrated] = useState(false);
+  // 로드 실패 구분 — 실패를 빈 배열로 흡수하면 오프라인이 '기록 없음(신규 안내)'으로 위장됨.
+  //   화면은 이 플래그로 "불러오지 못했어요 + 재시도"를 보여준다(기록이 이미 있으면 기존 데이터 유지).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // 초기 로드 + uid 변경 시 재로드 — 익명→카카오 settle 등 uid가 바뀌면 올바른 계정 데이터로 자동 갱신.
   //   기존엔 시작 시 1회만 로드라, uid 확정 전 익명으로 로드되면 카카오 데이터가 안 떴음([[auth-relink-and-seed-cleanup]]).
@@ -36,9 +40,11 @@ export function DiariesProvider({ children }) {
       try {
         const loaded = await loadMyRounds();
         setDiaries(loaded);
+        setLoadFailed(false);
       } catch (e) {
         console.warn('[DiariesContext] Firestore 로드 실패', e?.message);
         setDiaries([]);
+        setLoadFailed(true); // '기록 없음'과 구분 — 화면에서 재시도 안내
       } finally {
         setHydrated(true);
       }
@@ -71,6 +77,7 @@ export function DiariesProvider({ children }) {
     try {
       const loaded = await loadMyRounds();
       setDiaries(loaded);
+      setLoadFailed(false); // 초기 로드 실패 후 재시도 성공 시 오류 상태 해제
     } catch (e) {
       if (__DEV__) console.warn('[DiariesContext] reload 실패', e?.message);
     }
@@ -89,6 +96,7 @@ export function DiariesProvider({ children }) {
     <DiariesContext.Provider value={{
       diaries,
       hydrated,
+      loadFailed,
       addDiary,
       editDiary,
       removeDiary,
