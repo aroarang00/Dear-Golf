@@ -136,7 +136,7 @@ exports.onContentReportUpdated = onDocumentUpdated('content_reports/{reportId}',
   if (before.status === after.status) return;
 
   const reportRef = event.data.after.ref;
-  const { targetType, targetId, targetAuthorUid } = after;
+  const { targetType, targetId } = after;
   const collectionByType = {
     courseComment: 'courseComments',
     roundup: 'roundups',
@@ -148,16 +148,25 @@ exports.onContentReportUpdated = onDocumentUpdated('content_reports/{reportId}',
   if (after.status === 'confirmed') {
     // 멱등 가드 — 재시도 시 중복 삭제·중복 제재 차단
     if (!(await claimOnce(reportRef, 'penaltyApplied'))) return;
+    // 작성자 uid는 대상 문서에서 직접 읽는다 — 신고자가 넣은 after.targetAuthorUid를 신뢰하면
+    //   무관한 제3자(C)에게 제재가 가는 오귀속이 가능(보안 감사 2026-07-02). 삭제 전에 먼저 읽어야 함.
+    let realAuthorUid = null;
+    try {
+      const targetSnap = await targetRef.get();
+      if (targetSnap.exists) realAuthorUid = targetSnap.data().authorUid || null;
+    } catch (e) {
+      logger.warn('[content] target read fail', e?.message);
+    }
     // 게시물 영구 삭제 (정책 §6)
     try {
       await targetRef.delete();
     } catch (e) {
       logger.warn('[content] target delete fail', e?.message);
     }
-    // 작성자 누적·제재
-    if (targetAuthorUid) {
+    // 작성자 누적·제재 — 대상 문서에서 파생한 실제 작성자에게만
+    if (realAuthorUid) {
       try {
-        await applyAuthorPenaltyOnConfirm(targetAuthorUid);
+        await applyAuthorPenaltyOnConfirm(realAuthorUid);
       } catch (e) {
         logger.warn('[content] author penalty fail', e?.message);
       }
