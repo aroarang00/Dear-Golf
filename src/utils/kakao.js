@@ -319,9 +319,10 @@ export async function searchPlaces(query) {
     out.push({ kakaoId: key, name, loc: loc || '', x, y });
   };
   try {
+    // fetchWithTimeout — 이 파일에서 유일하게 생 fetch였던 곳. 느린 망에서 검색이 무한 대기하던 것 방지(다른 카카오 호출과 통일)
     const [addrRes, kwRes] = await Promise.all([
-      fetch(`${ADDRESS_URL}?query=${encodeURIComponent(q)}&size=5`, { headers }).catch(() => null),
-      fetch(`${KEYWORD_URL}?query=${encodeURIComponent(q)}&size=10`, { headers }).catch(() => null),
+      fetchWithTimeout(`${ADDRESS_URL}?query=${encodeURIComponent(q)}&size=5`, { headers }).catch(() => null),
+      fetchWithTimeout(`${KEYWORD_URL}?query=${encodeURIComponent(q)}&size=10`, { headers }).catch(() => null),
     ]);
     if (addrRes && addrRes.ok) {
       const data = await addrRes.json();

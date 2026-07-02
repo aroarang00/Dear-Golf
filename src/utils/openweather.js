@@ -5,6 +5,7 @@
 // =============================================================
 import { OPENWEATHER_API_KEY, OPENWEATHER_URL } from '../constants/api';
 import { WEEKDAYS } from '../constants/data';
+import { fetchWithTimeout } from './net'; // RN fetch는 기본 타임아웃 없음 — 무한대기 방지(8s)
 
 const GEO_URL = 'https://api.openweathermap.org/geo/1.0/direct';
 
@@ -24,7 +25,7 @@ export async function geocodeCity(query) {
   const q = (query || '').trim();
   if (!q || !OPENWEATHER_API_KEY) return [];
   try {
-    const res = await fetch(`${GEO_URL}?q=${encodeURIComponent(q)}&limit=6&appid=${OPENWEATHER_API_KEY}`);
+    const res = await fetchWithTimeout(`${GEO_URL}?q=${encodeURIComponent(q)}&limit=6&appid=${OPENWEATHER_API_KEY}`, {}, 8000);
     if (!res.ok) return [];
     const data = await res.json();
     return (data || []).map(d => ({
@@ -80,8 +81,8 @@ export async function getOverseasWeather(lat, lon) {
   } catch {}
   try {
     const [curRes, fcRes] = await Promise.all([
-      fetch(`${OPENWEATHER_URL}/weather?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${OPENWEATHER_API_KEY}`),
-      fetch(`${OPENWEATHER_URL}/forecast?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${OPENWEATHER_API_KEY}`),
+      fetchWithTimeout(`${OPENWEATHER_URL}/weather?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${OPENWEATHER_API_KEY}`, {}, 8000),
+      fetchWithTimeout(`${OPENWEATHER_URL}/forecast?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${OPENWEATHER_API_KEY}`, {}, 8000),
     ]);
     if (!curRes.ok) return null;
     const cur = await curRes.json();

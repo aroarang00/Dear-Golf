@@ -1,4 +1,5 @@
 import { KMA_SERVICE_KEY, AIRKOREA_URL, locToSidoName } from '../constants/api';
+import { fetchWithTimeout } from './net';
 
 // =============================================================
 // 한국환경공단 에어코리아 — 시도별 실시간 미세먼지
@@ -9,7 +10,7 @@ const PM10_GRADE_LABEL = { 1: '좋음', 2: '보통', 3: '나쁨', 4: '매우나�
 
 async function fetchJson(url) {
   try {
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url, {}, 8000); // RN fetch는 기본 타임아웃 없음 — 서버 무응답 시 무한대기 방지(kma와 동일 8s)
     if (!res.ok) { console.warn('[airkorea] HTTP', res.status); return null; }
     const text = await res.text();
     try { return JSON.parse(text); } catch {
