@@ -137,8 +137,15 @@ export function MyPageModal({ visible, onClose }) {
     const next = { ...userProfile, notifyPrefs: { ...prefs, [key]: newVal } };
     setUserProfile({ ...next });
     storage.save(STORAGE_KEYS.profile, next);
-    // ★서버 동기 — CF 발송 게이팅이 users.settings.notifyPrefs를 읽으므로 Firestore에도 반영(로컬만이면 OFF 무효였음)
-    saveNotifyPref(key, newVal);
+    // ★서버 동기 — CF 발송 게이팅이 users.settings.notifyPrefs를 읽으므로 Firestore에도 반영(로컬만이면 OFF 무효였음).
+    //   실패 시 토글을 원복 + 안내 — 무음이면 '꺼진 것처럼 보이는데 푸시는 계속 오는' 불일치([[save-revert-bug-pattern]] 계열).
+    saveNotifyPref(key, newVal).then(ok => {
+      if (ok) return;
+      const reverted = { ...userProfile, notifyPrefs: { ...prefs, [key]: !newVal } };
+      setUserProfile({ ...reverted });
+      storage.save(STORAGE_KEYS.profile, reverted);
+      setAlertData({ title: '알림 설정 저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.' });
+    });
   };
 
   const handleSaveStats = () => {

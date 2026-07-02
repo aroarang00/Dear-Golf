@@ -56,17 +56,21 @@ export async function saveMyPushToken(token) {
 // 알림 종류별 푸시 토글 저장 — users/{uid}.settings.notifyPrefs.{key}. CF 발송 게이팅이 이 값을 읽음.
 //   기존엔 마이페이지 토글이 로컬에만 저장돼(OFF가 서버에 안 닿아) 꺼도 푸시가 계속 갔음(2026-06-27 수정).
 //   merge:true는 맵을 깊은 병합 → 다른 notifyPrefs 키·settings 필드 보존. uid 포함=users 규칙 충족.
+//   반환: 성공 true / 실패 false — 실패를 무음으로 삼키면 로컬 토글과 서버가 어긋나
+//   '끈 알림이 계속 오는' 불일치가 됨(호출부가 롤백·안내 처리, [[save-revert-bug-pattern]] 계열).
 export async function saveNotifyPref(key, value) {
-  if (!key) return;
+  if (!key) return false;
   const uid = await getUid();
-  if (!uid) return;
+  if (!uid) return false;
   try {
     await setDoc(doc(db, 'users', uid), {
       uid,
       settings: { notifyPrefs: { [key]: !!value } },
     }, { merge: true });
+    return true;
   } catch (e) {
     if (__DEV__) console.warn('[pushTokens] saveNotifyPref fail', e?.message);
+    return false;
   }
 }
 

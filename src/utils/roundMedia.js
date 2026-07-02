@@ -8,7 +8,9 @@ import { compressImage } from './imageCompress';
 //  - 현재 다이어리 사진은 'dgphoto:' 로컬 식별자 → 친구 폰에선 못 읽음. 그래서 친구공개 시에만 업로드.
 //  - 나만보기(private)는 업로드 X — 로컬 유지(프라이버시). 본인만 자기 기기에서 봄.
 //  - 사진은 압축(1200px·80% JPEG [[image-compression]]) 후 업로드, 영상은 원본 그대로(용량·비용 주의).
-//  - 이미 https인 항목은 건너뜀(재업로드 방지 = 멱등). 실패 시 원본 유지(데이터 손실 방지, 친구는 그 항목만 못 봄).
+//  - 이미 https인 항목은 건너뜀(재업로드 방지 = 멱등). 업로드 실패는 throw — 원본(dgphoto: 로컬 식별자)을
+//    그대로 저장하면 친구 기기에서 영영 못 읽는 깨진 항목이 되므로, 저장 실패로 올려 호출부의
+//    "입력 보존 + 재시도" UX로 처리(2026-07-02 감사). 포스터·썸네일은 종전대로 best-effort(null 폴백).
 // 경로: rounds/{uid}/{파일명}  (storage.rules: 읽기=로그인 사용자, 쓰기=본인)
 // 입력/출력 구조 동일 — 문자열은 문자열(https)로, { uri, type:'video' } 객체는 uri만 교체.
 // compressOpts — compressImage 옵션(예: { maxWidth: 800 }). 크루 피드는 작게 올려 로딩↑(다이어리는 기본 1200 유지).
@@ -56,8 +58,10 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
     if (!posterUrl) posterUrl = await uploadVideoPoster(uid, localUri, i);
     return posterUrl ? { ...rest, uri: url, poster: posterUrl } : { ...rest, uri: url };  // 실패 시 로컬 poster는 버림(친구가 못 읽음)
   } catch (e) {
-    if (__DEV__) console.warn('[roundMedia] 업로드 실패, 원본 유지', e?.message);
-    return item;
+    if (__DEV__) console.warn('[roundMedia] 업로드 실패 — 저장 중단(재시도 유도)', e?.message);
+    // 원본 반환(=dgphoto: 저장) 대신 throw — 친구가 못 읽는 로컬 식별자가 문서에 남는 것 방지.
+    //   호출부(다이어리 저장·크루 게시)가 실패 안내 + 입력 보존으로 받는다.
+    throw e;
   }
 }
 
