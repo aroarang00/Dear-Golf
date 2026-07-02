@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking, AppState } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
@@ -512,6 +512,11 @@ function App() {
     return () => clearTimeout(t);
   }, []);
 
+  // 콜드스타트 초기 딥링크/알림 1회 처리 플래그 — 아래 두 effect가 showOnboarding 완료 시 재실행되며
+  //   초기 URL/알림을 다시 읽는데(온보딩 중 유실 방지), 이미 라우팅한 걸 재온보딩 뒤 또 재생하지 않게 막는다.
+  const initialLinkHandledRef = useRef(false);
+  const initialNotiHandledRef = useRef(false);
+
   // 푸시 알림을 탭하면 종류에 맞는 화면으로 이동.
   //  - 친구신청·초대 → 친구 탭 (받은 신청·초대 카드가 친구 탭 메인에 인라인 노출, [[friend-notification-ia]])
   //  - 모집글 중심 알림(댓글·확정·참여 등) → 라운지 탭 + 해당 모집글 상세 자동 오픈
@@ -525,12 +530,14 @@ function App() {
       'apply', 'confirmed', 'cancel', 'waitlist', 'waitlistPromoted',
       'comment', 'mannerEval', 'hostCancelledD7', 'scheduleNotice', 'roundupChanged', 'roundupFull',
     ]);
-    const handleResponse = (resp, attempt = 0) => {
+    const handleResponse = (resp, attempt = 0, fromInitial = false) => {
       // 콜드스타트 — 종료 상태서 알림 탭으로 켜지면 네비가 아직 미준비일 수 있어, 딥링크와 동일하게 준비될 때까지 재시도(고정 지연은 안드 InsetGate 마운트 지연에 유실).
       if (!navigationRef.isReady()) {
-        if (attempt < 20) setTimeout(() => handleResponse(resp, attempt + 1), 250);
+        if (attempt < 20) setTimeout(() => handleResponse(resp, attempt + 1, fromInitial), 250);
+        // 온보딩 중이면 재시도가 소진돼도 유실 아님 — showOnboarding 완료 시 effect 재실행이 초기 알림을 다시 읽는다.
         return;
       }
+      if (fromInitial) initialNotiHandledRef.current = true; // 재온보딩 시 옛 알림 중복 재생 방지
       const data = resp?.notification?.request?.content?.data || {};
       const type = data.type;
       try {
@@ -557,12 +564,14 @@ function App() {
     };
     // 앱이 종료된 상태에서 알림 탭으로 실행된 경우 — 네비게이션 준비 시간 확보
     Notifications.getLastNotificationResponseAsync().then(resp => {
-      if (resp) handleResponse(resp); // handleResponse가 네비 준비까지 재시도 내장(고정 400ms 제거)
+      if (resp && !initialNotiHandledRef.current) handleResponse(resp, 0, true); // handleResponse가 네비 준비까지 재시도 내장
     });
     // 앱 실행 중 알림 탭
     const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
     return () => sub.remove();
-  }, []);
+    // deps에 showOnboarding — 온보딩 중엔 NavigationContainer 미마운트라 재시도(~5s)가 소진되는데,
+    //   온보딩 완료 시 effect가 재실행되며 초기 알림을 다시 읽어 목적지로 보낸다(신규 설치 유입 유실 방지).
+  }, [showOnboarding]);
 
   // iOS 앱 아이콘 배지 / 알림센터 정리 — 인앱에서 알림을 다 읽어도(푸시 탭 안 하고) 아이콘 갯수가 안 사라지던 문제.
   //   앱을 열면(포그라운드 복귀·콜드스타트) = 확인한 것으로 보고 배지를 0으로 내리고 알림센터 스택도 비운다.
@@ -581,13 +590,15 @@ function App() {
   //   푸시 handleResponse와 동일하게 navigationRef로 라우팅. openPostId는 목록에 없어도 RoundupTab이 fetch해 상세를 연다(RoundupTab:505).
   //   Firestore read 규칙이 권한을 거르므로(친구지정=audienceUids 등) 비권한 글은 상세가 안 열림 — 보안 모델과 일치. ([[invite-deeplink-system]])
   useEffect(() => {
-    const route = (url, attempt = 0) => {
+    const route = (url, attempt = 0, fromInitial = false) => {
       if (!url) return;
       // 콜드스타트 — 앱이 완전 종료 상태서 링크로 켜지면 네비가 아직 준비 안 됐을 수 있어, 준비될 때까지 재시도(최대 ~5s)
       if (!navigationRef.isReady()) {
-        if (attempt < 20) setTimeout(() => route(url, attempt + 1), 250);
+        if (attempt < 20) setTimeout(() => route(url, attempt + 1, fromInitial), 250);
+        // 온보딩 중이면 소진돼도 유실 아님 — 온보딩 완료 시 effect 재실행이 초기 URL을 다시 읽는다(아래 deps).
         return;
       }
+      if (fromInitial) initialLinkHandledRef.current = true; // 재온보딩 시 옛 링크 중복 재생 방지
       const parsed = parseDeepLink(url);
       if (parsed?.type === 'roundup' && parsed.postId) {
         // openPostHost = 주최자 uid(있으면) — 비친구라 글 읽기 막힐 때 '친구 맺기' 안내에 사용 ([[roundup-friend-redesign]])
@@ -595,10 +606,12 @@ function App() {
       }
     };
     // 종료 상태에서 링크로 실행된 경우 — route가 네비 준비될 때까지 재시도(고정 지연 대신, 콜드스타트 유실 방지)
-    Linking.getInitialURL().then(url => { if (url) route(url); }).catch(() => {});
+    Linking.getInitialURL().then(url => { if (url && !initialLinkHandledRef.current) route(url, 0, true); }).catch(() => {});
     const sub = Linking.addEventListener('url', ({ url }) => route(url)); // 앱 실행 중 링크 진입
     return () => sub.remove();
-  }, []);
+    // deps에 showOnboarding — "초대 링크 → 설치 → 첫 실행"은 온보딩에 막혀 네비가 5초 내 준비되지 않음.
+    //   온보딩 완료 시 재실행해 초기 URL을 재생(딥링크 핵심 유입 시나리오 유실 방지).
+  }, [showOnboarding]);
 
   const handleOnboardingComplete = (data) => {
     // 기존 프로필과 병합 — 온보딩 data엔 statusMessage·departure·phone 등이 없어서, 통째 교체하면
