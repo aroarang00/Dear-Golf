@@ -342,13 +342,24 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     };
   };
 
-  const doSubmit = () => {
+  const doSubmit = async () => {
     if (submittingRef.current) return;        // 연타 가드 — 중복 생성 차단
     submittingRef.current = true;
-    onCreate(buildPayload());
-    if (!initialPost) reset();
-    onClose();
-    setTimeout(() => { submittingRef.current = false; }, 1200); // 연타 윈도우만 막고 해제(재사용 대비)
+    try {
+      // 저장을 await — 실패하면(onCreate가 false 반환) 모달을 닫지 않고 입력을 보존한 채 안내
+      const ok = await onCreate(buildPayload());
+      if (ok === false) {
+        setAlert({
+          title: initialPost ? '모집글 수정에 실패했어요' : '모집글 저장에 실패했어요',
+          message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.',
+        });
+        return;
+      }
+      if (!initialPost) reset();
+      onClose();
+    } finally {
+      submittingRef.current = false; // await 완료 후 해제 — 진행 중 연타만 차단
+    }
   };
 
   const handleSubmit = () => {

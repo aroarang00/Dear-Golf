@@ -539,7 +539,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     });
   };
 
-  const handleSave = () => {
+  const savingRef = useRef(false); // 저장 중 연타 가드
+  const handleSave = async () => {
+    if (savingRef.current) return;
     // 공개범위 해석 — friends/private은 단독, 그룹(복수)이면 group + 선택 그룹들 멤버 합집합 스냅샷 ([[friend_groups]])
     let vis;
     if (privacy.includes('private')) {
@@ -581,9 +583,16 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         companions: [{ name: userProfile.nickname, isMe: true }],
         overseas: false, country: '', scheduleId: null,
       };
-      if (isEdit) onSave('diary-edit', { id: initial.id, ...mPayload });
-      else onSave('diary', mPayload);
-      reset(); onClose();
+      // 저장을 await — 실패 시 모달을 닫지 않고 입력 보존 + 안내(전역 알럿은 RN Modal 아래 깔림, [[ios-modal-stacking]])
+      savingRef.current = true;
+      try {
+        const ok = isEdit ? await onSave('diary-edit', { id: initial.id, ...mPayload }) : await onSave('diary', mPayload);
+        if (ok === false) {
+          setOverlay({ title: '저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.' });
+          return;
+        }
+        reset(); onClose();
+      } finally { savingRef.current = false; }
       return;
     }
     const finalCourse = selectedCourse || courseSearch.trim();
@@ -640,10 +649,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       overseas,
       country: overseas ? country.trim() : '',
     };
-    if (isEdit) {
-      onSave('diary-edit', { id: initial.id, ...payload });
-    } else {
-      onSave('diary', payload);
+    // 저장을 await — 실패 시 모달을 닫지 않고 입력(코스·스코어·사진·메모) 보존 + 안내
+    savingRef.current = true;
+    let saveOk;
+    try {
+      saveOk = isEdit ? await onSave('diary-edit', { id: initial.id, ...payload }) : await onSave('diary', payload);
+    } finally { savingRef.current = false; }
+    if (saveOk === false) {
+      setOverlay({ title: '저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.' });
+      return;
     }
     // 동반자에게 스코어 공유 — OCR 전체 행(scRows)을 친구 동반자에게. 수신자가 자기 행 골라 본인 기록에 파생.
     //   best-effort(fire-and-forget) — 라운딩 저장 자체는 위에서 끝났으므로 공유 실패가 저장을 막지 않음. ([[companion-design]] §11)

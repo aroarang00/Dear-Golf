@@ -245,7 +245,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setCompanions([...fromFriends, ...freeText]);
   };
 
-  const handleSave = () => {
+  const savingRef = useRef(false); // 저장 중 연타 가드
+  const handleSave = async () => {
+    if (savingRef.current) return;
     const finalCourse = selected ? selected.name : courseSearch.trim();
     if (!finalCourse) {
       setOverlay({ title: '골프장을 입력해주세요', message: '저장하려면 골프장을 먼저 입력하거나 검색해 선택해주세요.' });
@@ -288,12 +290,24 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       subCourse: (subCourse || '').trim(), // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관
       dDay: Math.max(0, dDay),
     };
-    if (isEdit) {
-      onSave('schedule-edit', { id: initial.id, ...payload });
-    } else {
-      onSave('schedule', payload);
+    // 저장을 await — 실패하면(onSave가 false 반환) 모달을 닫지 않고 입력을 보존한 채 안내.
+    //   전역 showAppAlert는 RN Modal 아래 깔려 안 보이므로 모달 내부 OverlayAlert 사용 ([[ios-modal-stacking]]).
+    savingRef.current = true;
+    try {
+      const ok = isEdit
+        ? await onSave('schedule-edit', { id: initial.id, ...payload })
+        : await onSave('schedule', payload);
+      if (ok === false) {
+        setOverlay({
+          title: isEdit ? '일정 수정에 실패했어요' : '일정 저장에 실패했어요',
+          message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.',
+        });
+        return;
+      }
+      reset(); onClose();
+    } finally {
+      savingRef.current = false;
     }
-    reset(); onClose();
   };
 
   return (

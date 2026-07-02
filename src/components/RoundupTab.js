@@ -1260,11 +1260,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       }
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] handleCreate failed', e);
-      setAlert({
-        title: '모집글 저장에 실패했어요',
-        message: '잠시 후 다시 시도해 주세요.',
-        buttons: [{ text: '확인' }],
-      });
+      // false 반환 — 작성 모달이 열린 채 내부 알럿으로 안내(전역/탭 알럿은 RN Modal 아래 깔림) + 입력 보존
+      return false;
     }
   };
 
@@ -1746,7 +1743,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       setCommentsTotal(prev => ({ ...prev, [postId]: (prev[postId] || 0) + 1 }));
     } catch (e) {
       if (__DEV__) console.warn('[RoundupTab] addComment failed', e);
-      setAlert({ title: '댓글 작성에 실패했어요', message: '잠시 후 다시 시도해 주세요.', buttons: [{ text: '확인' }] });
+      return false; // 댓글 입력창이 인라인 에러 + 입력 복원 처리 (RoundupComments.submit)
     }
   };
 

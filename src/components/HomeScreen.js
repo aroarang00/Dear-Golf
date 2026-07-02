@@ -873,7 +873,7 @@ export function HomeScreen({ navigation, route }) {
         });
       } catch (e) {
         console.warn('[home] schedule add failed:', e?.message);
-        return;
+        return false; // 모달이 열린 채 실패 안내 + 입력 보존 (ScheduleModal.handleSave)
       }
       // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
       getUserCourses().then(list => setUserCoursesList(list || []));
@@ -903,7 +903,7 @@ export function HomeScreen({ navigation, route }) {
         });
       } catch (e) {
         console.warn('[home] schedule edit failed:', e?.message);
-        return;
+        return false; // 모달이 열린 채 실패 안내 + 입력 보존 (ScheduleModal.handleSave)
       }
       getUserCourses().then(list => setUserCoursesList(list || []));
       // 전파 일정(groupId, 라운지 아님) 수정 → 그룹 내용 갱신(다른 멤버 반영의 소스) + 변경 알림. 편집자는 즉시 반영되고,

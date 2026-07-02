@@ -470,7 +470,8 @@ export function DiaryScreen({ route, navigation }) {
     }
     } catch (e) {
       if (__DEV__) console.warn('[diary] save failed', e?.message);
-      showAppAlert('저장에 실패했어요', '네트워크 상태를 확인하고 다시 시도해주세요.');
+      // false 반환 — 모달이 열린 채 내부 오버레이로 안내(전역 알럿은 RN Modal 아래 깔림) + 입력 보존
+      return false;
     }
   };
 

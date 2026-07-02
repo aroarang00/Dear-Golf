@@ -146,7 +146,7 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
   const hasMore = sorted.length < total;          // 로드 안 된 더 오래된 댓글 존재 → "이전 댓글 보기"
   const atLimit = total >= COMMENT_MAX_TOTAL;      // 총 300개 도달 → 작성 차단
 
-  const submit = () => {
+  const submit = async () => {
     setError(null);
     // 익명 참여 중이면 작성자명을 랜덤닉으로 저장 — 월드리더블 댓글 문서에 실명 비저장(authorUid는 그대로=신고·책임성).
     const anonMe = Array.isArray(post?.anonymousUids) && post.anonymousUids.includes(myUid || myId);
@@ -157,8 +157,14 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
       else if (r.reason === 'empty') setError('댓글을 입력해주세요');
       return;
     }
-    onAdd?.(r.comment);
+    // 낙관적 비움 후 저장 실패 시 입력 복원 — 크루 댓글(CrewCommentScreen)과 동일 패턴.
+    //   실패 안내는 입력창 인라인 에러로(모달 위 전역 알럿 스택 문제 회피).
     setBody('');
+    const ok = await onAdd?.(r.comment);
+    if (ok === false) {
+      setBody(body);
+      setError('댓글 저장에 실패했어요. 잠시 후 다시 시도해주세요.');
+    }
   };
 
   // 댓글 신고 — content_reports(roundupComment) 기록. 1인 1회(멱등). 반환: 안내 문구.

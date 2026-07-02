@@ -362,7 +362,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (type === 'schedule') {
       let newS;
       try { newS = await addSchedule(data); }
-      catch (e) { console.warn('[mySchedule] add failed:', e?.message); showAppAlert('일정 저장에 실패했어요', '네트워크 상태를 확인하고 다시 시도해주세요.'); return; }
+      // 실패 시 false 반환 — 모달이 열린 채 내부 OverlayAlert로 안내(전역 알럿은 RN Modal 아래 깔림) + 입력 보존
+      catch (e) { console.warn('[mySchedule] add failed:', e?.message); return false; }
       // (캘린더 추가는 addSchedule이 일괄 처리)
       // 일정 추가 완료 → 알람 팝업.
       //   '이대로 자동'이면 전체 팝업 대신 '식사시각만' 묻는 가벼운 프롬프트(나머지는 저장설정대로 자동).
@@ -376,7 +377,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       try {
         const { id, createdAt, ownerUid, ...patch } = data;
         await editSchedule(data.id, patch);
-      } catch (e) { console.warn('[mySchedule] edit failed:', e?.message); showAppAlert('일정 수정에 실패했어요', '네트워크 상태를 확인하고 다시 시도해주세요.'); return; }
+      } catch (e) { console.warn('[mySchedule] edit failed:', e?.message); return false; } // 모달 유지 + 입력 보존
       // 전파 일정(groupId, 라운지 아님) 수정 → 그룹 내용 갱신 + 변경 알림. 다른 멤버는 자기 화면에서 '반영할까요?' 확인.
       //   구장·날짜는 잠금이라 time/members/booker/subCourse만 동기화. ([[schedule-propagation-spec]])
       if (oldS?.groupId && !oldS?.roundupId && currentUid) {
