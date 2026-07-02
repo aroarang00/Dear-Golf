@@ -479,7 +479,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
         </ScrollView>
       )}
 
-      <CrewIntroModal visible={showIntro} onClose={() => setShowIntro(false)} onCreatePress={() => setCreateOpen(true)} />
+      <CrewIntroModal visible={showIntro} onClose={() => setShowIntro(false)} onCreatePress={openCreate} />
     </SafeAreaView>
     </GestureHandlerRootView>
     </SafeAreaProvider>
