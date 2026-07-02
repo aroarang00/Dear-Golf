@@ -190,7 +190,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     if (!visible || !initialPost) return;
     setType(lockToFixed ? 'fixed' : (initialPost.type || 'fixed'));
     setCourseQuery(initialPost.course || '');
-    setCourse(initialPost.course ? { name: initialPost.course, loc: null, kakaoId: initialPost.courseKakaoId || null } : null);
+    // ★loc을 저장된 courseLoc으로 복원 — null로 두면 골프장을 재검색하지 않고 저장 시 courseLoc·region이
+    //   null로 덮여 좌표·지역분류가 소실됨(updateRoundupAsAuthor가 통째 덮어씀, 2026-07-02).
+    setCourse(initialPost.course ? { name: initialPost.course, loc: initialPost.courseLoc || null, kakaoId: initialPost.courseKakaoId || null } : null);
     setSubCourse(initialPost.subCourse || '');
     if (initialPost.date && initialPost.time) {
       const [y, m, d] = initialPost.date.split('.').map(Number);
