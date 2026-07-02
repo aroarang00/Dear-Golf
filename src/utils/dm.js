@@ -131,11 +131,7 @@ export async function sendImageMessageUrl(friendUid, imageUrl, owned = false, ex
   return msgRef.id;
 }
 
-// 단일 전송 — 업로드 후 메시지 생성(채팅 사진 보내기). owned=true(1파일:1메시지) → 언센드 시 Storage 파일도 정리.
-export async function sendImageMessage(friendUid, imageUri) {
-  const url = await uploadDmImage(imageUri);
-  return sendImageMessageUrl(friendUid, url, true);
-}
+// (단일 전송 sendImageMessage는 sendImagesMessage/sendImageMessageUrl로 대체돼 삭제 — 2026-07-02 감사)
 
 // 앨범 전송(모아보내기) — 여러 장을 모두 업로드해 한 메시지에 imageUrls 배열로(카톡식 묶음). owned=true(이 메시지가 N파일 단독소유 → 언센드 시 모두 정리).
 export async function sendImagesMessage(friendUid, uris) {

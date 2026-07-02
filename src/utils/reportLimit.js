@@ -34,12 +34,6 @@ export async function getReportRemainingThisMonth() {
   return Math.max(0, MONTH_LIMIT - used);
 }
 
-// 한도 도달 여부
-export async function isReportLimitReached() {
-  const used = await getReportCountThisMonth();
-  return used >= MONTH_LIMIT;
-}
-
 // 신고 1건 등록 시 호출 — 월이 바뀌었으면 새 달 카운트로 시작
 export async function incrementReportCount() {
   const ym = currentYearMonth();

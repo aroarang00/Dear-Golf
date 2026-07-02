@@ -1,13 +1,5 @@
-import {
-  NAVER_MAP_CLIENT_ID, NAVER_MAP_CLIENT_SECRET,
-} from '../constants/api';
-
-// 네이버 정적 지도 이미지를 RN <Image>로 불러올 때 함께 넘길 인증 헤더
-//  사용: <Image source={{ uri, headers: NAVER_MAP_HEADERS }} />
-export const NAVER_MAP_HEADERS = {
-  'x-ncp-apigw-api-key-id': NAVER_MAP_CLIENT_ID,
-  'x-ncp-apigw-api-key': NAVER_MAP_CLIENT_SECRET,
-};
+// (정적 지도 인증 헤더 NAVER_MAP_HEADERS는 어디서도 미사용이라 삭제 — 2026-07-02 감사.
+//  이 파일은 외부 네이버지도 검색 URL 생성 전용, 앱 내 네이버 API 호출 없음.)
 
 // 네이버 지도 검색 — 이름만 쓰면 동명 다른 지역(예: 양주 연습장 → 포항)으로 빠진다.
 //   loc(주소)에서 지역 토큰을 함께 실어 지역을 고정([[course-matching-accuracy]]). GuideScreen·CourseExploreTab 공용.

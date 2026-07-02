@@ -1100,7 +1100,7 @@ export function GuideScreen({ route, navigation }) {
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.burgundy }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(c.name, c.loc))} activeOpacity={0.8}
+                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(c.name, c.loc)).catch(() => {})} activeOpacity={0.8}
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#03C75A' }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>네이버정보</Text>
                 </TouchableOpacity>
@@ -1150,7 +1150,7 @@ export function GuideScreen({ route, navigation }) {
           {innerTab === 'food' && (() => {
             // 네이버 지도(스마트플레이스) 검색 열기
             const openNaverPlace = (q) => Linking.openURL(
-              `https://map.naver.com/v5/search/${encodeURIComponent(q)}`);
+              `https://map.naver.com/v5/search/${encodeURIComponent(q)}`).catch(() => {}); // 핸들러 부재 시 unhandled rejection 방지
 
             // 식당 객체 전용 — 식당명만으로 검색 시 동명 다른 지역 식당으로 빠지는 문제 방지.
             // loc(주소)에서 시/군/구 토큰을 함께 쿼리에 실어 정확도 ↑
@@ -1187,7 +1187,7 @@ export function GuideScreen({ route, navigation }) {
             const savedKeySet = new Set(savedFood.map(s => s.kakaoId || s.name));
             const mapNearby = nearbyFood.filter(r => !savedKeySet.has(r.kakaoId || r.name));
             // 네이버 지도(스마트플레이스)에서 골프장 주변 맛집 검색
-            const openNaverPlaces = () => Linking.openURL(naverSearchUrl(c.name, c.loc, '맛집'));
+            const openNaverPlaces = () => Linking.openURL(naverSearchUrl(c.name, c.loc, '맛집')).catch(() => {});
 
             return (
               <View>

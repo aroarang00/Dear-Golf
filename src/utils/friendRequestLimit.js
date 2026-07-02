@@ -24,11 +24,6 @@ export async function getFriendRequestCountToday() {
   return raw.count || 0;
 }
 
-export async function getFriendRequestRemainingToday() {
-  const used = await getFriendRequestCountToday();
-  return Math.max(0, DAILY_LIMIT - used);
-}
-
 export async function isFriendRequestLimitReached() {
   const used = await getFriendRequestCountToday();
   return used >= DAILY_LIMIT;
