@@ -555,8 +555,12 @@ export function HomeScreen({ navigation, route }) {
   const roundEnded = !!next && isEndedToday(next);
   // D-0(당일) — 메인 카드를 전폭으로 키우고 서브카드를 숨김(정보 박스 3개가 다 들어가게, 사용자 2026-06-18)
   const isD0 = !!next && freshDDay(next) === 0;
-  // 당일 체크인 카드 배너 — D-0이고 티오프 30분 후까지(프론트 체크인용), 종료(+4h) 전. 탭하면 공유 카드 전체화면 ([[schedule-booker]])
-  const checkinActive = !!next && isD0 && !roundEnded && now < teeoffMs(next) + 30 * 60000;
+  // 당일 체크인 카드 배너 — 티오프 2시간 전 ~ 티오프 30분 후 창에서만(프론트 체크인용), 종료(+4h) 전. 탭하면 공유 카드 전체화면 ([[schedule-booker]])
+  //   ★자정부터 종일 띄우지 않음(오후·야간 티인데 하루종일 떠 있던 오버 노출 해소, 2026-07-02) → 그 창 밖 D-0엔 헤더 슬롯이
+  //   이용안내(→향후 쇼핑)로 비워짐. now는 60초 틱(setInterval)으로 갱신돼 창 진입/이탈이 1분 내 자동 반영.
+  const checkinActive = !!next && isD0 && !roundEnded
+    && now >= teeoffMs(next) - 2 * 3600000
+    && now < teeoffMs(next) + 30 * 60000;
   const { width: winW } = useWindowDimensions();
   // 확대(디스플레이 줌) 대응 배율 — winW가 360 이상이면 정확히 1(정상, 무변화), 좁아질수록(확대 ON) 비례 축소.
   //   헤더 타이틀·날씨이모지가 함께 줄어 DM과 안 겹치게. 정상/확대를 깔끔히 구분(정상은 절대 안 건드림).
