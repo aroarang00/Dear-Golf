@@ -23,7 +23,7 @@ function Avatar({ n, c, size = 36, uri }) {
   );
 }
 
-export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], declinedUids = [], friends: friendsProp, onClose }) {
+export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], declinedUids = [], memberCap = MAX_MEMBERS, friends: friendsProp, onClose }) {
   const insets = useSafeAreaInsets();
   // 친구 목록 — 부모(앨범)가 이미 로드한 걸 prop으로 주면 재로드 안 함 → 로딩·높이 점프 0(2026-06-24).
   //   prop 미제공(멤버 화면 등)일 때만 자체 로드(하위호환). null=로딩.
@@ -46,7 +46,7 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
   }, [audienceUids, declinedUids]);
 
   const pool = useMemo(() => (friends || []).filter((f) => !memberUids.includes(f.id)), [friends, memberUids]);
-  const atMax = memberUids.length >= MAX_MEMBERS;   // 정원 — 더 못 받음
+  const atMax = memberUids.length >= memberCap;   // 정원 — 더 못 받음(크루별 memberCap, 기본 20·유료면 상향)
 
   // 행 탭 = 선택 토글(아직 전송 X). 상단 '초대 N'을 눌러야 실제로 보냄 — 보내기 전 자유롭게 가감.
   const toggle = (id) => {
@@ -96,7 +96,7 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
           )}
         </View>
         {atMax && (
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#B23B3B', paddingHorizontal: 18, paddingTop: 10 }}>정원({MAX_MEMBERS}명)이 찼어요.</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#B23B3B', paddingHorizontal: 18, paddingTop: 10 }}>정원({memberCap}명)이 찼어요.</Text>
         )}
         <ScrollView keyboardShouldPersistTaps="handled">
           {friends === null

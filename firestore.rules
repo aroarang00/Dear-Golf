@@ -57,7 +57,9 @@ service cloud.firestore {
         && request.resource.data.get('restrictUntil', null) == resource.data.get('restrictUntil', null)
         && request.resource.data.get('restrictReason', null) == resource.data.get('restrictReason', null)
         && request.resource.data.get('permanentPendingAppealUntil', null) == resource.data.get('permanentPendingAppealUntil', null)
-        && request.resource.data.get('permanentPendingReason', null) == resource.data.get('permanentPendingReason', null);
+        && request.resource.data.get('permanentPendingReason', null) == resource.data.get('permanentPendingReason', null)
+        // 등급 한도(entitlements) — 결제 검증한 CF(admin)만 상향. 본인 update로 자가 상향 차단(무료 우회 방지).
+        && request.resource.data.get('entitlements', null) == resource.data.get('entitlements', null);
     }
 
     // ===== users — 골퍼 프로필 (명함). MY 탭 = 친구 프로필 = 같은 스키마 =====
@@ -67,7 +69,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // 생성 시 제재·매너 필드를 끼워 넣지 못하게(신규 계정이 매너점수 뻥튀기 등 차단) — CF만 부여.
       allow create: if isOwner(uid) && request.resource.data.uid == uid
-        && !request.resource.data.keys().hasAny(['isRestricted', 'mannerScore', 'noshowCount', 'falseReportCount', 'restrictUntil', 'restrictReason', 'permanentPendingAppealUntil', 'permanentPendingReason']);
+        && !request.resource.data.keys().hasAny(['isRestricted', 'mannerScore', 'noshowCount', 'falseReportCount', 'restrictUntil', 'restrictReason', 'permanentPendingAppealUntil', 'permanentPendingReason', 'entitlements']);
       allow update: if isOwner(uid) && request.resource.data.uid == uid
         && sanctionFieldsUnchanged(); // 제재 자가해제·매너 조작 차단(서버 권위 필드 불변)
       allow delete: if isOwner(uid);
@@ -283,13 +285,16 @@ service cloud.firestore {
         || request.auth.uid in resource.data.audienceUids
       );
       // 생성: 본인이 creator, memberUids==[me], declinedUids==[] (셀프토글 전제)
+      //   ★memberCap은 생성 시 반드시 20 — 클라가 큰 정원(예: 999)으로 만들어 무료 우회하는 것 차단.
+      //     유료 확장은 생성 후 결제 검증한 CF(admin)가 memberCap을 상향(규칙 우회). 필드 부재는 기본 20으로 간주.
       allow create: if isSignedIn()
         && request.resource.data.creatorUid == request.auth.uid
         && request.resource.data.memberUids == [request.auth.uid]
         && request.resource.data.declinedUids == []
         && request.resource.data.audienceUids is list
         && request.resource.data.name is string
-        && request.resource.data.name.size() > 0;
+        && request.resource.data.name.size() > 0
+        && request.resource.data.get('memberCap', 20) == 20;
       // 초대 추가 — 멤버가 audience 추가 + declined 제거(재초대) + 이름맵. audience는 줄지 않음, declined는 늘지 않음.
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.memberUids
@@ -309,13 +314,13 @@ service cloud.firestore {
         && crewMaster()
         && changedKeysWithin(['name', 'themeColor', 'imageUrl', 'description', 'adminUids', 'updatedAt']);
       // 수락 — audience가 memberUids에 '자기 uid'만 토글(+이름)
-      //   ★정원 20명 서버 강제 — 클라 트랜잭션 가드만으론 변조 클라가 우회 가능해 규칙에서도 상한 확인.
-      //     수락은 +1이므로 수락 후 인원이 20 이하여야 함(향후 유료 확장 시 이 20을 memberCap 필드로 대체 예정).
+      //   ★정원 서버 강제 — 클라 트랜잭션 가드만으론 변조 클라가 우회 가능해 규칙에서도 상한 확인.
+      //     수락은 +1이므로 수락 후 인원이 그 크루 memberCap(기본 20, 유료면 CF가 상향) 이하여야 함.
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids
         && changedKeysWithin(['memberUids', 'names', 'updatedAt'])
         && selfMembershipToggled('memberUids')
-        && request.resource.data.memberUids.size() <= 20;
+        && request.resource.data.memberUids.size() <= resource.data.get('memberCap', 20);
       // 거절 — audience가 declinedUids 자기 토글
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids

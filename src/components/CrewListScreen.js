@@ -10,6 +10,8 @@ import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
+import { UserContext } from '../contexts/UserContext';
+import { maxCrewsOf } from '../utils/entitlements';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
   subscribeMyCrews, subscribeCrewInvites, createCrew, updateCrewProfile,
@@ -93,6 +95,7 @@ function AvatarStack({ avatars, total, max = 4 }) {
 export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId, onReopenConsumed }) {
   useScreenBack(true, onClose);
   const currentUid = useCurrentUid();
+  const { userProfile } = React.useContext(UserContext);   // 등급 한도(entitlements.maxCrews) 읽기용
 
   const [crewDocs, setCrewDocs] = useState(null);    // 내 크루 원본 doc (null=로딩 중)
   const [inviteDocs, setInviteDocs] = useState([]);  // 내게 온 초대 doc
@@ -263,9 +266,27 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
   };
   const rejectInvite = (iv) => { if (currentUid) declineCrewInvite(iv.id, currentUid).catch(e => __DEV__ && console.warn('[crew] decline invite', e?.message)); };
 
+  // 내가 만든 크루 개수 상한 — entitlements.maxCrews(기본 5, 결제로 상향). 참여·초대받은 크루는 무제한. 초과 시 새 생성 차단(기존 유지).
+  //   ★클라 가드 = 즉시 피드백(UX). 진짜 우회 차단(서버 강제)은 생성 CF(별도 단계). 유료화 = users.entitlements.maxCrews↑.
+  const myCreatedCount = () => (crewDocs || []).filter((d) => d?.creatorUid === currentUid).length;
+  const maxCrews = maxCrewsOf(userProfile);
+  const atCrewCreateLimit = () => myCreatedCount() >= maxCrews;
+  const openCreate = () => {
+    if (atCrewCreateLimit()) {
+      showAppAlert(`크루는 최대 ${maxCrews}개까지 만들 수 있어요`, '새 크루를 만들려면 기존 크루를 정리한 뒤 다시 시도해주세요.');
+      return;
+    }
+    setCreateOpen(true);
+  };
+
   const handleCreate = async ({ name, friendUids = [], names = {}, creatorName = '', themeColor = '', description = '', photoUri = null }) => {
     setCreateOpen(false);
     if (!currentUid) { showAppAlert('잠시만요', '로그인 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
+    // 안전 재확인 — 폼 진입~제출 사이 다른 기기에서 늘었을 수 있어 제출 시점에 다시 상한 검사.
+    if (atCrewCreateLimit()) {
+      showAppAlert(`크루는 최대 ${maxCrews}개까지 만들 수 있어요`, '새 크루를 만들려면 기존 크루를 정리한 뒤 다시 시도해주세요.');
+      return;
+    }
     try {
       const id = await createCrew({ creatorUid: currentUid, creatorName, name, friendUids, names, themeColor, description });
       if (!id) { showAppAlert('만들기 실패', '잠시 후 다시 시도해주세요.'); return; }
@@ -348,7 +369,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
           <Icon name="book" size={fs(23)} color={SAGE_DEEP} strokeWidth={1.8} />
         </TouchableOpacity>
         {/* 크루 만들기 — '＋ 만들기'로 명확히(친구초대 personAdd 아이콘과 혼동 방지). personAdd는 앨범·멤버서 초대 전용 */}
-        <TouchableOpacity onPress={() => setCreateOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+        <TouchableOpacity onPress={openCreate} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: SAGE_DEEP,
             borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#fff', marginTop: -1 }}>＋</Text>

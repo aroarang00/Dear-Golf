@@ -39,6 +39,7 @@ export async function createCrew({ creatorUid, creatorName = '', name, friendUid
     memberUids: [creatorUid],
     audienceUids: aud,
     declinedUids: [],
+    memberCap: MAX_MEMBERS,      // 멤버 정원 — 생성 시 기본 20(규칙이 create 때 20 고정). 유료 확장은 결제 검증한 CF만 상향.
     names: { [creatorUid]: creatorName || '', ...names },
     notice: '',
     postCount: 0,
@@ -126,7 +127,8 @@ export async function acceptCrewInvite(crewId, uid, myName = '') {
     if (!snap.exists()) throw new Error('not-found');
     const members = Array.isArray(snap.data().memberUids) ? snap.data().memberUids : [];
     if (members.includes(uid)) return;                          // 이미 멤버 — 멱등
-    if (members.length >= MAX_MEMBERS) throw new Error('full');  // 정원 초과
+    const cap = Number.isFinite(snap.data().memberCap) ? snap.data().memberCap : MAX_MEMBERS; // 크루별 정원(유료 확장 반영)
+    if (members.length >= cap) throw new Error('full');          // 정원 초과
     const upd = { memberUids: arrayUnion(uid), updatedAt: serverTimestamp() };
     if (myName) upd[`names.${uid}`] = myName;
     tx.update(ref, upd);

@@ -408,6 +408,36 @@ test('crews: 정원 20명 초과 수락 거부 (서버 강제)', async () => {
     { memberUids: arrayUnion('bob'), updatedAt: serverTimestamp() }));
 });
 
+test('crews: 생성 시 memberCap>20 위조 거부, ==20은 허용 (무료 정원 우회 차단)', async () => {
+  await assertFails(setDoc(doc(as('alice'), 'crews', 'cBig'), {
+    creatorUid: 'alice', name: 'X', memberUids: ['alice'], audienceUids: [], declinedUids: [],
+    memberCap: 999, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }));
+  await assertSucceeds(setDoc(doc(as('alice'), 'crews', 'cOk'), {
+    creatorUid: 'alice', name: 'Y', memberUids: ['alice'], audienceUids: [], declinedUids: [],
+    memberCap: 20, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }));
+});
+
+test('crews: 유료 확장(memberCap 50)이면 20명 초과 수락 허용', async () => {
+  const fill = (n) => Array.from({ length: n }, (_, i) => `u${i}`);
+  // memberCap 50 크루에 20명 채운 상태 + bob 수락 = 21 <= 50 → 허용 (CF가 memberCap 올린 시나리오)
+  await seed((db) => setDoc(doc(db, 'crews', 'c1'), {
+    creatorUid: 'alice', name: '수요회', memberCap: 50,
+    memberUids: ['alice', ...fill(19)], audienceUids: ['bob'], declinedUids: [],
+    names: {}, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews', 'c1'),
+    { memberUids: arrayUnion('bob'), updatedAt: serverTimestamp() }));
+});
+
+test('users: entitlements는 본인이 못 올림(자가 상향 차단, CF만)', async () => {
+  await seed((db) => setDoc(doc(db, 'users', 'alice'), { uid: 'alice', nickname: 'A' }));
+  // 본인 update로 entitlements 부여/상향 — 거부(무료 우회 차단)
+  await assertFails(updateDoc(doc(as('alice'), 'users', 'alice'),
+    { uid: 'alice', entitlements: { maxCrews: 999 } }));
+});
+
 test('crews: 멤버는 친구 초대(audience 추가), 외부인 거부', async () => {
   await seed((db) => seedCrew(db, ['alice', 'bob'], []));
   await assertSucceeds(updateDoc(doc(as('bob'), 'crews', 'c1'),

@@ -293,7 +293,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
       {inviteOpen && (
         <CrewInviteSheet crewId={crewId} memberUids={memberUids}
           audienceUids={crewDoc?.audienceUids || []} declinedUids={crewDoc?.declinedUids || []}
-          friends={friends} onClose={() => setInviteOpen(false)} />
+          memberCap={crewDoc?.memberCap} friends={friends} onClose={() => setInviteOpen(false)} />
       )}
 
       {/* 나가기 확인 */}

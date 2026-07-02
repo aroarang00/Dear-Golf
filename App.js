@@ -389,6 +389,8 @@ function App() {
           // 카카오 연동 상태 — Firestore가 권위 (재설치 후 자동 복원)
           if (typeof data.kakaoLinked === 'boolean') next.kakaoLinked = data.kakaoLinked;
           if (data.kakaoId) next.kakaoId = data.kakaoId;
+          // 등급 한도(entitlements) — 결제 검증한 CF만 상향(users 규칙이 클라 변경 차단). 읽기만 반영 → 유료 확장 시 앱이 자동 인식.
+          if (data.entitlements) next.entitlements = data.entitlements;
           // 더 최근 변경 시각이 권위
           const remoteLast = data.lastNicknameChange;
           const localLast = prev.lastNicknameChange;
