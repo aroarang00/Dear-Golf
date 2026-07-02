@@ -81,11 +81,12 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   useEffect(() => {
     if (visible && initial) {
       setCourseSearch(initial.course || '');
-      // 기존 일정에 courseId가 있으면 USER_COURSES에서 로드
-      if (initial.courseId) {
-        findUserCourseById(initial.courseId).then(c => {
-          if (c) setSelected(c);
-        });
+      // ★저장된 코스 정보로 즉시 시드 — 복원을 findUserCourseById(로컬 USER_COURSES)에만 의존하면, 캐시 미스
+      //   (재설치·타기기)나 비동기 로드 레이스로 selected=null이 돼 시간만 바꿔 저장해도 loc·kakaoId·courseId가
+      //   소실되던 것 방지(코스명만 생존, 2026-07-02). 로컬에 있으면 아래에서 전체 객체(x·y 등)로 업그레이드.
+      if (initial.courseId || initial.courseLoc || initial.courseKakaoId) {
+        setSelected({ id: initial.courseId || null, name: initial.course || '', loc: initial.courseLoc || null, kakaoId: initial.courseKakaoId || null });
+        if (initial.courseId) findUserCourseById(initial.courseId).then(c => { if (c) setSelected(c); });
       } else {
         setSelected(null);
       }
