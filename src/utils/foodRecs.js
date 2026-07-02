@@ -1,6 +1,6 @@
 import { storage, STORAGE_KEYS } from './storage';
 import { db, getUid } from './firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // 사용자가 추천(♥)한 맛집 — 로컬 캐시 + Firestore(users/{uid}.foodRecs) 영속 백업.
 // 구조: { [kakaoId]: true }  (재설치/타기기 보존, savedRestaurants와 동일 패턴·규칙 변경 불필요). [[data-migration]]
@@ -24,7 +24,15 @@ async function pushFoodRecsToFirestore(recs) {
   try {
     const uid = await getUid();
     if (!uid) return;
-    await setDoc(doc(db, 'users', uid), { uid, foodRecs: recs || {}, updatedAt: serverTimestamp() }, { merge: true });
+    const ref = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
+    // ★updateDoc으로 foodRecs 맵 전체 교체 — merge:true면 깊은 병합이라 해제한 ♥ 키가 Firestore에 남아
+    //   재시작·타기기 union 복원 때 되살아남(친구 별명 setFriendMeta와 동일 함정, 2026-07-02). 없으면 생성만 setDoc.
+    if (snap.exists()) {
+      await updateDoc(ref, { foodRecs: recs || {}, updatedAt: serverTimestamp() });
+    } else {
+      await setDoc(ref, { uid, foodRecs: recs || {}, updatedAt: serverTimestamp() });
+    }
   } catch (e) { if (__DEV__) console.warn('[foodRecs] push 실패', e?.message); }
 }
 // 시작 시 복원 — Firestore와 로컬 맵 union(♥ 키 합집합). 프레시 설치=Firestore로 복원.
