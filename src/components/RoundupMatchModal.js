@@ -24,9 +24,10 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
 
   useEffect(() => {
     if (visible) {
-      // 처음 열 때 아무것도 안 골라져 있으면 '선택해야 하는지' 모를 수 있어 기본 1개(주말 1부) 선택해 보여줌.
-      // 저장 전엔 영향 없고, 원하면 해제 가능.
-      setSlots(initial?.slots?.length ? initial.slots : ['weekend-1']);
+      // 처음 열 때(slots 미설정) '선택해야 하는지' 모를 수 있어 기본 1개(주말 1부) 선택해 보여줌.
+      // ★단, 사용자가 전부 해제해 저장한 '시간대 무관'(빈 배열)은 그대로 존중 — Array.isArray로 미설정(undefined)과
+      //   의도적 빈 배열을 구분. 안 그러면 재진입·재저장 시 무관이 weekend-1로 되돌아감(2026-07-02).
+      setSlots(Array.isArray(initial?.slots) ? initial.slots : ['weekend-1']);
       setDateFrom(initial?.dateFrom || null);
       setDateTo(initial?.dateTo || null);
       setShowPicker(null);
