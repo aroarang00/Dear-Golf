@@ -1232,8 +1232,13 @@ export function HomeScreen({ navigation, route }) {
                             </Text>
                           );
                         })()}
+                        {/* iOS는 marginTop:'auto'의 남는 세로공간으로 준비물↔'오늘 라운딩'이 벌어지지만, 안드는 구장명
+                            폰트가 커(fs21) 그 공간을 다 먹어 붙어 보임 → 안드에만 한 줄 간격 확보(사용자 2026-07-02).
+                            ★단 세부구장 줄이 있으면 고정높이(CARD_H) 카드가 넘쳐 '일정 보기'가 함께식사 밑으로 밀리므로
+                              세부구장 있을 땐 이 간격을 뺌(그 줄이 이미 내용을 채움). */}
+                        {Platform.OS === 'android' && !(next.subCourse || '').trim() && <View style={{ height: 14 }} />}
                         {/* 당일은 큰 'D-0' 숫자 대신 '오늘 라운딩' 강조 — 오늘인 게 한눈에 + 코랄 포인트 유지. 탭하면 일정 시트(기존 D-0 탭 대체). */}
-                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: Platform.OS === 'ios' ? 8 : 16, alignSelf: 'flex-start' }}>
+                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: Platform.OS === 'ios' ? 8 : ((next.subCourse || '').trim() ? 6 : 16), alignSelf: 'flex-start' }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                             <Text style={{ fontFamily: F.sysB, fontSize: fs(21), lineHeight: fs(27), color: '#DD6E58' }}>오늘 라운딩</Text>
                             <GreenFlag size={fs(28)} />{/* ⛳ 이모지 → 우리 골프 깃발(코랄·그린, 텍스트색과 통일) */}
