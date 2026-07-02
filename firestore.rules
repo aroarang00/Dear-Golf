@@ -685,13 +685,13 @@ service cloud.firestore {
         || resource.data.reportedUid == request.auth.uid
       );
 
-      allow create: if isSignedIn()
-        && request.resource.data.reporterUid == request.auth.uid
-        && request.resource.data.reportedUid is string
-        && request.resource.data.reportedUid != request.auth.uid
-        && request.resource.data.roundupId is string
-        && request.resource.data.reason is string
-        && request.resource.data.status == 'pending_grace_period';
+      // ★생성 잠금 (2026-07-02 보안 감사) — 노쇼 신고 기능은 현재 휴면(UI 진입점 없음)인데
+      //   규칙+CF(noshowSlaTick·onNoshowReportUpdated)는 라이브라, 열어두면 공격자가 SDK로
+      //   임의 피해자에게 직접 신고 문서를 써서 참여검증 없이 자동 정지(매너-20·60일·영구대기)를
+      //   유발할 수 있었다. 피해자는 소명 UI도 없어 방어 불가 → create 차단.
+      //   ★기능을 실제 켤 때 다시 열되: (1) roundup get()으로 신고자·피신고자 둘 다
+      //     participantUids 포함 검증 (2) 결정적 ID {roundupId}_{reporterUid}_{reportedUid}로 중복 차단.
+      allow create: if false;
 
       // update 2분기: 신고자 자율 취소 / 피신고자 소명 제출
       allow update: if isSignedIn() && (

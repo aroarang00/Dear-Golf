@@ -573,3 +573,21 @@ test('roundupNotifications: 과대 actorName·postTitle 도배 페이로드 — 
   await assertFails(setDoc(doc(as('alice'), 'roundupNotifications', 'n7'),
     { type: 'apply', actorUid: 'alice', recipientUid: 'bob', postTitle: big, read: false }));
 });
+
+// 보안 감사 2026-07-02 — 노쇼 신고는 휴면인데 CF는 라이브. 임의 피해자 자동제재 유발을 막기 위해 create 차단.
+test('noshowReports: 신고 생성은 완전 차단(griefing 자동제재 방지)', async () => {
+  await assertFails(setDoc(doc(as('alice'), 'noshowReports', 'nr1'),
+    { reporterUid: 'alice', reportedUid: 'bob', roundupId: 'p1', reason: 'noshow',
+      status: 'pending_grace_period', createdAt: serverTimestamp() }));
+});
+
+test('noshowReports: 신고자·피신고자는 자기 관련 문서 read 가능(있을 때)', async () => {
+  // 문서는 CF로만 처리됨 — 규칙상 read는 당사자만. seed(규칙 우회)로 넣고 read 권한만 검증.
+  await seed(async (db) => {
+    await setDoc(doc(db, 'noshowReports', 'nr2'),
+      { reporterUid: 'alice', reportedUid: 'bob', roundupId: 'p1', reason: 'noshow', status: 'confirmed_noshow' });
+  });
+  await assertSucceeds(getDoc(doc(as('alice'), 'noshowReports', 'nr2')));
+  await assertSucceeds(getDoc(doc(as('bob'), 'noshowReports', 'nr2')));
+  await assertFails(getDoc(doc(as('carol'), 'noshowReports', 'nr2')));
+});
