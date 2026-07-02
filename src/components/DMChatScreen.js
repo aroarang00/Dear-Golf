@@ -526,8 +526,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const handlePickImage = useCallback(async () => {
     if (auth.currentUser?.isAnonymous) { requireKakaoLink(() => handlePickImage()); return; }
     try {
-      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      // 권한 — 요청 결과까지 확인(거부 시 빈 피커가 떴다 닫혀 '안 됨'으로 보이던 것 방지, 카메라 경로와 동일 패턴)
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setAlert({ title: '사진 접근 권한이 필요해요', message: '사진·동영상을 보내려면\n설정에서 사진 접근을 허용해주세요.', buttons: [{ text: '확인' }] });
+        return;
+      }
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: 10, quality: 1, videoMaxDuration: 60 });
       if (res.canceled) return;
       const assets = res.assets || [];

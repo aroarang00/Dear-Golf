@@ -200,11 +200,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     if (remaining <= 0) return;
     setPhotoBusy(true); // 처리 끝날 때까지 저장 비활성 — 경합으로 사진 누락 방지
     try {
-      // 사진첩 접근 권한 — 안드 일부/구버전·릴리즈 빌드에서 권한 없으면 갤러리가 조용히 안 열림.
-      //   안드13+ 포토피커는 권한 없이도 동작하므로, 거부여도 일단 시도하고 열기 실패 시에만 안내(작동하는 피커 차단 방지).
-      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      // 사진첩 접근 권한 — 요청 결과까지 확인. 영구거부 상태로 launch를 강행하면 iOS·구안드에서
+      //   빈 피커가 떴다 닫혀 '선택해도 안 됨'(조용한 실패)이 됐다 — 크루글 영상 경로와 동일 패턴으로 안내 후 중단.
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (!perm.granted && perm.canAskAgain) {
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+        perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
+      if (!perm.granted) {
+        setOverlay({ title: '사진 접근 권한이 필요해요', message: '설정 > 권한에서 사진·동영상 접근을 허용해주세요.' });
+        return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images', 'videos'],

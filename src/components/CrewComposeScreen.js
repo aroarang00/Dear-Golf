@@ -170,8 +170,10 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   const addPhoto = async () => {
     if (full || posting) return;
     try {
-      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      // 권한 — 영상 경로(addVideo)와 동일하게 요청 결과까지 확인(영구거부 시 빈 피커가 떴다 닫혀 '안 됨'으로 보이던 것 방지)
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { showAppAlert('사진 접근 권한이 필요해요', '설정 > 권한에서 사진·동영상 접근을 허용해주세요.'); return; }
       const remaining = MAX_MEDIA - media.length;
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: remaining, quality: 1 });
       if (res.canceled) return;

@@ -30,8 +30,10 @@ export function CrewEditScreen({ crew, onClose }) {
 
   const pickImage = async () => {
     try {
-      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      // 권한 — 요청 결과까지 확인(거부 시 빈 피커가 떴다 닫혀 '안 됨'으로 보이던 것 방지, 크루글 영상 경로와 동일 패턴)
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { showAppAlert('사진 접근 권한이 필요해요', '설정 > 권한에서 사진 접근을 허용해주세요.'); return; }
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: false, quality: 1 });
       if (!res.canceled && res.assets?.[0]?.uri) setPhotoUri(res.assets[0].uri);
     } catch (e) { if (__DEV__) console.warn('[crewEdit] pickImage', e?.message); }

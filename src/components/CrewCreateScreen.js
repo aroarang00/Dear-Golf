@@ -10,6 +10,7 @@ import { loadMyFriendsEnriched } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewAvatar } from './common/CrewAvatar';
 import { CREW_COLORS, DESC_MAX } from '../utils/crews';
+import { showAppAlert } from './AppAlert';
 
 // 크루 만들기 — 리스트 헤더 ＋에서 진입 (docs/crew-space-design.md §3.3).
 //  이름 + 친구 초대(다중). 인원 20명 한도. 비속어 필터. 페일스카이 라이트.
@@ -35,8 +36,10 @@ export function CrewCreateScreen({ onClose, onCreate }) {
   // 프로필 사진 선택 — 앨범에서 단일 이미지(유저 프로필 패턴). 생성 시 업로드.
   const pickImage = async () => {
     try {
-      const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
-      if (!perm.granted && perm.canAskAgain) await ImagePicker.requestMediaLibraryPermissionsAsync();
+      // 권한 — 요청 결과까지 확인(거부 시 빈 피커가 떴다 닫혀 '안 됨'으로 보이던 것 방지, 크루글 영상 경로와 동일 패턴)
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { showAppAlert('사진 접근 권한이 필요해요', '설정 > 권한에서 사진 접근을 허용해주세요.'); return; }
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: false, quality: 1 });
       if (!res.canceled && res.assets?.[0]?.uri) setPhotoUri(res.assets[0].uri);
     } catch (e) { if (__DEV__) console.warn('[crewCreate] pickImage', e?.message); }
