@@ -309,10 +309,13 @@ service cloud.firestore {
         && crewMaster()
         && changedKeysWithin(['name', 'themeColor', 'imageUrl', 'description', 'adminUids', 'updatedAt']);
       // 수락 — audience가 memberUids에 '자기 uid'만 토글(+이름)
+      //   ★정원 20명 서버 강제 — 클라 트랜잭션 가드만으론 변조 클라가 우회 가능해 규칙에서도 상한 확인.
+      //     수락은 +1이므로 수락 후 인원이 20 이하여야 함(향후 유료 확장 시 이 20을 memberCap 필드로 대체 예정).
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids
         && changedKeysWithin(['memberUids', 'names', 'updatedAt'])
-        && selfMembershipToggled('memberUids');
+        && selfMembershipToggled('memberUids')
+        && request.resource.data.memberUids.size() <= 20;
       // 거절 — audience가 declinedUids 자기 토글
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids

@@ -396,6 +396,18 @@ test('crews: 초대 수락은 본인 uid만 토글, 외부인 거부', async () 
     { memberUids: arrayUnion('carol'), updatedAt: serverTimestamp() }));
 });
 
+test('crews: 정원 20명 초과 수락 거부 (서버 강제)', async () => {
+  const fill = (n) => Array.from({ length: n }, (_, i) => `u${i}`);
+  // 19명(alice + u0..u17) + bob 수락 = 20명 → 허용(캡 이하)
+  await seed((db) => seedCrew(db, ['alice', ...fill(18)], ['bob']));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'crews', 'c1'),
+    { memberUids: arrayUnion('bob'), updatedAt: serverTimestamp() }));
+  // 20명(alice + u0..u18) 꽉 참 + bob 수락 = 21명 → 거부(캡 초과 서버 차단)
+  await seed((db) => seedCrew(db, ['alice', ...fill(19)], ['bob']));
+  await assertFails(updateDoc(doc(as('bob'), 'crews', 'c1'),
+    { memberUids: arrayUnion('bob'), updatedAt: serverTimestamp() }));
+});
+
 test('crews: 멤버는 친구 초대(audience 추가), 외부인 거부', async () => {
   await seed((db) => seedCrew(db, ['alice', 'bob'], []));
   await assertSucceeds(updateDoc(doc(as('bob'), 'crews', 'c1'),
