@@ -304,6 +304,7 @@ exports.onCrewDeleted = onDocumentDeleted(
         (Array.isArray(d.data().media) ? d.data().media : []).forEach((m) => {
           if (m?.uri) urls.push(m.uri);
           if (m?.poster) urls.push(m.poster);
+          if (m?.thumb) urls.push(m.thumb);   // 크루 피드 작은 썸네일 — 누락돼 고아로 새던 것 보강(2026-07-03)
         });
       });
       logger.info('[crewDeleted] media collected', crewId, 'posts=', postsSnap.size, 'media=', urls.length);
@@ -324,6 +325,35 @@ exports.onCrewDeleted = onDocumentDeleted(
     logger.info('[crewDeleted] done', crewId, 'media=', urls.length);
   },
 );
+
+// 라운드(다이어리) 문서 삭제 시 — Storage 미디어(rounds/{uid}/…) 정리 (2026-07-03 감사 티어2).
+//   photos[] 항목: 문자열(https) 또는 { uri, poster, thumb } 객체. 나만보기 사진은 dgphoto: 로컬 식별자라
+//   storagePathFromUrl이 null → 자연 스킵. 스코어 공유(photos:[])·크루 게시글(자체 업로드)은 이 URL을
+//   재참조하지 않아(확인 2026-07-03) 여기서 지워도 다른 문서가 깨지지 않음.
+//   rounds/ 경로만 삭제(방어) — 혹시 다른 경로 URL이 섞여 있어도 아바타·크루 이미지를 건드리지 않게.
+exports.onRoundDeleted = onDocumentDeleted('rounds/{roundId}', async (event) => {
+  const d = event.data?.data();
+  if (!d) return;
+  const urls = [];
+  (Array.isArray(d.photos) ? d.photos : []).forEach((p) => {
+    if (typeof p === 'string') { urls.push(p); return; }
+    if (p && typeof p === 'object') {
+      if (p.uri) urls.push(p.uri);
+      if (p.poster) urls.push(p.poster);
+      if (p.thumb) urls.push(p.thumb);
+    }
+  });
+  if (!urls.length) return;
+  const bucket = getStorage().bucket();
+  for (let i = 0; i < urls.length; i += 10) {
+    await Promise.all(urls.slice(i, i + 10).map(async (u) => {
+      const path = storagePathFromUrl(u);
+      if (!path || !path.startsWith('rounds/')) return;
+      try { await bucket.file(path).delete(); } catch (e) { logger.warn('[roundDeleted] media del', path, e?.message); }
+    }));
+  }
+  logger.info('[roundDeleted] done', event.params.roundId, 'media=', urls.length);
+});
 
 // 스코어 공유 생성 시 audience(동반자)에게 푸시 — MY 배너가 인앱 담당, 푸시로 발견성 보강(사용자 요청 2026-06-17).
 exports.onScoreShareCreated = onDocumentCreated('roundScoreShares/{shareId}', async (event) => {
