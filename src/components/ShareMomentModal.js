@@ -353,7 +353,9 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 ? (moment?.scope !== 'all'
                     ? '친구공개 모집이에요. 주최자와 친구가 아닌 분껜 공유해도 모집이 보이지 않아요 —\n먼저 친구를 맺어야 모집을 보고 참여할 수 있어요.'
                     : '누구나 볼 수 있는 모집이에요. 자유롭게 공유하세요.')
-                : (isSchedule || isInvite) && onShareLink
+                : isInvite && onShareLink
+                  ? '‘링크 공유’로 초대 문구와 설치 링크가 한 메시지로 가요.\n카드는 ‘이미지 저장’ 후 인스타 스토리 등에 활용하세요.'
+                : isSchedule && onShareLink
                   ? '‘공유하기’는 카드 이미지만 전송돼요(링크 없음).\n받는 분이 바로 열어볼 수 있게 ‘링크 공유’도 함께 보내주세요.'
                   : (isSchedule || isInvite || isRound)
                     ? '카드 이미지로 공유돼요.\nDear Golf 마크가 들어가요.'
@@ -363,7 +365,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
             {/* 공유 옵션 — 종류별 순서. 링크 공유가 가장 중요(받는 분 바로 열람·설치 funnel)라 링크 있는 종류는 최상단.
                 · 모집/일정(링크+DM): 링크 → 디엠 공유하기 → 카드 이미지 공유하기 → 이미지 저장
                 · 라운딩기록(링크 없음): 공유하기 → 디엠 공유하기 → 이미지 저장
-                · 친구 초대(DM 없음): 공유하기 → 링크 공유 → 이미지 저장
+                · 친구 초대(DM 없음): 링크 공유하기 → 이미지 저장 (이미지 공유 제거 — 받는 분이 탭할 게 없음)
                 카카오톡 공유는 딥링크 미연동으로 보류([[invite-deeplink-system]]). */}
             <View style={{ gap: 8, marginTop: 16 }}>
               {(() => {
@@ -378,7 +380,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: fg }}>{label}</Text>
                   </TouchableOpacity>
                 );
-                const link = onShareLink ? btn('link', '🔗', '링크 공유', C.navy, '#fff') : null;
+                const link = onShareLink ? btn('link', '🔗', isInvite ? '링크 공유하기' : '링크 공유', C.navy, '#fff') : null;
                 // 라운딩기록은 '디엠으로 보내기'(현행), 모집·일정은 '디엠 공유하기'.
                 const dm = !isInvite ? btn('dm', '💬', isRound ? '디엠으로 보내기' : '디엠 공유하기', '#6B1E2A', '#F5E6A8') : null;
                 // 크루 공유 — 모집만. 내 크루 '진행 중인 모집' 핀에 카드로(라운지 모집과 동일 진입).
@@ -387,7 +389,9 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 const shareLabel = sharing ? '공유 준비 중...' : ((isRoundup || isSchedule) ? '카드 이미지 공유하기' : '공유하기');
                 const share = btn('share', '📤', shareLabel, C.charcoal, '#fff');
                 const save = btn('save', '🖼', saving ? '저장 중...' : '이미지 저장', C.butter, C.charcoal);
-                const order = isInvite ? [share, link, save]
+                // 초대=이미지 공유 제거 — 이미지만 가면 받는 분이 탭할 게 없어 의미 없음(사용자 2026-07-03).
+                //   링크 공유(평문) 단일 + 이미지는 저장(인스타 등 탭 안 되는 매체용, QR이 링크 담당).
+                const order = isInvite ? [link, save]
                   : isRound ? [share, dm, save]
                   : isRoundup ? [link, dm, crew, share, save]
                   : [link, dm, share, save];

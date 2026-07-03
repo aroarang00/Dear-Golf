@@ -8,8 +8,8 @@ import { F, fs } from '../constants/colors';
 //   cream + 따뜻한 그라데이션, Lora 이탤릭 "Dear Golf", 삼색 미니스트라이프.
 // ★텍스트 난무 방지(사용자 지시): 랜딩의 '플로팅 글래스 카드 스택'을 미니어처로 재현해 앱을 "보여준다".
 //   blur(backdrop-filter)는 ViewShot 캡처에서 깨지므로 반투명 그라데이션으로 근사(룩 동일).
-// ★우하단 QR(deargolf.app) — 카드는 이미지라 클릭 링크 불가. 탭 안 되는 매체(인스타 스토리·카톡 프로필)
-//   유입 대비. 클릭 링크는 카드와 별개로 평문 공유('링크 공유')가 담당 ([[invite-deeplink-system]]).
+// ★하단 QR(deargolf.app) — 카드는 이미지라 클릭 링크 불가. 탭 안 되는 매체(인스타 스토리·카톡 프로필)
+//   유입 대비. 클릭 링크는 카드와 별개로 평문 공유('링크 공유하기')가 담당 ([[invite-deeplink-system]]).
 // ※ 미니카드 텍스트는 fs() 최소 12 클램프를 피해 고정 px(캡처 이미지라 폰트스케일과 무관).
 //   슬로건/헤드라인은 가독성 위해 fs() 사용 ([[brand-slogan]]).
 
@@ -60,8 +60,8 @@ export function FriendInviteCard({ width = 320 }) {
           <View style={{ flex: 1, backgroundColor: BURGUNDY }} />
         </View>
 
-        {/* 미니 카드 스택 — 앱 미리보기(랜딩 글래스 카드 근사) */}
-        <View style={{ width: '100%', alignItems: 'center', marginTop: 26 }}>
+        {/* 미니 카드 스택 — 앱 미리보기(랜딩 글래스 카드 근사). marginTop 26→20: 하단 QR 확대분 세로 보정 */}
+        <View style={{ width: '100%', alignItems: 'center', marginTop: 20 }}>
           {/* 카드1: 예정 라운딩(차콜) */}
           <View style={[{ width: '84%', borderRadius: 13, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(245,230,168,0.3)', transform: [{ rotate: '-2.2deg' }, { translateX: -7 }] }, cardShadow]}>
             <LinearGradient colors={['rgba(74,69,63,0.96)', 'rgba(42,38,34,0.98)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ paddingHorizontal: 13, paddingVertical: 12 }}>
@@ -95,17 +95,21 @@ export function FriendInviteCard({ width = 320 }) {
         </View>
 
         {/* 슬로건 */}
-        <Text style={{ fontFamily: F.sys, fontSize: fs(12), lineHeight: fs(12) * 1.5, color: CHARCOAL_SOFT, textAlign: 'center', marginTop: 24 }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12), lineHeight: fs(12) * 1.5, color: CHARCOAL_SOFT, textAlign: 'center', marginTop: 18 }}>
           라운딩의 모든 순간을 <Text style={{ fontFamily: F.sysSb, color: BURGUNDY }}>더 특별하게</Text>
         </Text>
-        {/* 슬로건 밑 설치 단서 — 글자 밑 허전함 해소(사용자 지시). QR엔 텍스트 빼고 QR만 */}
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: CHARCOAL, letterSpacing: 0.5, textAlign: 'center', marginTop: 12 }}>deargolf.app</Text>
-      </View>
-
-      {/* 우상단 QR — 하단 슬로건/deargolf.app과 붙던 것 분리(사용자 2026-06-14). deargolf.app 텍스트는 하단 유지 */}
-      <View style={{ position: 'absolute', right: 16, top: 14 }}>
-        <View style={{ backgroundColor: 'rgba(255,255,255,0.72)', padding: 4, borderRadius: 6 }}>
-          <QRCode value="https://deargolf.app" size={42} color={CHARCOAL} backgroundColor="transparent" />
+        {/* 하단 QR + deargolf.app 묶음 — 우상단 42px QR이 실스캔 실패(작은 크기+여백 부족, 카톡 재압축까지 겹침)해
+            하단 설치 단서 자리로 통합·확대(사용자 2026-07-03). 흰 배경 불투명+패딩 8=quiet zone 확보.
+            QR=좌측 끝, deargolf.app=카드 가운데(absolute 중앙 오버레이 — QR 폭과 무관하게 정중앙, 사용자 지시). */}
+        <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+          {/* marginLeft -14: 컨텐츠 패딩(26) 안쪽으로 파고들어 중앙 안내문구와 간격 확보(붙어 보임 피드백) */}
+          <View style={{ marginLeft: -14, backgroundColor: '#fff', padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(61,57,53,0.12)' }}>
+            <QRCode value="https://deargolf.app" size={58} color={CHARCOAL} backgroundColor="#fff" />
+          </View>
+          <View style={{ position: 'absolute', left: 0, right: 0, alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: CHARCOAL, letterSpacing: 0.5 }}>deargolf.app</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: 10.5, color: CHARCOAL_SOFT, marginTop: 3 }}>카메라로 QR 스캔해보세요</Text>
+          </View>
         </View>
       </View>
     </View>
