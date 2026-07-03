@@ -221,6 +221,9 @@ export function CourseLogTab({ avgRating, navigation }) {
         const unrecordedSched = e.scheduleEntries.filter(s =>
           !recs.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
         const visitCount = recs.length + unrecordedSched.length;
+        // 미기록 카드 기록 진입 시 자동채울 티오프 — 가장 최근 미기록 일정 기준. 단체(teams>1)는 조별로 달라 제외.
+        const latestUnrec = [...unrecordedSched].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0] || null;
+        const teeTime = (latestUnrec && !(latestUnrec.roundupId && (latestUnrec.teams || 1) > 1)) ? (latestUnrec.time || '') : '';
         const courseId = recs.find(r => r.courseId)?.courseId
           || e.scheduleEntries.find(s => s.courseId)?.courseId || null;
         const courseKakaoId = recs.find(r => r.courseKakaoId)?.courseKakaoId
@@ -248,6 +251,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           hasRecord,
           visits: visitCount,
           latestDate: allDates[0] || '',
+          time: teeTime,   // 미기록 → 기록 진입 시 자동채울 티오프(없거나 단체면 빈칸)
           best: scores.length ? Math.min(...scores) : 0,
           avg: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
           rating: latestRatedRec?.starRating || 0,
@@ -341,6 +345,7 @@ export function CourseLogTab({ avgRating, navigation }) {
       addDate: c.latestDate || undefined,
       addCourse: c.name,
       addCourseId: c.courseId || undefined,
+      addTime: c.time || null,   // 코스의 최근 미기록 일정 티오프 자동채움(단체·없음이면 null=빈칸)
     });
   };
 

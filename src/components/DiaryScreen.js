@@ -206,7 +206,9 @@ export function DiaryScreen({ route, navigation }) {
     else { setAddSeed(null); setShowModal(true); }
   };
   const pickRoundToRecord = (s) => {
-    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, courseLoc: s.courseLoc || null, companions: Array.isArray(s.companions) ? s.companions : [], subCourse: s.subCourse || '', scheduleId: s.id || null });
+    // 티오프 시간 자동채움 — 단체 모집(teams>1)은 조별로 달라 제외(빈칸). 개인·개별은 일정 시간이 곧 내 티오프.
+    const teeTime = (s.roundupId && (s.teams || 1) > 1) ? '' : (s.time || '');
+    setAddSeed({ date: s.date, course: s.course, courseId: s.courseLogId || s.courseId || null, courseLoc: s.courseLoc || null, companions: Array.isArray(s.companions) ? s.companions : [], subCourse: s.subCourse || '', scheduleId: s.id || null, time: teeTime });
     setShowPickSheet(false);
     setShowModal(true);
   };
@@ -357,19 +359,25 @@ export function DiaryScreen({ route, navigation }) {
     if (route?.params?.openAddModal) {
       // 일정 캘린더·내 코스기록에서 날짜·골프장·일정ID를 미리 채워서 전달
       // scheduleId가 있으면 다이어리에 보존되어 같은 날 일정 N건 매칭 시 1:1 보장
-      const { addDate, addCourse, addCourseId, addScheduleId, addCompanions, returnToSchedule } = route.params;
+      const { addDate, addCourse, addCourseId, addScheduleId, addCompanions, addTime, returnToSchedule } = route.params;
       // 일정에서 진입 시 동반자도 함께 끌어옴 — 진입처가 일정 객체를 갖고 있으면 addCompanions로 직접 전달(권장),
       // 없으면 scheduleId로 해당 일정을 찾아 채움(폴백). find는 일정 목록 미로드·id 불일치 시 빈 배열이 되는 취약점이 있어 직접 전달 우선.
       const seedSchedule = addScheduleId ? (schedules || []).find(s => s.id === addScheduleId) : null;
       const seedCompanions = Array.isArray(addCompanions) ? addCompanions
         : (Array.isArray(seedSchedule?.companions) ? seedSchedule.companions : []);
+      // 티오프 시간 자동채움 — 진입점이 직접 넘긴 addTime 우선(동반자와 동일 패턴, schedules.find 타이밍 의존 제거).
+      //   단체 모집(teams>1)은 조별 티오프가 달라 대표시각이 부정확 → 진입점에서 이미 null로 계산돼 넘어옴.
+      //   폴백: addTime 미제공(옛 진입점) 시 seedSchedule 조회 + 단체 제외.
+      const seedTeeTime = (addTime !== undefined)
+        ? (addTime || '')
+        : ((seedSchedule && !(seedSchedule.roundupId && (seedSchedule.teams || 1) > 1)) ? (seedSchedule.time || '') : '');
       setAddSeed((addDate || addCourse || addScheduleId)
         ? { date: addDate, course: addCourse, courseId: addCourseId, scheduleId: addScheduleId || null,
-            companions: seedCompanions, subCourse: seedSchedule?.subCourse || '' } // 연결 일정의 코스(세부코스) 자동채움 ([[schedule-booker]])
+            companions: seedCompanions, subCourse: seedSchedule?.subCourse || '', time: seedTeeTime } // 연결 일정의 코스(세부코스)·티오프 자동채움 ([[schedule-booker]])
         : null);
       returnToScheduleRef.current = !!returnToSchedule;
       setShowModal(true);
-      navigation.setParams({ openAddModal: undefined, addDate: undefined, addCourse: undefined, addCourseId: undefined, addScheduleId: undefined, addCompanions: undefined, returnToSchedule: undefined });
+      navigation.setParams({ openAddModal: undefined, addDate: undefined, addCourse: undefined, addCourseId: undefined, addScheduleId: undefined, addCompanions: undefined, addTime: undefined, returnToSchedule: undefined });
     }
   }, [route?.params?.openAddModal]);
 
@@ -389,7 +397,7 @@ export function DiaryScreen({ route, navigation }) {
       // Firestore에서 ID 자동 생성. 신규 생성 후 명예의 전당도 같이 갱신.
       const created = await addDiary({
         kind: data.kind === 'moment' ? 'moment' : 'round', // 일상(모멘트) 격리 플래그([[moment-feed-extension]])
-        date: data.date, day: data.day, course: data.course,
+        date: data.date, day: data.day, time: data.time || null, course: data.course,
         scheduleId: data.scheduleId || null,        // 일정 연결 — 미기록 리스트 선택/일정 진입 시 1:1 매칭(같은 구장·날 비대칭 차단)
         score: data.score, par: 72, memo: data.memo || '',
         holeScores: data.holeScores || null,        // 스코어카드 18홀

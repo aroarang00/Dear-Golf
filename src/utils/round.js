@@ -159,6 +159,7 @@ export async function createRound(data) {
     audienceGroupIds: data.visibility === 'group' && Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [],
     date: data.date || '',
     day: data.day || '',
+    time: data.time || null,   // 티오프 시간('HH:MM') — 일정에서 자동채움(단체 제외) or 직접 입력. 없으면 null=표시 안 함
     course: data.course || '',
     courseId: data.courseId || null,
     courseLoc: data.courseLoc || null,      // 코스 주소 — 지역탭 분류가 userCourses 동기화에 의존하지 않게 기록에 직접 저장 ([[region-classification]])

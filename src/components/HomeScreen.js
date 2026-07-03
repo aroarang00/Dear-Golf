@@ -1208,6 +1208,8 @@ export function HomeScreen({ navigation, route }) {
                                 openAddModal: true, addDate: next.date, addCourse: next.course,
                                 addCourseId: next.courseLogId || next.courseId, addScheduleId: next.id || null,
                                 addCompanions: Array.isArray(next.companions) ? next.companions : null,
+                                // 티오프 시간 직접 전달 — 단체 모집(teams>1)은 조별로 달라 제외(null) ([[teeoff-time-optional]])
+                                addTime: (next.roundupId && (next.teams || 1) > 1) ? null : (next.time || null),
                               })}>
                               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', marginBottom: 3 }}>오늘 라운딩 어떠셨나요?</Text>
                               <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>기록 남기기 →</Text>
@@ -1438,8 +1440,9 @@ export function HomeScreen({ navigation, route }) {
                           addCourse: next?.course,
                           addCourseId: next?.courseLogId || next?.courseId,
                           addScheduleId: next?.id || null,
-                          // 동반자 직접 전달(scheduleId find 의존 제거)
+                          // 동반자·티오프 직접 전달(scheduleId find 의존 제거). 단체 모집(teams>1)은 시간 제외(null).
                           addCompanions: Array.isArray(next?.companions) ? next.companions : null,
+                          addTime: (next?.roundupId && (next?.teams || 1) > 1) ? null : (next?.time || null),
                         })}
                         style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>

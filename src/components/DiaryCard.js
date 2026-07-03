@@ -46,6 +46,8 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     });
   };
 
+  // 날짜 라벨 — 티오프 시간이 있으면 점으로 붙임(없으면 날짜만). 내/친구 피드 모든 카드 변형에서 동일 사용.
+  const dLabel = `${item.date} ${item.day}${item.time ? ' · ' + item.time : ''}`;
   const hasScore = typeof item.score === 'number';
   const hasPar = typeof item.par === 'number'; // 파생 라운드 등 par 누락 시 NaN/"par undefined" 방지
   const diff = (hasScore && hasPar) ? item.score - item.par : 0;
@@ -141,7 +143,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     <View style={dS.cardBody}>
       {/* 날짜 줄 — 무사진 카드는 공개범위 라벨을 우측 끝(우상단)에 둬 사진 카드 코너칩과 위치 통일 ([[friend_groups]]) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+        <Text style={dS.cardDate}>{dLabel}</Text>
         {!hasPhoto ? ownerLabelTopRight : null}
       </View>
       {/* 구장명 줄 — 좋아요는 카드 하단 우측으로 이동(친구 피드와 위치 통일, 2026-06-13).
@@ -201,7 +203,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
       <View pointerEvents="none" style={[dS.photoBottomOverlay, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
         <View style={{ flex: 1 }}>
           <Text style={dS.overlayCourse} numberOfLines={1}>{item.course}</Text>
-          <Text style={dS.overlayDate}>{item.date} {item.day}</Text>
+          <Text style={dS.overlayDate}>{dLabel}</Text>
         </View>
         {scoreNode}
       </View>
@@ -243,7 +245,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
                 justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: '#fff',
                 textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
-                {item.date} {item.day}
+                {dLabel}
               </Text>
             </LinearGradient>
           )}
@@ -258,7 +260,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
             {/* 날짜·더보기·좋아요 한 줄 — 별도 좋아요 줄 제거(라운딩 사진카드와 통일, 카드 안 길어지게) ([[friend_feed_design]]) */}
             <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
               alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
-              <Text style={momentDateStyle}>{item.date} {item.day}</Text>
+              <Text style={momentDateStyle}>{dLabel}</Text>
               {item.memo ? (
                 <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
@@ -283,7 +285,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
           {/* 날짜·더보기·좋아요 한 줄 — 친구 일상 사진카드와 동일(좋아요를 바 안 우측으로). '한 줄 아래' 해소. 더보기는 좌측이라 FAB와 안 겹침 */}
           <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
             alignItems: 'center', gap: 10, paddingHorizontal: 12 }]}>
-            <Text style={momentDateStyle}>{item.date} {item.day}</Text>
+            <Text style={momentDateStyle}>{dLabel}</Text>
             {item.memo ? (
               <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
@@ -307,7 +309,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     const textBody = (
       <View style={dS.cardBody}>
         <ExpandableMemo text={item.memo} style={momentTextOnlyStyle} lines={5}
-          dateNode={<Text style={dS.cardDate}>{item.date} {item.day}</Text>}
+          dateNode={<Text style={dS.cardDate}>{dLabel}</Text>}
           rightNode={!isFriend ? ownerLabelTopRight : null} />
         {!isFriend && mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
       </View>
@@ -367,7 +369,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 0 }}>
           {/* 좌 — 구장 · 별점 · 한줄메모 */}
           <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={dS.cardDate}>{item.date} {item.day}</Text>
+            <Text style={dS.cardDate}>{dLabel}</Text>
             <Text style={[dS.cardCourse, { fontFamily: F.sysM }, isSpecial && { color: '#8B6914' }, { marginBottom: 6 }]} numberOfLines={1}>{item.course}</Text>
             {ratingStars}
             {item.memo ? (

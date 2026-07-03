@@ -91,6 +91,8 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
             addCourse: seed?.course,
             addCourseId: seed?.courseId || seed?.courseLogId,
             addScheduleId: seed?.id || null,
+            // 티오프 시간 직접 전달 — 단체 모집(teams>1)은 조별로 달라 제외(null) ([[teeoff-time-optional]])
+            addTime: (seed?.roundupId && (seed?.teams || 1) > 1) ? null : (seed?.time || null),
             returnToSchedule: asModal === true ? true : undefined,
           });
         }}

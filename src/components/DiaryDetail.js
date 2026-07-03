@@ -185,7 +185,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
             {/* 구장명 = 제목 위계로 키우고 굵게(아래 날짜 fs12 sys와 구분) */}
             <Text style={[dS.detailCourseTxt, { marginBottom: 0, fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }]}>{item.course}{item.subCourse ? ` · ${item.subCourse}` : ''}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
-              <Text style={[dS.detailCourseTxt, { marginBottom: 0 }]}>{item.date} {item.day} · {item.weather}</Text>
+              <Text style={[dS.detailCourseTxt, { marginBottom: 0 }]}>{item.date} {item.day}{item.time ? ` · ${item.time}` : ''} · {item.weather}</Text>
               {item.overseas && item.country ? (
                 <View style={{ backgroundColor: C.paleSky, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   {getCountryFlag(item.country) ? <Text style={{ fontSize: fs(12) }}>{getCountryFlag(item.country)}</Text> : null}

@@ -86,9 +86,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const detailMemoRef = useRef(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [teeTime, setTeeTime] = useState(''); // 티오프 시간('HH:MM') — 선택. 일정 자동채움(단체 제외)/직접 입력, 비우면 저장·표시 안 함
 
-  // 안드로이드 뒤로가기 — 날짜 picker 열려있으면 그것부터 닫기
+  // 안드로이드 뒤로가기 — 날짜/시간 picker 열려있으면 그것부터 닫기
   useOverlayBackHandler(showDatePicker, () => setShowDatePicker(false));
+  useOverlayBackHandler(showTimePicker, () => setShowTimePicker(false));
   const [score, setScore] = useState('');
   // 스코어카드 OCR — holeScores(확정된 18홀), 검토 모달 상태. recognizeScorecard는 현재 스텁.
   const [holeScores, setHoleScores] = useState(null);
@@ -374,7 +377,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
   const reset = () => {
     setCourseSearch(''); setSelectedCourse(''); setSelectedCourseObj(null); setKakaoResults([]);
-    setDate(new Date());
+    setDate(new Date()); setTeeTime(''); setShowTimePicker(false);
     setScore(''); setWeather('맑음'); setMemo(''); setBirdieCount(0);
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
@@ -438,6 +441,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       );
       setCompanionInput('');
       setSubCourse(initial.subCourse || '');
+      setTeeTime(initial.time || '');   // 기존 기록의 티오프 시간 복원(없으면 빈칸)
       setOverseas(!!initial.overseas);
       setCountry(initial.country || '');
       setKind(initial.kind === 'moment' ? 'moment' : 'round');
@@ -475,6 +479,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (initial?.courseId) {
         findUserCourseById(initial.courseId).then(c => { if (!cancelled && c) setSelectedCourseObj(c); });
       }
+      if (initial?.time) setTeeTime(initial.time); // 일정에서 자동채운 티오프(단체는 seed 단계서 제외됨)
       // 전파 단체 일정 — 그룹(groupId)을 직접 읽어 멤버 전원을 동반자 후보(roster)로(단체 모집과 동일 UX, 2026-06-26).
       //   수신자 파생 일정의 companions엔 초대자 1명만 담겨 그것만으론 같이 친 사람을 못 고름 → 그룹에서 전원 해석.
       //   멤버(나 제외)가 3명 초과면 teamRoster로 본인 조 3명 직접 선택, 이하면 그대로 자동 채움.
@@ -618,7 +623,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (holeSum !== (parseInt(score) || 0)) { finalHoleScores = null; finalHolePars = null; }
     }
     const payload = {
-      course: finalCourse, date: formatDate(date), day: formatDay(date),
+      course: finalCourse, date: formatDate(date), day: formatDay(date), time: teeTime || null,
       score: parseInt(score) || 0, holeScores: finalHoleScores, holePars: finalHolePars, weather, memo, birdieCount, ...vis,
       special, specialHole: parseInt(specialHole) || null,
       specialPar: parseInt(specialPar) || null,
@@ -834,6 +839,26 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               )}
               <SpinnerPicker visible={showDatePicker && !dateLocked} value={date} mode="date" maximumDate={new Date()}
                 onPick={setDate} onClose={() => setShowDatePicker(false)} />
+
+              {/* 티오프 시간 — 선택 입력. 일정에서 왔으면 자동채움(단체 모집 제외), 비우면 저장·표시 안 함 ([[teeoff-time-optional]]) */}
+              <Text style={mS.bigLabel}>티오프 시간 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(선택)</Text></Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity style={[mS.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setShowTimePicker(true)}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: teeTime ? C.textPrimary : C.warmGray }}>
+                    {teeTime || '입력 안 함'}
+                  </Text>
+                </TouchableOpacity>
+                {!!teeTime && (
+                  <TouchableOpacity onPress={() => setTeeTime('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>지우기</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <SpinnerPicker visible={showTimePicker} mode="time" is24Hour
+                value={(() => { const [h, m] = (teeTime || '07:00').split(':').map(Number); const d = new Date(); d.setHours(Number.isFinite(h) ? h : 7, Number.isFinite(m) ? m : 0, 0, 0); return d; })()}
+                onPick={(d) => setTeeTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}
+                onClose={() => setShowTimePicker(false)} />
+
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>스코어 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
 
               {/* OCR 전면화 — 스코어판 사진 자동입력을 1순위(기본 노출). 직접 입력은 이 블록 아래 보조로. 인식되면 요약으로 대체. */}
