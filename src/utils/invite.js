@@ -6,46 +6,24 @@ import { buildRoundupUrl } from './links';
 // 친구 화면 헤더와 라운지 빈 상태가 같은 문구를 쓰도록 한 곳에 둔다 ([[lounge-positioning]] 공존·흡수).
 export const INVITE_LINK = 'https://deargolf.app'; // TODO: 출시 시 실제 스토어/랜딩 링크로 교체
 
+// 평문(텍스트+링크 한 메시지) — 카카오 피드 카드는 받는 쪽에서 링크가 안 열리는 문제로 폐기(2026-07-03).
+//   링크는 마지막 줄에 단독으로 — 카톡이 자동 링크화 + 미리보기를 붙여줘 탭 동선이 확실.
 export const INVITE_MESSAGE =
-  '골프 약속·준비, 이제 디어골프 하나로 ⛳\n\n' +
-  '⏰ 라운드 날 기상·출발 시각 자동 알람\n' +
-  '🚗 도착 시각 기준 예측 교통 소요시간\n' +
-  '🍽️ 동반자·식사·일정 버튼 하나로 공유 (검색·네비 불필요)\n' +
-  '📒 라운딩 기록·코스 후기까지 자동으로\n\n' +
-  '혼자 써도, 같이 쓰면 더 좋은 골프 앱\n' +
-  '다들 설치하고 친구 추가해요\n' +
+  '⛳ 골프 전날 밤, "몇 시에 일어나지?"\n\n' +
+  '기상 시간, 준비 시간, 가는 시간…\n' +
+  '그 귀찮은 계산, 디어골프가 대신 해드려요.\n\n' +
+  '⏰ 티오프에 맞춘 기상·출발 시각 자동 계산\n' +
+  '🌤️ 라운드 날 날씨 · 🚗 도착 시각 기준 교통 예측\n' +
+  '🗓️ 동반자·식사·일정 공유는 버튼 하나로\n' +
+  '📒 스코어 기록 · 친구와 공유 · 내 실력 추이까지\n\n' +
+  '혼자 써도 편리하고, 같이 쓰면 더 강력해요\n' +
+  '지금 설치하고 저와 친구 맺어요 👇\n' +
   INVITE_LINK;
 
 export async function shareInvite() {
   try {
     await Share.share({ message: INVITE_MESSAGE });
   } catch (e) { /* 사용자 취소 — 무시 */ }
-}
-
-// 카카오톡 친구 초대 — 이미지+문구+버튼+링크를 '한 카드'로(설치 유도). 링크=랜딩(deargolf.app, 딥링크 불필요).
-//   OS 평문 공유는 이미지/링크가 따로 나가지만, 카카오 피드는 한 카드에 다 담긴다(사용자 2026-07-01).
-//   카카오톡 불가(미설치·비카카오 대상)면 OS 공유시트 평문(shareInvite)으로 폴백.
-export async function shareFriendInviteKakao() {
-  const link = { webUrl: INVITE_LINK, mobileWebUrl: INVITE_LINK };
-  try {
-    await shareFeedTemplate({
-      template: {
-        content: {
-          title: '골프 약속·준비, 디어골프 하나로 ⛳',
-          description: '기상·출발 알람 · 도착시각 예측 교통\n동반자·식사·일정 버튼 하나로 공유',
-          imageUrl: 'https://deargolf.app/og-card-v3.jpg',
-          link,
-        },
-        buttons: [{ title: '디어골프 시작하기', link }],
-      },
-      useWebBrowserIfKakaoTalkNotAvailable: true,
-    });
-    return true;
-  } catch (e) {
-    if (__DEV__) console.warn('[shareFriendInviteKakao] 실패, 평문 폴백', e?.message);
-    await shareInvite();
-    return false;
-  }
 }
 
 // 라운지 모집 공유 — 모임 단톡방에 모집을 알리고 앱 설치를 유도 ([[lounge-positioning]] 모임 통째 유입).

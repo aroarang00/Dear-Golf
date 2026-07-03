@@ -45,7 +45,8 @@ export function FriendInviteCard({ width = 320 }) {
         </Text>
         {/* Dear Golf 워드마크 — 헤드라인에 더 붙임(marginTop 6→2). g·f 디센더는 아래라 위 간격과 무관(paddingVertical 4가 보호) */}
         {/* lineHeight 제거 + allowFontScaling false — Lora 이탤릭 g·f 디센더 잘림 방지(스플래시와 동일 처리) */}
-        <Text allowFontScaling={false} numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(40), color: CHARCOAL, marginTop: -4, paddingVertical: 4 }}>
+        {/* fs(40)→fs(46) — 카드 안 워드마크 존재감 키움(사용자 2026-07-03). 320 고정폭·패딩26 기준 46pt까지 한 줄 안전 */}
+        <Text allowFontScaling={false} numberOfLines={1} style={{ fontFamily: F.brand, fontSize: fs(46), color: CHARCOAL, marginTop: -4, paddingVertical: 5 }}>
           Dear Golf
         </Text>
         {/* 영문 부제 */}
