@@ -1144,6 +1144,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 만석인데 미확정인 '내 모집'(확정형) — 주최자에게 목록 상단 배너로 확정 유도(만석 푸시 놓쳐도 상시 보이게).
   //   카드의 awaitingConfirm와 동일 공식. 어느 탭/필터든 보이게 전체 posts에서 계산. 확정·결원되면 자동 사라짐.
   const awaitingMine = !myUid ? [] : posts.filter((p) => {
+    if (!isInVisibleWindow(p)) return false; // 카드 목록과 동일 윈도우(티오프+5h) — 지난 모집이 배너에 계속 남던 버그
     if (p.authorUid !== myUid || p.closed || p.type === 'open') return false;
     const isTeam = p.teams > 1;
     const total = (p.joined || 0) + (isTeam ? 0 : (p.companions?.length || 0));
