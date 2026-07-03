@@ -69,6 +69,27 @@ const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
 const RAIL_ICON = _railAnd ? 26 : 30;    // 크루 라인 아이콘
 const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼)
 
+// 홈 카드 표시용 구장명 축약 — 긴 이름(9자↑)만 끝의 유형어(골프앤스파리조트·컨트리클럽·CC 등)를 떼서
+//   adjustsFontSizeToFit로 글씨가 너무 작아지는 것 방지(예 '유니아일랜드 골프앤스파리조트'→'유니아일랜드').
+//   짧은 이름은 원문 유지(남촌CC 등 익숙한 표기 보존). 매칭용 normalizeCourseName(top100)과 별개 — 표시 전용.
+//   ★'클럽'·'골프' 단독은 안 뗌 — 오너스클럽·골프존카운티류 브랜드명 오절단 방지.
+//   ★떼다 3자 미만이 되면 직전에서 멈춤(예 'O2리조트 골프장'→'O2리조트', 'O2'까지 안 감).
+//   ★끝을 다 떼고도 9자↑면 중간의 공백 분리 유형어도 뗌(예 '소노펠리체 컨트리클럽 비발디파크 웨스트'→'소노펠리체 비발디파크 웨스트').
+const COURSE_TYPE_SUFFIX = /(?:\s|·)*(?:골프\s*[&앤]?\s*스파\s*리조트|골프\s*[&앤]?\s*리조트|골프\s*앤\s*스파|골프\s*클럽|골프\s*링크스|컨트리\s*클럽|골프장|리조트|c\.?c\.?|g\.?c\.?)\s*$/i;
+const COURSE_TYPE_MID = /(^|\s)(?:골프[&앤]?스파리조트|골프[&앤]?리조트|골프클럽|골프\s클럽|골프장|컨트리클럽|컨트리\s클럽)(?=\s)/gi;
+function displayCourseName(name) {
+  const full = String(name || '').trim();
+  if (full.length < 9) return full;
+  let s = full;
+  while (COURSE_TYPE_SUFFIX.test(s)) {
+    const next = s.replace(COURSE_TYPE_SUFFIX, '').trim();
+    if (next.length < 3) break;
+    s = next;
+  }
+  if (s.length >= 9) s = s.replace(COURSE_TYPE_MID, '$1').replace(/\s+/g, ' ').trim();
+  return s.length >= 3 ? s : full;
+}
+
 export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
   const { refreshRoundupHidden } = React.useContext(FriendBadgeContext); // 라운지 초대 가리기 재로드(focus 시)
@@ -1203,7 +1224,7 @@ export function HomeScreen({ navigation, route }) {
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: isRecorded(next) ? '#F1F7EA' : '#F8EAE4', letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
                         </View>
                         {/* 안드 adjustsFontSizeToFit는 numberOfLines>1이면 축소 대신 줄바꿈됨 → 안드만 1줄 강제(축소 동작) ([[rn-platform-gotchas]]) */}
-                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{next.course}</Text>
+                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{displayCourseName(next.course)}</Text>
                         <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         {isRecorded(next) ? (
                           <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 16 }}
@@ -1232,7 +1253,7 @@ export function HomeScreen({ navigation, route }) {
                       <View style={{ flex: 1, paddingTop: 2 }}>
                         {/* 구장+날짜 탭 → 코스 페이지 */}
                         <TouchableOpacity activeOpacity={canOpenCourse(next) ? 0.7 : 1} onPress={() => handleCardCoursePress(next)}>
-                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{next.course}
+                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{displayCourseName(next.course)}
                             {canOpenCourse(next) ? <Text style={{ fontSize: fs(12), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
@@ -1318,7 +1339,7 @@ export function HomeScreen({ navigation, route }) {
                     activeOpacity={canOpenCourse(next) ? 0.7 : 1}
                     style={{ marginBottom: 4 }}>
                     {/* 구장명 1줄 고정(길면 자동 축소) — 세부코스 줄이 들어가도 iOS 좁은 카드서 행 안 붙고 넘침 방지. */}
-                    <Text style={homeS.cardCourse} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>{next.course}
+                    <Text style={homeS.cardCourse} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>{displayCourseName(next.course)}
                       {canOpenCourse(next) ? <Text style={{ fontSize: fs(11), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                     </Text>
                     <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
@@ -1362,7 +1383,7 @@ export function HomeScreen({ navigation, route }) {
                   onLongPress={() => openScheduleSheet(s)}
                   delayLongPress={350}
                   activeOpacity={canOpenCourse(s) ? 0.7 : 0.85}>
-                  <Text style={homeS.subCourse} numberOfLines={2}>{s.course}
+                  <Text style={homeS.subCourse} numberOfLines={2}>{displayCourseName(s.course)}
                     {canOpenCourse(s) ? <Text style={{ fontSize: fs(8), color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
