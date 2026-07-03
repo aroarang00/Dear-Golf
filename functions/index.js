@@ -230,16 +230,33 @@ exports.onCrewInvited = onDocumentCreated('crews/{crewId}', async (event) => {
   }));
 });
 
-// 크루 — 추가 초대/재초대(업데이트)에도 푸시. onCreate는 최초만 잡으므로, 멤버가 친구를 더 부르거나(inviteToCrew)
-//   예전 거절자를 재초대(declinedUids에서 제거)하면 새로 audience가 된 사람에게만 발송.
-//   (수락·탈퇴·이름변경·공지·게시 등 다른 업데이트엔 targets=0이라 무발송 — 중복 푸시 방지)
-exports.onCrewInviteUpdated = onDocumentUpdated('crews/{crewId}', async (event) => {
+// 크루 — 문서 업데이트 단일 핸들러 (구 onCrewInviteUpdated + onCrewEmptied 병합, 2026-07-03).
+//   둘 다 onDocumentUpdated('crews/{crewId}')라 게시·수락·이름변경 등 모든 업데이트마다 CF가 2회 기동하던 비용 절감.
+//   ① 빈 크루 정리 — 마지막 멤버가 나가 memberUids가 빈 배열이 되면 즉시 삭제
+//      (읽기=멤버 한정이라 아무도 못 보는 죽은 데이터 → 개인정보 최소화. 실제 하위 정리는 onCrewDeleted가 처리)
+//   ② 추가 초대/재초대 푸시 — onCreate는 최초만 잡으므로, 멤버가 친구를 더 부르거나(inviteToCrew)
+//      예전 거절자를 재초대(declinedUids에서 제거)하면 새로 audience가 된 사람에게만 발송.
+//      (수락·탈퇴·이름변경·공지·게시 등 다른 업데이트엔 targets=0이라 무발송 — 중복 푸시 방지)
+exports.onCrewUpdated = onDocumentUpdated('crews/{crewId}', async (event) => {
   const before = event.data?.before?.data();
   const after = event.data?.after?.data();
-  if (!before || !after || !after.creatorUid || !Array.isArray(after.audienceUids)) return;
+  if (!before || !after) return;
+
+  // ① 빈 크루 정리 — '있다가 0' 전이만
+  const beforeMembers = Array.isArray(before.memberUids) ? before.memberUids : [];
+  const afterMembers = Array.isArray(after.memberUids) ? after.memberUids : [];
+  if (beforeMembers.length > 0 && afterMembers.length === 0) {
+    try {
+      await db.doc(`crews/${event.params.crewId}`).delete();   // → onCrewDeleted가 하위 정리
+      logger.info('[crewEmptied] last member left, crew deleted', event.params.crewId);
+    } catch (e) { logger.error('[crewEmptied] delete fail', event.params.crewId, e?.message); }
+    return; // 삭제한 크루에 초대 푸시는 무의미
+  }
+
+  // ② 추가 초대/재초대 푸시
+  if (!after.creatorUid || !Array.isArray(after.audienceUids)) return;
   const beforeAud = Array.isArray(before.audienceUids) ? before.audienceUids : [];
   const beforeDeclined = Array.isArray(before.declinedUids) ? before.declinedUids : [];
-  const afterMembers = Array.isArray(after.memberUids) ? after.memberUids : [];
   const afterDeclined = Array.isArray(after.declinedUids) ? after.declinedUids : [];
   const targets = after.audienceUids.filter(u =>
     u && u !== after.creatorUid &&
@@ -260,21 +277,6 @@ exports.onCrewInviteUpdated = onDocumentUpdated('crews/{crewId}', async (event) 
       await sendExpoPush(u.pushToken, '크루 초대', body, { type: 'crewInvite', crewId: event.params.crewId }, uid);
     } catch (e) { logger.warn('[crewInvite update] push fail', e?.message); }
   }));
-});
-
-// 크루 — 마지막 멤버가 나가 memberUids가 빈 배열이 되면 즉시 크루 문서 삭제.
-//   (읽기=멤버 한정이라 아무도 못 보는 죽은 데이터 → 개인정보 최소화. 실제 정리는 onCrewDeleted가 처리)
-exports.onCrewEmptied = onDocumentUpdated('crews/{crewId}', async (event) => {
-  const before = event.data?.before?.data();
-  const after = event.data?.after?.data();
-  if (!before || !after) return;
-  const beforeMembers = Array.isArray(before.memberUids) ? before.memberUids : [];
-  const afterMembers = Array.isArray(after.memberUids) ? after.memberUids : [];
-  if (beforeMembers.length === 0 || afterMembers.length !== 0) return;   // '있다가 0' 전이만
-  try {
-    await db.doc(`crews/${event.params.crewId}`).delete();   // → onCrewDeleted가 하위 정리
-    logger.info('[crewEmptied] last member left, crew deleted', event.params.crewId);
-  } catch (e) { logger.error('[crewEmptied] delete fail', event.params.crewId, e?.message); }
 });
 
 // Firebase 다운로드 URL → Storage 객체 경로 (rounds/{uid}/m_....jpg)

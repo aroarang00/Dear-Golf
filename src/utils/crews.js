@@ -172,7 +172,7 @@ export async function leaveCrew(crewId, uid) {
         upd.adminUids = arrayRemove(admins[0]); // 새 크루장은 운영진 목록에서 빼기(중복 방지)
       } else {
         // 운영진이 없으면 남은 첫 멤버에게 승계 — 주인 없는 크루(아무도 관리·삭제 못 함) 방지.
-        //   남은 멤버가 없으면(마지막 1인 탈퇴) 빈 크루라 승계 불필요(CF onCrewEmptied가 정리).
+        //   남은 멤버가 없으면(마지막 1인 탈퇴) 빈 크루라 승계 불필요(CF onCrewUpdated 빈크루 정리가 처리).
         const nextMember = d.memberUids.find((u) => u !== uid);
         if (nextMember) upd.creatorUid = nextMember;
       }

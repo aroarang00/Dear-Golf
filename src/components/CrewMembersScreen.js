@@ -302,7 +302,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
           <TouchableOpacity activeOpacity={1} onPress={() => setLeaveAsk(false)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.4)' }} />
           <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 20, width: '100%' }}>
             {/* 경고 문구는 로컬 members.length(구독 스냅샷) 기반 휴리스틱 — 동시에 다른 멤버가 나가면 '마지막 멤버' 판정이
-                실제와 잠깐 어긋날 수 있다. 단 실제 데이터 삭제는 CF(onCrewEmptied: memberUids→[] → onCrewDeleted)가
+                실제와 잠깐 어긋날 수 있다. 단 실제 데이터 삭제는 CF(onCrewUpdated: memberUids→[] → onCrewDeleted)가
                 보장하므로 안전(문구만 오해 소지). 정확한 마지막-멤버 판정이 필요해지면 leaveCrew를 트랜잭션으로 승격할 것. (AUDIT M5) */}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>{members.length <= 1 ? '마지막 멤버예요' : '크루에서 나갈까요?'}</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: members.length <= 1 ? '#B23B3B' : SUB, textAlign: 'center', marginTop: 8, lineHeight: fs(19) }}>

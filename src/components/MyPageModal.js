@@ -739,7 +739,7 @@ export function MyPageModal({ visible, onClose }) {
                 {[
                   { key: 'friendRequest', iconName: 'personAdd', icon: '🤝', label: '친구 신청', sub: '친구 신청을 받으면 알려드려요' },
                   { key: 'dm', iconName: 'send', icon: '💬', label: '메시지 (DM)', sub: '친구가 보낸 메시지를 알려드려요' },
-                  // 크루 초대 — CF(onCrewInvited/onCrewInviteUpdated)가 notifyPrefs.crewInvite를 읽음. 끄면 초대 푸시 안 옴.
+                  // 크루 초대 — CF(onCrewInvited/onCrewUpdated)가 notifyPrefs.crewInvite를 읽음. 끄면 초대 푸시 안 옴.
                   { key: 'crewInvite', iconName: 'crew', icon: '👥', label: '크루 초대', sub: '크루에 초대받으면 알려드려요' },
                   // 동반자 활동 알림 — CF(scheduleInvite/mealSuggestion/scoreShare)와 key 일치. 끄면 그 푸시 안 옴([[notification-type-wiring]]).
                   { key: 'scheduleInvite', iconName: 'calendar', icon: '🗓️', label: '일정 초대', sub: '친구가 일정에 초대하면 알려드려요' },
