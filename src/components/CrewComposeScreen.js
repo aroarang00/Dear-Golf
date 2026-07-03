@@ -21,7 +21,7 @@ import { CropEditorModal } from './common/CropEditorModal';
 const clampAR = (ar) => (ar && isFinite(ar)) ? Math.max(0.8, Math.min(1.91, ar)) : null;
 
 // 크루 올리기(작성) — 앨범 FAB(＋)에서 진입 (docs/crew-space-design.md §3.3).
-//  글 + 사진/영상(합 10개·동영상 1개·30초) / 공지(텍스트만, 토글). 비속어 필터. 페일스카이 라이트.
+//  글 + 사진/영상(합 6개·동영상 1개·30초) / 공지(텍스트만, 토글). 비속어 필터. 페일스카이 라이트.
 //  미디어=expo-image-picker → uploadRoundMedia(rounds/{uid}, https)로 업로드 후 addCrewPost.
 const BG    = '#C8D9E6';
 const INK   = '#1A3D52';
@@ -30,7 +30,7 @@ const CARD  = '#FFFFFF';
 const SAGE  = '#8FB06B';
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
-const MAX_MEDIA = 10;
+const MAX_MEDIA = 6; // 10→6 — 다이어리 미디어 전량 백업 도입에 맞춘 저장 용량 다이어트(사용자 2026-07-04). 영상은 종전대로 1개·30초
 const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
 const MAX_VIDEO_SEC = 30;

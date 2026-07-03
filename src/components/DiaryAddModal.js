@@ -49,6 +49,7 @@ const costHintS = { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marg
 // 다이어리 사진·영상 첨부 한도 (저장 공간·로딩 성능·UX 균형)
 const MAX_PHOTOS = 10;
 const MAX_VIDEO_SEC = 30; // 동영상 최대 길이(초) — 과도한 업로드 용량 방지. Storage 규칙(영상 100MB)보다 앞단 차단.
+const MAX_VIDEOS = 2;     // 다이어리당 영상 개수 — 전량 계정 백업([[diary-media-backup-plan]]) 도입에 따른 용량 통제(2026-07-04)
 
 // '더 기록하기' 예시 칩 — 누르면 입력칸에 항목이 삽입돼 글쓰기 시작점이 된다
 const GUIDE_CHIPS = ['어느 코스', 'MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
@@ -226,9 +227,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       if (!result.canceled) {
       // 길이 초과 영상 제외 — duration은 ms. 안드는 videoMaxDuration이 안 먹을 수 있어 여기서 한 번 더 거른다.
       const overLimit = result.assets.filter(a => a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500);
-      const assets = result.assets.filter(a => !(a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500));
+      let assets = result.assets.filter(a => !(a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500));
       if (overLimit.length) {
         setOverlay({ title: '동영상이 너무 길어요', message: `동영상은 최대 ${MAX_VIDEO_SEC}초까지 올릴 수 있어요.\n길이를 넘는 ${overLimit.length}개는 제외했어요.` });
+      }
+      // 영상 개수 제한(MAX_VIDEOS) — 기존 첨부 영상 + 이번 선택 영상 합산. 초과분은 제외하고 이유를 안내(어리둥절 방지).
+      const videosNow = addPhotos.filter(p => p && typeof p === 'object' && p.type === 'video').length;
+      let videoRoom = Math.max(0, MAX_VIDEOS - videosNow);
+      const videoDropped = [];
+      assets = assets.filter(a => {
+        if (a.type !== 'video') return true;
+        if (videoRoom > 0) { videoRoom--; return true; }
+        videoDropped.push(a); return false;
+      });
+      if (videoDropped.length) {
+        setOverlay({ title: '동영상은 2개까지 올릴 수 있어요', message: `기록 하나에 동영상은 최대 ${MAX_VIDEOS}개까지 담을 수 있어요.\n개수를 넘는 동영상 ${videoDropped.length}개는 제외했어요. (사진은 계속 추가 가능)` });
       }
       if (assets.length === 0) return;
       const rawItems = assets.map(a =>
@@ -1365,7 +1378,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </Text>
               )}
               <View style={{ marginBottom: 16 }}>
-                <Text style={mS.bigLabel}>사진 · 영상 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · {addPhotos.length}/{MAX_PHOTOS})</Text></Text>
+                <Text style={mS.bigLabel}>사진 · 영상 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · {addPhotos.length}/{MAX_PHOTOS} · 영상은 {MAX_VIDEOS}개까지)</Text></Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {addPhotos.map((item, i) => (
                     <AddPhotoThumb key={i} item={item} isCover={i === 0}
