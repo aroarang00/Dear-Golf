@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
   Share, Modal, LayoutAnimation, Platform, UIManager, AppState, Animated, Easing, useWindowDimensions,
+  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
@@ -68,6 +69,12 @@ const RAIL_STEP = _railAnd ? 80 : 88;
 const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
 const RAIL_ICON = _railAnd ? 26 : 30;    // 크루 라인 아이콘
 const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼)
+
+// 디어골프 스토어(네이버 스마트스토어) — 이용안내 띠가 1회성이 되며 빈 인사말 아래 슬롯에 노출.
+//   버튼은 상시 노출하되 STORE_URL이 비어있는 동안은 탭 시 '준비 중' 토스트(사용자 2026-07-03 — 디자인 보며 다듬는 중).
+//   ★스마트스토어 심사 승인 나면 실제 주소만 넣으면 연결됨(2026-07-03 통신판매업 신고·심사 접수).
+//   법무 결론([[home-shopping-reservation-buttons]]): 외부 브라우저로 열기(Linking) OK, 네이버 로고 미사용(우리 스타일 버튼).
+const STORE_URL = ''; // 심사 승인 후 실제 스토어 주소 입력 (예: https://smartstore.naver.com/deargolf)
 
 // 홈 카드 표시용 구장명 축약 — 긴 이름(9자↑)만 끝의 유형어(골프앤스파리조트·컨트리클럽·CC 등)를 떼서
 //   adjustsFontSizeToFit로 글씨가 너무 작아지는 것 방지(예 '유니아일랜드 골프앤스파리조트'→'유니아일랜드').
@@ -1071,7 +1078,39 @@ export function HomeScreen({ navigation, route }) {
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
-          ) : null}
+          ) : (
+          /* 디어골프 스토어 띠 — 커머스라 흰 반투명 띠와 구분되는 골드(버터) 톤으로 특색(체크인 배너 계열).
+             아이콘=진한 블루 원 배지+흰 bag. URL 없는 동안 탭=준비 중 토스트, 승인 후 외부 브라우저로 스마트스토어. */
+          <TouchableOpacity onPress={() => (STORE_URL ? Linking.openURL(STORE_URL).catch(() => {}) : showAppAlert('', (
+            /* 준비 중 안내 — 하단 토스트는 위치가 낮고 커스텀 아이콘 불가 → 가운데 알럿에 스토어 띠와 같은 블루 배지+bag (사용자 2026-07-03) */
+            <View style={{ alignItems: 'center', paddingTop: 6 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#4E86B4', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Icon name="bag" size={fs(28)} color="#fff" strokeWidth={2.1} />
+              </View>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>스토어 오픈 준비 중이에요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
+                센스 있는 골프 아이템으로{'\n'}곧 찾아올게요
+              </Text>
+            </View>
+          ), [{ text: '기대할게요' }]))} activeOpacity={0.85}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: Platform.OS === 'android' ? 13 : 15,
+              backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)',
+              borderRadius: 12,
+              paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
+              paddingVertical: Platform.OS === 'android' ? 6 : 8, alignSelf: 'flex-start' }}>
+            <View style={{ width: Platform.OS === 'android' ? 32 : 36, height: Platform.OS === 'android' ? 32 : 36, borderRadius: 18,
+              backgroundColor: '#4E86B4', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="bag" size={Platform.OS === 'android' ? fs(19) : fs(22)} color="#fff" strokeWidth={2.1} />
+            </View>
+            <View>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, includeFontPadding: false }}>디어골프 스토어</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.8)', marginTop: 1.5, includeFontPadding: false }}>
+                센스 있는 골프 아이템 구경하기
+              </Text>
+            </View>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter, marginLeft: 3 }}>›</Text>
+          </TouchableOpacity>
+          )}
           {/* ── 우측 버튼 레일: 메시지 → 크루. 둘 다 절대좌표 right:SIDE_PAD, top = RAIL_TOP + RAIL_STEP*n(간격 균일).
                 hdr 마지막 자식들(그리팅·배너 위에 렌더) + zIndex/elevation 20으로 iOS·안드 모두 맨 위라 터치 받음. ── */}
           {/* 메시지(DM) — 레일 1번. 안읽음=버건디+숫자, 안읽음 시 좌우 진동. 평상시 은은한 호흡 펄스.
