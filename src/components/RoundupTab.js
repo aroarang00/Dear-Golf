@@ -28,7 +28,7 @@ import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
 import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, remainingBlocksToday } from '../utils/block';
-import { blockUid as fsBlockUid, loadMyFriends, unfriend, sendFriendRequest, isFriend } from '../utils/friends';
+import { blockUid as fsBlockUid, loadMyFriends, loadFriendProfiles, unfriend, sendFriendRequest, isFriend } from '../utils/friends';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
@@ -389,14 +389,15 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         const fUids = friendsList.map(f => f.otherUid).filter(Boolean);
         setFriendUids(fUids);
         // 2차: 친구 닉네임 + 친구공개 모집 병렬 로드
-        const [friendUserSnaps, friendPostsArrays] = await Promise.all([
-          Promise.all(fUids.map(u => getDoc(doc(db, 'users', u)).catch(() => null))),
+        //   친구 F명당 getDoc(N+1) → loadFriendProfiles(in-쿼리 10개 배치+단기캐시) — 2026-07-03 감사 티어2
+        const [friendProfiles, friendPostsArrays] = await Promise.all([
+          loadFriendProfiles(fUids).catch(() => ({})),
           Promise.all(fUids.map(u => loadFriendRoundups(u).catch(() => []))),
         ]);
         if (cancelled) return;
         // realName도 함께 — 친구지정 선택 행에 마스킹 본명(닉네임 · 홍*동) 표시·본명 검색용 ([[realname-policy]] B안)
-        const realFriends = fUids.map((u, i) => {
-          const data = friendUserSnaps[i]?.exists() ? friendUserSnaps[i].data() : null;
+        const realFriends = fUids.map((u) => {
+          const data = friendProfiles[u] || null;
           return { id: u, name: data?.nickname || '친구', realName: data?.realName || '' };
         });
         setFriends(realFriends);
@@ -440,16 +441,16 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         }
         const partUids = Array.from(partUidSet);
         if (partUids.length > 0) {
-          const partSnaps = await Promise.all(
-            partUids.map(u => getDoc(doc(db, 'users', u)).catch(() => null)));
+          // 참여자 P명당 getDoc(N+1) → in-쿼리 배치+단기캐시 — 위 친구 로드와 캐시 공유라 겹치는 uid는 읽기 0
+          const partProfiles = await loadFriendProfiles(partUids).catch(() => ({}));
           if (cancelled) return;
           const nameMap = {};
           const handiMap = {};
-          partSnaps.forEach((s, i) => {
-            if (!s?.exists()) return;
-            const d = s.data();
-            nameMap[partUids[i]] = d.nickname || '동반자';
-            if (typeof d.handicap === 'number') handiMap[partUids[i]] = d.handicap;
+          partUids.forEach((u) => {
+            const d = partProfiles[u];
+            if (!d) return;
+            nameMap[u] = d.nickname || '동반자';
+            if (typeof d.handicap === 'number') handiMap[u] = d.handicap;
           });
           setParticipantNames(nameMap);
           setParticipantHandicaps(handiMap);
@@ -554,12 +555,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       const missing = nameTargets
         .filter(u => u && u !== myUid && !participantNamesRef.current[u]);
       if (missing.length) {
-        Promise.all(missing.map(u => getDoc(doc(db, 'users', u)).catch(() => null)))
-          .then(snaps => {
+        // 개별 getDoc → 배치 로더(대개 1~2명이지만 캐시 히트 시 읽기 0)
+        loadFriendProfiles(missing)
+          .then((profs) => {
             const add = {};
-            snaps.forEach((s, k) => { if (s?.exists()) add[missing[k]] = s.data().nickname || '동반자'; });
+            missing.forEach((u) => { if (profs[u]) add[u] = profs[u].nickname || '동반자'; });
             if (Object.keys(add).length) setParticipantNames(p2 => ({ ...p2, ...add }));
-          });
+          })
+          .catch(() => {});
       }
     }, (err) => {
       if (__DEV__) console.warn('[RoundupTab] detail snapshot', err?.message);

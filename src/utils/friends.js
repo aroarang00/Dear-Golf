@@ -1,6 +1,6 @@
 import {
   collection, query, where, getDocs, getDoc, setDoc, updateDoc, deleteDoc, doc,
-  serverTimestamp, arrayUnion, arrayRemove, limit as fsLimit,
+  serverTimestamp, arrayUnion, arrayRemove, limit as fsLimit, documentId,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { createNotification } from './roundupNotifications';
@@ -54,13 +54,14 @@ export async function loadMyFriendsEnriched() {
   const friends = await loadMyFriends();
   const uids = friends.map(f => f.otherUid).filter(Boolean);
   if (uids.length === 0) return [];
-  const [snaps, fdata] = await Promise.all([
-    Promise.all(uids.map(u => getDoc(doc(db, USERS, u)).catch(() => null))),
+  // 친구 F명당 getDoc(N+1)이던 것을 loadFriendProfiles(in-쿼리 배치+단기캐시)로 — 2026-07-03 감사 티어2
+  const [profiles, fdata] = await Promise.all([
+    loadFriendProfiles(uids).catch(() => ({})),
     loadFriendData().catch(() => ({ friendMeta: {} })),
   ]);
   const meta = fdata?.friendMeta || {};
-  return uids.map((u, i) => {
-    const d = snaps[i]?.exists() ? snaps[i].data() : null;
+  return uids.map((u) => {
+    const d = profiles[u] || null;
     const nickname = d?.nickname || '친구';
     const customName = (meta[u]?.customName || '').trim() || null;
     // avatarUri — 원격 URL(카카오 등)만 유효, 로컬 키는 친구가 못 읽음(표시부에서 https 검사 후 사용, FriendsTab과 동일)
@@ -223,22 +224,43 @@ const USERS = 'users';
 
 // 친구/신청 상대들의 공개 프로필(users 문서) 일괄 로드 → uid→프로필 맵. 명함 카드 빌드용(FriendsTab·프리페치 공용).
 //   FriendsTab의 인라인 profileByUid 매핑과 동일 필드.
+//   ★비용: uid당 getDoc(N+1)이던 것을 documentId() in-쿼리 10개 배치 + 단기 캐시로 절감 —
+//     라운지 오픈당 친구30+참여자50=~110읽기이던 최대 읽기소스(2026-07-03 감사 티어2).
+//     TTL 5분 — 닉네임 라이브 표시 정책([[nickname-live-display]])과의 타협: 세션 무한 캐시는 개명 미반영이 길어 짧게.
+const _profileCache = {}; // uid → { ts, p }
+const PROFILE_TTL_MS = 5 * 60 * 1000;
 export async function loadFriendProfiles(uids) {
   const list = Array.from(new Set((uids || []).filter(Boolean)));
   if (!list.length) return {};
-  const snaps = await Promise.all(list.map(u => getDoc(doc(db, USERS, u)).catch(() => null)));
+  const now = Date.now();
   const byUid = {};
-  snaps.forEach((snap, i) => {
-    if (!snap?.exists()) return;
-    const d = snap.data();
-    byUid[list[i]] = {
-      nickname: d.nickname || '', realName: d.realName || '', statusMessage: d.statusMessage || '',
-      lifeBest: d.lifeBest || 0, avgScore: d.avgScore || 0, totalRounds: d.totalRounds || 0,
-      avatarUrl: d.avatarUrl || null,
-      handicap: typeof d.handicap === 'number' ? d.handicap : null,
-      lastFriendPostAt: d.lastFriendPostAt || null,
-    };
+  const missing = [];
+  list.forEach((u) => {
+    const c = _profileCache[u];
+    if (c && now - c.ts < PROFILE_TTL_MS) byUid[u] = c.p;
+    else missing.push(u);
   });
+  for (let i = 0; i < missing.length; i += 10) {
+    const chunk = missing.slice(i, i + 10);
+    try {
+      const snap = await getDocs(query(collection(db, USERS), where(documentId(), 'in', chunk)));
+      snap.forEach((s) => {
+        const d = s.data();
+        const p = {
+          nickname: d.nickname || '', realName: d.realName || '', statusMessage: d.statusMessage || '',
+          lifeBest: d.lifeBest || 0, avgScore: d.avgScore || 0, totalRounds: d.totalRounds || 0,
+          avatarUrl: d.avatarUrl || null,
+          handicap: typeof d.handicap === 'number' ? d.handicap : null,
+          lastFriendPostAt: d.lastFriendPostAt || null,
+        };
+        byUid[s.id] = p;
+        _profileCache[s.id] = { ts: now, p };
+      });
+    } catch (e) {
+      // 청크 실패는 해당 10명만 누락(종전 개별 catch의 부분 성공과 동일한 성격)
+      if (__DEV__) console.warn('[friends] loadFriendProfiles chunk', e?.message);
+    }
+  }
   return byUid;
 }
 
