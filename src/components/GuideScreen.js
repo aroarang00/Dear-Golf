@@ -133,6 +133,7 @@ export function GuideScreen({ route, navigation }) {
       setCommentInput('');
       setSearch('');
       setRegionFilter('전체');
+      setExploreRegion('전체');   // 코스 둘러보기 지역탭도 리셋 — 탭 떠났다 오면 '전체'로(상세 갔다 back은 blur 안 떠 유지)
       setFoodSearch('');
       setFoodSearchResults([]);
       setSaveModalVisible(false);
