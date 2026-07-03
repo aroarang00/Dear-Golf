@@ -265,7 +265,8 @@ export async function getMidForecast(loc) {
     const wf   = land[`wf${N}`] || wfAm || wfPm;
     const rnStAm = land[`rnSt${N}Am`];
     const rnStPm = land[`rnSt${N}Pm`];
-    const rnSt = Math.max(parseFloat(rnStAm) || 0, parseFloat(rnStPm) || 0);
+    // N=8~10은 Am/Pm 없이 단일 rnSt{N}만 옴(wf와 동일 구조) — 폴백 없으면 D+8부터 항상 0%
+    const rnSt = Math.max(parseFloat(land[`rnSt${N}`]) || 0, parseFloat(rnStAm) || 0, parseFloat(rnStPm) || 0);
     const tmin = parseFloat(ta[`taMin${N}`]);
     const tmax = parseFloat(ta[`taMax${N}`]);
     const sky = wf || '';
