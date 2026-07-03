@@ -550,6 +550,28 @@ export function DiaryScreen({ route, navigation }) {
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
+  // 필터·검색·피드 계산 — 본문으로 올림(필터 바를 ScrollView 고정 인덱스 자식으로 떼어 sticky 시키기 위해, [[project_fullscroll_profile]])
+  //   ★훅이므로 반드시 아래 early return(상세보기)보다 위에 있어야 함 —
+  //     useMemo화(2f4b2f7)하면서 조기 반환 아래 놓여 상세 진입 때마다 'fewer hooks' 크래시(2026-07-03).
+  const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트 스코어'];
+  const filtered = useMemo(() => {
+    let list = sortedDiaries;
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(d => {
+        if ((d.course || '').toLowerCase().includes(q)) return true;
+        return (d.companions || []).some(c => (c.name || '').toLowerCase().includes(q));
+      });
+    }
+    const now = new Date();
+    if (filterKey === '라운딩') list = list.filter(isRoundDiary);
+    else if (filterKey === '일상') list = list.filter(isMomentDiary);
+    else if (filterKey === '올해') list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
+    // 일상·무점수 라운드 제외 — score 없는 항목이 섞이면 a.score-b.score=NaN으로 정렬이 불안정(다른 집계와 동일 기준)
+    if (filterKey === '베스트 스코어') list = roundsOnly(list).filter(d => typeof d.score === 'number' && d.score > 0).sort((a, b) => a.score - b.score);
+    return list;
+  }, [sortedDiaries, search, filterKey]); // 매 렌더(스크롤 등) 전체 필터/정렬 재실행 방지
+
   if (selected) return (
     <>
       <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
@@ -650,25 +672,6 @@ export function DiaryScreen({ route, navigation }) {
   const medals = trackTopMedals({ rounds: _dispTotal, courses: visitedCourses }); // { rounds, courses }: 트랙별 최고 메달 value|null
   const myStatus = (userProfile.statusMessage || '').trim();
 
-  // 필터·검색·피드 계산 — 본문으로 올림(필터 바를 ScrollView 고정 인덱스 자식으로 떼어 sticky 시키기 위해, [[project_fullscroll_profile]])
-  const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트 스코어'];
-  const filtered = useMemo(() => {
-    let list = sortedDiaries;
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(d => {
-        if ((d.course || '').toLowerCase().includes(q)) return true;
-        return (d.companions || []).some(c => (c.name || '').toLowerCase().includes(q));
-      });
-    }
-    const now = new Date();
-    if (filterKey === '라운딩') list = list.filter(isRoundDiary);
-    else if (filterKey === '일상') list = list.filter(isMomentDiary);
-    else if (filterKey === '올해') list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
-    // 일상·무점수 라운드 제외 — score 없는 항목이 섞이면 a.score-b.score=NaN으로 정렬이 불안정(다른 집계와 동일 기준)
-    if (filterKey === '베스트 스코어') list = roundsOnly(list).filter(d => typeof d.score === 'number' && d.score > 0).sort((a, b) => a.score - b.score);
-    return list;
-  }, [sortedDiaries, search, filterKey]); // 매 렌더(스크롤 등) 전체 필터/정렬 재실행 방지
   const avgScore = myHandicap; // DiaryCard 색상 비교용(통계 핸디로 통일)
   // 필터 바 표시 조건 — 로딩·빈 상태엔 필터 내용만 숨김(인덱스 2 자리는 빈 View로 유지).
   //   ★sticky는 항상 [2] 고정 — undefined↔[2]로 토글하면 newArch(Fabric) ScrollView가 런타임 변경을 즉시 반영 못 해
