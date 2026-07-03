@@ -665,7 +665,8 @@ export function DiaryScreen({ route, navigation }) {
     if (filterKey === '라운딩') list = list.filter(isRoundDiary);
     else if (filterKey === '일상') list = list.filter(isMomentDiary);
     else if (filterKey === '올해') list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
-    if (filterKey === '베스트 스코어') list = roundsOnly(list).sort((a, b) => a.score - b.score); // 일상은 스코어 없어 제외
+    // 일상·무점수 라운드 제외 — score 없는 항목이 섞이면 a.score-b.score=NaN으로 정렬이 불안정(다른 집계와 동일 기준)
+    if (filterKey === '베스트 스코어') list = roundsOnly(list).filter(d => typeof d.score === 'number' && d.score > 0).sort((a, b) => a.score - b.score);
     return list;
   }, [sortedDiaries, search, filterKey]); // 매 렌더(스크롤 등) 전체 필터/정렬 재실행 방지
   const avgScore = myHandicap; // DiaryCard 색상 비교용(통계 핸디로 통일)
