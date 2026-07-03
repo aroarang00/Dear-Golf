@@ -30,6 +30,13 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
   const [friends, setFriends] = useState(friendsProp ?? null);
   const [selected, setSelected] = useState(() => new Set());  // 이번에 고른(아직 안 보낸) uid
   const [sending, setSending] = useState(false);              // 상단 '초대 N' 전송 중
+  // 보낸 뒤 시트 유지 — 바로 닫히면 초대가 됐는지 알 수 없어 다시 열어 확인하던 불편(2026-07-03).
+  //   sentLocal=이번에 보낸 uid(부모 audience 구독 갱신 전에도 행을 '초대중'으로 즉시 전환),
+  //   justSent=시트 내 성공 알약(전역 showToast는 크루가 RN Modal 안이라 아래 깔림 [[ios-modal-stacking]]).
+  const [sentLocal, setSentLocal] = useState(() => new Set());
+  const [justSent, setJustSent] = useState(0);
+  const justSentTimer = React.useRef(null);
+  useEffect(() => () => { if (justSentTimer.current) clearTimeout(justSentTimer.current); }, []);
 
   useEffect(() => {
     if (friendsProp !== undefined) { setFriends(friendsProp); return; }
@@ -42,8 +49,9 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
   //   재초대 가능하게 '초대' 버튼 노출(inviteToCrew가 declined 해제).
   const pendingSet = useMemo(() => {
     const dec = new Set(declinedUids || []);
-    return new Set((audienceUids || []).filter((u) => !dec.has(u)));
-  }, [audienceUids, declinedUids]);
+    // 방금 보낸 사람(sentLocal)도 초대중 — 재초대(거절자)도 이번에 보냈으면 즉시 '초대중' 표시
+    return new Set([...(audienceUids || []).filter((u) => !dec.has(u)), ...sentLocal]);
+  }, [audienceUids, declinedUids, sentLocal]);
 
   const pool = useMemo(() => (friends || []).filter((f) => !memberUids.includes(f.id)), [friends, memberUids]);
   const atMax = memberUids.length >= memberCap;   // 정원 — 더 못 받음(크루별 memberCap, 기본 20·유료면 상향)
@@ -53,7 +61,8 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
     if (atMax) return;
     setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
-  // 상단 '초대 N' — 고른 전원을 한 번에 초대(audience 추가) 후 닫기. 실패 시 시트 유지.
+  // 상단 '초대 N' — 고른 전원을 한 번에 초대(audience 추가). 성공해도 시트 유지 —
+  //   행이 '초대중'으로 바뀌고 성공 알약이 떠서 보냈음을 확인하고 직접 닫는 흐름. 실패 시도 시트 유지.
   const sendInvites = async () => {
     if (!crewId || selected.size === 0 || sending) return;
     setSending(true);
@@ -62,10 +71,15 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
     add.forEach((f) => { names[f.id] = f.customName || f.name || ''; });
     try {
       await inviteToCrew(crewId, add.map((f) => f.id), names);
-      onClose?.();
+      setSentLocal((p) => new Set([...p, ...add.map((f) => f.id)]));
+      setSelected(new Set());
+      setJustSent(add.length);
+      if (justSentTimer.current) clearTimeout(justSentTimer.current);
+      justSentTimer.current = setTimeout(() => setJustSent(0), 2200);
     } catch (e) {
       if (__DEV__) console.warn('[crew] invite failed', e?.message);
       showAppAlert('초대 실패', '잠시 후 다시 시도해주세요.');
+    } finally {
       setSending(false);
     }
   };
@@ -138,6 +152,15 @@ export function CrewInviteSheet({ crewId, memberUids = [], audienceUids = [], de
               );
             })}
         </ScrollView>
+        {/* 성공 알약 — 시트 내부에 띄움(전역 토스트는 RN Modal 아래 깔림). 비차단(pointerEvents none), 2.2초 후 사라짐 */}
+        {justSent > 0 && (
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 24 + insets.bottom, alignItems: 'center' }}>
+            <Animated.View entering={SlideInDown.duration(200)}
+              style={{ backgroundColor: 'rgba(45,42,38,0.96)', borderRadius: 22, paddingVertical: 11, paddingHorizontal: 20 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: '#fff' }}>친구 {justSent}명에게 초대를 보냈어요 ✓</Text>
+            </Animated.View>
+          </View>
+        )}
       </Animated.View>
     </View>
   );
