@@ -588,6 +588,42 @@ exports.faststartVideo = videoFaststart.faststartVideo;
 // exports.onNoshowReportCreatedEmail = email.onNoshowReportCreatedEmail;
 
 // =============================================================
+// 운영 푸시 — 신고 접수 시 관리자 계정으로 푸시 (SendGrid 이메일 대체, 2026-07-03)
+//   관리자 uid 목록 = ops/admin 문서 { uids: [...] }. ops 컬렉션은 규칙에 match 없음 = 클라 접근 전면 거부,
+//   CF(admin SDK)만 읽음. 푸시는 '접수됨' 알림 벨 역할 — 검토·처리는 Firebase Console에서(인앱 관리자 화면 없음).
+//   노쇼 신고는 규칙 잠금(create 불가)이라 트리거 제외.
+// =============================================================
+async function notifyOpsAdmins(title, body, data = {}) {
+  try {
+    const cfg = await db.doc('ops/admin').get();
+    const uids = (cfg.exists && Array.isArray(cfg.data().uids)) ? cfg.data().uids : [];
+    if (!uids.length) { logger.info('[opsPush] ops/admin uids 비어있음 — 스킵'); return; }
+    for (const uid of uids) {
+      const u = await db.doc(`users/${uid}`).get();
+      const token = u.exists ? u.data().pushToken : null;
+      if (!token) { logger.info('[opsPush] pushToken 없음', uid); continue; }
+      await sendExpoPush(token, title, body, data, uid);
+    }
+  } catch (e) { logger.warn('[opsPush] fail', e?.message); }
+}
+
+exports.onReportCreatedOpsPush = onDocumentCreated('reports/{reportId}', async (event) => {
+  const d = event.data?.data();
+  if (!d) return;
+  await notifyOpsAdmins('🚨 사용자 신고 접수',
+    `${d.reporterName || '?'} → ${d.targetName || '?'} · ${d.reason || ''}\n콘솔에서 7일 내 검토하세요`,
+    { type: 'opsReport', reportId: event.params.reportId });
+});
+
+exports.onContentReportCreatedOpsPush = onDocumentCreated('content_reports/{reportId}', async (event) => {
+  const d = event.data?.data();
+  if (!d) return;
+  await notifyOpsAdmins('🚨 콘텐츠 신고 접수',
+    `${d.targetType || '?'} · ${d.reason || ''}\n3일 SLA — 콘솔에서 검토하세요`,
+    { type: 'opsReport', reportId: event.params.reportId });
+});
+
+// =============================================================
 // §A 라운지 자동 — ./roundup.js (CF2)
 //   onRoundupUpdated — 만석 전환 알림 / 자리 열림 시 대기자 자동 승격 / D-7 주최자 취소 매너 평가
 // =============================================================

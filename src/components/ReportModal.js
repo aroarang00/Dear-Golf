@@ -112,7 +112,8 @@ export function ReportModal({ visible, onClose, presetTarget = null, prefillEvid
     setRemaining(next);
     setAlert({
       title: '신고가 접수됐어요',
-      message: `디어골프 팀이 7일 이내에 검토하고 결과를 알려드릴게요.\n진행 상황은 마이페이지에서 확인할 수 있어요.\n\n이번 달 남은 신고 ${next}건`,
+      // 사진 첨부는 인앱 미지원(악용 리스크로 백로그) — 캡처 등 추가 증빙은 이메일로 받음(2026-07-03)
+      message: `디어골프 팀이 7일 이내에 검토하고 결과를 알려드릴게요.\n진행 상황은 마이페이지에서 확인할 수 있어요.\n\n캡처 등 추가 증빙이 있다면 닉네임과 함께\ndeargolf.official@gmail.com 으로 보내주세요.\n\n이번 달 남은 신고 ${next}건`,
       buttons: [{ text: '확인', onPress: onClose }],
     });
   };
