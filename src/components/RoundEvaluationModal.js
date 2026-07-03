@@ -62,7 +62,7 @@ export function RoundEvaluationModal({ visible, round, onClose, onSubmit }) {
                       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: pal,
                         alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal }}>
-                          {p.name.charAt(0)}
+                          {(p.name || '?').charAt(0)}
                         </Text>
                       </View>
                       <View style={{ flex: 1 }}>
