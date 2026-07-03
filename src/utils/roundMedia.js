@@ -1,4 +1,4 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
@@ -17,6 +17,38 @@ import { compressImage } from './imageCompress';
 export async function uploadRoundMedia(uid, photos, compressOpts = {}) {
   if (!uid || !Array.isArray(photos) || photos.length === 0) return photos;
   return Promise.all(photos.map((p, i) => uploadOne(uid, p, i, compressOpts)));
+}
+
+// 로컬 참조(dgphoto: 등 비-https) 항목이 하나라도 있는지 — 백업 스위퍼·로그아웃 가드 판정용.
+export function hasLocalMediaRefs(photos) {
+  if (!Array.isArray(photos)) return false;
+  return photos.some((p) => {
+    const uri = p && typeof p === 'object' ? p.uri : p;
+    return typeof uri === 'string' && uri.length > 0 && !/^https?:\/\//.test(uri);
+  });
+}
+
+// 전량 계정 백업용 관용 업로드([[diary-media-backup-plan]]) — 항목별 실패는 원본(dgphoto:) 유지하고 계속.
+//   uploadRoundMedia(친구공개, 실패=throw로 저장 중단)와 달리 나만보기 저장·백업 스위퍼에서 사용:
+//   오프라인이어도 저장은 성공해야 하고(로컬 참조 유지), 업로드는 스위퍼가 나중에 이어받는다.
+//   반환: { photos, uploaded(이번에 성공한 수), failed(로컬로 남은 수) }
+export async function uploadRoundMediaBestEffort(uid, photos, compressOpts = {}) {
+  if (!uid || !Array.isArray(photos) || photos.length === 0) return { photos, uploaded: 0, failed: 0 };
+  let uploaded = 0;
+  let failed = 0;
+  const out = await Promise.all(photos.map(async (p, i) => {
+    const before = p && typeof p === 'object' ? p.uri : p;
+    if (typeof before === 'string' && /^https?:\/\//.test(before)) return p; // 이미 백업됨
+    try {
+      const r = await uploadOne(uid, p, i, compressOpts);
+      uploaded++;
+      return r;
+    } catch (e) {
+      failed++;
+      return p; // 로컬 참조 유지 — 표시는 되고, 백업은 스위퍼가 재시도
+    }
+  }));
+  return { photos: out, uploaded, failed };
 }
 
 async function uploadOne(uid, item, i, compressOpts = {}) {
@@ -63,6 +95,27 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
     //   호출부(다이어리 저장·크루 게시)가 실패 안내 + 입력 보존으로 받는다.
     throw e;
   }
+}
+
+// 다이어리 미디어 파일 삭제 — 문서 삭제·미디어 교체 시 고아 파일 즉시 정리(Storage 비용 누수 방지, 2026-07-04).
+//   항목의 uri/poster/thumb 중 우리 Storage https URL만 골라 best-effort 삭제(이미 없으면 무시).
+export async function deleteRoundMediaFiles(photos) {
+  if (!Array.isArray(photos) || photos.length === 0) return;
+  const urls = [];
+  for (const p of photos) {
+    if (!p) continue;
+    if (typeof p === 'string') { urls.push(p); continue; }
+    urls.push(p.uri, p.poster, p.thumb);
+  }
+  await Promise.all(urls
+    .filter((u) => typeof u === 'string' && /^https:\/\/firebasestorage\.googleapis\.com\//.test(u))
+    .map(async (u) => {
+      try {
+        await deleteObject(ref(storage, u));
+      } catch (e) {
+        if (__DEV__ && e?.code !== 'storage/object-not-found') console.warn('[roundMedia] 파일 삭제 실패', e?.code);
+      }
+    }));
 }
 
 // 작은 썸네일(피드·갤러리 표시용)을 만들어 업로드 → 원격 https. compressOpts.thumb 준 호출(크루)만 사용.

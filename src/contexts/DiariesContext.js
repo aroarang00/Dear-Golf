@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { loadMyRounds, createRound, updateRound, deleteRound } from '../utils/round';
+import { sweepDiaryMediaBackup } from '../utils/mediaBackup';
+import { deleteRoundMediaFiles } from '../utils/roundMedia';
 
 // 라운딩 다이어리 — 다이어리 화면과 내 프로필 피드가 같은 데이터를 공유한다.
 // 2026-05-27: AsyncStorage(@dg_diaries) → Firestore rounds/{roundId} 마이그레이션.
@@ -41,6 +43,7 @@ export function DiariesProvider({ children }) {
         const loaded = await loadMyRounds();
         setDiaries(loaded);
         setLoadFailed(false);
+        scheduleBackupSweep(loaded); // 미백업(dgphoto:) 미디어 후속 업로드 + 기존 데이터 소급([[diary-media-backup-plan]])
       } catch (e) {
         console.warn('[DiariesContext] Firestore 로드 실패', e?.message);
         setDiaries([]);
@@ -52,8 +55,27 @@ export function DiariesProvider({ children }) {
     return unsub;
   }, []);
 
+  // 백업 스위퍼 — 콜드스타트 부하를 피해 지연 실행. 로드된 배열 재사용(추가 read 0).
+  //   갱신된 문서는 컨텍스트에도 반영해 로컬 상태·서버가 같은 https 참조를 보게.
+  const sweepTimerRef = useRef(null);
+  const scheduleBackupSweep = useCallback((loaded) => {
+    if (sweepTimerRef.current) clearTimeout(sweepTimerRef.current);
+    sweepTimerRef.current = setTimeout(async () => {
+      const updated = await sweepDiaryMediaBackup(loaded);
+      if (updated.length) {
+        const byId = Object.fromEntries(updated.map((u) => [u.id, u.photos]));
+        setDiaries((prev) => prev.map((d) => (byId[d.id] ? { ...d, photos: byId[d.id] } : d)));
+      }
+    }, 12000);
+  }, []);
+  useEffect(() => () => { if (sweepTimerRef.current) clearTimeout(sweepTimerRef.current); }, []);
+
   // ── Firestore 동기화 헬퍼 (신규 패턴) ─────────────────────
   // 사용처는 setDiaries 대신 아래 함수들을 사용해야 Firestore에 저장됨.
+
+  // 최신 diaries 미러 — 삭제·수정 시 '이전 photos'를 읽어 Storage 고아 파일을 정리하기 위함(stale closure 회피)
+  const diariesRef = useRef([]);
+  useEffect(() => { diariesRef.current = diaries; }, [diaries]);
 
   const addDiary = useCallback(async (data) => {
     const created = await createRound(data);
@@ -62,13 +84,23 @@ export function DiariesProvider({ children }) {
   }, []);
 
   const editDiary = useCallback(async (id, patch) => {
+    const prevPhotos = diariesRef.current.find(d => d.id === id)?.photos;
     await updateRound(id, patch);
     setDiaries(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d));
+    // 수정으로 빠진 미디어의 서버 파일 즉시 삭제 — 고아 파일 비용 누수 방지(2026-07-04). best-effort(실패해도 수정은 유효).
+    if (Array.isArray(prevPhotos) && Array.isArray(patch?.photos)) {
+      const keep = new Set(patch.photos.map(p => (p && typeof p === 'object' ? p.uri : p)));
+      const removed = prevPhotos.filter(p => !keep.has(p && typeof p === 'object' ? p.uri : p));
+      if (removed.length) deleteRoundMediaFiles(removed);
+    }
   }, []);
 
   const removeDiary = useCallback(async (id) => {
+    const target = diariesRef.current.find(d => d.id === id);
     await deleteRound(id);
     setDiaries(prev => prev.filter(d => d.id !== id));
+    // 문서 삭제 성공 후 서버 미디어 파일도 즉시 삭제(사용자 2026-07-04 "삭제하면 바로 파일도 삭제")
+    if (target?.photos?.length) deleteRoundMediaFiles(target.photos);
   }, []);
 
   // 내 다이어리 재로드 — 타인발 변경(친구 좋아요 등)은 마운트 1회 로드로는 안 들어옴.

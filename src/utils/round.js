@@ -4,7 +4,7 @@ import {
   arrayUnion, arrayRemove, writeBatch,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
-import { uploadRoundMedia } from './roundMedia';
+import { uploadRoundMedia, uploadRoundMediaBestEffort } from './roundMedia';
 import { resolveGroupAudience } from './friendGroups';
 
 // =============================================================
@@ -194,9 +194,14 @@ export async function createRound(data) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  // 친구·그룹 공개면 사진/영상을 Storage 업로드(https) — 친구가 볼 수 있게. 나만보기는 로컬 유지 ([[friend-feed-design]]).
+  // 친구·그룹 공개면 사진/영상을 Storage 업로드(https) — 친구가 볼 수 있게. 실패=저장 중단(깨진 참조 방지).
   if (round.visibility === 'friends' || round.visibility === 'group') {
     round.photos = await uploadRoundMedia(uid, round.photos);
+  } else if (Array.isArray(round.photos) && round.photos.length) {
+    // 나만보기도 전량 계정 백업([[diary-media-backup-plan]] 2026-07-04) — 기기 유실·변경에도 기록 보존.
+    //   단 오프라인 저장은 깨지면 안 되므로 best-effort: 실패 항목은 dgphoto:로 저장되고 백업 스위퍼가 후속 업로드.
+    const { photos } = await uploadRoundMediaBestEffort(uid, round.photos);
+    round.photos = photos;
   }
   const ref = await addDoc(collection(db, COLLECTION), round);
   // 친구 피드 새 글 시각 — 친구탭 NEW 점·새글순용. ★친구공개(friends)만 갱신:
@@ -226,10 +231,18 @@ export async function updateRound(roundId, data) {
       updatable.audienceGroupIds = [];
     }
   }
-  // 친구·그룹 공개면 새로 추가된 로컬 사진/영상만 Storage 업로드(https는 멱등 스킵) ([[friend-feed-design]]).
-  if ((updatable.visibility === 'friends' || updatable.visibility === 'group') && Array.isArray(updatable.photos)) {
+  // 새로 추가된 로컬 사진/영상 Storage 업로드(https는 멱등 스킵).
+  //   친구·그룹 = 실패 throw(깨진 참조 방지) / 나만보기 = best-effort(오프라인 수정 보존, 스위퍼 후속) ([[diary-media-backup-plan]]).
+  if (Array.isArray(updatable.photos) && updatable.photos.length) {
     const uid = await getUid();
-    if (uid) updatable.photos = await uploadRoundMedia(uid, updatable.photos);
+    if (uid) {
+      if (updatable.visibility === 'friends' || updatable.visibility === 'group') {
+        updatable.photos = await uploadRoundMedia(uid, updatable.photos);
+      } else {
+        const { photos } = await uploadRoundMediaBestEffort(uid, updatable.photos);
+        updatable.photos = photos;
+      }
+    }
   }
   await updateDoc(ref, {
     ...updatable,
