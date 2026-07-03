@@ -1185,7 +1185,8 @@ export function HomeScreen({ navigation, route }) {
                 paddingHorizontal: 12, paddingVertical: 6,
                 borderRadius: 20,
               }}>
-              {/* 캘린더 아이콘 살짝 흔들어 '탭하면 일정 캘린더 열림' 신호 강화 (사용자 2026-06-29) */}
+              {/* 캘린더 아이콘 살짝 흔들어 '탭하면 일정 캘린더 열림' 신호 강화 (사용자 2026-06-29)
+                  ★맥동(pulse) 대체 실험 → 19px 아이콘에선 눈에 안 띄어 shake 유지 결정, 코랄 계열은 명도 부족 (2026-07-03) */}
               <AttentionMotion type="shake" distance={3}>
                 <Icon name="calendar" size={fs(19)} color={C.butter} />
               </AttentionMotion>
