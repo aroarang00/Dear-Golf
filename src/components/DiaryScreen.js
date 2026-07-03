@@ -700,10 +700,12 @@ export function DiaryScreen({ route, navigation }) {
         {/* 💰·⚙️ — iOS는 이름(marginTop:0)이 위에 붙어 top:14면 아이콘이 이름보다 ~5px 아래로 떨어짐 → iOS만 top 올려 이름과 맞춤.
             안드는 이름 marginTop:8이라 14가 맞음([[rn-platform-gotchas]] 명함 정렬). */}
         <View style={{ position: 'absolute', top: Platform.OS === 'android' ? 14 : 8, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
+          {/* 가계부 — 💰 이모지 → 텍스트 알약(사용자 2026-07-03). 가계부 모달 톤(차콜딥+골드)과 통일. */}
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(24) }}>💰</Text>
+            style={{ backgroundColor: C.charcoal, borderRadius: 15, paddingHorizontal: 11, height: 30,
+              alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter, includeFontPadding: false }}>가계부</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -711,7 +713,8 @@ export function DiaryScreen({ route, navigation }) {
             <Icon name="gear" size={fs(30)} color={C.charcoal} strokeWidth={1.8} />
           </TouchableOpacity>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 80 }}>
+        {/* paddingRight 80→104 — 가계부가 아이콘(36)→텍스트 알약(~60)으로 넓어져 이름과 안 겹치게 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 104 }}>
           {/* 아바타 — 탭하면 사진 변경 액션시트 */}
           <View>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
