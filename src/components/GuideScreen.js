@@ -27,7 +27,7 @@ import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword } from '../utils/kakao';
-import { searchGolfCourses } from '../utils/golfCourses';
+import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { isRoundDiary } from '../utils/diaryKind';
 import { cityTokenOf, regionOf, naverSearchUrl } from '../utils/naverMap';
 import { FoodMapView } from './FoodMapView';
@@ -45,6 +45,9 @@ export function GuideScreen({ route, navigation }) {
   const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
   const { userProfile } = React.useContext(UserContext);
   const [selected, setSelected] = useState(null);
+  // 코스 둘러보기 지역탭 선택 — CourseExploreTab에 두면 상세 열 때(if selected early return) 언마운트돼
+  //   지역 리스트가 사라지므로 여기(상시 마운트)로 끌어올려 상세 닫고 뒤로 와도 유지되게 함.
+  const [exploreRegion, setExploreRegion] = useState('전체');
   const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
   const [innerTab, setInnerTab] = useState('course');
   const [showCourseLog, setShowCourseLog] = useState(false); // 내 코스기록 페이지
@@ -94,12 +97,14 @@ export function GuideScreen({ route, navigation }) {
   const [foodSearchLoading, setFoodSearchLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [saveModalSeed, setSaveModalSeed] = useState(null);
-  const [top100, setTop100] = useState([]); // 100대 코스 — 코스 상세 배지용
+  const [top100, setTop100] = useState([]); // 100대 코스 — 코스 상세 배지용 + CourseExploreTab에 내려줌(상세 복귀 깜빡임 방지)
+  const [exploreMaster, setExploreMaster] = useState([]); // 전국 골프장 마스터 — CourseExploreTab '전체 골프장'용(상시 마운트라 상세 복귀 시 재조회 없음)
   const scrollRefs = useRef({});
   const exploreRef = useRef(null);   // 코스 목록(CourseExploreTab) 스크롤 톱 복귀용 — 탭 재탭 시 호출
 
   // 100대 코스 목록 — 마운트 시 1회 로드
   useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
+  useEffect(() => { getGolfCourses().then(list => setExploreMaster(list || [])).catch(() => {}); }, []);
   // 내 저장 골프장(위시리스트) 로드 — 저장 버튼 상태(저장됨/저장)용
   useEffect(() => { getSavedCourses().then(list => setSavedFav(list || [])); }, []);
 
@@ -1541,6 +1546,10 @@ export function GuideScreen({ route, navigation }) {
       </View>
       <CourseExploreTab
         ref={exploreRef}
+        region={exploreRegion}
+        onRegionChange={setExploreRegion}
+        top100={top100}
+        master={exploreMaster}
         onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
         onOpenPreview={handleOpenPreview}
         onOpenCourseLog={() => setShowCourseLog(true)}

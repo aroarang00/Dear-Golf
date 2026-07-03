@@ -10,7 +10,7 @@ import { GreenFlag, Icon } from './common/Icon'; // 🏌️ → 입체 그린·�
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
 import { searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
-import { searchGolfCourses } from '../utils/golfCourses';
+import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { getCurrentLocation, hasLocationPermission } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getSavedCourses, saveSavedCoursesOrder } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트)
@@ -87,7 +87,7 @@ function MoreButton({ moreCount, expanded, onPress }) {
 }
 
 // forwardRef — 코스 탭 재탭(tabPress) 시 부모(GuideScreen)가 scrollToTop()을 호출해 목록을 맨 위로 올림.
-export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview, onOpenCourseLog }, ref) {
+export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview, onOpenCourseLog, region: regionProp, onRegionChange, top100: top100Prop, master: masterProp }, ref) {
   const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
   useImperativeHandle(ref, () => ({
     scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
@@ -96,12 +96,23 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [region, setRegion] = useState('전체');
+  // 지역 선택은 부모(GuideScreen)가 controlled로 넘기면 그걸 쓴다 — 코스 상세를 열면 GuideScreen이
+  //   early return(if selected)으로 이 컴포넌트를 언마운트해 로컬 state가 날아가므로, 부모에 두면
+  //   상세 닫고 뒤로 왔을 때 지역 리스트가 그대로 유지된다. 미전달 시 로컬 폴백(하위호환).
+  const [regionLocal, setRegionLocal] = useState('전체');
+  const region = regionProp !== undefined ? regionProp : regionLocal;
+  const setRegion = onRegionChange || setRegionLocal;
 
   const [savedCourses, setSavedCourses] = useState([]); // userCourses — 검색결과 ❤️·기존코스 판별용
   const [recentCourses, setRecentCourses] = useState([]);
   const [recentExpanded, setRecentExpanded] = useState(false);
-  const [top100, setTop100] = useState([]); // 지역별 100대 코스 둘러보기용
+  const [regionMasterExpanded, setRegionMasterExpanded] = useState(false); // '지역 전체 골프장' 더보기(초기 8개만 렌더 — 대량 렌더로 탭 씹힘 방지)
+  // top100·master는 부모(GuideScreen)가 controlled로 내려주면 그걸 쓴다 — 코스 상세를 열면 이 컴포넌트가
+  //   언마운트되므로, 부모에 두면 뒤로 왔을 때 재조회 없이 즉시 리스트가 떠 깜빡임이 없다. 미전달 시 로컬 폴백.
+  const [top100Local, setTop100Local] = useState([]); // 지역별 100대 코스 둘러보기용
+  const [masterLocal, setMasterLocal] = useState([]); // 전국 골프장 마스터(~477) — 지역탭 '전체 골프장' 목록용
+  const top100 = top100Prop !== undefined ? top100Prop : top100Local;
+  const master = masterProp !== undefined ? masterProp : masterLocal;
 
   const [nearby, setNearby] = useState([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
@@ -145,8 +156,11 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
 
   useEffect(() => { refreshSaved(); refreshRecent(); refreshFav(); }, [refreshSaved, refreshRecent, refreshFav]);
 
-  // 100대 코스 목록 로드 (지역 탭 둘러보기용)
-  useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
+  // 100대 코스·마스터 로드 — 부모가 안 내려줄 때만(로컬 폴백). GuideScreen은 prop으로 내려줘 여긴 스킵됨.
+  useEffect(() => { if (top100Prop === undefined) getTop100Courses().then(list => setTop100Local(list || [])); }, [top100Prop]);
+  useEffect(() => { if (masterProp === undefined) getGolfCourses().then(list => setMasterLocal(list || [])).catch(() => {}); }, [masterProp]);
+  // 지역을 바꾸면 '전체 골프장'을 다시 접는다 — 펼친 채로 지역 전환 시 대량 렌더가 탭을 막지 않게.
+  useEffect(() => { setRegionMasterExpanded(false); }, [region]);
 
   // 주변 연습장·스크린골프 fetch — 위치→카카오. 실패해도 직전 캐시(이미 표시 중)는 유지(빈 화면 방지).
   //   빈 결과여도 리스트가 비어있을 때만 메시지가 보이므로(렌더 조건), 캐시 표시 중엔 오인 메시지가 가려짐.
@@ -250,6 +264,15 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     setSearch(c.name); // 검색 실패 시 검색창에라도 채워줌
   };
 
+  // 지역 전체 골프장(마스터) 항목 탭 — 마스터엔 이미 kakaoId·좌표가 있어 검색 없이 바로 연다.
+  //   이미 내 코스로 저장돼 있으면 그 상세로, 아니면 미리보기로(openTop100Course 꼬리와 동일 분기).
+  const openMasterCourse = async (c) => {
+    try { await addRecentCourse(c); refreshRecent(); } catch {}
+    const existing = savedCourses.find(s => String(s.kakaoId) === String(c.kakaoId));
+    if (existing) onSelectCourse?.(existing.id);
+    else onOpenPreview?.(c);
+  };
+
   // 로컬 목록(최근·저장)에서 숨길 항목 — 비코스 잡항목(클럽하우스·연습장 등 과거 기록 잔재)
   // + 큐레이션 대표명(라비에벨 골프앤리조트, 단독이어도 숨김 — 2026-06-02 정책)
   const isHiddenLocal = (name) => {
@@ -266,8 +289,20 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const regionCourses = region === '전체'
     ? []
     : top100.filter(c => getRegion(c.region) === region);
+  // 선택한 지역의 전체 골프장 (마스터, 이름순) — 위 100대에 이미 뜬 곳은 제외(중복 방지, 정규화 이름 매칭)
+  const regionMasterCourses = region === '전체'
+    ? []
+    : (() => {
+        const top100Names = new Set(regionCourses.map(c => normalizeCourseName(c.name)));
+        return master
+          .filter(c => getRegion(c.loc) === region && !top100Names.has(normalizeCourseName(c.name)))
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      })();
   const visibleRecent = recentExpanded ? filteredRecent : filteredRecent.slice(0, 5);
   const moreRecent = filteredRecent.length - visibleRecent.length;
+  // 지역 전체 골프장 — 처음 8개만 렌더(수도권 등 100곳+ 한 번에 그리면 JS 스레드가 막혀 지역탭 선택이 씹힘). 나머지는 더보기.
+  const visibleRegionMaster = regionMasterExpanded ? regionMasterCourses : regionMasterCourses.slice(0, 8);
+  const moreRegionMaster = regionMasterCourses.length - visibleRegionMaster.length;
 
   const visibleNearby = nearbyExpanded ? nearby : nearby.slice(0, 5);
   const moreNearby = nearby.length - visibleNearby.length;
@@ -395,6 +430,42 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                   <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          )}
+        </Section>
+      )}
+
+      {/* 지역 선택 시 — 그 지역 전체 골프장(마스터, 100대 제외). 위 100대 섹션 아래에 붙는다. */}
+      {region !== '전체' && !search.trim() && (
+        <Section
+          title={`${region} 전체 골프장`}
+          icon="green" iconSize={fs(18)}
+          right={master.length ? `${regionMasterCourses.length}곳` : ''}>
+          {master.length === 0 ? (
+            <View style={{ paddingVertical: 22, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={C.warmGray} />
+            </View>
+          ) : regionMasterCourses.length === 0 ? (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 18, paddingHorizontal: 14, textAlign: 'center' }}>
+              {`${region} 지역의 다른 골프장 정보가 아직 없어요`}
+            </Text>
+          ) : (
+            <View style={{ paddingHorizontal: 14 }}>
+              {visibleRegionMaster.map(c => (
+                <TouchableOpacity key={c.kakaoId || c.name} onPress={() => openMasterCourse(c)} activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: _and ? 9 : 12,
+                    borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Icon name="green" size={fs(19)} color={C.charcoal} strokeWidth={1.7} />
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal, marginLeft: 6 }}>{c.name}</Text>
+                    </View>
+                    {!!c.loc && <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{c.loc}</Text>}
+                  </View>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
+                </TouchableOpacity>
+              ))}
+              <MoreButton moreCount={moreRegionMaster} expanded={regionMasterExpanded} onPress={() => setRegionMasterExpanded(v => !v)} />
             </View>
           )}
         </Section>
