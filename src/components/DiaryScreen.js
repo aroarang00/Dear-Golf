@@ -546,9 +546,12 @@ export function DiaryScreen({ route, navigation }) {
     <>
       <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
         onShare={selected.kind === 'moment' ? undefined : (round) => setShareMoment({ ...round, shareKind: 'round', playerName: (userProfile.realName || userProfile.nickname || '').trim() })}
-        onUpdate={(updated) => {
-          // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨
-          handleSave('diary-edit', updated);
+        onUpdate={async (updated) => {
+          // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨.
+          //   ★실패(false) 시 낙관 반영·모달 닫기를 하지 않고 false를 그대로 전파 —
+          //     상세 편집 경로에서 저장 실패가 무음 유실되던 회귀 방지(2026-07-02 리뷰).
+          const ok = await handleSave('diary-edit', updated);
+          if (ok === false) return false;
           setSelected(updated);
         }}
         onDelete={handleDeleteDiary} />

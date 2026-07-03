@@ -395,9 +395,11 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
         onClose={() => setShowEditModal(false)}
         initial={item}
         isEdit
-        onSave={(type, data) => {
+        onSave={async (type, data) => {
           if (type === 'diary-edit') {
-            onUpdate && onUpdate({ ...item, ...data });
+            // 저장 실패(false) 시 모달을 닫지 않고 false를 전파 — DiaryAddModal이 입력 보존+안내(회귀 방지)
+            const ok = await (onUpdate ? onUpdate({ ...item, ...data }) : undefined);
+            if (ok === false) return false;
             setShowEditModal(false);
           }
         }}
