@@ -2,7 +2,7 @@
 // 사용자가 한 영역만 쓰지 않고 올인원 골프 라이프 앱이라는 정체성을 발견하도록.
 // 라운지 RoundupIntroModal(네이비)과 시각적 차별 — 차콜 헤더 + 베이지 본문.
 import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, ImageBackground, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
@@ -15,6 +15,11 @@ const HEADER_IMG = require('../../assets/home-bg/day3.jpg');
 // 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
 const FEATURES = [
   { icon: '🏌️', title: '예정 라운딩 한 번에',        body: '날짜만 넣어도 날씨·교통·일정·캘린더 자동', tint: '#D6E4EF' }, // paleSky 톤
+  // 기상·출발 알림 — 플랫폼별 동작 차이는 그 기기에 해당하는 안내만(iOS=무음스위치, 안드=시계앱 알람 24시간)
+  { icon: '⏰', title: '기상·출발 알림',              body: '티오프에 맞춰 일어날 시간·나설 시간을 계산해 알려드려요', tint: '#F4DCC8', // 옅은 코랄
+    note: Platform.OS === 'ios'
+      ? 'iPhone은 무음 스위치가 켜져 있으면 소리가 안 나요 — 전날 밤 꺼두세요'
+      : '기상 알림은 시계 앱 알람으로도 함께 울려요 (라운딩 24시간 안쪽부터)' },
   { icon: '🗺️', title: '다녀온 골프장 자동 정리',    body: '일정만 등록해도 다녀온 코스가 차곡차곡',   tint: '#FAEDB8' }, // butter 톤
   { icon: '🏆', title: '걸어본 코스 한눈에',          body: '100대·해외 라운딩이 자동으로 정리',        tint: '#F0D6D6' }, // 옅은 burgundy
   { icon: '📓', title: '친구 골퍼끼리 기록·사진 공유', body: '스코어·메모를 친구끼리 함께',              tint: '#D6E3C8' }, // 옅은 그린
@@ -114,25 +119,38 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                         → {f.cta}
                       </Text>
                     )}
+                    {f.note && (
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                        {f.note}
+                      </Text>
+                    )}
                   </View>
                 </View>
               ))}
             </View>
 
-            {/* 4. 마무리 CTA — 예정 라운딩 추가로 첫걸음 유도 */}
+            {/* 4. 마무리 CTA — 예정 라운딩 추가로 첫걸음 유도.
+                onAddSchedulePress 없이 열리면(마이페이지 재열람) 일정 추가 동선이 없으니 닫기 버튼만. */}
             <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 18, marginBottom: 14 }}>
-                기능을 다 쓰지 않아도 괜찮아요.{'\n'}예정 라운딩 하나만 추가해도 절반은 시작이에요.
-              </Text>
-              <TouchableOpacity activeOpacity={0.85}
-                onPress={() => { onClose(); onAddSchedulePress?.(); }}
-                style={{ backgroundColor: C.charcoal, borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>+ 예정 라운딩 추가하기</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.7} onPress={onClose}
-                style={{ paddingVertical: 14, alignItems: 'center', marginTop: 4 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>나중에</Text>
-              </TouchableOpacity>
+              {onAddSchedulePress ? (<>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 18, marginBottom: 14 }}>
+                  기능을 다 쓰지 않아도 괜찮아요.{'\n'}예정 라운딩 하나만 추가해도 절반은 시작이에요.
+                </Text>
+                <TouchableOpacity activeOpacity={0.85}
+                  onPress={() => { onClose(); onAddSchedulePress?.(); }}
+                  style={{ backgroundColor: C.charcoal, borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>+ 예정 라운딩 추가하기</Text>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.7} onPress={onClose}
+                  style={{ paddingVertical: 14, alignItems: 'center', marginTop: 4 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>나중에</Text>
+                </TouchableOpacity>
+              </>) : (
+                <TouchableOpacity activeOpacity={0.85} onPress={onClose}
+                  style={{ backgroundColor: C.charcoal, borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>확인</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </ScrollView>
         </SafeAreaView>

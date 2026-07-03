@@ -1049,8 +1049,9 @@ export function HomeScreen({ navigation, route }) {
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter }}>›</Text>
               </TouchableOpacity>
             </Animated.View>
-          ) : (
-          /* Dear Golf 이용 안내 진입 — 안녕하세요 아래 가로 띠. 미열람 시 빨간 점으로 호기심 유도. */
+          ) : !homeIntroSeen ? (
+          /* Dear Golf 이용 안내 진입 — 첫 유저 1회성 띠(사용자 2026-07-03). 열어보면(=확인) 영구히 사라짐.
+             기존 유저도 이미 열어봤으면 안 뜸. 재열람은 마이페이지 '이용 안내'에서. */
           <TouchableOpacity onPress={openHomeIntro} activeOpacity={0.85}
             style={{ flexDirection: 'row', alignItems: 'center', gap: Platform.OS === 'android' ? 6 : 8, marginTop: Platform.OS === 'android' ? 13 : 15,
               backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
@@ -1059,20 +1060,18 @@ export function HomeScreen({ navigation, route }) {
               paddingVertical: Platform.OS === 'android' ? 5 : 7, alignSelf: 'flex-start' }}>
             <View>
               <Text style={{ fontSize: Platform.OS === 'android' ? fs(18) : fs(22) }}>💡</Text>
-              {!homeIntroSeen && (
-                <View style={{ position: 'absolute', top: -2, right: -4, width: 10, height: 10, borderRadius: 5,
-                  backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.95)' }} />
-              )}
+              <View style={{ position: 'absolute', top: -2, right: -4, width: 10, height: 10, borderRadius: 5,
+                backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.95)' }} />
             </View>
             <View>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff', includeFontPadding: false }}>Dear Golf 이용 안내</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.7)', marginTop: 1, includeFontPadding: false }}>
-                {homeIntroSeen ? '기능 한눈에 보기' : '처음이신가요? 한 번 열어보세요'}
+                처음이신가요? 한 번 열어보세요
               </Text>
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
-          )}
+          ) : null}
           {/* ── 우측 버튼 레일: 메시지 → 크루. 둘 다 절대좌표 right:SIDE_PAD, top = RAIL_TOP + RAIL_STEP*n(간격 균일).
                 hdr 마지막 자식들(그리팅·배너 위에 렌더) + zIndex/elevation 20으로 iOS·안드 모두 맨 위라 터치 받음. ── */}
           {/* 메시지(DM) — 레일 1번. 안읽음=버건디+숫자, 안읽음 시 좌우 진동. 평상시 은은한 호흡 펄스.

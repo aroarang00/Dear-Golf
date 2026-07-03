@@ -28,6 +28,7 @@ import { MyRoundupActivityScreen } from './MyRoundupActivityScreen';
 import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
 import { clearRecentCourses } from '../utils/recentCourses';
 import { TermsViewerModal } from './TermsViewerModal';
+import { HomeIntroModal } from './HomeIntroModal'; // 이용 안내 재열람 — 홈 띠는 1회성이라 여기가 상시 진입점
 import { getReportRemainingThisMonth, REPORT_MONTH_LIMIT } from '../utils/reportLimit';
 import {
   TERMS_OF_SERVICE,
@@ -76,6 +77,7 @@ export function MyPageModal({ visible, onClose }) {
   const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
   const [groupManageOpen, setGroupManageOpen] = useState(false);  // 친구 그룹 관리 ([[friend_groups]])
   const [reportOpen, setReportOpen] = useState(false);             // 신고하기
+  const [introOpen, setIntroOpen] = useState(false);               // Dear Golf 이용 안내(재열람)
   const [roundupActivityOpen, setRoundupActivityOpen] = useState(false); // 내 라운지 활동
   const [termsViewer, setTermsViewer] = useState({ visible: false, title: '', body: '', externalUrl: null }); // 약관·정책 본문 뷰어
   const [reportRemaining, setReportRemaining] = useState(REPORT_MONTH_LIMIT); // 이번 달 신고 가능 잔여 (월 1건 한도)
@@ -397,6 +399,19 @@ export function MyPageModal({ visible, onClose }) {
                 </View>
               </View>
               <TripleStripe height={1.5} />
+              {/* 이용 안내 배너 — 홈 띠가 첫 유저 1회성이 되면서 여기가 상시 진입점. 설정 리스트 안은 발견이 안 돼
+                  (사용자 2026-07-03 "없는 줄") 명함 바로 아래 상시 노출 배너로. */}
+              <TouchableOpacity onPress={() => setIntroOpen(true)} activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginTop: 14,
+                  backgroundColor: '#fff', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12,
+                  paddingHorizontal: 14, paddingVertical: 11 }}>
+                <Text style={{ fontSize: fs(20) }}>💡</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>Dear Golf 이용 안내</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>기능 한눈에 보기</Text>
+                </View>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>›</Text>
+              </TouchableOpacity>
               <View style={myS.sectionPlain}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Text style={myS.sectionLabel}>나의 통계</Text>
@@ -1034,6 +1049,8 @@ export function MyPageModal({ visible, onClose }) {
         onClose={() => { setReportOpen(false); getReportRemainingThisMonth().then(setReportRemaining); }} />
       <MyRoundupActivityScreen visible={roundupActivityOpen}
         onClose={() => setRoundupActivityOpen(false)} />
+      {/* 이용 안내 — 홈과 동일 콘텐츠. onAddSchedulePress 없이 열면 CTA 대신 닫기 버튼(마이페이지 위라 일정 추가 동선 없음) */}
+      <HomeIntroModal visible={introOpen} onClose={() => setIntroOpen(false)} />
       <TermsViewerModal
         visible={termsViewer.visible}
         onClose={() => setTermsViewer(v => ({ ...v, visible: false }))}
