@@ -7,6 +7,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
 import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
+import { Image as ExpoImage } from 'expo-image'; // 스토어 광고 카드 상품 사진(storeAds[].img)
+import { loadStoreAds } from '../utils/storeConfig'; // 홈 캐러셀 광고 원격 로드(config/storeAds)
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
 import { COURSE_LOG, WEEKDAYS } from '../constants/data';
@@ -75,6 +77,9 @@ const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼
 //   ★스마트스토어 심사 승인 나면 실제 주소만 넣으면 연결됨(2026-07-03 통신판매업 신고·심사 접수).
 //   법무 결론([[home-shopping-reservation-buttons]]): 외부 브라우저로 열기(Linking) OK, 네이버 로고 미사용(우리 스타일 버튼).
 const STORE_URL = ''; // 심사 승인 후 실제 스토어 주소 입력 (예: https://smartstore.naver.com/deargolf)
+// 홈 하단(한줄메모/골퍼코멘트) 캐러셀 상품 광고 — Firestore `config/storeAds`에서 원격 로드(loadStoreAds).
+//   콘솔에서 문서만 고치면 앱 업데이트 없이 광고 게시·교체·내림. 비어 있으면 캐러셀은 기존과 100% 동일.
+//   광고 형식: { tag: '라운딩 준비물', title: '쿨토시 · 여름 필드 필수템', img: '이미지URL(풀블리드, 선택)', url: '상품URL(비면 STORE_URL)' }
 
 // 홈 카드 표시용 구장명 축약 — 긴 이름(9자↑)만 끝의 유형어(골프앤스파리조트·컨트리클럽·CC 등)를 떼서
 //   adjustsFontSizeToFit로 글씨가 너무 작아지는 것 방지(예 '유니아일랜드 골프앤스파리조트'→'유니아일랜드').
@@ -134,6 +139,12 @@ export function HomeScreen({ navigation, route }) {
   const [sheetMealAutoOpen, setSheetMealAutoOpen] = useState(false);
   const [pendingInviteSchedule, setPendingInviteSchedule] = useState(null); // 생성 직후 초대 제안 대상(알람 팝업 뒤)
   const [cardSlide, setCardSlide] = useState(0);
+  const [storeAds, setStoreAds] = useState([]); // 홈 캐러셀 스토어 광고 — 원격(config/storeAds), 빈 배열=미노출
+  useEffect(() => {
+    let alive = true;
+    loadStoreAds().then((ads) => { if (alive) setStoreAds(ads); });
+    return () => { alive = false; };
+  }, []);
   const [now, setNow] = useState(Date.now());
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   const { diaries } = React.useContext(DiariesContext);
@@ -663,13 +674,16 @@ export function HomeScreen({ navigation, route }) {
     storage.save(STORAGE_KEYS.d0Info + next.id, { t: Date.now(), date: next.date, v: d0Info });
   }, [isD0, next?.id, next?.date, d0Info]);
 
-  const carouselActive = React.useMemo(() => {
+  // 캐러셀 슬라이드 수 — 기본(메모 1 + 골퍼코멘트 1) + 스토어 광고(storeAds 원격, 비면 0).
+  //   메모 여부는 렌더와 동일하게 '첫 기록의 memo' 기준(diaryEntries[0]) — some()과 어긋나면 회전만 돌고 카드는 한 장인 불일치.
+  const homeSlideCount = React.useMemo(() => {
     const course = next?.course;
-    if (!course) return false;
-    const hasMyMemo = diaries.some(d => isRoundDiary(d) && d.course === course && d.memo); // 일상(모멘트) 제외
-    if (!hasMyMemo) return false;
-    return !!homeTopComment;
-  }, [next?.course, diaries, homeTopComment]);
+    if (!course) return 1;
+    const entries = diaries.filter(d => isRoundDiary(d) && d.course === course); // 일상(모멘트) 제외
+    const base = (entries.length > 0 && entries[0]?.memo && homeTopComment) ? 2 : 1;
+    return base + Math.min(storeAds.length, 2);
+  }, [next?.course, diaries, homeTopComment, storeAds]);
+  const carouselActive = homeSlideCount > 1;
 
   useEffect(() => {
     if (!carouselActive) {
@@ -678,15 +692,15 @@ export function HomeScreen({ navigation, route }) {
     }
     const id = setInterval(() => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setCardSlide(prev => (prev === 0 ? 1 : 0));
+      setCardSlide(prev => (prev + 1) % homeSlideCount);
     }, 5000);
     return () => clearInterval(id);
-  }, [carouselActive]);
+  }, [carouselActive, homeSlideCount]);
 
   const toggleCardSlide = () => {
     if (!carouselActive) return;
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setCardSlide(prev => (prev === 0 ? 1 : 0));
+    setCardSlide(prev => (prev + 1) % homeSlideCount);
   };
 
   // 일정 → 코스 상세에 쓸 id (COURSE_LOG id 우선, 없으면 userCourses id).
@@ -1455,127 +1469,181 @@ export function HomeScreen({ navigation, route }) {
             const topComment = homeTopComment;
             const hasGolfer = !!topComment;
 
+            // 캐러셀(슬라이드 2+)이면 카드 높이 완전 고정 — memoCard의 minHeight만으론 내용 많은 카드
+            //   (광고·코멘트 2줄)에서 늘어나 위 디데이 카드까지 들썩임(사용자 2026-07-03). 케이스별
+            //   자연 높이 기준 + fs() 비례(디스플레이 확대 시 클립 방지). 슬라이드 1장이면 종전 그대로.
+            const withGolfer = !isFirstVisit && !!myMemo && hasGolfer;
+            const adsCount = Math.min(storeAds.length, 2);
+            const slideCount = 1 + (withGolfer ? 1 : 0) + adsCount;
+            const isAnd = Platform.OS === 'android';
+            const SLIDE_FIX = slideCount > 1
+              ? { height: Math.round(fs(isFirstVisit ? (isAnd ? 84 : 110) : (!myMemo ? (isAnd ? 78 : 94) : (isAnd ? 72 : 92)))), minHeight: 0 }
+              : null;
+
             const labelCourseTxt = (label) => (
               <Text style={[homeS.memoCardCourse, { fontSize: fs(11) }]} numberOfLines={1}>
                 {label} · <Text style={{ color: 'rgba(255,255,255,0.55)' }}>{courseLabel}</Text>
               </Text>
             );
 
+            // 슬라이드 조립 — 기본 카드(케이스별 1장) + 골퍼코멘트(케이스1 한정) + 스토어 광고(storeAds 원격).
+            //   storeAds가 비어 있으면 슬라이드 구성·동작 모두 종전과 동일.
             // 케이스 3·4: 첫 방문
-            if (isFirstVisit) {
-              return (
-                <View>
-                  <View style={homeS.memoCard}>
-                    <View style={homeS.memoCardTop}>
-                      <View style={[homeS.memoBadgeFirst, { backgroundColor: '#C8D9E6' }]}>
-                        <Text style={[homeS.memoBadgeTxt, { color: C.navy }]}>첫 방문</Text>
-                      </View>
-                      {labelCourseTxt('골퍼 코멘트')}
-                    </View>
-                    <View style={homeS.memoCardBottom}>
-                      {hasGolfer ? (
-                        <>
-                          <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
-                          <Text style={homeS.commentWho}>{topComment.who}</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 골퍼 코멘트가 없어요</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8', marginTop: 8, alignSelf: 'flex-start' }}>첫 번째 코멘트의 주인공이 되어보세요</Text>
-                        </>
-                      )}
-                    </View>
+            const firstVisitCard = (
+              <View style={[homeS.memoCard, SLIDE_FIX]}>
+                <View style={homeS.memoCardTop}>
+                  <View style={[homeS.memoBadgeFirst, { backgroundColor: '#C8D9E6' }]}>
+                    <Text style={[homeS.memoBadgeTxt, { color: C.navy }]}>첫 방문</Text>
                   </View>
+                  {labelCourseTxt('골퍼 코멘트')}
                 </View>
-              );
-            }
+                <View style={homeS.memoCardBottom}>
+                  {hasGolfer ? (
+                    <>
+                      <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
+                      <Text style={homeS.commentWho}>{topComment.who}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 골퍼 코멘트가 없어요</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8', marginTop: 8, alignSelf: 'flex-start' }}>첫 번째 코멘트의 주인공이 되어보세요</Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            );
 
             // 케이스 2: 방문 + 내 메모 없음
-            if (!myMemo) {
+            const noMemoCard = (
+              <View style={[homeS.memoCard, SLIDE_FIX]}>
+                <View style={homeS.memoCardTop}>
+                  <View style={homeS.memoBadgeVisit}>
+                    <Text style={homeS.memoBadgeTxt}>한줄 메모</Text>
+                  </View>
+                  <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
+                </View>
+                <View style={homeS.memoCardBottom}>
+                  <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate(ROUTES.MY, {
+                      openAddModal: true,
+                      addDate: next?.date,
+                      addCourse: next?.course,
+                      addCourseId: next?.courseLogId || next?.courseId,
+                      addScheduleId: next?.id || null,
+                      // 동반자·티오프 직접 전달(scheduleId find 의존 제거). 단체 모집(teams>1)은 시간 제외(null).
+                      addCompanions: Array.isArray(next?.companions) ? next.companions : null,
+                      addTime: (next?.roundupId && (next?.teams || 1) > 1) ? null : (next?.time || null),
+                    })}
+                    style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+
+            // 케이스 1: 방문 + 내 메모 있음 (+ 골퍼 코멘트 카드)
+            const myMemoCard = (
+              <View style={[homeS.memoCard, SLIDE_FIX]}>
+                <View style={homeS.memoCardTop}>
+                  <View style={homeS.memoBadgeVisit}>
+                    <Text style={homeS.memoBadgeTxt}>한줄 메모</Text>
+                  </View>
+                  <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
+                </View>
+                <View style={homeS.memoCardBottom}>
+                  <Text style={homeS.memoTxt} numberOfLines={1} ellipsizeMode="tail">"{myMemo}"</Text>
+                </View>
+              </View>
+            );
+            const golferCard = hasGolfer ? (
+              <View style={[homeS.commentCard, SLIDE_FIX]}>
+                <View style={homeS.memoCardTop}>
+                  <View style={homeS.memoBadgeComment}>
+                    <Text style={[homeS.memoBadgeTxt, { color: '#C8D9E6' }]}>골퍼 코멘트</Text>
+                  </View>
+                  <Text style={[homeS.memoCardCourse, { flex: 1 }]} numberOfLines={1}>{courseLabel}</Text>
+                  {/* 닉네임을 top 우상단으로 — 하단 본문(2줄)이 한줄메모와 같은 minHeight 안에 들어와 캐러셀 높이 안 튐 */}
+                  <Text style={homeS.commentWhoTop} numberOfLines={1}>{topComment.who}</Text>
+                </View>
+                <View style={homeS.memoCardBottom}>
+                  <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
+                </View>
+              </View>
+            ) : null;
+
+            // 스토어 광고 카드 — '광고판' 룩(눈에 띄어야 함, 사용자 2026-07-03).
+            //   ad.img 있으면 카드 전체를 사진이 꽉 채우고(풀블리드) 스크림 위에 텍스트, 없으면 버터골드 채움 폴백.
+            //   memoCard의 overflow:hidden+borderRadius 덕에 풀블리드가 모서리까지 깔끔. 탭 전체는 캐러셀 넘김 — 이동은 '보러 가기 →'.
+            const adCards = storeAds.slice(0, 2).map((ad, i) => {
+              const hasImg = !!ad.img;
+              // 사진 없을 땐 페일스카이 채움 — 홈에 버터가 많아 스카이로 차별화(사용자 2026-07-03)
               return (
-                <View>
-                  <View style={homeS.memoCard}>
-                    <View style={homeS.memoCardTop}>
-                      <View style={homeS.memoBadgeVisit}>
-                        <Text style={homeS.memoBadgeTxt}>한줄 메모</Text>
-                      </View>
-                      <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
+                <View key={`storead${i}`} style={[homeS.memoCard, { backgroundColor: hasImg ? '#2A2622' : '#C8D9E6', borderColor: 'rgba(26,61,82,0.2)' }, SLIDE_FIX]}>
+                  {hasImg && (
+                    <>
+                      <ExpoImage source={{ uri: ad.img }} contentFit="cover" transition={0}
+                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+                      {/* 스크림 — 사진 위 텍스트 가독성(하단으로 갈수록 진해짐) */}
+                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(18,14,10,0.30)' }} />
+                    </>
+                  )}
+                  <View style={[homeS.memoCardTop, { borderBottomColor: hasImg ? 'rgba(255,255,255,0.18)' : 'rgba(26,61,82,0.15)' }]}>
+                    <View style={[homeS.memoBadgeVisit, { backgroundColor: '#6B1E2A' }]}>
+                      <Text style={homeS.memoBadgeTxt}>스토어</Text>
                     </View>
-                    <View style={homeS.memoCardBottom}>
-                      <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => navigation.navigate(ROUTES.MY, {
-                          openAddModal: true,
-                          addDate: next?.date,
-                          addCourse: next?.course,
-                          addCourseId: next?.courseLogId || next?.courseId,
-                          addScheduleId: next?.id || null,
-                          // 동반자·티오프 직접 전달(scheduleId find 의존 제거). 단체 모집(teams>1)은 시간 제외(null).
-                          addCompanions: Array.isArray(next?.companions) ? next.companions : null,
-                          addTime: (next?.roundupId && (next?.teams || 1) > 1) ? null : (next?.time || null),
-                        })}
-                        style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <Text style={[homeS.memoCardCourse, { color: hasImg ? 'rgba(255,255,255,0.85)' : 'rgba(26,61,82,0.65)' }]} numberOfLines={1}>{ad.tag || '라운딩 준비물'}</Text>
+                  </View>
+                  {/* 제목 1줄 + '보러 가기' 같은 줄 — 고정 높이(SLIDE_FIX) 안에서 클립 없이 들어가는 슬림 구성 */}
+                  <View style={[homeS.memoCardBottom, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+                    <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), lineHeight: fs(19),
+                      color: hasImg ? '#fff' : C.navy,
+                      textShadowColor: hasImg ? 'rgba(0,0,0,0.45)' : 'transparent', textShadowRadius: hasImg ? 4 : 0 }} numberOfLines={1}>{ad.title}</Text>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                      onPress={() => { const u = ad.url || STORE_URL; if (u) Linking.openURL(u).catch(() => {}); }}
+                      style={{ marginLeft: 10 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: hasImg ? '#F5E6A8' : '#6B1E2A',
+                        textShadowColor: hasImg ? 'rgba(0,0,0,0.45)' : 'transparent', textShadowRadius: hasImg ? 4 : 0 }}>보러 가기 →</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               );
-            }
+            });
 
-            // 케이스 1: 방문 + 내 메모 있음 (골퍼 코멘트 있으면 캐러셀)
-            const showCardOne = cardSlide === 1 && hasGolfer;
+            const baseCard = isFirstVisit ? firstVisitCard : (!myMemo ? noMemoCard : myMemoCard);
+            const slides = [baseCard, ...(withGolfer ? [golferCard] : []), ...adCards];
+
+            if (slides.length === 1) return <View>{slides[0]}</View>;
+
+            const slideIdx = Math.min(cardSlide, slides.length - 1);
+            // 점 색: 기본(버터) · 골퍼코멘트(하늘) · 스토어(골드)
+            const dotColor = (i) => (i === 0 ? '#F5E6A8' : (withGolfer && i === 1 ? '#C8D9E6' : '#E8C97A'));
+            // ★캐러셀 전체(카드+점)를 고정 높이 컨테이너로 잠금 — 카드별 SLIDE_FIX에 더한 이중 방어.
+            //   내부에서 어떤 높이 변화가 생겨도 위(디데이 카드)로 전파 0, 넘치면 아래로만(사용자 2026-07-03).
+            const DOTS_H = 5 + 8; // 점 높이 + marginTop
             return (
-              <View>
-                <TouchableOpacity
-                  activeOpacity={hasGolfer ? 0.9 : 1}
-                  onPress={toggleCardSlide}
-                  disabled={!hasGolfer}>
-                  {!showCardOne ? (
-                    <View style={homeS.memoCard}>
-                      <View style={homeS.memoCardTop}>
-                        <View style={homeS.memoBadgeVisit}>
-                          <Text style={homeS.memoBadgeTxt}>한줄 메모</Text>
-                        </View>
-                        <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
-                      </View>
-                      <View style={homeS.memoCardBottom}>
-                        <Text style={homeS.memoTxt} numberOfLines={1} ellipsizeMode="tail">"{myMemo}"</Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={homeS.commentCard}>
-                      <View style={homeS.memoCardTop}>
-                        <View style={homeS.memoBadgeComment}>
-                          <Text style={[homeS.memoBadgeTxt, { color: '#C8D9E6' }]}>골퍼 코멘트</Text>
-                        </View>
-                        <Text style={[homeS.memoCardCourse, { flex: 1 }]} numberOfLines={1}>{courseLabel}</Text>
-                        {/* 닉네임을 top 우상단으로 — 하단 본문(2줄)이 한줄메모와 같은 minHeight 안에 들어와 캐러셀 높이 안 튐 */}
-                        <Text style={homeS.commentWhoTop} numberOfLines={1}>{topComment.who}</Text>
-                      </View>
-                      <View style={homeS.memoCardBottom}>
-                        <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
-                      </View>
-                    </View>
-                  )}
+              <View style={{ height: SLIDE_FIX.height + DOTS_H }}>
+                <TouchableOpacity activeOpacity={0.9} onPress={toggleCardSlide}>
+                  {slides[slideIdx]}
                 </TouchableOpacity>
-                {hasGolfer && (
-                  <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center', marginTop: 8 }}>
-                    {[0, 1].map(i => (
-                      <View key={i} style={{
-                        width: cardSlide === i ? 14 : 5,
-                        height: 5, borderRadius: 3,
-                        backgroundColor: cardSlide === i ? (i === 0 ? '#F5E6A8' : '#C8D9E6') : 'rgba(255,255,255,0.15)',
-                      }} />
-                    ))}
-                  </View>
-                )}
+                <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center', marginTop: 8 }}>
+                  {slides.map((_, i) => (
+                    <View key={i} style={{
+                      width: slideIdx === i ? 14 : 5,
+                      height: 5, borderRadius: 3,
+                      backgroundColor: slideIdx === i ? dotColor(i) : 'rgba(255,255,255,0.15)',
+                    }} />
+                  ))}
+                </View>
               </View>
             );
           })()}
           </>)}
-          <View style={{ height: 22 }} />
+          {/* 하단 여백 22→8 — 캐러셀 점과 하단 탭 사이가 너무 벌어 보임(사용자 2026-07-03) */}
+          <View style={{ height: 8 }} />
         </View>
         </>
         ) : hydrated ? (
@@ -1850,3 +1918,4 @@ export function HomeScreen({ navigation, route }) {
     </View>
   );
 }
+

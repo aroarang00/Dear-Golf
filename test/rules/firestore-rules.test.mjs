@@ -591,3 +591,17 @@ test('noshowReports: 신고자·피신고자는 자기 관련 문서 read 가능
   await assertSucceeds(getDoc(doc(as('bob'), 'noshowReports', 'nr2')));
   await assertFails(getDoc(doc(as('carol'), 'noshowReports', 'nr2')));
 });
+
+// =============================================================
+// config — 앱 원격 설정(홈 스토어 광고 등). 로그인 읽기 전용, 클라 쓰기 전면 차단.
+// =============================================================
+test('config: 로그인 사용자는 읽기 가능, 쓰기·삭제는 전면 거부, 비로그인 읽기 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'config', 'storeAds'), { ads: [] }));
+  const alice = as('alice');
+  await assertSucceeds(getDoc(doc(alice, 'config', 'storeAds')));
+  await assertFails(setDoc(doc(alice, 'config', 'storeAds'), { ads: [{ title: 'hack' }] }));
+  await assertFails(updateDoc(doc(alice, 'config', 'storeAds'), { ads: [] }));
+  await assertFails(deleteDoc(doc(alice, 'config', 'storeAds')));
+  const anon = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(anon, 'config', 'storeAds')));
+});

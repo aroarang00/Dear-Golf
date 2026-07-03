@@ -62,6 +62,13 @@ service cloud.firestore {
         && request.resource.data.get('entitlements', null) == resource.data.get('entitlements', null);
     }
 
+    // ===== config — 앱 원격 설정(홈 스토어 광고 등). 읽기 전용, 쓰기는 콘솔/Admin만 =====
+    //   config/storeAds { ads: [{ tag, title, img, url }] } — 문서만 고치면 앱 업데이트 없이 광고 교체.
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // ===== users — 골퍼 프로필 (명함). MY 탭 = 친구 프로필 = 같은 스키마 =====
     // 읽기: 로그인한 누구나 (친구 검색·친구 프로필·모집 작성자 표시에 필요)
     //   ※ 민감 정보(전화번호 등)는 users 문서에 직접 저장하지 말 것
