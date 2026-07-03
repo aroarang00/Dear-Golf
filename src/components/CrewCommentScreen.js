@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 모달서 입력바를 키보드 높이만큼 들어올림(KAS 자동스크롤이 안 먹어 명령형으로)
@@ -154,6 +154,23 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
     catch (e) { if (__DEV__) console.warn('[crewComment] friendReq', e?.code, e?.message); }
   };
 
+  // 자동 스크롤 — 답글=그 댓글 스레드를 입력바 바로 위로 / 새 댓글=목록 맨 아래로(수동 쓸어올림 불편, 2026-07-03).
+  //   입력바가 키보드만큼 paddingBottom을 먹어 ScrollView가 줄어드는 구조라, 키보드 안착(~220ms) 후 스크롤해야 좌표가 맞음.
+  const scrollRef = useRef(null);
+  const inputRef = useRef(null);
+  const threadLayoutRef = useRef({});   // 최상위 댓글 스레드별 {y,height} — 댓글목록 컨테이너 기준
+  const listTopYRef = useRef(0);        // 댓글목록 컨테이너의 ScrollView 콘텐츠 기준 y
+  const scrollHRef = useRef(0);         // ScrollView 가시 높이(키보드 열리면 줄어든 값으로 갱신됨)
+  const pendingReplyRef = useRef(false); // 답글 탭 직후 onFocus의 scrollToEnd 억제(포커스가 상태 반영보다 먼저 옴)
+  const scrollThreadAboveBar = (threadId) => {
+    setTimeout(() => {
+      const lt = threadLayoutRef.current[threadId];
+      if (!lt || !scrollRef.current) return;
+      const bottom = listTopYRef.current + lt.y + lt.height;
+      scrollRef.current.scrollTo({ y: Math.max(0, bottom - scrollHRef.current + 4), animated: true });
+    }, 300);
+  };
+
   // 입력바 키보드 높이만큼 들어올림(안드 RN Modal 대응 — 앨범과 동일)
   const BAR_PAD = 8;
   const CLOSED_PAD = Math.max(0, 8 + insets.bottom - BAR_PAD);
@@ -272,7 +289,11 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
     }
     const parentId = replyTo?.id || null;
     setDraft(''); setCErr(''); setReplyTo(null); setSending(true);
-    try { await addCrewComment(crewId, postId, { authorUid: currentUid, body, parentId }); }
+    try {
+      await addCrewComment(crewId, postId, { authorUid: currentUid, body, parentId });
+      // 새 최상위 댓글 — 목록 맨 아래로(방금 단 내 댓글 보이게). 답글은 부모 스레드에 이미 위치해 있어 그대로 둠.
+      if (!parentId) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+    }
     catch (e) { if (__DEV__) console.warn('[crewComment] addComment', e?.code, e?.message); setDraft(body); }
     finally { setSending(false); }
   };
@@ -294,7 +315,8 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }}>댓글{count > 0 ? ` ${count}` : ''}</Text>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12 }}
+      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12 }}
+        onLayout={(e) => { scrollHRef.current = e.nativeEvent.layout.height; }}
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* 원글 요약 — 어느 글에 댓글 다는지 상단 고정 카드 */}
@@ -323,7 +345,8 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
         </View>
 
         {/* 댓글 목록 */}
-        <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
+        <View style={{ paddingHorizontal: 14, paddingTop: 14 }}
+          onLayout={(e) => { listTopYRef.current = e.nativeEvent.layout.y; }}>
           {commentDocs === null ? (
             <View style={{ paddingVertical: 24, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
           ) : comments.length === 0 ? (
@@ -331,7 +354,8 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
           ) : comments.map((cm, ci) => (
             // 댓글 사이 구분선 + 여백 — 댓글이 안 갈리던 것 보강(첫 댓글은 상단 선 생략)
             <View key={cm.id} style={{ paddingBottom: 14,
-              borderTopWidth: ci === 0 ? 0 : 0.5, borderTopColor: LINE, paddingTop: ci === 0 ? 0 : 14 }}>
+              borderTopWidth: ci === 0 ? 0 : 0.5, borderTopColor: LINE, paddingTop: ci === 0 ? 0 : 14 }}
+              onLayout={(e) => { threadLayoutRef.current[cm.id] = e.nativeEvent.layout; }}>
               <View style={{ flexDirection: 'row' }}>
                 <MiniAvatar n={cm.n} c={cm.c} uri={cm.uri} size={30} onPress={() => openProfile(cm)} />
                 <View style={{ flex: 1, marginLeft: 9 }}>
@@ -351,7 +375,14 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                       <Icon name={cm.liked ? 'heartFilled' : 'heart'} size={fs(15)} color={cm.liked ? HEART_RED : SUB} strokeWidth={1.9} />
                       {cm.likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: SUB, marginLeft: 4 }}>{cm.likeCount}</Text>}
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => { if (editingComment) { setEditingComment(null); setDraft(''); } setReplyTo({ id: cm.id, name: cm.name }); }}
+                    <TouchableOpacity onPress={() => {
+                        if (editingComment) { setEditingComment(null); setDraft(''); }
+                        setReplyTo({ id: cm.id, name: cm.name });
+                        // 입력창 자동 포커스 + 이 스레드를 입력바 바로 위로 — 답글 대상이 키보드에 가려 수동 스크롤하던 것 해소
+                        pendingReplyRef.current = true;
+                        inputRef.current?.focus();
+                        scrollThreadAboveBar(cm.id);
+                      }}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }} style={{ marginLeft: 16 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
                     </TouchableOpacity>
@@ -406,7 +437,12 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
         )}
         {!!cErr && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 14, paddingBottom: 2 }}>{cErr}</Text>}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: BAR_PAD }}>
-          <TextInput value={draft} onChangeText={(t) => { setDraft(t); if (cErr) setCErr(''); }} maxLength={300}
+          <TextInput ref={inputRef} value={draft} onChangeText={(t) => { setDraft(t); if (cErr) setCErr(''); }} maxLength={300}
+            onFocus={() => {
+              // 새 댓글 입력 시작 — 목록 맨 아래로(마지막 댓글이 입력바 위에 보이게). 답글 탭 경유 포커스는 스레드 스크롤이 대신함.
+              if (pendingReplyRef.current) { pendingReplyRef.current = false; return; }
+              if (!replyTo && !editingComment) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+            }}
             allowFontScaling={false} placeholder={editingComment ? '댓글 수정…' : (replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…')}
             placeholderTextColor={SUB} returnKeyType="send" onSubmitEditing={sendComment} blurOnSubmit={false}
             style={{ flex: 1, backgroundColor: CARD, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
