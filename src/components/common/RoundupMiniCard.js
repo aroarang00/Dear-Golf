@@ -30,10 +30,20 @@ export function RoundupMiniCard({ roundupId, post: preloaded = null, onPress, sh
   };
 
   if (state === 'loading') return null;
+  // 티오프+5h 지난 모집 — 라운지 노출 윈도우(RoundupTab.isInVisibleWindow)와 동일 산식.
+  //   doc은 남아 있어서(라운지는 클라 필터로만 감춤) 크루 카드만 '확정 대기'로 남아
+  //   탭하면 지난 모집 상세가 열리던 것(2026-07-03) → 아래 '종료' 카드로 합류. 오픈형(date 미정)은 제외.
+  const pastWindow = (() => {
+    if (!post?.date) return false;
+    const [y, m, d] = post.date.split('.').map(Number);
+    const [hh, mm] = (post.time || '07:00').split(':').map(Number);
+    const teeOff = new Date(y, m - 1, d, hh, mm).getTime();
+    return !Number.isNaN(teeOff) && Date.now() > teeOff + 5 * 3600 * 1000;
+  })();
   // 삭제된 모집은 없는 doc 읽기가 permission-denied로 떨어져 denied가 됨(친추 아님). 친추 안내는 '공유 카드(shared, friends)
   //   + 보는 이가 주최자 아님 + 주최자가 내 친구도 아님'일 때만 의미 — 주최자 본인이 못 읽음=삭제됨이고, 핀(select)은 친추로 권한 안 생김.
   //   ★주최자가 내 친구인데 denied면 '비친구'가 아니라 삭제·지정제외 → 친구인데 '친구만 볼 수 있음' 오표시되던 것 방지(삭제된 공유 모집).
-  if (state === 'gone' || (state === 'denied' && (!shared || isHost || hostIsFriend))) {
+  if (state === 'gone' || pastWindow || (state === 'denied' && (!shared || isHost || hostIsFriend))) {
     return (
       <View style={[box, { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: fs(20) }]}>
         <Icon name="flag" size={fs(13)} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
