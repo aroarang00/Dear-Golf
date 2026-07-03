@@ -298,10 +298,23 @@ export function HomeScreen({ navigation, route }) {
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);
   useEffect(() => {
-    if (route?.params?.openMeal) {
-      setAutoOpenMeal(true);
-      navigation.setParams({ openMeal: undefined });
+    const om = route?.params?.openMeal;
+    if (!om) return;
+    // 푸시가 mealId(meal_{key}[_2])를 실어 대상 식사를 특정한다. key=groupId|roundupId|schedule.id.
+    //   ★홈 '다음 라운드'가 아닌 다른 일정의 식사면 그 일정의 식사 시트를 직접 연다 —
+    //     예전엔 mealId를 버리고 항상 next의 홈 식사바만 열어 엉뚱한 라운드 식사가 열렸음(2026-07 푸시라우팅 감사).
+    let targetSched = null;
+    if (typeof om === 'string') {
+      const key = om.replace(/^meal_/, '').replace(/_2$/, '');
+      targetSched = schedules.find(s => (s.groupId || s.roundupId || s.id) === key) || null;
     }
+    if (targetSched && targetSched.id !== next?.id) {
+      setSheetMealSchedule(targetSched);   // triggerless 식사 시트(임의 일정용) 재사용
+      setSheetMealAutoOpen(true);
+    } else {
+      setAutoOpenMeal(true);   // 다음 라운드 = 홈 카드 식사바 (대상 못 찾으면 best-effort 폴백)
+    }
+    navigation.setParams({ openMeal: undefined });
   }, [route?.params?.openMeal]);
 
   // 크루 초대 푸시 탭 → 홈 착지 + 크루 화면 자동 오픈

@@ -449,7 +449,7 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     case 'confirmed':   return `${t} 모집 참여가 확정됐어요`;
     case 'cancel':      return `${actorName}님이 ${t} 모집 참여를 취소했어요`;
     case 'waitlist':    return `${actorName}님이 ${t} 모집에 대기 신청했어요`;
-    case 'waitlistPromoted': return `대기 중이던 ${t} 모집에 자리가 나서 즉시 참석이 확정됐어요 — 일정에서 확인하세요`;
+    case 'waitlistPromoted': return `대기 중이던 ${t} 모집에 자리가 나서 즉시 참석이 확정됐어요 — 모집에서 확인하세요`;
     case 'comment':     return `${actorName}님이 ${t} 모집에 댓글을 남겼어요`;
     case 'mannerEval':  return `${t} 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     case 'hostCancelledD7': return `${t} 모집이 주최자에 의해 취소됐어요 — 매너 평가를 남길 수 있어요`;
