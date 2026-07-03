@@ -80,8 +80,10 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
             QR 블록(≈51px)은 코너에 떠 있고, 좌측 콘텐츠(제목·날씨)는 그 옆/아래로 타이트하게 흐름. 코스명은 QR 아래서 시작. */}
         <View style={{ position: 'absolute', top: 18, right: 18, alignItems: 'flex-end', zIndex: 2 }}>
           <Text style={styles.brand}>Dear Golf</Text>
-          <View style={{ marginTop: 3 }}>
-            <QRCode value="https://deargolf.app" size={32} color={INK} backgroundColor="transparent" />
+          {/* QR 32→48 + 위 여백 3→8 — 32px는 캡처(×3=96px)·카톡 재압축 후 실스캔 실패 크기(친구초대 42px도 실패했음).
+              48px(×3=144px)+흰 바탕+quiet zone 확보로 교정. 코스명은 QR 블록(≈90px) 아래서 시작해 침범 없음(2026-07-03). */}
+          <View style={{ marginTop: 8 }}>
+            <QRCode value="https://deargolf.app" size={48} color={INK} backgroundColor="transparent" />
           </View>
         </View>
 
