@@ -487,10 +487,21 @@ export function HomeScreen({ navigation, route }) {
   }, []);
 
   // 홈 D-day 카드 — 날짜 기준(자정 넘어가면 자동 갱신) + 다이어리 기록 완료분 제외
-  const now0 = (() => {
+  const now0 = React.useMemo(() => {
     const d = new Date(now);
     return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  })();
+  }, [now]);
+  // 다이어리 매칭 인덱스 — recordedDiary가 매 렌더 diaries.find를 2회(× 일정 수) 돌던 O(N×M) 제거.
+  //   scheduleId 맵 + (scheduleId 없는 것만) course|date 맵. find 순서(첫 매칭) 보존 위해 has 가드.
+  const diaryIndex = React.useMemo(() => {
+    const bySched = new Map();
+    const byCourseDate = new Map();
+    for (const d of (diaries || [])) {
+      if (d.scheduleId) { if (!bySched.has(d.scheduleId)) bySched.set(d.scheduleId, d); }
+      else { const k = `${d.course}|${d.date}`; if (!byCourseDate.has(k)) byCourseDate.set(k, d); }
+    }
+    return { bySched, byCourseDate };
+  }, [diaries]);
   const parseSchedDate = (s) => {
     const [y, m, d] = (s?.date || '').split('.').map(Number);
     return new Date(y || 1970, (m || 1) - 1, d || 1).getTime();
@@ -506,8 +517,8 @@ export function HomeScreen({ navigation, route }) {
   // 일정에 매칭된 다이어리 반환(isRecorded와 동일 규칙) — '기록 보기'에서 해당 상세로 직행하기 위함
   const recordedDiary = (s) => {
     if (!s) return null;
-    if (s.id) { const m = diaries.find(d => d.scheduleId === s.id); if (m) return m; }
-    return diaries.find(d => d.course === s.course && d.date === s.date && !d.scheduleId) || null;
+    if (s.id) { const m = diaryIndex.bySched.get(s.id); if (m) return m; }
+    return diaryIndex.byCourseDate.get(`${s.course}|${s.date}`) || null;
   };
   const isRecorded = (s) => !!recordedDiary(s);
 

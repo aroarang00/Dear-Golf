@@ -652,7 +652,7 @@ export function DiaryScreen({ route, navigation }) {
 
   // 필터·검색·피드 계산 — 본문으로 올림(필터 바를 ScrollView 고정 인덱스 자식으로 떼어 sticky 시키기 위해, [[project_fullscroll_profile]])
   const FILTERS = ['전체', '라운딩', '일상', '올해', '베스트 스코어'];
-  const filtered = (() => {
+  const filtered = useMemo(() => {
     let list = sortedDiaries;
     const q = search.trim().toLowerCase();
     if (q) {
@@ -667,7 +667,7 @@ export function DiaryScreen({ route, navigation }) {
     else if (filterKey === '올해') list = list.filter(d => (d.date || '').startsWith(String(now.getFullYear())));
     if (filterKey === '베스트 스코어') list = roundsOnly(list).sort((a, b) => a.score - b.score); // 일상은 스코어 없어 제외
     return list;
-  })();
+  }, [sortedDiaries, search, filterKey]); // 매 렌더(스크롤 등) 전체 필터/정렬 재실행 방지
   const avgScore = myHandicap; // DiaryCard 색상 비교용(통계 핸디로 통일)
   // 필터 바 표시 조건 — 로딩·빈 상태엔 필터 내용만 숨김(인덱스 2 자리는 빈 View로 유지).
   //   ★sticky는 항상 [2] 고정 — undefined↔[2]로 토글하면 newArch(Fabric) ScrollView가 런타임 변경을 즉시 반영 못 해

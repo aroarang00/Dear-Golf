@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -281,23 +281,23 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     if (!/코스/.test(name) && HIDDEN_UMBRELLA_BASES.includes(normalizeCourseName(name))) return true;
     return false;
   };
-  const filteredRecent = (region === '전체'
+  const filteredRecent = useMemo(() => (region === '전체'
     ? recentCourses
     : recentCourses.filter(c => getRegion(c.loc) === region)
-  ).filter(c => !isHiddenLocal(c.name));
-  // 선택한 지역의 100대 코스 (순위순)
-  const regionCourses = region === '전체'
+  ).filter(c => !isHiddenLocal(c.name)), [recentCourses, region]);
+  // 선택한 지역의 100대 코스 (순위순) — useMemo: 매 렌더(스크롤 등) top100 재필터 방지
+  const regionCourses = useMemo(() => region === '전체'
     ? []
-    : top100.filter(c => getRegion(c.region) === region);
+    : top100.filter(c => getRegion(c.region) === region), [top100, region]);
   // 선택한 지역의 전체 골프장 (마스터, 이름순) — 위 100대에 이미 뜬 곳은 제외(중복 방지, 정규화 이름 매칭)
-  const regionMasterCourses = region === '전체'
-    ? []
-    : (() => {
-        const top100Names = new Set(regionCourses.map(c => normalizeCourseName(c.name)));
-        return master
-          .filter(c => getRegion(c.loc) === region && !top100Names.has(normalizeCourseName(c.name)))
-          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      })();
+  //   useMemo 필수: 마스터 ~477개 필터+정규화+정렬이라 매 렌더 재계산 시 스크롤 렉
+  const regionMasterCourses = useMemo(() => {
+    if (region === '전체') return [];
+    const top100Names = new Set(regionCourses.map(c => normalizeCourseName(c.name)));
+    return master
+      .filter(c => getRegion(c.loc) === region && !top100Names.has(normalizeCourseName(c.name)))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [master, region, regionCourses]);
   const visibleRecent = recentExpanded ? filteredRecent : filteredRecent.slice(0, 5);
   const moreRecent = filteredRecent.length - visibleRecent.length;
   // 지역 전체 골프장 — 처음 8개만 렌더(수도권 등 100곳+ 한 번에 그리면 JS 스레드가 막혀 지역탭 선택이 씹힘). 나머지는 더보기.

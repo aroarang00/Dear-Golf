@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { F, fs } from '../../constants/colors';
@@ -35,7 +35,7 @@ function VideoSlide({ uri, poster }) {
       {/* 흐린 배경 — 4:3 박스 여백(세로 영상 양옆 등)을 채워 검정 빈공간 대신 자연스럽게. 그 위에 전체 영상 contain */}
       {thumb && <Image source={{ uri: thumb }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} contentFit="cover" blurRadius={18} cachePolicy="memory-disk" />}
       {/* 전경 — 영상 전체 표시(잘림 없음). 세로 영상은 양옆 여백(블러 배경)이 보임 */}
-      {thumb && <Image source={{ uri: thumb }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} contentFit="contain" cachePolicy="memory-disk" transition={150} />}
+      {thumb && <Image source={{ uri: thumb }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} contentFit="contain" cachePolicy="memory-disk" transition={Platform.OS === 'android' ? 0 : 150} />}
       {/* 썸네일 로딩 전(포스터 없는 원격 영상은 첫 프레임 추출에 수 초) — 검정 대신 스피너로 '불러오는 중' 인지 */}
       {thumb ? (
         <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.45)',

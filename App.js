@@ -620,8 +620,8 @@ function App() {
     setShowOnboarding(false);
   };
 
-  // 계정 탈퇴 완료 — 프로필 초기화 후 온보딩 화면으로
-  const handleAccountDeleted = () => {
+  // 계정 탈퇴 완료 — 프로필 초기화 후 온보딩 화면으로. useCallback: UserContext value 안정화용(setter만 사용, deps 빈)
+  const handleAccountDeleted = useCallback(() => {
     setUserProfile(USER_PROFILE_INIT);
     setIntroDone(false);
     setKakaoDone(false);
@@ -629,17 +629,23 @@ function App() {
     setConsentDone(false);
     setConsentData(null);
     setShowOnboarding(true);
-  };
+  }, []);
 
   // 개발용 — 데이터 보존한 채 온보딩만 미리보기 (앱을 리로드하면 원래 화면으로 복귀)
-  const previewOnboarding = () => {
+  const previewOnboarding = useCallback(() => {
     setIntroDone(false);
     setKakaoDone(false);
     setKakaoSeed({});
     setConsentDone(false);
     setConsentData(null);
     setShowOnboarding(true);
-  };
+  }, []);
+
+  // UserContext value 메모 — App은 배지 카운트(FriendBadge) onSnapshot으로 자주 재렌더되는데,
+  //   인라인 value면 매번 새 참조라 모든 UserContext 소비 화면이 재렌더됐다. userProfile 안 바뀌면 스킵.
+  const userCtxValue = useMemo(
+    () => ({ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }),
+    [userProfile, handleAccountDeleted, previewOnboarding]);
 
   // 폰트 로드 실패해도(fontError) 시스템 폰트로 폴백하며 진행 — 앱이 멈추지 않게.
   // 콘텐츠(프로필·폰트) 준비 전엔 정적 로딩 화면, 준비된 뒤엔 SplashOverlay가 페이드아웃.
@@ -681,7 +687,7 @@ function App() {
     <KeyboardProvider>
     <SafeAreaProvider>
     <CurrentUidContext.Provider value={authUid}>
-    <UserContext.Provider value={{ userProfile, setUserProfile, onAccountDeleted: handleAccountDeleted, previewOnboarding }}>
+    <UserContext.Provider value={userCtxValue}>
     <SchedulesProvider>
     <DiariesProvider>
     <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge, scheduleInviteCount, roundupInviteCount, roundupInvites, declineRoundupInvite, refreshRoundupHidden }}>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { C } from '../../constants/colors';
 import { Spinner } from './Spinner';
@@ -40,7 +40,7 @@ export function FocalImage({ uri, focus, width, height, style }) {
   if (center || !src || !width || !height) {
     return (
       <View style={[{ width, height, backgroundColor: '#15171A' }, style]}>
-        <Image source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" transition={150}
+        <Image source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" transition={Platform.OS === 'android' ? 0 : 150}
           onLoad={onLoad} onLoadEnd={() => setLoading(false)} />
         {overlay}
       </View>
