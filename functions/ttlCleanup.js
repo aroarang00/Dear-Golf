@@ -1,23 +1,26 @@
 // =============================================================
 // TTL 정리 — 임시·공유 문서가 무한 누적되던 것 정리 (비용·개인정보 최소화).
-//   대상: scheduleGroups(일정 전파 그룹) · mealSuggestions(뒤풀이 식사) · roundScoreShares(스코어 공유)
-//        + roundups 중 '방치된 모집'(closed=false인 채 라운드날짜 경과 — 확정도 취소도 안 됨). ↓ 아래 별도 패스.
-//   ★보존이 필요한 컬렉션은 제외: roundupApplications(분쟁 이력 보존) · diaries/rounds(영구) 등.
-//   ★확정(closed=true)·취소(cancelRoundup이 closed:true+cancelledByHost:true) 모집은 보존 — 매너평가·분쟁이력.
+//   대상: scheduleGroups(일정 전파 그룹) · mealSuggestions(뒤풀이 식사) · roundScoreShares(스코어 공유) [30일]
+//        + roundups 전체 — 티오프 후 7일 지나면 확정·취소 여부 무관 삭제(사용자 2026-07-04 '모집은 기록 아님',
+//          신고 접수 창구로 7일만 유예. 신고된 내용은 신고 문서에 이력 보존). 댓글 서브컬렉션까지 recursiveDelete.
+//        + roundupNotifications — 30일 지난 알림 정리.
+//   ★보존: diaries/rounds(영구 — 미디어 백업 [[diary-media-backup-plan]]) · 신고 이력(3년, contentReports).
 //
-//   판정: 각 문서의 라운드 날짜 `date`('YYYY.MM.DD')가 RETENTION_DAYS 지난 것만 삭제.
+//   판정: 각 문서의 라운드 날짜 `date`('YYYY.MM.DD')가 보존일수 지난 것만 삭제.
 //   - date 문자열은 사전식 정렬 = 시간순이라 범위 쿼리(`date < cutoff`) 가능(단일 필드 자동 인덱스).
 //   - 하한 '2000.01.01'로 빈 date(오픈형 등)·필드 없는 문서는 제외(안 지움) — createdAt 기준이면
 //     먼 미래로 잡은 일정을 라운드 전에 지울 위험이 있어 라운드 날짜 기준이 안전.
 //   - 안정성 감사(2026-06-26) YELLOW-C2. [[stability-audit-2026-06]]
 // =============================================================
 
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
 
 const db = getFirestore();
-const RETENTION_DAYS = 30;          // 라운드 날짜 + 30일 지나면 정리(보수적 — 의도 TTL보다 길게)
+const RETENTION_DAYS = 30;          // 임시·공유 문서: 라운드 날짜 + 30일
+const ROUNDUP_RETENTION_DAYS = 7;   // 모집글: 티오프 + 7일(신고 창구 유예) — 처리방침 문구와 일치 유지
+const NOTI_RETENTION_DAYS = 30;     // 라운지 알림: 생성 30일
 const TTL_COLLECTIONS = ['scheduleGroups', 'mealSuggestions', 'roundScoreShares'];
 const BATCH = 400;
 const MAX_BATCHES = 10;             // 실행당 컬렉션별 최대 4000건 — 백로그도 빠르게, 타임아웃·런어웨이 방지
@@ -51,30 +54,49 @@ exports.ttlCleanupTick = onSchedule({ schedule: 'every day 04:00', timeZone: 'As
     }
   }
 
-  // 방치된 모집글 정리 — closed=false(미확정·미취소)인 채 라운드날짜가 보존기간 지난 것만 삭제.
-  //   확정·취소는 closed=true라 자동 제외(보존). 빈 date(오픈형)는 '2000.01.01' 하한으로 제외.
-  //   ★위 컬렉션과 달리 closed=false만 지우므로(읽은 문서 중 일부만 삭제) 커서(startAfter)로 진행 — 추가 인덱스 0.
-  //   신청서(roundupApplications) cascade는 안 함: 전체공개 모집 전용이라 현재 비활성 + 분쟁이력 보존 정책. (재활성 시 재검토)
+  // 모집글 정리 — 티오프 후 7일 지나면 확정·취소·방치 구분 없이 전부 삭제(2026-07-04 정책 확정).
+  //   '모집은 기록이 아님' — 참여자 일정은 별도 schedules 문서로 이미 전파돼 무관, 크루 공유카드는 '종료' 표시로 graceful.
+  //   신고 대응은 7일 유예로 커버(신고된 내용 자체는 contentReports에 3년 보존). 빈 date(오픈형)는 하한으로 제외.
+  //   댓글 서브컬렉션(roundups/{id}/comments)까지 recursiveDelete — 고아 문서 방지.
   try {
-    let deleted = 0, cursor = null;
-    for (let i = 0; i < MAX_BATCHES; i++) {
-      let q = db.collection('roundups')
-        .where('date', '>=', '2000.01.01')   // 빈/누락 date(오픈형) 제외
-        .where('date', '<', cutoff)          // 라운드 날짜가 보존기간 지난 것만
-        .orderBy('date')
-        .limit(BATCH);
-      if (cursor) q = q.startAfter(cursor);
-      const snap = await q.get();
-      if (snap.empty) break;
-      cursor = snap.docs[snap.docs.length - 1];
-      const batch = db.batch();
-      let n = 0;
-      snap.docs.forEach((d) => { if (d.get('closed') !== true) { batch.delete(d.ref); n++; } }); // 확정·취소(closed=true) 보존
-      if (n) { await batch.commit(); deleted += n; }
-      if (snap.size < BATCH) break;
+    const roundupCutoff = ymd(new Date(Date.now() - ROUNDUP_RETENTION_DAYS * 24 * 3600 * 1000));
+    const snap = await db.collection('roundups')
+      .where('date', '>=', '2000.01.01')     // 빈/누락 date(오픈형) 제외
+      .where('date', '<', roundupCutoff)     // 티오프 + 7일 경과
+      .limit(300)                            // 실행당 상한 — recursiveDelete는 문서당 왕복이라 보수적으로(백로그는 다음 날 이어감)
+      .get();
+    let deleted = 0;
+    for (const d of snap.docs) {
+      try {
+        await db.recursiveDelete(d.ref);     // 문서 + comments 서브컬렉션까지
+        deleted++;
+      } catch (e) {
+        logger.warn('[ttl] roundup recursiveDelete fail', d.id, e?.message);
+      }
     }
-    if (deleted) logger.info(`[ttl] roundups: deleted ${deleted} abandoned (closed=false, date < ${cutoff})`);
+    if (deleted) logger.info(`[ttl] roundups: deleted ${deleted} (date < ${roundupCutoff}, teeoff+${ROUNDUP_RETENTION_DAYS}d)`);
   } catch (e) {
     logger.warn('[ttl] roundups cleanup fail', e?.message);
+  }
+
+  // 라운지 알림 정리 — 생성 30일 지난 roundupNotifications 삭제(읽음 여부 무관).
+  try {
+    const notiCutoff = Timestamp.fromMillis(Date.now() - NOTI_RETENTION_DAYS * 24 * 3600 * 1000);
+    let deleted = 0;
+    for (let i = 0; i < MAX_BATCHES; i++) {
+      const snap = await db.collection('roundupNotifications')
+        .where('createdAt', '<', notiCutoff)
+        .limit(BATCH)
+        .get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      deleted += snap.size;
+      if (snap.size < BATCH) break;
+    }
+    if (deleted) logger.info(`[ttl] roundupNotifications: deleted ${deleted} (createdAt < -${NOTI_RETENTION_DAYS}d)`);
+  } catch (e) {
+    logger.warn('[ttl] roundupNotifications cleanup fail', e?.message);
   }
 });
