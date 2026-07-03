@@ -3,12 +3,13 @@
 // 정책: [[account-deletion]] A안 — 콘텐츠 전부 삭제, 정지 이력만 banned_users 보존 (D2 별도)
 // App Store/Play 스토어 심사 필수 요건 (계정 삭제 경로 제공)
 // =============================================================
-import { signInAnonymously, deleteUser, OAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { signInAnonymously, deleteUser, OAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
 import {
   collection, query, where, getDocs, getDoc, setDoc, deleteDoc, doc, updateDoc,
   arrayRemove, increment, serverTimestamp,
 } from 'firebase/firestore';
-import { auth, db, getUid } from './firebase';
+import { ref, listAll, deleteObject } from 'firebase/storage';
+import { auth, db, getUid, storage as fbStorage } from './firebase';
 import { STORAGE_KEYS, storage } from './storage';
 import { createNotification } from './roundupNotifications';
 
@@ -193,6 +194,20 @@ export async function deleteAccount() {
   // 1. Firestore cascade delete — 본인 데이터 + 참여 중 모집에서 uid 제거
   if (uid) await deleteFirestoreUserData(uid);
 
+  // 1.5 Storage 미디어 정리 — 다이어리(rounds)·아바타·DM 사진 폴더 삭제.
+  //   미디어 전량 백업([[diary-media-backup-plan]]) 도입으로 나만보기 사진도 서버에 있음 —
+  //   안 지우면 탈퇴 후 고아 파일이 영구 과금. best-effort(파일별 실패 무시), 계정 삭제 전(권한 필요).
+  if (uid) {
+    for (const dir of [`rounds/${uid}`, `avatars/${uid}`, `dmImages/${uid}`]) {
+      try {
+        const { items } = await listAll(ref(fbStorage, dir));
+        await Promise.all(items.map(it => deleteObject(it).catch(() => {})));
+      } catch (e) {
+        if (__DEV__) console.warn('[account] Storage 정리 실패', dir, e?.message);
+      }
+    }
+  }
+
   // 2. Firebase 계정 삭제 (익명 또는 카카오 연동된 계정)
   //   ★카카오 연동 계정은 토큰이 오래되면 deleteUser가 requires-recent-login으로 실패 →
   //    계정이 안 지워진 채 재로그인하면 같은 uid로 부활(탈퇴가 무효화)하던 근본 버그.
@@ -231,6 +246,56 @@ export async function deleteAccount() {
   await storage.save(STORAGE_KEYS.hof, []);
 
   // 4. 앱 계속 사용을 위한 새 익명 세션 — 탈퇴한 계정과 무관한 빈 계정
+  try {
+    await signInAnonymously(auth);
+  } catch (e) {
+    console.warn('[account] 새 익명 세션 생성 실패', e?.message);
+  }
+}
+
+// =============================================================
+// 로그아웃 — 서버 데이터는 보존(재로그인 시 복원), 이 기기에서만 계정 분리.
+// 용도: 폰 대여·중고 양도 등 기기-계정 분리(정식 출시 전 추가, 2026-07-04).
+// ★사진·영상 미디어는 로컬 전용(서버 백업 없음)이라 로컬 초기화와 함께 유실됨 —
+//   호출부(마이페이지)에서 반드시 명시적 경고 후 진행. 각 단계 best-effort.
+// =============================================================
+export async function logoutAccount() {
+  // 1. 이 기기의 푸시 토큰을 계정에서 제거 — 안 지우면 로그아웃 후에도(다음 폰 주인에게)
+  //    이전 계정의 알림이 이 기기로 계속 배달되는 보안 구멍.
+  try {
+    const uid = await getUid();
+    if (uid) {
+      await setDoc(doc(db, 'users', uid), {
+        uid, // users 규칙(request.resource.data.uid == uid) 충족
+        pushToken: null, pushUpdatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
+  } catch (e) {
+    if (__DEV__) console.warn('[account] 로그아웃 푸시토큰 해제 실패', e?.message);
+  }
+
+  // 2. 카카오 세션 로그아웃 — 다음 사용자가 '카카오로 시작'할 때 이전 계정 자동로그인 방지
+  try {
+    const { logout } = require('@react-native-kakao/user');
+    await logout();
+  } catch (e) {
+    if (__DEV__) console.warn('[account] 카카오 로그아웃 실패(미연동 등)', e?.message);
+  }
+
+  // 3. Firebase 세션 종료
+  try {
+    await signOut(auth);
+  } catch (e) {
+    console.warn('[account] signOut 실패', e?.message);
+  }
+
+  // 4. 로컬 데이터 전부 초기화 — 신규 설치와 동일(탈퇴 3단계와 동일 처리)
+  await storage.clear();
+  await storage.save(STORAGE_KEYS.schedules, []);
+  await storage.save(STORAGE_KEYS.diaries, []);
+  await storage.save(STORAGE_KEYS.hof, []);
+
+  // 5. 새 익명 세션 — 온보딩 화면이 뜨는 동안 Firestore 접근이 죽지 않게(탈퇴와 동일)
   try {
     await signInAnonymously(auth);
   } catch (e) {

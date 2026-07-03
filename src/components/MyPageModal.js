@@ -19,7 +19,8 @@ import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
 import { Icon } from './common/Icon'; // 설정 메뉴 아이콘 — 이모지 대신 우리 커스텀 아이콘
 import { searchPlaces, addressToCoord } from '../utils/kakao';
-import { deleteAccount } from '../utils/account';
+import { deleteAccount, logoutAccount } from '../utils/account';
+import { countPendingBackup, sweepDiaryMediaBackup } from '../utils/mediaBackup';
 import { CalendarPickerModal } from './CalendarPickerModal';
 import { BlockManageScreen } from './BlockManageScreen';
 import { FriendGroupManageModal } from './FriendGroupManageModal';
@@ -64,7 +65,7 @@ function AlarmBadge({ name, size = 17 }) {
 
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
-  const { diaries } = React.useContext(DiariesContext);
+  const { diaries, reloadDiaries } = React.useContext(DiariesContext);
   const { schedules } = React.useContext(SchedulesContext);
   // 핸디 — 최근 20라운드 중 베스트 5개 평균(기록 5개 미만 시 입력 평균타 우선). DiaryScreen·DiaryCard와 동일 정책.
   const handicap = calcHandicap(diaries, userProfile.avgScore);
@@ -305,6 +306,42 @@ export function MyPageModal({ visible, onClose }) {
     setNickname(trimmed);
     setEditingNick(false);
     setAlertData({ title: '완료', message: '닉네임이 변경되었어요' });
+  };
+
+  // 로그아웃 — 서버 데이터는 보존, 이 기기의 세션·로컬 캐시만 제거 후 온보딩으로(탈퇴와 동일 리셋 경로).
+  //   미디어는 전량 계정 백업([[diary-media-backup-plan]])이라 재로그인 시 완전 복원.
+  //   ★백업 미완료(dgphoto: 잔존) 시엔 로그아웃을 보류시키고 즉시 백업 시도 — '로그아웃했는데 사진 유실' 사고를 구조적으로 차단.
+  const handleLogout = async () => {
+    const pending = countPendingBackup(diaries);
+    if (pending > 0) {
+      // 즉시 백업 시도 — 성공분은 재로드로 컨텍스트에 반영돼 다음 시도 때 가드 통과
+      sweepDiaryMediaBackup(diaries).then((updated) => { if (updated.length) reloadDiaries(); });
+      setAlertData({
+        title: '사진 백업이 끝나지 않았어요',
+        message: `기록 ${pending}개의 사진·영상을 계정에 백업하는 중이에요.\n네트워크가 연결된 상태에서 잠시 후 다시 시도해주세요.`,
+      });
+      return;
+    }
+    setAlertData({
+      title: '로그아웃할까요?',
+      message: '기록과 사진·영상은 계정에 안전하게 보관돼요.\n같은 카카오 계정으로 다시 로그인하면 그대로 복원됩니다.',
+      buttons: [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '로그아웃',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logoutAccount();
+            } catch (e) {
+              console.warn('[account] 로그아웃 처리 오류', e?.message);
+            }
+            onClose();
+            onAccountDeleted && onAccountDeleted(); // 프로필 초기화 + 온보딩(로그인) 화면 — 탈퇴와 동일 리셋
+          },
+        },
+      ],
+    });
   };
 
   // 계정 탈퇴 — 확인 후 Firebase 계정·Firestore 데이터·로컬 데이터를 모두 삭제하고 온보딩으로
@@ -1030,6 +1067,13 @@ export function MyPageModal({ visible, onClose }) {
               <View style={myS.divider} />
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>계정</Text>
+                {/* 로그아웃 — 서버 데이터 보존, 이 기기만 계정 분리(폰 대여·양도 대비, 2026-07-04).
+                    ★사진·영상은 로컬 전용이라 함께 삭제됨 — 확인창에서 명시 경고 */}
+                <TouchableOpacity style={myS.menuRow} activeOpacity={0.7} onPress={handleLogout}>
+                  <Text style={myS.menuIcon}>🚪</Text>
+                  <Text style={myS.menuLabel}>로그아웃</Text>
+                  <Text style={myS.menuValue}>›</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={[myS.menuRow, { borderBottomWidth: 0 }]} activeOpacity={0.7} onPress={handleDeleteAccount}>
                   <Text style={myS.menuIcon}>⚠️</Text>
                   <Text style={[myS.menuLabel, { color: C.burgundy }]}>계정 탈퇴</Text>
