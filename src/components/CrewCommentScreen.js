@@ -228,17 +228,20 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
-    // 삭제 대상이 '최신 댓글'이면 피드 미리보기 재계산용 newLatest 산출(이미 로드된 목록 사용 — 추가 read 0)
-    let newLatest;
+    // 부모 댓글이면 대댓글도 함께 정리 — 화면엔 안 보이는데 카운트에만 남던 고아 방지(이미 로드된 목록 사용 — 추가 read 0)
     const docs = commentDocs || [];
-    if (docs.length && docs[docs.length - 1].id === a.id) {
-      const prev = docs.length >= 2 ? docs[docs.length - 2] : null;
+    const replyIds = docs.filter((c) => c.parentId === a.id).map((c) => c.id);
+    const removed = new Set([a.id, ...replyIds]);
+    // 삭제 대상(부모+대댓글)에 '최신 댓글'이 포함되면 피드 미리보기 재계산용 newLatest 산출
+    let newLatest;
+    if (docs.length && removed.has(docs[docs.length - 1].id)) {
+      const prev = [...docs].reverse().find((c) => !removed.has(c.id)) || null;
       newLatest = prev ? { by: prev.authorUid, text: prev.body || '', at: prev.createdAt || null } : null;
     }
-    showAppAlert('댓글을 삭제할까요?', '이 댓글이 삭제돼요.', [
+    showAppAlert('댓글을 삭제할까요?', replyIds.length ? `답글 ${replyIds.length}개도 함께 삭제돼요.` : '이 댓글이 삭제돼요.', [
       { text: '취소', style: 'cancel' },
       { text: '삭제', style: 'destructive', onPress: async () => {
-        try { await deleteCrewComment(crewId, postId, a.id, { newLatest }); }
+        try { await deleteCrewComment(crewId, postId, a.id, { newLatest, replyIds }); }
         catch (e) { if (__DEV__) console.warn('[crewComment] delete', e?.code, e?.message); }
       } },
     ]);

@@ -1,6 +1,6 @@
 import {
   collection, query, where, orderBy, limit, getDocs, onSnapshot,
-  setDoc, updateDoc, doc, serverTimestamp, arrayUnion, arrayRemove, increment, runTransaction, writeBatch,
+  setDoc, updateDoc, deleteDoc, doc, serverTimestamp, arrayUnion, arrayRemove, increment, runTransaction, writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -291,11 +291,14 @@ export function subscribeCrewComments(crewId, postId, cb) {
     cb(list);
   }, (e) => { if (__DEV__) console.warn('[crews] subscribeCrewComments', e?.message); cb([]); });
 }
-// ── 댓글 삭제 — newLatest: 삭제 대상이 '최신 댓글'일 때 남는 최신({by,text,at}) 또는 null(댓글 0개). 미전달=미리보기 불변 ──
-export async function deleteCrewComment(crewId, postId, commentId, { newLatest } = {}) {
+// ── 댓글 삭제 — newLatest: 삭제 대상이 '최신 댓글'일 때 남는 최신({by,text,at}) 또는 null(댓글 0개). 미전달=미리보기 불변.
+//    replyIds: 부모 댓글 삭제 시 그 대댓글 id들 — 카운트는 (1+대댓글수) 원자 차감, 문서 삭제는 개별 best-effort.
+//    (남의 대댓글 delete는 규칙상 작성자·리더만 가능이라 배치에 섞으면 전체 거부됨. 실패해도 UI는 부모 없는
+//     대댓글을 렌더하지 않으므로 카운트·표시 정합 유지 — 문서만 잔존) ──
+export async function deleteCrewComment(crewId, postId, commentId, { newLatest, replyIds = [] } = {}) {
   if (!crewId || !postId || !commentId) return;
-  // 삭제 + commentCount-1(+미리보기 갱신)을 한 배치로 원자화 — 감소가 분리돼 실패하면 카운트가 높게 남던 드리프트 방지.
-  const meta = { commentCount: increment(-1) };
+  // 삭제 + commentCount 차감(+미리보기 갱신)을 한 배치로 원자화 — 감소가 분리돼 실패하면 카운트가 높게 남던 드리프트 방지.
+  const meta = { commentCount: increment(-(1 + replyIds.length)) };
   if (newLatest !== undefined) {
     meta.lastCommentBy = newLatest ? (newLatest.by || null) : null;
     meta.lastCommentText = newLatest ? (newLatest.text || '') : '';
@@ -305,6 +308,11 @@ export async function deleteCrewComment(crewId, postId, commentId, { newLatest }
   batch.delete(doc(db, COL, crewId, 'posts', postId, 'comments', commentId));
   batch.update(doc(db, COL, crewId, 'posts', postId), meta);
   await batch.commit();
+  if (replyIds.length) {
+    await Promise.all(replyIds.map((rid) =>
+      deleteDoc(doc(db, COL, crewId, 'posts', postId, 'comments', rid)).catch(() => {})
+    ));
+  }
 }
 // ── 댓글 수정 — 작성자 본인(본문). editedAt 기록(작성자·parentId 불변). isLatest면 미리보기 텍스트도 갱신 ──
 export async function editCrewComment(crewId, postId, commentId, { body = '', isLatest = false }) {
