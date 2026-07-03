@@ -204,8 +204,9 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
           style={{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 9, borderWidth: 1, borderColor: 'rgba(178,59,59,0.5)' }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#B23B3B' }}>나가기</Text>
         </TouchableOpacity>
+        {/* 초대 아이콘 — 진하고 약간 크게(23→26, stroke 1.8→2.2, 사용자 2026-07-03) */}
         <TouchableOpacity onPress={() => !atMax && setInviteOpen(true)} hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }} style={{ padding: 4, marginLeft: 16 }}>
-          <Icon name="personAdd" size={fs(23)} color={atMax ? SUB : SAGE_DEEP} strokeWidth={1.8} />
+          <Icon name="personAdd" size={fs(26)} color={atMax ? SUB : SAGE_DEEP} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
 
