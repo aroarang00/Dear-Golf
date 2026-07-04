@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Linking, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Linking, Platform, ActivityIndicator } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
@@ -308,10 +308,38 @@ export function MyPageModal({ visible, onClose }) {
     setAlertData({ title: '완료', message: '닉네임이 변경되었어요' });
   };
 
+  // 본문 지연 마운트 — 이 모달은 본문+서브모달이 무거워(1,100줄) ⚙️ 탭 직후 JS가 마운트에 묶여
+  //   시트도 눌림 피드백도 한동안 안 보였음('설정이 한번에 안 눌려요', 2026-07-04). 빈 시트를 즉시
+  //   슬라이드시키고 본문은 다음 틱에 채운다([[rn-list-perf-patterns]] 진입 지연마운트 처방).
+  const [bodyReady, setBodyReady] = useState(false);
+  useEffect(() => {
+    if (!visible) { setBodyReady(false); return; }
+    const t = setTimeout(() => setBodyReady(true), 50);
+    return () => clearTimeout(t);
+  }, [visible]);
+
+  // 탈퇴·로그아웃 처리 중 상태 — 수 초 걸리는 cascade 동안 무표시라 사용자가 다시 눌러 이중 실행되던 것 차단
+  //   (2026-07-04 탈퇴 테스트서 발견). ref=즉시 연타 가드, state=오버레이 스피너 표시.
+  const accountBusyRef = useRef(false);
+  const [accountBusy, setAccountBusy] = useState(null); // null | 'logout' | 'delete'
+  const runAccountAction = async (kind, action) => {
+    if (accountBusyRef.current) return;
+    accountBusyRef.current = true; setAccountBusy(kind);
+    try {
+      await action();
+    } catch (e) {
+      console.warn(`[account] ${kind} 처리 오류`, e?.message);
+    }
+    accountBusyRef.current = false; setAccountBusy(null);
+    onClose();
+    onAccountDeleted && onAccountDeleted(); // 프로필 초기화 + 온보딩(로그인) 화면
+  };
+
   // 로그아웃 — 서버 데이터는 보존, 이 기기의 세션·로컬 캐시만 제거 후 온보딩으로(탈퇴와 동일 리셋 경로).
   //   미디어는 전량 계정 백업([[diary-media-backup-plan]])이라 재로그인 시 완전 복원.
   //   ★백업 미완료(dgphoto: 잔존) 시엔 로그아웃을 보류시키고 즉시 백업 시도 — '로그아웃했는데 사진 유실' 사고를 구조적으로 차단.
   const handleLogout = async () => {
+    if (accountBusyRef.current) return;
     const pending = countPendingBackup(diaries);
     if (pending > 0) {
       // 즉시 백업 시도 — 성공분은 재로드로 컨텍스트에 반영돼 다음 시도 때 가드 통과
@@ -330,15 +358,7 @@ export function MyPageModal({ visible, onClose }) {
         {
           text: '로그아웃',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await logoutAccount();
-            } catch (e) {
-              console.warn('[account] 로그아웃 처리 오류', e?.message);
-            }
-            onClose();
-            onAccountDeleted && onAccountDeleted(); // 프로필 초기화 + 온보딩(로그인) 화면 — 탈퇴와 동일 리셋
-          },
+          onPress: () => runAccountAction('logout', logoutAccount),
         },
       ],
     });
@@ -346,6 +366,7 @@ export function MyPageModal({ visible, onClose }) {
 
   // 계정 탈퇴 — 확인 후 Firebase 계정·Firestore 데이터·로컬 데이터를 모두 삭제하고 온보딩으로
   const handleDeleteAccount = () => {
+    if (accountBusyRef.current) return;
     setAlertData({
       title: '정말 탈퇴하시겠어요?',
       message: '탈퇴하면 계정과 모든 기록(일정·다이어리·명예의 전당·골퍼 코멘트)이 삭제되며 복구할 수 없어요.',
@@ -354,20 +375,23 @@ export function MyPageModal({ visible, onClose }) {
         {
           text: '탈퇴',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccount();
-            } catch (e) {
-              console.warn('[account] 탈퇴 처리 오류', e?.message);
-            }
-            onClose();
-            onAccountDeleted && onAccountDeleted();
-          },
+          onPress: () => runAccountAction('delete', deleteAccount),
         },
       ],
     });
   };
 
+  // 지연 마운트 스켈레톤 — 시트 틀만 즉시 띄워 탭 반응을 보장(본문은 bodyReady 후). ★훅 없음(조기반환 함정 회피).
+  if (visible && !bodyReady) {
+    return (
+      <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+        <View style={myS.mask}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+          <View style={myS.sheet} />
+        </View>
+      </Modal>
+    );
+  }
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleRequestClose}>
         <View style={myS.mask}>
@@ -1123,6 +1147,18 @@ export function MyPageModal({ visible, onClose }) {
         }} />
       {/* 모달 위에서도 안전하게 뜨는 오버레이 알럿 */}
       <OverlayAlert data={alertData} onClose={() => setAlertData(null)} />
+      {/* 탈퇴·로그아웃 진행 오버레이 — cascade가 수 초 걸려 무표시면 '안 됐네?' 하고 연타하게 됨 */}
+      {accountBusy && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#fff', marginTop: 14 }}>
+            {accountBusy === 'delete' ? '탈퇴 처리 중이에요' : '로그아웃 중이에요'}
+          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>
+            잠시만 기다려주세요
+          </Text>
+        </View>
+      )}
     </Modal>
   );
 }
