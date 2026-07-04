@@ -863,6 +863,19 @@ export function MyPageModal({ visible, onClose }) {
                     onPress: () => setGroupManageOpen(true) },
                   { iconName: 'ban', icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
                     onPress: () => setBlockManageOpen(true) },
+                  // 문의·의견 — 출시 초반 오류 보고를 적극 수집(2026-07-04). 공식 메일로, 기기·OS 정보 자동 첨부
+                  //   (오류 재현에 필수인데 사용자가 직접 안 적음). 크래시는 Sentry가 자동 수집 — 이건 '비정상 동작' 제보용.
+                  { icon: '✉️', label: '문의·의견 보내기', value: '오류 제보 환영',
+                    onPress: () => {
+                      const subject = encodeURIComponent('[디어골프] 문의·오류 제보');
+                      const body = encodeURIComponent(
+                        '어떤 화면에서, 어떤 동작을 했을 때 문제가 있었는지 적어주세요.\n\n\n'
+                        + '――― 아래 정보는 문제 해결에 사용돼요 ―――\n'
+                        + `기기: ${Platform.OS === 'android' ? '안드로이드' : 'iOS'} ${Platform.Version}\n`
+                        + '앱 버전: 1.0.0');
+                      Linking.openURL(`mailto:deargolf.official@gmail.com?subject=${subject}&body=${body}`).catch(() =>
+                        setAlertData({ title: '메일 앱을 열 수 없어요', message: 'deargolf.official@gmail.com 으로 보내주시면 확인할게요.' }));
+                    } },
                   // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화 ([[report-block-policy]] §5-1)
                   // Firestore reports 컬렉션 등록·이메일 발송·검토 결과 통보는 Phase 2 Cloud Functions
                   { iconName: 'siren', icon: '🚨', label: '신고하기',
