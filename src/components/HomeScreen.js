@@ -1117,7 +1117,9 @@ export function HomeScreen({ navigation, route }) {
               <Icon name="bag" size={Platform.OS === 'android' ? fs(19) : fs(22)} color="#fff" strokeWidth={2.1} />
             </View>
             <View>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, includeFontPadding: false }}>디어골프 스토어</Text>
+              {/* 라벨은 이름 중립 '스토어' — '디어골프 스토어'는 28류 상표 충돌([[ip-protection-backlog]] 2026-07-04)
+                  + 스토어명 미정. 앱 안이라 문맥 자명, 스토어 이름이 뭐가 되든 이 라벨은 유효(재빌드 불필요). */}
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, includeFontPadding: false }}>스토어</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.8)', marginTop: 1.5, includeFontPadding: false }}>
                 센스 있는 골프 아이템 구경하기
               </Text>
