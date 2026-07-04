@@ -59,7 +59,9 @@ service cloud.firestore {
         && request.resource.data.get('permanentPendingAppealUntil', null) == resource.data.get('permanentPendingAppealUntil', null)
         && request.resource.data.get('permanentPendingReason', null) == resource.data.get('permanentPendingReason', null)
         // 등급 한도(entitlements) — 결제 검증한 CF(admin)만 상향. 본인 update로 자가 상향 차단(무료 우회 방지).
-        && request.resource.data.get('entitlements', null) == resource.data.get('entitlements', null);
+        && request.resource.data.get('entitlements', null) == resource.data.get('entitlements', null)
+        // 초대 보상 판정 도장 — 지급 CF만 기록([[referral-reward-implementation-plan]] 3단계). 클라 변조 차단.
+        && request.resource.data.get('referralAward', null) == resource.data.get('referralAward', null);
     }
     // set-once — 없을 때만 쓸 수 있고 한 번 쓰면 본인도 변경·삭제 불가(레퍼럴 refCode·referredBy 사후 변조 차단).
     //   미설정 문서(기존 계정·write-through 미포함 payload)는 null==null로 통과 — false-denial 없음.
@@ -82,7 +84,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // 생성 시 제재·매너 필드를 끼워 넣지 못하게(신규 계정이 매너점수 뻥튀기 등 차단) — CF만 부여.
       allow create: if isOwner(uid) && request.resource.data.uid == uid
-        && !request.resource.data.keys().hasAny(['isRestricted', 'mannerScore', 'noshowCount', 'falseReportCount', 'restrictUntil', 'restrictReason', 'permanentPendingAppealUntil', 'permanentPendingReason', 'entitlements']);
+        && !request.resource.data.keys().hasAny(['isRestricted', 'mannerScore', 'noshowCount', 'falseReportCount', 'restrictUntil', 'restrictReason', 'permanentPendingAppealUntil', 'permanentPendingReason', 'entitlements', 'referralAward']);
       allow update: if isOwner(uid) && request.resource.data.uid == uid
         && sanctionFieldsUnchanged() // 제재 자가해제·매너 조작 차단(서버 권위 필드 불변)
         && setOnce('refCode') && setOnce('referredBy'); // 레퍼럴 — 1회 기록 후 변조 불가(지급 판정은 CF, [[referral-reward-implementation-plan]])
@@ -107,6 +109,13 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
         && request.resource.data.uid == request.auth.uid;
       allow update, delete: if false;
+    }
+
+    // ===== referralClaims — 초대 보상 지급 원장 (문서 ID = 신규 가입자 kakaoSub) =====
+    //   지급 CF(admin)만 읽고 쓴다 — 클라 전면 차단(도장 위조·삭제로 재지급 유도 차단).
+    //   match 없어도 기본 거부지만, 지급 원장은 의도를 명시([[referral-reward-implementation-plan]]).
+    match /referralClaims/{kakaoSub} {
+      allow read, write: if false;
     }
 
     // ===== schedules — 라운딩 예정 일정 (본인만 read/write) =====

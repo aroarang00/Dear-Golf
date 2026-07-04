@@ -322,6 +322,31 @@ test('users: referredBy·refCode는 첫 기록만 허용(set-once), 사후 변�
   await assertSucceeds(setDoc(ref, { uid: 'alice', nickname: '앨리스2', updatedAt: serverTimestamp() }, { merge: true }));
 });
 
+test('users: referralAward(지급 판정 도장)는 클라 기록·변조·삭제 전부 거부 — CF만', async () => {
+  await seed((db) => setDoc(doc(db, 'users', 'alice'),
+    { uid: 'alice', nickname: '앨리스', referralAward: { status: 'denied', reason: 'self-kakao' } }));
+  const ref = doc(as('alice'), 'users', 'alice');
+  // 생성 시 끼워넣기(스스로 awarded 위조) — 거부
+  await assertFails(setDoc(doc(as('bob'), 'users', 'bob'),
+    { uid: 'bob', referralAward: { status: 'awarded' } }));
+  // denied → awarded 변조 / 도장 삭제(재지급 유도) — 거부
+  await assertFails(updateDoc(ref, { referralAward: { status: 'awarded' } }));
+  await assertFails(updateDoc(ref, { referralAward: deleteField() }));
+  // referralAward 미포함 일반 프로필 저장(write-through) — 계속 허용
+  await assertSucceeds(setDoc(ref, { uid: 'alice', nickname: '앨리스2', updatedAt: serverTimestamp() }, { merge: true }));
+});
+
+test('referralClaims(지급 원장): 클라 읽기·생성·삭제 전면 거부 — CF만', async () => {
+  await seed((db) => setDoc(doc(db, 'referralClaims', 'ksub_alice'),
+    { kakaoSub: 'ksub_alice', newUid: 'alice', inviterUid: 'bob' }));
+  // 본인 kakaoSub 원장이라도 읽기 불가(지급 내역은 서버 전용)
+  await assertFails(getDoc(doc(as('alice'), 'referralClaims', 'ksub_alice')));
+  // 도장 위조(선점으로 남의 지급 차단)·삭제(재지급 유도) — 거부
+  await assertFails(setDoc(doc(as('alice'), 'referralClaims', 'ksub_new'),
+    { kakaoSub: 'ksub_new', newUid: 'alice', inviterUid: 'alice' }));
+  await assertFails(deleteDoc(doc(as('alice'), 'referralClaims', 'ksub_alice')));
+});
+
 test('roundups: 주최자는 전체 수정 가능, 비주최자 삭제는 거부', async () => {
   await seed((db) => setDoc(doc(db, 'roundups', 'r1'), roundupBase()));
   // 주최자 alice — 제목·정원 등 자유 수정
