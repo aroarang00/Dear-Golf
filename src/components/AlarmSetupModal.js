@@ -280,8 +280,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
     setSysAlarmWake(w);
   };
 
-  // 안드 폰 알람에 기상 알람 등록 — 무음 뚫고 울리게(자체 알림 보완).
-  //   1개: 폰 알람 앱 열려 미리 채워짐(투명). 2~3개: 못 들을까 봐 간격으로 연속 등록(조용히 일괄 + 우리 알림).
+  // 안드 폰 알람에 기상 알람 등록 — 무음 뚫고 울리게(자체 알림 보완). 개수 무관 조용한 즉시 등록(skipUi).
+  //   ★단건도 skipUi — 시계앱 UI를 열어 사용자가 '저장'을 눌러야 하는 옛 방식은 저장 안 누르고 나오면
+  //     미등록인데 앱은 '등록함'으로 표시되는 구멍이었음(테스터 실사례 2026-07-04).
   const addWakeToClock = async () => {
     if (!timeline?.wake) return;
     const base = timeline.wake.getTime();
@@ -292,9 +293,9 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
       return;
     }
     if (snoozeCount <= 1) {
-      const ok = await setSystemAlarm({ hour: timeline.wake.getHours(), minute: timeline.wake.getMinutes(), message: `${schedule.course} 기상` });
+      const ok = await setSystemAlarm({ hour: timeline.wake.getHours(), minute: timeline.wake.getMinutes(), message: `${schedule.course} 기상`, skipUi: true });
       if (!ok) showAppAlert('내 폰 알람을 열 수 없어요', '폰에 기본 알람(시계) 기능이 없거나 알람 추가를 지원하지 않을 수 있어요.');
-      else markSystemAlarmDone();
+      else { showAppAlert('내 폰 알람에 등록했어요', '기상 알람을 추가했어요.\n무음·방해금지에도 울려요. 폰 알람에서 확인하세요.'); markSystemAlarmDone(); }
       return;
     }
     let added = 0;
