@@ -389,12 +389,12 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         {/* 검색 — 맨 위 + 돋보기 + 검색 버튼. 메모칸과 같은 회색 민무늬라 '검색 기능이 없는 줄' 알았고,
             버튼이 없어 검색 실행 여부도 알 수 없다는 피드백(2026-07-05) → 흰 배경·테두리로 구분 + 명시 버튼(코스맛집 검색줄과 동일 문법). */}
         <View style={{ paddingHorizontal: 18, marginBottom: 7, flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingLeft: 12 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingLeft: 12, height: 44 }}>
             <Icon name="search" size={fs(16)} color={C.warmGray} />
             <AppTextInput value={kw} returnKeyType="search" onSubmitEditing={runSearch}
               onChangeText={(t) => { const hadQ = kw.trim(); setKw(t); if (hadQ && !t.trim()) loadNearby(); }}
               placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
-              style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 11, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }} />
+              style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 0, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }} />
             {kw.length > 0 && (
               <TouchableOpacity onPress={() => { setKw(''); loadNearby(); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ paddingRight: 10 }}>
                 <Text style={{ color: C.warmGray, fontSize: fs(13) }}>✕</Text>
@@ -406,32 +406,48 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: kw.trim() ? C.butter : C.warmGrayLight }}>검색</Text>
           </TouchableOpacity>
         </View>
-        {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
+        {/* 메모 입력(선택) — 고른 식당에 함께 저장. 흰 바탕 + 골드 테두리 + 펜 아이콘으로 검색칸(회색 헤어라인)과 구분.
+            버터색 채움은 버터 톤 패널 바탕에 묻혀서 테두리 방식으로(피드백 2026-07-05). */}
         <View style={{ paddingHorizontal: 18, marginBottom: 7 }}>
-          <AppTextInput value={memo} onChangeText={setMemo} placeholder="메모 (예: 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
-            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(160,130,30,0.5)', borderRadius: 10, paddingLeft: 12, height: 44 }}>
+            <Icon name="pen" size={fs(15)} color="rgba(140,110,25,0.9)" />
+            <AppTextInput value={memo} onChangeText={setMemo} placeholder="메모 (예: 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
+              style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 0, fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} />
+          </View>
         </View>
-        {/* 클럽하우스 원탭 — 구장 식당에서 먹는 흔한 케이스. 구장 좌표로 바로 지정(길찾기=구장). 좌표 없으면 지정만 되고 길찾기 비활성. */}
-        <TouchableOpacity onPress={() => propose({ name: '클럽하우스', loc: schedule?.course || '', x: coord?.x, y: coord?.y })} disabled={busy} activeOpacity={0.85}
-          style={{ marginHorizontal: 18, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-            paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
-          <Icon name="clubhouse" size={fs(21)} color={C.burgundy} />
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>클럽하우스에서 식사</Text>
-        </TouchableOpacity>
+        {/* 클럽하우스 원탭 — 구장 식당에서 먹는 흔한 케이스. 구장 좌표로 바로 지정(길찾기=구장). 좌표 없으면 지정만 되고 길찾기 비활성.
+            슬림 알약(왼쪽 정렬) — 큰 풀폭 버튼이 메모보다 커서 위계가 뒤집혀 보인다는 피드백(2026-07-05). */}
+        <View style={{ paddingHorizontal: 18, marginBottom: 10, flexDirection: 'row' }}>
+          <TouchableOpacity onPress={() => propose({ name: '클럽하우스', loc: schedule?.course || '', x: coord?.x, y: coord?.y })} disabled={busy} activeOpacity={0.85}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7,
+              borderRadius: 16, borderWidth: 0.5, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
+            <Icon name="clubhouse" size={fs(15)} color={C.burgundy} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>클럽하우스에서 식사</Text>
+          </TouchableOpacity>
+        </View>
         <View style={{ paddingBottom: 6 }}>
           {loading ? (
             <View style={{ paddingVertical: 30, alignItems: 'center' }}><ActivityIndicator color={C.burgundy} /></View>
           ) : list.length === 0 ? (
             <View style={{ paddingVertical: 24, alignItems: 'center', paddingHorizontal: 18 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', lineHeight: fs(19) }}>
-                {kw.trim() ? `'${kw.trim()}' 검색 결과가 없어요\n이름을 바꿔 다시 검색해보세요`
+                {kw.trim() ? `'${kw.trim()}' 검색 결과가 없어요\n카카오맵에 없는 식당은 이름 그대로 정할 수 있어요`
                   : coord ? '주변 식당을 찾지 못했어요\n이름으로 검색해보세요' : '코스 위치를 찾지 못해\n이름으로만 검색할 수 있어요'}
               </Text>
-              {/* 다시 시도 — 좌표/리스트 로딩이 일시 실패(콜드스타트·카카오 오류)했을 때 재시도 경로 제공 */}
+              {/* 카카오맵에 없는 식당(네이버엔 있는 시골 맛집 등) — 이름 그대로 지정 경로(테스터 2026-07-05).
+                  클럽하우스 지정과 같은 방식: 좌표가 없어 길찾기만 비활성, 이름·메모는 동반자에게 그대로 전달. */}
+              {kw.trim() ? (
+                <TouchableOpacity onPress={() => propose({ name: kw.trim(), loc: schedule?.course || '' })} disabled={busy} activeOpacity={0.85}
+                  style={{ marginTop: 12, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.butter }}>'{kw.trim()}' 이대로 정하기</Text>
+                </TouchableOpacity>
+              ) : (
+              /* 다시 시도 — 좌표/리스트 로딩이 일시 실패(콜드스타트·카카오 오류)했을 때 재시도 경로 제공 */
               <TouchableOpacity onPress={retryLoad} activeOpacity={0.8}
                 style={{ marginTop: 12, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 9, borderWidth: 1, borderColor: C.burgundy }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>↻ 다시 시도</Text>
               </TouchableOpacity>
+              )}
             </View>
           ) : (
             <>
