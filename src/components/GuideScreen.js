@@ -1341,18 +1341,25 @@ export function GuideScreen({ route, navigation }) {
                           <Text style={styles.name}>{r.name}</Text>
                           <Text style={styles.meta}>{r.type || '음식점'}{r.loc ? ` · ${r.loc}` : ''}</Text>
                           {r.memo ? (
-                            // 메모 있을 때 — 메모 자체를 탭하면 수정, 수정 힌트는 옅게
+                            // 메모 있을 때 — 메모 자체를 탭하면 수정, 수정 힌트는 옅게(✏️ 이모지 → 자체 pen 아이콘, 2026-07-05)
                             <TouchableOpacity onPress={() => openSaveModal({ ...r })} activeOpacity={0.7}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5 }}>
-                              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#5A4A00', lineHeight: 16 }}>
-                                "{r.memo}"  <Text style={{ fontSize: fs(9), fontStyle: 'normal', color: C.warmGray }}>✏️ 수정</Text>
-                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 5 }}>
+                                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#5A4A00', lineHeight: 16, flexShrink: 1 }}>
+                                  "{r.memo}"
+                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingBottom: 1 }}>
+                                  <Icon name="pen" size={fs(9)} color={C.warmGray} />
+                                  <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGray }}>수정</Text>
+                                </View>
+                              </View>
                             </TouchableOpacity>
                           ) : (
                             <TouchableOpacity onPress={() => openSaveModal({ ...r })} activeOpacity={0.7}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                              style={{ alignSelf: 'flex-start', marginTop: 5 }}>
-                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.burgundy }}>✏️ 메모 입력</Text>
+                              style={{ alignSelf: 'flex-start', marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                              <Icon name="pen" size={fs(10)} color={C.burgundy} />
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: C.burgundy }}>메모 입력</Text>
                             </TouchableOpacity>
                           )}
                         </View>
