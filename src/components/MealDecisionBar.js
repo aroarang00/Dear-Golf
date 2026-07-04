@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, Linking, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Linking, ActivityIndicator, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -204,10 +204,22 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     const q = kw.trim();
     if (!q) return;
     const t = setTimeout(async () => {
+      setLoading(true); // 스피너 — 자동검색이 도는지 안 보여 '검색이 되는 건지 모르겠다' 피드백(2026-07-05)
       try { setList(await searchRestaurantsByKeyword(q, coord?.y, coord?.x)); } catch { /* noop */ }
+      finally { setLoading(false); }
     }, 350);
     return () => clearTimeout(t);
   }, [kw, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 검색 버튼 — 자동검색과 동일 로직을 즉시 실행 + 키보드 내림(결과가 보이게). 버튼 없이는
+  //   검색이 실행된 건지 알 수 없다는 피드백(2026-07-05). 빈 입력이면 무시.
+  const runSearch = () => {
+    const q = kw.trim();
+    if (!q) return;
+    Keyboard.dismiss();
+    setLoading(true);
+    searchRestaurantsByKeyword(q, coord?.y, coord?.x).then(setList).catch(() => {}).finally(() => setLoading(false));
+  };
 
   // 식당 선택 → 확인창 거쳐 결정/변경. ★확인 시에만 Firestore 기록(=동반자 푸시) — 둘러보다 실수·이랬다저랬다 연타로
   //   푸시가 도배되던 문제 방지 + 취소 경로 제공(사용자 2026-06-19).
@@ -374,14 +386,30 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray }}>{decidedCount > 0 ? '닫기' : '취소'}</Text>
           </TouchableOpacity>
         </View>
+        {/* 검색 — 맨 위 + 돋보기 + 검색 버튼. 메모칸과 같은 회색 민무늬라 '검색 기능이 없는 줄' 알았고,
+            버튼이 없어 검색 실행 여부도 알 수 없다는 피드백(2026-07-05) → 흰 배경·테두리로 구분 + 명시 버튼(코스맛집 검색줄과 동일 문법). */}
+        <View style={{ paddingHorizontal: 18, marginBottom: 7, flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingLeft: 12 }}>
+            <Icon name="search" size={fs(16)} color={C.warmGray} />
+            <AppTextInput value={kw} returnKeyType="search" onSubmitEditing={runSearch}
+              onChangeText={(t) => { const hadQ = kw.trim(); setKw(t); if (hadQ && !t.trim()) loadNearby(); }}
+              placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
+              style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 11, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }} />
+            {kw.length > 0 && (
+              <TouchableOpacity onPress={() => { setKw(''); loadNearby(); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ paddingRight: 10 }}>
+                <Text style={{ color: C.warmGray, fontSize: fs(13) }}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity onPress={runSearch} activeOpacity={0.85} disabled={!kw.trim()}
+            style={{ backgroundColor: kw.trim() ? C.burgundy : C.hairline, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: kw.trim() ? C.butter : C.warmGrayLight }}>검색</Text>
+          </TouchableOpacity>
+        </View>
         {/* 메모 입력(선택) — 고른 식당에 함께 저장 */}
         <View style={{ paddingHorizontal: 18, marginBottom: 7 }}>
           <AppTextInput value={memo} onChangeText={setMemo} placeholder="메모 (예: 9시까지 모여요)" placeholderTextColor={C.warmGrayLight}
             style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} />
-        </View>
-        <View style={{ paddingHorizontal: 18, marginBottom: 7 }}>
-          <AppTextInput value={kw} onChangeText={setKw} placeholder="식당 이름으로 검색" placeholderTextColor={C.warmGrayLight}
-            style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }} />
         </View>
         {/* 클럽하우스 원탭 — 구장 식당에서 먹는 흔한 케이스. 구장 좌표로 바로 지정(길찾기=구장). 좌표 없으면 지정만 되고 길찾기 비활성. */}
         <TouchableOpacity onPress={() => propose({ name: '클럽하우스', loc: schedule?.course || '', x: coord?.x, y: coord?.y })} disabled={busy} activeOpacity={0.85}
@@ -396,7 +424,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
           ) : list.length === 0 ? (
             <View style={{ paddingVertical: 24, alignItems: 'center', paddingHorizontal: 18 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', lineHeight: fs(19) }}>
-                {coord ? '주변 식당을 찾지 못했어요\n이름으로 검색해보세요' : '코스 위치를 찾지 못해\n이름으로만 검색할 수 있어요'}
+                {kw.trim() ? `'${kw.trim()}' 검색 결과가 없어요\n이름을 바꿔 다시 검색해보세요`
+                  : coord ? '주변 식당을 찾지 못했어요\n이름으로 검색해보세요' : '코스 위치를 찾지 못해\n이름으로만 검색할 수 있어요'}
               </Text>
               {/* 다시 시도 — 좌표/리스트 로딩이 일시 실패(콜드스타트·카카오 오류)했을 때 재시도 경로 제공 */}
               <TouchableOpacity onPress={retryLoad} activeOpacity={0.8}
@@ -405,7 +434,14 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               </TouchableOpacity>
             </View>
           ) : (
-            list.map((r) => (
+            <>
+            {/* 검색 결과 헤더 — 아래 리스트가 '검색 결과'로 바뀌었음을 명시(주변 리스트와 구분) */}
+            {kw.trim().length > 0 && (
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy, paddingHorizontal: 18, paddingBottom: 4 }}>
+                '{kw.trim()}' 검색 결과 {list.length}곳
+              </Text>
+            )}
+            {list.map((r) => (
               <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
@@ -423,7 +459,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>정하기</Text>
                 </TouchableOpacity>
               </View>
-            ))
+            ))}
+            </>
           )}
         </View>
       </View>
