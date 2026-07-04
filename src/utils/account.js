@@ -12,6 +12,7 @@ import { ref, listAll, deleteObject } from 'firebase/storage';
 import { auth, db, getUid, storage as fbStorage } from './firebase';
 import { STORAGE_KEYS, storage } from './storage';
 import { createNotification } from './roundupNotifications';
+import { leaveCrew } from './crews';
 
 // best-effort 삭제 — Promise.all로 병렬, 개별 실패는 경고만
 async function deleteByQuery(coll, field, uid) {
@@ -92,6 +93,20 @@ async function cancelOwnRoundups(uid, actorName) {
   }
 }
 
+// 크루 전체 탈퇴 — 안 하면 탈퇴 uid가 멤버 목록에 유령으로 남음(이름은 names 동결값, 친추 버튼은 막다른길.
+//   2026-07-04 탈퇴 테스트서 발견). leaveCrew 재사용 = 크루장 승계·운영진 제거·declinedUids까지 기존 로직 그대로,
+//   마지막 1인이면 빈 크루가 되고 CF(onCrewUpdated)가 정리. 본인 크루 게시글·댓글은 카톡처럼 보존(작성자명 동결).
+async function leaveAllCrews(uid) {
+  try {
+    const snap = await getDocs(query(collection(db, 'crews'), where('memberUids', 'array-contains', uid)));
+    await Promise.all(snap.docs.map(d => leaveCrew(d.id, uid).catch(e => {
+      if (__DEV__) console.warn('[account] crew leave fail', d.id, e?.message);
+    })));
+  } catch (e) {
+    console.warn('[account] crews 쿼리 실패', e?.message);
+  }
+}
+
 // friendships — users array-contains uid → 양방향 doc 삭제
 async function deleteFriendships(uid) {
   try {
@@ -127,6 +142,7 @@ async function deleteFirestoreUserData(uid) {
     deleteByQuery('roundupApplications', 'applicantUid', uid),
     deleteByQuery('roundupNotifications', 'recipientUid', uid), // 받은 알림(유령 카드) 정리
     deleteFriendships(uid),
+    leaveAllCrews(uid),   // 크루 유령 멤버 방지 — DM 스레드는 카톡처럼 보존(상대의 대화 기록 유지)
   ]);
   // 본인 users 문서 삭제 (마지막 — 보안 규칙상 본인만 가능)
   try {
