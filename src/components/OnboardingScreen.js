@@ -6,7 +6,7 @@ import { C, F, fs } from '../constants/colors';
 import { obS } from '../styles/obS';
 import { TripleStripe } from './common/TripleStripe';
 import { getUid } from '../utils/firebase';
-import { saveReferredBy } from '../utils/referral';
+import { saveReferredBy, validateRefCode } from '../utils/referral';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 키보드 입력칸 가림 방지
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분) — 개인차가 커 한 번만 정해두면 평생 적용
@@ -24,6 +24,25 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const [avgScore, setAvgScore] = useState(seed.avgScore > 0 ? String(seed.avgScore) : '');
   const [lifeBest, setLifeBest] = useState(seed.lifeBest > 0 ? String(seed.lifeBest) : '');
   const [refCodeInput, setRefCodeInput] = useState(''); // 추천인 코드(선택) — 신규 가입만 노출
+  // 코드 오타 피드백 — 혜택을 약속한 이상(골드 박스) 잘못된 코드를 조용히 버리면 안 됨(2026-07-04).
+  //   2단계 '다음'에서 단건 조회로 확인, 못 찾으면 머물며 안내. 네트워크 실패는 비차단(그대로 진행).
+  const [refCodeError, setRefCodeError] = useState(null);
+  const [refCodeChecking, setRefCodeChecking] = useState(false);
+  const goStep3 = async () => {
+    const raw = refCodeInput.trim();
+    if (!raw || seed.isReturning || refCodeChecking) { if (!refCodeChecking) setStep(3); return; }
+    setRefCodeChecking(true);
+    try {
+      const v = await validateRefCode(raw, null);
+      if (!v.ok && (v.reason === 'format' || v.reason === 'notfound')) {
+        setRefCodeError('코드를 찾지 못했어요 — 오타를 확인하거나, 비우고 진행해 주세요');
+        setRefCodeChecking(false);
+        return;
+      }
+    } catch (e) { /* 오프라인 등 — 확인 못 하면 막지 않는다(최종 판정은 서버) */ }
+    setRefCodeChecking(false);
+    setStep(3);
+  };
   const [step, setStep] = useState(1);
   // 3단계 · 알림 — 한 번 정해두면 매 라운드 자동 적용(팝업 없음)
   const [prepMin, setPrepMin] = useState(30);          // 집에서 나갈 준비시간(화장·짐 등)
@@ -125,8 +144,13 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
               <View>
                 <Text style={obS.label}>추천인 코드 (선택)</Text>
                 <AppTextInput style={obS.input} placeholder="예: AB23CD" placeholderTextColor={C.warmGrayLight}
-                  value={refCodeInput} onChangeText={(t) => setRefCodeInput(t.slice(0, 10))}
+                  value={refCodeInput} onChangeText={(t) => { setRefCodeInput(t.slice(0, 10)); setRefCodeError(null); }}
                   autoCapitalize="characters" autoCorrect={false} />
+                {refCodeError && (
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: '#B23B3B', marginTop: 5 }}>
+                    {refCodeError}
+                  </Text>
+                )}
                 {/* 혜택 안내 — 라이프베스트 힌트와 같은 골드 박스(회색 캡션은 안 보인다는 피드백, 2026-07-04).
                     숫자는 쿼터 UI 나오는 첫 업데이트 발표에서(invite.js와 같은 수위) */}
                 <View style={{ marginTop: 10, padding: 12, backgroundColor: '#F5F0E4', borderRadius: 10, borderWidth: 1, borderColor: '#C9A84C' }}>
@@ -141,8 +165,8 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
                 onPress={() => setStep(1)}>
                 <Text style={[obS.nextBtnTxt, { color: C.warmGray }]}>이전</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={() => setStep(3)}>
-                <Text style={obS.nextBtnTxt}>다음 →</Text>
+              <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={goStep3}>
+                <Text style={obS.nextBtnTxt}>{refCodeChecking ? '코드 확인 중…' : '다음 →'}</Text>
               </TouchableOpacity>
             </View>
           </View>
