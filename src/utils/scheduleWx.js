@@ -52,11 +52,23 @@ export async function getScheduleWxSummary(schedule) {
                : (hi != null ? `${hi}°` : (lo != null ? `${lo}°` : ''));
     if (!sky && !temp) return null; // 데이터 없는 폴백 슬롯
     const pop = Number.isFinite(day.pop) ? Math.round(day.pop) : null;
+    // 준비물용 강수확률 = 라운딩 시간창(티오프 −1h ~ +6h, 18홀+식사)의 최대 POP — '아침 티인데 밤에만 비'는
+    //   우비 제외, '3부 티에 밤 비'는 포함(2026-07-05). 시간 슬롯 없거나 티오프 시각 없으면 하루 최대 POP 폴백.
+    //   detail(공유 텍스트)의 강수확률은 관례대로 '그날' 기준 유지.
+    let prepPop = pop;
+    try {
+      const [hh] = String(schedule.time || '').split(':').map(Number);
+      const slots = f?.slotsByDate?.[schedule.date.replace(/\./g, '')] || [];
+      if (Number.isFinite(hh) && slots.length) {
+        const win = slots.filter(sl => { const h = parseInt(sl.fcstTime, 10) / 100; return h >= hh - 1 && h <= hh + 6; });
+        if (win.length) prepPop = Math.round(Math.max(...win.map(sl => parseFloat(sl.POP) || 0)));
+      }
+    } catch { /* 폴백=하루 최대 */ }
     const summary = [sky, temp].filter(Boolean).join(' '); // 카드·D-0용(예: '맑음 18°/24°')
     const tempDetail = (lo != null && hi != null) ? `최저 ${lo}° · 최고 ${hi}°` : (hi != null ? `최고 ${hi}°` : (lo != null ? `최저 ${lo}°` : null));
     const detail = [sky, tempDetail, pop != null ? `강수확률 ${pop}%` : null]
       .filter(Boolean).join(' · '); // 텍스트 공유용(최저/최고·강수확률)
-    return { summary, detail, icon: day.icon || null, hi, lo }; // icon=실제 예보 이모지(맑음 ☀️·구름 ⛅·흐림 ☁️·비 🌧 등, kma skyToIcon). hi/lo=최고/최저°(D-0 준비물 기온 분기용)
+    return { summary, detail, icon: day.icon || null, hi, lo, pop: prepPop }; // icon=실제 예보 이모지(맑음 ☀️·구름 ⛅·흐림 ☁️·비 🌧 등, kma skyToIcon). hi/lo=최고/최저°, pop=라운딩 시간창 최대 강수확률(D-0 준비물 분기용 — 아이콘은 정오 기준이라 오후 비를 놓침)
   } catch {
     return null;
   }

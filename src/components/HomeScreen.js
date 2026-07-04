@@ -645,18 +645,18 @@ export function HomeScreen({ navigation, route }) {
 
   // D-0 카드 우측 날씨·교통 채움 — 큰 이모지만 두면 휑해서 실제 정보로(사용자 2026-06-20).
   //   날씨=getScheduleWxSummary(캐시), 교통=getScheduleDriveMin(출발지 저장 시 경로 1회 조회). 당일 카드일 때만.
-  const [d0Info, setD0Info] = useState({ wx: '', drive: null, icon: '', hi: null, lo: null });
+  const [d0Info, setD0Info] = useState({ wx: '', drive: null, icon: '', hi: null, lo: null, pop: null });
   useEffect(() => {
-    if (!isD0 || !next) { setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null }); return; }
+    if (!isD0 || !next) { setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null, pop: null }); return; }
     let alive = true;
     let gotWx = false;   // fresh 날씨 도착 후엔 캐시로 되돌리지 않음(레이스 방지)
     const cacheKey = STORAGE_KEYS.d0Info + next.id;
-    setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null });
+    setD0Info({ wx: '', drive: null, icon: '', hi: null, lo: null, pop: null });
     // 캐시 즉시 표시 — 콜드스타트에 빈 카드 뒤 날씨·준비물이 '툭' 뜨던 stagger 완화(같은 날짜·12h 이내만, fresh 전).
     storage.load(cacheKey, null).then(c => {
       if (alive && !gotWx && c?.v && c.date === next.date && Date.now() - (c.t || 0) < 12 * 3600 * 1000) setD0Info(c.v);
     }).catch(() => {});
-    getScheduleWxSummary(next).then(w => { if (alive && w) { gotWx = true; setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '', hi: w.hi ?? null, lo: w.lo ?? null })); } }).catch(() => {});
+    getScheduleWxSummary(next).then(w => { if (alive && w) { gotWx = true; setD0Info(p => ({ ...p, wx: w.summary, icon: w.icon || '', hi: w.hi ?? null, lo: w.lo ?? null, pop: w.pop ?? null })); } }).catch(() => {});
     const home = userProfile?.departureCoord;
     if (home && typeof home.x === 'number' && typeof home.y === 'number') {
       // 라운딩 종료(티오프+4h) 후엔 올 때(구장→집) 소요로 — 목적지 기본=마이페이지 저장 출발지.
@@ -1320,10 +1320,11 @@ export function HomeScreen({ navigation, route }) {
                             {next.subCourse.trim()}
                           </Text>
                         )}
-                        {/* 날씨별 준비물(당일) — 이미 받아둔 예보 아이콘·기온으로 한 줄. 입력 의존 없이 항상 뜸. 비/눈>추움>더움·맑음>흐림 우선. */}
+                        {/* 날씨별 준비물(당일) — 이미 받아둔 예보 아이콘·기온으로 한 줄. 입력 의존 없이 항상 뜸. 비/눈>추움>더움·맑음>흐림 우선.
+                            비 판정은 아이콘(정오 기준이라 오후 비 놓침) + 그날 최대 강수확률 60%↑ 병행(테스터 '오후 비인데 우비가 없다' 2026-07-05). */}
                         {!!d0Info.icon && (() => {
                           const s = String(d0Info.icon || '');
-                          const rain = /🌧|🌨|❄|🌦|⛈|☔/u.test(s);
+                          const rain = /🌧|🌨|❄|🌦|⛈|☔/u.test(s) || (Number.isFinite(d0Info.pop) && d0Info.pop >= 60);
                           const cold = (d0Info.hi != null && d0Info.hi < 10) || (d0Info.lo != null && d0Info.lo <= 0);
                           const hot = d0Info.hi != null && d0Info.hi >= 28;
                           const prep = rain ? (cold ? '우비·핫팩·여벌 양말' : '우비·여벌 양말·타월')
