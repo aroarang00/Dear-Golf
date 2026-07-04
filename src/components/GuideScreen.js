@@ -101,6 +101,7 @@ export function GuideScreen({ route, navigation }) {
   const [exploreMaster, setExploreMaster] = useState([]); // 전국 골프장 마스터 — CourseExploreTab '전체 골프장'용(상시 마운트라 상세 복귀 시 재조회 없음)
   const scrollRefs = useRef({});
   const exploreRef = useRef(null);   // 코스 목록(CourseExploreTab) 스크롤 톱 복귀용 — 탭 재탭 시 호출
+  const foodSearchYRef = useRef(0);  // 맛집 검색줄의 콘텐츠 내 y — 포커스 시 검색줄을 위로 스크롤(안드 키보드 가림 회피)
 
   // 100대 코스 목록 — 마운트 시 1회 로드
   useEffect(() => { getTop100Courses().then(list => setTop100(list || [])); }, []);
@@ -1245,8 +1246,10 @@ export function GuideScreen({ route, navigation }) {
                   </TouchableOpacity>
                 </View>
 
-              <View style={{ padding: 16, paddingTop: 14 }}>
-                {/* 상단 검색창 — 맛집 검색 또는 직접 추가 */}
+              <View style={{ padding: 16, paddingTop: 14 }}
+                onLayout={(e) => { foodSearchYRef.current = e.nativeEvent.layout.y; }}>
+                {/* 상단 검색창 — 맛집 검색 또는 직접 추가. 포커스 시 검색줄을 화면 위로 스크롤 —
+                    edge-to-edge라 adjustResize 무효, 지도(210) 아래 입력이라 키보드가 검색줄·결과를 덮었음(2026-07-05). */}
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <View style={{
                     flex: 1, flexDirection: 'row', alignItems: 'center',
@@ -1257,6 +1260,9 @@ export function GuideScreen({ route, navigation }) {
                     <AppTextInput
                       value={foodSearch}
                       onChangeText={setFoodSearch}
+                      onFocus={() => { // 키보드 안착 후 스크롤(MealDecisionBar 패널 스크롤과 동일 240ms 지연)
+                        setTimeout(() => scrollRefs.current.detail?.scrollTo?.({ y: Math.max(0, (foodSearchYRef.current || 210) - 8), animated: true }), 240);
+                      }}
                       placeholder="맛집 검색 또는 직접 추가"
                       placeholderTextColor={C.warmGrayLight}
                       style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, paddingVertical: 9 }}
