@@ -493,7 +493,9 @@ export function Icon({ name, size = 22, color = C.charcoal, strokeWidth = 1.8 })
   const render = ICONS[name];
   if (!render) return null;
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
+    // key={name} — 아이콘 교체(heartFilled↔heart 등)를 in-place diff하면 일부 기기서 제거된 fill이
+    // 부모 상속(none) 대신 SVG 기본값(검정 채움)으로 떨어짐(크루 좋아요 취소→검정 하트, 실기기 보고) → 교체 시 강제 리마운트.
+    <Svg key={name} width={size} height={size} viewBox="0 0 24 24">
       <G fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
         {render(color)}
       </G>

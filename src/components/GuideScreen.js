@@ -1066,7 +1066,8 @@ export function GuideScreen({ route, navigation }) {
                               onPress={() => toggleLike(cm)}
                               activeOpacity={0.6}
                               style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 0.5, borderColor: cm.likedByMe ? C.burgundy : C.burgundy + '60', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.burgundy }}>{cm.likedByMe ? '♥' : '♡'} {cm.likes}</Text>
+                              {/* ♥+U+FE0E — 텍스트 렌더 강제(일부 기기가 ♥를 이모지로 그려 color 무시하는 편차 차단, [[rn-platform-gotchas]]) */}
+                              <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.burgundy }}>{cm.likedByMe ? '♥︎' : '♡'} {cm.likes}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() => cm.mine ? openMyCommentMenu(cm) : handleReportComment(cm)}
@@ -1396,7 +1397,7 @@ export function GuideScreen({ route, navigation }) {
                                 borderWidth: 0.5, borderColor: C.burgundy,
                                 backgroundColor: liked ? C.burgundy : 'transparent',
                               }}>
-                              <Text style={{ fontSize: fs(10), color: liked ? C.butter : C.burgundy }}>{liked ? '♥' : '♡'}</Text>
+                              <Text style={{ fontSize: fs(10), color: liked ? C.butter : C.burgundy }}>{liked ? '♥︎' : '♡'}</Text>
                               <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: liked ? C.butter : C.burgundy }}>{recCount}</Text>
                             </TouchableOpacity>
                             {/* 저장 — 추천 ♥와 분리된 별도 + 저장 버튼 */}

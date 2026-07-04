@@ -144,7 +144,7 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
             const liked = !!myUid && Array.isArray(post.likedBy) && post.likedBy.includes(myUid);
             const inner = (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                <Text style={{ fontSize: fs(13), color: liked ? '#E0506A' : C.warmGrayLight }}>{liked ? '♥' : '♡'}</Text>
+                <Text style={{ fontSize: fs(13), color: liked ? '#E0506A' : C.warmGrayLight }}>{liked ? '♥︎' : '♡'}</Text>
                 {likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: liked ? '#E0506A' : C.warmGray }}>{likeCount}</Text>}
               </View>
             );

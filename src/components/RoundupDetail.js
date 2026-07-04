@@ -910,7 +910,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                     const isHost = post.authorUid === myUid;
                     const inner = (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                        <Text style={{ fontSize: fs(15), color: liked ? '#E0506A' : C.warmGrayLight }}>{liked ? '♥' : '♡'}</Text>
+                        <Text style={{ fontSize: fs(15), color: liked ? '#E0506A' : C.warmGrayLight }}>{liked ? '♥︎' : '♡'}</Text>
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: liked ? '#E0506A' : C.warmGray }}>{likeCount}</Text>
                       </View>
                     );
