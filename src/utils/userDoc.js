@@ -20,10 +20,10 @@ export async function ensureUserDoc(uid, seed = {}) {
     if (!existing.displayName && seed.nickname) patch.displayName = seed.nickname;
     if (!existing.uid) patch.uid = uid;
     if (existing.kakaoLinked !== true) patch.kakaoLinked = true;
-    if (existing.mannerScore == null) patch.mannerScore = 70;
+    // ★mannerScore·isRestricted는 백필하지 않는다 — 서버 권위 필드(규칙 sanctionFieldsUnchanged가
+    //   변경 자체를 거부, CF만 부여). 없으면 읽는 쪽이 기본값 처리(클라 ||70·CF typeof 체크).
     if (existing.hostedCount == null) patch.hostedCount = 0;
     if (existing.attendedCount == null) patch.attendedCount = 0;
-    if (existing.isRestricted == null) patch.isRestricted = false;
     if (Object.keys(patch).length > 0) {
       patch.updatedAt = serverTimestamp();
       await setDoc(ref, patch, { merge: true });
@@ -33,16 +33,16 @@ export async function ensureUserDoc(uid, seed = {}) {
   }
 
   // 신규 사용자 — 명함 기본값으로 생성. 나머지 프로필은 온보딩·설정에서 채워진다.
+  // ★mannerScore·isRestricted 미포함 — 규칙이 create에 이 키들을 금지(신규 계정 매너 뻥튀기 차단,
+  //   CF만 부여). 넣으면 permission-denied로 '카카오 시작' 전체가 실패한다(2026-07-04 탈퇴 재가입서 발견).
   const data = {
     uid,                                    // 보안 규칙: request.resource.data.uid == uid 필수
     displayName: seed.nickname || '',
     avatarUrl: seed.profileImageUrl || null,
     kakaoId: seed.kakaoId || null,
     kakaoLinked: true,
-    mannerScore: 70,
     hostedCount: 0,
     attendedCount: 0,
-    isRestricted: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
