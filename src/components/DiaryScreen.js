@@ -649,7 +649,8 @@ export function DiaryScreen({ route, navigation }) {
       ? [{ text: '카카오 프로필 사진 가져오기', onPress: async () => {
           const uri = await fetchKakaoProfileImage();
           if (uri) persistProfile({ avatarUri: uri });
-          else showAppAlert('가져오지 못했어요', '카카오 프로필 사진을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+          // 동의 재요청까지 거친 뒤에도 null = 동의 거부 또는 카카오에 사진 없음 — '다시 시도'는 오안내라 정확히.
+          else showAppAlert('가져오지 못했어요', '카카오 프로필 사진 제공에 동의하지 않았거나, 카카오에 설정된 사진이 없어요.');
         } }]
       : []),
     ...(userProfile.avatarUri

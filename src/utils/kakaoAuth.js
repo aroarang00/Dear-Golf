@@ -162,6 +162,12 @@ export async function getKakaoFriends() {
 export async function fetchKakaoProfileImage({ silent = false } = {}) {
   const pick = (p) => p?.profileImageUrl || p?.thumbnailImageUrl || null;
   try {
+    const uri = pick(await me());
+    if (uri || silent) return uri;
+    // me() 성공인데 사진이 없다 = 대부분 '프로필 사진(선택 동의)' 미동의(가입 때 거부 가능, 2026-07-04 확인).
+    //   requestKakaoFriendsConsent와 같은 방식으로 그 자리에서 추가 동의 요청 후 1회 재시도.
+    //   (동의했지만 카카오에 사진이 정말 없는 경우도 이 로그인을 한 번 거침 — 버튼을 직접 누른 경우만이라 허용)
+    await login({ scopes: ['profile_image'], useKakaoAccountLogin: true });
     return pick(await me());
   } catch (e) {
     if (silent) {
