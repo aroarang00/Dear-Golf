@@ -17,7 +17,7 @@ import {
   initializeTestEnvironment, assertFails, assertSucceeds,
 } from '@firebase/rules-unit-testing';
 import {
-  doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, arrayUnion, arrayRemove,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, arrayUnion, arrayRemove, deleteField,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'demo-deargolf';
@@ -284,6 +284,42 @@ test('users: 생성 시 제재 필드 끼워넣기 거부, 제재필드 없는 �
   await assertFails(setDoc(ref, { uid: 'bob', nickname: '밥', isRestricted: false }));
   // 제재필드 없는 정상 생성 — 허용
   await assertSucceeds(setDoc(ref, { uid: 'bob', nickname: '밥' }));
+});
+
+// =============================================================
+// referral — 초대 코드(refCodes create-only) + users referredBy/refCode set-once
+//   [[referral-reward-implementation-plan]] 잠복 배포: 클라=기록만, 지급 판정·entitlements 상향은 CF.
+// =============================================================
+test('refCodes: 본인 uid 정상 생성 허용 / 남의 uid·형식 위반·여분 필드·탈취·삭제 거부, 읽기 허용', async () => {
+  const alice = as('alice');
+  // 정상 생성 — 본인 uid + 유효 형식(혼동문자 I·O·0·1 제외 6자)
+  await assertSucceeds(setDoc(doc(alice, 'refCodes', 'AB23CD'), { uid: 'alice', createdAt: serverTimestamp() }));
+  // 남의 uid로 생성(코드 위조) — 거부
+  await assertFails(setDoc(doc(alice, 'refCodes', 'ZZ99ZZ'), { uid: 'bob', createdAt: serverTimestamp() }));
+  // 형식 위반 — 혼동문자 O 포함 / 5자 — 거부
+  await assertFails(setDoc(doc(alice, 'refCodes', 'ABO23C'), { uid: 'alice', createdAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(alice, 'refCodes', 'AB23C'), { uid: 'alice', createdAt: serverTimestamp() }));
+  // 여분 필드 끼워넣기 — 거부
+  await assertFails(setDoc(doc(alice, 'refCodes', 'CD34EF'), { uid: 'alice', createdAt: serverTimestamp(), bonus: 1 }));
+  // 존재하는 코드 재매핑(탈취)·삭제 — 거부 (create-only)
+  await assertFails(setDoc(doc(as('bob'), 'refCodes', 'AB23CD'), { uid: 'bob', createdAt: serverTimestamp() }));
+  await assertFails(deleteDoc(doc(as('bob'), 'refCodes', 'AB23CD')));
+  // 읽기(온보딩 추천인 코드 검증) — 로그인 사용자 허용
+  await assertSucceeds(getDoc(doc(as('bob'), 'refCodes', 'AB23CD')));
+});
+
+test('users: referredBy·refCode는 첫 기록만 허용(set-once), 사후 변조·삭제 거부, 무관 저장은 계속 허용', async () => {
+  await seed((db) => setDoc(doc(db, 'users', 'alice'), { uid: 'alice', nickname: '앨리스' }));
+  const ref = doc(as('alice'), 'users', 'alice');
+  // 첫 기록(신규 가입 온보딩·코드 발급) — 허용
+  await assertSucceeds(setDoc(ref, { uid: 'alice', referredBy: 'AB23CD', refCode: 'EF45GH', updatedAt: serverTimestamp() }, { merge: true }));
+  // 사후 변조(다른 코드로 교체 — 지급 대상 조작 시도) — 거부
+  await assertFails(updateDoc(ref, { referredBy: 'ZZ99ZZ' }));
+  await assertFails(updateDoc(ref, { refCode: 'ZZ99ZZ' }));
+  // 값 삭제 후 재기록 우회 — 거부
+  await assertFails(updateDoc(ref, { referredBy: deleteField() }));
+  // referral 필드 미포함 일반 프로필 저장(App.js write-through와 동일) — 계속 허용
+  await assertSucceeds(setDoc(ref, { uid: 'alice', nickname: '앨리스2', updatedAt: serverTimestamp() }, { merge: true }));
 });
 
 test('roundups: 주최자는 전체 수정 가능, 비주최자 삭제는 거부', async () => {

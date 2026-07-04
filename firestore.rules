@@ -61,6 +61,12 @@ service cloud.firestore {
         // 등급 한도(entitlements) — 결제 검증한 CF(admin)만 상향. 본인 update로 자가 상향 차단(무료 우회 방지).
         && request.resource.data.get('entitlements', null) == resource.data.get('entitlements', null);
     }
+    // set-once — 없을 때만 쓸 수 있고 한 번 쓰면 본인도 변경·삭제 불가(레퍼럴 refCode·referredBy 사후 변조 차단).
+    //   미설정 문서(기존 계정·write-through 미포함 payload)는 null==null로 통과 — false-denial 없음.
+    function setOnce(field) {
+      return request.resource.data.get(field, null) == resource.data.get(field, null)
+        || resource.data.get(field, null) == null;
+    }
 
     // ===== config — 앱 원격 설정(홈 스토어 광고 등). 읽기 전용, 쓰기는 콘솔/Admin만 =====
     //   config/storeAds { ads: [{ tag, title, img, url }] } — 문서만 고치면 앱 업데이트 없이 광고 교체.
@@ -78,7 +84,8 @@ service cloud.firestore {
       allow create: if isOwner(uid) && request.resource.data.uid == uid
         && !request.resource.data.keys().hasAny(['isRestricted', 'mannerScore', 'noshowCount', 'falseReportCount', 'restrictUntil', 'restrictReason', 'permanentPendingAppealUntil', 'permanentPendingReason', 'entitlements']);
       allow update: if isOwner(uid) && request.resource.data.uid == uid
-        && sanctionFieldsUnchanged(); // 제재 자가해제·매너 조작 차단(서버 권위 필드 불변)
+        && sanctionFieldsUnchanged() // 제재 자가해제·매너 조작 차단(서버 권위 필드 불변)
+        && setOnce('refCode') && setOnce('referredBy'); // 레퍼럴 — 1회 기록 후 변조 불가(지급 판정은 CF, [[referral-reward-implementation-plan]])
       allow delete: if isOwner(uid);
 
       // 친구 그룹·별명 (친구 그룹 기능 — docs/friend-groups-design.md). 본인만.
@@ -87,6 +94,19 @@ service cloud.firestore {
       match /private/{docId} {
         allow read, write: if isOwner(uid);
       }
+    }
+
+    // ===== refCodes — 초대 코드 역참조 (문서 ID = 코드, { uid, createdAt }) =====
+    //   [[referral-reward-implementation-plan]] 잠복 배포: 코드 생성·조회만 열고 보상 지급은 CF(추후).
+    //   create-only — 수정·삭제 불가(남의 코드 탈취·재매핑 차단). 코드 형식 = 혼동문자(I·O·0·1) 제외 6자
+    //   (클라 referral.js CODE_CHARS와 일치 유지). 여분 코드 생성은 이득 없음(같은 초대자로 해석)이라 개수 미제한.
+    match /refCodes/{code} {
+      allow read: if isSignedIn();   // 온보딩 추천인 코드 검증(getDoc 단건)
+      allow create: if isSignedIn()
+        && code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
     }
 
     // ===== schedules — 라운딩 예정 일정 (본인만 read/write) =====

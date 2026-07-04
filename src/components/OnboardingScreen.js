@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { obS } from '../styles/obS';
 import { TripleStripe } from './common/TripleStripe';
+import { getUid } from '../utils/firebase';
+import { saveReferredBy } from '../utils/referral';
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분) — 개인차가 커 한 번만 정해두면 평생 적용
 const PREP_OPTS = [5, 15, 30, 60];
@@ -20,6 +22,7 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const [realName, setRealName] = useState(seed.realName || '');
   const [avgScore, setAvgScore] = useState(seed.avgScore > 0 ? String(seed.avgScore) : '');
   const [lifeBest, setLifeBest] = useState(seed.lifeBest > 0 ? String(seed.lifeBest) : '');
+  const [refCodeInput, setRefCodeInput] = useState(''); // 추천인 코드(선택) — 신규 가입만 노출
   const [step, setStep] = useState(1);
   // 3단계 · 알림 — 한 번 정해두면 매 라운드 자동 적용(팝업 없음)
   const [prepMin, setPrepMin] = useState(30);          // 집에서 나갈 준비시간(화장·짐 등)
@@ -30,6 +33,11 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const handleComplete = () => {
     const nick = nickname.trim() || '';
     if (!nick) return;
+    // 추천인 코드 기록 — 잠복 배포([[referral-reward-implementation-plan]]): 유효하면 users.referredBy에
+    //   1회 기록만(set-once). 보상 지급·최종 검증은 추후 CF가 소급 처리하므로 온보딩을 막지 않는 best-effort.
+    if (refCodeInput.trim() && !seed.isReturning) {
+      getUid().then((uid) => uid && saveReferredBy(uid, refCodeInput)).catch(() => {});
+    }
     const best = parseInt(lifeBest) || 99;
     onComplete({
       nickname: nick,
@@ -104,6 +112,18 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
               <View style={{ marginTop: 12, padding: 12, backgroundColor: parseInt(lifeBest) <= 79 ? '#F5F0E4' : C.bgSecondary, borderRadius: 10, borderWidth: 1, borderColor: parseInt(lifeBest) <= 79 ? '#C9A84C' : C.hairline }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: parseInt(lifeBest) <= 79 ? '#8B6914' : C.warmGrayLight }}>
                   {parseInt(lifeBest) <= 79 ? '싱글 골퍼이시네요!' : `싱글까지 ${parseInt(lifeBest) - 79}타 남았어요`}
+                </Text>
+              </View>
+            )}
+            {/* 추천인 코드(선택) — 신규 가입만. 초대 문구(shareInvite)에 동봉된 코드와 짝 ([[referral-reward-implementation-plan]]) */}
+            {!seed.isReturning && (
+              <View>
+                <Text style={obS.label}>추천인 코드 (선택)</Text>
+                <AppTextInput style={obS.input} placeholder="예: AB23CD" placeholderTextColor={C.warmGrayLight}
+                  value={refCodeInput} onChangeText={(t) => setRefCodeInput(t.slice(0, 10))}
+                  autoCapitalize="characters" autoCorrect={false} />
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGrayLight, marginTop: 5 }}>
+                  초대해 준 친구가 있다면 받은 코드를 입력해 주세요
                 </Text>
               </View>
             )}

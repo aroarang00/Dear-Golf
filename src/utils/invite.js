@@ -1,6 +1,8 @@
 import { Share } from 'react-native';
 import { shareFeedTemplate } from '@react-native-kakao/share';
 import { buildRoundupUrl } from './links';
+import { getUid } from './firebase';
+import { ensureMyRefCode } from './referral';
 
 // 친구/모임 초대 — 골프 모임 단톡방에 통째로 붙여넣기 좋은 공용 초대.
 // 친구 화면 헤더와 라운지 빈 상태가 같은 문구를 쓰도록 한 곳에 둔다 ([[lounge-positioning]] 공존·흡수).
@@ -8,7 +10,7 @@ export const INVITE_LINK = 'https://deargolf.app'; // TODO: 출시 시 실제 �
 
 // 평문(텍스트+링크 한 메시지) — 카카오 피드 카드는 받는 쪽에서 링크가 안 열리는 문제로 폐기(2026-07-03).
 //   링크는 마지막 줄에 단독으로 — 카톡이 자동 링크화 + 미리보기를 붙여줘 탭 동선이 확실.
-export const INVITE_MESSAGE =
+const INVITE_BODY =
   '⛳ 골프 일정만 등록하세요.\n' +
   '나머지는 디어골프가 알려드려요.\n\n' +
   '🌤️ 날씨 · 🚗 교통 예측 · 🗓️ 동반자·식사 일정 공유\n\n' +
@@ -16,12 +18,21 @@ export const INVITE_MESSAGE =
   '귀찮은 계산은 디어골프가 할게요 ⏰\n\n' +
   '📒 스코어 기록 · 나의 코스 로그 · 라운딩 모집 · 소모임까지\n\n' +
   '혼자 써도 편리하고, 같이 쓰면 더 유용해요.\n' +
-  '지금 설치하고 저와 친구 맺어요 👇\n' +
-  INVITE_LINK;
+  '지금 설치하고 저와 친구 맺어요 👇\n';
+
+export const INVITE_MESSAGE = INVITE_BODY + INVITE_LINK;
 
 export async function shareInvite() {
+  // 추천인 코드 동봉 — 잠복 배포([[referral-reward-implementation-plan]]): 신규 가입 온보딩의
+  //   '추천인 코드' 입력과 짝. 링크는 카톡 자동 링크화·미리보기를 위해 항상 마지막 줄 단독 유지.
+  //   코드 발급 실패(오프라인 등)면 코드 줄 없이 기존 문구 그대로 — 공유 자체는 막지 않는다.
+  let message = INVITE_MESSAGE;
   try {
-    await Share.share({ message: INVITE_MESSAGE });
+    const code = await ensureMyRefCode(await getUid());
+    if (code) message = INVITE_BODY + `\n🎁 가입할 때 추천인 코드를 입력해 주세요: ${code}\n\n` + INVITE_LINK;
+  } catch (e) { /* 코드 없이 진행 */ }
+  try {
+    await Share.share({ message });
   } catch (e) { /* 사용자 취소 — 무시 */ }
 }
 
