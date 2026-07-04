@@ -254,6 +254,16 @@ export async function deleteAccount() {
     }
   }
 
+  // 2.5 카카오 연결 끊기(unlink) — 안 하면 카카오 계정의 '연결된 서비스'와 동의 항목(친구목록 등)이 남아
+  //   재가입 때 동의 화면이 다시 안 뜸(탈퇴는 말 그대로 탈퇴여야 — 사용자 결정 2026-07-04). 카카오 가이드도
+  //   회원 탈퇴 시 unlink 권장. ★위 deleteUser의 재인증 경로가 카카오 로그인을 쓰므로 반드시 계정 삭제 '뒤'에.
+  try {
+    const { unlink } = require('@react-native-kakao/user');
+    await unlink();
+  } catch (e) {
+    if (__DEV__) console.warn('[account] 카카오 unlink 실패(미연동 등)', e?.message);
+  }
+
   // 3. 로컬 데이터 전부 초기화 — 신규 설치와 동일하게 빈 상태로
   await storage.clear();
   // 데모 데이터 폴백 방지 (신규 설치 로직과 동일)
