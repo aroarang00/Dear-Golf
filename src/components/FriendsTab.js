@@ -413,6 +413,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   // 미지정 = 어떤 그룹에도 안 속한 친구. 전체(catch-all)엔 항상 보임 — 1명 이상일 때만 칩 노출 ([[friend_groups]])
   const ungroupedList = friends.filter(f => !hidden[f.id] && !(friendData.friendMeta[f.id]?.groupIds || []).length);
   const hasUngrouped = ungroupedList.length > 0;
+  const anyGrouped = friends.some(f => (friendData.friendMeta[f.id]?.groupIds || []).length > 0); // 그룹 지정이 시작됐는지 — 미지정 칩 노출 판단
   // 선택한 필터 칩이 사라졌으면(그룹 삭제·미지정 0) 전체로 폴백 — 별도 state 리셋 없이 표시만 보정
   const groupExists = (id) => id === 'all'
     || (id === UNGROUPED ? hasUngrouped : friendData.friendGroups.some(g => g.id === id));
@@ -727,13 +728,15 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             )}
           </AttentionMotion>
         )}
-        {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 그룹 지정된 친구가 한 명이라도 있을 때만 노출 ([[friend_groups]]) */}
-        {friends.length > 0 && friends.some(f => (friendData.friendMeta[f.id]?.groupIds || []).length) && (
+        {/* 그룹 필터칩 — 전체 · 미지정 · 그룹들. 친구가 있으면 항상 노출 — '지정된 친구 있을 때만'은 지정법(롱탭)을
+            모르면 칩을 영영 못 보는 닭-달걀이었음(사용자 2026-07-04). 빈 그룹 탭 시 지정법 안내(아래 빈 상태).
+            미지정 칩만 지정이 시작된 뒤 노출(그 전엔 전체와 같아 혼란만 줌) ([[friend_groups]]) */}
+        {friends.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: _and ? 8 : 12 }}
             contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
             {[
               { id: 'all', name: '전체' },
-              ...(hasUngrouped ? [{ id: UNGROUPED, name: `미지정 ${ungroupedList.length}` }] : []),
+              ...(hasUngrouped && anyGrouped ? [{ id: UNGROUPED, name: `미지정 ${ungroupedList.length}` }] : []),
               ...friendData.friendGroups,
             ].map(g => {
               const on = effFilter === g.id;
@@ -787,7 +790,12 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
 
         {/* 숨긴 친구 목록은 ⚙ 친구 관리 시트로 이동(메인 노출 0) — "숨겼는데 계속 보이는 모순" 해소 ([[project_fullscroll_profile]]) */}
         {!friendsLoaded ? <LoadingState /> : visible.length === 0 ? (
-          q ? (
+          effFilter !== 'all' && !q ? (
+            /* 빈 그룹 — 친구 0명 가이드가 아니라 그룹 지정법 안내(칩 상시 노출로 이 상태가 정상 경로가 됨) */
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36, lineHeight: 19 }}>
+              이 그룹에 지정된 친구가 아직 없어요.{'\n'}친구 카드를 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>길게 누르면</Text> 그룹을 지정할 수 있어요.
+            </Text>
+          ) : q ? (
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36, lineHeight: 19 }}>
               내 친구 중엔 없어요.{'\n'}새 친구는 헤더 <Text style={{ fontFamily: F.sysB, color: C.navy }}>🔍 친구 찾기</Text>로 추가하세요.
             </Text>
