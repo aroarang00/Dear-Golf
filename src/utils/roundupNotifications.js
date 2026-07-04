@@ -56,7 +56,8 @@ export async function createNotification(data) {
 
 // 친구지정·포함 초대 알림 — 선택한 친구들에게 1회씩 ([[roundup-invitation]]).
 //   멱등: 문서 ID = `invite_{postId}_{recipientUid}` (결정적). 같은 모집 재발송해도 중복 X.
-//   신규 모집 생성 시에만 호출(수정 시 재알림 X). 본인·빈 값은 건너뜀.
+//   호출 = ①모집 생성 시 전체 지정 친구 ②수정 시 '새로 추가된' 친구만(RoundupTab diff, 확정(closed) 모집은 제외).
+//   기존 친구는 결정적 ID라 재호출돼도 중복 발송 없음. 본인·빈 값은 건너뜀.
 export async function createInviteNotifications(postId, postTitle, recipientUids, actorName = '') {
   const uid = await getUid();
   if (!uid || !postId || !Array.isArray(recipientUids)) return;
