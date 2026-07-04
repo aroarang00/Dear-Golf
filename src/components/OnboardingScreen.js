@@ -7,6 +7,7 @@ import { obS } from '../styles/obS';
 import { TripleStripe } from './common/TripleStripe';
 import { getUid } from '../utils/firebase';
 import { saveReferredBy } from '../utils/referral';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 키보드 입력칸 가림 방지
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분) — 개인차가 커 한 번만 정해두면 평생 적용
 const PREP_OPTS = [5, 15, 30, 60];
@@ -64,7 +65,11 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       <TripleStripe />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 28, paddingBottom: 60 }}>
+      {/* 안드 edge-to-edge(app.config edgeToEdgeEnabled)에선 adjustResize가 무효 — 키보드가 하단 입력칸(추천인 코드 등)을
+          덮는데 스크롤도 안 됐음 → keyboard-controller KAV로 키보드 높이만큼 패딩(맛집저장·크루작성 모달과 동일 패턴). */}
+      <KeyboardProvider>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 28, paddingBottom: 60 }}>
         <Text style={{ fontFamily: F.brand, fontSize: fs(32), color: C.charcoal, marginBottom: 6 }}>Dear Golf</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, marginBottom: 40 }}>나만의 골프 캐디를 시작해요</Text>
 
@@ -227,6 +232,8 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
+      </KeyboardProvider>
     </SafeAreaView>
   );
 }
