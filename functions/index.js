@@ -568,6 +568,15 @@ exports.onContentReportUpdated = contentReports.onContentReportUpdated;
 const ttlCleanup = require('./ttlCleanup');
 exports.ttlCleanupTick = ttlCleanup.ttlCleanupTick;
 
+// =============================================================
+// §H 초대 보상 지급 — ./referral.js ([[referral-reward-implementation-plan]] 3단계)
+//   onUserWrittenForReferral — users 문서 트리거(1차): referredBy+kakaoId 갖춰지면 멱등 지급
+//   referralSweepTick        — 매일 04:40 KST 스위퍼(2차): 트리거 유실·잠복 기간 기록 소급 지급
+// =============================================================
+const referral = require('./referral');
+exports.onUserWrittenForReferral = referral.onUserWrittenForReferral;
+exports.referralSweepTick = referral.referralSweepTick;
+
 // §G 영상 faststart 리먹스 — 업로드된 영상 moov atom을 앞으로 옮겨 '뜸 들이다 재생' 해소(rounds/·dmImages/).
 const videoFaststart = require('./videoFaststart');
 exports.faststartVideo = videoFaststart.faststartVideo;

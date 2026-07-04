@@ -5,6 +5,11 @@
 export const DEFAULT_ENTITLEMENTS = {
   maxCrews: 5,          // 내가 만들 수 있는 크루 수(참여·초대받은 크루는 무제한)
   crewMemberCap: 20,    // 새로 만드는 크루의 기본 멤버 정원(참고값 — 실제 강제는 크루 memberCap)
+  // 개인 다이어리 미디어 총량([[monetization-plan]] 2026-07-04 확정) — 초대 보상 CF(functions/referral.js)가
+  //   초대 1건당 +20/+1 양방향 상향, 최대 500/30 클램프. 필드명·기본값을 CF와 동기 유지할 것.
+  //   ★총량 강제·쿼터 UI는 첫 업데이트(업로드 누적 카운터와 함께) — 지금은 지급만 쌓임.
+  maxPhotos: 200,       // 다이어리 사진 총량
+  maxVideos: 10,        // 다이어리 영상 총량
 };
 
 // 내가 만들 수 있는 크루 수 한도 — profile.entitlements.maxCrews > 없으면 기본 5.
