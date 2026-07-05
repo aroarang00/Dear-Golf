@@ -51,6 +51,15 @@ export async function uploadRoundMediaBestEffort(uid, photos, compressOpts = {})
   return { photos: out, uploaded, failed };
 }
 
+// 지정 시간 안에 안 끝나면 폴백값으로 진행 — 장식성 후처리(포스터)가 저장을 붙들지 못하게.
+const POSTER_TIMEOUT_MS = 15000;
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 async function uploadOne(uid, item, i, compressOpts = {}) {
   const isObj = item && typeof item === 'object';
   const rawUri = isObj ? item.uri : item;
@@ -84,10 +93,19 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
     }
     // 영상 포스터(jpg) 업로드 → 안드 원격 썸네일 안정화 (실패해도 영상은 유지) ([[friend-feed-design]]).
     //   사용자가 등록화면에서 커버를 편집했으면(로컬 poster) 그걸 올리고, 없으면 첫 프레임으로 자동 생성.
+    // ★포스터는 장식(실패=기기 생성 폴백)인데 iOS 프로덕션에서 이 체인이 안 끝나 저장 전체가 영영 매달렸음
+    //   (2026-07-05, 미디어 본체는 다 올라가고 문서만 안 써짐). 원인: localPoster가 dgphoto: 식별자인데
+    //   경로 해석 없이 manipulate/fetch에 넘어감 → resolvePhotoUri 필수 + 체인 전체 타임아웃으로 저장을 절대 못 막게.
     const { poster: localPoster, ...rest } = item;
     let posterUrl = null;
-    if (localPoster && !/^https?:\/\//.test(localPoster)) posterUrl = await uploadPosterFromImage(uid, localPoster, i);
-    if (!posterUrl) posterUrl = await uploadVideoPoster(uid, localUri, i);
+    if (localPoster && /^https?:\/\//.test(localPoster)) {
+      posterUrl = localPoster; // 이미 원격 포스터 — 재생성 불필요
+    } else {
+      posterUrl = await withTimeout((async () => {
+        const p = localPoster ? await uploadPosterFromImage(uid, resolvePhotoUri(localPoster), i) : null;
+        return p || await uploadVideoPoster(uid, localUri, i);
+      })(), POSTER_TIMEOUT_MS, null);
+    }
     return posterUrl ? { ...rest, uri: url, poster: posterUrl } : { ...rest, uri: url };  // 실패 시 로컬 poster는 버림(친구가 못 읽음)
   } catch (e) {
     if (__DEV__) console.warn('[roundMedia] 업로드 실패 — 저장 중단(재시도 유도)', e?.message);
