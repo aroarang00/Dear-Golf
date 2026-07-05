@@ -13,6 +13,23 @@ export const HIDDEN_UMBRELLA_BASES = ['라비에벨'];
 //   (?!카운티) lookahead로 살린다 — 이걸 빼면 골프존카운티 전 구장이 검색에서 통째로 누락됨.
 export const NON_COURSE_NAME_RE = /(연습장|스크린|실내골프|아카데미|레슨|교습|교실|골프존(?!카운티)|클럽하우스)/;
 
+// 진짜 골프장(코스)만 남기는 화이트리스트 — 키워드 검색·주변 골프장 공용.
+//  카카오 분류의 마지막 항목이 '골프장/컨트리클럽'인 곳만 통과. ex) "스포츠,레저 > 골프 > 골프장" → 통과
+//  연습장·교습소·아카데미·스크린골프·골프용품·골프레슨 강사 등은 분류가 달라 자동 제외.
+//  (블랙리스트 방식은 '교습소' 등 빠진 분류가 계속 새서 화이트리스트로 전환)
+//  '스포츠,레저 > 골프'로만 끝난 본체(last==='골프')도 인정 — 세부 '골프장' 분류 없이 등록돼
+//   누락되던 CC 구제(예: 경남스카이뷰컨트리클럽). '골프'는 정확 단독일 때만 —
+//   '골프연습장·스크린골프·골프용품'은 last가 그 단어라 그대로 제외. 골프텔(숙박)·주차장·충전소도 분류가 달라 제외.
+export function isGolfCoursePlace(name, categoryName) {
+  const last = (categoryName || '').split('>').pop().trim();
+  if (!/(골프장|컨트리클럽)/.test(last) && last !== '골프') return false;
+  // 파크골프장 — 분류 끝이 '파크골프장'이라 위 조건을 통과함. 골프 코스가 아니므로 이름·분류 어느 쪽이든 차단.
+  if (/파크골프/.test(last) || /파크골프/.test(name || '')) return false;
+  // 분류가 골프장으로 잘못 등록된 레슨·교습 + 같은 구장 '클럽하우스' 중복 항목 보조 차단
+  if (NON_COURSE_NAME_RE.test(name || '')) return false;
+  return true;
+}
+
 // 등록된 구장에 한해, 같은 base의 실제 코스(○○코스)가 함께 잡혔을 때만 대표명을 결과에서 뺀다.
 //  - 코스 형제가 없으면(예: 힐마루는 '힐마루 골프앤리조트' 단일 entry) 건드리지 않음
 //  - 대표명만 단독으로 잡힌 경우도 안전하게 유지(빈 결과 방지)
@@ -48,22 +65,7 @@ export async function searchGolfCoursesKakao(query) {
     return [];
   }
 
-  // 골프장만 남기는 필터 — 카카오 분류의 마지막 항목이 '골프장/컨트리클럽'인 곳만 통과.
-  //  ex) "스포츠,레저 > 골프 > 골프장" → 통과
-  //  연습장·교습소·아카데미·스크린골프·골프용품·골프레슨 강사 등은 분류가 달라 자동 제외.
-  //  (블랙리스트 방식은 '교습소' 등 빠진 분류가 계속 새서 화이트리스트로 전환)
-  const isGolfCourse = (d) => {
-    const cat = d.category_name || '';
-    const name = d.place_name || '';
-    const last = cat.split('>').pop().trim();
-    // '스포츠,레저 > 골프'로만 끝난 본체(last==='골프')도 인정 — 세부 '골프장' 분류 없이 등록돼
-    //   누락되던 CC 구제(예: 경남스카이뷰컨트리클럽). '골프'는 정확 단독일 때만 —
-    //   '골프연습장·스크린골프·골프용품'은 last가 그 단어라 그대로 제외. 골프텔(숙박)·주차장·충전소도 분류가 달라 제외.
-    if (!/(골프장|컨트리클럽)/.test(last) && last !== '골프') return false;
-    // 분류가 골프장으로 잘못 등록된 레슨·교습 + 같은 구장 '클럽하우스' 중복 항목 보조 차단
-    if (NON_COURSE_NAME_RE.test(name)) return false;
-    return true;
-  };
+  const isGolfCourse = (d) => isGolfCoursePlace(d.place_name, d.category_name);
 
   // 키워드 검색 — pages 페이지까지(페이지당 15건) 모아 골프장만 반환.
   // 짧은 글자(2글자)로 검색해도 결과가 15건 밖으로 밀리지 않도록 여러 페이지를 본다.
@@ -193,8 +195,11 @@ export async function searchNearbyScreenGolf(lat, lng, radius = 5000) {
 }
 
 // 좌표 기준 반경 내 골프장 거리순 검색 — 코스 상세 '주변 골프장'
+//  ★/골프장/ 글자 포함만 보던 옛 필터는 파크골프장·스크린골프장까지 통과(2026-07-05 신고)
+//    → 본검색과 같은 화이트리스트(isGolfCoursePlace)로 진짜 코스만.
 export async function searchNearbyGolfCourses(lat, lng, radius = 10000) {
-  return searchNearbyByKeyword('골프장', lat, lng, radius, /골프장/);
+  const list = await searchNearbyByKeyword('골프장', lat, lng, radius, null);
+  return list.filter(r => isGolfCoursePlace(r.name, r.category));
 }
 
 // 좌표 기준 반경 내 카테고리 장소 거리순 검색 (공통)
