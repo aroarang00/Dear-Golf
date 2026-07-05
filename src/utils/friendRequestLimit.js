@@ -2,15 +2,15 @@ import { STORAGE_KEYS, storage } from './storage';
 import { db, getUid } from './firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-// 친구 신청 일 10건 한도 — [[friend-add-feature]] (스팸 신청 방지).
-// 매일 자정 자동 초기화.
+// 친구 신청 일 30건 한도 — [[friend-add-feature]] (스팸 신청 방지).
+// 매일 자정 자동 초기화. 10건은 신규 가입 첫날 지인 일괄 추가에 걸릴 수 있어 30으로 상향(2026-07-05).
 //
 // 저장 위치:
 //  - AsyncStorage(@dg_friend_request_count): 빠른 로컬 캐시 (단일 기기)
 //  - users/{uid}.limits.friendRequest: Firestore 단일 소스 (멀티기기 우회 차단)
 //  - increment 시 양쪽 동시 업데이트. App.js 마운트 시 syncFromFirestore로 max 머지.
 
-const DAILY_LIMIT = 10;
+const DAILY_LIMIT = 30;
 
 function todayStr() {
   const d = new Date();
