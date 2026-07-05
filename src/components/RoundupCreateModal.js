@@ -157,6 +157,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const editCapTotal = ((initialPost?.teams || 1) > 1) ? ((initialPost?.teams || 0) * 4) : 4;
   const editFull = isEdit && (initialPost.joined || 0) >= ((initialPost.capacity) || editCapTotal);
   const lockToFixed = isEdit && initialPost.scope === 'select' && initialPost.type === 'open' && editFull;
+  // 수정 시 정원 하한 — 이미 들어온 인원(참여자+동반자)보다 작게 줄이면 '3/2' 같은 정원 초과 표시가 됨
+  //   (2026-07-06 골든베이 실사례: 3명 참여 후 정원 2로 축소). 그 미만 칩은 비활성.
+  const editMinTotal = isEdit
+    ? (initialPost.joined || 0) + (((initialPost.teams || 1) > 1) ? 0 : (initialPost.companions?.length || 0))
+    : 0;
 
   // '크루로 지정'용 내 크루 로드 — 친구지정에서 크루 멤버를 audience에 합치기 위함. crewMode(크루서 만들기)면 불필요.
   useEffect(() => {
@@ -202,8 +207,10 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     }
     const isTeam = (initialPost.teams || 1) > 1;
     setGroupMode(isTeam ? 'team' : 'single');
-    setMembers(Math.max(1, Math.min(3, (initialPost.capacity || 4) - 1)));
-    setTeams(Math.max(2, Math.min(4, initialPost.teams || 2)));
+    // 저장된 정원이 현재 인원(참여자+동반자)보다 작은 깨진 문서(예: 3/2)면 하한으로 끌어올려 시작 — 재저장 시 자동 복구
+    const minTotal = (initialPost.joined || 0) + (isTeam ? 0 : (initialPost.companions?.length || 0));
+    setMembers(Math.max(1, Math.min(3, Math.max(minTotal - 1, (initialPost.capacity || 4) - 1))));
+    setTeams(Math.max(2, Math.min(4, Math.max(Math.ceil(minTotal / 4), initialPost.teams || 2))));
     setScope(initialPost.scope || 'all');
     setWord(initialPost.word || '');
     setCompanion(initialPost.companion || 'any');
@@ -527,9 +534,10 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {[1, 2, 3].map(n => {
                   const on = members === n;
+                  const below = isEdit && (n + 1) < editMinTotal; // 총정원(n+1) < 현재 인원 — 축소 불가
                   return (
-                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setMembers(n)}
-                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
+                    <TouchableOpacity key={n} activeOpacity={0.7} disabled={below} onPress={() => setMembers(n)}
+                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center' }, below && { opacity: 0.35 }]}>
                       <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{n}명</Text>
                     </TouchableOpacity>
                   );
@@ -539,15 +547,22 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {[2, 3, 4].map(n => {
                   const on = teams === n;
+                  const below = isEdit && (n * 4) < editMinTotal; // 총정원(팀x4) < 현재 인원 — 축소 불가
                   return (
-                    <TouchableOpacity key={n} activeOpacity={0.7} onPress={() => setTeams(n)}
-                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center', paddingVertical: 9 }]}>
+                    <TouchableOpacity key={n} activeOpacity={0.7} disabled={below} onPress={() => setTeams(n)}
+                      style={[mS.chip, on && mS.chipOn, { flex: 1, alignItems: 'center', paddingVertical: 9 }, below && { opacity: 0.35 }]}>
                       <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: fs(13), fontFamily: F.sysB }]}>{n}팀</Text>
                       <Text style={[mS.chipTxt, on && mS.chipTxtOn, { fontSize: fs(10), marginTop: 1 }]}>{n * 4}명</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
+            )}
+            {/* 축소 불가 안내 — 흐려진 칩이 왜 안 눌리는지 (참여자가 이미 있어서) */}
+            {isEdit && editMinTotal > (groupMode === 'single' ? 2 : 8) && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
+                이미 참여 중인 인원({editMinTotal}명)보다 적게 줄일 수 없어요
+              </Text>
             )}
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6 }}>
               {groupMode === 'single'

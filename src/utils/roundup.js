@@ -179,11 +179,26 @@ export async function createRoundup(data) {
 }
 
 // 주최자 전체 수정 (제목·날짜·정원 등). authorUid 변조 금지(규칙 강제).
+// 정원 축소 백스톱 — 현재 인원(참여자+동반자) 미만 정원은 거부('capacity-below-joined').
+//   편집 UI가 1차로 막지만, 수정 중 신규 참여 경합·옛 클라까지 트랜잭션으로 방어
+//   ('3/2' 정원 초과 표시 재발 방지 — 2026-07-06 골든베이 실사례).
 export async function updateRoundupAsAuthor(postId, data) {
   if (!postId) throw new Error('postId required');
   const ref = doc(db, COLLECTION, postId);
   const { authorUid, id, createdAt, ...updatable } = data;
-  await updateDoc(ref, { ...updatable, updatedAt: serverTimestamp() });
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('not-found');
+    const d = snap.data();
+    if (typeof updatable.capacity === 'number') {
+      const isTeamNext = ((updatable.teams ?? d.teams) || 1) > 1;
+      const comps = Array.isArray(updatable.companions) ? updatable.companions.length
+        : (Array.isArray(d.companions) ? d.companions.length : 0);
+      const current = (d.joined || 0) + (isTeamNext ? 0 : comps);
+      if (updatable.capacity < current) throw new Error('capacity-below-joined');
+    }
+    tx.update(ref, { ...updatable, updatedAt: serverTimestamp() });
+  });
 }
 
 // 모집글 삭제 — 주최자만
