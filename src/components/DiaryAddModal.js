@@ -562,6 +562,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   };
 
   const savingRef = useRef(false); // 저장 중 연타 가드
+  const [saving, setSaving] = useState(false); // 저장 중 버튼 표시('저장 중…') — 업로드가 길어도 죽은 버튼으로 안 보이게
   const handleSave = async () => {
     if (savingRef.current) return;
     // 공개범위 해석 — friends/private은 단독, 그룹(복수)이면 group + 선택 그룹들 멤버 합집합 스냅샷 ([[friend_groups]])
@@ -606,7 +607,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         overseas: false, country: '', scheduleId: null,
       };
       // 저장을 await — 실패 시 모달을 닫지 않고 입력 보존 + 안내(전역 알럿은 RN Modal 아래 깔림, [[ios-modal-stacking]])
-      savingRef.current = true;
+      savingRef.current = true; setSaving(true);
       try {
         const ok = isEdit ? await onSave('diary-edit', { id: initial.id, ...mPayload }) : await onSave('diary', mPayload);
         if (ok === false) {
@@ -614,7 +615,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           return;
         }
         reset(); onClose();
-      } finally { savingRef.current = false; }
+      } finally { savingRef.current = false; setSaving(false); }
       return;
     }
     const finalCourse = selectedCourse || courseSearch.trim();
@@ -672,11 +673,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       country: overseas ? country.trim() : '',
     };
     // 저장을 await — 실패 시 모달을 닫지 않고 입력(코스·스코어·사진·메모) 보존 + 안내
-    savingRef.current = true;
+    savingRef.current = true; setSaving(true);
     let saveOk;
     try {
       saveOk = isEdit ? await onSave('diary-edit', { id: initial.id, ...payload }) : await onSave('diary', payload);
-    } finally { savingRef.current = false; }
+    } finally { savingRef.current = false; setSaving(false); }
     if (saveOk === false) {
       setOverlay({ title: '저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.' });
       return;
@@ -1407,9 +1408,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   style={{ paddingVertical: 15, paddingHorizontal: 22, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>취소</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[mS.saveBtn, { flex: 1, marginTop: 0, backgroundColor: !canSave ? '#B8B3AB' : (isEdit ? C.charcoal : C.burgundy) }]}
-                  onPress={handleSave} disabled={!canSave} activeOpacity={0.85}>
-                  <Text style={mS.saveBtnTxt}>{isEdit ? '수정 완료' : '저장하기'}</Text>
+                <TouchableOpacity style={[mS.saveBtn, { flex: 1, marginTop: 0, backgroundColor: (!canSave || saving) ? '#B8B3AB' : (isEdit ? C.charcoal : C.burgundy) }]}
+                  onPress={handleSave} disabled={!canSave || saving} activeOpacity={0.85}>
+                  <Text style={mS.saveBtnTxt}>{saving ? '저장 중…' : (isEdit ? '수정 완료' : '저장하기')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
