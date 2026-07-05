@@ -6,7 +6,7 @@ import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDet
 import { C, F, fs } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
-import { getCombinedForecast, pickHourSlots, getUVIndex } from '../utils/kma';
+import { getCombinedForecast, pickHourSlots, pickRoundHourSlots, getUVIndex } from '../utils/kma';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { addressToCoord } from '../utils/kakao';
@@ -17,6 +17,7 @@ import { getOverseasWeather } from '../utils/openweather';
 import { getCurrentLocation, reverseGeocode, hasLocationPermission } from '../utils/location';
 import { cacheCurrentWx } from './common/HomeBgSlider';
 import { WeatherGlyph } from './common/Icon'; // 맑음(☀️·🌤️)만 입체 SVG, 나머지 날씨는 이모지 유지
+import { HourlyWeatherGraph } from './common/HourlyWeatherGraph'; // 라운딩 컨디션 시간별 그래프(기온선+강수막대)
 import { UserContext } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -764,7 +765,16 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const targetDateCompact = weatherOnly ? todayCompact() : compactDate(schedule?.date);
   // ★useMemo — 매 렌더 새 배열이면 이걸 의존성으로 쓰는 golfIdx 메모까지 무효화돼, 교통 소요 조회(driveMin/
   //   driveLoading 갱신)마다 날씨 골프지수가 통째로 재계산되며 화면이 덜컹였음(사용자 2026-07-02).
-  const hourSlots = React.useMemo(() => pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact), [forecast, targetDateCompact]);
+  // 실제 라운딩(D0~D3)은 티오프 전후 1시간 간격 정밀 슬롯 우선 — '몇 시에 비가 얼마나'가 보이게(사용자 2026-07-05).
+  //   범위 밖(먼 날·새벽 등)이면 기존 6칸(3시간 간격)으로 폴백. 티오프 매칭·골프지수는 slot.hour 기반이라 그대로 동작.
+  const hourSlots = React.useMemo(() => {
+    const fineOk = !weatherOnly && schedule && !schedule.overseas && !schedule.isPreview && Number.isFinite(schedule.dDay) && schedule.dDay <= 3;
+    if (fineOk) {
+      const fine = pickRoundHourSlots(forecast?.slotsByDate || {}, targetDateCompact, teeMin);
+      if (fine.length) return fine;
+    }
+    return pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
+  }, [forecast, targetDateCompact, weatherOnly, schedule, teeMin]);
 
   // 미세먼지·자외선은 '오늘' 측정값만 정확 — 오늘 라운딩/현재날씨일 때만 점수에 반영
   const isTodayWx = weatherOnly || schedule?.dDay === 0;
@@ -1087,35 +1097,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                   <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: fs(12), paddingVertical: 16, textAlign: 'center' }}>
                     시간대 예보 정보가 없습니다 (D+3 이후)
                   </Text>
-                ) : hourSlots.map((slot, i) => {
-                  const isTee = isRealRound && i === teeoffSlotIdx;
-                  const { dots, label } = calcDots(slot, airForScore, uvForScore);
-                  return (
-                    <View key={i} style={[wxS.condRow, isTee && wxS.condRowTee]}>
-                      <Text style={wxS.condTime} numberOfLines={1}>{slot.time}</Text>
-                      <View style={{ marginRight: 12 }}><WeatherGlyph icon={slot.icon} size={fs(18)} /></View>
-                      <View style={wxS.condDots}>
-                        {[1, 2, 3, 4, 5].map(d => {
-                          const full = d <= Math.floor(dots);
-                          const half = !full && d === Math.ceil(dots) && dots % 1 !== 0;
-                          return (
-                            <View key={d} style={[wxS.condDot, {
-                              backgroundColor: full
-                                ? '#F5E6A8'
-                                : half ? 'rgba(245,230,168,0.45)' : 'rgba(255,255,255,0.1)',
-                            }]} />
-                          );
-                        })}
-                      </View>
-                      <Text style={wxS.condLabel}>{label}</Text>
-                      {isTee && (
-                        <View style={wxS.teeBadge}>
-                          <Text style={wxS.teeBadgeTxt}>티오프</Text>
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
+                ) : (
+                  // 그래프형(네이버 날씨식) — 기온 꺾은선+강수 막대+바람·습도·컨디션 행 (사용자 2026-07-05, 리스트식은 정보 늘리니 지저분해서 교체)
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 12,
+                    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.07)' }}>
+                    <HourlyWeatherGraph
+                      slots={hourSlots.map(s => ({ ...s, cond: calcDots(s, airForScore, uvForScore) }))}
+                      teeIdx={isRealRound ? teeoffSlotIdx : -1} />
+                  </View>
+                )}
               </View>
 
               {/* ⑥ 10일 예보 */}

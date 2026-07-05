@@ -194,6 +194,52 @@ export async function getShortForecast(lat, lng) {
   return withWxCache(cacheKey, result, isGoodShort); // 성공 → 캐시 저장 후 반환
 }
 
+// 시각 라벨 — '오전 7시'/'오후 3시' (pickHourSlots·pickRoundHourSlots 공용)
+const hourLabel = (h) => (h < 12 ? `오전 ${h}시` : h === 12 ? '오후 12시' : `오후 ${h - 12}시`);
+
+// PCP(1시간 강수량) → 짧은 표시 문자열. 기상청 원문: '강수없음'|'1mm 미만'|'5.0mm'|'30.0~50.0mm'|'50.0mm 이상'
+//   없음/미측정은 null(표시 안 함). '1mm 미만'→'~1mm', '30.0~50.0mm'→'30~50mm', '50.0mm 이상'→'50mm+'
+function pcpText(v) {
+  if (!v || v === '강수없음' || v === '-' || v === '0') return null;
+  const t = String(v).replace(/\.0(?=mm|~)/g, '').replace(/\s/g, '');
+  if (t.includes('미만')) return '~1mm';
+  if (t.includes('이상')) return t.replace('이상', '+');
+  return t;
+}
+
+// VEC(풍향 deg, 바람이 불어오는 방향) → 8방위 한글. 골퍼용 '북서풍' 표기.
+function windDirText(vec) {
+  const d = parseFloat(vec);
+  if (!Number.isFinite(d)) return null;
+  return ['북', '북동', '동', '남동', '남', '남서', '서', '북서'][Math.round(((d % 360) + 360) % 360 / 45) % 8];
+}
+
+// SNO(1시간 적설) → 짧은 표시. '적설없음'/미측정 null, '1.0cm'→'1cm', '5.0cm 이상'→'5cm+'
+function snoText(v) {
+  if (!v || v === '적설없음' || v === '-' || v === '0') return null;
+  const t = String(v).replace(/\.0(?=cm|~)/g, '').replace(/\s/g, '');
+  if (t.includes('미만')) return '~1cm';
+  if (t.includes('이상')) return t.replace('이상', '+');
+  return t;
+}
+
+// 예보 슬롯(카테고리 맵) → UI 슬롯 공통 변환
+function toUiSlot(slot, h) {
+  return {
+    time: hourLabel(h),
+    hour: h,
+    icon: skyToIcon(slot.SKY, slot.PTY),
+    sky: skyToText(slot.SKY, slot.PTY),
+    temp: parseFloat(slot.TMP),
+    wind: parseFloat(slot.WSD || 0),
+    windDir: windDirText(slot.VEC),      // 풍향 8방위 한글(없으면 null)
+    rain: parseFloat(slot.POP || 0),
+    humidity: parseFloat(slot.REH || 0), // 체감온도 산출용
+    pcp: pcpText(slot.PCP),              // 1시간 강수량 표시 문자열(없으면 null)
+    sno: snoText(slot.SNO),              // 1시간 적설 표시 문자열(없으면 null)
+  };
+}
+
 // 라운딩 컨디션 6시간대(6/9/12/15/18/21시) 추출.
 // dateStr: 'YYYYMMDD'. 없거나 범위 밖이면 [] 반환.
 export function pickHourSlots(slotsByDate, dateStr) {
@@ -203,17 +249,27 @@ export function pickHourSlots(slotsByDate, dateStr) {
   return TARGET_HOURS.map(h => {
     const slot = slots.find(s => parseInt(s.fcstTime, 10) === h * 100);
     if (!slot) return null;
-    return {
-      time: h < 12 ? `오전 ${h}시` : h === 12 ? '오후 12시' : `오후 ${h - 12}시`,
-      hour: h,
-      icon: skyToIcon(slot.SKY, slot.PTY),
-      sky: skyToText(slot.SKY, slot.PTY),
-      temp: parseFloat(slot.TMP),
-      wind: parseFloat(slot.WSD || 0),
-      rain: parseFloat(slot.POP || 0),
-      humidity: parseFloat(slot.REH || 0), // 체감온도 산출용
-    };
+    return toUiSlot(slot, h);
   }).filter(Boolean);
+}
+
+// 라운딩 날 1시간 간격 슬롯 — 티오프 1시간 전 ~ +5시간(라운드 종료 무렵).
+//   단기예보는 1시간 간격을 주는데 6칸(3시간)으로 뭉개면 '오후 2시 소나기'가 안 보였음(사용자 라운딩 피드백 2026-07-05).
+//   예보 범위 밖 등으로 3칸 미만이면 [] 반환 → 호출부가 기존 6칸으로 폴백.
+export function pickRoundHourSlots(slotsByDate, dateStr, teeMin) {
+  const slots = slotsByDate?.[dateStr] || [];
+  if (!slots.length || !Number.isFinite(teeMin)) return [];
+  const teeHour = Math.floor(teeMin / 60);
+  const startH = Math.max(0, teeHour - 1);
+  const endH = Math.min(23, teeHour + 5);
+  const out = [];
+  for (const s of slots) {
+    const h = Math.floor(parseInt(s.fcstTime, 10) / 100);
+    if (h < startH || h > endH) continue;
+    if (s.TMP === undefined && s.SKY === undefined) continue; // 부분 슬롯 방어
+    out.push(toUiSlot(s, h));
+  }
+  return out.length >= 3 ? out : [];
 }
 
 // SKY: 1맑음 3구름많음 4흐림 / PTY: 0없음 1비 2비/눈 3눈 4소나기
