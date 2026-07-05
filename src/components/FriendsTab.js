@@ -17,9 +17,6 @@ import { TrustGradeModal } from './common/TrustBadge';
 import { showAppAlert } from './AppAlert';
 import { UserContext } from '../contexts/UserContext';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
-import {
-  isFriendRequestLimitReached, incrementFriendRequestCount,
-} from '../utils/friendRequestLimit';
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, sendFriendRequest, cancelSentRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../utils/friends';
 import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 친구 탭 첫 진입 즉시 시드
 import { loadFriendData, setFriendMeta, pruneFriendMeta, DEFAULT_FRIEND_GROUPS, groupColor } from '../utils/friendGroups';
@@ -344,6 +341,11 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           };
         }));
         setSentRequests(sent.map(s => s.recipientUid));
+        // 보낸 신청 탭 표시용 — 이 로드에서 이미 받아둔 상대 프로필 재사용(추가 네트워크 호출 없음)
+        setSentPeople(sent.map(s => {
+          const p = profileByUid[s.recipientUid] || {};
+          return { id: s.recipientUid, name: p.nickname || '친구', realName: p.realName || '' };
+        }));
       } catch (e) {
         if (__DEV__) console.warn('[FriendsTab] initial load failed', e);
       } finally {
@@ -369,7 +371,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     });
     return unsub;
   }, [navigation]);
-  const [sentRequests, setSentRequests] = useState([]);   // 보낸 신청 — recipientUid 배열
+  const [sentRequests, setSentRequests] = useState([]);   // 보낸 신청 — recipientUid 배열('신청함' 버튼 상태용)
+  const [sentPeople, setSentPeople] = useState([]);        // 보낸 신청 표시용 — [{ id, name, realName }] (FriendFinder '보낸 신청' 탭)
   const [receivedRequests, setReceivedRequests] = useState([]);   // 받은 신청 — 마운트 useEffect가 채움
   // 받은 신청 수를 탭바 뱃지에 반영 — 친구 탭에서 수락/거절하면 즉시 점이 사라지도록 (추가 쿼리 없음)
   useEffect(() => { setFriendReqCount(receivedRequests.length); }, [receivedRequests.length, setFriendReqCount]);
@@ -498,15 +501,13 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   };
 
   // 친구 신청 — Firestore friendships pending doc 생성 + 보낸 신청 state 추가.
-  // 일 10건 한도 ([[friend-add-feature]] §22). 같은 사람 재신청은 카운트 X (멱등).
+  // 일일 한도는 폐지(사용자 2026-07-05 — 알림 끄면 그만, 닉 정확일치·카카오 친구 경로라 남용 표면 작음).
   // 결과 반환: FriendFinder Modal 안에서 자체 alert 띄우도록.
   const sendRequest = async (person) => {
     if (sentRequests.includes(person.id)) return { ok: true }; // 멱등
-    if (sendingReqRef.current.has(person.id)) return { ok: true }; // 연타 가드 — 한도 이중차감·중복 신청 방지
+    if (sendingReqRef.current.has(person.id)) return { ok: true }; // 연타 가드 — 중복 신청 방지
     sendingReqRef.current.add(person.id);
     try {
-      const reached = await isFriendRequestLimitReached();
-      if (reached) return { ok: false, reason: 'limit' };
       try {
         await sendFriendRequest(person.id, userProfile?.nickname || '');
       } catch (e) {
@@ -517,17 +518,21 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           : msg.includes('Already friends') ? 'already_friends'
           : msg.includes('Already requested') ? 'already_requested'
           : 'failed';
-        if (reason === 'already_requested') setSentRequests(p => (p.includes(person.id) ? p : [...p, person.id])); // 이미 보냄 → 버튼 '신청함'으로 동기화
+        if (reason === 'already_requested') { addSentLocal(person); } // 이미 보냄 → 버튼 '신청함'·보낸 신청 탭 동기화
         return { ok: false, reason };
       }
-      setSentRequests(p => [...p, person.id]);
-      await incrementFriendRequestCount();
+      addSentLocal(person);
       return { ok: true };
     } finally {
       sendingReqRef.current.delete(person.id);
     }
   };
-  // 친구 신청 취소 — Firestore doc 삭제. 한도 카운트는 환불 X (스팸 우회 방지)
+  // 보낸 신청 로컬 반영 — '신청함' 버튼 상태(id) + 보낸 신청 탭 목록(이름 포함) 동시 갱신
+  const addSentLocal = (person) => {
+    setSentRequests(p => (p.includes(person.id) ? p : [...p, person.id]));
+    setSentPeople(p => (p.some(x => x.id === person.id) ? p : [...p, { id: person.id, name: person.name || '친구', realName: person.realName || '' }]));
+  };
+  // 친구 신청 취소 — Firestore doc 삭제
   const cancelRequest = async (person) => {
     try {
       await cancelSentRequest(person.id);
@@ -536,6 +541,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       return;
     }
     setSentRequests(p => p.filter(id => id !== person.id));
+    setSentPeople(p => p.filter(x => x.id !== person.id));
   };
   // 받은 신청 수락 — Firestore pending → accepted + 로컬 친구 목록 추가 + 신청 목록 제거
   const acceptRequest = async (person) => {
@@ -899,12 +905,13 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       <TrustGradeModal visible={!!gradeModalKey} highlightKey={gradeModalKey}
         onClose={() => setGradeModalKey(null)} />
 
-      {/* 친구 찾기 — 카카오/검색/받은 신청 */}
+      {/* 친구 찾기 — 카카오/검색/받은 신청/보낸 신청 */}
       <FriendFinder
         visible={!!finder}
         initialTab={finder || 'kakao'}
         onClose={() => setFinder(null)}
         sentIds={sentRequests}
+        sent={sentPeople}
         friendIds={friends.map(f => f.id)}
         blockedIds={blockedIds}
         received={receivedRequests}

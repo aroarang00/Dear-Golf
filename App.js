@@ -55,7 +55,6 @@ import { C, F, fs } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
 import { loadMyBlockedUids, loadReceivedRequests } from './src/utils/friends';
-import { syncFriendRequestLimitFromFirestore } from './src/utils/friendRequestLimit';
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { syncUserCoursesFromFirestore } from './src/utils/userCourses';
 import { syncSavedCoursesFromFirestore } from './src/utils/savedCourses';           // 저장 골프장(위시리스트) 재설치 보존
@@ -342,10 +341,9 @@ function App() {
       } catch (e) {
         if (__DEV__) console.warn('[App] block sync failed', e?.message);
       }
-      // 한도 카운터 2종 + 등록 코스 — 병렬 sync (개별 실패는 각 util이 자체 처리). 강퇴 폐기로 kick sync 제거.
+      // 한도 카운터 + 등록 코스 — 병렬 sync (개별 실패는 각 util이 자체 처리). 강퇴 폐기로 kick, 친구신청 한도 폐지로 friendRequest sync 제거.
       //   userCourses는 로컬 캐시를 Firestore로 복원 — 프레시 설치 시 홈 카드 코스이동·GuideScreen 매칭 회복.
       await Promise.all([
-        syncFriendRequestLimitFromFirestore(),
         syncReportLimitFromFirestore(),
         syncUserCoursesFromFirestore(),
         syncSavedCoursesFromFirestore(),       // 저장 골프장 — 재설치/타기기 복원

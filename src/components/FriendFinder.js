@@ -5,7 +5,6 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
 import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
-import { FRIEND_REQUEST_DAILY_LIMIT } from '../utils/friendRequestLimit';
 import { searchUsersByNickname, findKakaoFriendUsers } from '../utils/friends';
 import { maskKoreanName } from '../utils/maskName';
 import { requestKakaoFriendsConsent } from '../utils/kakaoAuth';
@@ -71,10 +70,10 @@ function EmptyHint({ text }) {
   );
 }
 
-// 친구 찾기 — 카카오 친구 / 닉네임 검색 / 받은 신청
+// 친구 찾기 — 카카오 친구 / 닉네임 검색 / 받은 신청 / 보낸 신청
 export function FriendFinder({
   visible, onClose, initialTab = 'kakao',
-  sentIds = [], onSend, onCancelSend,
+  sentIds = [], sent = [], onSend, onCancelSend,
   friendIds = [], blockedIds = [], received = [], onAccept, onIgnore,
 }) {
   const [tab, setTab] = useState(initialTab);
@@ -159,6 +158,7 @@ export function FriendFinder({
     { key: 'kakao', label: '카카오 친구' },
     { key: 'search', label: '닉네임 검색' },
     { key: 'received', label: `받은 신청${received.length ? ` ${received.length}` : ''}` },
+    { key: 'sent', label: `보낸 신청${sent.length ? ` ${sent.length}` : ''}` },
   ];
 
   // 후보 카드 우측 액션 — 친구/신청함/신청 가능
@@ -178,12 +178,7 @@ export function FriendFinder({
           const result = await onSend(person);
           if (result && result.ok === false) {
             const r = result.reason;
-            if (r === 'limit') setAlert({
-              title: '오늘 친구 신청 한도를 초과했어요',
-              message: `친구 신청은 하루 ${FRIEND_REQUEST_DAILY_LIMIT}건으로 제한되어 있어요.\n내일 다시 시도해주세요.`,
-              buttons: [{ text: '확인' }],
-            });
-            else if (r === 'incoming') setAlert({
+            if (r === 'incoming') setAlert({
               title: '이미 받은 신청이 있어요',
               message: `${person.name}님이 먼저 친구 신청을 보냈어요.\n'받은 신청'에서 수락하면 바로 친구가 돼요.`,
               buttons: [{ text: '확인' }],
@@ -376,6 +371,34 @@ export function FriendFinder({
                       </Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
                         무시해도 상대방에게 알리지 않으니 부담 갖지 마세요.
+                      </Text>
+                    </View>
+                  </>
+                )
+            )}
+
+            {/* 보낸 신청 — 상대가 수락하면 친구. 취소해도 상대에게 통보 X */}
+            {tab === 'sent' && (
+              sent.length === 0
+                ? <EmptyHint text="보낸 친구 신청이 없어요" />
+                : (
+                  <>
+                    {sent.map(p => (
+                      <PersonRow key={p.id} person={p} right={
+                        <TouchableOpacity onPress={() => onCancelSend && onCancelSend(p)} activeOpacity={0.8}
+                          style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
+                            backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.warmGrayLight }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>신청 취소</Text>
+                        </TouchableOpacity>
+                      } />
+                    ))}
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                      paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                        💡 상대가 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>수락하면 바로 친구</Text>가 돼요
+                      </Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
+                        취소해도 상대방에게 알리지 않아요.
                       </Text>
                     </View>
                   </>
