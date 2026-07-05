@@ -169,14 +169,18 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18,
                   paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, backgroundColor: C.bgPrimary,
                   borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                  <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
-                    alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {/* 사진 탭 → 전체화면 확대 — 피드 사진과 같은 PhotoViewer 재사용(핀치줌 포함). 사진 없으면(이니셜) 탭 무동작 */}
+                  <TouchableOpacity activeOpacity={0.85}
+                    disabled={!(friend.avatarUri && /^https?:\/\//.test(friend.avatarUri))}
+                    onPress={() => setViewer({ photos: [friend.avatarUri], index: 0 })}
+                    style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.bg,
+                      alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {friend.avatarUri && /^https?:\/\//.test(friend.avatarUri) ? (
                       <Image source={{ uri: friend.avatarUri }} style={{ width: 80, height: 80 }} contentFit="cover" cachePolicy="memory-disk" transition={0} />
                     ) : (
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(32), color: palette.fg }}>{(friend.name || '?').charAt(0)}</Text>
                     )}
-                  </View>
+                  </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 12, marginRight: 4 }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, flexShrink: 1 }} numberOfLines={1}>{friend.name}</Text>
