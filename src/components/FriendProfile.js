@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, FlatList, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, Text, FlatList, TouchableOpacity, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -361,7 +361,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
 
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>별명 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(최대 6자)</Text></Text>
                 {/* ⚠️ maxLength 금지 — 한글 조합(IME) 충돌로 마지막 글자가 자모서 막힘(iOS서 발현). onChangeText에서 6자 컷 ([[friend_groups]]) */}
-                <AppTextInput value={editName} onChangeText={(t) => setEditName(t.slice(0, 6))}
+                <AppTextInput value={editName} onChangeText={(t) => setEditName(t.slice(0, 6))} returnKeyType="done"
                   placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight}
                   style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
                     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
@@ -392,12 +392,14 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                   한 친구는 한 그룹만 — 다시 누르면 해제돼요
                 </Text>
 
+                {/* Keyboard.dismiss 선행 — 안드는 엔터로 키보드가 내려가도 입력칸이 포커스를 쥐고 있어,
+                    다음 탭(저장)이 키보드 부활에 먹혀 저장이 씹히던 문제(사용자 2026-07-06). 포커스를 끊고 실행 */}
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => setMetaOpen(false)}
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => { Keyboard.dismiss(); setMetaOpen(false); }}
                     style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, alignItems: 'center' }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>취소</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={0.85} onPress={saveMeta}
+                  <TouchableOpacity activeOpacity={0.85} onPress={() => { Keyboard.dismiss(); saveMeta(); }}
                     style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.burgundy, alignItems: 'center' }}>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>저장</Text>
                   </TouchableOpacity>
