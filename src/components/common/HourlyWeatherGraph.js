@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import Svg, { Polyline, Circle, Rect } from 'react-native-svg';
 import { F, fs } from '../../constants/colors';
 import { WeatherGlyph } from './Icon';
+import { pcpAmount } from '../../utils/kma';
 
 // 시간별 날씨 그래프 — 기온 꺾은선 + 강수량 막대(네이버 날씨식). 라운딩 컨디션 섹션 전용.
 //  · slots: kma toUiSlot 배열 + cond({dots,label}, 골프 컨디션) 주입본 · teeIdx: 티오프 컬럼(-1=없음)
@@ -13,20 +14,13 @@ const PAD_BOT = 14;   // 곡선이 바닥(기준선·아래 행)에 붙지 않�
 const BAR_MAX = 54;   // 강수 막대 최대 높이(15mm 이상은 만땅)
 const GUTTER = 24;    // 좌측 행 라벨(이모지) 폭
 
-// 강수량 표시 문자열('30~50mm','~1mm','5mm')에서 대표 수치 — 막대 높이용(범위는 첫 값 사용)
-function pcpNum(t) {
-  if (!t) return 0;
-  const m = String(t).match(/[\d.]+/);
-  return m ? parseFloat(m[0]) : 0;
-}
-
 // 풍향(바람이 불어오는 방향) → 부는 방향 화살표. 북풍(북→남)=↓ (네이버 날씨와 동일한 관례)
 const WIND_ARROW = { 북: '↓', 북동: '↙', 동: '←', 남동: '↖', 남: '↑', 남서: '↗', 서: '→', 북서: '↘' };
 
 // 컨디션 점수(0~5) → 라벨 색 — 좋음 버터/보통 은은/나쁨 붉은기
 const condColor = (dots) => (dots >= 4 ? '#F5E6A8' : dots >= 2.5 ? 'rgba(255,255,255,0.6)' : '#E6A8A8');
 
-export function HourlyWeatherGraph({ slots, teeIdx = -1 }) {
+export const HourlyWeatherGraph = React.memo(function HourlyWeatherGraph({ slots, teeIdx = -1 }) {
   const [w, setW] = useState(0);
   if (!Array.isArray(slots) || slots.length === 0) return null;
   const n = slots.length;
@@ -40,7 +34,7 @@ export function HourlyWeatherGraph({ slots, teeIdx = -1 }) {
   const span = Math.max(tMax - tMin, 2); // 기온 변화 없는 날 곡선 과장 방지(최소 스팬 2°)
   const yOf = (t) => PAD_TOP + (1 - (t - tMin) / span) * (GRAPH_H - PAD_TOP - PAD_BOT);
   const linePts = slots.map((s, i) => (temps[i] !== null ? `${xs[i]},${yOf(temps[i])}` : null)).filter(Boolean).join(' ');
-  const barH = (s) => { const mm = pcpNum(s.pcp) || pcpNum(s.sno); return mm > 0 ? 6 + Math.min(1, mm / 15) * (BAR_MAX - 6) : 0; };
+  const barH = (s) => { const mm = pcpAmount(s.pcp) || pcpAmount(s.sno); return mm > 0 ? 6 + Math.min(1, mm / 15) * (BAR_MAX - 6) : 0; };
 
   const cell = { width: colW, alignItems: 'center' };
   const subTxt = { fontFamily: F.sysM, fontSize: fs(9.5), color: 'rgba(255,255,255,0.6)' };
@@ -191,4 +185,4 @@ export function HourlyWeatherGraph({ slots, teeIdx = -1 }) {
       )}
     </View>
   );
-}
+});

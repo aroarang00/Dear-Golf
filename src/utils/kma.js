@@ -197,6 +197,13 @@ export async function getShortForecast(lat, lng) {
 // 시각 라벨 — '오전 7시'/'오후 3시' (pickHourSlots·pickRoundHourSlots 공용)
 const hourLabel = (h) => (h < 12 ? `오전 ${h}시` : h === 12 ? '오후 12시' : `오후 ${h - 12}시`);
 
+// 강수량 표시 문자열('30~50mm','~1mm','5mm')에서 대표 수치(mm) — 그래프 막대 높이·라운딩 총강수 합산용(범위는 첫 값)
+export function pcpAmount(t) {
+  if (!t) return 0;
+  const m = String(t).match(/[\d.]+/);
+  return m ? parseFloat(m[0]) : 0;
+}
+
 // PCP(1시간 강수량) → 짧은 표시 문자열. 기상청 원문: '강수없음'|'1mm 미만'|'5.0mm'|'30.0~50.0mm'|'50.0mm 이상'
 //   없음/미측정은 null(표시 안 함). '1mm 미만'→'~1mm', '30.0~50.0mm'→'30~50mm', '50.0mm 이상'→'50mm+'
 function pcpText(v) {

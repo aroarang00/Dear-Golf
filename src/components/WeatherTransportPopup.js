@@ -6,7 +6,8 @@ import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDet
 import { C, F, fs } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
-import { getCombinedForecast, pickHourSlots, pickRoundHourSlots, getUVIndex } from '../utils/kma';
+import { getCombinedForecast, pickHourSlots, pickRoundHourSlots, getUVIndex, pcpAmount } from '../utils/kma';
+import { getSunTimes } from '../utils/sun';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { addressToCoord } from '../utils/kakao';
@@ -781,6 +782,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const airForScore = isTodayWx ? airQuality : null;
   const uvForScore = isTodayWx ? uvIndex : null;
 
+  // 그래프 슬롯(+시간별 컨디션) — 매 렌더 새 배열이면 교통 소요 조회 갱신마다 그래프가 통째로 리렌더(2026-07-02 덜컹 패턴 재발 방지)
+  const graphSlots = React.useMemo(
+    () => hourSlots.map(s => ({ ...s, cond: calcDots(s, airForScore, uvForScore) })),
+    [hourSlots, airForScore, uvForScore]);
+
   // 코스 둘러보기(isPreview)는 실제 예정 라운딩이 아님 — GuideScreen이 '오늘 07:00 가상 일정'으로 열기 때문에
   // dDay가 0으로 들어온다. '라운딩 시점' 정밀 라벨·티오프 배지·10일예보 라운딩 배지에서 제외하고 현재 날씨로 안내.
   const isRealRound = !weatherOnly && !schedule?.overseas && !schedule?.isPreview && Number.isFinite(schedule?.dDay);
@@ -1082,6 +1088,59 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                         </View>
                       ))}
                     </View>
+                    {/* 라운딩 브리핑 — 기온범위·강수총량·일출/일몰 3칸 한 줄. 체감·바람은 4칸 카드·그래프와 중복이라 제외,
+                        일출·일몰은 같은 비중으로 나란히(사용자 2026-07-05). 추가 API 0 — 전부 기존 데이터 파생 */}
+                    {isRealRound && (() => {
+                      // 라운딩 시간창(티오프 -1h~+5h) — 기온 범위·강수 총량
+                      const win = hourSlots.filter(s => s.hour * 60 >= teeMin - 60 && s.hour * 60 <= teeMin + 300);
+                      const ts = win.map(s => s.temp).filter(Number.isFinite);
+                      const tempVal = ts.length ? `${Math.round(Math.min(...ts))}~${Math.round(Math.max(...ts))}°` : '—';
+                      const totalMm = win.reduce((sum, s) => sum + pcpAmount(s.pcp), 0);
+                      const popMax = win.reduce((b, s) => Math.max(b, Number.isFinite(s.rain) ? s.rain : 0), 0);
+                      const rainVal = win.length ? (totalMm > 0 ? `${Math.round(totalMm * 10) / 10}mm` : '없음') : '—';
+                      const rainSub = win.length && (totalMm > 0 || popMax >= 30) ? `확률 최대 ${Math.round(popMax)}%` : '';
+                      // 일출·일몰 — 로컬 계산(sun.js), 두 시각을 같은 스타일로 나란히
+                      const sun = courseCoord ? getSunTimes(courseCoord.y, courseCoord.x, schedule?.date) : null;
+                      if (tempVal === '—' && rainVal === '—' && !sun) return null;
+                      // 칸마다 줄 수(1~2줄)가 달라 들쭉날쭉하던 것 → 세로 중앙 정렬 + 빈 자리표시 제거 + 안쪽 카드 마감(사용자 2026-07-05 '깔끔하게')
+                      const cellLine = 'rgba(255,255,255,0.1)';
+                      const cellBox = (i) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 4,
+                        borderRightWidth: i < 2 ? 0.5 : 0, borderRightColor: cellLine });
+                      return (
+                        <View style={{ marginTop: 14 }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: 'rgba(245,230,168,0.85)', letterSpacing: 0.5, marginBottom: 7 }}>
+                            라운딩 브리핑
+                          </Text>
+                          <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12,
+                            borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)' }}>
+                            <View style={cellBox(0)}>
+                              <Text style={[wxS.gridLabel, { marginBottom: 5 }]}>라운딩 기온</Text>
+                              <Text style={[wxS.gridValue, { fontSize: fs(15) }]}>{tempVal}</Text>
+                            </View>
+                            <View style={cellBox(1)}>
+                              <Text style={[wxS.gridLabel, { marginBottom: 5 }]}>예상 강수</Text>
+                              <Text style={[wxS.gridValue, { fontSize: fs(15) }, totalMm > 0 && { color: '#9EC3E8' }]}>{rainVal}</Text>
+                              {rainSub ? <Text style={[wxS.gridSub, { marginTop: 3 }]} numberOfLines={1}>{rainSub}</Text> : null}
+                            </View>
+                            <View style={cellBox(2)}>
+                              <Text style={[wxS.gridLabel, { marginBottom: 5 }]}>일출 · 일몰</Text>
+                              {sun ? (
+                                <>
+                                  {/* 일출=해·일몰=초승달 (사용자 2026-07-05. 🌅🌇는 기기별 렌더 어색) */}
+                                  <Text style={[wxS.gridValue, { fontSize: fs(13.5) }]}>☀️ {sun.sunrise}</Text>
+                                  <Text style={[wxS.gridValue, { fontSize: fs(13.5), marginTop: 2 }]}>🌙 {sun.sunset}</Text>
+                                  {teeMin >= sun.sunsetMin ? (
+                                    <Text style={[wxS.gridSub, { marginTop: 3 }]} numberOfLines={1}>야간 라운딩</Text>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <Text style={[wxS.gridValue, { fontSize: fs(15) }]}>—</Text>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })()}
                   </>
                 ) : (
                   <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: fs(12), paddingVertical: 8, textAlign: 'center' }}>
@@ -1093,17 +1152,25 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {/* ⑤ 라운딩 컨디션 */}
               <View style={wxS.condWrap}>
                 <Text style={wxS.sectionLabel}>라운딩 컨디션</Text>
+                {/* 시간 단위 안내 — 제목 바로 아래(직관, 사용자 2026-07-05). 1시간 정밀(라운딩 D0~3) vs 3시간(그 외) */}
+                {hourSlots.length > 0 && (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: 'rgba(255,255,255,0.45)', marginTop: -4, marginBottom: 8 }}>
+                    {hourSlots.length >= 2 && hourSlots[1].hour - hourSlots[0].hour === 1
+                      ? '라운딩 3일 전부터는 티오프 전후 날씨를 1시간 단위로 보여드려요'
+                      : (isRealRound
+                        ? '1시간 단위 날씨는 라운딩이 3일 안으로 가까워지면 보여드려요'
+                        : '오늘 날씨를 3시간 단위로 보여드려요')}
+                  </Text>
+                )}
                 {hourSlots.length === 0 ? (
-                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: fs(12), paddingVertical: 16, textAlign: 'center' }}>
-                    시간대 예보 정보가 없습니다 (D+3 이후)
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: fs(12), paddingVertical: 16, textAlign: 'center', lineHeight: fs(18) }}>
+                    시간대 예보는 라운딩 3일 전부터 보여드려요{'\n'}(기상청 단기예보 기준 · 날이 가까워지면 자동으로 채워져요)
                   </Text>
                 ) : (
                   // 그래프형(네이버 날씨식) — 기온 꺾은선+강수 막대+바람·습도·컨디션 행 (사용자 2026-07-05, 리스트식은 정보 늘리니 지저분해서 교체)
                   <View style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 12,
                     borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.07)' }}>
-                    <HourlyWeatherGraph
-                      slots={hourSlots.map(s => ({ ...s, cond: calcDots(s, airForScore, uvForScore) }))}
-                      teeIdx={isRealRound ? teeoffSlotIdx : -1} />
+                    <HourlyWeatherGraph slots={graphSlots} teeIdx={isRealRound ? teeoffSlotIdx : -1} />
                   </View>
                 )}
               </View>
