@@ -421,9 +421,18 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     });
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     const s = sheet.schedule;
     setSheet({ visible: false, schedule: null });
+    // 전파 일정 memo는 group.memo가 진실원 — 편집 프리필도 '최신 group.memo'로. stale 파생 memo로 저장 시
+    //   남의 최신 메모를 덮어쓰던 것 방지(리뷰 2026-07-06 [[save-revert-bug-pattern]], HomeScreen과 동일).
+    if (s?.groupId && !s?.roundupId) {
+      try {
+        const g = await getScheduleGroup(s.groupId);
+        setModal({ visible: true, initial: { ...s, memo: g?.memo ?? s.memo ?? '' } });
+        return;
+      } catch (e) { if (__DEV__) console.warn('[mySchedule] edit prefill group memo', e?.message); }
+    }
     setModal({ visible: true, initial: s });
   };
 

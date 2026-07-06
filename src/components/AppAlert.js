@@ -15,13 +15,16 @@ import { C, F, fs } from '../constants/colors';
 //  호스트가 1개뿐이면 기존과 동일하게 동작(하위호환).
 let _hosts = [];
 
-export function showAppAlert(title, message, buttons) {
+// opts.onDismiss — 어떤 경로로 닫히든(버튼 탭 or 안드 백버튼) 실행되는 공통 콜백. '닫으면 이어서 X' 흐름용.
+//   ★백버튼이 특정 버튼 onPress를 실행하게 하지 말 것(부작용 있는 cancel이 백버튼만으로 커밋됨) — onDismiss로.
+export function showAppAlert(title, message, buttons, opts = {}) {
   const show = _hosts[_hosts.length - 1];
   if (show) {
     show({
       title: title || '',
       message: message || '',
       buttons: buttons && buttons.length ? buttons : [{ text: '확인' }],
+      onDismiss: opts.onDismiss || null,
     });
   }
 }
@@ -51,13 +54,9 @@ export function AppAlertHost() {
     // 없으면 alert가 부모 modal 뒤로 깔리는 RN 알려진 이슈 발생.
     // statusBarTranslucent — Android 상태바 영역까지 덮어서 alert가 상단까지 정상 노출.
     <Modal visible transparent animationType="fade"
-      onRequestClose={() => {
-        // 안드 백버튼 = cancel 버튼과 동등(RN Alert 표준). cancel의 onPress도 실행해야
-        //   '전파 제안 → (백버튼) → 알람'처럼 cancel onPress에 이어지는 흐름이 끊기지 않음(리뷰 2026-07-06).
-        close();
-        const cancelBtn = buttons.find((b) => b.style === 'cancel');
-        cancelBtn && cancelBtn.onPress && cancelBtn.onPress();
-      }}
+      // 안드 백버튼 = 순수 닫기 + onDismiss(닫힘 공통 콜백)만. ★버튼 onPress는 실행하지 않음
+      //   (부작용 있는 cancel 핸들러가 백버튼만으로 커밋되던 회귀 방지 — 리뷰 2026-07-06).
+      onRequestClose={() => { close(); data.onDismiss && data.onDismiss(); }}
       presentationStyle="overFullScreen" statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 340 }}>
@@ -82,7 +81,7 @@ export function AppAlertHost() {
               const s = btnStyle(b);
               return (
                 <TouchableOpacity key={i} activeOpacity={0.85}
-                  onPress={() => { close(); b.onPress && b.onPress(); }}
+                  onPress={() => { close(); b.onPress && b.onPress(); data.onDismiss && data.onDismiss(); }}
                   style={{
                     flex: inRow ? 1 : undefined,
                     paddingVertical: 13, borderRadius: 12, alignItems: 'center',

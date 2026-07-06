@@ -851,11 +851,12 @@ export function HomeScreen({ navigation, route }) {
   // 일정 생성 직후 초대 제안 — 친구 동반자가 있을 때만. [보내기]=이미 고른 동반자에게 바로 발송(재선택 X). ([[schedule-propagation-spec]])
   //   onDone: 응답(보내기/나중에) 후 이어서 실행(알람 팝업). AppAlert 닫힘 후 살짝 지연해 모달 충돌 방지([[ios-modal-stacking]]).
   const offerInviteAfterCreate = (schedule, onDone) => {
-    const proceed = () => { if (onDone) setTimeout(onDone, 250); };
+    // 응답(보내기/나중에/안드 백버튼) 어느 경로로 닫히든 이어서 알람 — onDismiss(닫힘 공통 콜백)로.
+    //   버튼 onPress에만 걸면 백버튼으로 닫을 때 알람이 스킵됨(리뷰 2026-07-06).
     showAppAlert('동반자에게 보낼까요?', '방금 선택한 동반자에게 이 일정을 보내면, 수락 시 그 친구 일정에도 등록돼요.', [
-      { text: '나중에', style: 'cancel', onPress: proceed },
-      { text: '보내기', onPress: () => { inviteCompanionsDirectly(schedule); proceed(); } },
-    ]);
+      { text: '나중에', style: 'cancel' },
+      { text: '보내기', onPress: () => inviteCompanionsDirectly(schedule) },
+    ], { onDismiss: () => { if (onDone) setTimeout(onDone, 250); } });
   };
 
   const openCurrentWeather = () => {
@@ -918,8 +919,18 @@ export function HomeScreen({ navigation, route }) {
     }
   };
 
-  const handleEditSchedule = (s) => {
+  const handleEditSchedule = async (s) => {
     setShowScheduleModal(false);
+    // 전파 일정 memo는 group.memo가 진실원 — 편집 프리필도 '최신 group.memo'로 채운다. 파생 schedule.memo는
+    //   수락 시점에 고정돼 stale일 수 있어, 그걸로 프리필해 저장하면 남의 최신 메모를 덮어씀(save-revert 방지,
+    //   리뷰 2026-07-06 [[save-revert-bug-pattern]]).
+    if (s?.groupId && !s?.roundupId) {
+      try {
+        const g = await getScheduleGroup(s.groupId);
+        setEditScheduleTarget({ ...s, memo: g?.memo ?? s.memo ?? '' });
+        return;
+      } catch (e) { if (__DEV__) console.warn('[home] edit prefill group memo', e?.message); }
+    }
     setEditScheduleTarget(s);
   };
 
