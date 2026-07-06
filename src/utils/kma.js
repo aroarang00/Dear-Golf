@@ -247,6 +247,20 @@ function toUiSlot(slot, h) {
   };
 }
 
+// 라운딩 컨디션 6시간대(6/9/12/15/18/21시) 추출 — 라운드 '그 날짜'의 고정 시간표.
+//   실제 라운드(D0~3)에서 티오프 정밀 슬롯이 3칸 미만이라 폴백해야 할 때 사용(weatherOnly=현재날씨는 pickRollingHourSlots).
+//   롤링은 '오늘'이라 미래 라운드에 쓰면 오늘 날씨가 라운드 날씨로 오표시됨 → 라운드 폴백은 이 함수로(리뷰 2026-07-06 복구).
+export function pickHourSlots(slotsByDate, dateStr) {
+  const slots = slotsByDate?.[dateStr] || [];
+  if (!slots.length) return [];
+  const TARGET_HOURS = [6, 9, 12, 15, 18, 21];
+  return TARGET_HOURS.map(h => {
+    const slot = slots.find(s => parseInt(s.fcstTime, 10) === h * 100);
+    if (!slot) return null;
+    return toUiSlot(slot, h);
+  }).filter(Boolean);
+}
+
 // 라운딩 날 1시간 간격 슬롯 — 티오프 1시간 전 ~ +5시간(라운드 종료 무렵).
 //   단기예보는 1시간 간격을 주는데 6칸(3시간)으로 뭉개면 '오후 2시 소나기'가 안 보였음(사용자 라운딩 피드백 2026-07-05).
 //   예보 범위 밖 등으로 3칸 미만이면 [] 반환 → 호출부가 기존 6칸으로 폴백.

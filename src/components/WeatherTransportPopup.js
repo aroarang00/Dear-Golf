@@ -6,7 +6,7 @@ import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDet
 import { C, F, fs } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
-import { getCombinedForecast, pickRollingHourSlots, pickRoundHourSlots, getUVIndex, pcpAmount } from '../utils/kma';
+import { getCombinedForecast, pickHourSlots, pickRollingHourSlots, pickRoundHourSlots, getUVIndex, pcpAmount } from '../utils/kma';
 import { getSunTimes } from '../utils/sun';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
@@ -774,9 +774,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       const fine = pickRoundHourSlots(forecast?.slotsByDate || {}, targetDateCompact, teeMin);
       if (fine.length) return fine;
     }
-    // 티오프 없는 경우(현재날씨 등) — '지금'부터 1시간 간격 6칸 롤링. 오늘 남은 게 부족하면
-    //   다음날로 자연 연속 → 오후에 열어도 3칸만 남지 않고 항상 6칸(사용자 2026-07-06).
-    return pickRollingHourSlots(forecast?.slotsByDate || {}, 6);
+    // weatherOnly(현재날씨) = '지금'부터 1시간 간격 6칸 롤링(오후에도 안 휑함, 사용자 2026-07-06).
+    //   그 외(실제 라운드지만 티오프 정밀 슬롯 부족) = 라운드 '그 날짜'의 고정 시간표 — 롤링은 '오늘'이라
+    //   미래 라운드에 쓰면 오늘 날씨를 라운드 날씨로 오표시하게 됨(리뷰 2026-07-06).
+    if (weatherOnly) return pickRollingHourSlots(forecast?.slotsByDate || {}, 6);
+    return pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
   }, [forecast, targetDateCompact, weatherOnly, schedule, teeMin]);
 
   // 미세먼지·자외선은 '오늘' 측정값만 정확 — 오늘 라운딩/현재날씨일 때만 점수에 반영
