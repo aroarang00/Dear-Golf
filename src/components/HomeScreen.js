@@ -137,7 +137,6 @@ export function HomeScreen({ navigation, route }) {
   const [teamScheduleRid, setTeamScheduleRid] = useState(null);     // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [sheetMealSchedule, setSheetMealSchedule] = useState(null); // 일정 시트 '함께 식사' 대상(triggerless) — 세컨 카드 등 next 아닌 일정용
   const [sheetMealAutoOpen, setSheetMealAutoOpen] = useState(false);
-  const [pendingInviteSchedule, setPendingInviteSchedule] = useState(null); // 생성 직후 초대 제안 대상(알람 팝업 뒤)
   const [cardSlide, setCardSlide] = useState(0);
   const [storeAds, setStoreAds] = useState([]); // 홈 캐러셀 스토어 광고 — 원격(config/storeAds), 빈 배열=미노출
   useEffect(() => {
@@ -850,10 +849,12 @@ export function HomeScreen({ navigation, route }) {
     }
   };
   // 일정 생성 직후 초대 제안 — 친구 동반자가 있을 때만. [보내기]=이미 고른 동반자에게 바로 발송(재선택 X). ([[schedule-propagation-spec]])
-  const offerInviteAfterCreate = (schedule) => {
+  //   onDone: 응답(보내기/나중에) 후 이어서 실행(알람 팝업). AppAlert 닫힘 후 살짝 지연해 모달 충돌 방지([[ios-modal-stacking]]).
+  const offerInviteAfterCreate = (schedule, onDone) => {
+    const proceed = () => { if (onDone) setTimeout(onDone, 250); };
     showAppAlert('동반자에게 보낼까요?', '방금 선택한 동반자에게 이 일정을 보내면, 수락 시 그 친구 일정에도 등록돼요.', [
-      { text: '나중에', style: 'cancel' },
-      { text: '보내기', onPress: () => inviteCompanionsDirectly(schedule) },
+      { text: '나중에', style: 'cancel', onPress: proceed },
+      { text: '보내기', onPress: () => { inviteCompanionsDirectly(schedule); proceed(); } },
     ]);
   };
 
@@ -944,16 +945,18 @@ export function HomeScreen({ navigation, route }) {
       // 새로 등록된 userCourse 반영 (코스명→id 매칭 최신화)
       getUserCourses().then(list => setUserCoursesList(list || []));
       // (캘린더 추가는 addSchedule이 일괄 처리)
-      // 친구 동반자가 있으면 생성 직후(알람 팝업 뒤) 일정 전파 초대 제안 ([[schedule-propagation-spec]] A안)
+      // 동반자(친구)를 골랐다는 건 '공유하겠다'는 신호 — 알람보다 '전파 제안'을 먼저 묻는다(사용자 2026-07-06 순서 반전).
+      //   없으면 알람 바로. 알람 팝업은 '이대로 자동'이면 전체 대신 '식사시각만' 묻는 가벼운 프롬프트.
       const hasFriendCompanions = Array.isArray(data.companions) && data.companions.some(c => c?.friendUid);
-      // 일정 추가 완료 → 알람 팝업.
-      //   '이대로 자동'이면 전체 팝업 대신 '식사시각만' 묻는 가벼운 프롬프트(나머지는 저장설정대로 자동).
-      if (userProfile.alarmPromptDisabled) {
-        setPendingQuickAlarm(newS);
-        if (hasFriendCompanions) setPendingInviteSchedule(newS); // 프롬프트 닫힌 뒤 제안
+      const openAlarm = () => {
+        if (userProfile.alarmPromptDisabled) setPendingQuickAlarm(newS);
+        else setPendingAlarmSchedule(newS);
+      };
+      if (hasFriendCompanions) {
+        // ScheduleModal(RN Modal) 닫힘 뒤 전파 AppAlert를 띄우고(350), 응답 후 알람 모달로 이어짐 ([[ios-modal-stacking]]).
+        setTimeout(() => offerInviteAfterCreate(newS, openAlarm), 350);
       } else {
-        setPendingAlarmSchedule(newS);
-        if (hasFriendCompanions) setPendingInviteSchedule(newS); // 알람 팝업 닫힌 뒤 제안
+        openAlarm();
       }
     } else if (type === 'schedule-edit') {
       try {
@@ -1788,12 +1791,6 @@ export function HomeScreen({ navigation, route }) {
         onClose={() => {
           setPendingAlarmSchedule(null);
           setAlarmEditExisting(null);
-          // 알람 팝업 닫힌 뒤 친구 초대 제안(생성 직후 동선) — 모달 닫힘 후 띄우게 약간 지연 ([[schedule-propagation-spec]])
-          if (pendingInviteSchedule) {
-            const s = pendingInviteSchedule;
-            setPendingInviteSchedule(null);
-            setTimeout(() => offerInviteAfterCreate(s), 350);
-          }
         }}
       />
 
@@ -1805,11 +1802,6 @@ export function HomeScreen({ navigation, route }) {
           const s = pendingQuickAlarm;
           setPendingQuickAlarm(null);
           if (s) applyDefaultAlarms(s, userProfile, { arriveAt });
-          if (pendingInviteSchedule) {
-            const inv = pendingInviteSchedule;
-            setPendingInviteSchedule(null);
-            setTimeout(() => offerInviteAfterCreate(inv), 350);
-          }
         }}
       />
 
