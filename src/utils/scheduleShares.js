@@ -139,6 +139,7 @@ export function buildDerivedSchedule(group, uid) {
     members: typeof group.members === 'number' ? group.members : 4,
     booker: group.booker || '', // 예약자(체크인 이름) — 전파받은 동반자도 같은 이름 표시 ([[schedule-booker]])
     subCourse: group.subCourse || '', // 코스(세부코스) — 동반자 공유 카드에도 표시
+    memo: group.memo || '', // 일정 메모(공지) — 파생 시점 그룹 메모(그룹 로드 전 폴백. 표시는 시트가 group.memo 우선)
     // 초대한 사람을 동반자 라벨로(이름+friendUid). 나머지 멤버는 그룹에서 해석(UI).
     companions: group.initiatorUid ? [{ name: group.initiatorName || '', friendUid: group.initiatorUid }] : [],
     groupId: group.id,                       // ★전파 일정 표식
@@ -164,7 +165,9 @@ export function groupContentFields(o) {
     members: Number(o.members) || 4,
     booker: o.booker || '',
     subCourse: o.subCourse || '',
-    memo: o.memo || '', // 일정 메모(공지) — 전파 그룹에 동기화, 시트에서 group.memo 실시간 표시(사용자 2026-07-06)
+    // ★memo는 여기 넣지 않는다 — 매 편집마다 덮어쓰는 필드에 들어가면, memo를 못 받은 파생 일정(schedule.memo='')이
+    //   time만 고쳐도 group.memo를 ''로 밀어 공유 메모가 유실됨(리뷰 2026-07-06). memo는 syncGroupContentByMember가
+    //   memoMeta(=memo 바뀐 편집)일 때만 별도로 쓴다.
   };
 }
 
@@ -179,8 +182,11 @@ export async function syncGroupContentByMember(groupId, schedule, memoMeta = nul
   _syncingGroups.add(groupId);
   try {
     const c = groupContentFields(schedule);
-    // memo가 바뀐 편집이면 수정자 기록(전파 메모 카드에 'OO님 수정' 표시용). 아니면 memo 필드만 그대로 동기화.
-    const extra = memoMeta ? { memoBy: memoMeta.uid || null, memoByName: memoMeta.name || '', memoAt: serverTimestamp() } : {};
+    // memo가 바뀐 편집(memoMeta)일 때만 memo + 수정자를 쓴다. 아니면 memo는 손대지 않음(다른 필드만 동기화) →
+    //   memo를 못 받은 파생 일정이 time 등만 고쳐도 group.memo가 유실되던 것 방지(리뷰 2026-07-06).
+    const extra = memoMeta
+      ? { memo: schedule.memo || '', memoBy: memoMeta.uid || null, memoByName: memoMeta.name || '', memoAt: serverTimestamp() }
+      : {};
     await updateDoc(doc(db, COLLECTION, groupId), { ...c, ...extra, updatedAt: serverTimestamp() });
     return true;
   } catch (e) { if (__DEV__) console.warn('[scheduleShare] sync content', e?.message); return false; }

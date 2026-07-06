@@ -381,12 +381,16 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       // 전파 일정(groupId, 라운지 아님) 수정 → 그룹 내용 갱신 + 변경 알림. 다른 멤버는 자기 화면에서 '반영할까요?' 확인.
       //   구장·날짜는 잠금이라 time/members/booker/subCourse만 동기화. ([[schedule-propagation-spec]])
       if (oldS?.groupId && !oldS?.roundupId && currentUid) {
+        const memoChanged = (oldS.memo || '') !== (data.memo || '');
         const changed = (oldS.time !== data.time)
           || (Number(oldS.members) !== Number(data.members))
           || ((oldS.booker || '') !== (data.booker || ''))
-          || ((oldS.subCourse || '') !== (data.subCourse || ''));
+          || ((oldS.subCourse || '') !== (data.subCourse || ''))
+          || memoChanged;
         if (changed) {
-          syncGroupContentByMember(oldS.groupId, { ...oldS, ...data }).then(async () => {
+          // memo가 바뀐 편집이면 수정자 전달 → 그룹에 'OO님 수정' 기록 (HomeScreen 편집 경로와 동일, 리뷰 2026-07-06)
+          syncGroupContentByMember(oldS.groupId, { ...oldS, ...data },
+            memoChanged ? { uid: currentUid, name: userProfile?.nickname || '' } : null).then(async () => {
             try {
               const group = await getScheduleGroup(oldS.groupId);
               await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleChanged',
