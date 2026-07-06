@@ -240,7 +240,9 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                 {/* 메모(공지) 카드 — D-DAY 아래. 전파 일정은 group.memo(실시간·수정자) / 혼자는 schedule.memo. 있을 때만(사용자 2026-07-06) */}
                 {(() => {
                   const isGroupMemo = !!(schedule.groupId && group);
-                  const memoText = isGroupMemo ? (group?.memo || '') : (schedule.memo || '');
+                  // group.memo가 비어 있으면(아직 그룹에 동기화 안 된 전파 일정 등) schedule.memo로 폴백 —
+                  //   group 로드 후 memo가 '잠깐 보이다 사라지던' 것 방지(사용자 2026-07-06).
+                  const memoText = isGroupMemo ? (group?.memo || schedule.memo || '') : (schedule.memo || '');
                   if (!memoText) return null;
                   const editor = isGroupMemo ? (group?.memoByName || '') : '';
                   return (
