@@ -777,11 +777,11 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     // weatherOnly(현재날씨) = '지금'부터 1시간 간격 6칸 롤링(오후에도 안 휑함, 사용자 2026-07-06).
     //   그 외(실제 라운드지만 티오프 정밀 슬롯 부족) = 라운드 '그 날짜'의 고정 시간표 — 롤링은 '오늘'이라
     //   미래 라운드에 쓰면 오늘 날씨를 라운드 날씨로 오표시하게 됨(리뷰 2026-07-06).
-    // 타겟이 '오늘'(현재날씨·코스둘러보기 isPreview·오늘 라운드 폴백) = 지금부터 롤링(오후 휑함 방지),
-    //   미래 라운드 = 그 날짜 고정 시간표(롤링은 '오늘'이라 미래엔 오늘 날씨를 라운드 날씨로 오표시). 리뷰 2026-07-06.
-    if (weatherOnly || schedule?.isPreview || targetDateCompact === todayCompact()) {
-      return pickRollingHourSlots(forecast?.slotsByDate || {}, 6);
-    }
+    // 롤링('지금부터')은 현재날씨(weatherOnly)·코스둘러보기(isPreview)에만 — 둘 다 '지금 이 순간' 기준이라 적합.
+    //   실제 라운드는 '오늘 저녁 티오프'도 있어, 롤링(지금~+6h=아침·오후)을 쓰면 저녁 티오프를 놓침 → 그 '날짜'
+    //   고정 시간표(6/9/12/15/18/21, 티오프 시간 포함)를 쓴다. (오늘 판정으로 롤링 확대하면 오늘 라운드에 지금
+    //   날씨가 뜨고 자정 넘김 stale — 리뷰 3차 2026-07-06)
+    if (weatherOnly || schedule?.isPreview) return pickRollingHourSlots(forecast?.slotsByDate || {}, 6);
     return pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
   }, [forecast, targetDateCompact, weatherOnly, schedule, teeMin]);
 
