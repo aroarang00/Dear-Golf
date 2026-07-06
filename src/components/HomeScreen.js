@@ -920,18 +920,16 @@ export function HomeScreen({ navigation, route }) {
   };
 
   const handleEditSchedule = async (s) => {
-    setShowScheduleModal(false);
-    // 전파 일정 memo는 group.memo가 진실원 — 편집 프리필도 '최신 group.memo'로 채운다. 파생 schedule.memo는
-    //   수락 시점에 고정돼 stale일 수 있어, 그걸로 프리필해 저장하면 남의 최신 메모를 덮어씀(save-revert 방지,
-    //   리뷰 2026-07-06 [[save-revert-bug-pattern]]).
+    // 전파 일정 memo는 group.memo가 진실원 — 편집 프리필도 '최신 group.memo'로(파생 schedule.memo는 stale 가능,
+    //   그걸로 저장하면 남의 최신 메모를 덮어씀. save-revert 방지 [[save-revert-bug-pattern]]).
+    //   ★그룹 로드를 '먼저' 하고 그 다음 시트를 닫는다 — 시트를 먼저 닫으면 로드 대기 중 빈 화면이 뜸(리뷰 3차 2026-07-06).
+    let target = s;
     if (s?.groupId && !s?.roundupId) {
-      try {
-        const g = await getScheduleGroup(s.groupId);
-        setEditScheduleTarget({ ...s, memo: g?.memo ?? s.memo ?? '' });
-        return;
-      } catch (e) { if (__DEV__) console.warn('[home] edit prefill group memo', e?.message); }
+      try { const g = await getScheduleGroup(s.groupId); if (g) target = { ...s, memo: g.memo ?? s.memo ?? '' }; }
+      catch (e) { if (__DEV__) console.warn('[home] edit prefill group memo', e?.message); }
     }
-    setEditScheduleTarget(s);
+    setShowScheduleModal(false);
+    setEditScheduleTarget(target);
   };
 
   const handleScheduleSave = async (type, data) => {

@@ -373,7 +373,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         setPendingAlarm(newS);
       }
     } else if (type === 'schedule-edit') {
-      const oldS = schedules.find(s => s.id === data.id);
+      // oldS는 편집 모달의 프리필값(modal.initial)과 같은 소스여야 memoChanged가 정확 — 로컬 schedules 배열은
+      //   memo가 stale일 수 있어 '메모 안 바꿔도 바뀐 것으로' 오판(spurious 그룹 알림·오귀속). HomeScreen(editScheduleTarget)과 통일(리뷰 3차 2026-07-06).
+      const oldS = (modal.initial && modal.initial.id === data.id) ? modal.initial : schedules.find(s => s.id === data.id);
       try {
         const { id, createdAt, ownerUid, ...patch } = data;
         await editSchedule(data.id, patch);
@@ -423,17 +425,15 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
   const handleEdit = async () => {
     const s = sheet.schedule;
-    setSheet({ visible: false, schedule: null });
-    // 전파 일정 memo는 group.memo가 진실원 — 편집 프리필도 '최신 group.memo'로. stale 파생 memo로 저장 시
-    //   남의 최신 메모를 덮어쓰던 것 방지(리뷰 2026-07-06 [[save-revert-bug-pattern]], HomeScreen과 동일).
+    // 전파 일정 memo는 group.memo가 진실원 — 편집 프리필도 '최신 group.memo'로([[save-revert-bug-pattern]], HomeScreen과 동일).
+    //   ★그룹 로드를 '먼저' 하고 시트를 닫는다 — 먼저 닫으면 로드 대기 중 빈 화면이 뜸(리뷰 3차 2026-07-06).
+    let target = s;
     if (s?.groupId && !s?.roundupId) {
-      try {
-        const g = await getScheduleGroup(s.groupId);
-        setModal({ visible: true, initial: { ...s, memo: g?.memo ?? s.memo ?? '' } });
-        return;
-      } catch (e) { if (__DEV__) console.warn('[mySchedule] edit prefill group memo', e?.message); }
+      try { const g = await getScheduleGroup(s.groupId); if (g) target = { ...s, memo: g.memo ?? s.memo ?? '' }; }
+      catch (e) { if (__DEV__) console.warn('[mySchedule] edit prefill group memo', e?.message); }
     }
-    setModal({ visible: true, initial: s });
+    setSheet({ visible: false, schedule: null });
+    setModal({ visible: true, initial: target });
   };
 
   // 일정의 D-day 계산 (0=오늘, 음수=지난 라운딩)
