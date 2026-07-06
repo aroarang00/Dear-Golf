@@ -80,6 +80,10 @@ export async function shareScheduleToFriends({ schedule, initiatorUid, initiator
       members: typeof schedule.members === 'number' ? schedule.members : 4,
       booker: schedule.booker || '', // 예약자(체크인 이름) — 동반자도 같은 이름을 보게 전파 ([[schedule-booker]])
       subCourse: schedule.subCourse || '', // 코스(세부코스) — 동반자 공유 카드에도 표시
+      memo: schedule.memo || '',     // 일정 메모(공지) — 조편성·집결지 등. 전원 동등 수정(사용자 2026-07-06)
+      memoBy: schedule.memo ? initiatorUid : null,
+      memoByName: schedule.memo ? (initiatorName || '') : '',
+      memoAt: schedule.memo ? serverTimestamp() : null,
       names: { [initiatorUid]: initiatorName || '', ...nameEntries }, // uid→이름(호스트+초대친구). 표시 시 친구목록 조회 불필요
       audienceUids: aud,
       memberUids: [initiatorUid],   // 최초 공유자는 바로 멤버
@@ -160,6 +164,7 @@ export function groupContentFields(o) {
     members: Number(o.members) || 4,
     booker: o.booker || '',
     subCourse: o.subCourse || '',
+    memo: o.memo || '', // 일정 메모(공지) — 전파 그룹에 동기화, 시트에서 group.memo 실시간 표시(사용자 2026-07-06)
   };
 }
 
@@ -169,12 +174,14 @@ const _syncingGroups = new Set();
 export function isSyncingGroup(groupId) { return _syncingGroups.has(groupId); }
 
 // 멤버가 공유 일정을 수정 → 그룹 문서 내용 갱신(다른 멤버 반영의 소스). 규칙: memberUids 멤버만, 이 키들만 허용.
-export async function syncGroupContentByMember(groupId, schedule) {
+export async function syncGroupContentByMember(groupId, schedule, memoMeta = null) {
   if (!groupId || !schedule) return false;
   _syncingGroups.add(groupId);
   try {
     const c = groupContentFields(schedule);
-    await updateDoc(doc(db, COLLECTION, groupId), { ...c, updatedAt: serverTimestamp() });
+    // memo가 바뀐 편집이면 수정자 기록(전파 메모 카드에 'OO님 수정' 표시용). 아니면 memo 필드만 그대로 동기화.
+    const extra = memoMeta ? { memoBy: memoMeta.uid || null, memoByName: memoMeta.name || '', memoAt: serverTimestamp() } : {};
+    await updateDoc(doc(db, COLLECTION, groupId), { ...c, ...extra, updatedAt: serverTimestamp() });
     return true;
   } catch (e) { if (__DEV__) console.warn('[scheduleShare] sync content', e?.message); return false; }
   finally { _syncingGroups.delete(groupId); }

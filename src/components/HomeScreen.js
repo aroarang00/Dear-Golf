@@ -981,12 +981,16 @@ export function HomeScreen({ navigation, route }) {
       //   다른 멤버는 자기 화면에서 '반영할까요?' 확인(전원 동등 모델). 구장·날짜는 잠금이라 time/members/booker/subCourse만 동기화. ([[schedule-propagation-spec]])
       const oldS = editScheduleTarget;
       if (oldS?.groupId && !oldS?.roundupId && currentUid) {
+        const memoChanged = (oldS.memo || '') !== (data.memo || '');
         const changed = (oldS.time !== data.time)
           || (Number(oldS.members) !== Number(data.members))
           || ((oldS.booker || '') !== (data.booker || ''))
-          || ((oldS.subCourse || '') !== (data.subCourse || ''));
+          || ((oldS.subCourse || '') !== (data.subCourse || ''))
+          || memoChanged;
         if (changed) {
-          syncGroupContentByMember(oldS.groupId, { ...oldS, ...data }).then(async () => {
+          // memo가 바뀐 편집이면 수정자(uid·닉네임) 전달 → 그룹에 'OO님 수정' 기록 (전파 메모 카드 표시용)
+          syncGroupContentByMember(oldS.groupId, { ...oldS, ...data },
+            memoChanged ? { uid: currentUid, name: userProfile?.nickname || '' } : null).then(async () => {
             try {
               const group = await getScheduleGroup(oldS.groupId);
               await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleChanged',

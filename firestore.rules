@@ -240,7 +240,7 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && (request.auth.uid in resource.data.memberUids
             || request.auth.uid == resource.data.initiatorUid)
-        && changedKeysWithin(['time', 'members', 'booker', 'subCourse', 'updatedAt']);
+        && changedKeysWithin(['time', 'members', 'booker', 'subCourse', 'memo', 'memoBy', 'memoByName', 'memoAt', 'updatedAt']);
       // 수락 — 수신자(audience)가 memberUids에 '자기 uid'만 토글. 남 변조 완전차단은 규칙만으론 불가(roundScoreShares와 동일 한계, v1 허용).
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.audienceUids

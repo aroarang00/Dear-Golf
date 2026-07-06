@@ -137,6 +137,14 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { if (!confirmDelete) onClose(); }} />
         <View style={[sheetS.sheet, { maxHeight: '90%', paddingBottom: 20 + insets.bottom }]}>
           <View style={sheetS.handle} />
+          {/* 고정 ✕ — iOS는 백버튼 없고 시트가 길면 상단(핸들)이 노치 근처라 닫기 어려움(사용자 2026-07-06).
+              스크롤·길이와 무관하게 우상단 고정. 삭제 확인 중엔 숨김(취소/삭제 버튼으로 유도). */}
+          {!confirmDelete && (
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ position: 'absolute', top: 8, right: 12, zIndex: 5, width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: fs(19), color: C.warmGray }}>✕</Text>
+            </TouchableOpacity>
+          )}
 
           {/* 확대(디스플레이 줌) 시 메뉴가 길어져 시트가 화면 위로 넘쳐 상단(구장명) 잘리던 것 방지 — maxHeight + 스크롤 */}
           <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
@@ -228,16 +236,25 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     </View>
                   )
                 )}
-                {/* 메모(공지) 카드 — D-DAY 아래 별도 카드. 준비물·조편성·집결지 등. 있을 때만. 리스트 행과 구분(사용자 2026-07-06) */}
-                {!!schedule.memo && (
-                  <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                      <Text style={{ fontSize: fs(12.5) }}>📝</Text>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>메모</Text>
+                {/* 메모(공지) 카드 — D-DAY 아래. 전파 일정은 group.memo(실시간·수정자) / 혼자는 schedule.memo. 있을 때만(사용자 2026-07-06) */}
+                {(() => {
+                  const isGroupMemo = !!(schedule.groupId && group);
+                  const memoText = isGroupMemo ? (group?.memo || '') : (schedule.memo || '');
+                  if (!memoText) return null;
+                  const editor = isGroupMemo ? (group?.memoByName || '') : '';
+                  return (
+                    <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                        <Text style={{ fontSize: fs(12.5) }}>📝</Text>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>메모</Text>
+                      </View>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 23 }}>{memoText}</Text>
+                      {!!editor && (
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8 }}>✎ {editor}님이 마지막으로 수정</Text>
+                      )}
                     </View>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 23 }}>{schedule.memo}</Text>
-                  </View>
-                )}
+                  );
+                })()}
               </View>
               <TripleStripe height={2} />
               {items.map((it, i) => (

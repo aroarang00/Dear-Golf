@@ -91,9 +91,11 @@ test('scheduleGroups: 생성은 initiator==me + memberUids=[me] + declinedUids=[
 
 test('scheduleGroups: 내용수정(R2) — 멤버/생성자는 허용, 외부인 거부, 구장·날짜는 잠김', async () => {
   await seed((db) => setDoc(doc(db, 'scheduleGroups', 'g1'), groupBase({ memberUids: ['alice', 'bob'] })));
-  // 수락 멤버 bob — time/members/booker/subCourse 수정 허용
+  // 수락 멤버 bob — time/members/booker/subCourse/memo(+수정자) 수정 허용
   await assertSucceeds(updateDoc(doc(as('bob'), 'scheduleGroups', 'g1'),
-    { time: '07:30', members: 4, booker: '홍길동', subCourse: '동코스', updatedAt: serverTimestamp() }));
+    { time: '07:30', members: 4, booker: '홍길동', subCourse: '동코스',
+      memo: '1조 A·B / 2조 C·D · 집결 6:30', memoBy: 'bob', memoByName: 'Bob', memoAt: serverTimestamp(),
+      updatedAt: serverTimestamp() }));
   // 생성자 alice — 허용
   await assertSucceeds(updateDoc(doc(as('alice'), 'scheduleGroups', 'g1'),
     { members: 3, updatedAt: serverTimestamp() }));
