@@ -291,11 +291,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       ? '식사 2곳 ✓'
       : `${decidedPlaceName || '결정됨'} ✓`;
   // 박스 모드(홈 D-0 카드) 라벨 — 아이콘·텍스트·› 분리 렌더
+  // 홈 카드 버튼은 폭이 좁아 지점명(~점)까지 떼서 간결하게 — '수라면가 대부도점' → '수라면가' (사용자 2026-07-07)
+  const briefName = (() => { const s = decidedPlaceName; if (!s) return s; const m = s.match(/^(.+?)\s+\S*점$/); return m ? m[1] : s; })();
   const blockLabel = decidedCount === 0
     ? '함께 식사하기'
     : decidedCount === 2
       ? '식사 2곳 결정'
-      : `${decidedPlaceName || '식사'} ✓`;
+      : `${briefName || '식사'} ✓`;
 
   // 결정된 식사 한 칸 — 장소·메모·길찾기 + (총대) 변경·메모수정
   const renderMealCard = (meal, slot) => {
@@ -496,7 +498,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             borderTopWidth: 1, borderTopColor: decidedCount ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.4)',
             shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 }}>
           <Icon name="bowl" size={fs(21)} color={decidedCount ? C.butter : C.charcoal} />
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: decidedCount ? C.butter : C.charcoal, marginLeft: 6, includeFontPadding: false, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{blockLabel}</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: decidedCount ? C.butter : C.charcoal, marginLeft: 6, includeFontPadding: false, flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">{blockLabel}</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: decidedCount ? 'rgba(245,230,168,0.55)' : 'rgba(61,57,53,0.5)', marginLeft: 7, includeFontPadding: false }}>›</Text>
         </TouchableOpacity>
         </AttentionMotion>
