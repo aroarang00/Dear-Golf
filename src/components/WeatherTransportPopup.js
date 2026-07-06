@@ -6,7 +6,7 @@ import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDet
 import { C, F, fs } from '../constants/colors';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
-import { getCombinedForecast, pickHourSlots, pickRoundHourSlots, getUVIndex, pcpAmount } from '../utils/kma';
+import { getCombinedForecast, pickRollingHourSlots, pickRoundHourSlots, getUVIndex, pcpAmount } from '../utils/kma';
 import { getSunTimes } from '../utils/sun';
 import { getAirQuality } from '../utils/airkorea';
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
@@ -774,7 +774,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       const fine = pickRoundHourSlots(forecast?.slotsByDate || {}, targetDateCompact, teeMin);
       if (fine.length) return fine;
     }
-    return pickHourSlots(forecast?.slotsByDate || {}, targetDateCompact);
+    // 티오프 없는 경우(현재날씨 등) — '지금'부터 1시간 간격 6칸 롤링. 오늘 남은 게 부족하면
+    //   다음날로 자연 연속 → 오후에 열어도 3칸만 남지 않고 항상 6칸(사용자 2026-07-06).
+    return pickRollingHourSlots(forecast?.slotsByDate || {}, 6);
   }, [forecast, targetDateCompact, weatherOnly, schedule, teeMin]);
 
   // 미세먼지·자외선은 '오늘' 측정값만 정확 — 오늘 라운딩/현재날씨일 때만 점수에 반영
@@ -1152,14 +1154,14 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
               {/* ⑤ 라운딩 컨디션 */}
               <View style={wxS.condWrap}>
                 <Text style={wxS.sectionLabel}>라운딩 컨디션</Text>
-                {/* 시간 단위 안내 — 제목 바로 아래(직관, 사용자 2026-07-05). 1시간 정밀(라운딩 D0~3) vs 3시간(그 외) */}
+                {/* 시간 단위 안내 — 라운딩(티오프 전후 1시간) vs 현재날씨(지금부터 1시간 롤링, 사용자 2026-07-06) */}
                 {hourSlots.length > 0 && (
                   <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: 'rgba(255,255,255,0.45)', marginTop: -4, marginBottom: 8 }}>
-                    {hourSlots.length >= 2 && hourSlots[1].hour - hourSlots[0].hour === 1
-                      ? '라운딩 3일 전부터는 티오프 전후 날씨를 1시간 단위로 보여드려요'
-                      : (isRealRound
-                        ? '1시간 단위 날씨는 라운딩이 3일 안으로 가까워지면 보여드려요'
-                        : '오늘 날씨를 3시간 단위로 보여드려요')}
+                    {isRealRound
+                      ? (hourSlots.length >= 2 && hourSlots[1].hour - hourSlots[0].hour === 1
+                        ? '라운딩 3일 전부터는 티오프 전후 날씨를 1시간 단위로 보여드려요'
+                        : '1시간 단위 날씨는 라운딩이 3일 안으로 가까워지면 보여드려요')
+                      : '지금 시각부터 1시간 단위로 보여드려요'}
                   </Text>
                 )}
                 {hourSlots.length === 0 ? (

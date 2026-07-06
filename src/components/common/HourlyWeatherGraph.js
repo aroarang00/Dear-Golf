@@ -26,6 +26,8 @@ export const HourlyWeatherGraph = React.memo(function HourlyWeatherGraph({ slots
   const n = slots.length;
   const colW = w > 0 ? (w - GUTTER) / n : 0;
   const xs = slots.map((_, i) => GUTTER + colW * (i + 0.5));
+  // 롤링(현재날씨)에서 날짜가 바뀌는 첫 칸 — 그 위에 '내일' 라벨(네이버식, 사용자 2026-07-06). date 없으면(티오프 라운딩) -1.
+  const nextDayIdx = slots.findIndex((s, i) => i > 0 && s.date && slots[i - 1].date && s.date !== slots[i - 1].date);
 
   const temps = slots.map(s => (Number.isFinite(s.temp) ? s.temp : null));
   const valid = temps.filter(t => t !== null);
@@ -70,6 +72,20 @@ export const HourlyWeatherGraph = React.memo(function HourlyWeatherGraph({ slots
           {teeIdx >= 0 && teeIdx < n && (
             <View pointerEvents="none" style={{ position: 'absolute', left: GUTTER + colW * teeIdx, width: colW, top: -4, bottom: -4,
               backgroundColor: 'rgba(245,230,168,0.07)', borderRadius: 10, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.22)' }} />
+          )}
+
+          {/* '내일' 라벨 — 롤링에서 자정 넘어가는 첫 칸 위(네이버식, 사용자 2026-07-06). date 있는 슬롯에서만 */}
+          {nextDayIdx > 0 && (
+            <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+              <View style={{ width: GUTTER }} />
+              {slots.map((s, i) => (
+                <View key={`nd${i}`} style={cell}>
+                  {i === nextDayIdx ? (
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(9), color: '#F5E6A8' }} numberOfLines={1}>내일</Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
           )}
 
           {/* 시간(24h) */}

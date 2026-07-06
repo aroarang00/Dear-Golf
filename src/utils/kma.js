@@ -247,19 +247,6 @@ function toUiSlot(slot, h) {
   };
 }
 
-// 라운딩 컨디션 6시간대(6/9/12/15/18/21시) 추출.
-// dateStr: 'YYYYMMDD'. 없거나 범위 밖이면 [] 반환.
-export function pickHourSlots(slotsByDate, dateStr) {
-  const slots = slotsByDate?.[dateStr] || [];
-  if (!slots.length) return [];
-  const TARGET_HOURS = [6, 9, 12, 15, 18, 21];
-  return TARGET_HOURS.map(h => {
-    const slot = slots.find(s => parseInt(s.fcstTime, 10) === h * 100);
-    if (!slot) return null;
-    return toUiSlot(slot, h);
-  }).filter(Boolean);
-}
-
 // 라운딩 날 1시간 간격 슬롯 — 티오프 1시간 전 ~ +5시간(라운드 종료 무렵).
 //   단기예보는 1시간 간격을 주는데 6칸(3시간)으로 뭉개면 '오후 2시 소나기'가 안 보였음(사용자 라운딩 피드백 2026-07-05).
 //   예보 범위 밖 등으로 3칸 미만이면 [] 반환 → 호출부가 기존 6칸으로 폴백.
@@ -277,6 +264,29 @@ export function pickRoundHourSlots(slotsByDate, dateStr, teeMin) {
     out.push(toUiSlot(s, h));
   }
   return out.length >= 3 ? out : [];
+}
+
+// 라운딩 컨디션 롤링 슬롯 — '지금 시각'부터 1시간 간격 count칸. 오늘 남은 시간이 부족하면
+//   다음 날 슬롯으로 자연 연속(단기예보 D0~D3 범위 내). 고정 시간표(pickHourSlots)가 오후엔
+//   지난 시간(6/9/12시)이 빠져 3칸만 남아 휑하던 것 대체 — 항상 '지금부터 앞으로 count시간'을
+//   보여준다(사용자 2026-07-06). 데이터 없으면(D4+ 등) [] → 호출부가 안내 문구 표시.
+export function pickRollingHourSlots(slotsByDate, count = 6, now = new Date()) {
+  const all = [];
+  for (const k of Object.keys(slotsByDate || {})) {
+    for (const s of (slotsByDate[k] || [])) all.push(s);
+  }
+  if (!all.length) return [];
+  all.sort((a, b) => (a.fcstDate + a.fcstTime).localeCompare(b.fcstDate + b.fcstTime));
+  // 현재 시각(정시 기준) 이상인 첫 슬롯부터 count개 — 날짜 경계를 넘어도 시간순으로 계속 채움
+  const nowKey = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}00`;
+  const out = [];
+  for (const s of all) {
+    if ((s.fcstDate + s.fcstTime) < nowKey) continue;
+    if (s.TMP === undefined && s.SKY === undefined) continue; // 부분 슬롯 방어
+    out.push({ ...toUiSlot(s, Math.floor(parseInt(s.fcstTime, 10) / 100)), date: s.fcstDate }); // date: 자정 넘어가는 '내일' 라벨용
+    if (out.length >= count) break;
+  }
+  return out;
 }
 
 // SKY: 1맑음 3구름많음 4흐림 / PTY: 0없음 1비 2비/눈 3눈 4소나기
