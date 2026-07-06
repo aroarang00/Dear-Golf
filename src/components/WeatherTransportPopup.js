@@ -793,6 +793,15 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   // dDay가 0으로 들어온다. '라운딩 시점' 정밀 라벨·티오프 배지·10일예보 라운딩 배지에서 제외하고 현재 날씨로 안내.
   const isRealRound = !weatherOnly && !schedule?.overseas && !schedule?.isPreview && Number.isFinite(schedule?.dDay);
 
+  // 라운딩이 이미 끝났으면(과거 일정 or 당일 티오프+라운드 종료 후) — 지난 시간창 예보가 '—'로 어정쩡하게
+  //   뜨던 라운딩 브리핑을 숨긴다(사용자 2026-07-06). 그래프·골프지수는 현재 기준으로 계속 표시.
+  const roundOver = isRealRound && (() => {
+    if (schedule.dDay < 0) return true;
+    if (schedule.dDay !== 0) return false;
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes() > teeMin + ROUND_MIN;
+  })();
+
   // 티오프와 가장 가까운 슬롯 — 90분(슬롯 간격의 절반) 초과면 표시 안 함
   // (이른 슬롯이 base_time 이전이라 빠진 경우 멀리 떨어진 오후 슬롯에 잘못 붙는 것 방지)
   const teeoffSlotIdx = (() => {
@@ -1092,7 +1101,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                     </View>
                     {/* 라운딩 브리핑 — 기온범위·강수총량·일출/일몰 3칸 한 줄. 체감·바람은 4칸 카드·그래프와 중복이라 제외,
                         일출·일몰은 같은 비중으로 나란히(사용자 2026-07-05). 추가 API 0 — 전부 기존 데이터 파생 */}
-                    {isRealRound && (() => {
+                    {isRealRound && !roundOver && (() => {
                       // 라운딩 시간창(티오프 -1h~+5h) — 기온 범위·강수 총량
                       const win = hourSlots.filter(s => s.hour * 60 >= teeMin - 60 && s.hour * 60 <= teeMin + 300);
                       const ts = win.map(s => s.temp).filter(Number.isFinite);
