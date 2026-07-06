@@ -50,7 +50,14 @@ export function AppAlertHost() {
     // presentationStyle="overFullScreen" — iOS에서 부모 Modal(MyPageModal·ScheduleSheetModal 등) 위에 표시되게.
     // 없으면 alert가 부모 modal 뒤로 깔리는 RN 알려진 이슈 발생.
     // statusBarTranslucent — Android 상태바 영역까지 덮어서 alert가 상단까지 정상 노출.
-    <Modal visible transparent animationType="fade" onRequestClose={close}
+    <Modal visible transparent animationType="fade"
+      onRequestClose={() => {
+        // 안드 백버튼 = cancel 버튼과 동등(RN Alert 표준). cancel의 onPress도 실행해야
+        //   '전파 제안 → (백버튼) → 알람'처럼 cancel onPress에 이어지는 흐름이 끊기지 않음(리뷰 2026-07-06).
+        close();
+        const cancelBtn = buttons.find((b) => b.style === 'cancel');
+        cancelBtn && cancelBtn.onPress && cancelBtn.onPress();
+      }}
       presentationStyle="overFullScreen" statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingTop: 24, paddingHorizontal: 22, paddingBottom: 16, width: '100%', maxWidth: 340 }}>
