@@ -202,9 +202,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                 {(companionNames.length > 0 || (schedule.groupId && !group)) && (
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 }}>
                     <View style={{ width: 20, alignItems: 'center', marginTop: 1 }}><Icon name="people" size={17} color={C.textSecondary} strokeWidth={1.6} /></View>
-                    <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={2}>
-                      {/* 단체 등 5명 이상이면 이름 나열 대신 인원만(명단은 단체팀 화면에) ([[event-model]]) */}
-                      {companionNames.length > 4 ? `동반자 ${companionNames.length}명`
+                    <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={3}>
+                      {/* 일정 전파는 최대 8명 → 8명까지 이름 다 표시(초대중 포함). 9명↑(라운지 단체 대량 모집)만 인원 축약,
+                          명단은 단체팀 화면에 ([[event-model]], 5→9 상향 사용자 2026-07-06) */}
+                      {companionNames.length > 8 ? `동반자 ${companionNames.length}명`
                         : companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
                     </Text>
                   </View>
