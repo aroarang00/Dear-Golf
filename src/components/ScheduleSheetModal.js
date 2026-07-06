@@ -228,6 +228,16 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     </View>
                   )
                 )}
+                {/* 메모(공지) 카드 — D-DAY 아래 별도 카드. 준비물·조편성·집결지 등. 있을 때만. 리스트 행과 구분(사용자 2026-07-06) */}
+                {!!schedule.memo && (
+                  <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={{ fontSize: fs(12.5) }}>📝</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>메모</Text>
+                    </View>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 23 }}>{schedule.memo}</Text>
+                  </View>
+                )}
               </View>
               <TripleStripe height={2} />
               {items.map((it, i) => (

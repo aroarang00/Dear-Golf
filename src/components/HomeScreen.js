@@ -937,6 +937,7 @@ export function HomeScreen({ navigation, route }) {
           companions: Array.isArray(data.companions) ? data.companions : [], // 동반자
           booker: data.booker || '',                 // 예약자(체크인 이름)
           subCourse: data.subCourse || '',           // 코스(세부코스 라벨)
+          memo: data.memo || '',                     // 일정 메모(공지)
         });
       } catch (e) {
         console.warn('[home] schedule add failed:', e?.message);
@@ -969,6 +970,7 @@ export function HomeScreen({ navigation, route }) {
           companions: Array.isArray(data.companions) ? data.companions : [],
           booker: data.booker || '',                 // 예약자(체크인 이름)
           subCourse: data.subCourse || '',           // 코스(세부코스 라벨)
+          memo: data.memo || '',                     // 일정 메모(공지)
         });
       } catch (e) {
         console.warn('[home] schedule edit failed:', e?.message);

@@ -57,6 +57,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [booker, setBooker] = useState('');
   // 코스 — 골프장 내 세부코스 라벨(레이크/동→서 등). 구장 매칭과 무관·자유 입력, 공유 카드 표시·기록 자동채움용 ([[schedule-booker]])
   const [subCourse, setSubCourse] = useState('');
+  const [memo, setMemo] = useState(''); // 일정 메모(공지) — 준비물·조편성·집결지 등. 전파 시 동반자 공유(2차 동기화)
   const [subCourseOpts, setSubCourseOpts] = useState([]); // 선택 구장의 세부코스 칩 제안(시드된 구장만)
   // 선택 구장 바뀌면 세부코스 칩 제안 로드 — 시드된 구장만(없으면 []=칩 미표시, 자유입력 유지)
   useEffect(() => {
@@ -110,6 +111,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       setCompanionInput('');
       setBooker(initial.booker || '');
       setSubCourse(initial.subCourse || '');
+      setMemo(initial.memo || '');
       setOverseas(!!initial.overseas);
       if (initial.overseas && initial.city) {
         setCityQuery(initial.city);
@@ -222,7 +224,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setDate(new Date()); setHourText('07'); setMinText('00'); setMembers('4');
     setEditingName(false); setEditName('');
     setCompanions([]); setCompanionInput('');
-    setBooker(''); setSubCourse('');
+    setBooker(''); setSubCourse(''); setMemo('');
     setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
   };
 
@@ -288,6 +290,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       ],
       booker: (booker || '').trim(),  // 예약자(체크인 이름) — 선택 입력
       subCourse: (subCourse || '').trim(), // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관
+      memo: (memo || '').trim(),      // 일정 메모(공지) — 준비물·조편성·집결지 등
       dDay: Math.max(0, dDay),
     };
     // 저장을 await — 실패하면(onSave가 false 반환) 모달을 닫지 않고 입력을 보존한 채 안내.
@@ -601,6 +604,18 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
                 💡 프론트 체크인 때 보여줄 예약자 이름이에요
               </Text>
+
+              {/* 메모 (선택) — 준비물·집결지·조편성 등. 여러 줄. 전파 일정이면 동반자와 공유(2차 동기화). (사용자 2026-07-06) */}
+              <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray, marginTop: 18 }]}>메모 (선택)</Text>
+              <AppTextInput style={[mS.input, { fontSize: fs(15), minHeight: 82, textAlignVertical: 'top' }]}
+                value={memo} onChangeText={setMemo}
+                placeholder={'준비물·집결 장소·조 편성 등 자유롭게\n예) 1조 A·B·C·D 7:00 / 집결 6:30 클럽하우스'}
+                placeholderTextColor={C.warmGrayLight} multiline />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                💡 동반자에게 전파한 일정이면 이 메모도 함께 보여요
+              </Text>
+              {/* 메모(폼 마지막 입력) 포커스 시 키보드 위로 올라올 스크롤 여백 — 안드 키보드 가림 방지(사용자 2026-07-06) */}
+              <View style={{ height: 140 }} />
 
             </KeyboardAwareScrollView>
           {/* C. 고정 하단 바 — 항상 보이는 취소/저장(스크롤 끝까지 안 내려가도 닫기·저장 가능) */}

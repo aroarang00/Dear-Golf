@@ -53,6 +53,7 @@ export async function createSchedule(data) {
     companions: Array.isArray(data.companions) ? data.companions : [], // 동반자 [{name, friendUid?}]
     booker: data.booker || '',   // 예약자(체크인 이름) — 선택 입력 ([[schedule-booker]])
     subCourse: data.subCourse || '', // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관
+    memo: data.memo || '',       // 일정 메모(공지) — 준비물·조편성·집결지 등. 전파 동기화는 2차
     roundupId: data.roundupId || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
