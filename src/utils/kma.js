@@ -267,6 +267,11 @@ export function pickHourSlots(slotsByDate, dateStr) {
 export function pickRoundHourSlots(slotsByDate, dateStr, teeMin) {
   const slots = slotsByDate?.[dateStr] || [];
   if (!slots.length || !Number.isFinite(teeMin)) return [];
+  // 먼 라운드(D+3 등)는 기상청 단기예보가 1시간 간격이 아니라 '3시간 간격'만 준다(06/09/12/15/18/21).
+  //   이 좁은 티오프±5h 윈도우로 뽑으면 아침 티오프 기준 6/9/12 3칸만 걸리고 오후가 통째로 빠짐 → out.length>=3을
+  //   통과해 폴백을 막아버림. 그래서 '정밀(1시간) 데이터'가 아닐 땐 []로 폴백 → pickHourSlots(종일 6/9/12/15/18/21).
+  const hasHourly = slots.some(s => parseInt(s.fcstTime, 10) % 300 !== 0);
+  if (!hasHourly) return [];
   const teeHour = Math.floor(teeMin / 60);
   const startH = Math.max(0, teeHour - 1);
   const endH = Math.min(23, teeHour + 5);
