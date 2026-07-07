@@ -1118,7 +1118,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       const rainSub = win.length && (totalMm > 0 || popMax >= 30) ? `확률 최대 ${Math.round(popMax)}%` : '';
                       // 일출·일몰 — 로컬 계산(sun.js), 두 시각을 같은 스타일로 나란히
                       const sun = courseCoord ? getSunTimes(courseCoord.y, courseCoord.x, schedule?.date) : null;
-                      if (tempVal === '—' && rainVal === '—' && !sun) return null;
+                      // 라운딩 기온·예상강수가 둘 다 없으면(먼 라운드 D+4+=예보 범위 밖) 브리핑 자체를 숨긴다 —
+                      //   일출·일몰만 남겨 '라운딩 기온 —, 예상 강수 —'가 뜨던 반쪽 표시 제거(사용자 2026-07-07).
+                      if (tempVal === '—' && rainVal === '—') return null;
                       // 칸마다 줄 수(1~2줄)가 달라 들쭉날쭉하던 것 → 세로 중앙 정렬 + 빈 자리표시 제거 + 안쪽 카드 마감(사용자 2026-07-05 '깔끔하게')
                       const cellLine = 'rgba(255,255,255,0.1)';
                       const cellBox = (i) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 4,
