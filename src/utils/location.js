@@ -74,9 +74,16 @@ export async function hasLocationPermission() {
 }
 
 // 역지오코딩 (좌표 → 주소 텍스트) — 중기예보 지역코드 매핑용
-export async function reverseGeocode(lat, lng) {
+// timeoutMs: iOS의 reverseGeocodeAsync는 Apple 지오코더를 쓰는데 호출이 잦으면 강하게 rate-limit돼
+//   응답이 무한 지연(hang)될 수 있다. 타임아웃이 없으면 이걸 await하는 날씨 fetch가 통째로 멈춰
+//   '빙글빙글 무한 로딩'이 됐다(간헐적). loc은 부가데이터(중기예보·미세먼지·자외선)용일 뿐 —
+//   현재 기온 등 실제 날씨는 좌표만으로 받으므로, 지오코더가 느리면 ''로 폴백해 파이프라인을 계속 진행시킨다.
+export async function reverseGeocode(lat, lng, timeoutMs = 6000) {
   try {
-    const results = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+    const results = await Promise.race([
+      Location.reverseGeocodeAsync({ latitude: lat, longitude: lng }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('geocode-timeout')), timeoutMs)),
+    ]);
     const r = results?.[0];
     if (!r) return '';
     // 예: "서울특별시 강남구" 또는 "경기도 용인시"
