@@ -17,36 +17,40 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
   const [alarmCfg, setAlarmCfg] = useState(null); // 이 라운드에 설정된 알람 { types, opts } — 요약 표시
-  useEffect(() => {
-    if (!visible || !schedule?.id) { setAlarmCfg(null); return; }
-    let alive = true;
-    getAlarmConfig(schedule.id).then(c => { if (alive) setAlarmCfg(c); }).catch(() => {});
-    return () => { alive = false; };
-  }, [visible, schedule?.id]);
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [group, setGroup] = useState(null); // 전파 일정 그룹(동반자 이름 보강)
   const [friendNames, setFriendNames] = useState({}); // uid→닉네임 — friendMeta엔 별명만 있어 닉네임은 친구목록에서 보강
   useEffect(() => { if (!visible) setConfirmDelete(false); }, [visible]); // 시트 닫힐 때 상태 초기화
-  // 전파 일정(groupId)이면 그룹 + 친구 닉네임 맵 로드 — memberUids(수락)·audienceUids(초대중)로 동반자 이름 보강.
-  //   '친구 초대'로 부른 동반자는 schedule.companions엔 없고 audienceUids에만 있어, 그룹 + 닉네임 없이는 '친구'로만 떴음([[schedule-propagation-spec]]).
+  // 시트를 '완성된 상태로' 슬라이드시킨다 — 부가데이터(알람 설정·전파 그룹·친구 닉네임)를 먼저 로드한 뒤에야
+  //   Modal을 열어(showSheet), 열린 뒤 알람요약·동반자·메모가 계단식으로 삽입/리플로우되던 것을 근본 제거
+  //   (사용자 2026-07-07 — '열고 나서 채우기'는 무엇이 늦든 계단식이 생겨, '로드 후 열기'로 전환).
+  //   느린 네트워크 대비 최대 600ms 캡 — 그 안에 못 받으면 있는 것만으로 오픈(드물게만 잔여 채움). 솔로는 알람만이라 즉시.
+  const [showSheet, setShowSheet] = useState(false);
   useEffect(() => {
-    if (!visible || !schedule?.groupId) { setGroup(null); setFriendNames({}); return; }
+    if (!visible || !schedule?.id) { setShowSheet(false); setAlarmCfg(null); setGroup(null); setFriendNames({}); return; }
     let alive = true;
-    getScheduleGroup(schedule.groupId).then(g => {
+    const cap = setTimeout(() => { if (alive) setShowSheet(true); }, 600);
+    (async () => {
+      const [cfg, g] = await Promise.all([
+        getAlarmConfig(schedule.id).catch(() => null),
+        schedule.groupId ? getScheduleGroup(schedule.groupId).catch(() => null) : Promise.resolve(null),
+      ]);
       if (!alive) return;
-      setGroup(g);
-      // 그룹에 이름맵(names)이 있으면(신규) 친구목록 조회 생략 = 최적화. 없으면(옛 그룹) 폴백 조회.
-      if (g?.names && Object.keys(g.names).length) { setFriendNames({}); return; }
-      loadMyFriendsEnriched().then(list => {
+      // 동반자 이름은 그룹뿐 아니라(옛 그룹=이름맵 없음) 친구목록까지 필요 → 함께 받아 한 번에 반영
+      //   ([[schedule-propagation-spec]] — '친구 초대' 동반자는 audienceUids에만 있어 그룹+닉네임 없이는 '친구'로만 떴음).
+      let fnames = {};
+      if (g && !(g.names && Object.keys(g.names).length)) {
+        const list = await loadMyFriendsEnriched().catch(() => null);
         if (!alive) return;
-        const m = {};
-        (list || []).forEach(f => { if (f?.id) m[f.id] = f.customName || f.name || ''; });
-        setFriendNames(m);
-      }).catch(() => {});
-    }).catch(() => {});
-    return () => { alive = false; };
-  }, [visible, schedule?.groupId]);
+        if (list) list.forEach(f => { if (f?.id) fnames[f.id] = f.customName || f.name || ''; });
+      }
+      if (!alive) return;
+      setAlarmCfg(cfg); setGroup(g); setFriendNames(fnames);
+      setShowSheet(true); // 데이터 준비 완료 → 완성된 상태로 슬라이드
+    })();
+    return () => { alive = false; clearTimeout(cap); };
+  }, [visible, schedule?.id, schedule?.groupId]);
   if (!schedule) return null;
   const dd = schedule.dDay;
   const isPast = dd != null && dd < 0;        // 지난 라운딩 — 날씨·교통 숨김
@@ -132,7 +136,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   })();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible && showSheet} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheetS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { if (!confirmDelete) onClose(); }} />
         <View style={[sheetS.sheet, { maxHeight: '90%', paddingBottom: 20 + insets.bottom }]}>
