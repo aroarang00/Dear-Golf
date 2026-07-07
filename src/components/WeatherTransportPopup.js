@@ -174,8 +174,9 @@ const uvPenalty = (uvIndex) => {
 };
 
 // 날씨 점수 (0~100) — 골프 지수와 라운딩 컨디션이 공통으로 사용하는 단일 공식
-// 풍속(30) + 강수확률(35) + 체감기온(35), 연속 보간 + 강수 상한 + 미세먼지·자외선 감점
-const scoreWeather = ({ temp, wind, pop, humidity, windKnown = true, airQuality = null, uvIndex = null }) => {
+// 풍속(30) + 강수확률(35) + 체감기온(35), 연속 보간 + 강수 상한(확률·강수량) + 미세먼지·자외선 감점
+// pcpMm: 대표 강수량(mm). '1mm 미만'=1 · 강수없음=0 · 미상=null. 이슬비(≤1mm)는 확률 높아도 봐준다.
+const scoreWeather = ({ temp, wind, pop, humidity, windKnown = true, airQuality = null, uvIndex = null, pcpMm = null }) => {
   if (temp == null || !Number.isFinite(temp)) return null;
   const ft = feelsLike(temp, wind, humidity); // 기온 점수는 체감온도 기준
 
@@ -213,9 +214,21 @@ const scoreWeather = ({ temp, wind, pop, humidity, windKnown = true, airQuality 
   else tempScore = 0;
 
   let total = windScore + popScore + tempScore;
-  // 강수 상한 — 비 올 확률이 높으면 기온·바람이 좋아도 등급 상한을 둠
-  if (p >= 70) total = Math.min(total, 38);       // 최대 '주의'
-  else if (p >= 50) total = Math.min(total, 58);  // 최대 '보통'
+  // 강수 상한 — 확률뿐 아니라 '강수량(mm)'도 함께 본다(골프는 '얼마나 오나'가 중요).
+  //   이슬비(1mm 이하)는 확률이 높아도 실제 지장이 적어 봐준다(최대 '좋음'). 강수량 미상이면 기존 확률 기준.
+  const mm = Number.isFinite(pcpMm) ? pcpMm : null;
+  if (mm != null) {
+    if (mm > 0) {
+      if (mm >= 10) total = Math.min(total, 38);                    // 강한 비 → 확률 무관 '주의'
+      else if (mm >= 3) total = Math.min(total, p >= 50 ? 38 : 58); // 제법(3mm↑): 확률 높으면 '주의', 아니면 '보통'
+      else if (mm > 1) { if (p >= 50) total = Math.min(total, 58); } // 약한 비(1~3mm): 확률 있으면 '보통'
+      else if (p >= 60) total = Math.min(total, 74);                // 이슬비(≤1mm)라도 확률 높으면 최대 '좋음'
+    }
+    // mm===0(강수없음)은 상한 없음 — 비가 안 오니 기온·바람이 등급을 결정
+  } else {
+    if (p >= 70) total = Math.min(total, 38);       // (강수량 미상) 최대 '주의'
+    else if (p >= 50) total = Math.min(total, 58);  // (강수량 미상) 최대 '보통'
+  }
   // 미세먼지·자외선 감점 (해당일 데이터가 있을 때만 전달됨)
   total -= airPenalty(airQuality);
   total -= uvPenalty(uvIndex);
@@ -241,6 +254,7 @@ const calcDots = (slot, airQuality, uvIndex) => {
   const total = scoreWeather({
     temp: slot?.temp, wind: slot?.wind, pop: slot?.rain,
     humidity: slot?.humidity, windKnown: true, airQuality, uvIndex,
+    pcpMm: pcpAmount(slot?.pcp),   // 강수량 반영 — 이슬비(≤1mm) 봐주기
   });
   if (total == null) return { dots: 0, label: '—', total: null };
   const g = gradeFromScore(total);
@@ -834,12 +848,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     const isScheduled = isRealRound;
     const usePrecise = isScheduled && schedule.dDay <= 3 && hourSlots.length > 0;
 
-    let temp = null, wind = null, pop = null, humidity = null, windKnown = true;
+    let temp = null, wind = null, pop = null, humidity = null, windKnown = true, pcpMm = null;
     if (usePrecise) {
       const slot = hourSlots[teeoffSlotIdx >= 0 ? teeoffSlotIdx : Math.min(2, hourSlots.length - 1)];
       temp = slot?.temp; wind = slot?.wind; pop = slot?.rain; humidity = slot?.humidity;
+      pcpMm = pcpAmount(slot?.pcp);   // 정밀 슬롯은 강수량도 있음 → 이슬비 봐주기 반영
     } else {
-      // weatherOnly·해외·D+4+ 모두 현재 날씨로
+      // weatherOnly·해외·D+4+ 모두 현재 날씨로 (강수량 미상 → pcpMm=null, 확률 기준 폴백)
       temp = cur?.temp;
       wind = cur?.windSpeed;
       pop = cur?.pop ?? todayDay?.pop ?? 0;
@@ -848,7 +863,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
 
     const total = scoreWeather({
       temp, wind, pop, humidity, windKnown,
-      airQuality: airForScore, uvIndex: uvForScore,
+      airQuality: airForScore, uvIndex: uvForScore, pcpMm,
     });
     if (total == null) return null;
     const label = gradeFromScore(total).idx;
