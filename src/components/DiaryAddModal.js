@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SpinnerPicker } from './common/SpinnerPicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
+import { isVideoOverLimit, VIDEO_MAX_MB } from '../utils/mediaLimits';
 import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS, COURSE_TAG_OPPOSITES, WEEKDAYS } from '../constants/data';
 import { searchGolfCourses } from '../utils/golfCourses';
@@ -230,6 +231,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       let assets = result.assets.filter(a => !(a.type === 'video' && a.duration && a.duration > MAX_VIDEO_SEC * 1000 + 500));
       if (overLimit.length) {
         setOverlay({ title: '동영상이 너무 길어요', message: `동영상은 최대 ${MAX_VIDEO_SEC}초까지 올릴 수 있어요.\n길이를 넘는 ${overLimit.length}개는 제외했어요.` });
+      }
+      // 용량 초과 영상 제외 — 안드는 원본 그대로라 큰 영상이 업로드 규칙(100MB)서 거절·크래시됨. 선택 단계에서 미리 거른다([[video-upload-oom]]).
+      const sizeChecked = await Promise.all(assets.map(async (a) => ({
+        a, over: a.type === 'video' ? (await isVideoOverLimit(a.uri, VIDEO_MAX_MB.rounds, a.fileSize)).over : false,
+      })));
+      const oversize = sizeChecked.filter((s) => s.over);
+      assets = sizeChecked.filter((s) => !s.over).map((s) => s.a);
+      if (oversize.length) {
+        setOverlay({ title: '동영상 용량이 너무 커요', message: `동영상은 최대 ${VIDEO_MAX_MB.rounds}MB까지 올릴 수 있어요.\n용량을 넘는 ${oversize.length}개는 제외했어요.` });
       }
       // 영상 개수 제한(MAX_VIDEOS) — 기존 첨부 영상 + 이번 선택 영상 합산. 초과분은 제외하고 이유를 안내(어리둥절 방지).
       const videosNow = addPhotos.filter(p => p && typeof p === 'object' && p.type === 'video').length;

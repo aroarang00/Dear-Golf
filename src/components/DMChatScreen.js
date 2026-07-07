@@ -15,6 +15,7 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { LinkText } from './common/LinkText';
 import { ensureConversation, sendMessage, sendImagesMessage, sendVideoMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import * as ImagePicker from 'expo-image-picker';
+import { isVideoOverLimit, VIDEO_MAX_MB } from '../utils/mediaLimits';
 import { storage } from '../utils/storage';
 import { setActiveDmPair } from '../utils/notifications';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -537,7 +538,13 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
       if (res.canceled) return;
       const assets = res.assets || [];
       pushImages(assets.filter(a => a?.uri && a.type !== 'video').map(a => a.uri));
-      pushVideos(assets.filter(a => a?.uri && a.type === 'video').map(a => a.uri));
+      // 용량 초과 영상 제외 — 안드는 원본 그대로라 큰 영상이 업로드 규칙(80MB)서 거절·크래시됨. 선택 단계에서 미리 거른다([[video-upload-oom]]).
+      const vidAssets = assets.filter(a => a?.uri && a.type === 'video');
+      const vidChecked = await Promise.all(vidAssets.map(async (a) => ({ uri: a.uri, over: (await isVideoOverLimit(a.uri, VIDEO_MAX_MB.dm, a.fileSize)).over })));
+      const okVideos = vidChecked.filter(v => !v.over).map(v => v.uri);
+      const overCount = vidChecked.length - okVideos.length;
+      if (overCount > 0) setAlert({ title: '동영상 용량이 너무 커요', message: `동영상은 최대 ${VIDEO_MAX_MB.dm}MB까지 보낼 수 있어요.\n용량을 넘는 ${overCount}개는 제외했어요.`, buttons: [{ text: '확인' }] });
+      pushVideos(okVideos);
     } catch (e) {
       if (__DEV__) console.warn('[DMChat] pickImage', e?.message);
     }

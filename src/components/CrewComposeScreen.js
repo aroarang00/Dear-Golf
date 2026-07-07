@@ -12,6 +12,7 @@ import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { uploadRoundMedia } from '../utils/roundMedia';
+import { isVideoOverLimit, VIDEO_MAX_MB } from '../utils/mediaLimits';
 import { addCrewPost, editCrewPost, setCrewNotice } from '../utils/crews';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { showAppAlert } from './AppAlert';
@@ -232,6 +233,12 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
       //   넘으면 조용히 들어갔다 업로드·재생서 깨지던 것 → 선택 단계에서 안내하고 막음.
       if (a.duration && a.duration > (MAX_VIDEO_SEC + 1) * 1000) {
         showAppAlert('영상이 너무 길어요', `${MAX_VIDEO_SEC}초 이내 영상만 올릴 수 있어요 (선택한 영상 약 ${Math.round(a.duration / 1000)}초).`);
+        return;
+      }
+      // 용량 제한 — 안드는 원본 그대로라 큰 영상이 업로드 규칙(100MB)서 거절·크래시됨. 선택 단계에서 막고 이유를 안내([[video-upload-oom]]).
+      const { over, sizeMB } = await isVideoOverLimit(a.uri, VIDEO_MAX_MB.rounds, a.fileSize);
+      if (over) {
+        showAppAlert('영상 용량이 너무 커요', `동영상은 최대 ${VIDEO_MAX_MB.rounds}MB까지 올릴 수 있어요${sizeMB ? ` (선택한 영상 약 ${sizeMB}MB)` : ''}.\n더 짧게 찍거나 화질을 낮춰 다시 시도해주세요.`);
         return;
       }
       const ar = (a.width && a.height) ? a.width / a.height : undefined;   // 영상 원본 비율 → 피드 표시

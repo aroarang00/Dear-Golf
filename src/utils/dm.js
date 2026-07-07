@@ -11,6 +11,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'fi
 import { db, getUid, storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
 import { compressImage } from './imageCompress';
+import { uploadLocalFileStreaming } from './storageUpload';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 
 const CONV = 'conversations';
@@ -166,10 +167,10 @@ export async function uploadDmVideo(videoUri) {
   const localUri = resolvePhotoUri(videoUri);
   const ext = (videoUri.split('?')[0].split('.').pop() || 'mp4').toLowerCase().slice(0, 4);
   const contentType = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
-  const res = await fetch(localUri);
-  const blob = await res.blob();
-  const vRef = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`);
-  await uploadBytes(vRef, blob, { contentType }); // contentType 명시 — Storage 규칙 video/* 매칭
+  const vPath = `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`;
+  const vRef = storageRef(storage, vPath);
+  // 영상은 디스크→스트리밍 업로드 — 힙 Blob으로 올리면 대용량에서 OOM 크래시([[video-upload-oom]]).
+  await uploadLocalFileStreaming(vPath, localUri, contentType);
   const url = await getDownloadURL(vRef);
   let poster = null;
   try {

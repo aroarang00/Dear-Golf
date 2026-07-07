@@ -3,6 +3,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
 import { compressImage } from './imageCompress';
+import { uploadLocalFileStreaming } from './storageUpload';
 
 // 친구공개 다이어리의 사진/영상을 Firebase Storage에 올려 친구가 볼 수 있는 https URL로 바꾼다 ([[friend-feed-design]]).
 //  - 현재 다이어리 사진은 'dgphoto:' 로컬 식별자 → 친구 폰에선 못 읽음. 그래서 친구공개 시에만 업로드.
@@ -68,17 +69,24 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
   if (/^https?:\/\//.test(rawUri)) return item; // 이미 원격(업로드 완료) — 멱등
   try {
     const localUri = resolvePhotoUri(rawUri);              // dgphoto: → 기기 절대경로
-    const uploadUri = isVideo ? localUri : await compressImage(localUri, compressOpts);
-    const res = await fetch(uploadUri);
-    const blob = await res.blob();
     const srcExt = (rawUri.split('?')[0].split('.').pop() || '').toLowerCase().slice(0, 4);
     const ext = isVideo ? (srcExt || 'mp4') : 'jpg';
     const contentType = isVideo
       ? (srcExt === 'mov' ? 'video/quicktime' : 'video/mp4')
       : 'image/jpeg';
     const name = `m_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const storageRef = ref(storage, `rounds/${uid}/${name}`);
-    await uploadBytes(storageRef, blob, { contentType }); // contentType 명시 — Storage 규칙 image/*·video/* 매칭 보장
+    const storagePath = `rounds/${uid}/${name}`;
+    const storageRef = ref(storage, storagePath);
+    if (isVideo) {
+      // 영상은 디스크→스트리밍 업로드 — 파일 전체를 힙 Blob으로 올리면 대용량에서 OOM 크래시([[video-upload-oom]]).
+      await uploadLocalFileStreaming(storagePath, localUri, contentType);
+    } else {
+      // 사진은 압축(수백KB) 후 Blob 업로드 — 작아서 힙 부담 없음.
+      const uploadUri = await compressImage(localUri, compressOpts);
+      const res = await fetch(uploadUri);
+      const blob = await res.blob();
+      await uploadBytes(storageRef, blob, { contentType }); // contentType 명시 — Storage 규칙 image/* 매칭 보장
+    }
     const url = await getDownloadURL(storageRef);
     // 사진 객체({uri, focus})는 메타 보존, 단순 문자열 사진은 그대로 https 문자열 ([[cover-focal-point]])
     //   단 orig(로컬 재편집용 원본 dgphoto:)는 친구가 못 읽는 로컬 식별자라 업로드 데이터에선 제거.
