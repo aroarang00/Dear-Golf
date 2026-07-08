@@ -10,7 +10,9 @@ import { TripleStripe } from './common/TripleStripe';
 
 // 헤더 배경 — 사용자 직접 촬영 골프장 사진(번들). day3=가로형 맑은 날 코스 전경이라 가로 헤더에 딱 맞음
 //   (세로 day1은 짧은 헤더에 cover하면 하늘만 잘려 부적합, 2026-06-29). 로컬이라 네트워크 없이 즉시·선명.
-const HEADER_IMG = require('../../assets/home-bg/day3.jpg');
+// 헤더 전용 가로형 사진 — 홈 배경 풀의 day3는 세로로 크롭됐으므로(배경은 세로 화면용) 공유하지 않고
+//   가로 원본을 별도 파일로 둔다. 넓은 배너엔 가로 사진이 맞음(2026-07-08 배경 세로크롭 때 분리).
+const HEADER_IMG = require('../../assets/home-bg/intro-header.jpg');
 
 // 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
 const FEATURES = [

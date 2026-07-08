@@ -32,16 +32,19 @@ const TIME_IMAGES = {
   ],
   night: [ // 진짜 밤 (21~05시) — 밤골프장(조명 켜진 페어웨이)·자연 야경 (도시 야경 X)
     require('../../../assets/home-bg/night1.jpg'), // 맑은 밤 — 남색 하늘·산 실루엣·조명 페어웨이·벙커
-    require('../../../assets/home-bg/night2.jpg'), // 어스름 — 조명 켜진 페어웨이·산
+    require('../../../assets/home-bg/night2.jpg'), // 맑은 밤 — 검은 하늘·조명 페어웨이·카트길 (2026-07-08 추가)
+    require('../../../assets/home-bg/night3.jpg'), // 밤골프 — 조명 여러 개·그린·소나무·카트 (2026-07-08 추가)
+    // 옛 폭풍 먹구름 밤 사진은 맑은 밤에 어색해 밤 비 전용으로 분리(아래 RAIN_IMAGES.night=rainNight.jpg). 2026-07-08
   ],
 };
 
-// 흐림(cloudy) 전용 사진 — 실제 구름 낀 골프장(회색 하늘). 날씨가 흐림이고 낮 시간대면 시간대 사진 대신 사용
-//   (톤 오버레이로만 표현하던 것 보강, 사용자 사진 2026-06-14). 밤엔 낮 흐림 사진이 안 어울려 제외.
-//   2026-07-08 overcast1(구름흐림) 추가 — 흐린 날 항상 cloudy1 한 장만 뜨던 것 보강.
+// 흐림(cloudy) 전용 사진 — '골프장이 잘 보이면서 구름 많은' 사진만. 날씨가 흐림이고 낮 시간대면 시간대 사진 대신 사용.
+//   밤엔 낮 흐림 사진이 안 어울려 제외.
+//   ★2026-07-08 cloudy1(하늘 비중 과다=구름 속 같음) 제거 → 코스가 시원하게 보이는 3장으로 교체.
 const CLOUDY_IMAGES = [
-  require('../../../assets/home-bg/cloudy1.jpg'),
-  require('../../../assets/home-bg/overcast1.jpg'), // 구름흐림 — 잔뜩 흐린 회색 하늘·소나무
+  require('../../../assets/home-bg/overcast1.jpg'), // 구름흐림 — 페어웨이·티박스·회색 구름
+  require('../../../assets/home-bg/overcast2.jpg'), // 흐림 — 연못·벙커·극적 구름(코스 시원)
+  require('../../../assets/home-bg/cloudy2.jpg'),   // 구름많음 — 소나무·그린·산·밝은 구름
 ];
 
 // 비(rain) 전용 사진 — 실제 궂은날 사진. 낮/밤 분기(밤엔 궂은 낮 사진이 안 어울림).
@@ -54,7 +57,7 @@ const RAIN_IMAGES = {
     require('../../../assets/home-bg/morning1.jpg'),  // 아침 비 — 안개 자욱한 젖은 페어웨이
   ],
   night: [ // 밤 비
-    require('../../../assets/home-bg/night2.jpg'),    // 야간 흐림 — 폭풍 하늘·조명 페어웨이
+    require('../../../assets/home-bg/rainNight.jpg'), // 야간 비 — 폭풍 먹구름 하늘·조명 페어웨이 (맑은 밤 풀에서 분리)
   ],
 };
 
@@ -69,6 +72,18 @@ const WINTER_IMAGES = [
 function isWinter(d = new Date()) {
   const m = d.getMonth();      // 0=1월
   return m >= 10 || m <= 2;    // 11·12·1·2·3월
+}
+
+// 가을 단풍 — 단풍철(10~11월) '맑은 낮'에만 낮 사진을 이걸로 교체. 겨울(누런잔디)보다 앞서므로 11월엔 가을이 우세.
+//   맑은 낮 단풍 사진뿐이라 밤·늦오후·궂은날엔 미적용(그땐 시간대/날씨 풀). 범위는 필요시 조정.
+const AUTUMN_IMAGES = [
+  require('../../../assets/home-bg/autumn1.jpg'), // 가을 맑음 — 주황 단풍나무·억새·연못·파란 하늘
+  require('../../../assets/home-bg/autumn2.jpg'), // 가을 맑음 — 새빨간 단풍나무·페어웨이·파란 하늘
+];
+// 단풍철 — 월 기준 10~11월. 이 기간 낮(day)만 autumn 풀 사용.
+function isAutumn(d = new Date()) {
+  const m = d.getMonth();      // 0=1월
+  return m === 9 || m === 10;  // 10·11월
 }
 
 // 날씨별 그라데이션 오버레이 — 위/아래(글씨 영역)는 진하게, 가운데는 옅게.
@@ -96,8 +111,13 @@ function pickFrom(arr) {
 function winterApplies(b) {
   return isWinter() && (b === 'day' || b === 'lateAfternoon');
 }
+// 단풍철이면 낮은 autumn 풀. 겨울보다 먼저 판정(11월은 가을 우세).
+function autumnApplies(b) {
+  return isAutumn() && b === 'day';
+}
 function pickImage() {
   const b = timeBucket();
+  if (autumnApplies(b)) return pickFrom(AUTUMN_IMAGES);
   return winterApplies(b) ? pickFrom(WINTER_IMAGES) : pickFrom(TIME_IMAGES[b] || TIME_IMAGES.day);
 }
 
@@ -164,7 +184,9 @@ export function HomeBgSlider() {
   const [weather, setWeather] = useState('clear');
   // 현재 표시 사진의 '카테고리'(시간대 morning/day/lateAfternoon/night, 흐림 'cloudy', 비 'rain-day/night', 겨울 'winter').
   //   같은 카테고리면 사진 유지 — 매 포그라운드 복귀마다 랜덤 재추출하면 불필요한 크로스페이드가 계속 튐.
-  const catRef = useRef(winterApplies(timeBucket()) ? 'winter' : timeBucket());
+  const catRef = useRef(
+    autumnApplies(timeBucket()) ? 'autumn' : winterApplies(timeBucket()) ? 'winter' : timeBucket()
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -188,8 +210,9 @@ export function HomeBgSlider() {
       if (cancelled) return;
       const tone = (w === 'rain' || w === 'cloudy' || w === 'partly') ? w : 'clear';
       setWeather(tone);
-      // 사진 풀 선택(우선순위): 비 > 흐림(낮) > 겨울(낮·늦오후 누런잔디) > 시간대.
+      // 사진 풀 선택(우선순위): 비 > 흐림(낮) > 가을(단풍철 맑은 낮) > 겨울(낮·늦오후 누런잔디) > 시간대.
       //   구름많음 ⛅(partly)은 해가 우세라 전용 사진 없이 밝은 시간대 사진 유지.
+      //   가을 단풍 사진은 '맑은 낮'뿐이라 clear/partly 낮에만(비·흐림은 위에서 이미 걸러짐).
       const isNight = b === 'night';
       let cat, pool;
       if (tone === 'rain') {
@@ -197,6 +220,8 @@ export function HomeBgSlider() {
         pool = isNight ? RAIN_IMAGES.night : RAIN_IMAGES.day;
       } else if (tone === 'cloudy' && !isNight) {
         cat = 'cloudy'; pool = CLOUDY_IMAGES;
+      } else if (autumnApplies(b)) {
+        cat = 'autumn'; pool = AUTUMN_IMAGES;
       } else if (winterApplies(b)) {
         cat = 'winter'; pool = WINTER_IMAGES;
       } else {
