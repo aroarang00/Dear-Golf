@@ -483,8 +483,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               <SpinnerPicker visible={showDatePicker} value={date} mode="date" minimumDate={new Date()}
                 onPick={setDate} onClose={() => setShowDatePicker(false)} />
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>티오프 시간</Text>
-              {/* 안드로이드는 숫자 키보드가 입력칸을 가려서 직접입력 제거 — 휠 선택기만.
-                  iOS는 키보드 회피가 정상이라 직접입력 + 휠 둘 다 유지. */}
+              {/* iOS: 인라인 직접입력 + 휠 버튼. 안드: 버튼 → 앱 내부 숫자입력 모달(SpinnerPicker time,
+                  OEM 시계 피커 47→50 스냅·값 튕김 회피). 둘 다 결국 시/분 직접 숫자 입력. */}
               {Platform.OS === 'android' ? (
                 <TouchableOpacity
                   onPress={() => setShowTimePicker(true)}
