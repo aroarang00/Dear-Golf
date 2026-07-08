@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Image, StyleSheet, AppState } from 'react-native';
+import { View, Image, Animated, StyleSheet, AppState } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getShortForecast } from '../../utils/kma';
@@ -8,8 +8,8 @@ import { getCurrentLocation } from '../../utils/location';
 // =============================================================
 // 홈 배경 — 시간대별 골프장 사진(직접 검증한 큐레이션) + 날씨별 화면 톤.
 //  · 사진: 시간대(아침/낮/늦은오후/밤)에 맞춰 교체
-//  · 날씨: 비/흐림이면 화면을 어둡고 회색톤으로 덮음 (Unsplash에 비 오는
-//          골프장 사진이 거의 없어, 사진 교체 대신 톤으로 날씨 분위기를 냄)
+//  · 날씨: 비/흐림이면 '실제 궂은날 사진'으로 교체 + 톤 오버레이(완화). 예전엔 비에 전용 사진이 없어
+//          맑은 낮 사진에 초진한 오버레이만 덮어 답답했음(2026-07-08 궂은날 사진 풀 신설로 해소).
 // =============================================================
 // 로컬 번들 에셋 — 네트워크 다운로드 없이 즉시·선명하게 표시 (사용자 직접 촬영 골프장 사진, 2026-06-27 Unsplash 전량 교체).
 // require는 정적 경로만 허용돼 개별 나열. 시간대별 풀에서 랜덤 1장.
@@ -37,10 +37,26 @@ const TIME_IMAGES = {
 };
 
 // 흐림(cloudy) 전용 사진 — 실제 구름 낀 골프장(회색 하늘). 날씨가 흐림이고 낮 시간대면 시간대 사진 대신 사용
-//   (톤 오버레이로만 표현하던 것 보강, 사용자 사진 2026-06-14). 밤엔 낮 흐림 사진이 안 어울려 제외. 비(rain)는 사진 없어 톤만(현행).
+//   (톤 오버레이로만 표현하던 것 보강, 사용자 사진 2026-06-14). 밤엔 낮 흐림 사진이 안 어울려 제외.
+//   2026-07-08 overcast1(구름흐림) 추가 — 흐린 날 항상 cloudy1 한 장만 뜨던 것 보강.
 const CLOUDY_IMAGES = [
   require('../../../assets/home-bg/cloudy1.jpg'),
+  require('../../../assets/home-bg/overcast1.jpg'), // 구름흐림 — 잔뜩 흐린 회색 하늘·소나무
 ];
+
+// 비(rain) 전용 사진 — 실제 궂은날 사진. 낮/밤 분기(밤엔 궂은 낮 사진이 안 어울림).
+//   ★2026-07-08 신설: 예전엔 비에 전용 사진이 없어 맑은 낮 사진 + 초진한 오버레이만 덮어 답답했음.
+//     사용자 큐레이션 사진으로 교체(오버레이도 아래 rain 톤에서 대폭 완화).
+const RAIN_IMAGES = {
+  day: [ // 낮·아침·늦오후 비/흐림
+    require('../../../assets/home-bg/overcast1.jpg'), // 구름흐림 — 회색 하늘·코스
+    require('../../../assets/home-bg/overcast2.jpg'), // 흐림 — 극적 먹구름·연못
+    require('../../../assets/home-bg/morning1.jpg'),  // 아침 비 — 안개 자욱한 젖은 페어웨이
+  ],
+  night: [ // 밤 비
+    require('../../../assets/home-bg/night2.jpg'),    // 야간 흐림 — 폭풍 하늘·조명 페어웨이
+  ],
+};
 
 // 겨울 누런잔디(휴면 잔디) — 겨울철에만 낮·늦오후 사진을 이걸로 교체(여름에 누런잔디가 뜨면 어색). 봄~가을엔 미사용.
 //   아침안개·밤은 계절 영향 작아 그대로 둠. 잔디 누레지는 11~3월에만 노출(아래 isWinter).
@@ -61,7 +77,7 @@ const OVERLAYS = {
   clear:  ['rgba(8,24,14,0.86)',  'rgba(8,24,14,0.40)',  'rgba(8,24,14,0.46)',  'rgba(8,24,14,0.74)'],
   partly: ['rgba(24,34,30,0.82)', 'rgba(24,34,30,0.40)', 'rgba(24,34,30,0.45)', 'rgba(24,34,30,0.72)'], // 구름많음 ⛅ — clear(초록)와 cloudy(회색) 사이. 색은 회녹, 가운데 투명도는 clear급(0.40)으로 사진 밝게 비침
   cloudy: ['rgba(42,46,50,0.80)', 'rgba(42,46,50,0.42)', 'rgba(42,46,50,0.46)', 'rgba(42,46,50,0.74)'], // 옅게(2026-06-14) — 구름 낀 날 회색이 과해 사진이 묻혀 뿌옇던 것 완화. 가운데를 확 낮춰 사진 비치게, 상·하단만 글씨 가독 위해 유지(clear 수준 곡선)
-  rain:   ['rgba(16,24,34,0.95)', 'rgba(16,24,34,0.72)', 'rgba(16,24,34,0.76)', 'rgba(16,24,34,0.91)'],
+  rain:   ['rgba(16,24,34,0.86)', 'rgba(16,24,34,0.48)', 'rgba(16,24,34,0.52)', 'rgba(16,24,34,0.82)'], // 완화(2026-07-08) — 전용 궂은날 사진 신설로 사진이 비치게. 청회색 톤은 유지, 가운데만 확 낮춤(0.72→0.48). 상·하단은 글씨 가독 유지
 };
 
 function timeBucket(d = new Date()) {
@@ -140,28 +156,55 @@ export function cacheCurrentWx(current) {
 }
 
 export function HomeBgSlider() {
-  const [imageUri, setImageUri] = useState(pickImage);
+  // 두 겹 크로스페이드 — 카테고리(시간대/날씨)가 바뀌어 사진을 교체할 때, 하드컷('휙') 대신
+  //   위 레이어(새 사진)를 투명→불투명으로 페이드해 아래 레이어(옛 사진) 위로 부드럽게 겹쳐 전환.
+  const [layers, setLayers] = useState(() => ({ top: pickImage(), bottom: null }));
+  const curRef = useRef(layers.top);          // 현재(위) 사진 — 최신값 추적(effect 클로저 stale 방지)
+  const fade = useRef(new Animated.Value(1)).current; // 위 레이어 opacity
   const [weather, setWeather] = useState('clear');
-  // 현재 표시 사진의 '카테고리'(시간대 morning/day/lateAfternoon/night 또는 흐림 'cloudy') — 같은 카테고리면 사진 유지.
-  // (매 포그라운드 복귀마다 랜덤 재추출하면 안드 <Image> 크로스페이드로 두 사진이 겹쳐 보임)
+  // 현재 표시 사진의 '카테고리'(시간대 morning/day/lateAfternoon/night, 흐림 'cloudy', 비 'rain-day/night', 겨울 'winter').
+  //   같은 카테고리면 사진 유지 — 매 포그라운드 복귀마다 랜덤 재추출하면 불필요한 크로스페이드가 계속 튐.
   const catRef = useRef(winterApplies(timeBucket()) ? 'winter' : timeBucket());
 
   useEffect(() => {
     let cancelled = false;
+    // 새 사진으로 크로스페이드 전환
+    const swapImage = (next) => {
+      const old = curRef.current;
+      if (old === next) return;
+      curRef.current = next;
+      fade.stopAnimation();
+      fade.setValue(0);
+      setLayers({ top: next, bottom: old });
+      Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true })
+        .start(({ finished }) => {
+          // 페이드 완료 시 아래 레이어 제거(더 최근 전환이 끼어들었으면 건드리지 않음)
+          if (finished && !cancelled) setLayers((l) => (l.top === next ? { top: next, bottom: null } : l));
+        });
+    };
     const refresh = async () => {
       const b = timeBucket();
       const w = await getCurrentWxClass();
       if (cancelled) return;
       const tone = (w === 'rain' || w === 'cloudy' || w === 'partly') ? w : 'clear';
       setWeather(tone);
-      // 흐림(☁️)이고 낮 시간대면 실제 흐림 사진, 아니면 시간대 사진(구름많음 ⛅은 밝은 시간대 사진 유지).
-      //   카테고리(시간대/흐림)가 바뀔 때만 교체(깜빡임 제거)
-      const useCloudy = tone === 'cloudy' && b !== 'night';
-      const useWinter = !useCloudy && winterApplies(b);   // 겨울 낮·늦오후 — 누런잔디(흐림이 우선)
-      const cat = useCloudy ? 'cloudy' : useWinter ? 'winter' : b;
+      // 사진 풀 선택(우선순위): 비 > 흐림(낮) > 겨울(낮·늦오후 누런잔디) > 시간대.
+      //   구름많음 ⛅(partly)은 해가 우세라 전용 사진 없이 밝은 시간대 사진 유지.
+      const isNight = b === 'night';
+      let cat, pool;
+      if (tone === 'rain') {
+        cat = isNight ? 'rain-night' : 'rain-day';
+        pool = isNight ? RAIN_IMAGES.night : RAIN_IMAGES.day;
+      } else if (tone === 'cloudy' && !isNight) {
+        cat = 'cloudy'; pool = CLOUDY_IMAGES;
+      } else if (winterApplies(b)) {
+        cat = 'winter'; pool = WINTER_IMAGES;
+      } else {
+        cat = b; pool = TIME_IMAGES[b] || TIME_IMAGES.day;
+      }
       if (cat !== catRef.current) {
         catRef.current = cat;
-        setImageUri(useCloudy ? pickFrom(CLOUDY_IMAGES) : useWinter ? pickFrom(WINTER_IMAGES) : pickFrom(TIME_IMAGES[b] || TIME_IMAGES.day));
+        swapImage(pickFrom(pool));
       }
     };
     refresh();
@@ -176,7 +219,13 @@ export function HomeBgSlider() {
     // pointerEvents="none" — 전체화면 배경이라 확대(디스플레이 줌) 시 scene이 탭바 영역까지 커지면 이 배경이
     //   하단 탭바를 덮어 터치를 흡수, 안드 탭바가 무반응이 됨. 배경은 터치 대상이 아니므로 터치를 통과시킴(2026-06-24).
     <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-      <Image source={imageUri} fadeDuration={0} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      {/* 아래 레이어 — 페이드 진행 중에만 존재(옛 사진). 위 레이어가 다 덮이면 제거됨 */}
+      {layers.bottom != null && (
+        <Image source={layers.bottom} fadeDuration={0} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      )}
+      {/* 위 레이어 — 새 사진, opacity 0→1 페이드 */}
+      <Animated.Image source={layers.top} fadeDuration={0}
+        style={[StyleSheet.absoluteFillObject, { opacity: fade }]} resizeMode="cover" />
       <LinearGradient
         style={StyleSheet.absoluteFillObject}
         colors={OVERLAYS[weather] || OVERLAYS.clear}
