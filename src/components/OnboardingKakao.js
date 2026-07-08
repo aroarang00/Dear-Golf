@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
 import { loginWithKakao, linkOrSignInWithKakao } from '../utils/kakaoAuth';
 import { ensureUserDoc } from '../utils/userDoc';
+import { auth } from '../utils/firebase';
 import { checkBannedByKakaoSub } from '../utils/account';
 import { calculateAgeFromKakao, ADULT_AGE } from '../utils/age';
 
@@ -13,6 +15,12 @@ import { calculateAgeFromKakao, ADULT_AGE } from '../utils/age';
 // '나중에 하기'로 건너뛰면 익명 계정 그대로 사용.
 export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
   const [loading, setLoading] = useState(false);
+  // 이메일/비번 로그인 — App Store 심사 전용(카카오 로그인은 리뷰어 환경에서 불가). 로그인만 지원(가입 X)이라
+  //   미리 프로비저닝된 데모 계정만 진입 가능. 일반 사용자는 카카오만 사용. ([[appstore-reject-build69]])
+  const [showEmail, setShowEmail] = useState(false);
+  // dev 빌드에선 심사 데모 계정 자동 채움(타이핑 오타 방지). 출시 빌드(__DEV__ false)는 빈칸 — 리뷰어가 입력.
+  const [email, setEmail] = useState(__DEV__ ? 'review@deargolf.app' : '');
+  const [pw, setPw] = useState(__DEV__ ? 'dgreview2026' : '');
 
   // "나중에 하기" 정책 ([[anonymous-user-policy]] 2026-06-06 확정):
   //  - prod: 익명 진입 허용(혼자 기능 OK). ★출시 전 여기에 '면책 동의 모달'(①)을 붙여
@@ -112,6 +120,35 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
     }
   };
 
+  // 이메일/비번 로그인 — 데모 계정으로 카카오 없이 로그인. 성공 시 재방문자 경로(Firestore 프로필 prefill)로 진입.
+  const handleEmailLogin = async () => {
+    if (loading) return;
+    const addr = email.trim();
+    if (!addr || !pw) { Alert.alert('로그인', '이메일과 비밀번호를 입력해주세요.'); return; }
+    setLoading(true);
+    try {
+      const cred = await signInWithEmailAndPassword(auth, addr, pw);
+      const uid = cred.user.uid;
+      // 기존 데모 문서 로드(빈 필드만 백필, 실제 데이터 보존). 재방문자로 태워 프로필이 prefill되게.
+      const userDoc = await ensureUserDoc(uid, {});
+      const d = userDoc.data || {};
+      onKakaoSuccess({
+        nickname: d.nickname || d.displayName || '',
+        avatarUri: d.avatarUrl || null,
+        realName: d.realName || '',
+        avgScore: d.avgScore ?? null,
+        lifeBest: d.lifeBest ?? null,
+        kakaoLinked: true,
+        kakaoId: d.kakaoId || null,
+        isReturning: true,
+      });
+    } catch (e) {
+      Alert.alert('로그인 실패', '이메일 또는 비밀번호를 확인해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       <TripleStripe />
@@ -163,7 +200,48 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 4 }}>
           카카오 없이도 사용할 수 있어요
         </Text>
+
+        {/* 이메일 로그인 진입 — App Store 심사 전용(리뷰어가 카카오 로그인 불가). 눈에 안 띄게 하단에. 모달로 띄워 키보드 가림 방지. */}
+        <TouchableOpacity onPress={() => setShowEmail(true)} activeOpacity={0.6} disabled={loading}
+          style={{ marginTop: 24, alignItems: 'center', paddingVertical: 8 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textDecorationLine: 'underline' }}>
+            이메일로 로그인
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      {/* 이메일 로그인 모달 — 카드를 화면 위쪽(paddingTop)에 띄워 키보드(하단)가 입력창을 절대 가리지 않게. */}
+      <Modal visible={showEmail} transparent animationType="fade" onRequestClose={() => setShowEmail(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-start', paddingTop: 90, paddingHorizontal: 28 }}>
+            <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 20, gap: 12 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>이메일로 로그인</Text>
+              <TextInput
+                value={email} onChangeText={setEmail} autoFocus
+                placeholder="이메일" placeholderTextColor={C.warmGray}
+                autoCapitalize="none" keyboardType="email-address" autoCorrect={false}
+                style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 14,
+                  paddingVertical: 12, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary }} />
+              <TextInput
+                value={pw} onChangeText={setPw}
+                placeholder="비밀번호" placeholderTextColor={C.warmGray}
+                secureTextEntry autoCapitalize="none" autoCorrect={false}
+                style={{ borderWidth: 1, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 14,
+                  paddingVertical: 12, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary }} />
+              <TouchableOpacity onPress={() => { Keyboard.dismiss(); handleEmailLogin(); }} activeOpacity={0.85} disabled={loading}
+                style={{ backgroundColor: C.charcoal, borderRadius: 10, paddingVertical: 14, alignItems: 'center', opacity: loading ? 0.7 : 1 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>
+                  {loading ? '로그인 중…' : '로그인'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { Keyboard.dismiss(); setShowEmail(false); }} activeOpacity={0.7} disabled={loading}
+                style={{ alignItems: 'center', paddingVertical: 6 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>닫기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
