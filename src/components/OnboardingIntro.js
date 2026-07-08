@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions, Linking, AppState } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,16 +34,25 @@ export function OnboardingIntro({ onDone }) {
   const [locStatus, setLocStatus] = useState('idle'); // idle | granted | denied
   const [notifStatus, setNotifStatus] = useState('idle'); // idle | granted | denied
 
-  // 위치 권한 요청 — OS 팝업만 띄우고 결과 반영(좌표 수집 X). 실제 위치 사용은 LBS 약관 동의 이후 기능에서.
+  const pagerRef = useRef(null);
+
+  // 위치 권한 — App Store 5.1.1(iv) 준수: 프리프롬프트 '계속'은 항상 OS 요청으로 이어지고 이탈(건너뛰기)이 없음.
+  //   OS 팝업만 띄우고 결과 반영(좌표 수집 X). 실제 위치 사용은 LBS 약관 동의 이후 기능에서. 허용/거부 무관 응답 후 다음 단계로.
   async function handleLocation() {
-    const granted = await requestLocationPermission();
-    setLocStatus(granted ? 'granted' : 'denied');
+    if (locStatus !== 'granted') {
+      const granted = await requestLocationPermission();
+      setLocStatus(granted ? 'granted' : 'denied');
+    }
+    pagerRef.current?.setPage(idx + 1);
   }
 
-  // 알림 권한 요청 — 안드13+/iOS는 옵트인이라 미리 받아두면 첫 알람 설정 때 막히지 않음(priming).
+  // 알림 권한 — 위와 동일 패턴(안드13+/iOS 옵트인 priming). 응답 후 다음 단계로.
   async function handleNotif() {
-    const granted = await requestNotificationPermission();
-    setNotifStatus(granted ? 'granted' : 'denied');
+    if (notifStatus !== 'granted') {
+      const granted = await requestNotificationPermission();
+      setNotifStatus(granted ? 'granted' : 'denied');
+    }
+    pagerRef.current?.setPage(idx + 1);
   }
 
   // 거부 후 OS 설정에서 허용하고 돌아오면 상태 자동 갱신(위치·알림 공용)
@@ -61,6 +70,7 @@ export function OnboardingIntro({ onDone }) {
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       {/* 네이티브 페이저 — 안드 ScrollView paging이 슬라이드 내부 세로 스크롤과 겹쳐 뚝뚝 끊기던 것 해소 ([[onboarding-pager-rebuild]]) */}
       <PagerView
+        ref={pagerRef}
         style={{ flex: 1 }}
         initialPage={0}
         onPageSelected={e => setIdx(e.nativeEvent.position)}>
@@ -423,18 +433,14 @@ export function OnboardingIntro({ onDone }) {
               <Feature icon="☀️" title="현재 위치 날씨" sub="지금 있는 곳의 날씨를 바로 확인" />
               <Feature icon="⛳" title="주변 골프 시설" sub="가까운 연습장·스크린골프를 추천" />
             </View>
-            {/* 권한 요청 버튼 */}
+            {/* 계속 버튼 — App Store 5.1.1(iv): 항상 OS 권한 요청으로 이어짐(이탈 버튼 없음) */}
             <TouchableOpacity onPress={handleLocation} activeOpacity={0.85}
-              disabled={locStatus === 'granted'}
               style={{
                 marginTop: 28, borderRadius: 12, paddingVertical: 14, alignItems: 'center',
-                backgroundColor: locStatus === 'granted' ? C.hairline : C.charcoal,
+                backgroundColor: C.charcoal,
               }}>
-              <Text style={{
-                fontFamily: F.sysSb, fontSize: fs(14),
-                color: locStatus === 'granted' ? C.warmGray : C.butter,
-              }}>
-                {locStatus === 'granted' ? '✓ 위치 권한 허용됨' : '위치 권한 허용하기'}
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>
+                계속
               </Text>
             </TouchableOpacity>
             {locStatus === 'idle' && (
@@ -453,9 +459,6 @@ export function OnboardingIntro({ onDone }) {
                 </TouchableOpacity>
               </View>
             )}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 14, textAlign: 'center' }}>
-              건너뛰고 나중에 설정해도 괜찮아요
-            </Text>
           </ScrollView>
         </View>
 
@@ -474,18 +477,14 @@ export function OnboardingIntro({ onDone }) {
               <Feature icon="📅" title="D-3 · D-1 리마인드" sub="다가오는 라운딩을 미리 알림" />
               <Feature icon="💬" title="라운지·친구 소식" sub="댓글·확정·초대를 바로 확인" />
             </View>
-            {/* 권한 요청 버튼 */}
+            {/* 계속 버튼 — 위치 페이지와 동일(항상 OS 권한 요청으로 이어짐) */}
             <TouchableOpacity onPress={handleNotif} activeOpacity={0.85}
-              disabled={notifStatus === 'granted'}
               style={{
                 marginTop: 28, borderRadius: 12, paddingVertical: 14, alignItems: 'center',
-                backgroundColor: notifStatus === 'granted' ? C.hairline : C.charcoal,
+                backgroundColor: C.charcoal,
               }}>
-              <Text style={{
-                fontFamily: F.sysSb, fontSize: fs(14),
-                color: notifStatus === 'granted' ? C.warmGray : C.butter,
-              }}>
-                {notifStatus === 'granted' ? '✓ 알림 권한 허용됨' : '알림 권한 허용하기'}
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>
+                계속
               </Text>
             </TouchableOpacity>
             {notifStatus === 'denied' && (
@@ -499,9 +498,6 @@ export function OnboardingIntro({ onDone }) {
                 </TouchableOpacity>
               </View>
             )}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 14, textAlign: 'center' }}>
-              건너뛰고 나중에 설정해도 괜찮아요
-            </Text>
           </ScrollView>
         </View>
 
@@ -520,9 +516,9 @@ export function OnboardingIntro({ onDone }) {
 
       </PagerView>
 
-      {/* 건너뛰기 — 인트로를 빠르게 지나가고 싶은 사용자용. onDone=시작하기와 동일(다음 온보딩 단계로).
-          마지막 시작 페이지(idx 8)엔 '시작하기' 버튼이 있어 숨김. 페이지마다 배경색이 달라 반투명 펄로 가독성 확보. */}
-      {idx < 8 && (
+      {/* 건너뛰기 — 인트로 정보 페이지(0~5)에서만. 위치·알림 권한 페이지(6·7)와 시작 페이지(8)에선 숨김
+          (App Store 5.1.1(iv): 권한 요청 메시지엔 이탈 버튼을 두지 않음). 페이지마다 배경색이 달라 반투명 펄로 가독성 확보. */}
+      {idx < 6 && (
         <TouchableOpacity onPress={onDone} activeOpacity={0.7}
           style={{ position: 'absolute', top: insets.top + 8, right: 14, zIndex: 10,
             backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 13 }}>
