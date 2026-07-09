@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import { auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { loadMySchedules, createSchedule, updateSchedule, deleteSchedule, setScheduleDoc } from '../utils/schedule';
@@ -31,30 +32,67 @@ export function SchedulesProvider({ children }) {
 
   // 초기 로드 + uid 변경 시 재로드 — 익명→카카오 settle 등 uid가 바뀌면 올바른 계정 일정으로 자동 갱신.
   //   기존엔 1회만 로드라 uid 확정 전 익명으로 로드되면 카카오 일정이 안 떴음([[auth-relink-and-seed-cleanup]]).
+  //
+  // ★로드 실패는 '자가복구'한다([[read-failure-disguise]], 테스터 2026-07-09 일정·친구·피드 동시 소실).
+  //   ① 실패해도 기존 목록을 유지(빈 배열로 덮으면 '일정 없음'으로 위장) ② 백오프 재시도
+  //   ③ 그래도 실패했으면 다음 포그라운드 복귀 때 한 번 더(성공 시엔 재로드 안 함 — 불필요한 read 0).
   useEffect(() => {
-    let prevUid;
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    let cancelled = false;
+    let curUid = null;      // 현재 로드 대상 uid — 늦게 온 응답이 새 계정 데이터를 덮지 않게 하는 가드
+    let retryTimer = null;
+    let tries = 0;
+    const failedRef = { current: false };
+    const BACKOFF = [2000, 6000, 15000];
+
+    const loadFor = async (uid) => {
+      try {
+        const loaded = await loadMySchedules();
+        if (cancelled || uid !== curUid) return;  // uid가 바뀐 뒤 도착한 옛 응답 폐기
+        const norm = normalizeSchedules(loaded);
+        setSchedulesRaw(norm);
+        failedRef.current = false;
+        tries = 0;
+        // 고아 알람 정리 — 이미 삭제됐는데 OS에 남은 예약 알림(D-3/D-1 등) 제거. 로드 성공 시에만(빈 로드로 오취소 방지).
+        reconcileAlarms(norm.map(s => s.id));
+      } catch (e) {
+        if (cancelled || uid !== curUid) return;
+        // 빈 배열로 덮지 않는다 — 서버 데이터는 멀쩡하고 표시만 무너지는 것(재로그인하면 복구되던 증상).
+        console.warn('[SchedulesContext] Firestore 로드 실패 — 기존 일정 유지', e?.message);
+        failedRef.current = true;
+        if (tries < BACKOFF.length) {
+          const delay = BACKOFF[tries++];
+          retryTimer = setTimeout(() => { if (!cancelled && curUid) loadFor(curUid); }, delay);
+        }
+      } finally {
+        if (!cancelled && uid === curUid) setHydrated(true);
+      }
+    };
+
+    const unsub = onAuthStateChanged(auth, (user) => {
       const uid = user?.uid || null;
-      if (uid === prevUid) return;
-      prevUid = uid;
+      if (uid === curUid) return;
+      curUid = uid;
+      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+      tries = 0;
+      failedRef.current = false;
       // 로그인 settle 전(null)·uid 전환 중엔 hydrated를 내려 로딩 유지 — 빈 데이터로 hydrate되며
       //   홈 '첫 라운딩' 등 빈 CTA가 깜빡이던 문제 방지([[home-empty-state-flash]], [[auth-relink-and-seed-cleanup]]).
       setHydrated(false);
       if (!uid) return;  // 아직 로그인 전 — 실제 uid 콜백을 기다림(앱은 항상 익명 폴백 로그인됨)
-      try {
-        const loaded = await loadMySchedules();
-        const norm = normalizeSchedules(loaded);
-        setSchedulesRaw(norm);
-        // 고아 알람 정리 — 이미 삭제됐는데 OS에 남은 예약 알림(D-3/D-1 등) 제거. 로드 성공 시에만(빈 로드로 오취소 방지).
-        reconcileAlarms(norm.map(s => s.id));
-      } catch (e) {
-        console.warn('[SchedulesContext] Firestore 로드 실패', e?.message);
-        setSchedulesRaw([]);
-      } finally {
-        setHydrated(true);
-      }
+      loadFor(uid);
     });
-    return unsub;
+
+    // 포그라운드 복귀 — 직전 로드가 '실패'했을 때만 재시도(성공 상태면 read 낭비 없음)
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active' && !cancelled && curUid && failedRef.current) { tries = 0; loadFor(curUid); }
+    });
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      sub.remove();
+      unsub();
+    };
   }, []);
 
   // 캘린더 동기화는 여기 한 곳에서만 — 모든 경로(홈·MY·라운지 모집확정/취소)가 add/edit/remove를 거치므로

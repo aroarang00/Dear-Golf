@@ -29,7 +29,9 @@ const COLLECTION = 'rounds';
 // 내 다이어리 목록 — date 내림차순. 인덱스 (ownerUid, date desc) 사용.
 export async function loadMyRounds() {
   const uid = await getUid();
-  if (!uid) return [];
+  // uid 없음(세션 흔들림)을 빈 배열로 돌려주면 호출부가 '기록 없음'으로 오인해 피드가 비워진다.
+  //   실패로 알려 기존 기록을 유지하고 재시도하게 한다([[read-failure-disguise]], 테스터 2026-07-09).
+  if (!uid) throw new Error('auth-uid-unavailable');
   const q = query(
     collection(db, COLLECTION),
     where('ownerUid', '==', uid),

@@ -24,7 +24,9 @@ const COLLECTION = 'schedules';
 // 내 일정 목록 — date 오름차순. 인덱스 (ownerUid, date asc) 사용.
 export async function loadMySchedules() {
   const uid = await getUid();
-  if (!uid) return [];
+  // uid 없음(세션 흔들림)을 빈 배열로 돌려주면 호출부가 '일정 없음'으로 오인해 화면이 비워진다.
+  //   실패로 알려 기존 목록을 유지하고 재시도하게 한다([[read-failure-disguise]], 테스터 2026-07-09).
+  if (!uid) throw new Error('auth-uid-unavailable');
   const q = query(
     collection(db, COLLECTION),
     where('ownerUid', '==', uid),

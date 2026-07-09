@@ -206,6 +206,9 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   //   (DiariesContext의 setHydrated(false) 정신). 마운트(prev===cur) 시엔 비우지 않음.
   useEffect(() => {
     if (prevUidRef.current === currentUid) return;
+    // ★uid가 일시적으로 null이 되는 건 '계정 전환'이 아니라 세션이 흔들리는 중 — 여기서 비우면
+    //   친구가 통째로 '사라져' 보인다(테스터 2026-07-09). 실제 uid가 올 때까지 기존 목록 유지.
+    if (!currentUid) return;
     prevUidRef.current = currentUid;
     setFriends([]);
     setReceivedRequests([]);

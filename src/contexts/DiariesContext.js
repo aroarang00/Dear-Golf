@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import { auth } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { loadMyRounds, createRound, updateRound, deleteRound } from '../utils/round';
@@ -28,31 +29,67 @@ export function DiariesProvider({ children }) {
 
   // 초기 로드 + uid 변경 시 재로드 — 익명→카카오 settle 등 uid가 바뀌면 올바른 계정 데이터로 자동 갱신.
   //   기존엔 시작 시 1회만 로드라, uid 확정 전 익명으로 로드되면 카카오 데이터가 안 떴음([[auth-relink-and-seed-cleanup]]).
+  // ★로드 실패는 '자가복구'한다([[read-failure-disguise]], 테스터 2026-07-09 일정·친구·피드 동시 소실).
+  //   ① 실패해도 기존 기록 유지 ② 백오프 재시도 ③ 그래도 실패면 다음 포그라운드 복귀 때 한 번 더.
   useEffect(() => {
-    let prevUid; // 같은 uid 중복 로드 방지
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    let cancelled = false;
+    let curUid = null;      // 늦게 온 응답이 새 계정 데이터를 덮지 않게 하는 가드
+    let retryTimer = null;
+    let tries = 0;
+    const failedRef = { current: false };
+    const BACKOFF = [2000, 6000, 15000];
+
+    const loadFor = async (uid) => {
+      try {
+        const loaded = await loadMyRounds();
+        if (cancelled || uid !== curUid) return;  // uid가 바뀐 뒤 도착한 옛 응답 폐기
+        setDiaries(loaded);
+        setLoadFailed(false);
+        failedRef.current = false;
+        tries = 0;
+        scheduleBackupSweep(loaded); // 미백업(dgphoto:) 미디어 후속 업로드 + 기존 데이터 소급([[diary-media-backup-plan]])
+      } catch (e) {
+        if (cancelled || uid !== curUid) return;
+        // 빈 배열로 덮지 않는다 — 오프라인이 '기록 없음(신규 안내)'으로 위장되던 것. 기존 기록 유지 + 재시도 안내.
+        console.warn('[DiariesContext] Firestore 로드 실패 — 기존 기록 유지', e?.message);
+        setLoadFailed(true); // '기록 없음'과 구분 — 화면에서 재시도 안내
+        failedRef.current = true;
+        if (tries < BACKOFF.length) {
+          const delay = BACKOFF[tries++];
+          retryTimer = setTimeout(() => { if (!cancelled && curUid) loadFor(curUid); }, delay);
+        }
+      } finally {
+        if (!cancelled && uid === curUid) setHydrated(true);
+      }
+    };
+
+    const unsub = onAuthStateChanged(auth, (user) => {
       const uid = user?.uid || null;
-      if (uid === prevUid) return;
-      prevUid = uid;
+      if (uid === curUid) return;
+      curUid = uid;
+      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+      tries = 0;
+      failedRef.current = false;
       // 로그인 settle 전(null)·uid 전환 중엔 hydrated를 내려 로딩 유지 — 빈 데이터로 hydrate되며
       //   MY '첫 기록 남기기'(신규가입 안내)가 깜빡이던 문제 방지([[home-empty-state-flash]], [[auth-relink-and-seed-cleanup]]).
       //   세션 복원은 비동기라 첫 콜백이 null로 한 번 오고, 익명→카카오 settle 시 uid가 바뀜.
       setHydrated(false);
       if (!uid) return;  // 아직 로그인 전 — 실제 uid 콜백을 기다림(앱은 항상 익명 폴백 로그인됨)
-      try {
-        const loaded = await loadMyRounds();
-        setDiaries(loaded);
-        setLoadFailed(false);
-        scheduleBackupSweep(loaded); // 미백업(dgphoto:) 미디어 후속 업로드 + 기존 데이터 소급([[diary-media-backup-plan]])
-      } catch (e) {
-        console.warn('[DiariesContext] Firestore 로드 실패', e?.message);
-        setDiaries([]);
-        setLoadFailed(true); // '기록 없음'과 구분 — 화면에서 재시도 안내
-      } finally {
-        setHydrated(true);
-      }
+      loadFor(uid);
     });
-    return unsub;
+
+    // 포그라운드 복귀 — 직전 로드가 '실패'했을 때만 재시도(성공 상태면 read 낭비 없음)
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active' && !cancelled && curUid && failedRef.current) { tries = 0; loadFor(curUid); }
+    });
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      sub.remove();
+      unsub();
+    };
+    // deps [] — scheduleBackupSweep은 아래에 선언된 useCallback([]) 안정 참조라 넣으면 TDZ.
   }, []);
 
   // 백업 스위퍼 — 콜드스타트 부하를 피해 지연 실행. 로드된 배열 재사용(추가 read 0).
