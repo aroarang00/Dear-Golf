@@ -480,6 +480,16 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             ))}
             </>
           )}
+          {/* 구장 주변 맛집을 네이버에서 통째로 — 카카오맵에 없는 시골 맛집 보완(빈 결과에도 노출).
+              GuideScreen '맛집 더보기'와 동일 검색식(구장명+시군+맛집). courseLoc 없는 옛 일정은 구장명만으로 검색. */}
+          {!loading && !!schedule?.course && (
+            <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(schedule.course, schedule.courseLoc, '맛집')).catch(() => {})}
+              activeOpacity={0.7} style={{ alignSelf: 'center', marginTop: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, textDecorationLine: 'underline' }} numberOfLines={1}>
+                {schedule.course} 주변 맛집 네이버에서 보기
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
