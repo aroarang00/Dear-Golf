@@ -204,43 +204,50 @@ export async function searchNearbyGolfCourses(lat, lng, radius = 10000) {
 
 // 좌표 기준 반경 내 카테고리 장소 거리순 검색 (공통)
 //  code: FD6(음식점) | CE7(카페)
+//  maxPages: 카카오는 페이지당 15개 한도 — 필요한 곳(식사 리스트)만 2~3페이지로 확장(최대 45개).
+//    기본 1 = 기존 호출처(GuideScreen 등) 동작 불변.
 //  반환: [{ kakaoId, name, type, kind, loc, x, y, distance, phone, url }]
-async function searchNearbyByCategory(code, lat, lng, radius) {
+async function searchNearbyByCategory(code, lat, lng, radius, maxPages = 1) {
   if (typeof lat !== 'number' || typeof lng !== 'number') return [];
   if (!isKeyConfigured()) {
     console.warn('[kakao] KAKAO_REST_API_KEY not configured.');
     return [];
   }
+  const out = [];
   try {
-    // 거리순, 반경 radius(m, 최대 20000)
-    const url = `${CATEGORY_URL}?category_group_code=${code}&x=${lng}&y=${lat}&radius=${radius}&sort=distance&size=15`;
-    const res = await fetchWithTimeout(url, {
-      headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
-    });
-    if (!res.ok) { console.warn('[kakao] nearby HTTP', res.status, code); return []; }
-    const data = await res.json();
-    return (data.documents || []).map(d => ({
-      kakaoId: d.id,
-      name: d.place_name,
-      // "음식점 > 한식 > 육류,고기" → 마지막 분류만
-      type: (d.category_name || '').split('>').pop().trim() || (code === 'CE7' ? '카페' : '음식점'),
-      kind: code === 'CE7' ? 'cafe' : 'food',
-      loc: d.road_address_name || d.address_name || '',
-      x: parseFloat(d.x), // 경도
-      y: parseFloat(d.y), // 위도
-      distance: parseInt(d.distance, 10) || 0,
-      phone: d.phone || '',
-      url: d.place_url || '',
-    }));
+    for (let page = 1; page <= maxPages; page++) {
+      // 거리순, 반경 radius(m, 최대 20000)
+      const url = `${CATEGORY_URL}?category_group_code=${code}&x=${lng}&y=${lat}&radius=${radius}&sort=distance&size=15&page=${page}`;
+      const res = await fetchWithTimeout(url, {
+        headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
+      });
+      if (!res.ok) { console.warn('[kakao] nearby HTTP', res.status, code); break; }
+      const data = await res.json();
+      out.push(...(data.documents || []).map(d => ({
+        kakaoId: d.id,
+        name: d.place_name,
+        // "음식점 > 한식 > 육류,고기" → 마지막 분류만
+        type: (d.category_name || '').split('>').pop().trim() || (code === 'CE7' ? '카페' : '음식점'),
+        kind: code === 'CE7' ? 'cafe' : 'food',
+        loc: d.road_address_name || d.address_name || '',
+        x: parseFloat(d.x), // 경도
+        y: parseFloat(d.y), // 위도
+        distance: parseInt(d.distance, 10) || 0,
+        phone: d.phone || '',
+        url: d.place_url || '',
+      })));
+      if (data.meta?.is_end !== false) break; // 마지막 페이지(또는 meta 없음) — 더 요청해봤자 빈 결과
+    }
+    return out;
   } catch (e) {
     console.warn('[kakao] nearby category failed:', code, e?.message);
-    return [];
+    return out; // 뒷페이지 실패여도 앞서 모은 결과는 살림
   }
 }
 
-// 골프장 주변 음식점(FD6) 거리순 검색
-export async function searchNearbyRestaurants(lat, lng, radius = 3000) {
-  return searchNearbyByCategory('FD6', lat, lng, radius);
+// 골프장 주변 음식점(FD6) 거리순 검색 — maxPages로 15개 한도 확장 가능(식사 리스트=3페이지)
+export async function searchNearbyRestaurants(lat, lng, radius = 3000, maxPages = 1) {
+  return searchNearbyByCategory('FD6', lat, lng, radius, maxPages);
 }
 
 // 골프장 주변 카페(CE7) 거리순 검색

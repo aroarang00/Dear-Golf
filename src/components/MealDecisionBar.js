@@ -152,12 +152,14 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       if (!coord) setCoord(cc);
       // 저장 맛집(코스별)은 최상단 + 표식, 주변 검색결과에서 중복 제거 — 단골/미리 점찍은 곳 먼저.
       const saved = await getSavedRestaurants(schedule?.course).catch(() => []);
-      // 반경 점진 확장 — 3km에 결과 적으면(시골 구장) 8km→15km로 넓혀 충분히 모음(최대 20km는 카카오 한도).
+      // 반경 점진 확장 — 3km에 결과 적으면(시골 구장) 8km→20km로 넓혀 충분히 모음(최대 20km는 카카오 한도).
+      //   maxPages=3: 카카오 페이지당 15개 한도 → 최대 45개('리스트가 몇 개 안 나온다' 피드백 2026-07-10).
+      //   break 기준도 6→15로 — 시골 구장에서 6개로 만족하고 멈추지 않게.
       let nearby = [];
       if (cc) {
         for (const r of [3000, 8000, 20000]) {   // 20km = 카카오 반경 최대 — 외진 구장도 최대한 끌어옴
-          nearby = await searchNearbyRestaurants(cc.y, cc.x, r).catch(() => []);
-          if (nearby.length >= 6) break;
+          nearby = await searchNearbyRestaurants(cc.y, cc.x, r, 3).catch(() => []);
+          if (nearby.length >= 15) break;
         }
       }
       const savedMarked = (saved || []).map(s => ({ ...s, _saved: true }));
