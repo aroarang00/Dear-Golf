@@ -55,14 +55,18 @@ const CLOUDY_IMAGES = [
 // 비(rain) 전용 사진 — 실제 궂은날 사진. 낮/밤 분기(밤엔 궂은 낮 사진이 안 어울림).
 //   ★2026-07-08 신설: 예전엔 비에 전용 사진이 없어 맑은 낮 사진 + 초진한 오버레이만 덮어 답답했음.
 //     사용자 큐레이션 사진으로 교체(오버레이도 아래 rain 톤에서 대폭 완화).
+//   ★2026-07-09 비 전용 사진 4장 신설(고해상 원본 → 세로 1080×2340, 확대 1.0).
+//     예전엔 흐림 사진(overcast1 등)을 빌려 썼는데 하늘이 70%라 '하늘구름만' 보였음(테스터).
+//     하늘을 28~30% 덜어 코스를 살렸다. rainDay3은 빗방울 맺힌 유리창 너머 카트길 — 비 감성 전용.
 const RAIN_IMAGES = {
-  day: [ // 낮·아침·늦오후 비/흐림
-    require('../../../assets/home-bg/overcast1.jpg'), // 구름흐림 — 회색 하늘·코스
-    require('../../../assets/home-bg/overcast2.jpg'), // 흐림 — 극적 먹구름·연못
-    require('../../../assets/home-bg/morning1.jpg'),  // 아침 비 — 안개 자욱한 젖은 페어웨이
+  day: [ // 낮·아침·늦오후 비
+    require('../../../assets/home-bg/rainDay1.jpg'), // 비 — 젖은 페어웨이·소나무·카트길
+    require('../../../assets/home-bg/rainDay2.jpg'), // 비 — 먹구름·산·그린
+    require('../../../assets/home-bg/rainDay3.jpg'), // 비 — 빗방울 맺힌 유리창 너머 카트길
+    require('../../../assets/home-bg/rainDay4.jpg'), // 비 — 극적 먹구름·넓은 페어웨이
   ],
   night: [ // 밤 비
-    require('../../../assets/home-bg/rainNight.jpg'), // 야간 비 — 폭풍 먹구름 하늘·조명 페어웨이 (맑은 밤 풀에서 분리)
+    require('../../../assets/home-bg/rainNight.jpg'), // 야간 비 — 먹구름·조명 페어웨이 (하늘 25% 덜어 코스 확보)
   ],
 };
 
