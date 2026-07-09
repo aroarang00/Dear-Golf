@@ -61,6 +61,7 @@ export function SchedulesProvider({ children }) {
         failedRef.current = true;
         if (tries < BACKOFF.length) {
           const delay = BACKOFF[tries++];
+          if (retryTimer) clearTimeout(retryTimer); // 동시 loadFor(백오프+포그라운드 복귀 경합) 시 고아 타이머 방지
           retryTimer = setTimeout(() => { if (!cancelled && curUid) loadFor(curUid); }, delay);
         }
       } finally {
@@ -68,6 +69,7 @@ export function SchedulesProvider({ children }) {
       }
     };
 
+    let prevRealUid = null; // 마지막 실(non-null) uid — 진짜 계정 전환과 세션 흔들림(A→null→A)을 구분
     const unsub = onAuthStateChanged(auth, (user) => {
       const uid = user?.uid || null;
       if (uid === curUid) return;
@@ -79,6 +81,10 @@ export function SchedulesProvider({ children }) {
       //   홈 '첫 라운딩' 등 빈 CTA가 깜빡이던 문제 방지([[home-empty-state-flash]], [[auth-relink-and-seed-cleanup]]).
       setHydrated(false);
       if (!uid) return;  // 아직 로그인 전 — 실제 uid 콜백을 기다림(앱은 항상 익명 폴백 로그인됨)
+      // 진짜 계정 전환(다른 실uid) — 새 계정 첫 로드가 실패해도 이전 계정 일정이 남아 보이지 않게 즉시 비움.
+      //   null 경유 재수신(세션 흔들림)은 전환이 아니므로 기존 데이터 유지(FriendsTab과 동일 정신).
+      if (prevRealUid && prevRealUid !== uid) setSchedulesRaw([]);
+      prevRealUid = uid;
       loadFor(uid);
     });
 
