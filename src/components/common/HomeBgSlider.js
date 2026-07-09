@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Image, Animated, StyleSheet, AppState } from 'react-native';
+import { View, Animated, StyleSheet, AppState } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getShortForecast } from '../../utils/kma';
@@ -264,11 +265,16 @@ export function HomeBgSlider() {
     <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
       {/* 아래 레이어 — 페이드 진행 중에만 존재(옛 사진). 위 레이어가 다 덮이면 제거됨 */}
       {layers.bottom != null && (
-        <Image source={layers.bottom} fadeDuration={0} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+        <ExpoImage source={layers.bottom} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={0} />
       )}
-      {/* 위 레이어 — 새 사진, opacity 0→1 페이드 */}
-      <Animated.Image source={layers.top} fadeDuration={0}
-        style={[StyleSheet.absoluteFillObject, { opacity: fade }]} resizeMode="cover" />
+      {/* 위 레이어 — 새 사진, opacity 0→1 페이드(Animated.View 래퍼).
+          ★RN 기본 Image(Fresco) → expo-image(Glide)로 교체(2026-07-09) — 전체화면 크기에서 Fresco가
+          이 JPEG들을 하늘 그라데이션만 있는 비트맵으로 잘못 디코드(같은 파일이 작은 뷰에선 정상).
+          앱의 다른 모든 사진(피드·뷰어·FocalImage)은 expo-image라 정상이었음. transition=0은
+          안드 검은 썸네일 함정 회피([[expo-image-black-thumbnail]]). */}
+      <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: fade }]}>
+        <ExpoImage source={layers.top} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={0} />
+      </Animated.View>
       <LinearGradient
         style={StyleSheet.absoluteFillObject}
         colors={OVERLAYS[weather] || OVERLAYS.clear}
