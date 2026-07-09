@@ -24,7 +24,11 @@ const TIME_IMAGES = {
     require('../../../assets/home-bg/day1.jpg'), // 파란 하늘 — 연못 계곡·산·페어웨이
     require('../../../assets/home-bg/day2.jpg'), // 파란 하늘 — 코스 길·산
     require('../../../assets/home-bg/day3.jpg'), // 화창 — 연못·벙커·숲
-    require('../../../assets/home-bg/day4.jpg'), // 화창 — 페어웨이·연못·산·카트
+    // ★아래 3장은 고해상 원본에서 세로(1080×2340)로 뽑음 — 확대 배율 1.0(2026-07-09).
+    //   확대 배율 = 화면높이 ÷ 이미지높이. 폭을 잘라내는 크롭은 배율에 영향이 없다(옛 3:4 크롭이 헛수고였던 이유).
+    require('../../../assets/home-bg/day4.jpg'), // 화창 — 페어웨이·연못·산·카트 (같은 장면 고해상 교체)
+    require('../../../assets/home-bg/day5.jpg'), // 화창 — 카트길·연못·산 (2026-07-09 추가)
+    require('../../../assets/home-bg/day6.jpg'), // 화창 — 바위산·페어웨이 (2026-07-09 추가)
   ],
   lateAfternoon: [ // 늦은 오후·황혼 (16~21시) — 골든아워·노을 (사용자 사진, 노을 더 받으면 보강)
     require('../../../assets/home-bg/lateAfternoon1.jpg'), // 황혼빛 — 따뜻한 빛·드라마틱 구름
@@ -34,6 +38,7 @@ const TIME_IMAGES = {
     require('../../../assets/home-bg/night1.jpg'), // 맑은 밤 — 남색 하늘·산 실루엣·조명 페어웨이·벙커
     require('../../../assets/home-bg/night2.jpg'), // 맑은 밤 — 검은 하늘·조명 페어웨이·카트길 (2026-07-08 추가)
     require('../../../assets/home-bg/night3.jpg'), // 밤골프 — 조명 여러 개·그린·소나무·카트 (2026-07-08 추가)
+    require('../../../assets/home-bg/night4.jpg'), // 늦은밤 — 노을 잔광·나무 실루엣·가로등 (고해상 세로, 확대 1.0. 2026-07-09)
     // 옛 폭풍 먹구름 밤 사진은 맑은 밤에 어색해 밤 비 전용으로 분리(아래 RAIN_IMAGES.night=rainNight.jpg). 2026-07-08
   ],
 };
