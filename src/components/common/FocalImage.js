@@ -3,6 +3,7 @@ import { View, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { C } from '../../constants/colors';
 import { Spinner } from './Spinner';
+import { primePhotoRatio } from './PhotoViewer';
 
 // 초점(focus) 지정 커버 이미지 — resizeMode="cover"는 항상 가운데를 자르지만,
 // 이건 focus{x,y}(0..1) 지점이 보이도록 채운 이미지를 평행이동해서 잘라낸다 ([[cover-focal-point]]).
@@ -24,8 +25,11 @@ export function FocalImage({ uri, focus, width, height, style }) {
 
   // 원본 치수는 onLoad 이벤트로 확보 (별도 getSize 호출 없음 = 이중 다운로드 회피)
   const onLoad = (e) => {
-    if (center || src) return;
     const w = e?.source?.width, h = e?.source?.height;
+    // 실비율을 뷰어 캐시에 심어둠 — 탭해서 열 때 첫 프레임부터 정확한 높이로 그려짐(폴백 4:5 → 실측 스냅 = '갑자기 커짐' 제거).
+    //   center 경로(신규 크롭 사진)도 반드시 심어야 하므로 early return보다 앞에 둔다.
+    if (w && h) primePhotoRatio(uri, w / h);
+    if (center || src) return;
     if (w && h) { const s = { w, h }; _sizeCache.set(uri, s); setSrc(s); }
   };
 

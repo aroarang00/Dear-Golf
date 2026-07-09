@@ -269,15 +269,18 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
   // 영상도 포스터(첫프레임) 비율로 박스 높이를 맞춰 검은 여백 제거(A안, 사용자 2026-06-15). 포스터 없는 옛 영상은 VIDEO_H 폴백.
   const curPosterUri = isVideo && current?.poster ? resolvePhotoUri(current.poster) : null;
   const curAr = isVideo ? (curPosterUri ? arMap[curPosterUri] : null) : (curUri ? arMap[curUri] : null);
-  // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 영상=VIDEO_H, 사진=4:5 폴백.
+  // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 영상=VIDEO_H, 사진=availMax.
   const VIDEO_H = Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8));
   // 캡션 보일 땐 영상도 availMax(화면 절반)로 cap — 비율 측정 전/포스터 없는 영상이 VIDEO_H(화면 80%)로
   //   잡혀 글을 밀어내던 문제 해소. 순수 보기(캡션 숨김)에선 영상은 크게(VIDEO_H) 유지. (사용자 2026-06-16)
+  // ★사진 폴백은 availMax — contain이라 이 높이에서 그린 이미지 크기가 실측(min(availMax, SW/ar)) 후와 동일하다.
+  //   (세로=둘 다 availMax / 가로=폭 SW에 맞춰져 박스만 줄고 이미지는 그대로). 옛 4:5 폴백은 실측 도착 시
+  //   박스가 커지며 이미지가 '갑자기 커져' 보였음. (사용자 2026-07-09)
   const mediaH = curAr
     ? Math.min(availMax, Math.round(SW / curAr))
     : (isVideo
         ? (captionShown ? Math.min(availMax, Math.round(SW * 1.25)) : VIDEO_H)
-        : Math.min(availMax, Math.round(SW * 1.25)));
+        : availMax);
 
   // 현재 사진/동영상을 갤러리에 저장 — 원격(https) URL이면 캐시로 다운로드 후 저장(saveToLibraryAsync는 로컬 파일만).
   //   동영상은 확장자(mp4/mov)를 맞춰 받아야 갤러리가 영상으로 인식. 사진은 jpg.
