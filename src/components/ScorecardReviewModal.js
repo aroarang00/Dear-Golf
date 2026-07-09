@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -79,6 +80,10 @@ export function ScorecardReviewModal({ visible, rows = [], failed = false, lowCo
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
+      {/* KeyboardProvider — RN Modal은 별도 네이티브 윈도우라 모달 안 자체 Provider 필요(맛집·DM·일정모달 동일 패턴).
+          edge-to-edge라 안드 adjustResize가 무효 → 후반(IN) 홀 입력칸이 키보드에 가려졌음. */}
+      <KeyboardProvider>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} edges={['bottom']}>
           <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20,
             paddingTop: 10, paddingHorizontal: 20, paddingBottom: 20, maxHeight: '90%' }}>
@@ -171,6 +176,8 @@ export function ScorecardReviewModal({ visible, rows = [], failed = false, lowCo
             )}
           </View>
         </SafeAreaView>
+      </KeyboardAvoidingView>
+      </KeyboardProvider>
       </SafeAreaProvider>
     </Modal>
   );
