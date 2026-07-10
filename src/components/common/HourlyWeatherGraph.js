@@ -24,6 +24,8 @@ export const HourlyWeatherGraph = React.memo(function HourlyWeatherGraph({ slots
   const [w, setW] = useState(0);
   if (!Array.isArray(slots) || slots.length === 0) return null;
   const n = slots.length;
+  // 칸 폭 = 균등분할(항상 ≤7칸 — 당일 '이후 시간'은 창 자체가 시간 따라 이동, pickRoundHourSlots followNow).
+  //   가로 스크롤은 쓰지 않는다 — 날씨↔교통 탭 스와이프와 제스처가 충돌(사용자 2026-07-10).
   const colW = w > 0 ? (w - GUTTER) / n : 0;
   const xs = slots.map((_, i) => GUTTER + colW * (i + 0.5));
   // 롤링(현재날씨)에서 날짜가 바뀌는 첫 칸 — 그 위에 '내일' 라벨(네이버식, 사용자 2026-07-06). date 없으면(티오프 라운딩) -1.
@@ -145,8 +147,10 @@ export const HourlyWeatherGraph = React.memo(function HourlyWeatherGraph({ slots
                 <View key={i} style={cell}>
                   <Text style={[subTxt, { color: wet ? '#9EC3E8' : 'rgba(255,255,255,0.4)' }]}>{Math.round(s.rain) || 0}%</Text>
                   {hasAmount ? (
-                    <Text style={[subTxt, { fontSize: fs(8.5), height: fs(12), marginTop: 1, color: '#9EC3E8' }]} numberOfLines={1}>
-                      {s.sno ? `❄${s.sno}` : (s.pcp || ' ')}
+                    // 강수량 없는 시간은 빈칸 대신 '0' — 옆 칸과 나란히 읽히게(사용자 2026-07-10). 젖음 아님 = 흐린 색
+                    <Text style={[subTxt, { fontSize: fs(8.5), height: fs(12), marginTop: 1,
+                      color: (s.pcp || s.sno) ? '#9EC3E8' : 'rgba(255,255,255,0.35)' }]} numberOfLines={1}>
+                      {s.sno ? `❄${s.sno}` : (s.pcp || '0')}
                     </Text>
                   ) : null}
                 </View>

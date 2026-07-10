@@ -785,7 +785,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const hourSlots = React.useMemo(() => {
     const fineOk = !weatherOnly && schedule && !schedule.overseas && !schedule.isPreview && Number.isFinite(schedule.dDay) && schedule.dDay <= 3;
     if (fineOk) {
-      const fine = pickRoundHourSlots(forecast?.slotsByDate || {}, targetDateCompact, teeMin);
+      // 당일(D-0)은 7칸 창이 '지금'을 따라 이동 — 라운드 후에도 남은 하루(귀가길·저녁) 날씨가 보이게(사용자 2026-07-10).
+      //   가로 스크롤 안 씀(날씨↔교통 탭 스와이프와 제스처 충돌). 창은 항상 7칸이라 화면에 그대로 들어감.
+      const fine = pickRoundHourSlots(forecast?.slotsByDate || {}, targetDateCompact, teeMin, { followNow: schedule.dDay === 0 });
       if (fine.length) return fine;
     }
     // weatherOnly(현재날씨) = '지금'부터 1시간 간격 6칸 롤링(오후에도 안 휑함, 사용자 2026-07-06).

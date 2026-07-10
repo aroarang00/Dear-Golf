@@ -264,7 +264,10 @@ export function pickHourSlots(slotsByDate, dateStr) {
 // 라운딩 날 1시간 간격 슬롯 — 티오프 1시간 전 ~ +5시간(라운드 종료 무렵).
 //   단기예보는 1시간 간격을 주는데 6칸(3시간)으로 뭉개면 '오후 2시 소나기'가 안 보였음(사용자 라운딩 피드백 2026-07-05).
 //   예보 범위 밖 등으로 3칸 미만이면 [] 반환 → 호출부가 기존 6칸으로 폴백.
-export function pickRoundHourSlots(slotsByDate, dateStr, teeMin) {
+//   followNow: 라운드 당일(D-0)은 7칸 창이 '지금'을 따라 뒤로 이동 — 라운드가 진행/종료돼도
+//   카드가 보이는 동안 남은 하루(귀가길·저녁) 날씨가 보이게(사용자 2026-07-10). 창 크기는 그대로 7칸이라
+//   그래프에 그대로 들어감(가로 스크롤 X — 날씨↔교통 탭 스와이프와 제스처 충돌). 23시에 닿으면 고정.
+export function pickRoundHourSlots(slotsByDate, dateStr, teeMin, { followNow = false, now = new Date() } = {}) {
   const slots = slotsByDate?.[dateStr] || [];
   if (!slots.length || !Number.isFinite(teeMin)) return [];
   // 먼 라운드(D+3 등)는 기상청 단기예보가 1시간 간격이 아니라 '3시간 간격'만 준다(06/09/12/15/18/21).
@@ -273,8 +276,14 @@ export function pickRoundHourSlots(slotsByDate, dateStr, teeMin) {
   const hasHourly = slots.some(s => parseInt(s.fcstTime, 10) % 300 !== 0);
   if (!hasHourly) return [];
   const teeHour = Math.floor(teeMin / 60);
-  const startH = Math.max(0, teeHour - 1);
-  const endH = Math.min(23, teeHour + 5);
+  let startH = Math.max(0, teeHour - 1);
+  let endH = Math.min(23, teeHour + 5);
+  if (followNow) {
+    // 창 시작 = max(티오프-1, 지금-1) — 라운드 전엔 기존 창 그대로, 시간이 지나면 창이 따라옴.
+    //   17시 상한 = 창 끝이 23시에 닿으면 더 안 밀림(자정 직전에도 저녁 6칸+α 유지).
+    startH = Math.min(Math.max(startH, now.getHours() - 1), 17);
+    endH = Math.min(23, startH + 6);
+  }
   const out = [];
   for (const s of slots) {
     const h = Math.floor(parseInt(s.fcstTime, 10) / 100);
