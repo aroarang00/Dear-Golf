@@ -2,7 +2,8 @@ import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { login, me } from '@react-native-kakao/user';
 import { getFriends } from '@react-native-kakao/social';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
-import { auth, authReady } from './firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { auth, authReady, db } from './firebase';
 import { storage, STORAGE_KEYS } from './storage';
 import { ensureUserDoc } from './userDoc';
 import { checkBannedByKakaoSub } from './account';
@@ -75,10 +76,22 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
   // 익명 로그인 완료 보장 — linkWithCredential은 현재 User 객체가 필요
   await authReady;
   const current = auth.currentUser;
-  if (!current) return { ok: false, error: 'no-current-user' };
 
   // Firebase 콘솔에 등록한 OIDC 공급자 ID('oidc.kakao')와 정확히 일치해야 함
   const credential = new OAuthProvider('oidc.kakao').credential({ idToken: kakaoIdToken });
+
+  // 현재 유저 없음(직전 시도에서 익명 정리 후 signIn만 실패한 재시도 등) — link 없이 바로 로그인.
+  //   기존 카카오 계정이면 그 uid로, 처음이면 새 계정 생성. 옛 'no-current-user' 막다른길 제거(2026-07-10).
+  if (!current) {
+    try {
+      const result = await signInWithCredential(auth, credential);
+      await storage.save(STORAGE_KEYS.kakaoTrace, true);
+      return { ok: true, mode: 'existing', uid: result.user.uid };
+    } catch (e2) {
+      console.warn('[kakao-firebase] 무세션 signIn 실패', e2?.code || e2?.message);
+      return { ok: false, error: e2?.code || e2?.message || 'no-current-user' };
+    }
+  }
 
   try {
     // ① 익명 계정을 카카오 신원으로 승격 — uid가 유지돼 rounds·friendships 데이터 보존
@@ -88,6 +101,14 @@ export async function linkOrSignInWithKakao(kakaoIdToken) {
   } catch (e) {
     // ② 이 카카오에 이미 Firebase 계정이 있음 → 기존 계정으로 로그인 (uid 변경됨)
     if (e?.code === 'auth/credential-already-in-use') {
+      // ★유령 계정 방지(2026-07-10 설레인·bang 실사례) — 지금 쓰던 익명 uid는 이 전환으로 버려진다.
+      //   그 uid로 만들어진 users 문서(닉네임·kakaoId가 박혀 친구 검색·신청에 유령으로 등장)를
+      //   '아직 소유자인 지금' 지운다(전환 후엔 규칙상 못 지움). Auth 익명 계정도 best-effort 삭제 —
+      //   실패해도 무해(users 문서가 없으면 검색에 안 뜸). 세션유실 재로그인·둘러보기→카카오 둘 다 이 경로.
+      if (current.isAnonymous) {
+        try { await deleteDoc(doc(db, 'users', current.uid)); } catch { /* 문서 없음/권한 — 무해 */ }
+        try { await current.delete(); } catch { /* requires-recent-login 등 — 무해 */ }
+      }
       try {
         const result = await signInWithCredential(auth, credential);
         await storage.save(STORAGE_KEYS.kakaoTrace, true);  // 복귀 배너 판단용 흔적

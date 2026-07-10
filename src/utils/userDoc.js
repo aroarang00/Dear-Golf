@@ -1,11 +1,18 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 
 // users/{uid} 문서를 보장한다 (docs/firestore-schema.md의 users 스키마 기준).
 //  - 문서 없음(신규)        → 명함 기본값으로 생성
 //  - 문서 있음(재설치 등)   → 카카오 ID만 머지, 프로필 본문은 그대로 유지
 // 반환: { created: boolean, data: <users 문서 데이터> }
 export async function ensureUserDoc(uid, seed = {}) {
+  // ★익명 uid에 카카오 신원(kakaoId)을 박제하지 않는다 — 카카오 link/sign-in settle '후'에만 허용.
+  //   익명+kakaoId 문서 = 친구 검색·신청의 유령 계정(설레인·bang 2026-07-10). 정상 호출 경로
+  //   (OnboardingKakao·kakaoConnectFlow)는 전부 settle 후라 이 가드에 걸리지 않는다.
+  if (seed.kakaoId && auth.currentUser?.uid === uid && auth.currentUser?.isAnonymous) {
+    console.warn('[userDoc] 익명 uid에 kakaoId 시드 차단 — settle 전 호출');
+    return { created: false, data: null };
+  }
   const ref = doc(db, 'users', uid);
   const snap = await getDoc(ref);
 

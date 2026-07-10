@@ -240,10 +240,14 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           setFriendsLoaded(true);
         }
         // 1) 내 users 문서 ensure (없으면 nickname으로 생성)
+        // ★유령 계정 방지 — 카카오 사용자가 세션 유실로 '새 익명 uid'에 떨어진 상태(kakaoTrace 있음+익명)면
+        //   문서를 만들지 않는다. 여기서 닉네임 박힌 익명 문서가 생기면 친구 검색·신청에 같은 사람이
+        //   유령으로 등장(설레인·bang 2026-07-10). 카카오 재연결이 원래 uid로 복귀시키면 그때 정상 ensure.
+        const anonWithKakaoTrace = auth.currentUser?.isAnonymous && await storage.load(STORAGE_KEYS.kakaoTrace, false);
         const meRef = doc(db, 'users', uid);
         const meSnap = await getDoc(meRef);
         if (!meSnap.exists()) {
-          await setDoc(meRef, {
+          if (!anonWithKakaoTrace) await setDoc(meRef, {
             uid,
             nickname: userProfile?.nickname || '',
             blockedUids: [],
@@ -251,7 +255,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
-        } else if (userProfile?.nickname && meSnap.data().nickname !== userProfile.nickname) {
+        } else if (userProfile?.nickname && meSnap.data().nickname !== userProfile.nickname && !anonWithKakaoTrace) {
           // 닉네임 변경 시 동기화 (간단 케이스만, 30일 제한은 F4 MyPage에서)
           await setDoc(meRef, { nickname: userProfile.nickname, updatedAt: serverTimestamp() }, { merge: true });
         }
