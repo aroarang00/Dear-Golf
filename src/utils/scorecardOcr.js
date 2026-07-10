@@ -111,7 +111,8 @@ export async function recognizeScorecard(uri) {
       };
     }
     // 어느 방향도 인쇄 합계와 정확히 안 맞으면 저신뢰 → 리뷰 화면에서 확인 강조(틀린 홀이 그냥 들어가는 것 방지).
-    return { rows: best.rows, pars: best.pars, lowConfidence: best.matched === 0 };
+    // 소계 불일치 행(복원 못 한 오독 잔존)도 저신뢰로 — 버디가 +1로 읽힌 채 확정되는 것 방지.
+    return { rows: best.rows, pars: best.pars, lowConfidence: best.matched === 0 || best.rows.some(r => r.subMismatch) };
   } catch (e) {
     if (__DEV__) console.warn('[scorecardOcr] OCR fail:', e?.code || '', e?.message);
     return { rows: [], pars: null, error: e?.message || '사진을 인식하지 못했어요 — 직접 입력해 주세요' };
@@ -225,19 +226,22 @@ function parseTokens(toks) {
   const parCols = (pr) => pr.numItems.filter(it => it.n >= 3 && it.n <= 6).slice(0, 9);
   // 플레이어 숫자를 PAR 컬럼 x에 정렬 — 누락 셀(나비 가린 버디 등)=null, 마지막 홀 우측 숫자=소계로 분리.
   //   ★스마트스코어 버디(-1)가 노란 나비 아이콘에 가려 CLOVA가 그 칸을 못 읽음 → 한 칸씩 밀려 소계(44)가 홀로 끼던 버그 수정 ([[project_scorecard_ocr]]).
+  //   offs=칸별 x치우침(컬럼 중심 대비) — '-1'의 마이너스가 소실되면 남은 '1'이 오른쪽으로 밀림(아래 fixLostMinus 단서).
   const alignRow = (numItems, cols) => {
-    if (!cols.length) return { holes: [], sub: undefined };
+    if (!cols.length) return { holes: [], sub: undefined, offs: [], span: 40 };
     const span = cols.length >= 2 ? (cols[cols.length - 1].cx - cols[0].cx) / (cols.length - 1) : 40;
     const tol = span * 0.55, lastX = cols[cols.length - 1].cx;
     const holes = new Array(cols.length).fill(null);
+    const offs = new Array(cols.length).fill(0);
     const subs = [];
     for (const it of numItems) {
       if (it.cx > lastX + span * 0.7) { subs.push(it.n); continue; }  // 마지막 홀 우측 = 소계/총계
       let best = -1, bd = Infinity;
       cols.forEach((c, ci) => { const d = Math.abs(it.cx - c.cx); if (d < bd) { bd = d; best = ci; } });
-      if (best >= 0 && bd <= tol && holes[best] == null) holes[best] = it.n; else subs.push(it.n);
+      if (best >= 0 && bd <= tol && holes[best] == null) { holes[best] = it.n; offs[best] = it.cx - cols[best].cx; }
+      else subs.push(it.n);
     }
-    return { holes, sub: subs.find(Number.isFinite) };  // 첫 소계(좌측) = 블록 소계
+    return { holes, sub: subs.find(Number.isFinite), offs, span };  // 첫 소계(좌측) = 블록 소계
   };
 
   let parFront = [], parBack = [];
@@ -253,11 +257,12 @@ function parseTokens(toks) {
     const bps = players.filter(p => p.cy > backCy).sort((a, b) => a.cy - b.cy);
     const cnt = Math.max(fps.length, bps.length);
     for (let i = 0; i < cnt; i++) {
-      const af = fps[i] ? alignRow(fps[i].numItems, colF) : { holes: [], sub: undefined };
-      const ab = bps[i] ? alignRow(bps[i].numItems, colB) : { holes: [], sub: undefined };
+      const af = fps[i] ? alignRow(fps[i].numItems, colF) : { holes: [], sub: undefined, offs: [], span: 40 };
+      const ab = bps[i] ? alignRow(bps[i].numItems, colB) : { holes: [], sub: undefined, offs: [], span: 40 };
       normalized.push({
         name: (fps[i] && fps[i].name) || (bps[i] && bps[i].name) || `${i + 1}번째 줄`,
         relF: af.holes, relB: ab.holes, subF: af.sub, subB: ab.sub,
+        offF: af.offs, offB: ab.offs, spanF: af.span, spanB: ab.span,
       });
     }
   } else if (ph0.length >= 16) {
@@ -298,22 +303,60 @@ function parseTokens(toks) {
     return (parSum && holeSum >= parSum * 0.7) ? 'actual' : 'relative';  // 폴백: 값 크기
   };
 
-  // 상대모드 블록에 누락 셀이 정확히 1개면 (소계−par합−읽은합)으로 복원 — 나비에 가린 버디 등 되살림.
+  // 누락 셀 복원 — 블록 소계(sub)로 되살림. 나비 아이콘에 가린 버디가 주 원인.
+  //  ① 누락 1칸: 정확값 복원(상대·실타수 모두).
+  //  ② 상대모드 누락 여러 칸: 누락합이 정확히 -1×칸수면 전부 버디(-1)로 복원 — 한 라운드 버디 2개+면
+  //     기존 '1칸만' 조건에 걸려 통째로 빈칸이 되던 문제 수정(2026-07-10 사용자 제보). 합이 안 맞으면 안 채움(오입력 방지).
+  //  ⚠️홀아웃(안 친 홀) 보호: 미플레이 홀도 빈칸인데 소계는 친 홀만 합산돼 있음 → 복원값이 홀 점수로
+  //    타당한 범위일 때만 채움(상대 -3~+9, 실타수 1~15). 벗어나면 빈칸 유지 → 사용자가 직접 입력.
   const recoverBlock = (rel, parArr, sub, mode) => {
     const r = rel.slice();
-    if (mode !== 'relative' || !Number.isFinite(sub)) return r;
+    if (!Number.isFinite(sub)) return r;
     const miss = r.map((v, i) => (Number.isFinite(v) ? -1 : i)).filter(i => i >= 0);
-    if (miss.length !== 1) return r;
-    const parSum = parArr.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    if (!miss.length) return r;
     const known = r.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
-    r[miss[0]] = (sub - parSum) - known;
+    if (mode === 'relative') {
+      const parSum = parArr.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+      const missSum = (sub - parSum) - known;
+      if (miss.length === 1) {
+        if (missSum >= -3 && missSum <= 9) r[miss[0]] = missSum;
+        return r;
+      }
+      if (missSum === -miss.length) miss.forEach(i => { r[i] = -1; });
+    } else if (mode === 'actual' && miss.length === 1) {
+      const v = sub - known;
+      if (v >= 1 && v <= 15) r[miss[0]] = v;
+    }
     return r;
   };
+
+  // ★마이너스 소실 복원 — 스마트스코어 버디(-1)의 '-'가 나비 아이콘에 가려 '1'로 읽히는 문제(2026-07-10 실카드 규명).
+  //   상대모드 블록에서 읽은합이 인쇄 소계보다 정확히 2 크면 버디 하나가 +1로 뒤집힌 것.
+  //   '-'는 숫자 왼쪽이라 소실되면 남은 '1'의 중심이 컬럼 중심보다 오른쪽으로 밀림(실측 +12px vs 정상 0~2px)
+  //   → 가장 오른쪽으로 치우친 '1'을 -1로 복원. 치우침이 불분명하면 안 고침(오입력 방지, 소계 불일치 배너로 확인 유도).
+  const fixLostMinus = (rel, offs, parArr, sub, mode, span) => {
+    if (mode !== 'relative' || !Number.isFinite(sub) || !Array.isArray(offs)) return rel;
+    if (rel.some(v => !Number.isFinite(v))) return rel;          // 누락 칸은 recoverBlock 몫
+    const parSum = parArr.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    const known = rel.reduce((s, v) => s + v, 0);
+    if (!parSum || (parSum + known) - sub !== 2) return rel;
+    const cands = rel.map((v, i) => (v === 1 ? { i, off: offs[i] || 0 } : null)).filter(Boolean)
+      .sort((a, b) => b.off - a.off);
+    const best = cands[0], second = cands[1];
+    if (!best || best.off < (span || 40) * 0.08) return rel;                    // 치우침이 미미 → 확신 없음
+    if (second && second.off > 0 && best.off < second.off * 2) return rel;      // 2위와 차이 불분명 → 확신 없음
+    const r = rel.slice();
+    r[best.i] = -1;
+    return r;
+  };
+
   const out = normalized.map(pl => {
     const modeF = decideMode(pl.relF, parFront, pl.subF);
     const modeB = pl.relB.length ? decideMode(pl.relB, parBack, pl.subB) : modeF;
-    const relF = recoverBlock(pl.relF, parFront, pl.subF, modeF);
-    const relB = recoverBlock(pl.relB, parBack, pl.subB, modeB);
+    let relF = recoverBlock(pl.relF, parFront, pl.subF, modeF);
+    let relB = recoverBlock(pl.relB, parBack, pl.subB, modeB);
+    relF = fixLostMinus(relF, pl.offF, parFront, pl.subF, modeF, pl.spanF);
+    relB = fixLostMinus(relB, pl.offB, parBack, pl.subB, modeB, pl.spanB);
     const holes = [];
     for (let h = 0; h < 18; h++) {
       const par = pars18[h];
@@ -323,7 +366,13 @@ function parseTokens(toks) {
       if (!Number.isFinite(val)) { holes.push(null); continue; }
       holes.push(mode === 'actual' ? val : (Number.isFinite(par) ? par + val : null));
     }
-    return { label: pl.name, holes, total: sumHoles(holes) };
+    // 소계 불일치 — 복원 후에도 블록 합이 인쇄 소계와 다르면 오독 잔존(버디 위치 미확정 등) → 저신뢰 신호
+    const blockSum = (rel, parArr, mode) => rel.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0)
+      + (mode === 'relative' ? parArr.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0) : 0);
+    const subMismatch =
+      (Number.isFinite(pl.subF) && relF.length && relF.every(Number.isFinite) && blockSum(relF, parFront, modeF) !== pl.subF) ||
+      (Number.isFinite(pl.subB) && relB.length && relB.every(Number.isFinite) && blockSum(relB, parBack, modeB) !== pl.subB);
+    return { label: pl.name, holes, total: sumHoles(holes), subMismatch };
   });
 
   return { rows: out, pars: pars18.length === 18 ? pars18 : null };
