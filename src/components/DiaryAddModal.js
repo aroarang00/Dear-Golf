@@ -86,6 +86,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [kakaoSearching, setKakaoSearching] = useState(false);
   const debounceRef = useRef(null);
   const detailMemoRef = useRef(null);
+  const visibleRef = useRef(visible); visibleRef.current = visible; // 비동기(OCR 등) 완료 시 '아직 열려있나' 확인용
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -296,7 +297,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const img = await pickScorecardImage(source);
       if (img?.denied) { setOverlay({ title: '카메라 권한이 필요해요', message: '설정에서 카메라 접근을 허용한 뒤 다시 시도해 주세요.' }); return; }
       if (!img) return; // 취소
+      if (!visibleRef.current) return; // 사진 고르는 사이 기록 모달이 닫힘 — 인식 시작 안 함
       const res = await recognizeScorecard(img.uri);
+      // ★인식 중(최대 3회 회전 재시도로 수십 초) 기록 모달을 닫았으면 결과 폐기 — 닫힌 모달에 scReview=true가
+      //   남으면 다음 '기록하기' 오픈 첫 프레임에 기록+검토 모달이 동시 마운트되어 iOS 모달 스택이 꼬임(멈춤).
+      if (!visibleRef.current) return;
       setScRows(res.rows || []);
       setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
       setScFailed(!!res.error || !(res.rows || []).length);   // 인식 실패/숫자 부족 → 빈 표 직접 입력 안내

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Keyboard } from 'react-native';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -41,13 +41,18 @@ export function ScorecardReviewModal({ visible, rows = [], failed = false, lowCo
 
   const inSelect = multi && rowIdx === null;
 
+  // ★닫기·확정 첫 줄 Keyboard.dismiss() — 숫자 키보드가 뜬 채 이 중첩 Modal(+KeyboardProvider)이 unmount되면
+  //   iOS에서 포커스(first responder)가 사라진 창에 남아 터치 전체가 죽음(Build 71 ✕ 멈춤 재현).
+  //   별명 시트의 '확정 첫 줄 dismiss' 패턴과 동일 ([[ios-keyboard-save-tap-eaten]]).
+  const handleClose = () => { Keyboard.dismiss(); onClose && onClose(); };
+
   // 안드 뒤로가기 — 표에서는 행 선택으로, 행 선택/단일행에서는 모달 닫기
   const handleRequestClose = () => {
-    if (multi && rowIdx !== null) { setRowIdx(null); return; }
-    onClose && onClose();
+    if (multi && rowIdx !== null) { Keyboard.dismiss(); setRowIdx(null); return; }
+    handleClose();
   };
 
-  const confirm = () => onConfirm && onConfirm({ holeScores: holeNums, total });
+  const confirm = () => { Keyboard.dismiss(); onConfirm && onConfirm({ holeScores: holeNums, total }); };
 
   // 9홀 한 줄 렌더 (start: 0=전반, 9=후반)
   const renderNine = (start, title) => (
@@ -94,7 +99,7 @@ export function ScorecardReviewModal({ visible, rows = [], failed = false, lowCo
               <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, flex: 1 }}>
                 {inSelect ? '본인 줄을 선택해주세요' : '스코어카드 확인'}
               </Text>
-              <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontSize: fs(20), color: C.warmGray }}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -162,7 +167,7 @@ export function ScorecardReviewModal({ visible, rows = [], failed = false, lowCo
             {!inSelect && (
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
                 {multi && (
-                  <TouchableOpacity onPress={() => setRowIdx(null)} activeOpacity={0.85}
+                  <TouchableOpacity onPress={() => { Keyboard.dismiss(); setRowIdx(null); }} activeOpacity={0.85}
                     style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
                       backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>다시 선택</Text>
