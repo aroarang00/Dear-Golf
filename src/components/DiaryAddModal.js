@@ -133,9 +133,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         return has ? rest : [...rest, tag];               // 누른 게 켜져 있었으면 해제, 아니면 그룹 내 단일 선택
       }
       if (has) return prev.filter(t => t !== tag);
-      // 선택 시 반대쌍(그린 빠름↔느림 등)은 자동 해제 — 다른 속성과는 공존
+      // 선택 시 모순 태그(그린 빠름/보통/느림 등)는 자동 해제 — 다른 속성과는 공존. 값은 배열.
       const opp = COURSE_TAG_OPPOSITES[tag];
-      const base = opp ? prev.filter(t => t !== opp) : prev;
+      const base = opp ? prev.filter(t => !opp.includes(t)) : prev;
       return [...base, tag];
     });
   };
