@@ -384,19 +384,22 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       //   구장·날짜는 잠금이라 time/members/booker/subCourse만 동기화. ([[schedule-propagation-spec]])
       if (oldS?.groupId && !oldS?.roundupId && currentUid) {
         const memoChanged = (oldS.memo || '') !== (data.memo || '');
-        const changed = (oldS.time !== data.time)
+        const coreChanged = (oldS.time !== data.time)
           || (Number(oldS.members) !== Number(data.members))
           || ((oldS.booker || '') !== (data.booker || ''))
-          || ((oldS.subCourse || '') !== (data.subCourse || ''))
-          || memoChanged;
+          || ((oldS.subCourse || '') !== (data.subCourse || ''));
+        const changed = coreChanged || memoChanged;
         if (changed) {
           // memo가 바뀐 편집이면 수정자 전달 → 그룹에 'OO님 수정' 기록 (HomeScreen 편집 경로와 동일, 리뷰 2026-07-06)
           syncGroupContentByMember(oldS.groupId, { ...oldS, ...data },
             memoChanged ? { uid: currentUid, name: userProfile?.nickname || '' } : null).then(async () => {
             try {
               const group = await getScheduleGroup(oldS.groupId);
-              await notifyScheduleGroupMembers({ group, myUid: currentUid, type: 'scheduleChanged',
-                actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time });
+              // 공지만 바뀐 편집은 전용 타입(scheduleMemo)+내용 미리보기 (HomeScreen과 동일, 2026-07-10)
+              await notifyScheduleGroupMembers({ group, myUid: currentUid,
+                type: coreChanged ? 'scheduleChanged' : 'scheduleMemo',
+                actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time,
+                memoPreview: !coreChanged ? String(data.memo || '').replace(/\s+/g, ' ').slice(0, 40) : undefined });
             } catch (e) { if (__DEV__) console.warn('[mySchedule] notify changed', e?.message); }
           });
         }

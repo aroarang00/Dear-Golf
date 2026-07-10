@@ -8,7 +8,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { buildCompanionNames } from '../utils/scheduleCompanions';
 import { getAlarmConfig, computeRoundTimeline, fmtClock } from '../utils/notifications'; // 라운드 알람 요약 표시
 import { useCurrentUid } from '../contexts/CurrentUidContext';
-import { getScheduleGroup } from '../utils/scheduleShares';
+import { getScheduleGroup, ackGroupMemo } from '../utils/scheduleShares';
 import { loadMyFriendsEnriched } from '../utils/friends';
 
 const SAGE = '#5E7E42';   // 세이지그린 — 교통 아이콘 액센트(앱 크루 세이지와 동색)
@@ -22,6 +22,16 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const [group, setGroup] = useState(null); // 전파 일정 그룹(동반자 이름 보강)
   const [friendNames, setFriendNames] = useState({}); // uid→닉네임 — friendMeta엔 별명만 있어 닉네임은 친구목록에서 보강
   useEffect(() => { if (!visible) setConfirmDelete(false); }, [visible]); // 시트 닫힐 때 상태 초기화
+
+  // 공지 확인 ✓ — 서버에 내 uid 키만 기록 + 로컬 group에 낙관 반영(재로드 없이 즉시 표시).
+  //   유효성은 at > memoAt 비교라 공지가 수정되면 자동 무효(2026-07-10, [[schedule-propagation-spec]] 공지 확인).
+  const handleAckMemo = async () => {
+    if (!schedule?.groupId || !myUid) return;
+    const name = group?.names?.[myUid] || '';
+    setGroup(g => g ? { ...g, memoAcks: { ...(g.memoAcks || {}), [myUid]: { name, at: { toMillis: () => Date.now() } } } } : g);
+    try { await ackGroupMemo(schedule.groupId, myUid, name); }
+    catch (e) { if (__DEV__) console.warn('[sheet] ackMemo', e?.message); }
+  };
   // 시트를 '완성된 상태로' 슬라이드시킨다 — 부가데이터(알람 설정·전파 그룹·친구 닉네임)를 먼저 로드한 뒤에야
   //   Modal을 열어(showSheet), 열린 뒤 알람요약·동반자·메모가 계단식으로 삽입/리플로우되던 것을 근본 제거
   //   (사용자 2026-07-07 — '열고 나서 채우기'는 무엇이 늦든 계단식이 생겨, '로드 후 열기'로 전환).
@@ -249,15 +259,38 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   const memoText = isGroupMemo ? (group?.memo || schedule.memo || '') : (schedule.memo || '');
                   if (!memoText) return null;
                   const editor = isGroupMemo ? (group?.memoByName || '') : '';
+                  // 확인(✓) — at > memoAt 인 것만 유효(공지가 수정되면 자동 리셋). 이름은 그룹 names 맵 → ack 기록 순.
+                  const memoAtMs = group?.memoAt?.toMillis ? group.memoAt.toMillis() : 0;
+                  const acks = isGroupMemo ? Object.entries(group?.memoAcks || {})
+                    .filter(([, a]) => a?.at?.toMillis && a.at.toMillis() >= memoAtMs)
+                    .map(([u, a]) => ({ uid: u, name: group?.names?.[u] || a.name || '' })) : [];
+                  const iAcked = acks.some(a => a.uid === myUid);
+                  const isAuthor = isGroupMemo && group?.memoBy === myUid;
+                  const ackNames = acks.map(a => a.name).filter(Boolean).join(' · ');
                   return (
                     <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                        <Text style={{ fontSize: fs(12.5) }}>📝</Text>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>메모</Text>
+                        <Text style={{ fontSize: fs(12.5) }}>{isGroupMemo ? '📢' : '📝'}</Text>
+                        {/* 전파 일정은 '공지' — 푸시로 전달되고 확인을 받는 성격이라 개인 '메모'와 표기 분리(사용자 2026-07-10) */}
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>{isGroupMemo ? '공지' : '메모'}</Text>
                       </View>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 23 }}>{memoText}</Text>
                       {!!editor && (
                         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8 }}>✎ {editor}님이 마지막으로 수정</Text>
+                      )}
+                      {/* 확인 줄 — 누가 봤는지 + 내 확인 버튼('네~' 답장 수정 대신, 푸시 소음 없이) */}
+                      {isGroupMemo && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 8 }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, flexShrink: 1 }}>
+                            {ackNames ? `확인 ✓ ${ackNames}` : '아직 확인한 동반자가 없어요'}
+                          </Text>
+                          {!isAuthor && !iAcked && (
+                            <TouchableOpacity onPress={handleAckMemo} activeOpacity={0.8}
+                              style={{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.06)' }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy }}>확인했어요 ✓</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       )}
                     </View>
                   );

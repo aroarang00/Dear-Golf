@@ -103,7 +103,7 @@ exports.onNotificationCreated = onDocumentCreated('roundupNotifications/{notiId}
   if (!token) return;
 
   const title = titleFor(type);
-  const body = bodyFor(type, { postTitle, actorName, scheduleDate, scheduleTime });
+  const body = bodyFor(type, { postTitle, actorName, scheduleDate, scheduleTime, memoPreview: data.memoPreview || '' });
   await sendExpoPush(token, title, body, { type, postId: data.postId, notiId: event.params.notiId }, recipientUid);
 });
 
@@ -441,6 +441,7 @@ function titleFor(type) {
     case 'roundupCancelled': return '모집 취소';
     case 'roundupFull':     return '모집 인원 마감';
     case 'scheduleChanged':   return '일정 변경';
+    case 'scheduleMemo':      return '동반자 공지';
     case 'scheduleCancelled': return '일정 취소';
     // 노쇼 신고
     case 'noshowReported':            return '노쇼 신고 접수';
@@ -466,7 +467,7 @@ function titleFor(type) {
   }
 }
 
-function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', scheduleTime = '' }) {
+function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', scheduleTime = '', memoPreview = '' }) {
   const t = postTitle ? `'${postTitle}'` : '라운딩';
   switch (type) {
     case 'scheduleNotice': {
@@ -491,6 +492,9 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
       const when = [scheduleDate, scheduleTime].filter(Boolean).join(' ');
       return `${actorName ? actorName + '님이 ' : ''}${t} 일정을 변경했어요${when ? ` — ${when}` : ' — 확인해주세요'}`;
     }
+    // 동반자 공지(구 메모) — 내용 미리보기를 실어 앱을 안 열어도 전달되게(사용자 2026-07-10)
+    case 'scheduleMemo':
+      return `${actorName ? actorName + '님이 ' : ''}${t} 공지를 남겼어요${memoPreview ? ` — “${memoPreview}”` : ''}`;
     case 'scheduleCancelled': return `${actorName ? actorName + '님이 ' : ''}${t} 일정을 취소했어요${scheduleDate ? ` (${scheduleDate})` : ''}`;
     case 'roundupCancelled': return postTitle
       ? `${actorName ? actorName + '님의 ' : ''}'${postTitle}'${scheduleDate ? ` (${scheduleDate})` : ''} 모집이 취소됐어요`

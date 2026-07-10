@@ -47,6 +47,8 @@ export async function createNotification(data) {
     // scheduleDate/Time — 취소·변경 알림 등에서 날짜·시간 식별용(확정형). 없으면 생략. create 규칙은 필드 제한 없음.
     ...(data.scheduleDate ? { scheduleDate: data.scheduleDate } : {}),
     ...(data.scheduleTime ? { scheduleTime: data.scheduleTime } : {}),
+    // memoPreview — 동반자 공지(scheduleMemo) 푸시·알림탭에 내용 앞부분을 실어 앱을 안 열어도 전달(2026-07-10)
+    ...(data.memoPreview ? { memoPreview: String(data.memoPreview) } : {}),
     read: false,
     createdAt: serverTimestamp(),
   };

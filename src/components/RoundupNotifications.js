@@ -28,7 +28,7 @@ const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true
 const NOTI_ICON = {
   apply: '🙋', cancel: '❌', waitlistPromoted: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
   invite: '💌', roundupCancelled: '🚫', scheduleNotice: '📣', friendRequest: '🤝', roundupChanged: '✏️', roundupFull: '🔔',
-  scheduleChanged: '🗓️', scheduleCancelled: '🚫',
+  scheduleChanged: '🗓️', scheduleCancelled: '🚫', scheduleMemo: '📢',
   // 시스템 알림 (Cloud Functions)
   noshowReported: '⚠️', noshowReportSubmitted: '📩', noshowExplanationRequired: '⏰',
   noshowConfirmed: '🚫', noshowReporterConfirmed: '✅', noshowFalseReport: '🚫',
@@ -144,6 +144,9 @@ function notiText(n, friendMeta) {
       const when = [n.scheduleDate, n.scheduleTime].filter(Boolean).join(' ');
       return `${who}님이 '${n.postTitle}' 일정을 변경했어요${when ? ` — ${when}` : ' — 확인해주세요'}`;
     }
+    // 동반자 공지(구 메모) — 내용 앞부분을 함께 표시(푸시와 동일 문구, 2026-07-10)
+    case 'scheduleMemo':
+      return `${who}님이 '${n.postTitle}' 공지를 남겼어요${n.memoPreview ? ` — “${n.memoPreview}”` : ''}`;
     case 'scheduleCancelled':
       return `${who}님이 '${n.postTitle}' 일정을 취소했어요${n.scheduleDate ? ` (${n.scheduleDate})` : ''}`;
 

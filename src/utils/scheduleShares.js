@@ -242,9 +242,10 @@ export async function getScheduleGroup(groupId) {
 }
 
 // 전파 일정 수정/삭제 시 그룹 멤버에게 알림(나 제외) — roundupNotifications 생성 → onNotificationCreated가 푸시.
-//   type='scheduleChanged'|'scheduleCancelled'. course/date/time은 호출부가 '변경 후' 값을 넘김(스냅샷 아님).
+//   type='scheduleChanged'|'scheduleCancelled'|'scheduleMemo'(공지, memoPreview에 내용 앞부분).
+//   course/date/time은 호출부가 '변경 후' 값을 넘김(스냅샷 아님).
 //   v1=재알림 모델(데이터 자동 동기화 X) — 멤버는 알림 받고 본인 일정을 직접 갱신/삭제 ([[schedule-propagation-spec]]).
-export async function notifyScheduleGroupMembers({ group, myUid, type, actorName, course, date, time }) {
+export async function notifyScheduleGroupMembers({ group, myUid, type, actorName, course, date, time, memoPreview }) {
   const members = (group?.memberUids || []).filter(u => u && u !== myUid);
   if (!members.length) return 0;
   await Promise.all(members.map(rid => createNotification({
@@ -255,6 +256,17 @@ export async function notifyScheduleGroupMembers({ group, myUid, type, actorName
     postTitle: course || group.course || '',
     scheduleDate: date || group.date || '',
     scheduleTime: time || group.time || '',
+    ...(memoPreview ? { memoPreview } : {}),
   }).catch(e => __DEV__ && console.warn('[scheduleGroup notify]', rid, e?.message))));
   return members.length;
+}
+
+// 공지(구 메모) 확인 ✓ — 내 uid 키만 기록. '확인 시각 > memoAt'인 것만 유효로 치므로
+//   공지가 새로 수정되면 기존 확인은 자동 무효(리셋 write 불필요). 규칙: memoAcks 자기 키만 변경 허용.
+export async function ackGroupMemo(groupId, uid, name) {
+  if (!groupId || !uid) return;
+  await updateDoc(doc(db, COLLECTION, groupId), {
+    [`memoAcks.${uid}`]: { name: name || '', at: serverTimestamp() },
+    updatedAt: serverTimestamp(),
+  });
 }
