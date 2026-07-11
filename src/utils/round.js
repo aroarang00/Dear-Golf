@@ -70,8 +70,11 @@ export async function loadFriendRounds(friendUid) {
   const snaps = await Promise.all(qs);
   const map = new Map();           // doc id 기준 dedupe(겹침 없음 — 안전망)
   snaps.forEach(snap => snap && snap.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() })));
+  // 같은 날짜는 작성시각 최신순 — 다이어리 탭(DiaryScreen sortedDiaries)과 동일 기준.
+  //   타이브레이크 없으면 문서 ID 역순(사실상 무작위)이라 나중에 쓴 글이 뒤로 가던 문제(2026-07-11 실사용 제보).
+  const ts = (d) => d?.createdAt?.toMillis?.() || 0; // 아주 옛 데이터(createdAt 없음)=0 → 같은 날짜 맨 뒤
   return Array.from(map.values())
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)); // date desc
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : ts(b) - ts(a))); // date desc → 같은 날짜 작성 최신순
 }
 
 // 친구의 '그룹 공개' 글 중 내가 볼 수 있는(audienceUids에 나 포함) 것의 '최신 작성시각(millis)' — 친구별 {uid: ms}.
