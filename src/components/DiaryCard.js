@@ -343,14 +343,21 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
       return wrapFriend(
         <View style={[dS.card, isSpecial && dS.cardSpecial]}>
           {isSpecial && <View style={dS.cardSpecialLine} />}
-          {/* 라운딩 기록은 사진만(캡션 X) — 메모 미전달. 일상만 사진+캡션(글이 본체) ([[friend-feed-design]]) */}
           {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i), photoScoreOverlay)}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
-            <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>
-              {item.memo ? `"${item.memo}"` : ''}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 }}>
+            {item.memo ? (
+              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <View style={{ flex: 1 }} />
             {likeButton}
           </View>
+          {item.memo && expanded && (
+            <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
+            </View>
+          )}
         </View>
       );
     }
@@ -372,9 +379,6 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
             <Text style={dS.cardDate}>{dLabel}</Text>
             <Text style={[dS.cardCourse, { fontFamily: F.sysM }, isSpecial && { color: '#8B6914' }, { marginBottom: 6 }]} numberOfLines={1}>{item.course}</Text>
             {ratingStars}
-            {item.memo ? (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
-            ) : null}
           </View>
           {/* 우 — 타수(크게) · 싱글 배지(타수 밑) */}
           <View style={{ alignItems: 'flex-end', minWidth: 60 }}>
@@ -413,6 +417,16 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
           </View>
           {likeButton}
         </View>
+        {item.memo && (
+          <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
+            <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
+            </TouchableOpacity>
+            {expanded && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, marginTop: 6 }}>"{item.memo}"</Text>
+            )}
+          </View>
+        )}
       </View>
     );
   }
