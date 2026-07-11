@@ -149,7 +149,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     <Modal visible={visible && showSheet} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheetS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { if (!confirmDelete) onClose(); }} />
-        <View style={[sheetS.sheet, { maxHeight: '90%', paddingBottom: 20 + insets.bottom }]}>
+        <View style={[sheetS.sheet, { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View style={sheetS.handle} />
           {/* 고정 ✕ — iOS는 백버튼 없고 시트가 길면 상단(핸들)이 노치 근처라 닫기 어려움(사용자 2026-07-06).
               스크롤·길이와 무관하게 우상단 고정. 삭제 확인 중엔 숨김(취소/삭제 버튼으로 유도). */}

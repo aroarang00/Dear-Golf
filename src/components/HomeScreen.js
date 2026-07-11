@@ -44,7 +44,7 @@ import { subscribeCrewInvites, subscribeMyCrews } from '../utils/crews';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched, loadMyFriends } from '../utils/friends';
-import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup, memoChangePreview } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
 import { formatDriveMin } from '../utils/directions'; // 교통 소요 '시간 분' 표시 — 카드·팝업 공용
@@ -129,6 +129,7 @@ export function HomeScreen({ navigation, route }) {
   const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [pendingScheduleChange, setPendingScheduleChange] = useState(null); // 전파 일정 변경 반영 대기 1건 { schedule, pc } — 홈 상단 맥동 배너
+  const [groupSharedCounts, setGroupSharedCounts] = useState({});
   // 친구 일정에 초대(일정 전파) — 대상 일정 + 친구목록 + 모달 ([[schedule-propagation-spec]])
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
@@ -324,14 +325,22 @@ export function HomeScreen({ navigation, route }) {
     }
   }, [route?.params?.openSchedule]);
 
-  // 코스에서 '일정으로 복귀' — 코스를 일정 시트에서 열었다가 닫으면(returnToScheduleId) 그 일정 시트를 다시 연다.
+  // 코스에서 '일정으로 복귀' / 푸시 탭 → 해당 일정 시트 자동 오픈.
+  //   콜드스타트 시 schedules가 아직 빈 배열일 수 있어, hydrated 후 재시도.
+  const [pendingSheetId, setPendingSheetId] = useState(null);
+  const sheetIdOnMountRef = useRef(route?.params?.openScheduleSheetId);
   useEffect(() => {
     const sid = route?.params?.openScheduleSheetId;
     if (!sid) return;
     navigation.setParams({ openScheduleSheetId: undefined });
-    const s = (schedules || []).find((x) => x.id === sid);
-    if (s) openScheduleSheet(s);
+    if (sheetIdOnMountRef.current === sid) { sheetIdOnMountRef.current = null; return; }
+    setPendingSheetId(sid);
   }, [route?.params?.openScheduleSheetId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pendingSheetId || !hydrated) return;
+    const s = (schedules || []).find((x) => x.id === pendingSheetId || x.groupId === pendingSheetId);
+    if (s) { openScheduleSheet(s); setPendingSheetId(null); }
+  }, [pendingSheetId, hydrated, schedules]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);
@@ -514,6 +523,23 @@ export function HomeScreen({ navigation, route }) {
     });
     return () => sub.remove();
   }, [checkSharedScheduleUpdates]);
+
+  useEffect(() => {
+    const shared = (schedules || []).filter(s => s.groupId);
+    if (!shared.length) { setGroupSharedCounts({}); return; }
+    let cancelled = false;
+    (async () => {
+      const counts = {};
+      for (const s of shared) {
+        try {
+          const g = await getScheduleGroup(s.groupId);
+          if (g?.memberUids) counts[s.groupId] = g.memberUids.length;
+        } catch {}
+      }
+      if (!cancelled) setGroupSharedCounts(counts);
+    })();
+    return () => { cancelled = true; };
+  }, [schedules]);
 
   // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함.
   //   Firestore에서 복원·머지(프레시 설치 시 코스 비어 코스이동·">"가 사라지던 문제 회복, [[data-migration]]).
@@ -1007,7 +1033,7 @@ export function HomeScreen({ navigation, route }) {
               await notifyScheduleGroupMembers({ group, myUid: currentUid,
                 type: coreChanged ? 'scheduleChanged' : 'scheduleMemo',
                 actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time,
-                memoPreview: !coreChanged ? String(data.memo || '').replace(/\s+/g, ' ').slice(0, 40) : undefined });
+                memoPreview: !coreChanged ? memoChangePreview(oldS.memo, data.memo) : undefined });
             } catch (e) { if (__DEV__) console.warn('[home] notify changed', e?.message); }
           });
         }
@@ -1465,6 +1491,11 @@ export function HomeScreen({ navigation, route }) {
                     {canOpenCourse(s) ? <Text style={{ fontSize: fs(8), color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
                   </Text>
                   <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
+                  {!!(s.groupId && groupSharedCounts[s.groupId] > 1) && (
+                    <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(245,230,168,0.15)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 3 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(245,230,168,0.75)' }}>{groupSharedCounts[s.groupId]}명 공유중</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>

@@ -1,8 +1,8 @@
 // Dear Golf 전체 기능 소개 — 홈 헤더 💡 버튼으로 진입. 풀스크린 스크롤 모달.
 // 사용자가 한 영역만 쓰지 않고 올인원 골프 라이프 앱이라는 정체성을 발견하도록.
 // 라운지 RoundupIntroModal(네이비)과 시각적 차별 — 차콜 헤더 + 베이지 본문.
-import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, ImageBackground, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Modal, View, Text, ScrollView, TouchableOpacity, ImageBackground, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
@@ -31,6 +31,12 @@ const FEATURES = [
 ];
 
 export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (visible) { const t = setTimeout(() => setReady(true), 250); return () => clearTimeout(t); }
+    else setReady(false);
+  }, [visible]);
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
@@ -44,6 +50,11 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginLeft: 12 }}>Dear Golf 이용 안내</Text>
           </View>
 
+          {!ready ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={C.charcoal} />
+            </View>
+          ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
             {/* 1. 훅 헤더 — 가로형 골프장 사진(day3) 배경 + 다층 그라데이션 오버레이.
                  ★로컬 require 이미지를 absolute <Image>로 깔면 헤더 height(내용 의존)를 못 채우고 아래로 흐름 → ImageBackground로 안정화(2026-06-29). */}
@@ -155,6 +166,7 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
               )}
             </View>
           </ScrollView>
+          )}
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

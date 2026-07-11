@@ -270,3 +270,13 @@ export async function ackGroupMemo(groupId, uid, name) {
     updatedAt: serverTimestamp(),
   });
 }
+
+export function memoChangePreview(oldMemo, newMemo) {
+  const prev = String(oldMemo || '').replace(/\s+/g, ' ').trim();
+  const next = String(newMemo || '').replace(/\s+/g, ' ').trim();
+  if (!next) return '';
+  if (next.startsWith(prev) && next.length > prev.length) {
+    return next.slice(prev.length).trim().slice(0, 40);
+  }
+  return next.slice(-40);
+}

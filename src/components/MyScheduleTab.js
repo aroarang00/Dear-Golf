@@ -30,7 +30,7 @@ import { CourseLogModal } from './CourseLogModal';
 import { loadFriendData } from '../utils/friendGroups';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, memoChangePreview } from '../utils/scheduleShares';
 import { buildCompanionNames } from '../utils/scheduleCompanions';
 import { leaveMealAudience } from '../utils/mealSuggestions'; // 일정 이탈 시 식사 audience 이탈(식사 푸시·카드 중단)
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
@@ -399,7 +399,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
               await notifyScheduleGroupMembers({ group, myUid: currentUid,
                 type: coreChanged ? 'scheduleChanged' : 'scheduleMemo',
                 actorName: userProfile?.nickname || '', course: data.course, date: data.date, time: data.time,
-                memoPreview: !coreChanged ? String(data.memo || '').replace(/\s+/g, ' ').slice(0, 40) : undefined });
+                memoPreview: !coreChanged ? memoChangePreview(oldS.memo, data.memo) : undefined });
             } catch (e) { if (__DEV__) console.warn('[mySchedule] notify changed', e?.message); }
           });
         }
