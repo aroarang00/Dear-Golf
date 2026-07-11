@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
 import { loginWithKakao, linkOrSignInWithKakao } from '../utils/kakaoAuth';
+import { loginWithApple, linkOrSignInWithApple } from '../utils/appleAuth';
 import { ensureUserDoc } from '../utils/userDoc';
 import { auth } from '../utils/firebase';
 import { checkBannedByKakaoSub } from '../utils/account';
@@ -120,6 +121,56 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
     }
   };
 
+  // Apple 로그인 — App Store 4.8(서드파티 로그인 제공 시 애플 로그인 필수, Build 71 리젝) 대응. iOS 전용.
+  //   카카오와 동일 흐름(네이티브 로그인→Firebase 연동→users 문서). 다른 점: 나이는 애플이 안 줘
+  //   약관 '[필수] 만 19세 이상' 자가확인에 위임, 정지매칭(kakaoSub)·카카오 친구찾기는 비대상.
+  const handleApple = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      // 1. 애플 네이티브 로그인 (취소는 조용히 복귀)
+      const result = await loginWithApple();
+      if (!result.ok) {
+        if (!result.canceled) Alert.alert('Apple 로그인 실패', `단계: ${result.step}\n에러: ${result.error}`);
+        return;
+      }
+
+      // 2. Firebase Auth 연동 — 익명 계정을 애플 신원으로 승격(또는 기존 계정 로그인)
+      const link = await linkOrSignInWithApple(result.idToken, result.rawNonce);
+      if (!link.ok) {
+        Alert.alert(
+          'Apple 연동 실패',
+          `연동 중 오류가 발생했어요.\n(${link.error})\n\n잠시 후 다시 시도하거나 '나중에 하기'를 눌러주세요.`,
+        );
+        return;
+      }
+
+      // 3. users/{uid} 문서 보장 — 애플 이름은 최초 1회만 옴(재로그인 null), 없으면 온보딩에서 직접 입력
+      const userDoc = await ensureUserDoc(link.uid, {
+        nickname: result.nickname,
+        profileImageUrl: null,
+      });
+
+      // 4. 온보딩 다음 단계로 — 카카오와 동일한 재방문자 prefill
+      const isReturning = link.mode === 'existing' && !userDoc.created;
+      onKakaoSuccess({
+        nickname: (isReturning ? (userDoc.data.nickname || userDoc.data.displayName) : result.nickname) || '',
+        avatarUri: (isReturning ? userDoc.data.avatarUrl : null) || null,
+        realName: (isReturning ? userDoc.data.realName : '') || '',
+        avgScore: (isReturning ? userDoc.data.avgScore : null) || null,
+        lifeBest: (isReturning ? userDoc.data.lifeBest : null) || null,
+        kakaoLinked: true,        // 앱 전반의 '계정 연동됨' 플래그(이메일 데모 로그인과 동일 처리)
+        appleLinked: true,        // 카카오 전용 문구·기능 분기용
+        kakaoId: null,
+        isReturning,
+      });
+    } catch (e) {
+      Alert.alert('오류', e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 이메일/비번 로그인 — 데모 계정으로 카카오 없이 로그인. 성공 시 재방문자 경로(Firestore 프로필 prefill)로 진입.
   const handleEmailLogin = async () => {
     if (loading) return;
@@ -189,6 +240,19 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
             {loading ? '로그인 중…' : '카카오로 시작'}
           </Text>
         </TouchableOpacity>
+
+        {/* Apple 로그인 — App Store 4.8: 카카오와 동등한 크기·위치로 바로 아래(동등 노출도 심사 기준). iOS 전용. */}
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity onPress={handleApple} activeOpacity={0.85} disabled={loading}
+            style={{ marginTop: 12, backgroundColor: '#000000', borderRadius: 12, paddingVertical: 16,
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              opacity: loading ? 0.7 : 1 }}>
+            <Text style={{ fontSize: fs(17), color: '#FFFFFF' }}></Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#FFFFFF' }}>
+              Apple로 계속하기
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* 건너뛰기 — dev는 차단(handleSkip), prod는 익명 허용 (출시 전 면책 동의 모달로 교체 예정) */}
         <TouchableOpacity onPress={handleSkip} activeOpacity={0.7} disabled={loading}

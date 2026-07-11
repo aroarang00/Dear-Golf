@@ -915,7 +915,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       {/* 친구 찾기 — 카카오/검색/받은 신청/보낸 신청 */}
       <FriendFinder
         visible={!!finder}
-        initialTab={finder || 'kakao'}
+        initialTab={finder || (userProfile?.appleLinked ? 'search' : 'kakao')}
+        hideKakao={!!userProfile?.appleLinked}
         onClose={() => setFinder(null)}
         sentIds={sentRequests}
         sent={sentPeople}

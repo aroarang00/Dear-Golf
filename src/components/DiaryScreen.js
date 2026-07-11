@@ -645,7 +645,7 @@ export function DiaryScreen({ route, navigation }) {
   // 자체 오버레이 시트로 처리 — Modal 위에서 갤러리 피커 호출 시 전환 충돌 회피
   const avatarOptions = [
     { text: '갤러리에서 선택', onPress: async () => { const uri = await pickAvatarImageRaw(); if (uri) setAvatarCropUri(uri); } },
-    ...(userProfile.kakaoLinked
+    ...(userProfile.kakaoLinked && !userProfile.appleLinked   // Apple 유저는 카카오 세션이 없어 로그인 팝업만 뜸 — 제외
       ? [{ text: '카카오 프로필 사진 가져오기', onPress: async () => {
           const uri = await fetchKakaoProfileImage();
           if (uri) persistProfile({ avatarUri: uri });

@@ -882,7 +882,10 @@ export function MyPageModal({ visible, onClose }) {
                     // 월 1건 한도. "1/1" 분수는 다 쓴 것처럼 헷갈려 "N건 남음"으로 명확히.
                     value: reportRemaining > 0 ? `이번 달 ${reportRemaining}건 남음` : '이번 달 한도 도달',
                     onPress: () => setReportOpen(true) },
-                  ...(userProfile.kakaoLinked
+                  ...(userProfile.appleLinked
+                    // Apple 로그인 유저(4.8 대응) — kakaoLinked=true(계정연동 공용 플래그)여도 카카오로 표기하지 않음
+                    ? [{ icon: '🍎', label: 'Apple 연동됨', value: '연결됨', onPress: () => {} }]
+                    : userProfile.kakaoLinked
                     ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
                     : [{ icon: '💛', label: '카카오 로그인 연동',
                         onPress: () => setAlertData({

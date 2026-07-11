@@ -75,6 +75,7 @@ export function FriendFinder({
   visible, onClose, initialTab = 'kakao',
   sentIds = [], sent = [], onSend, onCancelSend,
   friendIds = [], blockedIds = [], received = [], onAccept, onIgnore,
+  hideKakao = false,   // Apple 로그인 유저 — 카카오 세션이 없어 카카오 친구 탭이 무의미(팝업만 뜸) → 탭 자체를 숨김
 }) {
   const [tab, setTab] = useState(initialTab);
   const [query, setQuery] = useState('');
@@ -93,8 +94,12 @@ export function FriendFinder({
   };
 
   useEffect(() => {
-    if (visible) { setTab(initialTab); setQuery(''); setSearchResults([]); setAlert(null); setKakaoState('idle'); setKakaoUsers([]); }
-  }, [visible, initialTab]);
+    if (visible) {
+      // 카카오 탭이 숨겨진 상태(Apple 유저)에서 기본 진입 탭이 kakao면 닉네임 검색으로 대체
+      setTab(hideKakao && initialTab === 'kakao' ? 'search' : initialTab);
+      setQuery(''); setSearchResults([]); setAlert(null); setKakaoState('idle'); setKakaoUsers([]);
+    }
+  }, [visible, initialTab, hideKakao]);
 
   // 카카오 친구 중 Dear Golf 가입자 로드 — 카카오 탭 진입 시 1회. (friends scope 선택동의 + 팀멤버 조건)
   const loadKakao = async ({ silent = false } = {}) => {
@@ -155,7 +160,7 @@ export function FriendFinder({
   };
 
   const TABS = [
-    { key: 'kakao', label: '카카오 친구' },
+    ...(hideKakao ? [] : [{ key: 'kakao', label: '카카오 친구' }]),
     { key: 'search', label: '닉네임 검색' },
     { key: 'received', label: `받은 신청${received.length ? ` ${received.length}` : ''}` },
     { key: 'sent', label: `보낸 신청${sent.length ? ` ${sent.length}` : ''}` },

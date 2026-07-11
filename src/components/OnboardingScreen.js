@@ -75,6 +75,7 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
       // 카카오 단계에서 받은 값
       avatarUri: seed.avatarUri || null,
       kakaoLinked: !!seed.kakaoLinked,
+      appleLinked: !!seed.appleLinked,   // Apple 로그인 유저 — 카카오 전용 문구·기능 분기용
       kakaoId: seed.kakaoId || null,
       // 약관 동의 데이터 — 변경 시 재동의 트리거용 legalVersion 보존
       consent: consent || null,
@@ -95,9 +96,14 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
         {step === 1 && (
           <View>
             <Text style={obS.stepLabel}>1단계 · 프로필</Text>
-            {seed.kakaoLinked && (
+            {seed.kakaoLinked && !seed.appleLinked && (
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginBottom: 10 }}>
                 💬 카카오 닉네임을 가져왔어요 — 그대로 쓰거나 수정할 수 있어요
+              </Text>
+            )}
+            {seed.appleLinked && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginBottom: 10 }}>
+                 Apple 계정으로 로그인했어요 — 사용할 닉네임을 정해주세요
               </Text>
             )}
             <Text style={obS.label}>닉네임</Text>

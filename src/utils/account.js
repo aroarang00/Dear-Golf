@@ -3,7 +3,7 @@
 // 정책: [[account-deletion]] A안 — 콘텐츠 전부 삭제, 정지 이력만 banned_users 보존 (D2 별도)
 // App Store/Play 스토어 심사 필수 요건 (계정 삭제 경로 제공)
 // =============================================================
-import { signInAnonymously, deleteUser, OAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
+import { signInAnonymously, deleteUser, OAuthProvider, reauthenticateWithCredential, signOut, revokeAccessToken } from 'firebase/auth';
 import {
   collection, query, where, getDocs, getDoc, setDoc, deleteDoc, doc, updateDoc,
   arrayRemove, increment, serverTimestamp,
@@ -229,6 +229,29 @@ export async function deleteAccount() {
   //    계정이 안 지워진 채 재로그인하면 같은 uid로 부활(탈퇴가 무효화)하던 근본 버그.
   //    실패 시 카카오 재인증(fresh idToken)으로 reauthenticate 후 재시도.
   const user = auth.currentUser;
+  const isApple = user?.providerData?.some(p => p.providerId === 'apple.com');
+  // 2-A. Apple 로그인 계정 — App Store 5.1.1(v): 탈퇴 시 애플 토큰 해지(revoke) 의무.
+  //   해지엔 fresh authorizationCode가 필요해 애플 로그인 시트를 한 번 더 띄운다(탈퇴는 드물어 허용).
+  //   같은 fresh credential로 재인증까지 해두면 아래 deleteUser의 requires-recent-login도 예방.
+  //   전 과정 best-effort — 시트 취소/실패해도 탈퇴(삭제)는 계속 진행.
+  if (user && isApple) {
+    try {
+      const { getAppleReauthMaterial } = require('./appleAuth');
+      const m = await getAppleReauthMaterial();
+      if (m) {
+        try { await reauthenticateWithCredential(user, m.credential); } catch (e) {
+          if (__DEV__) console.warn('[account] 애플 재인증 실패', e?.code || e?.message);
+        }
+        if (m.authorizationCode) {
+          try { await revokeAccessToken(auth, m.authorizationCode); } catch (e) {
+            if (__DEV__) console.warn('[account] 애플 토큰 해지 실패', e?.code || e?.message);
+          }
+        }
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('[account] 애플 재인증 자료 획득 실패', e?.message);
+    }
+  }
   if (user) {
     try {
       await deleteUser(user);
