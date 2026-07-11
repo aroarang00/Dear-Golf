@@ -5,6 +5,7 @@ import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
 import { auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
+import { anonHasAppleTrace, connectAppleAccount } from '../utils/appleAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ROUTES } from '../constants/routes';
@@ -550,7 +551,19 @@ export function GuideScreen({ route, navigation }) {
 
   // 익명(카카오 미연동) → 카카오 연동 게이트. 공개 게시판(코멘트·별점)은 책임성·별점 1인1평가 우회
   //   방지를 위해 쓰기만 연동 후 허용(읽기는 익명 OK). ([[anonymous-user-policy]] · [[golfer-comments-board]] · [[course-rating]])
-  const requireKakaoLink = (onProceed) => {
+  const requireKakaoLink = async (onProceed) => {
+    // ★Apple 사용자 세션 유실 — 카카오 연동을 권하면 원래 Apple 계정과 영구 분리. Apple 재로그인이 정답(FriendsTab과 동일).
+    if (await anonHasAppleTrace()) {
+      showAppAlert('Apple 로그인이 필요해요', '로그인이 풀려 있어요.\nApple로 다시 로그인하면\n기존 기록 그대로 이어서 진행할게요.', [
+        { text: '닫기', style: 'cancel' },
+        { text: 'Apple로 계속하기', onPress: async () => {
+            const r = await connectAppleAccount();
+            if (!r?.ok) { if (!r?.canceled) showAppAlert('Apple 로그인 실패', '잠시 후 다시 시도해주세요.'); return; }
+            onProceed?.();
+          } },
+      ]);
+      return;
+    }
     showAppAlert('카카오 연동이 필요해요', '코스 평점·코멘트는 카카오 연동 후\n남길 수 있어요.\n연동하면 바로 이어서 진행할게요.', [
       { text: '닫기', style: 'cancel' },
       { text: '카카오 연동하기', onPress: async () => {

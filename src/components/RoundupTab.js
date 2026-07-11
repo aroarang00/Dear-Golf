@@ -30,6 +30,7 @@ import { RoundupIntroModal } from './RoundupIntroModal';
 import { isPostVisible, blockUser, remainingBlocksToday } from '../utils/block';
 import { blockUid as fsBlockUid, loadMyFriends, loadFriendProfiles, unfriend, sendFriendRequest, isFriend } from '../utils/friends';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
+import { anonHasAppleTrace, connectAppleAccount } from '../utils/appleAuth';
 import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
@@ -828,7 +829,23 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 익명(카카오 미연동) 사용자가 소셜 액션 진입 → 카카오 연동 게이트([[anonymous-user-policy]]).
   //   친구·라운지·매너는 안정적 신원(카카오 sub) 전제(노쇼·매너 패널티 우회 차단)라 연동 전 차단.
   //   영구 차단이 아니라 연동하면 onProceed로 바로 이어서 진행. 앱 미설치자(스토어 다운로드)와 다른 층위 — 이 사람은 이미 앱 안.
-  const requireKakaoLink = (onProceed) => {
+  const requireKakaoLink = async (onProceed) => {
+    // ★Apple 사용자 세션 유실 — 카카오 연동을 권하면 원래 Apple 계정과 영구 분리. Apple 재로그인이 정답(FriendsTab과 동일).
+    if (await anonHasAppleTrace()) {
+      setAlert({
+        title: 'Apple 로그인이 필요해요',
+        message: '로그인이 풀려 있어요.\nApple로 다시 로그인하면\n기존 기록 그대로 이어서 진행할게요.',
+        buttons: [
+          { text: '닫기', style: 'cancel' },
+          { text: 'Apple로 계속하기', onPress: async () => {
+              const r = await connectAppleAccount();
+              if (!r?.ok) { if (!r?.canceled) setAlert({ title: 'Apple 로그인 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] }); return; }
+              onProceed?.();
+            } },
+        ],
+      });
+      return;
+    }
     setAlert({
       title: '카카오 연동이 필요해요',
       message: '친구·라운지·매너 기능은\n카카오 연동 후 이용할 수 있어요.\n연동하면 바로 이어서 진행할게요.',

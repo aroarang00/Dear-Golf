@@ -3,6 +3,8 @@ import * as Crypto from 'expo-crypto';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { auth, authReady, db } from './firebase';
+import { STORAGE_KEYS, storage } from './storage';
+import { ensureUserDoc } from './userDoc';
 
 // Sign in with Apple — App Store 4.8 대응(카카오만 있으면 리젝, [[appstore-reject-build69]]).
 // 구조는 kakaoAuth.js와 동일 패턴: 네이티브 로그인 → Firebase 연동(익명 승격 link / 기존 계정 signIn).
@@ -66,6 +68,7 @@ export async function linkOrSignInWithApple(idToken, rawNonce) {
   if (!current) {
     try {
       const result = await signInWithCredential(auth, credential);
+      await storage.save(STORAGE_KEYS.appleTrace, true);
       return { ok: true, mode: 'existing', uid: result.user.uid };
     } catch (e2) {
       console.warn('[apple-firebase] 무세션 signIn 실패', e2?.code || e2?.message);
@@ -76,6 +79,7 @@ export async function linkOrSignInWithApple(idToken, rawNonce) {
   try {
     // ① 익명 계정을 애플 신원으로 승격 — uid가 유지돼 rounds·friendships 데이터 보존
     const result = await linkWithCredential(current, credential);
+    await storage.save(STORAGE_KEYS.appleTrace, true);  // 연동 흔적(kakaoTrace와 동일) — 세션 유실 시 유령 문서 방지·복귀 안내 판단
     return { ok: true, mode: 'linked', uid: result.user.uid };
   } catch (e) {
     // ② 이 애플 계정에 이미 Firebase 계정이 있음 → 기존 계정으로 로그인 (uid 변경됨)
@@ -88,6 +92,7 @@ export async function linkOrSignInWithApple(idToken, rawNonce) {
       }
       try {
         const result = await signInWithCredential(auth, credential);
+        await storage.save(STORAGE_KEYS.appleTrace, true);
         return { ok: true, mode: 'existing', uid: result.user.uid };
       } catch (e2) {
         console.warn('[apple-firebase] signIn 실패', e2?.code || e2?.message);
@@ -96,11 +101,32 @@ export async function linkOrSignInWithApple(idToken, rawNonce) {
     }
     // ③ 현재 계정에 이미 애플이 연결돼 있음
     if (e?.code === 'auth/provider-already-linked') {
+      await storage.save(STORAGE_KEYS.appleTrace, true);
       return { ok: true, mode: 'already', uid: current.uid };
     }
     console.warn('[apple-firebase] link 실패', e?.code || e?.message);
     return { ok: false, error: e?.code || e?.message || 'link-failed' };
   }
+}
+
+// Apple 사용자가 세션 유실로 '새 익명 uid'에 떨어진 상태인지 — 소셜 게이트·유령 문서 가드 판단용.
+//   이 상태에서 게이트가 카카오 연동을 권하면 익명 uid에 카카오가 link돼 원래 Apple 계정과 영구 분리됨
+//   ([[kakao-anon-orphan-accounts]]의 Apple판). 이때는 'Apple로 다시 로그인' 안내가 정답.
+export async function anonHasAppleTrace() {
+  if (!auth.currentUser?.isAnonymous) return false;
+  return !!(await storage.load(STORAGE_KEYS.appleTrace, false));
+}
+
+// 앱 내 Apple 재로그인 — connectKakaoAccount와 동일 역할의 공용 흐름(소셜 게이트 'Apple로 계속하기'에서 호출).
+//   login → Firebase 연동(link 또는 sign-in) → users 문서 보장. 정지매칭(kakaoSub)은 Apple 비대상이라 없음.
+//   반환: { ok:true, uid, mode } | { ok:false, canceled?:true } | { ok:false, error }
+export async function connectAppleAccount() {
+  const r = await loginWithApple();
+  if (!r.ok) return { ok: false, canceled: r.canceled, error: r.error };
+  const link = await linkOrSignInWithApple(r.idToken, r.rawNonce);
+  if (!link.ok) return { ok: false, error: link.error };
+  await ensureUserDoc(link.uid, { nickname: r.nickname, profileImageUrl: null });
+  return { ok: true, uid: link.uid, mode: link.mode };
 }
 
 // 탈퇴용 재인증 자료 — 새 애플 로그인 시트를 띄워 fresh credential + authorizationCode(토큰 해지용)를 받는다.

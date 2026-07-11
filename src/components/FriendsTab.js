@@ -25,6 +25,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds, recomputeMyGroupAudiences, loadVisibleGroupPostTimes } from '../utils/round';
 import { db, getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
+import { anonHasAppleTrace, connectAppleAccount } from '../utils/appleAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 
@@ -173,7 +174,20 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   // 익명(카카오 미연동) → 친구 기능 진입 시 카카오 연동 게이트 ([[anonymous-user-policy]]).
   //   FriendFinder는 RN Modal이라 그 안에서 전역 showAppAlert가 가려짐 → finder 여는 시점(모달 열리기 전)에 게이트.
   //   연동하면 onProceed로 바로 이어서 진행. 영구 차단 아님.
-  const requireKakaoLink = (onProceed) => {
+  const requireKakaoLink = async (onProceed) => {
+    // ★Apple 사용자 세션 유실 — 여기서 카카오 연동을 권하면 익명 uid에 카카오가 link돼 원래 Apple 계정과 영구 분리.
+    //   Apple 재로그인으로 원래 계정 복귀가 정답([[kakao-anon-orphan-accounts]]의 Apple판).
+    if (await anonHasAppleTrace()) {
+      showAppAlert('Apple 로그인이 필요해요', '로그인이 풀려 있어요.\nApple로 다시 로그인하면\n기존 기록 그대로 이어서 진행할게요.', [
+        { text: '닫기', style: 'cancel' },
+        { text: 'Apple로 계속하기', onPress: async () => {
+            const r = await connectAppleAccount();
+            if (!r?.ok) { if (!r?.canceled) showAppAlert('Apple 로그인 실패', '잠시 후 다시 시도해주세요.'); return; }
+            onProceed?.();
+          } },
+      ]);
+      return;
+    }
     showAppAlert('카카오 연동이 필요해요', '친구 기능은 카카오 연동 후\n이용할 수 있어요.\n연동하면 바로 이어서 진행할게요.', [
       { text: '닫기', style: 'cancel' },
       { text: '카카오 연동하기', onPress: async () => {
@@ -240,14 +254,15 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           setFriendsLoaded(true);
         }
         // 1) 내 users 문서 ensure (없으면 nickname으로 생성)
-        // ★유령 계정 방지 — 카카오 사용자가 세션 유실로 '새 익명 uid'에 떨어진 상태(kakaoTrace 있음+익명)면
+        // ★유령 계정 방지 — 소셜(카카오·Apple) 사용자가 세션 유실로 '새 익명 uid'에 떨어진 상태(연동 흔적+익명)면
         //   문서를 만들지 않는다. 여기서 닉네임 박힌 익명 문서가 생기면 친구 검색·신청에 같은 사람이
-        //   유령으로 등장(설레인·bang 2026-07-10). 카카오 재연결이 원래 uid로 복귀시키면 그때 정상 ensure.
-        const anonWithKakaoTrace = auth.currentUser?.isAnonymous && await storage.load(STORAGE_KEYS.kakaoTrace, false);
+        //   유령으로 등장(설레인·bang 2026-07-10). 재로그인이 원래 uid로 복귀시키면 그때 정상 ensure.
+        const anonWithSocialTrace = auth.currentUser?.isAnonymous
+          && ((await storage.load(STORAGE_KEYS.kakaoTrace, false)) || (await storage.load(STORAGE_KEYS.appleTrace, false)));
         const meRef = doc(db, 'users', uid);
         const meSnap = await getDoc(meRef);
         if (!meSnap.exists()) {
-          if (!anonWithKakaoTrace) await setDoc(meRef, {
+          if (!anonWithSocialTrace) await setDoc(meRef, {
             uid,
             nickname: userProfile?.nickname || '',
             blockedUids: [],
@@ -255,7 +270,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
-        } else if (userProfile?.nickname && meSnap.data().nickname !== userProfile.nickname && !anonWithKakaoTrace) {
+        } else if (userProfile?.nickname && meSnap.data().nickname !== userProfile.nickname && !anonWithSocialTrace) {
           // 닉네임 변경 시 동기화 (간단 케이스만, 30일 제한은 F4 MyPage에서)
           await setDoc(meRef, { nickname: userProfile.nickname, updatedAt: serverTimestamp() }, { merge: true });
         }

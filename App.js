@@ -439,6 +439,15 @@ function App() {
       try {
         const uid = await getUid();
         if (!uid) return;
+        // ★유령 계정 방지 — 소셜 연동자가 세션 유실로 '새 익명 uid'에 떨어진 상태면 write 자체를 skip.
+        //   로컬 프로필의 nickname·kakaoId가 users/{익명uid}에 그대로 박혀 친구 검색·신청에 유령 등장
+        //   ([[kakao-anon-orphan-accounts]] 재발 경로 — ensureUserDoc을 안 거치는 raw setDoc이라 21b38f9
+        //   3중방어가 못 막음). FriendsTab ensure 가드와 동일 기준. 재로그인으로 원래 uid 복귀 후 정상 동기화.
+        if (auth.currentUser?.isAnonymous) {
+          const hasTrace = (await storage.load(STORAGE_KEYS.kakaoTrace, false))
+            || (await storage.load(STORAGE_KEYS.appleTrace, false));
+          if (hasTrace) return;
+        }
         const payload = {
           uid, // users 규칙(request.resource.data.uid == uid) 충족 — 없으면 문서 생성/수정이 권한 거부됨
           settings: {

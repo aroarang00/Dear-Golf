@@ -6,6 +6,7 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { submitEvaluation } from '../utils/mannerEvaluations';
 import { auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
+import { anonHasAppleTrace, connectAppleAccount } from '../utils/appleAuth';
 
 // 라운지 모집 매너 평가 ([[manner-evaluation-policy]]).
 // 라운딩 종료 추정 시각(티오프+5h) 기준 48h 윈도우. 강제성 없음 — 무평가 = 보통 자동 처리.
@@ -37,7 +38,23 @@ export function MannerEvaluationModal({ visible, post, participants = [], onClos
   const totalCount = participants.length;
 
   // 익명(카카오 미연동) → 카카오 연동 게이트(매너 평가는 소셜 액션) ([[anonymous-user-policy]])
-  const requireKakaoLink = (onProceed) => {
+  const requireKakaoLink = async (onProceed) => {
+    // ★Apple 사용자 세션 유실 — 카카오 연동을 권하면 원래 Apple 계정과 영구 분리. Apple 재로그인이 정답(FriendsTab과 동일).
+    if (await anonHasAppleTrace()) {
+      setAlert({
+        title: 'Apple 로그인이 필요해요',
+        message: '로그인이 풀려 있어요.\nApple로 다시 로그인하면\n기존 기록 그대로 이어서 진행할게요.',
+        buttons: [
+          { text: '닫기', style: 'cancel' },
+          { text: 'Apple로 계속하기', onPress: async () => {
+              const r = await connectAppleAccount();
+              if (!r?.ok) { if (!r?.canceled) setAlert({ title: 'Apple 로그인 실패', message: '잠시 후 다시 시도해주세요.', buttons: [{ text: '확인' }] }); return; }
+              onProceed?.();
+            } },
+        ],
+      });
+      return;
+    }
     setAlert({
       title: '카카오 연동이 필요해요',
       message: '매너 평가는 카카오 연동 후\n이용할 수 있어요.\n연동하면 바로 이어서 진행할게요.',
