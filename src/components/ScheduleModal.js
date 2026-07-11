@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -17,10 +17,12 @@ import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserContext } from '../contexts/UserContext';
+import { useCurrentUid } from '../contexts/CurrentUidContext'; // 초대 멤버 읽기전용 칩에서 본인 제외용
 
 export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = useContext(UserContext);
+  const currentUid = useCurrentUid();
   // initial에 id가 있으면 기존 일정 수정, 없으면(날짜만 채워진 경우) 새 일정 추가
   const isEdit = !!(initial && initial.id);
   // 일정 전파(공유) 수정 잠금 — 구장·날짜는 여파가 커 '삭제 후 재생성'으로만(시간·인원·예약자·세부코스는 제자리 수정).
@@ -138,16 +140,37 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   // 전파 일정 수정 시 — 이미 일정을 삭제(조용히 탈퇴)한 동반자는 프리필에서 제외(혼란 방지).
   //   원본 companions 배열은 탈퇴해도 청소되지 않으므로, 그룹 declinedUids로 걸러 표시·재선택에서 뺀다.
   //   프리필 effect가 companions를 세팅한 뒤(같은 open 시점) 이 비동기가 그 위에 필터를 적용. ([[schedule-propagation-spec]])
+  //   그룹 전체(shareGroup)도 보관 — '친구 초대'로만 들어와 companions에 없는 멤버를 읽기전용 칩으로 표시(테스터 제보:
+  //   카드엔 보이는데 수정엔 안 보임). 편집 칩과 섞지 않는 이유 = 칩 X 삭제가 초대 취소가 아니라서(거짓 동작 방지).
+  const [shareGroup, setShareGroup] = useState(null);
   useEffect(() => {
-    if (!visible || !initial?.groupId) return;
+    if (!visible || !initial?.groupId) { setShareGroup(null); return; }
     let alive = true;
     getScheduleGroup(initial.groupId).then(g => {
+      if (!alive) return;
+      setShareGroup(g || null);
       const declined = g?.declinedUids || [];
-      if (!alive || !declined.length) return;
+      if (!declined.length) return;
       setCompanions(prev => prev.filter(c => !(c?.friendUid && declined.includes(c.friendUid))));
     }).catch(() => {});
     return () => { alive = false; };
   }, [visible, initial?.groupId]);
+
+  // 초대로만 함께하는 멤버(그룹에는 있고 동반자 칩에는 없는 사람) — 읽기전용 표시용. 본인·거절자 제외.
+  const invitedOnly = useMemo(() => {
+    if (!shareGroup) return [];
+    const inChips = new Set(companions.map(c => c?.friendUid).filter(Boolean));
+    const gMembers = shareGroup.memberUids || [];
+    const declined = shareGroup.declinedUids || [];
+    return [...new Set([...gMembers, ...(shareGroup.audienceUids || [])])]
+      .filter(uid => uid && uid !== currentUid && !inChips.has(uid) && !declined.includes(uid))
+      .map(uid => {
+        const fr = friends.find(f => f.id === uid);
+        const name = fr?.customName || fr?.name || shareGroup.names?.[uid]
+          || (uid === shareGroup.initiatorUid ? shareGroup.initiatorName : '') || '동반자';
+        return { uid, name, joined: gMembers.includes(uid) };
+      });
+  }, [shareGroup, companions, friends, currentUid]);
 
   // 검색어 debounce (300ms) → 카카오 API 호출
   useEffect(() => {
@@ -541,7 +564,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
               {/* 동반자 (선택) — 친구에서 선택 + 자유 입력. 친구 선택 화면은 본명 마스킹 표시 ([[realname-policy]]) */}
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>동반자 (선택)</Text>
-              {companions.length > 0 && (
+              {(companions.length > 0 || invitedOnly.length > 0) && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                   {companions.map((c, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary,
@@ -551,6 +574,15 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                       <TouchableOpacity onPress={() => removeCompanion(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                         <Text style={{ fontSize: fs(12), color: C.warmGray }}>✕</Text>
                       </TouchableOpacity>
+                    </View>
+                  ))}
+                  {/* 초대로만 함께하는 멤버 — 읽기전용(✕ 없음). 초대 이탈은 받은 쪽이 일정을 삭제하는 방식이라 여기서 못 뺌. */}
+                  {invitedOnly.map((p) => (
+                    <View key={p.uid} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent',
+                      borderWidth: 0.5, borderColor: C.hairline, borderStyle: 'dashed', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>
+                        👤 {p.name} <Text style={{ fontSize: fs(10.5) }}>({p.joined ? '참여중' : '초대중'})</Text>
+                      </Text>
                     </View>
                   ))}
                 </View>
