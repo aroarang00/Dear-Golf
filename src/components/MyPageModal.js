@@ -369,7 +369,9 @@ export function MyPageModal({ visible, onClose }) {
     if (accountBusyRef.current) return;
     setAlertData({
       title: '정말 탈퇴하시겠어요?',
-      message: '탈퇴하면 계정과 모든 기록(일정·다이어리·명예의 전당·골퍼 코멘트)이 삭제되며 복구할 수 없어요.',
+      // Apple 계정은 토큰 해지(App Store 5.1.1)·재인증 때문에 애플 로그인 시트가 한 번 더 뜸 — 사전 고지(감사 ⑥)
+      message: '탈퇴하면 계정과 모든 기록(일정·다이어리·명예의 전당·골퍼 코멘트)이 삭제되며 복구할 수 없어요.'
+        + (userProfile?.appleLinked ? '\n\n확인을 위해 Apple 로그인 창이 한 번 더 떠요.' : ''),
       buttons: [
         { text: '취소', style: 'cancel' },
         {

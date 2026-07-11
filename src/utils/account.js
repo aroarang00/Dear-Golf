@@ -271,6 +271,21 @@ export async function deleteAccount() {
         } catch (e2) {
           console.warn('[account] 재인증 후 계정 삭제 실패', e2?.message);
         }
+      } else if (e?.code === 'auth/requires-recent-login' && isApple) {
+        // ★2-A에서 사용자가 애플 시트를 취소했으면 재인증이 없어 여기로 옴 — 시트를 한 번 더 띄워 복구.
+        //   이 폴백이 없으면 Auth 계정(이메일)+애플 연결이 잔존하는데 UI는 '탈퇴 완료'로 보였음(2026-07-11 감사 ⑥).
+        try {
+          const { getAppleReauthMaterial } = require('./appleAuth');
+          const m = await getAppleReauthMaterial();
+          if (m) {
+            await reauthenticateWithCredential(user, m.credential);
+            await deleteUser(user);
+          } else {
+            console.warn('[account] 재인증용 애플 자료 없음 — 계정 삭제 보류');
+          }
+        } catch (e2) {
+          console.warn('[account] 애플 재인증 후 계정 삭제 실패', e2?.message);
+        }
       } else {
         console.warn('[account] Firebase 계정 삭제 실패', e?.message);
       }
