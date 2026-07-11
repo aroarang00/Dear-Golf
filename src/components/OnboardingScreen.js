@@ -145,8 +145,10 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
                 </Text>
               </View>
             )}
-            {/* 추천인 코드(선택) — 신규 가입만. 초대 문구(shareInvite)에 동봉된 코드와 짝 ([[referral-reward-implementation-plan]]) */}
-            {!seed.isReturning && (
+            {/* 추천인 코드(선택) — 신규 가입만. 초대 문구(shareInvite)에 동봉된 코드와 짝 ([[referral-reward-implementation-plan]])
+            ★Apple 가입자 제외 — 보상 CF(referral.js)가 kakaoId 필수(원장 키=kakaoSub)라 입력해도 영구 미지급.
+            입력란·혜택문구를 보여주면 빈 약속이 됨 → 원장 키 uid 일반화 전까지 숨김(2026-07-11 감사 ③). */}
+            {!seed.isReturning && !seed.appleLinked && (
               <View>
                 <Text style={obS.label}>추천인 코드 (선택)</Text>
                 <AppTextInput style={obS.input} placeholder="예: AB23CD" placeholderTextColor={C.warmGrayLight}
