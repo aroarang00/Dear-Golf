@@ -17,13 +17,14 @@ import { getCurrentLocation } from '../utils/location';
 import { setSystemAlarm, SYSTEM_ALARM_SUPPORTED, openExactAlarmSettings } from '../utils/nativeAlarm';
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분).
-//   기본값을 강요하지 않되, 처음엔 무난한 30분에서 시작 — 사람마다 칩으로 조정(여성 화장 1시간 ↔ 남성 5분).
-const PREP_OPTS = [5, 15, 30, 60];
+//   기본값을 강요하지 않되, 처음엔 무난한 30분에서 시작 — 사람마다 칩으로 조정(여성 화장 1시간 ↔ 남성 15분).
+const PREP_OPTS = [15, 30, 45, 60];
 const ARRIVE_OPTS = [30, 60, 90]; // 구장 도착여유 — 최소 30분이 기본 에티켓, 90분은 오후티 등 여유. '바로'는 뺌
 // 안드 시계앱(SET_ALARM)은 시·분만 받고 '날짜'를 못 넣음 → '가장 가까운 그 시각(오늘/내일)'에 울림.
 //   라운드 당일 기상시각이 24시간 밖이면 지금 걸면 라운드가 아닌 오늘/내일에 잘못 울리므로, 전날(24h 이내)에만 등록 허용.
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const arriveLabel = (m) => `${m}분`;
+const prepLabel = (m) => (m === 60 ? '1시간' : `${m}분`);
 const DEFAULT_PREP = 30;
 const DEFAULT_ARRIVE = 30;
 // 'HH:MM' → '오전/오후 h:mm' (사용자가 설정한 시각을 또렷이 보여주기)
@@ -500,7 +501,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
                         집에서 나갈 준비 시간 <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray }}>(세면·화장·짐 챙기기)</Text>
                       </Text>
                       <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                        {PREP_OPTS.map(m => <Chip key={m} label={`${m}분`} on={prepMin === m} onPress={() => pickPrep(m)} />)}
+                        {PREP_OPTS.map(m => <Chip key={m} label={prepLabel(m)} on={prepMin === m} onPress={() => pickPrep(m)} />)}
                       </View>
                     </>
                   )}

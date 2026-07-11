@@ -10,7 +10,7 @@ import { saveReferredBy, validateRefCode } from '../utils/referral';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 키보드 입력칸 가림 방지
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분) — 개인차가 커 한 번만 정해두면 평생 적용
-const PREP_OPTS = [5, 15, 30, 60];
+const PREP_OPTS = [15, 30, 45, 60];
 const ARRIVE_OPTS = [30, 60, 90]; // 최소 30분(기본 에티켓), 90분=오후티 등 여유. '바로' 제외
 const arriveLabel = (m) => `${m}분`;
 
@@ -205,7 +205,7 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
                 return (
                   <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => setPrepMin(m)}
                     style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary }}>
-                    <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(13), color: on ? C.burgundy : C.warmGray }}>{m}분</Text>
+                    <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(13), color: on ? C.burgundy : C.warmGray }}>{m === 60 ? '1시간' : `${m}분`}</Text>
                   </TouchableOpacity>
                 );
               })}

@@ -734,12 +734,12 @@ export function MyPageModal({ visible, onClose }) {
                       {/* 준비시간 칩 */}
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 14 }}>집에서 나갈 준비 시간 (화장·짐 등)</Text>
                       <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                        {[5, 15, 30, 60].map(m => {
+                        {[15, 30, 45, 60].map(m => {
                           const on = prepMin === m;
                           return (
                             <TouchableOpacity key={m} activeOpacity={0.8} onPress={() => persistAlarmCfg({ prepMin: m })}
                               style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: on ? C.burgundy : C.hairline, backgroundColor: on ? '#F5EAEC' : C.bgSecondary }}>
-                              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{m}분</Text>
+                              <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.burgundy : C.warmGray }}>{m === 60 ? '1시간' : `${m}분`}</Text>
                             </TouchableOpacity>
                           );
                         })}
