@@ -163,7 +163,7 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
                     숫자는 쿼터 UI 나오는 첫 업데이트 발표에서(invite.js와 같은 수위) */}
                 <View style={{ marginTop: 10, padding: 12, backgroundColor: '#F5F0E4', borderRadius: 10, borderWidth: 1, borderColor: '#C9A84C' }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#8B6914', lineHeight: 19 }}>
-                    🎁 초대해 준 친구의 코드를 입력하면{'\n'}두 분 모두 사진·영상 보관 공간이 늘어나요
+                    💝 초대해 준 친구의 코드를 입력하면{'\n'}두 분 모두 사진 +20장, 영상 +1개 보관 공간이 늘어나요
                   </Text>
                 </View>
               </View>

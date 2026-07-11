@@ -29,9 +29,7 @@ export async function shareInvite() {
   let message = INVITE_MESSAGE;
   try {
     const code = await ensureMyRefCode(await getUid());
-    // 혜택 한 줄 동봉 — 이유 없인 아무도 코드를 안 넣는다(2026-07-04). 숫자(+20/+1)는 쿼터 UI가 없는 동안 과속이라
-    //   '보관 공간이 늘어나요'까지만([[monetization-plan]] 발표 프레이밍과 일치, 상세 숫자는 첫 업데이트 발표에서).
-    if (code) message = INVITE_BODY + `\n🎁 가입할 때 추천인 코드를 입력하면 둘 다 사진·영상 보관 공간이 늘어나요: ${code}\n\n` + INVITE_LINK;
+    if (code) message = INVITE_BODY + `\n💝 추천인 코드를 입력하면 둘 다 사진 +20장, 영상 +1개 보관 공간이 늘어나요: ${code}\n\n` + INVITE_LINK;
   } catch (e) { /* 코드 없이 진행 */ }
   try {
     await Share.share({ message });
