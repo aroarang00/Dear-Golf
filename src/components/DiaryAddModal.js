@@ -100,6 +100,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [holeScores, setHoleScores] = useState(null);
   const [holePars, setHolePars] = useState(null); // 스코어카드 par 행(스텁 mock) — 버디 자동집계용
   const [scRows, setScRows] = useState([]);
+  // OCR 원본 행(공유용 보존) — '수정' 버튼이 scRows를 1행 '입력값'으로 교체해도 동반자 공유는 원본 카드로.
+  //   scRows만 쓰면 수정 순간 공유 체크박스가 사라지고 저장 시 공유가 무음 생략되던 버그(2026-07-10 실사용 제보).
+  const [shareRows, setShareRows] = useState([]);
   const [scFailed, setScFailed] = useState(false); // OCR 인식 실패/숫자 부족 → 직접 입력 안내
   const [scLowConf, setScLowConf] = useState(false); // OCR 저신뢰(인쇄 합계와 안 맞음) → 확인·수정 강조
   const [scReview, setScReview] = useState(false);
@@ -303,6 +306,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       //   남으면 다음 '기록하기' 오픈 첫 프레임에 기록+검토 모달이 동시 마운트되어 iOS 모달 스택이 꼬임(멈춤).
       if (!visibleRef.current) return;
       setScRows(res.rows || []);
+      setShareRows(res.rows || []);   // 공유용 원본 보존 — 이후 '수정'이 scRows를 바꿔도 유지
       setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
       setScFailed(!!res.error || !(res.rows || []).length);   // 인식 실패/숫자 부족 → 빈 표 직접 입력 안내
       setScLowConf(!!res.lowConfidence);                       // 합계 불일치 → 저신뢰 안내(확인·수정 강조)
@@ -409,7 +413,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setScore(''); setWeather('맑음'); setMemo(''); setBirdieCount(0);
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
-    setHoleScores(null); setHolePars(null); setScRows([]); setScReview(false); setScFailed(false); setScLowConf(false);
+    setHoleScores(null); setHolePars(null); setScRows([]); setShareRows([]); setScReview(false); setScFailed(false); setScLowConf(false);
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
@@ -699,7 +703,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     }
     // 동반자에게 스코어 공유 — OCR 전체 행(scRows)을 친구 동반자에게. 수신자가 자기 행 골라 본인 기록에 파생.
     //   best-effort(fire-and-forget) — 라운딩 저장 자체는 위에서 끝났으므로 공유 실패가 저장을 막지 않음. ([[companion-design]] §11)
-    if (shareScores && Array.isArray(scRows) && scRows.length >= 2) {
+    if (shareScores && Array.isArray(shareRows) && shareRows.length >= 2) {
       const audienceUids = companions.filter(c => c.friendUid).map(c => c.friendUid);
       if (audienceUids.length) {
         (async () => {
@@ -713,7 +717,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
                 ...(initial?.scheduleId ? { scheduleId: initial.scheduleId } : {}),
               },
-              rows: scRows,
+              rows: shareRows,
               audienceUids,
             });
           } catch (e) { if (__DEV__) console.warn('[scoreShare] create fail', e?.message); }
@@ -937,14 +941,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
                       </TouchableOpacity>
                       <Text style={{ color: C.warmGray, marginHorizontal: 8 }}>·</Text>
-                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => { setHoleScores(null); setHolePars(null); }}>
+                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => { setHoleScores(null); setHolePars(null); setShareRows([]); setShareScores(false); }}>
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
                       </TouchableOpacity>
                     </View>
                   )}
                   {/* 동반자 점수 공유 — OCR 카드 기반이라 결과 '바로 아래'에 둠(동반자 섹션에 묻혀 못 보던 것 개선, 사용자 제보).
-                      여러 명 인식(scRows≥2) + 친구 동반자 있으면 체크박스 / 없으면 동반자 추가 유도. */}
-                  {holeScores && Array.isArray(scRows) && scRows.length >= 2 && (
+                      여러 명 인식(shareRows≥2, 수정해도 원본 유지) + 친구 동반자 있으면 체크박스 / 없으면 동반자 추가 유도. */}
+                  {holeScores && Array.isArray(shareRows) && shareRows.length >= 2 && (
                     companions.some(c => c.friendUid) ? (
                       <TouchableOpacity onPress={() => setShareScores(s => !s)} activeOpacity={0.75}
                         style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginTop: 10,
