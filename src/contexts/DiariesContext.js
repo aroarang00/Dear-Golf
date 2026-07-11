@@ -104,7 +104,9 @@ export function DiariesProvider({ children }) {
   const scheduleBackupSweep = useCallback((loaded) => {
     if (sweepTimerRef.current) clearTimeout(sweepTimerRef.current);
     sweepTimerRef.current = setTimeout(async () => {
-      const updated = await sweepDiaryMediaBackup(loaded);
+      // getLatest — 스윕(업로드 수 초~수십 초) 사이 수정/삭제된 다이어리를 스냅샷으로 덮지 않게(save-revert 방지).
+      //   diariesRef는 아래 선언이지만 실행은 12초 뒤라 초기화 완료 상태.
+      const updated = await sweepDiaryMediaBackup(loaded, { getLatest: () => diariesRef.current });
       if (updated.length) {
         const byId = Object.fromEntries(updated.map((u) => [u.id, u.photos]));
         setDiaries((prev) => prev.map((d) => (byId[d.id] ? { ...d, photos: byId[d.id] } : d)));
