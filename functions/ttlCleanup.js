@@ -1,8 +1,9 @@
 // =============================================================
 // TTL 정리 — 임시·공유 문서가 무한 누적되던 것 정리 (비용·개인정보 최소화).
 //   대상: scheduleGroups(일정 전파 그룹) · mealSuggestions(뒤풀이 식사) · roundScoreShares(스코어 공유) [30일]
-//        + roundups 전체 — 티오프 후 7일 지나면 확정·취소 여부 무관 삭제(사용자 2026-07-04 '모집은 기록 아님',
+//        + roundups 확정형 — 티오프 후 7일 지나면 확정·취소 여부 무관 삭제(사용자 2026-07-04 '모집은 기록 아님',
 //          신고 접수 창구로 7일만 유예. 신고된 내용은 신고 문서에 이력 보존). 댓글 서브컬렉션까지 recursiveDelete.
+//        + roundups 오픈형 — 날짜 미정(date=null)은 createdAt + 21일 경과 시 삭제(방치 방지).
 //        + roundupNotifications — 30일 지난 알림 정리.
 //   ★보존: diaries/rounds(영구 — 미디어 백업 [[diary-media-backup-plan]]) · 신고 이력(3년, contentReports).
 //
@@ -20,6 +21,7 @@ const { logger } = require('firebase-functions');
 const db = getFirestore();
 const RETENTION_DAYS = 30;          // 임시·공유 문서: 라운드 날짜 + 30일
 const ROUNDUP_RETENTION_DAYS = 7;   // 모집글: 티오프 + 7일(신고 창구 유예) — 처리방침 문구와 일치 유지
+const OPEN_ROUNDUP_RETENTION_DAYS = 21; // 오픈형 모집글: 생성 + 21일(날짜 미정 방치 방지)
 const NOTI_RETENTION_DAYS = 30;     // 라운지 알림: 생성 30일
 const TTL_COLLECTIONS = ['scheduleGroups', 'mealSuggestions', 'roundScoreShares'];
 const BATCH = 400;
@@ -77,6 +79,29 @@ exports.ttlCleanupTick = onSchedule({ schedule: 'every day 04:00', timeZone: 'As
     if (deleted) logger.info(`[ttl] roundups: deleted ${deleted} (date < ${roundupCutoff}, teeoff+${ROUNDUP_RETENTION_DAYS}d)`);
   } catch (e) {
     logger.warn('[ttl] roundups cleanup fail', e?.message);
+  }
+
+  // 오픈형 모집글 정리 — date가 null(날짜 미정)인 모집은 createdAt + 21일 경과 시 삭제.
+  //   위 date 기반 쿼리에서 빠지므로 별도 처리. type='open'이 아니라 date==null로 판별(기존 방식과 일관).
+  try {
+    const openCutoff = Timestamp.fromMillis(Date.now() - OPEN_ROUNDUP_RETENTION_DAYS * 24 * 3600 * 1000);
+    const snap = await db.collection('roundups')
+      .where('date', '==', null)
+      .where('createdAt', '<', openCutoff)
+      .limit(300)
+      .get();
+    let deleted = 0;
+    for (const d of snap.docs) {
+      try {
+        await db.recursiveDelete(d.ref);
+        deleted++;
+      } catch (e) {
+        logger.warn('[ttl] open roundup recursiveDelete fail', d.id, e?.message);
+      }
+    }
+    if (deleted) logger.info(`[ttl] open roundups: deleted ${deleted} (createdAt < -${OPEN_ROUNDUP_RETENTION_DAYS}d)`);
+  } catch (e) {
+    logger.warn('[ttl] open roundups cleanup fail', e?.message);
   }
 
   // 라운지 알림 정리 — 생성 30일 지난 roundupNotifications 삭제(읽음 여부 무관).

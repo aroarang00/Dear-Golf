@@ -1040,12 +1040,17 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     }
   }, [notifications, schedules, removeSchedule, diaries]);
 
-  // 라운지 노출 윈도우 — 티오프 + 5h(라운딩 끝날 무렵) 이내만 노출, 이후 사용자 UI에서 감춤
-  //   끝난 라운딩이 계속 떠 있지 않게. 댓글 닫힘(COMMENT_OPEN_HOURS=5)과 동일 시점 (2026-06-02 24h→5h).
+  // 라운지 노출 윈도우 — 확정형: 티오프 + 5h 이내만 노출. 오픈형: createdAt + 21일 이내만 노출(방치 방지).
+  //   댓글 닫힘(COMMENT_OPEN_HOURS=5)과 동일 시점 (2026-06-02 24h→5h).
   // (시스템 데이터는 [[data-retention]]에 따라 별도 보관: 일반 1년 / 분쟁 이력 모집글 3년)
-  // 오픈형(date 미정)은 항상 노출. 마이페이지 "내 라운지 활동"은 별도 화면(이 필터 미적용).
+  // 마이페이지 "내 라운지 활동"은 별도 화면(이 필터 미적용).
   const isInVisibleWindow = (p) => {
-    if (!p.date) return true; // 오픈형 — 날짜 미정이므로 노출
+    if (!p.date) {
+      // 오픈형 — createdAt + 21일 지나면 만료(방치 방지)
+      const ct = p.createdAt?.toMillis?.() ?? p.createdAt?.seconds * 1000;
+      if (!ct) return true;
+      return Date.now() <= ct + 21 * 24 * 3600 * 1000;
+    }
     const [y, m, d] = p.date.split('.').map(Number);
     const [hh, mm] = (p.time || '07:00').split(':').map(Number);
     const teeOff = new Date(y, m - 1, d, hh, mm).getTime();

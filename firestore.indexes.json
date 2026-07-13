@@ -176,6 +176,14 @@
       "collectionGroup": "roundups",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "roundups",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "mannerAggregated", "order": "ASCENDING" },
         { "fieldPath": "mannerEvalDeadline", "order": "ASCENDING" }
       ]
