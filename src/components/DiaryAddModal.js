@@ -119,6 +119,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [starRating, setStarRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState([]);
   const [detailMemo, setDetailMemo] = useState('');
+  const [detailSel, setDetailSel] = useState(undefined);
   const [overseas, setOverseas] = useState(false); // 국내/해외 라운딩
   const [country, setCountry] = useState('');      // 해외일 때 국가·지역
   // 상위 분기 — 'round'(라운딩 기록) | 'moment'(일상). 일상은 글/사진만, 통계·캘린더서 격리([[moment-feed-extension]])
@@ -144,12 +145,20 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   };
   // 예시 칩 탭 → '더 기록하기' 입력칸에 '라벨: ' 삽입 + 포커스
   const insertGuideChip = (label) => {
+    let endPos;
     setDetailMemo(prev => {
       const sep = prev && !prev.endsWith('\n') ? '\n' : '';
       const next = `${prev}${sep}${label}: `;
-      return next.length <= 1000 ? next : prev;
+      if (next.length > 1000) return prev;
+      endPos = next.length;
+      return next;
     });
-    detailMemoRef.current?.focus();
+    if (endPos != null) {
+      setTimeout(() => {
+        setDetailSel({ start: endPos, end: endPos });
+        detailMemoRef.current?.focus();
+      }, 50);
+    }
   };
   const [special, setSpecial] = useState(null);
   const [specialHole, setSpecialHole] = useState('');
@@ -417,7 +426,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
-    setDetailMemo('');
+    setDetailMemo(''); setDetailSel(undefined);
     setPrivacy(['friends']);
     setCompanions([]); setCompanionInput(''); setShareScores(false); setTeamRoster([]);
     setSubCourse('');
@@ -1192,8 +1201,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                   {GUIDE_CHIPS.map(c => (
                     <TouchableOpacity key={c} onPress={() => insertGuideChip(c)} activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       style={{ backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline,
-                        borderRadius: 14, paddingHorizontal: 11, paddingVertical: 6 }}>
+                        borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>+ {c}</Text>
                     </TouchableOpacity>
                   ))}
@@ -1216,6 +1226,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     placeholderTextColor={C.warmGrayLight}
                     value={detailMemo}
                     onChangeText={(t) => setDetailMemo(t.slice(0, 1000))}
+                    selection={detailSel}
+                    onSelectionChange={() => { if (detailSel) setDetailSel(undefined); }}
                     multiline
                     textAlignVertical="top"
                   />
