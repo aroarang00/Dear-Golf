@@ -593,14 +593,14 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (monthOffset !== 0) {
       return (
         <View style={{ width: dateCircleSize, height: dateCircleSize, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.en, fontSize: fs(16), color: '#C8C4BC' }}>{d}</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#C8C4BC' }}>{d}</Text>
         </View>
       );
     }
 
     const status = getStatus(0, d);
     const base = { width: dateCircleSize, height: dateCircleSize, borderRadius: dateCircleSize / 2, alignItems: 'center', justifyContent: 'center' };
-    const baseText = { fontFamily: F.en, fontSize: fs(16) };
+    const baseText = { fontFamily: F.sysSb, fontSize: fs(16) };
     // Android Fabric(New Arch)은 둥근 View를 렌더 최적화로 병합하며 borderRadius를 간헐적으로
     // 누락시켜 네모로 그림(달 이동 시 됐다 안 됐다). collapsable={false}로 병합을 막아 원형 고정.
     const noCollapse = _and ? { collapsable: false } : {};
@@ -610,7 +610,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         // 오늘 — 크고 버건디색 숫자 + 버건디 언더바 (동그라미 X)
         return (
           <View style={{ width: dateCircleSize, height: dateCircleSize, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(22), color: C.burgundy }}>{d}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(22), color: C.burgundy }}>{d}</Text>
             <View style={{ position: 'absolute', bottom: 1, width: 20, height: 3.5, borderRadius: 2, backgroundColor: C.burgundy }} />
           </View>
         );
@@ -663,7 +663,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
             <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>‹</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={openPicker} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} activeOpacity={0.6}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(19), color: C.charcoal }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(19), color: C.charcoal }}>
               {year}. {String(month + 1).padStart(2, '0')} ▾
             </Text>
           </TouchableOpacity>
@@ -1050,7 +1050,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, year: p.year - 1 }))} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
                 <Text style={{ fontSize: fs(26), color: C.warmGray }}>‹</Text>
               </TouchableOpacity>
-              <Text style={{ fontFamily: F.en, fontSize: fs(28), color: C.charcoal, minWidth: 100, textAlign: 'center' }}>{picker.year}</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(28), color: C.charcoal, minWidth: 100, textAlign: 'center' }}>{picker.year}</Text>
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, year: p.year + 1 }))} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
                 <Text style={{ fontSize: fs(26), color: C.warmGray }}>›</Text>
               </TouchableOpacity>
