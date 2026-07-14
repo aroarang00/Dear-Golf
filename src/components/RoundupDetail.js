@@ -987,6 +987,19 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 ) : null}
               </View>
 
+              {post.createdAt && (() => {
+                const ms = post.createdAt?.toMillis?.() ?? post.createdAt?.seconds * 1000;
+                if (!ms) return null;
+                const dt = new Date(ms);
+                const label = `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, '0')}.${String(dt.getDate()).padStart(2, '0')}`;
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: _and ? 6 : 8 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray }}>등록일</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginLeft: 8 }}>{label}</Text>
+                  </View>
+                );
+              })()}
+
               <View style={{ marginTop: _and ? 9 : 12 }}>{actionBtn}</View>
             </View>
 

@@ -249,7 +249,7 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
               ? <Icon name="calendar" size={fs(14)} color={C.charcoal} strokeWidth={1.8} />
               : <Icon name="check" size={fs(16)} color={C.burgundy} strokeWidth={2.8} />)
           : <Icon name="people" size={fs(15)} color={C.charcoal} strokeWidth={1.8} />}
-        <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
         {post.companions?.length > 0 ? (
           <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 동반자 {post.companions.length}명 포함</Text>
@@ -2293,7 +2293,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
                     backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
                     <Text style={{ fontSize: fs(13) }}>🔄</Text>
-                    <Text style={{ fontFamily: F.en, fontSize: fs(13), color: C.charcoal }}>1/4</Text>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>1/4</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, marginLeft: 'auto' }}>모집중</Text>
                   </View>
