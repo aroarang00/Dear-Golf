@@ -43,6 +43,7 @@ module.exports = {
         'com.apple.developer.usernotifications.time-sensitive': true,
       },
       infoPlist: {
+        CFBundleDevelopmentRegion: 'ko',
         ITSAppUsesNonExemptEncryption: false,
         // 카카오 SDK가 카카오톡 앱을 열려면(공유 shareFeedTemplate·로그인) 이 스킴들을 조회 허용해야 함.
         //   누락 시 iOS에서 canOpenURL(kakaotalk://)이 false → 카톡 앱 못 열고 웹 폴백(빈 화면)으로 떨어짐.
