@@ -16,6 +16,7 @@ import { normalizeSchedules } from '../utils/helpers';
 export const SchedulesContext = React.createContext({
   schedules: [],
   hydrated: false,
+  loadFailed: false,
   addSchedule: async () => {},
   editSchedule: async () => {},
   removeSchedule: async () => {},
@@ -26,6 +27,7 @@ export const SchedulesContext = React.createContext({
 export function SchedulesProvider({ children }) {
   const [schedules, setSchedulesRaw] = useState([]);
   const [hydrated, setHydrated] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   // edit 시 부분 patch만 와도 전체 일정으로 합쳐 캘린더를 갱신하기 위한 최신 스냅샷
   const schedulesRef = useRef([]);
   useEffect(() => { schedulesRef.current = schedules; }, [schedules]);
@@ -50,6 +52,7 @@ export function SchedulesProvider({ children }) {
         if (cancelled || uid !== curUid) return;  // uid가 바뀐 뒤 도착한 옛 응답 폐기
         const norm = normalizeSchedules(loaded);
         setSchedulesRaw(norm);
+        setLoadFailed(false);
         failedRef.current = false;
         tries = 0;
         // 고아 알람 정리 — 이미 삭제됐는데 OS에 남은 예약 알림(D-3/D-1 등) 제거. 로드 성공 시에만(빈 로드로 오취소 방지).
@@ -58,6 +61,7 @@ export function SchedulesProvider({ children }) {
         if (cancelled || uid !== curUid) return;
         // 빈 배열로 덮지 않는다 — 서버 데이터는 멀쩡하고 표시만 무너지는 것(재로그인하면 복구되던 증상).
         console.warn('[SchedulesContext] Firestore 로드 실패 — 기존 일정 유지', e?.message);
+        setLoadFailed(true);
         failedRef.current = true;
         if (tries < BACKOFF.length) {
           const delay = BACKOFF[tries++];
@@ -77,6 +81,7 @@ export function SchedulesProvider({ children }) {
       if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
       tries = 0;
       failedRef.current = false;
+      setLoadFailed(false);
       // 로그인 settle 전(null)·uid 전환 중엔 hydrated를 내려 로딩 유지 — 빈 데이터로 hydrate되며
       //   홈 '첫 라운딩' 등 빈 CTA가 깜빡이던 문제 방지([[home-empty-state-flash]], [[auth-relink-and-seed-cleanup]]).
       setHydrated(false);
@@ -159,6 +164,7 @@ export function SchedulesProvider({ children }) {
     <SchedulesContext.Provider value={{
       schedules,
       hydrated,
+      loadFailed,
       addSchedule,
       editSchedule,
       removeSchedule,

@@ -106,7 +106,7 @@ export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
   const { refreshRoundupHidden } = React.useContext(FriendBadgeContext); // 라운지 초대 가리기 재로드(focus 시)
   const [roundupInviteActive, setRoundupInviteActive] = React.useState(false); // 라운지 초대 배너 표시 중 여부(아래 카드 겹침 방지)
-  const { schedules, hydrated, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
+  const { schedules, hydrated, loadFailed, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid ([[uid-stabilization-plan]])
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();   // 확대 시 콘텐츠가 탭바 영역을 덮어 안드 탭바가 무반응이던 것 — 콘텐츠 하단에 탭바 높이만큼 여백(2026-06-24)
@@ -1271,6 +1271,16 @@ export function HomeScreen({ navigation, route }) {
           </AttentionMotion>
         )}
 
+        {/* 오프라인 배너 — 기존 일정이 표시돼도 '새로고침 못 함'을 알려줌(로드 실패+데이터 있음 조합) */}
+        {loadFailed && next && (
+          <View style={{ marginHorizontal: SIDE_PAD, marginBottom: 6, backgroundColor: 'rgba(255,200,80,0.12)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: fs(14) }}>{"📡"}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.6)', flex: 1 }}>
+              인터넷 연결이 불안정해요 · 연결되면 자동으로 갱신돼요
+            </Text>
+          </View>
+        )}
+
         {next ? (
         <>
         <View style={{ flex: 1 }} />
@@ -1703,7 +1713,22 @@ export function HomeScreen({ navigation, route }) {
         </View>
         </>
         ) : hydrated ? (
-        // 일정 로드 완료 후에만 '첫 라운딩' 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
+        // 일정 로드 완료 후에만 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
+        loadFailed ? (
+        // 오프라인/로드 실패 — 빈 화면이 '데이터 날아감'으로 오해되던 것([[read-failure-disguise]]).
+        //   다른 앱은 에러 메시지가 뜨니 네트워크 문제인 걸 알지만, 이름만 뜨고 나머지 빈 화면은 공포를 줌.
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: SIDE_PAD }}>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 28, alignItems: 'center' }}>
+            <Text style={{ fontSize: fs(32), marginBottom: 14 }}>{"📡"}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#fff', marginBottom: 8, textAlign: 'center' }}>
+              인터넷 연결을 확인해주세요
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.5)', lineHeight: fs(19), textAlign: 'center' }}>
+              일정을 불러오지 못했어요{'\n'}연결이 돌아오면 자동으로 다시 시도해요
+            </Text>
+          </View>
+        </View>
+        ) : (
         <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
           <View style={{ marginHorizontal: SIDE_PAD, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
@@ -1739,6 +1764,7 @@ export function HomeScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </View>
+        )
         ) : (
         // 일정 로드 중 — 빈 CTA 대신 중립 여백(잘못된 빈 상태 깜빡임 차단)
         <View style={{ flex: 1 }} />
