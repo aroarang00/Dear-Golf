@@ -254,11 +254,14 @@ export function pickHourSlots(slotsByDate, dateStr) {
   const slots = slotsByDate?.[dateStr] || [];
   if (!slots.length) return [];
   const TARGET_HOURS = [6, 9, 12, 15, 18, 21];
-  return TARGET_HOURS.map(h => {
+  const out = TARGET_HOURS.map(h => {
     const slot = slots.find(s => parseInt(s.fcstTime, 10) === h * 100);
     if (!slot) return null;
     return toUiSlot(slot, h);
   }).filter(Boolean);
+  // D+3 등 72h 끝자락이면 오전 3칸만 걸려 그래프가 허전 → 4칸 미만은 [] 반환해
+  // 호출부가 "라운딩 3일 전부터 보여드려요" 안내로 폴백(날이 가까워지면 6칸→7칸으로 자동 채워짐).
+  return out.length >= 4 ? out : [];
 }
 
 // 라운딩 날 1시간 간격 슬롯 — 티오프 1시간 전 ~ +5시간(라운드 종료 무렵).
