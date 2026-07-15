@@ -280,6 +280,8 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
         await editCrewPost(crewId, post.id, { text: body, media: up });
       } else if (isNotice) {
         await setCrewNotice(crewId, body, currentUid);
+        clearCrewDraft();   // 공지 올린 텍스트가 임시저장에 남아 다음 새 글에 '쓰다 만 글'로 부활하던 것 방지
+                            //   (글 먼저 쓰고→공지 토글→게시한 경우, 토글 전 자동저장분이 남았음)
       } else {
         await addCrewPost(crewId, { authorUid: currentUid, text: body, media: up });
         clearCrewDraft();   // 게시 성공 → 임시저장 삭제
