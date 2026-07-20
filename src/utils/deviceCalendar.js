@@ -1,6 +1,7 @@
 import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import { STORAGE_KEYS, storage } from './storage';
+import { searchGolfCoursesLocal } from './golfCourses'; // 캘린더 일정 골프 판별(로컬·오프라인)
 
 // 라운딩 일정을 폰 기본 캘린더(삼성/구글/애플)에 자동 동기화.
 // 생성한 이벤트 id를 일정 id별로 저장 — 일정 수정 시 갱신, 삭제 시 제거.
@@ -151,5 +152,56 @@ export async function removeRoundFromCalendar(scheduleId) {
     await storage.save(STORAGE_KEYS.calendarEvents, map);
   } catch (e) {
     console.warn('[calendar] remove', e?.message);
+  }
+}
+
+// ── 캘린더에서 가져오기(읽기) ──────────────────────────────────
+// 폰 캘린더(구글·애플·삼성 전부)에서 앞으로 N일치 일정을 읽어 골프 여부를 판별.
+//   AI 호출 없음 — 키워드 + 골프장 DB(로컬) 대조만. 완전 오프라인·무료.
+// 반환: { granted, events:[{ id, title, location, start(Date), allDay, isGolf, course{name,loc,kakaoId}|null }] }
+//   정렬: 골프 우선 → 시간 오름차순. granted=false면 권한 거부.
+const GOLF_HINT = /골프|라운[딩드]|부킹|티오프|tee\s*off|컨트리|country\s*club|\bC\.?C\b|\bG\.?C\b|⛳/i;
+
+export async function getUpcomingGolfEvents({ days = 60 } = {}) {
+  const granted = await ensurePermission();
+  if (!granted) return { granted: false, events: [] };
+  try {
+    const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    const ids = (cals || []).map(c => c.id).filter(Boolean);
+    if (!ids.length) return { granted: true, events: [] };
+
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(start.getTime() + days * 86400000);
+    const raw = await Calendar.getEventsAsync(ids, start, end);
+
+    const seen = new Set();
+    const out = [];
+    for (const ev of raw || []) {
+      if (!ev?.startDate) continue;
+      const startDate = new Date(ev.startDate);
+      if (isNaN(startDate.getTime())) continue;
+      const title = (ev.title || '').trim();
+      const location = (ev.location || '').trim();
+      // 중복 제거 — 구글·삼성 계정에 같은 일정이 이중 등록되는 경우(제목+시각 동일)
+      const dedupKey = `${title}|${startDate.getTime()}`;
+      if (seen.has(dedupKey)) continue;
+      seen.add(dedupKey);
+
+      const hay = `${title} ${location}`;
+      let isGolf = GOLF_HINT.test(hay);
+      // 장소(우선)·제목을 골프장 DB와 대조 → 매칭되면 골프로 확정 + 구장 프리필용 정보 확보
+      let course = null;
+      try {
+        const hits = await searchGolfCoursesLocal(location || title);
+        if (hits && hits.length) { course = hits[0]; isGolf = true; }
+      } catch (e) { /* DB 미로드 등 — 키워드 판별만 사용 */ }
+
+      out.push({ id: ev.id, title, location, start: startDate, allDay: !!ev.allDay, isGolf, course });
+    }
+    out.sort((a, b) => (a.isGolf === b.isGolf ? a.start - b.start : (a.isGolf ? -1 : 1)));
+    return { granted: true, events: out };
+  } catch (e) {
+    console.warn('[calendar] getUpcomingGolfEvents', e?.message);
+    return { granted: true, events: [], error: e?.message };
   }
 }

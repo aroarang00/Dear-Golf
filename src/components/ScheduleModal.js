@@ -12,6 +12,10 @@ import { addUserCourse, findUserCourseById, updateUserCourse } from '../utils/us
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { getScheduleGroup } from '../utils/scheduleShares'; // 전파 일정 수정 시 탈퇴자(declined) 제외용
+import { pickReservationImage, extractFromImage, extractFromText } from '../utils/reservationParse'; // 예약 캡처/문자 자동입력([[schedule-ocr-autofill]])
+import { Icon } from './common/Icon'; // 커스텀 SVG 아이콘(sparkle 등) — 유니코드 이모지 대신
+import { Spinner } from './common/Spinner'; // JS 타이머 회전 스피너(애니메이션 꺼진 기기에서도 돎)
+import { CalendarImportModal } from './CalendarImportModal'; // 캘린더에서 일정 가져오기(읽기·오프라인)
 import { FriendSelectModal } from './FriendSelectModal';
 import { mS } from '../styles/mS';
 import { WEEKDAYS } from '../constants/data';
@@ -42,6 +46,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [editName, setEditName] = useState('');
   const [recentCourses, setRecentCourses] = useState([]); // 최근 검색한 골프장
   const [overlay, setOverlay] = useState(null); // 모달 안 커스텀 알럿(검증 등) — 네이티브 Alert 대신
+  const [autofilling, setAutofilling] = useState(false); // 예약 캡처/문자 AI 자동입력 진행 중
+  const [showPaste, setShowPaste] = useState(false); // '예약 문자 붙여넣기' 입력칸 펼침 여부
+  const [pasteText, setPasteText] = useState(''); // 붙여넣은 예약 문자 원문
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false); // '캘린더에서 가져오기' 이벤트 선택 팝업
   const debounceRef = useRef(null);
   // 해외 라운딩 — 국내/해외 + 도시(날씨 조회용)
   const [overseas, setOverseas] = useState(false);
@@ -242,6 +250,78 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setEditingName(false);
   };
 
+  // 예약 캡처 → AI 추출값을 폼에 프리필. 자동 확정 X — 사용자 확인·수정 필수(오입력 방지, [[schedule-ocr-autofill]]).
+  //   구장은 courseSearch만 채우고 selected=null → 검색이 떠서 사용자가 결과를 눌러 확정(날씨·교통 정확도).
+  const applyReservation = (r) => {
+    if (r.courseName) { setCourseSearch(r.courseName); setSelected(null); }
+    if (r.subCourse) setSubCourse(r.subCourse);
+    if (r.booker) setBooker(r.booker);
+    if (r.date) {
+      const [y, mo, d] = r.date.split('.').map(Number);
+      if (y && mo && d) setDate(new Date(y, mo - 1, d));
+    }
+    if (r.time) {
+      const [h, mi] = r.time.split(':');
+      if (h != null && mi != null) { setHourText(h); setMinText(mi); }
+    }
+    if (r.members) setMembers(String(r.members));
+  };
+
+  // 캡처·문자 공통 결과 처리 — 실패/미검출/성공 분기 + 폼 프리필 + 안내 오버레이.
+  const applyReservationResult = (r) => {
+    if (r.error) { setOverlay({ title: '자동입력 실패', message: r.error }); return; }
+    if (!r.found) { setOverlay({ title: '예약 정보를 못 찾았어요', message: '골프장 예약 문자·캡처가 맞는지 확인하고 다시 시도해주세요. 안 되면 직접 입력해주세요.' }); return; }
+    applyReservation(r);
+    const filled = [r.courseName && '구장', r.subCourse && '코스', r.date && '날짜', r.time && '시간', r.booker && '예약자', r.members && '인원'].filter(Boolean).join(' · ');
+    setOverlay({ title: '자동입력했어요', message: `${filled || '일부 정보'}를 채웠어요.\n구장은 검색 결과에서 눌러 확정하고, 날짜·시간이 맞는지 확인해주세요.` });
+  };
+
+  // 캡처(갤러리) 자동입력
+  const handleAutofill = async () => {
+    if (autofilling) return;
+    const picked = await pickReservationImage('gallery');
+    if (!picked) return;   // 취소
+    if (picked.denied) { setOverlay({ title: '사진 접근 권한이 필요해요', message: '설정 > 권한에서 사진 접근을 허용해주세요.' }); return; }
+    setAutofilling(true);
+    const r = await extractFromImage(picked.uri);
+    setAutofilling(false);
+    applyReservationResult(r);
+  };
+
+  // 붙여넣은 예약 문자(텍스트) 자동입력 — 캡처보다 정확(OCR 오차 없음). 클립보드 모듈 없이 직접 붙여넣기.
+  const handleAutofillText = async () => {
+    if (autofilling) return;
+    const text = pasteText.trim();
+    if (text.length < 5) { setOverlay({ title: '내용이 너무 짧아요', message: '카톡·문자의 예약 내용을 복사해서 붙여넣어 주세요.' }); return; }
+    setAutofilling(true);
+    const r = await extractFromText(text);
+    setAutofilling(false);
+    if (!r.error && r.found) { setShowPaste(false); setPasteText(''); } // 성공 시 입력칸 접고 비움
+    applyReservationResult(r);
+  };
+
+  // 캘린더 일정 선택 → 폼 프리필. AI 호출 없음(일정에 날짜·시간이 이미 구조화됨).
+  const handleCalendarPick = async (ev) => {
+    if (!ev) return;
+    // 날짜·시간
+    if (ev.start instanceof Date && !isNaN(ev.start.getTime())) {
+      setDate(new Date(ev.start.getFullYear(), ev.start.getMonth(), ev.start.getDate()));
+      if (!ev.allDay) {
+        setHourText(String(ev.start.getHours()).padStart(2, '0'));
+        setMinText(String(ev.start.getMinutes()).padStart(2, '0'));
+      }
+    }
+    // 구장 — DB 매칭됐으면 바로 선택(날씨·교통 정확), 아니면 제목/장소를 검색어에 넣어 사용자가 확정
+    if (ev.course?.kakaoId) {
+      await handleSelectResult(ev.course);
+    } else {
+      setCourseSearch(ev.title || ev.location || '');
+      setSelected(null);
+    }
+    const filled = [(ev.course?.name || ev.title || ev.location) && '구장', '날짜', !ev.allDay && '시간'].filter(Boolean).join(' · ');
+    setOverlay({ title: '캘린더에서 가져왔어요', message: `${filled}를 채웠어요.\n구장이 비어 있으면 검색해서 확정하고, 인원·예약자를 확인해주세요.` });
+  };
+
   const reset = () => {
     setCourseSearch(''); setSelected(null); setSearchResults([]);
     setDate(new Date()); setHourText('07'); setMinText('00'); setMembers('4');
@@ -249,6 +329,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setCompanions([]); setCompanionInput('');
     setBooker(''); setSubCourse(''); setMemo('');
     setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
+    setShowPaste(false); setPasteText(''); setShowCalendarPicker(false);
   };
 
   // 동반자 — 자유 입력 추가(공백·쉼표 여러 명) / 삭제 / 친구 선택 반영
@@ -359,22 +440,94 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               안드는 기존 KeyboardAvoidingView(behavior undefined)가 무효라 동반자 입력칸이 가려졌었음. */}
           <KeyboardAwareScrollView
             style={{ flexShrink: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 2, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="always"
             keyboardDismissMode="on-drag"
             bottomOffset={24}>
 
-              {/* 국내 / 해외 — 전파 일정 잠금 시 비활성(구장 정체성의 일부) */}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, opacity: sharedLock ? 0.45 : 1 }}>
-                {[['국내', false], ['해외', true]].map(([l, v]) => (
-                  <TouchableOpacity key={l} activeOpacity={0.7} disabled={sharedLock}
-                    onPress={() => { setOverseas(v); setSearchResults([]); setCityResults([]); }}
-                    style={[mS.chip, overseas === v && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
-                    <Text style={[mS.chipTxt, overseas === v && mS.chipTxtOn]}>{l}</Text>
-                  </TouchableOpacity>
-                ))}
+              {/* 국내 / 해외 — 세그먼트 컨트롤. 흰 트랙 안에서 선택된 쪽만 차콜 필로 떠 보임(그림자).
+                  전파 일정 잠금 시 비활성(구장 정체성의 일부). */}
+              <View style={{ flexDirection: 'row', marginTop: 4, backgroundColor: C.bgSecondary, borderRadius: 12,
+                padding: 4, borderWidth: 0.5, borderColor: C.hairline, opacity: sharedLock ? 0.45 : 1 }}>
+                {[['국내', false], ['해외', true]].map(([l, v]) => {
+                  const on = overseas === v;
+                  return (
+                    <TouchableOpacity key={l} activeOpacity={0.8} disabled={sharedLock}
+                      onPress={() => { setOverseas(v); setSearchResults([]); setCityResults([]); }}
+                      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 9,
+                        backgroundColor: on ? C.charcoal : 'transparent',
+                        shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: on ? 2 : 0 }}>
+                      <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.warmGray }}>{l}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
+
+              {/* AI 자동입력 — 캡처·붙여넣기·캘린더를 하나의 카드로 통합(버튼 3개 → 카드 1개). 신규·국내일 때만.
+                  캡처/붙여넣기=Gemini 추출, 캘린더=일정 읽기(무료). 셋 다 '알아서 채우기' 한 묶음. 커스텀 SVG만 사용. */}
+              {!isEdit && !overseas && (
+                <View style={{ marginTop: 10, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(95,123,81,0.35)',
+                  backgroundColor: 'rgba(122,156,108,0.07)', padding: 12 }}>
+                  {/* 헤더 */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#5F7B51', alignItems: 'center', justifyContent: 'center' }}>
+                      {autofilling ? <Spinner size={16} color="#FFFFFF" /> : <Icon name="sparkle" size={15} color="#FFFFFF" strokeWidth={1.8} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>AI로 자동입력</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>
+                        {autofilling ? 'AI가 예약 내용을 읽고 있어요...' : '구장·날짜·시간을 알아서 채워드려요'}
+                      </Text>
+                    </View>
+                  </View>
+                  {/* 방법 3개 — 캡처 / 붙여넣기 / 캘린더. AI 판별 중엔 로딩 스트립으로 교체(진행 중임을 명확히). */}
+                  {autofilling ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12,
+                      paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: '#5F7B51' }}>
+                      <Spinner size={20} color="#5F7B51" />
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#5F7B51' }}>AI가 예약 내용을 읽고 있어요...</Text>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                      {[
+                        { key: 'capture', icon: 'image', label: '캡처', onPress: handleAutofill },
+                        { key: 'paste', icon: 'clipboard', label: '붙여넣기', onPress: () => setShowPaste(v => !v) },
+                        { key: 'calendar', icon: 'calendar', label: '캘린더', onPress: () => setShowCalendarPicker(true) },
+                      ].map(m => {
+                        const active = m.key === 'paste' && showPaste;
+                        return (
+                          <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress}
+                            style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
+                              backgroundColor: active ? 'rgba(95,123,81,0.14)' : '#FFFFFF',
+                              borderWidth: 0.5, borderColor: active ? '#5F7B51' : C.hairline }}>
+                            <Icon name={m.icon} size={21} color="#5F7B51" strokeWidth={1.8} />
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>{m.label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                  {/* 붙여넣기 펼침 — 카드 안에서 */}
+                  {showPaste && (
+                    <View style={{ marginTop: 10 }}>
+                      <AppTextInput
+                        value={pasteText} onChangeText={setPasteText} multiline
+                        placeholder={'카톡·문자의 예약 확인 내용을 복사해서 붙여넣어 주세요.\n예) OO CC 7/25(금) 07:12 4명 · 예약자 홍길동'}
+                        placeholderTextColor={C.warmGrayLight}
+                        style={{ minHeight: 80, maxHeight: 160, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: C.hairline,
+                          borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, textAlignVertical: 'top' }}
+                      />
+                      <TouchableOpacity activeOpacity={0.85} disabled={autofilling || pasteText.trim().length < 5} onPress={handleAutofillText}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8,
+                          backgroundColor: (autofilling || pasteText.trim().length < 5) ? '#B7C4AC' : '#5F7B51', borderRadius: 12, paddingVertical: 12 }}>
+                        {autofilling ? <Spinner size={18} color="#FFFFFF" /> : <Icon name="sparkle" size={17} color="#FFFFFF" strokeWidth={1.8} />}
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#FFFFFF' }}>{autofilling ? 'AI가 읽고 있어요...' : '붙여넣은 내용으로 자동입력'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* 전파(공유) 일정 잠금 안내 — 구장·날짜는 삭제 후 재생성으로만 */}
               {sharedLock && (
@@ -673,6 +826,12 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
         initial={{ selectedUids: companions.filter(c => c.friendUid).map(c => c.friendUid) }}
         onClose={() => setShowCompanionPicker(false)}
         onConfirm={onPickFriends}
+      />
+      {/* 캘린더에서 가져오기 — 다가오는 일정 선택 팝업 */}
+      <CalendarImportModal
+        visible={showCalendarPicker}
+        onClose={() => setShowCalendarPicker(false)}
+        onPick={handleCalendarPick}
       />
     </Modal>
   );

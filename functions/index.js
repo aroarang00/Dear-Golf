@@ -650,3 +650,11 @@ exports.onRoundupUpdated = roundup.onRoundupUpdated;
 // =============================================================
 const ocr = require('./ocr');
 exports.recognizeScorecard = ocr.recognizeScorecard;
+
+// =============================================================
+// Gemini Flash 프록시 — ./gemini.js (구조화 추출)
+//   extractReservation — onCall. 예약 캡처/문자(base64·text) → 구장·코스·날짜·시간·인원 JSON
+//   Secret: GEMINI_API_KEY (functions:secrets:set 으로 등록)
+// =============================================================
+const gemini = require('./gemini');
+exports.extractReservation = gemini.extractReservation;
