@@ -97,19 +97,20 @@ async function callGemini({ key, parts, schema, temperature = 0 }) {
 
 // ── 예약 정보 추출 ─────────────────────────────────────────────
 // 입력: { imageBase64?, format?, text? } — 예약 캡처(이미지) 또는 붙여넣은 예약 문자(텍스트). 최소 하나.
-// 출력: { ok, found, courseName, subCourse, date(YYYY.MM.DD|''), time(HH:MM|''), members(int|null) }
+// 출력: { ok, found, courseName, subCourse, date(YYYY.MM.DD|''), time(HH:MM|''), members(int|null), teeTimeNote }
 const RESERVATION_SCHEMA = {
   type: 'OBJECT',
   properties: {
     found: { type: 'BOOLEAN', description: '골프 예약 정보로 보이는 내용을 찾았으면 true' },
     courseName: { type: 'STRING', description: '골프장(구장) 이름. 지점명 포함. 없으면 빈 문자열' },
-    subCourse: { type: 'STRING', description: '세부 코스명(예: 레이크, 동코스, A→B). 없으면 빈 문자열' },
+    subCourse: { type: 'STRING', description: '세부 코스명(예: 레이크, 동코스, A→B). 여러 팀·티타임이면 가장 이른 티타임의 코스. 없으면 빈 문자열' },
     date: { type: 'STRING', description: '라운딩 날짜 YYYY.MM.DD. 연도 없으면 오늘 이후 가장 가까운 날로. 없으면 빈 문자열' },
-    time: { type: 'STRING', description: '티오프 시각 HH:MM(24시간). 없으면 빈 문자열' },
+    time: { type: 'STRING', description: '티오프 시각 HH:MM(24시간). 여러 팀·티타임이면 가장 이른 시각. 없으면 빈 문자열' },
     booker: { type: 'STRING', description: '예약자(예약한 사람) 이름. 없으면 빈 문자열' },
     members: { type: 'INTEGER', description: '예약 인원 수(1~4). 명시 안 됐으면 0' },
+    teeTimeNote: { type: 'STRING', description: '단체 예약처럼 티타임이 2개 이상이면 전체 목록을 한 줄로: "07:00 레이크 / 07:08 밸리 / 07:16 레이크"(코스가 있으면 시각 뒤에). 티타임이 하나뿐이면 빈 문자열.' },
   },
-  required: ['found', 'courseName', 'subCourse', 'date', 'time', 'booker', 'members'],
+  required: ['found', 'courseName', 'subCourse', 'date', 'time', 'booker', 'members', 'teeTimeNote'],
 };
 
 exports.extractReservation = onCall(
@@ -149,11 +150,13 @@ exports.extractReservation = onCall(
       `너는 한국 골프장 예약 확인 문자/캡처에서 정보를 뽑는 도우미야. 오늘은 ${todayStr}(KST)야.\n` +
       `주어진 내용에서 아래를 정확히 추출해 JSON으로만 답해:\n` +
       `- courseName: 골프장(구장) 이름. "OO CC 스타점"처럼 지점명이 있으면 함께.\n` +
-      `- subCourse: 골프장 안의 세부 코스명(레이크/동코스/A코스 등). 없으면 빈 문자열.\n` +
+      `- subCourse: 골프장 안의 세부 코스명(레이크/A코스/in·out 등). 없으면 빈 문자열.\n` +
+      `  단, 올드/듄스/뉴/노스/사우스코스처럼 별도로 운영되는 코스명은 세부코스가 아니라 courseName에 포함해(예: '라비에벨 올드코스'), subCourse는 비워.\n` +
       `- date: 라운딩(플레이) 날짜를 YYYY.MM.DD로. 연도가 안 적혀 있으면 오늘 이후 가장 가까운 날짜의 연도로.\n` +
-      `- time: 티오프(첫 홀) 시각을 HH:MM 24시간제로. "오전 7시"→07:00, "오후 1시반"→13:30.\n` +
+      `- time: 티오프(첫 홀) 시각을 HH:MM 24시간제로. "오전 7시"→07:00, "오후 1시반"→13:30. 단체 예약처럼 티타임이 여러 개면 '가장 이른' 시각.\n` +
       `- booker: 예약자(예약한 사람) 이름. "예약자: 홍길동"처럼 적혀 있으면 그 이름. 없으면 빈 문자열.\n` +
       `- members: 예약 인원 수(보통 1~4). 안 적혀 있으면 0.\n` +
+      `- teeTimeNote: 티타임이 2개 이상이면(단체·여러 팀) 전체를 한 줄 목록으로 "07:00 레이크 / 07:08 밸리 / 07:16 레이크"처럼(각 시각 뒤에 코스가 있으면 붙여). subCourse·time은 이 중 가장 이른 것으로. 티타임이 하나면 빈 문자열.\n` +
       `골프 예약 내용이 아니면 found=false, 나머지는 빈 값/0으로.`;
 
     const parts = [{ text: prompt }];
@@ -174,6 +177,7 @@ exports.extractReservation = onCall(
       time: (out?.time || '').trim(),
       booker: (out?.booker || '').trim(),
       members: Number.isFinite(out?.members) && out.members > 0 ? out.members : null,
+      teeTimeNote: (out?.teeTimeNote || '').trim(),   // 단체 여러 티타임 요약(한마디/메모용). 하나면 ''
     };
   }
 );

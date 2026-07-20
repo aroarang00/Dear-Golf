@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
+import { searchGolfCoursesLocal } from './golfCourses'; // 별도 운영 코스(라비에벨 올드/듄스) 구장명 해소용
 
 // =============================================================
 // 예약 자동입력 — 예약 문자/캡처에서 구장·코스·날짜·시간·인원 추출. ([[schedule-ocr-autofill]])
@@ -37,6 +38,7 @@ function normalize(data) {
     courseName: (data?.courseName || '').trim(),
     subCourse: (data?.subCourse || '').trim(),
     booker: (data?.booker || '').trim(),
+    teeTimeNote: (data?.teeTimeNote || '').trim(),   // 단체 여러 티타임 요약 — 있으면 한마디/메모에 프리필
     date: '',
     time: '',
     members: null,
@@ -59,6 +61,26 @@ function normalize(data) {
   return out;
 }
 
+// 별도 운영 코스 해소 — AI가 '라비에벨'+세부'올드코스'로 쪼갰지만 DB엔 '라비에벨CC 올드코스'가 별도 구장이면,
+//   세부코스를 구장명으로 합치고 세부코스는 비운다. in/out·레이크 같은 진짜 세부코스는 합친 이름이 DB에 없어 그대로 유지.
+async function resolveSeparateCourse(result) {
+  const cn = (result.courseName || '').trim();
+  const sc = (result.subCourse || '').trim();
+  if (!cn || !sc) return result;
+  try {
+    const hits = await searchGolfCoursesLocal(`${cn} ${sc}`);
+    if (hits && hits.length) {
+      const topName = (hits[0].name || '').replace(/\s+/g, '');
+      const scKey = sc.replace(/\s+/g, '').replace(/코스$/, '');   // '올드코스'→'올드'
+      // 합친 검색의 최상위 DB 구장 이름에 세부코스 토큰이 실제로 들어있을 때만 별도 코스로 판단(오합치 방지)
+      if (scKey && topName.includes(scKey)) {
+        return { ...result, courseName: hits[0].name, subCourse: '' };
+      }
+    }
+  } catch (e) { /* DB 미로드 등 — 원본 유지 */ }
+  return result;
+}
+
 // 예약 캡처(uri) 추출 — 리사이즈(≤1400px)·JPEG base64로 압축 후 CF 호출.
 //   스크린샷 텍스트라 원본 해상도까진 불필요 → 업로드·비용 절감. 반환: normalize 결과 또는 { error }.
 export async function extractFromImage(uri) {
@@ -68,7 +90,7 @@ export async function extractFromImage(uri) {
     });
     const callable = httpsCallable(functions, 'extractReservation');
     const res = await callable({ imageBase64: img.base64, format: 'jpg' });
-    return normalize(res?.data);
+    return await resolveSeparateCourse(normalize(res?.data));
   } catch (e) {
     if (__DEV__) console.warn('[reservationParse] image', e?.code || '', e?.message);
     return { error: e?.message || '예약 정보를 읽지 못했어요. 다시 시도해주세요.', code: e?.code };
@@ -80,7 +102,7 @@ export async function extractFromText(text) {
   try {
     const callable = httpsCallable(functions, 'extractReservation');
     const res = await callable({ text: (text || '').slice(0, 4000) });
-    return normalize(res?.data);
+    return await resolveSeparateCourse(normalize(res?.data));
   } catch (e) {
     if (__DEV__) console.warn('[reservationParse] text', e?.code || '', e?.message);
     return { error: e?.message || '예약 정보를 읽지 못했어요. 다시 시도해주세요.', code: e?.code };

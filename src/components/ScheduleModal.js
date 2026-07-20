@@ -265,6 +265,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       if (h != null && mi != null) { setHourText(h); setMinText(mi); }
     }
     if (r.members) setMembers(String(r.members));
+    // 단체 예약 여러 티타임(+코스) → 전체 목록은 메모에(비어 있을 때만, 사용자 입력 보존)
+    if (r.teeTimeNote) setMemo(m => (m && m.trim()) ? m : `팀별 티타임 · ${r.teeTimeNote}`);
   };
 
   // 캡처·문자 공통 결과 처리 — 실패/미검출/성공 분기 + 폼 프리필 + 안내 오버레이.

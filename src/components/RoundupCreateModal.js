@@ -3,6 +3,10 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, Platform, Keyboard } f
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SpinnerPicker } from './common/SpinnerPicker';
+import { Icon } from './common/Icon';
+import { Spinner } from './common/Spinner';
+import { pickReservationImage, extractFromImage, extractFromText } from '../utils/reservationParse'; // 확정형 예약 자동입력(예정 라운딩 모달과 동일)
+import { CalendarImportModal } from './CalendarImportModal';
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses, getSubCoursesForCourse } from '../utils/golfCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses'; // 최근 검색한 골프장(일정·기록 추가와 동일 UX)
@@ -135,6 +139,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
   const toggleOpenTime = (k) => setOpenTime(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]);
   const [showTip, setShowTip] = useState(false);     // 모집 형태 안내 툴팁 (1회)
   const [alert, setAlert] = useState(null);          // 수정 모드 주요 변경 확인용
+  // 확정형 예약 AI 자동입력 — 예정 라운딩 모달과 동일(캡처/문자=Gemini, 캘린더=오프라인)
+  const [autofilling, setAutofilling] = useState(false);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const debounceRef = useRef(null);
   const submittingRef = useRef(false);   // 생성 더블탭 가드 — 같은 틱 두 번 탭으로 모집글 중복 생성 방지
 
@@ -257,7 +266,64 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     setOpenRegion('capital');
     setSelectMode('include'); setSelectedUids([]); setSelectedGroupIds([]); setSelectedCrewIds([]); setShowFriendSelect(false);
     setSubCourse(''); setSubCourseOpts([]);
+    setShowPaste(false); setPasteText(''); setShowCalendarPicker(false); setAutofilling(false);
   };
+
+  // ── 확정형 예약 AI 자동입력 ─────────────────────────
+  // 추출값을 폼에 프리필. 구장은 검색어만 채우고 course=null → 사용자가 검색결과 눌러 확정(주소·지역 정확도).
+  const applyReservationCompose = (r) => {
+    if (r.courseName) { setCourseQuery(r.courseName); setCourse(null); }
+    if (r.subCourse) setSubCourse(r.subCourse);
+    const nd = new Date(date);
+    if (r.date) { const [y, mo, d] = r.date.split('.').map(Number); if (y && mo && d) nd.setFullYear(y, mo - 1, d); }
+    if (r.time) { const [h, mi] = r.time.split(':').map(Number); if (h != null && mi != null) nd.setHours(h, mi, 0, 0); }
+    // 단체 예약 여러 티타임(+코스) → 대표(가장 이른)는 위에 넣고, 전체 목록은 한마디에(비어 있을 때만, 사용자 입력 보존)
+    if (r.teeTimeNote) setWord(w => (w && w.trim()) ? w : `팀별 티타임 · ${r.teeTimeNote}`);
+    setType('fixed');           // 예약 정보가 있으면 확정형
+    setDate(clampFutureTee(nd));
+  };
+  const handleReservationResult = (r) => {
+    if (r.error) { setAlert({ title: '자동입력 실패', message: r.error, buttons: [{ text: '확인' }] }); return; }
+    if (!r.found) { setAlert({ title: '예약 정보를 못 찾았어요', message: '골프장 예약 문자·캡처가 맞는지 확인하고 다시 시도해주세요.', buttons: [{ text: '확인' }] }); return; }
+    applyReservationCompose(r);
+    setShowPaste(false); setPasteText('');
+    const filled = [(r.courseName) && '구장', r.subCourse && '코스', r.date && '날짜', r.time && '시간', r.teeTimeNote && '팀별 티타임(한마디)'].filter(Boolean).join(' · ');
+    const extra = r.teeTimeNote ? '\n티타임이 여러 개라 대표(가장 이른)만 넣고, 전체는 한마디에 담았어요.' : '';
+    setAlert({ title: '자동입력했어요', message: `${filled || '일부 정보'}를 채웠어요.\n구장은 검색 결과에서 눌러 확정해주세요.${extra}`, buttons: [{ text: '확인' }] });
+  };
+  const handleAutofill = async () => {
+    if (autofilling) return;
+    const picked = await pickReservationImage('gallery');
+    if (!picked) return;
+    if (picked.denied) { setAlert({ title: '사진 접근 권한이 필요해요', message: '설정 > 권한에서 사진 접근을 허용해주세요.', buttons: [{ text: '확인' }] }); return; }
+    setAutofilling(true);
+    const r = await extractFromImage(picked.uri);
+    setAutofilling(false);
+    handleReservationResult(r);
+  };
+  const handleAutofillText = async () => {
+    if (autofilling) return;
+    const text = pasteText.trim();
+    if (text.length < 5) { setAlert({ title: '내용이 너무 짧아요', message: '카톡·문자의 예약 내용을 복사해서 붙여넣어 주세요.', buttons: [{ text: '확인' }] }); return; }
+    setAutofilling(true);
+    const r = await extractFromText(text);
+    setAutofilling(false);
+    handleReservationResult(r);
+  };
+  const handleCalendarPick = (ev) => {
+    if (!ev) return;
+    const nd = new Date(date);
+    if (ev.start instanceof Date && !isNaN(ev.start.getTime())) {
+      nd.setFullYear(ev.start.getFullYear(), ev.start.getMonth(), ev.start.getDate());
+      if (!ev.allDay) nd.setHours(ev.start.getHours(), ev.start.getMinutes(), 0, 0);
+    }
+    setCourseQuery(ev.course?.name || ev.title || ev.location || '');
+    setCourse(null);
+    setType('fixed');
+    setDate(clampFutureTee(nd));
+    setAlert({ title: '캘린더에서 가져왔어요', message: '구장·날짜·시간을 채웠어요.\n구장은 검색 결과에서 눌러 확정해주세요.', buttons: [{ text: '확인' }] });
+  };
+
   const close = () => { if (!initialPost) reset(); onClose(); };
   // 안드로이드 뒤로가기 — 확인창(OverlayAlert)이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
   // (RN Modal 안에서 BackHandler는 onRequestClose보다 불안정 → 여기 한 곳에서 우선순위로 처리)
@@ -487,15 +553,18 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               </View>
             )}
 
-            {/* 확정형 / 오픈형 */}
+            {/* 확정형 / 오픈형 — 세그먼트 컨트롤(예정 라운딩 추가 모달과 통일). 흰 트랙 안에서 선택만 차콜 필로 떠 보임 */}
             <Text style={mS.bigLabel}>모집 형태</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
               {[['fixed', '확정형'], ['open', '오픈형']].map(([k, l]) => {
                 const disabled = lockToFixed && k === 'open';   // 만석 오픈형 친구지정 수정 — 오픈형 잠금
+                const on = type === k;
                 return (
-                  <TouchableOpacity key={k} activeOpacity={0.7} disabled={disabled} onPress={() => setType(k)}
-                    style={[mS.chip, type === k && mS.chipOn, { flex: 1, alignItems: 'center' }, disabled && { opacity: 0.4 }]}>
-                    <Text style={[mS.chipTxt, type === k && mS.chipTxtOn]}>{l}</Text>
+                  <TouchableOpacity key={k} activeOpacity={0.8} disabled={disabled} onPress={() => setType(k)}
+                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 9,
+                      backgroundColor: on ? C.charcoal : 'transparent', opacity: disabled ? 0.4 : 1,
+                      shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: on ? 2 : 0 }}>
+                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.warmGray }}>{l}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -508,26 +577,31 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 : '날짜·장소는 미정 — 함께 정할 동반자를 먼저 모아요'}
             </Text>
 
-            {/* 개별 / 단체 — 모집 형태와 함께 맨 위에서 정함(형태를 한 곳에). 인원/팀수도 같이. */}
+            {/* 개별 / 단체 — 세그먼트 컨트롤(모집 형태와 동일 스타일, 의미색 없어 차콜 통일) */}
             <Text style={[mS.bigLabel, { marginTop: 16 }]}>개별 / 단체</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => (
-                <TouchableOpacity key={k} activeOpacity={0.7}
-                  onPress={() => {
-                    setGroupMode(k);
-                    if (k === 'team' && scope === 'all') {
-                      setScope('friends');
-                      setAlert({
-                        title: '단체 모집은 친구 대상으로만 가능해요',
-                        message: '단체 모집은\n친구공개·친구지정에서만 운영돼요.\n\n공개 범위를 친구공개로 바꿔뒀어요.',
-                        buttons: [{ text: '확인' }],
-                      });
-                    }
-                  }}
-                  style={[mS.chip, groupMode === k && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
-                  <Text style={[mS.chipTxt, groupMode === k && mS.chipTxtOn]}>{l}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
+              {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => {
+                const on = groupMode === k;
+                return (
+                  <TouchableOpacity key={k} activeOpacity={0.8}
+                    onPress={() => {
+                      setGroupMode(k);
+                      if (k === 'team' && scope === 'all') {
+                        setScope('friends');
+                        setAlert({
+                          title: '단체 모집은 친구 대상으로만 가능해요',
+                          message: '단체 모집은\n친구공개·친구지정에서만 운영돼요.\n\n공개 범위를 친구공개로 바꿔뒀어요.',
+                          buttons: [{ text: '확인' }],
+                        });
+                      }
+                    }}
+                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 9,
+                      backgroundColor: on ? C.charcoal : 'transparent',
+                      shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: on ? 2 : 0 }}>
+                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.warmGray }}>{l}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
             <Text style={[mS.bigLabel, { marginTop: 12 }]}>모집 인원 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(주최자 외)</Text></Text>
             {groupMode === 'single' ? (
@@ -574,6 +648,62 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
             {type === 'fixed' && (
               <>
+                {/* AI 자동입력 — 캡처·문자·캘린더에서 구장·날짜·시간 프리필(예정 라운딩 모달과 동일 카드). 신규 작성일 때만. */}
+                {!isEdit && (
+                  <View style={{ marginTop: 4, marginBottom: 4, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(95,123,81,0.35)', backgroundColor: 'rgba(122,156,108,0.07)', padding: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#5F7B51', alignItems: 'center', justifyContent: 'center' }}>
+                        {autofilling ? <Spinner size={16} color="#FFFFFF" /> : <Icon name="sparkle" size={15} color="#FFFFFF" strokeWidth={1.8} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>AI로 예약 자동입력</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>
+                          {autofilling ? 'AI가 예약 내용을 읽고 있어요...' : '예약 캡처·문자·캘린더에서 구장·날짜·시간을 채워드려요'}
+                        </Text>
+                      </View>
+                    </View>
+                    {autofilling ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12,
+                        paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: '#5F7B51' }}>
+                        <Spinner size={20} color="#5F7B51" />
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#5F7B51' }}>AI가 예약 내용을 읽고 있어요...</Text>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                        {[
+                          { key: 'capture', icon: 'image', label: '캡처', onPress: handleAutofill },
+                          { key: 'paste', icon: 'clipboard', label: '붙여넣기', onPress: () => setShowPaste(v => !v) },
+                          { key: 'calendar', icon: 'calendar', label: '캘린더', onPress: () => setShowCalendarPicker(true) },
+                        ].map(m => {
+                          const active = m.key === 'paste' && showPaste;
+                          return (
+                            <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress}
+                              style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
+                                backgroundColor: active ? 'rgba(95,123,81,0.14)' : '#FFFFFF', borderWidth: 0.5, borderColor: active ? '#5F7B51' : C.hairline }}>
+                              <Icon name={m.icon} size={21} color="#5F7B51" strokeWidth={1.8} />
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>{m.label}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                    {showPaste && (
+                      <View style={{ marginTop: 10 }}>
+                        <AppTextInput value={pasteText} onChangeText={setPasteText} multiline
+                          placeholder={'카톡·문자의 예약 확인 내용을 복사해서 붙여넣어 주세요.\n예) OO CC 7/25(금) 07:12 4명'}
+                          placeholderTextColor={C.warmGrayLight}
+                          style={{ minHeight: 80, maxHeight: 160, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: C.hairline,
+                            borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, textAlignVertical: 'top' }} />
+                        <TouchableOpacity activeOpacity={0.85} disabled={autofilling || pasteText.trim().length < 5} onPress={handleAutofillText}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8,
+                            backgroundColor: (autofilling || pasteText.trim().length < 5) ? '#B7C4AC' : '#5F7B51', borderRadius: 12, paddingVertical: 12 }}>
+                          {autofilling ? <Spinner size={18} color="#FFFFFF" /> : <Icon name="sparkle" size={17} color="#FFFFFF" strokeWidth={1.8} />}
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#FFFFFF' }}>{autofilling ? 'AI가 읽고 있어요...' : '붙여넣은 내용으로 자동입력'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <Text style={mS.bigLabel}>골프장</Text>
                 <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="골프장 이름으로 검색..."
                   placeholderTextColor={C.warmGrayLight} value={courseQuery}
@@ -707,13 +837,16 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               </View>
             ) : (<>
             <Text style={mS.bigLabel}>공개 범위</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            {/* 세그먼트 컨트롤 — 선택 필 색은 옵션별 의미색(전체=차콜/친구공개=네이비/친구지정=버건디, 카드와 통일) */}
+            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
               {SCOPES.map(([k, l]) => {
                 const blocked = k === 'all' && groupMode === 'team';
+                const on = scope === k;
                 return (
                   <TouchableOpacity key={k}
-                    style={[mS.chip, scope === k && { backgroundColor: SCOPE_ON_COLOR[k] || C.charcoal, borderColor: SCOPE_ON_COLOR[k] || C.charcoal },
-                      blocked && { opacity: 0.4 }, { flex: 1, alignItems: 'center' }]}
+                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 9,
+                      backgroundColor: on ? (SCOPE_ON_COLOR[k] || C.charcoal) : 'transparent', opacity: blocked ? 0.4 : 1,
+                      shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: on ? 2 : 0 }}
                     onPress={() => {
                       if (blocked) {
                         setAlert({
@@ -725,7 +858,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                       }
                       setScope(k);
                     }}>
-                    <Text style={[mS.chipTxt, scope === k && mS.chipTxtOn]}>{l}</Text>
+                    <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.warmGray }}>{l}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -920,6 +1053,11 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
         initial={{ selectMode, selectedUids }}
         onClose={() => setShowFriendSelect(false)}
         onConfirm={({ selectMode: m, selectedUids: u }) => { setSelectMode(m); setSelectedUids(u); setSelectedGroupIds([]); if (u.length) setSelectedCrewIds([]); }} />
+      {/* 캘린더에서 가져오기 — 확정형 예약 자동입력용 */}
+      <CalendarImportModal
+        visible={showCalendarPicker}
+        onClose={() => setShowCalendarPicker(false)}
+        onPick={handleCalendarPick} />
     </Modal>
   );
 }
