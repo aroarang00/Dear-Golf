@@ -220,14 +220,14 @@ exports.extractScorecard = onCall(
   {
     secrets: [GEMINI_API_KEY],
     region: 'asia-northeast3',
-    memory: '512MiB',   // 이미지 최대 2장
-    timeoutSeconds: 60,
+    memory: '512MiB',   // 이미지 최대 4장(전체 카드 팀별)
+    timeoutSeconds: 90,
   },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', '로그인이 필요해요.');
 
     const imgs = Array.isArray(request.data?.images) ? request.data.images : [];
-    const valid = imgs.filter(im => im && typeof im.data === 'string' && im.data.length > 0).slice(0, 2);
+    const valid = imgs.filter(im => im && typeof im.data === 'string' && im.data.length > 0).slice(0, 4);
     if (!valid.length) throw new HttpsError('invalid-argument', '스코어카드 사진이 필요해요.');
     for (const im of valid) {
       if (im.data.length > 8 * 1024 * 1024) throw new HttpsError('invalid-argument', '이미지가 너무 커요. 다시 시도해주세요.');
@@ -240,16 +240,20 @@ exports.extractScorecard = onCall(
     }
 
     const prompt =
-      `너는 골프 스코어카드 또는 스코어 화면(스마트스코어 태블릿 등) 이미지에서 홀별 점수를 뽑는 도우미야.\n` +
-      `주어진 이미지(1~2장, 전반=1~9홀 / 후반=10~18홀로 나뉘어 올 수 있음)를 읽고 JSON으로만 답해:\n` +
-      `- pars: 1홀~18홀 파를 순서대로 18개 배열(모든 플레이어 공통). PAR 행이 없으면 빈 배열 [].\n` +
-      `- players: 점수 행(플레이어)마다 하나씩. { name(이름/구분, 없으면 ''), scores(1~18홀 타수 18개, 없는 홀 0), total(총타, 없으면 0) }.\n` +
-      `  ★동반자가 함께 나온 표(4명 등)면 모든 행을 players에 담아 — 대표 한 명만 고르지 마. 사용자가 나중에 본인 행을 고른다.\n` +
-      `두 장이면 전/후반을 합쳐 각 플레이어를 1~18홀로. 스코어 표가 아니면 found=false, players=[].`;
+      `너는 골프 스코어카드/스코어 화면 이미지에서 홀별 점수를 뽑는 도우미야. 이미지가 1~4장 올 수 있어.\n` +
+      `각 이미지를 보고 유형을 스스로 판별해서, 나온 모든 사람의 1~18홀 점수를 뽑아 JSON으로만 답해.\n` +
+      `[이미지 유형 판별]\n` +
+      `- 한 이미지에 1~9홀만(또는 10~18홀만) 점수가 있으면 = 한 라운드의 '조각'(스마트스코어 태블릿 전반/후반). 같은 사람들의 전반+후반을 짝지어 1~18홀로 합쳐.\n` +
+      `- 한 이미지에 18홀이 다 있으면 = '완결 카드'. 그 카드의 모든 플레이어를 각각 뽑아. 서로 다른 완결 카드는 보통 다른 팀이니, 사람을 겹치지 말고 전부 나열해(예: 4장이면 최대 16명).\n` +
+      `[출력]\n` +
+      `- pars: 1홀~18홀 파 18개 배열(모든 플레이어 공통, 같은 코스 기준). PAR 행이 없으면 빈 배열 [].\n` +
+      `- players: 사람마다 하나씩. { name(이름/구분, 없으면 ''), scores(1~18홀 타수 18개, 없는 홀 0), total(총타, 없으면 0) }.\n` +
+      `  ★한 표에 여러 명(4명 등)이면 전원을 players에 담아 — 대표 한 명만 고르지 마. 사용자가 나중에 본인 행을 고른다.\n` +
+      `스코어 표가 전혀 아니면 found=false, players=[].`;
 
     const parts = [{ text: prompt }];
     valid.forEach((im, i) => {
-      if (valid.length === 2) parts.push({ text: `\n[${i === 0 ? '전반(1~9홀)' : '후반(10~18홀)'} 이미지]` });
+      parts.push({ text: `\n[이미지 ${i + 1}]` });
       parts.push({ inlineData: { mimeType: im.format === 'png' ? 'image/png' : 'image/jpeg', data: im.data } });
     });
 
