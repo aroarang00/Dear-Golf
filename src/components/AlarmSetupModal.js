@@ -731,50 +731,62 @@ export function QuickMealPrompt({ visible, schedule, onDone }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => onDone(null)}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
-        <View style={{ width: '100%', maxWidth: 370, backgroundColor: C.bgPrimary, borderRadius: 22, padding: 24 }}>
-          {/* 제목 */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="bowl" size={fs(24)} color={C.burgundy} />
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoalDeep }}>라운드 전 미리 만나요?</Text>
-          </View>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.textSecondary, lineHeight: 21, marginTop: 8 }}>
-            먼저 만나 식사·모임하면 그 시각 기준으로{'\n'}출발·기상 알람을 계산해요.
-          </Text>
-
-          {/* 일정 요약 */}
-          <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, padding: 15, marginTop: 16 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }} numberOfLines={1}>{schedule.course}</Text>
-            <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray, marginTop: 5 }}>{schedule.date} {schedule.day} · {schedule.time}</Text>
-          </View>
-
-          {/* 시각 선택 — 크게 */}
-          <TouchableOpacity onPress={() => setShowPicker(true)} activeOpacity={0.8}
-            style={{ marginTop: 16, paddingVertical: 16, borderRadius: 14, alignItems: 'center', borderWidth: 1.5,
-              borderColor: mealTime ? C.burgundy : C.hairline, backgroundColor: mealTime ? '#F5EAEC' : C.bgSecondary }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: mealTime ? C.burgundy : C.charcoal }}>
-              {mealTime ? `🕘 ${fmtKorTime(mealTime)} 만남` : '🕘 미리 만나는 시각 선택'}
+        <View style={{ width: '100%', maxWidth: 360, backgroundColor: C.bgSecondary, borderRadius: 24, padding: 22 }}>
+          {/* 제목 — 아이콘 배지 + 중앙 정렬(세련) */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(107,30,42,0.09)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              <Icon name="bowl" size={fs(26)} color={C.burgundy} strokeWidth={1.9} />
+            </View>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: C.charcoalDeep }}>라운드 전 미리 만나요?</Text>
+            <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, lineHeight: 20, marginTop: 7, textAlign: 'center' }}>
+              먼저 만나 식사·모임하면 그 시각 기준으로{'\n'}출발·기상 알람을 계산해요.
             </Text>
+          </View>
+
+          {/* 일정 요약 — 테두리 대신 연한 채움 + 깃발 아이콘 */}
+          <View style={{ backgroundColor: C.bgPrimary, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 15, marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+            <Icon name="flag" size={fs(19)} color={C.navy} strokeWidth={1.9} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{schedule.course}</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>{schedule.date} {schedule.day} · {schedule.time}</Text>
+            </View>
+          </View>
+
+          {/* 시각 선택 — 이모지 없이 라벨+큰 시각+변경 */}
+          <TouchableOpacity onPress={() => setShowPicker(true)} activeOpacity={0.85}
+            style={{ marginTop: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, flexDirection: 'row', alignItems: 'center',
+              backgroundColor: mealTime ? '#F0DDE1' : 'rgba(107,30,42,0.06)' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.textSecondary }}>미리 만나는 시각</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: mealTime ? C.burgundy : C.charcoal, marginTop: 2 }}>
+                {mealTime ? fmtKorTime(mealTime) : '시각 선택'}
+              </Text>
+            </View>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: mealTime ? C.burgundy : C.warmGray }}>{mealTime ? '변경' : '›'}</Text>
           </TouchableOpacity>
           <SpinnerPicker visible={showPicker} value={pickerValue} mode="time" is24Hour
             onPick={onPick} onClose={() => setShowPicker(false)} />
           {!!mealErr && (
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginTop: 8, textAlign: 'center' }}>⚠ {mealErr}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 9 }}>
+              <Icon name="siren" size={fs(13)} color={C.burgundy} strokeWidth={2} />
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy }}>{mealErr}</Text>
+            </View>
           )}
 
-          {/* 건너뛰기 안내 — 버튼 바로 위 */}
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 14, textAlign: 'center' }}>
-            안 만나면 건너뛰기 — 출발·기상은{'\n'}저장한 설정대로 자동 적용돼요
+          {/* 건너뛰기 안내 */}
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, lineHeight: 18, marginTop: 16, textAlign: 'center' }}>
+            안 만나면 건너뛰기 — 출발·기상은 저장한 설정대로 자동 적용돼요
           </Text>
 
-          {/* 버튼 — 크게 */}
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+          {/* 버튼 */}
+          <View style={{ flexDirection: 'row', gap: 9, marginTop: 16 }}>
             <TouchableOpacity activeOpacity={0.8} onPress={() => onDone(null)}
-              style={{ flex: 1, paddingVertical: 15, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.warmGray }}>건너뛰기</Text>
+              style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: C.bgPrimary }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>건너뛰기</Text>
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.85} onPress={() => onDone(mealTime)}
-              style={{ flex: 1.5, paddingVertical: 15, borderRadius: 14, alignItems: 'center', backgroundColor: C.burgundy }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>적용</Text>
+              style={{ flex: 1.6, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: C.burgundy }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>적용</Text>
             </TouchableOpacity>
           </View>
         </View>
