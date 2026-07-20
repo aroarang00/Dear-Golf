@@ -194,6 +194,7 @@ const SCORECARD_SCHEMA = {
   type: 'OBJECT',
   properties: {
     found: { type: 'BOOLEAN', description: '골프 스코어카드나 스코어 화면(스마트스코어 태블릿 등)으로 보이면 true' },
+    parRelative: { type: 'BOOLEAN', description: '홀 칸이 실제 타수(3,4,5…)가 아니라 파 대비(파=0, 언더=-1, 오버=+1 등)로 표시돼 있으면 true. 실제 타수면 false.' },
     pars: {
       type: 'ARRAY',
       description: '1홀~18홀 파를 순서대로 18개(모든 플레이어 공통). PAR 행이 없으면 빈 배열 [].',
@@ -206,14 +207,14 @@ const SCORECARD_SCHEMA = {
         type: 'OBJECT',
         properties: {
           name: { type: 'STRING', description: '플레이어 이름/구분(표에 있으면). 없으면 빈 문자열' },
-          scores: { type: 'ARRAY', description: '1홀~18홀 타수를 순서대로 18개. 없는 홀은 0.', items: { type: 'INTEGER' } },
-          total: { type: 'INTEGER', description: '그 플레이어 총타. 없으면 0' },
+          scores: { type: 'ARRAY', description: '1홀~18홀 값을 화면에 보이는 그대로 18개. 실제 타수면 타수, 파대비 표기면 파대비 값(파=0, 언더는 음수). 변환하지 말 것 — 서버가 par로 계산함. 없는 홀은 0.', items: { type: 'INTEGER' } },
+          total: { type: 'INTEGER', description: '그 플레이어 총타(실제 타수). 없으면 0' },
         },
         required: ['name', 'scores', 'total'],
       },
     },
   },
-  required: ['found', 'pars', 'players'],
+  required: ['found', 'parRelative', 'pars', 'players'],
 };
 
 exports.extractScorecard = onCall(
@@ -247,8 +248,13 @@ exports.extractScorecard = onCall(
       `- 한 이미지에 18홀이 다 있으면 = '완결 카드'. 그 카드의 모든 플레이어를 각각 뽑아. 서로 다른 완결 카드는 보통 다른 팀이니, 사람을 겹치지 말고 전부 나열해(예: 4장이면 최대 16명).\n` +
       `[출력]\n` +
       `- pars: 1홀~18홀 파 18개 배열(모든 플레이어 공통, 같은 코스 기준). PAR 행이 없으면 빈 배열 [].\n` +
-      `- players: 사람마다 하나씩. { name(이름/구분, 없으면 ''), scores(1~18홀 타수 18개, 없는 홀 0), total(총타, 없으면 0) }.\n` +
+      `- players: 사람마다 하나씩. { name(이름/구분, 없으면 ''), scores(1~18홀 값 18개, 없는 홀 0), total(총타=실제 타수, 없으면 0) }.\n` +
       `  ★한 표에 여러 명(4명 등)이면 전원을 players에 담아 — 대표 한 명만 고르지 마. 사용자가 나중에 본인 행을 고른다.\n` +
+      `[홀 값 표기 — 매우 중요]\n` +
+      `- 어떤 카드(스마트스코어 등)는 홀 칸을 '파 대비'로 표시해: 파=0(또는 E), 언더=-1/-2, 오버=+1/+2 (색·부호로 구분).\n` +
+      `- 그런 카드면 parRelative=true로 두고, scores에는 화면에 보이는 그 값(파=0, 언더는 음수, 오버는 양수)을 그대로 넣어. 절대 타수로 바꾸지 마 — 서버가 par를 더해 계산한다.\n` +
+      `- 홀 칸이 실제 타수(3,4,5,6…)면 parRelative=false, scores에 타수 그대로.\n` +
+      `- 판별 힌트: 홀 숫자에 0·음수(-)가 보이거나 대부분 0~2면 파대비(true). 3~7 위주면 실제 타수(false).\n` +
       `스코어 표가 전혀 아니면 found=false, players=[].`;
 
     const parts = [{ text: prompt }];
@@ -270,17 +276,39 @@ exports.extractScorecard = onCall(
       return o;
     };
     const pars = to18(out?.pars, 3, 5);
+    const hasPar = pars.some(p => p >= 3 && p <= 5);
+
+    // 파대비(스마트스코어 등) 카드 — 홀 칸이 실제 타수가 아니라 파 대비(파=0/언더=−/오버=+). par를 더해 실제 타수로.
+    //   결정적 변환은 서버가(모델 산수 신뢰 X). 오검출(플래그만 true) 방지 위해 '값이 실제로 파대비처럼 보이는지'도 함께 확인.
+    const looksRelative = (arr) => {
+      const nums = (Array.isArray(arr) ? arr : []).map(Number).filter(Number.isFinite);
+      return nums.length > 0 && nums.some(v => v <= 2);   // 0·음수·1·2 = 파대비 신호(실제 타수는 par3 언더가 드묾)
+    };
+    const to18rel = (arr) => {   // 파대비 값 → 실제 타수(= par + 파대비). par 없는 홀은 변환 불가 → 0.
+      const o = Array(18).fill(0);
+      (Array.isArray(arr) ? arr : []).forEach((n, i) => {
+        const v = Number(n), par = pars[i];
+        if (i < 18 && Number.isFinite(v) && v >= -5 && v <= 8 && par >= 3 && par <= 5) o[i] = par + v;
+      });
+      return o;
+    };
+
+    const parRelFlag = !!out?.parRelative && hasPar;
+    let relUsed = false;
     const players = (Array.isArray(out?.players) ? out.players : []).map(p => {
-      const scores = to18(p?.scores, 1, 20);
+      const useRel = parRelFlag && looksRelative(p?.scores);
+      if (useRel) relUsed = true;
+      const scores = useRel ? to18rel(p?.scores) : to18(p?.scores, 1, 20);
       const sum = scores.reduce((s, n) => s + n, 0);
       return {
         name: (p?.name || '').toString().trim(),
         scores,
-        total: (Number.isFinite(p?.total) && p.total > 0) ? p.total : sum,
+        // 파대비 변환 시 총타는 반드시 재계산(카드 표시가 오버파일 수 있음). 아니면 모델 total 우선.
+        total: useRel ? sum : ((Number.isFinite(p?.total) && p.total > 0) ? p.total : sum),
       };
     }).filter(p => p.scores.some(n => n > 0));   // 점수 하나도 없는 유령 행 제거
 
-    logger.info('[gemini] scorecard ok', { uid, found: !!out?.found, players: players.length });
+    logger.info('[gemini] scorecard ok', { uid, found: !!out?.found, players: players.length, parRel: relUsed });
     return { ok: true, found: !!out?.found, pars, players };
   }
 );
