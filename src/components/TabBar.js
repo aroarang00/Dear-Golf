@@ -22,12 +22,21 @@ const TAB_ICONS = {
 // on=선택(선명), off=비선택(연함). 홈은 버터, 그 외(밝은 배경)는 차콜.
 const THEME_HOME = { bg: 'rgba(255,255,255,0.16)', border: 'rgba(255,255,255,0.3)', chip: 'rgba(245,230,168,0.2)', on: C.butter, off: 'rgba(245,230,168,0.5)', alert: '#FF9086' };
 const THEME_LIGHT = { bg: 'rgba(255,255,255,0.62)', border: 'rgba(255,255,255,0.85)', chip: 'rgba(61,57,53,0.1)', on: C.charcoal, off: 'rgba(61,57,53,0.5)', alert: C.burgundy };
+// 밝은 화면에서 '선택된 탭' 아이콘 색 = 그 화면 대표색(없으면 차콜).
+const SCREEN_ACCENT = {
+  [ROUTES.LOUNGE]: C.navy,       // 라운지 = 네이비
+  [ROUTES.MY]: C.charcoal,       // MY = 차콜
+  [ROUTES.FRIENDS]: C.burgundy,  // 친구 = 버건디
+  [ROUTES.COURSE]: '#5E7B51',    // 코스 = 세이지그린
+};
 
 export function TabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
   const { friendReqCount, scheduleInviteCount } = useContext(FriendBadgeContext);
-  const onHome = state.routes[state.index]?.name === ROUTES.HOME;
-  const t = onHome ? THEME_HOME : THEME_LIGHT;
+  const activeName = state.routes[state.index]?.name;
+  const onHome = activeName === ROUTES.HOME;
+  // 밝은 화면: 선택 아이콘 색을 그 화면 대표색으로(라운지=네이비 등). 홈은 자체 버터 테마.
+  const t = onHome ? THEME_HOME : { ...THEME_LIGHT, on: SCREEN_ACCENT[activeName] || THEME_LIGHT.on };
   return (
     <View style={[tabS.wrap, { paddingBottom: insets.bottom + 12 }]}>
       <View style={tabS.pillShadow}>

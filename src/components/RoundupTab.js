@@ -2074,7 +2074,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
           ([[project_fullscroll_profile]] 라운지: sticky 아님·헤더+뷰탭 붙박이, 그 아래만 흐름) */}
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.burgundy} colors={[C.burgundy]} />}
-        contentContainerStyle={{ paddingBottom: 32 }}>
+        contentContainerStyle={{ paddingBottom: insets.bottom + 92 }}>{/* 플로팅 탭바(≈insets+66) 가림 방지 */}
       {/* 전체 탭 — 지역 칩 필터 (수도권/강원/충청/전라/경상/제주) */}
       {view === 'all' && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -2517,7 +2517,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
           {/* 모집 만들기 FAB — 크루·MY와 동일 위치·동작(우하단=만들기 통일). 소개는 빈 화면 '다시 보기'로 이동. */}
           <TouchableOpacity onPress={tryOpenCreate} activeOpacity={0.85}
-            style={{ position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28,
+            style={{ position: 'absolute', bottom: insets.bottom + 84, right: 20, width: 56, height: 56, borderRadius: 28,
               backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center',
               shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
             <Text style={{ fontSize: fs(32), color: C.butter, marginTop: -2 }}>＋</Text>

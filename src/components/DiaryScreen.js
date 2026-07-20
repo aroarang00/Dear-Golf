@@ -695,7 +695,8 @@ export function DiaryScreen({ route, navigation }) {
           }
         }}
         scrollEventThrottle={16}
-        stickyHeaderIndices={[2]}>
+        stickyHeaderIndices={[2]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 92 }}>{/* 플로팅 탭바(≈insets+66) 가림 방지 */}
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
         {/* 💰·⚙️ — iOS는 이름(marginTop:0)이 위에 붙어 top:14면 아이콘이 이름보다 ~5px 아래로 떨어짐 → iOS만 top 올려 이름과 맞춤.
@@ -959,7 +960,7 @@ export function DiaryScreen({ route, navigation }) {
 
       {/* + 다이어리 추가 — 우하단 FAB */}
       <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
-        style={{ position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28,
+        style={{ position: 'absolute', bottom: insets.bottom + 84, right: 20, width: 56, height: 56, borderRadius: 28,
           backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center',
           shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
         <View style={{ width: 18, height: 2.5, borderRadius: 1, backgroundColor: '#fff' }} />
