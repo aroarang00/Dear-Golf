@@ -6,7 +6,7 @@ import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../
 import { loadMyFriendsEnriched } from '../utils/friends';   // 동반자 친구 선택용([[companion-design]] Phase A)
 import { getScheduleGroup } from '../utils/scheduleShares';  // 전파 단체 일정 → 멤버 전원 동반자 후보 해석
 import { FriendSelectModal } from './FriendSelectModal';
-import { Icon, GreenFlag } from './common/Icon'; // 라운딩=그린·핀, 일상=사진 커스텀 아이콘
+import { Icon } from './common/Icon'; // 커스텀 SVG 아이콘
 import { Spinner } from './common/Spinner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SpinnerPicker } from './common/SpinnerPicker';
@@ -771,29 +771,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   카드형이라 아래 [국내|해외] 작은 칩과 모양·높이가 전혀 달라 안 헷갈리고, 설명으로 차이도 바로 전달.
                   편집은 토글 잠금(round↔moment 전환 금지: 데이터·통계 정합성)이라 제목 텍스트로 표시. */}
               {!isEdit ? (
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 12 }}>
+                // 상위 분기 — 밑줄 텍스트 탭 2개(심플). 선택 탭만 액센트색+굵게+밑줄. 라운딩=그린, 일상=버건디.
+                <View style={{ flexDirection: 'row', gap: 22, marginTop: 2, marginBottom: 14,
+                  borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   {[
-                    { v: 'round', label: '라운딩 기록', sub: '스코어·코스' },
-                    { v: 'moment', label: '일상', sub: '글·사진' },
+                    { v: 'round', label: '라운딩 기록' },
+                    { v: 'moment', label: '일상' },
                   ].map(opt => {
                     const on = kind === opt.v;
-                    // 라운딩=세이지그린(골프), 일상=버건디 — 선택 시 박스 액센트색 분기
                     const accent = opt.v === 'round' ? '#6E8F52' : C.burgundy;
                     return (
-                      <TouchableOpacity key={opt.v} activeOpacity={0.85} onPress={() => setKind(opt.v)}
-                        style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 14,
-                          borderWidth: 1.5,
-                          borderColor: on ? accent : C.hairline,
-                          backgroundColor: on ? (accent + '12') : C.bgSecondary }}>
-                        <View style={{ marginBottom: 5, height: fs(28), justifyContent: 'center' }}>
-                          {opt.v === 'round'
-                            ? <GreenFlag size={fs(27)} />
-                            : <Icon name="pen" size={fs(26)} color={on ? accent : C.charcoal} strokeWidth={1.8} />}
-                        </View>
-                        <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(14),
-                          color: on ? accent : C.charcoal }}>{opt.label}</Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11),
-                          color: on ? accent : C.warmGray, marginTop: 2 }}>{opt.sub}</Text>
+                      <TouchableOpacity key={opt.v} activeOpacity={0.7} onPress={() => setKind(opt.v)}
+                        style={{ paddingVertical: 10, borderBottomWidth: 2, marginBottom: -0.5,
+                          borderBottomColor: on ? accent : 'transparent' }}>
+                        <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(16), letterSpacing: 0.3,
+                          color: on ? accent : C.warmGray }}>{opt.label}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -802,16 +794,130 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={mS.title}>{isMoment ? '일상 기록 수정' : '라운딩 기록 수정'}</Text>
               )}
               {kind === 'round' && (<>
-              <SectionHead title="라운딩 정보" first />
-              {/* 국내 / 해외 */}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                {[['국내', false], ['해외', true]].map(([l, v]) => (
-                  <TouchableOpacity key={l} activeOpacity={0.7}
-                    onPress={() => { setOverseas(v); setKakaoResults([]); }}
-                    style={[mS.chip, overseas === v && mS.chipOn, { flex: 1, alignItems: 'center' }]}>
-                    <Text style={[mS.chipTxt, overseas === v && mS.chipTxtOn]}>{l}</Text>
-                  </TouchableOpacity>
-                ))}
+              <SectionHead title="스코어" sub="(필수)" first />
+
+              {/* OCR 전면화 — 스코어판 사진 자동입력을 1순위(기본 노출). 직접 입력은 이 블록 아래 보조로. 인식되면 요약으로 대체. */}
+              <View style={{ marginBottom: 10 }}>
+                  {/* 사진으로 등록 — 갤러리(권장)/촬영. 인식 결과는 검토 모달에서 확인·수정 후 확정 */}
+                  {!holeScores && (
+                    <View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('gallery')}
+                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                            backgroundColor: C.burgundy, opacity: scBusy ? 0.6 : 1 }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
+                            {scBusy ? 'AI 인식 중…' : '사진 올리기'}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('camera')}
+                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                            backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: scBusy ? 0.6 : 1 }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>실물 촬영</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 12,
+                        borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
+                          AI가 사진에서 홀별 스코어를 자동으로 읽어요
+                        </Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, lineHeight: 21 }}>
+                          · 스마트스코어 태블릿은 전반·후반 각 1장(2장) 올리면 자동 병합{'\n'}· PAR가 없어도 점수만 인식돼요{'\n'}· 촬영할 땐 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>빛 반사 없이 숫자가 또렷하게 정면</Text>에서{'\n'}· 동반자가 함께 나온 표는 인식 후 본인 행을 골라요
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 입력 완료 요약 — 총타·수정·지우기 */}
+                  {holeScores && (
+                    <View style={{ marginTop: 10, padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center',
+                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
+                        <Icon name="flag" size={fs(16)} color={C.burgundy} strokeWidth={1.8} />
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
+                          홀별 스코어 입력됨 · 총 {holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0)}타
+                        </Text>
+                      </View>
+                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => {
+                          const t = holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
+                          setScRows([{ label: '입력값', holes: holeScores, total: t }]);
+                          setScFailed(false); setScLowConf(false); setScReview(true);
+                        }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
+                      </TouchableOpacity>
+                      <Text style={{ color: C.warmGray, marginHorizontal: 8 }}>·</Text>
+                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => { setHoleScores(null); setHolePars(null); setShareRows([]); setShareScores(false); }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {/* 동반자 점수 공유 — OCR 카드 기반이라 결과 '바로 아래'에 둠(동반자 섹션에 묻혀 못 보던 것 개선, 사용자 제보).
+                      여러 명 인식(shareRows≥2, 수정해도 원본 유지) + 친구 동반자 있으면 체크박스 / 없으면 동반자 추가 유도. */}
+                  {holeScores && Array.isArray(shareRows) && shareRows.length >= 2 && (
+                    companions.some(c => c.friendUid) ? (
+                      // 친구 동반자 있음 — 크고 눈에 띄는 공유 카드(버건디 틴트). 체크박스는 커스텀 SVG(Icon check).
+                      <TouchableOpacity onPress={() => setShareScores(s => !s)} activeOpacity={0.8}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 12,
+                          backgroundColor: shareScores ? (C.burgundy + '16') : (C.burgundy + '08'), borderRadius: 13,
+                          borderWidth: 1.2, borderColor: shareScores ? C.burgundy : (C.burgundy + '44'),
+                          paddingVertical: 13, paddingHorizontal: 13 }}>
+                        <Icon name="people" size={fs(22)} color={C.burgundy} strokeWidth={1.8} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.burgundy }}>동반자에게 스코어 함께 공유</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.charcoal, marginTop: 3, lineHeight: 16 }}>
+                            {shareRows.length}명이 함께 인식됐어요.{'\n'}친구가 각자 본인 점수를 골라 바로 기록돼요.
+                          </Text>
+                        </View>
+                        <View style={{ width: fs(24), height: fs(24), borderRadius: 7, borderWidth: 1.5,
+                          borderColor: shareScores ? C.burgundy : C.warmGrayLight,
+                          backgroundColor: shareScores ? C.burgundy : 'transparent',
+                          alignItems: 'center', justifyContent: 'center' }}>
+                          {shareScores && <Icon name="check" size={fs(15)} color={C.butter} strokeWidth={2.6} />}
+                        </View>
+                      </TouchableOpacity>
+                    ) : (
+                      // 친구 동반자가 아직 없으면 — 탭하면 바로 친구 선택 picker(왕복 제거). 친구 넣으면 위 체크박스로 전환.
+                      <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.8}
+                        style={{ marginTop: 12, backgroundColor: C.burgundy + '08', borderRadius: 13,
+                          borderWidth: 1.2, borderColor: C.burgundy + '44',
+                          paddingVertical: 13, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+                        <Icon name="people" size={fs(22)} color={C.burgundy} strokeWidth={1.8} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.burgundy }}>함께 친 친구에게 공유하기</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.charcoal, marginTop: 3, lineHeight: 16 }}>
+                            {shareRows.length}명이 인식된 카드예요.{'\n'}친구를 넣으면 이 점수를 바로 공유해요.
+                          </Text>
+                        </View>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>친구 선택 ›</Text>
+                      </TouchableOpacity>
+                    )
+                  )}
+                </View>
+              {/* 또는 타수만 직접 입력 — 완전한 방법(폴백 아님). 총타수만 적어도 기록됨. 사진 OCR도 이 값을 채움. */}
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: 4 }}>또는 타수만 직접 입력</Text>
+              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="총타수 입력 (예: 88)"
+                placeholderTextColor={C.warmGrayLight} value={score}
+                onChangeText={setScore} keyboardType="numeric" />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>
+                사진 없이 <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>총타수만 적어도 충분히 기록</Text>돼요.{'\n'}(홀별·버디 자동집계는 스코어카드 등록 시에만 추가돼요)
+              </Text>
+              <SectionHead title="라운딩 정보" />
+              {/* 국내 / 해외 — 알약형 세그먼트 토글(축소·좌측 정렬). 선택 세그먼트만 버건디 채움. */}
+              <View style={{ flexDirection: 'row', alignSelf: 'flex-start', marginTop: 4,
+                backgroundColor: C.bgSecondary, borderRadius: 999, padding: 3,
+                borderWidth: 0.5, borderColor: C.hairline }}>
+                {[['국내', false], ['해외', true]].map(([l, v]) => {
+                  const on = overseas === v;
+                  return (
+                    <TouchableOpacity key={l} activeOpacity={0.8}
+                      onPress={() => { setOverseas(v); setKakaoResults([]); }}
+                      style={{ paddingVertical: 6, paddingHorizontal: 18, borderRadius: 999,
+                        backgroundColor: on ? C.burgundy : 'transparent' }}>
+                      <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
+                        color: on ? C.butter : C.warmGray }}>{l}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>골프장 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]}
@@ -907,98 +1013,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 onPick={(d) => setTeeTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}
                 onClose={() => setShowTimePicker(false)} />
 
-              <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>스코어 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A' }}>(필수)</Text></Text>
-
-              {/* OCR 전면화 — 스코어판 사진 자동입력을 1순위(기본 노출). 직접 입력은 이 블록 아래 보조로. 인식되면 요약으로 대체. */}
-              <View style={{ marginBottom: 10 }}>
-                  {/* 사진으로 등록 — 갤러리(권장)/촬영. 인식 결과는 검토 모달에서 확인·수정 후 확정 */}
-                  {!holeScores && (
-                    <View>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('gallery')}
-                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-                            backgroundColor: C.burgundy, opacity: scBusy ? 0.6 : 1 }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
-                            {scBusy ? 'AI 인식 중…' : '사진 올리기'}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('camera')}
-                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-                            backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: scBusy ? 0.6 : 1 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>실물 촬영</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 12,
-                        borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12 }}>
-                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
-                          AI가 사진에서 홀별 스코어를 자동으로 읽어요
-                        </Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, lineHeight: 21 }}>
-                          · 스마트스코어 태블릿은 전반·후반 각 1장(2장) 올리면 자동 병합{'\n'}· PAR가 없어도 점수만 인식돼요{'\n'}· 촬영할 땐 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>빛 반사 없이 숫자가 또렷하게 정면</Text>에서{'\n'}· 동반자가 함께 나온 표는 인식 후 본인 행을 골라요
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* 입력 완료 요약 — 총타·수정·지우기 */}
-                  {holeScores && (
-                    <View style={{ marginTop: 10, padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center',
-                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, flex: 1 }}>
-                        ⛳ 홀별 스코어 입력됨 · 총 {holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0)}타
-                      </Text>
-                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        onPress={() => {
-                          const t = holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
-                          setScRows([{ label: '입력값', holes: holeScores, total: t }]);
-                          setScFailed(false); setScLowConf(false); setScReview(true);
-                        }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
-                      </TouchableOpacity>
-                      <Text style={{ color: C.warmGray, marginHorizontal: 8 }}>·</Text>
-                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => { setHoleScores(null); setHolePars(null); setShareRows([]); setShareScores(false); }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {/* 동반자 점수 공유 — OCR 카드 기반이라 결과 '바로 아래'에 둠(동반자 섹션에 묻혀 못 보던 것 개선, 사용자 제보).
-                      여러 명 인식(shareRows≥2, 수정해도 원본 유지) + 친구 동반자 있으면 체크박스 / 없으면 동반자 추가 유도. */}
-                  {holeScores && Array.isArray(shareRows) && shareRows.length >= 2 && (
-                    companions.some(c => c.friendUid) ? (
-                      <TouchableOpacity onPress={() => setShareScores(s => !s)} activeOpacity={0.75}
-                        style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginTop: 10,
-                          backgroundColor: shareScores ? (C.burgundy + '0E') : C.bgSecondary, borderRadius: 11,
-                          borderWidth: 1, borderColor: shareScores ? C.burgundy : C.hairline, padding: 12 }}>
-                        <Text style={{ fontSize: fs(16), color: shareScores ? C.burgundy : C.warmGrayLight, marginTop: -1 }}>{shareScores ? '☑' : '☐'}</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: shareScores ? C.burgundy : C.charcoal }}>동반자에게 스코어 공유</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 16 }}>
-                            친구 동반자에게 이 스코어카드를 보내요.{'\n'}각자 자기 점수를 골라 본인 기록에 바로 추가할 수 있어요.
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ) : (
-                      // 친구 동반자가 아직 없으면 — '아래 동반자 섹션으로 가라'는 왕복을 없애고, 이 박스를 탭하면
-                      //   바로 친구 선택 picker가 열리게(동반자가 다른 섹션에 있어 불편하다는 사용자 제보). 친구 넣으면 위 체크박스로 전환.
-                      <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.75}
-                        style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 11, borderWidth: 0.5, borderColor: C.hairline,
-                          padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                        <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 17 }}>
-                          👥 여러 명이 인식된 카드예요 — <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>함께 친 친구</Text>를 넣으면 이 점수를 바로 공유할 수 있어요.
-                        </Text>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>친구 선택 ›</Text>
-                      </TouchableOpacity>
-                    )
-                  )}
-                </View>
-              {/* 또는 타수만 직접 입력 — 완전한 방법(폴백 아님). 총타수만 적어도 기록됨. 사진 OCR도 이 값을 채움. */}
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: 4 }}>또는 타수만 직접 입력</Text>
-              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="총타수 입력 (예: 88)"
-                placeholderTextColor={C.warmGrayLight} value={score}
-                onChangeText={setScore} keyboardType="numeric" />
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>
-                사진 없이 <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>총타수만 적어도 충분히 기록</Text>돼요.{'\n'}(홀별·버디 자동집계는 스코어카드 등록 시에만 추가돼요)
-              </Text>
               <SectionHead title="오늘의 기록" />
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(선택)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
