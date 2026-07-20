@@ -32,7 +32,8 @@ async function toBase64(uri) {
   return img.base64;
 }
 
-// 사진 1~2장(uri) → { holeScores:number[18], holePars:number[18]|null, total, players } | { error }
+// 사진 1~2장(uri) → { rows:[{ label, holes:number[18], total }], holePars:number[18]|null } | { error }
+//   rows = 플레이어(행)별. 여러 명이면 검토 모달이 '본인 행 선택' UI를 띄움.
 export async function extractScorecardAI(uris) {
   try {
     const list = (Array.isArray(uris) ? uris : [uris]).filter(Boolean).slice(0, 2);
@@ -43,23 +44,19 @@ export async function extractScorecardAI(uris) {
     const callable = httpsCallable(functions, 'extractScorecard');
     const res = await callable({ images });
     const d = res?.data;
-    if (!d?.found || !Array.isArray(d.holes) || !d.holes.length) {
+    if (!d?.found || !Array.isArray(d.players) || !d.players.length) {
       return { error: '스코어를 인식하지 못했어요 — 더 선명한 사진(전반/후반 각 1장)으로 다시 시도해주세요' };
     }
 
-    // holes[{hole,par,score}] → 18칸 배열(없는 홀 null)
-    const holeScores = Array(18).fill(null);
-    const holePars = Array(18).fill(null);
-    for (const h of d.holes) {
-      const i = (h.hole | 0) - 1;
-      if (i < 0 || i > 17) continue;
-      if (h.score > 0) holeScores[i] = h.score;
-      if (h.par > 0) holePars[i] = h.par;
-    }
-    const hasPar = holePars.some(Boolean);
-    const sum = holeScores.reduce((s, n) => s + (n || 0), 0);
-    const total = d.total > 0 ? d.total : sum;
-    return { holeScores, holePars: hasPar ? holePars : null, total, players: d.players || 1 };
+    const rows = d.players.map((p, i) => {
+      const holes = (Array.isArray(p.scores) ? p.scores.slice(0, 18) : []).map(n => n || 0);
+      while (holes.length < 18) holes.push(0);
+      const total = p.total > 0 ? p.total : holes.reduce((s, n) => s + n, 0);
+      return { label: (p.name || '').trim() || `${i + 1}번`, holes, total };
+    });
+    const hasPar = Array.isArray(d.pars) && d.pars.some(v => v >= 3 && v <= 5);
+    const holePars = hasPar ? d.pars.slice(0, 18).map(v => (v >= 3 && v <= 5) ? v : null) : null;
+    return { rows, holePars };
   } catch (e) {
     if (__DEV__) console.warn('[scorecardAI]', e?.code || '', e?.message);
     return { error: e?.message || '인식에 실패했어요. 다시 시도해주세요.', code: e?.code };

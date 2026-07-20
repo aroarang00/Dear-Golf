@@ -314,19 +314,17 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const res = await extractScorecardAI(picked.uris);
       // ★인식 중(수 초) 기록 모달을 닫았으면 결과 폐기 — 닫힌 모달에 scReview=true가 남으면 다음 오픈 시 모달 스택 꼬임.
       if (!visibleRef.current) return;
-      if (res.error || !Array.isArray(res.holeScores)) {
+      if (res.error || !Array.isArray(res.rows) || !res.rows.length) {
         // 인식 실패 → 빈 표 직접 입력 안내
         setScRows([]); setShareRows([]); setHolePars(null); setScFailed(true); setScLowConf(false); setScReview(true);
         return;
       }
-      // AI 결과(18칸) → 검토 모달 rows 형식([{ label, holes:number[18], total }]). 없는 홀=0.
-      const holes0 = res.holeScores.map(n => n || 0);
-      const rows = [{ label: '내 점수', holes: holes0, total: res.total || holes0.reduce((s, n) => s + n, 0) }];
-      setScRows(rows);
-      setShareRows(rows);
+      // 플레이어(행) 전부 → 검토 모달. 여러 명이면 모달이 '본인 행 선택'부터 띄움.
+      setScRows(res.rows);
+      setShareRows(res.rows);
       setHolePars(res.holePars || null);       // par(있으면) — 버디 자동집계
       setScFailed(false);
-      setScLowConf(res.players > 1);            // 여러 명 감지 → 본인 점수인지 확인 강조
+      setScLowConf(false);
       setScReview(true);
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAdd] scorecard AI fail', e?.message);
@@ -936,7 +934,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                           AI가 사진에서 홀별 스코어를 자동으로 읽어요
                         </Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, lineHeight: 21 }}>
-                          · 스마트스코어 태블릿은 전반·후반 각 1장(2장) 올리면 자동 병합{'\n'}· PAR가 없어도 점수만 인식돼요{'\n'}· 스크린샷·실물 카드 모두 가능
+                          · 스마트스코어 태블릿은 전반·후반 각 1장(2장) 올리면 자동 병합{'\n'}· PAR가 없어도 점수만 인식돼요{'\n'}· 촬영할 땐 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>빛 반사 없이 숫자가 또렷하게 정면</Text>에서{'\n'}· 동반자가 함께 나온 표는 인식 후 본인 행을 골라요
                         </Text>
                       </View>
                     </View>

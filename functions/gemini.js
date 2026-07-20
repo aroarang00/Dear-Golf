@@ -185,28 +185,32 @@ exports.extractReservation = onCall(
 // ── 스코어카드 추출 ─────────────────────────────────────────────
 // 입력: { images: [{ data(base64), format? }] } — 스코어카드/스마트스코어 태블릿 사진 1~2장(전반/후반).
 //   CLOVA OCR(PAR 표 필수·태블릿 전후반 분리 못 읽음)을 Gemini 비전으로 대체 — PAR 없어도, 태블릿 두 장도 병합.
-// 출력: { ok, found, holes:[{hole,par,score}], total, players }
+// 출력: { ok, found, pars:number[18], players:[{ name, holes:number[18], total }] }
+//   ★동반자 함께 나온 표는 플레이어(행) 전부 반환 → 클라 검토 모달에서 본인 행 선택.
 const SCORECARD_SCHEMA = {
   type: 'OBJECT',
   properties: {
     found: { type: 'BOOLEAN', description: '골프 스코어카드나 스코어 화면(스마트스코어 태블릿 등)으로 보이면 true' },
-    holes: {
+    pars: {
       type: 'ARRAY',
-      description: '홀별 정보. 인식된 홀만. 전반/후반이 나뉜 두 장이어도 1~18로 합침.',
+      description: '1홀~18홀 파를 순서대로 18개(모든 플레이어 공통). PAR 행이 없으면 빈 배열 [].',
+      items: { type: 'INTEGER' },
+    },
+    players: {
+      type: 'ARRAY',
+      description: '점수 행(플레이어)마다 하나. 동반자가 함께 나온 표면 모든 행을 담음(대표 1명만 고르지 말 것). 한 명이면 1개.',
       items: {
         type: 'OBJECT',
         properties: {
-          hole: { type: 'INTEGER', description: '홀 번호 1~18' },
-          par: { type: 'INTEGER', description: '그 홀 파(보통 3~5). 표에 없으면 0' },
-          score: { type: 'INTEGER', description: '플레이어의 그 홀 타수. 없으면 0' },
+          name: { type: 'STRING', description: '플레이어 이름/구분(표에 있으면). 없으면 빈 문자열' },
+          scores: { type: 'ARRAY', description: '1홀~18홀 타수를 순서대로 18개. 없는 홀은 0.', items: { type: 'INTEGER' } },
+          total: { type: 'INTEGER', description: '그 플레이어 총타. 없으면 0' },
         },
-        required: ['hole', 'par', 'score'],
+        required: ['name', 'scores', 'total'],
       },
     },
-    total: { type: 'INTEGER', description: '총 타수(18홀 합). 표에 합계 칸이 있으면 그 값 우선, 없으면 홀 합. 없으면 0' },
-    players: { type: 'INTEGER', description: '점수 행(플레이어)이 여럿이면 그 수, 하나면 1' },
   },
-  required: ['found', 'holes', 'total', 'players'],
+  required: ['found', 'pars', 'players'],
 };
 
 exports.extractScorecard = onCall(
@@ -235,10 +239,10 @@ exports.extractScorecard = onCall(
     const prompt =
       `너는 골프 스코어카드 또는 스코어 화면(스마트스코어 태블릿 등) 이미지에서 홀별 점수를 뽑는 도우미야.\n` +
       `주어진 이미지(1~2장, 전반=1~9홀 / 후반=10~18홀로 나뉘어 올 수 있음)를 읽고 JSON으로만 답해:\n` +
-      `- holes: 각 홀 { hole(1~18), par(표에 있으면 그 값, 없으면 0), score(플레이어 타수, 없으면 0) }. 두 장이면 1~18로 합쳐.\n` +
-      `- total: 총 타수(18홀 합). 표에 합계 칸이 있으면 그 값을 우선.\n` +
-      `- players: 점수 행(플레이어)이 여러 명이면 그 수, 한 명이면 1.\n` +
-      `점수 행이 여러 명이면 가장 위(또는 대표) 한 명의 점수를 holes에 넣어. 스코어 표가 아니면 found=false, holes=[].`;
+      `- pars: 1홀~18홀 파를 순서대로 18개 배열(모든 플레이어 공통). PAR 행이 없으면 빈 배열 [].\n` +
+      `- players: 점수 행(플레이어)마다 하나씩. { name(이름/구분, 없으면 ''), scores(1~18홀 타수 18개, 없는 홀 0), total(총타, 없으면 0) }.\n` +
+      `  ★동반자가 함께 나온 표(4명 등)면 모든 행을 players에 담아 — 대표 한 명만 고르지 마. 사용자가 나중에 본인 행을 고른다.\n` +
+      `두 장이면 전/후반을 합쳐 각 플레이어를 1~18홀로. 스코어 표가 아니면 found=false, players=[].`;
 
     const parts = [{ text: prompt }];
     valid.forEach((im, i) => {
@@ -249,24 +253,28 @@ exports.extractScorecard = onCall(
     logger.info('[gemini] scorecard req', { uid, imgs: valid.length });
     const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA });
 
-    // 정규화 — 홀 1~18, par 3~5만, score 1~20만(오인식 방어).
-    const holes = (Array.isArray(out?.holes) ? out.holes : [])
-      .map(h => ({ hole: Number(h?.hole), par: Number(h?.par), score: Number(h?.score) }))
-      .filter(h => Number.isFinite(h.hole) && h.hole >= 1 && h.hole <= 18)
-      .map(h => ({
-        hole: h.hole,
-        par: (h.par >= 3 && h.par <= 5) ? h.par : 0,
-        score: (h.score >= 1 && h.score <= 20) ? h.score : 0,
-      }));
-
-    logger.info('[gemini] scorecard ok', { uid, found: !!out?.found, holes: holes.length });
-    return {
-      ok: true,
-      found: !!out?.found,
-      holes,
-      total: Number.isFinite(out?.total) && out.total > 0 ? out.total : 0,
-      players: Number.isFinite(out?.players) && out.players > 0 ? out.players : 1,
+    // 18칸 정규화 — 순서대로 채우고 범위 밖(par 3~5·score 1~20 아님)은 0.
+    const to18 = (arr, min, max) => {
+      const o = Array(18).fill(0);
+      (Array.isArray(arr) ? arr : []).forEach((n, i) => {
+        const v = Number(n);
+        if (i < 18 && Number.isFinite(v) && v >= min && v <= max) o[i] = v;
+      });
+      return o;
     };
+    const pars = to18(out?.pars, 3, 5);
+    const players = (Array.isArray(out?.players) ? out.players : []).map(p => {
+      const scores = to18(p?.scores, 1, 20);
+      const sum = scores.reduce((s, n) => s + n, 0);
+      return {
+        name: (p?.name || '').toString().trim(),
+        scores,
+        total: (Number.isFinite(p?.total) && p.total > 0) ? p.total : sum,
+      };
+    }).filter(p => p.scores.some(n => n > 0));   // 점수 하나도 없는 유령 행 제거
+
+    logger.info('[gemini] scorecard ok', { uid, found: !!out?.found, players: players.length });
+    return { ok: true, found: !!out?.found, pars, players };
   }
 );
 
