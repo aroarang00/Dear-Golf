@@ -42,7 +42,9 @@ export async function extractScorecardAI(uris) {
     const images = [];
     for (const u of list) images.push({ data: await toBase64(u), format: 'jpg' });
 
-    const callable = httpsCallable(functions, 'extractScorecard');
+    // 타임아웃 120s — 단체(3~4장·최대 16명) 추출은 응답이 9~70s로 출렁임. 기본 70s면 CF(90s)가 성공해도
+    //   클라가 먼저 포기해 '무한 로딩 후 실패'가 됨. CF 예산(90s)보다 넉넉히 잡아 성공 응답을 안 버림.
+    const callable = httpsCallable(functions, 'extractScorecard', { timeout: 120000 });
     const res = await callable({ images });
     const d = res?.data;
     if (!d?.found || !Array.isArray(d.players) || !d.players.length) {
