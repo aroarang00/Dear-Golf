@@ -820,9 +820,24 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
                           AI가 사진에서 홀별 스코어를 자동으로 읽어요
                         </Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, lineHeight: 21 }}>
-                          · 스마트스코어 태블릿은 전반·후반 각 1장(2장) 올리면 자동 병합{'\n'}· PAR가 없어도 점수만 인식돼요{'\n'}· 촬영할 땐 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>빛 반사 없이 숫자가 또렷하게 정면</Text>에서{'\n'}· 동반자가 함께 나온 표는 인식 후 본인 행을 골라요
-                        </Text>
+                      {/* 각 항목을 '· + 텍스트' 행으로 — 줄바꿈돼도 글머리 아래로 안 튀어나오게 flex:1 hanging indent */}
+                      <View style={{ gap: 6 }}>
+                        {[
+                          { k: 'a', pre: '스마트스코어 태블릿은 ', em: '전반·후반 각 1장(2장)', emB: true, post: ' 올리면 자동 병합돼요' },
+                          { k: 'b', pre: 'PAR가 없어도 점수만 인식돼요' },
+                          { k: 'c', pre: '촬영할 땐 ', em: '빛 반사 없이 숫자가 또렷하게 정면', emColor: true, post: '에서' },
+                          { k: 'd', pre: '동반자가 함께 나온 표는 인식 후 본인 행을 골라요' },
+                        ].map(b => (
+                          <View key={b.k} style={{ flexDirection: 'row' }}>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, lineHeight: 19, width: 12 }}>·</Text>
+                            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, lineHeight: 19 }}>
+                              {b.pre}
+                              {b.em ? <Text style={{ fontFamily: b.emB ? F.sysSb : F.sysB, color: b.emColor ? C.burgundy : C.charcoal }}>{b.em}</Text> : null}
+                              {b.post || ''}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
                       </View>
                     </View>
                   )}

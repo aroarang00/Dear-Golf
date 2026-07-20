@@ -54,13 +54,16 @@ async function checkRateLimit(uid, limit) {
 // Gemini generateContent 호출 — parts(텍스트/이미지 혼합) + responseSchema로 JSON 강제.
 //   parts: [{ text }] | [{ inlineData: { mimeType, data(base64) } }] ... 순서대로 전달.
 //   반환: 파싱된 객체(모델이 responseSchema에 맞춰 JSON 문자열을 냄).
-async function callGemini({ key, parts, schema, temperature = 0 }) {
+async function callGemini({ key, parts, schema, temperature = 0, thinkingBudget = 0 }) {
   const body = {
     contents: [{ role: 'user', parts }],
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: schema,
       temperature,
+      // 2.5 Flash는 기본 'thinking'(추론)이 켜져 있어 지연이 큼. 스코어/예약 추출은 추론이 거의 불필요해
+      //   thinkingBudget:0으로 끄면 응답이 크게 빨라짐. 인식 정확도가 떨어지면 값을 올려 재조정.
+      thinkingConfig: { thinkingBudget },
     },
   };
   let res;
