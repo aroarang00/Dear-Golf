@@ -243,6 +243,16 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
 
   // 식당 선택 → 확인창 거쳐 결정/변경. ★확인 시에만 Firestore 기록(=동반자 푸시) — 둘러보다 실수·이랬다저랬다 연타로
   //   푸시가 도배되던 문제 방지 + 취소 경로 제공(사용자 2026-06-19).
+  // 인앱 상세 열기 — url 없으면 kakaoId로 카카오 place URL 생성(결정된 식당은 저장 필드가 최소).
+  const openDetail = (pl) => {
+    if (!pl) return;
+    const withUrl = pl.url ? pl : (pl.kakaoId ? { ...pl, url: `https://place.map.kakao.com/${pl.kakaoId}` } : pl);
+    const b = destinationBadge(coord, dest, dest?.region, pl);
+    const fg = b && (b.tone === 'good' ? '#3C7D4F' : b.tone === 'mild' ? '#8B6914' : '#9A6A55');
+    setDetailPlace(withUrl);
+    setDetailBadge(b ? { text: b.text, fg } : null);
+  };
+
   const propose = (pl) => {
     if (busy || !uid || !pl?.name) return;
     showAppAlert('식사 장소 정하기', `${pl.name}(으)로 정할게요.\n동반자에게 알림이 가요.`, [
@@ -332,14 +342,20 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, letterSpacing: 0.3 }}>식사 {slot}</Text>
           </View>
         )}
-        {/* 식당명 + 누가 정했는지(별명 우선) 같은 줄 — 이름 왼쪽(flex), 정한 사람 오른쪽 */}
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-          <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal }} numberOfLines={1}>{shortPlaceName(pl?.name)}</Text>
+        {/* 식당명(탭→앱 내 상세) + 누가 정했는지(별명 우선) 같은 줄 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => openDetail(pl)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(18), color: C.charcoal, flexShrink: 1 }} numberOfLines={1}>{shortPlaceName(pl?.name)}</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.warmGrayLight }}>›</Text>
+          </TouchableOpacity>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, flexShrink: 0 }} numberOfLines={1}>
             🍴 {meal.authorUid === uid ? '내가 정함' : `${friendDisplayName(friendMeta, meal.authorUid, meal.authorName || '동반자')}님`}
           </Text>
         </View>
         {!!pl?.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>{pl.loc}</Text>}
+        <TouchableOpacity onPress={() => openDetail(pl)} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>메뉴·리뷰·사진 보기 ›</Text>
+        </TouchableOpacity>
         {/* 메모 — 보기(있을 때) / 총대는 수정 가능 */}
         {editing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
