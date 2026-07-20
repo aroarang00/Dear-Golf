@@ -21,6 +21,7 @@ import { friendDisplayName } from '../utils/friendGroups';   // 별명(customNam
 import { showAppAlert, AppAlertHost } from './AppAlert';      // 앱 커스텀 알럿(시스템 다이얼로그 대신)
 import { loadPrivateProfile } from '../utils/privateProfile'; // 저장된 목적지(집·회사) 좌표
 import { destinationBadge, regionLabel } from '../utils/mealDirection'; // 목적지 방향/길목 뱃지
+import { RestaurantDetailSheet } from './RestaurantDetailSheet'; // 앱 내 식당 상세(카카오 place 웹뷰)
 
 // 라운딩 코스 좌표 해석 — ①일정에 박힌 좌표(전파·모집은 계정독립 courseX/Y 보유) ②courseId(userCourses) ③이름검색 순.
 //   기존엔 ①을 안 써서 courseId 없는 전파/모집 일정에서 '구장 못 찾음'이 잦았음. 주변 맛집 검색용.
@@ -63,6 +64,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const [coord, setCoord] = useState(null);
   const [dest, setDest] = useState(null);   // 목적지(집 우선, 없으면 회사) { x, y, region } — 귀가 동선 방향 뱃지용
   const [list, setList] = useState([]);
+  const [detailPlace, setDetailPlace] = useState(null);   // 인앱 상세 시트 대상 식당
+  const [detailBadge, setDetailBadge] = useState(null);   // 상세 시트 헤더에 표시할 방향 뱃지 { text, fg }
   // 저장된 목적지 로드 — 라운딩 후 귀가 동선 기준. 집(departure) 우선, 없으면 회사(work).
   useEffect(() => {
     if (!uid) { setDest(null); return; }
@@ -483,7 +486,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                 : badge.tone === 'mild' ? { bg: 'rgba(139,105,20,0.13)', fg: '#8B6914' } : { bg: 'rgba(150,90,70,0.12)', fg: '#9A6A55' });
               return (
               <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-                <View style={{ flex: 1 }}>
+                <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.7} onPress={() => { setDetailPlace(r); setDetailBadge(badge && bt ? { text: badge.text, fg: bt.fg } : null); }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
                   {/* 주소(loc)는 어차피 잘려 의미 적고 '상세'로 충분 → 종류·거리만 표기. */}
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
@@ -494,10 +497,10 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: bt.fg }}>{badge.text}</Text>
                     </View>
                   )}
-                </View>
-                {/* 상세 — 네이버 지도 검색(맛집 더보기와 통일). 카카오 url 대신 이름+지역으로 네이버 검색. */}
-                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(r.name, r.loc)).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
-                  <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, textDecorationLine: 'underline' }}>상세</Text>
+                </TouchableOpacity>
+                {/* 상세 — 앱 내 카카오 place 웹뷰(사진·평점·리뷰). 밖으로 안 나감. */}
+                <TouchableOpacity onPress={() => { setDetailPlace(r); setDetailBadge(badge && bt ? { text: badge.text, fg: bt.fg } : null); }} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+                  <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.burgundy, textDecorationLine: 'underline' }}>상세</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => propose(r)} disabled={busy} activeOpacity={0.85}
                   style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9, backgroundColor: C.burgundy, opacity: busy ? 0.6 : 1 }}>
@@ -609,6 +612,15 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         <AppAlertHost />
         </KeyboardProvider>
       </Modal>
+      {/* 앱 내 식당 상세 — 탭하면 카카오 place 웹뷰(밖으로 안 나감). 정하기·길찾기·전화 */}
+      <RestaurantDetailSheet
+        visible={!!detailPlace}
+        place={detailPlace}
+        badge={detailBadge}
+        onClose={() => setDetailPlace(null)}
+        onDecide={() => { const p = detailPlace; setDetailPlace(null); if (p) propose(p); }}
+        onNav={() => { if (detailPlace) openNav(detailPlace, 'naver'); }}
+      />
     </>
   );
 }
