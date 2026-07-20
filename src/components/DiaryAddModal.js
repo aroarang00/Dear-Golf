@@ -799,19 +799,26 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               {/* OCR 전면화 — 스코어판 사진 자동입력을 1순위(기본 노출). 직접 입력은 이 블록 아래 보조로. 인식되면 요약으로 대체. */}
               <View style={{ marginBottom: 10 }}>
                   {/* 사진으로 등록 — 갤러리(권장)/촬영. 인식 결과는 검토 모달에서 확인·수정 후 확정 */}
-                  {!holeScores && (
+                  {/* 추출 중 — 공용 Spinner(JS타이머 회전, 안드 애니메이션 꺼짐에도 돎). 버튼/안내는 숨김. */}
+                  {!holeScores && scBusy && (
+                    <View style={{ paddingVertical: 30, alignItems: 'center', backgroundColor: C.bgSecondary,
+                      borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline }}>
+                      <Spinner size={30} color={C.burgundy} />
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginTop: 12 }}>AI가 스코어를 읽고 있어요…</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 4 }}>사진이 많으면 조금 걸릴 수 있어요</Text>
+                    </View>
+                  )}
+                  {!holeScores && !scBusy && (
                     <View>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('gallery')}
+                        <TouchableOpacity activeOpacity={0.85} onPress={() => handleScorecardPick('gallery')}
                           style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-                            backgroundColor: C.burgundy, opacity: scBusy ? 0.6 : 1 }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
-                            {scBusy ? 'AI 인식 중…' : '사진 올리기'}
-                          </Text>
+                            backgroundColor: C.burgundy }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>사진 올리기</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('camera')}
+                        <TouchableOpacity activeOpacity={0.85} onPress={() => handleScorecardPick('camera')}
                           style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-                            backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: scBusy ? 0.6 : 1 }}>
+                            backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>실물 촬영</Text>
                         </TouchableOpacity>
                       </View>
