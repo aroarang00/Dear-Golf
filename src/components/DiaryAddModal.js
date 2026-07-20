@@ -26,7 +26,8 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { persistPhotos, persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
-import { pickScorecardImage, recognizeScorecard, scoreBreakdown } from '../utils/scorecardOcr';
+import { scoreBreakdown } from '../utils/scorecardOcr';
+import { pickScorecardImages, extractScorecardAI } from '../utils/scorecardAI'; // OCR 대체 — Gemini 비전(PAR 없어도·태블릿 전후반 2장 병합)
 import { ScorecardReviewModal } from './ScorecardReviewModal';
 import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
 import { getUid } from '../utils/firebase';
@@ -96,7 +97,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   useOverlayBackHandler(showDatePicker, () => setShowDatePicker(false));
   useOverlayBackHandler(showTimePicker, () => setShowTimePicker(false));
   const [score, setScore] = useState('');
-  // 스코어카드 OCR — holeScores(확정된 18홀), 검토 모달 상태. recognizeScorecard는 현재 스텁.
+  // 스코어카드 AI(Gemini 비전) — holeScores(확정된 18홀), 검토 모달 상태. 사진 1~2장(전/후반)에서 par·score 추출.
   const [holeScores, setHoleScores] = useState(null);
   const [holePars, setHolePars] = useState(null); // 스코어카드 par 행(스텁 mock) — 버디 자동집계용
   const [scRows, setScRows] = useState([]);
@@ -301,27 +302,34 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     }
   };
 
-  // 스코어카드 사진 → 인식(현재 스텁) → 검토 모달 열기. source: 'gallery' | 'camera'
+  // 스코어카드 사진 → AI 인식(Gemini 비전) → 검토 모달. source: 'gallery'(최대 2장 전/후반) | 'camera'
   const handleScorecardPick = async (source) => {
     if (scBusy) return;
     setScBusy(true);
     try {
-      const img = await pickScorecardImage(source);
-      if (img?.denied) { setOverlay({ title: '카메라 권한이 필요해요', message: '설정에서 카메라 접근을 허용한 뒤 다시 시도해 주세요.' }); return; }
-      if (!img) return; // 취소
+      const picked = await pickScorecardImages(source);
+      if (picked?.denied) { setOverlay({ title: '접근 권한이 필요해요', message: '설정에서 사진/카메라 접근을 허용한 뒤 다시 시도해 주세요.' }); return; }
+      if (!picked) return; // 취소
       if (!visibleRef.current) return; // 사진 고르는 사이 기록 모달이 닫힘 — 인식 시작 안 함
-      const res = await recognizeScorecard(img.uri);
-      // ★인식 중(최대 3회 회전 재시도로 수십 초) 기록 모달을 닫았으면 결과 폐기 — 닫힌 모달에 scReview=true가
-      //   남으면 다음 '기록하기' 오픈 첫 프레임에 기록+검토 모달이 동시 마운트되어 iOS 모달 스택이 꼬임(멈춤).
+      const res = await extractScorecardAI(picked.uris);
+      // ★인식 중(수 초) 기록 모달을 닫았으면 결과 폐기 — 닫힌 모달에 scReview=true가 남으면 다음 오픈 시 모달 스택 꼬임.
       if (!visibleRef.current) return;
-      setScRows(res.rows || []);
-      setShareRows(res.rows || []);   // 공유용 원본 보존 — 이후 '수정'이 scRows를 바꿔도 유지
-      setHolePars(Array.isArray(res.pars) ? res.pars : null); // par 행(있으면) — 버디 자동집계
-      setScFailed(!!res.error || !(res.rows || []).length);   // 인식 실패/숫자 부족 → 빈 표 직접 입력 안내
-      setScLowConf(!!res.lowConfidence);                       // 합계 불일치 → 저신뢰 안내(확인·수정 강조)
+      if (res.error || !Array.isArray(res.holeScores)) {
+        // 인식 실패 → 빈 표 직접 입력 안내
+        setScRows([]); setShareRows([]); setHolePars(null); setScFailed(true); setScLowConf(false); setScReview(true);
+        return;
+      }
+      // AI 결과(18칸) → 검토 모달 rows 형식([{ label, holes:number[18], total }]). 없는 홀=0.
+      const holes0 = res.holeScores.map(n => n || 0);
+      const rows = [{ label: '내 점수', holes: holes0, total: res.total || holes0.reduce((s, n) => s + n, 0) }];
+      setScRows(rows);
+      setShareRows(rows);
+      setHolePars(res.holePars || null);       // par(있으면) — 버디 자동집계
+      setScFailed(false);
+      setScLowConf(res.players > 1);            // 여러 명 감지 → 본인 점수인지 확인 강조
       setScReview(true);
     } catch (e) {
-      if (__DEV__) console.warn('[DiaryAdd] scorecard pick fail', e?.message);
+      if (__DEV__) console.warn('[DiaryAdd] scorecard AI fail', e?.message);
     } finally {
       setScBusy(false);
     }
@@ -913,7 +921,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                           style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
                             backgroundColor: C.burgundy, opacity: scBusy ? 0.6 : 1 }}>
                           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>
-                            {scBusy ? '인식 중…' : '📱 스크린샷 올리기'}
+                            {scBusy ? 'AI 인식 중…' : '사진 올리기'}
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity disabled={scBusy} activeOpacity={0.85} onPress={() => handleScorecardPick('camera')}
@@ -925,10 +933,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 12,
                         borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12 }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
-                          📱 스마트스코어 캡처(스크린샷)가 가장 정확해요
+                          AI가 사진에서 홀별 스코어를 자동으로 읽어요
                         </Text>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, lineHeight: 21 }}>
-                          · PAR·전후반 홀이 표로 보이는 카드{'\n'}· 실물 촬영은 빛·각도로 인식이 약해요{'\n'}· 풍경 요약카드는 PAR가 없어 인식 안 돼요
+                          · 스마트스코어 태블릿은 전반·후반 각 1장(2장) 올리면 자동 병합{'\n'}· PAR가 없어도 점수만 인식돼요{'\n'}· 스크린샷·실물 카드 모두 가능
                         </Text>
                       </View>
                     </View>

@@ -182,6 +182,94 @@ exports.extractReservation = onCall(
   }
 );
 
+// ── 스코어카드 추출 ─────────────────────────────────────────────
+// 입력: { images: [{ data(base64), format? }] } — 스코어카드/스마트스코어 태블릿 사진 1~2장(전반/후반).
+//   CLOVA OCR(PAR 표 필수·태블릿 전후반 분리 못 읽음)을 Gemini 비전으로 대체 — PAR 없어도, 태블릿 두 장도 병합.
+// 출력: { ok, found, holes:[{hole,par,score}], total, players }
+const SCORECARD_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    found: { type: 'BOOLEAN', description: '골프 스코어카드나 스코어 화면(스마트스코어 태블릿 등)으로 보이면 true' },
+    holes: {
+      type: 'ARRAY',
+      description: '홀별 정보. 인식된 홀만. 전반/후반이 나뉜 두 장이어도 1~18로 합침.',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          hole: { type: 'INTEGER', description: '홀 번호 1~18' },
+          par: { type: 'INTEGER', description: '그 홀 파(보통 3~5). 표에 없으면 0' },
+          score: { type: 'INTEGER', description: '플레이어의 그 홀 타수. 없으면 0' },
+        },
+        required: ['hole', 'par', 'score'],
+      },
+    },
+    total: { type: 'INTEGER', description: '총 타수(18홀 합). 표에 합계 칸이 있으면 그 값 우선, 없으면 홀 합. 없으면 0' },
+    players: { type: 'INTEGER', description: '점수 행(플레이어)이 여럿이면 그 수, 하나면 1' },
+  },
+  required: ['found', 'holes', 'total', 'players'],
+};
+
+exports.extractScorecard = onCall(
+  {
+    secrets: [GEMINI_API_KEY],
+    region: 'asia-northeast3',
+    memory: '512MiB',   // 이미지 최대 2장
+    timeoutSeconds: 60,
+  },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', '로그인이 필요해요.');
+
+    const imgs = Array.isArray(request.data?.images) ? request.data.images : [];
+    const valid = imgs.filter(im => im && typeof im.data === 'string' && im.data.length > 0).slice(0, 2);
+    if (!valid.length) throw new HttpsError('invalid-argument', '스코어카드 사진이 필요해요.');
+    for (const im of valid) {
+      if (im.data.length > 8 * 1024 * 1024) throw new HttpsError('invalid-argument', '이미지가 너무 커요. 다시 시도해주세요.');
+    }
+
+    const uid = request.auth.uid;
+    if (!(await checkRateLimit(uid, 40))) {
+      logger.warn('[gemini] scorecard ratelimit exceeded', { uid });
+      throw new HttpsError('resource-exhausted', '자동인식을 너무 많이 요청했어요. 잠시 후 다시 시도해주세요.');
+    }
+
+    const prompt =
+      `너는 골프 스코어카드 또는 스코어 화면(스마트스코어 태블릿 등) 이미지에서 홀별 점수를 뽑는 도우미야.\n` +
+      `주어진 이미지(1~2장, 전반=1~9홀 / 후반=10~18홀로 나뉘어 올 수 있음)를 읽고 JSON으로만 답해:\n` +
+      `- holes: 각 홀 { hole(1~18), par(표에 있으면 그 값, 없으면 0), score(플레이어 타수, 없으면 0) }. 두 장이면 1~18로 합쳐.\n` +
+      `- total: 총 타수(18홀 합). 표에 합계 칸이 있으면 그 값을 우선.\n` +
+      `- players: 점수 행(플레이어)이 여러 명이면 그 수, 한 명이면 1.\n` +
+      `점수 행이 여러 명이면 가장 위(또는 대표) 한 명의 점수를 holes에 넣어. 스코어 표가 아니면 found=false, holes=[].`;
+
+    const parts = [{ text: prompt }];
+    valid.forEach((im, i) => {
+      if (valid.length === 2) parts.push({ text: `\n[${i === 0 ? '전반(1~9홀)' : '후반(10~18홀)'} 이미지]` });
+      parts.push({ inlineData: { mimeType: im.format === 'png' ? 'image/png' : 'image/jpeg', data: im.data } });
+    });
+
+    logger.info('[gemini] scorecard req', { uid, imgs: valid.length });
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA });
+
+    // 정규화 — 홀 1~18, par 3~5만, score 1~20만(오인식 방어).
+    const holes = (Array.isArray(out?.holes) ? out.holes : [])
+      .map(h => ({ hole: Number(h?.hole), par: Number(h?.par), score: Number(h?.score) }))
+      .filter(h => Number.isFinite(h.hole) && h.hole >= 1 && h.hole <= 18)
+      .map(h => ({
+        hole: h.hole,
+        par: (h.par >= 3 && h.par <= 5) ? h.par : 0,
+        score: (h.score >= 1 && h.score <= 20) ? h.score : 0,
+      }));
+
+    logger.info('[gemini] scorecard ok', { uid, found: !!out?.found, holes: holes.length });
+    return {
+      ok: true,
+      found: !!out?.found,
+      holes,
+      total: Number.isFinite(out?.total) && out.total > 0 ? out.total : 0,
+      players: Number.isFinite(out?.players) && out.players > 0 ? out.players : 1,
+    };
+  }
+);
+
 // 공용 헬퍼 — 스코어카드 2장 병합 등 후속 Gemini 기능에서 재사용
 exports._callGemini = callGemini;
 exports._checkRateLimit = checkRateLimit;

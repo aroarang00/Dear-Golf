@@ -658,3 +658,4 @@ exports.recognizeScorecard = ocr.recognizeScorecard;
 // =============================================================
 const gemini = require('./gemini');
 exports.extractReservation = gemini.extractReservation;
+exports.extractScorecard = gemini.extractScorecard;   // 스코어카드/태블릿 사진 → 홀별 par·score(Gemini 비전)
