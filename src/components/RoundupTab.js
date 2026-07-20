@@ -22,7 +22,7 @@ import { LoadingState } from './common/LoadingState';
 import { AttentionMotion } from './common/AttentionMotion'; // 맞춤 모집 배너 맥동 — '내 코스 모아보기'와 동일 pulse
 import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 라운지 첫 진입 즉시 시드
 import { RoundupNotifications } from './RoundupNotifications';
-import { SCOPE_BADGE, tagStyle, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
+import { SCOPE_BADGE, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
@@ -219,90 +219,40 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
         </>
       )}
 
-      {/* 라운딩 성격 태그 — 카드에 노출해 친구모집을 풍성하게([[roundup-friend-redesign]]).
-          구성·연령대·실력(데모그래픽) 뱃지는 정보 밀도 절감 위해 상세에서만. */}
-      {Array.isArray(post.tags) && post.tags.length > 0 && (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: _and ? 6 : 8 }}>
-          {post.tags.slice(0, 4).map(t => {
-            const ts = tagStyle(t);
-            return (
-              <View key={t} style={{ backgroundColor: ts.soft, borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: ts.deep }}>#{t}</Text>
-              </View>
-            );
-          })}
-          {post.tags.length > 4 && (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, alignSelf: 'center' }}>+{post.tags.length - 4}</Text>
-          )}
-        </View>
-      )}
+      {/* 태그·한마디는 카드 밀도 위해 제거 — 상세에서만 표시(한 화면 카드 수↑, 사용자 2026-07-21) */}
 
-      {post.word ? (
-        <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 6 : 8, lineHeight: 18 }}>"{post.word}"</Text>
-      ) : null}
-
-      {/* 모집 현황 — 카드에서는 총원만 한 줄. 팀별 디테일은 상세 화면에서. 게스트(앱 미사용자)가 있으면 명시. */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 9 : 12,
-        backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 6 : 8 }}>
-        {allFull
-          ? (post.type === 'open'
-              ? <Icon name="calendar" size={fs(14)} color={C.charcoal} strokeWidth={1.8} />
-              : <Icon name="check" size={fs(16)} color={C.burgundy} strokeWidth={2.8} />)
-          : <Icon name="people" size={fs(15)} color={C.charcoal} strokeWidth={1.8} />}
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
-        {post.companions?.length > 0 ? (
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 동반자 {post.companions.length}명 포함</Text>
-        ) : null}
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
-          color: confirmed ? '#3C7D4F' : (awaitingConfirm ? '#7A5A00' : (allFull && post.type === 'open' ? C.charcoal : C.warmGray)), marginLeft: 'auto' }}>
-          {/* 오픈형은 만석=확정 아님(날짜 조율 단계). 확정형 만석은 '확정 대기'(미확정)/'확정'(closed)로 구분 ([[roundup-friend-redesign]]) */}
-          {confirmed ? '확정' : (awaitingConfirm ? '확정 대기' : (allFull ? (post.type === 'open' ? '날짜 정하기' : '확정 대기') : '모집중'))}
-        </Text>
-      </View>
-
-      {/* 상태 표시 — 액션(참여 신청·참여하기·대기 신청·참여 취소)은 카드에서 빼고 상세로 위임.
-          카드는 훑어보기 용도, 결정은 상세에서. 빠른 참여 흐름을 의도적으로 한 단계 늦춰 신중함 확보. */}
-      {(isMine || joined || applied || waitlistNum || myRestricted || myEvalPending) && (
-        <View style={{ marginTop: _and ? 9 : 12 }}>
-          {isMine ? (
-            <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
-              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.hairline }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.warmGray }}>내가 올린 모집글</Text>
-            </View>
-          ) : joined ? (
-            <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
-              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: C.burgundy }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>참여 완료 ✓</Text>
-            </View>
-          ) : applied ? (
-            <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
-              backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>신청 완료 · 수락 대기 중</Text>
-            </View>
-          ) : waitlistNum ? (
-            <View>
-              <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
-                backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>⏳ 대기 {waitlistNum}번</Text>
-              </View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
-                자리가 나면 대기 순서대로 자동 참여돼요. 참여가 확정되면 알림을 보내드려요.
-              </Text>
-            </View>
-          ) : myRestricted ? (
-            <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
-              backgroundColor: C.bgPrimary, borderWidth: 1, borderColor: '#8B2A2A' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B2A2A' }}>🚫 이용 제한 중</Text>
-            </View>
-          ) : (
-            <View style={{ borderRadius: 10, paddingVertical: _and ? 6 : 8, alignItems: 'center',
-              backgroundColor: '#F0E8D8', borderWidth: 1, borderColor: '#C9A84C' }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#8B6914' }}>지난 라운딩 평가 후 신청 가능해요</Text>
-            </View>
-          )}
-        </View>
-      )}
+      {/* 모집 현황 + 내 상태 한 줄 — 밀도 위해 별도 상태박스 통합. 오른쪽=내 관여 상태(있으면) 아니면 모집 상태(사용자 2026-07-21) */}
+      {(() => {
+        // 내 관여 우선 — 내글/참여/신청/대기/제한/평가. 대기 설명문은 상세로 이동(밀도).
+        const myStatus = isMine ? { t: '내 모집', c: C.warmGray }
+          : joined ? { t: '참여 완료 ✓', c: C.burgundy }
+          : applied ? { t: '신청 완료', c: '#8B6914' }
+          : waitlistNum ? { t: `대기 ${waitlistNum}번`, c: '#8B6914' }
+          : myRestricted ? { t: '이용 제한 중', c: '#8B2A2A' }
+          : myEvalPending ? { t: '평가 후 신청', c: '#8B6914' }
+          : null;
+        // 오픈형은 만석=확정 아님(날짜 조율). 확정형 만석은 확정대기/확정 ([[roundup-friend-redesign]])
+        const postT = confirmed ? '확정' : (awaitingConfirm ? '확정 대기' : (allFull ? (post.type === 'open' ? '날짜 정하기' : '확정 대기') : '모집중'));
+        const postC = confirmed ? '#3C7D4F' : (awaitingConfirm ? '#7A5A00' : (allFull && post.type === 'open' ? C.charcoal : C.warmGray));
+        const rt = myStatus ? myStatus.t : postT;
+        const rc = myStatus ? myStatus.c : postC;
+        return (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: _and ? 8 : 10,
+            backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: _and ? 6 : 7 }}>
+            {allFull
+              ? (post.type === 'open'
+                  ? <Icon name="calendar" size={fs(14)} color={C.charcoal} strokeWidth={1.8} />
+                  : <Icon name="check" size={fs(16)} color={C.burgundy} strokeWidth={2.8} />)
+              : <Icon name="people" size={fs(15)} color={C.charcoal} strokeWidth={1.8} />}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{total}/{capTotal}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>명</Text>
+            {post.companions?.length > 0 ? (
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>· 동반자 {post.companions.length}</Text>
+            ) : null}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: rc, marginLeft: 'auto' }}>{rt}</Text>
+          </View>
+        );
+      })()}
       </View>
     </TouchableOpacity>
   );
