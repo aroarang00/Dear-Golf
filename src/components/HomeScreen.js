@@ -705,7 +705,10 @@ export function HomeScreen({ navigation, route }) {
     const course = next?.course;
     if (!course) return 1;
     const entries = diaries.filter(d => isRoundDiary(d) && d.course === course); // 일상(모멘트) 제외
-    const base = (entries.length > 0 && entries[0]?.memo && homeTopComment) ? 2 : 1;
+    // 렌더(아래 IIFE 슬라이드 조립)와 반드시 동일해야 회전/탭 인덱스가 맞음:
+    //   미기록(첫 방문)=안내메모+골퍼 2장 / 그 외=기본1+(내메모&골퍼 있으면 골퍼1) + 스토어광고
+    const isFirstVisit = entries.length === 0;
+    const base = isFirstVisit ? 2 : (1 + ((entries[0]?.memo && homeTopComment) ? 1 : 0));
     return base + Math.min(storeAds.length, 2);
   }, [next?.course, diaries, homeTopComment, storeAds]);
   const carouselActive = homeSlideCount > 1;
@@ -1284,7 +1287,7 @@ export function HomeScreen({ navigation, route }) {
         {next ? (
         <>
         <View style={{ flex: 1 }} />
-        <View style={[homeS.bottomArea, { paddingBottom: 0 }]}>
+        <View style={[homeS.bottomArea, { paddingBottom: insets.bottom + 62 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SIDE_PAD, marginBottom: 8 }}>
             <TouchableOpacity
               onPress={() => setShowScheduleScreen(true)}
@@ -1540,7 +1543,7 @@ export function HomeScreen({ navigation, route }) {
             //   자연 높이 기준 + fs() 비례(디스플레이 확대 시 클립 방지). 슬라이드 1장이면 종전 그대로.
             const withGolfer = !isFirstVisit && !!myMemo && hasGolfer;
             const adsCount = Math.min(storeAds.length, 2);
-            const slideCount = 1 + (withGolfer ? 1 : 0) + adsCount;
+            const slideCount = (isFirstVisit ? 2 : 1 + (withGolfer ? 1 : 0)) + adsCount;
             const isAnd = Platform.OS === 'android';
             const SLIDE_FIX = slideCount > 1
               ? { height: Math.round(fs(isFirstVisit ? (isAnd ? 84 : 110) : (!myMemo ? (isAnd ? 78 : 94) : (isAnd ? 72 : 92)))), minHeight: 0 }
@@ -1575,6 +1578,22 @@ export function HomeScreen({ navigation, route }) {
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8', marginTop: 8, alignSelf: 'flex-start' }}>첫 번째 코멘트의 주인공이 되어보세요</Text>
                     </>
                   )}
+                </View>
+              </View>
+            );
+
+            // 미기록(첫 방문) 안내 메모 카드 — 이동 없이 정보만. 항상 캐러셀 유지 + 기록 유도(사용자 2026-07-20)
+            const firstVisitMemoCard = (
+              <View style={[homeS.memoCard, SLIDE_FIX]}>
+                <View style={homeS.memoCardTop}>
+                  <View style={homeS.memoBadgeVisit}>
+                    <Text style={homeS.memoBadgeTxt}>한줄 메모</Text>
+                  </View>
+                  <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
+                </View>
+                <View style={homeS.memoCardBottom}>
+                  <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 미기록 구장이에요</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.55)', marginTop: 8, lineHeight: 16 }} numberOfLines={2}>기록하면 메모를 다음 방문에 보여드려요</Text>
                 </View>
               </View>
             );
@@ -1679,14 +1698,16 @@ export function HomeScreen({ navigation, route }) {
               );
             });
 
-            const baseCard = isFirstVisit ? firstVisitCard : (!myMemo ? noMemoCard : myMemoCard);
-            const slides = [baseCard, ...(withGolfer ? [golferCard] : []), ...adCards];
+            // 미기록(첫 방문)도 항상 캐러셀 — 안내 메모 + 골퍼코멘트 2장(고정 시 빈 공간 해소 + 기록 유도, 사용자 2026-07-20)
+            const slides = isFirstVisit
+              ? [firstVisitMemoCard, firstVisitCard, ...adCards]
+              : [(!myMemo ? noMemoCard : myMemoCard), ...(withGolfer ? [golferCard] : []), ...adCards];
 
             if (slides.length === 1) return <View>{slides[0]}</View>;
 
             const slideIdx = Math.min(cardSlide, slides.length - 1);
             // 점 색: 기본(버터) · 골퍼코멘트(하늘) · 스토어(골드)
-            const dotColor = (i) => (i === 0 ? '#F5E6A8' : (withGolfer && i === 1 ? '#C8D9E6' : '#E8C97A'));
+            const dotColor = (i) => (i === 0 ? '#F5E6A8' : ((withGolfer || isFirstVisit) && i === 1 ? '#C8D9E6' : '#E8C97A'));
             // ★캐러셀 전체(카드+점)를 고정 높이 컨테이너로 잠금 — 카드별 SLIDE_FIX에 더한 이중 방어.
             //   내부에서 어떤 높이 변화가 생겨도 위(디데이 카드)로 전파 0, 넘치면 아래로만(사용자 2026-07-03).
             const DOTS_H = 5 + 8; // 점 높이 + marginTop

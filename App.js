@@ -707,7 +707,9 @@ function App() {
       onReady={() => sentryNavigationIntegration?.registerNavigationContainer?.(navigationRef)}
     >
       <Tab.Navigator tabBar={props => <TabBar {...props} />}
-        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' } }} backBehavior="history">
+        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' },
+          // 플로팅 유리 탭바 — position:absolute로 화면 위에 띄워 뒤 배경(홈 이미지 등)이 비치게. 씬은 전체 높이.
+          tabBarStyle: { position: 'absolute', backgroundColor: 'transparent', borderTopWidth: 0, elevation: 0 } }} backBehavior="history">
         <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
         <Tab.Screen name={ROUTES.LOUNGE} component={LoungeScreen} />
         <Tab.Screen name={ROUTES.MY} component={DiaryScreen} />
