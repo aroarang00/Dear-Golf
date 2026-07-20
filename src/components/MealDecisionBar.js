@@ -19,6 +19,8 @@ import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadRoundup } from '../utils/roundup';
 import { friendDisplayName } from '../utils/friendGroups';   // 별명(customName) 우선 이름 해석
 import { showAppAlert, AppAlertHost } from './AppAlert';      // 앱 커스텀 알럿(시스템 다이얼로그 대신)
+import { loadPrivateProfile } from '../utils/privateProfile'; // 저장된 목적지(집·회사) 좌표
+import { destinationBadge, regionLabel } from '../utils/mealDirection'; // 목적지 방향/길목 뱃지
 
 // 라운딩 코스 좌표 해석 — ①일정에 박힌 좌표(전파·모집은 계정독립 courseX/Y 보유) ②courseId(userCourses) ③이름검색 순.
 //   기존엔 ①을 안 써서 courseId 없는 전파/모집 일정에서 '구장 못 찾음'이 잦았음. 주변 맛집 검색용.
@@ -59,7 +61,20 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     prevOpenRef.current = open;
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const [coord, setCoord] = useState(null);
+  const [dest, setDest] = useState(null);   // 목적지(집 우선, 없으면 회사) { x, y, region } — 귀가 동선 방향 뱃지용
   const [list, setList] = useState([]);
+  // 저장된 목적지 로드 — 라운딩 후 귀가 동선 기준. 집(departure) 우선, 없으면 회사(work).
+  useEffect(() => {
+    if (!uid) { setDest(null); return; }
+    let alive = true;
+    loadPrivateProfile(uid).then(p => {
+      if (!alive || !p) return;
+      const hasHome = p.departureCoord && Number.isFinite(p.departureCoord.x);
+      const coord = hasHome ? p.departureCoord : (p.workCoord && Number.isFinite(p.workCoord.x) ? p.workCoord : null);
+      setDest(coord ? { x: coord.x, y: coord.y, region: regionLabel(hasHome ? p.departure : p.work) } : null);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [uid]);
   const [loading, setLoading] = useState(false);
   const [pickSlot, setPickSlot] = useState(null); // 1|2 = 그 슬롯 식당 고르는 중. null = 카드만.
   const [memo, setMemo] = useState('');           // 고르는 중인 슬롯의 메모 입력
@@ -461,7 +476,12 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                 '{kw.trim()}' 검색 결과 {list.length}곳
               </Text>
             )}
-            {list.map((r) => (
+            {list.map((r) => {
+              // 목적지(집/직장) 방향 뱃지 — 길목(그린)/우회(앰버)/반대(뮤트). dest·coord 있을 때만.
+              const badge = destinationBadge(coord, dest, dest?.region, r);
+              const bt = badge && (badge.tone === 'good' ? { bg: 'rgba(94,139,96,0.15)', fg: '#3C7D4F' }
+                : badge.tone === 'mild' ? { bg: 'rgba(139,105,20,0.13)', fg: '#8B6914' } : { bg: 'rgba(150,90,70,0.12)', fg: '#9A6A55' });
+              return (
               <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
@@ -469,6 +489,11 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
                     {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}
                   </Text>
+                  {badge && (
+                    <View style={{ alignSelf: 'flex-start', marginTop: 5, backgroundColor: bt.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: bt.fg }}>{badge.text}</Text>
+                    </View>
+                  )}
                 </View>
                 {/* 상세 — 네이버 지도 검색(맛집 더보기와 통일). 카카오 url 대신 이름+지역으로 네이버 검색. */}
                 <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(r.name, r.loc)).catch(() => {})} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
@@ -479,7 +504,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>정하기</Text>
                 </TouchableOpacity>
               </View>
-            ))}
+            ); })}
             </>
           )}
           {/* 구장 주변 맛집을 네이버에서 통째로 — 카카오맵에 없는 시골 맛집 보완(빈 결과에도 노출).
