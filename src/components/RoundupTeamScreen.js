@@ -38,6 +38,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   const [editMode, setEditMode] = useState(false);    // 보기 ↔ 수정 (호스트만 전환)
   const [memberNames, setMemberNames] = useState({}); // uid→닉네임 (참여자 칩)
   const [memberReal, setMemberReal] = useState({});   // uid→본명(있을 때만, 호스트 전용 — 칩 표시·조배정 매칭)
+  const [memberAvg, setMemberAvg] = useState({});     // uid→평균타수(avgScore) — 실력 균형 자동편성용
   const [subCourseOpts, setSubCourseOpts] = useState([]); // 구장의 세부코스 칩 제안(시드된 구장만)
   // 모집 구장(courseKakaoId)의 세부코스 칩 로드 — 시드된 구장만(없으면 []=칩 미표시, 자유입력 유지)
   useEffect(() => {
@@ -77,15 +78,16 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
   //   같은 users 문서에서 realName도 함께 읽음(추가 읽기 없음). 본명은 호스트 시야에서만 사용(동반자엔 닉네임 유지).
   useEffect(() => {
     const uids = post?.participantUids;
-    if (!Array.isArray(uids) || !uids.length) { setMemberNames({}); setMemberReal({}); return; }
+    if (!Array.isArray(uids) || !uids.length) { setMemberNames({}); setMemberReal({}); setMemberAvg({}); return; }
     let alive = true;
     Promise.all(uids.map((u) => getDoc(doc(db, 'users', u))
-      .then((s) => { const d = s.exists() ? s.data() : null; return [u, (d && d.nickname) || '골퍼', (d && d.realName ? String(d.realName).trim() : '')]; })
-      .catch(() => [u, '골퍼', ''])))
+      .then((s) => { const d = s.exists() ? s.data() : null; return [u, (d && d.nickname) || '골퍼', (d && d.realName ? String(d.realName).trim() : ''), (d && Number.isFinite(d.avgScore) ? d.avgScore : null)]; })
+      .catch(() => [u, '골퍼', '', null])))
       .then((rows) => {
         if (!alive) return;
         setMemberNames(Object.fromEntries(rows.map(([u, nick]) => [u, nick])));
         setMemberReal(Object.fromEntries(rows.map(([u, , real]) => [u, real])));
+        setMemberAvg(Object.fromEntries(rows.map(([u, , , avg]) => [u, avg])));
       });
     return () => { alive = false; };
   }, [post?.participantUids]);
@@ -118,6 +120,39 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
     return '';
   };
 
+  // 실력 균형 자동편성(B) — avgScore 스네이크 드래프트로 조 배분. 실력 미상은 뒤에 고루.
+  //   ★초안일 뿐 — AI는 인간관계(상하·친소)를 모르니 배정 후 주최자가 자유 수정. 관계 반영은 명단 붙여넣기(A) 몫.
+  //   기존 조 구조(세부코스·티오프)는 보존하고 멤버(note)만 채움. 조가 모자라면 첫 세부코스에 티오프 추가.
+  const autoBalanceTeams = () => {
+    if (!canEdit) return;
+    const uids = Array.isArray(post?.participantUids) ? post.participantUids : [];
+    if (!uids.length) { showToast('참여자가 없어요'); return; }
+    const nameOf = (u) => (memberReal[u] || memberNames[u] || '골퍼');
+    const T = Math.max(1, post?.teams || 1);
+    const known = uids.filter((u) => Number.isFinite(memberAvg[u])).sort((a, b) => memberAvg[a] - memberAvg[b]); // 고수 먼저
+    const unknown = uids.filter((u) => !Number.isFinite(memberAvg[u]));
+    const ordered = [...known, ...unknown];
+    const teams = Array.from({ length: T }, () => []);
+    let dir = 1, t = 0;
+    for (const u of ordered) {   // 스네이크 드래프트 → 조별 실력 균형
+      teams[t].push(nameOf(u));
+      if (dir === 1) { t === T - 1 ? (dir = -1) : t++; } else { t === 0 ? (dir = 1) : t--; }
+    }
+    setGroups((prev) => {
+      const next = prev.map((g) => ({ ...g, flights: g.flights.map((f) => ({ ...f })) }));
+      const slots = () => next.flatMap((g, gi) => g.flights.map((_, fi) => ({ gi, fi })));
+      while (slots().length < T) next[0].flights.push(newFlight());   // 조 부족하면 첫 코스에 추가
+      const flat = slots();
+      teams.forEach((names, k) => {
+        const { gi, fi } = flat[k];
+        next[gi].flights[fi].note = names.join(' · ');
+        if (!next[gi].flights[fi].tee && post?.time) next[gi].flights[fi].tee = addMin(post.time, k * 8);
+      });
+      return next;
+    });
+    showToast(unknown.length ? `자동편성 완료 · 실력 미상 ${unknown.length}명 고루 배치 — 수정 가능` : '실력 균형 자동편성 완료 — 수정 가능');
+  };
+
   // 편성 완료 — 주최자가 명시(teamPlanDone=true). 미배정은 위 호박색 배너가 사전 경고하므로 별도 확인창 없이 바로 완료.
   //   (이 화면엔 AppAlertHost가 없어 showAppAlert가 안 떠 버튼이 안 먹던 버그 → toast로 통일.)
   const save = async () => {
@@ -125,7 +160,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
     setSaving(true);
     try {
       await updateRoundupTeamPlan(roundupId, { teamPlan: groups, teamNotice: memo, teamPlanDone: true });
-      showToast('편성 완료 🎉');
+      showToast('편성 완료');
       setEditMode(false);   // 완료 후 보기 모드로
     } catch (e) {
       if (__DEV__) console.warn('[teamScreen] save fail', e?.message);
@@ -147,14 +182,14 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
           <View style={{ flex: 1 }} />
           {/* 편성 완료 배지 — 주최자가 '편성 완료'를 누르면 표시(보기 모드). 호스트·동반자 공통으로 '확정됨' 신호 */}
           {!!post?.teamPlanDone && !editMode && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E8F0E0', borderWidth: 0.5, borderColor: '#9BB87E', borderRadius: 9, paddingHorizontal: 10, paddingVertical: 5, marginRight: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E8F0E0', borderRadius: 9, paddingHorizontal: 10, paddingVertical: 5, marginRight: 8 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#5E7E42' }}>✓ 편성 완료</Text>
             </View>
           )}
           {/* 수정 모드 토글 — 호스트만. 평소 '수정'(네이비), 수정 중 '보기'로 빠져나감 */}
           {isHost && !loading && !!post && (
             <TouchableOpacity onPress={() => setEditMode((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 9, backgroundColor: editMode ? C.bgSecondary : C.navy, borderWidth: editMode ? 0.5 : 0, borderColor: C.hairline }}>
+              style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 9, backgroundColor: editMode ? 'rgba(26,61,82,0.1)' : C.navy }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: editMode ? C.charcoal : '#fff' }}>{editMode ? '보기' : editLabel}</Text>
             </TouchableOpacity>
           )}
@@ -193,7 +228,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                     // 호스트 시야엔 본명 우선(조편성 이름과 일치 → 식별 쉬움), 동반자 시야엔 닉네임(본명 미노출).
                     const nm = masked ? anonNick(u, post.id) : ((isHost && memberReal[u]) ? memberReal[u] : (memberNames[u] || '골퍼'));
                     return (
-                      <View key={u} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6, justifyContent: 'center' }}>
+                      <View key={u} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EEF1F4', borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6, justifyContent: 'center' }}>
                         {/* iOS는 이모지 닉네임이면 라인박스가 비대칭으로 커져 세로 치우침 → 고정 lineHeight로 박스 일정화·중앙 정렬(안드는 정상이라 미적용) */}
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal, textAlign: 'center', ...(Platform.OS === 'ios' ? { lineHeight: fs(19) } : null) }}>{nm}{u === myUid ? ' (나)' : ''}</Text>
                       </View>
@@ -205,7 +240,10 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
 
             {/* ── 주최자 메모(공지) + 글자수 ── */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 5 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>📌 주최자 메모</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Icon name="clipboard" size={fs(14)} color={C.charcoal} strokeWidth={1.9} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>주최자 메모</Text>
+              </View>
               {canEdit && <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: memo.length >= MEMO_MAX ? C.burgundy : C.warmGray }}>{memo.length}/{MEMO_MAX}</Text>}
             </View>
             {canEdit ? (
@@ -213,23 +251,33 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                 placeholder="전체 공지 — 집결 장소·시간, 회비, 준비물 등" placeholderTextColor={C.warmGrayLight}
                 style={[INP, { minHeight: 64, textAlignVertical: 'top' }]} />
             ) : (
-              <View style={{ borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, padding: 13, backgroundColor: '#F5ECD6' }}>
+              <View style={{ borderRadius: 12, padding: 13, backgroundColor: '#F5ECD6' }}>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(15), color: memo ? C.charcoal : C.warmGray, lineHeight: 22 }}>{memo || '아직 공지가 없어요'}</Text>
               </View>
             )}
 
             {/* ── 세부코스 묶음 → 티오프(조). 조 번호는 전체 순서대로 자동 ── */}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginTop: 22, marginBottom: 2 }}>조 편성 · 티오프</Text>
+            {/* 실력 균형 자동편성(B) — avgScore로 조 균형 초안. 인간관계는 AI가 모르니 배정 후 주최자 수정. */}
+            {canEdit && memberCount > 0 && (
+              <TouchableOpacity onPress={autoBalanceTeams} activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 8,
+                  backgroundColor: 'rgba(26,61,82,0.1)', borderRadius: 12, paddingVertical: 11 }}>
+                <Icon name="people" size={fs(16)} color={C.navy} strokeWidth={1.9} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.navy }}>실력 균형 자동편성</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>· 초안, 수정 가능</Text>
+              </TouchableOpacity>
+            )}
             {groups.map((g, gi) => {
               const baseNo = groups.slice(0, gi).reduce((n, gg) => n + (gg.flights?.length || 0), 0);
               return (
-              <View key={gi} style={{ marginTop: 10, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, backgroundColor: C.bgSecondary, overflow: 'hidden' }}>
-                {/* 세부코스 헤더 — 연한 띠로 구분 */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 13, paddingVertical: 10, backgroundColor: '#EDF1F4', borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
+              <View key={gi} style={{ marginTop: 16 }}>
+                {/* 세부코스 헤더 — 박스·컬러밴드 없이 밑줄로만 구분(미니멀) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                   <Icon name="flag" size={fs(16)} color={C.navy} strokeWidth={1.9} />
                   {canEdit ? (
                     <TextInput value={g.course} onChangeText={(v) => setCourse(gi, v)} placeholder="세부코스 직접 입력 (예: 동코스)" placeholderTextColor={C.warmGrayLight}
-                      maxLength={20} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.navy, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.warmGrayLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: Platform.OS === 'android' ? 5 : 7 }} />
+                      maxLength={20} style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.navy, backgroundColor: '#EDF1F4', borderRadius: 8, paddingHorizontal: 10, paddingVertical: Platform.OS === 'android' ? 5 : 7 }} />
                   ) : (
                     <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.navy }}>{g.course || '세부코스 미정'}</Text>
                   )}
@@ -242,7 +290,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
 
                 {/* 세부코스 칩 제안 — 시드된 구장만(없으면 미표시). 탭하면 이 조의 세부코스 채움 */}
                 {canEdit && subCourseOpts.length > 0 && (
-                  <View style={{ paddingHorizontal: 13, paddingTop: 8 }}>
+                  <View style={{ paddingTop: 8 }}>
                     <SubCourseChips options={subCourseOpts} value={g.course} onPick={(v) => setCourse(gi, v)} />
                   </View>
                 )}
@@ -252,7 +300,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                   const teamNo = baseNo + fi + 1;
                   const base = prevTee(gi, fi);   // 직전 조 티오프 — +7/+8분 자동입력 기준
                   return (
-                  <View key={fi} style={{ flexDirection: 'row', paddingHorizontal: 13, paddingVertical: 11, borderTopWidth: fi === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+                  <View key={fi} style={{ flexDirection: 'row', paddingVertical: 11, borderTopWidth: fi === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
                     {/* 조 배지 — 구분되는 알약 */}
                     <View style={{ alignItems: 'center', marginRight: 11, paddingTop: 1 }}>
                       <View style={{ backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, minWidth: 34, alignItems: 'center' }}>
@@ -298,7 +346,7 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                 })}
 
                 {canEdit && (
-                  <TouchableOpacity onPress={() => addFlight(gi)} activeOpacity={0.7} style={{ paddingHorizontal: 13, paddingVertical: 11, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                  <TouchableOpacity onPress={() => addFlight(gi)} activeOpacity={0.7} style={{ paddingVertical: 11, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.navy }}>＋ 티오프(조) 추가</Text>
                   </TouchableOpacity>
                 )}
@@ -307,8 +355,8 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
             })}
 
             {canEdit && (
-              <TouchableOpacity onPress={addGroup} activeOpacity={0.7} style={{ marginTop: 10, borderWidth: 1, borderColor: C.navy, borderStyle: 'dashed', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.navy }}>＋ 세부코스 추가</Text>
+              <TouchableOpacity onPress={addGroup} activeOpacity={0.7} style={{ marginTop: 16, paddingVertical: 10, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.navy }}>＋ 세부코스 추가</Text>
               </TouchableOpacity>
             )}
 
@@ -334,6 +382,6 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
 }
 
 // 입력칸 — 흰 배경 + 또렷한 테두리로 '입력칸'임이 분명하게(시트=크림/카드=흰색 양쪽에서 구분되게 테두리는 진하게)
-const INP = { borderWidth: 1, borderColor: C.warmGrayLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 11, fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal, backgroundColor: '#FFFFFF' };
-const TEE_BTN = { borderWidth: 1, borderColor: C.navy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 };
+const INP = { backgroundColor: '#F1F2F4', borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 11, fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal };
+const TEE_BTN = { backgroundColor: 'rgba(26,61,82,0.08)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 };
 const TEE_BTN_TXT = { fontFamily: F.sysSb, fontSize: fs(12), color: C.navy };

@@ -14,31 +14,48 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { friendDisplayName } from '../utils/friendGroups';
 
 // 라운지 알림 토글 — ON/OFF. comment(모집 댓글)는 주최자에게만 발송(RoundupTab.handleAddComment에서 생성).
+// icon = 커스텀 SVG 아이콘 이름(Icon.js). 유니코드 이모지 금지. color/tint = 종류별 의미색 + 원형 배지 배경.
 const ROUNDUP_NOTI_TYPES = [
-  { key: 'invite',           icon: '💌', label: '라운딩 초대',     sub: '친구가 나를 지정해 모집하면' },
-  { key: 'confirmed',        icon: '✅', label: '동반자 참여',     sub: '내 모집에 친구가 참여하면' },
-  { key: 'roundupFull',      icon: '🔔', label: '모집 인원 마감',   sub: '내 모집 인원이 다 차면(확정 안내)' },
-  { key: 'cancel',           icon: '❌', label: '동반자 참여 취소', sub: '동반자가 참여를 취소하면' },
-  { key: 'roundupCancelled', icon: '🚫', label: '모집 취소',       sub: '참여한 모집이 취소되면' },
-  { key: 'waitlist',         icon: '⏳', label: '대기 신청',       sub: '내 모집글에 대기 신청이 들어오면' },
-  { key: 'comment',          icon: '💬', label: '모집 댓글',       sub: '내 모집글에 댓글이 달리면' },
+  { key: 'invite',           icon: 'paperPlane', color: '#1A3D52', tint: 'rgba(26,61,82,0.1)',   label: '라운딩 초대',     sub: '친구가 나를 지정해 모집하면' },
+  { key: 'confirmed',        icon: 'check',      color: '#5E8B60', tint: 'rgba(94,139,96,0.15)', label: '동반자 참여',     sub: '내 모집에 친구가 참여하면' },
+  { key: 'roundupFull',      icon: 'bell',       color: '#C08A1E', tint: 'rgba(199,154,46,0.17)',label: '모집 인원 마감',   sub: '내 모집 인원이 다 차면(확정 안내)' },
+  { key: 'cancel',           icon: 'ban',        color: '#C0703A', tint: 'rgba(192,112,58,0.14)',label: '동반자 참여 취소', sub: '동반자가 참여를 취소하면' },
+  { key: 'roundupCancelled', icon: 'siren',      color: '#6B1E2A', tint: 'rgba(107,30,42,0.1)',  label: '모집 취소',       sub: '참여한 모집이 취소되면' },
+  { key: 'waitlist',         icon: 'ticket',     color: '#8B6914', tint: 'rgba(139,105,20,0.14)',label: '대기 신청',       sub: '내 모집글에 대기 신청이 들어오면' },
+  { key: 'comment',          icon: 'pen',        color: '#3E6E8E', tint: 'rgba(62,110,142,0.13)',label: '모집 댓글',       sub: '내 모집글에 댓글이 달리면' },
 ];
 const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true, cancel: true, roundupCancelled: true, waitlist: true, comment: true };
 
+// 알림 종류별 커스텀 SVG 아이콘 이름(Icon.js). 유니코드 이모지 금지. 없는 것은 근접 매칭.
 const NOTI_ICON = {
-  apply: '🙋', cancel: '❌', waitlistPromoted: '🎉', confirmed: '✅', waitlist: '⏳', comment: '💬', mannerEval: '😊',
-  invite: '💌', roundupCancelled: '🚫', scheduleNotice: '📣', friendRequest: '🤝', roundupChanged: '✏️', roundupFull: '🔔',
-  scheduleChanged: '🗓️', scheduleCancelled: '🚫', scheduleMemo: '📢',
+  apply: 'personAdd', cancel: 'ban', waitlistPromoted: 'sparkle', confirmed: 'check', waitlist: 'ticket', comment: 'pen', mannerEval: 'star',
+  invite: 'paperPlane', roundupCancelled: 'siren', scheduleNotice: 'speaker', friendRequest: 'personAdd', roundupChanged: 'pen', roundupFull: 'bell',
+  scheduleChanged: 'calendar', scheduleCancelled: 'ban', scheduleMemo: 'speaker',
   // 시스템 알림 (Cloud Functions)
-  noshowReported: '⚠️', noshowReportSubmitted: '📩', noshowExplanationRequired: '⏰',
-  noshowConfirmed: '🚫', noshowReporterConfirmed: '✅', noshowFalseReport: '🚫',
-  noshowFalseReportConfirmed: '✅', noshowInconclusive: '⚖️', noshowCancelled: '✋',
-  permanentBanAppealNotice: '⚠️', permanentBanFinalized: '🚫',
-  recruitBanPermanentFinalized: '🚫',
-  restrictionLifted: '🎉',
-  mannerScoreUp: '💚', mannerScoreDown: '💢',
-  contentReportConfirmed: '🚫', contentRecruitBan30d: '🚫',
-  hostCancelledD7: '☔',
+  noshowReported: 'siren', noshowReportSubmitted: 'paperPlane', noshowExplanationRequired: 'bell',
+  noshowConfirmed: 'ban', noshowReporterConfirmed: 'check', noshowFalseReport: 'ban',
+  noshowFalseReportConfirmed: 'check', noshowInconclusive: 'clipboard', noshowCancelled: 'ban',
+  permanentBanAppealNotice: 'siren', permanentBanFinalized: 'lock',
+  recruitBanPermanentFinalized: 'lock',
+  restrictionLifted: 'sparkle',
+  mannerScoreUp: 'heart', mannerScoreDown: 'siren',
+  contentReportConfirmed: 'ban', contentRecruitBan30d: 'lock',
+  hostCancelledD7: 'siren',
+};
+// 알림 종류별 의미색 — 아이콘 색 + 원형 배지(색+알파). 초대·공지=네이비, 참여·좋은소식=그린, 마감=골드, 취소·제재=버건디 등.
+const NOTI_COLOR = {
+  apply: '#1A3D52', cancel: '#C0703A', waitlistPromoted: '#5E8B60', confirmed: '#5E8B60', waitlist: '#8B6914', comment: '#3E6E8E', mannerEval: '#C08A1E',
+  invite: '#1A3D52', roundupCancelled: '#6B1E2A', scheduleNotice: '#1A3D52', friendRequest: '#1A3D52', roundupChanged: '#8B6914', roundupFull: '#C08A1E',
+  scheduleChanged: '#8B6914', scheduleCancelled: '#6B1E2A', scheduleMemo: '#1A3D52',
+  noshowReported: '#6B1E2A', noshowReportSubmitted: '#3E6E8E', noshowExplanationRequired: '#C08A1E',
+  noshowConfirmed: '#6B1E2A', noshowReporterConfirmed: '#5E8B60', noshowFalseReport: '#6B1E2A',
+  noshowFalseReportConfirmed: '#5E8B60', noshowInconclusive: '#8B8680', noshowCancelled: '#8B8680',
+  permanentBanAppealNotice: '#6B1E2A', permanentBanFinalized: '#6B1E2A',
+  recruitBanPermanentFinalized: '#6B1E2A',
+  restrictionLifted: '#5E8B60',
+  mannerScoreUp: '#5E8B60', mannerScoreDown: '#C0703A',
+  contentReportConfirmed: '#6B1E2A', contentRecruitBan30d: '#6B1E2A',
+  hostCancelledD7: '#6B1E2A',
 };
 // 주최자(내 모집글)에 오는 알림 / 그 외는 내가 참여·대기한 모집의 알림
 const HOST_TYPES = ['apply', 'cancel', 'waitlist'];
@@ -264,7 +281,9 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
                     return (
                       <View key={t.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20,
                         borderTopWidth: i === 0 ? 0.5 : 0, borderBottomWidth: 0.5, borderColor: C.hairline }}>
-                        <Text style={{ fontSize: fs(18), marginRight: 12 }}>{t.icon}</Text>
+                        <View style={{ width: 34, height: 34, borderRadius: 17, marginRight: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: t.tint }}>
+                          <Icon name={t.icon} size={fs(18)} color={t.color} strokeWidth={1.9} />
+                        </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: C.charcoal }}>{t.label}</Text>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{t.sub}</Text>
@@ -299,7 +318,10 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
                     style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 12, marginBottom: 8,
                       backgroundColor: n.read ? C.bgSecondary : '#F0E8D8',
                       borderWidth: 0.5, borderColor: n.read ? C.hairline : '#E2D2A8' }}>
-                    <Text style={{ fontSize: fs(18), marginTop: 1 }}>{NOTI_ICON[n.type] || '🔔'}</Text>
+                    <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: (NOTI_COLOR[n.type] || C.charcoal) + '20' }}>
+                      <Icon name={NOTI_ICON[n.type] || 'bell'} size={fs(18)} color={NOTI_COLOR[n.type] || C.charcoal} strokeWidth={1.9} />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(10), marginBottom: 2,
                         color: isHost ? C.burgundy : '#3C7D4F' }}>

@@ -573,7 +573,10 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               {onEdit ? (
                 <TouchableOpacity activeOpacity={0.85} onPress={onEdit}
                   style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center', backgroundColor: C.navy }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>📅 날짜·골프장 정하기</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Icon name="calendar" size={fs(15)} color="#fff" strokeWidth={1.9} />
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>날짜·골프장 정하기</Text>
+                  </View>
                 </TouchableOpacity>
               ) : (
                 <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
@@ -936,11 +939,16 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               ) : (
                 <>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 16 : 17), color: C.charcoal, lineHeight: fs(_and ? 21 : 23) }}>장소 · 날짜 미정</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 2 : 4, lineHeight: _and ? 17 : 18 }}>
-                    {post.openTime?.length === 1
-                      ? (post.openTime[0] === 'weekday' ? '📅 주중 선호 · 동반자와 함께 정해요' : '📅 주말 선호 · 동반자와 함께 정해요')
-                      : '동반자와 함께 정해요'}
-                  </Text>
+                  {post.openTime?.length === 1 ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: _and ? 2 : 4 }}>
+                      <Icon name="calendar" size={fs(12)} color={C.textSecondary} strokeWidth={1.8} />
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: _and ? 17 : 18 }}>
+                        {post.openTime[0] === 'weekday' ? '주중 선호 · 동반자와 함께 정해요' : '주말 선호 · 동반자와 함께 정해요'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: _and ? 2 : 4, lineHeight: _and ? 17 : 18 }}>동반자와 함께 정해요</Text>
+                  )}
                 </>
               )}
 

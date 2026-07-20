@@ -211,11 +211,16 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
       ) : (
         <>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(_and ? 15 : 17), color: C.charcoal, lineHeight: fs(_and ? 20 : 23) }}>장소 · 날짜 미정</Text>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(_and ? 12 : 13), color: C.charcoal, lineHeight: fs(_and ? 17 : 19), marginTop: _and ? 3 : 5 }}>
-            {post.openTime?.length === 1
-              ? (post.openTime[0] === 'weekday' ? '📅 주중 선호 · 동반자와 함께 정해요' : '📅 주말 선호 · 동반자와 함께 정해요')
-              : '동반자와 함께 정해요'}
-          </Text>
+          {post.openTime?.length === 1 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: _and ? 3 : 5 }}>
+              <Icon name="calendar" size={fs(13)} color={C.charcoal} strokeWidth={1.8} />
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(_and ? 12 : 13), color: C.charcoal, lineHeight: fs(_and ? 17 : 19) }}>
+                {post.openTime[0] === 'weekday' ? '주중 선호 · 동반자와 함께 정해요' : '주말 선호 · 동반자와 함께 정해요'}
+              </Text>
+            </View>
+          ) : (
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(_and ? 12 : 13), color: C.charcoal, lineHeight: fs(_and ? 17 : 19), marginTop: _and ? 3 : 5 }}>동반자와 함께 정해요</Text>
+          )}
         </>
       )}
 
@@ -2059,7 +2064,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}
               activeOpacity={0.7}
               onPress={() => setView(view === 'match' ? (hideStranger ? 'friend' : 'all') : 'match')}>
-              <Text style={{ fontSize: fs(14) }}>🎯</Text>
+              <Icon name="target" size={fs(15)} color={view !== 'match' ? C.butter : C.charcoal} strokeWidth={1.9} />
               <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13),
                 color: view !== 'match' ? C.butter : C.charcoal }}>
                 내 조건에 맞는 모집 {matchCount}건{view === 'match' ? ' · 보는 중' : ''}
@@ -2076,7 +2081,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: _and ? 5 : 7,
               backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
               paddingHorizontal: 14, paddingVertical: _and ? 7 : 9 }}>
-            <Text style={{ fontSize: fs(14) }}>🎯</Text>
+            <Icon name="target" size={fs(16)} color={C.burgundy} strokeWidth={2.3} />
             <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>
               맞춤 모집 알림 설정하기
             </Text>
