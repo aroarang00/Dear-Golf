@@ -41,6 +41,10 @@ import { createContentReport, hasReportedContent } from '../utils/contentReports
 import { RestaurantSaveModal } from './RestaurantSaveModal';
 import { CourseLogModal } from './CourseLogModal';
 import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
+import { RestaurantDetailSheet } from './RestaurantDetailSheet'; // 앱 내 식당 상세(카카오 place 웹뷰) — 함께 식사와 공용
+import { destinationBadge, regionLabel } from '../utils/mealDirection'; // 귀가 동선 방향 뱃지 — 함께 식사와 공용
+import { loadPrivateProfile } from '../utils/privateProfile';
+import { getUid } from '../utils/firebase';
 
 export function GuideScreen({ route, navigation }) {
   const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
@@ -49,6 +53,23 @@ export function GuideScreen({ route, navigation }) {
   // 코스 둘러보기 지역탭 선택 — CourseExploreTab에 두면 상세 열 때(if selected early return) 언마운트돼
   //   지역 리스트가 사라지므로 여기(상시 마운트)로 끌어올려 상세 닫고 뒤로 와도 유지되게 함.
   const [exploreRegion, setExploreRegion] = useState('전체');
+  const [detailPlace, setDetailPlace] = useState(null);   // 앱 내 식당 상세 시트 대상(코스 맛집 탭)
+  // 귀가 동선 방향 뱃지용 목적지 — 집(departure) 우선, 없으면 회사(work). 함께 식사와 같은 규칙·같은 유틸.
+  //   라운딩 끝나고 어느 쪽으로 가는지가 맛집 선택의 실질 기준이라, 코스 맛집에도 같은 신호를 준다(사용자 2026-07-22).
+  const [mealDest, setMealDest] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    getUid().then(uid => {
+      if (!uid) return null;
+      return loadPrivateProfile(uid);
+    }).then(p => {
+      if (!alive || !p) return;
+      const hasHome = p.departureCoord && Number.isFinite(p.departureCoord.x);
+      const co = hasHome ? p.departureCoord : (p.workCoord && Number.isFinite(p.workCoord.x) ? p.workCoord : null);
+      setMealDest(co ? { x: co.x, y: co.y, region: regionLabel(hasHome ? p.departure : p.work) } : null);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [openingCourse, setOpeningCourse] = useState(false); // 홈 '구장 ›' → 상세 여는 동안(코스 새로고침·카카오 검색) 스피너 노출 — 목록이 잠깐 보이는 인상 제거
   const [innerTab, setInnerTab] = useState('course');
   const [showCourseLog, setShowCourseLog] = useState(false); // 내 코스기록 페이지
@@ -1173,12 +1194,37 @@ export function GuideScreen({ route, navigation }) {
             const openNaverPlace = (q) => Linking.openURL(
               `https://map.naver.com/v5/search/${encodeURIComponent(q)}`).catch(() => {}); // 핸들러 부재 시 unhandled rejection 방지
 
-            // 식당 객체 전용 — 식당명만으로 검색 시 동명 다른 지역 식당으로 빠지는 문제 방지.
-            // loc(주소)에서 시/군/구 토큰을 함께 쿼리에 실어 정확도 ↑
+            // 식당 탭 — 앱 안에서 상세 시트로 연다(함께 식사와 같은 컴포넌트·같은 경험, 사용자 2026-07-22).
+            //   전엔 네이버 지도로 앱을 나갔는데, 같은 성격의 정보인데 한쪽만 이탈하는 게 어색했다.
+            //   카카오 로컬 결과라 kakaoId가 있어 place 웹뷰가 그대로 열린다. 목록 전체를 더 보는
+            //   '네이버 지도에서 맛집 더보기'는 검색 결과라 시트에 안 맞아 그대로 둔다(탈출구 역할).
             const openRestaurantPlace = (r) => {
+              if (!r?.name) return;
+              setDetailPlace(r);
+            };
+            // 시트 안 '길찾기' — 기존 동작 유지(네이버 지도 검색). loc의 시/군/구 토큰을 함께 실어
+            //   동명이인 식당으로 빠지는 것 방지.
+            const navRestaurant = (r) => {
               if (!r?.name) return;
               const city = cityTokenOf(r.loc);
               openNaverPlace(city ? `${r.name} ${city}` : r.name);
+            };
+
+            // 귀가 동선 방향 뱃지 — 길목(그린)/우회(앰버)/반대(뮤트). 함께 식사와 같은 유틸·같은 색이라
+            //   두 화면의 신호가 일치한다. 목적지 미등록·좌표 없으면 null(조용히 생략).
+            //   ★맛집 목록이 세 곳(저장한 맛집·추천 맛집·가까운 맛집/카페)이라 헬퍼로 뽑아 전부 같게 붙인다.
+            const dirBadge = (r) => {
+              const badge = destinationBadge(courseCoord, mealDest, mealDest?.region, r);
+              if (!badge) return null;
+              const bt = badge.tone === 'good' ? { bg: 'rgba(94,139,96,0.15)', fg: '#3C7D4F' }
+                : badge.tone === 'mild' ? { bg: 'rgba(139,105,20,0.13)', fg: '#8B6914' }
+                  : { bg: 'rgba(150,90,70,0.12)', fg: '#9A6A55' };
+              return (
+                <View style={{ alignSelf: 'flex-start', marginTop: 5, backgroundColor: bt.bg,
+                  borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: bt.fg }}>{badge.text}</Text>
+                </View>
+              );
             };
 
             const fmtDist = (m) => (!m ? '' : m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)}km`);
@@ -1353,6 +1399,8 @@ export function GuideScreen({ route, navigation }) {
                           </View>
                           <Text style={styles.name}>{r.name}</Text>
                           <Text style={styles.meta}>{r.type || '음식점'}{r.loc ? ` · ${r.loc}` : ''}</Text>
+                          {/* 저장한 맛집은 좌표가 없는 옛 기록도 있어 뱃지가 안 뜰 수 있다(그때는 조용히 생략) */}
+                          {dirBadge(r)}
                           {r.memo ? (
                             // 메모 있을 때 — 메모 자체를 탭하면 수정, 수정 힌트는 옅게(✏️ 이모지 → 자체 pen 아이콘, 2026-07-05)
                             <TouchableOpacity onPress={() => openSaveModal({ ...r })} activeOpacity={0.7}
@@ -1414,6 +1462,7 @@ export function GuideScreen({ route, navigation }) {
                           <Text style={styles.name}>{r.name}</Text>
                           <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
                           {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
+                          {dirBadge(r)}
                           <View style={{ flexDirection: 'row', gap: 6, marginTop: 7 }}>
                             {/* 추천하기 ♥ */}
                             <TouchableOpacity onPress={() => handleToggleRec(r.kakaoId)} activeOpacity={0.7}
@@ -1486,6 +1535,7 @@ export function GuideScreen({ route, navigation }) {
                           <Text style={styles.name}>{r.name}</Text>
                           <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
                           {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
+                          {dirBadge(r)}
                         </View>
                         <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch' }}>
                           <TouchableOpacity onPress={() => !saved && openSaveModal(r)} activeOpacity={0.7} disabled={saved}
@@ -1524,6 +1574,14 @@ export function GuideScreen({ route, navigation }) {
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: '#fff' }}>네이버 지도에서 맛집 더보기 →</Text>
                 </TouchableOpacity>
               </View>
+              {/* 앱 내 식당 상세 — 함께 식사와 같은 컴포넌트(카카오 place 웹뷰). 이 탭 안에 두어야
+                  ScrollView 위에 정상적으로 뜬다. onDecide는 여기선 없음(식사 제안은 일정 화면 소관). */}
+              <RestaurantDetailSheet
+                visible={!!detailPlace}
+                place={detailPlace}
+                onClose={() => setDetailPlace(null)}
+                onNav={() => { const p = detailPlace; setDetailPlace(null); navRestaurant(p); }}
+              />
               </View>
             );
           })()}
