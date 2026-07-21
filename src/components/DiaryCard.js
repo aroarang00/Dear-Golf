@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
@@ -10,6 +10,7 @@ import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { toggleRoundLike } from '../utils/round';
 import { ownerVisibilityLabel } from '../utils/friendGroups';
+import { getPhotoRatio, feedFrameAspect, firstPhotoUri } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
 
 // 라운딩 기록 카드.
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
@@ -17,10 +18,20 @@ import { ownerVisibilityLabel } from '../utils/friendGroups';
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
 // React.memo — 부모(DiaryScreen) 리렌더(스크롤 feedLimit·검색·선택)마다 props 안 바뀐 카드는 건너뜀.
 //   onPress는 부모에서 useCallback으로 안정화, friendGroups·friendNameByUid는 state(로드 후 안정), avgScore는 숫자.
-function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups }) {
+function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups, collapseSignal = 0 }) {
   const [expanded, setExpanded] = useState(false);
   const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
+  // 사진 틀 — 4:3 하나로 고정하던 것을 사진에 맞춰 3단계(가로 4:3 / 정사각 1:1 / 세로 4:5)로 고른다.
+  //   3:4 세로 사진이 56%만 보이던 문제(사람이 아래 있으면 하늘만 남음) → 94%까지 살아난다.
+  //   첫 장 기준(인스타와 같은 규칙). 잰 적 있는 사진이면 캐시에서 바로 나와 높이가 처음부터 정확하고,
+  //   처음 보는 사진만 로드 후 한 번 확정된다(그 뒤로는 캐시).
+  const [photoAr, setPhotoAr] = useState(() => getPhotoRatio(firstPhotoUri(item.photos)));
+  const frameAspect = feedFrameAspect(photoAr);
+  // 펼침 원위치 — 화면을 떠났다 돌아오면 접힌 상태로(사용자 2026-07-22). 내 기록 탭·친구 프로필 모두
+  //   화면이 언마운트되지 않고 유지돼서, 안 하면 예전에 펼쳐둔 카드가 그대로 펼쳐진 채 남는다.
+  //   부모가 떠날 때 collapseSignal을 올리면 카드들이 일제히 접힌다.
+  useEffect(() => { setExpanded(false); }, [collapseSignal]);
 
   // 친구 피드 카드 — 길게 누르면 신고 액션시트 ([[content-report-policy]]·[[diary-profanity-policy]]).
   //   onReport 미연결이면 그대로 통과. 일상·라운드 4갈래 모두 같은 래퍼로 감싼다(탭은 내부 사진/좋아요가 처리).
@@ -138,45 +149,9 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     </TouchableOpacity>
   ) : null;
 
-  // ── MY 상세 본문 (태그 포함, 풍부) ──
-  const body = (
-    <View style={dS.cardBody}>
-      {/* 날짜 줄 — 무사진 카드는 공개범위 라벨을 우측 끝(우상단)에 둬 사진 카드 코너칩과 위치 통일 ([[friend_groups]]) */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={dS.cardDate}>{dLabel}</Text>
-        {!hasPhoto ? ownerLabelTopRight : null}
-      </View>
-      {/* 구장명 줄 — 좋아요는 카드 하단 우측으로 이동(친구 피드와 위치 통일, 2026-06-13).
-          멘트(F.sys)와 굵기가 같아 구분이 약해 Medium으로 한 단계 진하게(피드 한정, 2026-06-16) */}
-      <Text style={[dS.cardCourse, { fontFamily: F.sysM }, isSpecial && { color: '#8B6914' }]} numberOfLines={1}>{item.course}</Text>
-      {scoreLine}
-      {memoBlock}
-      {/* 하단 줄 — 좌: 태그(스크롤) / 우: 좋아요(친구 피드와 같은 라인·우측). 사진 카드 좋아요는 토글줄서 따로 표시(!hasPhoto) */}
-      {((item.tags && item.tags.length > 0) || (!hasPhoto && mineLikeRow)) ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-              {(item.tags || []).slice(0, 4).map((tag, i) => {
-                const c = getTagColor(tag);
-                return (
-                  <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: c.text }}>{tag}</Text>
-                  </View>
-                );
-              })}
-              {(item.tags || []).length > 4 && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, alignSelf: 'center', marginLeft: 4 }}>+{item.tags.length - 4}</Text>
-              )}
-            </View>
-          </ScrollView>
-          {!hasPhoto && mineLikeRow ? <View style={{ marginLeft: 8 }}>{mineLikeRow}</View> : null}
-        </View>
-      ) : null}
-    </View>
-  );
-
-  // 친구 좋아요 — 박스(배경·테두리) 없이 엄지 이모지 + 숫자만. 누른 상태는 숫자 색(버건디)으로 표시.
-  // 패딩은 그대로 유지 — 내용물 위치·탭 영역을 기존 박스와 동일하게(우측 끝 앵커라 패딩 제거 시 숫자가 밀림).
+  // 친구 좋아요 — 박스(배경·테두리) 없이 하트 + 숫자만. 누른 상태는 숫자 색(버건디)으로 표시.
+  //   패딩은 그대로 유지 — 내용물 위치·탭 영역을 기존 박스와 동일하게(우측 끝 앵커라 패딩 제거 시 숫자가 밀림).
+  //   ★body보다 먼저 선언해야 한다 — body가 이 값을 참조하는데, const는 선언 전 참조가 불가(2026-07-22 통일).
   const likeButton = (
     <TouchableOpacity onPress={onToggleLike} activeOpacity={0.7}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 9 }}>
@@ -185,20 +160,52 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     </TouchableOpacity>
   );
 
-  // 사진 위 우측 타수 오버레이 (친구 카드) — 흰 글씨 + 그림자로 사진 위 가독성 확보
-  const photoScoreOverlay = hasScore ? (
-    <View style={{ alignItems: 'flex-end' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-        <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>{item.score}</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>타</Text>
+  // ── 카드 본문 (내 기록·친구 피드 공통) ──
+  const body = (
+    <View style={dS.cardBody}>
+      {/* 날짜 줄 — 무사진 카드 우측 끝: 내 기록은 공개범위 라벨(사진 카드 코너칩과 위치 통일, [[friend_groups]]),
+          친구 기록은 그 자리가 비니 좋아요를 올린다(사용자 2026-07-22). 덕분에 아래 태그 줄이 폭을 온전히 쓴다. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={dS.cardDate}>{dLabel}</Text>
+        {!hasPhoto ? (isFriend ? likeButton : ownerLabelTopRight) : null}
       </View>
-      <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>{hasPar ? `${diffLabel} · par ${item.par}` : ''}</Text>
+      {/* 구장명 줄 — 좋아요는 카드 하단 우측으로 이동(친구 피드와 위치 통일, 2026-06-13).
+          멘트(F.sys)와 굵기가 같아 구분이 약해 Medium으로 한 단계 진하게(피드 한정, 2026-06-16) */}
+      <Text style={[dS.cardCourse, { fontFamily: F.sysM }, isSpecial && { color: '#8B6914' }]} numberOfLines={1}>{item.course}</Text>
+      {/* 구장 별점 — 전엔 친구 카드에만 있었는데 카드 통일(2026-07-22)로 공통 본문으로 올림. 매긴 기록만 표시(rating>0) */}
+      {ratingStars}
+      {scoreLine}
+      {memoBlock}
+      {/* 하단 줄 — 좌: 태그(스크롤) / 우: 내 기록의 좋아요. 친구 카드 좋아요는 위 날짜 줄로 올라가 여기 없음.
+          사진 카드 좋아요는 '기록 보기' 토글줄에서 따로 표시(!hasPhoto 조건) */}
+      {((item.tags && item.tags.length > 0) || (!hasPhoto && !isFriend && mineLikeRow)) ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 8 }}>
+          {/* 태그 — ★개수를 자르지 않고 전부, 줄바꿈 허용(사용자 2026-07-22 결정). 카드가 한 줄 길어지는 대신
+              '어떤 건 +N이 보이고 어떤 건 태그가 잘리고' 제각각이던 문제가 사라진다(규칙 하나: 태그는 다 보인다).
+              가로 스크롤·개수 상한(slice)·고정 높이 클리핑은 전부 실패한 방식이라 되돌리지 말 것 —
+              폭에 따라 결과가 달라지거나(스크롤·상한) 글자가 통째로 잘렸다(고정 높이). */}
+          <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+            {(item.tags || []).map((tag, i) => {
+              const c = getTagColor(tag);
+              return (
+                <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: c.text }}>{tag}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {!hasPhoto && !isFriend && mineLikeRow ? <View style={{ marginLeft: 8 }}>{mineLikeRow}</View> : null}
+        </View>
+      ) : null}
     </View>
-  ) : null;
+  );
+
+  // ※ 친구 사진 카드의 '사진 위 타수 오버레이'는 카드 구성을 내 기록과 통일하며 제거(2026-07-22).
+  //    타수는 '기록 보기'를 펼치면 본문에서 보인다. 되살리려면 photoHero(onTap, scoreNode)의 둘째 인자로 넘기면 됨.
 
   const photoHero = (onTap, scoreNode) => (
-    <View style={dS.photoHero43}>
-      <MediaCarousel photos={item.photos} onTap={onTap} />
+    <View style={[dS.photoHero43, { aspectRatio: frameAspect }]}>
+      <MediaCarousel photos={item.photos} onTap={onTap} onFirstRatio={setPhotoAr} />
       {ownerChip}
       <View pointerEvents="none" style={[dS.photoBottomOverlay, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
         <View style={{ flex: 1 }}>
@@ -235,8 +242,8 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     if (hasPhoto) {
       // withDate=true → 사진 위 날짜 그라데이션(친구 카드). 내 카드는 날짜를 아래 더보기 줄로 옮김(false).
       const photoEl = (withDate) => (
-        <View style={dS.photoHero43}>
-          <MediaCarousel photos={item.photos}
+        <View style={[dS.photoHero43, { aspectRatio: frameAspect }]}>
+          <MediaCarousel photos={item.photos} onFirstRatio={setPhotoAr}
             onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo)) : (() => onPress(item))} />
           {ownerChip}
           {withDate && (
@@ -309,6 +316,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     const textBody = (
       <View style={dS.cardBody}>
         <ExpandableMemo text={item.memo} style={momentTextOnlyStyle} lines={5}
+          collapseSignal={collapseSignal}
           dateNode={<Text style={dS.cardDate}>{dLabel}</Text>}
           rightNode={!isFriend ? ownerLabelTopRight : null} />
         {!isFriend && mineLikeRow ? <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{mineLikeRow}</View> : null}
@@ -336,121 +344,37 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     );
   }
 
-  // ===== 친구 피드 변형 (정보만 선별, MY와 다른 컴팩트 포맷) =====
-  if (isFriend) {
-    // 사진 카드 — 접기 없음. 사진 하단 오버레이: 좌 구장·일시 / 우 타수. 사진 아래: 작은 메모 + 우측끝 좋아요
-    if (hasPhoto) {
-      return wrapFriend(
-        <View style={[dS.card, isSpecial && dS.cardSpecial]}>
-          {isSpecial && <View style={dS.cardSpecialLine} />}
-          {photoHero(i => onOpenPhoto && onOpenPhoto(item.photos, i), photoScoreOverlay)}
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 }}>
-            {item.memo ? (
-              <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
-              </TouchableOpacity>
-            ) : null}
-            <View style={{ flex: 1 }} />
-            {likeButton}
-          </View>
-          {item.memo && expanded && (
-            <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 }}>"{item.memo}"</Text>
-            </View>
-          )}
-        </View>
-      );
-    }
-    // 사진 없는 카드 — 좌(구장·별점·메모) / 우(타수·좋아요) 2열. 친구 카드는 버디·태그가 없어
-    // 우측이 휑하므로 타수를 우측으로 옮겨 균형 + 좌우 묶음으로 높이 축소.
-    // 왼쪽 바: 의미 없는 버터(통일), 특별 카드만 골드(cardSpecial). 타임라인 점은 FriendProfile에서.
-    return wrapFriend(
-      <View style={[dS.card, isSpecial ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: C.butter }]}>
-        {isSpecial && <View style={dS.cardSpecialLine} />}
-        {/* 특별 카드 — 홀수 빼고 라벨만 크게(특별함만). 명예의전당 카드는 공유용 별도 ([[friend-feed-design]]) */}
-        {isSpecial && (
-          <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>
-            <Text style={[dS.specialNoPhotoTxt, { fontSize: fs(28), letterSpacing: 3 }]}>{item.special}</Text>
-          </View>
-        )}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 0 }}>
-          {/* 좌 — 구장 · 별점 · 한줄메모 */}
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={dS.cardDate}>{dLabel}</Text>
-            <Text style={[dS.cardCourse, { fontFamily: F.sysM }, isSpecial && { color: '#8B6914' }, { marginBottom: 6 }]} numberOfLines={1}>{item.course}</Text>
-            {ratingStars}
-          </View>
-          {/* 우 — 타수(크게) · 싱글 배지(타수 밑) */}
-          <View style={{ alignItems: 'flex-end', minWidth: 60 }}>
-            {hasScore ? (
-              <>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-                  <Text style={[dS.cardScore, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>{item.score}</Text>
-                  <Text style={[dS.cardScoreUnit, isSingle && { color: '#C9A84C' }, hasBest && { color: C.burgundy }, isSpecial && { color: '#8B6914' }]}>타</Text>
-                </View>
-                <Text style={dS.cardPar}>{hasPar ? `${diffLabel} · par ${item.par}` : ''}</Text>
-              </>
-            ) : (
-              <Text style={dS.cardPar}>스코어 미기록</Text>
-            )}
-            {isSingle && (
-              <View style={{ backgroundColor: '#C9A84C', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 6 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: '#2A2622' }}>싱글</Text>
-              </View>
-            )}
-          </View>
-        </View>
-        {/* 하단 줄 — 좌: 구장상태 태그(넘치면 ···, 좋아요 침범 X) / 우: 좋아요(항상 우측 하단 고정) */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10 }}>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', overflow: 'hidden', marginRight: 10 }}>
-            {(item.tags || []).slice(0, 3).map((tag, i) => {
-              const c = getTagColor(tag);
-              return (
-                <View key={i} style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginRight: 4 }}>
-                  <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(10), color: c.text }}>{tag}</Text>
-                </View>
-              );
-            })}
-            {(item.tags || []).length > 3 && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>···</Text>
-            )}
-          </View>
-          {likeButton}
-        </View>
-        {item.memo && (
-          <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
-            <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '더보기 ∨'}</Text>
-            </TouchableOpacity>
-            {expanded && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, lineHeight: 18, marginTop: 6 }}>"{item.memo}"</Text>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  }
+  // ===== 카드 렌더 — 내 기록·친구 피드 공통 구성 (2026-07-22 통일, 사용자 결정) =====
+  //   전엔 친구 카드가 별도 포맷이었는데(사진 위 타수, 2열 압축 등) 두 피드가 따로 놀고 유지보수도 갈라졌다.
+  //   이제 구조는 하나 — 사진 카드는 [사진 → 기록 보기 토글(+좋아요 우측) → 펼치면 본문], 무사진은 본문 그대로.
+  //   친구 피드에서만 다른 것: ①길게 눌러 신고(wrapFriend) ②사진 탭은 상세 대신 뷰어 ③좋아요는 누를 수 있는 버튼
+  //   ④무사진 카드의 좋아요는 '날짜 줄 우측'(MY는 그 자리가 공개범위 라벨인데 친구 카드엔 없어 빈자리).
+  const likeNode = isFriend ? likeButton : mineLikeRow;
+  // 카드 전체 탭 — 내 기록은 상세로. 친구 기록은 상세 화면이 없어 탭을 막고 사진/좋아요만 반응하게 둔다.
+  const shell = (inner) => (isFriend ? wrapFriend(inner) : <View style={dS.cardShadow}>{inner}</View>);
 
-  // ===== MY 다이어리 (기본) =====
   if (hasPhoto) {
     return (
       <>
-      <View style={dS.cardShadow}>
-      <TouchableOpacity style={[dS.card, highlight && dS.cardSpecial]} activeOpacity={0.88} onPress={() => onPress(item)}>
-        {highlight && <View style={dS.cardSpecialLine} />}
-        {photoHero(() => onPress(item))}
-        {/* 기록보기 토글 줄 — 좋아요를 같은 줄 우측에 절대배치(토글 텍스트는 가운데 유지). 한 줄 아래가 아니라 '기록 보기' 줄에(사용자 2026-06-13) */}
-        <View style={{ justifyContent: 'center' }}>
-          <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
-            <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
-          </TouchableOpacity>
-          {mineLikeRow ? (
-            <View style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>{mineLikeRow}</View>
-          ) : null}
-        </View>
-        {expanded && body}
-      </TouchableOpacity>
-      </View>
+      {shell(
+        <TouchableOpacity style={[dS.card, highlight && dS.cardSpecial]} activeOpacity={isFriend ? 1 : 0.88}
+          disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
+          {highlight && <View style={dS.cardSpecialLine} />}
+          {photoHero(isFriend
+            ? (i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo))
+            : (() => onPress(item)))}
+          {/* 기록보기 토글 줄 — 좋아요를 같은 줄 우측에 절대배치(토글 텍스트는 가운데 유지). 한 줄 아래가 아니라 '기록 보기' 줄에(사용자 2026-06-13) */}
+          <View style={{ justifyContent: 'center' }}>
+            <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
+              <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
+            </TouchableOpacity>
+            {likeNode ? (
+              <View style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>{likeNode}</View>
+            ) : null}
+          </View>
+          {expanded && body}
+        </TouchableOpacity>
+      )}
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
       </>
     );
@@ -458,24 +382,25 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
 
   return (
     <>
-    <View style={dS.cardShadow}>
-    <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]} activeOpacity={0.88} onPress={() => onPress(item)}>
-      {highlight && <View style={dS.cardSpecialLine} />}
-      {isSpecial && (
-        <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>
-          {/* 제목(HOLE IN ONE 등)을 친구 카드와 동일하게 크게(fs28) — 홀번호(번홀)는 생략, 상세에서 확인(2026-06-15 사용자) */}
-          <Text style={[dS.specialNoPhotoTxt, { fontSize: fs(28), letterSpacing: 3 }]}>{item.special}</Text>
-        </View>
-      )}
-      {isFirstSingle && !isSpecial && (
-        <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor('퍼스트 싱글') }]}>
-          <Text style={dS.specialNoPhotoTxt}>FIRST SINGLE</Text>
-          <Text style={dS.specialNoPhotoSub}>명예의 전당 등재</Text>
-        </View>
-      )}
-      {body}
-    </TouchableOpacity>
-    </View>
+    {shell(
+      <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]}
+        activeOpacity={isFriend ? 1 : 0.88} disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
+        {highlight && <View style={dS.cardSpecialLine} />}
+        {isSpecial && (
+          <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>
+            {/* 제목(HOLE IN ONE 등)은 크게(fs28) — 홀번호(번홀)는 생략, 상세에서 확인(2026-06-15 사용자) */}
+            <Text style={[dS.specialNoPhotoTxt, { fontSize: fs(28), letterSpacing: 3 }]}>{item.special}</Text>
+          </View>
+        )}
+        {isFirstSingle && !isSpecial && (
+          <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor('퍼스트 싱글') }]}>
+            <Text style={dS.specialNoPhotoTxt}>FIRST SINGLE</Text>
+            <Text style={dS.specialNoPhotoSub}>명예의 전당 등재</Text>
+          </View>
+        )}
+        {body}
+      </TouchableOpacity>
+    )}
     {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}
     </>
   );
@@ -486,10 +411,11 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
 // 화면 밖(absolute·opacity 0) 숨은 텍스트로 실제 줄 수를 1회 측정해 토글 노출을 결정한다.
 // dateNode를 주면 날짜 + 더보기(옆)를 한 줄로 묶어 글과 붙임(무사진 라운딩 카드와 높이 통일).
 // 없으면 글 아래에 더보기 표시(기본).
-function ExpandableMemo({ text, style, lines = 5, dateNode, rightNode }) {
+function ExpandableMemo({ text, style, lines = 5, dateNode, rightNode, collapseSignal = 0 }) {
   const [expanded, setExpanded] = useState(false);
   const [overflow, setOverflow] = useState(false);
   const [measured, setMeasured] = useState(false);
+  useEffect(() => { setExpanded(false); }, [collapseSignal]);   // 화면 떠났다 오면 접기(카드와 동일)
   const toggle = overflow ? (
     <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
       onPress={(e) => { e.stopPropagation?.(); setExpanded(v => !v); }}>

@@ -151,9 +151,17 @@ export function DiaryScreen({ route, navigation }) {
   }, [navigation, reloadDiaries, refreshFriendData]);
 
   // 화면을 떠나면(다른 탭 이동) 스코어 배너 펼침 상태 초기화 — key를 바꿔 리마운트(항상 접힘으로 복귀).
+  //   카드('기록 보기'로 펼친 것)도 같이 접는다 — 이 화면은 탭 전환에 언마운트되지 않아 예전에 펼친 카드가
+  //   그대로 남아 있었다(사용자 2026-07-22). collapseSignal이 바뀌면 DiaryCard들이 일제히 접힌다.
+  const [collapseSignal, setCollapseSignal] = useState(0);
+  const [rowOpenId, setRowOpenId] = useState(null);   // 요약보기에서 그 자리에 펼친 행(한 번에 하나)
   useEffect(() => {
     if (!navigation?.addListener) return;
-    const unsub = navigation.addListener('blur', () => setScoreBannerKey(k => k + 1));
+    const unsub = navigation.addListener('blur', () => {
+      setScoreBannerKey(k => k + 1);
+      setCollapseSignal(n => n + 1);
+      setRowOpenId(null);          // 요약보기에서 펼쳐둔 행도 원위치
+    });
     return unsub;
   }, [navigation]);
   // 미기록 라운딩 — 지난 일정(오늘은 티오프+4h 경과분만) 중 라운딩 기록이 1:1로 배정되지 않은 것.
@@ -972,6 +980,7 @@ export function DiaryScreen({ route, navigation }) {
                       const ym = (item.date || '').slice(0, 7);          // '2026.07'
                       const newMonth = !!ym && ym !== lastMonth;
                       if (newMonth) lastMonth = ym;
+                      const open = rowOpenId === item.id;
                       return (
                         <React.Fragment key={item.id}>
                           {newMonth && (
@@ -979,7 +988,17 @@ export function DiaryScreen({ route, navigation }) {
                               {`${ym.slice(0, 4)}. ${parseInt(ym.slice(5), 10)}`}
                             </Text>
                           )}
-                          <DiaryRowCompact item={item} onPress={openDiary} />
+                          {/* 행 탭 → 그 자리에서 카드로 펼침(한 번에 하나만). 요약으로 훑다가 궁금한 것만 열어보는 동선.
+                              펼친 카드를 다시 탭하면 기존처럼 상세로 들어간다(사용자 2026-07-22). */}
+                          <DiaryRowCompact item={item} expanded={open}
+                            onPress={(it) => setRowOpenId(prev => (prev === it.id ? null : it.id))} />
+                          {open && (
+                            <View style={{ marginTop: 2, marginBottom: 12 }}>
+                              <DiaryCard item={item} avgScore={avgScore} isFirstSingle={!!firstSingleId && item.id === firstSingleId}
+                                friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary}
+                                collapseSignal={collapseSignal} />
+                            </View>
+                          )}
                         </React.Fragment>
                       );
                     });
@@ -990,7 +1009,7 @@ export function DiaryScreen({ route, navigation }) {
                       {idx < arr.length - 1 && <View style={dS.tlLine} />}
                       {/* 일상 점은 paleSky(카드 오른쪽 띠·친구 피드 점과 통일). 베스트/버디/특별은 라운딩 전용이라 충돌 없음 ([[moment-feed-extension]]) */}
                       <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial, item.kind === 'moment' && { backgroundColor: C.paleSky, borderWidth: 0 }]} />
-                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary} />
+                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary} collapseSignal={collapseSignal} />
                     </View>
                     );
                   })}

@@ -12,6 +12,8 @@ import { MannerGradeModal } from './common/MannerBadge';
 import { HandicapInfoModal } from './common/HandicapInfoModal';
 import { topMilestone, milestoneBadge } from './MilestoneCard';
 import { DiaryCard } from './DiaryCard';
+import { DiaryRowCompact } from './DiaryRowCompact';      // 요약보기 — 내 기록과 같은 한 줄 목록
+import { STORAGE_KEYS, storage } from '../utils/storage';
 import { Icon } from './common/Icon'; // 메시지 = 날아가는 편지 아이콘(홈 DM과 통일)
 import { LoadingState } from './common/LoadingState';
 import { PhotoViewer } from './common/PhotoViewer';
@@ -34,6 +36,12 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [myUid, setMyUid] = useState(null);                // 좋아요 내 상태 판정용
   const [viewer, setViewer] = useState(null);              // { photos, index } — 사진/영상 전체화면
   const [reportItem, setReportItem] = useState(null);      // 피드 게시물 신고 — 사유 선택 시트 ([[content-report-policy]])
+  // 요약보기 — 내 기록(DiaryScreen)과 같은 선호값을 공유한다. '요약으로 보는 사람'은 어느 피드든 요약으로 보는 게 자연스러움.
+  const [compact, setCompact] = useState(false);
+  const [collapseSignal, setCollapseSignal] = useState(0);   // 프로필을 닫을 때 올려 카드 펼침을 원위치
+  const [rowOpenId, setRowOpenId] = useState(null);          // 요약보기에서 그 자리에 펼친 행(한 번에 하나)
+  useEffect(() => { storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)); }, []);
+  const toggleCompact = (next) => { setCompact(next); storage.save(STORAGE_KEYS.diaryCompactView, next); };
   const [reportMsg, setReportMsg] = useState(null);        // 신고 결과 안내 텍스트
   const [metaOpen, setMetaOpen] = useState(false);         // 그룹·별명 설정 시트 ([[friend_groups]])
   const [editName, setEditName] = useState('');            // 편집 중 별명
@@ -54,6 +62,8 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
     if (!visible) {
       setDmOpen(false); setOptionsOpen(false); setViewer(null);
       setReportItem(null); setReportMsg(null); setMetaOpen(false); setGroupManageOpen(false);
+      setCollapseSignal(n => n + 1);   // 펼쳐둔 카드도 접기 — 같은 친구를 다시 열면 접힌 상태로(사용자 2026-07-22)
+      setRowOpenId(null);              // 요약보기에서 펼쳐둔 행도 원위치
     }
   }, [visible]);
   if (!friend) return null;
@@ -218,12 +228,48 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     ) : null}
                   </View>
                 </View>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
-                  라운딩 · 일상 피드
-                </Text>
+                {/* 피드 제목 줄 + 보기 방식(미리보기·요약보기) — 내 기록 화면과 같은 아이콘·같은 선호값 */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, flex: 1 }}>
+                    라운딩 · 일상 피드
+                  </Text>
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleCompact(false)} accessibilityLabel="사진 카드로 보기"
+                    hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ paddingRight: 18 }}>
+                    <Icon name="grid" size={fs(17)} color={!compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
+                  </TouchableOpacity>
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleCompact(true)} accessibilityLabel="요약 목록으로 보기"
+                    hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
+                    <Icon name="list" size={fs(17)} color={compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
+                  </TouchableOpacity>
+                </View>
               </>
             )}
-            renderItem={({ item, index: idx }) => (
+            renderItem={({ item, index: idx }) => (compact ? (
+              // 요약보기 — 사진 없는 한 줄 + 월이 바뀔 때 월 헤더(내 기록과 동일 구성).
+              //   FlatList라 앞 항목과 비교해 월 전환을 판단한다. 친구 기록은 상세 화면이 없어 사진이 있으면 뷰어로 연다.
+              <View style={{ paddingHorizontal: 16 }}>
+                {(() => {
+                  const ym = (item.date || '').slice(0, 7);            // '2026.07'
+                  const prevYm = idx > 0 ? ((friend.feed || [])[idx - 1]?.date || '').slice(0, 7) : null;
+                  if (!ym || ym === prevYm) return null;
+                  return (
+                    <Text style={[dS.compactMonth, idx === 0 && { marginTop: 2 }]}>
+                      {`${ym.slice(0, 4)}. ${parseInt(ym.slice(5), 10)}`}
+                    </Text>
+                  );
+                })()}
+                {/* 행 탭 → 그 자리에서 카드로 펼침(한 번에 하나만). 내 기록 요약보기와 같은 동선(사용자 2026-07-22). */}
+                <DiaryRowCompact item={item} expanded={rowOpenId === item.id}
+                  onPress={(it) => setRowOpenId(prev => (prev === it.id ? null : it.id))} />
+                {rowOpenId === item.id && (
+                  <View style={{ marginTop: 2, marginBottom: 12 }}>
+                    <DiaryCard item={item} variant="friend" myUid={myUid} collapseSignal={collapseSignal}
+                      onReport={setReportItem}
+                      onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
+                  </View>
+                )}
+              </View>
+            ) : (
               <View style={{ paddingHorizontal: 16 }}>
                 {/* MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터, 특별 카드만 골드, 일상은 paleSky(카드 오른쪽 띠와 통일) ([[friend-feed-design]]·[[moment-feed-extension]]) */}
                 <View style={dS.tlNode}>
@@ -231,11 +277,12 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                   <View style={[dS.tlDot, item.special ? dS.tlDotSpecial : { backgroundColor: item.kind === 'moment' ? C.paleSky : C.butter, borderWidth: 0 }]} />
                   <DiaryCard
                     item={item} variant="friend" myUid={myUid}
+                    collapseSignal={collapseSignal}
                     onReport={setReportItem}
                     onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
                 </View>
               </View>
-            )}
+            ))}
             ListEmptyComponent={(
               <View style={{ paddingHorizontal: 16 }}>
                 {feedLoading ? (
