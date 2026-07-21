@@ -1335,7 +1335,10 @@ export function HomeScreen({ navigation, route }) {
         <>
         <View style={{ flex: 1 }} />
         <View style={[homeS.bottomArea, { paddingBottom: insets.bottom + 62 }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SIDE_PAD, marginBottom: 8 }}>
+          {/* 날짜 알약 + 「+ 추가」를 왼쪽에 나란히 — 전엔 space-between이라 「+ 추가」가 오른쪽 끝에 붙었는데,
+              그 자리가 우측 버튼 레일 3번(알림 종) 아래라 알림이 뜨면 '알림' 라벨과 정면으로 겹쳤다(2026-07-22 캡처 확인).
+              레일은 상시 요소이므로 오른쪽 끝을 비워두는 게 안전하다. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: SIDE_PAD, marginBottom: 8 }}>
             <TouchableOpacity
               onPress={() => setShowScheduleScreen(true)}
               activeOpacity={0.7}
