@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Keyboard, Switch } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Keyboard } from 'react-native';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,9 +15,8 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
-  const [parRel, setParRel] = useState(false); // 파대비(오버파) 표기 카드 → 실제 타수 변환 토글
 
-  // par 행을 충분히 읽었을 때만 파대비 변환 제공(9홀 이상 par 확보). 스마트스코어류=홀별 파대비 표기.
+  // par 행을 충분히 읽었을 때만 파대비 변환 판정(9홀 이상 par 확보). 스마트스코어류=홀별 파대비 표기.
   const parReady = Array.isArray(holePars) && holePars.filter(p => p >= 3 && p <= 5).length >= 9;
 
   // 행 로드 — 파대비 카드면 인쇄 총계와 대조해 자동 변환(추측 아님·산술 교차검증).
@@ -29,7 +28,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
     const holesSum = raw.reduce((s, n) => s + (n || 0), 0);
     const printed = row.total;
     let asRel = false;
-    // 인쇄총계가 홀별합과 '다를' 때만 신뢰 — 같으면 CF가 합으로 폴백한 값일 수 있어 판별 불가(→ 수동 토글).
+    // 인쇄총계가 홀별합과 '다를' 때만 신뢰 — 같으면 CF가 합으로 폴백한 값일 수 있어 판별 불가(→ 변환 안 함).
     if (parReady && Number.isFinite(printed) && printed > 0 && printed !== holesSum) {
       const parSum = raw.reduce((s, n, idx) => {
         const p = holePars?.[idx];
@@ -45,33 +44,16 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
       return (p >= 3 && p <= 5) ? n + p : n;
     });
     setHoles(conv.map(n => (n == null ? '' : String(n))));
-    setParRel(asRel);
   };
 
-  // 열릴 때마다 초기화 — 1행이면 바로 표, 여러 행이면 행 선택부터. 파대비 토글도 리셋.
+  // 열릴 때마다 초기화 — 1행이면 바로 표, 여러 행이면 행 선택부터.
   useEffect(() => {
     if (!visible) return;
-    setParRel(false);
     if (multi) { setRowIdx(null); setHoles([]); }
     else { setRowIdx(0); loadRow(0); }
   }, [visible, rows]);
 
-  const pickRow = (i) => { setParRel(false); setRowIdx(i); loadRow(i); };
-
-  // 파대비 토글 — 켜면 각 홀의 파 대비 값에 그 홀 par를 더해 실제 타수로 즉시 변환(끄면 역변환).
-  //   예) 파4 홀 '+2'(2) → 6, '0'(파) → 4. par 못 읽은 홀·빈칸은 그대로 둔다.
-  const toggleParRel = () => {
-    const on = !parRel;
-    Keyboard.dismiss();
-    setHoles(prev => prev.map((s, i) => {
-      const par = holePars?.[i];
-      if (s === '' || !(par >= 3 && par <= 5)) return s;
-      const n = parseInt(s, 10);
-      if (!Number.isFinite(n)) return s;
-      return String(on ? n + par : Math.max(0, n - par));
-    }));
-    setParRel(on);
-  };
+  const pickRow = (i) => { setRowIdx(i); loadRow(i); };
 
   const setHole = (i, v) => {
     const clean = v.replace(/[^0-9]/g, '').slice(0, 2);
@@ -193,20 +175,6 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
               ) : (
                 // ── 18홀 표 미리보기·수정 ──
                 <View>
-                  {/* 파대비 표기 카드 변환 토글 — par를 읽은 카드에서만. 스마트스코어류=홀칸이 파 대비(0·+1·+2). */}
-                  {parReady && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, padding: 10,
-                      borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
-                      <View style={{ flex: 1, paddingRight: 8 }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>파대비(오버파) 표기 카드예요</Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray, marginTop: 2, lineHeight: 15 }}>
-                          홀칸이 0·+1·+2처럼 파 기준이면 켜세요 — 실제 타수로 바꿔줘요 (파4 +2 → 6)
-                        </Text>
-                      </View>
-                      <Switch value={parRel} onValueChange={toggleParRel}
-                        trackColor={{ true: C.burgundy, false: C.hairline }} thumbColor={C.bgPrimary} />
-                    </View>
-                  )}
                   {renderNine(0, '전반 (OUT)')}
                   {renderNine(9, '후반 (IN)')}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4,
