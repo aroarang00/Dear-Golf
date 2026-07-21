@@ -659,3 +659,4 @@ exports.recognizeScorecard = ocr.recognizeScorecard;
 const gemini = require('./gemini');
 exports.extractReservation = gemini.extractReservation;
 exports.extractScorecard = gemini.extractScorecard;   // 스코어카드/태블릿 사진 → 홀별 par·score(Gemini 비전)
+exports.extractExpense = gemini.extractExpense;        // 카드문자/영수증/한줄 → 골프 지출(금액·분류·날짜·메모) 자동입력

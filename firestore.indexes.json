@@ -17,6 +17,14 @@
       ]
     },
     {
+      "collectionGroup": "golfExpenses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerUid", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "rounds",
       "queryScope": "COLLECTION",
       "fields": [

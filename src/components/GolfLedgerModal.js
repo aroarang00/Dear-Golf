@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
+import { ExpenseAddSheet } from './ExpenseAddSheet';
+import { loadMyExpenses, createExpense, deleteExpense, expenseCatLabel } from '../utils/golfExpense';
 
 // 팔레트: 챠콜 / 골드 / 웜크림 — 셰어 카드(폴라로이드·매거진) 결과 통일(2026-06-15 사용자 "더 예쁘게")
 const GOLD = '#C9A84C';        // 골드 — 강조 룰·라벨
@@ -35,18 +37,37 @@ const monthLabel = (m) => {
 
 export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
   const insets = useSafeAreaInsets();
-  // 비용 또는 내기가 기록된 라운딩만 (최신순). 크게 딴 날(지출 0·내기만)도 정산에 잡히도록 bet도 포함.
-  const costRounds = (diaries || [])
-    .filter(d => d && d.cost && (spendOf(d) > 0 || d.cost.bet))
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const [expenses, setExpenses] = useState([]);   // 직접 입력 지출(golfExpenses) — 라운딩과 별개
+  const [addOpen, setAddOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [expanded, setExpanded] = useState(null); // 월 접기/펼치기
 
-  // 월별 그룹
+  // 지출 로드 — 모달 열릴 때. 실패해도 라운딩은 그대로 보여줌(가벼운 degrade, round.js와 달리 여긴 조용히).
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    loadMyExpenses().then(list => { if (!cancelled) setExpenses(list); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [visible]);
+
+  // 비용/내기가 있는 라운딩 — 크게 딴 날(지출 0·내기만)도 포함.
+  const costRounds = (diaries || [])
+    .filter(d => d && d.cost && (spendOf(d) > 0 || d.cost.bet));
+
+  // 라운딩 + 직접지출을 공통 항목으로 합침 — spend는 '지출액'(라운딩=순지출, 지출=금액).
+  const items = [
+    ...costRounds.map(d => ({ kind: 'round', id: d.id, date: d.date || '', spend: spendOf(d), data: d })),
+    ...expenses.map(e => ({ kind: 'expense', id: e.id, date: e.date || '', spend: e.amount || 0, data: e })),
+  ];
+
+  // 월별 그룹 (같은 달 안은 날짜 최신순)
   const byMonth = {};
-  costRounds.forEach(d => {
-    const m = (d.date || '').slice(0, 7); // "2026.05"
+  items.forEach(it => {
+    const m = it.date.slice(0, 7); // "2026.05"
     if (m.length < 7) return;
-    (byMonth[m] = byMonth[m] || []).push(d);
+    (byMonth[m] = byMonth[m] || []).push(it);
   });
+  Object.values(byMonth).forEach(arr => arr.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)));
   const months = Object.keys(byMonth).sort((a, b) => b.localeCompare(a));
 
   const now = new Date();
@@ -56,29 +77,59 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
   const lastMonthKey = `${lm.getFullYear()}.${pad(lm.getMonth() + 1)}`;
   const thisYear = String(now.getFullYear());
 
-  // ★합계는 '지출'(spendOf)만 — 내기는 총합산에서 제외(테스터 요청). 내기는 netBetOf로 별도 정산.
-  const sumOf = (list) => (list || []).reduce((s, d) => s + spendOf(d), 0);
-  const yearRounds = costRounds.filter(d => (d.date || '').startsWith(thisYear));
-  const yearTotal = sumOf(yearRounds);
-  // 지출 평균은 '지출이 있는' 라운딩 기준(내기만 있는 0원 라운딩은 평균 왜곡 방지로 제외)
-  const yearSpendRounds = yearRounds.filter(d => spendOf(d) > 0);
-  const yearAvg = yearSpendRounds.length ? Math.round(yearTotal / yearSpendRounds.length) : 0;
+  const monthSum = (list) => (list || []).reduce((s, it) => s + (it.spend || 0), 0);
+
+  // 올해 합계·카테고리 소계 (라운딩 지출 + 직접지출 전부)
+  const yearItems = items.filter(it => it.date.startsWith(thisYear));
+  const yearTotal = monthSum(yearItems);
+  const catTotals = { round: 0, membership: 0, equipment: 0, etc: 0 };
+  yearItems.forEach(it => {
+    if (it.kind === 'round') catTotals.round += it.spend;
+    else catTotals[it.data.category] = (catTotals[it.data.category] || 0) + it.spend;
+  });
+  const catRows = [
+    { key: 'round', label: '라운딩', amt: catTotals.round },
+    { key: 'membership', label: '모임회비', amt: catTotals.membership },
+    { key: 'equipment', label: '골프장비', amt: catTotals.equipment },
+    { key: 'etc', label: '기타', amt: catTotals.etc },
+  ];
+  const yearRoundCount = yearItems.filter(it => it.kind === 'round').length;
+  const yearExpenseCount = yearItems.filter(it => it.kind === 'expense').length;
 
   const cards = [
     { label: '이번달', list: byMonth[thisMonthKey] || [] },
     { label: '지난달', list: byMonth[lastMonthKey] || [] },
-    { label: '총 라운딩', list: costRounds },
+    { label: '총', list: items },
   ];
 
-  const [infoOpen, setInfoOpen] = useState(false); // 가계부 안내 모달
-  // 접기/펼치기 — 기본은 이번달만 펼침 (expanded === null이면 이번달만 열림)
-  const [expanded, setExpanded] = useState(null);
   const isOpen = (m) => (expanded ? !!expanded[m] : m === thisMonthKey);
   const toggle = (m) => {
     setExpanded(prev => {
       const base = prev || { [thisMonthKey]: true };
       return { ...base, [m]: !base[m] };
     });
+  };
+
+  // 지출 저장 — 낙관적 반영. 실패 시 알럿 + throw(시트 유지).
+  const handleAddSubmit = async (payload) => {
+    try {
+      const created = await createExpense(payload);
+      setExpenses(prev => [created, ...prev]);
+    } catch (e) {
+      Alert.alert('저장 실패', '잠시 후 다시 시도해주세요.');
+      throw e;
+    }
+  };
+
+  // 지출 삭제 — 길게 눌러 확인.
+  const handleDeleteExpense = (exp) => {
+    Alert.alert('지출 삭제', `${expenseCatLabel(exp.category)} ${won(exp.amount)}원을 삭제할까요?`, [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: async () => {
+        try { await deleteExpense(exp.id); setExpenses(prev => prev.filter(e => e.id !== exp.id)); }
+        catch { Alert.alert('삭제 실패', '잠시 후 다시 시도해주세요.'); }
+      } },
+    ]);
   };
 
   return (
@@ -88,7 +139,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
         <View style={{ height: '88%', backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }}>
           {/* 헤더 — 챠콜딥 배경 + 골드 라벨 / 크림 타이틀 */}
           <View style={{ backgroundColor: C.charcoalDeep, paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: GOLD, letterSpacing: 3, marginBottom: 4 }}>MY GOLF LEDGER</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: '#F5EFDE' }}>골프 가계부</Text>
@@ -99,40 +150,57 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                 </TouchableOpacity>
               </View>
             </View>
+            {/* + 지출 추가 (골드 알약) */}
+            <TouchableOpacity onPress={() => setAddOpen(true)} activeOpacity={0.85}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: GOLD,
+                paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, marginRight: 12 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoalDeep, marginTop: -1 }}>＋</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoalDeep }}>지출</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(20), color: 'rgba(245,239,222,0.85)' }}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          {costRounds.length === 0 ? (
+          {items.length === 0 ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
               <Text style={{ fontSize: fs(36), marginBottom: 14 }}>💰</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 21 }}>
-                비용 기록은 라운딩 기록 입력 시{'\n'}비용 항목에서 추가할 수 있어요
+                라운딩 비용은 기록 입력 시 '비용'에서,{'\n'}회비·용품 지출은 위 <Text style={{ fontFamily: F.sysB, color: GOLD_DEEP }}>＋지출</Text>로 추가해요
               </Text>
             </View>
           ) : (
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom }} showsVerticalScrollIndicator={false}>
               {/* 올해 요약 — 웜 크림 그라데이션 히어로 + 골드 룰 + 하단 브랜드 삼색 */}
               <LinearGradient colors={['#FFFDF8', '#F3EBD9']} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
-                style={{ borderRadius: 16, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)', overflow: 'hidden' }}>
-                {/* 크림 배경 위 옅은 골드+작은 regular라 흐렸음 → 키우고 진한 골드(GOLD_DEEP)+semibold로 또렷하게(2026-06-24). */}
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), letterSpacing: 1.5, color: GOLD_DEEP, marginBottom: 7 }}>{thisYear}년 총 지출</Text>
+                style={{ borderRadius: 16, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)', overflow: 'hidden' }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), letterSpacing: 1.5, color: GOLD_DEEP, marginBottom: 7 }}>{thisYear}년 총 골프 지출</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(28), color: C.charcoalDeep, letterSpacing: 0.3 }}>
                   {won(yearTotal)}<Text style={{ fontFamily: F.sysSb, fontSize: fs(17) }}>원</Text>
                 </Text>
                 <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginTop: 11, marginBottom: 9 }} />
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>
-                  {yearSpendRounds.length}라운딩 · 라운딩당 평균 {won(yearAvg)}원
+                  라운딩 {yearRoundCount}회{yearExpenseCount > 0 ? ` · 회비·용품 ${yearExpenseCount}건` : ''} · 라운딩·용품 전부 포함
                 </Text>
-                {/* ★올해 내기 정산(net 합계)은 제거 — 내기는 합계 미포함 + 라운딩별 개별 손익만 표시(사용자 2026-06-17) */}
                 {/* 브랜드 삼색 미니바 — 하단 시그니처 */}
                 <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', height: 3 }}>
                   {MS.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
                 </View>
               </LinearGradient>
 
-              {/* 이번달 / 지난달 / 총 라운딩 */}
+              {/* 카테고리별 소계 (올해) — 합산 아래 세부 breakdown */}
+              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 4, marginBottom: 20 }}>
+                {catRows.map((row, i) => (
+                  <View key={row.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11,
+                    borderBottomWidth: i < catRows.length - 1 ? 0.5 : 0, borderBottomColor: C.hairline }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: row.amt > 0 ? GOLD : C.hairline, marginRight: 9 }} />
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: row.amt > 0 ? C.charcoalDeep : C.warmGray, flex: 1 }}>{row.label}</Text>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: row.amt > 0 ? C.charcoalDeep : C.warmGray }}>{won(row.amt)}원</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* 이번달 / 지난달 / 총 */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
                 {cards.map(card => (
                   <View key={card.label} style={{
@@ -143,9 +211,9 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: GOLD_DEEP, letterSpacing: 0.5, marginBottom: 6 }}>{card.label}</Text>
                     <Text numberOfLines={1} adjustsFontSizeToFit
                       style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoalDeep }}>
-                      {won(sumOf(card.list))}원
+                      {won(monthSum(card.list))}원
                     </Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 4 }}>{card.list.length}라운딩</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 4 }}>{card.list.length}건</Text>
                   </View>
                 ))}
               </View>
@@ -153,7 +221,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
               {/* 월별 리스트 */}
               {months.map(m => {
                 const open = isOpen(m);
-                const rounds = byMonth[m];
+                const list = byMonth[m];
                 return (
                   <View key={m} style={{ marginBottom: 14 }}>
                     <TouchableOpacity onPress={() => toggle(m)} activeOpacity={0.7}
@@ -161,22 +229,41 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                         borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
                       <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: GOLD, marginRight: 10 }} />
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep, flex: 1 }}>{monthLabel(m)}</Text>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginRight: 8 }}>{won(sumOf(rounds))}원</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginRight: 8 }}>{won(monthSum(list))}원</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: GOLD_DEEP }}>{open ? '▴' : '▾'}</Text>
                     </TouchableOpacity>
-                    {open && rounds.map(d => (
-                      <View key={d.id} style={{ marginTop: 6, marginLeft: 13, backgroundColor: C.bgSecondary,
+
+                    {open && list.map(it => it.kind === 'expense' ? (
+                      // ── 직접 지출 카드 (길게 눌러 삭제) ──
+                      <TouchableOpacity key={it.id} activeOpacity={0.8} onLongPress={() => handleDeleteExpense(it.data)}
+                        style={{ marginTop: 6, marginLeft: 13, backgroundColor: '#FBF7EC',
+                          borderRadius: 10, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.4)', padding: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                              <View style={{ backgroundColor: GOLD, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 }}>
+                                <Text style={{ fontFamily: F.sysSb, fontSize: fs(9.5), color: C.charcoalDeep }}>{expenseCatLabel(it.data.category)}</Text>
+                              </View>
+                              {!!it.data.memo && <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoalDeep, flex: 1 }} numberOfLines={1}>{it.data.memo}</Text>}
+                            </View>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{it.date}</Text>
+                          </View>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginLeft: 8 }}>{won(it.data.amount)}원</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : (
+                      // ── 라운딩 비용 카드 (기존) ──
+                      <View key={it.id} style={{ marginTop: 6, marginLeft: 13, backgroundColor: C.bgSecondary,
                         borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
-                        {/* 코스 + 날짜(코스 아래로 올려 눈에 띄게) / 총액(우) — 사용자 2026-06-15 정돈 */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 9 }}>
                           <View style={{ flex: 1, marginRight: 8 }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep }} numberOfLines={1}>{d.course}</Text>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{d.date}{d.day ? ` (${d.day})` : ''}</Text>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep }} numberOfLines={1}>{it.data.course}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{it.date}{it.data.day ? ` (${it.data.day})` : ''}</Text>
                           </View>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginLeft: 8 }}>{won(spendOf(d))}원</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginLeft: 8 }}>{won(it.spend)}원</Text>
                         </View>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-                          {bucketsOf(d.cost).map(b => (
+                          {bucketsOf(it.data.cost).map(b => (
                             <View key={b.label} style={{ backgroundColor: '#FBF5E4', borderRadius: 7, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.35)', paddingHorizontal: 8, paddingVertical: 3.5 }}>
                               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.textSecondary }}>
                                 {b.label} <Text style={{ fontFamily: F.sysSb, color: C.charcoalDeep }}>{won(b.amt)}</Text>
@@ -184,15 +271,15 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                             </View>
                           ))}
                         </View>
-                        {/* 내기 정산 — 지출(버킷)과 분리해 손익 줄로. 땄으면 초록(+)·잃으면 버건디(−). 입력했을 때만 */}
-                        {!!d.cost.bet && (
+                        {/* 내기 정산 — 지출과 분리해 손익 줄로. 땄으면 초록(+)·잃으면 버건디(−). 입력했을 때만 */}
+                        {!!it.data.cost.bet && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: d.cost.bet < 0 ? WIN : LOSS }}>
-                              내기 {d.cost.bet < 0 ? '땄어요' : '잃었어요'}
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: it.data.cost.bet < 0 ? WIN : LOSS }}>
+                              내기 {it.data.cost.bet < 0 ? '땄어요' : '잃었어요'}
                             </Text>
                             <View style={{ flex: 1 }} />
-                            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: d.cost.bet < 0 ? WIN : LOSS }}>
-                              {d.cost.bet < 0 ? '+' : '−'}{won(Math.abs(d.cost.bet))}원
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: it.data.cost.bet < 0 ? WIN : LOSS }}>
+                              {it.data.cost.bet < 0 ? '+' : '−'}{won(Math.abs(it.data.cost.bet))}원
                             </Text>
                           </View>
                         )}
@@ -207,6 +294,9 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
         </View>
       </View>
 
+      {/* 지출 직접입력 시트 */}
+      <ExpenseAddSheet visible={addOpen} onClose={() => setAddOpen(false)} onSubmit={handleAddSubmit} />
+
       {/* 가계부 안내 — 기록 위치·합산·내기 별도 정산 설명. 가계부 톤(차콜딥+골드). 빌드로만 확인되니 줄정리 깔끔히. */}
       <Modal visible={infoOpen} transparent animationType="fade" onRequestClose={() => setInfoOpen(false)}>
         <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 30 }}
@@ -219,14 +309,15 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
             <View style={{ paddingHorizontal: 20, paddingVertical: 18 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoalDeep }}>어디서 기록하나요</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 19 }}>
-                라운딩 기록을 남길 때 '비용' 항목에서{'\n'}그린피·카트비·캐디피·기타를 입력해요.
+                라운딩 비용은 기록 입력 시 '비용' 항목에서,{'\n'}
+                회비·용품 지출은 위 <Text style={{ fontFamily: F.sysB, color: GOLD_DEEP }}>＋지출</Text> 버튼으로 바로 넣어요.
               </Text>
 
               <View style={{ height: 1, backgroundColor: C.hairline, marginVertical: 14 }} />
 
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoalDeep }}>어떻게 합산되나요</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 6, lineHeight: 19 }}>
-                입력한 지출은 자동으로 모여{'\n'}이번달·지난달·올해 총 지출과{'\n'}라운딩당 평균을 보여드려요.
+                라운딩·모임회비·골프장비·기타가 모두 모여{'\n'}올해 총 지출과 카테고리별 소계를 보여드려요.
               </Text>
 
               <View style={{ height: 1, backgroundColor: C.hairline, marginVertical: 14 }} />

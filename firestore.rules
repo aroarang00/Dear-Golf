@@ -130,6 +130,18 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
+    // ===== golfExpenses — 라운딩과 무관한 골프 지출(모임회비·용품 등). 본인만 read/write =====
+    // 클라이언트 쿼리: where('ownerUid','==', 내uid).orderBy('date','desc')
+    // 라운딩 비용은 rounds/{id}.cost에 있고, 이건 가계부 직접입력 전용 그릇(schedules와 동일한 본인전용 패턴).
+    match /golfExpenses/{expenseId} {
+      allow read: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid;   // ownerUid 변조 금지
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
     // ===== rounds — 라운딩 기록 (구 diaries + 친구 feed 통합) =====
     // 클라이언트 쿼리 규칙 (규칙은 필터가 아님):
     //   · 내 기록      : where('ownerUid','==', 내uid)

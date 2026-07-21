@@ -285,6 +285,79 @@ exports.extractScorecard = onCall(
   }
 );
 
+// ── 골프 지출 추출 ─────────────────────────────────────────────
+// 입력: { text?, imageBase64?, format? } — 카드결제 문자/영수증 캡처/사용자가 적은 한 줄. 최소 하나.
+// 출력: { ok, found, amount(int), category('membership'|'equipment'|'etc'), date(YYYY.MM.DD|''), memo }
+//   가계부 '직접 지출' 자동입력용(golfExpenses). 클라는 프리필만 받고 사용자가 확인·수정 후 저장.
+const EXPENSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    found: { type: 'BOOLEAN', description: '골프 관련 지출 정보를 찾았으면 true' },
+    amount: { type: 'INTEGER', description: '지출/결제 금액(원). 숫자만(콤마·원 제거). 여러 금액이면 결제 총액. 없으면 0' },
+    category: { type: 'STRING', enum: ['membership', 'equipment', 'etc'],
+      description: 'membership=모임·동호회 회비, equipment=클럽·골프백·거리측정기 등 장비, etc=의류·볼·장갑·소품·그 외. 애매하면 etc' },
+    date: { type: 'STRING', description: '지출 날짜 YYYY.MM.DD. 카드 승인일시가 있으면 그 날짜, "어제/지난주 토요일" 등 상대표현은 오늘 기준 계산. 없으면 빈 문자열' },
+    memo: { type: 'STRING', description: '품목이나 상호를 20자 이내로 짧게(예: "타이틀리스트 볼", "OO골프 월회비"). 없으면 빈 문자열' },
+  },
+  required: ['found', 'amount', 'category', 'date', 'memo'],
+};
+
+exports.extractExpense = onCall(
+  {
+    secrets: [GEMINI_API_KEY],
+    region: 'asia-northeast3',
+    memory: '256MiB',
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', '로그인이 필요해요.');
+
+    const { imageBase64, format = 'jpg', text } = request.data || {};
+    const hasImage = imageBase64 && typeof imageBase64 === 'string';
+    const hasText = text && typeof text === 'string' && text.trim().length > 0;
+    if (!hasImage && !hasText) throw new HttpsError('invalid-argument', '카드 문자나 지출 내용이 필요해요.');
+    if (hasImage && imageBase64.length > 8 * 1024 * 1024) throw new HttpsError('invalid-argument', '이미지가 너무 커요. 다시 시도해주세요.');
+    if (hasText && text.length > 4000) throw new HttpsError('invalid-argument', '내용이 너무 길어요.');
+
+    const uid = request.auth.uid;
+    if (!(await checkRateLimit(uid, 40))) {
+      logger.warn('[gemini] expense ratelimit exceeded', { uid });
+      throw new HttpsError('resource-exhausted', '자동입력을 너무 많이 요청했어요. 잠시 후 다시 시도해주세요.');
+    }
+
+    // 서버 오늘 날짜(KST) — "어제/지난주" 상대표현·연도 없는 날짜를 오늘 기준으로 해석하도록 프롬프트에 제공.
+    const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const todayStr = `${kstNow.getUTCFullYear()}-${String(kstNow.getUTCMonth() + 1).padStart(2, '0')}-${String(kstNow.getUTCDate()).padStart(2, '0')}`;
+
+    const prompt =
+      `너는 한국 골퍼의 '골프 관련 지출'을 카드결제 문자·영수증·또는 사용자가 적은 한 줄에서 뽑는 도우미야. 오늘은 ${todayStr}(KST)야.\n` +
+      `주어진 내용에서 아래를 추출해 JSON으로만 답해:\n` +
+      `- amount: 지출/결제 금액(원). 숫자만(콤마·'원' 제거). 여러 금액이 있으면 결제 총액. 없으면 0.\n` +
+      `- category: membership=모임·동호회 회비, equipment=클럽·골프백·거리측정기 등 '장비', etc=의류·볼·장갑·소품·그 외. 애매하면 etc.\n` +
+      `- date: 지출 날짜 YYYY.MM.DD. 카드 승인일시가 있으면 그 날짜. "어제/그제/지난주 토요일" 같은 상대표현은 오늘 기준으로 계산. 없으면 빈 문자열.\n` +
+      `- memo: 품목이나 상호를 20자 이내로 짧게(예: "타이틀리스트 볼", "OO골프 월회비", "나이키 골프의류"). 없으면 빈 문자열.\n` +
+      `골프와 무관한 지출로 보이면 found=false, amount=0.`;
+
+    const parts = [{ text: prompt }];
+    if (hasText) parts.push({ text: `\n[지출 내용]\n${text.trim()}` });
+    if (hasImage) parts.push({ inlineData: { mimeType: format === 'png' ? 'image/png' : 'image/jpeg', data: imageBase64 } });
+
+    logger.info('[gemini] expense req', { uid, img: !!hasImage, txt: !!hasText });
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: EXPENSE_SCHEMA });
+
+    const CATS = ['membership', 'equipment', 'etc'];
+    logger.info('[gemini] expense ok', { uid, found: !!out?.found });
+    return {
+      ok: true,
+      found: !!out?.found,
+      amount: Number.isFinite(out?.amount) && out.amount > 0 ? Math.round(out.amount) : 0,
+      category: CATS.includes(out?.category) ? out.category : 'etc',
+      date: (out?.date || '').trim(),
+      memo: (out?.memo || '').toString().trim().slice(0, 50),
+    };
+  }
+);
+
 // 공용 헬퍼 — 스코어카드 2장 병합 등 후속 Gemini 기능에서 재사용
 exports._callGemini = callGemini;
 exports._checkRateLimit = checkRateLimit;
