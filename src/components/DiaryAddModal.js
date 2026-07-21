@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -476,8 +476,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       // 혹시 남아있는 옛 privacy 값도 폴백으로 인정. group이면 그룹 칩(첫 audienceGroupId) 복원 ([[friend_groups]]).
       {
         const v = initial.visibility || initial.privacy || 'friends';
+        // 동반자 공개도 저장은 group이라, audienceKind로 구분해 '동반자만' 칩을 되살린다(안 그러면 친구 전체로 뒤바뀜).
         setPrivacy(v === 'group'
-          ? ((Array.isArray(initial.audienceGroupIds) && initial.audienceGroupIds.length) ? initial.audienceGroupIds : ['friends'])
+          ? (initial.audienceKind === 'companions' ? ['companions']
+            : ((Array.isArray(initial.audienceGroupIds) && initial.audienceGroupIds.length) ? initial.audienceGroupIds : ['friends']))
           : [v]);
       }
       setCompanions(
@@ -586,8 +588,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const won = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   // 공개범위 복수선택 — 친구전체·나만보기는 단독, 그룹은 복수 토글(여러 그룹 동시 공개) ([[friend_groups]])
+  // 이번 라운딩 동반자 중 '친구로 등록된' 사람 uid — '동반자만' 공개의 대상(사용자 2026-07-22 요청).
+  //   이름만 직접 입력한 동반자는 uid가 없어 앱에서 볼 방법이 없다 → 대상에서 빠지고 아래 안내로 알린다.
+  const companionUids = useMemo(
+    () => Array.from(new Set((companions || []).map(c => c && c.friendUid).filter(Boolean))),
+    [companions]);
+
   const togglePrivacy = (key) => {
-    if (key === 'friends' || key === 'private') { setPrivacy([key]); return; }
+    // 'companions'도 단독 선택 — 그룹과 섞으면 '동반자 + 그룹'이라 공개 범위가 모호해진다.
+    if (key === 'friends' || key === 'private' || key === 'companions') { setPrivacy([key]); return; }
     setPrivacy(prev => {
       const groupsOnly = prev.filter(k => k !== 'friends' && k !== 'private');
       const next = groupsOnly.includes(key) ? groupsOnly.filter(k => k !== key) : [...groupsOnly, key];
@@ -605,6 +614,19 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       vis = { visibility: 'private' };
     } else if (privacy.includes('friends')) {
       vis = { visibility: 'friends' };
+    } else if (privacy.includes('companions')) {
+      // 동반자만 — 그룹 공개 구조를 그대로 재사용한다(규칙은 audienceUids만 검사하므로 규칙 변경 불필요).
+      //   audienceGroupIds는 비우고 audienceKind로 표시 — ★recomputeMyGroupAudiences가 그룹 기준으로 재계산할 때
+      //   이 글을 건너뛰게 하는 표식이기도 하다(안 그러면 audienceUids가 빈 배열로 밀려 아무도 못 본다).
+      if (companionUids.length === 0) {
+        setOverlay({
+          title: '친구로 등록된 동반자가 없어요',
+          message: '동반자를 친구 목록에서 선택하면\n그 동반자에게만 공개할 수 있어요.',
+          buttons: [{ text: '확인' }],
+        });
+        return;
+      }
+      vis = { visibility: 'group', audienceUids: companionUids, audienceGroupIds: [], audienceKind: 'companions' };
     } else {
       const gids = privacy;
       const uids = resolveGroupAudience(friendData.friendMeta, gids);
@@ -1437,6 +1459,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               {/* 친구 전체 / 그룹들(가까운 친구·라운딩 멤버) / 나만 보기 — 단일 선택 ([[friend_groups]]) */}
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {[{ key: 'friends', label: '친구 전체' },
+                  // 이번 라운딩 동반자만 — 친구로 등록된 동반자가 있을 때만 노출(0명이면 아무도 못 보는 글이 됨)
+                  ...(companionUids.length ? [{ key: 'companions', label: '동반자만' }] : []),
                   ...friendData.friendGroups.map(g => ({ key: g.id, label: g.name })),
                   { key: 'private', label: '나만 보기' }].map(opt => {
                   const on = privacy.includes(opt.key);
@@ -1447,11 +1471,17 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   );
                 })}
               </View>
-              {!privacy.includes('friends') && !privacy.includes('private') && (
+              {privacy.includes('companions') ? (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
+                  이번 라운딩 동반자 중 {/* 친구가 아닌(이름만 입력한) 동반자는 앱에서 볼 수 없어 명시한다 */}
+                  <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>친구로 등록된 {companionUids.length}명</Text>에게만 보여요
+                  {companions.length > companionUids.length ? ` (이름만 적은 ${companions.length - companionUids.length}명은 볼 수 없어요)` : ''}
+                </Text>
+              ) : (!privacy.includes('friends') && !privacy.includes('private') && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
                   {privacy.map(id => (friendData.friendGroups.find(g => g.id === id) || {}).name).filter(Boolean).join(' · ')} 그룹 친구에게만 보여요 (여러 그룹 선택 가능)
                 </Text>
-              )}
+              ))}
               <View style={{ marginBottom: 16 }}>
                 <Text style={mS.bigLabel}>사진 · 영상 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · {addPhotos.length}/{MAX_PHOTOS} · 영상은 {MAX_VIDEOS}개까지)</Text></Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>

@@ -137,6 +137,9 @@ export async function recomputeMyGroupAudiences(friendMeta) {
     let n = 0;
     snap.docs.forEach(d => {
       const data = d.data();
+      // ★'동반자만' 공개 글은 건드리지 않는다 — 그룹이 아니라 그 라운딩의 동반자로 대상이 정해진 글이라,
+      //   그룹 기준으로 재계산하면 audienceUids가 빈 배열로 밀려 아무도 못 보게 된다(2026-07-22).
+      if (data.audienceKind === 'companions') return;
       const gids = Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [];
       const next = resolveGroupAudience(friendMeta, gids);   // 현재 멤버십 기준 재산출
       const cur = Array.isArray(data.audienceUids) ? data.audienceUids : [];

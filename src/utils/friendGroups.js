@@ -166,8 +166,13 @@ export function nextGroupColor(friendGroups) {
 // 내 글/모집의 공개범위 → owner-only 표시 라벨. 친구 전체는 null(라벨 없음=깔끔).
 //   group → { text: 그룹명, color: 그룹색 } / private → { text:'나만 보기', icon:'🔒' }. ([[friend_groups]])
 //   ★남에겐 절대 노출 금지 — 호출부에서 authorUid==나(또는 variant==='mine')일 때만 렌더할 것.
-export function ownerVisibilityLabel(friendGroups, visibility, audienceGroupIds) {
+// audienceKind='companions' — 그룹이 아니라 '그 라운딩 동반자'에게만 공개한 글([[round-companion-visibility]] 2026-07-22).
+//   저장 구조는 group과 같아서(audienceUids) 이 표식이 없으면 라벨이 안 그려진다.
+export function ownerVisibilityLabel(friendGroups, visibility, audienceGroupIds, audienceKind) {
   if (visibility === 'private') return { text: '나만 보기', icon: '🔒', color: null, groups: [] };
+  if (visibility === 'group' && audienceKind === 'companions') {
+    return { text: '동반자만', color: '#5E8B60', icon: null, groups: [] };
+  }
   if (visibility === 'group') {
     const ids = Array.isArray(audienceGroupIds) ? audienceGroupIds.filter(Boolean) : [];
     if (ids.length) {
