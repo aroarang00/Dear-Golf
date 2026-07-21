@@ -27,7 +27,7 @@ import { persistPhotos, persistPhoto, resolvePhotoUri } from '../utils/photoStor
 import { compressMedia } from '../utils/imageCompress';
 import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { scoreBreakdown } from '../utils/scorecardOcr';
-import { pickScorecardImages, extractScorecardAI } from '../utils/scorecardAI'; // OCR 대체 — Gemini 비전(태블릿 전후반 병합 + 전체 카드 최대 4장·단체 최대 16명)
+import { pickScorecardImages, extractScorecardAI } from '../utils/scorecardAI'; // OCR 대체 — Gemini 비전(태블릿 전후반 병합 + 카드, 최대 2장·단체는 나눠 담기)
 import { ScorecardReviewModal } from './ScorecardReviewModal';
 import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
 import { getUid } from '../utils/firebase';
@@ -831,7 +831,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       <View style={{ gap: 6 }}>
                         {[
                           { k: 'a', pre: '스마트스코어 태블릿은 ', em: '전반·후반 각 1장(2장)', emB: true, post: ' 올리면 자동 병합돼요' },
-                          { k: 'a2', pre: '전체 스코어카드(18홀·여러 명)는 ', em: '팀별 최대 4장', emB: true, post: '까지 한 번에 — 단체도 OK' },
+                          { k: 'a2', pre: '전체 스코어카드(18홀·여러 명)는 ', em: '한 번에 2장까지', emB: true, post: ' — 단체는 팀 카드를 나눠 담으면 정확해요' },
                           { k: 'b', pre: 'PAR가 없어도 점수만 인식돼요' },
                           { k: 'c', pre: '촬영할 땐 ', em: '빛 반사 없이 숫자가 또렷하게 정면', emColor: true, post: '에서' },
                           { k: 'd', pre: '여러 명이 나온 표는 인식 후 본인 행을 골라요' },
