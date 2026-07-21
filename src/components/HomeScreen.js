@@ -49,6 +49,8 @@ import { WEB_BASE } from '../utils/links';                 // 일정 공유 평�
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
 import { formatDriveMin } from '../utils/directions'; // 교통 소요 '시간 분' 표시 — 카드·팝업 공용
 import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
+import { loadMyNotifications, visibleNotifications } from '../utils/roundupNotifications'; // 홈 종 뱃지 — 라운지 알림함과 같은 필터
+import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
@@ -217,6 +219,16 @@ export function HomeScreen({ navigation, route }) {
   //   가장자리가 찌글거림(native driver로도 못 막음, 사용자 2026-06-20). 기하학 변형 없는 opacity 브리드로 대체.
   const dmIdleOpacity = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] });
   useEffect(() => { if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {}); }, [dmOpen]);
+  // 미확인 알림 수 — 홈 우측 레일 3번(크루 아래) 종 아이콘. 0이면 아이콘 자체를 숨긴다(사용자 2026-07-21).
+  //   라운지 알림함이 읽음의 진짜 소스라 같은 쿼리·같은 필터(visibleNotifications)를 쓴다. 상시 구독 대신
+  //   마운트·홈 복귀·푸시 수신 때만 1회 조회 — DM 뱃지와 동일한 비용 원칙([[lounge-realtime]]).
+  //   실패는 조용히 무시(뱃지는 부가정보 — 홈 본문을 막지 않음). 안 뜨면 라운지 종에서 여전히 확인 가능.
+  const [notiUnread, setNotiUnread] = useState(0);
+  const refreshNotiUnread = useCallback(() => {
+    loadMyNotifications(50)
+      .then(list => setNotiUnread(visibleNotifications(list, ROUNDUP_PUBLIC_ENABLED).filter(n => !n.read).length))
+      .catch(() => {});
+  }, []);
   // 크루 — 초대 왔을 때만 강하게 끌어줌(라디오 핑 글로우 + 버건디 배지). DM 호흡보다 확실히 강함.
   //   ★얇은 테두리 원을 scale하면 iOS 찌글거림 → 글로우는 '채운 원'을 scale(테두리X)이라 안전.
   const [crewInvite, setCrewInvite] = useState(0); // 받은 크루 초대 수(audienceUids array-contains me) — 글로우 트리거
@@ -302,18 +314,26 @@ export function HomeScreen({ navigation, route }) {
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('focus', () => {
       if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {});
+      refreshNotiUnread();   // 라운지에서 읽고 홈으로 돌아오면 종이 사라져야 함
     });
     return unsub;
-  }, [navigation, dmOpen]);
+  }, [navigation, dmOpen, refreshNotiUnread]);
+  // 알림 뱃지 최초 로드 + 앱 복귀(다른 앱 갔다 옴) 시 갱신. 홈 탭 전환은 위 focus가 담당.
+  useEffect(() => {
+    refreshNotiUnread();
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') refreshNotiUnread(); });
+    return () => sub.remove();
+  }, [refreshNotiUnread]);
   // DM 푸시를 포그라운드(앱 켜둔 상태)에서 받으면 안읽음 뱃지 즉시 갱신 — 상시 onSnapshot 없이 '받은 사람만, 받은 만큼'만 1회 조회([[lounge-realtime]] 비용 원칙).
   //   CF가 unread를 +1 한 뒤 푸시를 보내므로 이 시점엔 카운트가 이미 맞음. DM 모달 열려있으면(대화 보는 중) 생략 — 닫을 때 위 effect가 갱신. 2026-06-18.
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener((noti) => {
-      if (noti?.request?.content?.data?.type !== 'dm') return;
+      // DM 외 종류는 라운지 알림함 뱃지 갱신 — 앱 켜둔 채 푸시를 받으면 홈 종이 바로 뜬다.
+      if (noti?.request?.content?.data?.type !== 'dm') { refreshNotiUnread(); return; }
       if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {});
     });
     return () => sub.remove();
-  }, [dmOpen]);
+  }, [dmOpen, refreshNotiUnread]);
   const cardsScrollRef = useRef(null);
 
   // 다이어리 추가 모달이 일정 모달에서 진입한 경우 → 닫을 때 일정 모달 자동 재오픈
@@ -1240,6 +1260,33 @@ export function HomeScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A8CC82', marginTop: 2, includeFontPadding: false,
               textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>크루</Text>
           </TouchableOpacity>
+
+          {/* 알림 — 레일 3번(크루 아래). ★미확인이 있을 때만 나타나고 다 읽으면 사라짐(사용자 2026-07-21).
+              평상시 홈을 비워두고, 놓친 게 있을 때만 눈에 띄게 하는 게 목적. 다 읽은 뒤 지난 알림은
+              라운지 종 아이콘에서 계속 볼 수 있다(진입점이 사라져도 알림함 자체는 그대로).
+              절대좌표 슬롯이라 나타나고 사라져도 위의 메시지·크루 위치는 안 밀림. */}
+          {notiUnread > 0 && (
+            <TouchableOpacity onPress={() => navigation.navigate(ROUTES.LOUNGE, { openNoti: true })} activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP * 2, zIndex: 20, elevation: 20, alignItems: 'center' }}>
+              <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#E2C275',
+                backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="bell" size={fs(RAIL_ICON)} color="#E2C275" strokeWidth={2} />
+              </View>
+              {/* 개수 뱃지 — 라운지 알림함(버건디 원+흰 숫자)과 같은 신호 */}
+              <View style={{ position: 'absolute', top: -4, right: -6, minWidth: 18, height: 18, borderRadius: 9,
+                backgroundColor: C.burgundy, borderWidth: 1, borderColor: '#F5E6A8',
+                alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(notiUnread > 99 ? 8 : 10), lineHeight: fs(12), color: '#fff',
+                  includeFontPadding: false, marginTop: Platform.OS === 'ios' ? 1 : 0 }} allowFontScaling={false}>
+                  {notiUnread > 99 ? '99+' : notiUnread}
+                </Text>
+              </View>
+              {/* 라벨 — 메시지·크루와 짝 */}
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#E2C275', marginTop: 2, includeFontPadding: false,
+                textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>알림</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}

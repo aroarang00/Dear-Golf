@@ -105,6 +105,16 @@ export async function createScheduleNotices(post, recipientUids, actorName = '')
   return targets.length;
 }
 
+// 라운지 알림함에 실제로 보이는 것만 남기는 공용 필터 — 라운지 목록과 홈 종 뱃지가 같은 기준을 쓰게 한다.
+//   (한쪽만 고치면 '뱃지 3인데 목록엔 2개' 같은 어긋남이 생김)
+//   · friendRequest = 친구 탭 소관(탭바 뱃지)이라 제외
+//   · mannerEval·hostCancelledD7 = 전체공개 OFF 동안 숨김([[roundup-public-disabled]]). 문서는 보존.
+const MANNER_HIDDEN = ['mannerEval', 'hostCancelledD7'];
+export function visibleNotifications(list, publicEnabled) {
+  return (list || []).filter(n =>
+    n.type !== 'friendRequest' && !(!publicEnabled && MANNER_HIDDEN.includes(n.type)));
+}
+
 // 내가 받은 알림 — 최신순. 인덱스 (recipientUid, createdAt desc) 사용.
 export async function loadMyNotifications(maxResults = 50) {
   const uid = await getUid();

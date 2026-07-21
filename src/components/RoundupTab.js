@@ -31,7 +31,7 @@ import { isPostVisible, blockUser, remainingBlocksToday } from '../utils/block';
 import { blockUid as fsBlockUid, loadMyFriends, loadFriendProfiles, unfriend, sendFriendRequest, isFriend } from '../utils/friends';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { anonHasAppleTrace, connectAppleAccount } from '../utils/appleAuth';
-import { loadMyNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
+import { loadMyNotifications, visibleNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, createNotification, createInviteNotifications, createScheduleNotices } from '../utils/roundupNotifications';
 import { loadMyEvaluationsForRoundup } from '../utils/mannerEvaluations';
 import { db } from '../utils/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
@@ -412,15 +412,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
           setParticipantHandicaps(handiMap);
         }
         // 인앱 알림 로드 — Phase 3-N2
-        //   친구신청(friendRequest)은 라운지 알림함에서 제외 — 친구 관계 알림은 친구 탭 소관(탭바 뱃지).
-        //   매너평가(mannerEval·hostCancelledD7)는 전체공개 OFF 동안 숨김 — 친구끼린 서로 평가 안 함([[roundup-public-disabled]]).
-        //     모달 진입·pending도 이미 ROUNDUP_PUBLIC_ENABLED로 가드됨(아래). 알림 카드만 남아 노출되던 구멍을 막음.
-        //   문서 자체는 보존(향후 푸시용·전체공개 부활 대비), 라운지(모집 전용) 표시에서만 숨김.
+        //   표시 기준(친구신청 제외·매너 숨김)은 visibleNotifications 공용 필터. 홈 종 뱃지가 같은 함수를 써서
+        //   '뱃지 숫자 ≠ 목록 개수'가 생기지 않게 한다.
         try {
           const notis = await loadMyNotifications(50);
-          const MANNER_HIDDEN = ['mannerEval', 'hostCancelledD7'];
-          if (!cancelled) setNotifications(notis.filter(n =>
-            n.type !== 'friendRequest' && !(!ROUNDUP_PUBLIC_ENABLED && MANNER_HIDDEN.includes(n.type))));
+          if (!cancelled) setNotifications(visibleNotifications(notis, ROUNDUP_PUBLIC_ENABLED));
         } catch (e) {
           if (__DEV__) console.warn('[RoundupTab] notifications load failed', e?.message);
         }
@@ -566,6 +562,13 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
   const [notifications, setNotifications] = useState([]);
   const [showNoti, setShowNoti] = useState(false);            // 알림함
+  // 홈 우측 레일 종 아이콘 탭 — 라운지로 오면서 알림함을 바로 연다.
+  //   알림함 모달은 수락·거절·상세열기 핸들러가 전부 라운지에 있어, 홈에 따로 마운트하지 않고 여기로 보낸다.
+  useEffect(() => {
+    if (!route?.params?.openNoti) return;
+    setShowNoti(true);
+    navigation?.setParams?.({ openNoti: undefined });
+  }, [route?.params?.openNoti]);
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
   const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
   const [showIntro, setShowIntro] = useState(false); // 라운지 소개 (광고성)
