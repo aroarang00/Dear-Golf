@@ -55,6 +55,10 @@ function VideoSlide({ uri, poster }) {
 //  - photos: 문자열('dgphoto:'/https) 또는 { uri, type:'video' } 객체 혼합 배열
 //  - onTap(index): 슬라이드 탭 콜백 (MY=상세 진입, 친구=PhotoViewer 전체화면)
 //  - 영상은 인라인 재생 대신 ▶ 플레이스홀더 — 탭하면 onTap으로 PhotoViewer에서 재생 (피드 성능 보호)
+//  - ★슬라이드는 '현재 ±1'만 실제로 마운트(2026-07-21). 기록당 사진 한도가 10장이라 전부 올리면
+//    카드 10개짜리 피드에서 이미지 100개가 동시에 디코드돼 스크롤이 버벅였다(보이는 건 카드당 1장).
+//    빈 슬라이드도 자리(w×h)는 그대로 차지해 페이징 좌표가 어긋나지 않는다.
+const NEAR = 1;
 export function MediaCarousel({ photos, onTap }) {
   const [dim, setDim] = useState({ w: 0, h: 0 });
   const [idx, setIdx] = useState(0);
@@ -77,7 +81,10 @@ export function MediaCarousel({ photos, onTap }) {
           bounces={false}              /* iOS — 첫/마지막 사진서 고무줄 오버스크롤 막아 뒤 검정 배경 안 보이게 */
           overScrollMode="never"       /* Android — 가장자리 오버스크롤(글로우·당김) 제거 */
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / w))}>
+          onMomentumScrollEnd={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / w))}
+          /* 안전망 — 관성 없이 살짝 끌었다 놓으면 onMomentumScrollEnd가 안 오는 경우가 있는데,
+             그때 idx가 옛 값이면 보고 있는 슬라이드가 '안 올린 빈 칸'으로 남는다. */
+          onScrollEndDrag={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / w))}>
           {photos.map((p, i) => {
             const isVideo = p && typeof p === 'object' && p.type === 'video';
             const raw = isVideo ? p.uri : (typeof p === 'object' ? p?.uri : p);
@@ -89,7 +96,10 @@ export function MediaCarousel({ photos, onTap }) {
                 key={i} activeOpacity={0.95}
                 onPress={() => onTap && onTap(i)}
                 style={{ width: w, height: h }}>
-                {isVideo ? (
+                {Math.abs(i - idx) > NEAR ? (
+                  // 멀리 있는 슬라이드 — 빈 칸만 두고 미디어는 안 올림(FocalImage 배경색과 동일해 스와이프 시 이질감 없음)
+                  <View style={{ width: w, height: h, backgroundColor: '#15171A' }} />
+                ) : isVideo ? (
                   <VideoSlide uri={uri} poster={poster} />
                 ) : (
                   <FocalImage uri={uri} focus={focus} width={w} height={h} />
