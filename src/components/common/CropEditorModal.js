@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Ima
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as Sentry from '@sentry/react-native';
 import { C, F, fs } from '../../constants/colors';
 
 // 사진 크롭 에디터 (B안, 파괴적) — 고정 프레임 안에서 핀치 줌 + 자유 드래그로 구도를 잡아
@@ -125,17 +126,23 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
       if (cropW > cfg.maxOut) actions.push({ resize: { width: cfg.maxOut } });
 
       const opts = { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG };
-      // renderAsync가 간헐적으로 실패(expo-image-manipulator)해 1회 재시도.
+      // ★자를 원본은 workUri(EXIF 정규화 임시본)가 아니라 원본 uri — iOS 정식앱에서 '저장에 실패했어요'가
+      //   재시도해도 계속 나던 원인(2026-07-21). 임시본은 캐시에 있어 저장 시점엔 이미 정리됐을 수 있는데,
+      //   화면 이미지는 RN이 디코드해 들고 있어 멀쩡해 보이니 '보이는데 저장만 실패'가 됐다.
+      //   manipulateAsync는 디코드 시 EXIF 회전을 적용하므로 원본에서 잘라도 좌표계는 imgSize와 같다.
+      //   원본이 실패할 때만 임시본으로 한 번 더(옛 동작 폴백 — 원본이 원격/특수 URI인 경우 대비).
       let result;
       try {
-        result = await ImageManipulator.manipulateAsync(workUri, actions, opts);
+        result = await ImageManipulator.manipulateAsync(uri, actions, opts);
       } catch (e1) {
-        if (__DEV__) console.warn('[CropEditor] 1차 실패 → 재시도', e1?.message);
+        if (__DEV__) console.warn('[CropEditor] 원본 크롭 실패 → 정규화본으로 재시도', e1?.message);
         result = await ImageManipulator.manipulateAsync(workUri, actions, opts);
       }
       onSave && onSave(result.uri);
     } catch (e) {
       console.warn('[CropEditor] 크롭 실패', e?.message);
+      // 정식앱에서만 재현되던 실패라 원인 추적 경로를 남긴다 — 로컬 재현이 안 되면 Sentry가 유일한 단서.
+      try { Sentry.captureException(e, { extra: { where: 'CropEditorModal.handleSave', aspect, imgSize } }); } catch { /* noop */ }
       setSaveErr(true); // 사용자에게 안내(조용한 실패 방지)
     } finally {
       setSaving(false); // 성공·실패 모두 스피너 해제(무한 '저장 중' 방지)
