@@ -4,6 +4,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Sentry from '@sentry/react-native';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../../constants/colors';
 
 // 사진 크롭 에디터 (B안, 파괴적) — 고정 프레임 안에서 핀치 줌 + 자유 드래그로 구도를 잡아
@@ -13,6 +14,9 @@ import { C, F, fs } from '../../constants/colors';
 //   - onSave(croppedUri): 잘린 JPEG 임시 uri. 영구저장/업로드는 호출부 책임(기존 압축 파이프라인 통과).
 const { width: SW, height: SH } = Dimensions.get('window');
 const MAX_SCALE = 5;
+// 하단 안전영역 — 이 모달은 전체화면이라 제스처 바·내비바 아래로 버튼·안내가 깔리면 가려지거나 눌리지 않는다.
+//   Modal 안에서는 useSafeAreaInsets가 0을 주는 경우가 있어 PhotoViewer와 같이 initialWindowMetrics를 쓴다.
+const BOTTOM_SAFE = initialWindowMetrics?.insets?.bottom || 0;
 
 const ASPECTS = {
   cover:  { ratio: 3 / 4, frameW: SW * 0.92, maxOut: 1600 }, // h/w = 3/4 (4:3 가로)
@@ -20,7 +24,7 @@ const ASPECTS = {
   square: { ratio: 1,     frameW: SW * 0.92, maxOut: 1600 }, // 1:1 정사각(크루 사진 등) — 원형 아님
 };
 
-export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClose }) {
+export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClose, onUseWhole }) {
   const cfg = ASPECTS[aspect] || ASPECTS.cover;
   const frameW = cfg.frameW;
   const frameH = frameW * cfg.ratio;
@@ -216,12 +220,29 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
             </View>
           )}
 
-          {/* 안내 */}
-          <View pointerEvents="none" style={{ position: 'absolute', bottom: 48, left: 0, right: 0, alignItems: 'center' }}>
+          {/* 안내 — 전체담기 버튼이 있으면 그 위로 충분히 띄운다(겹침 방지). 하단 안전영역도 함께 반영. */}
+          <View pointerEvents="none" style={{ position: 'absolute', bottom: (onUseWhole ? 124 : 48) + BOTTOM_SAFE, left: 0, right: 0, alignItems: 'center' }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 19 }}>
               두 손가락으로 확대하고{'\n'}끌어서 보여줄 부분을 맞춰주세요
             </Text>
           </View>
+
+          {/* 전체 담기 — 축소는 프레임을 꽉 채워야 해서 1배 미만으로 못 줄인다(줄이면 빈 공간이 생기는데
+              잘라낸 결과물에 여백을 넣을 수 없음). 대신 '자르지 않고 원본 그대로 쓰기'를 제공한다.
+              피드가 비율이 다른 사진을 흐린 배경 위에 통째로 보여주므로, 결과적으로 사진이 다 보인다.
+              호출부가 onUseWhole을 줄 때만 노출(아바타·크루 사진처럼 반드시 잘라야 하는 곳은 미노출). */}
+          {onUseWhole && (
+            <View style={{ position: 'absolute', bottom: 26 + BOTTOM_SAFE, left: 0, right: 0, alignItems: 'center' }}>
+              <TouchableOpacity onPress={onUseWhole} disabled={saving} activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
+                  borderRadius: 22, paddingHorizontal: 18, paddingVertical: 10 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: '#fff' }}>사진 전체 담기</Text>
+              </TouchableOpacity>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', marginTop: 7 }}>
+                자르지 않고 원본 그대로 써요
+              </Text>
+            </View>
+          )}
         </View>
       </GestureHandlerRootView>
     </Modal>

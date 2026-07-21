@@ -1506,6 +1506,18 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           aspect="cover"
           uri={cropIdx !== null ? resolvePhotoUri(typeof addPhotos[cropIdx] === 'object' ? (addPhotos[cropIdx].orig || addPhotos[cropIdx].uri) : addPhotos[cropIdx]) : null}
           onClose={() => setCropIdx(null)}
+          /* 사진 전체 담기 — 자르기를 취소하고 원본 그대로 되돌린다(크롭·초점 정보 제거).
+             피드가 사진 비율에 맞는 틀을 고르고, 안 맞으면 흐린 배경 위에 통째로 보여주므로 사진이 다 보인다.
+             크롭 결과물은 버리고 보관해둔 orig(원본 식별자)를 그대로 쓰므로 재저장·용량 증가가 없다. */
+          onUseWhole={() => {
+            setAddPhotos(prev => {
+              const next = [...prev];
+              const cur = next[cropIdx];
+              next[cropIdx] = typeof cur === 'object' ? (cur.orig || cur.uri) : cur;
+              return next;
+            });
+            setCropIdx(null);
+          }}
           onSave={async (croppedUri) => {
             let persisted;
             try { persisted = await persistPhoto(croppedUri); }
