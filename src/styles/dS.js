@@ -26,6 +26,14 @@ export const dS = StyleSheet.create({
   filterTabTxt:      { fontFamily: F.sysM, fontSize: fs(_and ? 11 : 13), color: C.textSecondary },
   filterTabTxtOn:    { fontFamily: F.sysB, color: '#3D3935' },
   searchToggleBtn:   { paddingHorizontal: 14, paddingVertical: 6, borderLeftWidth: 0.5, borderLeftColor: '#E8E2D0' },
+  // 보기 방식 줄(필터 칩 아래 우측) — 미리보기·요약보기·검색 아이콘 3개를 한자리에 모음(2026-07-21).
+  //   전엔 검색만 필터 줄 끝에 홀로 있어 못 찾는다는 피드백 → 같은 성격(보기 방식)끼리 우측에 묶어 위치를 학습하게.
+  //   구분선 없음(사용자 2026-07-21) — 줄이 두 개가 되며 선까지 있으니 답답해 보였음. 아이콘 농도로 존재감을 준다.
+  viewModeRow:       { flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 16, paddingBottom: 7, paddingTop: 1 },
+  viewModeBtn:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 3, paddingRight: 18 },
+  // 요약보기 월 헤더 — 얇고 조용하게(목록의 주인공은 구장·타수). 월이 바뀔 때만 등장
+  compactMonth:      { fontFamily: F.sysB, fontSize: fs(11), color: C.warmGrayLight, letterSpacing: 1.4,
+                       marginTop: 22, marginBottom: 2 },
   searchToggleTxt:   { fontSize: fs(16) },
   searchWrap:        { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#E8E2D0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 16, marginVertical: 6 },
   searchIcon:        { fontSize: fs(14), marginRight: 8 },

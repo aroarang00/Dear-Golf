@@ -20,6 +20,7 @@ import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';
 import { ScoreShareInbox } from './ScoreShareInbox';   // 동반자 스코어 공유 수신([[companion-design]] §11 Phase C)
 import { DiaryCard } from './DiaryCard';
+import { DiaryRowCompact } from './DiaryRowCompact';   // 요약보기 — 사진 없는 한 줄 목록
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge) 공용 래퍼
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
@@ -223,7 +224,16 @@ export function DiaryScreen({ route, navigation }) {
   const [search, setSearch] = useState('');
   const [filterKey, setFilterKey] = useState('전체');
   const [feedLimit, setFeedLimit] = useState(10);   // 피드 점진 렌더 — 비가상화 ScrollView 버벅임 완화(미디어 디코드량 분산). 첫 10개+더보기
-  useEffect(() => { setFeedLimit(10); }, [filterKey, search]);  // 필터·검색 바뀌면 처음부터
+  // 요약보기 — 사진을 안 그리는 한 줄 목록. 기록이 쌓이면 사진 카드 피드가 무거워 훑어보기 힘든 문제(테스터).
+  //   기기 로컬 선호값이라 서버 저장 안 함. 요약은 행이 가벼워 한 번에 더 많이 그려도 된다(FEED_STEP).
+  const [compact, setCompact] = useState(false);
+  useEffect(() => { storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)); }, []);
+  const toggleCompact = React.useCallback(() => {
+    setCompact(prev => { const next = !prev; storage.save(STORAGE_KEYS.diaryCompactView, next); return next; });
+    setFeedLimit(f => Math.max(f, 10));
+  }, []);
+  const feedStep = compact ? 30 : 10;
+  useEffect(() => { setFeedLimit(compact ? 30 : 10); }, [filterKey, search, compact]);  // 필터·검색·보기전환 시 처음부터
   const [showSearch, setShowSearch] = useState(false);
   const scrollRef = useRef(null);
 
@@ -691,7 +701,7 @@ export function DiaryScreen({ route, navigation }) {
           // 스크롤 끝 600px 전 자동 로드 — 더보기 버튼 없이 자연 무한스크롤(점진 마운트는 유지해 한 번에 다 안 올림)
           const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
           if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
-            setFeedLimit(l => (l < filtered.length ? l + 10 : l));
+            setFeedLimit(l => (l < filtered.length ? l + feedStep : l));
           }
         }}
         scrollEventThrottle={16}
@@ -782,7 +792,7 @@ export function DiaryScreen({ route, navigation }) {
           아래 카드가 비쳐 보이지 않게, 하단 구분선은 dS.filterRow 자체 borderBottom. 로딩·빈 상태엔 빈 View(인덱스 2 자리 유지·sticky 항상 적용). */}
       {canShowFilter ? (
         <View style={{ backgroundColor: C.bgPrimary }}>
-          <View style={dS.filterRow}>
+          <View style={[dS.filterRow, { borderBottomWidth: 0 }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
               style={{ flex: 1 }}
               contentContainerStyle={[dS.filterTabRow, { flexGrow: 1, justifyContent: 'space-between', paddingRight: 16 }]}>
@@ -797,10 +807,26 @@ export function DiaryScreen({ route, navigation }) {
                 );
               })}
             </ScrollView>
-            <TouchableOpacity activeOpacity={0.6}
-              style={dS.searchToggleBtn}
+          </View>
+          {/* 보기 방식 줄 — 요약보기 / 미리보기 / 검색 (사용자 2026-07-21).
+              아이콘만 두니 요약보기도, 돋보기도 못 찾는다는 피드백 → 셋 다 '글자'로 내려 한 줄에 모음.
+              필터 칩(무엇을 볼까)과 보기 방식(어떻게 볼까)을 줄로 분리. sticky 인덱스 2 블록 안이라 함께 고정된다. */}
+          <View style={dS.viewModeRow}>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity activeOpacity={0.7} onPress={() => { if (compact) toggleCompact(); }}
+              accessibilityLabel="사진 카드로 보기"
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={dS.viewModeBtn}>
+              <Icon name="grid" size={fs(17)} color={!compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => { if (!compact) toggleCompact(); }}
+              accessibilityLabel="요약 목록으로 보기"
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={dS.viewModeBtn}>
+              <Icon name="list" size={fs(17)} color={compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} accessibilityLabel="검색"
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={[dS.viewModeBtn, { paddingRight: 0 }]}
               onPress={() => { if (showSearch) { setShowSearch(false); setSearch(''); } else setShowSearch(true); }}>
-              <Icon name="search" size={fs(16)} color={showSearch ? '#6B1E2A' : C.charcoal} />
+              <Icon name="search" size={fs(17)} color={showSearch ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
             </TouchableOpacity>
           </View>
           {showSearch && (
@@ -938,7 +964,26 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : (
                 <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-                  {filtered.slice(0, feedLimit).map((item, idx, arr) => {
+                  {/* 요약보기 — 사진 없는 한 줄 목록. 월이 바뀔 때만 얇은 헤더를 끼워 스코어 이력처럼 훑게 한다
+                      (색점·구분선 없이 여백으로만 구분 — 심플 모던, 사용자 2026-07-21). 탭하면 상세로 가는 건 동일. */}
+                  {compact ? (() => {
+                    let lastMonth = null;
+                    return filtered.slice(0, feedLimit).map((item, i) => {
+                      const ym = (item.date || '').slice(0, 7);          // '2026.07'
+                      const newMonth = !!ym && ym !== lastMonth;
+                      if (newMonth) lastMonth = ym;
+                      return (
+                        <React.Fragment key={item.id}>
+                          {newMonth && (
+                            <Text style={[dS.compactMonth, i === 0 && { marginTop: 6 }]}>
+                              {`${ym.slice(0, 4)}. ${parseInt(ym.slice(5), 10)}`}
+                            </Text>
+                          )}
+                          <DiaryRowCompact item={item} onPress={openDiary} />
+                        </React.Fragment>
+                      );
+                    });
+                  })() : filtered.slice(0, feedLimit).map((item, idx, arr) => {
                     const isFS = !!firstSingleId && item.id === firstSingleId;
                     return (
                     <View key={item.id} style={dS.tlNode}>
