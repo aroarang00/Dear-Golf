@@ -1,5 +1,6 @@
 import { storage, STORAGE_KEYS } from './storage';
 import { db, getUid } from './firebase';
+import { sameCourseName } from './courseNameKey';   // 구장 이름 표기 차이 흡수(공용 규칙)
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // 골프장별 저장 맛집 — 로컬(AsyncStorage) 캐시 + Firestore(users/{uid}.savedRestaurants) 영속 백업.
@@ -10,6 +11,15 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 async function loadAll() {
   return (await storage.load(STORAGE_KEYS.savedRestaurants, {})) || {};
+}
+
+// 이미 존재하는 서랍 중 같은 구장으로 보이는 키를 찾는다. 없으면 준 이름 그대로.
+//   서랍이 '구장 이름' 문자열이라 표기가 조금만 달라도 갈린다("저장했는데 코스 맛집에 안 보임").
+//   매칭 규칙은 courseNameKey에 모아둠(예약 AI 파싱에서도 같은 규칙을 쓴다).
+function resolveKey(all, courseName) {
+  if (!courseName) return courseName;
+  if (all[courseName]) return courseName;              // 정확히 일치하면 그대로
+  return Object.keys(all).find(k => sameCourseName(k, courseName)) || courseName;
 }
 
 // 전체 맵을 users/{uid}.savedRestaurants에 미러(merge). 실패해도 로컬엔 영향 X.
@@ -61,14 +71,15 @@ export async function syncSavedRestaurantsFromFirestore() {
 export async function getSavedRestaurants(courseName) {
   if (!courseName) return [];
   const all = await loadAll();
-  return all[courseName] || [];
+  return all[resolveKey(all, courseName)] || [];
 }
 
 // 맛집 저장 — 같은 kakaoId 또는 같은 이름이 이미 있으면 그 항목 반환 (중복 방지)
 export async function addSavedRestaurant(courseName, rest) {
   if (!courseName || !rest?.name) return null;
   const all = await loadAll();
-  const list = all[courseName] || [];
+  const key = resolveKey(all, courseName);   // 같은 구장의 다른 표기로 서랍이 갈리지 않게
+  const list = all[key] || [];
   const dup = list.find(r =>
     (rest.kakaoId && r.kakaoId === rest.kakaoId) || r.name === rest.name);
   if (dup) return dup;
@@ -83,7 +94,7 @@ export async function addSavedRestaurant(courseName, rest) {
     memo: (rest.memo || '').trim(),
     addedAt: Date.now(),
   };
-  all[courseName] = [item, ...list];
+  all[key] = [item, ...list];
   await storage.save(STORAGE_KEYS.savedRestaurants, all);
   pushToFirestore(all); // 영속 백업
   return item;
@@ -93,7 +104,8 @@ export async function addSavedRestaurant(courseName, rest) {
 export async function removeSavedRestaurant(courseName, id) {
   if (!courseName) return;
   const all = await loadAll();
-  all[courseName] = (all[courseName] || []).filter(r => r.id !== id);
+  const courseKey = resolveKey(all, courseName);   // 저장과 같은 서랍을 봐야 함(다른 표기로 들어와도)
+  all[courseKey] = (all[courseKey] || []).filter(r => r.id !== id);
   await storage.save(STORAGE_KEYS.savedRestaurants, all);
   pushToFirestore(all);
 }
@@ -102,7 +114,8 @@ export async function removeSavedRestaurant(courseName, id) {
 export async function updateSavedRestaurant(courseName, id, patch) {
   if (!courseName) return;
   const all = await loadAll();
-  all[courseName] = (all[courseName] || []).map(r => (r.id === id ? { ...r, ...patch } : r));
+  const courseKey = resolveKey(all, courseName);
+  all[courseKey] = (all[courseKey] || []).map(r => (r.id === id ? { ...r, ...patch } : r));
   await storage.save(STORAGE_KEYS.savedRestaurants, all);
   pushToFirestore(all);
 }
