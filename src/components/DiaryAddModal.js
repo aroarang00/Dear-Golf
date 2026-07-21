@@ -1496,6 +1496,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         <ScorecardReviewModal
           visible={scReview}
           rows={scRows}
+          holePars={holePars}
           failed={scFailed}
           lowConfidence={scLowConf}
           onConfirm={handleScorecardConfirm}
