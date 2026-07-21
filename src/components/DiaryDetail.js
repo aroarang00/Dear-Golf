@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Image } from 'expo-image'; // 상세 사진 그리드 디스크캐시 — 피드 카드(expo-image)와 캐시 공유로 '한 장씩 뜨는' 지연 제거 ([[image-load-speed]])
 import { showAppAlert } from './AppAlert';
 import * as VideoThumbnails from 'expo-video-thumbnails';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { Icon } from './common/Icon'; // 📷 → 커스텀 카메라
 import { COURSE_TAGS, COURSE_TAG_COLORS, getCountryFlag } from '../constants/data';
@@ -20,6 +20,7 @@ import { ownerVisibilityLabel, friendDisplayName } from '../utils/friendGroups';
 
 export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirstSingle, friendGroups, friendMeta = {} }) {
   const { userProfile } = React.useContext(UserContext);
+  const insets = useSafeAreaInsets();
   // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
   useAndroidBack(true, onClose);
   const [photoViewer, setPhotoViewer] = useState(false);
@@ -386,7 +387,10 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
           )}
         </View>
         )}
-        <View style={{ height: 40 }} />
+        {/* 하단 여백 — 상세는 탭 화면 위에 뜨는 구조라 플로팅 탭바(≈insets.bottom+66)가 계속 보인다.
+            40px 고정이라 마지막 사진이 탭바에 가린 채 더 스크롤되지 않던 문제(사용자 2026-07-22).
+            내 기록 피드와 같은 값(insets.bottom+92)으로 맞춤. */}
+        <View style={{ height: insets.bottom + 92 }} />
       </ScrollView>
       {photoViewer && <PhotoViewer photos={photosToShow} startIndex={viewerStart} onClose={() => setPhotoViewer(false)} />}
       {/* 사진 편집(대표지정·회전·자르기·삭제)은 DiaryAddModal('수정')로 일원화 — 상세의 편집 모드 제거 */}

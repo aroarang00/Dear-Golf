@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { showAppAlert } from './AppAlert'; // OS 기본 팝업 대신 앱 디자인 알림(안드 시스템팝업 방지)
 import { AttentionMotion } from './common/AttentionMotion'; // '내 코스 모아보기' 바 맥동
 import { GreenFlag, Icon } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG, ⛳ → green 라인 아이콘
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -99,6 +100,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   // 지역 선택은 부모(GuideScreen)가 controlled로 넘기면 그걸 쓴다 — 코스 상세를 열면 GuideScreen이
   //   early return(if selected)으로 이 컴포넌트를 언마운트해 로컬 state가 날아가므로, 부모에 두면
   //   상세 닫고 뒤로 왔을 때 지역 리스트가 그대로 유지된다. 미전달 시 로컬 폴백(하위호환).
+  const insets = useSafeAreaInsets();
   const [regionLocal, setRegionLocal] = useState('전체');
   const region = regionProp !== undefined ? regionProp : regionLocal;
   const setRegion = onRegionChange || setRegionLocal;
@@ -706,7 +708,9 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         )}
       </Section>
 
-      <View style={{ height: 40 }} />
+      {/* 하단 여백 — 마지막 섹션(스크린골프)의 '더보기'가 플로팅 탭바(≈insets.bottom+66)에 가려 탭이 안 되던 문제
+          (사용자 2026-07-22). 다른 탭 화면과 같은 값으로 통일. */}
+      <View style={{ height: insets.bottom + 92 }} />
     </ScrollView>
   );
 });

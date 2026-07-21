@@ -1527,7 +1527,9 @@ export function GuideScreen({ route, navigation }) {
               </View>
             );
           })()}
-          <View style={{ height: 32 }} />
+          {/* 하단 여백 — 플로팅 탭바(≈insets.bottom+66)가 떠 있어 32px로는 마지막 내용이 가린다.
+              다른 탭 화면과 같은 값으로 통일(2026-07-22 일괄 점검). */}
+          <View style={{ height: insets.bottom + 92 }} />
         </ScrollView>
 
         <WeatherTransportPopup

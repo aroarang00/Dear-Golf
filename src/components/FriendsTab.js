@@ -3,6 +3,7 @@ import { View, ScrollView, Text, TouchableOpacity, Platform, Modal } from 'react
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { Swipeable } from 'react-native-gesture-handler'; // 친구카드 좌우 스와이프(즐겨찾기·숨기기) ([[friend_card_gestures]])
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
@@ -137,6 +138,7 @@ function SwipeableFriendCard({ friend, favorite, onToggleFavorite, onHide, ...ca
 
 export function FriendsTab({ navigation, onInvite, openFinderRef }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
+  const insets = useSafeAreaInsets();
   const { setFriendReqCount } = useContext(FriendBadgeContext);
   const { block: blockUserFn, remaining: blockRemaining } = useBlockUser(); // 공용 차단 훅(친구·DM 통일)
   const [search, setSearch] = useState('');
@@ -668,8 +670,10 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       {/* 전체 스크롤(인스타식) — 외부 네이비 헤더(친구 찾기)는 위 고정, 컴팩트 헤더·받은신청·필터칩·카드는 이 ScrollView에
           담아 함께 스크롤. sticky는 MY와 동일하게 1차 미적용 — 실기 테스트 후 결정([[project_fullscroll_profile]]). */}
+      {/* 하단 여백 — 플로팅 탭바(≈insets.bottom+66)가 목록 위에 떠 있어, 32px로는 마지막 친구가 가려
+          탭조차 안 되던 문제(사용자 2026-07-22). 내 기록·상세와 같은 값(insets.bottom+92)으로 통일. */}
       <ScrollView ref={listScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+        contentContainerStyle={{ paddingBottom: insets.bottom + 92 }} keyboardShouldPersistTaps="handled">
       {/* 상단 컴팩트 헤더 — 친구 N명 ··· 🔍(검색 토글) ⚙(친구 관리). 검색은 평소 아이콘만, 탭하면 입력 펼침(자리 절약, [[project_fullscroll_profile]] 디클러터) */}
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
