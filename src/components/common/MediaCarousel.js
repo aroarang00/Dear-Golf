@@ -59,7 +59,7 @@ function VideoSlide({ uri, poster }) {
 //    카드 10개짜리 피드에서 이미지 100개가 동시에 디코드돼 스크롤이 버벅였다(보이는 건 카드당 1장).
 //    빈 슬라이드도 자리(w×h)는 그대로 차지해 페이징 좌표가 어긋나지 않는다.
 const NEAR = 1;
-export function MediaCarousel({ photos, onTap }) {
+export function MediaCarousel({ photos, onTap, onFirstRatio }) {
   const [dim, setDim] = useState({ w: 0, h: 0 });
   const [idx, setIdx] = useState(0);
   if (!photos || photos.length === 0) return null;
@@ -102,7 +102,9 @@ export function MediaCarousel({ photos, onTap }) {
                 ) : isVideo ? (
                   <VideoSlide uri={uri} poster={poster} />
                 ) : (
-                  <FocalImage uri={uri} focus={focus} width={w} height={h} />
+                  // 첫 장의 실제 비율만 부모에게 알린다 — 카드가 그 비율로 '틀'(4:3·1:1·4:5)을 고른다
+                  <FocalImage uri={uri} focus={focus} width={w} height={h}
+                    onRatio={i === 0 ? onFirstRatio : undefined} />
                 )}
               </TouchableOpacity>
             );
