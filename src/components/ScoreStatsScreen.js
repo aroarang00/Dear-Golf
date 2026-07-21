@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import Svg, { Polyline, Circle, Line, G, Text as SvgText } from 'react-native-svg';
 import { C, F, fs } from '../constants/colors';
 import { AttentionMotion } from './common/AttentionMotion';
+import { Icon } from './common/Icon';   // 유니코드 이모지 대신 커스텀 SVG 아이콘(프로젝트 규칙)
 import { roundsOnly, isRoundDiary } from '../utils/diaryKind';
 import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
@@ -80,10 +81,11 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
     if (series.length < 2) return null;
     const last = series[series.length - 1];
     const prevBest = Math.min(...series.slice(0, -1));
-    if (last <= prevBest) return `🎉 베스트 갱신 ${last}!`;                  // 최근 라운드 = 역대 최저
-    if (last < 80 && prevBest >= 80) return '🏆 첫 싱글 달성!';             // 처음으로 80 깸
-    if (last < 90 && prevBest >= 90) return '🏆 90 브레이크!';              // 처음으로 90 깸
-    if (recentDelta != null && recentDelta >= 2) return `📈 최근 ${Math.round(recentDelta)}타 좋아지는 중`;
+    // 아이콘 + 문구로 분리해 반환 — 이모지를 문자열에 섞지 않고 커스텀 아이콘으로 그린다(2026-07-22)
+    if (last <= prevBest) return { icon: 'sparkle', text: `베스트 갱신 ${last}!` };   // 최근 라운드 = 역대 최저
+    if (last < 80 && prevBest >= 80) return { icon: 'trophy', text: '첫 싱글 달성!' }; // 처음으로 80 깸
+    if (last < 90 && prevBest >= 90) return { icon: 'trophy', text: '90 브레이크!' };  // 처음으로 90 깸
+    if (recentDelta != null && recentDelta >= 2) return { icon: 'trendUp', text: `최근 ${Math.round(recentDelta)}타 좋아지는 중` };
     return null;
   }, [series, recentDelta]);
 
@@ -126,8 +128,10 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
           {/* 하단 — 하이라이트 배지(있으면 골드) 또는 흐름 힌트 + CTA */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
             {highlight ? (
-              <View style={{ backgroundColor: C.butter, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.navy }} numberOfLines={1}>{highlight}</Text>
+              <View style={{ backgroundColor: C.butter, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4,
+                flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Icon name={highlight.icon} size={fs(12)} color={C.navy} strokeWidth={2} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.navy }} numberOfLines={1}>{highlight.text}</Text>
               </View>
             ) : (
               <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: 'rgba(255,255,255,0.72)' }}>{hint}</Text>
@@ -211,7 +215,10 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             <TouchableOpacity onPress={() => setInfoOpen((o) => !o)} activeOpacity={0.7}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10,
                 backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 10 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>💡 평균·베스트·핸디 안내</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="bulb" size={fs(14)} color={C.charcoal} strokeWidth={1.8} />
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>평균·베스트·핸디 안내</Text>
+              </View>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{infoOpen ? '접기 ▲' : '펼치기 ▼'}</Text>
             </TouchableOpacity>
             {infoOpen && (
@@ -238,15 +245,31 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
                 backgroundColor: (form.delta > 0 ? '#EAF1E2' : form.delta < 0 ? '#F7E9E4' : C.bgSecondary),
                 borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11,
                 borderWidth: 0.5, borderColor: C.hairline }}>
-                <Text style={{ fontSize: fs(14) }}>{form.delta > 0 ? '📈' : form.delta < 0 ? '📉' : '➖'}</Text>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
-                  최근 <Text style={{ fontFamily: F.sysB }}>{form.k}R 평균 {form.ra}</Text>
-                  {form.delta > 0
-                    ? <Text> — 직전 {form.k}R보다 <Text style={{ fontFamily: F.sysB, color: '#4B7A3E' }}>{form.delta}타 좋아졌어요 ↗</Text></Text>
-                    : form.delta < 0
-                      ? <Text> — 직전 {form.k}R보다 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{-form.delta}타 아쉬웠어요</Text></Text>
-                      : <Text> — 직전과 <Text style={{ fontFamily: F.sysB }}>비슷한 흐름</Text>이에요</Text>}
-                </Text>
+                {/* 아이콘만 덩그러니 두지 않고 옅은 원 배경 안에(마일스톤 아이콘과 같은 방식) */}
+                {(() => {
+                  const tc = form.delta > 0 ? '#4B7A3E' : form.delta < 0 ? '#B0674A' : C.warmGray;
+                  return (
+                    <View style={{ width: fs(32), height: fs(32), borderRadius: fs(16), alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: `${tc}1F` }}>
+                      <Icon name={form.delta > 0 ? 'trendUp' : form.delta < 0 ? 'trendDown' : 'trendFlat'}
+                        size={fs(19)} color={tc} strokeWidth={1.9} />
+                    </View>
+                  );
+                })()}
+                {/* 두 문장을 한 덩어리로 흘리면 '직전 3R보다 / 3타 좋아졌어요'처럼 붙어야 할 말이 줄바꿈에서 끊긴다.
+                    줄을 아예 나눠 둘째 문장이 통째로 아랫줄에 오게 한다(사용자 2026-07-22). */}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                    최근 <Text style={{ fontFamily: F.sysB }}>{form.k}R 평균 {form.ra}</Text>
+                  </Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                    {form.delta > 0
+                      ? <Text>직전 {form.k}R보다 <Text style={{ fontFamily: F.sysB, color: '#4B7A3E' }}>{form.delta}타 좋아졌어요 ↗</Text></Text>
+                      : form.delta < 0
+                        ? <Text>직전 {form.k}R보다 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>{-form.delta}타 아쉬웠어요</Text></Text>
+                        : <Text>직전과 <Text style={{ fontFamily: F.sysB }}>비슷한 흐름</Text>이에요</Text>}
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -315,7 +338,7 @@ function TrendChart({ series, avg, bestVal }) {
   if (!series || series.length < 2) {
     return (
       <View style={[card, { height: 180, alignItems: 'center', justifyContent: 'center' }]}>
-        <Text style={{ fontSize: fs(30) }}>📈</Text>
+        <Icon name="chart" size={fs(30)} color={C.warmGrayLight} strokeWidth={1.6} />
         <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray, marginTop: 10, textAlign: 'center', paddingHorizontal: 24, lineHeight: 19 }}>
           라운딩 2회 이상 기록하면{'\n'}스코어 추세가 보여요
         </Text>
@@ -411,7 +434,7 @@ function HoleBreakdown({ diaries }) {
   if (stat.holes === 0) {
     return (
       <View style={[card, { alignItems: 'center' }]}>
-        <Text style={{ fontSize: fs(26) }}>🍩</Text>
+        <Icon name="donut" size={fs(26)} color={C.warmGrayLight} strokeWidth={1.6} />
         <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
           홀별 점수를 입력한 라운드가 없어요.{'\n'}기록할 때 홀별 점수를 넣으면 분석돼요.
         </Text>
@@ -618,30 +641,38 @@ function Milestones({ scored, lifeBest, diaries }) {
   const bestVal = cand.length ? Math.min(...cand) : null;
   const bestSub = (m.best && diaryBest === bestVal) ? `${m.best.course || '코스 미상'} · ${m.best.date}` : null;
 
+  // icon = 커스텀 SVG 이름(Icon.js). 유니코드 이모지 금지 — OS·기기마다 모양이 달라 톤이 깨진다(2026-07-22 교체).
+  //   ★색은 항목마다 다르게 — 단색 라인만 쓰니 이모지에 비해 밋밋하다는 피드백. 알림함(NOTI_COLOR)과 같은 방식으로
+  //    의미색을 준다(골드=영예, 세이지=달성, 테라코타=불꽃, 네이비=비상, 청록=희귀, 버건디=명중).
+  //    미달성 항목은 색 대신 흐린 회색(아래 렌더에서 처리) — 색이 곧 '달성' 신호가 된다.
   const rows = [
-    { emoji: '🏆', label: '라이프 베스트', val: bestVal != null ? `${bestVal}` : '—', sub: bestSub, done: bestVal != null },
-    { emoji: '⛳', label: '90 브레이크', val: m.sub90 ? m.sub90.date : '도전 중', sub: m.sub90 ? (m.sub90.course || '코스 미상') : null, done: !!m.sub90 },
-    { emoji: '🔥', label: '첫 싱글 (79↓)', val: m.sub80 ? m.sub80.date : '도전 중', sub: m.sub80 ? (m.sub80.course || '코스 미상') : null, done: !!m.sub80 },
+    { icon: 'trophy', color: '#C9A84C', label: '라이프 베스트', val: bestVal != null ? `${bestVal}` : '—', sub: bestSub, done: bestVal != null },
+    { icon: 'flag', color: '#5E8B60', label: '90 브레이크', val: m.sub90 ? m.sub90.date : '도전 중', sub: m.sub90 ? (m.sub90.course || '코스 미상') : null, done: !!m.sub90 },
+    { icon: 'fire', color: '#C0703A', label: '첫 싱글 (79↓)', val: m.sub80 ? m.sub80.date : '도전 중', sub: m.sub80 ? (m.sub80.course || '코스 미상') : null, done: !!m.sub80 },
     // 특별 기록 — 있을 때만 노출(희귀 기록이라 '도전 중'으로 모두에게 띄우면 노이즈). 홀별 스코어 등록 라운드 기준.
-    ...(special.eagle ? [{ emoji: '🦅', label: '이글', val: `${special.eagle}회`, sub: null, done: true }] : []),
-    ...(special.albatross ? [{ emoji: '💎', label: '알바트로스', val: `${special.albatross}회`, sub: null, done: true }] : []),
-    ...(special.holeInOne ? [{ emoji: '🎯', label: '홀인원', val: `${special.holeInOne}회`, sub: null, done: true }] : []),
-    { emoji: '📒', label: '기록한 라운딩', val: `${m.total}회`, sub: null, done: true },
+    ...(special.eagle ? [{ icon: 'bird', color: '#1A3D52', label: '이글', val: `${special.eagle}회`, sub: null, done: true }] : []),
+    ...(special.albatross ? [{ icon: 'gem', color: '#3E8E8E', label: '알바트로스', val: `${special.albatross}회`, sub: null, done: true }] : []),
+    ...(special.holeInOne ? [{ icon: 'target', color: '#6B1E2A', label: '홀인원', val: `${special.holeInOne}회`, sub: null, done: true }] : []),
+    { icon: 'book', color: '#8B6914', label: '기록한 라운딩', val: `${m.total}회`, sub: null, done: true },
   ];
 
   return (
     <View style={card}>
       {rows.map((r, i) => (
         <View key={r.label} style={{ paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
-          {/* 첫 줄 — 이모지 + 라벨 + 값(값은 right) */}
+          {/* 첫 줄 — 아이콘 + 라벨 + 값(값은 right). 미달성은 흐리게(색으로 구분, 이모지 opacity 대체) */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Text style={{ fontSize: fs(15), opacity: r.done ? 1 : 0.4 }}>{r.emoji}</Text>
+            {/* 달성=의미색 아이콘 + 옅은 색 원 배경(이모지만큼 눈에 들어오게), 미달성=흐린 회색 */}
+            <View style={{ width: fs(28), height: fs(28), borderRadius: fs(14), alignItems: 'center', justifyContent: 'center',
+              backgroundColor: r.done ? `${r.color}1F` : 'transparent' }}>
+              <Icon name={r.icon} size={fs(16)} color={r.done ? r.color : C.warmGrayLight} strokeWidth={1.8} />
+            </View>
             <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: r.done ? C.charcoal : C.warmGrayLight }}>{r.label}</Text>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: r.done ? C.charcoal : C.warmGrayLight }}>{r.val}</Text>
           </View>
           {/* 부제(구장·날짜) — 전체 폭 둘째 줄로 빼 잘림 방지(이모지 폭만큼 들여쓰기) */}
           {r.sub ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray, marginTop: 3, marginLeft: 25 }} numberOfLines={1}>{r.sub}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray, marginTop: 3, marginLeft: fs(28) + 10 }} numberOfLines={1}>{r.sub}</Text>
           ) : null}
         </View>
       ))}
