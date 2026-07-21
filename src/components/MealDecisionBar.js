@@ -7,10 +7,12 @@ import { C, F, fs } from '../constants/colors';
 import { AttentionMotion } from './common/AttentionMotion'; // '함께 식사하기' 살랑 모션(결정 전만)
 import { Icon } from './common/Icon'; // 커스텀 아이콘 — 식사 🍲 → bowl
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
-import { getSavedRestaurants } from '../utils/savedRestaurants';
+import { getSavedRestaurants, addSavedRestaurant } from '../utils/savedRestaurants';
+import { RestaurantSaveModal } from './RestaurantSaveModal';   // 저장 모달 — 코스 맛집 탭과 같은 것(메모까지 동일)
 import { naverSearchUrl } from '../utils/naverMap';   // 식당 '상세'를 네이버로(맛집 더보기와 통일)
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
-import { searchGolfCourses } from '../utils/golfCourses';
+import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
+import { findCourseByName } from '../utils/courseNameKey';   // 일정 구장명 → 우리 DB 구장명(서랍 키 일치)
 import {
   proposeMeal, updateMealNote, deleteMeal,
   subscribeMealForSchedule, subscribeIncomingMeals,
@@ -66,6 +68,23 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const [list, setList] = useState([]);
   const [detailPlace, setDetailPlace] = useState(null);   // 인앱 상세 시트 대상 식당
   const [detailBadge, setDetailBadge] = useState(null);   // 상세 시트 헤더에 표시할 방향 뱃지 { text, fg }
+  const [saveSeed, setSaveSeed] = useState(null);         // 맛집 저장 모달 대상(코스 맛집과 같은 저장소·같은 모달)
+  // 저장 맛집 서랍 키 — 일정에 적힌 구장명이 우리 DB 표기와 다를 수 있어(예약 문자 AI 등록 등)
+  //   DB 이름으로 맞춘 뒤 읽고 쓴다. 코스 화면은 DB 이름을 쓰므로, 이걸 맞춰야 두 화면이 같은 서랍을 본다
+  //   (2026-07-22: '힐마루골프앤리조트포천'으로 저장돼 코스 맛집에 안 보이던 문제).
+  const [courseKeyName, setCourseKeyName] = useState(schedule?.course || '');
+  useEffect(() => {
+    let alive = true;
+    const raw = schedule?.course || '';
+    setCourseKeyName(raw);
+    if (!raw) return;
+    getGolfCourses().then(all => {
+      if (!alive) return;
+      const hit = findCourseByName(all, raw);
+      if (hit?.name) setCourseKeyName(hit.name);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [schedule?.course]);
   // 저장된 목적지 로드 — 라운딩 후 귀가 동선 기준. 집(departure) 우선, 없으면 회사(work).
   useEffect(() => {
     if (!uid) { setDest(null); return; }
@@ -169,7 +188,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       if (!cc && !coord) cc = await resolveCoord(schedule);
       if (!coord) setCoord(cc);
       // 저장 맛집(코스별)은 최상단 + 표식, 주변 검색결과에서 중복 제거 — 단골/미리 점찍은 곳 먼저.
-      const saved = await getSavedRestaurants(schedule?.course).catch(() => []);
+      const saved = await getSavedRestaurants(courseKeyName || schedule?.course).catch(() => []);
       // 반경 점진 확장 — 3km에 결과 적으면(시골 구장) 8km→20km로 넓혀 충분히 모음(최대 20km는 카카오 한도).
       //   maxPages=3: 카카오 페이지당 15개 한도 → 최대 45개('리스트가 몇 개 안 나온다' 피드백 2026-07-10).
       //   break 기준도 6→15로 — 시골 구장에서 6개로 만족하고 멈추지 않게.
@@ -503,16 +522,37 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               return (
               <View key={r.kakaoId || r.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
                 <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.7} onPress={() => { setDetailPlace(r); setDetailBadge(badge && bt ? { text: badge.text, fg: bt.fg } : null); }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{r._saved ? '⭐ ' : ''}{r.name}</Text>
+                  {/* 저장 표식은 우측 별 아이콘이 대신하므로 이름 앞 ⭐은 뺀다(같은 신호 중복 + 유니코드 이모지 금지) */}
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{r.name}</Text>
                   {/* 주소(loc)는 어차피 잘려 의미 적고 '상세'로 충분 → 종류·거리만 표기. */}
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }} numberOfLines={1}>
                     {r.type}{r.distance ? ` · ${r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + 'km' : r.distance + 'm'}` : ''}
                   </Text>
-                  {badge && (
-                    <View style={{ alignSelf: 'flex-start', marginTop: 5, backgroundColor: bt.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: bt.fg }}>{badge.text}</Text>
-                    </View>
-                  )}
+                  {/* 방향 뱃지 + 저장 칩 한 줄 — 저장은 오른쪽 버튼 줄(상세·정하기)에서 빼 여기로.
+                      별 아이콘은 '이미 저장됨'처럼 읽혀 헷갈린다는 피드백(2026-07-22) → 코스 맛집 탭과 같은
+                      「+ 저장 / 저장됨」 칩으로 통일. 두 화면이 같은 저장소를 쓰므로 표기도 같아야 한다. */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 }}>
+                    {badge && (
+                      <View style={{ backgroundColor: bt.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: bt.fg }}>{badge.text}</Text>
+                      </View>
+                    )}
+                    {/* 저장 전 = 「+ 저장」 칩(누를 수 있음) / 저장 후 = 별(상태 표시, 누를 일 없음).
+                        '저장됨' 글자칩은 버튼처럼 보여 헷갈린다는 피드백(2026-07-22) → 상태는 별로. */}
+                    {r._saved ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <Icon name="star" size={fs(13)} color="#C9A84C" strokeWidth={1.9} />
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: '#8B6914' }}>저장</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity onPress={() => setSaveSeed(r)} activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        style={{ borderRadius: 12, paddingHorizontal: 9, paddingVertical: 3,
+                          borderWidth: 0.5, borderColor: '#C9A84C', backgroundColor: '#FFFDF5' }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: '#5A4A00' }}>+ 저장</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </TouchableOpacity>
                 {/* 상세 — 앱 내 카카오 place 웹뷰(사진·평점·리뷰). 밖으로 안 나감. */}
                 <TouchableOpacity onPress={() => { setDetailPlace(r); setDetailBadge(badge && bt ? { text: badge.text, fg: bt.fg } : null); }} activeOpacity={0.7} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
@@ -629,6 +669,23 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         </KeyboardProvider>
       </Modal>
       {/* 앱 내 식당 상세 — 탭하면 카카오 place 웹뷰(밖으로 안 나감). 정하기·길찾기·전화 */}
+      {/* 맛집 저장 — 구장 이름 기준 저장소라 저장 즉시 코스 화면 '내가 저장한 맛집'에도 나타난다.
+          목록의 _saved 표식은 다시 열 때 갱신되므로, 저장 후 이 화면에서도 '저장됨'으로 바뀌게 즉시 반영한다. */}
+      <RestaurantSaveModal
+        visible={!!saveSeed}
+        seed={saveSeed}
+        courseName={courseKeyName || schedule?.course}
+        onClose={() => setSaveSeed(null)}
+        onSave={async (rest) => {
+          const key = saveSeed?.kakaoId || saveSeed?.name;
+          try {
+            const ck = courseKeyName || schedule?.course;
+            if (ck) await addSavedRestaurant(ck, { ...saveSeed, ...rest });
+            setList(prev => prev.map(x => ((x.kakaoId || x.name) === key ? { ...x, _saved: true } : x)));
+          } catch { /* 저장 실패는 조용히 — 다시 시도하면 됨 */ }
+          setSaveSeed(null);
+        }}
+      />
       <RestaurantDetailSheet
         visible={!!detailPlace}
         place={detailPlace}
