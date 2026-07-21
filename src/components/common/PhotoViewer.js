@@ -13,6 +13,8 @@ import { resolvePhotoUri } from '../../utils/photoStorage';
 const { width: SW, height: SH } = Dimensions.get('window');
 // 안드 엣지투엣지 — 하단 시스템 내비바 높이(없으면 0). '게시글 보기' 버튼이 내비바에 가리지 않게 띄움.
 const NAV_BOTTOM = Platform.OS === 'android' ? (initialWindowMetrics?.insets?.bottom || 0) : 0;
+// 하단 안전영역 — 양 플랫폼 공통(iOS 홈 인디케이터 포함). 긴 캡션 마지막 줄이 시스템 UI에 가리지 않게.
+const SAFE_BOTTOM = initialWindowMetrics?.insets?.bottom || 0;
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
 // 외부에서 비율 미리 심기 — DM 말풍선 등에서 먼저 로드된 사진의 실비율을 뷰어 캐시에 넣어두면
@@ -387,9 +389,13 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
 
         {/* 글(캡션) — 사진 바로 아래 흐름으로 배치, 남은 공간 전체에서 세로 스크롤. 사진 탭으로 숨김/표시 토글. 확대 중엔 숨김. */}
         {caption && showCaption && !zoomed ? (
+          // ★하단 여백: 안전영역 + '게시글 보기' 버튼(있을 때)까지 확보 — 긴 글의 마지막 줄이 시스템 UI나
+          //   떠 있는 버튼에 가려 '잘린 것처럼' 보이던 문제(사용자 2026-07-22, 긴 일상 글 피드).
+          //   스크롤 막대도 켠다 — 아래에 글이 더 있다는 걸 알 방법이 없어 잘렸다고 오해하기 쉬움.
           <ScrollView style={{ flex: 1, alignSelf: 'stretch' }}
-            contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 40 }}
-            showsVerticalScrollIndicator={false}>
+            contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16,
+              paddingBottom: 40 + SAFE_BOTTOM + (onGoToPost ? 76 : 0) }}
+            showsVerticalScrollIndicator>
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: '#fff', lineHeight: 23 }}>{caption}</Text>
           </ScrollView>
         ) : null}
