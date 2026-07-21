@@ -453,6 +453,9 @@ function App() {
           settings: {
             alarmDefaults: userProfile.alarmDefaults || null,
             alarmPromptDisabled: !!userProfile.alarmPromptDisabled,
+            // 기상 알람 폰 알람 자동등록(안드) — 로컬에만 저장돼 재설치·기기변경 시 사라지고,
+            //   시작 시 이 settings로 프로필을 덮으므로 서버에 없으면 되돌아갈 여지가 있었다(2026-07-22 제보).
+            autoSystemAlarm: !!userProfile.autoSystemAlarm,
             roundupMatch: userProfile.roundupMatch || null,
             hideStrangerRoundups: !!userProfile.hideStrangerRoundups,
             roundupNotifyPrefs: userProfile.roundupNotifyPrefs || null,
@@ -482,6 +485,7 @@ function App() {
     authUid,
     userProfile.alarmDefaults,
     userProfile.alarmPromptDisabled,
+    userProfile.autoSystemAlarm,   // 빠져 있으면 토글해도 서버 반영이 안 됨(다음 다른 변경 때까지 지연)
     userProfile.roundupMatch,
     userProfile.hideStrangerRoundups,
     userProfile.roundupNotifyPrefs,
