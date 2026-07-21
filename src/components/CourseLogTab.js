@@ -94,7 +94,12 @@ function UnrecordedCard({ c, rs, onAdd }) {
   return (
     <View style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: C.warmGrayLight }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <Text style={{ fontSize: fs(14) }}>🗓️</Text>
+        {/* 일정만 있고 기록이 없는 카드 — 이모지 대신 커스텀 캘린더. 아이콘만 두면 밋밋해 옅은 원 배경을 깐다
+            ([[project_deargolf_icon_convention]] 2026-07-22) */}
+        <View style={{ width: fs(26), height: fs(26), borderRadius: fs(13), backgroundColor: '#F0EDE6',
+          alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="calendar" size={fs(15)} color={C.warmGray} strokeWidth={1.9} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={dS.courseName}>{c.name}</Text>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
@@ -107,8 +112,10 @@ function UnrecordedCard({ c, rs, onAdd }) {
         <RegionTag rs={rs} />
       </View>
       <TouchableOpacity onPress={onAdd} activeOpacity={0.8}
-        style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter }}>✏️ 기록 추가하기 →</Text>
+        style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 9,
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <Icon name="pen" size={fs(14)} color={C.butter} strokeWidth={1.9} />
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter }}>기록 추가하기 →</Text>
       </TouchableOpacity>
     </View>
   );
