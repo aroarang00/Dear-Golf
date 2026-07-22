@@ -129,6 +129,12 @@ export async function createSettlement(data) {
     total: won(data.total),
     account: String(data.account || '').trim().slice(0, 60),   // 계좌 — 한 번 넣으면 다음에도 재사용
     accountName: String(data.accountName || '').trim().slice(0, 20),
+    note: String(data.note || '').trim().slice(0, 60),         // 계산 근거 한 줄 — '내역 넣기' 정산서에 붙인다
+    // 건별 내역 [{label:"1차 복돌이식당", amount}] — 카드문자 가맹점명을 그대로. 한 건이면 빈 배열.
+    items: (Array.isArray(data.items) ? data.items : [])
+      .map(i => ({ label: String(i?.label || '').trim().slice(0, 20), amount: won(i?.amount) }))
+      .filter(i => i.label && i.amount > 0)
+      .slice(0, 12),
     members,
     // 연결은 선택 — 없어도 완전히 동작한다(독립 문서인 이유)
     linkedRoundupId: data.linkedRoundupId || null,
@@ -187,6 +193,7 @@ async function callSettlementAI(payload, names) {
   const members = hit >= 1 && hit === (names || []).length ? list : splitEvenly(names || [], total);
   return {
     total, members, note: d.note || '',
+    items: Array.isArray(d.items) ? d.items : [],   // 품목별 내역 — 정산서 '내역 넣기'에 쓴다
     account: d.account || '', accountName: d.accountName || '',
     fallback: !(hit >= 1 && hit === (names || []).length),
   };
@@ -226,19 +233,45 @@ export async function computeSettlementFromImages({ uris, names, instruction, ki
 
 // 카톡으로 보낼 정산서 텍스트 — 앱 안 깐 사람에게 가는 경로.
 //   ★이게 앱의 광고이기도 하다(카톡방에 뿌려지는 순간 8명이 본다).
-export function buildSettlementText(s) {
+//
+//   ★내역을 넣을지는 선택이다(사용자 2026-07-22): 영수증·내역까지 다 붙이는 모임이 있고,
+//   금액만 딱 올리는 모임이 있다. 어느 쪽이 옳다고 정하지 않고 총무가 고르게 한다.
+//     detail=false — 1인 얼마·합계·계좌만. 금액이 전원 같을 때만 쓸 수 있다.
+//     detail=true  — 품목별 내역(무엇에 얼마) + 사람별 금액 + 계산 근거 + 입금 표시.
+export function buildSettlementText(s, { detail = true } = {}) {
   const list = (s?.members || []).map(normMember);
-  const head = [s?.course, s?.date].filter(Boolean).join(' · ');
+  const items = Array.isArray(s?.items) ? s.items.filter(i => i?.label && i?.amount > 0) : [];
+  const total = list.reduce((a, m) => a + m.amount, 0);
+  const uniform = list.length > 0 && list.every(m => m.amount === list[0].amount);
   const lines = [];
+
+  const head = [s?.course, s?.date].filter(Boolean).join(' · ');
   if (head) lines.push(head);
-  lines.push(`[${settleKindLabel(s?.kind)}]`);
+  lines.push(settleKindLabel(s?.kind));
   lines.push('');
-  list.forEach(m => {
-    const mark = m.status === PAY_CONFIRMED ? ' ✅' : '';
-    lines.push(`${m.name}  ${m.amount.toLocaleString()}원${mark}`);
-  });
+
+  // 건별 내역 — 영수증을 첨부하는 대신 어디서 얼마 썼는지를 상호명 그대로 남긴다
+  if (detail && items.length > 0) {
+    items.forEach(i => lines.push(`${i.label}  ${won(i.amount).toLocaleString()}원`));
+    lines.push('');
+  }
+
+  // 금액이 사람마다 다르면 '간단히'라도 사람별로 적어야 한다 — 1인 얼마가 하나로 안 나온다.
+  if (!detail && uniform) {
+    lines.push(`1인 ${list[0].amount.toLocaleString()}원 (${list.length}명)`);
+  } else {
+    list.forEach(m => {
+      const mark = detail && m.status === PAY_CONFIRMED ? '  입금완료' : '';
+      lines.push(`${m.name}  ${m.amount.toLocaleString()}원${mark}`);
+    });
+  }
+
   lines.push('');
-  lines.push(`합계 ${list.reduce((a, m) => a + m.amount, 0).toLocaleString()}원`);
-  if (s?.account) lines.push(`${s.account}${s.accountName ? ` ${s.accountName}` : ''}`);
+  lines.push(`합계 ${total.toLocaleString()}원`);
+  if (detail && s?.note) lines.push(`(${s.note})`);
+  if (s?.account) {
+    lines.push('');
+    lines.push(`${s.account}${s.accountName ? ` ${s.accountName}` : ''}`);
+  }
   return lines.join('\n');
 }

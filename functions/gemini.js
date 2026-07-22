@@ -380,11 +380,23 @@ const SETTLEMENT_SCHEMA = {
         required: ['name', 'amount'],
       },
     },
+    items: {
+      type: 'ARRAY',
+      description: '건별 내역. 결제가 여러 건이면 가맹점(상호)명과 금액을 그대로 옮긴다. 없으면 빈 배열',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          label: { type: 'STRING', description: '가게 상호명 그대로(예: "1차 복돌이식당", "2차 탑호프"). 20자 이내' },
+          amount: { type: 'INTEGER', description: '그 건의 결제 금액(원)' },
+        },
+        required: ['label', 'amount'],
+      },
+    },
     account: { type: 'STRING', description: '입금 계좌가 있으면 "은행 계좌번호" 형태로 정리(예: "국민 123456-78-901234"). 없으면 빈 문자열' },
     accountName: { type: 'STRING', description: '예금주 이름. 없으면 빈 문자열' },
     note: { type: 'STRING', description: '계산 근거를 한 줄로(예: "총 998,000원을 4명 1/n, 백원 단위 절사"). 40자 이내' },
   },
-  required: ['found', 'total', 'members', 'account', 'accountName', 'note'],
+  required: ['found', 'total', 'members', 'items', 'account', 'accountName', 'note'],
 };
 
 exports.extractSettlement = onCall(
@@ -453,6 +465,10 @@ exports.extractSettlement = onCall(
           `  사람별로 합산해 최종 금액을 낸다(예: 점심 12만을 3명, 저녁 20만을 5명 → 두 끼 다 먹은 사람은 합산).\n`) +
       `- 절사·지정으로 합계가 total과 어긋나는 건 정상이다. 억지로 맞추지 마라.\n` +
       `- 금액은 원 단위 정수. 음수 금지.\n` +
+      `- items: 결제가 여러 건이면 ★가게 상호명을 그대로★ 살려 건별로 적는다.\n` +
+      `  카드문자의 가맹점명, 영수증 상단 상호를 쓴다. 임의로 '식사'·'기타'로 바꾸지 마라.\n` +
+      `  차수를 알 수 있으면 앞에 붙인다 — 예: "1차 복돌이식당" 156000, "2차 탑호프" 88000.\n` +
+      `  총무가 카톡 정산서에 "무엇에 얼마 썼는지" 그대로 올릴 근거다. 결제가 한 건이면 빈 배열.\n` +
       `- account/accountName: 붙여넣은 내용에 계좌가 있으면 정리해서 채운다. 은행명과 번호를 한 줄로.\n` +
       `- note: 어떻게 계산했는지 한 줄(40자 이내). 총무가 검산할 수 있게 근거를 적어라.\n` +
       `금액을 전혀 못 찾으면 found=false.`;
@@ -488,6 +504,15 @@ exports.extractSettlement = onCall(
       found: !!out?.found,
       total: Number.isFinite(out?.total) && out.total > 0 ? Math.round(out.total) : 0,
       members,
+      items: Array.isArray(out?.items)
+        ? out.items
+            .map(i => ({
+              label: String(i?.label || '').trim().slice(0, 20),
+              amount: Number.isFinite(i?.amount) && i.amount > 0 ? Math.round(i.amount) : 0,
+            }))
+            .filter(i => i.label && i.amount > 0)
+            .slice(0, 12)
+        : [],
       account: (out?.account || '').toString().trim().slice(0, 60),
       accountName: (out?.accountName || '').toString().trim().slice(0, 20),
       note: (out?.note || '').toString().trim().slice(0, 60),

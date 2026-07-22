@@ -260,6 +260,7 @@ function ComposeView({ onCancel, onCreated }) {
   const [instr, setInstr] = useState('');      // 총무 요구사항 — "1/n 백원단위 절사" 같은 자연어
   const [showPaste, setShowPaste] = useState(false);
   const [aiMembers, setAiMembers] = useState(null); // AI가 계산한 사람별 금액(있으면 이걸 쓴다)
+  const [aiItems, setAiItems] = useState([]);   // AI가 읽은 품목별 내역(그린피·식사…)
   const [aiNote, setAiNote] = useState('');    // 계산 근거 한 줄 — 총무가 검산할 수 있게
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -424,6 +425,7 @@ function ComposeView({ onCancel, onCreated }) {
   const applyAi = (r) => {
     if (r?.error) { setAiError(r.error); return; }
     setAiMembers(r.members || null);
+    setAiItems(r.items || []);
     setAiNote(r.note || '');
     setTotal(''); setPerHead('');   // 직접 입력값이 남아 AI 결과를 덮지 않게
     setPaste(''); setAiError('');
@@ -500,6 +502,7 @@ function ComposeView({ onCancel, onCreated }) {
         course: manual ? mCourse : (src?.course || ''),
         date: (manual ? mDate : src?.date) || today(),
         members: ready, total: sum, account, accountName,
+        items: aiItems, note: aiNote,   // '자세히' 정산서에 계산 근거로 붙는다
       });
       rememberAccount(account, accountName);
       onCreated(s);
@@ -511,7 +514,9 @@ function ComposeView({ onCancel, onCreated }) {
     <KeyboardAwareScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} bottomOffset={24}>
       {/* 1 — 어떤 라운딩. 고르면 구장·날짜·명단이 따라온다 */}
       <Text style={sec}>어떤 라운딩인가요</Text>
-      {options.map(o => {
+      {/* 고르고 나면 나머지 카드는 감춘다 — 남겨두면 뭘 고른 건지 헷갈린다(사용자 2026-07-22).
+          고른 카드만 남기고, 바꾸려면 아래 '다른 라운딩 고르기'로 다시 편다. */}
+      {(src || manual ? options.filter(o => src?.key === o.key) : options).map(o => {
         const on = src?.key === o.key;
         return (
           <TouchableOpacity key={o.key} onPress={() => pick(o)} activeOpacity={0.75}
@@ -536,10 +541,24 @@ function ComposeView({ onCancel, onCreated }) {
           </TouchableOpacity>
         );
       })}
-      <TouchableOpacity onPress={() => { setManual(true); setSrc(null); }} activeOpacity={0.7}
-        style={{ paddingVertical: 12, alignItems: 'center' }}>
+      {manual && (
+        <View style={[box, { paddingHorizontal: 16, paddingVertical: 14 }]}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal }}>직접 입력</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 5 }}>
+            목록에 없는 라운딩을 직접 적어요
+          </Text>
+        </View>
+      )}
+      <TouchableOpacity activeOpacity={0.7}
+        onPress={() => {
+          if (src || manual) { setSrc(null); setManual(false); }   // 다시 고르기 — 카드를 펼친다
+          else setManual(true);
+        }}
+        style={{ paddingVertical: 13, alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5),
-          color: manual ? '#6B1E2A' : C.warmGray }}>직접 입력하기</Text>
+          color: (src || manual) ? C.warmGray : '#6B1E2A' }}>
+          {(src || manual) ? '다른 라운딩 고르기' : '직접 입력하기'}
+        </Text>
       </TouchableOpacity>
 
       {/* 라운딩을 고르기 전엔 아래를 감춘다 — 한 번에 다 보이면 아까 그 '따로 입력' 폼과 똑같아진다 */}
@@ -572,7 +591,7 @@ function ComposeView({ onCancel, onCreated }) {
                   onPress={() => {
                     if (k.key === kind) return;
                     // 선입금↔사후정산은 금액의 의미가 반대라(1인당 vs 총액) 이전 계산을 그대로 두면 틀린 값이 남는다.
-                    setKind(k.key); setAiMembers(null); setAiNote(''); setTotal(''); setPerHead('');
+                    setKind(k.key); setAiMembers(null); setAiItems([]); setAiNote(''); setTotal(''); setPerHead('');
                   }}
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 11, alignItems: 'center',
                     backgroundColor: on ? '#6B1E2A' : C.bgSecondary,
@@ -844,8 +863,13 @@ function DetailView({ s, onSave, onDeleted }) {
   // 이름 탭 → 입금 확정 토글. 총무가 은행앱 보면서 하나씩 찍는 동작.
   const tapMember = (memberId) => onSave({ members: toggleMemberStatus(s.members, memberId) });
 
+  // 정산서에 내역을 넣을지는 모임마다 다르다(사용자 2026-07-22) — 총무가 고르고, 그 선택을 기억한다.
+  const [detail, setDetail] = useState(true);
+  useEffect(() => { storage.load(STORAGE_KEYS.settlementDetail, true).then(v => setDetail(v !== false)); }, []);
+  const setDetailKeep = (v) => { setDetail(v); storage.save(STORAGE_KEYS.settlementDetail, v); };
+
   const sendKakao = async () => {
-    try { await Share.share({ message: buildSettlementText(s) }); }
+    try { await Share.share({ message: buildSettlementText(s, { detail }) }); }
     catch (e) { /* 사용자가 공유 시트를 닫은 경우 — 무시 */ }
   };
 
@@ -877,6 +901,21 @@ function DetailView({ s, onSave, onDeleted }) {
           {allDone ? '전원 입금 완료' : `${sum.confirmedCount}/${sum.count} 입금 · ${won(sum.remain)}원 남음`}
         </Text>
       </View>
+
+      {/* 건별 내역 — 카드문자 가맹점명 그대로("1차 복돌이식당"). 정산서 '내역 넣기'에 이대로 나간다 */}
+      {Array.isArray(s.items) && s.items.length > 0 && (
+        <View style={[box, { paddingHorizontal: 16, paddingVertical: 12, marginBottom: 14 }]}>
+          {s.items.map((i, idx) => (
+            <View key={`${i.label}_${idx}`}
+              style={{ flexDirection: 'row', paddingVertical: 5 }}>
+              <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>
+                {i.label}
+              </Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }}>{won(i.amount)}원</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* 명단 — 탭하면 확정 토글 */}
       <Text style={label}>이름을 탭하면 입금 확정으로 바뀝니다</Text>
@@ -911,7 +950,20 @@ function DetailView({ s, onSave, onDeleted }) {
         </View>
       )}
 
-      {/* 카톡으로 정산서 — 앱 안 깐 사람에게 가는 경로 */}
+      {/* 카톡으로 정산서 — 앱 안 깐 사람에게 가는 경로. 내역 포함 여부는 총무가 고른다 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+        <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>정산서에 내역</Text>
+        {[[true, '넣기'], [false, '빼기']].map(([v, l]) => {
+          const on = detail === v;
+          return (
+            <TouchableOpacity key={l} onPress={() => setDetailKeep(v)} activeOpacity={0.7}
+              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 14, marginLeft: 6,
+                backgroundColor: on ? '#6B1E2A' : C.bgSecondary }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: on ? C.butter : C.charcoal }}>{l}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       <TouchableOpacity onPress={sendKakao} activeOpacity={0.85}
         style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>카톡으로 정산서 보내기</Text>
