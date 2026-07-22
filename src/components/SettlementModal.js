@@ -21,8 +21,8 @@ import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
   SETTLE_KINDS, settleKindLabel, PAY_PENDING, PAY_CLAIMED, PAY_CONFIRMED,
   splitEvenly, summarize, toggleMemberStatus, buildSettlementText,
-  loadMySettlements, createSettlement, updateSettlement, deleteSettlement, setSettlementArchived,
-  computeSettlement, RECEIPT_MAX,
+  subscribeMySettlements, createSettlement, updateSettlement, deleteSettlement, setSettlementArchived,
+  computeSettlement, RECEIPT_MAX, newShareToken,
 } from '../utils/settlement';
 
 // 모임 '걷기' — 총무가 참가자에게 돈을 걷는 화면. 목록 ↔ 상세 한 모달 안에서 전환.
@@ -94,18 +94,25 @@ export function SettlementModal({ visible, onClose }) {
   const [openId, setOpenId] = useState(null);      // null이면 목록, 아니면 상세
   const [composing, setComposing] = useState(false); // 새 걷기 만들기
 
-  const load = useCallback(async () => {
+  const myUid = useCurrentUid();
+  const [reloadKey, setReloadKey] = useState(0);
+  const load = useCallback(() => setReloadKey(k => k + 1), []);
+
+  // 화면이 떠 있는 동안 실시간 구독 — 참가자가 웹에서 '보냈어요'를 누르면 바로 뜬다.
+  //   한 번 읽고 끝이면 서버가 바뀌어도 화면이 그대로다(사용자 2026-07-22).
+  useEffect(() => {
+    if (!visible || !myUid) return undefined;
     setLoading(true); setFailed(false);
-    try { setList(await loadMySettlements()); }
-    catch (e) { console.warn('[정산] 목록 로드 실패', e?.code, e?.message); setFailed(true); }
-    finally { setLoading(false); }
-  }, []);
+    const unsub = subscribeMySettlements(myUid,
+      (rows) => { setList(rows); setLoading(false); setFailed(false); },
+      (e) => { console.warn('[정산] 구독 실패', e?.code, e?.message); setLoading(false); setFailed(true); });
+    return unsub;
+  }, [visible, myUid, reloadKey]);
 
   useEffect(() => {
     if (!visible) return;
     setOpenId(null); setComposing(false);
-    load();
-  }, [visible, load]);
+  }, [visible]);
 
   const current = useMemo(() => list.find(s => s.id === openId) || null, [list, openId]);
 
@@ -1002,7 +1009,14 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
   const setDetailKeep = (v) => { setDetail(v); storage.save(STORAGE_KEYS.settlementDetail, v); };
 
   const sendKakao = async () => {
-    try { await Share.share({ message: buildSettlementText(s, { detail }) }); }
+    // 링크 도입 전에 만든 걷기는 토큰이 없다 — 보낼 때 만들어 붙인다(한 번만).
+    let doc = s;
+    if (!s.shareToken) {
+      const shareToken = newShareToken();
+      doc = { ...s, shareToken };
+      onSave({ shareToken });
+    }
+    try { await Share.share({ message: buildSettlementText(doc, { detail }) }); }
     catch (e) { /* 사용자가 공유 시트를 닫은 경우 — 무시 */ }
   };
 
@@ -1095,7 +1109,8 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
         </View>
       ))}
 
-      {/* 명단 — 평소엔 탭으로 입금 확정, 수정 중엔 금액을 직접 고친다 */}
+      {/* 명단 — 평소엔 탭으로 입금 확인, 수정 중엔 금액을 직접 고친다.
+          '확정'보다 '확인'이 맞는 말이다 — 총무가 하는 건 돈이 들어왔는지 확인하는 일(사용자 2026-07-22) */}
       {editing ? (
         <View style={{ marginBottom: 14 }}>
           <Text style={label}>사람별 금액</Text>
@@ -1120,7 +1135,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           </Text>
         </View>
       ) : (<>
-      <Text style={label}>이름을 탭하면 입금 확정으로 바뀝니다</Text>
+      <Text style={label}>이름을 탭하면 입금 확인으로 바뀝니다</Text>
       <View style={[box, { paddingVertical: 4, marginBottom: 14 }]}>
         {(s.members || []).map((m, i) => {
           const done = m.status === PAY_CONFIRMED;
@@ -1136,7 +1151,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
               </Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), minWidth: fs(52), textAlign: 'right',
                 color: done ? '#6B8B5E' : claimed ? GOLD : C.warmGray }}>
-                {done ? '✓ 확정' : claimed ? '확인대기' : '대기'}
+                {done ? '✓ 확인' : claimed ? '확인대기' : '대기'}
               </Text>
             </TouchableOpacity>
           );

@@ -23,7 +23,8 @@
     "cleanUrls": true,
     "ignore": ["firebase.json", "**/node_modules/**"],
     "rewrites": [
-      { "source": "/r/**", "destination": "/r.html" }
+      { "source": "/r/**", "destination": "/r.html" },
+      { "source": "/s/**", "function": { "functionId": "settlementWeb", "region": "asia-northeast3" } }
     ],
     "headers": [
       {

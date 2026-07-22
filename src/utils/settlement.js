@@ -1,9 +1,10 @@
 import {
-  collection, query, where, orderBy, getDocs,
+  collection, query, where, orderBy, getDocs, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as Crypto from 'expo-crypto';
 import { db, getUid, functions } from './firebase';
 
 // =============================================================
@@ -45,6 +46,18 @@ export const PAY_CLAIMED = 'claimed';
 export const PAY_CONFIRMED = 'confirmed';
 
 const won = (n) => Math.max(0, Math.round(Number(n) || 0));
+
+// 공유 링크 토큰 — 이 문자열을 아는 사람만 웹 정산서를 본다. 보안 규칙으로는 "토큰을 아는 사람만 읽기"를
+//   표현할 수 없어(읽기 시 클라이언트 값과 대조할 수단이 없음) Cloud Function이 대신 검증하고 읽어준다.
+//   추측이 사실상 불가능해야 하므로 Math.random이 아니라 암호학적 난수를 쓴다. 22자 base62 ≈ 130비트.
+const TOKEN_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+export function newShareToken() {
+  const bytes = Crypto.getRandomBytes(22);
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 1) out += TOKEN_CHARS[bytes[i] % TOKEN_CHARS.length];
+  return out;
+}
+export const SHARE_BASE = 'https://deargolf.app/s/';
 
 // 참가자 한 명 정규화. name만 있으면 충분(앱 미설치자 포함).
 //   amount = 이 사람이 낼 금액. locked = 총무가 직접 정한 금액이라 1/n 재계산에서 제외.
@@ -116,6 +129,19 @@ export async function loadMySettlements() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// 실시간 구독 — 참가자가 웹에서 '보냈어요'를 누르면 총무 화면에 바로 떠야 한다(그게 이 기능의 핵심).
+//   한 번 읽고 끝이면 앱을 껐다 켜야 보인다. 화면이 떠 있는 동안만 구독하고 닫을 때 해제한다.
+export function subscribeMySettlements(uid, onData, onError) {
+  const q = query(
+    collection(db, COLLECTION),
+    where('ownerUid', '==', uid),
+    orderBy('date', 'desc'),
+  );
+  return onSnapshot(q,
+    (snap) => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (e) => onError && onError(e));
+}
+
 export async function createSettlement(data) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
@@ -139,6 +165,7 @@ export async function createSettlement(data) {
     // 보관 — 끝난 걷기를 목록에서 치우되 데이터는 남긴다. 삭제는 되살릴 수 없어 별도로 둔다
     //   ("작년에 얼마 걷었지"·모임 운영비 정산은 지난 기록이 있어야 한다). 보관/삭제는 총무가 고른다.
     archived: false,
+    shareToken: newShareToken(),   // 카톡 정산서에 붙는 웹 링크 — 참가자가 설치 없이 '보냈어요'를 누른다
     // 연결은 선택 — 없어도 완전히 동작한다(독립 문서인 이유)
     linkedRoundupId: data.linkedRoundupId || null,
     linkedScheduleId: data.linkedScheduleId || null,
@@ -175,8 +202,9 @@ export async function deleteSettlement(id) {
   await deleteDoc(doc(db, COLLECTION, id));
 }
 
-// 한 사람 입금 상태만 바꾸기 — 목록에서 탭 한 번으로 순환(대기 → 확정 → 대기).
-//   claimed는 참가자가 만드는 상태라 총무 탭 순환에는 넣지 않는다(총무는 '확정'만 찍는다).
+// 한 사람 입금 상태만 바꾸기 — 목록에서 탭 한 번으로 순환(대기 → 확인 → 대기).
+//   claimed는 참가자가 웹에서 만드는 상태라 총무 탭 순환에는 넣지 않는다(총무는 '확인'만 찍는다).
+//   화면 문구는 '확정'이 아니라 '확인' — 총무가 하는 건 돈이 들어왔는지 확인하는 일이다(사용자 2026-07-22).
 export function toggleMemberStatus(members, memberId) {
   return (members || []).map(normMember).map(m => {
     if (m.id !== memberId) return m;
@@ -285,6 +313,13 @@ export function buildSettlementText(s, { detail = true } = {}) {
     lines.push(s.account);
     // 예금주는 줄을 바꿔 적는다 — 계좌번호 뒤에 붙이면 카톡에서 줄이 넘쳐 이름이 잘린다(사용자 2026-07-22).
     if (s.accountName) lines.push(s.accountName);
+  }
+  // ★웹 링크 — 카톡에서 "입완"이라 쓰고 방을 나가던 걸 대신한다. 참가자는 앱을 안 깔아도
+  //   링크를 눌러 자기 이름 옆 '보냈어요'를 탭하면 총무 화면에 바로 뜬다(설치 전제 금지).
+  if (s?.shareToken) {
+    lines.push('');
+    lines.push('입금하셨으면 여기서 눌러주세요');
+    lines.push(SHARE_BASE + s.shareToken);
   }
   return lines.join('\n');
 }

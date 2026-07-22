@@ -661,3 +661,4 @@ exports.extractReservation = gemini.extractReservation;
 exports.extractScorecard = gemini.extractScorecard;   // 스코어카드/태블릿 사진 → 홀별 par·score(Gemini 비전)
 exports.extractExpense = gemini.extractExpense;        // 카드문자/영수증/한줄 → 골프 지출(금액·분류·날짜·메모) 자동입력
 exports.extractSettlement = gemini.extractSettlement;  // 카드문자/영수증 + 총무 요구사항(1/n·백원절사 등) → 사람별 걷을 금액
+exports.settlementWeb = require('./settlementWeb').settlementWeb;  // /s/{token} — 참가자가 앱 없이 '보냈어요'를 누르는 웹 정산서
