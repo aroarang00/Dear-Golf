@@ -89,6 +89,11 @@ function buildSingleHofEntry(data, diaryId) {
   };
 }
 
+// 요약보기 선호값 세션 캐시 — AsyncStorage 읽기가 비동기라 매 마운트마다 기본값(사진 카드)을 한 프레임
+//   그린 뒤 요약보기로 바뀌어, 탭 이동 때마다 펼쳐보기가 번쩍였다(사용자 2026-07-22). 한 번 읽은 값을
+//   모듈에 들고 있으면 재진입 시 첫 프레임부터 올바른 모드로 그린다. null = 이 세션에서 아직 안 읽음.
+let compactPref = null;
+
 export function DiaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();   // 안드 내비게이션 바 인셋 — 하단 바텀시트 잘림 방지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
@@ -234,10 +239,16 @@ export function DiaryScreen({ route, navigation }) {
   const [feedLimit, setFeedLimit] = useState(10);   // 피드 점진 렌더 — 비가상화 ScrollView 버벅임 완화(미디어 디코드량 분산). 첫 10개+더보기
   // 요약보기 — 사진을 안 그리는 한 줄 목록. 기록이 쌓이면 사진 카드 피드가 무거워 훑어보기 힘든 문제(테스터).
   //   기기 로컬 선호값이라 서버 저장 안 함. 요약은 행이 가벼워 한 번에 더 많이 그려도 된다(FEED_STEP).
-  const [compact, setCompact] = useState(false);
-  useEffect(() => { storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)); }, []);
+  const [compact, setCompact] = useState(compactPref === null ? false : compactPref);
+  const [compactReady, setCompactReady] = useState(compactPref !== null);   // 앱 세션 첫 진입에만 false
+  useEffect(() => {
+    if (compactPref !== null) return;   // 이미 읽어둔 세션 — 비동기 대기 없이 그대로
+    storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => {
+      compactPref = !!v; setCompact(!!v); setCompactReady(true);
+    }).catch(() => { compactPref = false; setCompactReady(true); });
+  }, []);
   const toggleCompact = React.useCallback(() => {
-    setCompact(prev => { const next = !prev; storage.save(STORAGE_KEYS.diaryCompactView, next); return next; });
+    setCompact(prev => { const next = !prev; compactPref = next; storage.save(STORAGE_KEYS.diaryCompactView, next); return next; });
     setFeedLimit(f => Math.max(f, 10));
   }, []);
   const feedStep = compact ? 30 : 10;
@@ -859,7 +870,9 @@ export function DiaryScreen({ route, navigation }) {
       {/* 인덱스 3 — 피드 본문(로딩 / 빈 상태 / 명예의전당 + 카드). 필터·검색은 위 sticky 인덱스2로 분리됨 */}
       {(() => {
         // 첫 로드 전 — 빈 상태 대신 로딩 스피너 (다이어리 로컬+Firestore 로드 동안 깜빡임 방지)
-        if (!diariesHydrated) {
+        //   보기 모드(compactReady)도 같이 기다린다. 안 그러면 사진 카드로 한 번 그린 뒤 요약보기로 갈아끼워
+        //   펼쳐보기가 번쩍인다. 앱 세션 첫 진입에만 해당(이후엔 compactPref 캐시로 즉시 true).
+        if (!diariesHydrated || !compactReady) {
           return <LoadingState style={{ backgroundColor: C.bgPrimary }} />;
         }
         // 로드 실패 — 빈 상태(신규 안내)로 위장하지 않고 오류+재시도 표시. 오프라인·타임아웃 시
