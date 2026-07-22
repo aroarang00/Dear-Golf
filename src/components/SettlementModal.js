@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Share, Keyboard } from 'react-native';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,10 +17,11 @@ import { loadFriendData } from '../utils/friendGroups';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { Icon } from './common/Icon';
+import { SettlementGuideModal } from './SettlementGuideModal';   // 이용 안내 — 라운지 안내와 같은 패턴
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
   SETTLE_KINDS, settleKindLabel, PAY_PENDING, PAY_CLAIMED, PAY_CONFIRMED,
-  splitEvenly, summarize, toggleMemberStatus, buildSettlementText,
+  splitEvenly, summarize, toggleMemberStatus, buildSettlementText, buildReminderText,
   subscribeMySettlements, createSettlement, updateSettlement, deleteSettlement, setSettlementArchived,
   computeSettlement, RECEIPT_MAX, newShareToken,
 } from '../utils/settlement';
@@ -50,6 +51,7 @@ const label = { fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray, margin
 const box = { backgroundColor: C.bgSecondary, borderRadius: 12 };            // 테두리 없는 채운 칸
 const sec = { fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal, marginBottom: 12, letterSpacing: -0.2 };
 const hint = { fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginBottom: 7 };
+const foot = { fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', marginTop: 10, lineHeight: 18 };
 const divider = { height: 0.5, backgroundColor: C.hairline, marginVertical: 28 };
 
 // 계좌 동일성 판단 키 — 숫자만 뽑아 비교한다.
@@ -93,6 +95,7 @@ export function SettlementModal({ visible, onClose }) {
   const [failed, setFailed] = useState(false);
   const [openId, setOpenId] = useState(null);      // null이면 목록, 아니면 상세
   const [composing, setComposing] = useState(false); // 새 걷기 만들기
+  const [showGuide, setShowGuide] = useState(false); // 이용 안내
 
   const myUid = useCurrentUid();
   const [reloadKey, setReloadKey] = useState(0);
@@ -171,8 +174,33 @@ export function SettlementModal({ visible, onClose }) {
     catch (e) { patchLocal(s.id, { archived: true }); showToast('되돌리지 못했어요'); }
   };
 
+  // ★한 단계만 뒤로 — 헤더 '‹'와 안드로이드 하드웨어 뒤로가기가 같은 길로 가야 한다.
+  //   전에는 onRequestClose가 곧장 onClose여서, 걷기를 만들다 뒤로 한 번 누르면 적어둔 요구사항·
+  //   첨부한 영수증까지 통째로 날아갔다(안드에서만 나는 사고 — iOS엔 하드웨어 뒤로가기가 없다).
+  //   안내 시트가 떠 있으면 그것부터 닫는다. 시트가 자기 onRequestClose로 이미 닫혀도,
+  //   여기까지 이벤트가 내려올 경우 showGuide가 아직 true라 모달을 통째로 닫는 걸 막아준다.
+  // 작성 중에 적어둔 게 있으면 한 번 묻는다 — 요구사항을 쓰고 영수증을 3장 골라둔 상태에서
+  //   뒤로가기가 한 번 잘못 눌리면 전부 처음부터다. 빈 화면일 땐 묻지 않는다(귀찮기만 하다).
+  const composeDirty = useRef(false);
+  const goBack = () => {
+    if (showGuide) { setShowGuide(false); return; }
+    if (composing) {
+      const leave = () => { composeDirty.current = false; setComposing(false); };
+      if (composeDirty.current) {
+        showAppAlert('작성 중인 내용이 사라져요', '적어둔 내용과 첨부한 영수증은 저장되지 않아요.', [
+          { text: '계속 쓰기', style: 'cancel' },
+          { text: '나가기', style: 'destructive', onPress: leave },
+        ]);
+        return;
+      }
+      leave(); return;
+    }
+    if (openId) { setOpenId(null); return; }
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent={false}>
+    <Modal visible={visible} animationType="slide" onRequestClose={goBack} transparent={false}>
       <SafeAreaProvider>
         <KeyboardProvider>
           <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom']}>
@@ -180,8 +208,7 @@ export function SettlementModal({ visible, onClose }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
               borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               {/* 뒤로/닫기 — Icon 맵에 chevron·close가 없어 가계부와 같은 기호 문자를 쓴다(이모지 아님) */}
-              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                onPress={() => { if (composing) setComposing(false); else if (openId) setOpenId(null); else onClose(); }}>
+              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={goBack}>
                 <Text style={{ fontSize: fs(20), color: C.charcoal, width: fs(22) }}>
                   {(composing || openId) ? '‹' : '✕'}
                 </Text>
@@ -189,11 +216,17 @@ export function SettlementModal({ visible, onClose }) {
               <Text style={{ flex: 1, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>
                 {composing ? '걷기 만들기' : current ? (current.course || '걷기') : '모임 정산'}
               </Text>
-              <View style={{ width: fs(20) }} />
+              {/* 안내 — 라운지와 같은 관례(book 아이콘 + 시트). 걷기는 총무가 카톡으로 하던 일을 옮긴
+                  것이라 "앱으로 하면 뭐가 달라지는지"를 모르면 만들다 만다.
+                  뒤로 버튼과 같은 폭을 차지해 제목이 가운데를 유지한다. */}
+              <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ width: fs(22), alignItems: 'flex-end' }}>
+                <Icon name="book" size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
+              </TouchableOpacity>
             </View>
 
             {composing ? (
-              <ComposeView onCancel={() => setComposing(false)}
+              <ComposeView onCancel={() => setComposing(false)} dirtyRef={composeDirty}
                 onCreated={(s) => { setList(prev => [s, ...prev]); setComposing(false); setOpenId(s.id); }} />
             ) : current ? (
               <DetailView s={current} onSave={(patch) => save(current.id, patch)}
@@ -204,6 +237,10 @@ export function SettlementModal({ visible, onClose }) {
                 onOpen={setOpenId} onNew={() => setComposing(true)}
                 onDelete={remove} onUnarchive={unarchive} />
             )}
+
+            {/* ★안내 시트는 이 모달 '안'에 중첩한다 — 형제로 두면 iOS에서 둘 다 안 뜬다
+                ([[ios-modal-stacking]]). 라운지는 화면이라 형제로 둬도 되지만 여기는 모달 안이다. */}
+            <SettlementGuideModal visible={showGuide} onClose={() => setShowGuide(false)} />
           </SafeAreaView>
         </KeyboardProvider>
       </SafeAreaProvider>
@@ -310,7 +347,7 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
 // ★입력칸을 채우게 하지 않는다(사용자 2026-07-22: "구장명 따로 날짜 따로 명단 따로, 뭐가 다 따로입력인데").
 //   구장·날짜·명단은 이미 일정/기록에 있으니 라운딩만 고르면 따라온다. 금액은 카드문자·영수증을 AI가 읽는다.
 //   손으로 치는 경로는 '직접 입력'으로 남긴다 — 일정 없이 급히 걷을 때가 있다.
-function ComposeView({ onCancel, onCreated }) {
+function ComposeView({ onCancel, onCreated, dirtyRef }) {
   const { schedules } = useContext(SchedulesContext);
   const { diaries } = useContext(DiariesContext);
   const myUid = useCurrentUid();
@@ -345,7 +382,7 @@ function ComposeView({ onCancel, onCreated }) {
   const [accountName, setAccountName] = useState('');
   const [saving, setSaving] = useState(false);
   const [paste, setPaste] = useState('');      // 카드문자·정산 메시지 붙여넣기
-  const [instr, setInstr] = useState('');      // 총무 요구사항 — "1/n 백원단위 절사" 같은 자연어
+  const [instr, setInstr] = useState('');      // 총무 요구사항 — "김이사는 빼줘" 같은 자연어(기본은 1/n·100원 올림)
   const [showPaste, setShowPaste] = useState(false);
   const [photos, setPhotos] = useState([]);    // 첨부한 영수증 URI — 계산할 때 문자와 함께 보낸다
   const [aiMembers, setAiMembers] = useState(null); // AI가 계산한 사람별 금액(있으면 이걸 쓴다)
@@ -353,6 +390,13 @@ function ComposeView({ onCancel, onCreated }) {
   const [aiNote, setAiNote] = useState('');    // 계산 근거 한 줄 — 총무가 검산할 수 있게
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState('');
+
+  // 뒤로가기가 잘못 눌렸을 때 물어볼지 판단할 신호 — 손으로 적었거나 영수증을 골랐을 때만 true.
+  //   부모(goBack)가 읽는다. 상태로 올리면 타이핑마다 부모가 다시 그려져 ref로 둔다.
+  useEffect(() => {
+    if (!dirtyRef) return;
+    dirtyRef.current = !!(paste.trim() || instr.trim() || photos.length > 0 || total || perHead);
+  }, [dirtyRef, paste, instr, photos, total, perHead]);
 
   // 등록해둔 계좌 — 최근 쓴 순. 총무는 보통 같은 계좌를 쓰지만 참가비=모임통장, 식사비=개인계좌처럼
   //   나눠 쓰기도 한다(사용자 2026-07-22). 그래서 하나만 기억하지 않고 목록으로 두고 탭해서 고른다.
@@ -522,12 +566,17 @@ function ComposeView({ onCancel, onCreated }) {
   const sumAmount = members.reduce((a, m) => a + m.amount, 0);
   const ready = !!(src || manual);
 
+  // 정산서에 남길 계산 근거 한 줄 — 화면에 보여주는 값과 저장하는 값이 갈리면 안 되므로 한 곳에서 만든다.
+  const noteFrom = (r) => (r?.fallback
+    ? (r.note ? r.note + ' · ' : '') + '이름을 못 맞춰 1/n으로 나눴어요'
+    : (r?.note || ''));
+
   // AI 결과 반영 — 사람별 금액을 그대로 쓴다(요구사항까지 반영된 값). 계산 근거는 note로 보여준다.
   const applyAi = (r) => {
     if (r?.error) { setAiError(r.error); return; }
     setAiMembers(r.members || null);
     setAiItems(r.items || []);
-    setAiNote(r.note || '');
+    setAiNote(noteFrom(r));
     setTotal(''); setPerHead('');   // 직접 입력값이 남아 AI 결과를 덮지 않게
     setPaste(''); setAiError('');
     // 계좌도 붙여넣은 내용에서 정리해준다. 이미 적어둔 계좌가 있으면 덮지 않는다.
@@ -537,16 +586,6 @@ function ComposeView({ onCancel, onCreated }) {
       if (!savedAccounts.some(a => accKey(a.account) === accKey(r.account))) setEditAccount(true);
     }
     if (r.accountName && !accountName.trim()) setAccountName(r.accountName);
-    if (r.fallback) setAiNote((r.note ? r.note + ' · ' : '') + '이름을 못 맞춰 1/n으로 나눴어요');
-  };
-  // ★한 번에 계산한다 — 붙여넣은 문자와 첨부한 영수증을 같이 보낸다.
-  //   따로 호출하면 매번 결제 1건씩만 보여 건별 내역이 안 나온다(사용자 2026-07-22).
-  const runAi = async () => {
-    if (aiBusy) return;
-    if (!paste.trim() && !instr.trim() && photos.length === 0) return;
-    Keyboard.dismiss(); setAiBusy(true); setAiError('');
-    applyAi(await computeSettlement({ text: paste, uris: photos, names, instruction: instr, kind }));
-    setAiBusy(false);
   };
   // 영수증은 '첨부'만 한다 — 고른 즉시 계산하지 않는다. 문자와 함께 한 번에 읽혀야 합산이 맞는다.
   const addPhotos = async (source) => {
@@ -582,19 +621,43 @@ function ComposeView({ onCancel, onCreated }) {
     if (names.length === 0) { showToast('참가자가 없어요'); return; }
     Keyboard.dismiss();
 
-    // ★붙여넣기만 해두고 'AI로 계산'을 안 누른 채 '걷기 시작'을 누르면 아무 일도 안 일어나
-    //   무엇이 잘못됐는지 알 수 없었다(사용자 2026-07-22 — 본인도 걸림). 누를 걸 하나 더 요구하지 말고,
-    //   금액이 비었는데 읽을 재료가 있으면 여기서 대신 계산해준다.
+    // ★계산과 시작을 한 버튼으로 합쳤다(사용자 2026-07-22). 전에는 'AI로 계산'을 누르고 다시
+    //   '걷기 시작'을 눌러야 했는데, 계산을 건너뛰면 아무 일도 안 일어난 것처럼 보였다(본인도 걸림).
+    //   이제 적어둔 게 있으면 시작 한 번에 계산까지 하고, 결과가 틀리면 상세에서 고친다.
+    // ★AI 결과는 전부 '지역 변수'로 받는다. applyAi()는 화면을 갱신할 뿐이고 setState는 이 함수가
+    //   끝난 뒤에야 반영되므로, 저장에 state를 그대로 쓰면 낡은 값이 나간다. 실제로 건별 내역과
+    //   계좌가 이렇게 빠져나갔다(사용자 2026-07-22). 저장 경로는 응답값만 본다.
     let ready = members;
     let sum = sumAmount;
-    if (sum <= 0 && (paste.trim() || instr.trim() || photos.length > 0)) {
+    let items = aiItems;
+    let note = aiNote;
+    let acc = account;
+    let accName = accountName;
+
+    if (paste.trim() || instr.trim() || photos.length > 0) {
+      // 칸에 직접 적어둔 금액도 함께 넘긴다 — 총액만 칸에 넣고 "김이사는 빼줘"를 적는 총무가 있다.
+      //   안 넘기면 AI가 금액을 못 찾아 요구사항이 통째로 무시된다.
+      const manualLine = Number(perHead) > 0 ? `1인당 ${won(perHead)}원`
+        : Number(total) > 0 ? `총액 ${won(total)}원` : '';
       setAiBusy(true);
-      const r = await computeSettlement({ text: paste, uris: photos, names, instruction: instr, kind });
+      const r = await computeSettlement({
+        text: [paste, manualLine].filter(Boolean).join('\n'),
+        uris: photos, names, instruction: instr, kind,
+      });
       setAiBusy(false);
-      if (r?.error) { setAiError(r.error); return; }
-      applyAi(r);
-      ready = r.members || [];
-      sum = ready.reduce((a, m) => a + (m.amount || 0), 0);
+      if (r?.error) {
+        // 직접 입력한 금액이 있으면 그걸로라도 만든다 — 여기서 막으면 총무가 갇힌다.
+        if (sum <= 0) { setAiError(r.error); return; }
+      } else {
+        applyAi(r);
+        ready = r.members || [];
+        sum = ready.reduce((a, m) => a + (m.amount || 0), 0);
+        items = r.items || [];
+        note = noteFrom(r);
+        // 붙여넣은 문자에서 뽑은 계좌 — 총무가 직접 적은 게 있으면 그걸 이긴다(applyAi와 같은 규칙).
+        if (r.account && !acc.trim()) acc = r.account;
+        if (r.accountName && !accName.trim()) accName = r.accountName;
+      }
     }
     if (sum <= 0) { setAiError('금액이 비어 있어요. 붙여넣거나 직접 입력해주세요'); return; }
 
@@ -604,10 +667,10 @@ function ComposeView({ onCancel, onCreated }) {
         kind,
         course: manual ? mCourse : (src?.course || ''),
         date: (manual ? mDate : src?.date) || today(),
-        members: ready, total: sum, account, accountName,
-        items: aiItems, note: aiNote,   // '자세히' 정산서에 계산 근거로 붙는다
+        members: ready, total: sum, account: acc, accountName: accName,
+        items, note,   // '자세히' 정산서에 건별 내역·계산 근거로 붙는다
       });
-      rememberAccount(account, accountName);
+      rememberAccount(acc, accName);
       onCreated(s);
     } catch (e) { showToast('저장하지 못했어요'); }
     finally { setSaving(false); }
@@ -790,13 +853,22 @@ function ComposeView({ onCancel, onCreated }) {
               </Text>
               {(kind === 'prepay'
                 ? ['캐디피 인당 4만원, 참가비 2만원', '김이사는 참가비 면제', '박부장은 3만원 더']
-                : ['인원수대로 나누고 백원단위 절사', '김이사는 술 안 마셔서 빼줘', '점심은 3명, 저녁은 전원']
+                : ['김이사는 술 안 마셔서 빼줘', '점심은 3명, 저녁은 전원', '천원 단위로 올려줘']
               ).map(ex => (
                 <Text key={ex} style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, lineHeight: fs(18) }}>
                   · {ex}
                 </Text>
               ))}
             </View>
+            {/* 기본 규칙을 밝혀둔다 — 총무 관행은 100원 절사지만 그러면 버린 만큼을 총무가 떠안는다.
+                기본을 올림으로 바꾼 이상 말없이 바꾸면 안 된다(사용자 2026-07-22). 절사도 여전히 되고,
+                요구사항 칸에 "100원 절사"라고 쓰면 그대로 버린다. */}
+            {kind !== 'prepay' && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: fs(17) }}>
+                따로 안 적으면 1/n 하고 100원 단위로 올려요{'\n'}
+                남는 잔돈은 정산서에 그대로 밝혀지고, "100원 절사"라고 적으면 버립니다
+              </Text>
+            )}
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 9, lineHeight: fs(16) }}>
               카드 문자·계좌번호를 같이 붙여넣으면 금액과 계좌까지 정리해드려요{'\n'}
               1차·2차처럼 여러 건이면 문자를 이어서 붙여넣거나, 영수증을 {RECEIPT_MAX}장까지 골라주세요
@@ -846,23 +918,13 @@ function ComposeView({ onCancel, onCreated }) {
                   fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20) }} />
             )}
 
-            {/* 실행 — 회색으로 죽여두면 눈에 안 들어와 '있는 줄도 모르고' 지나친다(사용자 2026-07-22).
-                내용이 없을 땐 골드 외곽선으로 살려두고, 눌렀을 때 뭐가 필요한지 말해준다. */}
-            {(() => {
-              const armed = !!(paste.trim() || instr.trim() || photos.length > 0);
-              return (
-                <TouchableOpacity activeOpacity={0.85} disabled={aiBusy}
-                  onPress={() => { if (armed) runAi(); else setAiError('금액이나 나누는 방법을 먼저 적어주세요'); }}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12,
-                    backgroundColor: armed ? GOLD_DEEP : 'transparent', borderRadius: 12, paddingVertical: 14,
-                    borderWidth: armed ? 0 : 1, borderColor: GOLD_DEEP }}>
-                  <Icon name="sparkle" size={17} color={armed ? '#FFFFFF' : GOLD_DEEP} strokeWidth={1.8} />
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: armed ? '#FFFFFF' : GOLD_DEEP }}>
-                    {aiBusy ? 'AI가 계산 중…' : 'AI로 계산하기'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })()}
+            {/* ★계산 버튼을 두지 않는다(사용자 2026-07-22) — 적어놓고 '걷기 시작'을 누르면 그때 계산한다.
+                버튼을 따로 두면 안 누르고 넘어가서 아무 일도 안 일어난 것처럼 보였다. 대신 어디를 눌러야
+                하는지는 말해줘야 한다 — 입력칸만 있고 누를 게 없으면 그것대로 막힌 것처럼 보인다. */}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: GOLD_DEEP, marginTop: 12,
+              textAlign: 'center', lineHeight: fs(17) }}>
+              적어두면 맨 아래 '걷기 시작'을 누를 때 한 번에 계산해드려요
+            </Text>
 
             {!!aiError && !aiBusy && (
               <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: '#6B1E2A', marginTop: 9 }}>{aiError}</Text>
@@ -961,11 +1023,13 @@ function ComposeView({ onCancel, onCreated }) {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity onPress={submit} activeOpacity={0.85} disabled={saving}
-            style={{ marginTop: 28, backgroundColor: saving ? C.warmGray : '#6B1E2A', borderRadius: 14,
-              paddingVertical: 16, alignItems: 'center' }}>
+          {/* 계산까지 겸하므로 누른 뒤 몇 초가 걸린다 — 버튼 안에서 스피너를 돌려 '먹통'으로 안 보이게 한다 */}
+          <TouchableOpacity onPress={submit} activeOpacity={0.85} disabled={saving || aiBusy}
+            style={{ marginTop: 28, backgroundColor: (saving || aiBusy) ? C.warmGray : '#6B1E2A', borderRadius: 14,
+              paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            {(saving || aiBusy) && <Spinner size={15} color={C.butter} />}
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>
-              {saving ? '만드는 중…' : '걷기 시작'}
+              {aiBusy ? '계산하고 있어요…' : saving ? '만드는 중…' : '걷기 시작'}
             </Text>
           </TouchableOpacity>
         </>
@@ -1008,15 +1072,26 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
   useEffect(() => { storage.load(STORAGE_KEYS.settlementDetail, true).then(v => setDetail(v !== false)); }, []);
   const setDetailKeep = (v) => { setDetail(v); storage.save(STORAGE_KEYS.settlementDetail, v); };
 
+  // 링크 도입 전에 만든 걷기는 토큰이 없다. 보낼 때 만들면 미리보기에는 링크가 없고 실제로는
+  //   붙어서 나가 둘이 어긋난다 — 화면에서 쓸 토큰을 먼저 정해두고 보낼 때 문서에 저장한다.
+  const pendingTokenRef = useRef(null);
+  const shareDoc = useMemo(() => {
+    if (s.shareToken) return s;
+    if (!pendingTokenRef.current) pendingTokenRef.current = newShareToken();
+    return { ...s, shareToken: pendingTokenRef.current };
+  }, [s]);
+
+  // 보낼 것 — 정산서(전원) / 독촉(안 낸 사람만). 안 낸 사람이 없으면 독촉은 아예 없다.
+  const [mode, setMode] = useState('full');
+  const remindText = useMemo(() => buildReminderText(shareDoc), [shareDoc]);
+  const canRemind = remindText.length > 0;
+  // 독촉을 보고 있는 사이 마지막 한 명을 확인하면 독촉이 사라진다 — 빈 미리보기에 머무르지 않게 되돌린다.
+  useEffect(() => { if (!canRemind) setMode('full'); }, [canRemind]);
+
   const sendKakao = async () => {
-    // 링크 도입 전에 만든 걷기는 토큰이 없다 — 보낼 때 만들어 붙인다(한 번만).
-    let doc = s;
-    if (!s.shareToken) {
-      const shareToken = newShareToken();
-      doc = { ...s, shareToken };
-      onSave({ shareToken });
-    }
-    try { await Share.share({ message: buildSettlementText(doc, { detail }) }); }
+    if (!s.shareToken) onSave({ shareToken: shareDoc.shareToken });
+    const message = mode === 'remind' ? remindText : buildSettlementText(shareDoc, { detail });
+    try { await Share.share({ message }); }
     catch (e) { /* 사용자가 공유 시트를 닫은 경우 — 무시 */ }
   };
 
@@ -1169,11 +1244,31 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
         </View>
       )}
 
-      {/* 카톡으로 정산서 — 앱 안 깐 사람에게 가는 경로. 내역 포함 여부는 총무가 고른다.
+      {/* 카톡으로 보내기 — 앱 안 깐 사람에게 가는 경로. 정산서(전원)와 독촉(안 낸 사람)이 같은 자리를 쓴다.
           수정 중에는 감춘다 — 아직 저장 안 된 값으로 미리보기를 보여주면 헷갈린다. */}
       {!editing && (
       <>
 
+      {/* ★독촉은 총무가 제일 싫어하는 일이라 문구를 앱이 대신 쓴다(사용자 2026-07-22).
+          안 낸 사람이 없으면 칩 자체를 감춘다 — 누를 일 없는 버튼은 없는 게 낫다. */}
+      {canRemind && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+          <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>카톡으로 보낼 것</Text>
+          {[['full', '정산서'], ['remind', `독촉 ${sum.pending.length}명`]].map(([v, l]) => {
+            const on = mode === v;
+            return (
+              <TouchableOpacity key={v} onPress={() => setMode(v)} activeOpacity={0.7}
+                style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 14, marginLeft: 6,
+                  backgroundColor: on ? '#6B1E2A' : C.bgSecondary }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: on ? C.butter : C.charcoal }}>{l}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {/* 내역 넣기/빼기는 정산서에만 — 독촉은 이름과 금액만 짧게 나가는 게 낫다 */}
+      {mode === 'full' && (
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
         <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>정산서에 내역</Text>
         {/* 라벨만 보고는 뭐가 달라지는지 모른다 — 아래 미리보기로 실제 문구를 보고 고르게 한다(사용자 2026-07-22) */}
@@ -1188,25 +1283,34 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           );
         })}
       </View>
-      {/* 미리보기 — buildSettlementText 결과를 그대로 그린다. 화면과 실제 보낼 문구가 어긋나면 안 되므로
-          따로 꾸미지 않고 같은 함수의 출력을 쓴다. */}
+      )}
+
+      {/* 미리보기 — buildSettlementText/buildReminderText 결과를 그대로 그린다. 화면과 실제 보낼 문구가
+          어긋나면 안 되므로 따로 꾸미지 않고 같은 함수의 출력을 쓴다. */}
       <View style={[box, { paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12 }]}>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.warmGray, marginBottom: 8 }}>
           이렇게 보내집니다
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: fs(21) }}>
-          {buildSettlementText(s, { detail })}
+          {mode === 'remind' ? remindText : buildSettlementText(shareDoc, { detail })}
         </Text>
       </View>
 
       <TouchableOpacity onPress={sendKakao} activeOpacity={0.85}
         style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>카톡으로 정산서 보내기</Text>
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
+          {mode === 'remind' ? '카톡으로 독촉 보내기' : '카톡으로 정산서 보내기'}
+        </Text>
       </TouchableOpacity>
-      {!allDone && sum.unpaid.length > 0 && (
-        <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center',
-          marginTop: 10, lineHeight: 18 }}>
-          아직 안 낸 사람: {sum.unpaid.map(m => m.name).join(', ')}
+
+      {/* 남은 사람 — 안 낸 사람과 '보냈다고 한 사람'은 총무가 할 일이 다르다. 한 줄에 섞어두면
+          이미 보낸 사람에게까지 독촉을 보내게 된다(예전 unpaid가 그랬다). */}
+      {sum.pending.length > 0 && (
+        <Text style={foot}>아직 안 낸 사람: {sum.pending.map(m => m.name).join(', ')}</Text>
+      )}
+      {sum.claimed.length > 0 && (
+        <Text style={foot}>
+          보냈다고 한 사람: {sum.claimed.map(m => m.name).join(', ')}{'\n'}이름을 탭하면 확인 처리돼요
         </Text>
       )}
       </>

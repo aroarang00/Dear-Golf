@@ -76,9 +76,19 @@ function normMember(m, i) {
 // ── 1/n 계산 ────────────────────────────────────────────────
 // "대체로 1/n이지만 '이건 내가 계산할게'가 나온다"(사용자 2026-07-22).
 //   locked=true인 사람의 금액은 그대로 두고, 남은 총액을 나머지에게 균등 배분한다.
-//   나누어떨어지지 않는 원 단위는 버리지 않고 앞사람부터 1원씩 얹어 합계를 총액과 정확히 맞춘다
-//   (합계≠총액이면 총무가 은행앱과 대조할 때 바로 어긋나 신뢰를 잃는다).
-export function splitEvenly(members, total) {
+//
+// ★끝자리는 버리지 않고 100원 단위로 올린다(사용자 2026-07-22).
+//   총무들 관행은 100원 절사인데, 그러면 버린 만큼을 총무가 조용히 떠안는다(8명이면 매번 몇백 원).
+//   본인은 손해인 줄도 모른다. 반올림은 답이 아니다 — 끝자리 134는 반올림해도 100으로 내려가
+//   손해가 그대로다. 그래서 기본을 올림으로 둔다.
+//   부수 효과가 더 좋다: 전원이 똑같은 금액을 낸다. 예전엔 1원 나머지를 앞사람부터 얹어서
+//   같은 자리에 앉았던 사람끼리 1원씩 다른 금액이 찍혔다.
+//   ★대신 남는 잔돈은 정산서에 반드시 밝힌다(buildSettlementText) — 말 안 하고 남기면 그게 뒷말이 된다.
+export const ROUND_UNIT = 100;
+
+// roundUpTo에 0이나 1을 주면 원 단위로 정확히 나눈다(합계 == 총액). 잔돈을 1원도 남기면 안 되는
+//   자리에서 쓰라고 남겨둔 문이고, 기본 경로는 아니다.
+export function splitEvenly(members, total, { roundUpTo = ROUND_UNIT } = {}) {
   const list = (members || []).map(normMember);
   const t = won(total);
   const lockedSum = list.filter(m => m.locked).reduce((s, m) => s + m.amount, 0);
@@ -86,6 +96,13 @@ export function splitEvenly(members, total) {
   if (open.length === 0) return list;
 
   const rest = Math.max(0, t - lockedSum);
+
+  if (roundUpTo > 1) {
+    const each = Math.ceil(rest / open.length / roundUpTo) * roundUpTo;
+    return list.map(m => (m.locked ? m : { ...m, amount: each }));
+  }
+
+  // 정확히 나누기 — 나누어떨어지지 않는 원 단위를 앞사람부터 1원씩 얹어 합계를 총액과 맞춘다.
   const base = Math.floor(rest / open.length);
   let remainder = rest - base * open.length;   // 0 ~ open.length-1
 
@@ -112,7 +129,10 @@ export function summarize(members) {
     pendingCount: pending.length,
     collected: confirmed.reduce((s, m) => s + m.amount, 0),   // 확정된 것만 '걷힌 돈'
     remain: total - confirmed.reduce((s, m) => s + m.amount, 0),
-    unpaid: [...pending, ...claimed],                          // 독촉 대상(확정 안 된 전부)
+    // ★안 낸 사람(pending)과 보냈다고 한 사람(claimed)은 반드시 갈라서 준다.
+    //   전에는 둘을 합친 unpaid 하나였는데, 그걸 독촉 대상으로 쓰면 이미 '보냈어요'를 누른 사람에게
+    //   독촉이 나간다 — 총무가 제일 겁내는 사고다. 독촉은 pending만, claimed는 확인만 하면 되는 줄.
+    pending, claimed,
   };
 }
 
@@ -215,7 +235,7 @@ export function toggleMemberStatus(members, memberId) {
 
 // ── AI 자동 계산 ────────────────────────────────────────────
 // extractExpense(가계부)는 읽은 값을 그대로 채우면 끝이지만, 정산은 총무마다 요구가 다르다.
-//   그래서 금액뿐 아니라 요구사항 문장(1/n·백원 절사·"누구는 얼마")까지 넘겨 사람별 금액을 받아온다.
+//   그래서 금액뿐 아니라 요구사항 문장(1/n·100원 올림·"누구는 얼마")까지 넘겨 사람별 금액을 받아온다.
 //   서버 응답은 신뢰하되 검산한다 — 이름이 명단과 어긋나거나 금액이 비면 우리 splitEvenly로 되돌린다.
 function normalizeAiMembers(aiMembers, names) {
   const byName = new Map((aiMembers || []).map(m => [String(m?.name || '').trim(), won(m?.amount)]));
@@ -308,6 +328,21 @@ export function buildSettlementText(s, { detail = true } = {}) {
   lines.push('');
   lines.push(`합계 ${total.toLocaleString()}원`);
   if (detail && s?.note) lines.push(`(${s.note})`);
+
+  // ★올림으로 걷는 돈이 실제 쓴 돈보다 많아지면 그 차액을 반드시 밝힌다(사용자 2026-07-22).
+  //   금액이 문제가 아니라 '말 안 했다'가 문제가 된다 — 밝히면 규칙이 되고, 안 밝히면 나중에 뒷말이 된다.
+  //   실비는 건별 내역의 합으로만 알 수 있어(문서의 total은 사람별 합으로 덮인다) 내역을 넣을 때만 붙는다.
+  const spent = items.reduce((a, i) => a + won(i.amount), 0);
+  if (detail && spent > 0 && total > spent) {
+    lines.push(`(실비 ${spent.toLocaleString()}원 · 올림으로 ${(total - spent).toLocaleString()}원 남음)`);
+  }
+
+  pushAccountAndLink(lines, s, '입금하셨으면 여기서 눌러주세요');
+  return lines.join('\n');
+}
+
+// 계좌 + 웹 링크 — 정산서와 독촉이 똑같이 쓰는 꼬리. 한쪽만 고치면 두 문구가 어긋나므로 함께 둔다.
+function pushAccountAndLink(lines, s, linkLabel) {
   if (s?.account) {
     lines.push('');
     lines.push(s.account);
@@ -318,8 +353,36 @@ export function buildSettlementText(s, { detail = true } = {}) {
   //   링크를 눌러 자기 이름 옆 '보냈어요'를 탭하면 총무 화면에 바로 뜬다(설치 전제 금지).
   if (s?.shareToken) {
     lines.push('');
-    lines.push('입금하셨으면 여기서 눌러주세요');
+    lines.push(linkLabel);
     lines.push(SHARE_BASE + s.shareToken);
   }
+}
+
+// 독촉 문구 — 안 낸 사람에게만, 총무 대신 앱이 이름을 부른다.
+//
+// ★총무가 제일 싫어하는 일이 독촉이다(사용자 2026-07-22). 싫은 건 금액을 알리는 게 아니라
+//   "○○님, 아직인데요"를 자기 입으로 쓰는 것 — 그래서 앱이 문구를 만들어주고 총무는 보내기만 누른다.
+//   앱이 이름을 부르면 총무가 부른 게 아니게 된다. 그게 이 함수가 존재하는 이유다.
+//
+// ★'이미 보내셨으면 여기서 눌러주세요'가 핵심 한 줄이다. 이 줄이 없으면 "나 냈는데?"가 단톡방
+//   다툼으로 가지만, 있으면 링크 한 번 탭으로 끝난다. 총무가 못 봤을 수도 있다는 여지를 남기는
+//   말이기도 해서 지목의 날이 선다.
+//
+// 대상은 pending만 — claimed(본인이 '보냈어요'를 누른 사람)에게 독촉이 가면 안 된다.
+// 안 낸 사람이 없으면 빈 문자열을 준다(호출부에서 버튼을 감추는 신호로 쓴다).
+export function buildReminderText(s) {
+  const { pending } = summarize(s?.members);
+  if (pending.length === 0) return '';
+
+  const lines = [];
+  const head = [s?.course, s?.date].filter(Boolean).join(' · ');
+  if (head) lines.push(head);
+  lines.push(settleKindLabel(s?.kind));
+  lines.push('');
+
+  lines.push('입금 확인이 아직 안 된 분이에요');
+  pending.forEach(m => lines.push(`${m.name}  ${m.amount.toLocaleString()}원`));
+
+  pushAccountAndLink(lines, s, '이미 보내셨으면 여기서 눌러주세요');
   return lines.join('\n');
 }
