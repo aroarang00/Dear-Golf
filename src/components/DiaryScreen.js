@@ -25,7 +25,7 @@ import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
 import { GolfLedgerModal } from './GolfLedgerModal';
-import { SettlementModal } from './SettlementModal';   // 모임 정산(걷기) — 선입금·식사정산
+
 import { MyPageModal } from './MyPageModal';
 import { DMChatScreen } from './DMChatScreen';
 import { getTrustGrade } from '../constants/trustGrade';
@@ -105,7 +105,7 @@ export function DiaryScreen({ route, navigation }) {
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
-  const [showSettlement, setShowSettlement] = useState(false); // 모임 정산(걷기) — 총무 도구
+
   // 한마디(상태 메시지) — 명함에서 바로 인라인 편집(마이페이지 진입 없이, 2026-06-24). 저장은 MyPageModal과 동일 패턴.
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
@@ -740,22 +740,16 @@ export function DiaryScreen({ route, navigation }) {
               alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter, includeFontPadding: false }}>가계부</Text>
           </TouchableOpacity>
-          {/* 정산 — 모임 '걷기'(선입금·식사정산). 가계부(내 돈) 옆에 두되 색을 나눠 구분: 가계부=차콜, 정산=버건디.
-              1차는 총무 전용이라 진입도 내 명함 자리. 검증되면 홈·라운지로 끌어올릴 것. */}
-          <TouchableOpacity onPress={() => setShowSettlement(true)} activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ backgroundColor: '#6B1E2A', borderRadius: 15, paddingHorizontal: 11, height: 30,
-              alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter, includeFontPadding: false }}>정산</Text>
-          </TouchableOpacity>
+          {/* 정산(걷기)은 라운지 헤더로 옮김 — 모임 돈이라 개인 공간이 아니다(사용자 2026-07-22).
+              여기 가계부는 '내 돈'이라 성격이 다르므로 같이 두지 않는다. */}
           <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="gear" size={fs(30)} color={C.charcoal} strokeWidth={1.8} />
           </TouchableOpacity>
         </View>
-        {/* paddingRight 80→104→156 — '정산' 알약(~50+gap)이 더 붙어 이름과 안 겹치게 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 156 }}>
+        {/* paddingRight 80→104 — 가계부가 아이콘(36)→텍스트 알약(~60)으로 넓어져 이름과 안 겹치게 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 104 }}>
           {/* 아바타 — 탭하면 사진 변경 액션시트 */}
           <View>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
@@ -1090,7 +1084,7 @@ export function DiaryScreen({ route, navigation }) {
         </View>
       </Modal>
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
-      <SettlementModal visible={showSettlement} onClose={() => setShowSettlement(false)} />
+
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       {/* 한마디 편집 팝업 — 명함 한마디 탭 시 중앙 팝업으로 넓게(하단 시트는 네비바·키보드에 가려 부적합, 2026-06-24).

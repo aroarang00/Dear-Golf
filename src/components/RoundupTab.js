@@ -22,6 +22,7 @@ import { LoadingState } from './common/LoadingState';
 import { AttentionMotion } from './common/AttentionMotion'; // 맞춤 모집 배너 맥동 — '내 코스 모아보기'와 동일 pulse
 import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 라운지 첫 진입 즉시 시드
 import { RoundupNotifications } from './RoundupNotifications';
+import { SettlementModal } from './SettlementModal';   // 모임 정산(걷기) — 선입금·식사정산
 import { SCOPE_BADGE, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
@@ -562,6 +563,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   const [alert, setAlert] = useState(null);                   // 참여 확인 팝업
   const [notifications, setNotifications] = useState([]);
   const [showNoti, setShowNoti] = useState(false);            // 알림함
+  const [showSettlement, setShowSettlement] = useState(false); // 모임 정산(걷기) — 총무 도구
   // 홈 우측 레일 종 아이콘 탭 — 라운지로 오면서 알림함을 바로 연다.
   //   알림함 모달은 수락·거절·상세열기 핸들러가 전부 라운지에 있어, 홈에 따로 마운트하지 않고 여기로 보낸다.
   useEffect(() => {
@@ -1993,6 +1995,14 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           {/* 모집 만들기는 우측 하단 FAB로 일원화(크루·MY와 통일) — 헤더 버튼 제거 */}
+          {/* 정산(걷기) — 모임 돈이라 개인 공간(MY)이 아니라 여기가 맞다(사용자 2026-07-22).
+              모집이 하나도 없어도 총무가 할 일이 생겨, 빈 라운지 문제도 같이 덜어준다. */}
+          {/* '정산'만 두면 뭘 하는 곳인지 안 읽힌다 → '+ 정산하기'로 행동을 붙여 발견성을 올림(사용자 2026-07-22) */}
+          <TouchableOpacity onPress={() => setShowSettlement(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            style={{ borderWidth: 0.5, borderColor: 'rgba(250,246,236,0.5)', borderRadius: 14,
+              paddingHorizontal: 11, height: 27, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11.5), color: C.bgPrimary, includeFontPadding: false }}>+ 정산하기</Text>
+          </TouchableOpacity>
           {/* 알림함 */}
           <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(22) }}>🔔</Text>
@@ -2466,6 +2476,9 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             onGradePress={(key) => setGradeModalKey(key)}
             onDelete={deleteNoti}
             onClearAll={clearAllNoti} />
+
+          {/* 모임 정산(걷기) */}
+          <SettlementModal visible={showSettlement} onClose={() => setShowSettlement(false)} />
 
           {/* 참여 확인 팝업 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />

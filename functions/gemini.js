@@ -358,6 +358,143 @@ exports.extractExpense = onCall(
   }
 );
 
+// ── 모임 정산 '걷기' 자동 계산 ────────────────────────────────
+// ★extractExpense와 다른 점: 저기는 읽은 값을 '그대로' 채우면 끝이지만, 정산은 총무마다 요구가 다르다
+//   (1/n·백원 절사·"김이사는 카트비 빼고"·"박부장이 그늘집 계산"). 그래서 금액 추출에서 그치지 않고
+//   요구사항 문장까지 받아 사람별 금액을 AI가 계산해 돌려준다 (사용자 2026-07-22).
+//   ※합계가 총액과 어긋나면 총무가 은행앱 대조에서 바로 신뢰를 잃으므로, 클라이언트에서 한 번 더 검산한다.
+const SETTLEMENT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    found: { type: 'BOOLEAN', description: '금액 정보를 찾았으면 true' },
+    total: { type: 'INTEGER', description: '걷을 총액(원). 숫자만. 없으면 0' },
+    members: {
+      type: 'ARRAY',
+      description: '사람별 낼 금액. 참가자 명단이 주어지면 그 이름을 그대로 쓰고 순서도 유지한다',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING', description: '참가자 이름' },
+          amount: { type: 'INTEGER', description: '이 사람이 낼 금액(원)' },
+        },
+        required: ['name', 'amount'],
+      },
+    },
+    account: { type: 'STRING', description: '입금 계좌가 있으면 "은행 계좌번호" 형태로 정리(예: "국민 123456-78-901234"). 없으면 빈 문자열' },
+    accountName: { type: 'STRING', description: '예금주 이름. 없으면 빈 문자열' },
+    note: { type: 'STRING', description: '계산 근거를 한 줄로(예: "총 998,000원을 4명 1/n, 백원 단위 절사"). 40자 이내' },
+  },
+  required: ['found', 'total', 'members', 'account', 'accountName', 'note'],
+};
+
+exports.extractSettlement = onCall(
+  {
+    secrets: [GEMINI_API_KEY],
+    region: 'asia-northeast3',
+    memory: '256MiB',
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', '로그인이 필요해요.');
+
+    const { imageBase64, images, format = 'jpg', text, names, instruction, kind } = request.data || {};
+    // 1차·2차처럼 영수증이 여러 장인 경우가 흔하다(사용자 2026-07-22). 배열을 받되 3장으로 막는다 —
+    //   스코어카드에서 3장 이상이면 오합산이 났던 전례가 있어([[project_scorecard_ai]]) 장수를 늘리지 않는다.
+    const imgList = (Array.isArray(images) ? images : (imageBase64 ? [imageBase64] : []))
+      .filter(s => s && typeof s === 'string')
+      .slice(0, 3);
+    const hasImage = imgList.length > 0;
+    const hasText = text && typeof text === 'string' && text.trim().length > 0;
+    const hasInstr = instruction && typeof instruction === 'string' && instruction.trim().length > 0;
+    if (!hasImage && !hasText && !hasInstr) throw new HttpsError('invalid-argument', '금액이나 요구사항이 필요해요.');
+    if (imgList.some(s => s.length > 8 * 1024 * 1024)) throw new HttpsError('invalid-argument', '이미지가 너무 커요. 다시 시도해주세요.');
+    if (hasText && text.length > 4000) throw new HttpsError('invalid-argument', '내용이 너무 길어요.');
+
+    const uid = request.auth.uid;
+    if (!(await checkRateLimit(uid, 40))) {
+      logger.warn('[gemini] settlement ratelimit exceeded', { uid });
+      throw new HttpsError('resource-exhausted', '자동입력을 너무 많이 요청했어요. 잠시 후 다시 시도해주세요.');
+    }
+
+    const list = Array.isArray(names)
+      ? names.map(n => String(n || '').trim()).filter(Boolean).slice(0, 40)
+      : [];
+
+    // ★선입금과 사후정산은 금액의 의미가 정반대다(사용자 2026-07-22).
+    //   선입금 = "1인 15만원"처럼 단가가 먼저 정해지고 전원이 같은 금액을 낸다. 나누면 안 된다.
+    //   식사정산 = 이미 나온 총액을 참석자끼리 나눈다.
+    const isPrepay = kind === 'prepay';
+    const modeRule = isPrepay
+      ? `★이 정산은 '선입금'이다. 주어진 금액은 원칙적으로 '1인당 금액'이다.\n` +
+        `  - 총액을 나누지 마라. 모든 참가자에게 같은 금액을 부과한다.\n` +
+        `  - 예: "캐디피 15만" + 참가자 4명 → 각자 150000원, total=600000.\n` +
+        `  - total은 (1인당 금액 × 인원수)로 계산한다.\n` +
+        `  - 단 요구사항에 "총 80만원을 나눠서"처럼 총액을 나누라는 말이 명시되면 그때만 나눈다.\n` +
+        `  - "누구는 제외/면제"라고 하면 그 사람만 빼고, 나머지 금액은 그대로 둔다(재배분 없음).\n`
+      : `★이 정산은 사후 정산이다. 주어진 금액은 '총액'이고 참석자끼리 나눈다.\n` +
+        `  - 특별한 요구가 없으면 인원수대로 균등 배분(1/n)한다.\n`;
+
+    const prompt =
+      `너는 한국 골프 모임 총무의 정산을 돕는 도우미야. 카드결제 문자·영수증·정산 메시지에서 금액을 읽고, ` +
+      `총무의 요구사항대로 사람별로 낼 금액을 계산해 JSON으로만 답해.\n` +
+      modeRule +
+      `규칙:\n` +
+      `- total: 걷을 총액(원). 위 모드 규칙에 따라 계산한다.\n` +
+      `- members: 참가자 명단이 주어지면 그 이름을 그대로, 순서도 그대로 쓴다. 명단이 없으면 빈 배열.\n` +
+      `- "백원 단위 절사"는 각자 금액을 100원 미만 버림, "천원 단위 절사"는 1000원 미만 버림으로 계산한다.\n` +
+      (isPrepay
+        ? `- "누구는 제외/면제"라고 하면 그 사람만 members에서 뺀다. 나머지 사람의 금액은 그대로다.\n` +
+          `- "누구는 얼마 더/덜"이라고 하면 그 사람 금액만 조정한다. 나머지는 그대로다.\n` +
+          `- 항목이 여러 개면(캐디피+참가비 등) 1인당 금액을 합산해 한 사람 몫을 만든다.\n`
+        : `- "누구는 제외/빼기"라고 하면 그 사람은 members에서 빼고 나머지 인원으로 다시 나눈다.\n` +
+          `- "누구는 얼마 더/덜"이라고 하면 그 사람 금액을 조정하고, 나머지가 남은 금액을 나눠 갖는다.\n` +
+          `- "누구가 계산한다/냈다"고 하면 그 사람은 0원으로 두고 나머지가 나눈다.\n` +
+          `- ★식사가 점심·저녁처럼 나뉘고 참석자가 다르면, 각 끼니의 금액을 그 끼니 참석자끼리 나눈 뒤\n` +
+          `  사람별로 합산해 최종 금액을 낸다(예: 점심 12만을 3명, 저녁 20만을 5명 → 두 끼 다 먹은 사람은 합산).\n`) +
+      `- 절사·지정으로 합계가 total과 어긋나는 건 정상이다. 억지로 맞추지 마라.\n` +
+      `- 금액은 원 단위 정수. 음수 금지.\n` +
+      `- account/accountName: 붙여넣은 내용에 계좌가 있으면 정리해서 채운다. 은행명과 번호를 한 줄로.\n` +
+      `- note: 어떻게 계산했는지 한 줄(40자 이내). 총무가 검산할 수 있게 근거를 적어라.\n` +
+      `금액을 전혀 못 찾으면 found=false.`;
+
+    const parts = [{ text: prompt }];
+    if (list.length) parts.push({ text: `\n[참가자 ${list.length}명]\n${list.join(', ')}` });
+    if (hasInstr) parts.push({ text: `\n[총무 요구사항]\n${instruction.trim().slice(0, 500)}` });
+    if (hasText) parts.push({ text: `\n[붙여넣은 내용]\n${text.trim()}` });
+    if (hasImage) {
+      // 여러 장이면 각각이 별개 결제 건이다 — 합산해야지 한 장으로 착각하면 안 된다.
+      parts.push({ text: `\n[영수증 ${imgList.length}장] 각 장이 별개 결제 건이다. 모두 합산해 total을 낸다.` });
+      imgList.forEach(b64 => parts.push({
+        inlineData: { mimeType: format === 'png' ? 'image/png' : 'image/jpeg', data: b64 },
+      }));
+    }
+
+    logger.info('[gemini] settlement req', { uid, imgs: imgList.length, txt: !!hasText, instr: !!hasInstr, n: list.length });
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SETTLEMENT_SCHEMA });
+
+    const members = Array.isArray(out?.members)
+      ? out.members
+          .map(m => ({
+            name: String(m?.name || '').trim().slice(0, 20),
+            amount: Number.isFinite(m?.amount) && m.amount > 0 ? Math.round(m.amount) : 0,
+          }))
+          .filter(m => m.name)
+          .slice(0, 40)
+      : [];
+
+    logger.info('[gemini] settlement ok', { uid, found: !!out?.found, n: members.length });
+    return {
+      ok: true,
+      found: !!out?.found,
+      total: Number.isFinite(out?.total) && out.total > 0 ? Math.round(out.total) : 0,
+      members,
+      account: (out?.account || '').toString().trim().slice(0, 60),
+      accountName: (out?.accountName || '').toString().trim().slice(0, 20),
+      note: (out?.note || '').toString().trim().slice(0, 60),
+    };
+  }
+);
+
 // 공용 헬퍼 — 스코어카드 2장 병합 등 후속 Gemini 기능에서 재사용
 exports._callGemini = callGemini;
 exports._checkRateLimit = checkRateLimit;

@@ -2,7 +2,9 @@ import {
   collection, query, where, orderBy, getDocs,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from 'firebase/firestore';
-import { db, getUid } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { db, getUid, functions } from './firebase';
 
 // =============================================================
 // settlements/{id} — 모임 '걷기'. 총무가 참가자에게 돈을 걷는 한 건.
@@ -161,6 +163,65 @@ export function toggleMemberStatus(members, memberId) {
     const next = m.status === PAY_CONFIRMED ? PAY_PENDING : PAY_CONFIRMED;
     return { ...m, status: next };
   });
+}
+
+// ── AI 자동 계산 ────────────────────────────────────────────
+// extractExpense(가계부)는 읽은 값을 그대로 채우면 끝이지만, 정산은 총무마다 요구가 다르다.
+//   그래서 금액뿐 아니라 요구사항 문장(1/n·백원 절사·"누구는 얼마")까지 넘겨 사람별 금액을 받아온다.
+//   서버 응답은 신뢰하되 검산한다 — 이름이 명단과 어긋나거나 금액이 비면 우리 splitEvenly로 되돌린다.
+function normalizeAiMembers(aiMembers, names) {
+  const byName = new Map((aiMembers || []).map(m => [String(m?.name || '').trim(), won(m?.amount)]));
+  const list = (names || []).map((n, i) => normMember({ name: n.name || n, amount: byName.get(n.name || n) || 0 }, i));
+  const hit = list.filter(m => m.amount > 0).length;
+  return { list, hit };
+}
+
+async function callSettlementAI(payload, names) {
+  const callable = httpsCallable(functions, 'extractSettlement', { timeout: 30000 });
+  const res = await callable(payload);
+  const d = res?.data;
+  if (!d?.found) return { error: '금액을 찾지 못했어요' };
+  const total = won(d.total);
+  const { list, hit } = normalizeAiMembers(d.members, names);
+  // AI가 사람별 금액을 제대로 못 채웠으면(이름 불일치 등) 총액만 살리고 우리 로직으로 나눈다.
+  const members = hit >= 1 && hit === (names || []).length ? list : splitEvenly(names || [], total);
+  return {
+    total, members, note: d.note || '',
+    account: d.account || '', accountName: d.accountName || '',
+    fallback: !(hit >= 1 && hit === (names || []).length),
+  };
+}
+
+export async function computeSettlementFromText({ text, names, instruction, kind }) {
+  try {
+    return await callSettlementAI(
+      { text: (text || '').trim(), names: (names || []).map(n => n.name || n), instruction, kind }, names);
+  } catch (e) {
+    if (e?.code === 'functions/resource-exhausted') return { error: '요청이 많아요. 잠시 후 다시 시도해주세요' };
+    return { error: '자동 계산에 실패했어요' };
+  }
+}
+
+// 영수증 여러 장 — 1차·2차처럼 결제가 나뉘는 경우가 흔하다. 3장까지(그 이상은 오합산 위험).
+export const RECEIPT_MAX = 3;
+
+export async function computeSettlementFromImages({ uris, names, instruction, kind }) {
+  try {
+    const list = (uris || []).slice(0, RECEIPT_MAX);
+    if (list.length === 0) return { error: '영수증이 필요해요' };
+    const images = [];
+    for (const uri of list) {
+      const img = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], {
+        compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true,
+      });
+      images.push(img.base64);
+    }
+    return await callSettlementAI(
+      { images, format: 'jpg', names: (names || []).map(n => n.name || n), instruction, kind }, names);
+  } catch (e) {
+    if (e?.code === 'functions/resource-exhausted') return { error: '요청이 많아요. 잠시 후 다시 시도해주세요' };
+    return { error: '영수증을 읽지 못했어요' };
+  }
 }
 
 // 카톡으로 보낼 정산서 텍스트 — 앱 안 깐 사람에게 가는 경로.

@@ -39,6 +39,7 @@ export const STORAGE_KEYS = {
   appleTrace: '@dg_apple_trace',  // Apple 연동 흔적(true) — kakaoTrace와 동일 역할(세션 유실 시 유령 문서 방지·'Apple로 다시 로그인' 안내 판단). iOS 전용
   crewFavorites: '@dg_crew_favorites', // 크루 즐겨찾기 {crewId: true} — 기기 로컬, per-user 표시 선호(서버 미저장)
   diaryCompactView: '@dg_diary_compact_view', // 내 기록 요약보기(true) — 사진 없는 한 줄 목록. 기기 로컬 표시 선호
+  settlementAccounts: '@dg_settlement_accounts', // 정산 입금계좌 [{account, accountName}] — 최근 쓴 순. 참가비=모임통장, 식사비=개인계좌처럼 나눠 쓰는 총무가 있어 여러 개 보관. 기기 로컬(서버 미저장)
   crewSeen: '@dg_crew_seen', // 크루별 마지막으로 본 시점의 게시물 '개수' {crewId: postCount} — 기기 로컬, 목록 '새 글 N' 배지 판단(서버 미저장)
   crewSeenAt: '@dg_crew_seen_at', // 크루별 마지막으로 앨범 닫은 시각 {crewId: millis} — 기기 로컬, 앨범 안 NEW 점·'내 글 새 댓글'·목록 반응 신호 판단
   crewOrder: '@dg_crew_order', // 크루 목록 수동 순서 [crewId,...] — 기기 로컬, 드래그 정렬(서버 미저장)
