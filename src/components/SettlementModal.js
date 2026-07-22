@@ -21,8 +21,8 @@ import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
   SETTLE_KINDS, settleKindLabel, PAY_PENDING, PAY_CLAIMED, PAY_CONFIRMED,
   splitEvenly, summarize, toggleMemberStatus, buildSettlementText,
-  loadMySettlements, createSettlement, updateSettlement, deleteSettlement,
-  computeSettlementFromText, computeSettlementFromImages, RECEIPT_MAX,
+  loadMySettlements, createSettlement, updateSettlement, deleteSettlement, setSettlementArchived,
+  computeSettlement, RECEIPT_MAX,
 } from '../utils/settlement';
 
 // 모임 '걷기' — 총무가 참가자에게 돈을 걷는 화면. 목록 ↔ 상세 한 모달 안에서 전환.
@@ -123,6 +123,47 @@ export function SettlementModal({ visible, onClose }) {
     }
   };
 
+  // 치우기 — 보관과 삭제를 갈라서 묻는다. 끝난 걸 목록에서 안 보이게 하고 싶은 것과
+  //   데이터를 없애고 싶은 것은 다른 일이고, 지운 건 되살릴 수 없다(사용자 2026-07-22).
+  const remove = (s) => {
+    const head = [s.course, s.date].filter(Boolean).join(' · ');
+    showAppAlert('이 걷기를 어떻게 할까요?', head, [
+      { text: '취소', style: 'cancel' },
+      { text: '보관하기', onPress: async () => {
+        patchLocal(s.id, { archived: true });
+        try { await setSettlementArchived(s.id, true); }
+        catch (e) { patchLocal(s.id, { archived: false }); showToast('보관하지 못했어요'); }
+      } },
+      { text: '삭제', style: 'destructive', onPress: () => {
+        showAppAlert('정말 지울까요?', '입금 체크한 내용까지 사라지고 되돌릴 수 없어요.', [
+          { text: '취소', style: 'cancel' },
+          { text: '지우기', style: 'destructive', onPress: async () => {
+            const before = list;
+            setList(prev => prev.filter(x => x.id !== s.id));
+            try { await deleteSettlement(s.id); }
+            catch (e) { setList(before); showToast('삭제하지 못했어요'); }
+          } },
+        ]);
+      } },
+    ]);
+  };
+
+  // 보관 — 상세에서 바로. 목록으로 돌아가 치워진 걸 보여준다(어디로 갔는지 알 수 있게).
+  const archive = async (s) => {
+    patchLocal(s.id, { archived: true });
+    setOpenId(null);
+    showToast('보관함으로 옮겼어요');
+    try { await setSettlementArchived(s.id, true); }
+    catch (e) { patchLocal(s.id, { archived: false }); showToast('보관하지 못했어요'); }
+  };
+
+  // 보관 해제 — 보관함에서 되돌린다
+  const unarchive = async (s) => {
+    patchLocal(s.id, { archived: false });
+    try { await setSettlementArchived(s.id, false); }
+    catch (e) { patchLocal(s.id, { archived: true }); showToast('되돌리지 못했어요'); }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent={false}>
       <SafeAreaProvider>
@@ -149,10 +190,12 @@ export function SettlementModal({ visible, onClose }) {
                 onCreated={(s) => { setList(prev => [s, ...prev]); setComposing(false); setOpenId(s.id); }} />
             ) : current ? (
               <DetailView s={current} onSave={(patch) => save(current.id, patch)}
+                onArchive={() => archive(current)}
                 onDeleted={() => { setList(prev => prev.filter(x => x.id !== current.id)); setOpenId(null); }} />
             ) : (
               <ListView list={list} loading={loading} failed={failed} onRetry={load}
-                onOpen={setOpenId} onNew={() => setComposing(true)} />
+                onOpen={setOpenId} onNew={() => setComposing(true)}
+                onDelete={remove} onUnarchive={unarchive} />
             )}
           </SafeAreaView>
         </KeyboardProvider>
@@ -162,7 +205,11 @@ export function SettlementModal({ visible, onClose }) {
 }
 
 // ── 목록 ──────────────────────────────────────────────────────
-function ListView({ list, loading, failed, onRetry, onOpen, onNew }) {
+function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onUnarchive }) {
+  const [showArchive, setShowArchive] = useState(false);
+  const live = (list || []).filter(s => !s.archived);
+  const archived = (list || []).filter(s => s.archived);
+  const shown = showArchive ? archived : live;
   if (loading) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Spinner /></View>;
   if (failed) {
     return (
@@ -177,42 +224,76 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew }) {
   }
   return (
     <KeyboardAwareScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-      <TouchableOpacity onPress={onNew} activeOpacity={0.85}
-        style={{ backgroundColor: C.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 16 }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>+ 걷기 만들기</Text>
-      </TouchableOpacity>
+      {!showArchive && (
+        <TouchableOpacity onPress={onNew} activeOpacity={0.85}
+          style={{ backgroundColor: C.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 16 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>+ 걷기 만들기</Text>
+        </TouchableOpacity>
+      )}
 
-      {list.length === 0 ? (
+      {shown.length === 0 ? (
         <View style={{ alignItems: 'center', paddingTop: 40, paddingHorizontal: 20 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 8 }}>아직 걷기가 없어요</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19 }}>
-            이름만 적으면 됩니다{'\n'}동반자가 앱을 안 써도 정산서는 카톡으로 보낼 수 있어요
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 8 }}>
+            {showArchive ? '보관한 걷기가 없어요' : '아직 걷기가 없어요'}
           </Text>
+          {!showArchive && (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19 }}>
+              이름만 적으면 됩니다{'\n'}동반자가 앱을 안 써도 정산서는 카톡으로 보낼 수 있어요
+            </Text>
+          )}
         </View>
-      ) : list.map(s => {
+      ) : shown.map(s => {
         const sum = summarize(s.members);
+        const done = sum.count > 0 && sum.confirmedCount === sum.count;
         return (
-          <TouchableOpacity key={s.id} onPress={() => onOpen(s.id)} activeOpacity={0.8}
-            style={[box, { padding: 14, marginBottom: 10 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, flex: 1 }} numberOfLines={1}>
-                {s.course || '이름 없는 걷기'}
-              </Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: GOLD }}>{settleKindLabel(s.kind)}</Text>
-            </View>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray }}>{s.date}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, flex: 1 }}>
-                {won(sum.total)}원
-              </Text>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13),
-                color: sum.confirmedCount === sum.count ? '#6B8B5E' : '#6B1E2A' }}>
-                {sum.confirmedCount}/{sum.count} 입금
-              </Text>
-            </View>
-          </TouchableOpacity>
+          // 끝난 정산은 톤을 낮춰 진행 중인 것과 구분하고, 카드에서 바로 지울 수 있게 한다
+          //   (총무가 어차피 손으로 체크하는 구조라 '끝났으니 치우기'가 마지막 동작이다 — 사용자 2026-07-22).
+          <View key={s.id} style={[box, { marginBottom: 10, opacity: done ? 0.72 : 1 }]}>
+            <TouchableOpacity onPress={() => onOpen(s.id)} activeOpacity={0.8} style={{ padding: 15 }}>
+              {/* 버튼을 같은 줄 안에 둔다 — 절대배치로 띄웠더니 '선입금'과 줄이 안 맞고,
+                  '되돌리기'처럼 폭이 달라지면 여백 계산도 매번 어긋났다(사용자 2026-07-22). */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, flex: 1 }} numberOfLines={1}>
+                  {s.course || '이름 없는 걷기'}
+                </Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: GOLD }}>{settleKindLabel(s.kind)}</Text>
+                <TouchableOpacity onPress={() => (showArchive ? onUnarchive(s) : onDelete(s))} activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 8, right: 10 }}
+                  style={{ marginLeft: 10 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: showArchive ? fs(11.5) : fs(15), color: C.warmGray }}>
+                    {showArchive ? '되돌리기' : '⋯'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray }}>{s.date}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, flex: 1 }}>
+                  {won(sum.total)}원
+                </Text>
+                {done ? (
+                  <View style={{ backgroundColor: '#6B8B5E', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#FFFFFF' }}>정산 완료</Text>
+                  </View>
+                ) : (
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#6B1E2A' }}>
+                    {sum.confirmedCount}/{sum.count} 입금
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
         );
       })}
+
+      {/* 보관함 — 보관한 게 있을 때만. 지운 게 아니라 치워둔 것이라 언제든 되돌릴 수 있다 */}
+      {(archived.length > 0 || showArchive) && (
+        <TouchableOpacity onPress={() => setShowArchive(v => !v)} activeOpacity={0.7}
+          style={{ paddingVertical: 14, alignItems: 'center' }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>
+            {showArchive ? '← 진행 중인 걷기 보기' : `보관함 ${archived.length}`}
+          </Text>
+        </TouchableOpacity>
+      )}
     </KeyboardAwareScrollView>
   );
 }
@@ -259,6 +340,7 @@ function ComposeView({ onCancel, onCreated }) {
   const [paste, setPaste] = useState('');      // 카드문자·정산 메시지 붙여넣기
   const [instr, setInstr] = useState('');      // 총무 요구사항 — "1/n 백원단위 절사" 같은 자연어
   const [showPaste, setShowPaste] = useState(false);
+  const [photos, setPhotos] = useState([]);    // 첨부한 영수증 URI — 계산할 때 문자와 함께 보낸다
   const [aiMembers, setAiMembers] = useState(null); // AI가 계산한 사람별 금액(있으면 이걸 쓴다)
   const [aiItems, setAiItems] = useState([]);   // AI가 읽은 품목별 내역(그린피·식사…)
   const [aiNote, setAiNote] = useState('');    // 계산 근거 한 줄 — 총무가 검산할 수 있게
@@ -358,12 +440,24 @@ function ComposeView({ onCancel, onCreated }) {
     const friendLabel = new Map(
       friends.map(f => [f.id, (f.customName || f.nickname || f.name || '').trim()]).filter(([, n]) => n));
 
+    // ★uid가 없는 옛 기록은 이름으로만 남아 있어 uid 대조가 안 통한다. 그래서 친구가 가진 모든 표기
+    //   (내 별명·닉네임·실명)를 uid로 되짚는 표를 만든다 — 기록의 '이정아'(실명)와 친구 '설레인'(닉네임)이
+    //   같은 사람인데 따로 뜨던 문제(사용자 2026-07-22). 동명이인은 한 사람으로 합쳐지지만,
+    //   한 모임 안에 같은 이름이 둘이면 어차피 이름만으로 구분이 안 된다.
+    const aliasToUid = new Map();
+    friends.forEach(f => {
+      [f.customName, f.nickname, f.name, f.realName].forEach(a => {
+        const t = String(a || '').trim();
+        if (t && !aliasToUid.has(t)) aliasToUid.set(t, f.id);
+      });
+    });
+
     const count = new Map();   // key(uid 또는 이름) → { label, n }
     roundsOnly(diaries || []).slice(0, 40).forEach(d => {
       (d.companions || []).forEach(c => {
         if (c?.isMe) return;
         const stored = String(c?.name || '').trim();
-        const uid = c?.friendUid || null;
+        const uid = c?.friendUid || aliasToUid.get(stored) || null;
         const label = (uid && friendLabel.get(uid)) || stored;
         if (!label) return;
         const key = uid || label;
@@ -438,24 +532,26 @@ function ComposeView({ onCancel, onCreated }) {
     if (r.accountName && !accountName.trim()) setAccountName(r.accountName);
     if (r.fallback) setAiNote((r.note ? r.note + ' · ' : '') + '이름을 못 맞춰 1/n으로 나눴어요');
   };
-  const aiFromText = async () => {
-    const t = paste.trim();
-    if ((!t && !instr.trim()) || aiBusy) return;
+  // ★한 번에 계산한다 — 붙여넣은 문자와 첨부한 영수증을 같이 보낸다.
+  //   따로 호출하면 매번 결제 1건씩만 보여 건별 내역이 안 나온다(사용자 2026-07-22).
+  const runAi = async () => {
+    if (aiBusy) return;
+    if (!paste.trim() && !instr.trim() && photos.length === 0) return;
     Keyboard.dismiss(); setAiBusy(true); setAiError('');
-    applyAi(await computeSettlementFromText({ text: t, names, instruction: instr, kind }));
+    applyAi(await computeSettlement({ text: paste, uris: photos, names, instruction: instr, kind }));
     setAiBusy(false);
   };
-  // 영수증 — 갤러리는 여러 장 선택(1차·2차), 촬영은 한 장씩. 3장 초과분은 잘라내고 알려준다.
-  const aiFromPhoto = async (source) => {
+  // 영수증은 '첨부'만 한다 — 고른 즉시 계산하지 않는다. 문자와 함께 한 번에 읽혀야 합산이 맞는다.
+  const addPhotos = async (source) => {
     if (aiBusy) return;
     Keyboard.dismiss();
-    let uris = [];
+    let picked = [];
     if (source === 'camera') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) { setAiError('카메라 권한이 필요해요'); return; }
       const res = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
       if (res.canceled || !res.assets?.length) return;
-      uris = [res.assets[0].uri];
+      picked = [res.assets[0].uri];
     } else {
       let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -464,14 +560,14 @@ function ComposeView({ onCancel, onCreated }) {
         mediaTypes: ['images'], quality: 1, allowsMultipleSelection: true, selectionLimit: RECEIPT_MAX,
       });
       if (res.canceled || !res.assets?.length) return;
-      uris = res.assets.map(a => a.uri);
+      picked = res.assets.map(a => a.uri);
     }
-    const over = uris.length > RECEIPT_MAX;
-    setAiBusy(true); setAiError('');
-    const r = await computeSettlementFromImages({ uris, names, instruction: instr, kind });
-    setAiBusy(false);
-    applyAi(r);
-    if (over && !r?.error) setAiNote(p => `${p ? p + ' · ' : ''}앞 ${RECEIPT_MAX}장만 읽었어요`);
+    setPhotos(prev => {
+      const next = [...prev, ...picked].slice(0, RECEIPT_MAX);
+      if (prev.length + picked.length > RECEIPT_MAX) setAiError(`영수증은 ${RECEIPT_MAX}장까지예요`);
+      else setAiError('');
+      return next;
+    });
   };
 
   const submit = async () => {
@@ -484,9 +580,9 @@ function ComposeView({ onCancel, onCreated }) {
     //   금액이 비었는데 읽을 재료가 있으면 여기서 대신 계산해준다.
     let ready = members;
     let sum = sumAmount;
-    if (sum <= 0 && (paste.trim() || instr.trim())) {
+    if (sum <= 0 && (paste.trim() || instr.trim() || photos.length > 0)) {
       setAiBusy(true);
-      const r = await computeSettlementFromText({ text: paste.trim(), names, instruction: instr, kind });
+      const r = await computeSettlement({ text: paste, uris: photos, names, instruction: instr, kind });
       setAiBusy(false);
       if (r?.error) { setAiError(r.error); return; }
       applyAi(r);
@@ -702,8 +798,8 @@ function ComposeView({ onCancel, onCreated }) {
             {/* 금액 출처 — 촬영 / 갤러리 / 붙여넣기 (가계부와 동일 3분할) */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
               {[
-                { key: 'camera', icon: 'camera', label: '촬영', onPress: () => aiFromPhoto('camera') },
-                { key: 'gallery', icon: 'image', label: '갤러리', onPress: () => aiFromPhoto('gallery') },
+                { key: 'camera', icon: 'camera', label: '촬영', onPress: () => addPhotos('camera') },
+                { key: 'gallery', icon: 'image', label: '갤러리', onPress: () => addPhotos('gallery') },
                 { key: 'paste', icon: 'clipboard', label: '붙여넣기', onPress: () => setShowPaste(v => !v) },
               ].map(m => {
                 const active = m.key === 'paste' && showPaste;
@@ -719,6 +815,21 @@ function ComposeView({ onCancel, onCreated }) {
               })}
             </View>
 
+            {/* 첨부한 영수증 — 고른 즉시 계산하지 않고 여기 쌓아뒀다가 문자와 함께 한 번에 보낸다 */}
+            {photos.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                {photos.map((uri, i) => (
+                  <TouchableOpacity key={uri} activeOpacity={0.7}
+                    onPress={() => setPhotos(prev => prev.filter(x => x !== uri))}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF',
+                      borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: GOLD_DEEP }}>영수증 {i + 1}</Text>
+                    <Text style={{ fontSize: fs(12), color: C.warmGray }}>✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             {showPaste && !aiBusy && (
               <AppTextInput value={paste} onChangeText={v => { setPaste(v); if (aiError) setAiError(''); }} multiline
                 placeholder={'카드결제 문자나 정산 메시지를 붙여넣어 주세요'}
@@ -731,10 +842,10 @@ function ComposeView({ onCancel, onCreated }) {
             {/* 실행 — 회색으로 죽여두면 눈에 안 들어와 '있는 줄도 모르고' 지나친다(사용자 2026-07-22).
                 내용이 없을 땐 골드 외곽선으로 살려두고, 눌렀을 때 뭐가 필요한지 말해준다. */}
             {(() => {
-              const armed = !!(paste.trim() || instr.trim());
+              const armed = !!(paste.trim() || instr.trim() || photos.length > 0);
               return (
                 <TouchableOpacity activeOpacity={0.85} disabled={aiBusy}
-                  onPress={() => { if (armed) aiFromText(); else setAiError('금액이나 나누는 방법을 먼저 적어주세요'); }}
+                  onPress={() => { if (armed) runAi(); else setAiError('금액이나 나누는 방법을 먼저 적어주세요'); }}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12,
                     backgroundColor: armed ? GOLD_DEEP : 'transparent', borderRadius: 12, paddingVertical: 14,
                     borderWidth: armed ? 0 : 1, borderColor: GOLD_DEEP }}>
@@ -856,12 +967,34 @@ function ComposeView({ onCancel, onCreated }) {
   );
 }
 // ── 상세 (입금 체크) ──────────────────────────────────────────
-function DetailView({ s, onSave, onDeleted }) {
+function DetailView({ s, onSave, onDeleted, onArchive }) {
   const sum = useMemo(() => summarize(s.members), [s.members]);
   const allDone = sum.count > 0 && sum.confirmedCount === sum.count;
 
   // 이름 탭 → 입금 확정 토글. 총무가 은행앱 보면서 하나씩 찍는 동작.
   const tapMember = (memberId) => onSave({ members: toggleMemberStatus(s.members, memberId) });
+
+  // 수정 — AI가 영수증을 잘못 읽거나 금액이 틀릴 수 있어 만든 뒤에도 손볼 수 있어야 한다(사용자 2026-07-22).
+  //   편집 중에는 원본을 건드리지 않고 초안(draft)에만 쓰고, 저장할 때 한 번에 반영한다.
+  const [editing, setEditing] = useState(false);
+  const [dItems, setDItems] = useState([]);
+  const [dMembers, setDMembers] = useState([]);
+
+  const startEdit = () => {
+    setDItems((s.items || []).map(i => ({ label: i.label || '', amount: String(i.amount || '') })));
+    setDMembers((s.members || []).map(m => ({ ...m, amount: String(m.amount || '') })));
+    setEditing(true);
+  };
+  const saveEdit = () => {
+    const items = dItems
+      .map(i => ({ label: i.label.trim(), amount: Math.max(0, parseInt(i.amount, 10) || 0) }))
+      .filter(i => i.label && i.amount > 0);
+    const members = dMembers.map(m => ({ ...m, amount: Math.max(0, parseInt(m.amount, 10) || 0) }));
+    if (members.length === 0) { showToast('참가자가 없어요'); return; }
+    // total은 사람별 금액의 합 — 화면 요약과 정산서 합계가 어긋나면 안 된다
+    onSave({ items, members, total: members.reduce((a, m) => a + m.amount, 0) });
+    setEditing(false);
+  };
 
   // 정산서에 내역을 넣을지는 모임마다 다르다(사용자 2026-07-22) — 총무가 고르고, 그 선택을 기억한다.
   const [detail, setDetail] = useState(true);
@@ -891,9 +1024,29 @@ function DetailView({ s, onSave, onDeleted }) {
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD, flex: 1 }}>
             {settleKindLabel(s.kind)}{s.date ? ` · ${s.date}` : ''}
           </Text>
-          <TouchableOpacity onPress={confirmDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray }}>삭제</Text>
-          </TouchableOpacity>
+          {editing ? (
+            <>
+              <TouchableOpacity onPress={() => setEditing(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginRight: 16 }}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#6B1E2A' }}>저장</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity onPress={startEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal, marginRight: 16 }}>수정</Text>
+              </TouchableOpacity>
+              {/* 보관 — 목록에서 치우되 데이터는 남는다. 여기 없으면 '어디서 보관하지?'가 된다 */}
+              <TouchableOpacity onPress={onArchive} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal, marginRight: 16 }}>보관</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirmDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray }}>삭제</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: C.charcoal }}>{won(sum.total)}원</Text>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), marginTop: 8,
@@ -903,7 +1056,32 @@ function DetailView({ s, onSave, onDeleted }) {
       </View>
 
       {/* 건별 내역 — 카드문자 가맹점명 그대로("1차 복돌이식당"). 정산서 '내역 넣기'에 이대로 나간다 */}
-      {Array.isArray(s.items) && s.items.length > 0 && (
+      {editing ? (
+        <View style={{ marginBottom: 14 }}>
+          <Text style={label}>내역 — AI가 잘못 읽었으면 고치세요</Text>
+          {dItems.map((i, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+              <AppTextInput value={i.label} placeholder="상호명"
+                onChangeText={t => setDItems(p => p.map((x, k) => (k === idx ? { ...x, label: t } : x)))}
+                style={[box, { flex: 1.6, paddingHorizontal: 12, paddingVertical: 11,
+                  fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }]} />
+              <AppTextInput value={i.amount} placeholder="금액" keyboardType="number-pad"
+                onChangeText={t => setDItems(p => p.map((x, k) => (k === idx ? { ...x, amount: t.replace(/[^0-9]/g, '') } : x)))}
+                style={[box, { flex: 1, paddingHorizontal: 12, paddingVertical: 11,
+                  fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal }]} />
+              <TouchableOpacity onPress={() => setDItems(p => p.filter((_, k) => k !== idx))}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                style={{ justifyContent: 'center', paddingHorizontal: 4 }}>
+                <Text style={{ fontSize: fs(13), color: C.warmGray }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity onPress={() => setDItems(p => [...p, { label: '', amount: '' }])}
+            activeOpacity={0.7} style={{ paddingVertical: 10, alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#6B1E2A' }}>+ 내역 추가</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (Array.isArray(s.items) && s.items.length > 0 && (
         <View style={[box, { paddingHorizontal: 16, paddingVertical: 12, marginBottom: 14 }]}>
           {s.items.map((i, idx) => (
             <View key={`${i.label}_${idx}`}
@@ -915,9 +1093,33 @@ function DetailView({ s, onSave, onDeleted }) {
             </View>
           ))}
         </View>
-      )}
+      ))}
 
-      {/* 명단 — 탭하면 확정 토글 */}
+      {/* 명단 — 평소엔 탭으로 입금 확정, 수정 중엔 금액을 직접 고친다 */}
+      {editing ? (
+        <View style={{ marginBottom: 14 }}>
+          <Text style={label}>사람별 금액</Text>
+          {dMembers.map((m, idx) => (
+            <View key={m.id || idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(14.5), color: C.charcoal }} numberOfLines={1}>
+                {m.name}
+              </Text>
+              <AppTextInput value={m.amount} keyboardType="number-pad" placeholder="0"
+                onChangeText={t => setDMembers(p => p.map((x, k) => (k === idx ? { ...x, amount: t.replace(/[^0-9]/g, '') } : x)))}
+                style={[box, { width: fs(110), paddingHorizontal: 12, paddingVertical: 11, textAlign: 'right',
+                  fontFamily: F.sysSb, fontSize: fs(14.5), color: C.charcoal }]} />
+              <TouchableOpacity onPress={() => setDMembers(p => p.filter((_, k) => k !== idx))}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                style={{ justifyContent: 'center', paddingHorizontal: 4 }}>
+                <Text style={{ fontSize: fs(13), color: C.warmGray }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginTop: 6 }}>
+            합계 {won(dMembers.reduce((a, m) => a + (parseInt(m.amount, 10) || 0), 0))}원
+          </Text>
+        </View>
+      ) : (<>
       <Text style={label}>이름을 탭하면 입금 확정으로 바뀝니다</Text>
       <View style={[box, { paddingVertical: 4, marginBottom: 14 }]}>
         {(s.members || []).map((m, i) => {
@@ -940,19 +1142,26 @@ function DetailView({ s, onSave, onDeleted }) {
           );
         })}
       </View>
+      </>)}
 
-      {/* 계좌 */}
-      {!!s.account && (
+      {/* 계좌 — 예금주는 줄을 바꿔 적는다(카톡 정산서와 같은 모양) */}
+      {!!s.account && !editing && (
         <View style={[box, { padding: 14, marginBottom: 14 }]}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }}>
-            {s.account}{s.accountName ? `  ${s.accountName}` : ''}
-          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }}>{s.account}</Text>
+          {!!s.accountName && (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, marginTop: 3 }}>{s.accountName}</Text>
+          )}
         </View>
       )}
 
-      {/* 카톡으로 정산서 — 앱 안 깐 사람에게 가는 경로. 내역 포함 여부는 총무가 고른다 */}
+      {/* 카톡으로 정산서 — 앱 안 깐 사람에게 가는 경로. 내역 포함 여부는 총무가 고른다.
+          수정 중에는 감춘다 — 아직 저장 안 된 값으로 미리보기를 보여주면 헷갈린다. */}
+      {!editing && (
+      <>
+
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
         <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>정산서에 내역</Text>
+        {/* 라벨만 보고는 뭐가 달라지는지 모른다 — 아래 미리보기로 실제 문구를 보고 고르게 한다(사용자 2026-07-22) */}
         {[[true, '넣기'], [false, '빼기']].map(([v, l]) => {
           const on = detail === v;
           return (
@@ -964,6 +1173,17 @@ function DetailView({ s, onSave, onDeleted }) {
           );
         })}
       </View>
+      {/* 미리보기 — buildSettlementText 결과를 그대로 그린다. 화면과 실제 보낼 문구가 어긋나면 안 되므로
+          따로 꾸미지 않고 같은 함수의 출력을 쓴다. */}
+      <View style={[box, { paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12 }]}>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.warmGray, marginBottom: 8 }}>
+          이렇게 보내집니다
+        </Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: fs(21) }}>
+          {buildSettlementText(s, { detail })}
+        </Text>
+      </View>
+
       <TouchableOpacity onPress={sendKakao} activeOpacity={0.85}
         style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>카톡으로 정산서 보내기</Text>
@@ -973,6 +1193,8 @@ function DetailView({ s, onSave, onDeleted }) {
           marginTop: 10, lineHeight: 18 }}>
           아직 안 낸 사람: {sum.unpaid.map(m => m.name).join(', ')}
         </Text>
+      )}
+      </>
       )}
     </KeyboardAwareScrollView>
   );

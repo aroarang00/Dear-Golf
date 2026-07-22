@@ -136,6 +136,9 @@ export async function createSettlement(data) {
       .filter(i => i.label && i.amount > 0)
       .slice(0, 12),
     members,
+    // 보관 — 끝난 걷기를 목록에서 치우되 데이터는 남긴다. 삭제는 되살릴 수 없어 별도로 둔다
+    //   ("작년에 얼마 걷었지"·모임 운영비 정산은 지난 기록이 있어야 한다). 보관/삭제는 총무가 고른다.
+    archived: false,
     // 연결은 선택 — 없어도 완전히 동작한다(독립 문서인 이유)
     linkedRoundupId: data.linkedRoundupId || null,
     linkedScheduleId: data.linkedScheduleId || null,
@@ -153,6 +156,17 @@ export async function updateSettlement(id, patch) {
   if (p.members) p.members = p.members.map(normMember);
   if (p.total !== undefined) p.total = won(p.total);
   await updateDoc(doc(db, COLLECTION, id), p);
+}
+
+// 보관 / 보관 해제 — 목록 표시만 바꾸고 문서는 그대로 둔다.
+//   쿼리로 거르지 않고 클라이언트에서 나누는 이유: archived 필드가 없는 옛 문서가 부등호 쿼리에서
+//   통째로 빠진다. 걷기는 사용자당 개수가 적어 전부 읽어도 부담이 없다.
+export async function setSettlementArchived(id, archived) {
+  const uid = await getUid();
+  if (!uid) throw new Error('Not authenticated');
+  await updateDoc(doc(db, COLLECTION, id), {
+    archived: !!archived, ownerUid: uid, updatedAt: serverTimestamp(),
+  });
 }
 
 export async function deleteSettlement(id) {
@@ -199,23 +213,15 @@ async function callSettlementAI(payload, names) {
   };
 }
 
-export async function computeSettlementFromText({ text, names, instruction, kind }) {
-  try {
-    return await callSettlementAI(
-      { text: (text || '').trim(), names: (names || []).map(n => n.name || n), instruction, kind }, names);
-  } catch (e) {
-    if (e?.code === 'functions/resource-exhausted') return { error: '요청이 많아요. 잠시 후 다시 시도해주세요' };
-    return { error: '자동 계산에 실패했어요' };
-  }
-}
-
 // 영수증 여러 장 — 1차·2차처럼 결제가 나뉘는 경우가 흔하다. 3장까지(그 이상은 오합산 위험).
 export const RECEIPT_MAX = 3;
 
-export async function computeSettlementFromImages({ uris, names, instruction, kind }) {
+// ★붙여넣은 문자와 영수증 사진을 한 번에 보낸다(사용자 2026-07-22).
+//   전에는 텍스트용·사진용 호출이 따로여서 매번 결제 1건씩만 보였고, 그래서 건별 내역이 안 나왔다.
+//   1차는 카드문자·2차는 영수증처럼 출처가 섞이는 게 실제 모습이라 한 번에 읽혀야 합산도 맞다.
+export async function computeSettlement({ text, uris, names, instruction, kind }) {
   try {
     const list = (uris || []).slice(0, RECEIPT_MAX);
-    if (list.length === 0) return { error: '영수증이 필요해요' };
     const images = [];
     for (const uri of list) {
       const img = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], {
@@ -223,13 +229,18 @@ export async function computeSettlementFromImages({ uris, names, instruction, ki
       });
       images.push(img.base64);
     }
-    return await callSettlementAI(
-      { images, format: 'jpg', names: (names || []).map(n => n.name || n), instruction, kind }, names);
+    return await callSettlementAI({
+      text: (text || '').trim(),
+      images, format: 'jpg',
+      names: (names || []).map(n => n.name || n),
+      instruction, kind,
+    }, names);
   } catch (e) {
     if (e?.code === 'functions/resource-exhausted') return { error: '요청이 많아요. 잠시 후 다시 시도해주세요' };
-    return { error: '영수증을 읽지 못했어요' };
+    return { error: '자동 계산에 실패했어요' };
   }
 }
+
 
 // 카톡으로 보낼 정산서 텍스트 — 앱 안 깐 사람에게 가는 경로.
 //   ★이게 앱의 광고이기도 하다(카톡방에 뿌려지는 순간 8명이 본다).
@@ -271,7 +282,9 @@ export function buildSettlementText(s, { detail = true } = {}) {
   if (detail && s?.note) lines.push(`(${s.note})`);
   if (s?.account) {
     lines.push('');
-    lines.push(`${s.account}${s.accountName ? ` ${s.accountName}` : ''}`);
+    lines.push(s.account);
+    // 예금주는 줄을 바꿔 적는다 — 계좌번호 뒤에 붙이면 카톡에서 줄이 넘쳐 이름이 잘린다(사용자 2026-07-22).
+    if (s.accountName) lines.push(s.accountName);
   }
   return lines.join('\n');
 }
