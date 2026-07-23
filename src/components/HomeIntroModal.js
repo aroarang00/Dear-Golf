@@ -7,6 +7,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
+import { Icon } from './common/Icon'; // 기능 카드 아이콘 — 유니코드 이모지 → 커스텀 SVG(2026-07-24)
 
 // 헤더 배경 — 사용자 직접 촬영 골프장 사진(번들). day3=가로형 맑은 날 코스 전경이라 가로 헤더에 딱 맞음
 //   (세로 day1은 짧은 헤더에 cover하면 하늘만 잘려 부적합, 2026-06-29). 로컬이라 네트워크 없이 즉시·선명.
@@ -15,19 +16,20 @@ import { TripleStripe } from './common/TripleStripe';
 const HEADER_IMG = require('../../assets/home-bg/intro-header.jpg');
 
 // 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
+// icon = 커스텀 SVG 이름, ic = 아이콘 선 색(tint 톤의 진한 버전). tint = 좌측 박스 배경(옅은 카테고리색).
 const FEATURES = [
-  { icon: '🏌️', title: '예정 라운딩 한 번에',        body: '예약 문자·캡처를 AI가 자동입력 · 날씨·교통·캘린더까지', tint: '#D6E4EF' }, // paleSky 톤
+  { icon: 'calendar',  ic: '#2E5A7A', title: '예정 라운딩 한 번에',        body: '예약 문자·캡처를 AI가 자동입력 · 날씨·교통·캘린더까지', tint: '#D6E4EF' }, // paleSky 톤
   // 기상·출발 알림 — 플랫폼별 동작 차이는 그 기기에 해당하는 안내만(iOS=무음스위치, 안드=시계앱 알람 24시간)
-  { icon: '⏰', title: '기상·출발 알림',              body: '티오프에 맞춰 일어날 시간·나설 시간을 계산해 알려드려요', tint: '#F4DCC8', // 옅은 코랄
+  { icon: 'bell',      ic: '#C2703D', title: '기상·출발 알림',              body: '티오프에 맞춰 일어날 시간·나설 시간을 계산해 알려드려요', tint: '#F4DCC8', // 옅은 코랄
     note: Platform.OS === 'ios'
       ? 'iPhone은 무음 스위치가 켜져 있으면 소리가 안 나요 — 전날 밤 꺼두세요'
       : '기상 알림은 시계 앱 알람으로도 함께 울려요 (라운딩 24시간 안쪽부터)' },
-  { icon: '🗺️', title: '다녀온 골프장 자동 정리',    body: '일정만 등록해도 다녀온 코스가 차곡차곡',   tint: '#FAEDB8' }, // butter 톤
-  { icon: '🏆', title: '걸어본 코스 한눈에',          body: '100대·해외 라운딩이 자동으로 정리',        tint: '#F0D6D6' }, // 옅은 burgundy
-  { icon: '📓', title: '친구 골퍼끼리 기록·사진 공유', body: '스코어카드 사진을 AI가 홀별 자동입력 · 친구와 공유', tint: '#D6E3C8' }, // 옅은 그린
-  { icon: '💰', title: '골프 가계부',                 body: '영수증·카드문자를 AI가 자동입력 · 비용 한눈에', tint: '#E8D8B0' }, // 옅은 골드
-  { icon: '📌', title: '골프장·맛집 저장',            body: '메모·골퍼 코멘트 한 곳에',                 tint: '#C8D2DE' }, // 옅은 네이비
-  { icon: '⛳', title: '동반자 모집',                 body: '전화·카톡 없이 라운지에서', tint: '#E0D8C8', cta: '자세한 건 라운지의 📢' }, // 옅은 차콜·베이지
+  { icon: 'clubhouse', ic: '#8A6A33', title: '다녀온 골프장 자동 정리',    body: '일정만 등록해도 다녀온 코스가 차곡차곡',   tint: '#FAEDB8' }, // butter 톤
+  { icon: 'trophy',    ic: '#6B1E2A', title: '걸어본 코스 한눈에',          body: '100대·해외 라운딩이 자동으로 정리',        tint: '#F0D6D6' }, // 옅은 burgundy
+  { icon: 'book',      ic: '#5E7E52', title: '친구 골퍼끼리 기록·사진 공유', body: '스코어카드 사진을 AI가 홀별 자동입력 · 친구와 공유', tint: '#D6E3C8' }, // 옅은 그린
+  { icon: 'wallet',    ic: '#8A6A33', title: '골프 가계부',                 body: '영수증·카드문자를 AI가 자동입력 · 비용 한눈에', tint: '#E8D8B0' }, // 옅은 골드
+  { icon: 'pin',       ic: '#3A5A78', title: '골프장·맛집 저장',            body: '메모·골퍼 코멘트 한 곳에',                 tint: '#C8D2DE' }, // 옅은 네이비
+  { icon: 'people',    ic: '#4A4038', title: '동반자 모집',                 body: '전화·카톡 없이 라운지에서', tint: '#E0D8C8', cta: '자세한 건 라운지에서' }, // 옅은 차콜·베이지
 ];
 
 export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
@@ -114,10 +116,10 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                   shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
                   elevation: 2,
                 }}>
-                  {/* 좌측 카테고리 컬러 박스 + 큰 이모지 */}
+                  {/* 좌측 카테고리 컬러 박스 + 커스텀 아이콘 */}
                   <View style={{ width: 60, height: 60, borderRadius: 16, backgroundColor: f.tint,
                     alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: fs(30) }}>{f.icon}</Text>
+                    <Icon name={f.icon} size={fs(28)} color={f.ic} strokeWidth={1.8} />
                   </View>
                   {/* 우측 텍스트 — 가독성 우선, 색 진하게 */}
                   <View style={{ flex: 1 }}>
