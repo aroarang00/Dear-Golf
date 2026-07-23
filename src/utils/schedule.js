@@ -57,6 +57,10 @@ export async function createSchedule(data) {
     subCourse: data.subCourse || '', // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관
     memo: data.memo || '',       // 일정 메모(공지) — 준비물·조편성·집결지 등. 전파 동기화는 2차
     roundupId: data.roundupId || null,
+    // 폰 캘린더에서 '가져오기'로 만든 일정의 원본 이벤트 id — 캘린더 동기화가 새로 만드는 대신
+    //   이 이벤트를 갱신해 같은 일정이 두 개 생기는 걸 막는다([[deviceCalendar]] adopt). 없으면 null.
+    //   ★화이트리스트라 여기 안 넣으면 저장 시 버려지고, created에도 없어 중복 방지가 통째로 안 먹는다.
+    calendarSourceId: data.calendarSourceId || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };

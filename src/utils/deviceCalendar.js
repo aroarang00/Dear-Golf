@@ -130,6 +130,22 @@ export async function syncRoundToCalendar(schedule) {
         // 사용자가 캘린더에서 직접 삭제했을 수 있음 — 새로 생성
       }
     }
+    // ★캘린더에서 '가져오기'로 만든 일정은 그 이벤트가 이미 캘린더에 있다. 새로 만들면 원본과 나란히
+    //   두 개가 남는다(사용자 2026-07-23). 그래서 원본을 새로 만들지 않고 '입양'해 그 자리에 갱신한다.
+    //   한 번 입양하면 map에 박혀 이후 수정은 위 existingId 경로로 간다.
+    //   실패(원본이 읽기 전용 캘린더거나 이미 지워짐)하면 새로 만들지 않는다 — 중복을 만드느니
+    //   캘린더에 안 넣는 게 낫다. 어차피 원본이 읽기 전용이면 사용자 캘린더엔 이미 보인다.
+    if (schedule.calendarSourceId) {
+      try {
+        await Calendar.updateEventAsync(schedule.calendarSourceId, details);
+        map[schedule.id] = schedule.calendarSourceId;
+        await storage.save(STORAGE_KEYS.calendarEvents, map);
+        return;
+      } catch (e) {
+        console.warn('[calendar] adopt source failed — skip create to avoid duplicate', e?.message);
+        return;
+      }
+    }
     const calId = await getWritableCalendarId();
     if (!calId) return;
     const eventId = await Calendar.createEventAsync(calId, details);

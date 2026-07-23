@@ -996,6 +996,7 @@ export function HomeScreen({ navigation, route }) {
           booker: data.booker || '',                 // 예약자(체크인 이름)
           subCourse: data.subCourse || '',           // 코스(세부코스 라벨)
           memo: data.memo || '',                     // 일정 메모(공지)
+          calendarSourceId: data.calendarSourceId || null, // 캘린더 가져온 원본 이벤트 — 캘린더 중복 방지([[deviceCalendar]] adopt)
         });
       } catch (e) {
         console.warn('[home] schedule add failed:', e?.message);
@@ -1029,6 +1030,7 @@ export function HomeScreen({ navigation, route }) {
           booker: data.booker || '',                 // 예약자(체크인 이름)
           subCourse: data.subCourse || '',           // 코스(세부코스 라벨)
           memo: data.memo || '',                     // 일정 메모(공지)
+          calendarSourceId: data.calendarSourceId || null, // 캘린더 원본 연결 유지 — 편집 때 새 이벤트로 중복되지 않게
         });
       } catch (e) {
         console.warn('[home] schedule edit failed:', e?.message);

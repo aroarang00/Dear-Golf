@@ -50,6 +50,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const [showPaste, setShowPaste] = useState(false); // '예약 문자 붙여넣기' 입력칸 펼침 여부
   const [pasteText, setPasteText] = useState(''); // 붙여넣은 예약 문자 원문
   const [showCalendarPicker, setShowCalendarPicker] = useState(false); // '캘린더에서 가져오기' 이벤트 선택 팝업
+  // 가져오기로 채운 경우, 원본 폰 캘린더 이벤트 id를 들고 있다가 저장 시 payload로 넘긴다.
+  //   이게 있으면 syncRoundToCalendar가 새 이벤트를 만들지 않고 이 원본을 갱신해 중복을 막는다.
+  const [calendarSourceId, setCalendarSourceId] = useState(null);
   const debounceRef = useRef(null);
   // 해외 라운딩 — 국내/해외 + 도시(날씨 조회용)
   const [overseas, setOverseas] = useState(false);
@@ -122,6 +125,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       setBooker(initial.booker || '');
       setSubCourse(initial.subCourse || '');
       setMemo(initial.memo || '');
+      setCalendarSourceId(initial.calendarSourceId || null); // 편집 시에도 원본 연결 유지(중복 방지)
       setOverseas(!!initial.overseas);
       if (initial.overseas && initial.city) {
         setCityQuery(initial.city);
@@ -305,6 +309,8 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
   // 캘린더 일정 선택 → 폼 프리필. AI 호출 없음(일정에 날짜·시간이 이미 구조화됨).
   const handleCalendarPick = async (ev) => {
     if (!ev) return;
+    // 원본 캘린더 이벤트 id — 저장할 때 이 이벤트를 갱신하게 해 캘린더에 같은 일정이 두 개 생기는 걸 막는다.
+    setCalendarSourceId(ev.id || null);
     // 날짜·시간
     if (ev.start instanceof Date && !isNaN(ev.start.getTime())) {
       setDate(new Date(ev.start.getFullYear(), ev.start.getMonth(), ev.start.getDate()));
@@ -332,6 +338,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
     setBooker(''); setSubCourse(''); setMemo('');
     setOverseas(false); setCityQuery(''); setCityResults([]); setCitySearching(false); setSelectedCity(null);
     setShowPaste(false); setPasteText(''); setShowCalendarPicker(false);
+    setCalendarSourceId(null);
   };
 
   // 동반자 — 자유 입력 추가(공백·쉼표 여러 명) / 삭제 / 친구 선택 반영
@@ -398,6 +405,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       subCourse: (subCourse || '').trim(), // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관
       memo: (memo || '').trim(),      // 일정 메모(공지) — 준비물·조편성·집결지 등
       dDay: Math.max(0, dDay),
+      // 캘린더에서 가져온 일정이면 원본 이벤트 id를 남긴다 — 저장 시 그 이벤트를 갱신해 중복 방지.
+      //   null이어도 명시로 넘겨, 편집으로 연결을 지우면 다음 저장부터 새 이벤트로 돌아가게 한다.
+      calendarSourceId: calendarSourceId || null,
     };
     // 저장을 await — 실패하면(onSave가 false 반환) 모달을 닫지 않고 입력을 보존한 채 안내.
     //   전역 showAppAlert는 RN Modal 아래 깔려 안 보이므로 모달 내부 OverlayAlert 사용 ([[ios-modal-stacking]]).
