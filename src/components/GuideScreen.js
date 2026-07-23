@@ -1250,6 +1250,9 @@ export function GuideScreen({ route, navigation }) {
             // 골퍼 추천 맛집 — 추천수(하트) 내림차순 정렬
             const recCountOf = (r) => seedRecCount(r.kakaoId) + (foodRecs[r.kakaoId] ? 1 : 0);
             const recSorted = [...nearbyFood].sort((a, b) => recCountOf(b) - recCountOf(a));
+            // ③ '가까운' 리스트에서 ②(골퍼 추천)에 이미 보이는 식당은 제외 — 같은 식당이 위아래 중복으로 뜨던 것 방지(사용자 2026-07-23)
+            const recShownIds = new Set((showAllRest ? recSorted : recSorted.slice(0, 3)).map(r => r.kakaoId || r.name));
+            const nearbyDeduped = nearbyAll.filter(r => !recShownIds.has(r.kakaoId || r.name));
             // 인터랙티브 지도 마커 — 골프장(버건디) + 골퍼 추천 맛집(주황) + 저장 맛집(노랑)
             // 저장한 추천 맛집은 노란 핀으로만 표시 — 주황 목록에서 제외
             const savedKeySet = new Set(savedFood.map(s => s.kakaoId || s.name));
@@ -1456,14 +1459,20 @@ export function GuideScreen({ route, navigation }) {
                     return (
                       <View key={r.kakaoId || i}
                         style={[styles.card, { borderWidth: 0.5, borderColor: C.hairline, backgroundColor: '#fff', alignItems: 'flex-start' }]}>
-                        <View style={[styles.circle, { backgroundColor: '#8B3040' }]}>
-                          <Text style={{ fontSize: fs(17) }}>🍽️</Text>
+                        <View style={{ alignItems: 'center', marginRight: 10 }}>
+                          <View style={[styles.circle, { backgroundColor: '#8B3040', marginRight: 0 }]}>
+                            <Icon name="dining" size={fs(18)} color="#fff" />
+                          </View>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(9), color: '#8B3040', marginTop: 3 }}>식당</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.name}>{r.name}</Text>
-                          <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
-                          {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
-                          {dirBadge(r)}
+                          {/* 이름·정보 탭도 상세 열기 — 화살표만 되던 것(사용자 2026-07-23) */}
+                          <TouchableOpacity activeOpacity={0.6} onPress={() => openRestaurantPlace(r)}>
+                            <Text style={styles.name}>{r.name}</Text>
+                            <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
+                            {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
+                            {dirBadge(r)}
+                          </TouchableOpacity>
                           <View style={{ flexDirection: 'row', gap: 6, marginTop: 7 }}>
                             {/* 추천하기 ♥ */}
                             <TouchableOpacity onPress={() => handleToggleRec(r.kakaoId)} activeOpacity={0.7}
@@ -1511,57 +1520,72 @@ export function GuideScreen({ route, navigation }) {
                   <View style={{ paddingVertical: 20, alignItems: 'center' }}>
                     <ActivityIndicator color={C.burgundy} />
                   </View>
-                ) : nearbyAll.length === 0 ? (
+                ) : nearbyDeduped.length === 0 ? (
                   <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
-                      반경 3km 내 맛집/카페 정보를 찾지 못했어요.
+                      이 근처 다른 맛집·카페는 없어요.
                     </Text>
                   </View>
                 ) : (
-                  (showAllNearby ? nearbyAll : nearbyAll.slice(0, 5)).map((r, i) => {
+                  (showAllNearby ? nearbyDeduped : nearbyDeduped.slice(0, 5)).map((r, i) => {
                     const isCafe = r.kind === 'cafe';
                     const saved = savedFood.some(s => (r.kakaoId && s.kakaoId === r.kakaoId) || s.name === r.name);
+                    const liked = !!foodRecs[r.kakaoId];
+                    const recCount = seedRecCount(r.kakaoId) + (liked ? 1 : 0);
                     return (
                       <View key={r.kakaoId || i}
                         style={[styles.card, { borderWidth: 0.5, borderColor: C.hairline, backgroundColor: '#fff', alignItems: 'flex-start' }]}>
-                        <View style={[styles.circle, { backgroundColor: isCafe ? '#C8D9E6' : '#8B3040' }]}>
-                          <Text style={{ fontSize: fs(17) }}>{isCafe ? '☕' : '🍽️'}</Text>
+                        <View style={{ alignItems: 'center', marginRight: 10 }}>
+                          <View style={[styles.circle, { backgroundColor: isCafe ? '#C8D9E6' : '#8B3040', marginRight: 0 }]}>
+                            <Icon name={isCafe ? 'cafe' : 'dining'} size={fs(18)} color={isCafe ? C.navy : '#fff'} />
+                          </View>
+                          {/* 식당/카페 종류를 이모지(아이콘) 아래에 라벨로(사용자 2026-07-23) — 이름 위 배지 대체 */}
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(9), color: isCafe ? C.navy : '#8B3040', marginTop: 3 }}>{isCafe ? '카페' : '식당'}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', gap: 4, marginBottom: 2 }}>
-                            <View style={{ backgroundColor: isCafe ? '#C8D9E6' : '#F5E6A8', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                              <Text style={[styles.badgeTxt, { color: isCafe ? C.navy : '#5A4A00' }]}>{isCafe ? '카페' : '식당'}</Text>
-                            </View>
+                          {/* 이름·정보 탭도 상세 열기 — 화살표만 되던 것(사용자 2026-07-23) */}
+                          <TouchableOpacity activeOpacity={0.6} onPress={() => openRestaurantPlace(r)}>
+                            <Text style={styles.name}>{r.name}</Text>
+                            <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
+                            {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
+                            {dirBadge(r)}
+                          </TouchableOpacity>
+                          <View style={{ flexDirection: 'row', gap: 6, marginTop: 7 }}>
+                            {/* 추천 ♥ — ②골퍼추천과 동일. 가까운 리스트에서도 추천 가능(사용자 2026-07-23). 추천 쌓이면 ②로 올라옴 */}
+                            <TouchableOpacity onPress={() => handleToggleRec(r.kakaoId)} activeOpacity={0.7}
+                              style={{
+                                flexDirection: 'row', alignItems: 'center', gap: 3,
+                                borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4,
+                                borderWidth: 0.5, borderColor: C.burgundy,
+                                backgroundColor: liked ? C.burgundy : 'transparent',
+                              }}>
+                              <Text style={{ fontSize: fs(10), color: liked ? C.butter : C.burgundy }}>{liked ? '♥︎' : '♡'}</Text>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: liked ? C.butter : C.burgundy }}>{recCount}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => !saved && openSaveModal(r)} activeOpacity={0.7} disabled={saved}
+                              style={{
+                                borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4,
+                                borderWidth: 0.5, borderColor: saved ? C.hairline : '#C9A84C',
+                                backgroundColor: saved ? C.hairline : '#FFFDF5',
+                              }}>
+                              <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: saved ? C.warmGrayLight : '#5A4A00' }}>
+                                {saved ? '저장됨' : '+ 저장'}
+                              </Text>
+                            </TouchableOpacity>
                           </View>
-                          <Text style={styles.name}>{r.name}</Text>
-                          <Text style={styles.meta}>{r.type}{r.distance ? ` · ${fmtDist(r.distance)}` : ''}</Text>
-                          {!!r.loc && <Text style={[styles.meta, { color: C.warmGray }]} numberOfLines={1}>{r.loc}</Text>}
-                          {dirBadge(r)}
                         </View>
-                        <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch' }}>
-                          <TouchableOpacity onPress={() => !saved && openSaveModal(r)} activeOpacity={0.7} disabled={saved}
-                            style={{
-                              borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4,
-                              borderWidth: 0.5, borderColor: saved ? C.hairline : '#C9A84C',
-                              backgroundColor: saved ? C.hairline : '#FFFDF5',
-                            }}>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: saved ? C.warmGrayLight : '#5A4A00' }}>
-                              {saved ? '저장됨' : '+ 저장'}
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity onPress={() => openRestaurantPlace(r)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>→</Text>
-                          </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity onPress={() => openRestaurantPlace(r)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.burgundy }}>→</Text>
+                        </TouchableOpacity>
                       </View>
                     );
                   })
                 )}
-                {nearbyAll.length > 5 && (
+                {nearbyDeduped.length > 5 && (
                   <TouchableOpacity onPress={() => setShowAllNearby(v => !v)}
                     style={{ paddingVertical: 9, alignItems: 'center' }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>
-                      {showAllNearby ? '접기 ▴' : `더보기 (${nearbyAll.length - 5}) ▾`}
+                      {showAllNearby ? '접기 ▴' : `더보기 (${nearbyDeduped.length - 5}) ▾`}
                     </Text>
                   </TouchableOpacity>
                 )}
