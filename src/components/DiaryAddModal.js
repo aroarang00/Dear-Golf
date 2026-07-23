@@ -302,16 +302,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     }
   };
 
-  // 스코어카드 사진 → AI 인식(Gemini 비전) → 검토 모달. source: 'gallery'(최대 2장 전/후반) | 'camera'
-  const handleScorecardPick = async (source) => {
-    if (scBusy) return;
+  // 스코어카드 사진(1~2장) → AI 인식(Gemini 비전) → 검토 모달. 갤러리/촬영 공용 마무리.
+  const runScorecardExtract = async (uris) => {
+    if (!uris?.length || !visibleRef.current) { setScBusy(false); return; }
     setScBusy(true);
     try {
-      const picked = await pickScorecardImages(source);
-      if (picked?.denied) { setOverlay({ title: '접근 권한이 필요해요', message: '설정에서 사진/카메라 접근을 허용한 뒤 다시 시도해 주세요.' }); return; }
-      if (!picked) return; // 취소
-      if (!visibleRef.current) return; // 사진 고르는 사이 기록 모달이 닫힘 — 인식 시작 안 함
-      const res = await extractScorecardAI(picked.uris);
+      const res = await extractScorecardAI(uris);
       // ★인식 중(수 초) 기록 모달을 닫았으면 결과 폐기 — 닫힌 모달에 scReview=true가 남으면 다음 오픈 시 모달 스택 꼬임.
       if (!visibleRef.current) return;
       if (res.error || !Array.isArray(res.rows) || !res.rows.length) {
@@ -331,6 +327,35 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     } finally {
       setScBusy(false);
     }
+  };
+  // source: 'gallery'(최대 2장 전/후반 한 번에) | 'camera'(카메라는 1회=1장 → 태블릿 전/후반을 위해 '후반도 촬영' 물어봄, 사용자 2026-07-23)
+  const handleScorecardPick = async (source) => {
+    if (scBusy) return;
+    setScBusy(true);
+    let picked;
+    try { picked = await pickScorecardImages(source); }
+    catch (e) { if (__DEV__) console.warn('[DiaryAdd] scorecard pick', e?.message); setScBusy(false); return; }
+    if (picked?.denied) { setOverlay({ title: '접근 권한이 필요해요', message: '설정에서 사진/카메라 접근을 허용한 뒤 다시 시도해 주세요.' }); setScBusy(false); return; }
+    if (!picked?.uris?.length || !visibleRef.current) { setScBusy(false); return; } // 취소·닫힘
+    // 실물 촬영 — 태블릿은 전반·후반이 따로 나와 2장 필요. 1장 찍은 뒤 '후반도 촬영'을 물어 최대 2장까지 모은다.
+    if (source === 'camera') {
+      setScBusy(false); // 결정(오버레이) 동안은 스피너 숨김 — 오버레이가 재탭을 막음
+      setOverlay({
+        title: '후반 카드도 찍을까요?',
+        message: '스마트스코어 태블릿은 전반·후반이 따로 나와요. 후반(뒤 9홀) 카드가 있으면 한 장 더 찍고, 없으면 이대로 인식할게요.',
+        buttons: [
+          { text: '후반도 촬영', onPress: async () => {
+            const second = await pickScorecardImages('camera').catch(() => null);
+            runScorecardExtract(second?.uris?.length ? [...picked.uris, ...second.uris] : picked.uris);
+          } },
+          { text: '이대로 인식', onPress: () => runScorecardExtract(picked.uris) },
+          { text: '취소', style: 'cancel' },
+        ],
+      });
+      return;
+    }
+    // 갤러리 — 최대 2장 한 번에
+    runScorecardExtract(picked.uris);
   };
 
   // 검토 모달 확정 — 18홀 저장 + 총타를 스코어 입력란에 자동 채움
