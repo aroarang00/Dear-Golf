@@ -55,6 +55,7 @@ import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     //
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { RoundupInviteInbox } from './RoundupInviteInbox';
+import { ScoreShareInbox } from './ScoreShareInbox';   // 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(안 쓰는 유저도 홈에서 바로 인지, 2026-07-23)
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import { MealDecisionBar } from './MealDecisionBar';
 import { showAppAlert } from './AppAlert';
@@ -108,6 +109,7 @@ export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
   const { refreshRoundupHidden } = React.useContext(FriendBadgeContext); // 라운지 초대 가리기 재로드(focus 시)
   const [roundupInviteActive, setRoundupInviteActive] = React.useState(false); // 라운지 초대 배너 표시 중 여부(아래 카드 겹침 방지)
+  const [scoreShareActive, setScoreShareActive] = React.useState(false); // 스코어 공유 배너 표시 중 여부 — 초대 배너와 동일하게 아래 한줄메모 숨김(2026-07-23)
   const { schedules, hydrated, loadFailed, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid ([[uid-stabilization-plan]])
   const insets = useSafeAreaInsets();
@@ -149,7 +151,7 @@ export function HomeScreen({ navigation, route }) {
   }, []);
   const [now, setNow] = useState(Date.now());
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
-  const { diaries } = React.useContext(DiariesContext);
+  const { diaries, reloadDiaries } = React.useContext(DiariesContext);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' 모드 — 식사시각만 묻는 가벼운 프롬프트
@@ -1084,6 +1086,15 @@ export function HomeScreen({ navigation, route }) {
   // 일정초대 배너가 떠 있는 동안엔 아래 한줄메모/코멘트 카드를 숨겨 좁은 화면 겹침을 막는다(수락/거절 후 복원).
   const [scheduleInvitePending, setScheduleInvitePending] = useState(false);
 
+  // 홈 상단 배너 큐 — 여러 개가 동시에 떠 세로로 쌓이면 좁아지므로 '한 번에 하나만' 노출(2026-07-23, 사용자 요청).
+  //   우선순위(급한 순): 일정변경 → 일정초대 → 라운지초대 → 스코어공유. 최상위 하나만 펼치고 나머지는 높이 0으로 접는다
+  //   (숨겨도 구독은 유지 → 위 배너를 처리하면 다음 게 자동으로 펼쳐지고, 다 처리하면 메모/카드가 복원된다).
+  const topBanner = pendingScheduleChange ? 'change'
+    : scheduleInvitePending ? 'schedInvite'
+    : roundupInviteActive ? 'roundupInvite'
+    : scoreShareActive ? 'scoreShare'
+    : null;
+
   // 하단 캘린더 알약 라벨 — 오늘 날짜·요일 노출(진입 유도 + 정보 겸용). 렌더마다 계산이라 자정 넘어가도 갱신.
   const _today = new Date();
   const todayLabel = `${_today.getMonth() + 1}월 ${_today.getDate()}일 (${WEEKDAYS[_today.getDay()]})`;
@@ -1296,20 +1307,36 @@ export function HomeScreen({ navigation, route }) {
           )}
         </View>
 
-        {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]]) */}
-        <ScheduleInviteInbox onActiveChange={setScheduleInvitePending} />
+        {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]])
+            큐: 최상위 배너일 때만 펼침. 아니면 높이 0으로 접되 마운트 유지(구독 살아 '다음 차례' 판단). */}
+        <View style={topBanner === 'schedInvite' ? undefined : { height: 0, overflow: 'hidden' }}>
+          <ScheduleInviteInbox onActiveChange={setScheduleInvitePending} />
+        </View>
 
         {/* 라운지 친구지정 초대 수신 — 푸시 꺼도 홈에서 인지. 탭/「초대 보기」 → 라운지 내 참여(초대 카드)로 이동 ([[roundup-invitation]]) */}
-        <RoundupInviteInbox
-          onActiveChange={setRoundupInviteActive}
-          onOpen={() => navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' })} />
+        <View style={topBanner === 'roundupInvite' ? undefined : { height: 0, overflow: 'hidden' }}>
+          <RoundupInviteInbox
+            onActiveChange={setRoundupInviteActive}
+            onOpen={() => navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' })} />
+        </View>
 
-        {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분). */}
-        {pendingScheduleChange && (
+        {/* 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(2026-07-23). 기록 잘 안 하는 유저도 홈에서 바로 인지.
+            자체 구독·비었으면 null(자리 0). variant='home'=반투명 흰 카드+금테(네이비 배경서 안 묻힘).
+            onDerived=reloadDiaries → 수락 시 DiariesContext 갱신(홈 최근기록·기록탭 공통 소스). */}
+        <View style={topBanner === 'scoreShare' ? undefined : { height: 0, overflow: 'hidden' }}>
+          <ScoreShareInbox variant="home"
+            nickname={userProfile?.nickname || userProfile?.realName || ''}
+            onDerived={reloadDiaries}
+            onActiveChange={setScoreShareActive} />
+        </View>
+
+        {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분).
+            큐 최우선순위 — 이게 떠 있으면 아래 3배너는 위에서 접힌다(topBanner). */}
+        {topBanner === 'change' && (
           <AttentionMotion type="pulse" style={{ marginHorizontal: SIDE_PAD, marginTop: 12 }}>
             <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, borderWidth: 2, borderColor: 'rgba(245,230,168,0.9)', paddingHorizontal: 14, paddingVertical: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Text style={{ fontSize: fs(16) }}>🔄</Text>
+                <Icon name="refresh" size={fs(16)} color={C.butter} />
                 <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>함께하는 일정이 변경됐어요</Text>
               </View>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter, marginBottom: 3 }} numberOfLines={1}>{pendingScheduleChange.schedule.course || '라운딩'}</Text>
@@ -1578,8 +1605,8 @@ export function HomeScreen({ navigation, route }) {
 
           </ScrollView>
 
-          {/* 일정초대·라운지초대 배너가 떠 있는 동안엔 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(수락/거절 후 복원). 사용자 지정 2026-06-18. */}
-          {!scheduleInvitePending && !roundupInviteActive && (<>
+          {/* 배너 큐가 하나라도 떠 있으면(topBanner) 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(다 처리하면 복원). 사용자 지정 2026-06-18, 큐로 통합 2026-07-23. */}
+          {!topBanner && (<>
           <View style={{ marginHorizontal: SIDE_PAD, marginVertical: 12 }}>
             <TripleStripe height={1.5} />
           </View>

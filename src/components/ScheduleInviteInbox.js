@@ -9,6 +9,7 @@ import {
 } from '../utils/scheduleShares';
 import { normalizeCourseName } from '../utils/top100';
 import { showAppAlert } from './AppAlert';
+import { Icon } from './common/Icon';   // 커스텀 SVG 아이콘(유니코드 이모지 금지 — 커스텀 드로잉만)
 
 // 일정 전파 수신 — 홈 상단 배너([[schedule-propagation-spec]] Stage 3). 친구가 보낸 일정 초대를 수락하면
 //  내 일정에 자기파생(캘린더 동기화). cross-user 쓰기 0. uid=useCurrentUid(단일 소스, 재설치·계정전환 시 재구독).
@@ -151,7 +152,7 @@ export function ScheduleInviteInbox({ onActiveChange }) {
       borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.7)', 'rgba(245,230,168,1)'] }),
       paddingHorizontal: 14, paddingVertical: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-        <Text style={{ fontSize: fs(16) }}>🗓️</Text>
+        <Icon name="calendar" size={fs(18)} color={C.butter} />
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
           {inv.initiatorName || '친구'}님이 일정에 초대했어요{invites.length > 1 ? ` 외 ${invites.length - 1}건` : ''}
         </Text>

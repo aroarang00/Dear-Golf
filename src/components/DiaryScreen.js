@@ -18,7 +18,6 @@ import { HallOfFameCard } from './HallOfFameCard';
 import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals, SHAREABLE_MILESTONE_MIN } from './MilestoneCard';
 import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';
-import { ScoreShareInbox } from './ScoreShareInbox';   // 동반자 스코어 공유 수신([[companion-design]] §11 Phase C)
 import { DiaryCard } from './DiaryCard';
 import { DiaryRowCompact } from './DiaryRowCompact';   // 요약보기 — 사진 없는 한 줄 목록
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge) 공용 래퍼
@@ -868,8 +867,7 @@ export function DiaryScreen({ route, navigation }) {
         <View />
       )}
 
-      {/* 동반자 스코어 공유 수신 배너 — 인덱스 2(필터) 뒤의 새 자식이라 sticky [2] 불변. 내부 null이면 자리만 차지(높이 0). */}
-      <ScoreShareInbox nickname={userProfile.nickname || userProfile.realName || ''} onDerived={reloadDiaries} />
+      {/* (동반자 스코어 공유 배너는 홈으로 이동 — 2026-07-23. 기록 잘 안 하는 유저도 홈에서 바로 인지) */}
 
       {/* 인덱스 3 — 피드 본문(로딩 / 빈 상태 / 명예의전당 + 카드). 필터·검색은 위 sticky 인덱스2로 분리됨 */}
       {(() => {

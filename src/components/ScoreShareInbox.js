@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { SIDE_PAD } from '../styles/homeS';   // 홈 배너 좌우 여백을 형제 인박스와 맞춤
+import { Icon } from './common/Icon';   // 커스텀 SVG 아이콘(유니코드 이모지 금지 — 커스텀 드로잉만)
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
   subscribeIncomingScoreShares, buildDerivedRound, acceptScoreShare, declineScoreShare,
@@ -11,7 +13,8 @@ import { showAppAlert } from './AppAlert';   // 실패 안내(prod 무음 방지
 // 동반자 스코어 공유 수신 — 기록 화면 피드 상단 배너 + 본인 행 선택 모달 (Phase C ③④, [[companion-design]] §11).
 //  uid는 useCurrentUid(단일 소스)로 — 재설치·계정전환(uid 변경) 시 자동 재구독.
 //  파생은 본인 rounds에 멱등 setDoc(util) → onDerived로 DiariesContext 갱신.
-export function ScoreShareInbox({ nickname, onDerived }) {
+export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiveChange }) {
+  const onHome = variant === 'home';   // 홈(진한 네이비 배경)=반투명 흰 카드+금테, 기록화면(밝은 배경)=네이비 카드
   const uid = useCurrentUid();
   const insets = useSafeAreaInsets();   // 모달 하단 버튼이 안드 네비게이션바에 가리지 않게
   const [shares, setShares] = useState([]);
@@ -41,6 +44,11 @@ export function ScoreShareInbox({ nickname, onDerived }) {
     lBorder.start(); lScale.start();
     return () => { lBorder.stop(); lScale.stop(); };
   }, [shares.length]);
+
+  // 배너 표시 여부를 부모(홈)에 알림 — 홈이 아래 한줄메모/코멘트 카드를 숨겨 좁은 화면에서 겹침을 막는다
+  //   (일정초대·라운지초대 배너와 동일 처리, [[project_home_collection_split]]). 배너 없으면 메모 복원.
+  useEffect(() => { onActiveChange && onActiveChange(shares.length > 0); }, [shares.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { onActiveChange && onActiveChange(false); }, []);   // 언마운트(홈 이탈) 시 복원
 
   const open = (s) => { setActive(s); setSelIdx(null); };
   const close = () => { if (!busy) { setActive(null); setSelIdx(null); } };
@@ -84,7 +92,7 @@ export function ScoreShareInbox({ nickname, onDerived }) {
           - 안드: 버터 테두리 + 맥동(테두리 밝기·스케일). 사용자 2026-06-19. */}
       {first && (
         <Animated.View style={{
-          marginHorizontal: 16, marginTop: 14, marginBottom: 4, borderRadius: 16,
+          marginHorizontal: onHome ? SIDE_PAD : 16, marginTop: onHome ? 12 : 14, marginBottom: 4, borderRadius: 16,
           transform: [{ scale: scalePulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }],   // GPU scale(네이티브) — 부드러움
         }}>
           <Animated.View style={{
@@ -93,9 +101,9 @@ export function ScoreShareInbox({ nickname, onDerived }) {
             borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.78)', 'rgba(245,230,168,1)'] }),
           }}>
             <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
-              style={{ backgroundColor: C.navy, borderRadius: 13.5, padding: 14,
+              style={{ backgroundColor: onHome ? 'rgba(255,255,255,0.12)' : C.navy, borderRadius: 13.5, padding: 14,
                 flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Text style={{ fontSize: fs(20) }}>📋</Text>
+              <Icon name="clipboard" size={fs(22)} color={C.butter} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
                   {first.authorName || '동반자'}님이 스코어를 공유했어요
