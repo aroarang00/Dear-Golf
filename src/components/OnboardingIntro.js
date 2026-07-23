@@ -157,7 +157,7 @@ export function OnboardingIntro({ onDone }) {
               일정·날씨·교통을 한눈에
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.72)', textAlign: 'center', marginTop: 9, lineHeight: 19 }}>
-              이동시간을 계산해 기상·출발 시각까지 알려드려요
+              예약 문자·캡처를 AI가 자동입력하고, 기상·출발 시각까지 알려드려요
             </Text>
           </View>
         </View>
@@ -229,7 +229,7 @@ export function OnboardingIntro({ onDone }) {
               나만의 골프 기록을 모아서
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.78)', textAlign: 'center', marginTop: 9, lineHeight: 19 }}>
-              스코어판 사진 한 장이면 자동으로 입력돼요
+              스코어카드 사진을 AI가 읽어 홀별로 자동 입력돼요
             </Text>
           </View>
         </View>
