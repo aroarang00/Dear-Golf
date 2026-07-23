@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Linking, KeyboardAvoidingView, Platform, BackHandler, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, KeyboardAvoidingView, Platform, BackHandler, ActivityIndicator, Modal } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Spinner } from './common/Spinner';
 import { showAppAlert } from './AppAlert';
@@ -31,6 +31,8 @@ import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searc
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { isRoundDiary } from '../utils/diaryKind';
 import { cityTokenOf, regionOf, naverSearchUrl } from '../utils/naverMap';
+import { getCourseHomepage, courseSearchUrl, BOOKING_SITES } from '../utils/courseBooking'; // 예약하기 — 홈피/전화/골팡/카카오VX 선택 시트
+import { WebSheet } from './WebSheet'; // 구장 홈페이지 앱내 웹뷰(맛집 상세와 같은 결)
 import { FoodMapView } from './FoodMapView';
 import { getSavedRestaurants, addSavedRestaurant, removeSavedRestaurant, updateSavedRestaurant } from '../utils/savedRestaurants';
 import { getFoodRecs, toggleFoodRec, seedRecCount } from '../utils/foodRecs';
@@ -118,6 +120,8 @@ export function GuideScreen({ route, navigation }) {
   const [foodSearch, setFoodSearch] = useState('');
   const [foodSearchResults, setFoodSearchResults] = useState([]);
   const [foodSearchLoading, setFoodSearchLoading] = useState(false);
+  const [showBooking, setShowBooking] = useState(false); // 예약하기 시트 — 홈피/전화/골팡/카카오VX 선택
+  const [webSheet, setWebSheet] = useState(null); // 앱내 웹뷰 { url, title } — 구장 홈페이지
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [saveModalSeed, setSaveModalSeed] = useState(null);
   const [top100, setTop100] = useState([]); // 100대 코스 — 코스 상세 배지용 + CourseExploreTab에 내려줌(상세 복귀 깜빡임 방지)
@@ -1129,10 +1133,54 @@ export function GuideScreen({ route, navigation }) {
               })()}
               </View>
 
-              {/* 날씨 · 교통 · 네이버정보 — 유틸리티(라운드 준비). 위키 재배치로 평점·코멘트 아래로 이동(2026-06-30). */}
+              {/* 예약 선택 시트 — 홈피(큐레이션 URL 있으면 바로/없으면 네이버검색)·전화(번호 있을 때만)·카카오VX·티스캐너.
+                  트리거는 아래 '날씨·교통·예약' 줄의 예약 버튼(네이버정보 자리 대체, 사용자 2026-07-23) */}
+              <Modal visible={showBooking} transparent animationType="slide" onRequestClose={() => setShowBooking(false)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+                  <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowBooking(false)} />
+                  <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: Math.max(28, insets.bottom + 14) }}>
+                    <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+                      <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline }} />
+                    </View>
+                    <View style={{ paddingHorizontal: 18, paddingBottom: 6 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }} numberOfLines={1}>{c.name} 예약</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 4, lineHeight: 18 }}>구장마다 예약처가 달라요. 원하는 곳으로 연결해 드릴게요.</Text>
+                    </View>
+                    {(() => {
+                      const homepage = getCourseHomepage(c.name);
+                      const tel = (coursePhone || '').replace(/[^0-9+]/g, '');
+                      const rows = [
+                        { key: 'home', icon: 'clubhouse', label: '구장 홈페이지', sub: homepage ? '공식 홈페이지 · 직접 예약' : `네이버에서 '${c.name}' 검색`, url: homepage || courseSearchUrl(c.name), inApp: true },
+                        tel ? { key: 'tel', icon: 'phone', label: '전화 예약', sub: coursePhone, url: `tel:${tel}` } : null,
+                        { key: 'kakaovx', icon: 'ticket', label: '카카오VX 골프예약', sub: '티타임 검색 · 임박특가', url: BOOKING_SITES.kakaovx, inApp: true },
+                        { key: 'teescanner', icon: 'ticket', label: '골프존 티스캐너', sub: '전국 특가 티타임 · 조인', url: BOOKING_SITES.teescanner, inApp: true },
+                      ].filter(Boolean);
+                      return rows.map((r) => (
+                        <TouchableOpacity key={r.key} activeOpacity={0.7}
+                          onPress={() => { setShowBooking(false); r.inApp ? setWebSheet({ url: r.url, title: r.key === 'home' ? `${c.name} 홈페이지` : r.label }) : Linking.openURL(r.url).catch(() => {}); }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 13 }}>
+                          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon name={r.icon} size={fs(18)} color={C.burgundy} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{r.label}</Text>
+                            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.sub}</Text>
+                          </View>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(16), color: C.warmGrayLight }}>›</Text>
+                        </TouchableOpacity>
+                      ));
+                    })()}
+                  </View>
+                </View>
+              </Modal>
+
+              {/* 구장 홈페이지 앱내 웹뷰 — 예약 시트에서 '구장 홈페이지' 선택 시. 안 열리면 '외부로 열기'로 폴백 */}
+              <WebSheet visible={!!webSheet} url={webSheet?.url} title={webSheet?.title} onClose={() => setWebSheet(null)} />
+
+              {/* 날씨 · 교통 · 예약 — 유틸리티(라운드 준비). 네이버정보는 예약 시트의 '구장 홈페이지'가 대체(사용자 2026-07-23). */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 18, marginBottom: 8 }}>
                 <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
-                <Text style={[gS.secLabel, { marginBottom: 0 }]}>날씨 · 교통 · 정보</Text>
+                <Text style={[gS.secLabel, { marginBottom: 0 }]}>날씨 · 교통 · 예약</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
                 <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
@@ -1143,9 +1191,10 @@ export function GuideScreen({ route, navigation }) {
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.burgundy }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(c.name, c.loc)).catch(() => {})} activeOpacity={0.8}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#03C75A' }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>네이버정보</Text>
+                <TouchableOpacity onPress={() => setShowBooking(true)} activeOpacity={0.8}
+                  style={{ flex: 1, flexDirection: 'row', gap: 5, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4853A' }}>
+                  <Icon name="ticket" size={fs(15)} color="#fff" />
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>예약</Text>
                 </TouchableOpacity>
               </View>
 
