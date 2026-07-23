@@ -483,56 +483,40 @@ export function HomeScreen({ navigation, route }) {
   // 전파(공유) 일정 변경 반영 — 다른 멤버(전원 동등)가 시간·인원·예약자·세부코스를 바꾸면 그룹 내용이 내 일정과 달라짐.
   //   홈 상단에 '맥동 배너'로 띄움(초대처럼 눈에 띄게 — 중요) → '반영'이면 내 일정 적용, '나중에'면 같은 변경은 다시 안 띄움(새 변경이면 다시).
   //   한 번에 하나(처리하면 다음 것). 구장·날짜는 잠금이라 여기 안 옴(삭제+재생성 전용). ([[schedule-propagation-spec]])
+  const autoAppliedRef = useRef(new Set()); // 이미 자동반영한 'groupId:sig' — schedules 갱신 레이스 중 중복 반영/알람 방지
   const checkSharedScheduleUpdates = useCallback(async () => {
-    if (!currentUid) { setPendingScheduleChange(null); return; }
+    if (!currentUid) { setPendingScheduleChange(prev => (prev?.applied ? prev : null)); return; }
     const mine = (schedules || []).filter(s => s.groupId && !s.roundupId);
-    if (!mine.length) { setPendingScheduleChange(null); return; }
-    const dismissed = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
+    if (!mine.length) { setPendingScheduleChange(prev => (prev?.applied ? prev : null)); return; }
+    let firstApplied = null;
     for (const s of mine) {
-      if (isSyncingGroup(s.groupId)) continue;   // 내가 방금 이 그룹에 쓰는 중 — 쓰기 완료 전 '되돌림' 배너 방지
+      if (isSyncingGroup(s.groupId)) continue;   // 내가 방금 이 그룹에 쓰는 중 — 쓰기 완료 전 '되돌림' 반영 방지
       let group;
       try { group = await getScheduleGroup(s.groupId); } catch { continue; }
       if (!group) continue;
       const pc = pendingContentChange(group, s);
       if (!pc) continue;
-      if (dismissed[s.groupId] === pc.sig) continue;   // 같은 변경 '나중에' 후 재노출 방지
-      setPendingScheduleChange({ schedule: s, pc });
-      return;
-    }
-    setPendingScheduleChange(null);   // 반영할 변경 없음
-  }, [currentUid, schedules]);
-
-  const applyingScheduleRef = useRef(false); // 그룹 일정 변경 '반영' 처리 중 플래그 — 연타 중복 방지
-  const applyScheduleChange = useCallback(async () => {
-    const p = pendingScheduleChange;
-    if (!p) return;
-    if (applyingScheduleRef.current) return; // 연타 가드 — editSchedule·알람 재예약 중복 방지(알람 2회 발송)
-    applyingScheduleRef.current = true;
-    try {
-      try { await editSchedule(p.schedule.id, p.pc.patch); } catch (e) { if (__DEV__) console.warn('[home] apply group change', e?.message); }
-      // 시간이 바뀌었으면 알람도 재예약(옛 시간 알람 방지) — 날짜는 잠금이라 그대로.
-      getAlarmTypes(p.schedule.id).then(types => {
-        if (types && types.length) scheduleRoundAlarms({ id: p.schedule.id, course: p.schedule.course, date: p.schedule.date, time: p.pc.patch.time }, types);
+      const key = `${s.groupId}:${pc.sig}`;
+      if (autoAppliedRef.current.has(key)) continue;   // 같은 변경 이미 자동반영(상태 반영 전 재검사 중복 차단)
+      autoAppliedRef.current.add(key);
+      // ★자동 반영 — 공유 일정의 티타임/인원/예약자/세부코스는 '모두가 함께 치는 객관적 사실'이라, 멤버가 옛 값을
+      //   간직할 이유가 없다. 즉시 내 일정 + 알람을 갱신해 무시해도 정보·알람이 항상 정확하게 한다(2026-07-24, 사용자 결정).
+      //   배너는 '자동 반영됐어요' 확인용으로만. (구 방식은 '나중에' 미루면 옛 시간·옛 알람이 당일까지 남아
+      //   잘못된 시간에 갈 위험이 있었다.) 구장·날짜는 잠금이라 여기 안 옴(삭제+재생성 전용, [[schedule-propagation-spec]]).
+      try { await editSchedule(s.id, pc.patch); } catch (e) { if (__DEV__) console.warn('[home] auto-apply group change', e?.message); }
+      getAlarmTypes(s.id).then(types => {
+        if (types && types.length) scheduleRoundAlarms({ id: s.id, course: s.course, date: s.date, time: pc.patch.time }, types);
       });
-      const d = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
-      if (d[p.schedule.groupId]) { delete d[p.schedule.groupId]; await storage.save(STORAGE_KEYS.scheduleSyncDismissed, d); }
-      setPendingScheduleChange(null);
-    } finally {
-      applyingScheduleRef.current = false;
+      if (!firstApplied) firstApplied = { schedule: s, pc, applied: true };   // 확인용 배너는 첫 건으로(여러 건이어도 전부 반영됨)
     }
-    // ★즉시 재검사(setTimeout) 제거 — editSchedule 전(옛 schedules) 클로저로 검사돼 방금 반영한 변경을
-    //   다시 발견→배너 재노출되던 버그(사용자 2026-06-20). schedules 변경 시 도는 아래 2s 효과가
-    //   '새 클로저'로 재검사하므로 다음 대기 변경도 그쪽이 잡음.
-  }, [pendingScheduleChange, editSchedule]);
+    if (firstApplied) { setPendingScheduleChange(firstApplied); return; }
+    // 새 변경 없음 — 확인 안 한 '자동 반영됨' 배너는 유지(확인 눌러야 닫힘).
+    setPendingScheduleChange(prev => (prev?.applied ? prev : null));
+  }, [currentUid, schedules, editSchedule]);
 
-  const dismissScheduleChange = useCallback(async () => {
-    const p = pendingScheduleChange;
-    if (!p) return;
-    const d = await storage.load(STORAGE_KEYS.scheduleSyncDismissed, {});
-    d[p.schedule.groupId] = p.pc.sig; await storage.save(STORAGE_KEYS.scheduleSyncDismissed, d);
-    setPendingScheduleChange(null);
-    setTimeout(() => checkSharedScheduleUpdates(), 300);
-  }, [pendingScheduleChange, checkSharedScheduleUpdates]);
+  const dismissScheduleChange = useCallback(() => {
+    setPendingScheduleChange(null);   // '확인' — 이미 자동 반영됐으므로 배너만 닫는다(미룸/저장 없음)
+  }, []);
 
   useEffect(() => {
     if (!navigation?.addListener) return;
@@ -1350,17 +1334,12 @@ export function HomeScreen({ navigation, route }) {
                 <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>함께하는 일정이 변경됐어요</Text>
               </View>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter, marginBottom: 3 }} numberOfLines={1}>{pendingScheduleChange.schedule.course || '라운딩'}</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 9, lineHeight: 18 }} numberOfLines={4}>{pendingScheduleChange.pc.diffs.join('\n')}</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity onPress={dismissScheduleChange} activeOpacity={0.85}
-                  style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.3)' }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.85)' }}>나중에</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={applyScheduleChange} activeOpacity={0.85}
-                  style={{ flex: 1.6, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: C.butter }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>내 일정에 반영</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 4, lineHeight: 18 }} numberOfLines={4}>{pendingScheduleChange.pc.diffs.join('\n')}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', marginBottom: 9 }}>내 일정과 알람에 자동으로 반영했어요</Text>
+              <TouchableOpacity onPress={dismissScheduleChange} activeOpacity={0.85}
+                style={{ paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: C.butter }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>확인</Text>
+              </TouchableOpacity>
             </View>
           </AttentionMotion>
         )}
