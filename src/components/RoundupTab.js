@@ -571,6 +571,20 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     setShowNoti(true);
     navigation?.setParams?.({ openNoti: undefined });
   }, [route?.params?.openNoti]);
+  // 알림함을 열 때마다 최신 알림을 새로 불러온다 — 큰 초기로드 이펙트는 refreshTick에서만 돌아, 홈 종으로
+  //   들어오거나(방금 온 알림이 목록에 없음) 라운지를 오래 켜뒀다 여는 경우 '뱃지엔 1인데 목록은 비어있다'가
+  //   났다(2026-07-24). 목록만 가볍게 다시 읽어 즉시 반영. 뱃지(홈)와 같은 loadMyNotifications·필터를 쓴다.
+  useEffect(() => {
+    if (!showNoti) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const notis = await loadMyNotifications(50);
+        if (!cancelled) setNotifications(visibleNotifications(notis, ROUNDUP_PUBLIC_ENABLED));
+      } catch (e) { if (__DEV__) console.warn('[RoundupTab] noti reload on open failed', e?.message); }
+    })();
+    return () => { cancelled = true; };
+  }, [showNoti]);
   const [showMatchModal, setShowMatchModal] = useState(false); // 맞춤 모집 조건 설정
   const [showGuide, setShowGuide] = useState(false); // 라운지 이용 안내
   const [showIntro, setShowIntro] = useState(false); // 라운지 소개 (광고성)
