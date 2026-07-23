@@ -1161,13 +1161,15 @@ export function HomeScreen({ navigation, route }) {
               backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
               borderRadius: 10,
               paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
+              // ★스토어 띠와 동일 — 확대모드에서 우측 레일(크루)과 겹치지 않게 레일 폭 확보(2026-07-24).
+              maxWidth: winW - SIDE_PAD * 2 - RAIL_BTN - 10,
               paddingVertical: Platform.OS === 'android' ? 5 : 7, alignSelf: 'flex-start' }}>
             <View>
               <Text style={{ fontSize: Platform.OS === 'android' ? fs(18) : fs(22) }}>💡</Text>
               <View style={{ position: 'absolute', top: -2, right: -4, width: 10, height: 10, borderRadius: 5,
                 backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.95)' }} />
             </View>
-            <View>
+            <View style={{ flexShrink: 1 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#fff', includeFontPadding: false }}>Dear Golf 이용 안내</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.7)', marginTop: 1, includeFontPadding: false }}>
                 처음이신가요? 한 번 열어보세요
@@ -1194,12 +1196,14 @@ export function HomeScreen({ navigation, route }) {
               backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)',
               borderRadius: 12,
               paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
+              // ★우측 레일(메시지·크루) 폭을 비워 확대모드에서 띠가 넓어져도 크루 버튼과 안 겹치게(사용자 2026-07-24).
+              maxWidth: winW - SIDE_PAD * 2 - RAIL_BTN - 10,
               paddingVertical: Platform.OS === 'android' ? 6 : 8, alignSelf: 'flex-start' }}>
             <View style={{ width: Platform.OS === 'android' ? 32 : 36, height: Platform.OS === 'android' ? 32 : 36, borderRadius: 18,
               backgroundColor: '#4E86B4', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="bag" size={Platform.OS === 'android' ? fs(19) : fs(22)} color="#fff" strokeWidth={2.1} />
             </View>
-            <View>
+            <View style={{ flexShrink: 1 }}>
               {/* 라벨은 이름 중립 '스토어' — '디어골프 스토어'는 28류 상표 충돌([[ip-protection-backlog]] 2026-07-04)
                   + 스토어명 미정. 앱 안이라 문맥 자명, 스토어 이름이 뭐가 되든 이 라벨은 유효(재빌드 불필요). */}
               <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, includeFontPadding: false }}>스토어</Text>
