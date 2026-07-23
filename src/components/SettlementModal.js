@@ -10,6 +10,7 @@ import { showAppAlert } from './AppAlert';
 import { C, F, fs } from '../constants/colors';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
+import { UserContext } from '../contexts/UserContext';
 import { roundsOnly } from '../utils/diaryKind';
 import { buildCompanionNames } from '../utils/scheduleCompanions';   // companions + 전파 그룹(친구초대) 보강
 import { getScheduleGroup } from '../utils/scheduleShares';
@@ -350,7 +351,12 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
 function ComposeView({ onCancel, onCreated, dirtyRef }) {
   const { schedules } = useContext(SchedulesContext);
   const { diaries } = useContext(DiariesContext);
+  const { userProfile } = useContext(UserContext);
   const myUid = useCurrentUid();
+  // 명단은 buildCompanionNames가 나(총무)를 빼고 준다 — 걷는 대상은 남들이니 맞다. 다만 식사 1/n은
+  //   총무 몫도 나눠야 총액÷N이 맞다(빼면 남들이 총무 몫까지 더 낸다). 그래서 식사정산에선 나를 명단에
+  //   더한다. 선입금은 각자 내는 거라 나를 넣지 않는다. → '나 포함' 토글(식사 기본 ON, 선입금 숨김).
+  const myName = (userProfile?.nickname || '').trim() || '나';
 
   // ★일정 '공유'로 들어온 동반자는 schedule.companions에 없고 전파 그룹(scheduleGroups)에 있다.
   //   companions만 읽으면 친구초대 동반자가 통째로 누락된다(사용자 2026-07-22 — 1명 추가했는데 안 나타남).
@@ -376,6 +382,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
   const [mDate, setMDate] = useState(today());
   const [kind, setKind] = useState('prepay');
   const [namesText, setNamesText] = useState('');
+  const [includeSelf, setIncludeSelf] = useState(false);   // 식사 1/n에 나(총무)도 포함할지
   const [total, setTotal] = useState('');
   const [perHead, setPerHead] = useState('');
   const [account, setAccount] = useState('');
@@ -470,10 +477,24 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
   const pick = (o) => {
     setSrc(o); setManual(false);
     setNamesText(o.names.join('\n'));
-    setKind(o.when === 'past' ? 'meal' : 'prepay');
+    const meal = o.when === 'past';
+    setKind(meal ? 'meal' : 'prepay');
+    setIncludeSelf(meal);   // 식사정산이면 나도 1/n에 포함(기본), 선입금이면 제외
   };
 
-  const names = useMemo(() => parseNames(namesText), [namesText]);
+  // 명단은 namesText(남들) + 토글 켜면 나(총무). namesText를 더럽히지 않고 여기서만 더해,
+  //   토글을 끄면 바로 빠지고 이름 겹침도 막는다(수동으로 내 이름을 이미 적었으면 중복 안 넣음).
+  //   식사=나눗셈 분모(÷N)가 나로 인해 맞춰지고, 선입금=남들 금액은 그대로고 내 행만 '냈음'으로 붙는다.
+  const selfName = myName.slice(0, 20);
+  const names = useMemo(() => {
+    const base = parseNames(namesText);
+    if (includeSelf && selfName && !base.some(n => n.name === selfName)) {
+      return [...base, { id: 'm_self', name: selfName, amount: 0, status: PAY_PENDING }];
+    }
+    return base;
+  }, [namesText, includeSelf, selfName]);
+  // 저장할 때 내 행은 '확인'으로 — 총무는 이미 냈으니(식사는 전액 선결제, 선입금은 내 몫) 독촉·남은금액에서 빠진다.
+  const selfWasAdded = includeSelf && !!selfName && !parseNames(namesText).some(n => n.name === selfName);
 
   // 후보 명단 — 탭해서 넣는다. 검색창은 결국 이름을 다 쳐야 해서 안 맞는다(사용자 2026-07-22).
   //   ① 자주 같이 친 사람(지난 기록의 동반자, 많이 친 순) → 골프 모임은 멤버가 고정적이라 적중률이 높다
@@ -661,6 +682,10 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
     }
     if (sum <= 0) { setAiError('금액이 비어 있어요. 붙여넣거나 직접 입력해주세요'); return; }
 
+    // 내가 명단에 더해졌으면 내 행은 '확인'으로 저장 — 총무는 이미 냈으니 독촉·남은금액에서 빠진다.
+    //   selfWasAdded일 때만 selfName과 이름이 겹치는 건 내 행 하나뿐이라(겹치면 애초에 안 더함) 안전하다.
+    if (selfWasAdded) ready = ready.map(m => (m.name === selfName ? { ...m, status: PAY_CONFIRMED } : m));
+
     setSaving(true);
     try {
       const s = await createSettlement({
@@ -758,6 +783,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                     if (k.key === kind) return;
                     // 선입금↔사후정산은 금액의 의미가 반대라(1인당 vs 총액) 이전 계산을 그대로 두면 틀린 값이 남는다.
                     setKind(k.key); setAiMembers(null); setAiItems([]); setAiNote(''); setTotal(''); setPerHead('');
+                    setIncludeSelf(k.key === 'meal');   // 식사로 바꾸면 나 포함 켜기, 아니면 끄기
                   }}
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 11, alignItems: 'center',
                     backgroundColor: on ? '#6B1E2A' : C.bgSecondary,
@@ -812,6 +838,30 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
           <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 7, lineHeight: fs(16) }}>
             앱을 안 쓰는 사람도 이름만 넣으면 돼요. 정산서는 카톡으로 보낼 수 있어요
           </Text>
+
+          {/* 나 포함 — 식사정산 1/n은 총무 몫도 나눠야 총액÷N이 맞다(빼면 남들이 총무 몫까지 더 냄).
+              선입금은 남들 금액은 그대로고, 명단에 나를 넣어 '나도 냈다'를 정산서에 보여준다(사용자 2026-07-23).
+              어느 쪽이든 내 행은 '확인'으로 저장돼 독촉·남은금액에서 빠진다. */}
+          <TouchableOpacity onPress={() => setIncludeSelf(v => !v)} activeOpacity={0.7}
+            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14,
+              backgroundColor: C.bgSecondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 }}>
+            <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 11,
+              alignItems: 'center', justifyContent: 'center',
+              backgroundColor: includeSelf ? '#6B1E2A' : 'transparent',
+              borderWidth: includeSelf ? 0 : 1.5, borderColor: C.warmGray }}>
+              {includeSelf && <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>✓</Text>}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>
+                나({myName})도 {kind === 'meal' ? '1/n에 포함' : '명단에 넣기'}
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
+                {kind === 'meal'
+                  ? (includeSelf ? `총 ${names.length}명으로 나눠요` : '나를 빼고 나눠요 (남들이 내 몫까지 더 냄)')
+                  : (includeSelf ? '나도 낸 걸로 정산서에 표시돼요' : '나는 명단에서 빠져요')}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
           <View style={divider} />
 
