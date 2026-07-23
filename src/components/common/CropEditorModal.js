@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Ima
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sentry from '@sentry/react-native';
 import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../../constants/colors';
@@ -32,6 +33,7 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
 
   const [imgSize, setImgSize] = useState(null); // 작업본 { w, h }(픽셀, EXIF 적용 후)
   const [workUri, setWorkUri] = useState(null); // EXIF 정규화한 작업본 uri — 표시·crop 좌표계 일치용
+  const [srcUri, setSrcUri] = useState(null);   // 실제로 자를 원본(원격이면 로컬로 내려받은 파일) — iOS는 remote를 못 자름
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
   // 프레임 위치는 화면상수(SH) 대신 실측 컨테이너 크기로 — 안드 상태바 차이로 인한 수직 어긋남(크롭 오차) 방지
@@ -57,20 +59,37 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
     if (!visible || !uri) return;
     setImgSize(null);
     setWorkUri(null);
+    setSrcUri(null);
     setSaveErr(false);
     scale.value = 1; savedScale.value = 1;
     tx.value = 0; ty.value = 0; savedTx.value = 0; savedTy.value = 0;
-    // EXIF 정규화 — 안드 Image.getSize가 EXIF 회전을 무시한 raw 크기를 줘서, 표시(회전 적용)와 crop 좌표계가
-    //   어긋나 '선택은 맞는데 저장은 엉뚱'하던 버그 수정(2026-06-14). manipulateAsync가 EXIF orientation을
-    //   적용한 작업본을 만들어 표시·크기측정·crop을 모두 같은 좌표계로 통일. 실패 시 원본+Image.getSize 폴백.
     let alive = true;
-    ImageManipulator.manipulateAsync(uri, [], { compress: 1, format: ImageManipulator.SaveFormat.JPEG })
-      .then(r => { if (alive) { setWorkUri(r.uri); setImgSize({ w: r.width, h: r.height }); } })
-      .catch(() => {
+    (async () => {
+      // ★원격(http/https) 원본은 iOS ImageManipulator가 못 읽어 자르기가 실패한다(안드는 됨).
+      //   이미 Storage에 올라간 기록('이미 기록한 것')의 사진이 https라 iOS에서만 '저장 실패'가 났다(2026-07-24).
+      //   그래서 원격이면 로컬 캐시로 먼저 내려받아, normalize·crop을 모두 로컬 파일에서 한다.
+      let src = uri;
+      if (/^https?:\/\//i.test(uri)) {
+        try {
+          const tmp = FileSystem.cacheDirectory + `crop_src_${Date.now()}.jpg`;
+          const dl = await FileSystem.downloadAsync(uri, tmp);
+          if (dl?.uri) src = dl.uri;
+        } catch { /* 다운로드 실패 → 원본 uri로 폴백(안드는 remote도 처리 가능) */ }
+      }
+      if (!alive) return;
+      setSrcUri(src);
+      // EXIF 정규화 — 안드 Image.getSize가 EXIF 회전을 무시한 raw 크기를 줘서, 표시(회전 적용)와 crop 좌표계가
+      //   어긋나 '선택은 맞는데 저장은 엉뚱'하던 버그 수정(2026-06-14). manipulateAsync가 EXIF orientation을
+      //   적용한 작업본을 만들어 표시·크기측정·crop을 모두 같은 좌표계로 통일. 실패 시 원본+Image.getSize 폴백.
+      try {
+        const r = await ImageManipulator.manipulateAsync(src, [], { compress: 1, format: ImageManipulator.SaveFormat.JPEG });
+        if (alive) { setWorkUri(r.uri); setImgSize({ w: r.width, h: r.height }); }
+      } catch {
         if (!alive) return;
-        setWorkUri(uri);
-        Image.getSize(uri, (w, h) => { if (alive) setImgSize({ w, h }); }, () => { if (alive) setImgSize(null); });
-      });
+        setWorkUri(src);
+        Image.getSize(src, (w, h) => { if (alive) setImgSize({ w, h }); }, () => { if (alive) setImgSize(null); });
+      }
+    })();
     return () => { alive = false; };
   }, [visible, uri]);
 
@@ -135,9 +154,11 @@ export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClos
       //   화면 이미지는 RN이 디코드해 들고 있어 멀쩡해 보이니 '보이는데 저장만 실패'가 됐다.
       //   manipulateAsync는 디코드 시 EXIF 회전을 적용하므로 원본에서 잘라도 좌표계는 imgSize와 같다.
       //   원본이 실패할 때만 임시본으로 한 번 더(옛 동작 폴백 — 원본이 원격/특수 URI인 경우 대비).
+      //   원격 원본은 위에서 로컬로 내려받은 srcUri를 쓴다(iOS는 remote 크롭 불가).
+      const cropSrc = srcUri || uri;
       let result;
       try {
-        result = await ImageManipulator.manipulateAsync(uri, actions, opts);
+        result = await ImageManipulator.manipulateAsync(cropSrc, actions, opts);
       } catch (e1) {
         if (__DEV__) console.warn('[CropEditor] 원본 크롭 실패 → 정규화본으로 재시도', e1?.message);
         result = await ImageManipulator.manipulateAsync(workUri, actions, opts);
