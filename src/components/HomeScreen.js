@@ -944,6 +944,10 @@ export function HomeScreen({ navigation, route }) {
     const lines = [
       '[ Dear Golf ]', s.course, `${s.date} ${s.day}요일 ${s.time}`, `${s.members}명 동반 · D-${s.dDay}`,
     ];
+    // 동반자 이름 — 있을 때만('(초대중)' 표기는 뗀다). 누가 오는지까지 카톡에 그대로 전해진다.
+    const players = (Array.isArray(s.companionNames) ? s.companionNames : [])
+      .map(n => String(n).replace(/\(초대중\)$/, '').trim()).filter(Boolean);
+    if (players.length) lines.push(`동반: ${players.join(' · ')}`);
     if (s.weatherText) lines.push(`예상 날씨 ${s.weatherText}`); // 실제 예보(기온·강수확률) 있을 때만 — 없으면 생략(가짜 '맑음' 안 보냄)
     lines.push('티오프 30분 전 도착을 권장해요', '', '라운딩의 모든 순간을 더 특별하게', 'Dear Golf ⛳', WEB_BASE);
     return lines.join('\n');
@@ -954,10 +958,11 @@ export function HomeScreen({ navigation, route }) {
     catch (e) { console.warn('[share schedule]', e?.message); }
   };
   // D-day 카드 공유 → 카드 모달(이미지 바로공유/저장 + 링크). 시트 닫고 홈 레벨에서 열어 3중 Modal 회피.
-  const handleShareSchedule = (s) => {
+  const handleShareSchedule = (s, companionNames) => {
     if (!s) return;
     setShowScheduleModal(false);
-    setScheduleShareTarget(s);
+    // 시트가 해석한 동반자 이름을 카드·텍스트에 실어 보낸다(있을 때만 표시).
+    setScheduleShareTarget({ ...s, companionNames: Array.isArray(companionNames) ? companionNames : (s.companionNames || []) });
     // 해당일 날씨를 비동기로 주입 — 카드는 즉시 뜨고, 예보가 오면 코스명 위에 표시(예보 범위 밖이면 그대로 없음).
     //   캡처 전에 도착하면 이미지에도 포함. 대상이 바뀌었으면(다른 일정) 덮어쓰지 않도록 date+course 일치 확인.
     if (!s.weather) {
@@ -1857,7 +1862,7 @@ export function HomeScreen({ navigation, route }) {
         }}
         onWeather={() => { setShowScheduleModal(false); setShowWeatherFull(true); }}
         onTraffic={() => { setShowScheduleModal(false); setShowTrafficFull(true); }}
-        onShare={() => handleShareSchedule(selectedSchedule)}
+        onShare={(names) => handleShareSchedule(selectedSchedule, names)}
         onInviteFriends={() => handleInviteFriends(selectedSchedule)}
         onMeal={() => { setShowScheduleModal(false); setSheetMealSchedule(selectedSchedule); setSheetMealAutoOpen(true); }}
         onTeam={() => { setShowScheduleModal(false); setTeamScheduleRid(selectedSchedule?.roundupId || null); }}

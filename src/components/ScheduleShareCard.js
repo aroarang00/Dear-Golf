@@ -59,6 +59,10 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
   const dNum = typeof s.dDay === 'number' ? s.dDay : null;
   const ddayText = dNum == null ? null : dNum === 0 ? 'D-DAY' : dNum > 0 ? `D-${dNum}` : `D+${-dNum}`;
   const members = typeof s.members === 'number' ? s.members : 0;
+  // 동반자 이름 — 시트가 넘겨준 것(companions + 전파 그룹 해석). '(초대중)' 앱 표기는 카드에선 뗀다.
+  //   있을 때만 표시(없으면 줄 자체를 안 그림 — 사용자 2026-07-23). 카드가 길어지지 않게 두 줄로 말줄임.
+  const playerNames = (Array.isArray(s.companionNames) ? s.companionNames : [])
+    .map(n => String(n).replace(/\(초대중\)$/, '').trim()).filter(Boolean);
   // 날씨 안내 멘트 — 날씨가 없고(주입 안 됨) 라운딩이 3일보다 더 남았을 때만(지난 일정엔 안내도 X). 3일 이내면 날씨가 채워짐.
   const showWxNote = !s.weather && (dNum == null || dNum > 3);
   // 구장명 길이별 '고정' 폰트 — adjustsFontSizeToFit은 모달/transform·flex 안에서 글자를 안 그려버리는 RN 버그가 있어
@@ -142,6 +146,14 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           ) : null}
           <Text style={styles.metaText}>{members > 0 ? `👥 ${members}명 동반` : ''}</Text>
         </View>
+
+        {/* 동반자 이름 — 있을 때만. '몇 명'만으론 누가 오는지 모른다(사용자 2026-07-23) */}
+        {playerNames.length ? (
+          <View style={{ marginTop: 12 }}>
+            <Text style={styles.fieldLabel}>동반자 · PLAYERS</Text>
+            <Text style={styles.fieldValue} numberOfLines={2}>{playerNames.join(' · ')}</Text>
+          </View>
+        ) : null}
 
         {/* 하단 — 멘트(전체 폭 중앙) + 링크. QR은 우상단으로 옮겨 멘트 공간 확보 */}
         <View style={styles.footer}>

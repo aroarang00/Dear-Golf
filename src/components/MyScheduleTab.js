@@ -479,11 +479,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
   // 바텀시트 → 동반자에게 공유: 이미지 카드(ShareMomentModal) — 홈과 동일. 시트 닫고 카드 열기(3중 Modal 회피).
   //   해당일 날씨를 비동기 주입(코스명 위), 카드의 '링크 공유'가 평문(설치 링크) 담당.
-  const handleSheetShare = () => {
+  const handleSheetShare = (companionNames) => {
     const s = sheet.schedule;
     if (!s) return;
     setSheet(prev => ({ ...prev, visible: false }));
-    const target = { ...s, dDay: computeDDay(s) };
+    // 시트가 해석한 동반자 이름을 카드·텍스트에 실어 보낸다(있을 때만 표시).
+    const target = { ...s, dDay: computeDDay(s), companionNames: Array.isArray(companionNames) ? companionNames : (s.companionNames || []) };
     setScheduleShareTarget(target);
     if (!target.weather) {
       getScheduleWxSummary(target).then(w => {
@@ -499,6 +500,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     const lines = [
       '[ Dear Golf ]', s.course, `${s.date} ${s.day}요일 ${s.time}`, `${s.members}명 동반 · ${ddText}`,
     ];
+    // 동반자 이름 — 있을 때만('(초대중)' 표기는 뗀다). 누가 오는지까지 카톡에 그대로 전해진다.
+    const players = (Array.isArray(s.companionNames) ? s.companionNames : [])
+      .map(n => String(n).replace(/\(초대중\)$/, '').trim()).filter(Boolean);
+    if (players.length) lines.push(`동반: ${players.join(' · ')}`);
     if (s.weatherText) lines.push(`예상 날씨 ${s.weatherText}`);
     lines.push('나만의 골프 캐디, Dear Golf와 함께하는 라운딩입니다 ⛳', WEB_BASE);
     try { await Share.share({ message: lines.join('\n') }); }

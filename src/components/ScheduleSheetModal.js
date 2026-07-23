@@ -78,6 +78,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     return Date.now() > teeOff + 4 * 3600 * 1000;
   })();
 
+  // 동반자 닉네임 한 줄 — companions + 전파 그룹(수락=정식 / 미수락=초대중) 보강. 공용 유틸(캘린더 카드와 동일 로직).
+  //   공유(동반자에게 공유)에도 이 이름을 넘겨 카드·텍스트에 표시한다 — 시트가 이미 그룹까지 해석해 갖고 있어 재계산 불필요.
+  const companionNames = buildCompanionNames(schedule, { group, friendMeta, friendNames, myUid });
+
   // icon: 커스텀 라인 아이콘 있으면 그걸로(통일감), 없으면 emoji 폴백(공유·삭제는 매칭 아이콘 없음).
   const allItems = [
     { key: 'wx', icon: 'sun', emoji: '☀️', label: '날씨 확인', onPress: onWeather },   // 해만(앰버) — cloudSun은 흰 구름이라 밝은 시트서 안 보임
@@ -90,7 +94,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     { key: 'team', icon: 'clipboard', emoji: '🗂', label: '단체팀 · 조 편성·티오프', onPress: onTeam, highlight: true },
     // 모집 보기 — 모집 연동 예정 일정은 일정수정이 막혀 있어, 원본 모집글(라운지 상세)로 직행해 거기서 관리 ([[roundup-schedule-delete-policy]])
     { key: 'rd', icon: 'flag', emoji: '🚩', label: '모집 보기', onPress: onOpenRoundup },
-    { key: 'sh', icon: 'share', emoji: '📩', label: '동반자에게 공유', onPress: onShare },
+    // 동반자에게 공유 — 카드(이미지)+링크 텍스트. 시트가 해석한 동반자 이름을 넘겨 카드·텍스트에 표시한다.
+    { key: 'sh', icon: 'share', emoji: '📩', label: '동반자에게 공유', onPress: () => onShare && onShare(companionNames) },
     // 인앱 일정 전파 — 친구를 골라 초대, 수락 시 그 친구 일정에도 등록(외부 링크 공유와 별개) ([[schedule-propagation-spec]])
     { key: 'iv', icon: 'personAdd', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
     // 함께 식사 — 식당 정하기/길찾기(홈 카드와 동일 기능, 일정캘린더에서도 접근) ([[afterround-meal-decision]])
@@ -128,9 +133,6 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const canOpenCourse = courseNavigable != null
     ? courseNavigable
     : !!(schedule.courseLogId || schedule.courseId);
-
-  // 동반자 닉네임 한 줄 — companions + 전파 그룹(수락=정식 / 미수락=초대중) 보강. 공용 유틸(캘린더 카드와 동일 로직).
-  const companionNames = buildCompanionNames(schedule, { group, friendMeta, friendNames, myUid });
 
   // 라운드 알람 요약 — 설정된 시각(기상·출발·모임)과 고정 시점(D-3/D-1/당일)을 한 줄로.
   const alarmTL = (alarmCfg?.opts && schedule) ? computeRoundTimeline(schedule, alarmCfg.opts) : null;
