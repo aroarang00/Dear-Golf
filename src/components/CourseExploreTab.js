@@ -371,9 +371,12 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       {/* 코스 검색 안내 — 첫 사용(최근 검색 기록이 아직 없을 때)에만 */}
       {!search.trim() && recentCourses.length === 0 && (
         <View style={{ marginHorizontal: 16, marginBottom: _and ? 8 : 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: _and ? 10 : 12, borderWidth: 0.5, borderColor: C.hairline }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
-            💡 골프장을 검색해 탭하면 — 코스 정보·맛집·골퍼들의 코멘트를 한눈에 볼 수 있어요. 다녀온 코스라면 직접 생생한 코멘트를 남겨 다른 골퍼와 정보를 나눌 수도 있어요.
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+            <View style={{ marginTop: 1 }}><Icon name="bulb" size={fs(12)} color={C.warmGray} strokeWidth={1.8} /></View>
+            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
+              골프장을 검색해 탭하면 — 코스 정보·맛집·골퍼들의 코멘트를 한눈에 볼 수 있어요. 다녀온 코스라면 직접 생생한 코멘트를 남겨 다른 골퍼와 정보를 나눌 수도 있어요.
+            </Text>
+          </View>
         </View>
       )}
 
@@ -519,7 +522,10 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
               <TouchableOpacity key={`L_${m.kakaoId || m.rank || i}`} onPress={() => onLocalTap(m)}
                 activeOpacity={0.7} style={rowStyle}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {m.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Icon name="flag" size={fs(15)} color={C.charcoal} strokeWidth={1.8} />
+                    <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>{m.name}</Text>
+                  </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{m._loc || '위치 미상'}</Text>
                 </View>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginRight: 6 }}>
@@ -550,7 +556,10 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                   }}
                   activeOpacity={0.7} style={rowStyle}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>⛳ {r.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Icon name="flag" size={fs(15)} color={C.charcoal} strokeWidth={1.8} />
+                      <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(17), color: C.charcoal }}>{r.name}</Text>
+                    </View>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3 }}>{r.loc}</Text>
                   </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(22), color: C.warmGray }}>›</Text>
@@ -671,7 +680,8 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
 
       {/* 5. 내 주변 스크린골프 */}
       <Section
-        title="🖥️ 내 주변 스크린골프"
+        title="내 주변 스크린골프"
+        icon="monitor" iconColor={C.charcoal}
         right="↻ 새로고침"
         onRightPress={onRefreshNearby}
         headerBg={C.butter}

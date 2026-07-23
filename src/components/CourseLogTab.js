@@ -416,7 +416,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           </Text>
           {myCourses.length === 0 ? (
             <View style={{ marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
-              <Text style={{ fontSize: fs(30), marginBottom: 10 }}>⛳</Text>
+              <View style={{ marginBottom: 10 }}><Icon name="flag" size={fs(30)} color="#5E8B60" strokeWidth={1.7} /></View>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
                 다녀온 코스가 여기 모여요
               </Text>
@@ -425,12 +425,12 @@ export function CourseLogTab({ avgRating, navigation }) {
               </Text>
               <View style={{ gap: 12 }}>
                 {[
-                  ['🗓️', '예정·지난 라운딩을 일정에 등록하면 자동으로 집계돼요'],
-                  ['✈️', "해외 라운딩은 '해외' 탭에서 따로 모아 볼 수 있어요"],
-                  ['🏆', '다녀온 100대 코스를 체크하며 도전할 수 있어요'],
+                  ['calendar', '예정·지난 라운딩을 일정에 등록하면 자동으로 집계돼요'],
+                  ['plane', "해외 라운딩은 '해외' 탭에서 따로 모아 볼 수 있어요"],
+                  ['trophy', '다녀온 100대 코스를 체크하며 도전할 수 있어요'],
                 ].map(([icon, txt]) => (
                   <View key={txt} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
-                    <Text style={{ fontSize: fs(14) }}>{icon}</Text>
+                    <View style={{ marginTop: 1 }}><Icon name={icon} size={fs(15)} color={C.warmGray} strokeWidth={1.8} /></View>
                     <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18 }}>{txt}</Text>
                   </View>
                 ))}
@@ -447,9 +447,12 @@ export function CourseLogTab({ avgRating, navigation }) {
       {region === 'overseas' && (() => {
         const hint = (
           <View style={{ marginHorizontal: 16, marginBottom: 14, backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: C.hairline }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
-              💡 해외 구장 데이터는 차차 보강해갈 예정이에요
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+              <View style={{ marginTop: 1 }}><Icon name="bulb" size={fs(13)} color={C.charcoal} strokeWidth={1.8} /></View>
+              <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                해외 구장 데이터는 차차 보강해갈 예정이에요
+              </Text>
+            </View>
           </View>
         );
         return (
@@ -466,7 +469,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           ) : overseasCourses.map(c => (
             <View key={c.key} style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: C.paleSky }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: fs(15) }}>✈️</Text>
+                <Icon name="plane" size={fs(15)} color="#3E6E8E" strokeWidth={1.8} />
                 <View style={{ flex: 1 }}>
                   <Text style={dS.courseName}>{c.name}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>

@@ -69,7 +69,7 @@ export function CourseLogModal({ visible, onClose, navigation }) {
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 20, marginBottom: 18 }}>
                   국내와 해외, 다녀온 골프장의 발자취가 한눈에 모이는 공간이에요.{'\n'}
                   일정만 등록해도 어디를 다녀왔는지 모두 확인할 수 있어요.{'\n\n'}
-                  📊 상단 '스코어 통계'를 탭하면 평균·베스트·핸디와 스코어 추세를 한눈에 볼 수 있어요.{'\n\n'}
+                  상단 '스코어 통계'를 탭하면 평균·베스트·핸디와 스코어 추세를 한눈에 볼 수 있어요.{'\n\n'}
                   다이어리에 기록을 남기면 코스 평가·한줄 메모까지 함께 볼 수 있어요.
                 </Text>
                 <TouchableOpacity onPress={() => setShowInfo(false)} activeOpacity={0.85}
