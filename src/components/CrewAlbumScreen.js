@@ -505,7 +505,9 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
     const now = Date.now();
     return pinnedRoundupIds.filter((id) => {
       const r = roundupMap[id];
-      if (r && r.__denied) return true;                              // 비친구라 못 읽음 → 친추 안내 카드로 노출(안 거름)
+      // 권한거부(__denied) = 삭제됐거나 대상제외라 읽기 불가 — 핀엔 '종료됐거나 볼 수 없는' 죽은 카드만 남고 아무도 못 지우던 문제(사용자 2026-07-23).
+      //   핀에선 내린다(주최자 글은 아래 cleanup이 doc도 정리). ※'친구만 볼 수 있는' 친추 안내는 피드의 '공유 카드' 전용이라 핀엔 해당 없음.
+      if (r && r.__denied) return false;
       if (!r || r.cancelledByHost) return false;                     // 미존재·취소 → 핀 해제 (확정은 빛바래며 유지, 아래 티오프+5h에만 내려감)
       if (r.type === 'open' || !r.date) return true;                  // 날짜 미정 → 항상
       const [y, m, d] = String(r.date).split('.').map(Number);
