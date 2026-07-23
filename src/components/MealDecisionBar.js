@@ -22,7 +22,7 @@ import { loadRoundup } from '../utils/roundup';
 import { friendDisplayName } from '../utils/friendGroups';   // 별명(customName) 우선 이름 해석
 import { showAppAlert, AppAlertHost } from './AppAlert';      // 앱 커스텀 알럿(시스템 다이얼로그 대신)
 import { loadPrivateProfile } from '../utils/privateProfile'; // 저장된 목적지(집·회사) 좌표
-import { destinationBadge, regionLabel } from '../utils/mealDirection'; // 목적지 방향/길목 뱃지
+import { destinationBadge } from '../utils/mealDirection'; // 목적지 방향/길목 뱃지
 import { RestaurantDetailSheet } from './RestaurantDetailSheet'; // 앱 내 식당 상세(카카오 place 웹뷰)
 
 // 라운딩 코스 좌표 해석 — ①일정에 박힌 좌표(전파·모집은 계정독립 courseX/Y 보유) ②courseId(userCourses) ③이름검색 순.
@@ -93,7 +93,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
       if (!alive || !p) return;
       const hasHome = p.departureCoord && Number.isFinite(p.departureCoord.x);
       const coord = hasHome ? p.departureCoord : (p.workCoord && Number.isFinite(p.workCoord.x) ? p.workCoord : null);
-      setDest(coord ? { x: coord.x, y: coord.y, region: regionLabel(hasHome ? p.departure : p.work) } : null);
+      // label = 방향 뱃지 기준 표기('집'/'그외 장소'). 앱이 목적지를 추정하므로 지역명 대신 기준을 드러낸다(사용자 2026-07-23).
+      setDest(coord ? { x: coord.x, y: coord.y, label: hasHome ? '집' : '그외 장소' } : null);
     }).catch(() => {});
     return () => { alive = false; };
   }, [uid]);
@@ -266,7 +267,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const openDetail = (pl) => {
     if (!pl) return;
     const withUrl = pl.url ? pl : (pl.kakaoId ? { ...pl, url: `https://place.map.kakao.com/${pl.kakaoId}` } : pl);
-    const b = destinationBadge(coord, dest, dest?.region, pl);
+    const b = destinationBadge(coord, dest, dest?.label, pl);
     const fg = b && (b.tone === 'good' ? '#3C7D4F' : b.tone === 'mild' ? '#8B6914' : '#9A6A55');
     setDetailPlace(withUrl);
     setDetailBadge(b ? { text: b.text, fg } : null);
@@ -516,7 +517,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
             )}
             {list.map((r) => {
               // 목적지(집/직장) 방향 뱃지 — 길목(그린)/우회(앰버)/반대(뮤트). dest·coord 있을 때만.
-              const badge = destinationBadge(coord, dest, dest?.region, r);
+              const badge = destinationBadge(coord, dest, dest?.label, r);
               const bt = badge && (badge.tone === 'good' ? { bg: 'rgba(94,139,96,0.15)', fg: '#3C7D4F' }
                 : badge.tone === 'mild' ? { bg: 'rgba(139,105,20,0.13)', fg: '#8B6914' } : { bg: 'rgba(150,90,70,0.12)', fg: '#9A6A55' });
               return (

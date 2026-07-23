@@ -46,8 +46,10 @@ export function classifyToDestination(courseCenter, dest, place) {
   return { detourKm: detour, courseKm: c2p, onWay, away, nearCourse };
 }
 
-// 뱃지 — { text, tone('good'|'mild'|'bad') } | null. region 있으면 '서울 방향 · 길목'.
-export function destinationBadge(courseCenter, dest, destRegion, place) {
+// 뱃지 — { text, tone('good'|'mild'|'bad') } | null.
+//   destLabel = 방향 기준('집'/'그외 장소') — 앱이 목적지를 '추정'(집 우선)하는 것이므로 '경기 방향'처럼 단정하지 않고
+//   '집 방향 · 길목'으로 기준을 드러낸다(사용자 2026-07-23: 집·회사가 반대인데 지역명만 뜨면 어느 기준인지 모름).
+export function destinationBadge(courseCenter, dest, destLabel, place) {
   if (!courseCenter || !Number.isFinite(place?.x) || !Number.isFinite(place?.y)) return null;
   const fmt = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v)));
   // 목적지(집/회사) 미설정 — 방향 판정은 불가하나 '구장에서 직선거리'는 줄 수 있다(어디가 더 가까운지 정렬 감각).
@@ -58,7 +60,7 @@ export function destinationBadge(courseCenter, dest, destRegion, place) {
   }
   const r = classifyToDestination(courseCenter, dest, place);
   if (!r) return null;
-  const dir = destRegion ? `${destRegion} 방향` : '목적지 방향';
+  const dir = destLabel ? `${destLabel} 방향` : '목적지 방향';
   if (r.onWay) return { text: `${dir} · 길목`, tone: 'good' };
   // 구장 코앞(±3km)은 방향과 무관하게 '근처 · 실거리'로 — 반대 방향 오인 방지(힐마루, 사용자 2026-07-23)
   if (r.nearCourse) return { text: `구장 근처 · ${fmt(r.courseKm)}km`, tone: 'mild' };

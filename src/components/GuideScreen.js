@@ -42,7 +42,7 @@ import { RestaurantSaveModal } from './RestaurantSaveModal';
 import { CourseLogModal } from './CourseLogModal';
 import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
 import { RestaurantDetailSheet } from './RestaurantDetailSheet'; // 앱 내 식당 상세(카카오 place 웹뷰) — 함께 식사와 공용
-import { destinationBadge, regionLabel } from '../utils/mealDirection'; // 귀가 동선 방향 뱃지 — 함께 식사와 공용
+import { destinationBadge } from '../utils/mealDirection'; // 귀가 동선 방향 뱃지 — 함께 식사와 공용
 import { loadPrivateProfile } from '../utils/privateProfile';
 import { getUid } from '../utils/firebase';
 
@@ -66,7 +66,8 @@ export function GuideScreen({ route, navigation }) {
       if (!alive || !p) return;
       const hasHome = p.departureCoord && Number.isFinite(p.departureCoord.x);
       const co = hasHome ? p.departureCoord : (p.workCoord && Number.isFinite(p.workCoord.x) ? p.workCoord : null);
-      setMealDest(co ? { x: co.x, y: co.y, region: regionLabel(hasHome ? p.departure : p.work) } : null);
+      // label = 방향 뱃지 기준 표기('집'/'그외 장소'). 앱이 목적지를 추정하므로 지역명 대신 기준을 드러낸다(사용자 2026-07-23).
+      setMealDest(co ? { x: co.x, y: co.y, label: hasHome ? '집' : '그외 장소' } : null);
     }).catch(() => {});
     return () => { alive = false; };
   }, []);
@@ -1214,7 +1215,7 @@ export function GuideScreen({ route, navigation }) {
             //   두 화면의 신호가 일치한다. 목적지 미등록·좌표 없으면 null(조용히 생략).
             //   ★맛집 목록이 세 곳(저장한 맛집·추천 맛집·가까운 맛집/카페)이라 헬퍼로 뽑아 전부 같게 붙인다.
             const dirBadge = (r) => {
-              const badge = destinationBadge(courseCoord, mealDest, mealDest?.region, r);
+              const badge = destinationBadge(courseCoord, mealDest, mealDest?.label, r);
               if (!badge) return null;
               const bt = badge.tone === 'good' ? { bg: 'rgba(94,139,96,0.15)', fg: '#3C7D4F' }
                 : badge.tone === 'mild' ? { bg: 'rgba(139,105,20,0.13)', fg: '#8B6914' }
