@@ -664,6 +664,17 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
               {((!meal1 && pickSlot !== 2) || (pickSlot === 2 && !meal2)) && renderPicker()}
             </KeyboardAwareScrollView>
           </View>
+          {/* 앱 내 식당 상세 — ★함께 식사는 이미 Modal 시트라, 상세를 또 네이티브 Modal로 띄우면 iOS가 '모달 위 모달'을 안 그려 먹통.
+              asOverlay로 이 시트 위에 겹쳐 연다. 이 flex:1 View 안에 둬야 화면을 꽉 채워 덮는다. */}
+          <RestaurantDetailSheet
+            asOverlay
+            visible={!!detailPlace}
+            place={detailPlace}
+            badge={detailBadge}
+            onClose={() => setDetailPlace(null)}
+            onDecide={() => { const p = detailPlace; setDetailPlace(null); if (p) propose(p); }}
+            onNav={() => { if (detailPlace) openNav(detailPlace, 'naver'); }}
+          />
         </View>
         {/* 이 시트(Modal) 안의 AppAlert 호스트 — 확인/취소창이 시트 위에 정상 노출(루트 호스트는 모달 뒤로 깔림). 모달 닫히면 자동 복귀. */}
         <AppAlertHost />
@@ -686,14 +697,6 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
           } catch { /* 저장 실패는 조용히 — 다시 시도하면 됨 */ }
           setSaveSeed(null);
         }}
-      />
-      <RestaurantDetailSheet
-        visible={!!detailPlace}
-        place={detailPlace}
-        badge={detailBadge}
-        onClose={() => setDetailPlace(null)}
-        onDecide={() => { const p = detailPlace; setDetailPlace(null); if (p) propose(p); }}
-        onNav={() => { if (detailPlace) openNav(detailPlace, 'naver'); }}
       />
     </>
   );
