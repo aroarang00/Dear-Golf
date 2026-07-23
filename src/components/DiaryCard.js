@@ -118,7 +118,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#2A2622' }}>싱글</Text>
         </View>
       )}
-      {!isFriend && item.birdieCount > 0 && (
+      {item.birdieCount > 0 && (
         <View style={{ backgroundColor: '#3D3935', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'center' }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#F5E6A8' }}>버디 ×{item.birdieCount}</Text>
         </View>
