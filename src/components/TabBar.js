@@ -54,7 +54,10 @@ export function TabBar({ state, navigation }) {
             const alerting = alertFriend || alertHome;
             const color = alerting ? t.alert : focused ? t.on : t.off;
             return (
-              <TouchableOpacity key={route.key} style={tabS.tab} onPress={handlePress} activeOpacity={0.7}>
+              // hitSlop(세로) — 얇은 플로팅 바 스트립 탓에 안드에서 첫 탭이 빗나가 '두 번 눌러야' 하던 경우 완화(2026-07-24).
+              //   좌우는 인접 탭과 히트영역이 겹치지 않게 세로로만 넓힌다.
+              <TouchableOpacity key={route.key} style={tabS.tab} onPress={handlePress} activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 10 }}>
                 <AttentionMotion type="shake" enabled={alerting}>
                   {/* 배경을 항상 지정(비선택=투명) — 안드 Fabric에서 배경이 동적 생성될 때 borderRadius 미적용(네모) 방지 */}
                   <View style={[tabS.iconWrap, { backgroundColor: focused ? t.chip : 'transparent' }]}>

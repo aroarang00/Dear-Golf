@@ -469,7 +469,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                       onPress={() => { setOverseas(v); setSearchResults([]); setCityResults([]); }}
                       style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 9,
                         backgroundColor: on ? C.charcoal : 'transparent',
-                        shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: on ? 2 : 0 }}>
+                        // ★elevation 미사용 — 안드는 elevation이 진한 외곽선을 그려, 잠금(opacity 0.45) 시 '테두리+흐린 속'
+                        //   이중박스로 보였다(사용자 2026-07-24). 선택은 차콜 채움으로 충분. iOS는 부드러운 shadow* 유지.
+                        shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
                       <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.warmGray }}>{l}</Text>
                     </TouchableOpacity>
                   );
