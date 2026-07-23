@@ -15,6 +15,18 @@ module.exports = {
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
     newArchEnabled: true,
+    // ★OTA(EAS Update) — JS 변경을 스토어 심사 없이 내려보낸다. 사용자는 아무것도 안 해도 최신이 된다.
+    //   구버전을 없애는 진짜 수단이 이것이고, config/app 버전 게이트는 OTA로 못 고치는 네이티브 변경용
+    //   비상 스위치다([[appVersion]]). 강제 업데이트로 스토어에 보내면 안 돌아오는 사람이 생긴다.
+    //   fallbackToCacheTimeout 0 = 시작을 붙잡지 않는다. 새 번들은 받아만 두고 '다음 실행'에 적용된다
+    //   (기다렸다 적용하게 하면 앱 켜는 게 느려진다 — 그 대가가 더 크다).
+    updates: {
+      url: 'https://u.expo.dev/17a8133b-1b3e-4832-a435-4489015e3493',
+      fallbackToCacheTimeout: 0,
+    },
+    // ★runtimeVersion = version — 네이티브가 바뀌면 version을 올리므로, 그때는 OTA가 옛 바이너리로
+    //   내려가지 않는다. 네이티브와 JS가 어긋나 죽는 사고(MessageQueue 류)를 구조적으로 막는다.
+    runtimeVersion: { policy: 'appVersion' },
     splash: {
       // 글씨 없는 연하늘(paleSky) 단색 — 네이티브 런치 스크린이 JS 로딩화면(SplashOverlay, paleSky 배경)과
       //   같은 색이라, 'Dear Golf' 워드마크가 크게 떴다가 작아지며 슬로건 뜨던 점프 없이 글씨만 떠오름.

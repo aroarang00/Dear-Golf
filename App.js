@@ -93,6 +93,7 @@ import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { AppToastHost } from './src/components/AppToast';
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
+import { UpdateGate } from './src/components/UpdateGate';   // 구버전 차단·권장 (config/app)
 import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { subscribeMyNotifications, markNotificationRead } from './src/utils/roundupNotifications';
@@ -785,6 +786,9 @@ function App() {
     {/* 로딩 오버레이는 KeyboardProvider 밖(GestureHandlerRootView 직속)에 둔다 — 안에 두면 keyboard-controller가
         첫 마운트에 영역 높이를 측정하는 동안 absolute(bottom:0) 뷰의 center가 위→아래로 밀려, 로딩화면이
         살짝 내려오던 점프가 생김(2026-06-14 수정). 정적 로딩 View와 같은 위치 기준으로 맞춰 이음새 제거. */}
+    {/* 업데이트 게이트 — 스플래시 '아래', 나머지 전부의 '위'. 로딩 중엔 스플래시가 덮고 있다가
+        준비되면 나타난다. 어느 탭·어느 모달 위에서나 덮어야 해서 트리 맨 바깥에 둔다. */}
+    <UpdateGate />
     <SplashOverlay appReady={appReady} />
     </GestureHandlerRootView>
   );
