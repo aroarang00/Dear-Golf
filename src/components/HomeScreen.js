@@ -366,16 +366,27 @@ export function HomeScreen({ navigation, route }) {
 
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);
+  // ★콜드스타트 시 schedules가 아직 빈 배열이라, 바로 처리하면 대상 일정을 못 찾고 파라미터만 소비돼 유실됐다
+  //   (ios에서 푸시 탭해도 원래 페이지에 떨어지고, 앱 재시작을 두어 번 해야 열리던 버그 — 사용자 2026-07-24).
+  //   openScheduleSheetId(위)와 동일하게 pending으로 잡아두고 hydrated 후에 처리한다.
+  const [pendingMeal, setPendingMeal] = useState(null);
   useEffect(() => {
     const om = route?.params?.openMeal;
     if (!om) return;
+    navigation.setParams({ openMeal: undefined });   // 파라미터는 즉시 비우되, 값은 pending에 보존
+    setPendingMeal(om);
+  }, [route?.params?.openMeal]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pendingMeal || !hydrated) return;            // 일정 로드 전엔 대기 → hydrated/schedules 바뀌면 재실행
+    const om = pendingMeal;
+    setPendingMeal(null);
     // 푸시가 mealId(meal_{key}[_2])를 실어 대상 식사를 특정한다. key=groupId|roundupId|schedule.id.
     //   ★홈 '다음 라운드'가 아닌 다른 일정의 식사면 그 일정의 식사 시트를 직접 연다 —
     //     예전엔 mealId를 버리고 항상 next의 홈 식사바만 열어 엉뚱한 라운드 식사가 열렸음(2026-07 푸시라우팅 감사).
     let targetSched = null;
     if (typeof om === 'string') {
       const key = om.replace(/^meal_/, '').replace(/_2$/, '');
-      targetSched = schedules.find(s => (s.groupId || s.roundupId || s.id) === key) || null;
+      targetSched = (schedules || []).find(s => (s.groupId || s.roundupId || s.id) === key) || null;
     }
     if (targetSched && targetSched.id !== next?.id) {
       setSheetMealSchedule(targetSched);   // triggerless 식사 시트(임의 일정용) 재사용
@@ -383,8 +394,7 @@ export function HomeScreen({ navigation, route }) {
     } else {
       setAutoOpenMeal(true);   // 다음 라운드 = 홈 카드 식사바 (대상 못 찾으면 best-effort 폴백)
     }
-    navigation.setParams({ openMeal: undefined });
-  }, [route?.params?.openMeal]);
+  }, [pendingMeal, hydrated, schedules]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 크루 초대 푸시 탭 → 홈 착지 + 크루 화면 자동 오픈
   useEffect(() => {
