@@ -3,13 +3,14 @@ import { View, Text, TouchableOpacity, ScrollView, Dimensions, Linking, AppState
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { Icon } from './common/Icon'; // 기능 아이콘 — 유니코드 이모지 → 커스텀 SVG(2026-07-24). 데모 샘플 이모지는 유지.
 import { requestLocationPermission, hasLocationPermission } from '../utils/location';
 import { requestNotificationPermission, hasNotificationPermission } from '../utils/notifications';
 
 const { width: SW } = Dimensions.get('window');
 
 // 카드 하단 기능 하이라이트 한 줄 (아이콘 + 제목 + 설명)
-function Feature({ icon, title, sub }) {
+function Feature({ icon, title, sub, color = C.burgundy }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <View style={{
@@ -17,7 +18,7 @@ function Feature({ icon, title, sub }) {
         backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
         alignItems: 'center', justifyContent: 'center', marginRight: 12,
       }}>
-        <Text style={{ fontSize: fs(17) }}>{icon}</Text>
+        <Icon name={icon} size={fs(18)} color={color} strokeWidth={1.8} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{title}</Text>
@@ -320,10 +321,10 @@ export function OnboardingIntro({ onDone }) {
                 </View>
               </View>
               {[
-                ['👥', '친구공개로 모집', '내 친구들에게'],
-                ['🎯', '친구지정으로 모집', '고른 친구에게만'],
-                ['📅', '일정 정해서 모집', '확정형 — 날짜·구장 정해서'],
-                ['💬', '친구랑 상의해서 모집', '오픈형 — 함께 정하기'],
+                ['people', '친구공개로 모집', '내 친구들에게'],
+                ['target', '친구지정으로 모집', '고른 친구에게만'],
+                ['calendar', '일정 정해서 모집', '확정형 — 날짜·구장 정해서'],
+                ['chat', '친구랑 상의해서 모집', '오픈형 — 함께 정하기'],
               ].map(([icon, title, sub]) => (
                 <View key={title} style={{
                   flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -336,7 +337,7 @@ export function OnboardingIntro({ onDone }) {
                     backgroundColor: 'rgba(245,230,168,0.12)',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: fs(20) }}>{icon}</Text>
+                    <Icon name={icon} size={fs(20)} color={C.butter} strokeWidth={1.8} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 2 }}>
@@ -380,10 +381,10 @@ export function OnboardingIntro({ onDone }) {
             {/* 4가지 핵심 기능 1열 카드 — 라운지와 동일 패턴 */}
             <View style={{ gap: 10 }}>
               {[
-                ['🍴', '골프장 근처 맛집', '어디 저장했는지 잊지 않게 한 곳에'],
-                ['⭐', '다녀온 코스에 평점·후기 남기기', '관리·진행·가성비를 평가해 위키를 함께 채워요'],
-                ['🌤️', '날씨·교통 한눈에', '전국 골프장을 한 페이지에서'],
-                ['⛳', '방문 골프장 리마인드', '한줄 메모로 기억을 남겨두기'],
+                ['dining', '골프장 근처 맛집', '어디 저장했는지 잊지 않게 한 곳에'],
+                ['star', '다녀온 코스에 평점·후기 남기기', '관리·진행·가성비를 평가해 위키를 함께 채워요'],
+                ['cloudSun', '날씨·교통 한눈에', '전국 골프장을 한 페이지에서'],
+                ['pin', '방문 골프장 리마인드', '한줄 메모로 기억을 남겨두기'],
               ].map(([icon, title, sub]) => (
                 <View key={title} style={{
                   flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -396,7 +397,7 @@ export function OnboardingIntro({ onDone }) {
                     backgroundColor: 'rgba(245,230,168,0.12)',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: fs(20) }}>{icon}</Text>
+                    <Icon name={icon} size={fs(20)} color={C.butter} strokeWidth={1.8} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 2 }}>
@@ -429,9 +430,9 @@ export function OnboardingIntro({ onDone }) {
             </Text>
             {/* 위치로 가능한 것 */}
             <View style={{ gap: 16 }}>
-              <Feature icon="📍" title="출발지 자동 설정" sub="라운딩 가는 길, 출발지를 알아서 채워요" />
-              <Feature icon="☀️" title="현재 위치 날씨" sub="지금 있는 곳의 날씨를 바로 확인" />
-              <Feature icon="⛳" title="주변 골프 시설" sub="가까운 연습장·스크린골프를 추천" />
+              <Feature icon="pin" title="출발지 자동 설정" sub="라운딩 가는 길, 출발지를 알아서 채워요" />
+              <Feature icon="sun" title="현재 위치 날씨" sub="지금 있는 곳의 날씨를 바로 확인" />
+              <Feature icon="flag" title="주변 골프 시설" sub="가까운 연습장·스크린골프를 추천" />
             </View>
             {/* 계속 버튼 — App Store 5.1.1(iv): 항상 OS 권한 요청으로 이어짐(이탈 버튼 없음) */}
             <TouchableOpacity onPress={handleLocation} activeOpacity={0.85}
@@ -473,9 +474,9 @@ export function OnboardingIntro({ onDone }) {
             </Text>
             {/* 알림으로 받는 것 */}
             <View style={{ gap: 16 }}>
-              <Feature icon="⛳" title="기상·출발 알람" sub="라운드 당일, 늦지 않게 깨워드려요" />
-              <Feature icon="📅" title="D-3 · D-1 리마인드" sub="다가오는 라운딩을 미리 알림" />
-              <Feature icon="💬" title="라운지·친구 소식" sub="댓글·확정·초대를 바로 확인" />
+              <Feature icon="bell" title="기상·출발 알람" sub="라운드 당일, 늦지 않게 깨워드려요" />
+              <Feature icon="calendar" title="D-3 · D-1 리마인드" sub="다가오는 라운딩을 미리 알림" />
+              <Feature icon="chat" title="라운지·친구 소식" sub="댓글·확정·초대를 바로 확인" />
             </View>
             {/* 계속 버튼 — 위치 페이지와 동일(항상 OS 권한 요청으로 이어짐) */}
             <TouchableOpacity onPress={handleNotif} activeOpacity={0.85}
