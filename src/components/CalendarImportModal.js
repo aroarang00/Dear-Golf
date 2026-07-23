@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
@@ -43,6 +43,13 @@ function EventRow({ ev, onPick }) {
 
 export function CalendarImportModal({ visible, onClose, onPick }) {
   const insets = useSafeAreaInsets();
+  // ★본문 높이를 고정한다 — 안 그러면 시트가 두 번에 걸쳐 펴진다(사용자 2026-07-22).
+  //   시트 높이가 내용에 따라 정해지는데, 열리는 순간엔 '캘린더를 읽고 있어요' 한 덩이뿐이라 짧게
+  //   슬라이드업하고, 잠시 뒤 목록이 도착하면 늘어난다. animationType='slide'가 짧은 높이로 먼저
+  //   올라오니 '짧게 폈다 원래 크기'로 보인다. 로딩·권한없음·빈목록·목록이 전부 같은 상자를 쓰면
+  //   어느 상태로 시작해도 높이가 같아 한 번에 펴진다.
+  const { height: winH } = useWindowDimensions();
+  const bodyH = Math.round(winH * 0.55);
   const [loading, setLoading] = useState(true);
   const [granted, setGranted] = useState(true);
   const [events, setEvents] = useState([]);
@@ -67,7 +74,7 @@ export function CalendarImportModal({ visible, onClose, onPick }) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={mS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom, maxHeight: '82%' }]}>
+        <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={mS.handle} />
 
           <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
@@ -83,24 +90,26 @@ export function CalendarImportModal({ visible, onClose, onPick }) {
             </Text>
           </View>
 
+          {/* 상태가 무엇이든 같은 높이의 상자 안에서 그린다 — 시트가 한 번에 펴지는 이유 */}
+          <View style={{ height: bodyH }}>
           {loading ? (
-            <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <Spinner size={22} color="#5F7B51" />
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 10 }}>캘린더를 읽고 있어요...</Text>
             </View>
           ) : !granted ? (
-            <View style={{ paddingVertical: 44, paddingHorizontal: 24, alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, textAlign: 'center' }}>캘린더 접근 권한이 필요해요</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
                 설정 &gt; 권한에서 캘린더 접근을 허용하면 다가오는 일정을 불러와요.
               </Text>
             </View>
           ) : events.length === 0 ? (
-            <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>앞으로 60일 안에 등록된 일정이 없어요</Text>
             </View>
           ) : (
-            <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
               {golf.length > 0 && (
                 <>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, marginBottom: 2 }}>
@@ -120,6 +129,7 @@ export function CalendarImportModal({ visible, onClose, onPick }) {
               )}
             </ScrollView>
           )}
+          </View>
         </View>
       </View>
     </Modal>
