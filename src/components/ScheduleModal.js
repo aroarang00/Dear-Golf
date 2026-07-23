@@ -735,9 +735,10 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary,
                       borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, paddingLeft: 10, paddingRight: 6, paddingVertical: 5 }}>
                       {/* 친구 동반자는 화면에서만 별명으로 표시(저장은 닉네임). 별명 없으면 저장된 이름 ([[friend_groups]]) */}
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{c.friendUid ? '👤 ' : ''}{c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name}</Text>
+                      {c.friendUid && <Icon name="person" size={fs(12)} color={C.charcoal} />}
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name}</Text>
                       <TouchableOpacity onPress={() => removeCompanion(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                        <Text style={{ fontSize: fs(12), color: C.warmGray }}>✕</Text>
+                        <Icon name="close" size={fs(11)} color={C.warmGray} />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -745,8 +746,9 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   {invitedOnly.map((p) => (
                     <View key={p.uid} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent',
                       borderWidth: 0.5, borderColor: C.hairline, borderStyle: 'dashed', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 }}>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>
-                        👤 {p.name} <Text style={{ fontSize: fs(10.5) }}>({p.joined ? '참여중' : '초대중'})</Text>
+                      <Icon name="person" size={fs(12)} color={C.warmGray} />
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginLeft: 4 }}>
+                        {p.name} <Text style={{ fontSize: fs(10.5) }}>({p.joined ? '참여중' : '초대중'})</Text>
                       </Text>
                     </View>
                   ))}
@@ -759,13 +761,20 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>추가</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.7}
-                style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>👥 친구에서 선택</Text>
+              {/* 친구에서 선택 — pill(테두리+배경+›)로 '눌러서 친구 목록을 고른다'를 명확히(그냥 글씨라 탭 힌트 없다는 사용자 제보, 2026-07-23). 기록추가 화면과 동일 패턴. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: C.burgundy,
+                    borderRadius: 20, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.burgundy + '0E' }}>
+                  <Icon name="people" size={fs(15)} color={C.burgundy} />
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>
+                    {companions.some(c => c.friendUid) ? '친구 선택·수정' : '친구에서 선택'} ›
+                  </Text>
+                </TouchableOpacity>
                 {friends.length === 0 && (
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>(친구를 추가하면 골라서 넣을 수 있어요)</Text>
+                  <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: C.warmGrayLight }}>친구를 추가하면 골라서 넣을 수 있어요</Text>
                 )}
-              </TouchableOpacity>
+              </View>
 
               {/* 예약자 (선택) — 프론트 체크인 이름. 빠른 채우기(나/동반자) + 자유 입력(법인명·양도·대리예약 등) ([[schedule-booker]]) */}
               <Text style={[mS.label, { fontSize: fs(11), fontFamily: F.sysSb, color: C.warmGray }]}>예약자 (선택)</Text>

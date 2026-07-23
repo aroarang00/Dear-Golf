@@ -1083,9 +1083,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 11,
                               borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline, opacity: disabled ? 0.4 : 1 }}>
                             <Text style={{ fontSize: fs(15), color: on ? C.burgundy : C.warmGrayLight }}>{on ? '☑' : '☐'}</Text>
-                            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>
-                              {p.friendUid ? '👤 ' : ''}{shown}
-                            </Text>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              {p.friendUid && <Icon name="person" size={fs(13)} color={C.charcoal} />}
+                              <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(13.5), color: C.charcoal }} numberOfLines={1}>{shown}</Text>
+                            </View>
                           </TouchableOpacity>
                         );
                       })}
@@ -1119,10 +1120,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   이미 친구 동반자가 있으면 '선택·수정'으로 — 다시 눌러 바꿀 수 있음을 알림. */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                 <TouchableOpacity onPress={() => setShowCompanionPicker(true)} activeOpacity={0.7}
-                  style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.burgundy,
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: C.burgundy,
                     borderRadius: 20, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.burgundy + '0E' }}>
+                  <Icon name="people" size={fs(15)} color={C.burgundy} />
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>
-                    👥 {companions.some(c => c.friendUid) ? '친구 선택·수정' : '친구에서 선택'} ›
+                    {companions.some(c => c.friendUid) ? '친구 선택·수정' : '친구에서 선택'} ›
                   </Text>
                 </TouchableOpacity>
                 {friends.length === 0 && (
@@ -1146,8 +1148,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       }}
                       onPress={() => setCompanions(prev => prev.filter((_, idx) => idx !== i))}>
                       {/* 친구 동반자는 화면에서만 별명 우선 표시(저장은 닉네임) ([[friend_groups]]) */}
-                      <Text style={{ fontSize: fs(12), color: C.butter }}>{c.friendUid ? '👤 ' : ''}{c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name}</Text>
-                      <Text style={{ fontSize: fs(10), color: 'rgba(245,230,168,0.5)' }}>✕</Text>
+                      {c.friendUid && <Icon name="person" size={fs(12)} color={C.butter} />}
+                      <Text style={{ fontSize: fs(12), color: C.butter }}>{c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name}</Text>
+                      <Icon name="close" size={fs(10)} color="rgba(245,230,168,0.5)" />
                     </TouchableOpacity>
                   ))}
                   {companions.length < 3 && (
