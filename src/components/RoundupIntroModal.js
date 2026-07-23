@@ -4,31 +4,32 @@ import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { Icon } from './common/Icon'; // 아이콘 — 유니코드 이모지 금지, 커스텀 SVG만
 
 const COMPARE_ROWS = [
-  ['📞', '전화 돌리기·약속 잡기', '모집글 한 번에'],
-  ['💬', '카톡으로 일정 조율', '링크 공유 → 자동 확정'],
-  ['📅', '인원·코스 정하기까지 며칠', '오픈형 모집으로 함께 결정'],
+  ['phone', '전화 돌리기·약속 잡기', '모집글 한 번에'],
+  ['chat', '카톡으로 일정 조율', '링크 공유 → 자동 확정'],
+  ['calendar', '인원·코스 정하기까지 며칠', '오픈형 모집으로 함께 결정'],
 ];
 
 const SCOPES = [
   {
-    icon: '👥', title: '친구공개', tag: '추천',
+    icon: 'people', iconColor: '#3E6E8E', title: '친구공개', tag: '추천',
     desc: '내 친구 목록에만 보여요. 친구가 [참여하기] 누르면 바로 확정.',
   },
   {
-    icon: '🎯', title: '친구지정',
+    icon: 'target', iconColor: '#7A5A9E', title: '친구지정',
     desc: '원하는 멤버만 골라 초대(또는 제외). 가까운 친구·라운딩 멤버 같은 친구 그룹으로 한 번에 지정할 수도 있어요. 지정한 친구에게만 보여요.',
   },
 ];
 
 const FEATURES = [
-  ['☀️', '날씨', '라운딩 날 시간별 날씨'],
-  ['🚗', '교통', '출발 시각 자동 계산'],
-  ['📅', '일정', '확정되면 자동 등록'],
-  ['📸', '사진', '라운딩 사진·메모 보관'],
-  ['⛳', '기록', '스코어·핸디 자동 계산'],
-  ['🏌️', '코스', '골퍼 코멘트 + 맛집'],
+  ['sun', '날씨', '라운딩 날 시간별 날씨', '#D4853A'],
+  ['car', '교통', '출발 시각 자동 계산', '#3E6E8E'],
+  ['calendar', '일정', '확정되면 자동 등록', '#5E7B51'],
+  ['camera', '사진', '라운딩 사진·메모 보관', '#9B3A4A'],
+  ['flag', '기록', '스코어·핸디 자동 계산', '#5E8B60'],
+  ['green', '코스', '골퍼 코멘트 + 맛집', '#6E8B60'],
 ];
 
 export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
@@ -75,7 +76,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
               {COMPARE_ROWS.map(([icon, before, after], i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12,
                   borderBottomWidth: i === COMPARE_ROWS.length - 1 ? 0 : 0.5, borderBottomColor: C.hairline }}>
-                  <Text style={{ fontSize: fs(18), width: 28, textAlign: 'center' }}>{icon}</Text>
+                  <View style={{ width: 28, alignItems: 'center' }}><Icon name={icon} size={fs(17)} color={C.warmGray} strokeWidth={1.8} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 17, textDecorationLine: 'line-through' }}>
                       {before}
@@ -100,7 +101,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
                 <View key={i} style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
                   padding: 14, marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <Text style={{ fontSize: fs(18) }}>{s.icon}</Text>
+                    <Icon name={s.icon} size={fs(18)} color={s.iconColor} strokeWidth={1.9} />
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{s.title}</Text>
                     {s.tag && (
                       <View style={{ backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -124,7 +125,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
             {/* 4. 카톡 공유 하이라이트 */}
             <View style={{ marginHorizontal: 20, marginTop: 32, backgroundColor: '#FEE500', borderRadius: 14, padding: 18 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#3C1E1E' }}>
-                💬 카톡 링크 하나면 끝
+                카톡 링크 하나면 끝
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#3C1E1E', marginTop: 8, lineHeight: 19 }}>
                 모집글 올리고 카카오톡으로 공유하면{'\n'}친구들이 링크 한 번 누르고 수락해요.{'\n'}일정 조율로 며칠 보낼 필요 없어요.
@@ -140,10 +141,10 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
                 모집 확정 후 자동으로 챙겨드려요
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                {FEATURES.map(([icon, title, desc], i) => (
+                {FEATURES.map(([icon, title, desc, color], i) => (
                   <View key={i} style={{ width: '47%', backgroundColor: C.bgSecondary, borderRadius: 12,
                     borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
-                    <Text style={{ fontSize: fs(20), marginBottom: 6 }}>{icon}</Text>
+                    <View style={{ marginBottom: 6 }}><Icon name={icon} size={fs(20)} color={color} strokeWidth={1.9} /></View>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{title}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 15 }}>
                       {desc}
@@ -157,7 +158,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
             <View style={{ marginHorizontal: 20, marginTop: 32, backgroundColor: C.bgSecondary,
               borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Text style={{ fontSize: fs(18) }}>🔔</Text>
+                <Icon name="bell" size={fs(18)} color={C.burgundy} strokeWidth={1.9} />
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
                   주최가 부담스럽다면
                 </Text>
