@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { C, F, fs } from '../constants/colors';
 import { TripleStripe } from './common/TripleStripe';
+import { Icon } from './common/Icon'; // 아이콘 — 유니코드 이모지 금지, 커스텀 SVG만
 import { loginWithKakao, linkOrSignInWithKakao } from '../utils/kakaoAuth';
 import { loginWithApple, linkOrSignInWithApple } from '../utils/appleAuth';
 import { ensureUserDoc } from '../utils/userDoc';
@@ -205,7 +206,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
       <TripleStripe />
       <ScrollView showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 28, paddingTop: 50, paddingBottom: 60, flexGrow: 1 }}>
-        <Text style={{ fontSize: fs(56), marginBottom: 14 }}>💬</Text>
+        <View style={{ marginBottom: 14, alignSelf: 'flex-start' }}><Icon name="chat" size={fs(50)} color="#3C1E1E" strokeWidth={1.6} /></View>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: C.charcoal, marginBottom: 10 }}>
           카카오로 시작하기
         </Text>
@@ -217,12 +218,12 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
         <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
           borderRadius: 12, padding: 16, gap: 12 }}>
           {[
-            ['👤', '카카오 닉네임 · 프로필 사진 자동 적용'],
-            ['🤝', '카카오 친구 중 Dear Golf 유저 찾기'],
-            ['🔒', '카카오 계정으로 안전한 로그인'],
+            ['person', '카카오 닉네임 · 프로필 사진 자동 적용'],
+            ['people', '카카오 친구 중 Dear Golf 유저 찾기'],
+            ['lock', '카카오 계정으로 안전한 로그인'],
           ].map(([icon, txt]) => (
             <View key={txt} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Text style={{ fontSize: fs(17) }}>{icon}</Text>
+              <Icon name={icon} size={fs(17)} color={C.charcoal} strokeWidth={1.8} />
               <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }}>{txt}</Text>
             </View>
           ))}
@@ -235,7 +236,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
             opacity: loading ? 0.7 : 1 }}>
           {loading
             ? <ActivityIndicator size="small" color="#191600" />
-            : <Text style={{ fontSize: fs(17) }}>💬</Text>}
+            : <Icon name="chat" size={fs(17)} color="#191600" strokeWidth={1.9} />}
           <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#191600' }}>
             {loading ? '로그인 중…' : '카카오로 시작'}
           </Text>

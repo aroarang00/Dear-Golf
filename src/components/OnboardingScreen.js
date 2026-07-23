@@ -4,6 +4,7 @@ import AppTextInput from './common/AppTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { obS } from '../styles/obS';
+import { Icon } from './common/Icon'; // 아이콘 — 유니코드 이모지 금지, 커스텀 SVG만
 import { TripleStripe } from './common/TripleStripe';
 import { getUid } from '../utils/firebase';
 import { saveReferredBy, validateRefCode } from '../utils/referral';
@@ -97,9 +98,12 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
           <View>
             <Text style={obS.stepLabel}>1단계 · 프로필</Text>
             {seed.kakaoLinked && !seed.appleLinked && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginBottom: 10 }}>
-                💬 카카오 닉네임을 가져왔어요 — 그대로 쓰거나 수정할 수 있어요
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
+                <Icon name="chat" size={fs(11)} color="#8B6914" strokeWidth={1.8} />
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: '#8B6914' }}>
+                  카카오 닉네임을 가져왔어요 — 그대로 쓰거나 수정할 수 있어요
+                </Text>
+              </View>
             )}
             {seed.appleLinked && (
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#8B6914', marginBottom: 10 }}>
@@ -162,9 +166,12 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
                 {/* 혜택 안내 — 라이프베스트 힌트와 같은 골드 박스(회색 캡션은 안 보인다는 피드백, 2026-07-04).
                     숫자는 쿼터 UI 나오는 첫 업데이트 발표에서(invite.js와 같은 수위) */}
                 <View style={{ marginTop: 10, padding: 12, backgroundColor: '#F5F0E4', borderRadius: 10, borderWidth: 1, borderColor: '#C9A84C' }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#8B6914', lineHeight: 19 }}>
-                    💝 초대해 준 친구의 코드를 입력하면{'\n'}두 분 모두 사진 +20장, 영상 +1개 보관 공간이 늘어나요
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                    <View style={{ marginTop: 1 }}><Icon name="gem" size={fs(13)} color="#8B6914" strokeWidth={1.8} /></View>
+                    <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(12.5), color: '#8B6914', lineHeight: 19 }}>
+                      초대해 준 친구의 코드를 입력하면{'\n'}두 분 모두 사진 +20장, 영상 +1개 보관 공간이 늘어나요
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}
@@ -187,7 +194,7 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
             {/* ── 강한 어필: 혼자 써도 강력한 이유 ── */}
             <View style={{ backgroundColor: '#F5F0E4', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C', padding: 16, marginBottom: 18 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, lineHeight: 25 }}>
-                골프 가는 날,{'\n'}몇 시에 일어날지 계산해 깨워드려요 ⛳
+                골프 가는 날,{'\n'}몇 시에 일어날지 계산해 깨워드려요
               </Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#6B5A2E', lineHeight: 20, marginTop: 10 }}>
                 티오프 시간에 <Text style={{ fontFamily: F.sysSb }}>실시간 교통(이동시간)</Text>과{'\n'}
@@ -196,7 +203,7 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: '#D8C384' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: '#8B6914', lineHeight: 18 }}>
-                  🔔 04:42 기상   ·   🚗 05:42 출발   ·   🏌️ 07:12 티오프{'\n'}
+                  04:42 기상   ·   05:42 출발   ·   07:12 티오프{'\n'}
                   새벽 라운드, 더는 늦잠·지각 걱정 없이.
                 </Text>
               </View>
@@ -236,8 +243,8 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
             {/* 어떤 알림을 자동으로 받을지 */}
             <Text style={obS.label}>자동으로 받을 알림</Text>
             {[
-              { key: 'wake', on: wakeOn, set: setWakeOn, icon: '🔔', title: '기상 알림', sub: '새벽 라운드, 일어날 시각에' },
-              { key: 'depart', on: departOn, set: setDepartOn, icon: '🚗', title: '출발 알림', sub: '출발지에서 나설 시각에' },
+              { key: 'wake', on: wakeOn, set: setWakeOn, icon: 'bell', title: '기상 알림', sub: '새벽 라운드, 일어날 시각에' },
+              { key: 'depart', on: departOn, set: setDepartOn, icon: 'car', title: '출발 알림', sub: '출발지에서 나설 시각에' },
             ].map(it => (
               <TouchableOpacity key={it.key} activeOpacity={0.7} onPress={() => it.set(v => !v)}
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: it.on ? C.burgundy : C.hairline, backgroundColor: it.on ? '#F5EAEC' : C.bgSecondary }}>
@@ -245,16 +252,22 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
                   {it.on && <Text style={{ color: C.butter, fontSize: fs(13), fontWeight: '700' }}>✓</Text>}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{it.icon} {it.title}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Icon name={it.icon} size={fs(15)} color={it.on ? C.burgundy : C.charcoal} strokeWidth={1.9} />
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{it.title}</Text>
+                  </View>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{it.sub}</Text>
                 </View>
               </TouchableOpacity>
             ))}
 
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17, marginTop: 12 }}>
-              💡 <Text style={{ fontFamily: F.sysSb }}>마이페이지에 자주 가는 출발지</Text>만 저장하면 이동시간을 계산해 자동으로 챙겨드려요.{'\n'}
-              D-3 · D-1 · 당일 알림도 함께 받아요. 모두 마이페이지에서 바꿀 수 있어요.
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 12 }}>
+              <View style={{ marginTop: 1 }}><Icon name="bulb" size={fs(11)} color={C.warmGray} strokeWidth={1.8} /></View>
+              <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
+                <Text style={{ fontFamily: F.sysSb }}>마이페이지에 자주 가는 출발지</Text>만 저장하면 이동시간을 계산해 자동으로 챙겨드려요.{'\n'}
+                D-3 · D-1 · 당일 알림도 함께 받아요. 모두 마이페이지에서 바꿀 수 있어요.
+              </Text>
+            </View>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
               <TouchableOpacity style={[obS.nextBtn, { flex: 0, backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.hairline }]}

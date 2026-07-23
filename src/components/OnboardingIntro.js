@@ -313,7 +313,7 @@ export function OnboardingIntro({ onDone }) {
                 backgroundColor: 'rgba(245,230,168,0.14)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.55)',
                 borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}>
                 <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(245,230,168,0.22)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: fs(20) }}>🤝</Text>
+                  <Icon name="people" size={fs(22)} color={C.butter} strokeWidth={1.9} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 2 }}>자주 치는 멤버는 '크루'로</Text>
@@ -423,7 +423,7 @@ export function OnboardingIntro({ onDone }) {
         <View key="ob7" style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(38), marginBottom: 14 }}>📍</Text>
+            <View style={{ marginBottom: 14, alignSelf: 'flex-start' }}><Icon name="pin" size={fs(38)} color={C.navy} strokeWidth={1.6} /></View>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: C.charcoal, marginBottom: 10 }}>위치 권한</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 21, marginBottom: 24 }}>
               현재 위치를 알려주시면 더 편하게 쓸 수 있어요.{'\n'}허용은 선택이고, 언제든 바꿀 수 있어요.
@@ -467,7 +467,7 @@ export function OnboardingIntro({ onDone }) {
         <View key="ob7b" style={{ width: SW, backgroundColor: C.bgPrimary }}>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 36, paddingTop: insets.top + 36, paddingBottom: 28, justifyContent: 'center' }}>
-            <Text style={{ fontSize: fs(38), marginBottom: 14 }}>🔔</Text>
+            <View style={{ marginBottom: 14, alignSelf: 'flex-start' }}><Icon name="bell" size={fs(38)} color={C.navy} strokeWidth={1.6} /></View>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: C.charcoal, marginBottom: 10 }}>알림 권한</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, lineHeight: 21, marginBottom: 24 }}>
               라운딩을 잊지 않도록 제때 알려드려요.{'\n'}허용은 선택이고, 언제든 바꿀 수 있어요.
@@ -504,7 +504,7 @@ export function OnboardingIntro({ onDone }) {
 
         {/* 9 — 시작 (팔레스카이 배경) */}
         <View key="ob8" style={{ width: SW, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontSize: fs(44), marginBottom: 14 }}>⛳</Text>
+          <View style={{ marginBottom: 14 }}><Icon name="flag" size={fs(44)} color={C.navy} strokeWidth={1.5} /></View>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: C.charcoal }}>지금 시작해보세요</Text>
           <Text style={{ fontFamily: F.sysM, fontSize: fs(14), color: C.navy, marginTop: 12, textAlign: 'center', lineHeight: 22 }}>
             간단한 프로필만 입력하면{'\n'}바로 사용할 수 있어요
