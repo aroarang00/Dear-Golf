@@ -318,15 +318,15 @@ export function RoundupTeamScreen({ visible, roundupId, onClose }) {
                         <>
                           <TextInput value={f.tee} onChangeText={(v) => setFlight(gi, fi, 'tee', v)} placeholder="티오프 (예: 07:00)" placeholderTextColor={C.warmGrayLight}
                             maxLength={5} keyboardType="numbers-and-punctuation" style={[INP, { paddingVertical: Platform.OS === 'android' ? 6 : 8 }]} />
-                          {/* 직전 조 기준 +7/+8분 자동입력 — 골프 티오프 간격. 첫 조(기준 없음)엔 안 보임 */}
+                          {/* 직전 조 기준 +분 자동입력 — 골프 티오프 간격은 구장마다 7·8·9·10분으로 다르다.
+                              첫 조(기준 없음)엔 안 보임. 네 개가 한 줄에 안 들어가는 좁은 화면은 다음 줄로 흘린다. */}
                           {!!base && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                              <TouchableOpacity onPress={() => setFlight(gi, fi, 'tee', addMin(base, 7))} style={TEE_BTN}>
-                                <Text style={TEE_BTN_TXT}>＋7분</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity onPress={() => setFlight(gi, fi, 'tee', addMin(base, 8))} style={TEE_BTN}>
-                                <Text style={TEE_BTN_TXT}>＋8분</Text>
-                              </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                              {[7, 8, 9, 10].map((mn) => (
+                                <TouchableOpacity key={mn} onPress={() => setFlight(gi, fi, 'tee', addMin(base, mn))} style={TEE_BTN}>
+                                  <Text style={TEE_BTN_TXT}>＋{mn}분</Text>
+                                </TouchableOpacity>
+                              ))}
                               <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>직전 조 {base} 기준</Text>
                             </View>
                           )}
