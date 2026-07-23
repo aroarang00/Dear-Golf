@@ -30,6 +30,10 @@ export function regionLabel(addr) {
 //   detour = (구장→식당) + (식당→목적지) − (구장→목적지). 작을수록 길목.
 //   away = 식당이 목적지에서 구장보다 더 멀다 → 반대(역)방향.
 //   반환: { detourKm, onWay, away } | null
+// 구장에서 이 거리 이내면 방향과 무관하게 '근처'로 취급 — 구장 밑에 붙은 식당은 집 기준 살짝 반대편이어도
+//   실제론 코앞이라 '반대 방향'이 오해를 준다(사용자 2026-07-23, 힐마루 구장 밑 식당 클러스터). 작은 백트랙은 반대방향 아님.
+const NEAR_COURSE_KM = 3;
+
 export function classifyToDestination(courseCenter, dest, place) {
   const c2d = haversineKm(courseCenter, dest);
   const c2p = haversineKm(courseCenter, place);
@@ -37,18 +41,27 @@ export function classifyToDestination(courseCenter, dest, place) {
   if (c2d == null || c2p == null || p2d == null) return null;
   const detour = Math.max(0, (c2p + p2d) - c2d);
   const away = p2d > c2d + 1.5;              // 목적지에서 더 멀어지면 역방향
+  const nearCourse = c2p <= NEAR_COURSE_KM;  // 구장 코앞 — 방향보다 거리 우선
   const onWay = detour <= 3 && !away;         // 우회 3km 이내면 '길목'
-  return { detourKm: detour, onWay, away };
+  return { detourKm: detour, courseKm: c2p, onWay, away, nearCourse };
 }
 
 // 뱃지 — { text, tone('good'|'mild'|'bad') } | null. region 있으면 '서울 방향 · 길목'.
 export function destinationBadge(courseCenter, dest, destRegion, place) {
-  if (!courseCenter || !dest || !Number.isFinite(place?.x) || !Number.isFinite(place?.y)) return null;
+  if (!courseCenter || !Number.isFinite(place?.x) || !Number.isFinite(place?.y)) return null;
+  const fmt = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v)));
+  // 목적지(집/회사) 미설정 — 방향 판정은 불가하나 '구장에서 직선거리'는 줄 수 있다(어디가 더 가까운지 정렬 감각).
+  //   대부분 유저가 집주소를 안 넣어 뱃지가 통째로 사라지던 것 보완(사용자 2026-07-23).
+  if (!dest || !Number.isFinite(dest?.x) || !Number.isFinite(dest?.y)) {
+    const c2p = haversineKm(courseCenter, place);
+    return c2p == null ? null : { text: `구장 ${fmt(c2p)}km`, tone: 'mild' };
+  }
   const r = classifyToDestination(courseCenter, dest, place);
   if (!r) return null;
   const dir = destRegion ? `${destRegion} 방향` : '목적지 방향';
-  if (r.away) return { text: '반대 방향', tone: 'bad' };
   if (r.onWay) return { text: `${dir} · 길목`, tone: 'good' };
-  const km = r.detourKm < 10 ? r.detourKm.toFixed(1) : String(Math.round(r.detourKm));
-  return { text: `${dir} · 우회 +${km}km`, tone: 'mild' };
+  // 구장 코앞(±3km)은 방향과 무관하게 '근처 · 실거리'로 — 반대 방향 오인 방지(힐마루, 사용자 2026-07-23)
+  if (r.nearCourse) return { text: `구장 근처 · ${fmt(r.courseKm)}km`, tone: 'mild' };
+  if (r.away) return { text: `반대 방향 · +${fmt(r.detourKm)}km`, tone: 'bad' };
+  return { text: `${dir} · 우회 +${fmt(r.detourKm)}km`, tone: 'mild' };
 }
