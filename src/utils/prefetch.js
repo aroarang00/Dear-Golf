@@ -9,8 +9,11 @@
 //   (golfCourses 마스터 캐시 워밍과 동일 취지)
 import { loadMyFriends, loadReceivedRequests, loadSentRequests, loadFriendProfiles } from './friends';
 import { loadFriendData } from './friendGroups';
+import { loadVisibleGroupPostTimes } from './round';   // 그룹공개글 최신시각 — 활동순 정렬 완성(시드 후 널뛰기 방지)
 import { loadAllRoundups } from './roundup';
 import { buildFriendCard, buildReceivedCard } from './friendCards';
+import { db } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const cache = new Map();   // key → { data, ts }
 
@@ -46,11 +49,25 @@ export function prefetchTabData(uid) {
         ...sent.map(s => s.recipientUid),
       ]);
       const friendMeta = fdata.friendMeta || {};
+      // 활동순 정렬을 화면과 일치시키려면 친구공개글(lastFriendPostAt)에 '내가 볼 수 있는 그룹공개글' 시각을 합쳐야 함.
+      //   안 하면 시드(그룹글 미포함) → 전체 로드(포함) 때 순서가 튄다(널뛰기, 사용자 2026-07-23).
+      const groupTimes = await loadVisibleGroupPostTimes(friendsList.map(f => f.otherUid)).catch(() => ({}));
+      // 내 즐겨찾기·숨김 — 시드 첫 그림부터 상단 고정/숨김 적용(안 하면 setFavorites/setHidden이 늦게 들어와 점프·깜빡임).
+      const favorites = {}, hidden = {};
+      try {
+        const meSnap = await getDoc(doc(db, 'users', uid));
+        if (meSnap.exists()) {
+          (meSnap.data().favoriteUids || []).forEach(u => { favorites[u] = true; });
+          (meSnap.data().hiddenFriendUids || []).forEach(u => { hidden[u] = true; });
+        }
+      } catch (e) { if (__DEV__) console.warn('[prefetch] favorites/hidden', e?.message); }
       put('friends:base', {
-        friends: friendsList.map(f => buildFriendCard(f.otherUid, profileByUid, friendMeta)),
+        friends: friendsList.map(f => buildFriendCard(f.otherUid, profileByUid, friendMeta, groupTimes)),
         received: received.map(r => buildReceivedCard(r.requesterUid, profileByUid)), // 차단 필터는 화면에서(사용자별)
         sent: sent.map(s => s.recipientUid),
         fdata,
+        favorites,
+        hidden,
       });
     } catch (e) { if (__DEV__) console.warn('[prefetch] friends', e?.message); }
     // 라운지 탭 — 전체 모집 목록.

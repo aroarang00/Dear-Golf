@@ -250,6 +250,9 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           prefetchSeededRef.current = true;
           setFriendData(preFriends.fdata);
           setFriends(preFriends.friends);
+          // 즐겨찾기·숨김도 시드 — 첫 그림부터 상단 고정/숨김 적용해 setFavorites/setHidden 늦게 들어와 튀는 것 방지(2026-07-23)
+          if (preFriends.favorites) setFavorites(preFriends.favorites);
+          if (preFriends.hidden) setHidden(preFriends.hidden);
           const seedBlocked = new Set(userProfile?.blockedUsers || []);
           setReceivedRequests(preFriends.received.filter(c => !seedBlocked.has(c.id)));
           setSentRequests(preFriends.sent);

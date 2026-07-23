@@ -3,7 +3,8 @@
 //   ⚠️ FriendsTab 인라인 빌드와 필드가 일치해야 함(변경 시 양쪽 같이). [[friend_groups]]
 
 // profileByUid[uid] = { nickname, realName, statusMessage, lifeBest, avgScore, totalRounds, avatarUrl, handicap, lastFriendPostAt }
-export function buildFriendCard(uid, profileByUid, friendMeta) {
+//   groupTimes = { uid: 내가볼수있는 그룹공개글 최신millis } — 활동순 정렬을 화면과 일치시켜 시드 후 재정렬(널뛰기) 방지.
+export function buildFriendCard(uid, profileByUid, friendMeta, groupTimes) {
   const p = (profileByUid || {})[uid] || {};
   const meta = (friendMeta || {})[uid] || {};
   const nickname = p.nickname || '친구';
@@ -21,7 +22,7 @@ export function buildFriendCard(uid, profileByUid, friendMeta) {
     hostedCount: 0, attendedCount: 0, mannerScore: 0,
     recent: null,
     stats: { rounds: p.totalRounds || 0, avg: p.avgScore || null, best: p.lifeBest || null, handicap: p.handicap ?? null },
-    lastPostAt: p.lastFriendPostAt?.toMillis ? p.lastFriendPostAt.toMillis() : 0,
+    lastPostAt: Math.max(p.lastFriendPostAt?.toMillis ? p.lastFriendPostAt.toMillis() : 0, (groupTimes || {})[uid] || 0), // 친구공개 최신 + 내가 볼 수 있는 그룹글 최신 (FriendsTab toMinimal과 동일)
     feed: [],
     togetherCount: 0,
   };
