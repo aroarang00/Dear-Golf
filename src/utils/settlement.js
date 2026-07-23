@@ -244,9 +244,26 @@ function normalizeAiMembers(aiMembers, names) {
   return { list, hit };
 }
 
+// 콜드 스타트로 첫 호출이 떨어질 수 있는 일시적 오류 — 이때만 조용히 한 번 다시 부른다.
+//   resource-exhausted(rate limit)·invalid-argument 같은 '진짜' 실패는 재시도해봐야 똑같으니 제외한다.
+const TRANSIENT_CODES = new Set([
+  'functions/deadline-exceeded', 'functions/unavailable', 'functions/internal', 'functions/cancelled',
+  'deadline-exceeded', 'unavailable', 'internal', 'cancelled',
+]);
+
 async function callSettlementAI(payload, names) {
-  const callable = httpsCallable(functions, 'extractSettlement', { timeout: 30000 });
-  const res = await callable(payload);
+  // ★한동안 안 쓰면 함수가 콜드 스타트로 뜨는데, 그 부팅이 클라 타임아웃을 넘겨 첫 '걷기 시작'이
+  //   실패로 떴다(사용자 2026-07-23: "첫 번째 실패, 두 번째 성공"). 서버 로그는 전부 성공 — 앱이 먼저
+  //   포기한 것. 타임아웃을 넉넉히(60s) 주고, 그래도 일시 오류면 한 번만 다시 부른다(그새 인스턴스가
+  //   데워져 성공). 사용자가 두 번 누를 필요 없이 첫 시도에 끝나게.
+  const callable = httpsCallable(functions, 'extractSettlement', { timeout: 60000 });
+  let res;
+  try {
+    res = await callable(payload);
+  } catch (e) {
+    if (!TRANSIENT_CODES.has(e?.code)) throw e;
+    res = await callable(payload);   // 재시도 1회 — 여기서도 실패하면 그대로 던져 상위 catch가 처리
+  }
   const d = res?.data;
   if (!d?.found) return { error: '금액을 찾지 못했어요' };
   const total = won(d.total);
