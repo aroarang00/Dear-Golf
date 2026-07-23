@@ -29,11 +29,11 @@ function DiaryRowCompactBase({ item, onPress, expanded = false }) {
       style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13 }}>
       {/* 날짜(일)도 일상이면 같은 파랑 — 제목만 색을 바꾸니 티가 덜 나서 줄 단위로 계열을 맞춘다(사용자 2026-07-22).
           라벨을 붙이지 않고도 한눈에 갈리고, 목록은 조용하게 유지된다. */}
-      <Text style={{ fontFamily: F.en, fontSize: fs(14), color: isMoment ? '#3E6E8E' : C.warmGray, width: 30 }}>{dayNum}</Text>
+      <Text style={{ fontFamily: F.en, fontSize: fs(15.5), color: isMoment ? '#3E6E8E' : C.warmGray, width: 30 }}>{dayNum}</Text>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 10 }}>
         {/* 일상은 SemiBold — 같은 Medium이면 파랑이 차콜보다 대비가 약해 '가늘고 흐리게' 읽힌다(사용자 2026-07-22).
             굵기를 한 단계 올려 색이 죽는 만큼 보완. 타수가 없어 우측이 빈 줄이라 무게 균형에도 맞다. */}
-        <Text style={{ fontFamily: isMoment ? F.sysSb : F.sysM, fontSize: fs(13.5),
+        <Text style={{ fontFamily: isMoment ? F.sysSb : F.sysM, fontSize: fs(15),
           color: isMoment ? '#3E6E8E' : C.charcoal, flexShrink: 1 }}
           numberOfLines={1}>
           {title}
