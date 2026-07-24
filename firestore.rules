@@ -155,6 +155,26 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
+    // ===== ledgers — 모임 '회비 장부'(총무 지속 회계). 1차는 총무 전용(settlements와 동일 패턴) =====
+    // 클라이언트 쿼리: where('ownerUid','==', 내uid).orderBy('updatedAt','desc')
+    //   + 크루 진입: where('ownerUid','==', 내uid).where('linkedCrewId','==', crewId)
+    // 총무는 모임을 여러 개 가질 수 있어 장부가 ownerUid로 여러 문서. 회원 열람·웹공유(shareToken)는 2차.
+    // 잔액 캐시(balance/incomeTotal/expenseTotal)는 entries 배치가 increment로 갱신 — 서버검산은 2차.
+    match /ledgers/{ledgerId} {
+      allow read: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid;   // ownerUid 변조 금지
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+
+      // 거래(수입/지출) — 부모 장부의 총무만. get()으로 부모 owner 확인.
+      match /entries/{entryId} {
+        allow read, write: if isSignedIn()
+          && get(/databases/$(database)/documents/ledgers/$(ledgerId)).data.ownerUid == request.auth.uid;
+      }
+    }
+
     // ===== rounds — 라운딩 기록 (구 diaries + 친구 feed 통합) =====
     // 클라이언트 쿼리 규칙 (규칙은 필터가 아님):
     //   · 내 기록      : where('ownerUid','==', 내uid)
