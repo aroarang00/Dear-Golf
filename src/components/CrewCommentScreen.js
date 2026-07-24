@@ -21,7 +21,7 @@ import { AppAlertHost, showAppAlert } from './AppAlert';
 //  ★상단 원글 요약 + 댓글 리스트 + 하단 '붙은' 입력바로 한 덩어리 — 입력바가 어느 글 댓글인지 명확(2026-06-23 개편).
 const BG    = '#C8D9E6';
 const INK   = '#1A3D52';
-const SUB   = 'rgba(26,61,82,0.55)';
+const SUB   = 'rgba(26,61,82,0.78)';
 const CARD  = '#FFFFFF';
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
@@ -107,7 +107,7 @@ function SwipeCarousel({ media, width, onOpen }) {
       </ScrollView>
       {media.length > 1 && (
         <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 11, paddingHorizontal: 9, paddingVertical: 3 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: '#fff' }}>{page + 1}/{media.length}</Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#fff' }}>{page + 1}/{media.length}</Text>
         </View>
       )}
     </View>
@@ -325,7 +325,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
             <MiniAvatar n={post?.author?.n} c={post?.author?.c} uri={post?.author?.uri} size={32} onPress={() => openProfile(post?.author)} />
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{post?.author?.name || '친구'}</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{post?.time || ''}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 1 }}>{post?.time || ''}</Text>
             </View>
           </View>
           {!!post?.text && (
@@ -361,7 +361,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                 <View style={{ flex: 1, marginLeft: 9 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: INK }}>{cm.name}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginLeft: 8 }}>{cm.time}</Text>
                     <View style={{ flex: 1 }} />
                     <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 12, right: 12 }} style={{ paddingHorizontal: 4 }}
                       onPress={() => setActionFor({ id: cm.id, authorUid: cm.authorUid, name: cm.name, text: cm.body })}>
@@ -373,7 +373,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                     <TouchableOpacity onPress={() => toggleLike(cm)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                       style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Icon name={cm.liked ? 'heartFilled' : 'heart'} size={fs(15)} color={cm.liked ? HEART_RED : SUB} strokeWidth={1.9} />
-                      {cm.likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: SUB, marginLeft: 4 }}>{cm.likeCount}</Text>}
+                      {cm.likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB, marginLeft: 4 }}>{cm.likeCount}</Text>}
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
                         if (editingComment) { setEditingComment(null); setDraft(''); }
@@ -384,7 +384,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                         scrollThreadAboveBar(cm.id);
                       }}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }} style={{ marginLeft: 16 }}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP }}>답글</Text>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SAGE_DEEP }}>답글</Text>
                     </TouchableOpacity>
                   </View>
                   {/* 대댓글 */}
@@ -405,7 +405,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
                         <TouchableOpacity onPress={() => toggleLike(r)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                           style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, alignSelf: 'flex-start' }}>
                           <Icon name={r.liked ? 'heartFilled' : 'heart'} size={fs(14)} color={r.liked ? HEART_RED : SUB} strokeWidth={1.9} />
-                          {r.likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: SUB, marginLeft: 4 }}>{r.likeCount}</Text>}
+                          {r.likeCount > 0 && <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: SUB, marginLeft: 4 }}>{r.likeCount}</Text>}
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -435,7 +435,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
             </TouchableOpacity>
           </View>
         )}
-        {!!cErr && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(11.5), paddingHorizontal: 14, paddingBottom: 2 }}>{cErr}</Text>}
+        {!!cErr && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(12.5), paddingHorizontal: 14, paddingBottom: 2 }}>{cErr}</Text>}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: BAR_PAD }}>
           <TextInput ref={inputRef} value={draft} onChangeText={(t) => { setDraft(t); if (cErr) setCErr(''); }} maxLength={300}
             onFocus={() => {

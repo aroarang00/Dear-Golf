@@ -60,7 +60,7 @@ export function CrewIntroModal({ visible, onClose, onCreatePress }) {
             {/* 1. 훅 헤더 — 세이지 */}
             <View style={{ backgroundColor: SAGE_DEEP, paddingHorizontal: 24, paddingVertical: 34, alignItems: 'center' }}>
               <Icon name="crew" size={fs(42)} color="#fff" strokeWidth={1.8} />
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(255,255,255,0.72)', letterSpacing: 2, marginTop: 12, marginBottom: 10 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.72)', letterSpacing: 2, marginTop: 12, marginBottom: 10 }}>
                 DEAR GOLF · 크루
               </Text>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', lineHeight: 31, textAlign: 'center' }}>

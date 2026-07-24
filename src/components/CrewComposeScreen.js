@@ -26,7 +26,7 @@ const clampAR = (ar) => (ar && isFinite(ar)) ? Math.max(0.8, Math.min(1.91, ar))
 //  미디어=expo-image-picker → uploadRoundMedia(rounds/{uid}, https)로 업로드 후 addCrewPost.
 const BG    = '#C8D9E6';
 const INK   = '#1A3D52';
-const SUB   = 'rgba(26,61,82,0.55)';
+const SUB   = 'rgba(26,61,82,0.78)';
 const CARD  = '#FFFFFF';
 const SAGE  = '#8FB06B';
 const SAGE_DEEP = '#5E7E42';
@@ -54,7 +54,7 @@ function PreviewCard({ text, media, name, avatarUri, width }) {
             </View>}
         <View style={{ flex: 1, marginLeft: 11 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(17.5), color: INK }} numberOfLines={1}>{name || '나'}</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 1 }}>방금</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginTop: 1 }}>방금</Text>
         </View>
       </View>
       {!!text && <Text style={{ fontFamily: F.sysM, fontSize: fs(17.5), color: INK, marginTop: 12, lineHeight: fs(25) }}>{text}</Text>}
@@ -88,7 +88,7 @@ function PreviewCard({ text, media, name, avatarUri, width }) {
               </ScrollView>
               {media.length > 1 && (
                 <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 11, paddingHorizontal: 9, paddingVertical: 3 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: '#fff' }}>{page + 1}/{media.length}</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#fff' }}>{page + 1}/{media.length}</Text>
                 </View>
               )}
             </View>
@@ -339,7 +339,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
                 <Text style={{ fontSize: fs(15), marginRight: 6 }}>📌</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>공지로 올리기</Text>
               </View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 3 }}>텍스트만 가능 · 최신 공지가 기존을 대체해요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>텍스트만 가능 · 최신 공지가 기존을 대체해요</Text>
             </View>
             <Switch value={isNotice} onValueChange={setIsNotice}
               style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] } : undefined}
@@ -365,7 +365,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
             allowFontScaling={false} placeholder={isNotice ? '공지 내용을 입력하세요' : '크루와 나눌 소식을 적어보세요'} placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, padding: 14,
               fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: (editing || editingNotice) ? 0 : 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
-          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: text.length >= limit ? '#B23B3B' : SUB, marginTop: 5 }}>{text.length}/{limit}</Text>
+          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(12), color: text.length >= limit ? '#B23B3B' : SUB, marginTop: 5 }}>{text.length}/{limit}</Text>
 
           {/* 미디어 — 공지가 아닐 때만 */}
           {!isNotice && (
@@ -390,7 +390,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
 
               {/* 안내 + 갯수 (버튼 아래) — 사진은 탭하면 잘라서 편집 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: SUB }}>탭=잘라서 편집 · ◀▶=순서 · 최대 10개(영상 1개·30초)</Text>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: SUB }}>탭=잘라서 편집 · ◀▶=순서 · 최대 10개(영상 1개·30초)</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: media.length > 0 ? SAGE_DEEP : SUB }}>{media.length}/{MAX_MEDIA}</Text>
               </View>
 
@@ -425,7 +425,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
                       )}
                       <TouchableOpacity onPress={() => removeMedia(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: fs(11), color: '#fff' }}>✕</Text>
+                        <Text style={{ fontSize: fs(12), color: '#fff' }}>✕</Text>
                       </TouchableOpacity>
                     </TouchableOpacity>
                     {/* 순서 변경 — ◀ 앞으로 / ▶ 뒤로 (사진 2개 이상일 때만). 피드 노출 순서가 이 순서 */}

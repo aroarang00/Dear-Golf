@@ -10,7 +10,7 @@ import { showAppAlert } from './AppAlert';
 
 // 크루 친구 초대 시트 — 현재 화면 위에 바로 뜨는 바텀 시트(앨범 사람+ · 멤버화면 + 공용).
 //   친구 풀(멤버 제외) 다중선택 → inviteToCrew(audience 추가). 정원(MAX_MEMBERS) 한도 내 선택만 허용.
-const INK = '#1A3D52', SUB = 'rgba(26,61,82,0.55)', CARD = '#FFFFFF', SAGE_DEEP = '#5E7E42', LINE = 'rgba(26,61,82,0.12)';
+const INK = '#1A3D52', SUB = 'rgba(26,61,82,0.78)', CARD = '#FFFFFF', SAGE_DEEP = '#5E7E42', LINE = 'rgba(26,61,82,0.12)';
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 

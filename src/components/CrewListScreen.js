@@ -33,7 +33,7 @@ import { CrewAvatar } from './common/CrewAvatar';
 //  ※ Phase 1 — mock 데이터로 화면 디자인 단계. 데이터(crews)·앨범·만들기는 이어서 연결.
 const BG    = '#C8D9E6';                 // 페일스카이 배경 (친구화면 액센트색)
 const INK   = '#1A3D52';                 // 본문(네이비)
-const SUB   = 'rgba(26,61,82,0.55)';     // 보조 텍스트
+const SUB   = 'rgba(26,61,82,0.78)';     // 보조 텍스트
 const CARD  = '#FFFFFF';                 // 박스(초대·메뉴)
 const SAGE  = '#8FB06B';                 // 크루 아이덴티티(홈 진입 아이콘과 동색)
 const SAGE_DEEP = '#5E7E42';             // 헤더 화살표·크루 아이콘 — 페일스카이에서 또렷하게(진한 세이지)
@@ -85,7 +85,7 @@ function AvatarStack({ avatars, total, max = 4 }) {
       {extra > 0 && (
         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(26,61,82,0.45)', borderWidth: 1.5, borderColor: '#fff',
           alignItems: 'center', justifyContent: 'center', marginLeft: -10 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>+{extra}</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>+{extra}</Text>
         </View>
       )}
     </View>
@@ -400,7 +400,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
           {/* 초대됨 — "초대됨 N" 헤더 + 컴팩트 행(여러 개여도 안 밀림) */}
           {invites.length > 0 && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: SAGE_DEEP, letterSpacing: 1, marginBottom: 8 }}>초대됨 {invites.length}</Text>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP, letterSpacing: 1, marginBottom: 8 }}>초대됨 {invites.length}</Text>
               <View style={{ backgroundColor: CARD, borderRadius: 14, borderWidth: 0.5, borderColor: LINE, overflow: 'hidden' }}>
                 {invites.map((iv, i) => (
                   <View key={iv.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11,
@@ -408,7 +408,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
                     <AvatarStack avatars={iv.avatars} total={iv.members} max={3} />
                     <View style={{ flex: 1, marginLeft: 10 }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }} numberOfLines={1}>{iv.name}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>{iv.inviter}님 초대 · {iv.members}명</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginTop: 2 }} numberOfLines={1}>{iv.inviter}님 초대 · {iv.members}명</Text>
                     </View>
                     <TouchableOpacity onPress={() => rejectInvite(iv)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SUB }}>거절</Text>
@@ -464,11 +464,11 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
                     </View>
                     {/* 우측 — 마지막 대화 시간 + 새 글 뱃지 */}
                     <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB }}>{c.last}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB }}>{c.last}</Text>
                       {c.newCount > 0 && (
                         <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: BURGUNDY,
                           alignItems: 'center', justifyContent: 'center', marginTop: 5 }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>{c.newCount > 99 ? '99+' : c.newCount}</Text>
                         </View>
                       )}
                     </View>

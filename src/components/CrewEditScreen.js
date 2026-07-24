@@ -14,7 +14,7 @@ import { showAppAlert } from './AppAlert';
 
 // 크루 편집 — 크루장 전용(멤버 화면에서 진입). 이름·색·성격·사진 변경. 생성 화면과 동일 UI(친구 초대만 없음).
 //  저장: updateCrewProfile(이름·색·성격) + 사진 새로 골랐으면 uploadCrewImage→imageUrl. 권한은 firestore.rules가 크루장만 허용.
-const BG = '#C8D9E6', INK = '#1A3D52', SUB = 'rgba(26,61,82,0.55)', CARD = '#FFFFFF', SAGE_DEEP = '#5E7E42', LINE = 'rgba(26,61,82,0.12)';
+const BG = '#C8D9E6', INK = '#1A3D52', SUB = 'rgba(26,61,82,0.78)', CARD = '#FFFFFF', SAGE_DEEP = '#5E7E42', LINE = 'rgba(26,61,82,0.12)';
 const NAME_MAX = 10;
 
 export function CrewEditScreen({ crew, onClose }) {
@@ -94,10 +94,10 @@ export function CrewEditScreen({ crew, onClose }) {
                   fontFamily: F.sysB, fontSize: fs(16), color: INK }} />
             </View>
           </View>
-          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 4 }}>{name.length}/{NAME_MAX}</Text>
+          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 4 }}>{name.length}/{NAME_MAX}</Text>
 
           {/* 크루 색 */}
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginTop: 14, marginBottom: 10 }}>크루 색 <Text style={{ color: 'rgba(26,61,82,0.4)' }}>· 사진 없을 때 기본</Text></Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginTop: 14, marginBottom: 10 }}>크루 색 <Text style={{ color: 'rgba(26,61,82,0.62)' }}>· 사진 없을 때 기본</Text></Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {CREW_COLORS.map((c) => {
               const on = themeColor === c;
@@ -111,12 +111,12 @@ export function CrewEditScreen({ crew, onClose }) {
           </View>
 
           {/* 크루 성격 */}
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginTop: 18, marginBottom: 8 }}>크루 성격 <Text style={{ color: 'rgba(26,61,82,0.4)' }}>· 선택</Text></Text>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginTop: 18, marginBottom: 8 }}>크루 성격 <Text style={{ color: 'rgba(26,61,82,0.62)' }}>· 선택</Text></Text>
           <TextInput value={desc} onChangeText={setDesc} maxLength={DESC_MAX} multiline
             allowFontScaling={false} placeholder="어떤 크루인가요? 예) 주말 라운딩 같이 즐겨요" placeholderTextColor={SUB}
             style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12,
               minHeight: 62, textAlignVertical: 'top', fontFamily: F.sysM, fontSize: fs(15), color: INK }} />
-          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 5 }}>{desc.length}/{DESC_MAX}</Text>
+          <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 5 }}>{desc.length}/{DESC_MAX}</Text>
 
           {!!err && <Text style={{ color: '#B23B3B', fontFamily: F.sys, fontSize: fs(12), marginTop: 12 }}>{err}</Text>}
         </ScrollView>
