@@ -11,7 +11,7 @@ import { sumHoles } from '../utils/scorecardOcr';
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], holePars = null, failed = false, lowConfidence = false, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], holePars = null, failed = false, failedReason = '', lowConfidence = false, onConfirm, onClose }) {
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
@@ -141,12 +141,16 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
               </View>
             )}
 
-            {/* 인식 실패/숫자 부족 안내 — 빈 표에 직접 입력 유도 (부드러운 톤) */}
+            {/* 인식 실패 안내 — 서버가 사유를 준 경우(AI 사용량 초과 등)엔 그걸 그대로 보여준다.
+                사진이 문제가 아니라 '잠시 후 되는' 상황인데 매번 "사진을 못 읽었다"로만 안내하면
+                사용자가 사진만 계속 바꿔 찍게 된다(2026-07-25 429 제보). 사유가 없을 때만 기존 문구. */}
             {failed && (
               <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
                 backgroundColor: C.butter + '33', borderWidth: 0.5, borderColor: C.butter + '80' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
-                  사진에서 숫자를 충분히 읽지 못했어요.{'\n'}아래에 직접 입력하거나, 카톡으로 받은 스코어카드 사진으로 다시 시도해보세요.
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18 }}>
+                  {failedReason
+                    ? `${failedReason}\n지금 바로 적으시려면 아래에 직접 입력해도 돼요.`
+                    : '사진에서 숫자를 충분히 읽지 못했어요.\n아래에 직접 입력하거나, 카톡으로 받은 스코어카드 사진으로 다시 시도해보세요.'}
                 </Text>
               </View>
             )}

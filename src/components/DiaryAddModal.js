@@ -105,6 +105,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   //   scRows만 쓰면 수정 순간 공유 체크박스가 사라지고 저장 시 공유가 무음 생략되던 버그(2026-07-10 실사용 제보).
   const [shareRows, setShareRows] = useState([]);
   const [scFailed, setScFailed] = useState(false); // OCR 인식 실패/숫자 부족 → 직접 입력 안내
+  // 실패 사유 — 서버가 이유를 말해주는 경우(AI 사용량 초과 등)가 있는데 그동안 버려서
+  //   전부 '사진을 못 읽었다'로만 보였다. 사진 문제가 아니라 잠시 후 되는 상황이면 그걸 알려야 한다.
+  const [scFailReason, setScFailReason] = useState('');
   const [scLowConf, setScLowConf] = useState(false); // OCR 저신뢰(인쇄 합계와 안 맞음) → 확인·수정 강조
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
@@ -305,21 +308,23 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   // 스코어카드 사진(1~2장) → AI 인식(Gemini 비전) → 검토 모달. 갤러리/촬영 공용 마무리.
   const runScorecardExtract = async (uris) => {
     if (!uris?.length || !visibleRef.current) { setScBusy(false); return; }
+    setScFailReason('');   // 새 시도 — 지난 실패 사유가 남아 보이지 않게
     setScBusy(true);
     try {
       const res = await extractScorecardAI(uris);
       // ★인식 중(수 초) 기록 모달을 닫았으면 결과 폐기 — 닫힌 모달에 scReview=true가 남으면 다음 오픈 시 모달 스택 꼬임.
       if (!visibleRef.current) return;
       if (res.error || !Array.isArray(res.rows) || !res.rows.length) {
-        // 인식 실패 → 빈 표 직접 입력 안내
-        setScRows([]); setShareRows([]); setHolePars(null); setScFailed(true); setScLowConf(false); setScReview(true);
+        // 인식 실패 → 빈 표 직접 입력 안내. 서버가 준 사유(사용량 초과 등)는 그대로 전달해 보여준다.
+        setScRows([]); setShareRows([]); setHolePars(null);
+        setScFailReason(res.error || ''); setScFailed(true); setScLowConf(false); setScReview(true);
         return;
       }
       // 플레이어(행) 전부 → 검토 모달. 여러 명이면 모달이 '본인 행 선택'부터 띄움.
       setScRows(res.rows);
       setShareRows(res.rows);
       setHolePars(res.holePars || null);       // par(있으면) — 버디 자동집계
-      setScFailed(false);
+      setScFailed(false); setScFailReason('');
       setScLowConf(false);
       setScReview(true);
     } catch (e) {
@@ -453,7 +458,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setScore(''); setWeather('맑음'); setMemo(''); setBirdieCount(0);
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
-    setHoleScores(null); setHolePars(null); setScRows([]); setShareRows([]); setScReview(false); setScFailed(false); setScLowConf(false);
+    setHoleScores(null); setHolePars(null); setScRows([]); setShareRows([]); setScReview(false); setScFailed(false); setScFailReason(''); setScLowConf(false);
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
@@ -1556,6 +1561,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           rows={scRows}
           holePars={holePars}
           failed={scFailed}
+          failedReason={scFailReason}
           lowConfidence={scLowConf}
           onConfirm={handleScorecardConfirm}
           onClose={() => setScReview(false)} />
