@@ -19,6 +19,7 @@ import { loadMyFriendsEnriched } from '../utils/friends';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { Icon } from './common/Icon';
 import { SettlementGuideModal } from './SettlementGuideModal';   // 이용 안내 — 라운지 안내와 같은 패턴
+import { LedgerScreen } from './LedgerScreen';   // 회비 장부(모임 통장) — 같은 화면 안에서 탭으로 전환
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import {
   SETTLE_KINDS, settleKindLabel, PAY_PENDING, PAY_CLAIMED, PAY_CONFIRMED,
@@ -48,11 +49,11 @@ const today = () => ymd(new Date());
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return ymd(d); };
 // 심플 모던 — 테두리 상자를 겹치지 않는다. 입력칸은 '채운 배경'으로만 구분하고(테두리 없음),
 //   구획은 섹션 제목 + 넉넉한 여백 + 얇은 선으로 나눈다. 글자는 읽기 편한 크기로 키움(사용자 2026-07-22).
-const label = { fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray, marginBottom: 9 };
+const label = { fontFamily: F.sysSb, fontSize: fs(14), color: C.textSecondary, marginBottom: 9 };
 const box = { backgroundColor: C.bgSecondary, borderRadius: 12 };            // 테두리 없는 채운 칸
 const sec = { fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal, marginBottom: 12, letterSpacing: -0.2 };
-const hint = { fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginBottom: 7 };
-const foot = { fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, textAlign: 'center', marginTop: 10, lineHeight: 18 };
+const hint = { fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, marginBottom: 7 };
+const foot = { fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, textAlign: 'center', marginTop: 10, lineHeight: 18 };
 const divider = { height: 0.5, backgroundColor: C.hairline, marginVertical: 28 };
 
 // 계좌 동일성 판단 키 — 숫자만 뽑아 비교한다.
@@ -97,6 +98,8 @@ export function SettlementModal({ visible, onClose }) {
   const [openId, setOpenId] = useState(null);      // null이면 목록, 아니면 상세
   const [composing, setComposing] = useState(false); // 새 걷기 만들기
   const [showGuide, setShowGuide] = useState(false); // 이용 안내
+  const [tab, setTab] = useState('settle');          // 'settle'(걷기) | 'ledger'(회비 장부) — 목록 레벨에서만 전환
+  const [ledgerDetail, setLedgerDetail] = useState(false);   // 회비장부 상세/만들기 진입 — 이때 정산 헤더·탭 숨김(✕/← 중복 방지)
 
   const myUid = useCurrentUid();
   const [reloadKey, setReloadKey] = useState(0);
@@ -183,8 +186,12 @@ export function SettlementModal({ visible, onClose }) {
   // 작성 중에 적어둔 게 있으면 한 번 묻는다 — 요구사항을 쓰고 영수증을 3장 골라둔 상태에서
   //   뒤로가기가 한 번 잘못 눌리면 전부 처음부터다. 빈 화면일 땐 묻지 않는다(귀찮기만 하다).
   const composeDirty = useRef(false);
+  // 회비 장부 탭은 자기 안에 목록→상세→회비 단계를 갖고 있다. 그 단계를 먼저 물어봐야
+  //   상세에서 뒤로 한 번에 이 모달이 통째로 닫히지 않는다(LedgerScreen의 registerBack).
+  const ledgerBack = useRef(null);
   const goBack = () => {
     if (showGuide) { setShowGuide(false); return; }
+    if (tab === 'ledger' && ledgerBack.current && ledgerBack.current()) return;
     if (composing) {
       const leave = () => { composeDirty.current = false; setComposing(false); };
       if (composeDirty.current) {
@@ -205,7 +212,8 @@ export function SettlementModal({ visible, onClose }) {
       <SafeAreaProvider>
         <KeyboardProvider>
           <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom']}>
-            {/* 헤더 — 상세/작성 중이면 뒤로, 아니면 닫기 */}
+            {/* 헤더 — 상세/작성 중이면 뒤로, 아니면 닫기. 회비장부 상세일 땐 숨김(LedgerScreen 자체 ← 헤더와 ✕ 중복 방지) */}
+            {!(tab === 'ledger' && ledgerDetail) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
               borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               {/* 뒤로/닫기 — Icon 맵에 chevron·close가 없어 가계부와 같은 기호 문자를 쓴다(이모지 아님) */}
@@ -215,18 +223,44 @@ export function SettlementModal({ visible, onClose }) {
                 </Text>
               </TouchableOpacity>
               <Text style={{ flex: 1, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>
-                {composing ? '걷기 만들기' : current ? (current.course || '걷기') : '모임 정산'}
+                {composing ? '걷기 만들기' : current ? (current.course || '걷기') : (tab === 'ledger' ? '회비 장부' : '모임 정산')}
               </Text>
-              {/* 안내 — 라운지와 같은 관례(book 아이콘 + 시트). 걷기는 총무가 카톡으로 하던 일을 옮긴
-                  것이라 "앱으로 하면 뭐가 달라지는지"를 모르면 만들다 만다.
-                  뒤로 버튼과 같은 폭을 차지해 제목이 가운데를 유지한다. */}
-              <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{ width: fs(22), alignItems: 'flex-end' }}>
-                <Icon name="book" size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
-              </TouchableOpacity>
+              {/* 안내 — 라운지와 같은 관례(book 아이콘 + 시트). 걷기 탭에서만 노출(회비 장부는 아직 별도 안내 없음).
+                  뒤로 버튼과 같은 폭을 차지해 제목이 가운데를 유지한다. 회비 장부 탭에선 빈 자리로 폭만 유지. */}
+              {tab === 'settle' ? (
+                <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ width: fs(22), alignItems: 'flex-end' }}>
+                  <Icon name="book" size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
+                </TouchableOpacity>
+              ) : (
+                <View style={{ width: fs(22) }} />
+              )}
             </View>
+            )}
 
-            {composing ? (
+            {/* 걷기 / 회비 장부 전환 탭 — 목록 레벨(작성·상세 아님)에서만. 걷기=1회성, 회비장부=지속 통장 관리.
+                고른 탭은 글자도 커진다 — 색·굵기만으로는 어느 쪽인지 얼른 안 읽힌다(중장년 가독성).
+                글자 크기가 달라도 밑줄이 어긋나지 않게 컨테이너를 flex-end로 정렬. */}
+            {!composing && !openId && !ledgerDetail && (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 20, paddingHorizontal: 16, paddingTop: 12 }}>
+                {[['settle', '걷기'], ['ledger', '회비 장부']].map(([k, lbl]) => {
+                  const on = tab === k;
+                  return (
+                    <TouchableOpacity key={k} onPress={() => setTab(k)} activeOpacity={0.7}
+                      style={{ paddingTop: 2, paddingBottom: 9, borderBottomWidth: 2.5,
+                        borderBottomColor: on ? C.charcoal : 'transparent' }}>
+                      <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(on ? 17 : 14.5), letterSpacing: 0.2,
+                        color: on ? C.charcoal : C.textSecondary }}>{lbl}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {(!composing && !openId && tab === 'ledger') ? (
+              <LedgerScreen currentUid={myUid} onDetailChange={setLedgerDetail}
+                registerBack={(fn) => { ledgerBack.current = fn; }} />
+            ) : composing ? (
               <ComposeView onCancel={() => setComposing(false)} dirtyRef={composeDirty}
                 onCreated={(s) => { setList(prev => [s, ...prev]); setComposing(false); setOpenId(s.id); }} />
             ) : current ? (
@@ -282,7 +316,7 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
             {showArchive ? '보관한 걷기가 없어요' : '아직 걷기가 없어요'}
           </Text>
           {!showArchive && (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary, textAlign: 'center', lineHeight: 19 }}>
               이름만 적으면 됩니다{'\n'}동반자가 앱을 안 써도 정산서는 카톡으로 보낼 수 있어요
             </Text>
           )}
@@ -305,12 +339,12 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
                 <TouchableOpacity onPress={() => (showArchive ? onUnarchive(s) : onDelete(s))} activeOpacity={0.6}
                   hitSlop={{ top: 10, bottom: 10, left: 8, right: 10 }}
                   style={{ marginLeft: 10 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: showArchive ? fs(11.5) : fs(15), color: C.warmGray }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: showArchive ? fs(11.5) : fs(15), color: C.textSecondary }}>
                     {showArchive ? '되돌리기' : '⋯'}
                   </Text>
                 </TouchableOpacity>
               </View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray }}>{s.date}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary }}>{s.date}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, flex: 1 }}>
                   {won(sum.total)}원
@@ -334,7 +368,7 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
       {(archived.length > 0 || showArchive) && (
         <TouchableOpacity onPress={() => setShowArchive(v => !v)} activeOpacity={0.7}
           style={{ paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.warmGray }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.textSecondary }}>
             {showArchive ? '← 진행 중인 걷기 보기' : `보관함 ${archived.length}`}
           </Text>
         </TouchableOpacity>
@@ -735,7 +769,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
       {manual && (
         <View style={[box, { paddingHorizontal: 16, paddingVertical: 14 }]}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal }}>직접 입력</Text>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 5 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginTop: 5 }}>
             목록에 없는 라운딩을 직접 적어요
           </Text>
         </View>
@@ -835,7 +869,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                 color: newName.trim() ? C.butter : C.warmGray }}>추가</Text>
             </TouchableOpacity>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 7, lineHeight: fs(16) }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 7, lineHeight: fs(16) }}>
             앱을 안 쓰는 사람도 이름만 넣으면 돼요. 정산서는 카톡으로 보낼 수 있어요
           </Text>
 
@@ -855,7 +889,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>
                 나({myName})도 {kind === 'meal' ? '1/n에 포함' : '명단에 넣기'}
               </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2 }}>
                 {kind === 'meal'
                   ? (includeSelf ? `총 ${names.length}명으로 나눠요` : '나를 빼고 나눠요 (남들이 내 몫까지 더 냄)')
                   : (includeSelf ? '나도 낸 걸로 정산서에 표시돼요' : '나는 명단에서 빠져요')}
@@ -878,7 +912,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>AI로 계산</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 1 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginTop: 1 }}>
                   {aiBusy ? 'AI가 계산하고 있어요...'
                     : kind === 'prepay' ? '1인당 얼마인지 적으면 전원에게 똑같이 매겨드려요'
                     : '어떻게 나눌지 적으면 사람별로 계산해드려요'}
@@ -905,7 +939,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                 ? ['캐디피 인당 4만원, 참가비 2만원', '김이사는 참가비 면제', '박부장은 3만원 더']
                 : ['김이사는 술 안 마셔서 빼줘', '점심은 3명, 저녁은 전원', '천원 단위로 올려줘']
               ).map(ex => (
-                <Text key={ex} style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, lineHeight: fs(18) }}>
+                <Text key={ex} style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, lineHeight: fs(18) }}>
                   · {ex}
                 </Text>
               ))}
@@ -914,12 +948,12 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                 기본을 올림으로 바꾼 이상 말없이 바꾸면 안 된다(사용자 2026-07-22). 절사도 여전히 되고,
                 요구사항 칸에 "100원 절사"라고 쓰면 그대로 버린다. */}
             {kind !== 'prepay' && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 8, lineHeight: fs(17) }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: fs(17) }}>
                 따로 안 적으면 1/n 하고 100원 단위로 올려요{'\n'}
                 남는 잔돈은 정산서에 그대로 밝혀지고, "100원 절사"라고 적으면 버립니다
               </Text>
             )}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 9, lineHeight: fs(16) }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 9, lineHeight: fs(16) }}>
               카드 문자·계좌번호를 같이 붙여넣으면 금액과 계좌까지 정리해드려요{'\n'}
               1차·2차처럼 여러 건이면 문자를 이어서 붙여넣거나, 영수증을 {RECEIPT_MAX}장까지 골라주세요
             </Text>
@@ -953,7 +987,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF',
                       borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7 }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: GOLD_DEEP }}>영수증 {i + 1}</Text>
-                    <Text style={{ fontSize: fs(12), color: C.warmGray }}>✕</Text>
+                    <Text style={{ fontSize: fs(12), color: C.textSecondary }}>✕</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1062,7 +1096,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
               {savedAccounts.length > 0 && (
                 <TouchableOpacity onPress={() => setEditAccount(false)} activeOpacity={0.7}
                   style={{ paddingVertical: 12, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>저장된 계좌에서 고르기</Text>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary }}>저장된 계좌에서 고르기</Text>
                 </TouchableOpacity>
               )}
             </>
@@ -1166,7 +1200,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           {editing ? (
             <>
               <TouchableOpacity onPress={() => setEditing(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginRight: 16 }}>취소</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginRight: 16 }}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={saveEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#6B1E2A' }}>저장</Text>
@@ -1182,7 +1216,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal, marginRight: 16 }}>보관</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray }}>삭제</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary }}>삭제</Text>
               </TouchableOpacity>
             </>
           )}
@@ -1211,7 +1245,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
               <TouchableOpacity onPress={() => setDItems(p => p.filter((_, k) => k !== idx))}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                 style={{ justifyContent: 'center', paddingHorizontal: 4 }}>
-                <Text style={{ fontSize: fs(13), color: C.warmGray }}>✕</Text>
+                <Text style={{ fontSize: fs(13), color: C.textSecondary }}>✕</Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -1251,7 +1285,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
               <TouchableOpacity onPress={() => setDMembers(p => p.filter((_, k) => k !== idx))}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                 style={{ justifyContent: 'center', paddingHorizontal: 4 }}>
-                <Text style={{ fontSize: fs(13), color: C.warmGray }}>✕</Text>
+                <Text style={{ fontSize: fs(13), color: C.textSecondary }}>✕</Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -1271,7 +1305,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
                 borderBottomWidth: i === s.members.length - 1 ? 0 : 0.5, borderBottomColor: C.hairline }}>
               <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(15),
                 color: done ? C.warmGray : C.charcoal }}>{m.name}</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, marginRight: 12 }}>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.textSecondary, marginRight: 12 }}>
                 {won(m.amount)}
               </Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), minWidth: fs(52), textAlign: 'right',
@@ -1303,7 +1337,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           안 낸 사람이 없으면 칩 자체를 감춘다 — 누를 일 없는 버튼은 없는 게 낫다. */}
       {canRemind && (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-          <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>카톡으로 보낼 것</Text>
+          <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary }}>카톡으로 보낼 것</Text>
           {[['full', '정산서'], ['remind', `독촉 ${sum.pending.length}명`]].map(([v, l]) => {
             const on = mode === v;
             return (
@@ -1320,7 +1354,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
       {/* 내역 넣기/빼기는 정산서에만 — 독촉은 이름과 금액만 짧게 나가는 게 낫다 */}
       {mode === 'full' && (
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>정산서에 내역</Text>
+        <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary }}>정산서에 내역</Text>
         {/* 라벨만 보고는 뭐가 달라지는지 모른다 — 아래 미리보기로 실제 문구를 보고 고르게 한다(사용자 2026-07-22) */}
         {[[true, '넣기'], [false, '빼기']].map(([v, l]) => {
           const on = detail === v;
@@ -1338,7 +1372,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
       {/* 미리보기 — buildSettlementText/buildReminderText 결과를 그대로 그린다. 화면과 실제 보낼 문구가
           어긋나면 안 되므로 따로 꾸미지 않고 같은 함수의 출력을 쓴다. */}
       <View style={[box, { paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12 }]}>
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.warmGray, marginBottom: 8 }}>
+        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary, marginBottom: 8 }}>
           이렇게 보내집니다
         </Text>
         <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: fs(21) }}>
