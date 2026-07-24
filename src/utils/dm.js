@@ -11,7 +11,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'fi
 import { db, getUid, storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
 import { compressImage } from './imageCompress';
-import { uploadLocalFileStreaming } from './storageUpload';
+import { uploadLocalFileStreaming, withUploadTimeout, UPLOAD_TIMEOUT_VIDEO_MS } from './storageUpload';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 
 const CONV = 'conversations';
@@ -101,7 +101,8 @@ export async function uploadDmImage(imageUri, compressOpts = {}) {
   // 공유 카드는 PNG로 올려 투명도 보존(둥근 모서리가 JPEG 흰배경으로 굳는 '하얀 티' 방지). 일반 사진은 jpg.
   const ext = compressOpts.format === 'png' ? 'png' : 'jpg';
   const r = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`);
-  await uploadBytes(r, blob);
+  // 시한 — 업로드가 '멈추기만' 하면 말풍선이 '보내는 중'에 영영 걸려 있는다(화면은 안 잠기지만 표시가 안 사라짐).
+  await withUploadTimeout(uploadBytes(r, blob));
   return await getDownloadURL(r);
 }
 
@@ -170,7 +171,7 @@ export async function uploadDmVideo(videoUri) {
   const vPath = `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`;
   const vRef = storageRef(storage, vPath);
   // 영상은 디스크→스트리밍 업로드 — 힙 Blob으로 올리면 대용량에서 OOM 크래시([[video-upload-oom]]).
-  await uploadLocalFileStreaming(vPath, localUri, contentType);
+  await withUploadTimeout(uploadLocalFileStreaming(vPath, localUri, contentType), UPLOAD_TIMEOUT_VIDEO_MS);
   const url = await getDownloadURL(vRef);
   let poster = null;
   try {
@@ -179,7 +180,8 @@ export async function uploadDmVideo(videoUri) {
     const pres = await fetch(cThumb);
     const pblob = await pres.blob();
     const pRef = storageRef(storage, `dmImages/${uid}/${Date.now()}_${Math.round(Math.random() * 1e6)}_p.jpg`);
-    await uploadBytes(pRef, pblob, { contentType: 'image/jpeg' });
+    // 포스터는 장식 — 시한을 넘겨도 catch로 떨어져 영상 전송 자체는 그대로 끝난다
+    await withUploadTimeout(uploadBytes(pRef, pblob, { contentType: 'image/jpeg' }));
     poster = await getDownloadURL(pRef);
   } catch (e) { if (__DEV__) console.warn('[dm] video poster', e?.message); }
   return { url, poster };

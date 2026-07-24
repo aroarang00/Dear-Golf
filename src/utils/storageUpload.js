@@ -30,3 +30,23 @@ export async function uploadLocalFileStreaming(storagePath, localUri, contentTyp
     throw new Error(`storage-upload HTTP ${res.status}: ${String(res.body || '').slice(0, 200)}`);
   }
 }
+
+// =============================================================
+// 업로드 시한 — 저장 스피너가 무한히 도는 걸 막는다.
+// =============================================================
+// 네트워크가 '끊기지' 않고 '멈추기만' 하면 uploadBytes/uploadAsync는 거부도 완료도 하지 않는다.
+//   그 사이 호출부는 await에 매달려 저장이 영영 안 끝난다(2026-07-25 스코어카드 저장 무한 실행 제보,
+//   2026-07-05 iOS 영상 포스터 건도 같은 계열). 시한을 넘기면 '실패'로 떨어뜨려,
+//   best-effort 경로는 로컬 참조를 유지하고(스위퍼가 나중에 재시도), 엄격 경로는 재시도 안내로 잇는다.
+// ★새 업로드 경로를 만들 때, 사용자가 완료를 기다리며 화면이 잠기는 곳이면 반드시 이걸 통과시킬 것.
+export const UPLOAD_TIMEOUT_PHOTO_MS = 30000;    // 압축 후 수백KB — 정상이면 몇 초
+export const UPLOAD_TIMEOUT_VIDEO_MS = 180000;   // 원본 그대로라 크다. 스트리밍 업로드 여유분
+export function withUploadTimeout(promise, ms = UPLOAD_TIMEOUT_PHOTO_MS) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(() => clearTimeout(timer)),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`upload timeout after ${ms}ms`)), ms);
+    }),
+  ]);
+}

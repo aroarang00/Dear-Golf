@@ -3,7 +3,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
 import { compressImage } from './imageCompress';
-import { uploadLocalFileStreaming } from './storageUpload';
+import { uploadLocalFileStreaming, withUploadTimeout, UPLOAD_TIMEOUT_PHOTO_MS, UPLOAD_TIMEOUT_VIDEO_MS } from './storageUpload';
 
 // 친구공개 다이어리의 사진/영상을 Firebase Storage에 올려 친구가 볼 수 있는 https URL로 바꾼다 ([[friend-feed-design]]).
 //  - 현재 다이어리 사진은 'dgphoto:' 로컬 식별자 → 친구 폰에선 못 읽음. 그래서 친구공개 시에만 업로드.
@@ -17,7 +17,7 @@ import { uploadLocalFileStreaming } from './storageUpload';
 // compressOpts — compressImage 옵션(예: { maxWidth: 800 }). 크루 피드는 작게 올려 로딩↑(다이어리는 기본 1200 유지).
 export async function uploadRoundMedia(uid, photos, compressOpts = {}) {
   if (!uid || !Array.isArray(photos) || photos.length === 0) return photos;
-  return Promise.all(photos.map((p, i) => uploadOne(uid, p, i, compressOpts)));
+  return Promise.all(photos.map((p, i) => uploadOneWithTimeout(uid, p, i, compressOpts)));
 }
 
 // 로컬 참조(dgphoto: 등 비-https) 항목이 하나라도 있는지 — 백업 스위퍼·로그아웃 가드 판정용.
@@ -41,7 +41,7 @@ export async function uploadRoundMediaBestEffort(uid, photos, compressOpts = {})
     const before = p && typeof p === 'object' ? p.uri : p;
     if (typeof before === 'string' && /^https?:\/\//.test(before)) return p; // 이미 백업됨
     try {
-      const r = await uploadOne(uid, p, i, compressOpts);
+      const r = await uploadOneWithTimeout(uid, p, i, compressOpts);
       uploaded++;
       return r;
     } catch (e) {
@@ -60,6 +60,13 @@ function withTimeout(promise, ms, fallback) {
     new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
   ]);
 }
+
+// ★업로드 본체에도 시한을 둔다(storageUpload의 withUploadTimeout) — 포스터만 막아둔 상태였는데
+//   (아래 ★ 주석의 2026-07-05 건) 본체가 매달리면 저장이 안 끝나는 결과는 똑같다.
+const isVideoItem = (p) => !!(p && typeof p === 'object' && p.type === 'video');
+const uploadOneWithTimeout = (uid, p, i, compressOpts) => withUploadTimeout(
+  uploadOne(uid, p, i, compressOpts),
+  isVideoItem(p) ? UPLOAD_TIMEOUT_VIDEO_MS : UPLOAD_TIMEOUT_PHOTO_MS);
 
 async function uploadOne(uid, item, i, compressOpts = {}) {
   const isObj = item && typeof item === 'object';

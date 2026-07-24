@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { withUploadTimeout } from './storageUpload';   // 업로드가 '멈추기만' 할 때 저장이 영영 안 끝나는 걸 막는다
 import { storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
 import { compressImage } from './imageCompress';
@@ -31,7 +32,7 @@ export async function uploadAvatar(uid, photoUri) {
     const res = await fetch(compressedUri);
     const blob = await res.blob();
     const storageRef = ref(storage, `avatars/${uid}/profile.jpg`);
-    await uploadBytes(storageRef, blob);
+    await withUploadTimeout(uploadBytes(storageRef, blob));
     const url = await getDownloadURL(storageRef);
     // 같은 경로(profile.jpg)를 덮어쓰면 다운로드 URL(토큰)이 그대로일 수 있어 avatarUrl 값이 안 바뀌고,
     //   다른 기기 expo-image도 같은 URL=캐시의 옛 사진을 계속 내준다(바꿔도 친구 화면 안 바뀜).
@@ -65,7 +66,7 @@ export async function uploadCrewImage(uid, crewId, photoUri) {
     const res = await fetch(compressedUri);
     const blob = await res.blob();
     const storageRef = ref(storage, `crewImages/${uid}/${crewId}.jpg`);
-    await uploadBytes(storageRef, blob);
+    await withUploadTimeout(uploadBytes(storageRef, blob));
     const url = await getDownloadURL(storageRef);
     // 같은 경로 덮어쓰기 → 다운로드 URL이 그대로일 수 있어 멤버 기기 expo-image가 캐시 옛 이미지 표시.
     //   캐시버스트로 변경마다 새 URL → crews.imageUrl 갱신·멤버 기기 갱신 강제 (uploadAvatar와 동일).
