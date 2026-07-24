@@ -47,11 +47,15 @@ export function CrewEditScreen({ crew, onClose }) {
     setSaving(true);
     try {
       await updateCrewProfile(crewId, { name: nm, themeColor, description: desc });
+      // 사진 업로드만 실패하는 경우가 있다(네트워크가 멈춘 채로). 이름·색은 이미 저장됐으니
+      //   'ㅇㅇ 수정했어요'로 뭉뚱그리지 말고 사진이 빠졌다는 걸 그대로 알린다.
+      let photoFailed = false;
       if (photoUri) {
         const url = await uploadCrewImage(currentUid, crewId, photoUri);
         if (url) await updateCrewProfile(crewId, { imageUrl: url });
+        else photoFailed = true;
       }
-      showToast('크루 정보를 수정했어요');
+      showToast(photoFailed ? '사진만 올리지 못했어요 · 이름·색은 저장됐어요' : '크루 정보를 수정했어요');
       onClose?.();
     } catch (e) {
       if (__DEV__) console.warn('[crewEdit] save', e?.code, e?.message);

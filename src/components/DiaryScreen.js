@@ -14,6 +14,7 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { LoadingState } from './common/LoadingState';
 import { showAppAlert } from './AppAlert';
+import { showToast } from './AppToast';
 import { HallOfFameCard } from './HallOfFameCard';
 import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals, SHAREABLE_MILESTONE_MIN } from './MilestoneCard';
 import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
@@ -633,6 +634,13 @@ export function DiaryScreen({ route, navigation }) {
         try {
           const uid = await getUid();
           const url = patch.avatarUri ? await uploadAvatar(uid, patch.avatarUri) : null;
+          // ★사진을 '지운' 게 아니라 '올리다 실패'한 경우엔 기존 avatarUrl을 건드리지 않는다 —
+          //   null로 덮으면 친구 기기에서 보던 아바타까지 사라진다(업로드 실패가 삭제로 둔갑).
+          //   내 화면은 위에서 로컬 avatarUri로 이미 바뀌었으니, 친구에게만 예전 사진이 남는다는 걸 알린다.
+          if (patch.avatarUri && !url) {
+            showToast('사진을 올리지 못했어요 · 친구에겐 예전 사진이 보여요');
+            return;
+          }
           // 원격 원본(카카오 등)은 본인 표시(avatarUri)도 재호스팅된 안정적 https로 교체 —
           //   카카오 http URL은 캐시 비우면 ATS로 본인 화면도 깨질 수 있음. 로컬(dgphoto)은 그대로 유지(즉시 표시).
           const wasRemote = /^https?:\/\//.test(patch.avatarUri || '');
