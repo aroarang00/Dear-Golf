@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, FlatList, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, FlatList, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, Platform, Modal } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Animated, { SlideInRight } from 'react-native-reanimated';
@@ -18,6 +18,7 @@ import { resolveMemberDisplay, loadMyFriendsEnriched, loadSentRequests, sendFrie
 import { friendDisplayName, getCachedFriendMeta } from '../utils/friendGroups';   // 별명 캐시 — 첫 페인트 flicker 방지
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { CrewComposeScreen } from './CrewComposeScreen';
+import { LedgerScreen } from './LedgerScreen';   // 회비 장부 — 이 크루에 연결된 모임 통장(총무만 진입)
 import { RoundupCreateModal } from './RoundupCreateModal';
 import { CrewMembersScreen } from './CrewMembersScreen';
 import { CrewCommentScreen } from './CrewCommentScreen';
@@ -30,7 +31,7 @@ import { AppAlertHost, showAppAlert } from './AppAlert';
 //  게시글 + 갤러리 토글: 게시글=글·사진·영상 카드, 갤러리=미디어만 그리드. 댓글은 카드 펼침(게시물별, 실시간).
 const BG    = '#C8D9E6';
 const INK   = '#1A3D52';
-const SUB   = 'rgba(26,61,82,0.55)';
+const SUB   = 'rgba(26,61,82,0.78)';
 const CARD  = '#FFFFFF';
 const SAGE  = '#8FB06B';
 const SAGE_DEEP = '#5E7E42';
@@ -274,7 +275,7 @@ const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, 
               </View>
             )}
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }}>{p.time}</Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 1 }}>{p.time}</Text>
         </View>
         <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }} onPress={() => onAction(p)}>
           <Text style={{ fontSize: fs(22), color: INK }}>⋯</Text>
@@ -305,7 +306,7 @@ const PostCard = React.memo(function PostCard({ p, burst, width, onOpenProfile, 
           <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: SUB }}>
             💬 {p.comments > 0 ? `댓글 ${p.comments}` : '댓글 달기'}
           </Text>
-          <Text style={{ fontSize: fs(11), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
+          <Text style={{ fontSize: fs(12), color: SUB, marginLeft: 6, marginTop: -1 }}>›</Text>
         </TouchableOpacity>
       </View>
       {/* 최신 댓글 한 줄 미리보기 — 내 글에 새 댓글이면 앞에 버건디 점 + 진하게 */}
@@ -331,6 +332,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   const [tab, setTab] = useState('feed');         // 'feed' | 'photos'
   const [composeOpen, setComposeOpen] = useState(false);
   const [showRoundupCreate, setShowRoundupCreate] = useState(false);   // 헤더 '모집' — 모집 만들기 모달(작성기 안 거치고 바로)
+  const [ledgerOpen, setLedgerOpen] = useState(false);                 // 헤더 '회비' — 이 크루 회비 장부(총무만)
+  const ledgerBack = useRef(null);                                     // 장부 안의 단계별 뒤로가기(LedgerScreen이 등록)
   const [membersOpen, setMembersOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);   // 작성화면 재사용(수정)
   const [editingNotice, setEditingNotice] = useState(false); // 공지 수정(작성화면 공지모드)
@@ -700,7 +703,8 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
       <CrewMembersScreen crew={crew}
         onClose={() => setMembersOpen(false)}
-        onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM} />
+        onLeave={() => { setMembersOpen(false); onClose(); }} onOpenDM={onOpenDM}
+        onOpenLedger={() => { setMembersOpen(false); setLedgerOpen(true); }} />
     </Animated.View>
   );
   // ★댓글은 early-return으로 앨범을 갈아치우지 않고 '오버레이'로 띄운다(아래 메인 return 끝).
@@ -753,7 +757,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       )}
       {hasPinned && (
         <View style={{ paddingHorizontal: 14, paddingTop: notice ? 0 : 4, paddingBottom: 8 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(11.5), color: SAGE_DEEP, marginLeft: 2 }}>진행 중인 모집</Text>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: SAGE_DEEP, marginLeft: 2 }}>진행 중인 모집</Text>
           {activePinnedIds.map((id) => (
             <RoundupMiniCard key={id} roundupId={id} post={roundupMap[id]}
               onPress={(rid) => onOpenRoundup?.(rid, roundupHostById[rid])} onLongPress={() => removePinPost(id)} />
@@ -823,10 +827,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
             </View>
           </View>
           {crewDoc?.description ? (
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: SUB, marginTop: 1 }} numberOfLines={1}>{crewDoc.description}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 1 }} numberOfLines={1}>{crewDoc.description}</Text>
           ) : null}
         </View>
         <View style={{ flex: 1 }} />
+        {/* ★회비 장부 진입은 헤더가 아니라 ⚙️ 설정 안에 있다 — 여기 버튼을 하나 더 두면 고정 폭이 60px 넘게 늘어
+            크루명이 심하게 잘렸다(긴 이름·확대 모드). 총무가 월 1~2회 쓰는 기능이라 관리 메뉴가 제자리. */}
         {/* 라운딩 모집 — 모집 만들기 모달을 바로 연다(작성기 안 거침, 사용자 2026-06-29). 작성기엔 모집 버튼 없음 */}
         <TouchableOpacity onPress={() => setShowRoundupCreate(true)}
           hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
@@ -915,6 +921,24 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       {showRoundupCreate && (
         <RoundupCreateModal visible onClose={() => setShowRoundupCreate(false)}
           onCreate={handleCreateRoundup} crewAudience={memberUids} crewName={crewDoc?.name || crew?.name || ''} />
+      )}
+
+      {/* 회비 장부 — 이 크루에 연결된 모임 통장(총무만). LedgerScreen이 크루 연결 장부 직행/생성을 처리.
+          ★안드 뒤로가기는 장부 내부 단계(회비 화면·시트)를 먼저 물어본다 — 안 그러면 회비 화면에서
+            뒤로 한 번에 크루로 튕긴다. 장부가 삼키지 않았을 때만 이 모달을 닫는다. */}
+      {ledgerOpen && (
+        <Modal visible animationType="slide" transparent={false}
+          onRequestClose={() => { if (ledgerBack.current && ledgerBack.current()) return; setLedgerOpen(false); }}>
+          <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+          <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: '#FAF6EC' }}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FAF6EC" />
+            <LedgerScreen currentUid={currentUid} initialCrewId={crewId}
+              initialCrewName={crewDoc?.name || crew?.name || ''} onClose={() => setLedgerOpen(false)}
+              registerBack={(fn) => { ledgerBack.current = fn; }}
+              crewMemberNames={members.map(m => m.name)} />
+          </SafeAreaView>
+          </SafeAreaProvider>
+        </Modal>
       )}
 
       {/* 프로필 탭 → DM 팝업(중앙 카드) */}

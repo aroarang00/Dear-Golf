@@ -17,7 +17,7 @@ import { showAppAlert } from './AppAlert';
 // 크루 멤버 관리 — 앨범 ⚙에서 진입 (docs/crew-space-design.md §3, 전원 동등).
 //  멤버 목록(프로필 탭→DM) + 친구 초대 + 크루 나가기. 운영자 없음(누구나 초대, 본인 탈퇴 자유).
 //  페일스카이 라이트. 멤버=크루 doc 구독(초대·탈퇴 즉시 반영), 표시명=보는 사람 별명 resolve.
-const BG = '#C8D9E6', INK = '#1A3D52', SUB = 'rgba(26,61,82,0.55)', CARD = '#FFFFFF', SAGE_DEEP = '#5E7E42', LINE = 'rgba(26,61,82,0.12)';
+const BG = '#C8D9E6', INK = '#1A3D52', SUB = 'rgba(26,61,82,0.78)', CARD = '#FFFFFF', SAGE_DEEP = '#5E7E42', LINE = 'rgba(26,61,82,0.12)';
 const MAX_MEMBERS = 20;
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
@@ -40,7 +40,7 @@ function RoleBadge({ text, bg, fg }) {
   );
 }
 
-export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
+export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM, onOpenLedger = null }) {
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
 
@@ -211,7 +211,24 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginBottom: 8 }}>{members.length}/{MAX_MEMBERS}명 · 누구나 초대할 수 있어요</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginBottom: 8 }}>{members.length}/{MAX_MEMBERS}명 · 누구나 초대할 수 있어요</Text>
+
+        {/* 회비 장부 — 크루리더 전용. 크루 헤더에 두면 크루명이 밀려서(긴 이름·확대 모드) 관리 메뉴인 여기로 모았다.
+            규칙상 장부는 ownerUid==uid만 읽고 쓰므로 크루리더에게만 보인다(다른 멤버는 눌러도 막힌다).
+            ★문구도 '총무'가 아니라 '크루리더' — 앱에서 쓰는 역할 이름과 실제 보이는 조건이 같아야 헷갈리지 않는다. */}
+        {iAmMaster && onOpenLedger && (
+          <TouchableOpacity onPress={onOpenLedger} activeOpacity={0.8}
+            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
+            <Icon name="chart" size={fs(20)} color={SAGE_DEEP} strokeWidth={2} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>회비 장부</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginTop: 2 }} numberOfLines={1}>
+                회비·지출·잔액을 관리해요 · 크루리더만 보여요
+              </Text>
+            </View>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(18), color: SUB, marginLeft: 10 }}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {/* 내가 보는 크루 이름(별명) — 나만 보이는 이름. 서버 이름은 안 바뀜(리더만 헤더 '편집'으로 변경). 탭하면 편집 팝업 */}
         <TouchableOpacity onPress={() => setAliasEdit(alias || serverName)} activeOpacity={0.8}
@@ -219,8 +236,9 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
           <Icon name="pen" size={fs(20)} color={SAGE_DEEP} strokeWidth={2} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>내가 보는 크루 이름</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>
-              {alias ? `별명: ${alias} · 나만 보여요` : `${serverName} · 나만 보이는 이름으로 바꿀 수 있어요`}
+            {/* 크루 이름은 이 화면 곳곳에 이미 있다 — 여기 앞에 또 붙이면 안드에서 설명이 '있…'으로 잘린다 */}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginTop: 2 }} numberOfLines={1}>
+              {alias ? `별명: ${alias} · 나만 보여요` : '나만 보이는 이름으로 바꿀 수 있어요'}
             </Text>
           </View>
           <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginLeft: 10, backgroundColor: 'rgba(94,126,66,0.12)' }}>
@@ -235,7 +253,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
           <Icon name={muted ? 'speakerOff' : 'speaker'} size={fs(22)} color={muted ? '#B23B3B' : SAGE_DEEP} strokeWidth={2.2} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>새 글 알림</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, marginTop: 2 }} numberOfLines={1}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, marginTop: 2 }} numberOfLines={1}>
               {muted ? '꺼짐 · 홈에서 이 크루 새 글 신호가 안 떠요' : '켜짐 · 새 글이 올라오면 홈에 표시돼요'}
             </Text>
           </View>
@@ -263,7 +281,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
                 {m.isAdmin && !m.isMaster && <RoleBadge text="서브리더" bg="rgba(94,126,66,0.16)" fg={SAGE_DEEP} />}
               </View>
               {m.self ? (
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: SAGE_DEEP, marginLeft: 8 }}>나</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SAGE_DEEP, marginLeft: 8 }}>나</Text>
               ) : iAmMaster ? (
                 <TouchableOpacity onPress={() => toggleCrewAdmin(crewId, m.id, !m.isAdmin)} activeOpacity={0.8}
                   style={{ marginLeft: 8, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9, borderWidth: 1,
@@ -300,7 +318,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
       {/* 나가기 확인 */}
       {leaveAsk && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setLeaveAsk(false)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.4)' }} />
+          <TouchableOpacity activeOpacity={1} onPress={() => setLeaveAsk(false)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.62)' }} />
           <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 20, width: '100%' }}>
             {/* 경고 문구는 로컬 members.length(구독 스냅샷) 기반 휴리스틱 — 동시에 다른 멤버가 나가면 '마지막 멤버' 판정이
                 실제와 잠깐 어긋날 수 있다. 단 실제 데이터 삭제는 CF(onCrewUpdated: memberUids→[] → onCrewDeleted)가
@@ -324,10 +342,10 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM }) {
       {/* 내가 보는 크루 이름(별명) 편집 — paddingBottom으로 위로 띄워 키보드 가림 방지 */}
       {aliasEdit !== null && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 220 }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setAliasEdit(null)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.4)' }} />
+          <TouchableOpacity activeOpacity={1} onPress={() => setAliasEdit(null)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,61,82,0.62)' }} />
           <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 20, width: '100%' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, textAlign: 'center' }}>내가 보는 크루 이름</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: SUB, textAlign: 'center', marginTop: 6 }}>나만 보이는 이름이에요 · 원래 이름: {serverName}</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB, textAlign: 'center', marginTop: 6 }}>나만 보이는 이름이에요 · 원래 이름: {serverName}</Text>
             <TextInput value={aliasEdit} onChangeText={setAliasEdit} maxLength={20} autoFocus
               placeholder={serverName} placeholderTextColor={SUB} allowFontScaling={false}
               style={{ marginTop: 14, borderWidth: 1, borderColor: LINE, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 11, fontFamily: F.sysM, fontSize: fs(15), color: INK }} />
