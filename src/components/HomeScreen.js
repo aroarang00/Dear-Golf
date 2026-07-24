@@ -151,7 +151,8 @@ export function HomeScreen({ navigation, route }) {
   }, []);
   const [now, setNow] = useState(Date.now());
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
-  const { diaries, reloadDiaries } = React.useContext(DiariesContext);
+  //   loadFailed·hydrated도 받아 빈 상태 판정에 반영 — 기록 로드 실패를 '기록 없음'으로 위장하지 않게([[read-failure-disguise]]).
+  const { diaries, reloadDiaries, loadFailed: diariesLoadFailed, hydrated: diariesHydrated } = React.useContext(DiariesContext);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' 모드 — 식사시각만 묻는 가벼운 프롬프트
@@ -177,6 +178,16 @@ export function HomeScreen({ navigation, route }) {
   const [crewOpen, setCrewOpen] = useState(false); // 크루(친구 소수그룹 공유앨범) — DM 아래 형제 진입
   const crewBack = useRef(null);   // 크루 모달 내부 가장 깊은 화면의 백 핸들러(다단계 뒤로가기)
   const [crewDmChat, setCrewDmChat] = useState(null); // 크루에서 연 DM { uid, name, avatar } — 닫으면 크루로 복귀(DM 목록 안 거침)
+  // ★크루→DM 지연 마운트 — 홈의 DM은 이미 열린 Modal 안에서 목록↔대화방만 바꾸지만, 크루 DM은
+  //   Modal 슬라이드와 DMChatScreen 마운트(SafeAreaProvider+KeyboardProvider+FlatList+구독 여럿)가
+  //   동시에 일어나 안드에서 화면이 덜컥거리며 튄다. 다크 배경만 먼저 슬라이드시키고 본문은 그 뒤에 채운다
+  //   ([[rn-modal-android-jank]]·[[rn-list-perf-patterns]] 진입 지연마운트 처방).
+  const [crewDmReady, setCrewDmReady] = useState(false);
+  useEffect(() => {
+    if (!crewDmChat) { setCrewDmReady(false); return; }
+    const t = setTimeout(() => setCrewDmReady(true), Platform.OS === 'android' ? 240 : 60);
+    return () => clearTimeout(t);
+  }, [!!crewDmChat]);
   const [crewReturnId, setCrewReturnId] = useState(null); // 라운지서 모집 닫고 복귀할 크루 id — CrewListScreen이 그 앨범 다시 열게
   const [crewModalAnim, setCrewModalAnim] = useState('slide'); // 크루 모달 등장 애니 — 복귀 땐 안드만 'fade'(슬라이드 펼쳐짐 대신 은은하게 떠오름, 무거운 마운트와 경합 줄임)
   // 크루서 연 모집을 라운지서 닫고 돌아오면(RoundupTab가 reopenCrew 실어 navigate) 크루 모달을 다시 연다 —
@@ -1810,9 +1821,9 @@ export function HomeScreen({ navigation, route }) {
           <View style={{ height: 8 }} />
         </View>
         </>
-        ) : hydrated ? (
-        // 일정 로드 완료 후에만 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
-        loadFailed ? (
+        ) : (hydrated && diariesHydrated) ? (
+        // 일정·기록 둘 다 로드 완료 후에만 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
+        (loadFailed || diariesLoadFailed) ? (
         // 오프라인/로드 실패 — 빈 화면이 '데이터 날아감'으로 오해되던 것([[read-failure-disguise]]).
         //   다른 앱은 에러 메시지가 뜨니 네트워크 문제인 걸 알지만, 이름만 뜨고 나머지 빈 화면은 공포를 줌.
         <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: SIDE_PAD }}>
@@ -1822,19 +1833,25 @@ export function HomeScreen({ navigation, route }) {
               인터넷 연결을 확인해주세요
             </Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.5)', lineHeight: fs(19), textAlign: 'center' }}>
-              일정을 불러오지 못했어요{'\n'}연결이 돌아오면 자동으로 다시 시도해요
+              내 기록·일정을 불러오지 못했어요{'\n'}데이터가 사라진 게 아니에요 — 연결되면 다시 나타나요
             </Text>
+            {/* 자동 재시도(Context 백오프·포그라운드 복귀)만으론 '가만히 기다리는' 느낌이라, 직접 누를 수 있는 액션을 준다 */}
+            <TouchableOpacity onPress={() => { reloadDiaries?.(); }} activeOpacity={0.8}
+              style={{ marginTop: 18, borderWidth: 1.2, borderColor: C.butter, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 26 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>다시 시도</Text>
+            </TouchableOpacity>
           </View>
         </View>
         ) : (
-        <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
-          <View style={{ marginHorizontal: SIDE_PAD, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 24 }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
+        <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: tabBarHeight + 24 }}>
+          {/* 배경(밝은 골프장 사진) 위에서 글씨가 묻히지 않게 어두운 네이비 스크림 박스 + 흰 글씨(2026-07-24) */}
+          <View style={{ marginHorizontal: SIDE_PAD, backgroundColor: 'rgba(20,45,64,0.62)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 16, padding: 24 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.75)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
             {/* '첫'은 진짜 신규(라운딩 기록·일정 둘 다 없음)에게만 — 기존 사용자가 예정 없을 땐 '첫' 제외 (사용자 2026-06-22) */}
             <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', marginBottom: 8, lineHeight: 30 }}>
               Dear Golf 에서{'\n'}{((diaries || []).some(isRoundDiary) || (schedules || []).length > 0) ? '다음 ' : '첫 '}라운딩을 시작해보세요
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.45)', lineHeight: 18, marginBottom: 20 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.7)', lineHeight: 18, marginBottom: 20 }}>
               날씨 · 교통 · 코스 정보를{'\n'}한눈에 확인할 수 있어요
             </Text>
             <TouchableOpacity
@@ -2065,7 +2082,10 @@ export function HomeScreen({ navigation, route }) {
         <Modal visible={!!crewDmChat} transparent animationType="slide"
           statusBarTranslucent={Platform.OS === 'android'}
           onRequestClose={() => setCrewDmChat(null)}>
-          {crewDmChat && (
+          {/* 다크 프레임(DM_SURFACE #211E1B와 같은 색)을 먼저 깔아 슬라이드 동안 빈 화면이 안 보이게 —
+              본문은 crewDmReady 뒤에 붙는다(위 ★ 지연 마운트). */}
+          <View style={{ flex: 1, backgroundColor: '#211E1B' }}>
+          {crewDmChat && crewDmReady && (
             <DMChatScreen friendUid={crewDmChat.uid} friendName={crewDmChat.name} friendAvatarUri={crewDmChat.avatar || null}
               onClose={() => setCrewDmChat(null)}
               onOpenRoundup={(postId, hostUid, scope) => {
@@ -2074,6 +2094,7 @@ export function HomeScreen({ navigation, route }) {
                 else navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid });
               }} />
           )}
+          </View>
         </Modal>
       </Modal>
 
