@@ -22,7 +22,8 @@ import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { UserContext } from '../contexts/UserContext';
 import { cancelRoundAlarms, scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms } from '../utils/notifications';
-import { getCalendarChoice } from '../utils/deviceCalendar';
+import { getCalendarChoice, getGeneralEventsInRange, openDeviceEvent, openDeviceCalendarAt } from '../utils/deviceCalendar';
+import { holidayName } from '../constants/holidays';
 import { roundsOnly } from '../utils/diaryKind';
 import { GreenFlag, Icon } from './common/Icon'; // 🏌️ → 입체 그린·핀 SVG / people → 동반자 아이콘
 import { CalendarPickerModal } from './CalendarPickerModal';
@@ -38,6 +39,8 @@ import { FriendSelectModal } from './FriendSelectModal';
 import { MealDecisionBar } from './MealDecisionBar';
 
 const DAYS = WEEKDAYS;
+// 캘린더 칸 '일반 일정' 제목 줄의 고정 높이 — 모든 칸에 동일하게 예약해 줄 간격을 일정하게 유지.
+const GENERAL_LINE_H = fs(9) + 4;
 
 // 라운딩 종료(티오프+4h) 경과 여부 — 홈 종료 카드(HomeScreen.teeoffEndMs)와 동일 시점으로 통일.
 //   같은 날(D-0)이라도 라운딩이 끝났으면 '완료'로 보아 ①미기록 표시·기록 추가하기 노출
@@ -93,6 +96,9 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 동반자 공유 — 이미지 카드 대상(홈과 동일)
   const [teamRid, setTeamRid] = useState(null);                         // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
+  // 폰 캘린더의 '일반 일정'(골프 제외) — 날짜별 { 'YYYY.MM.DD': [{id,title,...}] }.
+  //   캘린더 칸에 제목만 겹쳐 보여줘 더블부킹 방지. 공휴일도 여기 포함됨.
+  const [generalByDate, setGeneralByDate] = useState({});
   // 친구 일정에 초대 + 함께 식사 — 홈과 동일 기능을 캘린더에서도(공용 일정 시트에서 진입)
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
@@ -304,6 +310,18 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   while (cells.length % 7 !== 0) {
     cells.push({ d: cells.length - daysInMonth - firstDay + 1, monthOffset: 1 });
   }
+
+  // 보고 있는 달이 바뀌면 그 달의 폰 캘린더 '개인 일정'을 읽어와 칸에 표시(공휴일은 내장 표가 담당).
+  //   권한 없거나 실패하면 조용히 빈 값(캘린더 기능은 그대로 동작).
+  useEffect(() => {
+    let cancelled = false;
+    const start = new Date(year, month, 1, 0, 0, 0);
+    const end = new Date(year, month + 1, 1, 0, 0, 0); // 다음달 1일 00시 = 이번달 끝까지
+    getGeneralEventsInRange(start, end)
+      .then(({ byDate }) => { if (!cancelled) setGeneralByDate(byDate || {}); })
+      .catch(() => { if (!cancelled) setGeneralByDate({}); });
+    return () => { cancelled = true; };
+  }, [year, month]);
 
   const goPrev = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   const goNext = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
@@ -609,6 +627,10 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     // Android Fabric(New Arch)은 둥근 View를 렌더 최적화로 병합하며 borderRadius를 간헐적으로
     // 누락시켜 네모로 그림(달 이동 시 됐다 안 됐다). collapsable={false}로 병합을 막아 원형 고정.
     const noCollapse = _and ? { collapsable: false } : {};
+    // 평상 숫자 색 — 공휴일·일요일=버건디, 토요일=네이비, 그 외=차콜. (골프 동그라미가 있는 날은 그 색이 우선)
+    const dow = new Date(year, month, d).getDay();
+    const dayColor = (holidayName(dateStrFor(0, d)) || dow === 0) ? C.burgundy
+      : dow === 6 ? C.navy : C.charcoal;
 
     switch (status) {
       case 'today':
@@ -650,7 +672,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       default:
         return (
           <View {...noCollapse} style={base}>
-            <Text style={[baseText, { color: C.charcoal }]}>{d}</Text>
+            <Text style={[baseText, { color: dayColor }]}>{d}</Text>
           </View>
         );
     }
@@ -690,14 +712,49 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
         {/* Grid */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12 }}>
-          {cells.map((cell, i) => (
-            <TouchableOpacity key={i}
-              onPress={() => handleDateTap(cell.monthOffset, cell.d)}
-              activeOpacity={0.6}
-              style={{ width: `${100 / 7}%`, paddingVertical: _and ? 2 : 4, alignItems: 'center' }}>
-              {renderDateCircle(cell)}
-            </TouchableOpacity>
-          ))}
+          {cells.map((cell, i) => {
+            // 이번달 칸에만 제목을 겹쳐 표시(전/다음달 흐린 날짜는 제외).
+            //   개인 일정(폰) + 공휴일(내장 표)을 합침. 개인 일정 먼저, 공휴일은 뒤(이미 빨간 숫자라).
+            const cellDateStr = cell.monthOffset === 0 ? dateStrFor(0, cell.d) : null;
+            const personal = cellDateStr ? (generalByDate[cellDateStr] || []) : [];
+            const hName = cellDateStr ? holidayName(cellDateStr) : null;
+            const gEvents = hName ? [...personal, { id: null, title: hName, isHoliday: true }] : personal;
+            const hasG = gEvents.length > 0;
+            return (
+              <TouchableOpacity key={i}
+                onPress={() => handleDateTap(cell.monthOffset, cell.d)}
+                activeOpacity={0.6}
+                style={{ width: `${100 / 7}%`, paddingVertical: _and ? 2 : 4, alignItems: 'center' }}>
+                {renderDateCircle(cell)}
+                {/* 일반 일정 제목 자리 — '모든 칸'에 항상 고정 높이로 예약해 어느 달이든 줄 간격을 동일하게. */}
+                <View style={{ height: GENERAL_LINE_H, marginTop: 2, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                    {hasG && (
+                      // 제목 탭 → 폰 캘린더 앱에서 그 일정 열기(읽기전용, 여기선 수정 안 함).
+                      //   첫 항목이 공휴일이면 버건디, 개인 일정이면 회색.
+                      <TouchableOpacity
+                        onPress={() => {
+                          // 개인 일정(id 있음) → 그 일정 열기 / 공휴일(id 없음) → 그 날짜로 캘린더 열기
+                          if (gEvents[0].id) openDeviceEvent(gEvents[0].id);
+                          else openDeviceCalendarAt(new Date(year, month, cell.d));
+                        }}
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+                        style={{ flexDirection: 'row', alignItems: 'center', maxWidth: '96%' }}>
+                        <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: gEvents[0].isHoliday ? C.burgundy : C.warmGray, marginRight: 3 }} />
+                        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.sys, fontSize: fs(9), lineHeight: fs(9) + 3, color: gEvents[0].isHoliday ? C.burgundy : C.warmGray }}>
+                          {gEvents[0].title}
+                        </Text>
+                        {gEvents.length > 1 && (
+                          <Text style={{ flexShrink: 0, fontFamily: F.sys, fontSize: fs(9), lineHeight: fs(9) + 3, color: C.warmGrayLight }}>
+                            {` 외 ${gEvents.length - 1}`}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
         </View>
         </GestureDetector>

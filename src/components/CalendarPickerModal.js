@@ -74,6 +74,16 @@ export function CalendarPickerModal({ visible, onClose }) {
               )}
             </ScrollView>
           )}
+          {/* 읽기 방향 안내 — 골프 일정을 '쓰는' 것과 별개로, 폰 일반 일정·공휴일이 캘린더에 '함께 보임' */}
+          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, padding: 14, marginTop: 16 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: 6 }}>
+              일정 캘린더에서 함께 보여요
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19 }}>
+              · 폰 캘린더의 일반 일정과 공휴일이 날짜 아래 함께 표시돼요. 라운딩을 잡을 때 겹치는 약속을 미리 확인할 수 있어요.{'\n'}
+              · 날짜의 일정이나 공휴일을 누르면 폰 캘린더 앱이 열려요.
+            </Text>
+          </View>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 14, textAlign: 'center', lineHeight: 16 }}>
             구글·애플·삼성 캘린더 지원 · 네이버 캘린더는 미지원
           </Text>

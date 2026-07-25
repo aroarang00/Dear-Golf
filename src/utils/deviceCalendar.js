@@ -1,5 +1,6 @@
 import * as Calendar from 'expo-calendar';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
+import * as IntentLauncher from 'expo-intent-launcher'; // 안드: 날짜로 캘린더 앱 열기(인텐트)
 import { STORAGE_KEYS, storage } from './storage';
 import { searchGolfCoursesLocal } from './golfCourses'; // 캘린더 일정 골프 판별(로컬·오프라인)
 
@@ -219,5 +220,116 @@ export async function getUpcomingGolfEvents({ days = 60 } = {}) {
   } catch (e) {
     console.warn('[calendar] getUpcomingGolfEvents', e?.message);
     return { granted: true, events: [], error: e?.message };
+  }
+}
+
+// 'YYYY.MM.DD' — 앱 일정 date 포맷과 동일 (셀 매칭 키)
+function ymdKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}.${m}.${d}`;
+}
+
+// 공휴일 캘린더 판별 — 캘린더 제목/계정명에 공휴일 키워드가 있으면 그 캘린더 이벤트는 '공휴일'로 취급.
+//   (한국 폰엔 '대한민국 공휴일'·'Holidays in South Korea' 류 캘린더가 계정별로 기본 존재)
+const HOLIDAY_CAL_HINT = /공휴일|휴일|명절|국경일|holiday/i;
+
+// ── 캘린더 칸에 겹쳐 보여줄 '일반 일정' 읽기 ──────────────────────
+// 보고 있는 달(임의 기간)의 폰 캘린더 이벤트를 모든 계정에서 읽어, 골프·공휴일은 제외하고
+//   개인 일정만 날짜별로 묶어 반환. 더블부킹 방지용 표시 — AI 없음, 완전 오프라인.
+//   ※공휴일은 폰 캘린더가 기기마다 부실(삼성=연휴 누락)해 여기서 다루지 않고, 앱 내장 표(constants/holidays)가 담당.
+//     그래서 폰의 '공휴일 캘린더' 이벤트는 개인 일정과 겹치지 않도록 건너뜀.
+// 반환: { granted, byDate: { 'YYYY.MM.DD': [{ id, title, start(Date), allDay }] } }
+export async function getGeneralEventsInRange(rangeStart, rangeEnd) {
+  const granted = await ensurePermission();
+  if (!granted) return { granted: false, byDate: {} };
+  try {
+    const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    const ids = (cals || []).map(c => c.id).filter(Boolean);
+    if (!ids.length) return { granted: true, byDate: {} };
+
+    // 공휴일(및 기념일·절기 등) 캘린더 id — 이 캘린더 이벤트는 개인 일정에서 제외(내장 표가 공휴일 담당)
+    const holidayCalIds = new Set(
+      (cals || [])
+        .filter(c => HOLIDAY_CAL_HINT.test(`${c.title || ''} ${c.source?.name || ''}`))
+        .map(c => c.id)
+    );
+
+    const raw = await Calendar.getEventsAsync(ids, rangeStart, rangeEnd);
+
+    const seen = new Set();
+    const byDate = {};
+    for (const ev of raw || []) {
+      if (!ev?.startDate) continue;
+      const startDate = new Date(ev.startDate);
+      if (isNaN(startDate.getTime())) continue;
+      const title = (ev.title || '').trim();
+      if (!title) continue;
+      // 공휴일/기념일 캘린더 이벤트는 건너뜀 (내장 표가 공휴일을 그림)
+      if (holidayCalIds.has(ev.calendarId)) continue;
+      const location = (ev.location || '').trim();
+      // 중복 제거 — 여러 계정에 같은 일정이 이중 등록되는 경우(제목+시각 동일)
+      const dedupKey = `${title}|${startDate.getTime()}`;
+      if (seen.has(dedupKey)) continue;
+      seen.add(dedupKey);
+
+      // 골프 일정은 이미 캘린더 동그라미로 표시되므로 제외(중복 표시 방지)
+      const hay = `${title} ${location}`;
+      let isGolf = GOLF_HINT.test(hay);
+      if (!isGolf) {
+        try {
+          const hits = await searchGolfCoursesLocal(location || title);
+          if (hits && hits.length) isGolf = true;
+        } catch (e) { /* DB 미로드 — 키워드 판별만 사용 */ }
+      }
+      if (isGolf) continue;
+
+      const key = ymdKey(startDate);
+      (byDate[key] || (byDate[key] = [])).push({
+        id: ev.id, title, start: startDate, allDay: !!ev.allDay,
+      });
+    }
+    // 날짜별 정렬 — 종일 일정 먼저, 그 다음 시간 오름차순
+    for (const key of Object.keys(byDate)) {
+      byDate[key].sort((a, b) => (a.allDay === b.allDay ? a.start - b.start : (a.allDay ? -1 : 1)));
+    }
+    return { granted: true, byDate };
+  } catch (e) {
+    console.warn('[calendar] getGeneralEventsInRange', e?.message);
+    return { granted: true, byDate: {}, error: e?.message };
+  }
+}
+
+// 폰 캘린더 앱에서 해당 일정 열기 — 개인 일정(폰 이벤트 id 있음) 제목 탭 시
+export async function openDeviceEvent(eventId) {
+  if (!eventId) return false;
+  try {
+    await Calendar.openEventInCalendarAsync({ id: eventId });
+    return true;
+  } catch (e) {
+    console.warn('[calendar] openDeviceEvent', e?.message);
+    return false;
+  }
+}
+
+// 폰 캘린더 앱을 '해당 날짜'로 열기 — 공휴일(내장 표라 이벤트 id 없음) 탭 시.
+//   iOS: calshow:<2001년 기준 초> / 안드: 캘린더 time 인텐트(<epoch ms>).
+export async function openDeviceCalendarAt(date) {
+  try {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Platform.OS === 'ios') {
+      const REF_2001 = Date.UTC(2001, 0, 1, 0, 0, 0); // NSDate 기준일
+      const secs = Math.floor((d.getTime() - REF_2001) / 1000);
+      await Linking.openURL(`calshow:${secs}`);
+    } else {
+      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        data: `content://com.android.calendar/time/${d.getTime()}`,
+      });
+    }
+    return true;
+  } catch (e) {
+    console.warn('[calendar] openDeviceCalendarAt', e?.message);
+    return false;
   }
 }
