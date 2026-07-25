@@ -172,21 +172,23 @@ export async function countComments(postId) {
 
 // 댓글 작성 — 비속어·빈값 검증(createComment 재사용) 후 Firestore 저장.
 //   반환: {ok:false, reason} 또는 {ok:true, comment} (낙관적 UI용 ms createdAt 포함)
-export async function addCommentToFirestore(postId, authorName, body) {
+export async function addCommentToFirestore(postId, authorName, body, mentions = []) {
   const uid = await getUid();
   if (!uid) return { ok: false, reason: 'auth' };
   const r = createComment(postId, { uid, name: authorName }, body);
   if (!r.ok) return r;
+  const mm = Array.isArray(mentions) ? mentions.filter(u => u && u !== uid) : []; // @멘션된 uid(본인 제외). 규칙 create 필드 무제한이라 저장 OK.
   const ref = await addDoc(commentsCol(postId), {
     authorUid: uid,
     authorName: authorName || '',
     body: r.comment.body,
     pinned: false,
     pinnedAt: null,
+    ...(mm.length ? { mentions: mm } : {}),
     createdAt: serverTimestamp(),
   });
   // 낙관적 표시용 — createdAt은 로컬 ms (다음 로드 때 서버값으로 대체됨)
-  return { ok: true, comment: { ...r.comment, id: ref.id, authorUid: uid, authorName: authorName || '', createdAt: Date.now() } };
+  return { ok: true, comment: { ...r.comment, id: ref.id, authorUid: uid, authorName: authorName || '', mentions: mm, createdAt: Date.now() } };
 }
 
 // 댓글 삭제 — 본인만 (규칙이 authorUid==me 강제). 호출 측에서도 canDeleteComment로 사전 차단.

@@ -540,7 +540,7 @@ function App() {
     // 모집글 상세로 바로 여는 게 자연스러운(글 중심) 타입. 노쇼·정지 등은 상세 대신 라운지 착지.
     const POST_DETAIL_TYPES = new Set([
       'apply', 'confirmed', 'cancel', 'waitlist', 'waitlistPromoted',
-      'comment', 'mannerEval', 'hostCancelledD7', 'scheduleNotice', 'roundupChanged', 'roundupFull',
+      'comment', 'roundupMention', 'mannerEval', 'hostCancelledD7', 'scheduleNotice', 'roundupChanged', 'roundupFull',
     ]);
     const handleResponse = (resp, attempt = 0, fromInitial = false) => {
       // 콜드스타트 — 종료 상태서 알림 탭으로 켜지면 네비가 아직 미준비일 수 있어, 딥링크와 동일하게 준비될 때까지 재시도(고정 지연은 안드 InsetGate 마운트 지연에 유실).

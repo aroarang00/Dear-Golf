@@ -146,6 +146,25 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
   const hasMore = sorted.length < total;          // 로드 안 된 더 오래된 댓글 존재 → "이전 댓글 보기"
   const atLimit = total >= COMMENT_MAX_TOTAL;      // 총 300개 도달 → 작성 차단
 
+  // @멘션 후보 — 주최자 + 참여 확정자(본인·익명 제외). 이름 있는 사람만. 선택 시 알림은 그 사람에게만.
+  const mentionMembers = useMemo(() => {
+    const me = myUid || myId;
+    const anon = Array.isArray(post?.anonymousUids) ? post.anonymousUids : [];
+    const uids = [];
+    if (post?.authorUid) uids.push(post.authorUid);
+    (post?.participantUids || []).forEach(u => { if (u && !uids.includes(u)) uids.push(u); });
+    return uids.filter(u => u && u !== me && !anon.includes(u))
+      .map(u => ({ uid: u, name: friendDisplayName(friendMeta, u, nameMap[u] || '') }))
+      .filter(m => m.name);
+  }, [post, nameMap, friendMeta, myUid, myId]);
+  // 입력 끝에서 @토큰 감지 → 후보 목록
+  const mentionMatch = body.match(/@([^\s@]*)$/);
+  const mentionQuery = mentionMatch ? mentionMatch[1] : null;
+  const mentionList = (mentionQuery !== null && mentionMembers.length)
+    ? mentionMembers.filter(m => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+  const pickMention = (m) => setBody(body.replace(/@([^\s@]*)$/, `@${m.name} `));
+
   const submit = async () => {
     setError(null);
     // 익명 참여 중이면 작성자명을 랜덤닉으로 저장 — 월드리더블 댓글 문서에 실명 비저장(authorUid는 그대로=신고·책임성).
@@ -157,6 +176,8 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
       else if (r.reason === 'empty') setError('댓글을 입력해주세요');
       return;
     }
+    // 본문에 '@이름'이 든 후보만 멘션(그 사람에게만 알림). 저장·알림은 부모 onAdd가 처리.
+    r.comment.mentions = mentionMembers.filter(m => body.includes('@' + m.name)).map(m => m.uid);
     // 낙관적 비움 후 저장 실패 시 입력 복원 — 크루 댓글(CrewCommentScreen)과 동일 패턴.
     //   실패 안내는 입력창 인라인 에러로(모달 위 전역 알럿 스택 문제 회피).
     setBody('');
@@ -239,13 +260,27 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
                 </Text>
               ) : (
                 <>
+                  {/* @멘션 자동완성 — @입력 시 참가자 목록. 선택하면 그 사람에게만 알림 */}
+                  {mentionList.length > 0 && (
+                    <View style={{ marginBottom: 8, backgroundColor: C.bgSecondary, borderRadius: 10, overflow: 'hidden', borderWidth: 0.5, borderColor: C.hairline }}>
+                      {mentionList.map((m, i) => (
+                        <TouchableOpacity key={m.uid} onPress={() => pickMention(m)} activeOpacity={0.6}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+                          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(107,30,42,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy }}>{(m.name || '?').slice(0, 1)}</Text>
+                          </View>
+                          <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{m.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
                   <AppTextInput
                     ref={inputRef}
                     onFocus={onInputFocus}
                     style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal,
                       backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
                       borderWidth: 0.5, borderColor: C.hairline, minHeight: 40, textAlignVertical: 'top' }}
-                    placeholder="동반자에게 남길 댓글을 적어주세요"
+                    placeholder="동반자에게 남길 댓글 · @로 부르기"
                     placeholderTextColor={C.warmGrayLight}
                     value={body}
                     onChangeText={(t) => { setBody(t.slice(0, COMMENT_MAX)); if (error) setError(null); }}

@@ -30,7 +30,7 @@ const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true
 const NOTI_ICON = {
   apply: 'personAdd', cancel: 'ban', waitlistPromoted: 'sparkle', confirmed: 'check', waitlist: 'ticket', comment: 'pen', mannerEval: 'star',
   invite: 'paperPlane', roundupCancelled: 'siren', scheduleNotice: 'speaker', friendRequest: 'personAdd', roundupChanged: 'pen', roundupFull: 'bell',
-  scheduleChanged: 'calendar', scheduleCancelled: 'ban', scheduleMemo: 'speaker', scheduleMention: 'chat',
+  scheduleChanged: 'calendar', scheduleCancelled: 'ban', scheduleMemo: 'speaker', scheduleMention: 'chat', roundupMention: 'chat',
   // 시스템 알림 (Cloud Functions)
   noshowReported: 'siren', noshowReportSubmitted: 'paperPlane', noshowExplanationRequired: 'bell',
   noshowConfirmed: 'ban', noshowReporterConfirmed: 'check', noshowFalseReport: 'ban',
@@ -46,7 +46,7 @@ const NOTI_ICON = {
 const NOTI_COLOR = {
   apply: '#1A3D52', cancel: '#C0703A', waitlistPromoted: '#5E8B60', confirmed: '#5E8B60', waitlist: '#8B6914', comment: '#3E6E8E', mannerEval: '#C08A1E',
   invite: '#1A3D52', roundupCancelled: '#6B1E2A', scheduleNotice: '#1A3D52', friendRequest: '#1A3D52', roundupChanged: '#8B6914', roundupFull: '#C08A1E',
-  scheduleChanged: '#8B6914', scheduleCancelled: '#6B1E2A', scheduleMemo: '#1A3D52', scheduleMention: '#1A3D52',
+  scheduleChanged: '#8B6914', scheduleCancelled: '#6B1E2A', scheduleMemo: '#1A3D52', scheduleMention: '#1A3D52', roundupMention: '#3E6E8E',
   noshowReported: '#6B1E2A', noshowReportSubmitted: '#3E6E8E', noshowExplanationRequired: '#C08A1E',
   noshowConfirmed: '#6B1E2A', noshowReporterConfirmed: '#5E8B60', noshowFalseReport: '#6B1E2A',
   noshowFalseReportConfirmed: '#5E8B60', noshowInconclusive: '#8B8680', noshowCancelled: '#8B8680',
@@ -102,6 +102,7 @@ function notiText(n, friendMeta) {
     }
     case 'waitlist':  return `${who}님이 '${n.postTitle}' 모집에 대기 신청했어요`;
     case 'comment':   return `${who}님이 '${n.postTitle}' 모집에 댓글을 남겼어요`;
+    case 'roundupMention': return `${who}님이 모집 댓글에서 나를 불렀어요${n.memoPreview ? ` — “${n.memoPreview}”` : ''}`;
     case 'scheduleNotice': {
       const when = [n.scheduleDate, n.scheduleTime].filter(Boolean).join(' ');
       return `${who}님이 '${n.postTitle}' 일정을 알렸어요${when ? ` · ${when}` : ''}`;

@@ -432,6 +432,7 @@ function titleFor(type) {
     case 'waitlist':    return '새 대기 신청';
     case 'waitlistPromoted': return '대기 즉시 참석 확정';
     case 'comment':     return '새 댓글';
+    case 'roundupMention': return '모집 댓글 멘션';
     case 'mannerEval':  return '매너 평가 요청';
     case 'hostCancelledD7': return '모집 취소 안내';
     case 'scheduleNotice':  return '라운딩 일정 알림';
@@ -485,6 +486,7 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     case 'waitlist':    return `${actorName}님이 ${t} 모집에 대기 신청했어요`;
     case 'waitlistPromoted': return `대기 중이던 ${t} 모집에 자리가 나서 즉시 참석이 확정됐어요 — 모집에서 확인하세요`;
     case 'comment':     return `${actorName}님이 ${t} 모집에 댓글을 남겼어요`;
+    case 'roundupMention': return `${actorName ? actorName + '님이 ' : ''}${t} 모집 댓글에서 회원님을 불렀어요${memoPreview ? ` — “${memoPreview}”` : ''}`;
     case 'mannerEval':  return `${t} 라운딩이 끝났어요 — 동반자분들 어떠셨어요?`;
     case 'hostCancelledD7': return `${t} 모집이 주최자에 의해 취소됐어요 — 매너 평가를 남길 수 있어요`;
     case 'roundupChanged':  return `${t} 모집 내용이 변경됐어요 — 날짜·장소·시간을 확인해주세요`;

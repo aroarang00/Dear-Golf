@@ -1729,11 +1729,19 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       return;
     }
     try {
-      const r = await addCommentToFirestore(postId, userProfile?.nickname || '', comment?.body || '');
+      const mentions = Array.isArray(comment?.mentions) ? comment.mentions : [];
+      const r = await addCommentToFirestore(postId, userProfile?.nickname || '', comment?.body || '', mentions);
       if (!r.ok) return; // 비속어·빈값은 RoundupComments가 이미 인라인 차단 (이중 안전망)
-      // 주최자에게 댓글 알림 — 자기알림은 createNotification 내부 가드가 차단.
       const cPost = posts.find(p => p.id === postId);
-      if (cPost?.authorUid) {
+      // @멘션된 사람에게만 알림 — 자기알림은 createNotification 내부 가드가 차단.
+      for (const rid of mentions) {
+        createNotification({
+          type: 'roundupMention', recipientUid: rid, actorName: userProfile?.nickname || '',
+          postId, postTitle: cPost?.course || '', memoPreview: (comment?.body || '').slice(0, 40),
+        }).catch(e => __DEV__ && console.warn('[RoundupTab] mention noti fail', e?.message));
+      }
+      // 주최자에게 댓글 알림 — 단, 주최자가 이미 멘션됐으면 중복(멘션+댓글) 방지로 생략.
+      if (cPost?.authorUid && !mentions.includes(cPost.authorUid)) {
         createNotification({
           type: 'comment',
           recipientUid: cPost.authorUid,
