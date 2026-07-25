@@ -455,3 +455,23 @@ export async function addressToCoord(address) {
     return null;
   }
 }
+
+// 역지오코딩 — 좌표(x=경도, y=위도) → 행정구역 문자열 '시도 시군구 읍면동'.
+//   구장 주변 맛집을 네이버에서 '지역명 맛집'으로 검색하기 위한 지역명 확보용(courseLoc이 null이어도 좌표로 얻음).
+//   법정동(B) 우선 — 시골 구장은 읍/면이 나와 검색이 구장 근처로 좁혀진다.
+export async function coord2region(x, y) {
+  if (!isKeyConfigured() || !Number.isFinite(x) || !Number.isFinite(y)) return '';
+  try {
+    const url = `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${x}&y=${y}`;
+    const res = await fetchWithTimeout(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } });
+    if (!res.ok) return '';
+    const data = await res.json();
+    const docs = data.documents || [];
+    const d = docs.find(r => r.region_type === 'B') || docs[0];
+    if (!d) return '';
+    return [d.region_1depth_name, d.region_2depth_name, d.region_3depth_name].filter(Boolean).join(' ');
+  } catch (e) {
+    console.warn('[kakao] coord2region failed:', e?.message);
+    return '';
+  }
+}

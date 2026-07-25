@@ -37,25 +37,11 @@ export function localAreaOf(loc) {
 //   ★구장명을 검색어에 넣으면(‘구장명 맛집’·‘구장명 지역 맛집’) 구장 POI로 강하게 매칭돼 단일 장소로 열린다
 //     (청백산가든·힐마루골프 버그). 그래서 구장명은 빼고 '행정구역 + 맛집'만 쓴다 → 항상 리스트.
 //   행정구역은 되도록 좁게(읍/면/동) 잡아 구장 근처가 나오게. 없으면 시/군 → 전체 주소 순으로 폴백.
-// WGS84(경도 lng, 위도 lat) → EPSG:3857(Web Mercator) — 네이버 지도 v5 'c'(중심) 파라미터가 요구하는 좌표계.
-function toWebMercator(lng, lat) {
-  const R = 20037508.34;
-  const x = (lng * R) / 180;
-  let y = Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) / (Math.PI / 180);
-  y = (y * R) / 180;
-  return { x, y };
-}
-
-// 구장 '주변 맛집' 리스트 — 우선순위:
-//   ① 좌표(coord{x:경도,y:위도})가 있으면 그 좌표를 지도 중심으로 '맛집' 검색 → 주소 없어도 구장 근처 리스트 (가장 정확).
-//   ② 좌표 없으면 주소의 행정구역(읍/면/동) + 맛집.
-//   ③ 그것도 없으면 구장명 폴백.
-//   ★구장명을 검색어에 넣으면 구장 POI로 빠져 단일 장소가 열림(청백산가든·힐마루 버그)이라 ①②를 우선.
-export function naverFoodListUrl(loc, fallbackName = '', coord = null) {
-  if (coord && Number.isFinite(coord.x) && Number.isFinite(coord.y)) {
-    const { x, y } = toWebMercator(coord.x, coord.y);
-    return `https://map.naver.com/v5/search/${encodeURIComponent('맛집')}?c=${x.toFixed(2)},${y.toFixed(2)},15,0,0,0,dh`;
-  }
+// 구장 '주변 맛집'을 네이버에서 '리스트'로 열기 — '행정구역(읍/면/동) + 맛집' 텍스트 검색.
+//   ★구장명을 검색어에 넣으면 구장 POI로 빠져 단일 장소가 열림(청백산가든·힐마루 버그) → 구장명은 빼고 지역명만.
+//   ★좌표중심(c=) URL은 안드 네이버 앱이 무시하고 GPS 현재위치로 검색해버려 못 씀 → 지역명 텍스트가 양 플랫폼 공통.
+//   loc은 구장 주소 또는 좌표 역지오코딩 결과('시도 시군구 읍면동'). 없으면 구장명 폴백.
+export function naverFoodListUrl(loc, fallbackName = '') {
   const area = localAreaOf(loc) || regionOf(loc);
   const q = area ? `${area} 맛집` : (fallbackName ? `${fallbackName} 맛집` : '맛집');
   return `https://map.naver.com/v5/search/${encodeURIComponent(q)}`;

@@ -27,7 +27,7 @@ import { getSavedCourses, toggleSavedCourse } from '../utils/savedCourses'; // �
 import { gS } from '../styles/gS';
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
-import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword } from '../utils/kakao';
+import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword, coord2region } from '../utils/kakao';
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { isRoundDiary } from '../utils/diaryKind';
 import { cityTokenOf, regionOf, naverSearchUrl, naverFoodListUrl } from '../utils/naverMap';
@@ -1306,9 +1306,12 @@ export function GuideScreen({ route, navigation }) {
             // 저장한 추천 맛집은 노란 핀으로만 표시 — 주황 목록에서 제외
             const savedKeySet = new Set(savedFood.map(s => s.kakaoId || s.name));
             const mapNearby = nearbyFood.filter(r => !savedKeySet.has(r.kakaoId || r.name));
-            // 네이버 지도에서 골프장 주변 맛집을 '리스트'로 — 구장명 대신 '행정구역(읍/면/동) + 맛집'으로 검색.
-            //   구장명을 넣으면 구장 POI로 빠져 단일 장소가 열림(청백산가든·힐마루골프 버그).
-            const openNaverPlaces = () => Linking.openURL(naverFoodListUrl(c.loc, c.name, courseCoord)).catch(() => {});
+            // 네이버 지도에서 골프장 주변 맛집을 '리스트'로 — 좌표를 읍/면/동으로 역지오코딩해 '지역명 맛집' 검색.
+            //   구장명을 넣으면 구장 POI로 빠지고(청백산가든·힐마루 버그), 좌표URL은 안드 네이버가 GPS로 새서 못 씀.
+            const openNaverPlaces = async () => {
+              const region = (courseCoord && Number.isFinite(courseCoord.x)) ? await coord2region(courseCoord.x, courseCoord.y) : '';
+              Linking.openURL(naverFoodListUrl(region || c.loc, c.name)).catch(() => {});
+            };
 
             return (
               <View>
