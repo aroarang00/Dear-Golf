@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { C } from '../../constants/colors';
@@ -30,10 +30,24 @@ function isCenter(focus) {
 export function FocalImage({ uri, focus, width, height, style, onRatio }) {
   const explicit = !isCenter(focus);   // 사용자가 크롭·초점을 직접 지정한 사진
   const [src, setSrc] = useState(() => _sizeCache.get(uri) || null);
-  const [loading, setLoading] = useState(true);
+  // 캐시에 치수가 있으면 이미 로드된 사진 → 스피너 없이 시작(재스크롤 시 스피너 깜빡임 제거).
+  const [loading, setLoading] = useState(() => !_sizeCache.get(uri));
+
+  // uri가 바뀌어 이 컴포넌트 인스턴스가 재사용되면(캐러셀 ±1 윈도잉·스크롤) 상태를 새 uri에 맞춰 초기화한다.
+  //   안 하면 옛 loading/src가 남아 ①스피너 고착(onLoadEnd 누락 케이스) ②옛 사진 잔상.
+  //   + 안전 타임아웃 — 어떤 이유로 로드 이벤트가 다 누락돼도 스피너가 영영 안 도는 일이 없게(무한로딩 근본 차단).
+  useEffect(() => {
+    const cached = _sizeCache.get(uri) || null;
+    setSrc(cached);
+    setLoading(!cached);
+    if (cached) return;
+    const t = setTimeout(() => setLoading(false), 8000);
+    return () => clearTimeout(t);
+  }, [uri]);
 
   // 원본 치수는 onLoad 이벤트로 확보 (별도 getSize 호출 없음 = 이중 다운로드 회피)
   const onLoad = (e) => {
+    setLoading(false);   // 성공 로드 = 스피너 해제 (onLoadEnd가 누락돼도 여기서 확실히 꺼짐)
     const w = e?.source?.width, h = e?.source?.height;
     // 실비율을 뷰어 캐시에 심어둠 — 탭해서 열 때 첫 프레임부터 정확한 높이로 그려짐(폴백 4:5 → 실측 스냅 = '갑자기 커짐' 제거).
     if (w && h) {
@@ -78,10 +92,10 @@ export function FocalImage({ uri, focus, width, height, style, onRatio }) {
     return (
       <View style={[{ width, height, backgroundColor: '#15171A', overflow: 'hidden' }, style]}>
         <Image source={uri} style={{ position: 'absolute', left: 0, top: 0, width, height }} contentFit="cover"
-          blurRadius={18} cachePolicy="memory-disk" />
+          blurRadius={18} cachePolicy="memory-disk" recyclingKey={uri} />
         <Image source={uri} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk"
           transition={Platform.OS === 'android' ? 0 : 150}
-          onLoad={onLoad} onLoadEnd={() => setLoading(false)} />
+          onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
       </View>
     );
@@ -92,7 +106,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio }) {
     return (
       <View style={[{ width, height, backgroundColor: '#15171A' }, style]}>
         <Image source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" transition={Platform.OS === 'android' ? 0 : 150}
-          onLoad={onLoad} onLoadEnd={() => setLoading(false)} />
+          onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
       </View>
     );
@@ -108,7 +122,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio }) {
   return (
     <View style={[{ width, height, overflow: 'hidden', backgroundColor: '#15171A' }, style]}>
       <Image source={uri} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} contentFit="cover" cachePolicy="memory-disk"
-        onLoad={onLoad} onLoadEnd={() => setLoading(false)} />
+        onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
       {overlay}
     </View>
   );
