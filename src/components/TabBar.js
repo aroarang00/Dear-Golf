@@ -21,7 +21,9 @@ const TAB_ICONS = {
 //   전역 투명 바가 밝은/어두운 배경 모두에서 예쁘고 아이콘도 또렷하게 보이도록 활성 탭에 따라 전환.
 // on=선택(선명), off=비선택(연함). 홈은 버터, 그 외(밝은 배경)는 차콜.
 const THEME_HOME = { bg: 'rgba(255,255,255,0.16)', border: 'rgba(255,255,255,0.3)', chip: 'rgba(245,230,168,0.2)', on: C.butter, off: 'rgba(245,230,168,0.5)', alert: '#FF9086' };
-const THEME_LIGHT = { bg: 'rgba(255,255,255,0.62)', border: 'rgba(255,255,255,0.85)', chip: 'rgba(61,57,53,0.1)', on: C.charcoal, off: 'rgba(61,57,53,0.5)', alert: C.burgundy };
+// 밝은 배경 화면: 흰 알약이 크림 배경에 묻히지 않게 배경을 거의 불투명 흰색으로, 테두리는 흰색(안 보임) 대신
+//   은은한 네이비로 경계를 살린다(홈은 어두운 이미지라 THEME_HOME 유지).
+const THEME_LIGHT = { bg: 'rgba(255,255,255,0.94)', border: 'rgba(26,61,82,0.14)', chip: 'rgba(61,57,53,0.1)', on: C.charcoal, off: 'rgba(61,57,53,0.5)', alert: C.burgundy };
 // 밝은 화면에서 '선택된 탭' 아이콘 색 = 그 화면 대표색(없으면 차콜).
 const SCREEN_ACCENT = {
   [ROUTES.LOUNGE]: C.navy,       // 라운지 = 네이비
