@@ -9,7 +9,7 @@ import { Icon } from './common/Icon'; // 커스텀 아이콘 — 식사 🍲 →
 import { searchNearbyRestaurants, searchRestaurantsByKeyword } from '../utils/kakao';
 import { getSavedRestaurants, addSavedRestaurant } from '../utils/savedRestaurants';
 import { RestaurantSaveModal } from './RestaurantSaveModal';   // 저장 모달 — 코스 맛집 탭과 같은 것(메모까지 동일)
-import { naverSearchUrl } from '../utils/naverMap';   // 식당 '상세'를 네이버로(맛집 더보기와 통일)
+import { naverFoodListUrl } from '../utils/naverMap';   // 구장 주변 맛집 '리스트'로 열기
 import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { findCourseByName } from '../utils/courseNameKey';   // 일정 구장명 → 우리 DB 구장명(서랍 키 일치)
@@ -570,7 +570,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
           {/* 구장 주변 맛집을 네이버에서 통째로 — 카카오맵에 없는 시골 맛집 보완(빈 결과에도 노출).
               GuideScreen '맛집 더보기'와 동일 검색식(구장명+시군+맛집). courseLoc 없는 옛 일정은 구장명만으로 검색. */}
           {!loading && !!schedule?.course && (
-            <TouchableOpacity onPress={() => Linking.openURL(naverSearchUrl(schedule.course, schedule.courseLoc, '맛집')).catch(() => {})}
+            <TouchableOpacity onPress={() => Linking.openURL(naverFoodListUrl(schedule.courseLoc, schedule.course, coord)).catch(() => {})}
               activeOpacity={0.7} style={{ alignSelf: 'center', marginTop: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, textDecorationLine: 'underline' }} numberOfLines={1}>
                 {schedule.course} 주변 맛집 네이버에서 보기

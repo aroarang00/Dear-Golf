@@ -30,7 +30,7 @@ import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword } from '../utils/kakao';
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { isRoundDiary } from '../utils/diaryKind';
-import { cityTokenOf, regionOf, naverSearchUrl } from '../utils/naverMap';
+import { cityTokenOf, regionOf, naverSearchUrl, naverFoodListUrl } from '../utils/naverMap';
 import { getCourseHomepage, courseSearchUrl, BOOKING_SITES } from '../utils/courseBooking'; // 예약하기 — 홈피/전화/골팡/카카오VX 선택 시트
 import { WebSheet } from './WebSheet'; // 구장 홈페이지 앱내 웹뷰(맛집 상세와 같은 결)
 import { FoodMapView } from './FoodMapView';
@@ -1306,8 +1306,9 @@ export function GuideScreen({ route, navigation }) {
             // 저장한 추천 맛집은 노란 핀으로만 표시 — 주황 목록에서 제외
             const savedKeySet = new Set(savedFood.map(s => s.kakaoId || s.name));
             const mapNearby = nearbyFood.filter(r => !savedKeySet.has(r.kakaoId || r.name));
-            // 네이버 지도(스마트플레이스)에서 골프장 주변 맛집 검색
-            const openNaverPlaces = () => Linking.openURL(naverSearchUrl(c.name, c.loc, '맛집')).catch(() => {});
+            // 네이버 지도에서 골프장 주변 맛집을 '리스트'로 — 구장명 대신 '행정구역(읍/면/동) + 맛집'으로 검색.
+            //   구장명을 넣으면 구장 POI로 빠져 단일 장소가 열림(청백산가든·힐마루골프 버그).
+            const openNaverPlaces = () => Linking.openURL(naverFoodListUrl(c.loc, c.name, courseCoord)).catch(() => {});
 
             return (
               <View>
