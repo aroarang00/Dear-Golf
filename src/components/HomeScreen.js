@@ -1419,18 +1419,17 @@ export function HomeScreen({ navigation, route }) {
         {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분).
             큐 최우선순위 — 이게 떠 있으면 아래 3배너는 위에서 접힌다(topBanner). */}
         {topBanner === 'change' && (
-          <AttentionMotion type="pulse" style={{ marginHorizontal: SIDE_PAD, marginTop: 12 }}>
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, borderWidth: 2, borderColor: 'rgba(245,230,168,0.9)', paddingHorizontal: 14, paddingVertical: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Icon name="refresh" size={fs(16)} color={C.butter} />
-                <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>함께하는 일정이 변경됐어요</Text>
+          <AttentionMotion type="pulse" style={{ marginLeft: SIDE_PAD, marginRight: SIDE_PAD + RAIL_BTN + 8, marginTop: 12 }}>
+            {/* 컴팩트 배너 — 자동 반영 안내. 구장명은 자기 줄, 변경내역은 여러 줄 허용(잘림 방지). 가로는 좁게(우측 레일 회피). */}
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(245,230,168,0.75)', paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Icon name="refresh" size={fs(15)} color={C.butter} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }} numberOfLines={1}>{pendingScheduleChange.schedule.course || '라운딩'}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.82)', marginTop: 2, lineHeight: 16 }} numberOfLines={4}>일정 변경 · {pendingScheduleChange.pc.diffs.join(' · ')} · 자동 반영됨</Text>
               </View>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter, marginBottom: 3 }} numberOfLines={1}>{pendingScheduleChange.schedule.course || '라운딩'}</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 4, lineHeight: 18 }} numberOfLines={4}>{pendingScheduleChange.pc.diffs.join('\n')}</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)', marginBottom: 9 }}>내 일정과 알람에 자동으로 반영했어요</Text>
-              <TouchableOpacity onPress={dismissScheduleChange} activeOpacity={0.85}
-                style={{ paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: C.butter }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>확인</Text>
+              <TouchableOpacity onPress={dismissScheduleChange} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 9, backgroundColor: C.butter }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>확인</Text>
               </TouchableOpacity>
             </View>
           </AttentionMotion>
