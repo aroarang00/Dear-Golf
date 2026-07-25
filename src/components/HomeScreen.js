@@ -23,6 +23,7 @@ import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
 import { Icon, WeatherGlyph, GreenFlag } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차 · 당일 골프 깃발)
 import { ScheduleSheetModal } from './ScheduleSheetModal';
+import { ScheduleCommentsModal } from './ScheduleCommentsModal';
 import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { ShareMomentModal } from './ShareMomentModal';
 import { ScheduleShareCard } from './ScheduleShareCard';   // 체크인 카드 전용(공유화면 없이 카드만) 뷰어용
@@ -118,6 +119,7 @@ export function HomeScreen({ navigation, route }) {
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [commentsSchedule, setCommentsSchedule] = useState(null); // 일정 '이야기'(댓글) 모달 대상 — 시트 위에 겹쳐 열림
   // 동반자 별명(customName) 해석용 owner-only 메타 — 일정 시트에서 별명 표시 ([[friend_groups]])
   const [friendMeta, setFriendMeta] = useState({});
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
@@ -1928,6 +1930,13 @@ export function HomeScreen({ navigation, route }) {
         }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
         onSaveMemo={handleSaveMemo}
+        onOpenComments={() => {
+          // ★시트(Modal) 닫힘과 이야기(Modal) 열림이 같은 프레임이면 iOS가 프레젠테이션 충돌로 유령 모달을
+          //   남겨 화면이 먹통됨([[ios-modal-stacking]]). 시트 dismiss 애니메이션 뒤에 연다.
+          const s = selectedSchedule;
+          setShowScheduleModal(false);
+          setTimeout(() => setCommentsSchedule(s), 320);
+        }}
         onAlarm={() => {
           // 일정 시트 → 알람 변경: 시트 닫고 기존 설정 불러와 알람 화면 열기(편집 프리필)
           const s = selectedSchedule;
@@ -1950,6 +1959,16 @@ export function HomeScreen({ navigation, route }) {
             leaveMealAudience(s.groupId, currentUid);
           }
         }}
+      />
+
+      {/* 일정 '이야기'(댓글) — 시트 위에 겹쳐 열림(전파 일정 조율 대화) */}
+      <ScheduleCommentsModal
+        visible={!!commentsSchedule}
+        groupId={commentsSchedule?.groupId}
+        courseLabel={commentsSchedule?.course}
+        myUid={currentUid}
+        myName={userProfile?.nickname || ''}
+        onClose={() => setCommentsSchedule(null)}
       />
 
       {/* 일정 시트 '함께 식사' — 트리거 버튼 없이 시트만(세컨 카드 등 next 아닌 일정에서도 접근). D-0 카드 식사바와 별개([[afterround-meal-decision]]) */}

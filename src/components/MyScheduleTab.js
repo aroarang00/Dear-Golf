@@ -12,6 +12,7 @@ import { formatNameList } from '../utils/nameList';
 import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
+import { ScheduleCommentsModal } from './ScheduleCommentsModal';
 import { RoundupTeamScreen } from './RoundupTeamScreen';      // 단체팀 화면(조 편성·티오프)
 import { ShareMomentModal } from './ShareMomentModal';        // 동반자 공유 — 이미지 카드(홈과 동일)
 import { getScheduleWxSummary } from '../utils/scheduleWx';    // 공유 카드 코스명 위 해당일 날씨 주입
@@ -94,6 +95,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [alarmEditExisting, setAlarmEditExisting] = useState(null); // 시트에서 알람 변경 시 기존 설정 프리필
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
+  const [commentsSchedule, setCommentsSchedule] = useState(null); // 일정 '이야기'(댓글) 모달 대상
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 동반자 공유 — 이미지 카드 대상(홈과 동일)
   const [teamRid, setTeamRid] = useState(null);                         // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });
@@ -1062,6 +1064,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onOpenRoundup={handleSheetRoundup}
         onEdit={handleEdit}
         onSaveMemo={handleSaveMemo}
+        onOpenComments={() => {
+          // 시트 닫힘 뒤 이야기 열기 — 같은 프레임 Modal 전환은 iOS 먹통([[ios-modal-stacking]]).
+          const s = sheet.schedule;
+          setSheet(prev => ({ ...prev, visible: false }));
+          setTimeout(() => setCommentsSchedule(s), 320);
+        }}
         onAlarm={() => {
           const s = sheet.schedule;
           setSheet(prev => ({ ...prev, visible: false }));
@@ -1069,6 +1077,16 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
           getAlarmConfig(s.id).then(cfg => { setAlarmEditExisting(cfg); setPendingAlarm(s); }).catch(() => { setAlarmEditExisting(null); setPendingAlarm(s); });
         }}
         onDelete={handleDelete}
+      />
+
+      {/* 일정 '이야기'(댓글) — 시트 닫은 뒤 열림(형제 Modal 회피, [[ios-modal-stacking]]) */}
+      <ScheduleCommentsModal
+        visible={!!commentsSchedule}
+        groupId={commentsSchedule?.groupId}
+        courseLabel={commentsSchedule?.course}
+        myUid={currentUid}
+        myName={userProfile?.nickname || ''}
+        onClose={() => setCommentsSchedule(null)}
       />
 
       {/* 단체팀 화면 — 시트 닫은 뒤 열림(형제 Modal 회피, [[ios-modal-stacking]]) */}

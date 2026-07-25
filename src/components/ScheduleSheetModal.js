@@ -11,11 +11,12 @@ import { getAlarmConfig, computeRoundTimeline, fmtClock } from '../utils/notific
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { getScheduleGroup, ackGroupMemo } from '../utils/scheduleShares';
 import { loadRoundup } from '../utils/roundup';   // 라운지 일정 공지(teamNotice) 로드
+import { subscribeScheduleComments } from '../utils/scheduleComments';   // 전파 일정 '이야기'(댓글) 미리보기
 import { loadMyFriendsEnriched } from '../utils/friends';
 
 const SAGE = '#5E7E42';   // 세이지그린 — 교통 아이콘 액센트(앱 크루 세이지와 동색)
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, onSaveMemo, courseNavigable, friendMeta = {} }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, onSaveMemo, onOpenComments, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
   const [alarmCfg, setAlarmCfg] = useState(null); // 이 라운드에 설정된 알람 { types, opts } — 요약 표시
@@ -23,6 +24,14 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [group, setGroup] = useState(null); // 전파 일정 그룹(동반자 이름 보강)
   const [roundupPost, setRoundupPost] = useState(null); // 라운지 일정의 모집글 — 공지(teamNotice)·호스트(authorUid) 원본
+  const [comments, setComments] = useState([]); // 전파 일정 '이야기'(댓글) — 미리보기용(전체는 별도 모달). 실시간 구독.
+  // 이야기는 전파(동반자 공유) 일정만 — 라운지는 라운지 댓글이 따로 있음
+  const canComment = !!(schedule?.groupId && !schedule?.roundupId);
+  useEffect(() => {
+    if (!visible || !canComment) { setComments([]); return; }
+    const unsub = subscribeScheduleComments(schedule.groupId, setComments, 30);
+    return () => unsub();
+  }, [visible, canComment, schedule?.groupId]);
   const [friendNames, setFriendNames] = useState({}); // uid→닉네임 — friendMeta엔 별명만 있어 닉네임은 친구목록에서 보강
   // 메모(공지) 인라인 편집 — 일정수정 폼 안 열고 카드에서 바로. 저장은 부모 onSaveMemo(전파 로직 포함)에 위임.
   const [editingMemo, setEditingMemo] = useState(false);
@@ -305,7 +314,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   // ── 편집 중 ── 카드 안에서 바로 수정(일정수정 폼 안 엶)
                   if (editingMemo) {
                     return (
-                      <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
+                      <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.5)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                           <Icon name={isNotice ? 'megaphone' : 'clipboard'} size={fs(15)} color={C.burgundy} />
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>{label} 수정</Text>
@@ -314,7 +323,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                           value={memoDraft} onChangeText={setMemoDraft} multiline autoFocus
                           placeholder={'준비물·집결 장소·조 편성 등 자유롭게'}
                           placeholderTextColor={C.warmGrayLight}
-                          style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 22, minHeight: 66, textAlignVertical: 'top', backgroundColor: '#fff', borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.2)', paddingHorizontal: 10, paddingVertical: 8 }}
+                          style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 22, minHeight: 66, textAlignVertical: 'top', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 }}
                         />
                         {isNotice && (
                           <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray, marginTop: 6 }}>
@@ -339,7 +348,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     if (!canEdit) return null;
                     return (
                       <TouchableOpacity onPress={() => { setMemoDraft(''); setEditingMemo(true); }} activeOpacity={0.7}
-                        style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, borderWidth: 0.5, borderStyle: 'dashed', borderColor: 'rgba(107,30,42,0.35)', paddingHorizontal: 14, paddingVertical: 11 }}>
+                        style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, backgroundColor: 'rgba(107,30,42,0.06)', paddingHorizontal: 14, paddingVertical: 11 }}>
                         <Icon name="pen" size={15} color={C.burgundy} />
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.burgundy }}>{label} 추가하기</Text>
                       </TouchableOpacity>
@@ -357,7 +366,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   const isAuthor = isGroupMemo && group?.memoBy === myUid;
                   const ackNames = acks.map(a => a.name).filter(Boolean).join(' · ');
                   return (
-                    <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
+                    <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.5)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                         <Icon name={isNotice ? 'megaphone' : 'clipboard'} size={fs(15)} color={C.burgundy} />
                         {/* 라운지·전파 일정은 '공지' — 참가자·동반자에게 보이는 성격이라 개인 '메모'와 표기 분리(사용자 2026-07-10) */}
@@ -394,6 +403,28 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     </View>
                   );
                 })()}
+
+                {/* 이야기(댓글) 미리보기 — 전파 일정만. 공지(결론) 아래 대화(과정). 시트 길어지지 않게 최근 1개만·전체는 모달. */}
+                {canComment && !!onOpenComments && (
+                  <TouchableOpacity onPress={onOpenComments} activeOpacity={0.7}
+                    style={{ marginTop: 16, borderRadius: 12, backgroundColor: 'rgba(26,61,82,0.09)', paddingHorizontal: 14, paddingVertical: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: comments.length ? 7 : 0 }}>
+                      <Icon name="chat" size={fs(16)} color={C.navy} />
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.navy, marginLeft: 6, letterSpacing: 0.3 }}>이야기</Text>
+                      {comments.length > 0 && <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.navy, marginLeft: 4 }}>{comments.length}</Text>}
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginLeft: 'auto' }}>{comments.length ? '모두 보기 ›' : '한마디 남기기 ›'}</Text>
+                    </View>
+                    {comments.length > 0 && (() => {
+                      const last = comments[comments.length - 1];
+                      const nm = (last.authorName || '').trim();
+                      return (
+                        <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal }}>
+                          {nm ? <Text style={{ color: C.warmGray }}>{nm}: </Text> : null}{last.body}
+                        </Text>
+                      );
+                    })()}
+                  </TouchableOpacity>
+                )}
               </View>
               <TripleStripe height={2} />
               {items.map((it, i) => (
