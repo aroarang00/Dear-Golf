@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
   Share, Modal, LayoutAnimation, Platform, UIManager, AppState, Animated, Easing, useWindowDimensions,
@@ -24,6 +24,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { Icon, WeatherGlyph, GreenFlag } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차 · 당일 골프 깃발)
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleCommentsModal } from './ScheduleCommentsModal';
+import { subscribeScheduleComments } from '../utils/scheduleComments'; // 홈카드 이야기 안읽음 뱃지
 import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { ShareMomentModal } from './ShareMomentModal';
 import { ScheduleShareCard } from './ScheduleShareCard';   // 체크인 카드 전용(공유화면 없이 카드만) 뷰어용
@@ -136,6 +137,10 @@ export function HomeScreen({ navigation, route }) {
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [pendingScheduleChange, setPendingScheduleChange] = useState(null); // 전파 일정 변경 반영 대기 1건 { schedule, pc } — 홈 상단 맥동 배너
   const [groupSharedCounts, setGroupSharedCounts] = useState({});
+  // 이야기(댓글) 안읽음 — 그룹별 마지막 본 시각(로컬, 친구탭 NEW 점과 동일 패턴) + 홈에 보이는 그룹 댓글 스레드
+  const [commentSeen, setCommentSeen] = useState({});     // { groupId: millis }
+  const [commentThreads, setCommentThreads] = useState({}); // { groupId: [comments] } — 안읽음 계산용
+  useEffect(() => { storage.load(STORAGE_KEYS.scheduleCommentsSeen, {}).then(s => setCommentSeen(s || {})); }, []);
   // 친구 일정에 초대(일정 전파) — 대상 일정 + 친구목록 + 모달 ([[schedule-propagation-spec]])
   const [inviteTarget, setInviteTarget] = useState(null);
   const [inviteFriends, setInviteFriends] = useState([]);
@@ -686,6 +691,43 @@ export function HomeScreen({ navigation, route }) {
     .sort((a, b) => parseSchedDate(a) - parseSchedDate(b) || parseSchedTime(a) - parseSchedTime(b));
   const next = upcomingSchedules.length > 0 ? upcomingSchedules[0] : null;
   const roundEnded = !!next && isEndedToday(next);
+
+  // 홈에 보이는 그룹(전파) 일정의 이야기 구독 → 안읽음(내가 안 본 '남의' 댓글 수) 계산.
+  const homeGroupIds = useMemo(
+    () => Array.from(new Set(upcomingSchedules.filter(s => s.groupId && !s.roundupId).map(s => s.groupId))),
+    [upcomingSchedules],
+  );
+  const homeGroupKey = homeGroupIds.join(',');
+  useEffect(() => {
+    if (!homeGroupIds.length) { setCommentThreads({}); return; }
+    const unsubs = homeGroupIds.map(gid => subscribeScheduleComments(gid, list => setCommentThreads(prev => ({ ...prev, [gid]: list })), 50));
+    return () => unsubs.forEach(u => u && u());
+  }, [homeGroupKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const unreadComments = useMemo(() => {
+    const out = {};
+    for (const gid of homeGroupIds) {
+      out[gid] = (commentThreads[gid] || []).filter(c => c.authorUid && c.authorUid !== currentUid && (c.createdAt || 0) > (commentSeen[gid] || 0)).length;
+    }
+    return out;
+  }, [commentThreads, commentSeen, homeGroupKey, currentUid]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 이야기 열면 그 그룹을 '봤음'으로 (로컬 저장) → 뱃지 사라짐
+  const markCommentsSeen = (gid) => {
+    if (!gid) return;
+    setCommentSeen(prev => { const nx = { ...prev, [gid]: Date.now() }; storage.save(STORAGE_KEYS.scheduleCommentsSeen, nx); return nx; });
+  };
+  // 이야기 모달이 열리면(어떤 경로든 — 시트 탭·멘션 알림 탭) 그 그룹 '봤음' 처리 → 뱃지 사라짐
+  useEffect(() => { if (commentsSchedule?.groupId) markCommentsSeen(commentsSchedule.groupId); }, [commentsSchedule?.groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 이야기 안읽음 뱃지(빨간 알약, 채팅아이콘+수) — 홈 일정카드용
+  const commentBadge = (gid) => {
+    const n = gid ? (unreadComments[gid] || 0) : 0;
+    if (!n) return null;
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#E5484D', borderRadius: 11, paddingHorizontal: 7, paddingVertical: 2.5 }}>
+        <Icon name="chat" size={fs(11)} color="#fff" />
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), color: '#fff' }}>{n > 99 ? '99+' : n}</Text>
+      </View>
+    );
+  };
   // D-0(당일) — 메인 카드를 전폭으로 키우고 서브카드를 숨김(정보 박스 3개가 다 들어가게, 사용자 2026-06-18)
   const isD0 = !!next && freshDDay(next) === 0;
   // 당일 체크인 카드 배너 — 티오프 2시간 전 ~ 티오프 30분 후 창에서만(프론트 체크인용), 종료(+4h) 전. 탭하면 공유 카드 전체화면 ([[schedule-booker]])
@@ -1453,7 +1495,7 @@ export function HomeScreen({ navigation, route }) {
                   <View style={{ flexDirection: 'row', gap: 10, flex: 1 }}>
                     {/* 좌 칼럼 — 정보(구장) 박스 + 함께식사 박스 세로 스택(같은 너비) */}
                     <View style={{ flex: 1.4 }}>
-                    {/* 좌 — 정보 박스 (전: 구장+시간+D-0 / 후: 종료배지+구장+기록 안내) */}
+                    {/* 좌 — 정보 박스 (전: 구장+시간+D-0 / 후: 종료배지+구장+기록 안내). 당일 이야기 뱃지는 '일정 보기' 앞(아래). */}
                     {roundEnded ? (
                       // flexBasis:'auto' — flex:1(=basis 0)이면 내용 높이가 카드에 전달 안 돼 확대 시 잘림.
                       // flexGrow로 평소 바닥붙임은 유지하되 basis auto로 내용높이를 카드 minHeight에 반영(확대 시 카드 늘어남).
@@ -1463,7 +1505,7 @@ export function HomeScreen({ navigation, route }) {
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: isRecorded(next) ? '#F1F7EA' : '#F8EAE4', letterSpacing: 1 }}>{isRecorded(next) ? '기록 완료' : '라운딩 종료'}</Text>
                         </View>
                         {/* 안드 adjustsFontSizeToFit는 numberOfLines>1이면 축소 대신 줄바꿈됨 → 안드만 1줄 강제(축소 동작) ([[rn-platform-gotchas]]) */}
-                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{displayCourseName(next.course)}</Text>
+                        <Text style={[homeS.cardCourse, { marginTop: 8, marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 20), lineHeight: Platform.OS === 'android' ? 27 : 25 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>{displayCourseName(next.course)}</Text>
                         <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         {isRecorded(next) ? (
                           <TouchableOpacity activeOpacity={0.85} style={{ marginTop: 16 }}
@@ -1492,7 +1534,7 @@ export function HomeScreen({ navigation, route }) {
                       <View style={{ flex: 1, paddingTop: 2 }}>
                         {/* 구장+날짜 탭 → 코스 페이지 */}
                         <TouchableOpacity activeOpacity={canOpenCourse(next) ? 0.7 : 1} onPress={() => handleCardCoursePress(next)}>
-                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 18), lineHeight: Platform.OS === 'android' ? 27 : 23 }]} numberOfLines={Platform.OS === 'android' ? 1 : 2} adjustsFontSizeToFit minimumFontScale={Platform.OS === 'android' ? 0.6 : 0.78}>{displayCourseName(next.course)}
+                          <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 20), lineHeight: Platform.OS === 'android' ? 27 : 25 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>{displayCourseName(next.course)}
                             {canOpenCourse(next) ? <Text style={{ fontSize: fs(12), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
@@ -1529,18 +1571,21 @@ export function HomeScreen({ navigation, route }) {
                               세부구장 있을 땐 이 간격을 뺌(그 줄이 이미 내용을 채움). */}
                         {Platform.OS === 'android' && !(next.subCourse || '').trim() && <View style={{ height: 14 }} />}
                         {/* 당일은 큰 'D-0' 숫자 대신 '오늘 라운딩' 강조 — 오늘인 게 한눈에 + 코랄 포인트 유지. 탭하면 일정 시트(기존 D-0 탭 대체). */}
-                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} style={{ marginTop: 'auto', marginBottom: Platform.OS === 'ios' ? 8 : ((next.subCourse || '').trim() ? 6 : 16), alignSelf: 'flex-start' }}>
+                        <TouchableOpacity onPress={() => openScheduleSheet(next)} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 4, left: 8, right: 8 }} style={{ marginTop: 'auto', marginBottom: Platform.OS === 'ios' ? 14 : ((next.subCourse || '').trim() ? 6 : 16), alignSelf: 'flex-start' }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                             <Text style={{ fontFamily: F.sysB, fontSize: fs(21), lineHeight: fs(27), color: '#DD6E58' }}>오늘 라운딩</Text>
                             <GreenFlag size={fs(28)} />{/* ⛳ 이모지 → 우리 골프 깃발(코랄·그린, 텍스트색과 통일) */}
                           </View>
-                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>일정 보기 ›</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 }}>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: 'rgba(255,255,255,0.75)' }}>일정 보기 ›</Text>
+                            {next.groupId && unreadComments[next.groupId] > 0 ? commentBadge(next.groupId) : null}
+                          </View>
                         </TouchableOpacity>
                       </View>
                     )}
                     {/* 함께 식사 — 구장 박스 아래(같은 너비). ★위 정보박스가 flex:1이라 marginTop은 흡수돼 무효 →
                         marginBottom으로 바닥에서 띄워 위로 올림(2슬롯+메모, [[afterround-meal-decision]]) */}
-                    <View style={{ marginRight: 12, marginBottom: 6, marginTop: 12 }}>
+                    <View style={{ marginRight: 12, marginBottom: 6, marginTop: 16 }}>
                       <MealDecisionBar schedule={next} uid={currentUid} nickname={userProfile?.nickname} active block friendMeta={friendMeta}
                         autoOpen={autoOpenMeal} onAutoOpened={() => setAutoOpenMeal(false)} />
                     </View>
@@ -1584,9 +1629,14 @@ export function HomeScreen({ navigation, route }) {
                     </Text>
                     <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
                   </TouchableOpacity>
-                  {/* 코스(세부코스) — 첫 카드면 D-day 무관하게 표시(D-0과 동일, 입력 시만). 사용자 2026-06-20 */}
-                  {!!(next.subCourse || '').trim() && (
-                    <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginTop: 3 }} numberOfLines={1}>{next.subCourse.trim()}</Text>
+                  {/* 코스(세부코스) + 이야기 안읽음 뱃지 — 한 줄. 세부코스가 길면 줄어들고(truncate) 뱃지는 옆에 유지. */}
+                  {(!!(next.subCourse || '').trim() || (next.groupId && unreadComments[next.groupId] > 0)) && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                      {!!(next.subCourse || '').trim() && (
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', flexShrink: 1 }} numberOfLines={1}>{next.subCourse.trim()}</Text>
+                      )}
+                      {next.groupId && unreadComments[next.groupId] > 0 ? commentBadge(next.groupId) : null}
+                    </View>
                   )}
                   <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                     <TouchableOpacity
@@ -1633,8 +1683,11 @@ export function HomeScreen({ navigation, route }) {
                     </View>
                   )}
                 </TouchableOpacity>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                  <View>
+                    {s.groupId && unreadComments[s.groupId] > 0 ? <View style={{ alignSelf: 'flex-start', marginBottom: 4 }}>{commentBadge(s.groupId)}</View> : null}
+                    <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
+                  </View>
                   {/* 탭하면 일정 시트 열린다는 affordance — '카드 탭하면 뭐 뜨는지 모르겠다' 테스터 피드백(2026-06-26) */}
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: 'rgba(245,230,168,0.7)', includeFontPadding: false }}>›</Text>
                 </View>
@@ -1984,7 +2037,7 @@ export function HomeScreen({ navigation, route }) {
         courseLabel={commentsSchedule?.course}
         myUid={currentUid}
         myName={userProfile?.nickname || ''}
-        onClose={() => setCommentsSchedule(null)}
+        onClose={() => { markCommentsSeen(commentsSchedule?.groupId); setCommentsSchedule(null); }}
       />
 
       {/* 일정 시트 '함께 식사' — 트리거 버튼 없이 시트만(세컨 카드 등 next 아닌 일정에서도 접근). D-0 카드 식사바와 별개([[afterround-meal-decision]]) */}
