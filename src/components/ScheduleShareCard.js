@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { F, fs } from '../constants/colors';
 import QRCode from 'react-native-qrcode-svg';
+import { Icon, WeatherGlyph } from './common/Icon'; // 날씨·동반자 이모지 → 커스텀 SVG
 
 // 일정 공유 — 공유용 정적 보딩패스 카드. 모집 초대장(RoundupShareCard)과 같은 보딩패스 디자인 재사용(사용자 확정),
 // 개인 라운딩 일정용이라 HOST/남은자리 대신 D-day·동반·날씨를 담음. 홈 D-day 카드(ScheduleSheetModal) 공유에서 호출.
@@ -19,8 +20,8 @@ const PAGE = '#FAF6EC';
 // 날씨 문자열 → 이모지 (홈에서 주입한 3일내 예보·사용자 입력 모두 대응)
 const wxIcon = (w) => {
   if (!w) return '';
-  if (/비|우|소나기|rain/i.test(w)) return '🌧';
-  if (/눈|snow/i.test(w)) return '🌨';
+  if (/비|우|소나기|rain/i.test(w)) return '🌧️';
+  if (/눈|snow/i.test(w)) return '🌨️';
   if (/흐|구름|cloud/i.test(w)) return '☁️';
   return '☀️';
 };
@@ -99,8 +100,8 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
           <View style={{ height: 30, justifyContent: 'center', marginBottom: 6 }}>
             {s.weather ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                {/* 실제 예보 아이콘(주입된 weatherIcon=kma) 우선, 없으면 텍스트 기반 폴백 — D-0 카드와 일치 */}
-                <Text style={{ fontSize: fs(18) }}>{s.weatherIcon || wxIcon(s.weather)}</Text>
+                {/* 실제 예보 아이콘(주입된 weatherIcon=kma) 우선, 없으면 텍스트 기반 폴백 — 커스텀 SVG(WeatherGlyph) */}
+                <WeatherGlyph icon={s.weatherIcon || wxIcon(s.weather)} size={fs(20)} />
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: BURGUNDY, letterSpacing: 0.3 }}>{s.weather}</Text>
               </View>
             ) : showWxNote ? (
@@ -144,7 +145,12 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
               <Text style={styles.ddayText}>{ddayText}</Text>
             </View>
           ) : null}
-          <Text style={styles.metaText}>{members > 0 ? `👥 ${members}명 동반` : ''}</Text>
+          {members > 0 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Icon name="people" size={fs(15)} color={INK} />
+              <Text style={styles.metaText}>{members}명 동반</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* 동반자 이름 — 있을 때만. '몇 명'만으론 누가 오는지 모른다(사용자 2026-07-23) */}
