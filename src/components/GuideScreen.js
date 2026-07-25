@@ -832,8 +832,9 @@ export function GuideScreen({ route, navigation }) {
           </View>
           <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <View style={{ flex: 1 }}>
+              {/* 긴 구장명은 잘리지 않게 한 줄에 맞춰 자동 축소(짧은 이름은 fs(22) 유지). 소노펠리체 비발디파크 EAST 같은 최장명 대응 */}
               <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal }}
-                numberOfLines={1}>{c.name}</Text>
+                numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{c.name}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
                 {courseAddress || c.loc}
               </Text>
