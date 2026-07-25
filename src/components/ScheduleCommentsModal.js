@@ -8,7 +8,7 @@ import AppTextInput from './common/AppTextInput';
 import { Icon } from './common/Icon';
 import { Spinner } from './common/Spinner';
 import { showToast } from './AppToast';
-import { subscribeScheduleComments, addScheduleComment, deleteScheduleComment, COMMENT_MAX } from '../utils/scheduleComments';
+import { subscribeScheduleComments, addScheduleComment, deleteScheduleComment, COMMENT_MAX, markScheduleRead, subscribeScheduleReads } from '../utils/scheduleComments';
 import { getScheduleGroup } from '../utils/scheduleShares'; // @멘션 후보(그룹 동반자) 로드
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
@@ -41,6 +41,8 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   const [sending, setSending] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null); // 삭제 확인 대상 comment
   const [members, setMembers] = useState([]); // @멘션 후보 [{uid,name}] — 그룹 동반자(본인 제외)
+  const [memberUids, setMemberUids] = useState([]); // 이야기 볼 수 있는 동반자 전원(uid) — 안읽음 수 분모
+  const [reads, setReads] = useState({});     // { uid: 마지막 읽은 ms } — 동반자별. 안읽음 수 계산용
   const [ready, setReady] = useState(false);   // 슬라이드 애니 끝난 뒤 true — 무거운 리스트는 그 뒤 마운트(열림 덜컥거림 방지)
   const [loaded, setLoaded] = useState(false); // 첫 스냅샷 도착 여부 — 빈상태('없어요') 깜빡임 방지 + 로딩 스피너 판정
   const scrollRef = useRef(null);
@@ -48,7 +50,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   // 닫히면 상태 리셋
   useEffect(() => {
     if (visible) return;
-    setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); setReady(false); setLoaded(false);
+    setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); setMemberUids([]); setReads({}); setReady(false); setLoaded(false);
   }, [visible]);
 
   // 열리면 슬라이드 애니가 끝난 뒤 콘텐츠 준비 — 애니 도중 구독·스크롤 리렌더로 '덜컥'거리던 것 방지
@@ -64,16 +66,24 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   useEffect(() => {
     if (!visible || !groupId) return;
     const unsub = subscribeScheduleComments(groupId, (list) => { setComments(list); setLoaded(true); });
+    const unsubReads = subscribeScheduleReads(groupId, setReads); // 동반자별 읽은 시각(안읽음 수 계산)
+    markScheduleRead(groupId); // 내가 열었음 → 내 읽은 시각 기록(동반자 화면의 안읽음 수에 반영)
     getScheduleGroup(groupId).then(g => {
       if (!g) return;
+      setMemberUids(g.memberUids || []); // 안읽음 수 분모 = 이야기 볼 수 있는 동반자 전원
       const names = g.names || {};
       const list = (g.memberUids || []).filter(u => u && u !== myUid)
         .map(u => ({ uid: u, name: (nameOf ? nameOf(u, names[u]) : names[u]) || '' }))
         .filter(m => m.name);
       setMembers(list);
     }).catch(() => {});
-    return () => unsub();
+    return () => { unsub(); unsubReads(); };
   }, [visible, groupId, myUid]);
+
+  // 열려 있는 동안 새 댓글이 오면 내 읽은 시각을 갱신 — 화면을 보고 있으니 '읽음'이 맞다(카톡과 동일).
+  useEffect(() => {
+    if (visible && groupId && loaded && comments.length) markScheduleRead(groupId);
+  }, [comments.length, visible, groupId, loaded]);
 
   // 현재 입력 끝에서 타이핑 중인 @멘션 토큰 감지 → 피커 표시(끝에서 멘션하는 일반 케이스 지원)
   const mentionMatch = draft.match(/@([^\s@]*)$/);
@@ -139,10 +149,16 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   const commentBubbles = useMemo(() => comments.map((c) => {
     const mine = c.authorUid && c.authorUid === myUid;
     const name = nameOf ? nameOf(c.authorUid, c.authorName) : (c.authorName || '');
+    // 카톡식 '안 읽은 동반자 수' — 내 메시지에만. 이야기 볼 수 있는 동반자(memberUids) 중 나 제외,
+    //   아직 이 메시지 이후로 안 연 사람 수. 0이면 숨김(=모두 읽음).
+    const unread = mine
+      ? memberUids.filter(u => u && u !== myUid && (reads[u] || 0) < (c.createdAt || 0)).length
+      : 0;
     return (
       <View key={c.id} style={{ marginBottom: 12, alignItems: mine ? 'flex-end' : 'flex-start' }}>
         {!mine && <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginBottom: 3, marginLeft: 4 }}>{name}</Text>}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', maxWidth: '82%' }}>
+          {mine && unread > 0 && <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#C79A3B', marginRight: 4 }}>{unread}</Text>}
           {mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginRight: 5 }}>{fmtTime(c.createdAt)}</Text>}
           <TouchableOpacity activeOpacity={mine ? 0.7 : 1} onLongPress={mine ? () => setConfirmDel(c) : undefined}
             style={{
@@ -156,7 +172,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
         </View>
       </View>
     );
-  }), [comments, myUid, nameOf]);
+  }), [comments, myUid, nameOf, reads, memberUids]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

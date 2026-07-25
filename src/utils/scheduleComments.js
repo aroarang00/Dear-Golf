@@ -4,7 +4,7 @@
 //   권한(firestore.rules): read=로그인 / create=authorUid==me + 본문검증 / delete=본인만.
 import {
   collection, query, orderBy, limit as fsLimit, getDocs, getCountFromServer,
-  addDoc, deleteDoc, doc, serverTimestamp, onSnapshot,
+  addDoc, deleteDoc, doc, setDoc, serverTimestamp, onSnapshot,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { containsProfanity } from './profanityFilter';
@@ -32,6 +32,31 @@ export function subscribeScheduleComments(groupId, onChange, max = 100) {
   return onSnapshot(q,
     snap => onChange(snap.docs.map(mapDoc).reverse()),
     err => { if (__DEV__) console.warn('[schedComments] subscribe', err?.message); });
+}
+
+// ===== 읽음 표시 — scheduleGroups/{groupId}/reads/{uid} = { at } =====
+//   카톡식 '안 읽은 동반자 수'용. 각자 이야기를 열 때 본인 '읽은 시각'을 서버에 기록한다(문서 id=본인 uid).
+const readsCol = (groupId) => collection(db, 'scheduleGroups', groupId, 'reads');
+
+// 내가 이야기를 봤음 — 본인 reads 문서에 최신 시각 기록(merge). 실패해도 조용히(부가정보).
+export async function markScheduleRead(groupId) {
+  if (!groupId) return;
+  const uid = await getUid();
+  if (!uid) return;
+  try { await setDoc(doc(readsCol(groupId), uid), { at: serverTimestamp() }, { merge: true }); }
+  catch (e) { if (__DEV__) console.warn('[schedComments] markRead', e?.message); }
+}
+
+// 동반자들의 읽은 시각 실시간 구독 — {uid: ms}. 이야기 열린 동안만(작은 컬렉션, 동반자 몇 명뿐).
+export function subscribeScheduleReads(groupId, onChange) {
+  if (!groupId) return () => {};
+  return onSnapshot(readsCol(groupId),
+    snap => {
+      const map = {};
+      snap.docs.forEach(d => { map[d.id] = d.data()?.at?.toMillis?.() ?? 0; });
+      onChange(map);
+    },
+    err => { if (__DEV__) console.warn('[schedComments] subscribeReads', err?.message); });
 }
 
 // 댓글 개수 — 시트 미리보기('이야기 N')용. 서버 카운트(문서 전량 로드 회피).

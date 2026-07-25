@@ -326,6 +326,14 @@ service cloud.firestore {
           && request.resource.data.body.size() <= 500;
         allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
       }
+
+      // ===== 읽음 표시 서브컬렉션 — scheduleGroups/{groupId}/reads/{readerUid} =====
+      //  카톡식 '안 읽은 동반자 수'용. 문서 id=본인 uid → 각자 자기 것만 쓰기(cross-user 쓰기 0). 멤버는 전부 읽기.
+      //  필드: { at: timestamp }  (마지막으로 이야기를 연 시각)
+      match /reads/{readerUid} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && readerUid == request.auth.uid;
+      }
     }
 
     // ===== mealSuggestions — 라운딩 후 뒤풀이(식사) 장소 결정 ([[afterround-meal-decision]]) =====
