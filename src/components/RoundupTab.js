@@ -1887,6 +1887,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
       setTimeout(() => navigation?.navigate?.(ROUTES.HOME, n.postId ? { openScheduleSheetId: n.postId } : undefined), 320);
       return;
     }
+    // 이야기 @멘션 — 홈에서 해당 일정의 이야기(댓글) 바로 열기
+    if (n.type === 'scheduleMention') {
+      setTimeout(() => navigation?.navigate?.(ROUTES.HOME, n.postId ? { openScheduleCommentsId: n.postId } : undefined), 320);
+      return;
+    }
     // 매너 평가 진입 — 정상 종료(mannerEval) + 주최자 취소 보상(hostCancelledD7) 둘 다 평가 모달로.
     if (ROUNDUP_PUBLIC_ENABLED && (n.type === 'mannerEval' || n.type === 'hostCancelledD7')) {
       let post = posts.find(p => p.id === n.postId);

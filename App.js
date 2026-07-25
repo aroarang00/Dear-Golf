@@ -567,6 +567,11 @@ function App() {
           navigationRef.navigate(ROUTES.HOME, data.postId ? { openScheduleSheetId: data.postId } : undefined);
           return;
         }
+        // 이야기 @멘션 → 홈 + 해당 일정 이야기(댓글) 바로 오픈 (postId=groupId)
+        if (type === 'scheduleMention') {
+          navigationRef.navigate(ROUTES.HOME, data.postId ? { openScheduleCommentsId: data.postId } : undefined);
+          return;
+        }
         // 뒤풀이 결정·변경 → 홈 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선) ([[afterround-meal-decision]])
         if (type === 'mealSuggestion') { navigationRef.navigate(ROUTES.HOME, { openMeal: data.mealId || true }); return; }
         // 스코어 공유 → MY(ScoreShareInbox 수신 배너가 MY 피드 상단)

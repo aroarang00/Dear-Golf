@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { containsProfanity } from './profanityFilter';
+import { createNotification } from './roundupNotifications'; // @멘션 → 멘션된 사람에게만 푸시
 
 const col = (groupId) => collection(db, 'scheduleGroups', groupId, 'comments');
 export const COMMENT_MAX = 500;
@@ -50,17 +51,29 @@ export async function loadLatestScheduleComment(groupId) {
 }
 
 // 작성 — 본인만(규칙 강제). 빈 본문·길이초과·욕설 차단. 낙관적 표시용 comment 반환.
-export async function addScheduleComment(groupId, authorName, body) {
+//   opts.mentions=[uid] : @멘션된 동반자. 저장 + 그 사람에게만 푸시(일반 댓글은 무알림 = 노이즈 0).
+//   opts.course : 알림 문구용 구장명.
+export async function addScheduleComment(groupId, authorName, body, opts = {}) {
   const uid = await getUid();
   if (!uid || !groupId) return { ok: false, reason: 'auth' };
   const trimmed = (body || '').trim();
   if (!trimmed) return { ok: false, reason: 'empty' };
   if (trimmed.length > COMMENT_MAX) return { ok: false, reason: 'toolong' };
   if (containsProfanity(trimmed)) return { ok: false, reason: 'profanity' };
+  const mentions = Array.isArray(opts.mentions) ? opts.mentions.filter(u => u && u !== uid) : [];
   const ref = await addDoc(col(groupId), {
-    authorUid: uid, authorName: authorName || '', body: trimmed, createdAt: serverTimestamp(),
+    authorUid: uid, authorName: authorName || '', body: trimmed,
+    ...(mentions.length ? { mentions } : {}),
+    createdAt: serverTimestamp(),
   });
-  return { ok: true, comment: { id: ref.id, authorUid: uid, authorName: authorName || '', body: trimmed, createdAt: Date.now() } };
+  // 멘션된 사람에게만 알림(createNotification이 본인 수신은 자동 스킵). 실패해도 댓글은 성공.
+  for (const rid of mentions) {
+    createNotification({
+      recipientUid: rid, type: 'scheduleMention', actorName: authorName || '',
+      postId: groupId, postTitle: opts.course || '', memoPreview: trimmed.slice(0, 40),
+    }).catch(e => __DEV__ && console.warn('[schedComments] mention noti', e?.message));
+  }
+  return { ok: true, comment: { id: ref.id, authorUid: uid, authorName: authorName || '', body: trimmed, mentions, createdAt: Date.now() } };
 }
 
 // 삭제 — 본인만(규칙 authorUid==me 강제).

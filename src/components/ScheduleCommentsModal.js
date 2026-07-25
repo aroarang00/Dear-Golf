@@ -8,11 +8,20 @@ import AppTextInput from './common/AppTextInput';
 import { Icon } from './common/Icon';
 import { showToast } from './AppToast';
 import { subscribeScheduleComments, addScheduleComment, deleteScheduleComment, COMMENT_MAX } from '../utils/scheduleComments';
+import { getScheduleGroup } from '../utils/scheduleShares'; // @멘션 후보(그룹 동반자) 로드
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
 // 일정 '이야기'(댓글) 스레드 — 전파 일정 시트에서 열림. 공지(memo)와 별개의 조율 대화.
 //   말풍선(내것=우측 버건디 / 남=좌측 회색+이름), 실시간 구독, 본인 댓글 길게눌러 삭제.
 //   ★안드 RN Modal은 별도 윈도우라 adjustResize가 안 먹어 입력바가 키보드에 가림 → KeyboardEvents로 명령형 리프트.
+// 본문의 '@이름' 토큰을 색으로 강조 (내 말풍선=버터골드 / 상대=네이비)
+function renderBody(body, mine) {
+  const parts = String(body || '').split(/(@[^\s@]+)/g);
+  return parts.map((p, i) => (p.startsWith('@')
+    ? <Text key={i} style={{ fontFamily: F.sysB, color: mine ? '#F5E6A8' : C.navy }}>{p}</Text>
+    : p));
+}
+
 function fmtTime(ms) {
   if (!ms) return '';
   const d = new Date(ms);
@@ -30,13 +39,31 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null); // 삭제 확인 대상 comment
+  const [members, setMembers] = useState([]); // @멘션 후보 [{uid,name}] — 그룹 동반자(본인 제외)
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    if (!visible || !groupId) { setComments([]); setDraft(''); setConfirmDel(null); return; }
+    if (!visible || !groupId) { setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); return; }
     const unsub = subscribeScheduleComments(groupId, setComments);
+    // 멘션 후보 = 그룹 멤버(이름 있는 사람, 본인 제외)
+    getScheduleGroup(groupId).then(g => {
+      if (!g) return;
+      const names = g.names || {};
+      const list = (g.memberUids || []).filter(u => u && u !== myUid)
+        .map(u => ({ uid: u, name: (nameOf ? nameOf(u, names[u]) : names[u]) || '' }))
+        .filter(m => m.name);
+      setMembers(list);
+    }).catch(() => {});
     return () => unsub();
-  }, [visible, groupId]);
+  }, [visible, groupId, myUid]);
+
+  // 현재 입력 끝에서 타이핑 중인 @멘션 토큰 감지 → 피커 표시(끝에서 멘션하는 일반 케이스 지원)
+  const mentionMatch = draft.match(/@([^\s@]*)$/);
+  const mentionQuery = mentionMatch ? mentionMatch[1] : null;
+  const mentionList = (mentionQuery !== null && members.length)
+    ? members.filter(m => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+  const pickMention = (m) => { setDraft(draft.replace(/@([^\s@]*)$/, `@${m.name} `)); };
 
   // 새 댓글/열림 시 맨 아래로
   useEffect(() => {
@@ -67,7 +94,9 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
     if (!body || sending) return;
     setSending(true);
     try {
-      const r = await addScheduleComment(groupId, myName, body);
+      // 본문에 '@이름'이 들어간 멤버만 멘션(편집 중 지웠어도 최종 본문 기준으로 재판정)
+      const mentions = members.filter(m => body.includes('@' + m.name)).map(m => m.uid);
+      const r = await addScheduleComment(groupId, myName, body, { mentions, course: courseLabel });
       if (!r.ok) {
         if (r.reason === 'profanity') showToast(PROFANITY_BLOCK_MESSAGE);
         return;
@@ -125,7 +154,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
                           borderRadius: 14, borderTopRightRadius: mine ? 4 : 14, borderTopLeftRadius: mine ? 14 : 4,
                           paddingHorizontal: 12, paddingVertical: 9,
                         }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 22, color: mine ? '#fff' : C.charcoal }}>{c.body}</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 22, color: mine ? '#fff' : C.charcoal }}>{renderBody(c.body, mine)}</Text>
                       </TouchableOpacity>
                       {!mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 5 }}>{fmtTime(c.createdAt)}</Text>}
                     </View>
@@ -134,19 +163,37 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
               })}
             </ScrollView>
 
-            {/* 입력바 — 키보드 높이만큼 paddingBottom 리프트(안드 모달 대응) */}
-            <Animated.View style={[{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 14, paddingTop: BAR_PAD,
+            {/* 입력바 — 키보드 높이만큼 paddingBottom 리프트(안드 모달 대응). @피커는 입력 위에 얹음. */}
+            <Animated.View style={[{ paddingHorizontal: 14, paddingTop: BAR_PAD,
               borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgPrimary }, kbPadStyle]}>
-              <AppTextInput
-                value={draft} onChangeText={setDraft} multiline maxLength={COMMENT_MAX}
-                placeholder="한마디 남기기" placeholderTextColor={C.warmGrayLight}
-                style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal, maxHeight: 110,
-                  backgroundColor: C.bgSecondary, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, textAlignVertical: 'center' }}
-              />
-              <TouchableOpacity onPress={send} disabled={!draft.trim() || sending} activeOpacity={0.8}
-                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: draft.trim() ? C.burgundy : C.hairline, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="send" size={fs(18)} color={draft.trim() ? '#fff' : C.warmGray} />
-              </TouchableOpacity>
+              {/* @멘션 자동완성 — @입력 시 동반자 목록 */}
+              {mentionList.length > 0 && (
+                <View style={{ marginBottom: 8, backgroundColor: C.bgSecondary, borderRadius: 12, overflow: 'hidden',
+                  shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 }}>
+                  {mentionList.map((m, i) => (
+                    <TouchableOpacity key={m.uid} onPress={() => pickMention(m)} activeOpacity={0.6}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 11,
+                        borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+                      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(26,61,82,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.navy }}>{(m.name || '?').slice(0, 1)}</Text>
+                      </View>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{m.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+                <AppTextInput
+                  value={draft} onChangeText={setDraft} multiline maxLength={COMMENT_MAX}
+                  placeholder="한마디 남기기 · @로 동반자 부르기" placeholderTextColor={C.warmGrayLight}
+                  style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal, maxHeight: 110,
+                    backgroundColor: C.bgSecondary, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, textAlignVertical: 'center' }}
+                />
+                <TouchableOpacity onPress={send} disabled={!draft.trim() || sending} activeOpacity={0.8}
+                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: draft.trim() ? C.burgundy : C.hairline, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="send" size={fs(18)} color={draft.trim() ? '#fff' : C.warmGray} />
+                </TouchableOpacity>
+              </View>
             </Animated.View>
 
             {/* 삭제 확인(인라인 — 중첩 Modal 회피) */}

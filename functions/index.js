@@ -442,6 +442,7 @@ function titleFor(type) {
     case 'roundupFull':     return '모집 인원 마감';
     case 'scheduleChanged':   return '일정 변경';
     case 'scheduleMemo':      return '동반자 공지';
+    case 'scheduleMention':   return '이야기 멘션';
     case 'scheduleCancelled': return '일정 취소';
     // 노쇼 신고
     case 'noshowReported':            return '노쇼 신고 접수';
@@ -495,6 +496,9 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     // 동반자 공지(구 메모) — 내용 미리보기를 실어 앱을 안 열어도 전달되게(사용자 2026-07-10)
     case 'scheduleMemo':
       return `${actorName ? actorName + '님이 ' : ''}${t} 공지를 남겼어요${memoPreview ? ` — “${memoPreview}”` : ''}`;
+    // 이야기(댓글) @멘션 — 부른 사람에게만. 내용 미리보기 포함.
+    case 'scheduleMention':
+      return `${actorName ? actorName + '님이 ' : ''}이야기에서 회원님을 불렀어요${memoPreview ? ` — “${memoPreview}”` : ''}`;
     case 'scheduleCancelled': return `${actorName ? actorName + '님이 ' : ''}${t} 일정을 취소했어요${scheduleDate ? ` (${scheduleDate})` : ''}`;
     case 'roundupCancelled': return postTitle
       ? `${actorName ? actorName + '님의 ' : ''}'${postTitle}'${scheduleDate ? ` (${scheduleDate})` : ''} 모집이 취소됐어요`

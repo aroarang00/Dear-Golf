@@ -377,6 +377,22 @@ export function HomeScreen({ navigation, route }) {
     if (s) { openScheduleSheet(s); setPendingSheetId(null); }
   }, [pendingSheetId, hydrated, schedules]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 이야기 @멘션 알림 탭 → 해당 일정의 이야기(댓글) 바로 열기 (openScheduleSheetId와 동일 pending 패턴, 콜드스타트 대비)
+  const commentsIdOnMountRef = useRef(route?.params?.openScheduleCommentsId);
+  const [pendingCommentsId, setPendingCommentsId] = useState(null);
+  useEffect(() => {
+    const cid = route?.params?.openScheduleCommentsId;
+    if (!cid) return;
+    navigation.setParams({ openScheduleCommentsId: undefined });
+    if (commentsIdOnMountRef.current === cid) { commentsIdOnMountRef.current = null; return; }
+    setPendingCommentsId(cid);
+  }, [route?.params?.openScheduleCommentsId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pendingCommentsId || !hydrated) return;
+    const s = (schedules || []).find((x) => x.groupId === pendingCommentsId || x.id === pendingCommentsId);
+    if (s) { setCommentsSchedule(s); setPendingCommentsId(null); }
+  }, [pendingCommentsId, hydrated, schedules]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);
   // ★콜드스타트 시 schedules가 아직 빈 배열이라, 바로 처리하면 대상 일정을 못 찾고 파라미터만 소비돼 유실됐다
