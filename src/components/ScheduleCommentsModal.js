@@ -6,6 +6,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { C, F, fs } from '../constants/colors';
 import AppTextInput from './common/AppTextInput';
 import { Icon } from './common/Icon';
+import { Spinner } from './common/Spinner';
 import { showToast } from './AppToast';
 import { subscribeScheduleComments, addScheduleComment, deleteScheduleComment, COMMENT_MAX } from '../utils/scheduleComments';
 import { getScheduleGroup } from '../utils/scheduleShares'; // @멘션 후보(그룹 동반자) 로드
@@ -40,13 +41,14 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   const [sending, setSending] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null); // 삭제 확인 대상 comment
   const [members, setMembers] = useState([]); // @멘션 후보 [{uid,name}] — 그룹 동반자(본인 제외)
-  const [ready, setReady] = useState(false);   // 슬라이드 애니 끝난 뒤 true — 콘텐츠는 그 뒤 마운트(열림 덜컥거림 방지)
+  const [ready, setReady] = useState(false);   // 슬라이드 애니 끝난 뒤 true — 무거운 리스트는 그 뒤 마운트(열림 덜컥거림 방지)
+  const [loaded, setLoaded] = useState(false); // 첫 스냅샷 도착 여부 — 빈상태('없어요') 깜빡임 방지 + 로딩 스피너 판정
   const scrollRef = useRef(null);
 
   // 닫히면 상태 리셋
   useEffect(() => {
     if (visible) return;
-    setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); setReady(false);
+    setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); setReady(false); setLoaded(false);
   }, [visible]);
 
   // 열리면 슬라이드 애니가 끝난 뒤 콘텐츠 준비 — 애니 도중 구독·스크롤 리렌더로 '덜컥'거리던 것 방지
@@ -56,10 +58,12 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
     return () => clearTimeout(t);
   }, [visible]);
 
-  // 준비되면 실시간 구독 + 멘션 후보(그룹 멤버, 본인 제외) 로드
+  // ★열리면 '즉시' 실시간 구독 + 멘션 후보 로드 — 슬라이드 애니(ready 240ms)와 병렬로 네트워크가 돌게.
+  //   예전엔 ready 뒤에야 구독을 발사해 240ms + 왕복이 통째로 더해졌음(로딩 체감 지연의 주범, 사용자 2026-07-25).
+  //   무거운 리스트 마운트만 ready로 미루고, fetch는 여기서 바로 시작한다.
   useEffect(() => {
-    if (!visible || !ready || !groupId) return;
-    const unsub = subscribeScheduleComments(groupId, setComments);
+    if (!visible || !groupId) return;
+    const unsub = subscribeScheduleComments(groupId, (list) => { setComments(list); setLoaded(true); });
     getScheduleGroup(groupId).then(g => {
       if (!g) return;
       const names = g.names || {};
@@ -69,7 +73,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
       setMembers(list);
     }).catch(() => {});
     return () => unsub();
-  }, [visible, ready, groupId, myUid]);
+  }, [visible, groupId, myUid]);
 
   // 현재 입력 끝에서 타이핑 중인 @멘션 토큰 감지 → 피커 표시(끝에서 멘션하는 일반 케이스 지원)
   const mentionMatch = draft.match(/@([^\s@]*)$/);
@@ -152,7 +156,12 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
             {/* 리스트 */}
             <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 14 }}
               keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
-              {!ready ? null : comments.length === 0 ? (
+              {/* 애니 대기(!ready) 또는 첫 스냅샷 전(!loaded)이면 스피너 — 빈상태 문구가 잠깐 떴다 사라지는 깜빡임 방지 */}
+              {(!ready || !loaded) ? (
+                <View style={{ paddingVertical: 56, alignItems: 'center' }}>
+                  <Spinner />
+                </View>
+              ) : comments.length === 0 ? (
                 <View style={{ paddingVertical: 48, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 21 }}>
                     아직 이야기가 없어요.{'\n'}집결 시간·차편 등 편하게 얘기해요.
