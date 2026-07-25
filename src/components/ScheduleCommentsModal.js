@@ -40,12 +40,26 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   const [sending, setSending] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null); // 삭제 확인 대상 comment
   const [members, setMembers] = useState([]); // @멘션 후보 [{uid,name}] — 그룹 동반자(본인 제외)
+  const [ready, setReady] = useState(false);   // 슬라이드 애니 끝난 뒤 true — 콘텐츠는 그 뒤 마운트(열림 덜컥거림 방지)
   const scrollRef = useRef(null);
 
+  // 닫히면 상태 리셋
   useEffect(() => {
-    if (!visible || !groupId) { setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); return; }
+    if (visible) return;
+    setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); setReady(false);
+  }, [visible]);
+
+  // 열리면 슬라이드 애니가 끝난 뒤 콘텐츠 준비 — 애니 도중 구독·스크롤 리렌더로 '덜컥'거리던 것 방지
+  useEffect(() => {
+    if (!visible) return;
+    const t = setTimeout(() => setReady(true), 240);
+    return () => clearTimeout(t);
+  }, [visible]);
+
+  // 준비되면 실시간 구독 + 멘션 후보(그룹 멤버, 본인 제외) 로드
+  useEffect(() => {
+    if (!visible || !ready || !groupId) return;
     const unsub = subscribeScheduleComments(groupId, setComments);
-    // 멘션 후보 = 그룹 멤버(이름 있는 사람, 본인 제외)
     getScheduleGroup(groupId).then(g => {
       if (!g) return;
       const names = g.names || {};
@@ -55,7 +69,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
       setMembers(list);
     }).catch(() => {});
     return () => unsub();
-  }, [visible, groupId, myUid]);
+  }, [visible, ready, groupId, myUid]);
 
   // 현재 입력 끝에서 타이핑 중인 @멘션 토큰 감지 → 피커 표시(끝에서 멘션하는 일반 케이스 지원)
   const mentionMatch = draft.match(/@([^\s@]*)$/);
@@ -65,12 +79,12 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
     : [];
   const pickMention = (m) => { setDraft(draft.replace(/@([^\s@]*)$/, `@${m.name} `)); };
 
-  // 새 댓글/열림 시 맨 아래로
+  // 새 댓글/준비 시 맨 아래로 — 비애니(슬라이드와 겹쳐도 잽 없음)
   useEffect(() => {
-    if (!visible) return;
-    const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    if (!visible || !ready) return;
+    const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 30);
     return () => clearTimeout(t);
-  }, [comments.length, visible]);
+  }, [comments.length, visible, ready]);
 
   // 입력바를 키보드 높이만큼 들어올림(안드 RN Modal 대응 — CrewCommentScreen과 동일 패턴)
   const BAR_PAD = 8;
@@ -134,7 +148,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
             {/* 리스트 */}
             <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 14 }}
               keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
-              {comments.length === 0 ? (
+              {!ready ? null : comments.length === 0 ? (
                 <View style={{ paddingVertical: 48, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 21 }}>
                     아직 이야기가 없어요.{'\n'}집결 시간·차편 등 편하게 얘기해요.
