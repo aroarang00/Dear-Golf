@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 RN Modal서 입력바 키보드 가림 방지
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { C, F, fs } from '../constants/colors';
@@ -88,7 +88,10 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
 
   // 입력바를 키보드 높이만큼 들어올림(안드 RN Modal 대응 — CrewCommentScreen과 동일 패턴)
   const BAR_PAD = 8;
-  const CLOSED_PAD = Math.max(0, 8 + insets.bottom - BAR_PAD);
+  // ★RN Modal은 안드에서 별도 윈도우라 useSafeAreaInsets.bottom이 0으로 나와 네비바에 입력창이 가림.
+  //   initialWindowMetrics(정적 값, 모달서도 유효)로 폴백해 하단 안전영역 확보(PhotoViewer와 동일 대응).
+  const safeBottom = Math.max(insets.bottom || 0, initialWindowMetrics?.insets?.bottom || 0);
+  const CLOSED_PAD = Math.max(0, 8 + safeBottom - BAR_PAD);
   const kbLift = useSharedValue(0);
   const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
   useEffect(() => {
