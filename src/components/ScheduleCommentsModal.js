@@ -91,7 +91,8 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   // ★RN Modal은 안드에서 별도 윈도우라 useSafeAreaInsets.bottom이 0으로 나와 네비바에 입력창이 가림.
   //   initialWindowMetrics(정적 값, 모달서도 유효)로 폴백해 하단 안전영역 확보(PhotoViewer와 동일 대응).
   const safeBottom = Math.max(insets.bottom || 0, initialWindowMetrics?.insets?.bottom || 0);
-  const CLOSED_PAD = Math.max(0, 8 + safeBottom - BAR_PAD);
+  // 네비바(safeBottom) 위로 확실한 여유(+14) — pad==safeBottom이면 입력창이 네비바에 딱 붙어 가린 것처럼 보임(사용자 2026-07-25).
+  const CLOSED_PAD = safeBottom + 14;
   const kbLift = useSharedValue(0);
   const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
   useEffect(() => {
