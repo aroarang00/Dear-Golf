@@ -13,6 +13,7 @@ import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleCommentsModal } from './ScheduleCommentsModal';
+import { markScheduleMentionsRead } from '../utils/roundupNotifications'; // 이야기 열면 그 일정 멘션 알림도 읽음(종 뱃지 동기화)
 import { RoundupTeamScreen } from './RoundupTeamScreen';      // 단체팀 화면(조 편성·티오프)
 import { ShareMomentModal } from './ShareMomentModal';        // 동반자 공유 — 이미지 카드(홈과 동일)
 import { getScheduleWxSummary } from '../utils/scheduleWx';    // 공유 카드 코스명 위 해당일 날씨 주입
@@ -96,6 +97,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [sheet, setSheet] = useState({ visible: false, schedule: null });
   const [commentsSchedule, setCommentsSchedule] = useState(null); // 일정 '이야기'(댓글) 모달 대상
+  // 이야기 모달이 열리면 그 일정의 멘션 알림도 읽음 처리 → 홈 종 뱃지가 다음 복귀 때 정리됨(홈과 동일 정책, 사용자 2026-07-25)
+  useEffect(() => { if (commentsSchedule?.groupId) markScheduleMentionsRead(commentsSchedule.groupId).catch(() => {}); }, [commentsSchedule?.groupId]);
   const [scheduleShareTarget, setScheduleShareTarget] = useState(null); // 동반자 공유 — 이미지 카드 대상(홈과 동일)
   const [teamRid, setTeamRid] = useState(null);                         // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [wxPopup, setWxPopup] = useState({ visible: false, schedule: null, tab: 'wx' });

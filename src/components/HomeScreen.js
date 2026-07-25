@@ -51,7 +51,7 @@ import { WEB_BASE } from '../utils/links';                 // 일정 공유 평�
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
 import { formatDriveMin } from '../utils/directions'; // 교통 소요 '시간 분' 표시 — 카드·팝업 공용
 import { loadRoundup, updateRoundupNotice } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회 / 라운지 일정 공지(teamNotice) 저장
-import { loadMyNotifications, visibleNotifications } from '../utils/roundupNotifications'; // 홈 종 뱃지 — 라운지 알림함과 같은 필터
+import { loadMyNotifications, visibleNotifications, markScheduleMentionsRead } from '../utils/roundupNotifications'; // 홈 종 뱃지 — 라운지 알림함과 같은 필터
 import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈
 import { FriendSelectModal } from './FriendSelectModal';
@@ -714,6 +714,8 @@ export function HomeScreen({ navigation, route }) {
   const markCommentsSeen = (gid) => {
     if (!gid) return;
     setCommentSeen(prev => { const nx = { ...prev, [gid]: Date.now() }; storage.save(STORAGE_KEYS.scheduleCommentsSeen, nx); return nx; });
+    // 이야기를 봤으면 그 일정의 멘션 알림(종)도 함께 읽음 처리 → 종 뱃지 즉시 갱신. 둘 중 하나만 확인해도 양쪽 정리(사용자 2026-07-25).
+    markScheduleMentionsRead(gid).then(refreshNotiUnread).catch(() => {});
   };
   // 이야기 모달이 열리면(어떤 경로든 — 시트 탭·멘션 알림 탭) 그 그룹 '봤음' 처리 → 뱃지 사라짐
   useEffect(() => { if (commentsSchedule?.groupId) markCommentsSeen(commentsSchedule.groupId); }, [commentsSchedule?.groupId]); // eslint-disable-line react-hooks/exhaustive-deps

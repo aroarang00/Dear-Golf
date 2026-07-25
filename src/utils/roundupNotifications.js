@@ -164,6 +164,16 @@ export async function markAllNotificationsRead(loaded) {
     .catch(e => __DEV__ && console.warn('[roundupNotifications] markRead fail', e?.message))));
 }
 
+// 특정 일정(groupId)의 내 안읽음 scheduleMention 알림을 읽음 처리 —
+//   '이야기'를 열면(어떤 경로든) 그 일정의 멘션 알림도 함께 정리한다. 홈 이야기 뱃지와 알림 종이 따로 놀지 않게(사용자 2026-07-25).
+export async function markScheduleMentionsRead(groupId, loaded) {
+  if (!groupId) return;
+  const list = Array.isArray(loaded) ? loaded : await loadMyNotifications(50);
+  const targets = list.filter(n => !n.read && n.type === 'scheduleMention' && n.postId === groupId);
+  await Promise.all(targets.map(n => markNotificationRead(n.id)
+    .catch(e => __DEV__ && console.warn('[roundupNotifications] schedMentionRead fail', e?.message))));
+}
+
 // 알림 삭제 — 본인 알림만 (수신자 본인)
 export async function deleteNotification(notiId) {
   if (!notiId) return;
