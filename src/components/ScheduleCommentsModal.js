@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 RN Modal서 입력바 키보드 가림 방지
@@ -134,6 +134,30 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
     try { await deleteScheduleComment(groupId, c.id); } catch (e) { showToast('삭제에 실패했어요'); }
   };
 
+  // 말풍선 목록은 comments/myUid/nameOf에만 의존 — 입력창(draft) 타이핑 때마다 100개 말풍선이
+  //   재렌더되던 렉 제거(setConfirmDel은 안정된 setter라 deps 불필요, 사용자 2026-07-25).
+  const commentBubbles = useMemo(() => comments.map((c) => {
+    const mine = c.authorUid && c.authorUid === myUid;
+    const name = nameOf ? nameOf(c.authorUid, c.authorName) : (c.authorName || '');
+    return (
+      <View key={c.id} style={{ marginBottom: 12, alignItems: mine ? 'flex-end' : 'flex-start' }}>
+        {!mine && <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginBottom: 3, marginLeft: 4 }}>{name}</Text>}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', maxWidth: '82%' }}>
+          {mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginRight: 5 }}>{fmtTime(c.createdAt)}</Text>}
+          <TouchableOpacity activeOpacity={mine ? 0.7 : 1} onLongPress={mine ? () => setConfirmDel(c) : undefined}
+            style={{
+              backgroundColor: mine ? C.burgundy : '#E8E0D0',
+              borderRadius: 14, borderTopRightRadius: mine ? 4 : 14, borderTopLeftRadius: mine ? 14 : 4,
+              paddingHorizontal: 12, paddingVertical: 9,
+            }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 22, color: mine ? '#fff' : C.charcoal }}>{renderBody(c.body, mine)}</Text>
+          </TouchableOpacity>
+          {!mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 5 }}>{fmtTime(c.createdAt)}</Text>}
+        </View>
+      </View>
+    );
+  }), [comments, myUid, nameOf]);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardProvider>
@@ -167,27 +191,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
                     아직 이야기가 없어요.{'\n'}집결 시간·차편 등 편하게 얘기해요.
                   </Text>
                 </View>
-              ) : comments.map((c) => {
-                const mine = c.authorUid && c.authorUid === myUid;
-                const name = nameOf ? nameOf(c.authorUid, c.authorName) : (c.authorName || '');
-                return (
-                  <View key={c.id} style={{ marginBottom: 12, alignItems: mine ? 'flex-end' : 'flex-start' }}>
-                    {!mine && <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginBottom: 3, marginLeft: 4 }}>{name}</Text>}
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', maxWidth: '82%' }}>
-                      {mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginRight: 5 }}>{fmtTime(c.createdAt)}</Text>}
-                      <TouchableOpacity activeOpacity={mine ? 0.7 : 1} onLongPress={mine ? () => setConfirmDel(c) : undefined}
-                        style={{
-                          backgroundColor: mine ? C.burgundy : '#E8E0D0',
-                          borderRadius: 14, borderTopRightRadius: mine ? 4 : 14, borderTopLeftRadius: mine ? 14 : 4,
-                          paddingHorizontal: 12, paddingVertical: 9,
-                        }}>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 22, color: mine ? '#fff' : C.charcoal }}>{renderBody(c.body, mine)}</Text>
-                      </TouchableOpacity>
-                      {!mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 5 }}>{fmtTime(c.createdAt)}</Text>}
-                    </View>
-                  </View>
-                );
-              })}
+              ) : commentBubbles}
             </ScrollView>
 
             {/* 입력바 — 키보드 높이만큼 paddingBottom 리프트(안드 모달 대응). @피커는 입력 위에 얹음. */}
