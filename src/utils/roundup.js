@@ -232,6 +232,17 @@ export async function updateRoundupTeamPlan(postId, { teamPlan, teamNotice, team
   await updateDoc(doc(db, COLLECTION, postId), patch);
 }
 
+// 모집글 '공지(teamNotice)'만 갱신 — 일정 시트에서 호스트가 인라인 편집(4인 모집엔 조편성 시트가 없어 공지 자리 부재).
+//   ★updateRoundupTeamPlan은 teamPlan을 항상 덮어써(미전달 시 []) 단체 조편성을 날리므로 재사용 금지 → 이 전용 함수로 공지만 패치.
+//   호스트만 저장 도달(시트가 게이팅) + Firestore 규칙이 authorUid 전체수정 허용이라 규칙 변경 0.
+export async function updateRoundupNotice(postId, notice) {
+  if (!postId) throw new Error('postId required');
+  await updateDoc(doc(db, COLLECTION, postId), {
+    teamNotice: (notice || '').trim(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // 단체 조 편성이 '실제로' 입력됐는지 — 세부코스명·멤버메모가 있거나 조(티오프)를 둘 이상 둔 경우.
 //   빈 기본값([{course:'', flights:[{tee:time, note:''}]}])이나 teamPlan 미존재는 '미입력'으로 본다
 //   (저장 시 첫 조 tee는 post.time과 동기화돼 항상 차므로 tee만으론 입력 여부를 가릴 수 없음).

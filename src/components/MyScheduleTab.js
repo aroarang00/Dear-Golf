@@ -31,7 +31,8 @@ import { CourseLogModal } from './CourseLogModal';
 import { loadFriendData } from '../utils/friendGroups';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched } from '../utils/friends';
-import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, memoChangePreview } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, memoChangePreview, propagateMemoEdit } from '../utils/scheduleShares';
+import { updateRoundupNotice } from '../utils/roundup';   // 라운지 일정 공지(teamNotice) 저장
 import { buildCompanionNames } from '../utils/scheduleCompanions';
 import { leaveMealAudience } from '../utils/mealSuggestions'; // 일정 이탈 시 식사 audience 이탈(식사 푸시·카드 중단)
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
@@ -442,6 +443,22 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     getCalendarChoice().then(choice => {
       if (!choice) setTimeout(() => setCalPickerOpen(true), 450);
     });
+  };
+
+  // 시트 인라인 공지/메모 저장 — HomeScreen과 동일. 문서 memo 갱신 + (전파 일정이면) 그룹 동기화·공지 푸시.
+  const handleSaveMemo = async (sched, newMemo, oldMemo) => {
+    if (!sched?.id) return;
+    const memo = String(newMemo || '').trim();
+    // 라운지 모집 일정 → 모집글 공지(teamNotice). 호스트만 저장 도달(시트가 게이팅), 참가자 모두 열람.
+    if (sched.roundupId) {
+      await updateRoundupNotice(sched.roundupId, memo);
+      return;
+    }
+    await editSchedule(sched.id, { memo });
+    if (sched.groupId && currentUid) {
+      await propagateMemoEdit({ ...sched, memo: oldMemo != null ? oldMemo : (sched.memo || '') }, memo,
+        { uid: currentUid, name: userProfile?.nickname || '' });
+    }
   };
 
   const handleEdit = async () => {
@@ -1044,6 +1061,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onTeam={() => { const rid = sheet.schedule?.roundupId || null; setSheet(prev => ({ ...prev, visible: false })); setTeamRid(rid); }}
         onOpenRoundup={handleSheetRoundup}
         onEdit={handleEdit}
+        onSaveMemo={handleSaveMemo}
         onAlarm={() => {
           const s = sheet.schedule;
           setSheet(prev => ({ ...prev, visible: false }));

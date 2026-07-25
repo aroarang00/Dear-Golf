@@ -5,23 +5,53 @@ import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
 import { Icon, GreenFlag } from './common/Icon';
 import { TripleStripe } from './common/TripleStripe';
+import AppTextInput from './common/AppTextInput';
 import { buildCompanionNames } from '../utils/scheduleCompanions';
 import { getAlarmConfig, computeRoundTimeline, fmtClock } from '../utils/notifications'; // 라운드 알람 요약 표시
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { getScheduleGroup, ackGroupMemo } from '../utils/scheduleShares';
+import { loadRoundup } from '../utils/roundup';   // 라운지 일정 공지(teamNotice) 로드
 import { loadMyFriendsEnriched } from '../utils/friends';
 
 const SAGE = '#5E7E42';   // 세이지그린 — 교통 아이콘 액센트(앱 크루 세이지와 동색)
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, courseNavigable, friendMeta = {} }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, onSaveMemo, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
   const [alarmCfg, setAlarmCfg] = useState(null); // 이 라운드에 설정된 알람 { types, opts } — 요약 표시
   // 시트 안에서 삭제 confirm을 처리 — 별도 Modal(AppAlert) 띄우면 RN의 Modal 3중 중첩에서 z-index 깨져 alert가 부모 뒤에 깔림
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [group, setGroup] = useState(null); // 전파 일정 그룹(동반자 이름 보강)
+  const [roundupPost, setRoundupPost] = useState(null); // 라운지 일정의 모집글 — 공지(teamNotice)·호스트(authorUid) 원본
   const [friendNames, setFriendNames] = useState({}); // uid→닉네임 — friendMeta엔 별명만 있어 닉네임은 친구목록에서 보강
-  useEffect(() => { if (!visible) setConfirmDelete(false); }, [visible]); // 시트 닫힐 때 상태 초기화
+  // 메모(공지) 인라인 편집 — 일정수정 폼 안 열고 카드에서 바로. 저장은 부모 onSaveMemo(전파 로직 포함)에 위임.
+  const [editingMemo, setEditingMemo] = useState(false);
+  const [memoDraft, setMemoDraft] = useState('');
+  const [savingMemo, setSavingMemo] = useState(false);
+  useEffect(() => { if (!visible) { setConfirmDelete(false); setEditingMemo(false); setSavingMemo(false); } }, [visible]); // 시트 닫힐 때 상태 초기화
+
+  // 인라인 메모 저장 — 부모가 문서 갱신(editSchedule)+그룹 전파(propagateMemoEdit) 처리. 성공 후 그룹 최신화(공지/확인 갱신).
+  const saveMemoInline = async () => {
+    if (savingMemo || !onSaveMemo) return;
+    // 변경 없으면 저장/전파 생략. 표시 중인 메모(라운지=teamNotice / 전파=group.memo / 개인=schedule.memo) 기준 비교.
+    const current = (schedule?.roundupId
+      ? (roundupPost?.teamNotice || '')
+      : (schedule?.groupId && group ? (group?.memo || schedule?.memo || '') : (schedule?.memo || ''))).trim();
+    if (memoDraft.trim() === current) { setEditingMemo(false); return; }
+    setSavingMemo(true);
+    try {
+      await onSaveMemo(schedule, memoDraft, current);   // current=표시 중이던 옛 메모(전파 시 공지 미리보기 기준)
+      // 저장 후 원본 최신화 — 라운지=모집글 공지 / 전파=그룹 공지·확인
+      if (schedule?.roundupId) {
+        try { const rp = await loadRoundup(schedule.roundupId); if (rp) setRoundupPost(rp); } catch (e) {}
+      } else if (schedule?.groupId) {
+        try { const g = await getScheduleGroup(schedule.groupId); if (g) setGroup(g); } catch (e) {}
+      }
+      setEditingMemo(false);
+    } catch (e) {
+      // 실패 시 편집 상태 유지(입력 보존)
+    } finally { setSavingMemo(false); }
+  };
 
   // 공지 확인 ✓ — 서버에 내 uid 키만 기록 + 로컬 group에 낙관 반영(재로드 없이 즉시 표시).
   //   유효성은 at > memoAt 비교라 공지가 수정되면 자동 무효(2026-07-10, [[schedule-propagation-spec]] 공지 확인).
@@ -38,15 +68,17 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   //   느린 네트워크 대비 최대 600ms 캡 — 그 안에 못 받으면 있는 것만으로 오픈(드물게만 잔여 채움). 솔로는 알람만이라 즉시.
   const [showSheet, setShowSheet] = useState(false);
   useEffect(() => {
-    if (!visible || !schedule?.id) { setShowSheet(false); setAlarmCfg(null); setGroup(null); setFriendNames({}); return; }
+    if (!visible || !schedule?.id) { setShowSheet(false); setAlarmCfg(null); setGroup(null); setRoundupPost(null); setFriendNames({}); return; }
     let alive = true;
     const cap = setTimeout(() => { if (alive) setShowSheet(true); }, 600);
     (async () => {
-      const [cfg, g] = await Promise.all([
+      const [cfg, g, rp] = await Promise.all([
         getAlarmConfig(schedule.id).catch(() => null),
         schedule.groupId ? getScheduleGroup(schedule.groupId).catch(() => null) : Promise.resolve(null),
+        schedule.roundupId ? loadRoundup(schedule.roundupId).catch(() => null) : Promise.resolve(null),
       ]);
       if (!alive) return;
+      setRoundupPost(rp);
       // 동반자 이름은 그룹뿐 아니라(옛 그룹=이름맵 없음) 친구목록까지 필요 → 함께 받아 한 번에 반영
       //   ([[schedule-propagation-spec]] — '친구 초대' 동반자는 audienceUids에만 있어 그룹+닉네임 없이는 '친구'로만 떴음).
       let fnames = {};
@@ -60,7 +92,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
       setShowSheet(true); // 데이터 준비 완료 → 완성된 상태로 슬라이드
     })();
     return () => { alive = false; clearTimeout(cap); };
-  }, [visible, schedule?.id, schedule?.groupId]);
+  }, [visible, schedule?.id, schedule?.groupId, schedule?.roundupId]);
   if (!schedule) return null;
   const dd = schedule.dDay;
   const isPast = dd != null && dd < 0;        // 지난 라운딩 — 날씨·교통 숨김
@@ -253,14 +285,69 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     </View>
                   )
                 )}
-                {/* 메모(공지) 카드 — D-DAY 아래. 전파 일정은 group.memo(실시간·수정자) / 혼자는 schedule.memo. 있을 때만(사용자 2026-07-06) */}
+                {/* 메모(공지) 카드 — 인라인 편집 지원. 3종:
+                    ①라운지 모집(roundupId) = 모집글 공지(teamNotice), '호스트만' 편집·참가자 열람
+                    ②전파(groupId)          = group.memo, 동반자 공유(전원 편집·확인)
+                    ③혼자                    = schedule.memo, 개인 메모 */}
                 {(() => {
-                  const isGroupMemo = !!(schedule.groupId && group);
-                  // group.memo가 비어 있으면(아직 그룹에 동기화 안 된 전파 일정 등) schedule.memo로 폴백 —
-                  //   group 로드 후 memo가 '잠깐 보이다 사라지던' 것 방지(사용자 2026-07-06).
-                  const memoText = isGroupMemo ? (group?.memo || schedule.memo || '') : (schedule.memo || '');
-                  if (!memoText) return null;
-                  const editor = isGroupMemo ? (group?.memoByName || '') : '';
+                  const isRoundup = !!schedule.roundupId;
+                  const isGroupMemo = !isRoundup && !!(schedule.groupId && group);
+                  const isNotice = isRoundup || isGroupMemo;   // 공지(확성기) vs 개인 메모(메모판)
+                  // group.memo가 비어 있으면 schedule.memo로 폴백(그룹 동기화 전 '잠깐 보이다 사라짐' 방지, 2026-07-06).
+                  const memoText = isRoundup ? (roundupPost?.teamNotice || '')
+                    : isGroupMemo ? (group?.memo || schedule.memo || '')
+                    : (schedule.memo || '');
+                  const label = isNotice ? '공지' : '메모';
+                  // 편집 권한: 라운지=호스트(authorUid)만 / 전파·개인=onSaveMemo 있으면 누구나
+                  const isHost = isRoundup && !!roundupPost && roundupPost.authorUid === myUid;
+                  const canEdit = !!onSaveMemo && (isRoundup ? isHost : true);
+
+                  // ── 편집 중 ── 카드 안에서 바로 수정(일정수정 폼 안 엶)
+                  if (editingMemo) {
+                    return (
+                      <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                          <Icon name={isNotice ? 'megaphone' : 'clipboard'} size={fs(15)} color={C.burgundy} />
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>{label} 수정</Text>
+                        </View>
+                        <AppTextInput
+                          value={memoDraft} onChangeText={setMemoDraft} multiline autoFocus
+                          placeholder={'준비물·집결 장소·조 편성 등 자유롭게'}
+                          placeholderTextColor={C.warmGrayLight}
+                          style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 22, minHeight: 66, textAlignVertical: 'top', backgroundColor: '#fff', borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.2)', paddingHorizontal: 10, paddingVertical: 8 }}
+                        />
+                        {isNotice && (
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray, marginTop: 6 }}>
+                            {isRoundup ? '모집 참가자 모두에게 공지로 보여요' : '수정하면 동반자에게 공지가 다시 전달되고 확인이 초기화돼요'}
+                          </Text>
+                        )}
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 10 }}>
+                          <TouchableOpacity onPress={() => setEditingMemo(false)} disabled={savingMemo} activeOpacity={0.7} style={{ paddingHorizontal: 14, paddingVertical: 7 }}>
+                            <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>취소</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={saveMemoInline} disabled={savingMemo} activeOpacity={0.85}
+                            style={{ paddingHorizontal: 16, paddingVertical: 7, borderRadius: 9, backgroundColor: C.burgundy, opacity: savingMemo ? 0.6 : 1 }}>
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>{savingMemo ? '저장 중…' : '저장'}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  }
+
+                  // ── 메모 없음 → '추가하기' (편집 가능할 때만) ──
+                  if (!memoText) {
+                    if (!canEdit) return null;
+                    return (
+                      <TouchableOpacity onPress={() => { setMemoDraft(''); setEditingMemo(true); }} activeOpacity={0.7}
+                        style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, borderWidth: 0.5, borderStyle: 'dashed', borderColor: 'rgba(107,30,42,0.35)', paddingHorizontal: 14, paddingVertical: 11 }}>
+                        <Icon name="pen" size={15} color={C.burgundy} />
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.burgundy }}>{label} 추가하기</Text>
+                      </TouchableOpacity>
+                    );
+                  }
+
+                  // ── 메모 있음 → 카드 + 연필(수정) ──
+                  const editor = isRoundup ? (roundupPost?.authorName || '') : (isGroupMemo ? (group?.memoByName || '') : '');
                   // 확인(✓) — at > memoAt 인 것만 유효(공지가 수정되면 자동 리셋). 이름은 그룹 names 맵 → ack 기록 순.
                   const memoAtMs = group?.memoAt?.toMillis ? group.memoAt.toMillis() : 0;
                   const acks = isGroupMemo ? Object.entries(group?.memoAcks || {})
@@ -272,13 +359,23 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   return (
                     <View style={{ marginTop: 16, backgroundColor: 'rgba(245,230,168,0.45)', borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                        <Text style={{ fontSize: fs(12.5) }}>{isGroupMemo ? '📢' : '📝'}</Text>
-                        {/* 전파 일정은 '공지' — 푸시로 전달되고 확인을 받는 성격이라 개인 '메모'와 표기 분리(사용자 2026-07-10) */}
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>{isGroupMemo ? '공지' : '메모'}</Text>
+                        <Icon name={isNotice ? 'megaphone' : 'clipboard'} size={fs(15)} color={C.burgundy} />
+                        {/* 라운지·전파 일정은 '공지' — 참가자·동반자에게 보이는 성격이라 개인 '메모'와 표기 분리(사용자 2026-07-10) */}
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginLeft: 5, letterSpacing: 0.4 }}>{label}</Text>
+                        {canEdit && (
+                          <TouchableOpacity onPress={() => { setMemoDraft(memoText); setEditingMemo(true); }} activeOpacity={0.7}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2 }}>
+                            <Icon name="pen" size={13} color={C.warmGray} />
+                            <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray }}>수정</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: C.charcoal, lineHeight: 23 }}>{memoText}</Text>
                       {!!editor && (
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8 }}>✎ {editor}님이 마지막으로 수정</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 8 }}>
+                          {isRoundup ? `${editor}님(호스트) 공지` : `✎ ${editor}님이 마지막으로 수정`}
+                        </Text>
                       )}
                       {/* 확인 줄 — 누가 봤는지 + 내 확인 버튼('네~' 답장 수정 대신, 푸시 소음 없이) */}
                       {isGroupMemo && (

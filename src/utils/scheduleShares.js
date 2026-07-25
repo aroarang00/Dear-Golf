@@ -280,3 +280,26 @@ export function memoChangePreview(oldMemo, newMemo) {
   }
   return next.slice(-40);
 }
+
+// 공지(memo)만 바뀐 편집의 '그룹 전파' — 그룹 내용 동기화 + '공지 변경' 푸시. 전파 일정만(라운지 roundupId 제외).
+//   ★일정 문서 자체의 memo 갱신(editSchedule)은 호출측에서 별도로 수행 — 이 함수는 그룹 동기화·알림·확인리셋만 담당.
+//   HomeScreen 폼 저장과 동일한 프리미티브(syncGroupContentByMember·notifyScheduleGroupMembers·memoChangePreview)를
+//   써서 인라인 수정(ScheduleSheetModal)과 동작을 일치시킨다. editor = { uid, name }.
+export async function propagateMemoEdit(oldSchedule, newMemo, editor) {
+  if (!oldSchedule?.groupId || oldSchedule?.roundupId || !editor?.uid) return;
+  const merged = { ...oldSchedule, memo: String(newMemo || '').trim() };
+  try {
+    // 수정자(uid·닉네임) 전달 → 그룹에 'OO님 수정'(memoBy·memoByName·memoAt) 기록 + memoAcks는 memoAt 갱신으로 자동 리셋
+    await syncGroupContentByMember(oldSchedule.groupId, merged, { uid: editor.uid, name: editor.name || '' });
+    const group = await getScheduleGroup(oldSchedule.groupId);
+    if (!group) return;
+    await notifyScheduleGroupMembers({
+      group, myUid: editor.uid, type: 'scheduleMemo',
+      actorName: editor.name || '',
+      course: oldSchedule.course, date: oldSchedule.date, time: oldSchedule.time,
+      memoPreview: memoChangePreview(oldSchedule.memo, merged.memo),
+    });
+  } catch (e) {
+    if (__DEV__) console.warn('[scheduleShares] propagateMemoEdit', e?.message);
+  }
+}

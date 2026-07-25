@@ -44,11 +44,11 @@ import { subscribeCrewInvites, subscribeMyCrews } from '../utils/crews';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched, loadMyFriends } from '../utils/friends';
-import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup, memoChangePreview } from '../utils/scheduleShares';
+import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup, memoChangePreview, propagateMemoEdit } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
 import { formatDriveMin } from '../utils/directions'; // 교통 소요 '시간 분' 표시 — 카드·팝업 공용
-import { loadRoundup } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회
+import { loadRoundup, updateRoundupNotice } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회 / 라운지 일정 공지(teamNotice) 저장
 import { loadMyNotifications, visibleNotifications } from '../utils/roundupNotifications'; // 홈 종 뱃지 — 라운지 알림함과 같은 필터
 import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈
@@ -977,6 +977,23 @@ export function HomeScreen({ navigation, route }) {
         if (!w) return;
         setScheduleShareTarget(prev => (prev && prev.date === s.date && prev.course === s.course) ? { ...prev, weather: w.summary, weatherText: w.detail, weatherIcon: w.icon } : prev);
       }).catch(() => {});
+    }
+  };
+
+  // 시트 인라인 공지/메모 저장 — 일정수정 폼 안 열고 카드에서 바로. 문서 memo 갱신 + (전파 일정이면) 그룹 동기화·공지 푸시.
+  //   폼 저장과 동일 프리미티브(propagateMemoEdit). oldMemo=시트에서 표시 중이던 메모(전파 공지 미리보기 기준·save-revert 방지).
+  const handleSaveMemo = async (sched, newMemo, oldMemo) => {
+    if (!sched?.id) return;
+    const memo = String(newMemo || '').trim();
+    // 라운지 모집 일정 → 모집글 공지(teamNotice). 호스트만 저장 도달(시트가 게이팅), 참가자 모두 열람.
+    if (sched.roundupId) {
+      await updateRoundupNotice(sched.roundupId, memo);
+      return;
+    }
+    await editSchedule(sched.id, { memo });
+    if (sched.groupId && currentUid) {
+      await propagateMemoEdit({ ...sched, memo: oldMemo != null ? oldMemo : (sched.memo || '') }, memo,
+        { uid: currentUid, name: userProfile?.nickname || '' });
     }
   };
 
@@ -1910,6 +1927,7 @@ export function HomeScreen({ navigation, route }) {
           if (rid) navigation.navigate(ROUTES.LOUNGE, { openPostId: rid });
         }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
+        onSaveMemo={handleSaveMemo}
         onAlarm={() => {
           // 일정 시트 → 알람 변경: 시트 닫고 기존 설정 불러와 알람 화면 열기(편집 프리필)
           const s = selectedSchedule;
