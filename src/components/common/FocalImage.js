@@ -91,10 +91,12 @@ export function FocalImage({ uri, focus, width, height, style, onRatio }) {
   if (fitWhole) {
     return (
       <View style={[{ width, height, backgroundColor: '#15171A', overflow: 'hidden' }, style]}>
+        {/* ★흐린 배경과 선명한 앞 레이어의 recyclingKey를 분리(#bg) — 같은 키면 첫 로드 때 앞 레이어가
+            안 덮이고 흐린 배경만 남아 '첫 사진 흐림'이 재마운트 전까지 지속되던 것 수정. 앞 레이어는 전환 없이 즉시. */}
         <Image source={uri} style={{ position: 'absolute', left: 0, top: 0, width, height }} contentFit="cover"
-          blurRadius={18} cachePolicy="memory-disk" recyclingKey={uri} />
+          blurRadius={18} cachePolicy="memory-disk" recyclingKey={`${uri}#bg`} />
         <Image source={uri} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk"
-          transition={Platform.OS === 'android' ? 0 : 150}
+          transition={0}
           onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
       </View>
