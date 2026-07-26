@@ -3,6 +3,7 @@ import {
   addDoc, setDoc, updateDoc, doc, serverTimestamp, arrayUnion, Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { normalizeScoreRow } from './scorecardOcr';   // 파대비/오버파 오독 → 홀 합으로 총타 정규화
 
 // =============================================================
 // roundScoreShares/{shareId} — 동반자 스코어 공유 (Phase C, docs/companion-design.md §11)
@@ -84,8 +85,10 @@ export function subscribeIncomingScoreShares(uid, cb) {
 
 // 공유 + 선택한 행 → 내 rounds 파생 payload(프리필). 수신자가 검토·수정 가능(visibility=private 기본).
 export function buildDerivedRound(share, selectedRow, { uid, nickname }) {
-  const holes = Array.isArray(selectedRow?.holes) ? selectedRow.holes : null;
-  const total = Number.isFinite(selectedRow?.total) ? selectedRow.total : (parseInt(selectedRow?.total) || 0);
+  // 정규화(멱등) — 공유 생성 시 이미 맞춘 값은 그대로 통과하고, 이 수정 전에 전송된 옛 공유(오버파/파대비 total)만 홀 합으로 교정.
+  const row = normalizeScoreRow(selectedRow, Array.isArray(share?.pars) ? share.pars : null);
+  const holes = Array.isArray(row?.holes) ? row.holes : null;
+  const total = Number.isFinite(row?.total) ? row.total : (parseInt(row?.total) || 0);
   // 홀별 합이 총타와 어긋나면(OCR 저신뢰) 홀별·버디를 버려 헤드라인 총타와 표가 모순되지 않게 — 일반 저장(DiaryAddModal)과 동일 정책.
   const holesOk = Array.isArray(holes) && holes.length > 0 && holes.every(h => Number.isFinite(h)) && holes.reduce((s, h) => s + h, 0) === total;
   // ★createRound(round.js)와 같은 필드 집합으로 맞춤 — 파생 라운드에 par·likes 등이 빠지면

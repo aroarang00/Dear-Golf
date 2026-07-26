@@ -29,8 +29,13 @@ import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { scoreBreakdown } from '../utils/scorecardOcr';
 import { pickScorecardImages, extractScorecardAI } from '../utils/scorecardAI'; // OCR 대체 — Gemini 비전(태블릿 전후반 병합 + 카드, 최대 2장·단체는 나눠 담기)
 import { ScorecardReviewModal } from './ScorecardReviewModal';
+import { ScorecardPreviewModal } from './ScorecardPreviewModal';   // 읽기 전 방향 확인·회전(AI 1회)
 import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
+import { normalizeScoreRow } from '../utils/scorecardOcr';   // 공유 전 총타 정규화(오버파 오독 방지)
 import { getUid } from '../utils/firebase';
+import { uploadRoundMedia, deleteRoundMediaFiles } from '../utils/roundMedia';   // 사진 미리 업로드(저장 즉시화)
+import * as ImageManipulator from 'expo-image-manipulator';   // 스코어카드 사진 회전(옆으로 누운 카드 재인식)
+import * as MediaLibrary from 'expo-media-library';   // 촬영한 스코어카드 원본을 갤러리에 보관
 import { CropEditorModal } from './common/CropEditorModal';
 import { PhotoEditModal } from './PhotoEditModal';
 import { OverlayAlert } from './common/OverlayAlert';
@@ -111,6 +116,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [scLowConf, setScLowConf] = useState(false); // OCR 저신뢰(인쇄 합계와 안 맞음) → 확인·수정 강조
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
+  const [scPreviewUris, setScPreviewUris] = useState(null); // 읽기 전 방향 확인 대상 사진(있으면 미리보기 모달)
+  const [scRotating, setScRotating] = useState(false); // 스코어카드 사진 회전 후 재인식 중
+  const scOrigUrisRef = useRef([]);                    // 마지막 인식에 쓴 원본 사진 uri(회전 재시도용)
+  const scRotationRef = useRef(0);                      // 누적 회전각(원본 기준 0/90/180/270)
   const [showCost, setShowCost] = useState(false);
   const [showCourseDetail, setShowCourseDetail] = useState(false); // 골프장 결제 그린피·카트비 세부 펼침
   const [costs, setCosts] = useState({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' });
@@ -172,6 +181,54 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const [specialMemo, setSpecialMemo] = useState('');
   const [addPhotos, setAddPhotos] = useState([]);
   const [photoBusy, setPhotoBusy] = useState(false); // 사진 추가(압축·영속) 처리 중 — 끝나기 전 저장 시 사진 누락되던 경합 방지
+
+  // ── 사진 미리 업로드 — 친구 공개+사진 저장 즉시화 ────────────────────────────────
+  //   사진을 고르는 즉시 백그라운드로 Storage 업로드(저장 때와 같은 uploadRoundMedia). 저장 시 그 결과(https)로
+  //   치환하면 createRound의 업로드가 https라 건너뛰어 저장이 즉시 끝난다. ★저장 데이터는 기존과 동일 —
+  //   같은 uploadRoundMedia를 쓰고 결과만 앞당겨 재사용하므로 타이밍만 달라지고 결과물은 바이트 동일.
+  //   맵: 로컬 uri(key) → Promise<업로드된 항목|null>. 동영상은 제외(저장 시 스트리밍·poster 처리). 크롭/편집으로
+  //   uri가 바뀐 사진은 맵에 없어 저장 때 그 한 장만 업로드된다(폴백). 실패분도 로컬 유지→createRound가 올림.
+  const preUpRef = useRef(new Map());
+  const mediaKey = (item) => (item && typeof item === 'object' ? item.uri : item) || '';
+  const preUploadMedia = (items) => {
+    for (const item of (Array.isArray(items) ? items : [items])) {
+      if (item && typeof item === 'object' && item.type === 'video') continue; // 동영상 제외
+      const key = mediaKey(item);
+      if (!key || /^https?:\/\//.test(key) || preUpRef.current.has(key)) continue;
+      preUpRef.current.set(key, (async () => {
+        try {
+          const uid = await getUid();
+          if (!uid) return null;
+          const [res] = await uploadRoundMedia(uid, [item]);
+          return res || null;
+        } catch { return null; }
+      })());
+    }
+  };
+  // 저장에 안 쓰인(삭제·재크롭·취소된) 미리 업로드분을 Storage에서 정리. keepKeys에 든 것만 남긴다.
+  const cleanupPreUploads = (keepKeys = []) => {
+    const keep = new Set(keepKeys);
+    for (const [k, promise] of preUpRef.current) {
+      if (keep.has(k)) continue;
+      promise.then(u => u && deleteRoundMediaFiles([u])).catch(() => {});
+      preUpRef.current.delete(k);
+    }
+  };
+  // 저장 시 addPhotos를 '가능한 https'로 치환 + 최종 목록 밖 고아 정리. 미완/실패분은 로컬 유지(createRound가 업로드).
+  const resolveFinalPhotos = async () => {
+    if (!addPhotos.length) return addPhotos;
+    const out = await Promise.all(addPhotos.map(async (item) => {
+      const p = preUpRef.current.get(mediaKey(item));
+      if (!p) return item;
+      const up = await p;
+      if (!up) return item;
+      // focus(대표사진 초점) 등 현재 아이템 메타 보존 — 업로드 결과엔 orig가 없으니 focus만 이어붙임
+      return (item && typeof item === 'object' && item.focus != null && up && typeof up === 'object')
+        ? { ...up, focus: item.focus } : up;
+    }));
+    cleanupPreUploads(addPhotos.map(mediaKey));
+    return out;
+  };
   const [cropIdx, setCropIdx] = useState(null); // 자르기(크롭) 대상 사진 인덱스
   const [editorIndex, setEditorIndex] = useState(null); // 회전 편집 대상 사진 인덱스 (PhotoEditModal)
   // 인-모달 알럿/메뉴 — 글로벌 showAppAlert는 Modal 위 Modal 터치 충돌로 안 먹혀, 오버레이 View(OverlayAlert) 사용.
@@ -292,6 +349,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const compressed = await compressMedia(posterItems);
       const items = await persistPhotos(compressed);
       setAddPhotos(prev => [...prev, ...items].slice(0, MAX_PHOTOS));
+      preUploadMedia(items); // 고르는 즉시 백그라운드 업로드 시작 → 저장을 즉시 끝나게(친구 공개 사진)
       // 영구 저장 실패로 드롭된 사진이 있으면 안내 — iCloud 원본 미다운로드가 흔한 원인(조용한 데이터 손실 방지)
       if (items.length < compressed.length) {
         setOverlay({ title: '일부 사진을 저장하지 못했어요', message: 'iCloud 사진은 기기에 원본이 없을 수 있어요.\n설정 ▸ 사진 ▸ "원본 다운로드 및 보관" 후 다시 시도하거나 다른 사진을 선택해주세요.' });
@@ -306,8 +364,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   };
 
   // 스코어카드 사진(1~2장) → AI 인식(Gemini 비전) → 검토 모달. 갤러리/촬영 공용 마무리.
-  const runScorecardExtract = async (uris) => {
+  //   opts.fromRotate=회전 재시도 호출(원본·회전각 유지). 신규 인식이면 원본 uri 저장 + 회전각 리셋.
+  const runScorecardExtract = async (uris, opts = {}) => {
     if (!uris?.length || !visibleRef.current) { setScBusy(false); return; }
+    if (!opts.fromRotate) { scOrigUrisRef.current = uris; scRotationRef.current = 0; } // 회전 재시도의 기준 원본
     setScFailReason('');   // 새 시도 — 지난 실패 사유가 남아 보이지 않게
     setScBusy(true);
     try {
@@ -322,7 +382,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       }
       // 플레이어(행) 전부 → 검토 모달. 여러 명이면 모달이 '본인 행 선택'부터 띄움.
       setScRows(res.rows);
-      setShareRows(res.rows);
+      // ★공유용은 정규화 — AI가 오버파(예:19)를 total로 오독해도 홀 합(실타수)으로 총타를 맞춘다.
+      //   리뷰 모달이 보여주는 총타와 동반자에게 전달되는 총타를 일치시킴([[project_scorecard_ai]]).
+      setShareRows(res.rows.map(r => normalizeScoreRow(r, res.holePars || null)));
       setHolePars(res.holePars || null);       // par(있으면) — 버디 자동집계
       setScFailed(false); setScFailReason('');
       setScLowConf(false);
@@ -332,6 +394,37 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     } finally {
       setScBusy(false);
     }
+  };
+
+  // 사진이 옆으로 누워(90°) AI가 못 읽는 태블릿 카드용 — 원본을 90°씩 돌려 다시 인식(방향은 사용자가 눈으로 맞춤).
+  //   원본에서 누적각으로 회전(반복해도 화질 저하 없음). AI 호출 1회만 늘어 비용·속도 부담 적음.
+  const handleRotateScorecard = async () => {
+    const origs = scOrigUrisRef.current;
+    if (!origs?.length || scRotating) return;
+    setScRotating(true);
+    scRotationRef.current = (scRotationRef.current + 90) % 360;
+    try {
+      const rotated = await Promise.all(origs.map(async (u) => {
+        try {
+          const r = await ImageManipulator.manipulateAsync(u, [{ rotate: scRotationRef.current }],
+            { compress: 1, format: ImageManipulator.SaveFormat.JPEG });
+          return r.uri;
+        } catch { return u; } // 회전 실패한 장은 원본 그대로 시도
+      }));
+      await runScorecardExtract(rotated, { fromRotate: true });
+    } finally {
+      setScRotating(false);
+    }
+  };
+  // 촬영한 스코어카드 원본을 갤러리에 보관 — best-effort(fire-and-forget). 반사·그림자로 인식 실패해도 원본은 남게.
+  //   갤러리에서 고른 사진은 이미 갤러리에 있으니 대상 아님(카메라 촬영분만). 권한 없으면 조용히 스킵.
+  const saveScorecardShots = async (uris) => {
+    if (!Array.isArray(uris) || !uris.length) return;
+    try {
+      const perm = await MediaLibrary.requestPermissionsAsync();
+      if (!perm.granted) return;
+      for (const u of uris) { try { await MediaLibrary.saveToLibraryAsync(u); } catch {} }
+    } catch (e) { if (__DEV__) console.warn('[scorecard] gallery save', e?.message); }
   };
   // source: 'gallery'(최대 2장 전/후반 한 번에) | 'camera'(카메라는 1회=1장 → 태블릿 전/후반을 위해 '후반도 촬영' 물어봄, 사용자 2026-07-23)
   const handleScorecardPick = async (source) => {
@@ -344,23 +437,26 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     if (!picked?.uris?.length || !visibleRef.current) { setScBusy(false); return; } // 취소·닫힘
     // 실물 촬영 — 태블릿은 전반·후반이 따로 나와 2장 필요. 1장 찍은 뒤 '후반도 촬영'을 물어 최대 2장까지 모은다.
     if (source === 'camera') {
+      saveScorecardShots(picked.uris); // 찍은 원본을 갤러리에 보관(반사로 인식 실패해도 원본 안 잃게)
       setScBusy(false); // 결정(오버레이) 동안은 스피너 숨김 — 오버레이가 재탭을 막음
       setOverlay({
         title: '후반 카드도 찍을까요?',
-        message: '스마트스코어 태블릿은 전반·후반이 따로 나와요. 후반(뒤 9홀) 카드가 있으면 한 장 더 찍고, 없으면 이대로 인식할게요.',
+        message: '스마트스코어 태블릿은 전반·후반이 따로 나와요. 후반(뒤 9홀) 카드가 있으면 한 장 더 찍고, 없으면 이대로 인식할게요.\n(찍은 사진은 갤러리에 저장돼요)',
         buttons: [
           { text: '후반도 촬영', onPress: async () => {
             const second = await pickScorecardImages('camera').catch(() => null);
-            runScorecardExtract(second?.uris?.length ? [...picked.uris, ...second.uris] : picked.uris);
+            if (second?.uris?.length) saveScorecardShots(second.uris);
+            setScPreviewUris(second?.uris?.length ? [...picked.uris, ...second.uris] : picked.uris); // 읽기 전 방향 확인
           } },
-          { text: '이대로 인식', onPress: () => runScorecardExtract(picked.uris) },
+          { text: '이대로 인식', onPress: () => setScPreviewUris(picked.uris) },
           { text: '취소', style: 'cancel' },
         ],
       });
       return;
     }
-    // 갤러리 — 최대 2장 한 번에
-    runScorecardExtract(picked.uris);
+    // 갤러리 — 최대 2장 한 번에 → 읽기 전 방향 확인 모달
+    setScBusy(false);
+    setScPreviewUris(picked.uris);
   };
 
   // 검토 모달 확정 — 18홀 저장 + 총타를 스코어 입력란에 자동 채움
@@ -678,11 +774,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         return;
       }
       setSaveError('');
+      savingRef.current = true; setSaving(true); // 미리 업로드 대기 동안도 연타/버튼 상태 반영
+      const mFinalPhotos = await resolveFinalPhotos(); // 미리 업로드된 것 https로 치환(대개 이미 완료 → 즉시)
       const mPayload = {
         kind: 'moment',
         date: formatDate(date), day: formatDay(date), // 기본 오늘 (캘린더 미표시·작성시각 정렬)
         memo: memo.trim(), detailMemo: '',
-        photos: addPhotos,
+        photos: mFinalPhotos,
         ...vis,
         score: null, course: '', courseId: null, courseLoc: null,
         holeScores: null, holePars: null, birdieCount: 0,
@@ -693,13 +791,13 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         overseas: false, country: '', scheduleId: null,
       };
       // 저장을 await — 실패 시 모달을 닫지 않고 입력 보존 + 안내(전역 알럿은 RN Modal 아래 깔림, [[ios-modal-stacking]])
-      savingRef.current = true; setSaving(true);
       try {
         const ok = isEdit ? await onSave('diary-edit', { id: initial.id, ...mPayload }) : await onSave('diary', mPayload);
         if (ok === false) {
           setOverlay({ title: '저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.' });
           return;
         }
+        preUpRef.current.clear(); // 저장된 파일 참조는 버림(삭제 아님) — 취소 정리가 저장분을 지우지 않게
         reset(); onClose();
       } finally { savingRef.current = false; setSaving(false); }
       return;
@@ -722,13 +820,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       const holeSum = finalHoleScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
       if (holeSum !== (parseInt(score) || 0)) { finalHoleScores = null; finalHolePars = null; }
     }
+    savingRef.current = true; setSaving(true); // 미리 업로드 대기 동안도 연타/버튼 상태 반영
+    const finalPhotos = await resolveFinalPhotos(); // 미리 업로드된 것 https로 치환(대개 이미 완료 → 즉시)
     const payload = {
       course: finalCourse, date: formatDate(date), day: formatDay(date), time: teeTime || null,
       score: parseInt(score) || 0, holeScores: finalHoleScores, holePars: finalHolePars, weather, memo, birdieCount, ...vis,
       special, specialHole: parseInt(specialHole) || null,
       specialPar: parseInt(specialPar) || null,
       specialDist, specialBall, specialMemo,
-      photos: addPhotos,
+      photos: finalPhotos,
       starRating,
       tags: selectedTags,
       detailMemo,
@@ -759,7 +859,6 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       country: overseas ? country.trim() : '',
     };
     // 저장을 await — 실패 시 모달을 닫지 않고 입력(코스·스코어·사진·메모) 보존 + 안내
-    savingRef.current = true; setSaving(true);
     let saveOk;
     try {
       saveOk = isEdit ? await onSave('diary-edit', { id: initial.id, ...payload }) : await onSave('diary', payload);
@@ -768,6 +867,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       setOverlay({ title: '저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.' });
       return;
     }
+    preUpRef.current.clear(); // 저장된 파일 참조는 버림(삭제 아님) — 취소 정리가 저장분을 지우지 않게
     // 동반자에게 스코어 공유 — OCR 전체 행(scRows)을 친구 동반자에게. 수신자가 자기 행 골라 본인 기록에 파생.
     //   best-effort(fire-and-forget) — 라운딩 저장 자체는 위에서 끝났으므로 공유 실패가 저장을 막지 않음. ([[companion-design]] §11)
     if (shareScores && Array.isArray(shareRows) && shareRows.length >= 2) {
@@ -796,20 +896,20 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
 
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { cleanupPreUploads(); reset(); onClose(); }}>
         {/* KeyboardProvider — RN Modal은 별도 네이티브 윈도우라 모달 안 KAS는 자체 Provider 필요 */}
         <KeyboardProvider>
         <View style={mS.mask}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { reset(); onClose(); }} />
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { cleanupPreUploads(); reset(); onClose(); }} />
           <View style={[mS.sheet, { paddingBottom: 0 }]}>
-            <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.7}
+            <TouchableOpacity onPress={() => { cleanupPreUploads(); reset(); onClose(); }} activeOpacity={0.7}
               style={{ alignItems: 'center', paddingVertical: 10 }}>
               <View style={mS.handle} />
             </TouchableOpacity>
             {/* A. 고정 헤더 — 제목 + 항상 보이는 ✕ 닫기(iOS 백버튼 부재·긴 내용서 닫기 어려움 대응) */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 4 }}>
               <Text style={[mS.title, { fontSize: fs(21), flex: 1, marginBottom: 0 }]}>{isEdit ? '기록 수정' : '기록하기'}</Text>
-              <TouchableOpacity onPress={() => { reset(); onClose(); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              <TouchableOpacity onPress={() => { cleanupPreUploads(); reset(); onClose(); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 }}>
                 <Text style={{ fontSize: fs(22), color: C.warmGray }}>✕</Text>
               </TouchableOpacity>
@@ -882,10 +982,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       {/* 각 항목을 '· + 텍스트' 행으로 — 줄바꿈돼도 글머리 아래로 안 튀어나오게 flex:1 hanging indent */}
                       <View style={{ gap: 6 }}>
                         {[
+                          { k: 'best', pre: '가장 정확한 건 ', em: "스마트스코어 앱의 '스코어카드' 화면 캡처", emColor: true, post: ' — 반사·그림자가 없어요' },
                           { k: 'a', pre: '스마트스코어 태블릿은 ', em: '전반·후반 각 1장(2장)', emB: true, post: ' 올리면 자동 병합돼요' },
+                          { k: 'c', pre: '실물 촬영은 ', em: '얼굴·손 그림자나 빛 반사가 숫자를 덮으면 못 읽어요', emColor: true, post: ' — 살짝 비스듬히·그늘지게 찍으세요' },
+                          { k: 'save', pre: '촬영한 사진은 ', em: '갤러리에 자동 저장', emB: true, post: '돼요 (원본 보관)' },
                           { k: 'a2', pre: '전체 스코어카드(18홀·여러 명)는 ', em: '한 번에 2장까지', emB: true, post: ' — 단체는 팀 카드를 나눠 담으면 정확해요' },
-                          { k: 'b', pre: 'PAR가 없어도 점수만 인식돼요' },
-                          { k: 'c', pre: '촬영할 땐 ', em: '빛 반사 없이 숫자가 또렷하게 정면', emColor: true, post: '에서' },
                           { k: 'd', pre: '여러 명이 나온 표는 인식 후 본인 행을 골라요' },
                         ].map(b => (
                           <View key={b.k} style={{ flexDirection: 'row' }}>
@@ -925,6 +1026,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
                       </TouchableOpacity>
                     </View>
+                  )}
+                  {/* 사진으로 다시 읽기 — 이미 홀별이 있어도(수정모드에서 총타만 있던 기록에 홀별 추가 등) 사진 AI 재인식 진입.
+                      총타만 있는 기록(holeScores=null)은 위 '사진 올리기/실물 촬영' 버튼이 그대로 뜬다. */}
+                  {holeScores && !scBusy && (
+                    <TouchableOpacity onPress={() => handleScorecardPick('gallery')} activeOpacity={0.85}
+                      style={{ marginTop: 8, paddingVertical: 11, borderRadius: 10, alignItems: 'center',
+                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>사진으로 다시 읽기</Text>
+                    </TouchableOpacity>
                   )}
                   {/* 동반자 점수 공유 — OCR 카드 기반이라 결과 '바로 아래'에 둠(동반자 섹션에 묻혀 못 보던 것 개선, 사용자 제보).
                       여러 명 인식(shareRows≥2, 수정해도 원본 유지) + 친구 동반자 있으면 체크박스 / 없으면 동반자 추가 유도. */}
@@ -1541,7 +1651,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#6B1E2A', textAlign: 'center', marginBottom: 8 }}>{saveError}</Text>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.8}
+                <TouchableOpacity onPress={() => { cleanupPreUploads(); reset(); onClose(); }} activeOpacity={0.8}
                   style={{ paddingVertical: 15, paddingHorizontal: 22, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>취소</Text>
                 </TouchableOpacity>
@@ -1556,6 +1666,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
         </KeyboardProvider>
         {/* 인-모달 알럿/메뉴 — 글로벌 showAppAlert는 Modal 위에서 터치 충돌, 오버레이 View로 처리 */}
         <OverlayAlert data={overlay} onClose={() => setOverlay(null)} />
+        <ScorecardPreviewModal
+          visible={!!scPreviewUris}
+          uris={scPreviewUris || []}
+          onCancel={() => setScPreviewUris(null)}
+          onConfirm={(rotatedUris) => { setScPreviewUris(null); runScorecardExtract(rotatedUris); }} />
         <ScorecardReviewModal
           visible={scReview}
           rows={scRows}
@@ -1563,6 +1678,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           failed={scFailed}
           failedReason={scFailReason}
           lowConfidence={scLowConf}
+          rotating={scRotating}
+          onRotate={scOrigUrisRef.current.length ? handleRotateScorecard : null}
           onConfirm={handleScorecardConfirm}
           onClose={() => setScReview(false)} />
         <CropEditorModal

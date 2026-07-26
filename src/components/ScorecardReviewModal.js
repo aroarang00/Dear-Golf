@@ -4,46 +4,25 @@ import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-co
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
-import { sumHoles } from '../utils/scorecardOcr';
+import { sumHoles, reconcileScoreRow } from '../utils/scorecardOcr';
 
 // 스코어카드 인식 결과 검토 — (여러 명이면) 본인 행 선택 → 18홀 표 미리보기·수정 → 확정.
 //  rows: [{ label, holes:number[18], total }]   label은 화면 구분용(저장 X)
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], holePars = null, failed = false, failedReason = '', lowConfidence = false, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], holePars = null, failed = false, failedReason = '', lowConfidence = false, rotating = false, onRotate = null, onConfirm, onClose }) {
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
 
-  // par 행을 충분히 읽었을 때만 파대비 변환 판정(9홀 이상 par 확보). 스마트스코어류=홀별 파대비 표기.
-  const parReady = Array.isArray(holePars) && holePars.filter(p => p >= 3 && p <= 5).length >= 9;
-
-  // 행 로드 — 파대비 카드면 인쇄 총계와 대조해 자동 변환(추측 아님·산술 교차검증).
-  //   홀별합 vs 인쇄총계가 안 맞고, (홀별합+par합)이 인쇄총계와 맞으면 = 파대비 표기 → par 더해 실제 타수로.
-  //   실제 타수 카드는 홀별합≈총계라 그대로. par합(≈72)까지 더해야 맞는 실수는 산술적으로 불가 → 오판 안 됨.
+  // 행 로드 — 공유·수신과 같은 재조정 함수(단일 소스). par 있으면 파대비→실타수 환산.
+  //   par를 못 읽어 환산 불가한 파대비 카드는 holes=null로 와서 셀을 비운다(파대비 숫자를 실타수인 척 보이면 99→27 오해).
+  //   그 경우 총타는 인쇄 총계를 신뢰(아래 total 폴백 + confirm).
   const loadRow = (i) => {
     const row = rows[i] || {};
-    const raw = (row.holes || []).map(n => (Number.isFinite(n) ? n : null));
-    const holesSum = raw.reduce((s, n) => s + (n || 0), 0);
-    const printed = row.total;
-    let asRel = false;
-    // 인쇄총계가 홀별합과 '다를' 때만 신뢰 — 같으면 CF가 합으로 폴백한 값일 수 있어 판별 불가(→ 변환 안 함).
-    if (parReady && Number.isFinite(printed) && printed > 0 && printed !== holesSum) {
-      const parSum = raw.reduce((s, n, idx) => {
-        const p = holePars?.[idx];
-        return s + ((n != null && p >= 3 && p <= 5) ? p : 0);
-      }, 0);
-      const dStroke = Math.abs(holesSum - printed);
-      const dRel = Math.abs(holesSum + parSum - printed);
-      if (dRel < dStroke && dRel <= 8) asRel = true; // tol 8 = 총계 오독+버디(음수 잘림) 여유. 실제타수 카드의 dRel은 ~70이라 안 걸림
-    }
-    const conv = raw.map((n, idx) => {
-      if (!asRel || n == null) return n;
-      const p = holePars?.[idx];
-      return (p >= 3 && p <= 5) ? n + p : n;
-    });
-    setHoles(conv.map(n => (n == null ? '' : String(n))));
+    const { holes: rh } = reconcileScoreRow(row.holes, row.total, holePars);
+    setHoles(Array.isArray(rh) ? rh.map(n => (n == null ? '' : String(n))) : []);
   };
 
   // 열릴 때마다 초기화 — 1행이면 바로 표, 여러 행이면 행 선택부터.
@@ -61,10 +40,14 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
   };
 
   const holeNums = holes.map(s => (s === '' ? null : parseInt(s, 10)));
-  const total = sumHoles(holeNums);
+  const holesSum = sumHoles(holeNums);
   const front = sumHoles(holeNums.slice(0, 9));
   const back = sumHoles(holeNums.slice(9, 18));
   const filled = holeNums.filter(n => Number.isFinite(n)).length;
+  // 인쇄 총계(선택된 행) — 홀별을 못 읽어(par대비 미환산 등) 비운 경우 이 값을 총타로 신뢰.
+  const printedTotal = Number.isFinite(rows[rowIdx]?.total) ? rows[rowIdx].total : (parseInt(rows[rowIdx]?.total) || 0);
+  const total = holesSum > 0 ? holesSum : printedTotal;
+  const holesMissing = filled === 0 && printedTotal > 0; // 홀별 미인식 — 총타만 반영
 
   const inSelect = multi && rowIdx === null;
 
@@ -79,7 +62,11 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
     handleClose();
   };
 
-  const confirm = () => { Keyboard.dismiss(); onConfirm && onConfirm({ holeScores: holeNums, total }); };
+  const confirm = () => {
+    Keyboard.dismiss();
+    // total은 홀 합>0이면 홀 합, 아니면 인쇄 총계 폴백(위 정의) — 홀별을 못 읽어도 총타는 잃지 않는다.
+    onConfirm && onConfirm({ holeScores: holeNums, total });
+  };
 
   // 9홀 한 줄 렌더 (start: 0=전반, 9=후반)
   const renderNine = (start, title) => (
@@ -131,6 +118,18 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
               </TouchableOpacity>
             </View>
 
+            {/* 사진 회전 후 다시 읽기 — 태블릿 카드가 옆으로 누워(90°) AI가 못 읽을 때. 원본을 90°씩 돌려 재인식. */}
+            {onRotate && (
+              <TouchableOpacity onPress={onRotate} disabled={rotating} activeOpacity={0.85}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  paddingVertical: 11, borderRadius: 10, marginBottom: 12,
+                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: rotating ? 0.6 : 1 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>
+                  {rotating ? '사진 돌려서 다시 읽는 중…' : '카드가 옆으로 누웠나요?  90° 회전 후 다시 읽기'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             {/* 저신뢰 안내 — 인쇄된 합계와 안 맞음(잘못 읽었을 수 있음). 확인·수정 강조. failed면 그쪽 안내가 우선. */}
             {!failed && lowConfidence && !inSelect && (
               <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
@@ -181,6 +180,12 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
                 <View>
                   {renderNine(0, '전반 (OUT)')}
                   {renderNine(9, '후반 (IN)')}
+                  {/* 홀별 미인식(par 못 읽어 파대비 환산 실패 등) — 총타(인쇄값)만 반영. 필요하면 홀별 직접 입력. */}
+                  {holesMissing && (
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17, marginTop: 4, marginBottom: 6 }}>
+                      홀별 숫자를 정확히 읽지 못해 총타(총 {printedTotal}타)만 반영했어요.{'\n'}홀별이 필요하면 위 칸에 직접 입력해주세요.
+                    </Text>
+                  )}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4,
                     paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
                     <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>
@@ -204,8 +209,8 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>다시 선택</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity onPress={confirm} activeOpacity={0.85}
-                  style={{ flex: 2, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: C.burgundy }}>
+                <TouchableOpacity onPress={confirm} activeOpacity={0.85} disabled={rotating}
+                  style={{ flex: 2, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: C.burgundy, opacity: rotating ? 0.6 : 1 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>이대로 입력</Text>
                 </TouchableOpacity>
               </View>

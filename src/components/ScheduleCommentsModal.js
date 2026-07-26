@@ -165,6 +165,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
               backgroundColor: mine ? C.burgundy : '#E8E0D0',
               borderRadius: 14, borderTopRightRadius: mine ? 4 : 14, borderTopLeftRadius: mine ? 14 : 4,
               paddingHorizontal: 12, paddingVertical: 9,
+              flexShrink: 1, // 긴 메시지가 row(maxWidth 82%)를 넘어 화면 밖으로 잘리던 것 → 말풍선이 줄어들며 텍스트 줄바꿈
             }}>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 22, color: mine ? '#fff' : C.charcoal }}>{renderBody(c.body, mine)}</Text>
           </TouchableOpacity>

@@ -21,6 +21,61 @@ export const HOLE_COUNT = 18;
 export const sumHoles = (holes) =>
   (holes || []).reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
 
+// 파대비(스마트스코어) 표기 홀 배열 → 실제 타수 배열. 인쇄 총계와의 산술 교차검증(추측 아님).
+//   홀별합≠인쇄총계이고 (홀별합+par합)이 인쇄총계에 더 가깝고 오차≤8이면 파대비로 판정 → 홀마다 par 더함.
+//   실제 타수 카드는 par합(~72)까지 더해야 맞는 실수가 산술적으로 불가 → 오판 안 됨.
+//   ScorecardReviewModal.loadRow와 동일 로직(단일 소스). 변환 불가/불필요면 원본 그대로 반환.
+export function toActualStrokeHoles(holes, printedTotal, holePars) {
+  const raw = (holes || []).map(n => (Number.isFinite(n) ? n : null));
+  const parReady = Array.isArray(holePars) && holePars.filter(p => p >= 3 && p <= 5).length >= 9;
+  if (!parReady) return raw;
+  const holesSum = raw.reduce((s, n) => s + (n || 0), 0);
+  // 인쇄총계가 홀별합과 '다를' 때만 신뢰 — 같으면 CF가 합으로 폴백한 값일 수 있어 판별 불가(→ 변환 안 함).
+  if (!Number.isFinite(printedTotal) || printedTotal <= 0 || printedTotal === holesSum) return raw;
+  const parSum = raw.reduce((s, n, idx) => {
+    const p = holePars[idx];
+    return s + ((n != null && p >= 3 && p <= 5) ? p : 0);
+  }, 0);
+  const dStroke = Math.abs(holesSum - printedTotal);
+  const dRel = Math.abs(holesSum + parSum - printedTotal);
+  if (!(dRel < dStroke && dRel <= 8)) return raw; // tol 8 = 총계 오독+버디(음수 잘림) 여유. 실제타수 카드의 dRel은 ~70이라 안 걸림
+  return raw.map((n, idx) => {
+    if (n == null) return n;
+    const p = holePars[idx];
+    return (p >= 3 && p <= 5) ? n + p : n;
+  });
+}
+
+// 파대비 임계(파 합 근사) — 홀 합이 인쇄 총계보다 이만큼 작으면 '파대비인데 par를 못 읽어 환산 실패'로 본다.
+//   18홀 par 합은 보통 ~72. 실타수 카드의 오독 오차는 한 자릿수라, 30 이상 벌어지면 파대비 미환산이 거의 확실.
+const PAR_REL_GAP = 30;
+
+// 한 행을 '신뢰 가능한 {holes, total}'로 재조정 — 리뷰·공유·수신이 모두 이 하나를 쓴다(단일 소스).
+//   ① par 있음 → 파대비를 실타수로 환산, 총타=홀 합.
+//   ② par 없음(회전 재인식 등에서 PAR 행 놓침)인데 홀 합(파대비)이 인쇄 총계보다 크게 작음 → 환산 불가.
+//      파대비 숫자를 실타수인 척 쓰면 총타가 27 같은 오버값으로 박힌다(99→27). → 홀별은 버리고 인쇄 총계를 총타로.
+//   ③ AI가 오버파를 total로 오독(예:19) → 홀 합(실타수 91)로 총타 재계산(①과 같은 경로).
+export function reconcileScoreRow(holes, printedTotal, holePars) {
+  const printed = Number.isFinite(printedTotal) ? printedTotal : (parseInt(printedTotal) || 0);
+  const conv = toActualStrokeHoles(holes, printedTotal, holePars);
+  const hasHoles = Array.isArray(conv) && conv.some(n => Number.isFinite(n));
+  if (!hasHoles) return { holes: null, total: printed };            // 총타만 있는 행
+  const convSum = sumHoles(conv);
+  if (printed > 0 && convSum > 0 && printed - convSum >= PAR_REL_GAP) {
+    return { holes: null, total: printed };                         // par대비 환산 실패 → 인쇄 총계 신뢰, 홀별 버림
+  }
+  return { holes: conv, total: convSum };
+}
+
+// 공유·파생용 행 정규화 — reconcileScoreRow로 홀·총타를 신뢰값으로 맞춘다.
+//   ★AI가 오버파(19)를 total로 오독해도 홀 합으로 총타를 다시 계산(91), par를 못 읽은 파대비 카드는 인쇄 총계(99)를
+//     총타로 신뢰 — 리뷰 화면·동반자 전달·수신 파생이 모두 같은 총타가 되게.
+export function normalizeScoreRow(row, holePars) {
+  if (!row) return row;
+  const { holes, total } = reconcileScoreRow(row.holes, row.total, holePars);
+  return { ...row, holes, total };
+}
+
 // 홀별 스코어 vs 홀별 par → 타입별 개수 (이글·버디·파·보기·더블+). par 없으면 null.
 // 버디 자동 입력에 사용 (birdie = score-par == -1). [[project_scorecard_ocr]]
 export function scoreBreakdown(holeScores, holePars) {
