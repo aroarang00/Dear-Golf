@@ -7,10 +7,16 @@ import { C, F, fs } from '../constants/colors';
 //   구성: 일(日) + 구장·세부코스 + 타수. 월은 위쪽 월 헤더(DiaryScreen)가 담당하므로 행에서 반복하지 않는다.
 //   ★파대비(+10)는 표시 안 함 — 요약은 '언제 어디서 몇 타'만 훑는 화면(사용자 2026-07-21). 필요하면 탭해서 상세로.
 //   ★색점·구분선 없이 여백으로만 나눈다(심플 모던, 사용자 2026-07-21). 베스트·특별한 순간만 작은 글자로 표시.
-function DiaryRowCompactBase({ item, onPress, expanded = false }) {
+function DiaryRowCompactBase({ item, onPress, expanded = false, avgScore, monthBest }) {
   const isMoment = item.kind === 'moment';
   const hasScore = typeof item.score === 'number';
   const dayNum = (item.date || '').split('.')[2] || '';   // 'YYYY.MM.DD' → 'DD'
+
+  // 스코어 색 — 잘 친 날이 한눈에(사용자 2026-07-27). 베스트(전체/그 달)=버건디, 내 평균보다 잘 침=초록, 그 외=차콜.
+  const scoreColor = !hasScore ? C.charcoal
+    : (item.badge === '베스트' || (typeof monthBest === 'number' && item.score === monthBest)) ? '#6B1E2A'
+    : (typeof avgScore === 'number' && avgScore > 0 && item.score < avgScore) ? '#3C7D4F'
+    : C.charcoal;
 
   // 일상은 메모가 제목 자리 — 라운딩(구장명)은 차콜, 일상은 파랑으로 색을 갈라 한눈에 구분되게 한다.
   //   ★네이비(#1A3D52)는 차콜(#3D3935)과 명도가 비슷해 작은 글씨에선 구분이 안 됐다(사용자 2026-07-22).
@@ -48,7 +54,7 @@ function DiaryRowCompactBase({ item, onPress, expanded = false }) {
       {/* 타수 — 일상처럼 타수가 없는 기록은 '—' 같은 자리표시를 두지 않는다(사용자 2026-07-21).
           대시가 있으면 '타수가 빠진 라운딩'처럼 보여 목록이 어색해짐. 자리(minWidth)만 비워 정렬은 유지. */}
       {hasScore ? (
-        <Text style={{ fontFamily: F.en, fontSize: fs(21), color: C.charcoal, minWidth: 46, textAlign: 'right' }}>
+        <Text style={{ fontFamily: F.en, fontSize: fs(21), color: scoreColor, minWidth: 46, textAlign: 'right' }}>
           {item.score}
         </Text>
       ) : (

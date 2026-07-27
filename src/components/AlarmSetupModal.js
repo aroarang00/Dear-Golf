@@ -401,7 +401,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
           </Text>
 
           {/* 일정 요약 */}
-          <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, padding: 16, marginTop: 18 }}>
+          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, padding: 16, marginTop: 18 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.charcoal }} numberOfLines={1}>{schedule.course}</Text>
             <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 5 }}>
               {schedule.date} {schedule.day} · {schedule.time}
@@ -629,7 +629,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
               )}
             </View>
           ) : (
-            <View style={{ backgroundColor: '#FBF6EE', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, padding: 16, marginTop: 18 }}>
+            <View style={{ backgroundColor: '#FBF6EE', borderRadius: 14, padding: 16, marginTop: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Icon name="car" size={fs(16)} color={C.charcoal} />
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal }}>출발·기상 알림</Text>

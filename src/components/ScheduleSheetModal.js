@@ -16,6 +16,20 @@ import { loadMyFriendsEnriched } from '../utils/friends';
 
 const SAGE = '#5E7E42';   // 세이지그린 — 교통 아이콘 액센트(앱 크루 세이지와 동색)
 
+// 액션 타일 — 시트 하단 '한눈에 들어오는 아이콘 격자'용(중장년 스캔성, 사용자 2026-07-27).
+//   나열식 텍스트 행 → 아이콘+짧은 라벨 3열 격자. 의미색 + 옅은 원 배경으로 구분(밋밋함 방지).
+const TILE = {
+  wx:   { color: '#E0A100', tint: 'rgba(224,161,0,0.10)',  short: '날씨' },
+  tr:   { color: SAGE,      tint: 'rgba(94,126,66,0.12)',  short: '교통' },
+  al:   { color: '#B07A2E', tint: 'rgba(176,122,46,0.14)', short: '알람' },
+  team: { color: '#1A3D52', tint: 'rgba(26,61,82,0.10)',   short: '단체팀' },
+  rd:   { color: '#1A3D52', tint: 'rgba(26,61,82,0.10)',   short: '모집' },
+  ml:   { color: '#C4622D', tint: 'rgba(196,98,45,0.12)',  short: '식사' },
+  sh:   { color: '#1A3D52', tint: 'rgba(26,61,82,0.10)',   short: '공유' },   // 과거 일정 등 카드 미표시 시 격자에 남는 공유
+  ed:   { color: '#4A4A48', tint: 'rgba(74,74,72,0.09)',   short: '수정' },
+  dl:   { color: '#D32F2F', tint: 'rgba(211,47,47,0.10)',  short: '삭제' },   // danger — 탭 시 confirmDelete 확인 화면을 거침
+};
+
 export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, onSaveMemo, onOpenComments, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
@@ -123,6 +137,16 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
   //   공유(동반자에게 공유)에도 이 이름을 넘겨 카드·텍스트에 표시한다 — 시트가 이미 그룹까지 해석해 갖고 있어 재계산 불필요.
   const companionNames = buildCompanionNames(schedule, { group, friendMeta, friendNames, myUid });
 
+  // ★공유·초대를 나열 리스트에서 빼 '친구와 함께' 큰 카드로 승격(사용자 2026-07-27, 중장년 스캔성).
+  //   둘 다 "친구한테 알리기"인데 리스트에 미묘한 라벨로 파묻혀 못 찾던 걸, 큰 터치타깃 + 부제 설명으로.
+  //   과거 일정엔 초대가 없고(캘린더 공유만) 카드 프레이밍('이 라운딩, 친구와 함께')도 안 맞아 기존 리스트 행으로 남긴다.
+  const canInvite = !!onInviteFriends && !isPast && !schedule.roundupId;   // 앱 친구 인앱 전파(수락 시 그 친구 캘린더에)
+  const canShare = !!onShare && !isPast;                                   // 카드+링크 외부 공유(카톡·문자)
+  // ★모집(라운지)에서 생긴 일정은 '이야기'가 없고 '일정 수정'도 막혀 있어 '모집 보기'가 사실상 주 관리 동선.
+  //   그래서 격자에 묻지 않고 상단 카드(링크 공유 옆)로 올린다(사용자 2026-07-27). 친구초대와는 조건이 배타적이라 항상 2칸.
+  const canRoundupView = !!onOpenRoundup && !!schedule.roundupId && !isPast;
+  const showTogether = canInvite || canShare || canRoundupView;
+
   // icon: 커스텀 라인 아이콘 있으면 그걸로(통일감), 없으면 emoji 폴백(공유·삭제는 매칭 아이콘 없음).
   const allItems = [
     { key: 'wx', icon: 'sun', emoji: '☀️', label: '날씨 확인', onPress: onWeather },   // 해만(앰버) — cloudSun은 흰 구름이라 밝은 시트서 안 보임
@@ -145,6 +169,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     { key: 'dl', icon: 'trash', emoji: '🗑️', label: '일정 삭제', onPress: () => setConfirmDelete(true), danger: true },
   ];
   const items = allItems.filter(it => {
+    // 공유·초대는 '친구와 함께' 카드로 승격됐으니 리스트에선 뺀다(과거 일정은 카드가 없어 공유 행 유지).
+    if ((it.key === 'sh' || it.key === 'iv') && showTogether) return false;
+    // 모집 보기도 상단 카드로 승격(모집 일정만) — 격자에서 뺀다.
+    if (it.key === 'rd' && canRoundupView) return false;
     if (isPast && (it.key === 'wx' || it.key === 'tr')) return false;
     if (isOverseas && it.key === 'tr') return false;
     // 알람 — 핸들러 있을 때만, 지난 일정엔 숨김(예정 라운드 알람용)
@@ -162,6 +190,12 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     if (it.key === 'ed' && schedule.roundupId && !isPast) return false;
     return true;
   });
+
+  // 모든 액션(수정·삭제 포함)을 같은 아이콘 격자로(사용자 2026-07-27). 삭제는 danger 색으로 구분하고,
+  //   탭하면 곧바로 지우지 않고 확인 화면(confirmDelete)을 거쳐 오탭이 사고로 이어지지 않는다.
+  const gridItems = items;
+  const gridRows = [];
+  for (let gi = 0; gi < gridItems.length; gi += 3) gridRows.push(gridItems.slice(gi, gi + 3));
 
   // hasRec: 과거 라운딩 + 다이어리 기록이 있는 경우. 시트 안에서 다이어리 안내만 표시 (삭제 X)
   const hasRec = !!schedule.hasRec;
@@ -251,9 +285,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     {canOpenCourse ? <Text style={sheetS.courseArrow}> ›</Text> : null}
                   </Text>
                 </TouchableOpacity>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                  <View style={{ width: 20, alignItems: 'center' }}><Icon name="calendar" size={16} color={C.textSecondary} strokeWidth={1.6} /></View>
-                  <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                  <View style={{ width: 20, alignItems: 'center' }}><Icon name="calendar" size={17} color={C.charcoal} strokeWidth={1.7} /></View>
+                  {/* 날짜·시간은 시트의 핵심 정보 — 메타(옅은 회색·작음)보다 진하고 크게(사용자 2026-07-27, 한눈에) */}
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: C.charcoal, marginLeft: 5, flex: 1 }}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
                 </View>
                 {/* 동반자 — 아이콘 열·간격을 예약자와 통일. 전파 일정(groupId) 로딩 중에도 줄 자리를 잡아둠(dDay 리플로우 방지) */}
                 {(companionNames.length > 0 || (schedule.groupId && !group)) && (
@@ -425,34 +460,75 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     })()}
                   </TouchableOpacity>
                 )}
+
+                {/* ★친구와 함께 — 공유·초대를 리스트에서 승격한 큰 카드(중장년 스캔성). 타일 2개(하나면 전폭).
+                    친구 초대=앱 친구 캘린더에 전파 / 링크 공유=카톡·문자 외부 공유. 부제로 차이를 바로 설명. */}
+                {showTogether && (
+                  <View style={{ marginTop: 18 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.textSecondary, marginBottom: 10, letterSpacing: 0.3 }}>
+                      {/* 모집 일정은 [링크 공유][모집 보기] 조합이라 '친구와 함께'가 안 맞음 → '관리'로(사용자 2026-07-27) */}
+                      {canRoundupView ? '이 라운딩 관리' : '이 라운딩, 친구와 함께'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      {[
+                        canInvite && { key: 'iv', icon: 'personAdd', tint: 'rgba(107,30,42,0.08)', color: C.burgundy,
+                          title: '친구 초대', sub: '앱 친구 캘린더에', onPress: onInviteFriends },
+                        canShare && { key: 'sh', icon: 'share', tint: 'rgba(26,61,82,0.08)', color: C.navy,
+                          title: '링크 공유', sub: '카톡·문자로', onPress: () => onShare && onShare(companionNames) },
+                        canRoundupView && { key: 'rd', icon: 'flag', tint: 'rgba(94,126,66,0.12)', color: SAGE,
+                          title: '모집 보기', sub: '라운지에서 관리', onPress: onOpenRoundup },
+                      ].filter(Boolean).map(t => (
+                        <TouchableOpacity key={t.key} onPress={t.onPress} activeOpacity={0.85}
+                          style={{ flex: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8, borderRadius: 16,
+                            backgroundColor: C.bgSecondary }}>
+                          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: t.tint,
+                            alignItems: 'center', justifyContent: 'center', marginBottom: 9 }}>
+                            <Icon name={t.icon} size={25} color={t.color} strokeWidth={1.7} />
+                          </View>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal }}>{t.title}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>{t.sub}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
               <TripleStripe height={2} />
-              {items.map((it, i) => (
-                <TouchableOpacity
-                  key={it.key}
-                  style={[sheetS.row, i < items.length - 1 && sheetS.rowBorder, it.highlight && { backgroundColor: '#EDF1F4' }]}
-                  onPress={it.onPress}
-                  activeOpacity={0.6}>
-                  {it.icon
-                    ? <View style={{ width: 22, alignItems: 'center' }}><Icon name={it.icon} size={it.size || 21} color={it.highlight ? C.navy : (it.color || (it.danger ? '#D32F2F' : C.charcoal))} /></View>
-                    : <Text style={sheetS.rowEmoji}>{it.emoji}</Text>}
-                  {it.subtitle ? (
-                    // 라벨 + 가치 부제(세로) — flex:1로 우측 NEW 배지를 끝으로 밀어냄
-                    <View style={{ flex: 1 }}>
-                      <Text style={[sheetS.rowText, it.highlight && { color: C.navy, fontFamily: F.sysB }]}>{it.label}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 2 }}>{it.subtitle}</Text>
+              {/* ★액션 격자 — 날씨·교통·알람·식사·단체팀·모집을 큰 아이콘 타일로(중장년 '한눈에', 사용자 2026-07-27).
+                  나열식 텍스트 행 → 아이콘+짧은 라벨 3열 격자. 위험한 관리(수정·삭제)는 격자에 안 섞고 아래 별도. */}
+              {gridRows.length > 0 && (
+                <View style={{ paddingHorizontal: 18, paddingTop: 16 }}>
+                  {gridRows.map((row, ri) => (
+                    <View key={ri} style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                      {row.map(it => {
+                        const cfg = TILE[it.key] || { color: C.charcoal, tint: C.bgSecondary, short: it.label };
+                        return (
+                          <TouchableOpacity key={it.key} onPress={it.onPress} activeOpacity={0.85}
+                            style={{ flex: 1, alignItems: 'center', paddingVertical: 15, paddingHorizontal: 4, borderRadius: 16,
+                              backgroundColor: it.highlight ? '#EDF1F4' : C.bgSecondary }}>
+                            {it.isNew && (
+                              <View style={{ position: 'absolute', top: 7, right: 7, backgroundColor: C.burgundy,
+                                borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1.5 }}>
+                                <Text style={{ fontFamily: F.sysB, fontSize: fs(8.5), color: '#fff', letterSpacing: 0.4 }}>NEW</Text>
+                              </View>
+                            )}
+                            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: cfg.tint,
+                              alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                              <Icon name={it.icon} size={it.size || 24} color={cfg.color} strokeWidth={1.7} />
+                            </View>
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: it.danger ? '#D32F2F' : C.charcoal }} numberOfLines={1}>{cfg.short}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                      {/* 마지막 줄이 3칸이 안 차면 빈 칸으로 정렬 유지 */}
+                      {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, k) => (
+                        <View key={`sp${k}`} style={{ flex: 1 }} />
+                      ))}
                     </View>
-                  ) : (
-                    <Text style={[sheetS.rowText, it.danger && sheetS.rowDanger, it.highlight && { color: C.navy, fontFamily: F.sysB }]}>{it.label}</Text>
-                  )}
-                  {it.isNew && (
-                    <View style={{ backgroundColor: C.burgundy, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(9), color: '#fff', letterSpacing: 0.5 }}>NEW</Text>
-                    </View>
-                  )}
-                  {it.highlight && <Text style={{ marginLeft: 'auto', fontSize: fs(16), color: C.navy }}>›</Text>}
-                </TouchableOpacity>
-              ))}
+                  ))}
+                </View>
+              )}
+
               <View style={{ height: 8 }} />
             </>
           )}

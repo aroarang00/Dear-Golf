@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, FlatList, TouchableOpacity, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
@@ -41,6 +41,23 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [collapseSignal, setCollapseSignal] = useState(0);   // 프로필을 닫을 때 올려 카드 펼침을 원위치
   const [rowOpenId, setRowOpenId] = useState(null);          // 요약보기에서 그 자리에 펼친 행(한 번에 하나)
   useEffect(() => { storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)); }, []);
+
+  // 요약보기 월별 카드용 메타 — FlatList에서 월별 카드 모양을 내려면 행마다 '그 달 첫/끝 행'만 알면 된다.
+  //   ★친구 피드엔 라운딩 수·평균·베스트를 표시하지 않는다(사용자 2026-07-27): 공개여부에 따라 내게 보이는
+  //   기록만 집계돼 실제 통계가 아니라 오히려 틀린 숫자다. 통계·색 코딩은 내가 전부 보는 '내 피드'에서만.
+  const compactMeta = useMemo(() => {
+    const feed = friend?.feed || [];
+    const m = new Map();
+    let i = 0;
+    while (i < feed.length) {
+      const ym = (feed[i].date || '').slice(0, 7);
+      let j = i; const start = i;
+      while (j < feed.length && (feed[j].date || '').slice(0, 7) === ym) j += 1;
+      for (let k = start; k < j; k += 1) m.set(feed[k].id, { isStart: k === start, isEnd: k === j - 1 });
+      i = j;
+    }
+    return m;
+  }, [friend?.feed]);
   const toggleCompact = (next) => { setCompact(next); storage.save(STORAGE_KEYS.diaryCompactView, next); };
   const [reportMsg, setReportMsg] = useState(null);        // 신고 결과 안내 텍스트
   const [metaOpen, setMetaOpen] = useState(false);         // 그룹·별명 설정 시트 ([[friend_groups]])
@@ -244,32 +261,39 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 </View>
               </>
             )}
-            renderItem={({ item, index: idx }) => (compact ? (
-              // 요약보기 — 사진 없는 한 줄 + 월이 바뀔 때 월 헤더(내 기록과 동일 구성).
-              //   FlatList라 앞 항목과 비교해 월 전환을 판단한다. 친구 기록은 상세 화면이 없어 사진이 있으면 뷰어로 연다.
+            renderItem={({ item, index: idx }) => (compact ? (() => {
+              // 요약보기 — 내 기록과 같은 '월별 하얀 카드'. FlatList라 행마다 테두리를 그려 카드처럼 만든다
+              //   (첫 행=위 모서리, 끝 행=아래 모서리, 중간=좌우선+구분선). 헤더에 그 달 요약을 얹는다.
+              const meta = compactMeta.get(item.id) || { isStart: true, isEnd: true };
+              const ym = (item.date || '').slice(0, 7);
+              const open = rowOpenId === item.id;
+              return (
               <View style={{ paddingHorizontal: 16 }}>
-                {(() => {
-                  const ym = (item.date || '').slice(0, 7);            // '2026.07'
-                  const prevYm = idx > 0 ? ((friend.feed || [])[idx - 1]?.date || '').slice(0, 7) : null;
-                  if (!ym || ym === prevYm) return null;
-                  return (
-                    <Text style={[dS.compactMonth, idx === 0 && { marginTop: 2 }]}>
-                      {`${ym.slice(0, 4)}. ${parseInt(ym.slice(5), 10)}`}
-                    </Text>
-                  );
-                })()}
-                {/* 행 탭 → 그 자리에서 카드로 펼침(한 번에 하나만). 내 기록 요약보기와 같은 동선(사용자 2026-07-22). */}
-                <DiaryRowCompact item={item} expanded={rowOpenId === item.id}
-                  onPress={(it) => setRowOpenId(prev => (prev === it.id ? null : it.id))} />
-                {rowOpenId === item.id && (
-                  <View style={{ marginTop: 2, marginBottom: 12 }}>
-                    <DiaryCard item={item} variant="friend" myUid={myUid} collapseSignal={collapseSignal}
-                      onReport={setReportItem}
-                      onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
-                  </View>
-                )}
+                <View style={[
+                  { backgroundColor: '#FFFFFF', paddingHorizontal: 14 },
+                  meta.isStart && { borderTopLeftRadius: 14, borderTopRightRadius: 14, paddingTop: 15, marginTop: idx === 0 ? 2 : 0 },
+                  meta.isEnd && { borderBottomLeftRadius: 14, borderBottomRightRadius: 14, paddingBottom: 4, marginBottom: 12 },
+                ]}>
+                  {meta.isStart && (
+                    <View style={dS.compactCardHead}>
+                      <Text style={dS.compactCardMonth}>{`${ym.slice(0, 4)}. ${parseInt(ym.slice(5), 10)}`}</Text>
+                    </View>
+                  )}
+                  {/* 행 탭 → 그 자리에서 카드로 펼침(한 번에 하나만). 내 기록 요약보기와 같은 동선(사용자 2026-07-22).
+                      ★색 코딩(평균/최저타 기준)도 안 넣는다 — 부분 데이터라 기준이 틀리기 때문(위 compactMeta 주석). */}
+                  <DiaryRowCompact item={item} expanded={open}
+                    onPress={(it) => setRowOpenId(prev => (prev === it.id ? null : it.id))} />
+                  {open && (
+                    <View style={{ marginTop: 2, marginBottom: 12 }}>
+                      <DiaryCard item={item} variant="friend" myUid={myUid} collapseSignal={collapseSignal}
+                        onReport={setReportItem}
+                        onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
+                    </View>
+                  )}
+                </View>
               </View>
-            ) : (
+              );
+            })() : (
               <View style={{ paddingHorizontal: 16 }}>
                 {/* MY와 동일한 타임라인 — 줄 + 점. 점은 평소 버터, 특별 카드만 골드, 일상은 paleSky(카드 오른쪽 띠와 통일) ([[friend-feed-design]]·[[moment-feed-extension]]) */}
                 <View style={dS.tlNode}>
@@ -411,7 +435,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 <AppTextInput value={editName} onChangeText={(t) => setEditName(t.slice(0, 6))} returnKeyType="done"
                   placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight}
                   style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
-                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
+                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 }} />
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>
                   💡 별명을 적으면 친구 목록·피드에서 그 이름으로 보여요
                 </Text>
@@ -429,7 +453,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     return (
                       <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => toggleEditGroup(g.id)}
                         style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18,
-                          backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                          backgroundColor: on ? C.charcoal : C.bgSecondary }}>
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: on ? C.butter : C.charcoal }}>{g.name}</Text>
                       </TouchableOpacity>
                     );

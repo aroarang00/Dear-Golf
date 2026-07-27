@@ -56,7 +56,7 @@ export function RoundEvaluationModal({ visible, round, onClose, onSubmit }) {
                 const pal = AV[i % AV.length];
                 const rating = ratings[p.id];
                 return (
-                  <View key={p.id} style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                  <View key={p.id} style={{ backgroundColor: C.bgSecondary,
                     borderRadius: 12, padding: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: pal,

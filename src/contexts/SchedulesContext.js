@@ -160,11 +160,25 @@ export function SchedulesProvider({ children }) {
     });
   }, []);
 
+  // 수동 재시도 — 로드 실패 안내의 '다시 시도' 버튼용(DiariesContext.reloadDiaries와 동일 역할).
+  const reloadSchedules = useCallback(async () => {
+    try {
+      const loaded = await loadMySchedules();
+      setSchedulesRaw(normalizeSchedules(loaded));
+      setLoadFailed(false);
+      setHydrated(true);
+    } catch (e) {
+      setLoadFailed(true);
+      setHydrated(true);
+    }
+  }, []);
+
   return (
     <SchedulesContext.Provider value={{
       schedules,
       hydrated,
       loadFailed,
+      reloadSchedules,
       addSchedule,
       editSchedule,
       removeSchedule,

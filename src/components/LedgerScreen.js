@@ -431,8 +431,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
             const lDues = totalDuesCollected(l.dues);
             return (
             <TouchableOpacity key={l.id} activeOpacity={0.8} onPress={() => setSelId(l.id)}
-              style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12,
-                borderWidth: 0.5, borderColor: C.hairline }}>
+              style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, flex: 1 }} numberOfLines={1}>{l.name}</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(18), color: C.textSecondary }}>›</Text>
@@ -509,7 +508,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
           {/* 걷는 회비 — 월·연 각각 켠다(둘 중 하나만 걷는 모임도, 둘 다 걷는 모임도 있다).
               켠 것만 아래 화면에 나오므로, 안 걷는 회비는 눈에 띄지 않는다. */}
           {setupOpen && (
-            <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+            <View style={{ backgroundColor: '#fff', borderRadius: 14,
               paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, marginBottom: 20 }}>
               <Text style={[label, { marginBottom: 4 }]}>어떤 회비를 걷나요?</Text>
               {DUES_CYCLES.map(c => {
@@ -598,7 +597,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
           </Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
             {[['완료', `${sum.paidCount}/${sum.total}`, SAGE], ['미납', `${sum.unpaidCount}명`, RED], ['걷힌 금액', `${fmtWon(sum.collected)}`, C.charcoal]].map(([k, v, col]) => (
-              <View key={k} style={{ flex: 1, backgroundColor: '#fff', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+              <View key={k} style={{ flex: 1, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary }}>{k}</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: col, marginTop: 3 }}>{v}</Text>
               </View>
@@ -609,8 +608,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
           {crewNamesToAdd.length > 0 && (
             <TouchableOpacity onPress={importCrewMembers} activeOpacity={0.85}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 12,
-                backgroundColor: 'rgba(94,126,66,0.12)', borderRadius: 12, paddingVertical: 12,
-                borderWidth: 0.5, borderColor: SAGE }}>
+                backgroundColor: 'rgba(94,126,66,0.12)', borderRadius: 12, paddingVertical: 12 }}>
               <Icon name="crew" size={fs(16)} color={SAGE} strokeWidth={2} />
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: SAGE }}>
                 크루원 {crewNamesToAdd.length}명 명단에 넣기
@@ -796,7 +794,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24 }}>
         {/* 잔액 카드 — 걷은 회비는 거래로 남지 않으므로 여기서 더해 보여준다.
             거래 목록엔 안 보이는 돈이라, 회비가 있으면 수입 칸에 '회비 N원 포함'을 밝혀 둔다. */}
-        <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, borderWidth: 0.5, borderColor: C.hairline, marginBottom: 18 }}>
+        <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 18 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary }}>현재 잔액</Text>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(30), color: ((sel?.balance || 0) + duesTotal) < 0 ? RED : C.charcoal, marginTop: 4 }}>
             {fmtWon((sel?.balance || 0) + duesTotal)}원
@@ -823,7 +821,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
             setAmountInput({ monthly: String(dues.monthly.amount || ''), yearly: String(dues.yearly.amount || '') });
             setDuesPeriod(null); setShowDuesSetup(false); setDuesView(true);
           }}
-          style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 0.5, borderColor: C.hairline, marginBottom: 18 }}>
+          style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
               {onCycles.length === 1 ? duesCycleTitle(onCycles[0]) : '회원 회비'}
@@ -883,7 +881,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
         )}
 
         {/* 이 기간 요약 — 회비는 거래에 없는 돈이라 수입에 더해 넣고 따로 밝혀 둔다 */}
-        <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+        <View style={{ backgroundColor: '#fff', borderRadius: 14,
           paddingHorizontal: 16, paddingVertical: 14, marginBottom: 16 }}>
           {[
             ['수입', viewIncome + viewDues, SAGE, viewDues > 0 ? `회비 ${fmtWon(viewDues)} 포함` : ''],
@@ -986,7 +984,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
         {/* 카톡 내역서 — 회원들에게 "이 달 이렇게 썼습니다"를 보낸다 */}
         <TouchableOpacity activeOpacity={0.85} onPress={openExport}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 20,
-            backgroundColor: C.bgSecondary, borderRadius: 12, paddingVertical: 13, borderWidth: 0.5, borderColor: C.hairline }}>
+            backgroundColor: C.bgSecondary, borderRadius: 12, paddingVertical: 13 }}>
           <Icon name="share" size={fs(16)} color={C.charcoal} strokeWidth={1.8} />
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>내역서 카톡으로 보내기</Text>
         </TouchableOpacity>
@@ -1077,7 +1075,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity onPress={copyExport} activeOpacity={0.85}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    paddingVertical: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                    paddingVertical: 14, borderRadius: 12, backgroundColor: C.bgSecondary }}>
                   <Icon name="clipboard" size={fs(16)} color={C.charcoal} strokeWidth={1.8} />
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal }}>복사</Text>
                 </TouchableOpacity>
@@ -1129,7 +1127,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
             {/* 영수증·카드문자 자동입력 — 지출에만. 회비 수입은 회원 명단 체크로 관리하고, 이체 문자는
                 형식이 제각각이라 이득이 적다. 분류는 AI가 아니라 아래 칩에서 총무가 고른다(주석 ★ 참고). */}
             {sheet?.type === 'expense' && (
-              <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.4)',
+              <View style={{ marginBottom: 20, borderRadius: 16,
                 backgroundColor: 'rgba(201,168,76,0.08)', padding: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: GOLD_DEEP, alignItems: 'center', justifyContent: 'center' }}>
@@ -1145,7 +1143,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
 
                 {aiBusy ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12,
-                    paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: GOLD }}>
+                    paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF' }}>
                     <Spinner size={20} color={GOLD_DEEP} />
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD_DEEP }}>AI가 내용을 읽고 있어요...</Text>
                   </View>
@@ -1160,8 +1158,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
                       return (
                         <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress}
                           style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
-                            backgroundColor: active ? 'rgba(201,168,76,0.16)' : '#FFFFFF',
-                            borderWidth: 0.5, borderColor: active ? GOLD : C.hairline }}>
+                            backgroundColor: active ? 'rgba(201,168,76,0.18)' : '#FFFFFF' }}>
                           <Icon name={m.icon} size={21} color={GOLD_DEEP} strokeWidth={1.8} />
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>{m.label}</Text>
                         </TouchableOpacity>
@@ -1175,7 +1172,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
                     <AppTextInput value={aiText} onChangeText={(v) => { setAiText(v); if (aiError) setAiError(''); }} multiline
                       placeholder={'카드결제 문자나 “OO CC 그린피 32만원”처럼 복사해서 붙여넣어 주세요'}
                       placeholderTextColor={C.warmGray}
-                      style={{ minHeight: 70, maxHeight: 150, backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline,
+                      style={{ minHeight: 70, maxHeight: 150, backgroundColor: '#FFFFFF',
                         borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, textAlignVertical: 'top' }} />
                     <TouchableOpacity activeOpacity={0.85} disabled={!aiText.trim()} onPress={handleAiText}
                       style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8,

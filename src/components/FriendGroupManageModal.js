@@ -157,7 +157,7 @@ export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], o
                 <AppTextInput value={newName} onChangeText={(t) => setNewName(t.slice(0, GROUP_NAME_MAX))} placeholder="새 그룹 이름"
                   placeholderTextColor={C.warmGrayLight} onSubmitEditing={addGroup} returnKeyType="done"
                   style={{ flex: 1, fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
-                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 0.5, borderColor: C.hairline }} />
+                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 }} />
                 <TouchableOpacity onPress={addGroup} activeOpacity={0.85}
                   style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>추가</Text>

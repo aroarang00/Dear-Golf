@@ -2045,7 +2045,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
       {/* 전체 / 친구 / 내 참여 중 / 관심 세그먼트 — hideStranger 토글 시 '전체' 숨김 */}
       <View style={{ paddingHorizontal: 16, paddingTop: _and ? 5 : 8, paddingBottom: 2 }}>
-        <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 3 }}>
+        <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 10, padding: 3 }}>
           {(hideStranger
             ? [['friend', '친구'], ['mine', '내 참여'], ['watch', '관심']]
             : [['all', '전체'], ['friend', '친구'], ['mine', '내 참여'], ['watch', '관심']]
@@ -2080,8 +2080,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             return (
               <TouchableOpacity key={k} onPress={() => setRegionFilter(k)} activeOpacity={0.8}
                 style={{ paddingHorizontal: 12, paddingVertical: _and ? 4 : 6, borderRadius: 14,
-                  backgroundColor: on ? C.navy : C.bgSecondary,
-                  borderWidth: 0.5, borderColor: on ? C.navy : C.hairline }}>
+                  backgroundColor: on ? C.navy : C.bgSecondary }}>
                 <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(12),
                   color: on ? C.butter : C.warmGray }}>{l}</Text>
               </TouchableOpacity>
@@ -2099,7 +2098,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
             // 매치 있는데 아직 안 봄(view!=='match') = 버건디로 확 띄움 + 맥동. 보는 중 = 차분한 중립색(사용자 2026-06-20).
             backgroundColor: view !== 'match' ? C.burgundy : C.bgSecondary, borderRadius: 12,
-            borderWidth: 0.5, borderColor: view !== 'match' ? C.burgundy : C.hairline,
             paddingHorizontal: 14, paddingVertical: _and ? 7 : 9 }}>
             <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}
               activeOpacity={0.7}
@@ -2119,7 +2117,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
         ) : (
           <TouchableOpacity onPress={() => setShowMatchModal(true)} activeOpacity={0.7}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: _and ? 5 : 7,
-              backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
+              backgroundColor: C.bgSecondary, borderRadius: 12,
               paddingHorizontal: 14, paddingVertical: _and ? 7 : 9 }}>
             <Icon name="target" size={fs(16)} color={C.burgundy} strokeWidth={2.3} />
             <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>
@@ -2260,7 +2258,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
                   backgroundColor: C.charcoal, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter, letterSpacing: 1 }}>예시</Text>
                 </View>
-                <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+                <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14,
                   padding: 14, marginBottom: 10, opacity: 0.85 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
                     <View style={{ backgroundColor: C.charcoal, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -2368,7 +2366,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             친구 탭: 친구 늘리기 (친구공개 모집 풀 자체가 친구 수에 비례) */}
         {showSparseHint && (
           <View style={{ marginTop: 8, backgroundColor: '#F0E8D8', borderRadius: 12,
-            borderWidth: 0.5, borderColor: '#E2D2A8', paddingVertical: 12, paddingHorizontal: 16 }}>
+            paddingVertical: 12, paddingHorizontal: 16 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#8B6914', textAlign: 'center' }}>
               {view === 'friend' ? '친구 모집이 적어요' : '주변 모집글이 적어요'}
             </Text>

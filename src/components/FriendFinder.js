@@ -24,7 +24,7 @@ function PersonRow({ person, right }) {
   // 친구 찾기 단계에선 핸디·신뢰등급·매너등급 비노출 (처음 보는 사람 평가 부담 방지 [[friend-card-avatar-design]])
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12,
-      backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+      backgroundColor: C.bgSecondary, borderRadius: 14,
       paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10 }}>
       <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: palette.bg,
         alignItems: 'center', justifyContent: 'center' }}>
@@ -48,7 +48,7 @@ function RequestButton({ sent, onPress, onCancel }) {
     return (
       <TouchableOpacity onPress={onCancel} activeOpacity={0.8}
         style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
-          backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.warmGrayLight }}>
+          backgroundColor: C.bgPrimary }}>
         <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>신청함 · 취소</Text>
       </TouchableOpacity>
     );
@@ -171,7 +171,7 @@ export function FriendFinder({
     if (isFriend(person.id)) {
       return (
         <View style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
-          backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
+          backgroundColor: C.bgPrimary }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>친구</Text>
         </View>
       );
@@ -229,7 +229,7 @@ export function FriendFinder({
           {tab === 'search' && (
             <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.bgSecondary,
-                borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
+                borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
                 <Icon name="search" size={fs(15)} color={C.warmGray} />
                 <AppTextInput
                   style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
@@ -275,7 +275,7 @@ export function FriendFinder({
                   <View style={{ paddingTop: 24, alignItems: 'center' }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginBottom: 16 }}>카카오 친구를 불러오지 못했어요</Text>
                     <TouchableOpacity onPress={() => setKakaoState('idle')}
-                      activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                      activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.bgSecondary }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>다시 시도</Text>
                     </TouchableOpacity>
                   </View>
@@ -303,7 +303,7 @@ export function FriendFinder({
                     ) : kakaoCandidates.map(p => (
                       <PersonRow key={p.id} person={p} right={candidateRight(p)} />
                     ))}
-                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10,
                       paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
                         💡 카카오톡 친구 중 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 가입한 사람만</Text> 보여요
@@ -324,7 +324,7 @@ export function FriendFinder({
                     ? (
                       <>
                         <EmptyHint text="검색 결과가 없어요" />
-                        <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                        <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10,
                           paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
                           <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
                             💡 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 설정한 닉네임</Text>으로만 검색돼요
@@ -363,13 +363,13 @@ export function FriendFinder({
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => onIgnore && onIgnore(p.id)} activeOpacity={0.8}
                             style={{ borderRadius: 14, paddingHorizontal: 13, paddingVertical: 7,
-                            backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline }}>
+                            backgroundColor: C.bgPrimary }}>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>무시</Text>
                         </TouchableOpacity>
                       </View>
                     } />
                     ))}
-                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10,
                       paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
                         💡 받은 친구 신청은 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>계속 보관</Text>돼요
@@ -392,12 +392,12 @@ export function FriendFinder({
                       <PersonRow key={p.id} person={p} right={
                         <TouchableOpacity onPress={() => onCancelSend && onCancelSend(p)} activeOpacity={0.8}
                           style={{ borderRadius: 14, paddingHorizontal: 14, paddingVertical: 7,
-                            backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.warmGrayLight }}>
+                            backgroundColor: C.bgPrimary }}>
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>신청 취소</Text>
                         </TouchableOpacity>
                       } />
                     ))}
-                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10,
                       paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
                         💡 상대가 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>수락하면 바로 친구</Text>가 돼요

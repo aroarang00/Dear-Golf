@@ -446,7 +446,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
             allowFontScaling={false} placeholder={editingComment ? '댓글 수정…' : (replyTo ? `${replyTo.name}님에게 답글…` : '댓글 달기…')}
             placeholderTextColor={SUB} returnKeyType="send" onSubmitEditing={sendComment} blurOnSubmit={false}
             style={{ flex: 1, backgroundColor: CARD, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11,
-              fontFamily: F.sys, fontSize: fs(16), color: INK, borderWidth: 0.5, borderColor: LINE, marginRight: 8 }} />
+              fontFamily: F.sys, fontSize: fs(16), color: INK, marginRight: 8 }} />
           <TouchableOpacity onPress={sendComment} disabled={!draft.trim()} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ padding: 6 }}>
             <Icon name="paperPlane" size={fs(30)} color={draft.trim() ? SAGE_DEEP : 'rgba(94,126,66,0.4)'} strokeWidth={1.9} />
           </TouchableOpacity>

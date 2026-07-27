@@ -87,7 +87,7 @@ export function CrewIntroModal({ visible, onClose, onCreatePress }) {
 
             {/* 4. 비공개 강조 카드 */}
             <View style={{ marginHorizontal: 20, marginTop: 28, backgroundColor: SAGE_SOFT, borderRadius: 14,
-              borderWidth: 0.5, borderColor: SAGE_BORDER, padding: 18 }}>
+              padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 8 }}>
                 <Icon name="lock" size={fs(19)} color={SAGE_DEEP} strokeWidth={1.8} />
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>우리끼리만</Text>
@@ -105,7 +105,7 @@ export function CrewIntroModal({ visible, onClose, onCreatePress }) {
 
             {/* 6. 역할 */}
             <View style={{ marginHorizontal: 20, marginTop: 28, backgroundColor: C.bgSecondary, borderRadius: 14,
-              borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
+              padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 8 }}>
                 <Icon name="people" size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>크루 리더 · 서브 리더</Text>

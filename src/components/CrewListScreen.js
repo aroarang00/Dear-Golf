@@ -401,7 +401,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
           {invites.length > 0 && (
             <View style={{ marginBottom: 16 }}>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP, letterSpacing: 1, marginBottom: 8 }}>초대됨 {invites.length}</Text>
-              <View style={{ backgroundColor: CARD, borderRadius: 14, borderWidth: 0.5, borderColor: LINE, overflow: 'hidden' }}>
+              <View style={{ backgroundColor: CARD, borderRadius: 14, overflow: 'hidden' }}>
                 {invites.map((iv, i) => (
                   <View key={iv.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11,
                     borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: LINE }}>

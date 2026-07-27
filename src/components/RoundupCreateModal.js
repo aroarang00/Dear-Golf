@@ -555,7 +555,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
             {/* 확정형 / 오픈형 — 세그먼트 컨트롤(예정 라운딩 추가 모달과 통일). 흰 트랙 안에서 선택만 차콜 필로 떠 보임 */}
             <Text style={mS.bigLabel}>모집 형태</Text>
-            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
+            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4 }}>
               {[['fixed', '확정형'], ['open', '오픈형']].map(([k, l]) => {
                 const disabled = lockToFixed && k === 'open';   // 만석 오픈형 친구지정 수정 — 오픈형 잠금
                 const on = type === k;
@@ -579,7 +579,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
 
             {/* 개별 / 단체 — 세그먼트 컨트롤(모집 형태와 동일 스타일, 의미색 없어 차콜 통일) */}
             <Text style={[mS.bigLabel, { marginTop: 16 }]}>개별 / 단체</Text>
-            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
+            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4 }}>
               {[['single', '개별 모집'], ['team', '단체 모집']].map(([k, l]) => {
                 const on = groupMode === k;
                 return (
@@ -650,7 +650,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
               <>
                 {/* AI 자동입력 — 캡처·문자·캘린더에서 구장·날짜·시간 프리필(예정 라운딩 모달과 동일 카드). 신규 작성일 때만. */}
                 {!isEdit && (
-                  <View style={{ marginTop: 4, marginBottom: 4, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(95,123,81,0.35)', backgroundColor: 'rgba(122,156,108,0.07)', padding: 12 }}>
+                  <View style={{ marginTop: 4, marginBottom: 4, borderRadius: 16, backgroundColor: 'rgba(122,156,108,0.07)', padding: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#5F7B51', alignItems: 'center', justifyContent: 'center' }}>
                         {autofilling ? <Spinner size={16} color="#FFFFFF" /> : <Icon name="sparkle" size={15} color="#FFFFFF" strokeWidth={1.8} />}
@@ -664,7 +664,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                     </View>
                     {autofilling ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12,
-                        paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: '#5F7B51' }}>
+                        paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF' }}>
                         <Spinner size={20} color="#5F7B51" />
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#5F7B51' }}>AI가 예약 내용을 읽고 있어요...</Text>
                       </View>
@@ -679,7 +679,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                           return (
                             <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress}
                               style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
-                                backgroundColor: active ? 'rgba(95,123,81,0.14)' : '#FFFFFF', borderWidth: 0.5, borderColor: active ? '#5F7B51' : C.hairline }}>
+                                backgroundColor: active ? 'rgba(95,123,81,0.14)' : '#FFFFFF' }}>
                               <Icon name={m.icon} size={21} color="#5F7B51" strokeWidth={1.8} />
                               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>{m.label}</Text>
                             </TouchableOpacity>
@@ -692,7 +692,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                         <AppTextInput value={pasteText} onChangeText={setPasteText} multiline
                           placeholder={'카톡·문자의 예약 확인 내용을 복사해서 붙여넣어 주세요.\n예) OO CC 7/25(금) 07:12 4명'}
                           placeholderTextColor={C.warmGrayLight}
-                          style={{ minHeight: 80, maxHeight: 160, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: C.hairline,
+                          style={{ minHeight: 80, maxHeight: 160, backgroundColor: '#FFFFFF',
                             borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, textAlignVertical: 'top' }} />
                         <TouchableOpacity activeOpacity={0.85} disabled={autofilling || pasteText.trim().length < 5} onPress={handleAutofillText}
                           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8,
@@ -831,14 +831,14 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             {/* 공개 범위 — 일반: 칩 선택 / 크루모드: '크루 멤버 공개' 고정 배너 */}
             {crewMode ? (
               <View style={{ marginTop: 14, paddingHorizontal: 12, paddingVertical: 11, borderRadius: 10,
-                backgroundColor: 'rgba(143,176,107,0.12)', borderWidth: 0.5, borderColor: 'rgba(94,126,66,0.3)' }}>
+                backgroundColor: 'rgba(143,176,107,0.12)' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.charcoal }}>크루 ‘{crewName || '우리 크루'}’ 멤버에게 공개</Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 16 }}>이 모집은 크루 멤버 전원이 보고 참여할 수 있어요.</Text>
               </View>
             ) : (<>
             <Text style={mS.bigLabel}>공개 범위</Text>
             {/* 세그먼트 컨트롤 — 선택 필 색은 옵션별 의미색(전체=차콜/친구공개=네이비/친구지정=버건디, 카드와 통일) */}
-            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
+            <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4 }}>
               {SCOPES.map(([k, l]) => {
                 const blocked = k === 'all' && groupMode === 'team';
                 const on = scope === k;
@@ -908,7 +908,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 안내를 맡으므로 숨김(친구지정↔크루 상호배타 — '친구 0명 + 크루 N명' 혼란 제거, 사용자 2026-07-01) */}
             {scope === 'select' && crewMemberUids.length === 0 && (
               <View style={{ marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
-                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                backgroundColor: C.bgSecondary,
                 flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>
                   {selectMode === 'include' ? '포함' : '제외'} · 친구 {selectedUids.length}명
@@ -929,7 +929,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 만석이 안 돼 확정이 막힐 수 있음. 막지 않고 안내 + escape(인원 수정) 제시 ([[roundup-visibility-design]]) */}
             {scope === 'select' && selectMode === 'include' && (selectedUids.length + crewMemberUids.length) > 0 && (selectedUids.length + crewMemberUids.length) < members && (
               <View style={{ marginTop: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
-                backgroundColor: '#FBF3D3', borderWidth: 0.5, borderColor: C.hairline }}>
+                backgroundColor: '#FBF3D3' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
                   💡 지정한 인원 {selectedUids.length + crewMemberUids.length}명이 모집 인원 {members}명보다 적어요.{'\n'}지정한 사람만 참여할 수 있어, 자리가 다 안 차면 '모집글 수정'에서 인원을 줄여 확정할 수 있어요.
                 </Text>
@@ -1007,8 +1007,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 return (
                   <TouchableOpacity key={t} activeOpacity={0.7} onPress={() => toggleTag(t)}
                     style={{ borderRadius: 16, paddingHorizontal: 13, paddingVertical: 7, alignItems: 'center',
-                      backgroundColor: on ? ts.deep : ts.soft,
-                      borderWidth: 0.5, borderColor: on ? ts.deep : 'transparent' }}>
+                      backgroundColor: on ? ts.deep : ts.soft }}>
                     <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? '#fff' : ts.deep }}>#{t}</Text>
                   </TouchableOpacity>
                 );
@@ -1025,7 +1024,6 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                   return (
                     <TouchableOpacity key={i} activeOpacity={0.7} onPress={() => setWord(on ? '' : s)}
                       style={{ backgroundColor: on ? C.burgundy : C.bgSecondary, borderRadius: 10,
-                        borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline,
                         paddingHorizontal: 12, paddingVertical: 9, marginBottom: 6 }}>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: on ? C.butter : C.charcoal }}>{s}</Text>
                     </TouchableOpacity>

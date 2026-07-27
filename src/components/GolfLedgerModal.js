@@ -165,7 +165,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
           ) : (
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom }} showsVerticalScrollIndicator={false}>
               {/* 입력 출처 안내 — 데이터 있을 때도 상시(빈 상태에만 있던 걸 끌어냄). '다 여기서 넣나?' 혼동 방지(사용자 2026-07-24) */}
-              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 14, gap: 6 }}>
+              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 14, gap: 6 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 16 }}>
                   · 라운딩 비용은 <Text style={{ fontFamily: F.sysSb, color: C.charcoalDeep }}>기록</Text>에서 자동으로 모여요
                 </Text>
@@ -192,7 +192,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
 
               {/* 카테고리별 소계 (올해) — 쓴 카테고리만(0원 회색줄 노이즈 제거). 이번달/지난달 카드는 아래 월별 리스트와 중복이라 제거(사용자 2026-07-24 '정신없다'). */}
               {catRows.some(r => r.amt > 0) && (
-                <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 4, marginBottom: 20 }}>
+                <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 4, marginBottom: 20 }}>
                   {catRows.filter(r => r.amt > 0).map((row, i, arr) => (
                     <View key={row.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11,
                       borderBottomWidth: i < arr.length - 1 ? 0.5 : 0, borderBottomColor: C.hairline }}>
@@ -212,7 +212,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                   <View key={m} style={{ marginBottom: 14 }}>
                     <TouchableOpacity onPress={() => toggle(m)} activeOpacity={0.7}
                       style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.bgSecondary,
-                        borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
+                        borderRadius: 10, padding: 12 }}>
                       <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: GOLD, marginRight: 10 }} />
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep, flex: 1 }}>{monthLabel(m)}</Text>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoalDeep, marginRight: 8 }}>{won(monthSum(list))}원</Text>
@@ -223,7 +223,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                       // ── 직접 지출 카드 (길게 눌러 삭제) ──
                       <TouchableOpacity key={it.id} activeOpacity={0.8} onLongPress={() => handleDeleteExpense(it.data)}
                         style={{ marginTop: 6, marginLeft: 13, backgroundColor: '#FBF7EC',
-                          borderRadius: 10, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.4)', padding: 12 }}>
+                          borderRadius: 10, padding: 12 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <View style={{ flex: 1, marginRight: 8 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
@@ -240,7 +240,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                     ) : (
                       // ── 라운딩 비용 카드 (기존) ──
                       <View key={it.id} style={{ marginTop: 6, marginLeft: 13, backgroundColor: C.bgSecondary,
-                        borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
+                        borderRadius: 10, padding: 12 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 9 }}>
                           <View style={{ flex: 1, marginRight: 8 }}>
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoalDeep }} numberOfLines={1}>{it.data.course}</Text>
@@ -250,7 +250,7 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
                         </View>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
                           {bucketsOf(it.data.cost).map(b => (
-                            <View key={b.label} style={{ backgroundColor: '#FBF5E4', borderRadius: 7, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.35)', paddingHorizontal: 8, paddingVertical: 3.5 }}>
+                            <View key={b.label} style={{ backgroundColor: '#FBF5E4', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3.5 }}>
                               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.textSecondary }}>
                                 {b.label} <Text style={{ fontFamily: F.sysSb, color: C.charcoalDeep }}>{won(b.amt)}</Text>
                               </Text>

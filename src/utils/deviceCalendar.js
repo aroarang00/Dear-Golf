@@ -223,6 +223,51 @@ export async function getUpcomingGolfEvents({ days = 60 } = {}) {
   }
 }
 
+// 과거 골프 일정 — 예정 라운딩으로 등록 안 한 지난 라운딩을 폰 캘린더에서 불러와 '기록하기'에 채우기 위함
+//   (사용자 2026-07-27). getUpcomingGolfEvents와 동일 분류(GOLF_HINT + 구장 DB 매칭), 기간만 과거로·최근 먼저.
+export async function getPastGolfEvents({ days = 120 } = {}) {
+  const granted = await ensurePermission();
+  if (!granted) return { granted: false, events: [] };
+  try {
+    const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    const ids = (cals || []).map(c => c.id).filter(Boolean);
+    if (!ids.length) return { granted: true, events: [] };
+
+    const end = new Date(); end.setHours(23, 59, 59, 999);              // 오늘 끝까지
+    const start = new Date(end.getTime() - days * 86400000); start.setHours(0, 0, 0, 0);
+    const raw = await Calendar.getEventsAsync(ids, start, end);
+
+    const seen = new Set();
+    const out = [];
+    for (const ev of raw || []) {
+      if (!ev?.startDate) continue;
+      const startDate = new Date(ev.startDate);
+      if (isNaN(startDate.getTime())) continue;
+      const title = (ev.title || '').trim();
+      const location = (ev.location || '').trim();
+      const dedupKey = `${title}|${startDate.getTime()}`;
+      if (seen.has(dedupKey)) continue;
+      seen.add(dedupKey);
+
+      const hay = `${title} ${location}`;
+      let isGolf = GOLF_HINT.test(hay);
+      let course = null;
+      try {
+        const hits = await searchGolfCoursesLocal(location || title);
+        if (hits && hits.length) { course = hits[0]; isGolf = true; }
+      } catch (e) { /* DB 미로드 — 키워드 판별만 사용 */ }
+
+      out.push({ id: ev.id, title, location, start: startDate, allDay: !!ev.allDay, isGolf, course });
+    }
+    // 최근 과거 먼저(내림차순) + 골프 우선
+    out.sort((a, b) => (a.isGolf === b.isGolf ? b.start - a.start : (a.isGolf ? -1 : 1)));
+    return { granted: true, events: out };
+  } catch (e) {
+    console.warn('[calendar] getPastGolfEvents', e?.message);
+    return { granted: true, events: [], error: e?.message };
+  }
+}
+
 // 'YYYY.MM.DD' — 앱 일정 date 포맷과 동일 (셀 매칭 키)
 function ymdKey(date) {
   const y = date.getFullYear();

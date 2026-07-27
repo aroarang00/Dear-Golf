@@ -218,7 +218,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM, onOpenLedg
             ★문구도 '총무'가 아니라 '크루리더' — 앱에서 쓰는 역할 이름과 실제 보이는 조건이 같아야 헷갈리지 않는다. */}
         {iAmMaster && onOpenLedger && (
           <TouchableOpacity onPress={onOpenLedger} activeOpacity={0.8}
-            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
+            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
             <Icon name="chart" size={fs(20)} color={SAGE_DEEP} strokeWidth={2} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>회비 장부</Text>
@@ -232,7 +232,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM, onOpenLedg
 
         {/* 내가 보는 크루 이름(별명) — 나만 보이는 이름. 서버 이름은 안 바뀜(리더만 헤더 '편집'으로 변경). 탭하면 편집 팝업 */}
         <TouchableOpacity onPress={() => setAliasEdit(alias || serverName)} activeOpacity={0.8}
-          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
           <Icon name="pen" size={fs(20)} color={SAGE_DEEP} strokeWidth={2} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>내가 보는 크루 이름</Text>
@@ -249,7 +249,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM, onOpenLedg
         {/* 새 글 알림 토글 — 헤더 스피커 아이콘만이면 작아서 안 보여 라벨 행으로(중장년 발견성).
             끄면 홈 크루 새 글 'NEW' 신호에서 이 크루 제외(본인만, 기기 로컬). [[crew-new-signal]] */}
         <TouchableOpacity onPress={toggleMuted} activeOpacity={0.8}
-          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}>
           <Icon name={muted ? 'speakerOff' : 'speaker'} size={fs(22)} color={muted ? '#B23B3B' : SAGE_DEEP} strokeWidth={2.2} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: INK }}>새 글 알림</Text>
@@ -264,7 +264,7 @@ export function CrewMembersScreen({ crew, onClose, onLeave, onOpenDM, onOpenLedg
           </View>
         </TouchableOpacity>
 
-        <View style={{ backgroundColor: CARD, borderRadius: 14, borderWidth: 0.5, borderColor: LINE, overflow: 'hidden' }}>
+        <View style={{ backgroundColor: CARD, borderRadius: 14, overflow: 'hidden' }}>
           {members.map((m, i) => {
             const isFriend = friendSet.has(m.id);
             const sent = sentSet.has(m.id);

@@ -34,6 +34,15 @@ export const dS = StyleSheet.create({
   // 요약보기 월 헤더 — 얇고 조용하게(목록의 주인공은 구장·타수). 월이 바뀔 때만 등장
   compactMonth:      { fontFamily: F.sysB, fontSize: fs(11), color: C.warmGrayLight, letterSpacing: 1.4,
                        marginTop: 22, marginBottom: 2 },
+  // 요약보기 '월별 카드' — 달마다 하얀 카드로 묶고 헤더에 그 달 요약(라운딩 수·평균·베스트) (사용자 2026-07-27)
+  // 테두리 없이 하얀 배경 + 여백으로만 구분(사용자 2026-07-27)
+  compactCard:       { backgroundColor: '#FFFFFF', borderRadius: 14,
+                       paddingHorizontal: 14, paddingTop: 15, paddingBottom: 4, marginBottom: 12 },
+  // 연·월을 크게, 그 아래 줄에 그 달 요약 — 사이 여백 넉넉히(사용자 2026-07-27)
+  compactCardHead:   { marginBottom: 14 },
+  compactCardMonth:  { fontFamily: F.en, fontSize: fs(23), color: C.charcoal, letterSpacing: 0.3 },
+  compactCardStat:   { fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray, marginTop: 9 },
+  compactRowDiv:     { height: 0.5, backgroundColor: C.hairline },
   searchToggleTxt:   { fontSize: fs(16) },
   searchWrap:        { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#E8E2D0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 16, marginVertical: 6 },
   searchIcon:        { fontSize: fs(14), marginRight: 8 },

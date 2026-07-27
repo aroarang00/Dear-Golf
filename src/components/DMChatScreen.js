@@ -845,8 +845,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               if (!emojis.length) return null;
               return (
                 <View style={{ alignSelf: mine ? 'flex-start' : 'flex-end', marginTop: -10, marginHorizontal: 8,
-                  backgroundColor: '#FFFFFF', borderRadius: 15, paddingHorizontal: 9, paddingVertical: 3,
-                  borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                  backgroundColor: '#FFFFFF', borderRadius: 15, paddingHorizontal: 9, paddingVertical: 3 }}>
                   {/* 말풍선에 붙는 공감 이모지 — 선택 피커(fs24)는 그대로, 표시 알약만 약 2배로 키움(사용자 "너무 작아") */}
                   <Text style={{ fontSize: fs(24), lineHeight: 30 }}>{emojis.join(' ')}</Text>
                 </View>
@@ -993,7 +992,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ alignItems: 'center', gap: 10 }}>
             <View style={{ flexDirection: 'row', gap: 4, backgroundColor: DM_FIELD, borderRadius: 26,
-              paddingHorizontal: 12, paddingVertical: 8, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+              paddingHorizontal: 12, paddingVertical: 8 }}>
               {REACTIONS.map(em => {
                 const on = reactTarget.reactions?.[myUid] === em;  // 내가 이미 누른 이모지는 페일스카이 하이라이트(크림 카드 위 또렷, 다시 누르면 해제)
                 return (
@@ -1014,7 +1013,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 requestAnimationFrame(() => inputRef.current?.focus?.());
               }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
-                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11 }}>
               <Text style={{ fontSize: fs(15) }}>↩️</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>답장</Text>
             </TouchableOpacity>
@@ -1022,7 +1021,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             {reactTarget.senderUid === myUid && (
               <TouchableOpacity activeOpacity={0.8} onPress={confirmDeleteMsg}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
-                  borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                  borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11 }}>
                 <Text style={{ fontSize: fs(15) }}>🗑️</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>삭제</Text>
               </TouchableOpacity>
@@ -1030,14 +1029,14 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             {/* 숨기기(나만 삭제) — 내 화면에서만 가림(상대엔 유지). 내·상대 메시지 모두 가능. */}
             <TouchableOpacity activeOpacity={0.8} onPress={hideMessage}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
-                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11 }}>
               <Text style={{ fontSize: fs(15) }}>🙈</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>숨기기</Text>
             </TouchableOpacity>
             {/* 선택 — 다중선택 모드 진입(이 메시지 체크). 여러 개를 한 번에 '나만 삭제' ([[dm-multiselect-delete]]) */}
             <TouchableOpacity activeOpacity={0.8} onPress={() => enterSelect(reactTarget.id)}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
-                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11 }}>
               <Text style={{ fontSize: fs(15) }}>☑️</Text>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: DM_MINE_TX }}>선택</Text>
             </TouchableOpacity>
@@ -1046,7 +1045,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               <TouchableOpacity activeOpacity={0.8}
                 onPress={() => openReport(`[받은 메시지] "${(reactTarget.body || '').slice(0, 200)}"`)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DM_FIELD,
-                  borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+                  borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11 }}>
                 <Text style={{ fontSize: fs(15) }}>🚩</Text>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#B3261E' }}>신고</Text>
               </TouchableOpacity>

@@ -253,7 +253,7 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TouchableOpacity onPress={() => setConfirmClear(false)} activeOpacity={0.85}
                     style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                      backgroundColor: C.bgSecondary }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>취소</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => { setConfirmClear(false); onClearAll?.(); }} activeOpacity={0.85}
@@ -319,8 +319,7 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
                 return (
                   <TouchableOpacity key={n.id} activeOpacity={0.8} onPress={() => onOpenPost(n)}
                     style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 12, marginBottom: 8,
-                      backgroundColor: n.read ? C.bgSecondary : '#F0E8D8',
-                      borderWidth: 0.5, borderColor: n.read ? C.hairline : '#E2D2A8' }}>
+                      backgroundColor: n.read ? C.bgSecondary : '#F0E8D8' }}>
                     <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
                       backgroundColor: (NOTI_COLOR[n.type] || C.charcoal) + '20' }}>
                       <Icon name={NOTI_ICON[n.type] || 'bell'} size={fs(18)} color={NOTI_COLOR[n.type] || C.charcoal} strokeWidth={1.9} />
@@ -337,7 +336,7 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
                       {ROUNDUP_PUBLIC_ENABLED && showActorGrade && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6,
                           paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: C.bgPrimary,
-                          borderWidth: 0.5, borderColor: C.hairline, alignSelf: 'flex-start' }}>
+                          alignSelf: 'flex-start' }}>
                           <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.charcoal }}>{friendDisplayName(friendMeta, n.actorUid, n.actorName)}</Text>
                           <TrustBadge grade={actorGrade} onPress={() => onGradePress?.(actorGrade.key)} />
                           <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>
@@ -356,7 +355,7 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
                           </TouchableOpacity>
                           <TouchableOpacity activeOpacity={0.85} onPress={() => onReject(n)}
                             style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8,
-                              backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                              backgroundColor: C.bgSecondary }}>
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>거절</Text>
                           </TouchableOpacity>
                         </View>

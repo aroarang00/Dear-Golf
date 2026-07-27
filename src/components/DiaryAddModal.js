@@ -29,6 +29,7 @@ import { useOverlayBackHandler } from '../utils/useOverlayBackHandler';
 import { scoreBreakdown } from '../utils/scorecardOcr';
 import { pickScorecardImages, extractScorecardAI } from '../utils/scorecardAI'; // OCR 대체 — Gemini 비전(태블릿 전후반 병합 + 카드, 최대 2장·단체는 나눠 담기)
 import { ScorecardReviewModal } from './ScorecardReviewModal';
+import { CalendarImportModal } from './CalendarImportModal'; // 폰 캘린더에서 지난 라운딩 가져오기(기록하기 — 과거)
 import { ScorecardPreviewModal } from './ScorecardPreviewModal';   // 읽기 전 방향 확인·회전(AI 1회)
 import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
 import { normalizeScoreRow } from '../utils/scorecardOcr';   // 공유 전 총타 정규화(오버파 오독 방지)
@@ -62,21 +63,26 @@ const MAX_VIDEOS = 2;     // 다이어리당 영상 개수 — 전량 계정 백
 const GUIDE_CHIPS = ['어느 코스', 'MVP 샷', '아쉬웠던 홀', '코스·잔디 상태', '동반자 소감', '다음에 기억할 것'];
 
 // 폼 섹션 헤더 — 위 구분선(hairline) + 버건디 바 + 제목으로 섹션을 시각적으로 분리. first=첫 섹션(상단 구분선 생략).
-function SectionHead({ title, sub, first }) {
+// 섹션을 하얀 카드로 감싼다(일정 시트와 동일 패턴, 사용자 2026-07-27: "여기는 필수, 이건 라운딩정보, 더남기기"가
+//   한눈에 보이게). SectionHead는 그 카드 '안'의 헤더. 필수 = 버건디 막대 + '필수' 뱃지.
+const cardBox = { backgroundColor: '#FFFFFF', borderRadius: 16,
+  paddingHorizontal: 14, paddingTop: 15, paddingBottom: 16, marginTop: 14 };
+function SectionHead({ title, sub, required }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7,
-      marginTop: first ? 8 : 22, paddingTop: first ? 0 : 18,
-      borderTopWidth: first ? 0 : 0.5, borderTopColor: C.hairline, marginBottom: 10 }}>
-      <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.burgundy }} />
-      <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.charcoal, letterSpacing: 0.5 }}>
-        {title}
-        {sub ? <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 0 }}> {sub}</Text> : null}
-      </Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 13 }}>
+      <View style={{ width: 3, height: 16, borderRadius: 2, backgroundColor: required ? C.burgundy : C.warmGrayLight }} />
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.2 }}>{title}</Text>
+      {required ? (
+        <View style={{ backgroundColor: C.burgundy, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(9.5), color: C.butter, letterSpacing: 0.3 }}>필수</Text>
+        </View>
+      ) : null}
+      {sub ? <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, letterSpacing: 0 }}>{sub}</Text> : null}
     </View>
   );
 }
 
-export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
+export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loadableRounds = [] }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = React.useContext(UserContext);
   const { schedules } = React.useContext(SchedulesContext);
@@ -95,6 +101,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
   const visibleRef = useRef(visible); visibleRef.current = visible; // 비동기(OCR 등) 완료 시 '아직 열려있나' 확인용
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
+  // '일정에서 불러오기'(신규 기록) — 미기록 라운딩을 골라 골프장·날짜·동반자 채움. scheduleId는 저장 시 1:1 연결에 씀.
+  //   전엔 진입 시점(선택 시트)에만 있고 폼 안엔 없어서 '그냥 기록하기'로 들어오면 불러올 방법이 없었다(사용자 2026-07-27).
+  const [loadPickerOpen, setLoadPickerOpen] = useState(false);
+  const [calImportOpen, setCalImportOpen] = useState(false);   // 폰 캘린더(지난 라운딩) 가져오기
+  const [pickedScheduleId, setPickedScheduleId] = useState(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [teeTime, setTeeTime] = useState(''); // 티오프 시간('HH:MM') — 선택. 일정 자동채움(단체 제외)/직접 입력, 비우면 저장·표시 안 함
 
@@ -566,8 +577,47 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
     setKind('round');
   };
 
+  // 폼 안에서 미기록 라운딩을 골라 적용 — pickRoundToRecord seed와 같은 필드(골프장·날짜·동반자·세부코스·티오프·scheduleId).
+  const applySchedule = (s) => {
+    const dParts = String(s.date || '').split('.').map(Number);
+    if (dParts.length === 3 && dParts.every(Number.isFinite)) setDate(new Date(dParts[0], dParts[1] - 1, dParts[2]));
+    setOverseas(!!s.overseas);
+    if (s.course) { setCourseSearch(s.course); setSelectedCourse(s.course); }
+    const cid = s.courseLogId || s.courseId || null;
+    if (cid) findUserCourseById(cid).then(c => { if (c) setSelectedCourseObj(c); }).catch(() => {});
+    else setSelectedCourseObj(null);
+    setCompanions(
+      (Array.isArray(s.companions) ? s.companions : [])
+        .filter(c => !(typeof c === 'object' && c.isMe))
+        .map(c => (typeof c === 'string' ? { name: c } : { name: c.name, ...(c.friendUid ? { friendUid: c.friendUid } : {}) }))
+        .filter(c => c.name)
+    );
+    setSubCourse(s.subCourse || '');
+    // 티오프 — 단체 모집(teams>1)은 조별로 달라 빈칸(pickRoundToRecord와 동일 규칙)
+    setTeeTime((s.roundupId && (s.teams || 1) > 1) ? '' : (s.time || ''));
+    setPickedScheduleId(s.id || null);
+    setLoadPickerOpen(false);
+  };
+
+  // 폰 캘린더 이벤트(지난 라운딩)를 폼에 적용 — 앱 일정이 아니라 scheduleId 연결은 없다(구장은 텍스트만 채우고 확정은 사용자).
+  const applyCalendarEvent = (ev) => {
+    if (!ev) return;
+    if (ev.start instanceof Date && !isNaN(ev.start.getTime())) {
+      setDate(new Date(ev.start.getFullYear(), ev.start.getMonth(), ev.start.getDate()));
+      if (!ev.allDay) setTeeTime(`${String(ev.start.getHours()).padStart(2, '0')}:${String(ev.start.getMinutes()).padStart(2, '0')}`);
+    }
+    const name = ev.course?.name || ev.title || ev.location || '';
+    if (name) { setCourseSearch(name); setSelectedCourse(name); }
+    setSelectedCourseObj(null);   // 구장은 검색 결과에서 확정하게(지역·100대 정확도) — ScheduleModal과 동일 방침
+    setOverseas(false);
+    setPickedScheduleId(null);    // 캘린더 이벤트는 디어골프 예정 일정이 아니라 1:1 연결 없음
+    setCalImportOpen(false);
+    setLoadPickerOpen(false);
+  };
+
   useEffect(() => {
     if (!visible) return;
+    setPickedScheduleId(null);   // 매 오픈 초기화 — 이전 선택이 다른 기록 저장에 새지 않게(수정 진입 포함)
     let cancelled = false;   // 비동기 resolve가 닫힌/재오픈된 폼을 덮어쓰지 않게 가드(2026-06-26 감사)
     loadFriendData().then(d => { if (!cancelled) setFriendData(d); }).catch(() => {}); // 공개범위 그룹 선택·해석용 ([[friend_groups]])
     loadMyFriendsEnriched().then(f => { if (!cancelled) setFriends(f || []); }).catch(() => {}); // 동반자 친구 선택용([[companion-design]] Phase A)
@@ -852,9 +902,9 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
       courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
       courseLoc: selectedCourseObj?.loc || (initial && initial.courseLoc) || null, // 코스 주소 동봉 — 지역탭 분류용([[region-classification]])
       subCourse: (subCourse || '').trim(), // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관 ([[schedule-booker]])
-      // 일정 진입 동선이면 initial.scheduleId가 prefill됨. 수정 시도 기존 값 유지.
+      // 일정 진입 동선이면 initial.scheduleId가 prefill됨. 폼 안 '불러오기'로 고른 경우 pickedScheduleId 우선.
       // 같은 날 일정 N건 + 다이어리 매칭의 비대칭 차단([[home-multi-schedule-same-day]] 룰3).
-      scheduleId: initial?.scheduleId || null,
+      scheduleId: pickedScheduleId || initial?.scheduleId || null,
       overseas,
       country: overseas ? country.trim() : '',
     };
@@ -882,7 +932,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               round: {
                 course: finalCourse, date: formatDate(date), day: formatDay(date),
                 courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
-                ...(initial?.scheduleId ? { scheduleId: initial.scheduleId } : {}),
+                ...((pickedScheduleId || initial?.scheduleId) ? { scheduleId: pickedScheduleId || initial?.scheduleId } : {}),
               },
               rows: shareRows,
               audienceUids,
@@ -946,9 +996,21 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 <Text style={mS.title}>{isMoment ? '일상 기록 수정' : '라운딩 기록 수정'}</Text>
               )}
               {kind === 'round' && (<>
-              <SectionHead title="스코어" sub="(필수)" first />
+              <View style={[cardBox, { marginTop: 6 }]}>
+              <SectionHead title="스코어" required />
 
-              {/* OCR 전면화 — 스코어판 사진 자동입력을 1순위(기본 노출). 직접 입력은 이 블록 아래 보조로. 인식되면 요약으로 대체. */}
+              {/* ★총타수 직접 입력을 1순위로(사용자 2026-07-27) — 중장년은 그냥 총타만 적는 게 제일 쉽다.
+                  사진 자동입력(홀별·버디)은 아래 보조 경로로 내린다. OCR 인식 시 이 값도 자동으로 채워진다(위 setScore). */}
+              <Text style={[mS.bigLabel, { marginTop: 4, color: '#6B1E2A' }]}>총타수 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#6B1E2A', letterSpacing: 0 }}>(필수)</Text></Text>
+              <AppTextInput style={[mS.input, { fontSize: fs(18), fontFamily: F.sysB }]} placeholder="총타수 입력 (예: 88)"
+                placeholderTextColor={C.warmGrayLight} value={score}
+                onChangeText={setScore} keyboardType="numeric" />
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 6, lineHeight: 18 }}>
+                사진 없이 <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>총타수만 적어도 충분히 기록</Text>돼요.
+              </Text>
+
+              {/* 사진으로 자동입력 — 홀별·버디까지 자동 집계(선택·보조). 인식되면 요약으로 대체. */}
+              <Text style={[mS.bigLabel, { marginTop: 20 }]}>사진으로 자동입력 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 0 }}>(선택 · 홀별·버디까지)</Text></Text>
               <View style={{ marginBottom: 10 }}>
                   {/* 사진으로 등록 — 갤러리(권장)/촬영. 인식 결과는 검토 모달에서 확인·수정 후 확정 */}
                   {/* 추출 중 — 공용 Spinner(JS타이머 회전, 안드 애니메이션 꺼짐에도 돎). 버튼/안내는 숨김. */}
@@ -977,17 +1039,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                       <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 12,
                         borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12 }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
-                          AI가 사진에서 홀별 스코어를 자동으로 읽어요
+                          AI가 홀별 스코어를 자동으로 읽어요
                         </Text>
-                      {/* 각 항목을 '· + 텍스트' 행으로 — 줄바꿈돼도 글머리 아래로 안 튀어나오게 flex:1 hanging indent */}
+                      {/* 핵심 3가지만 — 텍스트 벽 지양(사용자 2026-07-27, [[feedback_concise_scannable_copy]]).
+                          '· + 텍스트' 행, flex:1 hanging indent로 줄바꿈돼도 글머리 아래로 안 튀어나옴 */}
                       <View style={{ gap: 6 }}>
                         {[
-                          { k: 'best', pre: '가장 정확한 건 ', em: "스마트스코어 앱의 '스코어카드' 화면 캡처", emColor: true, post: ' — 반사·그림자가 없어요' },
-                          { k: 'a', pre: '스마트스코어 태블릿은 ', em: '전반·후반 각 1장(2장)', emB: true, post: ' 올리면 자동 병합돼요' },
-                          { k: 'c', pre: '실물 촬영은 ', em: '얼굴·손 그림자나 빛 반사가 숫자를 덮으면 못 읽어요', emColor: true, post: ' — 살짝 비스듬히·그늘지게 찍으세요' },
-                          { k: 'save', pre: '촬영한 사진은 ', em: '갤러리에 자동 저장', emB: true, post: '돼요 (원본 보관)' },
-                          { k: 'a2', pre: '전체 스코어카드(18홀·여러 명)는 ', em: '한 번에 2장까지', emB: true, post: ' — 단체는 팀 카드를 나눠 담으면 정확해요' },
-                          { k: 'd', pre: '여러 명이 나온 표는 인식 후 본인 행을 골라요' },
+                          { k: 'best', pre: '', em: '스마트스코어 화면 캡처', emColor: true, post: '가 가장 정확해요' },
+                          { k: 'c', pre: '실물 사진은 ', em: '반사·그림자 없게', emB: true, post: '' },
+                          { k: 'a2', pre: '', em: '최대 2장', emB: true, post: '(전·후반) · 여러 명은 본인 행만 골라요' },
                         ].map(b => (
                           <View key={b.k} style={{ flexDirection: 'row' }}>
                             <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, lineHeight: 19, width: 12 }}>·</Text>
@@ -1078,15 +1138,27 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     )
                   )}
                 </View>
-              {/* 또는 타수만 직접 입력 — 완전한 방법(폴백 아님). 총타수만 적어도 기록됨. 사진 OCR도 이 값을 채움. */}
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: 4 }}>또는 타수만 직접 입력</Text>
-              <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="총타수 입력 (예: 88)"
-                placeholderTextColor={C.warmGrayLight} value={score}
-                onChangeText={setScore} keyboardType="numeric" />
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>
-                사진 없이 <Text style={{ fontFamily: F.sysSb, color: C.charcoal }}>총타수만 적어도 충분히 기록</Text>돼요.{'\n'}(홀별·버디 자동집계는 스코어카드 등록 시에만 추가돼요)
-              </Text>
-              <SectionHead title="라운딩 정보" />
+              </View>
+              <View style={cardBox}>
+              <SectionHead title="라운딩 정보" required />
+              {/* ★불러오기 — 미기록 라운딩(디어골프) + 폰 캘린더의 지난 라운딩을 골라 골프장·날짜·동반자 자동 채움
+                  (신규 기록만, 사용자 2026-07-27). 예정 라운딩으로 등록 안 한 과거도 캘린더에서 가져오게. */}
+              {!isEdit && (
+                <TouchableOpacity onPress={() => setLoadPickerOpen(true)} activeOpacity={0.85}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2, marginBottom: 10,
+                    backgroundColor: 'rgba(107,30,42,0.06)', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12 }}>
+                  <Icon name="calendar" size={20} color={C.burgundy} strokeWidth={1.9} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>일정·캘린더에서 불러오기</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 2 }}>
+                      골프장·날짜·동반자 자동 채우기
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.burgundy }}>
+                    {loadableRounds.length > 0 ? `${loadableRounds.length}개 ›` : '›'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {/* 국내 / 해외 — 알약형 세그먼트 토글(축소·좌측 정렬). 선택 세그먼트만 버건디 채움. */}
               <View style={{ flexDirection: 'row', alignSelf: 'flex-start', marginTop: 4,
                 backgroundColor: C.bgSecondary, borderRadius: 999, padding: 3,
@@ -1112,7 +1184,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 onChangeText={t => { setCourseSearch(t); setSelectedCourse(''); setSelectedCourseObj(null); }} />
               {!overseas && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
-                  💡 검색 결과에서 선택하면 지역 분류·100대 코스가 정확해져요
+                  검색 결과에서 고르면 지역·100대 코스가 정확해요
                 </Text>
               )}
               {!overseas && kakaoSearching && (
@@ -1198,6 +1270,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 onPick={(d) => setTeeTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}
                 onClose={() => setShowTimePicker(false)} />
 
+              </View>
+              <View style={cardBox}>
               <SectionHead title="오늘의 기록" />
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(선택)</Text></Text>
               <AppTextInput style={[mS.input, { fontSize: fs(16), fontFamily: F.sysSb }]} placeholder="오늘 라운딩은..." placeholderTextColor={C.warmGrayLight}
@@ -1273,7 +1347,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
               </View>
               {companions.length === 0 && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginBottom: 8 }}>
-                  이름을 입력하면 저장할 때 자동으로 반영돼요. 공백으로 띄우면 여러 명도 한 번에 (최대 3명)
+                  이름만 적어도 돼요 · 최대 3명
                 </Text>
               )}
               {companions.length > 0 && (
@@ -1367,6 +1441,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 {starRating > 0 && <Text style={{ fontSize: fs(12), color: '#8B8680' }}>{starRating}점</Text>}
               </View>
 
+              </View>
+              <View style={cardBox}>
               <SectionHead title="더 남기기" sub="· 선택" />
               <Text style={mS.bigLabel}>코스 태그<Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (중복 가능)</Text></Text>
               {Object.entries(COURSE_TAGS)
@@ -1560,11 +1636,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                   </View>
                 </View>
               )}
+              </View>
               </>)}
 
               {/* 일상(모멘트) — 본문 텍스트(최대 1000자). 사진은 아래 공용 섹션. */}
               {isMoment && (
-                <View style={{ marginTop: 4 }}>
+                <View style={[cardBox, { marginTop: 6 }]}>
                   {/* 일상 날짜 — 기본 오늘, 선택 가능(과거 일상도 기록). 통계·캘린더 미표시는 kind로 격리 ([[moment-feed-extension]]) */}
                   <Text style={mS.bigLabel}>날짜</Text>
                   <TouchableOpacity style={mS.input} activeOpacity={0.7} onPress={() => setShowDatePicker(true)}>
@@ -1597,36 +1674,39 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                 </View>
               )}
 
-              <SectionHead title="마무리" />
-              <Text style={mS.bigLabel}>공개 범위</Text>
-              {/* 친구 전체 / 그룹들(가까운 친구·라운딩 멤버) / 나만 보기 — 단일 선택 ([[friend_groups]]) */}
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              {/* 공개 범위 — 라운딩·일상 공용(두 분기 바깥). 위로 올리려다 일상 기록과 공유되는 문제가 있어
+                  원래 자리(하단 공용)에 유지(사용자 2026-07-27: 위치는 중요치 않다고 함). 글씨·칩만 키움. */}
+              <View style={cardBox}>
+              <SectionHead title="공개 범위" sub="· 누가 볼 수 있나요" />
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                 {[{ key: 'friends', label: '친구 전체' },
-                  // 이번 라운딩 동반자만 — 친구로 등록된 동반자가 있을 때만 노출(0명이면 아무도 못 보는 글이 됨)
                   ...(companionUids.length ? [{ key: 'companions', label: '동반자만' }] : []),
                   ...friendData.friendGroups.map(g => ({ key: g.id, label: g.name })),
                   { key: 'private', label: '나만 보기' }].map(opt => {
                   const on = privacy.includes(opt.key);
                   return (
-                    <TouchableOpacity key={opt.key} style={[mS.chip, on && mS.chipOn]} onPress={() => togglePrivacy(opt.key)}>
-                      <Text style={[mS.chipTxt, on && mS.chipTxtOn]}>{opt.label}</Text>
+                    <TouchableOpacity key={opt.key} style={[mS.chip, { paddingVertical: 9, paddingHorizontal: 16 }, on && mS.chipOn]} onPress={() => togglePrivacy(opt.key)}>
+                      <Text style={[mS.chipTxt, { fontSize: fs(13.5) }, on && mS.chipTxtOn]}>{opt.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
               {privacy.includes('companions') ? (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
-                  이번 라운딩 동반자 중 {/* 친구가 아닌(이름만 입력한) 동반자는 앱에서 볼 수 없어 명시한다 */}
-                  <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>친구로 등록된 {companionUids.length}명</Text>에게만 보여요
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 7, lineHeight: 17 }}>
+                  이번 라운딩 동반자 중 <Text style={{ fontFamily: F.sysB, color: C.charcoal }}>친구로 등록된 {companionUids.length}명</Text>에게만 보여요
                   {companions.length > companionUids.length ? ` (이름만 적은 ${companions.length - companionUids.length}명은 볼 수 없어요)` : ''}
                 </Text>
               ) : (!privacy.includes('friends') && !privacy.includes('private') && (
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 7, lineHeight: 17 }}>
                   {privacy.map(id => (friendData.friendGroups.find(g => g.id === id) || {}).name).filter(Boolean).join(' · ')} 그룹 친구에게만 보여요 (여러 그룹 선택 가능)
                 </Text>
               ))}
+
+              </View>
+              <View style={cardBox}>
+              <SectionHead title="사진 · 영상" sub="· 선택" />
               <View style={{ marginBottom: 16 }}>
-                <Text style={mS.bigLabel}>사진 · 영상 <Text style={{ color: '#8B8680', fontSize: fs(11), fontFamily: F.sys }}> (선택 · {addPhotos.length}/{MAX_PHOTOS} · 영상은 {MAX_VIDEOS}개까지)</Text></Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: -2, marginBottom: 8 }}>사진 {addPhotos.length}/{MAX_PHOTOS} · 영상은 {MAX_VIDEOS}개까지</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {addPhotos.map((item, i) => (
                     <AddPhotoThumb key={i} item={item} isCover={i === 0}
@@ -1643,6 +1723,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
                     </TouchableOpacity>
                   )}
                 </ScrollView>
+              </View>
               </View>
             </KeyboardAwareScrollView>
             {/* C. 고정 하단 바 — 항상 보이는 취소/저장 + 검증 에러(스크롤 끝까지 안 내려가도 닫기·저장 가능) */}
@@ -1737,6 +1818,61 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit }) {
           onClose={() => setShowCompanionPicker(false)}
           onConfirm={onPickCompanionFriends}
         />
+        {/* 일정에서 불러오기 — 미기록 라운딩 선택(카드형, 진입 선택 시트와 동일 룩). 고르면 applySchedule로 폼 채움. */}
+        <Modal visible={loadPickerOpen} transparent animationType="fade" onRequestClose={() => setLoadPickerOpen(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setLoadPickerOpen(false)} />
+            <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 10, paddingBottom: 24 + insets.bottom }}>
+              <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 12 }} />
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, paddingHorizontal: 20, marginBottom: 4 }}>어떤 라운딩인가요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, paddingHorizontal: 20, marginBottom: 14 }}>
+                고르면 자동으로 채워져요
+              </Text>
+              <ScrollView style={{ maxHeight: 300 }} contentContainerStyle={{ paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
+                {loadableRounds.length > 0 ? loadableRounds.map((s, i) => (
+                  <TouchableOpacity key={s.id || i} activeOpacity={0.85} onPress={() => applySchedule(s)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 10,
+                      backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+                      paddingVertical: 14, paddingHorizontal: 15 }}>
+                    <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(107,30,42,0.08)',
+                      alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name="flag" size={20} color={C.burgundy} strokeWidth={1.8} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal }} numberOfLines={1}>{s.course}</Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 3 }}>
+                        {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy }}>선택</Text>
+                  </TouchableOpacity>
+                )) : (
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', paddingVertical: 16 }}>
+                    미기록으로 잡힌 라운딩이 없어요
+                  </Text>
+                )}
+              </ScrollView>
+              {/* 폰 캘린더에서 가져오기 — 예정 라운딩으로 등록 안 한 지난 라운딩(과거). 열 때 이 시트는 닫아 2단 모달로 유지. */}
+              <TouchableOpacity onPress={() => { setLoadPickerOpen(false); setCalImportOpen(true); }} activeOpacity={0.85}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginHorizontal: 20, marginTop: 10,
+                  backgroundColor: C.bgSecondary, borderRadius: 14,
+                  paddingVertical: 14, paddingHorizontal: 15 }}>
+                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(26,61,82,0.08)',
+                  alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="calendar" size={20} color={C.navy} strokeWidth={1.8} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>폰 캘린더에서 가져오기</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>등록 안 한 지난 라운딩</Text>
+                </View>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.navy }}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        {/* 폰 캘린더(지난 라운딩) 가져오기 — mode='past'로 오늘 포함 과거만 읽음. onPick→폼 채움. */}
+        <CalendarImportModal visible={calImportOpen} mode="past"
+          onClose={() => setCalImportOpen(false)} onPick={applyCalendarEvent} />
     </Modal>
   );
 }

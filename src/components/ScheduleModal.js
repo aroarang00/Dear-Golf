@@ -461,7 +461,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               {/* 국내 / 해외 — 세그먼트 컨트롤. 흰 트랙 안에서 선택된 쪽만 차콜 필로 떠 보임(그림자).
                   전파 일정 잠금 시 비활성(구장 정체성의 일부). */}
               <View style={{ flexDirection: 'row', marginTop: 4, backgroundColor: C.bgSecondary, borderRadius: 12,
-                padding: 4, borderWidth: 0.5, borderColor: C.hairline, opacity: sharedLock ? 0.45 : 1 }}>
+                padding: 4, opacity: sharedLock ? 0.45 : 1 }}>
                 {[['국내', false], ['해외', true]].map(([l, v]) => {
                   const on = overseas === v;
                   return (
@@ -481,7 +481,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               {/* AI 자동입력 — 캡처·붙여넣기·캘린더를 하나의 카드로 통합(버튼 3개 → 카드 1개). 신규·국내일 때만.
                   캡처/붙여넣기=Gemini 추출, 캘린더=일정 읽기(무료). 셋 다 '알아서 채우기' 한 묶음. 커스텀 SVG만 사용. */}
               {!isEdit && !overseas && (
-                <View style={{ marginTop: 10, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(95,123,81,0.35)',
+                <View style={{ marginTop: 10, borderRadius: 16,
                   backgroundColor: 'rgba(122,156,108,0.07)', padding: 12 }}>
                   {/* 헤더 */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -498,7 +498,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   {/* 방법 3개 — 캡처 / 붙여넣기 / 캘린더. AI 판별 중엔 로딩 스트립으로 교체(진행 중임을 명확히). */}
                   {autofilling ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12,
-                      paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: '#5F7B51' }}>
+                      paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF' }}>
                       <Spinner size={20} color="#5F7B51" />
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#5F7B51' }}>AI가 예약 내용을 읽고 있어요...</Text>
                     </View>
@@ -513,8 +513,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                         return (
                           <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress}
                             style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
-                              backgroundColor: active ? 'rgba(95,123,81,0.14)' : '#FFFFFF',
-                              borderWidth: 0.5, borderColor: active ? '#5F7B51' : C.hairline }}>
+                              backgroundColor: active ? 'rgba(95,123,81,0.14)' : '#FFFFFF' }}>
                             <Icon name={m.icon} size={21} color="#5F7B51" strokeWidth={1.8} />
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>{m.label}</Text>
                           </TouchableOpacity>
@@ -529,7 +528,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                         value={pasteText} onChangeText={setPasteText} multiline
                         placeholder={'카톡·문자의 예약 확인 내용을 복사해서 붙여넣어 주세요.\n예) OO CC 7/25(금) 07:12 4명 · 예약자 홍길동'}
                         placeholderTextColor={C.warmGrayLight}
-                        style={{ minHeight: 80, maxHeight: 160, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: C.hairline,
+                        style={{ minHeight: 80, maxHeight: 160, backgroundColor: '#FFFFFF',
                           borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, textAlignVertical: 'top' }}
                       />
                       <TouchableOpacity activeOpacity={0.85} disabled={autofilling || pasteText.trim().length < 5} onPress={handleAutofillText}
@@ -545,7 +544,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
 
               {/* 전파(공유) 일정 잠금 안내 — 구장·날짜는 삭제 후 재생성으로만 */}
               {sharedLock && (
-                <View style={{ marginTop: 12, backgroundColor: 'rgba(122,156,108,0.10)', borderWidth: 0.5, borderColor: 'rgba(122,156,108,0.35)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+                <View style={{ marginTop: 12, backgroundColor: 'rgba(122,156,108,0.10)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
                     🔒 동반자에게 전파한 일정이라 <Text style={{ fontFamily: F.sysSb }}>구장·날짜는 바꿀 수 없어요</Text>.{'\n'}바꾸려면 일정을 삭제하고 새로 만들어 전파해주세요.{'\n'}(시간·인원·예약자·코스는 수정 가능 — 동반자에게 반영 여부를 물어봐요)
                   </Text>
@@ -679,7 +678,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 <TouchableOpacity
                   onPress={() => setShowTimePicker(true)}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                    paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                    paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(17), color: C.textPrimary }}>
                     {pad2(clampNum(hourText, 23))} : {pad2(clampNum(minText, 59))}
                   </Text>
@@ -710,7 +709,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   />
                   <TouchableOpacity
                     onPress={() => setShowTimePicker(true)}
-                    style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                    style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary }}>
                     <Text style={{ fontSize: fs(18) }}>🕐</Text>
                   </TouchableOpacity>
                 </View>
@@ -735,7 +734,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                   {companions.map((c, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary,
-                      borderWidth: 0.5, borderColor: C.hairline, borderRadius: 14, paddingLeft: 10, paddingRight: 6, paddingVertical: 5 }}>
+                      borderRadius: 14, paddingLeft: 10, paddingRight: 6, paddingVertical: 5 }}>
                       {/* 친구 동반자는 화면에서만 별명으로 표시(저장은 닉네임). 별명 없으면 저장된 이름 ([[friend_groups]]) */}
                       {c.friendUid && <Icon name="person" size={fs(12)} color={C.charcoal} />}
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal }}>{c.friendUid ? (friends.find(f => f.id === c.friendUid)?.customName || c.name) : c.name}</Text>

@@ -102,7 +102,7 @@ export function OnboardingConsent({ onAgree }) {
         </Text>
 
         {/* 연령 확인 안내 — 만 19세 자가 확인 ([[age-policy]]) */}
-        <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+        <View style={{ backgroundColor: C.bgSecondary,
           borderRadius: 12, padding: 16, marginBottom: 22 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.burgundy, marginBottom: 8 }}>
             연령 확인 안내

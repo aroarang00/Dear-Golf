@@ -205,7 +205,6 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6,
-    borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)',
     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2,
   },
   resetIcon: { fontSize: fs(13), color: '#3A3A3A', fontFamily: F.sysSb },

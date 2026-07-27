@@ -97,7 +97,7 @@ export function CrewCreateScreen({ onClose, onCreate }) {
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginBottom: 8 }}>크루 이름</Text>
               <TextInput value={name} onChangeText={(t) => { setName(t); if (err) setErr(''); }} maxLength={NAME_MAX}
                 allowFontScaling={false} placeholder="예) 수요회, 대학 동기" placeholderTextColor={SUB}
-                style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12,
+                style={{ backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
                   fontFamily: F.sysB, fontSize: fs(16), color: INK }} />
             </View>
           </View>
@@ -121,7 +121,7 @@ export function CrewCreateScreen({ onClose, onCreate }) {
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SUB, marginTop: 18, marginBottom: 8 }}>크루 성격 <Text style={{ color: 'rgba(26,61,82,0.62)' }}>· 선택</Text></Text>
           <TextInput value={desc} onChangeText={setDesc} maxLength={DESC_MAX} multiline
             allowFontScaling={false} placeholder="어떤 크루인가요? 예) 주말 라운딩 같이 즐겨요" placeholderTextColor={SUB}
-            style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, paddingHorizontal: 14, paddingVertical: 12,
+            style={{ backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
               minHeight: 62, textAlignVertical: 'top', fontFamily: F.sysM, fontSize: fs(15), color: INK }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 5 }}>{desc.length}/{DESC_MAX}</Text>
 
@@ -132,7 +132,7 @@ export function CrewCreateScreen({ onClose, onCreate }) {
             <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: SUB }}>{1 + sel.length}/{MAX_MEMBERS}명</Text>
           </View>
 
-          <View style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, overflow: 'hidden' }}>
+          <View style={{ backgroundColor: CARD, borderRadius: 12, overflow: 'hidden' }}>
             {friends === null ? (
               <View style={{ paddingVertical: 28, alignItems: 'center' }}><ActivityIndicator color={SAGE_DEEP} /></View>
             ) : friends.length === 0 ? (

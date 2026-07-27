@@ -67,8 +67,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
                   return (
                     <TouchableOpacity key={pk} onPress={() => toggleSlot(key)} activeOpacity={0.7}
                       style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10,
-                        backgroundColor: on ? C.burgundy : C.bgSecondary,
-                        borderWidth: 0.5, borderColor: on ? C.burgundy : C.hairline }}>
+                        backgroundColor: on ? C.burgundy : C.bgSecondary }}>
                       <Text style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13),
                         color: on ? C.butter : C.warmGray }}>{pl}</Text>
                     </TouchableOpacity>
@@ -82,7 +81,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               <TouchableOpacity onPress={() => setShowPicker('from')} activeOpacity={0.7}
                 style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                  backgroundColor: C.bgSecondary }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: dateFrom ? C.charcoal : C.warmGrayLight }}>
                   {dateFrom || '시작 날짜'}
                 </Text>
@@ -90,7 +89,7 @@ export function RoundupMatchModal({ visible, initial, onClose, onSave }) {
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>~</Text>
               <TouchableOpacity onPress={() => setShowPicker('to')} activeOpacity={0.7}
                 style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                  backgroundColor: C.bgSecondary }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: dateTo ? C.charcoal : C.warmGrayLight }}>
                   {dateTo || '끝 날짜'}
                 </Text>

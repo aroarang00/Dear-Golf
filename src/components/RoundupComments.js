@@ -212,7 +212,7 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
       </Text>
 
       <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
-        borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14 }}>
+        paddingHorizontal: 14 }}>
 
         {!access ? (
           <View style={{ paddingVertical: 32, alignItems: 'center' }}>
@@ -262,7 +262,7 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
                 <>
                   {/* @멘션 자동완성 — @입력 시 참가자 목록. 선택하면 그 사람에게만 알림 */}
                   {mentionList.length > 0 && (
-                    <View style={{ marginBottom: 8, backgroundColor: C.bgSecondary, borderRadius: 10, overflow: 'hidden', borderWidth: 0.5, borderColor: C.hairline }}>
+                    <View style={{ marginBottom: 8, backgroundColor: C.bgSecondary, borderRadius: 10, overflow: 'hidden' }}>
                       {mentionList.map((m, i) => (
                         <TouchableOpacity key={m.uid} onPress={() => pickMention(m)} activeOpacity={0.6}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
@@ -279,7 +279,7 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
                     onFocus={onInputFocus}
                     style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal,
                       backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
-                      borderWidth: 0.5, borderColor: C.hairline, minHeight: 40, textAlignVertical: 'top' }}
+                      minHeight: 40, textAlignVertical: 'top' }}
                     placeholder="동반자에게 남길 댓글 · @로 부르기"
                     placeholderTextColor={C.warmGrayLight}
                     value={body}

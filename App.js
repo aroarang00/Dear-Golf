@@ -638,10 +638,19 @@ function App() {
   }, [showOnboarding]);
 
   const handleOnboardingComplete = (data) => {
+    // openKakaoFriends는 프로필에 저장하지 않는 일회성 신호 — 분리해서 프로필엔 안 넣는다.
+    const { openKakaoFriends, ...profile } = data || {};
     // 기존 프로필과 병합 — 온보딩 data엔 statusMessage·departure·phone 등이 없어서, 통째 교체하면
     //   재온보딩(미리보기 포함) 시 그 필드들이 날아간다. 신규 사용자는 prev=USER_PROFILE_INIT라 결과 동일.
-    setUserProfile(prev => ({ ...prev, ...data }));
+    setUserProfile(prev => ({ ...prev, ...profile }));
     setShowOnboarding(false);
+    // 온보딩 4단계에서 '카카오 친구 찾기'를 골랐으면 가입 직후 친구 탭의 친구찾기(카카오)를 자동으로 연다
+    //   ([[first-entry-friend-path]]와 동일 경로 재사용). 메인앱·네비 마운트 여유를 두고 호출.
+    if (openKakaoFriends) {
+      setTimeout(() => {
+        try { if (navigationRef.isReady()) navigationRef.navigate(ROUTES.FRIENDS, { openFinder: 'kakao' }); } catch (e) {}
+      }, 600);
+    }
   };
 
   // 계정 탈퇴 완료 — 프로필 초기화 후 온보딩 화면으로. useCallback: UserContext value 안정화용(setter만 사용, deps 빈)

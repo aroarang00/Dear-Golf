@@ -176,8 +176,7 @@ export function ReportModal({ visible, onClose, presetTarget = null, prefillEvid
                       onChangeText={setQuery}
                     />
                     {suggestions.length > 0 && (
-                      <View style={{ marginTop: 6, backgroundColor: C.bgSecondary, borderRadius: 10,
-                        borderWidth: 0.5, borderColor: C.hairline }}>
+                      <View style={{ marginTop: 6, backgroundColor: C.bgSecondary, borderRadius: 10 }}>
                         {suggestions.map(s => (
                           <TouchableOpacity key={s.id} onPress={() => setTarget({ id: s.id, name: s.name })}
                             style={{ paddingHorizontal: 14, paddingVertical: 11,
@@ -205,8 +204,7 @@ export function ReportModal({ visible, onClose, presetTarget = null, prefillEvid
                         return (
                           <TouchableOpacity key={r.key} activeOpacity={0.85} onPress={() => setReason(r.key)}
                             style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10,
-                              backgroundColor: on ? C.charcoal : C.bgSecondary,
-                              borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                              backgroundColor: on ? C.charcoal : C.bgSecondary }}>
                             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: on ? C.butter : C.charcoal }}>
                               {r.label}
                             </Text>
@@ -219,7 +217,7 @@ export function ReportModal({ visible, onClose, presetTarget = null, prefillEvid
 
                     {fraudHint && (
                       <View style={{ marginTop: 10, padding: 12, backgroundColor: '#F5E6A8',
-                        borderRadius: 10, borderWidth: 0.5, borderColor: '#C9A84C' }}>
+                        borderRadius: 10 }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#5A4500', marginBottom: 4 }}>
                           사기는 형사 사안이에요
                         </Text>
@@ -287,5 +285,4 @@ export function ReportModal({ visible, onClose, presetTarget = null, prefillEvid
 
 const section = { fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginTop: 22, marginBottom: 10 };
 const input = { fontFamily: F.sys, fontSize: fs(13), color: C.charcoal,
-  backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
-  borderWidth: 0.5, borderColor: C.hairline };
+  backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 };

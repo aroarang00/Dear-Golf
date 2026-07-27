@@ -687,13 +687,13 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
             <TouchableOpacity activeOpacity={0.7}
               onPress={() => { if (searchOpen) { setSearchOpen(false); setSearch(''); } else setSearchOpen(true); }}
               style={{ width: 34, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: searchOpen ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: searchOpen ? C.charcoal : C.hairline }}>
+                backgroundColor: searchOpen ? C.charcoal : C.bgSecondary }}>
               <Icon name="search" size={fs(16)} color={searchOpen ? C.bgPrimary : C.charcoal} />
             </TouchableOpacity>
             {friends.length > 0 && (
               <TouchableOpacity activeOpacity={0.7} onPress={() => setGroupManageOpen(true)}
                 style={{ width: 34, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                  backgroundColor: C.bgSecondary }}>
                 <Icon name="gear" size={fs(20)} color={C.charcoal} strokeWidth={1.8} />
               </TouchableOpacity>
             )}
@@ -702,7 +702,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
         {/* 검색 입력 — 🔍 토글 시만 (사용자 "검색 쓸 일 별로 없어") */}
         {searchOpen && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, backgroundColor: C.bgSecondary,
-            borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 10 }}>
+            borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
             <Icon name="search" size={fs(15)} color={C.warmGray} />
             <AppTextInput
               style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, padding: 0 }}
@@ -799,7 +799,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
 
         {/* 친구 첫 진입 1회 안내 — 접이식 카드(확인 시 사라짐). 친구 1명 이상일 때만(0명은 빈 화면 가이드가 설명) ([[friend_groups]]) */}
         {friendsLoaded && friends.length > 0 && !guideDone && (
-          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14,
             padding: 14, marginBottom: _and ? 9 : 12 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginBottom: 10 }}>👋 친구, 이렇게 써요</Text>
             {[
@@ -837,7 +837,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
           ) : (
             /* 빈 화면 가이드 — 친구 0명 */
             <View style={{ paddingTop: _and ? 10 : 18 }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 13 : 18 }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 14, padding: _and ? 13 : 18 }}>
                 <Text style={{ fontSize: fs(_and ? 26 : 30), marginBottom: _and ? 6 : 10 }}>👥</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: _and ? 3 : 6 }}>
                   골프 친구를 추가해보세요
@@ -995,7 +995,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
                       return (
                         <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => moveTo(g.id)}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18,
-                            backgroundColor: on ? C.charcoal : C.bgSecondary, borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                            backgroundColor: on ? C.charcoal : C.bgSecondary }}>
                           <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: groupColor(friendData.friendGroups, g.id) }} />
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: on ? C.butter : C.charcoal }}>{g.name}</Text>
                         </TouchableOpacity>

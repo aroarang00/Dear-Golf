@@ -66,7 +66,7 @@ export function SettlementGuideModal({ visible, onClose }) {
             showsVerticalScrollIndicator={false}>
             {SECTIONS.map(s => (
               <View key={s.title} style={{ backgroundColor: C.bgSecondary, borderRadius: 16,
-                borderWidth: 0.5, borderColor: C.hairline, padding: 16, marginBottom: 11 }}>
+                padding: 16, marginBottom: 11 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: s.accent,
                     alignItems: 'center', justifyContent: 'center' }}>

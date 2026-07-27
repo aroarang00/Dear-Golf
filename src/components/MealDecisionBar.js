@@ -355,7 +355,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     const author = canEditMeal(meal);
     const editing = memoEdit?.slot === slot;
     return (
-      <View key={slot} style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+      <View key={slot} style={{ marginHorizontal: 18, marginBottom: 10, padding: 14, borderRadius: 12, backgroundColor: C.bgSecondary }}>
         {/* 식사 슬롯(2곳일 때)만 최상단 작은 배지 — '누가 정함'은 식당명 옆으로 내려 한 줄 절약. */}
         {decidedCount === 2 && (
           <View style={{ alignSelf: 'flex-start', backgroundColor: C.burgundy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6 }}>
@@ -381,7 +381,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
             <AppTextInput value={memoEdit.text} onChangeText={(t) => setMemoEdit(e => ({ ...e, text: t }))}
               placeholder="메모 (예: 아침 9시까지)" placeholderTextColor={C.warmGrayLight}
-              style={{ flex: 1, backgroundColor: C.bgPrimary, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal, borderWidth: 0.5, borderColor: C.hairline }} />
+              style={{ flex: 1, backgroundColor: C.bgPrimary, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8, fontFamily: F.sys, fontSize: fs(12.5), color: C.charcoal }} />
             <TouchableOpacity onPress={saveMemo} activeOpacity={0.85} style={{ paddingHorizontal: 12, paddingVertical: 9, borderRadius: 9, backgroundColor: C.burgundy }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>저장</Text>
             </TouchableOpacity>
@@ -389,7 +389,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         ) : !!meal.note ? (
           // 메모 하이라이트 — 버터색 스티키노트 박스로 부각(카드 위에서 또렷). 📌 + 볼드.
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: 'rgba(245,230,168,0.6)',
-            borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 0.5, borderColor: 'rgba(160,130,30,0.3)' }}>
+            borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7 }}>
             <Text style={{ fontSize: fs(12.5) }}>📌</Text>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, marginLeft: 6, flex: 1 }} numberOfLines={2}>{meal.note}</Text>
           </View>
@@ -435,7 +435,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
     return (
       <View onLayout={(e) => { pickerYRef.current = e.nativeEvent.layout.y; }}
         style={{ marginHorizontal: 10, marginBottom: 10, paddingTop: 10, paddingBottom: 6, borderRadius: 12,
-        backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 0.5, borderColor: 'rgba(160,130,30,0.18)' }}>
+        backgroundColor: 'rgba(245,230,168,0.12)' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 6 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal, flex: 1 }}>{title}</Text>
           {/* 항상 취소 가능 — 이미 정한 게 있으면 카드로 돌아가고(닫기), 첫 결정 중이면 시트를 닫음(취소). */}
@@ -447,7 +447,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         {/* 검색 — 맨 위 + 돋보기 + 검색 버튼. 메모칸과 같은 회색 민무늬라 '검색 기능이 없는 줄' 알았고,
             버튼이 없어 검색 실행 여부도 알 수 없다는 피드백(2026-07-05) → 흰 배경·테두리로 구분 + 명시 버튼(코스맛집 검색줄과 동일 문법). */}
         <View style={{ paddingHorizontal: 18, marginBottom: 7, flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingLeft: 12, height: 44 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, paddingLeft: 12, height: 44 }}>
             <Icon name="search" size={fs(16)} color={C.warmGray} />
             <AppTextInput value={kw} returnKeyType="search" onSubmitEditing={runSearch}
               onChangeText={(t) => { const hadQ = kw.trim(); setKw(t); if (hadQ && !t.trim()) loadNearby(); }}
@@ -478,7 +478,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         <View style={{ paddingHorizontal: 18, marginBottom: 10, flexDirection: 'row' }}>
           <TouchableOpacity onPress={() => propose({ name: '클럽하우스', loc: schedule?.course || '', x: coord?.x, y: coord?.y })} disabled={busy} activeOpacity={0.85}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7,
-              borderRadius: 16, borderWidth: 0.5, borderColor: C.burgundy, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
+              borderRadius: 16, backgroundColor: 'rgba(107,30,42,0.05)', opacity: busy ? 0.6 : 1 }}>
             <Icon name="clubhouse" size={fs(15)} color={C.burgundy} />
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.burgundy }}>클럽하우스에서 식사</Text>
           </TouchableOpacity>
@@ -549,7 +549,7 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
                       <TouchableOpacity onPress={() => setSaveSeed(r)} activeOpacity={0.7}
                         hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                         style={{ borderRadius: 12, paddingHorizontal: 9, paddingVertical: 3,
-                          borderWidth: 0.5, borderColor: '#C9A84C', backgroundColor: '#FFFDF5' }}>
+                          backgroundColor: '#FFFDF5' }}>
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: '#5A4A00' }}>+ 저장</Text>
                       </TouchableOpacity>
                     )}

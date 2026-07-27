@@ -12,7 +12,7 @@ const ITEM_H = 42;
 const VISIBLE = 5;                       // 보이는 줄 수(홀수) — 가운데가 선택
 const PAD = ((VISIBLE - 1) / 2) * ITEM_H; // 첫/마지막 항목도 가운데로 올 수 있게 상하 여백
 
-function Wheel({ data, initial, onSelect }) {
+function Wheel({ data, initial, onSelect, width = 74 }) {
   const ref = useRef(null);
   const [idx, setIdx] = useState(Math.max(0, data.indexOf(initial)));
   // 마운트 시 초기값 위치로 스크롤(무애니메이션). 레이아웃 후 잡히도록 살짝 지연.
@@ -29,7 +29,7 @@ function Wheel({ data, initial, onSelect }) {
   return (
     <ScrollView
       ref={ref}
-      style={{ width: 74, height: VISIBLE * ITEM_H }}
+      style={{ width, height: VISIBLE * ITEM_H }}
       showsVerticalScrollIndicator={false}
       snapToInterval={ITEM_H}
       decelerationRate="fast"
@@ -98,6 +98,79 @@ function AndroidTimeEntry({ value, onPick, onClose }) {
   );
 }
 
+// 안드 날짜 입력 — 앱 자체 스크롤 휠(년·월·일). 시간 피커와 같은 이유로 네이티브 date 스피너를 버린다.
+//   ★왜: OEM(삼성 등) 네이티브 date 스피너가 '월 선택 후 일을 돌리면 월이 이번 달로 튕기고, 어떤 날짜를 골라도
+//     오늘로 되돌아가는' 버그가 있었다(사용자 2026-07-27). value/minimumDate 참조 재주입 회피(openValRef)로도
+//     안 잡히는 네이티브 내부 문제 → AndroidTimeEntry처럼 JS 휠로 통일해 모든 기기에서 동일 작동.
+//   호출부 계약(value=Date, onPick(Date), onClose, minimumDate/maximumDate) 그대로.
+const daysInMonth = (y, m) => new Date(y, m, 0).getDate();               // m: 1..12
+const dateOnly = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+function AndroidDateEntry({ value, onPick, onClose, minimumDate, maximumDate }) {
+  const [year, setYear] = useState(value.getFullYear());
+  const [month, setMonth] = useState(value.getMonth() + 1);   // 1..12
+  const [day, setDay] = useState(value.getDate());
+
+  const vY = value.getFullYear();
+  // min/max 없는 쪽은 ±5년 열어둔다 — 예약(미래)·지난 라운딩 기록(과거) 양쪽 다 되게(회귀 방지).
+  const minY = minimumDate ? Math.min(minimumDate.getFullYear(), vY) : vY - 5;
+  const maxY = maximumDate ? Math.max(maximumDate.getFullYear(), vY) : vY + 5;
+  const years = [];
+  for (let y = minY; y <= maxY; y += 1) years.push(y);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const days = Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1);
+
+  // 연·월이 바뀌면 그 달 일수에 맞춰 일을 보정(예: 1/31 → 2월 = 28/29)
+  const pickYear = (y) => { setYear(y); const dim = daysInMonth(y, month); if (day > dim) setDay(dim); };
+  const pickMonth = (m) => { setMonth(m); const dim = daysInMonth(year, m); if (day > dim) setDay(dim); };
+
+  const confirm = () => {
+    const dim = daysInMonth(year, month);
+    let picked = new Date(year, month - 1, Math.min(day, dim));
+    if (minimumDate && picked < dateOnly(minimumDate)) picked = dateOnly(minimumDate);
+    if (maximumDate && picked > dateOnly(maximumDate)) picked = dateOnly(maximumDate);
+    onPick && onPick(picked);
+    onClose && onClose();
+  };
+
+  const Unit = ({ t }) => (
+    <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, marginHorizontal: 1 }}>{t}</Text>
+  );
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+        <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]} onPress={onClose} />
+        <View style={{ backgroundColor: C.bgPrimary, borderRadius: 20, padding: 20, width: '100%', maxWidth: 320 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoalDeep, textAlign: 'center', marginBottom: 12 }}>날짜 선택</Text>
+          <View style={{ height: VISIBLE * ITEM_H }}>
+            {/* 가운데 선택 밴드(휠 뒤에 깔림) */}
+            <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, top: PAD, height: ITEM_H,
+              borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.hairline, backgroundColor: C.bgSecondary, borderRadius: 8 }} />
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+              <Wheel data={years} initial={year} onSelect={pickYear} width={70} />
+              <Unit t="년" />
+              <Wheel data={months} initial={month} onSelect={pickMonth} width={44} />
+              <Unit t="월" />
+              {/* 연·월이 바뀌면 일수·초기위치가 달라지므로 키로 리마운트 */}
+              <Wheel key={`d${year}-${month}`} data={days} initial={Math.min(day, days.length)} onSelect={setDay} width={44} />
+              <Unit t="일" />
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.85}
+              style={{ flex: 1, paddingVertical: 12, borderRadius: 11, backgroundColor: C.bgSecondary, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGray }}>취소</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={confirm} activeOpacity={0.85}
+              style={{ flex: 1, paddingVertical: 12, borderRadius: 11, backgroundColor: C.charcoal, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // @react-native-community/datetimepicker 'spinner' 플랫폼 차이 흡수 — 공용.
 //   ★기존 버그: onChange에서 매 변경마다 picker를 닫아(setShow(false)), iOS 인라인 스피너가 한 칸만 굴리면
 //     바로 닫혀 스크롤이 사실상 안 됐다(테스터 '날짜 스크롤 안 됨' 2026-06-26).
@@ -122,10 +195,10 @@ export function SpinnerPicker({ visible, value, mode = 'date', onPick, onClose, 
     if (mode === 'time') {
       return <AndroidTimeEntry value={stableValue} onPick={onPick} onClose={onClose} />;
     }
+    // 날짜도 네이티브 스피너 대신 자체 JS 휠 — OEM date 스피너 버그(월 리셋·오늘로 복귀) 회피(사용자 2026-07-27)
     return (
-      <DateTimePicker value={stableValue} mode={mode} display="spinner"
-        minimumDate={minimumDate} maximumDate={maximumDate} is24Hour={is24Hour} locale="ko"
-        onChange={(e, d) => { onClose && onClose(); if (e?.type !== 'dismissed' && d) onPick && onPick(d); }} />
+      <AndroidDateEntry value={stableValue} onPick={onPick} onClose={onClose}
+        minimumDate={minimumDate} maximumDate={maximumDate} />
     );
   }
   return (

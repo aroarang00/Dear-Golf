@@ -214,7 +214,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             {/* 안내 — 평소 접힘(제목만 또렷이), 탭하면 화면 각 항목 설명 펼침. 공간 절약 + 알아보기 쉬운 제목 */}
             <TouchableOpacity onPress={() => setInfoOpen((o) => !o)} activeOpacity={0.7}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10,
-                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 10 }}>
+                backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Icon name="bulb" size={fs(14)} color={C.charcoal} strokeWidth={1.8} />
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>평균·베스트·핸디 안내</Text>
@@ -222,7 +222,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
               <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{infoOpen ? '접기 ▲' : '펼치기 ▼'}</Text>
             </TouchableOpacity>
             {infoOpen && (
-              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
+              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12,
                 paddingHorizontal: 14, paddingVertical: 12, marginTop: 6, gap: 7 }}>
                 {[
                   ['평균·베스트·핸디', `점수를 기록한 ${scored.length}라운드 기준이에요.`],
@@ -243,8 +243,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             {form && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
                 backgroundColor: (form.delta > 0 ? '#EAF1E2' : form.delta < 0 ? '#F7E9E4' : C.bgSecondary),
-                borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11,
-                borderWidth: 0.5, borderColor: C.hairline }}>
+                borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 }}>
                 {/* 아이콘만 덩그러니 두지 않고 옅은 원 배경 안에(마일스톤 아이콘과 같은 방식) */}
                 {(() => {
                   const tc = form.delta > 0 ? '#4B7A3E' : form.delta < 0 ? '#B0674A' : C.warmGray;
@@ -325,7 +324,7 @@ function TrendChart({ series, avg, bestVal }) {
   const chartH = H - padT - padB;
   const GOLD = '#C9A84C';   // 100대 배너와 같은 골드 — 화면 골드 톤 통일(베스트 강조)
   // 카드 — 스탯바·안내 박스와 같은 결(연한 배경 + 라운드 + 헤어라인)로 통일
-  const card = { marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline };
+  const card = { marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 14 };
 
   // 추세선 draw-on — hook은 early return 위에서(규칙 준수). 시리즈(점수열) 바뀌면 다시 그림.
   const drawAnim = useRef(new Animated.Value(0)).current;
@@ -429,7 +428,7 @@ function HoleBreakdown({ diaries }) {
     return { birdie, par, bogey, dbl, holes, rounds };
   }, [diaries]);
 
-  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 16 };
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, padding: 16 };
 
   if (stat.holes === 0) {
     return (
@@ -517,7 +516,7 @@ function ScoreDistribution({ scored }) {
   }, [scored]);
   const total = (scored || []).length;
   const max = Math.max(1, ...rows.map((r) => r.count));
-  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 16, paddingVertical: 14 };
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14 };
 
   if (!total) {
     return (
@@ -567,7 +566,7 @@ function CourseScores({ scored }) {
       }))
       .sort((a, b) => b.count - a.count || a.best - b.best);
   }, [scored]);
-  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 4 };
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4 };
 
   if (!rows.length) {
     return (
@@ -623,7 +622,7 @@ function Milestones({ scored, lifeBest, diaries }) {
     return { eagle, albatross, holeInOne };
   }, [diaries]);
 
-  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 16, paddingVertical: 4 };
+  const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 4 };
 
   if (!m.total) {
     return (

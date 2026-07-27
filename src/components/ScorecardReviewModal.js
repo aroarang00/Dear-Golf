@@ -87,7 +87,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
                   width: '100%', textAlign: 'center',
                   fontFamily: F.sysSb, fontSize: fs(15), color: C.charcoal,
                   paddingVertical: 7, borderRadius: 8,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                  backgroundColor: C.bgSecondary,
                 }} />
             </View>
           );
@@ -123,7 +123,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
               <TouchableOpacity onPress={onRotate} disabled={rotating} activeOpacity={0.85}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
                   paddingVertical: 11, borderRadius: 10, marginBottom: 12,
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: rotating ? 0.6 : 1 }}>
+                  backgroundColor: C.bgSecondary, opacity: rotating ? 0.6 : 1 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>
                   {rotating ? '사진 돌려서 다시 읽는 중…' : '카드가 옆으로 누웠나요?  90° 회전 후 다시 읽기'}
                 </Text>
@@ -133,7 +133,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
             {/* 저신뢰 안내 — 인쇄된 합계와 안 맞음(잘못 읽었을 수 있음). 확인·수정 강조. failed면 그쪽 안내가 우선. */}
             {!failed && lowConfidence && !inSelect && (
               <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
-                backgroundColor: C.butter + '33', borderWidth: 0.5, borderColor: C.butter + '80' }}>
+                backgroundColor: C.butter + '33' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
                   ⚠️ 숫자가 정확하지 않을 수 있어요 — 홀별로 확인·수정해주세요.{'\n'}또렷한 스크린샷(앱 디지털 카드)이면 더 정확해요.
                 </Text>
@@ -145,7 +145,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
                 사용자가 사진만 계속 바꿔 찍게 된다(2026-07-25 429 제보). 사유가 없을 때만 기존 문구. */}
             {failed && (
               <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
-                backgroundColor: C.butter + '33', borderWidth: 0.5, borderColor: C.butter + '80' }}>
+                backgroundColor: C.butter + '33' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18 }}>
                   {failedReason
                     ? `${failedReason}\n지금 바로 적으시려면 아래에 직접 입력해도 돼요.`
@@ -164,7 +164,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
                   {rows.map((r, i) => (
                     <TouchableOpacity key={i} activeOpacity={0.85} onPress={() => pickRow(i)}
                       style={{ padding: 14, borderRadius: 12, marginBottom: 8,
-                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                        backgroundColor: C.bgSecondary }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal, flex: 1 }}>{r.label}</Text>
                         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.burgundy }}>총 {r.total}타</Text>
@@ -205,7 +205,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
                 {multi && (
                   <TouchableOpacity onPress={() => { Keyboard.dismiss(); setRowIdx(null); }} activeOpacity={0.85}
                     style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
-                      backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                      backgroundColor: C.bgSecondary }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>다시 선택</Text>
                   </TouchableOpacity>
                 )}

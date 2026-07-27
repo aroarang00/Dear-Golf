@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import { Icon } from './common/Icon'; // 아이콘 — 유니코드 이모지 �
 import { TripleStripe } from './common/TripleStripe';
 import { getUid } from '../utils/firebase';
 import { saveReferredBy, validateRefCode } from '../utils/referral';
+import { searchPlaces } from '../utils/kakao';                 // 출발지 주소 검색(마이페이지와 동일)
+import { savePrivateDeparture } from '../utils/privateProfile'; // 출발지 비공개 저장(기기 간 유지)
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 키보드 입력칸 가림 방지
 
 // 준비시간(집에서 나갈 때까지)·도착여유(구장 도착~티오프) 칩 선택지(분) — 개인차가 커 한 번만 정해두면 평생 적용
@@ -24,6 +26,27 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const [realName, setRealName] = useState(seed.realName || '');
   const [avgScore, setAvgScore] = useState(seed.avgScore > 0 ? String(seed.avgScore) : '');
   const [lifeBest, setLifeBest] = useState(seed.lifeBest > 0 ? String(seed.lifeBest) : '');
+  // 출발지(선택) — 넣으면 교통 소요·출발 시간 안내에 바로 쓰인다. 마이페이지 '자주 가는 출발지'와 동일 방식(카카오 검색).
+  const [departure, setDeparture] = useState(seed.departure || '');
+  const [departureCoord, setDepartureCoord] = useState(seed.departureCoord || null);
+  const [depResults, setDepResults] = useState([]);
+  const [depSearching, setDepSearching] = useState(false);
+  const depTimerRef = useRef(null);
+  const handleDepartureChange = (t) => {
+    setDeparture(t); setDepartureCoord(null);   // 직접 수정하면 이전 좌표 무효
+    if (depTimerRef.current) clearTimeout(depTimerRef.current);
+    const q = t.trim();
+    if (q.length < 2) { setDepResults([]); setDepSearching(false); return; }
+    setDepSearching(true);
+    depTimerRef.current = setTimeout(async () => {
+      const results = await searchPlaces(q);
+      setDepResults(results || []); setDepSearching(false);
+    }, 350);
+  };
+  const handleSelectDeparture = (r) => {
+    if (depTimerRef.current) clearTimeout(depTimerRef.current);
+    setDeparture(r.name); setDepartureCoord({ x: r.x, y: r.y }); setDepResults([]); setDepSearching(false);
+  };
   const [refCodeInput, setRefCodeInput] = useState(''); // 추천인 코드(선택) — 신규 가입만 노출
   // 코드 오타 피드백 — 혜택을 약속한 이상(골드 박스) 잘못된 코드를 조용히 버리면 안 됨(2026-07-04).
   //   2단계 '다음'에서 단건 조회로 확인, 못 찾으면 머물며 안내. 네트워크 실패는 비차단(그대로 진행).
@@ -51,7 +74,9 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
   const [wakeOn, setWakeOn] = useState(true);          // 기상 알림(새벽 티 자동)
   const [departOn, setDepartOn] = useState(true);      // 출발 알림
 
-  const handleComplete = () => {
+  // 카카오 로그인 유저만 '카카오 친구 찾기' 단계 노출(애플·비카카오는 카카오 세션 없음)
+  const isKakao = !!seed.kakaoLinked && !seed.appleLinked;
+  const handleComplete = (openKakaoFriends = false) => {
     const nick = nickname.trim() || '';
     if (!nick) return;
     // 추천인 코드 기록 — 잠복 배포([[referral-reward-implementation-plan]]): 유효하면 users.referredBy에
@@ -59,10 +84,16 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
     if (refCodeInput.trim() && !seed.isReturning) {
       getUid().then((uid) => uid && saveReferredBy(uid, refCodeInput)).catch(() => {});
     }
+    // 출발지 — 비공개 서브컬렉션에도 저장(기기 간·재설치 후 유지). 좌표 없이 텍스트만 있어도 교통 화면이 지오코딩해 씀.
+    if (departure.trim()) {
+      getUid().then((uid) => uid && savePrivateDeparture(uid, departure.trim(), departureCoord)).catch(() => {});
+    }
     const best = parseInt(lifeBest) || 99;
     onComplete({
       nickname: nick,
       realName: realName || '',
+      departure: departure.trim(),
+      departureCoord: departureCoord || null,
       avgScore: parseInt(avgScore) || 90,
       lifeBest: best,
       totalRounds: 0,
@@ -80,6 +111,8 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
       kakaoId: seed.kakaoId || null,
       // 약관 동의 데이터 — 변경 시 재동의 트리거용 legalVersion 보존
       consent: consent || null,
+      // 가입 직후 카카오 친구 찾기 자동 열기 신호(App.js가 소비) — 4단계 CTA에서만 true
+      openKakaoFriends: !!openKakaoFriends,
     });
   };
 
@@ -92,11 +125,24 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 28, paddingBottom: 60 }}>
         <Text style={{ fontFamily: F.brand, fontSize: fs(32), color: C.charcoal, marginBottom: 6 }}>Dear Golf</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, marginBottom: 40 }}>나만의 골프 캐디를 시작해요</Text>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, marginBottom: 20 }}>나만의 골프 캐디를 시작해요</Text>
+        {/* 진행 표시 — 3구간 세그먼트, 현재 단계까지 버건디로 채움(시각 리듬 + 위치 안내) */}
+        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 30 }}>
+          {Array.from({ length: isKakao ? 4 : 3 }).map((_, i) => (
+            <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: (i + 1) <= step ? C.burgundy : C.hairline }} />
+          ))}
+        </View>
 
         {step === 1 && (
           <View>
-            <Text style={obS.stepLabel}>1단계 · 프로필</Text>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(107,30,42,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Icon name="person" size={28} color={C.burgundy} strokeWidth={1.8} />
+              </View>
+              <Text style={obS.stepLabel}>1단계 · 프로필</Text>
+              <Text style={obS.stepTitle}>어떻게 부를까요?</Text>
+              <Text style={obS.stepSub}>닉네임과 출발지를 알려주세요</Text>
+            </View>
             {seed.kakaoLinked && !seed.appleLinked && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
                 <Icon name="chat" size={fs(11)} color="#8B6914" strokeWidth={1.8} />
@@ -117,12 +163,33 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
             <Text style={obS.label}>본명 (선택)</Text>
             <AppTextInput style={obS.input} placeholder="김골프" placeholderTextColor={C.warmGrayLight}
               value={realName} onChangeText={setRealName} />
-            {/* 본명 장려 + 마스킹 노출 고지 ([[realname-policy]] 항목 1) */}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 19, marginTop: 6 }}>
-              • 닉네임은 동명이인이 많아 친구·동반자 찾기가 부정확해요{'\n'}• 본명을 넣으면 더 정확하게 매칭돼요{'\n'}• 검색 화면엔 이름 일부만 가려서 보여요 — 예: 김*프
+            {/* 본명 장려 — 한 줄로(마스킹 고지 포함, [[realname-policy]]·[[feedback_concise_scannable_copy]]) */}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, lineHeight: 18, marginTop: 6, marginBottom: 4 }}>
+              친구·동반자 찾기가 정확해져요 · 검색엔 '김*프'처럼 일부만 보여요
             </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGrayLight, marginTop: 5, marginBottom: 4 }}>
-              본명은 나중에 입력해도 돼요
+
+            <Text style={obS.label}>출발지 (선택)</Text>
+            <AppTextInput style={obS.input} placeholder="동·아파트·건물명으로 검색"
+              placeholderTextColor={C.warmGrayLight} value={departure}
+              onChangeText={handleDepartureChange} autoCapitalize="none" autoCorrect={false} />
+            {depSearching && (
+              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>검색 중…</Text>
+            )}
+            {!depSearching && depResults.length > 0 && (
+              <View style={{ marginTop: 6, borderRadius: 8, overflow: 'hidden', backgroundColor: C.bgSecondary }}>
+                {depResults.map((r, i) => (
+                  <TouchableOpacity key={r.kakaoId || i} activeOpacity={0.7} onPress={() => handleSelectDeparture(r)}
+                    style={{ paddingVertical: 9, paddingHorizontal: 12, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} numberOfLines={1}>{r.name}</Text>
+                    {!!r.loc && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }} numberOfLines={1}>{r.loc}</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: departureCoord ? '#3C7D4F' : C.warmGray, lineHeight: 18, marginTop: 6, marginBottom: 4 }}>
+              {departureCoord
+                ? '✓ 라운딩 날 교통 소요·출발 시간을 알려드려요'
+                : '라운딩 날 교통 소요·출발 시간 안내에 써요 · 나중에 입력해도 돼요'}
             </Text>
             <TouchableOpacity style={obS.nextBtn} onPress={() => {
               if (!nickname.trim()) return;
@@ -135,7 +202,14 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
 
         {step === 2 && (
           <View>
-            <Text style={obS.stepLabel}>2단계 · 골프 정보</Text>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(94,126,66,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Icon name="flag" size={28} color="#5E7E42" strokeWidth={1.8} />
+              </View>
+              <Text style={obS.stepLabel}>2단계 · 골프 정보</Text>
+              <Text style={obS.stepTitle}>실력을 알려주세요</Text>
+              <Text style={obS.stepSub}>딱 맞는 기록·통계로 도와드려요</Text>
+            </View>
             <Text style={obS.label}>평균 타수</Text>
             <AppTextInput style={obS.input} placeholder="92" placeholderTextColor={C.warmGrayLight}
               value={avgScore} onChangeText={setAvgScore} keyboardType="numeric" />
@@ -189,7 +263,14 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
 
         {step === 3 && (
           <View>
-            <Text style={obS.stepLabel}>3단계 · 알림</Text>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(107,30,42,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Icon name="bell" size={28} color={C.burgundy} strokeWidth={1.8} />
+              </View>
+              <Text style={obS.stepLabel}>3단계 · 알림</Text>
+              <Text style={obS.stepTitle}>제때 챙겨드릴게요</Text>
+              <Text style={obS.stepSub}>라운딩 준비, 알아서 알려드려요</Text>
+            </View>
 
             {/* ── 강한 어필: 혼자 써도 강력한 이유 ── */}
             <View style={{ backgroundColor: '#F5F0E4', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C', padding: 16, marginBottom: 18 }}>
@@ -274,8 +355,44 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
                 onPress={() => setStep(2)}>
                 <Text style={[obS.nextBtnTxt, { color: C.warmGray }]}>이전</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={handleComplete}>
-                <Text style={obS.nextBtnTxt}>시작하기</Text>
+              <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={() => (isKakao ? setStep(4) : handleComplete(false))}>
+                <Text style={obS.nextBtnTxt}>{isKakao ? '다음 →' : '시작하기'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {step === 4 && isKakao && (
+          <View>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(94,126,66,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Icon name="people" size={28} color="#5E7E42" strokeWidth={1.8} />
+              </View>
+              <Text style={obS.stepLabel}>4단계 · 친구</Text>
+              <Text style={obS.stepTitle}>같이 하면 더 재밌어요</Text>
+              <Text style={obS.stepSub}>카카오 친구 중 디어골프 쓰는 분을 찾아드려요</Text>
+            </View>
+
+            {/* 혜택 카드 — 골드 톤(다른 단계 강조 카드와 통일) */}
+            <View style={{ backgroundColor: '#F5F0E4', borderRadius: 14, padding: 16, marginBottom: 8 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, lineHeight: 23 }}>
+                친구와 함께면 기록도, 라운딩 약속도 훨씬 편해요
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: '#6B5A2E', lineHeight: 19, marginTop: 8 }}>
+                친구를 초대하면 사진·영상 보관 공간도 늘어나요 · 카카오 친구목록은 이 단계에서만 봐요(따로 저장 안 함)
+              </Text>
+            </View>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, lineHeight: 17, marginTop: 4, marginBottom: 4 }}>
+              누르면 카카오 친구목록 동의 후, 디어골프를 쓰는 친구만 보여드려요
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <TouchableOpacity style={[obS.nextBtn, { flex: 0, backgroundColor: C.bgSecondary, borderWidth: 1, borderColor: C.hairline }]}
+                onPress={() => handleComplete(false)}>
+                <Text style={[obS.nextBtnTxt, { color: C.warmGray }]}>나중에</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[obS.nextBtn, { flex: 1 }]} onPress={() => handleComplete(true)}>
+                <Text style={obS.nextBtnTxt}>카카오 친구 찾기</Text>
               </TouchableOpacity>
             </View>
           </View>

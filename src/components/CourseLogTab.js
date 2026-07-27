@@ -415,7 +415,7 @@ export function CourseLogTab({ avgRating, navigation }) {
             방문한 골프장 · {myCourses.length}곳
           </Text>
           {myCourses.length === 0 ? (
-            <View style={{ marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
+            <View style={{ marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 14, padding: 18 }}>
               <View style={{ marginBottom: 10 }}><Icon name="flag" size={fs(30)} color="#5E8B60" strokeWidth={1.7} /></View>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>
                 다녀온 코스가 여기 모여요
@@ -446,7 +446,7 @@ export function CourseLogTab({ avgRating, navigation }) {
       )}
       {region === 'overseas' && (() => {
         const hint = (
-          <View style={{ marginHorizontal: 16, marginBottom: 14, backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: C.hairline }}>
+          <View style={{ marginHorizontal: 16, marginBottom: 14, backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
               <View style={{ marginTop: 1 }}><Icon name="bulb" size={fs(13)} color={C.charcoal} strokeWidth={1.8} /></View>
               <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>

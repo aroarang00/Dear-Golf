@@ -726,7 +726,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       {!!notice && (
     <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: noticeLineCount === 1 ? 'center' : 'flex-start', backgroundColor: '#F5ECD6', borderRadius: 12,
-        paddingHorizontal: 12, paddingVertical: 10, borderWidth: 0.5, borderColor: 'rgba(150,120,60,0.25)', borderLeftWidth: 3, borderLeftColor: SAGE_DEEP }}>
+        paddingHorizontal: 12, paddingVertical: 10, borderLeftWidth: 3, borderLeftColor: SAGE_DEEP }}>
         <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
         <View style={{ flex: 1 }}>
           <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysSb, fontSize: fs(12.5), lineHeight: fs(19) }}
@@ -868,7 +868,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
       {tab === 'feed' && !bannerDismissed && newMinePosts.length > 0 && (
         <TouchableOpacity onPress={jumpToNewComment} activeOpacity={0.85}
           style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginTop: 10,
-            backgroundColor: '#F7E9EC', borderRadius: 12, borderWidth: 0.5, borderColor: 'rgba(107,30,42,0.25)', paddingHorizontal: 12, paddingVertical: 10 }}>
+            backgroundColor: '#F7E9EC', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
           <Icon name="heartFilled" size={fs(16)} color={NEWMARK} />
           <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: NEWMARK, marginLeft: 8 }}>내 글에 새 댓글 {newMinePosts.length}개</Text>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: NEWMARK }}>보기 ›</Text>

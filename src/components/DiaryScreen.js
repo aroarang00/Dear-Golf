@@ -998,31 +998,49 @@ export function DiaryScreen({ route, navigation }) {
                   {/* 요약보기 — 사진 없는 한 줄 목록. 월이 바뀔 때만 얇은 헤더를 끼워 스코어 이력처럼 훑게 한다
                       (색점·구분선 없이 여백으로만 구분 — 심플 모던, 사용자 2026-07-21). 탭하면 상세로 가는 건 동일. */}
                   {compact ? (() => {
-                    let lastMonth = null;
-                    return filtered.slice(0, feedLimit).map((item, i) => {
+                    // ★월별 카드 — 달마다 하얀 카드로 묶고 헤더에 그 달 요약(라운딩 수·평균·베스트) (사용자 2026-07-27).
+                    //   나열식 로그 → 달별 덩어리 + 스코어 색으로 잘 친 날이 한눈에.
+                    const slice = filtered.slice(0, feedLimit);
+                    const groups = [];
+                    slice.forEach(item => {
                       const ym = (item.date || '').slice(0, 7);          // '2026.07'
-                      const newMonth = !!ym && ym !== lastMonth;
-                      if (newMonth) lastMonth = ym;
-                      const open = rowOpenId === item.id;
+                      const last = groups[groups.length - 1];
+                      if (last && last.ym === ym) last.items.push(item);
+                      else groups.push({ ym, items: [item] });
+                    });
+                    return groups.map((g, gi) => {
+                      const scored = g.items.filter(it => typeof it.score === 'number');
+                      const best = scored.length ? Math.min(...scored.map(it => it.score)) : null;
+                      const avg = scored.length ? Math.round(scored.reduce((a, it) => a + it.score, 0) / scored.length) : null;
+                      const [yy, mm] = (g.ym || '').split('.');
                       return (
-                        <React.Fragment key={item.id}>
-                          {newMonth && (
-                            <Text style={[dS.compactMonth, i === 0 && { marginTop: 6 }]}>
-                              {`${ym.slice(0, 4)}. ${parseInt(ym.slice(5), 10)}`}
-                            </Text>
-                          )}
-                          {/* 행 탭 → 그 자리에서 카드로 펼침(한 번에 하나만). 요약으로 훑다가 궁금한 것만 열어보는 동선.
-                              펼친 카드를 다시 탭하면 기존처럼 상세로 들어간다(사용자 2026-07-22). */}
-                          <DiaryRowCompact item={item} expanded={open}
-                            onPress={(it) => setRowOpenId(prev => (prev === it.id ? null : it.id))} />
-                          {open && (
-                            <View style={{ marginTop: 2, marginBottom: 12 }}>
-                              <DiaryCard item={item} avgScore={avgScore} isFirstSingle={!!firstSingleId && item.id === firstSingleId}
-                                friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary}
-                                collapseSignal={collapseSignal} />
-                            </View>
-                          )}
-                        </React.Fragment>
+                        <View key={g.ym || gi} style={dS.compactCard}>
+                          <View style={dS.compactCardHead}>
+                            <Text style={dS.compactCardMonth}>{`${yy}. ${parseInt(mm, 10) || ''}`}</Text>
+                            {scored.length > 0 && (
+                              <Text style={dS.compactCardStat}>{`${scored.length}라운딩 · 평균 ${avg} · 베스트 ${best}`}</Text>
+                            )}
+                          </View>
+                          {g.items.map((item, ii) => {
+                            const open = rowOpenId === item.id;
+                            return (
+                              <React.Fragment key={item.id}>
+                                {/* 행 탭 → 그 자리에서 카드로 펼침(한 번에 하나만). 펼친 카드 재탭 시 상세로(사용자 2026-07-22).
+                                    스코어 색: 베스트=버건디 / 그 달 최저타=버건디 / 내 평균보다 잘 침=초록 / 그 외=차콜. */}
+                                <DiaryRowCompact item={item} expanded={open} avgScore={avgScore}
+                                  monthBest={scored.length > 1 ? best : null}
+                                  onPress={(it) => setRowOpenId(prev => (prev === it.id ? null : it.id))} />
+                                {open && (
+                                  <View style={{ marginTop: 2, marginBottom: 12 }}>
+                                    <DiaryCard item={item} avgScore={avgScore} isFirstSingle={!!firstSingleId && item.id === firstSingleId}
+                                      friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary}
+                                      collapseSignal={collapseSignal} />
+                                  </View>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </View>
                       );
                     });
                   })() : filtered.slice(0, feedLimit).map((item, idx, arr) => {
@@ -1054,7 +1072,8 @@ export function DiaryScreen({ route, navigation }) {
         <View style={{ position: 'absolute', width: 2.5, height: 18, borderRadius: 1, backgroundColor: '#fff' }} />
       </TouchableOpacity>
 
-      <DiaryAddModal visible={showModal} onClose={handleAddModalClose} onSave={handleSave} initial={addSeed} />
+      <DiaryAddModal visible={showModal} onClose={handleAddModalClose} onSave={handleSave} initial={addSeed}
+        loadableRounds={unrecordedRounds} />
 
       {/* 미기록 라운딩 선택 시트 — 기록 추가 시 골라서 일정에 정확히 연결(중복·오연결 방지) */}
       <Modal visible={showPickSheet} transparent animationType="fade" onRequestClose={() => setShowPickSheet(false)}>
@@ -1062,22 +1081,30 @@ export function DiaryScreen({ route, navigation }) {
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowPickSheet(false)} />
           <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 10, paddingBottom: 24 + insets.bottom }}>
             <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 12 }} />
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20, marginBottom: 4 }}>기록할 라운딩을 선택하세요</Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 20, marginBottom: 12 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.charcoal, paddingHorizontal: 20, marginBottom: 5 }}>기록할 라운딩을 선택하세요</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, paddingHorizontal: 20, marginBottom: 14, lineHeight: 18 }}>
               아직 기록하지 않은 라운딩이에요.{'\n'}골라서 기록하면 일정과 자동으로 연결돼요.
             </Text>
-            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+            {/* ★나열식 얇은 선 목록 → 하얀 카드로(사용자 2026-07-27, 한눈에). 깃발 아이콘 + 큰 구장명 + 명확한 '기록' 버튼. */}
+            <ScrollView style={{ maxHeight: 340 }} contentContainerStyle={{ paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
               {unrecordedRounds.map((s, i) => (
-                <TouchableOpacity key={s.id || i} activeOpacity={0.8} onPress={() => pickRoundToRecord(s)}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 20,
-                    borderTopWidth: i === 0 ? 0.5 : 0, borderBottomWidth: 0.5, borderColor: C.hairline }}>
+                <TouchableOpacity key={s.id || i} activeOpacity={0.85} onPress={() => pickRoundToRecord(s)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 10,
+                    backgroundColor: '#FFFFFF', borderRadius: 14,
+                    paddingVertical: 14, paddingHorizontal: 15 }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(107,30,42,0.08)',
+                    alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="flag" size={20} color={C.burgundy} strokeWidth={1.8} />
+                  </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>{s.course}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal }} numberOfLines={1}>{s.course}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 3 }}>
                       {s.date} {s.day}{s.time ? ` · ${s.time}` : ''}{s.members ? ` · ${s.members}명` : ''}
                     </Text>
                   </View>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: C.warmGrayLight }}>›</Text>
+                  <View style={{ backgroundColor: C.burgundy, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 6 }}>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.butter }}>기록</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1104,14 +1131,14 @@ export function DiaryScreen({ route, navigation }) {
                 <View style={{ backgroundColor: C.bgPrimary, borderRadius: 18, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 18, width: '100%', maxWidth: 340 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, textAlign: 'center', marginBottom: 16 }}>프로필 한마디</Text>
                   <AppTextInput
-                    style={{ fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal, backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 }}
+                    style={{ fontFamily: F.sysM, fontSize: fs(15), color: C.charcoal, backgroundColor: C.bgSecondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 }}
                     value={statusDraft} onChangeText={(t) => setStatusDraft(t.slice(0, 15))} autoFocus
                     onSubmitEditing={handleSaveStatus} returnKeyType="done"
                     placeholder="프로필에 보일 한마디 (최대 15자)" placeholderTextColor={C.warmGrayLight} />
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'right', marginTop: 6 }}>{statusDraft.length}/15</Text>
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
                     <TouchableOpacity onPress={() => setEditingStatus(false)} activeOpacity={0.7}
-                      style={{ flex: 1, backgroundColor: C.bgSecondary, borderRadius: 12, paddingVertical: 13, alignItems: 'center', borderWidth: 0.5, borderColor: C.hairline }}>
+                      style={{ flex: 1, backgroundColor: C.bgSecondary, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>취소</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={handleSaveStatus} activeOpacity={0.85}

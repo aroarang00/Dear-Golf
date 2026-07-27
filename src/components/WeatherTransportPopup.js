@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
+import { Spinner } from './common/Spinner'; // 로딩=스피너(안드 애니끄기서도 도는 공용 JS타이머 스피너)
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
@@ -276,6 +277,9 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const homeAddress = userProfile?.departure || '';
   const savedDepX = userProfile?.departureCoord?.x;
   const savedDepY = userProfile?.departureCoord?.y;
+  // 저장 출발지 등록 여부 — 동기값(userProfile). 좌표(homeCoord)가 로드되기 전 프레임에 '설정하세요' 안내가
+  //   깜빡였다 사라지던 것 방지용(사용자 2026-07-27): 등록돼 있으면 그 순간엔 '계산 중'을 보여준다.
+  const hasSavedDeparture = typeof savedDepX === 'number' && typeof savedDepY === 'number';
   const workAddress = userProfile?.work || '';            // '그 외 출발지'(work) 라벨
   const savedWorkX = userProfile?.workCoord?.x;
   const savedWorkY = userProfile?.workCoord?.y;
@@ -287,6 +291,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [workCoord, setWorkCoord] = useState(null);       // { x, y } — '그 외 출발지'(work)
   const [driveMin, setDriveMin] = useState(null);         // 갈 때 실측 소요(분), 실시간 교통 길찾기(TMap 우선·카카오 폴백)
   const [driveLoading, setDriveLoading] = useState(false); // 길찾기 조회 진행 중 — '조회 중'과 '실패(null)'를 구분해 무한 '계산 중' 방지
+  const [driveFailed, setDriveFailed] = useState(false);   // 조회가 실제로 실패(null 반환)했을 때만 true — '아직 조회 전'과 구분해 실패 문구가 깜빡이지 않게(사용자 2026-07-27)
   const [trSlots, setTrSlots] = useState(makeDefaultTrSlots);
   const [mealAt, setMealAt] = useState(null); // 알람에서 정한 '먼저 만나는 시각' 'HH:MM' — 있으면 교통 도착 목표(티오프-30 대신)
   const [arriveBuffer, setArriveBuffer] = useState(null); // 알람 '구장 도착여유'(분) — 모임시각 없을 때 도착목표=티오프-buffer(알람과 통일)
@@ -619,10 +624,13 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
     || (_goSlot.mode === 'home' && !!homeAddress && !homeCoord)
     || (_goSlot.mode === 'work' && !!workAddress && !workCoord)
     || (_goSlot.mode === 'custom' && !!_goSlot.custom && !_goSlot.customCoord);
+  // 조회/대기 중인지(실패·완료·미설정 제외) — 이때는 문구 대신 스피너를 보인다(사용자 2026-07-27: 로딩은 스피너로)
+  const routeBoxLoading = (driveLoading || originResolving)
+    || (driveMin == null && !driveFailed && (hasSavedDeparture || !!homeAddress || !!goOriginCoord));
   useEffect(() => {
     let cancelled = false;
-    if (!goOriginCoord || !goDestCoord) { setDriveMin(null); setDriveLoading(false); return; }
-    setDriveLoading(true);
+    if (!goOriginCoord || !goDestCoord) { setDriveMin(null); setDriveLoading(false); setDriveFailed(false); return; }
+    setDriveLoading(true); setDriveFailed(false);
     (async () => {
       // 도착 목표 시각(구장 도착 = 티오프−도착여유 또는 만남 시각)에 '도착' 기준으로 미래 교통 예측 —
       //   지금 막히는 낮에 조회해도 라운드 당일 그 시간대(새벽 등) 교통으로 소요를 계산(실패 시 현재 기준 폴백).
@@ -631,7 +639,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
         ? new Date(yy, mm - 1, dd, Math.floor(arriveMin / 60), arriveMin % 60, 0, 0)
         : null;
       const r = await getDrivingDirections(goOriginCoord, goDestCoord, { arrivalAt });
-      if (!cancelled) { setDriveMin(r ? r.durationMin : null); setDriveLoading(false); }
+      if (!cancelled) { setDriveMin(r ? r.durationMin : null); setDriveFailed(!r); setDriveLoading(false); }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -643,7 +651,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
       setLocating(true);
       // 갈때 출발지=현재위치면 즉시 로딩 유지 — GPS 완료~소요조회 시작 사이 '못 불러옴' 문구가 한 프레임 번쩍이던 것 방지.
       //   (GPS 실패로 좌표 못 얻으면 조회 useEffect가 goOriginCoord null이라 driveLoading을 다시 false로 내림)
-      if (slotKey === 'goOrigin') setDriveLoading(true);
+      if (slotKey === 'goOrigin') { setDriveLoading(true); setDriveFailed(false); }
       try { const pos = await getCurrentLocation(); if (pos) setCurrentCoord({ x: pos.lng, y: pos.lat }); }
       finally { setLocating(false); }
     }
@@ -1336,26 +1344,30 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
                       <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
                         ⓘ 실시간 교통 기준 · 도로상황에 따라 달라질 수 있어요
                       </Text>
-                    ) : (driveMin == null && (driveLoading || originResolving) && trSlots.goOrigin.mode !== 'current') ? (
-                      // 저장 출발지 조회 진행 중 — '계산 중'(짧은 ⓘ). 완료되면 위 실시간 ⓘ로(같은 높이, 점프 없음).
-                      <Text style={{ fontFamily: 'System', fontSize: fs(11), color: 'rgba(255,255,255,0.65)', marginTop: -8, marginBottom: 14, paddingHorizontal: 4 }}>
-                        ⓘ 소요시간 계산 중…
-                      </Text>
+                    ) : (routeBoxLoading && trSlots.goOrigin.mode !== 'current') ? (
+                      // 저장 출발지 조회/대기 중 — 문구 대신 스피너(사용자 2026-07-27). 완료되면 위 실시간 ⓘ로.
+                      <View style={{ marginTop: -8, marginBottom: 14, paddingHorizontal: 4, height: fs(18), justifyContent: 'center' }}>
+                        <Spinner size={15} color="rgba(255,255,255,0.7)" />
+                      </View>
                     ) : (
-                      // 마이페이지 설정 유도 — 또렷한 박스. 현재위치(로딩·완료)·조회실패·미설정 모두 이 박스로 높이 통일.
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -6, marginBottom: 14,
+                      // 박스 — 현재위치(로딩·완료)·조회실패·미설정. 높이 고정(점프 방지). 조회중이면 스피너, 아니면 문구.
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: routeBoxLoading ? 'center' : 'flex-start', gap: 8, marginTop: -6, marginBottom: 14,
                         backgroundColor: 'rgba(245,230,168,0.12)', borderWidth: 1, borderColor: 'rgba(245,230,168,0.45)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11,
-                        minHeight: fs(18) * 2 + 22 }}>{/* ★2줄 높이로 고정 — 문구가 1줄↔2줄로 바뀌어도 박스가 접혔다 펼쳐지지 않게(사용자 2026-07-02) */}
-                        <Text style={{ fontSize: fs(15) }}>📍</Text>
-                        <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)', lineHeight: fs(18) }}>
-                          {(driveLoading || originResolving)
-                            ? '현재 위치로 소요시간을 계산하고 있어요…'
-                            : driveMin != null
-                              ? '지금은 현재 위치 기준 · 마이페이지에서 출발지를 설정하면 매번 자동으로 계산돼요'
-                              : goOriginCoord
-                                ? '교통 정보를 잠시 불러오지 못해 기본 추정치로 안내 중이에요 · 잠시 후 다시 열어보세요'
-                                : '마이페이지에서 출발지를 설정하면 정확한 출발 시간을 알려드려요 (지금은 기본 추정치)'}
-                        </Text>
+                        minHeight: fs(18) * 2 + 22 }}>{/* ★2줄 높이로 고정(사용자 2026-07-02) */}
+                        {routeBoxLoading ? (
+                          <Spinner size={18} color="rgba(245,230,168,0.9)" />
+                        ) : (
+                          <>
+                            <Text style={{ fontSize: fs(15) }}>📍</Text>
+                            <Text style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)', lineHeight: fs(18) }}>
+                              {driveMin != null
+                                ? '지금은 현재 위치 기준 · 마이페이지에서 출발지를 설정하면 매번 자동으로 계산돼요'
+                                : driveFailed
+                                  ? '교통 정보를 잠시 불러오지 못해 기본 추정치로 안내 중이에요 · 잠시 후 다시 열어보세요'
+                                  : '마이페이지에서 출발지를 설정하면 정확한 출발 시간을 알려드려요 (지금은 기본 추정치)'}
+                            </Text>
+                          </>
+                        )}
                       </View>
                     )}
                   </>

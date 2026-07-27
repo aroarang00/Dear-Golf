@@ -98,7 +98,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
                 상황에 맞춰 골라요
               </Text>
               {SCOPES.map((s, i) => (
-                <View key={i} style={{ backgroundColor: C.bgSecondary, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline,
+                <View key={i} style={{ backgroundColor: C.bgSecondary, borderRadius: 14,
                   padding: 14, marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <Icon name={s.icon} size={fs(18)} color={s.iconColor} strokeWidth={1.9} />
@@ -143,7 +143,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                 {FEATURES.map(([icon, title, desc, color], i) => (
                   <View key={i} style={{ width: '47%', backgroundColor: C.bgSecondary, borderRadius: 12,
-                    borderWidth: 0.5, borderColor: C.hairline, padding: 12 }}>
+                    padding: 12 }}>
                     <View style={{ marginBottom: 6 }}><Icon name={icon} size={fs(20)} color={color} strokeWidth={1.9} /></View>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{title}</Text>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 3, lineHeight: 15 }}>
@@ -156,7 +156,7 @@ export function RoundupIntroModal({ visible, onClose, onCreatePress }) {
 
             {/* 6. 관심 모집 알림 */}
             <View style={{ marginHorizontal: 20, marginTop: 32, backgroundColor: C.bgSecondary,
-              borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: 18 }}>
+              borderRadius: 14, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <Icon name="bell" size={fs(18)} color={C.burgundy} strokeWidth={1.9} />
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>

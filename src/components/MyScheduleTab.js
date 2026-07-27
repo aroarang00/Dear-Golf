@@ -81,7 +81,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
 }
 
 export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries = [], navigation, jumpDate, onCloseSchedule }) {
-  const { schedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
+  const { schedules, hydrated: schedHydrated, loadFailed: schedLoadFailed, reloadSchedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid (홈과 동일, [[uid-stabilization-plan]])
   // 캘린더 날짜 동그라미 — 확대(디스플레이 줌) 시 셀 폭(winW/7)이 좁아지면 32 고정이 셀을 넘쳐 캘린더 우측이
@@ -824,7 +824,21 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
             이번달 일정 · {monthItems.length}개
           </Text>
           {monthItems.length === 0 ? (
-            isPastMonth ? (
+            (schedLoadFailed && schedules.length === 0) ? (
+              // ★로드 실패를 '일정 없음'으로 위장하지 않는다 — 오프라인/타임아웃에 "일정이 다 사라졌다" 오인 방지
+              //   (사용자 2026-07-27, [[read-failure-disguise]]·[[project_deargolf_home_loadfail_disguise]]).
+              <View style={{ paddingVertical: 36, alignItems: 'center' }}>
+                <Text style={{ fontSize: fs(34), marginBottom: 12 }}>📡</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>일정을 불러오지 못했어요</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 20 }}>
+                  연결이 불안정한 것 같아요.{'\n'}일정은 안전하게 저장돼 있으니 잠시 후 다시 시도해주세요
+                </Text>
+                <TouchableOpacity onPress={() => reloadSchedules && reloadSchedules()} activeOpacity={0.85}
+                  style={{ marginTop: 18, backgroundColor: C.burgundy, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 30 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.butter }}>다시 시도</Text>
+                </TouchableOpacity>
+              </View>
+            ) : isPastMonth ? (
               <View style={{ paddingVertical: 28, alignItems: 'center' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>이 달엔 등록된 라운딩이 없어요</Text>
               </View>
@@ -1181,7 +1195,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
             {/* 액션 버튼 */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity onPress={() => setPicker(p => ({ ...p, visible: false }))} activeOpacity={0.7}
-                style={{ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', borderWidth: 0.5, borderColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                style={{ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: C.bgSecondary }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmPicker} activeOpacity={0.8}

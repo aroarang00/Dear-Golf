@@ -73,7 +73,7 @@ export const HourlyWeatherGraph = React.memo(function HourlyWeatherGraph({ slots
           <View>
           {teeIdx >= 0 && teeIdx < n && (
             <View pointerEvents="none" style={{ position: 'absolute', left: GUTTER + colW * teeIdx, width: colW, top: -4, bottom: -4,
-              backgroundColor: 'rgba(245,230,168,0.07)', borderRadius: 10, borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.22)' }} />
+              backgroundColor: 'rgba(245,230,168,0.07)', borderRadius: 10 }} />
           )}
 
           {/* '내일' 라벨 — 롤링에서 자정 넘어가는 첫 칸 위(네이버식, 사용자 2026-07-06). date 있는 슬롯에서만 */}

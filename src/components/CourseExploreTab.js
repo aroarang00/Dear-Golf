@@ -370,7 +370,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
 
       {/* 코스 검색 안내 — 첫 사용(최근 검색 기록이 아직 없을 때)에만 */}
       {!search.trim() && recentCourses.length === 0 && (
-        <View style={{ marginHorizontal: 16, marginBottom: _and ? 8 : 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: _and ? 10 : 12, borderWidth: 0.5, borderColor: C.hairline }}>
+        <View style={{ marginHorizontal: 16, marginBottom: _and ? 8 : 12, backgroundColor: C.bgSecondary, borderRadius: 10, padding: _and ? 10 : 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
             <View style={{ marginTop: 1 }}><Icon name="bulb" size={fs(12)} color={C.warmGray} strokeWidth={1.8} /></View>
             <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
@@ -394,7 +394,6 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                 minWidth: 56, paddingHorizontal: 12, paddingVertical: _and ? 4 : 6, borderRadius: 14,
                 alignItems: 'center', justifyContent: 'center',
                 backgroundColor: on ? C.charcoal : C.bgSecondary,
-                borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline,
               }}>
               <Text style={{ fontFamily: on ? F.sysSb : F.sys, fontSize: fs(12), color: on ? C.butter : C.warmGray }}>{r}</Text>
             </TouchableOpacity>
@@ -658,13 +657,13 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                     <TouchableOpacity onPress={() => moveFav(i, -1)} disabled={i === 0}
                       hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} activeOpacity={0.6}
                       style={{ width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: i === 0 ? 0.3 : 1 }}>
+                        backgroundColor: C.bgSecondary, opacity: i === 0 ? 0.3 : 1 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.charcoal }}>↑</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => moveFav(i, 1)} disabled={i === savedFav.length - 1}
                       hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} activeOpacity={0.6}
                       style={{ width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                        backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: i === savedFav.length - 1 ? 0.3 : 1 }}>
+                        backgroundColor: C.bgSecondary, opacity: i === savedFav.length - 1 ? 0.3 : 1 }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: C.charcoal }}>↓</Text>
                     </TouchableOpacity>
                   </View>
@@ -707,8 +706,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => openMap(n)} activeOpacity={0.7}
-                  style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: C.bgSecondary,
-                    borderWidth: 0.5, borderColor: C.hairline }}>
+                  style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: C.bgSecondary }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.charcoal }}>지도 →</Text>
                 </TouchableOpacity>
               </View>

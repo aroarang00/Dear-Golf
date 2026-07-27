@@ -151,7 +151,7 @@ export function MannerEvaluationModal({ visible, post, participants = [], onClos
                           <TouchableOpacity key={opt.key} activeOpacity={0.85} onPress={() => pick(p.id, opt.key)}
                             style={{ flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
                               backgroundColor: on ? C.charcoal : C.bgSecondary,
-                              borderWidth: 0.5, borderColor: on ? C.charcoal : C.hairline }}>
+                              }}>
                             <Text style={{ fontSize: fs(20) }}>{opt.emoji}</Text>
                             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11),
                               color: on ? C.butter : C.charcoal, marginTop: 4 }}>{opt.label}</Text>

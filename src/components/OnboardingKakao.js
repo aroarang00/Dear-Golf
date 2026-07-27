@@ -215,7 +215,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
         </Text>
 
         {/* 카카오로 받는 것 */}
-        <View style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+        <View style={{ backgroundColor: C.bgSecondary,
           borderRadius: 12, padding: 16, gap: 12 }}>
           {[
             ['person', '카카오 닉네임 · 프로필 사진 자동 적용'],

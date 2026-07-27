@@ -220,7 +220,6 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
               marginBottom: 16,
               backgroundColor: C.bgSecondary,
               borderRadius: 10, padding: 14,
-              borderWidth: 0.5, borderColor: C.hairline,
             }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>더 기록하기</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, lineHeight: 22 }}>{item.detailMemo}</Text>
@@ -357,7 +356,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
             // 사진 미등록 — 탭하면 수정(DiaryAddModal) 진입.
             <TouchableOpacity activeOpacity={0.85} onPress={() => setShowEditModal(true)}
               style={{ paddingVertical: 18, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center',
-                backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
+                backgroundColor: C.bgSecondary }}>
               <Icon name="camera" size={fs(26)} color={C.charcoal} strokeWidth={1.8} />
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 20, marginTop: 8 }}>
                 사진을 등록하면 미리보기에{'\n'}대표 사진이 표시돼요.{'\n'}그날 라운딩의 순간을{'\n'}언제든 다시 볼 수 있어요.

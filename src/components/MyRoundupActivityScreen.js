@@ -51,7 +51,7 @@ export function MyRoundupActivityScreen({ visible, onClose, onOpenMannerEval }) 
             {/* 1) 현재 상태 카드 */}
             <Text style={section}>현재 상태</Text>
             <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, padding: 16,
-              borderWidth: 0.5, borderColor: C.hairline }}>
+              }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 1, marginBottom: 6 }}>
@@ -84,7 +84,7 @@ export function MyRoundupActivityScreen({ visible, onClose, onOpenMannerEval }) 
             {evalPending && onOpenMannerEval && (
               <TouchableOpacity onPress={onOpenMannerEval} activeOpacity={0.85}
                 style={{ marginTop: 12, backgroundColor: '#F5E6A8', borderRadius: 14, padding: 16,
-                  borderWidth: 0.5, borderColor: '#C9A84C', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Text style={{ fontSize: fs(22) }}>😊</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: '#5A4500' }}>
@@ -101,7 +101,7 @@ export function MyRoundupActivityScreen({ visible, onClose, onOpenMannerEval }) 
             {/* 2) 패널티 이력 */}
             <Text style={section}>패널티 이력</Text>
             <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, padding: 16,
-              borderWidth: 0.5, borderColor: C.hairline }}>
+              }}>
               {!hasPenalty ? (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 8 }}>
                   최근 12개월 동안 패널티 이력이 없어요 ✨
@@ -134,7 +134,7 @@ export function MyRoundupActivityScreen({ visible, onClose, onOpenMannerEval }) 
             {/* 3) 진행 중 신고 — Phase 2 (Firestore reports 컬렉션 의존) */}
             <Text style={section}>진행 중 신고</Text>
             <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, padding: 16,
-              borderWidth: 0.5, borderColor: C.hairline }}>
+              }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 8, lineHeight: 17 }}>
                 진행 중 신고가 없어요{'\n'}
                 <Text style={{ fontSize: fs(10), color: C.warmGrayLight }}>

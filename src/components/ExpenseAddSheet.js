@@ -21,7 +21,7 @@ const won = (n) => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '
 const pad = (n) => String(n).padStart(2, '0');
 const fmtDate = (d) => `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
 const label = { fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginBottom: 8 };
-const boxBase = { backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline };
+const boxBase = { backgroundColor: C.bgSecondary, borderRadius: 12 };
 
 export function ExpenseAddSheet({ visible, onClose, onSubmit }) {
   const [amount, setAmount] = useState('');    // raw 숫자 문자열(콤마 없음)
@@ -143,7 +143,7 @@ export function ExpenseAddSheet({ visible, onClose, onSubmit }) {
               bottomOffset={24}>
 
               {/* AI 자동입력 — 촬영/갤러리/붙여넣기 한 카드(예정 라운딩 추가와 같은 패턴, 골드 톤) */}
-              <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.4)',
+              <View style={{ marginBottom: 20, borderRadius: 16,
                 backgroundColor: 'rgba(201,168,76,0.08)', padding: 12 }}>
                 {/* 헤더 */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -161,7 +161,7 @@ export function ExpenseAddSheet({ visible, onClose, onSubmit }) {
                 {/* 방법 3개 — 촬영 / 갤러리 / 붙여넣기. AI 판별 중엔 로딩 스트립. */}
                 {aiBusy ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12,
-                    paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: GOLD }}>
+                    paddingVertical: 22, borderRadius: 12, backgroundColor: '#FFFFFF' }}>
                     <Spinner size={20} color={GOLD_DEEP} />
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD_DEEP }}>AI가 내용을 읽고 있어요...</Text>
                   </View>
@@ -176,8 +176,7 @@ export function ExpenseAddSheet({ visible, onClose, onSubmit }) {
                       return (
                         <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress}
                           style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
-                            backgroundColor: active ? 'rgba(201,168,76,0.16)' : '#FFFFFF',
-                            borderWidth: 0.5, borderColor: active ? GOLD : C.hairline }}>
+                            backgroundColor: active ? 'rgba(201,168,76,0.16)' : '#FFFFFF' }}>
                           <Icon name={m.icon} size={21} color={GOLD_DEEP} strokeWidth={1.8} />
                           <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoalDeep }}>{m.label}</Text>
                         </TouchableOpacity>
@@ -192,7 +191,7 @@ export function ExpenseAddSheet({ visible, onClose, onSubmit }) {
                     <AppTextInput value={aiText} onChangeText={(v) => { setAiText(v); if (aiError) setAiError(''); }} multiline
                       placeholder={'카드결제 문자나 “골프공 3만원”처럼 복사해서 붙여넣어 주세요'}
                       placeholderTextColor={C.warmGray}
-                      style={{ minHeight: 70, maxHeight: 150, backgroundColor: C.bgPrimary, borderWidth: 0.5, borderColor: C.hairline,
+                      style={{ minHeight: 70, maxHeight: 150, backgroundColor: C.bgPrimary,
                         borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoalDeep, textAlignVertical: 'top' }} />
                     <TouchableOpacity activeOpacity={0.85} disabled={!aiText.trim()} onPress={handleAiFill}
                       style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8,
@@ -226,8 +225,7 @@ export function ExpenseAddSheet({ visible, onClose, onSubmit }) {
                   return (
                     <TouchableOpacity key={c.key} onPress={() => setCategory(c.key)} activeOpacity={0.8}
                       style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-                        backgroundColor: on ? C.charcoalDeep : C.bgSecondary,
-                        borderWidth: 0.5, borderColor: on ? C.charcoalDeep : C.hairline }}>
+                        backgroundColor: on ? C.charcoalDeep : C.bgSecondary }}>
                       <Text style={{ fontFamily: on ? F.sysB : F.sysSb, fontSize: fs(13), color: on ? GOLD : C.textSecondary }}>{c.label}</Text>
                     </TouchableOpacity>
                   );

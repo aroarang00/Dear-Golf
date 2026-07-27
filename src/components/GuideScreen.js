@@ -845,7 +845,7 @@ export function GuideScreen({ route, navigation }) {
                 if (!rank) return null;
                 return (
                   <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4,
-                    backgroundColor: '#FBF3D3', borderWidth: 0.5, borderColor: '#C9A84C', borderRadius: 6,
+                    backgroundColor: '#FBF3D3', borderRadius: 6,
                     paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 }}>
                     <Text style={{ fontSize: fs(11) }}>🏆</Text>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914' }}>
@@ -879,7 +879,7 @@ export function GuideScreen({ route, navigation }) {
         {/* 내부 메뉴 — 아이콘 세그먼트. 맛집 발견성이 중요해, 비활성 탭도 진한 글씨+아이콘으로 또렷이 보이게.
             선택만 채움(차콜+버터), 비선택도 충분히 읽힘(회색X→차콜). */}
         <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingVertical: 12 }}>
-          <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4, borderWidth: 0.5, borderColor: C.hairline }}>
+          <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4 }}>
             {[
               ['course', '코스 · 코멘트', 'flag'],
               ['food',   '맛집 · 주변', 'bowl'],
@@ -913,7 +913,7 @@ export function GuideScreen({ route, navigation }) {
                         i === 0 && { backgroundColor: C.butter },
                         i === 1 && { backgroundColor: C.paleSky },
                         i === 2 && { backgroundColor: C.burgundy },
-                        i > 2 && { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline },
+                        i > 2 && { backgroundColor: C.bgSecondary },
                       ]}>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: i === 2 ? '#FAF6EC' : i === 0 ? '#5A4A00' : i === 1 ? C.navy : C.warmGray }}>{t}</Text>
                       </View>
@@ -1016,7 +1016,7 @@ export function GuideScreen({ route, navigation }) {
               {/* 코멘트 입력 */}
               {showCommentInput && (
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                  <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline, padding: 12, marginBottom: 14 }}>
+                  <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, padding: 12, marginBottom: 14 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
                         {anonymize(userProfile?.nickname)} · {editingCommentId ? '코멘트 수정' : '전체공개'}
@@ -1051,7 +1051,7 @@ export function GuideScreen({ route, navigation }) {
               {/* 정렬 + 내 코멘트 필터 — 게시판형. 최신순(기본)/좋아요순 + 내 글만 보기(많아질 때 내 글 찾기) */}
               {comments.length > 0 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 8, padding: 2, borderWidth: 0.5, borderColor: C.hairline }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 8, padding: 2 }}>
                     {[['recent', '최신순'], ['likes', '좋아요순']].map(([k, l]) => (
                       <TouchableOpacity key={k} onPress={() => setCommentSort(k)} activeOpacity={0.8}
                         style={[{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 6 }, commentSort === k && { backgroundColor: C.burgundy }]}>
@@ -1061,8 +1061,8 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                   {comments.some(c => c.mine) && (
                     <TouchableOpacity onPress={() => setMyCommentsOnly(v => !v)} activeOpacity={0.8}
-                      style={{ marginLeft: 'auto', borderRadius: 8, borderWidth: 0.5, paddingHorizontal: 12, paddingVertical: 6,
-                        backgroundColor: myCommentsOnly ? C.burgundy : C.bgSecondary, borderColor: myCommentsOnly ? C.burgundy : C.hairline }}>
+                      style={{ marginLeft: 'auto', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
+                        backgroundColor: myCommentsOnly ? C.burgundy : C.bgSecondary }}>
                       <Text style={{ fontFamily: myCommentsOnly ? F.sysB : F.sysM, fontSize: fs(11), color: myCommentsOnly ? C.butter : C.warmGray }}>내 코멘트</Text>
                     </TouchableOpacity>
                   )}
@@ -1078,7 +1078,7 @@ export function GuideScreen({ route, navigation }) {
                 if (sorted.length === 0) {
                   // 빈 상태 — 코멘트 카드와 같은 흰 카드 톤으로 안착(따뜻한 패널 위 떠 보이지 않게)
                   return (
-                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline,
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10,
                       paddingVertical: 22, paddingHorizontal: 16, alignItems: 'center' }}>
                       <Text style={{ fontSize: fs(24), marginBottom: 8 }}>💬</Text>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: myCommentsOnly ? 0 : 3 }}>
@@ -1215,7 +1215,7 @@ export function GuideScreen({ route, navigation }) {
                   <ActivityIndicator color={C.burgundy} />
                 </View>
               ) : nearbyGolf.length === 0 ? (
-                <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+                <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 14 }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
                     반경 10km 내 다른 골프장을 찾지 못했어요.
                   </Text>
@@ -1371,7 +1371,7 @@ export function GuideScreen({ route, navigation }) {
                   <View style={{
                     flex: 1, flexDirection: 'row', alignItems: 'center',
                     backgroundColor: '#fff', borderRadius: 10,
-                    borderWidth: 0.5, borderColor: C.hairline, paddingHorizontal: 12,
+                    paddingHorizontal: 12,
                   }}>
                     <View style={{ marginRight: 6 }}><Icon name="search" size={fs(15)} color={C.warmGray} /></View>
                     <AppTextInput
@@ -1403,7 +1403,7 @@ export function GuideScreen({ route, navigation }) {
 
                 {/* 검색 결과 — 카카오 음식점 키워드 검색 */}
                 {foodSearch.trim().length >= 2 && (
-                  <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, marginTop: 8, overflow: 'hidden' }}>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 10, marginTop: 8, overflow: 'hidden' }}>
                     {foodSearchLoading ? (
                       <View style={{ padding: 14, alignItems: 'center' }}>
                         <ActivityIndicator color={C.burgundy} size="small" />
@@ -1500,7 +1500,7 @@ export function GuideScreen({ route, navigation }) {
                     <ActivityIndicator color={C.burgundy} />
                   </View>
                 ) : nearbyFood.length === 0 ? (
-                  <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 14 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
                       반경 3km 내 맛집 정보를 찾지 못했어요.
                     </Text>
@@ -1512,7 +1512,7 @@ export function GuideScreen({ route, navigation }) {
                     const saved = savedFood.some(s => (r.kakaoId && s.kakaoId === r.kakaoId) || s.name === r.name);
                     return (
                       <View key={r.kakaoId || i}
-                        style={[styles.card, { borderWidth: 0.5, borderColor: C.hairline, backgroundColor: '#fff', alignItems: 'flex-start' }]}>
+                        style={[styles.card, { backgroundColor: '#fff', alignItems: 'flex-start' }]}>
                         <View style={{ alignItems: 'center', marginRight: 10 }}>
                           <View style={[styles.circle, { backgroundColor: '#8B3040', marginRight: 0 }]}>
                             <Icon name="dining" size={fs(18)} color="#fff" />
@@ -1542,9 +1542,7 @@ export function GuideScreen({ route, navigation }) {
                             {/* 저장 — 추천 ♥와 분리된 별도 + 저장 버튼 */}
                             <TouchableOpacity onPress={() => !saved && openSaveModal(r)} activeOpacity={0.7} disabled={saved}
                               style={{
-                                borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4,
-                                borderWidth: 0.5, borderColor: saved ? C.hairline : '#C9A84C',
-                                backgroundColor: saved ? C.hairline : '#FFFDF5',
+                                borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4,                                backgroundColor: saved ? C.hairline : '#FFFDF5',
                               }}>
                               <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: saved ? C.warmGrayLight : '#5A4A00' }}>
                                 {saved ? '저장됨' : '+ 저장'}
@@ -1575,7 +1573,7 @@ export function GuideScreen({ route, navigation }) {
                     <ActivityIndicator color={C.burgundy} />
                   </View>
                 ) : nearbyDeduped.length === 0 ? (
-                  <View style={{ backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: C.hairline, padding: 14 }}>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 14 }}>
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
                       이 근처 다른 맛집·카페는 없어요.
                     </Text>
@@ -1588,7 +1586,7 @@ export function GuideScreen({ route, navigation }) {
                     const recCount = seedRecCount(r.kakaoId) + (liked ? 1 : 0);
                     return (
                       <View key={r.kakaoId || i}
-                        style={[styles.card, { borderWidth: 0.5, borderColor: C.hairline, backgroundColor: '#fff', alignItems: 'flex-start' }]}>
+                        style={[styles.card, { backgroundColor: '#fff', alignItems: 'flex-start' }]}>
                         <View style={{ alignItems: 'center', marginRight: 10 }}>
                           <View style={[styles.circle, { backgroundColor: isCafe ? '#C8D9E6' : '#8B3040', marginRight: 0 }]}>
                             <Icon name={isCafe ? 'cafe' : 'dining'} size={fs(18)} color={isCafe ? C.navy : '#fff'} />
@@ -1618,9 +1616,7 @@ export function GuideScreen({ route, navigation }) {
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => !saved && openSaveModal(r)} activeOpacity={0.7} disabled={saved}
                               style={{
-                                borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4,
-                                borderWidth: 0.5, borderColor: saved ? C.hairline : '#C9A84C',
-                                backgroundColor: saved ? C.hairline : '#FFFDF5',
+                                borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4,                                backgroundColor: saved ? C.hairline : '#FFFDF5',
                               }}>
                               <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: saved ? C.warmGrayLight : '#5A4A00' }}>
                                 {saved ? '저장됨' : '+ 저장'}

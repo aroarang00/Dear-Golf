@@ -580,7 +580,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                 </TouchableOpacity>
               ) : (
                 <View style={{ borderRadius: 10, paddingVertical: _and ? 8 : 11, alignItems: 'center',
-                  backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, opacity: 0.7 }}>
+                  backgroundColor: C.bgSecondary, opacity: 0.7 }}>
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.warmGrayLight }}>모집 확정하기</Text>
                 </View>
               )}
@@ -833,7 +833,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             </View>
 
             {/* 1. 모집글 정보 */}
-            <View style={{ backgroundColor: C.bgSecondary, marginHorizontal: 16, marginTop: _and ? 6 : 8, marginBottom: 4, borderRadius: 14, borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14 }}>
+            <View style={{ backgroundColor: C.bgSecondary, marginHorizontal: 16, marginTop: _and ? 6 : 8, marginBottom: 4, borderRadius: 14, padding: _and ? 11 : 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: _and ? 8 : 10 }}>
                 <Badge bg={post.type === 'fixed' ? C.charcoal : '#6B8B5E'} fg="#fff" text={post.type === 'fixed' ? '확정형' : '오픈형'} />
                 {isTeam && <Badge bg={C.navy} fg={C.butter} text={`단체 ${post.teams}팀`} />}
@@ -1014,7 +1014,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             {/* 2·3. 참여자 현황 — 단체도 팀으로 안 나누고 전원 평면 나열(조편성은 댓글) */}
             <Text style={[sectionLabel, { marginTop: _and ? 6 : 8 }]}>참여자 현황</Text>
             <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
-              borderWidth: 0.5, borderColor: C.hairline, padding: _and ? 11 : 14 }}>
+              padding: _and ? 11 : 14 }}>
               {slots.map((s, i) => {
                 // 본인 슬롯(uid===myUid 또는 라벨 '나')은 액션시트 X — 자기 차단·신고·친구신청 방지.
                 // id는 uid 우선(친구상태 매칭·isMe 판정용), 없으면 이름 fallback(옛 더미).
@@ -1034,7 +1034,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               <>
                 <Text style={sectionLabel}>대기자</Text>
                 <View style={{ marginHorizontal: 16, backgroundColor: C.bgSecondary, borderRadius: 14,
-                  borderWidth: 0.5, borderColor: C.hairline, padding: 16 }}>
+                  padding: 16 }}>
                   {isMine && Array.isArray(post.waitlistUids) && post.waitlistUids.length > 0 ? (
                     // 주최자 — 대기자 실명을 순번대로 나열해 직접 독려할 수 있게. 익명 신청자도 호스트에겐
                     //   실명 노출(승격 시 그대로 이어짐)하되 '익명' 표식으로 존중 ([[roundup-anonymous-participation]]).
@@ -1083,7 +1083,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
                     style={{ marginHorizontal: 16, marginTop: _and ? 12 : 16, borderRadius: 10, paddingVertical: _and ? 8 : 11,
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
                       backgroundColor: enabled ? C.navy : C.bgSecondary,
-                      borderWidth: enabled ? 0 : 0.5, borderColor: C.hairline, opacity: enabled ? 1 : 0.7 }}>
+                      opacity: enabled ? 1 : 0.7 }}>
                     <Text style={{ fontSize: fs(15) }}>📣</Text>
                     <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: enabled ? C.butter : C.warmGrayLight }}>
                       동반자에게 일정 알리기

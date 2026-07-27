@@ -466,7 +466,7 @@ export function MyPageModal({ visible, onClose }) {
                   (사용자 2026-07-03 "없는 줄") 명함 바로 아래 상시 노출 배너로. */}
               <TouchableOpacity onPress={() => setIntroOpen(true)} activeOpacity={0.8}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginTop: 14,
-                  backgroundColor: '#fff', borderWidth: 0.5, borderColor: C.hairline, borderRadius: 12,
+                  backgroundColor: '#fff', borderRadius: 12,
                   paddingHorizontal: 14, paddingVertical: 11 }}>
                 <Text style={{ fontSize: fs(20) }}>💡</Text>
                 <View style={{ flex: 1 }}>
@@ -527,7 +527,7 @@ export function MyPageModal({ visible, onClose }) {
                           {field.label}
                         </Text>
                         <AppTextInput
-                          style={{ backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+                          style={{ backgroundColor: C.bgSecondary,
                             borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
                             fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary }}
                           value={field.value}

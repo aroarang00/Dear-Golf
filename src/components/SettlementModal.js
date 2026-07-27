@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AppTextInput from './common/AppTextInput';
 import { Spinner } from './common/Spinner';
 import { showToast } from './AppToast';
-import { showAppAlert } from './AppAlert';
+import { showAppAlert, AppAlertHost } from './AppAlert';   // 풀스크린 모달 안에서도 알럿이 위로 보이게 자체 호스트 장착([[ios-modal-stacking]])
 import { C, F, fs } from '../constants/colors';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
@@ -276,6 +276,11 @@ export function SettlementModal({ visible, onClose }) {
             {/* ★안내 시트는 이 모달 '안'에 중첩한다 — 형제로 두면 iOS에서 둘 다 안 뜬다
                 ([[ios-modal-stacking]]). 라운지는 화면이라 형제로 둬도 되지만 여기는 모달 안이다. */}
             <SettlementGuideModal visible={showGuide} onClose={() => setShowGuide(false)} />
+
+            {/* ★삭제·보관·계좌삭제·나가기 확인창은 이 모달 '안'의 호스트가 그려야 위로 뜬다.
+                없으면 루트 호스트가 그려 이 풀스크린 모달 뒤로 깔려 '눌러도 아무 일 없음'으로 보였다
+                (사용자 2026-07-27 — 삭제가 안 되던 진짜 원인). LedgerScreen은 자체 호스트가 있어 회비 탭은 정상이었다. */}
+            <AppAlertHost />
           </SafeAreaView>
         </KeyboardProvider>
       </SafeAreaProvider>
@@ -863,8 +868,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                 fontFamily: F.sys, fontSize: fs(14), color: C.charcoal }]} />
             <TouchableOpacity onPress={addTypedName} activeOpacity={0.85} disabled={!newName.trim()}
               style={{ paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: newName.trim() ? C.navy : C.bgSecondary,
-                borderWidth: 0.5, borderColor: newName.trim() ? C.navy : C.hairline }}>
+                backgroundColor: newName.trim() ? C.navy : C.bgSecondary }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(14),
                 color: newName.trim() ? C.butter : C.warmGray }}>추가</Text>
             </TouchableOpacity>
@@ -903,7 +907,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
 
           {/* ── AI 영역 (골드) ── 가계부·예정 라운딩과 같은 관례: 골드 카드 안 = AI, 밖 = 직접 입력.
               여기만 다른 점은 '요구사항'을 받는다는 것 — 정산은 총무마다 규칙이 달라서 값만 읽어선 못 채운다. */}
-          <View style={{ borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(201,168,76,0.4)',
+          <View style={{ borderRadius: 16,
             backgroundColor: 'rgba(201,168,76,0.08)', padding: 12, marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: GOLD_DEEP,
@@ -925,7 +929,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
             <AppTextInput value={instr} onChangeText={v => { setInstr(v); if (aiError) setAiError(''); }} multiline
               placeholder={kind === 'prepay' ? '1인당 얼마인지 적어주세요' : '어떻게 나눌지 적어주세요'}
               placeholderTextColor={C.warmGray}
-              style={{ minHeight: fs(76), backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: C.hairline,
+              style={{ minHeight: fs(76), backgroundColor: '#FFFFFF',
                 borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, textAlignVertical: 'top',
                 fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20) }} />
             {/* 예시 — 탭해서 넣는 버튼으로 뒀더니 금액이 박혀 오히려 잘못 유도했다(사용자 2026-07-22:
@@ -969,8 +973,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                 return (
                   <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress} disabled={aiBusy}
                     style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
-                      backgroundColor: active ? 'rgba(201,168,76,0.16)' : '#FFFFFF',
-                      borderWidth: 0.5, borderColor: active ? GOLD : C.hairline }}>
+                      backgroundColor: active ? 'rgba(201,168,76,0.18)' : '#FFFFFF' }}>
                     <Icon name={m.icon} size={21} color={GOLD_DEEP} strokeWidth={1.8} />
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{m.label}</Text>
                   </TouchableOpacity>
@@ -997,7 +1000,7 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
               <AppTextInput value={paste} onChangeText={v => { setPaste(v); if (aiError) setAiError(''); }} multiline
                 placeholder={'카드결제 문자나 정산 메시지를 붙여넣어 주세요'}
                 placeholderTextColor={C.warmGray}
-                style={{ minHeight: fs(70), backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: C.hairline,
+                style={{ minHeight: fs(70), backgroundColor: '#FFFFFF',
                   borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, textAlignVertical: 'top',
                   fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20) }} />
             )}
@@ -1135,11 +1138,28 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
   const [dItems, setDItems] = useState([]);
   const [dMembers, setDMembers] = useState([]);
 
+  // 수정 중 '영수증 다시 읽기' — 만들 때와 같은 AI 흐름(computeSettlement). 새 영수증/카드문자/요구사항을
+  //   넣으면 금액·내역을 다시 채운다(사용자 2026-07-27: 텍스트만 고쳐지던 걸 개선). ★이미 입금 확인한
+  //   사람의 status는 지키고 금액만 갈아끼운다 — 재계산했다고 낸 사람이 '대기'로 돌아가면 안 된다.
+  const [ePhotos, setEPhotos] = useState([]);
+  const [ePaste, setEPaste] = useState('');
+  const [eInstr, setEInstr] = useState('');
+  const [eShowPaste, setEShowPaste] = useState(false);
+  const [eBusy, setEBusy] = useState(false);
+  const [eError, setEError] = useState('');
+  const [eNote, setENote] = useState('');
+  const resetRecompute = () => {
+    setEPhotos([]); setEPaste(''); setEInstr(''); setEShowPaste(false);
+    setEBusy(false); setEError(''); setENote('');
+  };
+
   const startEdit = () => {
     setDItems((s.items || []).map(i => ({ label: i.label || '', amount: String(i.amount || '') })));
     setDMembers((s.members || []).map(m => ({ ...m, amount: String(m.amount || '') })));
+    resetRecompute();
     setEditing(true);
   };
+  const cancelEdit = () => { resetRecompute(); setEditing(false); };
   const saveEdit = () => {
     const items = dItems
       .map(i => ({ label: i.label.trim(), amount: Math.max(0, parseInt(i.amount, 10) || 0) }))
@@ -1148,7 +1168,59 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
     if (members.length === 0) { showToast('참가자가 없어요'); return; }
     // total은 사람별 금액의 합 — 화면 요약과 정산서 합계가 어긋나면 안 된다
     onSave({ items, members, total: members.reduce((a, m) => a + m.amount, 0) });
+    resetRecompute();
     setEditing(false);
+  };
+
+  // 영수증 첨부 — ComposeView.addPhotos와 같은 규칙(촬영/갤러리, 최대 RECEIPT_MAX장). 고른 즉시 계산 안 하고 쌓아둔다.
+  const addEditPhotos = async (source) => {
+    if (eBusy) return;
+    Keyboard.dismiss();
+    let picked = [];
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { setEError('카메라 권한이 필요해요'); return; }
+      const res = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
+      if (res.canceled || !res.assets?.length) return;
+      picked = [res.assets[0].uri];
+    } else {
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { setEError('사진 접근 권한이 필요해요'); return; }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], quality: 1, allowsMultipleSelection: true, selectionLimit: RECEIPT_MAX,
+      });
+      if (res.canceled || !res.assets?.length) return;
+      picked = res.assets.map(a => a.uri);
+    }
+    setEPhotos(prev => {
+      const next = [...prev, ...picked].slice(0, RECEIPT_MAX);
+      if (prev.length + picked.length > RECEIPT_MAX) setEError(`영수증은 ${RECEIPT_MAX}장까지예요`);
+      else setEError('');
+      return next;
+    });
+  };
+
+  // 다시 계산 — 새 영수증/문자/요구사항을 AI에 보내 draft(dItems·dMembers)를 갱신한다.
+  //   ★입금 상태(status)는 이름으로 이어붙여 보존하고 금액만 교체한다.
+  const recompute = async () => {
+    if (eBusy) return;
+    if (!ePaste.trim() && !eInstr.trim() && ePhotos.length === 0) {
+      setEError('영수증을 올리거나 카드문자를 붙여넣어 주세요'); return;
+    }
+    const names = dMembers.map(m => ({ name: m.name }));
+    if (names.length === 0) { showToast('참가자가 없어요'); return; }
+    Keyboard.dismiss();
+    setEBusy(true);
+    const r = await computeSettlement({ text: ePaste, uris: ePhotos, names, instruction: eInstr, kind: s.kind });
+    setEBusy(false);
+    if (r?.error) { setEError(r.error); return; }
+    const byName = new Map((r.members || []).map(m => [m.name, m.amount]));
+    setDMembers(prev => prev.map(m => (byName.has(m.name) ? { ...m, amount: String(byName.get(m.name) || 0) } : m)));
+    setDItems((r.items || []).map(i => ({ label: i.label || '', amount: String(i.amount || '') })));
+    setENote(r.fallback ? '이름을 못 맞춰 1/n으로 나눴어요' : (r.note || '다시 계산했어요'));
+    setEError('');
+    setEPhotos([]); setEPaste(''); setEShowPaste(false);
   };
 
   // 정산서에 내역을 넣을지는 모임마다 다르다(사용자 2026-07-22) — 총무가 고르고, 그 선택을 기억한다.
@@ -1199,7 +1271,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           </Text>
           {editing ? (
             <>
-              <TouchableOpacity onPress={() => setEditing(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={cancelEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginRight: 16 }}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={saveEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -1227,6 +1299,83 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           {allDone ? '전원 입금 완료' : `${sum.confirmedCount}/${sum.count} 입금 · ${won(sum.remain)}원 남음`}
         </Text>
       </View>
+
+      {/* 영수증 다시 읽기 — 수정 중일 때만. 만들 때와 같은 AI 흐름(computeSettlement)으로 금액·내역을 다시 채운다.
+          아래 직접 수정칸(내역·사람별 금액)은 그대로 두어, 다시 계산 후에도 텍스트로 마저 손볼 수 있다. */}
+      {editing && (
+        <View style={{ backgroundColor: 'rgba(201,168,76,0.08)', borderRadius: 14, padding: 14, marginBottom: 14 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: GOLD_DEEP, marginBottom: 4 }}>
+            영수증·문자로 다시 계산
+          </Text>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginBottom: 10, lineHeight: fs(18) }}>
+            새 영수증을 올리거나 카드문자를 붙여넣으면 금액·내역을 다시 채워드려요
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[
+              { key: 'camera', icon: 'camera', label: '촬영', onPress: () => addEditPhotos('camera') },
+              { key: 'gallery', icon: 'image', label: '갤러리', onPress: () => addEditPhotos('gallery') },
+              { key: 'paste', icon: 'clipboard', label: '붙여넣기', onPress: () => setEShowPaste(v => !v) },
+            ].map(m => {
+              const active = m.key === 'paste' && eShowPaste;
+              return (
+                <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress} disabled={eBusy}
+                  style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
+                    backgroundColor: active ? 'rgba(201,168,76,0.18)' : '#FFFFFF' }}>
+                  <Icon name={m.icon} size={21} color={GOLD_DEEP} strokeWidth={1.8} />
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{m.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {ePhotos.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {ePhotos.map((uri, i) => (
+                <TouchableOpacity key={uri} activeOpacity={0.7}
+                  onPress={() => setEPhotos(prev => prev.filter(x => x !== uri))}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF',
+                    borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: GOLD_DEEP }}>영수증 {i + 1}</Text>
+                  <Text style={{ fontSize: fs(12), color: C.textSecondary }}>✕</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {eShowPaste && !eBusy && (
+            <AppTextInput value={ePaste} onChangeText={v => { setEPaste(v); if (eError) setEError(''); }} multiline
+              placeholder={'카드결제 문자나 정산 메시지를 붙여넣어 주세요'}
+              placeholderTextColor={C.warmGray}
+              style={{ minHeight: fs(70), backgroundColor: '#FFFFFF',
+                borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, textAlignVertical: 'top',
+                fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20) }} />
+          )}
+
+          {/* 요구사항 — "○○는 빼줘" 같은 자연어. 있으면 사람별 금액에 반영된다(만들 때 instr와 같은 역할). */}
+          <AppTextInput value={eInstr} onChangeText={setEInstr}
+            placeholder={'요구사항 (예: 김이사는 빼줘) — 없으면 비워두세요'}
+            placeholderTextColor={C.warmGray}
+            style={{ backgroundColor: '#FFFFFF', borderRadius: 10,
+              paddingHorizontal: 12, paddingVertical: 10, marginTop: 10,
+              fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} />
+
+          <TouchableOpacity onPress={recompute} activeOpacity={0.85} disabled={eBusy}
+            style={{ marginTop: 12, backgroundColor: eBusy ? C.warmGray : GOLD_DEEP, borderRadius: 12,
+              paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            {eBusy && <Spinner size={14} color={C.butter} />}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>
+              {eBusy ? '다시 계산하고 있어요…' : '다시 계산'}
+            </Text>
+          </TouchableOpacity>
+
+          {!!eError && !eBusy && (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: '#6B1E2A', marginTop: 9 }}>{eError}</Text>
+          )}
+          {!!eNote && !eError && !eBusy && (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: GOLD_DEEP, marginTop: 9 }}>{eNote}</Text>
+          )}
+        </View>
+      )}
 
       {/* 건별 내역 — 카드문자 가맹점명 그대로("1차 복돌이식당"). 정산서 '내역 넣기'에 이대로 나간다 */}
       {editing ? (

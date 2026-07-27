@@ -333,7 +333,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
           {/* 공지 토글 — 게시물 수정·공지 수정 모드선 숨김. 공지는 크루장·운영진(canNotice)만 올릴 수 있음 */}
           {!editing && !editingNotice && canNotice && (
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 12,
-            paddingHorizontal: 14, paddingVertical: 12, borderWidth: 0.5, borderColor: LINE }}>
+            paddingHorizontal: 14, paddingVertical: 12 }}>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ fontSize: fs(15), marginRight: 6 }}>📌</Text>
@@ -363,7 +363,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
           {/* 글 */}
           <TextInput value={text} onChangeText={(t) => { draftTouchedRef.current = true; setText(t); if (err) setErr(''); }} multiline maxLength={limit}
             allowFontScaling={false} placeholder={isNotice ? '공지 내용을 입력하세요' : '크루와 나눌 소식을 적어보세요'} placeholderTextColor={SUB}
-            style={{ backgroundColor: CARD, borderRadius: 12, borderWidth: 0.5, borderColor: LINE, padding: 14,
+            style={{ backgroundColor: CARD, borderRadius: 12, padding: 14,
               fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: (editing || editingNotice) ? 0 : 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(12), color: text.length >= limit ? '#B23B3B' : SUB, marginTop: 5 }}>{text.length}/{limit}</Text>
 

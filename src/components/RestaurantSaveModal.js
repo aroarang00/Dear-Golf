@@ -38,7 +38,6 @@ export function RestaurantSaveModal({ visible, seed, courseName, onClose, onSave
   const inputBase = {
     fontFamily: F.sys, color: C.charcoal,
     backgroundColor: '#fff', borderRadius: 10,
-    borderWidth: 0.5, borderColor: C.hairline,
     paddingHorizontal: 12, paddingVertical: 10,
   };
 

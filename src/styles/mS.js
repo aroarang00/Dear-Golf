@@ -10,8 +10,9 @@ export const mS = StyleSheet.create({
   title:       { fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginBottom: 4 },
   label:       { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, letterSpacing: 1.5, marginTop: 14, marginBottom: 6 },
   // 입력 모달 라벨을 키우고 진하게 — RoundupCreateModal·DiaryAddModal 공유. mS.label 위에 덮어쓰는 형태로 사용.
-  bigLabel:    { fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginTop: 14, marginBottom: 6 },
-  input:       { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontFamily: F.sys, fontSize: fs(14), color: C.textPrimary },
+  //   ★fs(11)·옅은회색·자간1.5는 중장년에게 작고 흐릿했다 → 키우고 진하게, 자간도 좁힘(사용자 2026-07-27).
+  bigLabel:    { fontFamily: F.sysB, fontSize: fs(13.5), color: C.charcoal, letterSpacing: 0.2, marginTop: 16, marginBottom: 7 },
+  input:       { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, fontFamily: F.sys, fontSize: fs(15), color: C.textPrimary },
   searchDrop:  { backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline, borderRadius: 10, marginTop: 4, overflow: 'hidden' },
   searchItem:  { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline },
   searchName:  { fontFamily: F.sysSb, fontSize: fs(16), color: C.textPrimary },

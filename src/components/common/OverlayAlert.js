@@ -39,7 +39,7 @@ export function OverlayAlert({ data, onClose }) {
           </Text>
         )}
         {Array.isArray(data.highlight) && data.highlight.length > 0 && (
-          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline,
+          <View style={{ backgroundColor: C.bgSecondary, borderRadius: 12,
             paddingVertical: 14, paddingHorizontal: 16, marginBottom: data.note ? 12 : 20 }}>
             {data.highlight.map((h, i) => (
               <Text key={i} style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, textAlign: 'center',

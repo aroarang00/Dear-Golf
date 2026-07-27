@@ -99,9 +99,9 @@ export function ScheduleShareCard({ schedule, width = 320 }) {
               3일 이내(s.weather 주입됨)면 예보, 아니면 '3일 전부터 표시' 안내(지난 일정은 둘 다 없이 빈 슬롯). */}
           <View style={{ height: 30, justifyContent: 'center', marginBottom: 6 }}>
             {s.weather ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                {/* 실제 예보 아이콘(주입된 weatherIcon=kma) 우선, 없으면 텍스트 기반 폴백 — 커스텀 SVG(WeatherGlyph) */}
-                <WeatherGlyph icon={s.weatherIcon || wxIcon(s.weather)} size={fs(20)} />
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {/* ★날씨 아이콘(글리프)은 뺀다 — 흰 구름이 흰 카드(SURFACE=#FFFFFF)에 묻혀 안 보였고,
+                    구름색을 바꾸면 홈 날씨까지 회색이 돼 부적절(사용자 2026-07-27). 카드엔 텍스트만. */}
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: BURGUNDY, letterSpacing: 0.3 }}>{s.weather}</Text>
               </View>
             ) : showWxNote ? (

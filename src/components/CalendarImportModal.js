@@ -5,7 +5,7 @@ import { C, F, fs } from '../constants/colors';
 import { mS } from '../styles/mS';
 import { Icon } from './common/Icon';
 import { Spinner } from './common/Spinner';
-import { getUpcomingGolfEvents } from '../utils/deviceCalendar';
+import { getUpcomingGolfEvents, getPastGolfEvents } from '../utils/deviceCalendar';
 
 // 캘린더에서 가져오기 — 폰 캘린더의 다가오는 일정을 읽어 골프 우선으로 보여주고, 고른 일정을 부모에 전달.
 //   AI 호출 없음(무료·오프라인). onPick(event) → 부모(ScheduleModal)가 폼에 프리필. expo-calendar 이미 설치라 빌드 불필요.
@@ -41,7 +41,10 @@ function EventRow({ ev, onPick }) {
   );
 }
 
-export function CalendarImportModal({ visible, onClose, onPick }) {
+// mode: 'upcoming'(일정 추가 — 미래) | 'past'(기록하기 — 오늘 포함 과거). 기본 upcoming(기존 호출부 무회귀).
+export function CalendarImportModal({ visible, onClose, onPick, mode = 'upcoming' }) {
+  const isPast = mode === 'past';
+  const PAST_DAYS = 120;
   const insets = useSafeAreaInsets();
   // ★본문 높이를 고정한다 — 안 그러면 시트가 두 번에 걸쳐 펴진다(사용자 2026-07-22).
   //   시트 높이가 내용에 따라 정해지는데, 열리는 순간엔 '캘린더를 읽고 있어요' 한 덩이뿐이라 짧게
@@ -58,7 +61,7 @@ export function CalendarImportModal({ visible, onClose, onPick }) {
     if (!visible) return;
     let alive = true;
     setLoading(true); setGranted(true); setEvents([]);
-    getUpcomingGolfEvents({ days: 60 })
+    (isPast ? getPastGolfEvents({ days: PAST_DAYS }) : getUpcomingGolfEvents({ days: 60 }))
       .then(res => { if (!alive) return; setGranted(res.granted); setEvents(res.events || []); })
       .catch(() => { if (alive) setEvents([]); })
       .finally(() => { if (alive) setLoading(false); });
@@ -86,7 +89,7 @@ export function CalendarImportModal({ visible, onClose, onPick }) {
               </TouchableOpacity>
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 16 }}>
-              폰 캘린더의 다가오는 일정이에요. 가져올 일정을 누르면 구장·날짜·시간을 채워드려요.
+              누르면 {isPast ? '구장·날짜를' : '구장·날짜·시간을'} 채워드려요
             </Text>
           </View>
 
@@ -101,12 +104,12 @@ export function CalendarImportModal({ visible, onClose, onPick }) {
             <View style={{ flex: 1, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, textAlign: 'center' }}>캘린더 접근 권한이 필요해요</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
-                설정 &gt; 권한에서 캘린더 접근을 허용하면 다가오는 일정을 불러와요.
+                설정 &gt; 권한에서 캘린더 접근을 허용하면 {isPast ? '지난' : '다가오는'} 일정을 불러와요.
               </Text>
             </View>
           ) : events.length === 0 ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>앞으로 60일 안에 등록된 일정이 없어요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{isPast ? `지난 ${PAST_DAYS}일` : '앞으로 60일'} 안에 등록된 일정이 없어요</Text>
             </View>
           ) : (
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
@@ -122,7 +125,7 @@ export function CalendarImportModal({ visible, onClose, onPick }) {
               {others.length > 0 && (
                 <>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginTop: golf.length ? 18 : 10, marginBottom: 2 }}>
-                    {golf.length ? '그 외 다가오는 일정' : '골프 일정을 못 찾았어요 — 직접 골라주세요'}
+                    {golf.length ? `그 외 ${isPast ? '지난' : '다가오는'} 일정` : '골프 일정을 못 찾았어요 — 직접 골라주세요'}
                   </Text>
                   {others.map(ev => <EventRow key={ev.id} ev={ev} onPick={handlePick} />)}
                 </>

@@ -47,7 +47,7 @@ export function ScheduleReminderPopup({ notice, extraCount = 0, onConfirm }) {
 
           {/* 일정 카드 */}
           <View style={{ margin: 20, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14,
-            borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.35)', paddingVertical: 20, paddingHorizontal: 18, alignItems: 'center' }}>
+            paddingVertical: 20, paddingHorizontal: 18, alignItems: 'center' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: '#fff', textAlign: 'center', lineHeight: 26 }}>
               {course}
             </Text>
