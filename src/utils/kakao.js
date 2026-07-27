@@ -256,9 +256,12 @@ export async function searchNearbyCafes(lat, lng, radius = 3000) {
   return searchNearbyByCategory('CE7', lat, lng, radius);
 }
 
-// 키워드로 음식점(FD6) 검색 — 맛집 직접 검색·저장용
+// 키워드로 음식점·카페 검색 — 맛집 직접 검색·저장용
+// ★카테고리는 FD6(음식점)에 CE7(카페)까지 포함 — 함께식사엔 카페·디저트·브런치·베이커리도 유효한데
+//   FD6만 필터하면 '하네뜨 치즈케잌 카페' 같은 카페가 이름검색에서 통째로 빠짐(사용자 2026-07-27, 힐마루).
+//   ※ 카카오 keyword API는 category_group_code에 값 '하나'만 받으므로, 필터 없이 받아 클라에서 FD6|CE7만 추린다.
 // 골프장 좌표를 주면 ①그 주변(반경 20km=카카오 최대) 거리순 → ②없으면 전국 검색 후 구장 근접순 정렬.
-//   ②폴백 이유: '집 가는 길목' 식당이 구장서 20km를 넘으면 ①반경 밖이라 이름검색에 안 뜸(사용자 2026-07-27).
+//   ②폴백 이유: '집 가는 길목' 식당이 구장서 20km를 넘으면 ①반경 밖이라 이름검색에 안 뜸.
 //   전국 결과는 haversine으로 구장 근접순 정렬 → 길목 식당이 먼 동명이점보다 위로. 방향/길목 라벨은 UI(destinationBadge)가 붙임.
 // 반환: [{ kakaoId, name, type, loc, x, y, distance, phone, url }]
 export async function searchRestaurantsByKeyword(query, lat, lng) {
@@ -266,6 +269,7 @@ export async function searchRestaurantsByKeyword(query, lat, lng) {
   if (!q || !isKeyConfigured()) return [];
   const headers = { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` };
   const hasCoord = typeof lat === 'number' && typeof lng === 'number';
+  const FOOD_CODES = new Set(['FD6', 'CE7']); // 음식점 + 카페(디저트·베이커리·테마카페 포함)
   const mapDoc = (d) => ({
     kakaoId: d.id,
     name: d.place_name,
@@ -278,11 +282,11 @@ export async function searchRestaurantsByKeyword(query, lat, lng) {
     url: d.place_url || '',
   });
   const call = async (extra) => {
-    const url = `${KEYWORD_URL}?query=${encodeURIComponent(q)}&category_group_code=FD6&size=12${extra}`;
+    const url = `${KEYWORD_URL}?query=${encodeURIComponent(q)}&size=15${extra}`;
     const res = await fetchWithTimeout(url, { headers });
     if (!res.ok) { console.warn('[kakao] keyword food HTTP', res.status); return null; }
     const data = await res.json();
-    return (data.documents || []).map(mapDoc);
+    return (data.documents || []).filter(d => FOOD_CODES.has(d.category_group_code)).map(mapDoc);
   };
   try {
     // ① 구장 20km 반경 거리순(구장 근처가 흔한 경우 — 정확도 우선)
