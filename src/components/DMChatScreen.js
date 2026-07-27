@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator, Platform, Linking } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // DM 사진 전체화면 보기 + 실비율 프라임(뷰어 열 때 리플로우 제거)
@@ -27,6 +27,25 @@ import { useBlockUser } from '../hooks/useBlockUser';
 
 
 const WD =['일', '월', '화', '수', '목', '금', '토'];
+// 메시지 본문 속 첫 URL 추출(LinkText와 동일 규칙). ★안드는 말풍선 TouchableOpacity가 안의 링크 텍스트 탭을
+//   먹어 LinkText onPress가 안 먹힘 → 링크 있는 메시지는 '말풍선 전체 탭'으로 열어준다(카톡식). www는 https로.
+const DM_URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/i;
+function firstLinkInText(text) {
+  const m = String(text || '').match(DM_URL_RE);
+  if (!m) return null;
+  const u = m[0].replace(/[)\]}.,!?;:'"·]+$/, ''); // 끝 문장부호 제거(LinkText와 동일)
+  if (!u) return null;
+  return /^www\./i.test(u) ? `https://${u}` : u;
+}
+// ★DM은 '투명 모달' 대화방이라 그 위 웹뷰가 네이버 지도를 안드에서 못 렌더(흰 화면). 댓글(불투명 모달)은 앱내로 잘 됨.
+//   그래서 DM에서만 네이버 지도류는 외부(네이버지도 앱/브라우저)로, 그 외(카카오·일반)는 앱내 웹뷰로.
+const DM_NAVER_MAP_RE = /(?:^|\/\/)(?:[\w-]+\.)*(?:naver\.me|(?:map|place|m)\.naver\.com)(?:[/:?#]|$)/i;
+function openDmLink(url, openInApp) {
+  const u = String(url || '');
+  if (!u) return;
+  if (Platform.OS === 'android' && DM_NAVER_MAP_RE.test(u)) Linking.openURL(u).catch(() => {});
+  else openInApp(u);
+}
 // DM 다크 룸 + 브랜드 색 말풍선 (사용자 상세 스펙 2026-06-11 [[dm-design]]):
 //   다크 차콜 캔버스 위에 라이트 브랜드 말풍선 — 받은=페일스카이, 보낸=버터, 입력=크림. 헤더 포인트=버터/페일스카이.
 const DM_CANVAS   = '#2A2622';                 // 대화 배경 — 다크 '방' 바닥(라이트 말풍선이 또렷이 뜸)
@@ -715,6 +734,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
     // 이모지만 보낸 메시지 — 버블 없이 크게(카톡·아이메시지식). 사진·답장이 있으면 일반 처리.
     const emojiN = (!hasImg && !item.replyTo) ? emojiOnlyCount(item.body) : 0;
     const bigEmoji = emojiN > 0;
+    // 링크 포함 텍스트 메시지 — 말풍선 전체 탭으로 열기(안드 링크 탭 먹힘 대응). 사진/이모지 메시지는 제외.
+    const bodyUrl = (!hasImg && !bigEmoji && item.body) ? firstLinkInText(item.body) : null;
     // 인버티드: index+1 = 시각적 위(더 오래된 이웃). 날짜 구분선·아바타 묶음 판정에 '더 오래된 메시지' 사용.
     const older = index < rlist.length - 1 ? rlist[index + 1] : null;
     // 날짜가 바뀌면(또는 첫 메시지) 위에 날짜 구분선. pending(시각 미해결)이면 라벨 빈값이라 미표시.
@@ -782,8 +803,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
           <View style={{ maxWidth: '78%' }}>
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
-            <TouchableOpacity activeOpacity={(hasImg || video || bigEmoji) ? 1 : 0.85} delayLongPress={300}
-              onPress={selectMode ? () => toggleSelect(item.id) : undefined}
+            <TouchableOpacity activeOpacity={(hasImg || video || bigEmoji) && !bodyUrl ? 1 : 0.85} delayLongPress={300}
+              onPress={selectMode ? () => toggleSelect(item.id) : (bodyUrl ? () => openDmLink(bodyUrl, setWebUrl) : undefined)}
               onLongPress={selectMode ? undefined : () => setReactTarget(item)}
               style={(hasImg || video || bigEmoji)
                 ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진·영상·이모지전용은 버블 배경 없이 깔끔하게
@@ -836,7 +857,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 <Text allowFontScaling={false} style={{ fontSize: emojiFontSize(emojiN), lineHeight: emojiFontSize(emojiN) + 8,
                   alignSelf: mine ? 'flex-end' : 'flex-start' }}>{item.body}</Text>
               ) : (
-                <LinkText onLinkPress={setWebUrl} style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX,
+                <LinkText onLinkPress={(u) => openDmLink(u, setWebUrl)}
+                  style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX,
                   marginTop: item.imageUrl ? 6 : 0, marginHorizontal: item.imageUrl ? 6 : 0 }}
                   linkColor={mine ? '#13518F' : '#0E4C94'}>{item.body}</LinkText>
               ))}
@@ -1106,8 +1128,9 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             : (imgViewer.uris || []).map(u => ({ uri: u }))}
           startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} allowSave />
       )}
-      {/* DM 링크 앱내 웹뷰 — DM 모달 안에 중첩([[ios-modal-stacking]]). 로그인·결제 등은 시트 상단 '외부로 열기' 폴백. */}
-      <WebSheet visible={!!webUrl} url={webUrl} onClose={() => setWebUrl(null)} />
+      {/* DM 링크 앱내 웹뷰 — ★DM은 이미 Modal이라 웹뷰를 또 Modal로 띄우면 안드서 '모달 위 모달' WebView가
+          흰 화면이 됨. asOverlay(절대위치)로 이 root flex:1 View 위에 겹쳐 그린다(맛집 상세와 동일 대응). */}
+      <WebSheet asOverlay visible={!!webUrl} url={webUrl} onClose={() => setWebUrl(null)} />
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>
   );

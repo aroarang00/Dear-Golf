@@ -14,6 +14,7 @@ import { TrustBadge, TrustGradeModal } from './common/TrustBadge';
 import { MannerBadge, MannerGradeModal } from './common/MannerBadge';
 import { isD7Inside } from '../constants/mannerGrade';
 import { RoundupComments } from './RoundupComments';
+import { WebSheet } from './WebSheet'; // 댓글 링크 앱내 웹뷰(모달 상세 위 오버레이)
 import { anonNick } from '../utils/anonNick';
 import { shareRoundup } from '../utils/invite';
 import { ShareMomentModal } from './ShareMomentModal';
@@ -182,6 +183,7 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   // z-index 이슈로 부모(RoundupTab)의 모달이 이 Modal 뒤로 가려져서, 등급/차단 확인 모달은 여기서 자체 렌더링.
   const [gradeKey, setGradeKey] = useState(null);          // 트러스트 등급 안내 모달
   const [mannerKey, setMannerKey] = useState(null);        // 매너 등급 안내 모달
+  const [linkUrl, setLinkUrl] = useState(null);            // 댓글 링크 앱내 웹뷰 대상 URL(상세 모달 위 오버레이)
 
   // 안드: 모달 슬라이드업과 무거운 본문(ScrollView+카드들)이 같은 프레임서 마운트되면 '튀면서 열림' →
   //   슬라이드 끝난 뒤 본문 마운트(잠깐 빈 배경 → 채움). iOS는 슬라이드가 매끄러워 즉시(지연 불필요). [[rn-list-perf-patterns]]
@@ -1113,7 +1115,8 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               onAdd={onAddComment}
               onDelete={onDeleteComment}
               onPin={onPinComment}
-              onLoadOlder={onLoadOlderComments} />
+              onLoadOlder={onLoadOlderComments}
+              onOpenLink={setLinkUrl} />
 
             <View style={{ height: 20 }} />
           </ScrollView>
@@ -1121,6 +1124,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
             <View style={{ flex: 1, backgroundColor: C.bgPrimary }} />
           )}
 
+          {/* 댓글 링크 앱내 웹뷰 — ★상세가 이미 Modal이라 웹뷰를 또 Modal로 띄우면 안드서 흰 화면.
+              asOverlay로 이 SafeAreaView(풀스크린) 위에 겹쳐 그린다(맛집 상세와 동일 대응). */}
+          <WebSheet asOverlay visible={!!linkUrl} url={linkUrl} onClose={() => setLinkUrl(null)} />
           {/* 참여 확인 / 카카오 안내 / 차단 확인 — 모달 위 오버레이 */}
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
           {/* 등급 안내 모달 — 부모 모달 뒤로 가려지지 않게 자체 렌더링 */}

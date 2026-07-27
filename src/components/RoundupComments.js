@@ -10,7 +10,6 @@ import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 import { anonNick } from '../utils/anonNick';
 import { friendDisplayName } from '../utils/friendGroups';
 import { LinkText } from './common/LinkText';
-import { WebSheet } from './WebSheet'; // 댓글 링크를 앱내 웹뷰로(탭 이탈 없이)
 
 // 댓글 작성자 표시 이름 — 익명 참여자면 랜덤닉(호스트는 nameMap으로 실명). 현재 anonymousUids 기준이라
 //   '나중에 익명 토글'한 경우도 옛 댓글까지 가려진다 ([[roundup-anonymous-participation]]).
@@ -133,12 +132,11 @@ function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete,
   );
 }
 
-export function RoundupComments({ post, comments, total = 0, joined, myUid, nameMap = {}, friendMeta = {}, inputRef, onInputFocus, onAdd, onDelete, onPin, onLoadOlder }) {
+export function RoundupComments({ post, comments, total = 0, joined, myUid, nameMap = {}, friendMeta = {}, inputRef, onInputFocus, onAdd, onDelete, onPin, onLoadOlder, onOpenLink }) {
   const { userProfile } = useContext(UserContext);
   const [body, setBody] = useState('');
   const [error, setError] = useState(null);
   const [actionComment, setActionComment] = useState(null);  // 액션 시트 대상 댓글
-  const [webUrl, setWebUrl] = useState(null);                // 댓글 링크 앱내 웹뷰 대상 URL
 
   const myId = userProfile?.uid || userProfile?.kakaoId || null;
   const myName = userProfile?.nickname || '나';
@@ -256,7 +254,7 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
               </View>
             ) : (
               sorted.map(c => (
-                <CommentRow key={c.id} comment={c} onPress={setActionComment} onLinkPress={setWebUrl}
+                <CommentRow key={c.id} comment={c} onPress={setActionComment} onLinkPress={onOpenLink}
                   authorName={commentAuthor(c, post, myUid, nameMap, friendMeta)} />
               ))
             )}
@@ -345,10 +343,6 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
           onDelete={onDelete}
           onReport={reportComment} />
       )}
-
-      {/* 댓글 링크 앱내 웹뷰 — RoundupDetail(풀스크린 Modal) 안에 중첩([[ios-modal-stacking]]).
-          로그인·결제 등 안 열리는 사이트는 시트 상단 '외부로 열기'로 폴백. */}
-      <WebSheet visible={!!webUrl} url={webUrl} onClose={() => setWebUrl(null)} />
     </View>
   );
 }
