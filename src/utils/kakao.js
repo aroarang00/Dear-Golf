@@ -1,6 +1,7 @@
 import { fetchWithTimeout } from './net';
 import { KAKAO_REST_API_KEY } from '../constants/api';
 import { normalizeCourseName } from './top100';
+import { haversineKm } from './mealDirection'; // 폴백 결과 구장 근접순 정렬용(순수 함수, 순환참조 없음)
 
 // 검색에서 숨길 '대표(엄브렐러)' 골프장 — 건별로 등록한 구장만 (정규화 base 기준).
 // 카카오가 올드/듄스 코스를 따로 주면서 리조트 대표명까지 같이 줘 헷갈리는 경우에만 사용.
@@ -256,32 +257,47 @@ export async function searchNearbyCafes(lat, lng, radius = 3000) {
 }
 
 // 키워드로 음식점(FD6) 검색 — 맛집 직접 검색·저장용
-// 골프장 좌표를 주면 그 주변(반경 20km) 거리순으로 정렬
+// 골프장 좌표를 주면 ①그 주변(반경 20km=카카오 최대) 거리순 → ②없으면 전국 검색 후 구장 근접순 정렬.
+//   ②폴백 이유: '집 가는 길목' 식당이 구장서 20km를 넘으면 ①반경 밖이라 이름검색에 안 뜸(사용자 2026-07-27).
+//   전국 결과는 haversine으로 구장 근접순 정렬 → 길목 식당이 먼 동명이점보다 위로. 방향/길목 라벨은 UI(destinationBadge)가 붙임.
 // 반환: [{ kakaoId, name, type, loc, x, y, distance, phone, url }]
 export async function searchRestaurantsByKeyword(query, lat, lng) {
   const q = (query || '').trim();
   if (!q || !isKeyConfigured()) return [];
-  try {
-    let url = `${KEYWORD_URL}?query=${encodeURIComponent(q)}&category_group_code=FD6&size=12`;
-    if (typeof lat === 'number' && typeof lng === 'number') {
-      url += `&x=${lng}&y=${lat}&radius=20000&sort=distance`;
-    }
-    const res = await fetchWithTimeout(url, {
-      headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
-    });
-    if (!res.ok) { console.warn('[kakao] keyword food HTTP', res.status); return []; }
+  const headers = { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` };
+  const hasCoord = typeof lat === 'number' && typeof lng === 'number';
+  const mapDoc = (d) => ({
+    kakaoId: d.id,
+    name: d.place_name,
+    type: (d.category_name || '').split('>').pop().trim() || '음식점',
+    loc: d.road_address_name || d.address_name || '',
+    x: parseFloat(d.x),
+    y: parseFloat(d.y),
+    distance: parseInt(d.distance, 10) || 0,
+    phone: d.phone || '',
+    url: d.place_url || '',
+  });
+  const call = async (extra) => {
+    const url = `${KEYWORD_URL}?query=${encodeURIComponent(q)}&category_group_code=FD6&size=12${extra}`;
+    const res = await fetchWithTimeout(url, { headers });
+    if (!res.ok) { console.warn('[kakao] keyword food HTTP', res.status); return null; }
     const data = await res.json();
-    return (data.documents || []).map(d => ({
-      kakaoId: d.id,
-      name: d.place_name,
-      type: (d.category_name || '').split('>').pop().trim() || '음식점',
-      loc: d.road_address_name || d.address_name || '',
-      x: parseFloat(d.x),
-      y: parseFloat(d.y),
-      distance: parseInt(d.distance, 10) || 0,
-      phone: d.phone || '',
-      url: d.place_url || '',
-    }));
+    return (data.documents || []).map(mapDoc);
+  };
+  try {
+    // ① 구장 20km 반경 거리순(구장 근처가 흔한 경우 — 정확도 우선)
+    let list = hasCoord ? await call(`&x=${lng}&y=${lat}&radius=20000&sort=distance`) : await call('');
+    // ② 반경 안에서 못 찾으면 전국 검색으로 폴백 + 구장 근접순 정렬(반경 밖 길목 식당 구제)
+    if (hasCoord && (!list || list.length === 0)) {
+      const wide = await call('');
+      if (wide && wide.length) {
+        const c = { x: lng, y: lat };
+        list = wide
+          .map(r => ({ ...r, distance: r.distance || Math.round((haversineKm(c, r) || 0) * 1000) }))
+          .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+      }
+    }
+    return list || [];
   } catch (e) {
     console.warn('[kakao] keyword food failed:', e?.message);
     return [];
