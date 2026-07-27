@@ -15,6 +15,10 @@ import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 // 일정 '이야기'(댓글) 스레드 — 전파 일정 시트에서 열림. 공지(memo)와 별개의 조율 대화.
 //   말풍선(내것=우측 버건디 / 남=좌측 회색+이름), 실시간 구독, 본인 댓글 길게눌러 삭제.
 //   ★안드 RN Modal은 별도 윈도우라 adjustResize가 안 먹어 입력바가 키보드에 가림 → KeyboardEvents로 명령형 리프트.
+// @모두 = 동반자 모두 호출용 특별 토큰(사람 uid 아님). 이름과 겹칠 일 없게 '모두'로 고정.
+const ALL_UID = '__all__';
+const ALL_LABEL = '모두';
+
 // 본문의 '@이름' 토큰을 색으로 강조 (내 말풍선=버터골드 / 상대=네이비)
 function renderBody(body, mine) {
   const parts = String(body || '').split(/(@[^\s@]+)/g);
@@ -88,8 +92,13 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   // 현재 입력 끝에서 타이핑 중인 @멘션 토큰 감지 → 피커 표시(끝에서 멘션하는 일반 케이스 지원)
   const mentionMatch = draft.match(/@([^\s@]*)$/);
   const mentionQuery = mentionMatch ? mentionMatch[1] : null;
+  // @전체 = 동반자 모두 한 번에 부르기(특별 토큰). 사람이 2명 이상일 때만 의미 있음.
+  const allMatches = (q) => !q || ALL_LABEL.includes(q) || '전체'.includes(q) || 'all'.startsWith(q.toLowerCase());
   const mentionList = (mentionQuery !== null && members.length)
-    ? members.filter(m => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    ? [
+        ...(members.length > 1 && allMatches(mentionQuery) ? [{ uid: ALL_UID, name: ALL_LABEL }] : []),
+        ...members.filter(m => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())),
+      ].slice(0, 6)
     : [];
   const pickMention = (m) => { setDraft(draft.replace(/@([^\s@]*)$/, `@${m.name} `)); };
 
@@ -126,8 +135,11 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
     if (!body || sending) return;
     setSending(true);
     try {
-      // 본문에 '@이름'이 들어간 멤버만 멘션(편집 중 지웠어도 최종 본문 기준으로 재판정)
-      const mentions = members.filter(m => body.includes('@' + m.name)).map(m => m.uid);
+      // 본문에 '@이름'이 들어간 멤버만 멘션(편집 중 지웠어도 최종 본문 기준으로 재판정).
+      // @전체가 들어가면 동반자 전원 호출(개별 @이름과 겹쳐도 members가 유일해 중복 없음).
+      const mentions = body.includes('@' + ALL_LABEL)
+        ? members.map(m => m.uid)
+        : members.filter(m => body.includes('@' + m.name)).map(m => m.uid);
       const r = await addScheduleComment(groupId, myName, body, { mentions, course: courseLabel });
       if (!r.ok) {
         if (r.reason === 'profanity') showToast(PROFANITY_BLOCK_MESSAGE);
@@ -222,10 +234,19 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
                     <TouchableOpacity key={m.uid} onPress={() => pickMention(m)} activeOpacity={0.6}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 11,
                         borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
-                      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(26,61,82,0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.navy }}>{(m.name || '?').slice(0, 1)}</Text>
-                      </View>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{m.name}</Text>
+                      {m.uid === ALL_UID ? (
+                        <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(107,30,42,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon name="people" size={fs(14)} color={C.burgundy} />
+                        </View>
+                      ) : (
+                        <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(26,61,82,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.navy }}>{(m.name || '?').slice(0, 1)}</Text>
+                        </View>
+                      )}
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>
+                        {m.name}
+                        {m.uid === ALL_UID && <Text style={{ fontFamily: F.sys, color: C.warmGray }}>  · 동반자 모두</Text>}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>

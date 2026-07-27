@@ -39,6 +39,9 @@ function commentAuthor(comment, post, viewerUid, nameMap, friendMeta) {
 // - 신고: content_reports(roundupComment) 기록. 친구 범위라 자동 takedown은 후속, 현재 운영 검토용.
 
 const COMMENT_MAX = 300;
+// @모두 = 동반자 모두 호출용 특별 토큰(사람 uid 아님). 이름과 겹칠 일 없게 '모두'로 고정.
+const ALL_UID = '__all__';
+const ALL_LABEL = '모두';
 
 function CommentRow({ comment, onPress, authorName }) {
   const dateLabel = useMemo(() => formatRelative(comment.createdAt), [comment.createdAt]);
@@ -160,8 +163,13 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
   // 입력 끝에서 @토큰 감지 → 후보 목록
   const mentionMatch = body.match(/@([^\s@]*)$/);
   const mentionQuery = mentionMatch ? mentionMatch[1] : null;
+  // @모두 = 참가자 모두 한 번에 부르기(특별 토큰). 사람이 2명 이상일 때만 의미 있음.
+  const allMatches = (q) => !q || ALL_LABEL.includes(q) || '전체'.includes(q) || 'all'.startsWith(q.toLowerCase());
   const mentionList = (mentionQuery !== null && mentionMembers.length)
-    ? mentionMembers.filter(m => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    ? [
+        ...(mentionMembers.length > 1 && allMatches(mentionQuery) ? [{ uid: ALL_UID, name: ALL_LABEL }] : []),
+        ...mentionMembers.filter(m => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())),
+      ].slice(0, 6)
     : [];
   const pickMention = (m) => setBody(body.replace(/@([^\s@]*)$/, `@${m.name} `));
 
@@ -177,7 +185,10 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
       return;
     }
     // 본문에 '@이름'이 든 후보만 멘션(그 사람에게만 알림). 저장·알림은 부모 onAdd가 처리.
-    r.comment.mentions = mentionMembers.filter(m => body.includes('@' + m.name)).map(m => m.uid);
+    //   @모두면 참가자 전원 호출(개별 @이름과 겹쳐도 후보가 유일해 중복 없음).
+    r.comment.mentions = body.includes('@' + ALL_LABEL)
+      ? mentionMembers.map(m => m.uid)
+      : mentionMembers.filter(m => body.includes('@' + m.name)).map(m => m.uid);
     // 낙관적 비움 후 저장 실패 시 입력 복원 — 크루 댓글(CrewCommentScreen)과 동일 패턴.
     //   실패 안내는 입력창 인라인 에러로(모달 위 전역 알럿 스택 문제 회피).
     setBody('');
@@ -269,7 +280,10 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
                           <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(107,30,42,0.1)', alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy }}>{(m.name || '?').slice(0, 1)}</Text>
                           </View>
-                          <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{m.name}</Text>
+                          <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>
+                            {m.name}
+                            {m.uid === ALL_UID && <Text style={{ fontFamily: F.sys, color: C.warmGray }}>  · 참가자 모두</Text>}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
