@@ -48,6 +48,14 @@ export function WebSheet({ visible, url, title, onClose, asOverlay = false }) {
         //   (앱 실행 후 빈 웹뷰가 흰 화면으로 남던 것 방지 — DM에서 네이버지도가 안 열리던 핵심 원인). iOS는 원래 처리됨.
         onShouldStartLoadWithRequest={(req) => {
           const u = req.url || '';
+          // ★네이버 지도(map.naver.com/appLink)는 https라 웹뷰가 로드하려 하지만 안드서 흰화면(앱 실행용 브리지 페이지).
+          //   naver.me 단축링크가 여기로 리다이렉트되면 그때 잡아 외부 지도앱으로 넘기고 시트 닫는다.
+          //   (네이버'앱' 링크는 link.naver.com→앱스킴이라 아래 스킴 처리로 앱 실행 = 앱내 유지, 지도만 갈라짐)
+          if (/\/\/(?:m\.)?map\.naver\.com[/?]/i.test(u)) {
+            Linking.openURL(u).catch(() => {});
+            onClose && onClose();
+            return false;
+          }
           if (/^https?:\/\//i.test(u) || u === 'about:blank') return true;
           // intent://…#Intent;scheme=nmap;…;S.browser_fallback_url=…;end (안드 네이버 등)
           //   → scheme://로 변환해 앱 직접 실행. 앱 없으면 폴백 URL(웹/스토어)로.

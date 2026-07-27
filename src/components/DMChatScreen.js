@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator, Platform, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Keyboard, StatusBar, Animated, ActivityIndicator } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // DM 사진 전체화면 보기 + 실비율 프라임(뷰어 열 때 리플로우 제거)
@@ -36,15 +36,6 @@ function firstLinkInText(text) {
   const u = m[0].replace(/[)\]}.,!?;:'"·]+$/, ''); // 끝 문장부호 제거(LinkText와 동일)
   if (!u) return null;
   return /^www\./i.test(u) ? `https://${u}` : u;
-}
-// ★DM은 '투명 모달' 대화방이라 그 위 웹뷰가 네이버 지도를 안드에서 못 렌더(흰 화면). 댓글(불투명 모달)은 앱내로 잘 됨.
-//   그래서 DM에서만 네이버 지도류는 외부(네이버지도 앱/브라우저)로, 그 외(카카오·일반)는 앱내 웹뷰로.
-const DM_NAVER_MAP_RE = /(?:^|\/\/)(?:[\w-]+\.)*(?:naver\.me|(?:map|place|m)\.naver\.com)(?:[/:?#]|$)/i;
-function openDmLink(url, openInApp) {
-  const u = String(url || '');
-  if (!u) return;
-  if (Platform.OS === 'android' && DM_NAVER_MAP_RE.test(u)) Linking.openURL(u).catch(() => {});
-  else openInApp(u);
 }
 // DM 다크 룸 + 브랜드 색 말풍선 (사용자 상세 스펙 2026-06-11 [[dm-design]]):
 //   다크 차콜 캔버스 위에 라이트 브랜드 말풍선 — 받은=페일스카이, 보낸=버터, 입력=크림. 헤더 포인트=버터/페일스카이.
@@ -804,7 +795,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             {/* 길게누르기 → 공감 피커. 본문 탭 동작은 없음(오터치 방지) */}
             {/* 말풍선 — 보낸=버터, 받은=페일스카이. 발신자쪽 위 모서리만 각지게(말꼬리 효과): 보낸 우상단 4·받은 좌상단 4 */}
             <TouchableOpacity activeOpacity={(hasImg || video || bigEmoji) && !bodyUrl ? 1 : 0.85} delayLongPress={300}
-              onPress={selectMode ? () => toggleSelect(item.id) : (bodyUrl ? () => openDmLink(bodyUrl, setWebUrl) : undefined)}
+              onPress={selectMode ? () => toggleSelect(item.id) : (bodyUrl ? () => setWebUrl(bodyUrl) : undefined)}
               onLongPress={selectMode ? undefined : () => setReactTarget(item)}
               style={(hasImg || video || bigEmoji)
                 ? { backgroundColor: 'transparent', alignSelf: mine ? 'flex-end' : 'flex-start' } // 사진·영상·이모지전용은 버블 배경 없이 깔끔하게
@@ -857,7 +848,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 <Text allowFontScaling={false} style={{ fontSize: emojiFontSize(emojiN), lineHeight: emojiFontSize(emojiN) + 8,
                   alignSelf: mine ? 'flex-end' : 'flex-start' }}>{item.body}</Text>
               ) : (
-                <LinkText onLinkPress={(u) => openDmLink(u, setWebUrl)}
+                <LinkText onLinkPress={setWebUrl}
                   style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX,
                   marginTop: item.imageUrl ? 6 : 0, marginHorizontal: item.imageUrl ? 6 : 0 }}
                   linkColor={mine ? '#13518F' : '#0E4C94'}>{item.body}</LinkText>
