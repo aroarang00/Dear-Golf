@@ -14,6 +14,7 @@ import { connectKakaoAccount } from '../utils/kakaoAuth';
 import { anonHasAppleTrace, connectAppleAccount } from '../utils/appleAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { LinkText } from './common/LinkText';
+import { WebSheet } from './WebSheet'; // DM 링크를 앱내 웹뷰로(대화방 이탈 없이)
 import { ensureConversation, sendMessage, sendImagesMessage, sendVideoMessage, subscribeMessages, setReaction, markConversationRead, subscribeConversation, setTyping, deleteMessage } from '../utils/dm';
 import * as ImagePicker from 'expo-image-picker';
 import { isVideoOverLimit, VIDEO_MAX_MB } from '../utils/mediaLimits';
@@ -350,6 +351,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
   const [otherReadMs, setOtherReadMs] = useState(0);  // 상대가 이 방을 마지막으로 본 시각(ms) — 내 말풍선 읽음(✓) 판정
   const [myClearedMs, setMyClearedMs] = useState(0);  // 내가 '목록에서 지운' 시각(ms) — 그 이전 메시지는 내 화면에서 숨김(카톡식, 상대는 보존)
   const [friendTyping, setFriendTyping] = useState(false);  // 상대 입력 중 — 말풍선 점 표시
+  const [webUrl, setWebUrl] = useState(null);  // DM 링크 앱내 웹뷰 대상 URL
   const listRef = useRef(null);
   const inputRef = useRef(null);
   const typingHideRef = useRef(null);   // 상대 typing 자동 숨김 타이머
@@ -834,7 +836,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
                 <Text allowFontScaling={false} style={{ fontSize: emojiFontSize(emojiN), lineHeight: emojiFontSize(emojiN) + 8,
                   alignSelf: mine ? 'flex-end' : 'flex-start' }}>{item.body}</Text>
               ) : (
-                <LinkText style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX,
+                <LinkText onLinkPress={setWebUrl} style={{ fontFamily: F.sysM, fontSize: fs(17), lineHeight: 25, color: mine ? DM_MINE_TX : DM_RECV_TX,
                   marginTop: item.imageUrl ? 6 : 0, marginHorizontal: item.imageUrl ? 6 : 0 }}
                   linkColor={mine ? '#13518F' : '#0E4C94'}>{item.body}</LinkText>
               ))}
@@ -1104,6 +1106,8 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
             : (imgViewer.uris || []).map(u => ({ uri: u }))}
           startIndex={imgViewer.index || 0} onClose={() => setImgViewer(null)} allowSave />
       )}
+      {/* DM 링크 앱내 웹뷰 — DM 모달 안에 중첩([[ios-modal-stacking]]). 로그인·결제 등은 시트 상단 '외부로 열기' 폴백. */}
+      <WebSheet visible={!!webUrl} url={webUrl} onClose={() => setWebUrl(null)} />
       <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </View>
   );

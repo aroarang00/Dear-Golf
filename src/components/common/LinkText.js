@@ -7,7 +7,8 @@ import { Text, Linking } from 'react-native';
 const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
 const TRAIL_RE = /[)\]}.,!?;:'"·]+$/;   // 링크 끝에 붙은 문장부호는 링크에서 떼어냄
 
-export function LinkText({ children, style, linkColor = '#1565C0', numberOfLines, onTextLayout }) {
+// onLinkPress(url) 를 주면 그 콜백으로 연다(앱내 웹뷰 등). 없으면 기존대로 시스템 브라우저.
+export function LinkText({ children, style, linkColor = '#1565C0', numberOfLines, onTextLayout, onLinkPress }) {
   const text = typeof children === 'string' ? children : (children == null ? '' : String(children));
   if (!text) return <Text style={style} numberOfLines={numberOfLines} onTextLayout={onTextLayout}>{text}</Text>;
 
@@ -32,6 +33,7 @@ export function LinkText({ children, style, linkColor = '#1565C0', numberOfLines
 
   const open = (raw) => {
     const u = /^www\./i.test(raw) ? `https://${raw}` : raw;
+    if (onLinkPress) { onLinkPress(u); return; } // 앱내 웹뷰 등 커스텀 처리
     Linking.openURL(u).catch(() => {});
   };
 
